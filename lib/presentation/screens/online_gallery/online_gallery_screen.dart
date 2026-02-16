@@ -21,6 +21,7 @@ import '../../providers/selection_mode_provider.dart';
 import '../../widgets/danbooru_login_dialog.dart';
 import '../../widgets/danbooru_post_card.dart';
 import '../../widgets/online_gallery/post_detail_dialog.dart';
+import '../../widgets/virtualized_masonry_grid.dart';
 
 
 /// 在线画廊页面
@@ -805,20 +806,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     final columnCount = (screenWidth / 200).floor().clamp(2, 8);
     final itemWidth = (screenWidth - 24 - (columnCount - 1) * 6) / columnCount;
 
-    return MasonryGridView.count(
-      // PageStorageKey 让 Flutter 自动保存/恢复滚动位置
-      key: PageStorageKey<String>('online_gallery_${state.viewMode.name}'),
-      controller: _scrollController,
-      padding: const EdgeInsets.all(12),
-      crossAxisCount: columnCount,
-      mainAxisSpacing: 6,
-      crossAxisSpacing: 6,
-      itemCount: state.posts.length + (state.hasMore || state.error != null ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index >= state.posts.length) {
-          // 显示错误重试按钮或加载指示器
-          if (state.error != null) {
-            return Center(
+    // 构建尾部加载指示器
+    Widget? footerWidget;
+    if (state.hasMore || state.error != null) {
+      footerWidget = state.error != null
+          ? Center(
               child: TextButton(
                 onPressed: () {
                   ref.read(onlineGalleryNotifierProvider.notifier).loadMore();
@@ -828,16 +820,28 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                   style: TextStyle(color: theme.colorScheme.error),
                 ),
               ),
+            )
+          : const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(),
+              ),
             );
-          }
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
+    }
 
+    return VirtualizedMasonryGrid(
+      // PageStorageKey 让 Flutter 自动保存/恢复滚动位置
+      key: PageStorageKey<String>('online_gallery_${state.viewMode.name}'),
+      controller: _scrollController,
+      padding: const EdgeInsets.all(12),
+      crossAxisCount: columnCount,
+      mainAxisSpacing: 6,
+      crossAxisSpacing: 6,
+      itemCount: state.posts.length,
+      footerWidget: footerWidget,
+      addAutomaticKeepAlives: true,
+      addRepaintBoundaries: true,
+      itemBuilder: (context, index) {
         final post = state.posts[index];
         final isFavorited = state.favoritedPostIds.contains(post.id);
         final selectionState = ref.watch(onlineGallerySelectionNotifierProvider);
