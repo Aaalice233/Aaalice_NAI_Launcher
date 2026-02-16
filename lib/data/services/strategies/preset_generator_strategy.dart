@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import '../../models/prompt/character_count_config.dart';
 import '../../models/prompt/random_category.dart';
 import '../../models/prompt/random_preset.dart';
 import '../../models/prompt/random_tag_group.dart';
@@ -66,6 +67,100 @@ class PresetGeneratorStrategy {
     BracketFormatter? bracketFormatter,
   })  : _weightedSelector = weightedSelector ?? WeightedSelector(),
         _bracketFormatter = bracketFormatter ?? BracketFormatter();
+
+  /// 选择人数类别和标签选项
+  ///
+  /// [config] 人数类别配置
+  /// [random] 随机数生成器
+  ///
+  /// 返回选中的类别和标签选项（标签选项可能为 null）
+  ///
+  /// 示例：
+  /// ```dart
+  /// final strategy = PresetGeneratorStrategy();
+  /// final config = CharacterCountConfig.naiDefault;
+  /// final (category, tagOption) = strategy.selectCharacterCountAndOption(
+  ///   config: config,
+  ///   random: Random(42),
+  /// );
+  /// ```
+  (CharacterCountCategory, CharacterTagOption?) selectCharacterCountAndOption({
+    required CharacterCountConfig config,
+    required Random random,
+  }) {
+    // 获取启用的类别
+    final enabledCategories = config.enabledCategories;
+    if (enabledCategories.isEmpty) {
+      // 无启用类别，返回默认单人
+      return (CharacterCountConfig.naiDefault.categories.first, null);
+    }
+
+    // 按权重选择类别
+    final category = _selectWeightedCategory(enabledCategories, random);
+
+    // 获取启用的标签选项
+    final enabledOptions = category.enabledTagOptions;
+    if (enabledOptions.isEmpty) {
+      return (category, null);
+    }
+
+    // 按权重选择标签选项
+    final tagOption = _selectWeightedTagOption(enabledOptions, random);
+
+    return (category, tagOption);
+  }
+
+  /// 按权重选择人数类别
+  ///
+  /// [categories] 类别列表
+  /// [random] 随机数生成器
+  CharacterCountCategory _selectWeightedCategory(
+    List<CharacterCountCategory> categories,
+    Random random,
+  ) {
+    if (categories.length == 1) return categories.first;
+
+    final totalWeight = categories.fold<int>(0, (sum, c) => sum + c.weight);
+    if (totalWeight <= 0) return categories[random.nextInt(categories.length)];
+
+    final target = random.nextInt(totalWeight) + 1;
+    var cumulative = 0;
+
+    for (final category in categories) {
+      cumulative += category.weight;
+      if (target <= cumulative) {
+        return category;
+      }
+    }
+
+    return categories.last;
+  }
+
+  /// 按权重选择标签选项
+  ///
+  /// [options] 标签选项列表
+  /// [random] 随机数生成器
+  CharacterTagOption _selectWeightedTagOption(
+    List<CharacterTagOption> options,
+    Random random,
+  ) {
+    if (options.length == 1) return options.first;
+
+    final totalWeight = options.fold<int>(0, (sum, o) => sum + o.weight);
+    if (totalWeight <= 0) return options[random.nextInt(options.length)];
+
+    final target = random.nextInt(totalWeight) + 1;
+    var cumulative = 0;
+
+    for (final option in options) {
+      cumulative += option.weight;
+      if (target <= cumulative) {
+        return option;
+      }
+    }
+
+    return options.last;
+  }
 
   /// 从预设生成标签
   ///
