@@ -14,7 +14,7 @@ import '../../../widgets/common/themed_divider.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
-import '../../../../data/models/vibe/vibe_reference_v4.dart';
+import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../../data/services/vibe_file_storage_service.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
 import '../../../providers/image_generation_provider.dart';
@@ -55,7 +55,7 @@ extension VibeLibraryEntryMatching on List<VibeLibraryEntry> {
     return uniqueEntries;
   }
 
-  VibeLibraryEntry? findMatchingEntry(VibeReferenceV4 vibe) {
+  VibeLibraryEntry? findMatchingEntry(VibeReference vibe) {
     if (vibe.vibeEncoding.isNotEmpty) {
       for (final entry in this) {
         if (entry.vibeEncoding.isNotEmpty &&
@@ -246,7 +246,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
   }
 
   /// 构建背景图片
-  Widget _buildBackgroundImage(List<VibeReferenceV4> vibes) {
+  Widget _buildBackgroundImage(List<VibeReference> vibes) {
     if (vibes.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -353,7 +353,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
   Widget _buildLibraryActions(
     BuildContext context,
     ThemeData theme,
-    List<VibeReferenceV4> vibes,
+    List<VibeReference> vibes,
   ) {
     return Row(
       children: [
@@ -755,7 +755,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                 }
               }
 
-              notifier.addVibeReferencesV4(vibes);
+              notifier.addVibeReferences(vibes);
             } catch (e) {
               if (mounted) {
                 AppToast.error(context, 'Failed to parse $fileName: \$e');
@@ -786,20 +786,20 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
       _vibeBundleSources.remove(vibeName);
     }
 
-    notifier.removeVibeReferenceV4(index);
+    notifier.removeVibeReference(index);
     notifier.saveGenerationState();
   }
 
   void _updateVibeStrength(int index, double value) {
     ref
         .read(generationParamsNotifierProvider.notifier)
-        .updateVibeReferenceV4(index, strength: value);
+        .updateVibeReference(index, strength: value);
   }
 
   void _updateVibeInfoExtracted(int index, double value) {
     ref
         .read(generationParamsNotifierProvider.notifier)
-        .updateVibeReferenceV4(index, infoExtracted: value);
+        .updateVibeReference(index, infoExtracted: value);
   }
 
   void _clearAllVibes() {
@@ -807,7 +807,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     final count = params.vibeReferencesV4.length;
 
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
-    notifier.clearVibeReferencesV4();
+    notifier.clearVibeReferences();
     notifier.saveGenerationState();
 
     // 清空 bundle 来源记录
@@ -823,15 +823,15 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
   /// 返回匹配的条目，如果没有找到返回 null
   Future<VibeLibraryEntry?> _findExistingEntry(
     VibeLibraryStorageService storageService,
-    VibeReferenceV4 vibe,
+    VibeReference vibe,
   ) async {
     final allEntries = await storageService.getAllEntries();
     return allEntries.findMatchingEntry(vibe);
   }
 
   /// 立即编码 Vibes（调用 API）
-  Future<List<VibeReferenceV4>?> _encodeVibesNow(
-    List<VibeReferenceV4> vibes,
+  Future<List<VibeReference>?> _encodeVibesNow(
+    List<VibeReference> vibes,
   ) async {
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
     final params = ref.read(generationParamsNotifierProvider);
@@ -858,7 +858,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     );
 
     try {
-      final encodedVibes = <VibeReferenceV4>[];
+      final encodedVibes = <VibeReference>[];
       for (final vibe in vibes) {
         if (vibe.sourceType == VibeSourceType.rawImage &&
             vibe.rawImageData != null) {
@@ -923,7 +923,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
   /// 保存已编码的 Vibes 到库
   /// 会检查库中是否已存在相同的 vibe，如果存在则只更新使用记录
   Future<void> _saveEncodedVibesToLibrary(
-    List<VibeReferenceV4> vibes,
+    List<VibeReference> vibes,
     String baseName,
   ) async {
     final storageService = ref.read(vibeLibraryStorageServiceProvider);
@@ -1173,7 +1173,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
 
       if (result.shouldReplace) {
         // 替换模式：清除现有并添加新的
-        notifier.clearVibeReferencesV4();
+        notifier.clearVibeReferences();
       }
 
       // 处理每个选中的条目（支持 bundle 展开）
@@ -1196,7 +1196,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
               .toSet();
           if (!existingNames.contains(entry.displayName)) {
             final vibe = entry.toVibeReference();
-            notifier.addVibeReferencesV4([vibe]);
+            notifier.addVibeReferences([vibe]);
             totalAdded++;
           }
         }
@@ -1246,7 +1246,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
 
     try {
       final fileStorage = VibeFileStorageService();
-      final extractedVibes = <VibeReferenceV4>[];
+      final extractedVibes = <VibeReference>[];
 
       for (int i = 0;
           i < entry.bundledVibeCount.clamp(0, availableSlots);
@@ -1260,7 +1260,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
         for (final vibe in extractedVibes) {
           _vibeBundleSources[vibe.displayName] = entry.displayName;
         }
-        notifier.addVibeReferencesV4(extractedVibes);
+        notifier.addVibeReferences(extractedVibes);
 
         if (showToast && mounted) {
           AppToast.success(context, '已添加 ${extractedVibes.length} 个 Vibe');
@@ -1291,7 +1291,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     }
 
     final vibe = entry.toVibeReference();
-    notifier.addVibeReferencesV4([vibe]);
+    notifier.addVibeReferences([vibe]);
 
     // 更新使用统计
     final storageService = ref.read(vibeLibraryStorageServiceProvider);
@@ -1323,7 +1323,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
 
     // 添加 Vibe 到生成参数
     final vibe = entry.toVibeReference();
-    notifier.addVibeReferencesV4([vibe]);
+    notifier.addVibeReferences([vibe]);
 
     // 更新使用统计
     final storageService = ref.read(vibeLibraryStorageServiceProvider);
@@ -1400,7 +1400,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     ThemeData theme,
     ImageParams params,
     bool hasVibes,
-    List<VibeReferenceV4> vibes,
+    List<VibeReference> vibes,
     bool showBackground,
   ) {
     return DragTarget<VibeLibraryEntry>(
@@ -1479,7 +1479,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
 /// Vibe 卡片组件
 class _VibeCard extends StatelessWidget {
   final int index;
-  final VibeReferenceV4 vibe;
+  final VibeReference vibe;
   final String? bundleSource;
   final VoidCallback onRemove;
   final ValueChanged<double> onStrengthChanged;

@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
-import '../../data/models/vibe/vibe_reference_v4.dart';
+import '../../data/models/vibe/vibe_reference.dart';
 
 class VibeImageEmbedder {
   static const List<int> _pngSignature = <int>[
@@ -23,7 +23,7 @@ class VibeImageEmbedder {
 
   static Future<Uint8List> embedVibeToImage(
     Uint8List imageBytes,
-    VibeReferenceV4 vibeReference,
+    VibeReference vibeReference,
   ) async {
     return Future<Uint8List>(() {
       try {
@@ -74,10 +74,10 @@ class VibeImageEmbedder {
     });
   }
 
-  static Future<VibeReferenceV4> extractVibeFromImage(
+  static Future<VibeReference> extractVibeFromImage(
     Uint8List imageBytes,
   ) async {
-    return Future<VibeReferenceV4>(() {
+    return Future<VibeReference>(() {
       try {
         final decoder = img.PngDecoder();
         if (!decoder.isValidFile(imageBytes) ||
@@ -184,7 +184,7 @@ class VibeImageEmbedder {
     return keyword == _vibeKeyword;
   }
 
-  static Map<String, dynamic> _buildMetadataPayload(VibeReferenceV4 reference) {
+  static Map<String, dynamic> _buildMetadataPayload(VibeReference reference) {
     return <String, dynamic>{
       'version': _metadataVersion,
       'type': _metadataType,
@@ -227,7 +227,7 @@ class VibeImageEmbedder {
     }
   }
 
-  static VibeReferenceV4 _payloadToVibeReference(Map<String, dynamic> payload) {
+  static VibeReference _payloadToVibeReference(Map<String, dynamic> payload) {
     final dynamic dataRaw = payload['data'];
     if (dataRaw is! Map<String, dynamic>) {
       throw VibeExtractException('Vibe metadata is missing data section');
@@ -244,7 +244,7 @@ class VibeImageEmbedder {
         _parseDouble(dataRaw['infoExtracted'], 0.7).clamp(0.0, 1.0).toDouble();
     final sourceType = _parseSourceType(dataRaw['sourceType'], vibeEncoding);
 
-    return VibeReferenceV4(
+    return VibeReference(
       displayName: displayName,
       vibeEncoding: vibeEncoding,
       strength: strength,

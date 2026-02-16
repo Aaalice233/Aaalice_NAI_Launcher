@@ -104,10 +104,14 @@ class _DataSourceCacheSettingsState
             size: 28,
           ),
         ),
-        title: const Text('清除标签补全数据源'),
+        title: const Text('清除标签数据源'),
         content: Text(
-          '确定要清除 Danbooru 标签缓存吗？\n\n'
-          '这将删除已下载的标签补全数据，清除后需要重新同步。',
+          '确定要清除所有标签数据源吗？\n\n'
+          '这将删除以下数据：\n'
+          '• Danbooru 标签补全数据\n'
+          '• 中英文标签翻译\n'
+          '• 标签共现关系\n\n'
+          '清除后下次启动时将自动重建数据库并恢复内置数据。',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),

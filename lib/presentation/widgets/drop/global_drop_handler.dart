@@ -18,7 +18,7 @@ import '../../../data/models/character/character_prompt.dart' as char;
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/metadata/metadata_import_options.dart';
 import '../../../data/models/queue/replication_task.dart';
-import '../../../data/models/vibe/vibe_reference_v4.dart';
+import '../../../data/models/vibe/vibe_reference.dart';
 import '../../../data/services/vibe_metadata_service.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
@@ -262,7 +262,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         destination, fileName, bytes, detectedVibe, notifier, l10n,);
   }
 
-  Future<VibeReferenceV4?> _detectVibeMetadata(
+  Future<VibeReference?> _detectVibeMetadata(
       String fileName, Uint8List bytes,) async {
     if (!fileName.toLowerCase().endsWith('.png')) return null;
 
@@ -286,7 +286,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     ImageDestination destination,
     String fileName,
     Uint8List bytes,
-    VibeReferenceV4? detectedVibe,
+    VibeReference? detectedVibe,
     GenerationParamsNotifier notifier,
     AppLocalizations l10n,
   ) async {
@@ -363,7 +363,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
                 sourceType: VibeSourceType.rawImage,
               )
             : vibe;
-        notifier.addVibeReferenceV4(vibeToAdd);
+        notifier.addVibeReference(vibeToAdd);
       }
 
       if (mounted) {
@@ -389,7 +389,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
   }
 
   Future<void> _handleVibeReuse(
-    VibeReferenceV4 vibe,
+    VibeReference vibe,
     GenerationParamsNotifier notifier,
     AppLocalizations l10n,
   ) async {
@@ -403,7 +403,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       return;
     }
 
-    notifier.addVibeReferenceV4(vibe);
+    notifier.addVibeReference(vibe);
 
     if (mounted) {
       final message = currentState.vibeReferencesV4.isNotEmpty

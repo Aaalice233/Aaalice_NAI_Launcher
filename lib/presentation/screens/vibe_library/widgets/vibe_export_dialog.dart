@@ -9,7 +9,7 @@ import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/vibe_export_utils.dart';
 import '../../../../data/models/vibe/vibe_library_category.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
-import '../../../../data/models/vibe/vibe_reference_v4.dart';
+import '../../../../data/models/vibe/vibe_reference.dart';
 
 import '../../../widgets/common/app_toast.dart';
 
@@ -877,7 +877,7 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
       _progressMessage = '正在打包 ${entries.length} 个 Vibe...';
     });
 
-    // 转换为 VibeReferenceV4 列表
+    // 转换为 VibeReference 列表
     final vibes = entries.map((e) => e.toVibeReference()).toList();
 
     setState(() {

@@ -4,17 +4,17 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
 
-import '../../data/models/vibe/vibe_reference_v4.dart';
+import '../../data/models/vibe/vibe_reference.dart';
 import 'app_logger.dart';
 
 /// Vibe 导出工具类
 ///
-/// 用于将 VibeReferenceV4 导出为 .naiv4vibe 格式文件
+/// 用于将 VibeReference 导出为 .naiv4vibe 格式文件
 class VibeExportUtils {
   static const String _identifier = 'novelai-vibe-transfer';
   static const int _version = 1;
 
-  /// 导出 VibeReferenceV4 为 .naiv4vibe 文件
+  /// 导出 VibeReference 为 .naiv4vibe 文件
   ///
   /// [vibe] 要导出的 Vibe 参考对象
   /// [name] 显示名称（可选，默认使用 vibe.displayName）
@@ -22,7 +22,7 @@ class VibeExportUtils {
   ///
   /// 返回：导出成功返回文件路径，失败返回 null
   static Future<String?> exportToNaiv4Vibe(
-    VibeReferenceV4 vibe, {
+    VibeReference vibe, {
     String? name,
     String defaultModel = 'nai-diffusion-4-full',
   }) async {
@@ -78,7 +78,7 @@ class VibeExportUtils {
   ///
   /// 返回：导出成功返回文件路径，失败返回 null
   static Future<String?> exportToNaiv4VibeBundle(
-    List<VibeReferenceV4> vibes,
+    List<VibeReference> vibes,
     String bundleName,
   ) async {
     try {
@@ -118,7 +118,7 @@ class VibeExportUtils {
 
   /// 生成 .naiv4vibe JSON 数据
   static Future<String> _generateNaiv4VibeJson(
-    VibeReferenceV4 vibe, {
+    VibeReference vibe, {
     String? name,
     String defaultModel = 'nai-diffusion-4-full',
   }) async {
@@ -185,7 +185,7 @@ class VibeExportUtils {
 
   /// 生成 bundle JSON 数据
   static Future<String> _generateBundleJson(
-    List<VibeReferenceV4> vibes,
+    List<VibeReference> vibes,
   ) async {
     final vibeEntries = <Map<String, dynamic>>[];
 
@@ -216,7 +216,7 @@ class VibeExportUtils {
   /// 根据 vibe_file_parser.dart 的 fromBundle 解析逻辑，
   /// bundle 条目只需要：name、importInfo.strength、encodings
   static Future<Map<String, dynamic>> _generateBundleEntry(
-    VibeReferenceV4 vibe,
+    VibeReference vibe,
   ) async {
     // 构建 encodings 结构
     final Map<String, dynamic> encodings;
@@ -243,7 +243,7 @@ class VibeExportUtils {
   }
 
   /// 生成缩略图的 base64（如果没有缩略图，尝试生成一个）
-  static Future<String?> _generateThumbnailBase64(VibeReferenceV4 vibe) async {
+  static Future<String?> _generateThumbnailBase64(VibeReference vibe) async {
     // 如果已有缩略图，直接使用
     if (vibe.thumbnail != null && vibe.thumbnail!.isNotEmpty) {
       return base64Encode(vibe.thumbnail!);
@@ -259,14 +259,14 @@ class VibeExportUtils {
   }
 
   /// 检查 Vibe 是否有可导出的数据
-  static bool _hasExportableData(VibeReferenceV4 vibe) {
+  static bool _hasExportableData(VibeReference vibe) {
     return vibe.vibeEncoding.isNotEmpty ||
         (vibe.rawImageData != null && vibe.rawImageData!.isNotEmpty) ||
         (vibe.thumbnail != null && vibe.thumbnail!.isNotEmpty);
   }
 
   /// 生成唯一 ID (SHA256)
-  static String _generateId(VibeReferenceV4 vibe) {
+  static String _generateId(VibeReference vibe) {
     final data = <int>[];
 
     // 使用 vibe 编码或图片数据生成 ID

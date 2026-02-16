@@ -9,7 +9,7 @@ import '../../core/utils/vibe_export_utils.dart';
 import '../../core/utils/vibe_file_parser.dart';
 import '../../core/utils/vibe_library_path_helper.dart';
 import '../models/vibe/vibe_library_entry.dart';
-import '../models/vibe/vibe_reference_v4.dart';
+import '../models/vibe/vibe_reference.dart';
 
 class VibeFolderSyncResult {
   const VibeFolderSyncResult({
@@ -37,7 +37,7 @@ class VibeFileStorageService {
 
   /// 保存单个 Vibe 到 .naiv4vibe 文件
   Future<String> saveVibeToFile(
-    VibeReferenceV4 vibe, {
+    VibeReference vibe, {
     String? customName,
     String defaultModel = 'nai-diffusion-4-full',
   }) async {
@@ -67,7 +67,7 @@ class VibeFileStorageService {
 
   /// 保存多个 Vibe 到 .naiv4vibebundle 文件
   Future<String> saveBundleToFile(
-    List<VibeReferenceV4> vibes, {
+    List<VibeReference> vibes, {
     String? bundleName,
   }) async {
     if (vibes.isEmpty) {
@@ -97,7 +97,7 @@ class VibeFileStorageService {
   /// 从文件读取 Vibe 数据
   ///
   /// 对 bundle 文件返回第一个可用 Vibe。
-  Future<VibeReferenceV4?> loadVibeFromFile(String filePath) async {
+  Future<VibeReference?> loadVibeFromFile(String filePath) async {
     try {
       final file = File(filePath);
       if (!await file.exists()) {
@@ -175,7 +175,7 @@ class VibeFileStorageService {
   }
 
   /// 从 bundle 中提取单个 vibe
-  Future<VibeReferenceV4?> extractVibeFromBundle(String bundlePath, int index) async {
+  Future<VibeReference?> extractVibeFromBundle(String bundlePath, int index) async {
     try {
       final file = File(bundlePath);
       if (!await file.exists()) {
@@ -391,7 +391,7 @@ class VibeFileStorageService {
   VibeLibraryEntry _buildBundleEntry(
     String filePath,
     String fileName,
-    List<VibeReferenceV4> references,
+    List<VibeReference> references,
   ) {
     final firstVibe = references.first;
 
@@ -407,7 +407,7 @@ class VibeFileStorageService {
   VibeLibraryEntry _buildSingleEntry(
     String filePath,
     String fileName,
-    VibeReferenceV4 reference,
+    VibeReference reference,
   ) {
     return VibeLibraryEntry.fromVibeReference(
       name: fileName,
@@ -495,7 +495,7 @@ class VibeFileStorageService {
   }
 
   String _buildNaiv4VibeJson(
-    VibeReferenceV4 vibe, {
+    VibeReference vibe, {
     required String displayName,
     required String defaultModel,
   }) {
@@ -543,7 +543,7 @@ class VibeFileStorageService {
     return const JsonEncoder.withIndent('  ').convert(data);
   }
 
-  String _buildBundleJson(List<VibeReferenceV4> vibes) {
+  String _buildBundleJson(List<VibeReference> vibes) {
     final entries = vibes.map((vibe) {
       final data = <String, dynamic>{
         'name': vibe.displayName,

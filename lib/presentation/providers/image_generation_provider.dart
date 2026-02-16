@@ -503,7 +503,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       if (encoding.isNotEmpty) {
         ref
             .read(generationParamsNotifierProvider.notifier)
-            .updateVibeReferenceV4(index, vibeEncoding: encoding);
+            .updateVibeReference(index, vibeEncoding: encoding);
         AppLogger.d(
           'Saved Vibe encoding for index $index (hash length: ${encoding.length})',
           'Generation',

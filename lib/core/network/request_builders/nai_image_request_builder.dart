@@ -7,7 +7,7 @@ import '../../enums/precise_ref_type.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/nai_api_utils.dart';
 import '../../../data/models/image/image_params.dart';
-import '../../../data/models/vibe/vibe_reference_v4.dart';
+import '../../../data/models/vibe/vibe_reference.dart';
 
 typedef EncodeVibeFn = Future<String> Function(
   Uint8List image, {

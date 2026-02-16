@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/vibe_file_parser.dart';
-import '../models/vibe/vibe_reference_v4.dart';
+import '../models/vibe/vibe_reference.dart';
 
 /// Vibe 元数据服务
 ///
@@ -17,8 +17,8 @@ class VibeMetadataService {
   /// [image] - PNG 图片字节数据
   /// [defaultStrength] - 默认强度值 (0-1)
   ///
-  /// 返回提取的 VibeReferenceV4，如果提取失败则返回 null
-  Future<VibeReferenceV4?> extractVibeFromImage(
+  /// 返回提取的 VibeReference，如果提取失败则返回 null
+  Future<VibeReference?> extractVibeFromImage(
     Uint8List image, {
     double defaultStrength = 0.6,
   }) async {
@@ -59,8 +59,8 @@ class VibeMetadataService {
   /// [filePath] - PNG 文件路径
   /// [defaultStrength] - 默认强度值 (0-1)
   ///
-  /// 返回提取的 VibeReferenceV4，如果文件不存在或提取失败则返回 null
-  Future<VibeReferenceV4?> extractVibeFromFile(
+  /// 返回提取的 VibeReference，如果文件不存在或提取失败则返回 null
+  Future<VibeReference?> extractVibeFromFile(
     String filePath, {
     double defaultStrength = 0.6,
   }) async {

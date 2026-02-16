@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../data/models/vibe/vibe_reference_v4.dart';
+import '../../../data/models/vibe/vibe_reference.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../widgets/common/themed_divider.dart';
@@ -47,7 +47,7 @@ class ImageDestinationDialog extends ConsumerWidget {
   final bool showExtractMetadata;
 
   /// 检测到的 Vibe 元数据（如果有）
-  final VibeReferenceV4? detectedVibe;
+  final VibeReference? detectedVibe;
 
   const ImageDestinationDialog({
     super.key,
@@ -63,7 +63,7 @@ class ImageDestinationDialog extends ConsumerWidget {
     required Uint8List imageBytes,
     required String fileName,
     bool showExtractMetadata = true,
-    VibeReferenceV4? detectedVibe,
+    VibeReference? detectedVibe,
   }) {
     return showDialog<ImageDestination>(
       context: context,

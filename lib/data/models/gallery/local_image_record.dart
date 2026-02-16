@@ -1,7 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 
-import '../vibe/vibe_reference_v4.dart';
+import '../vibe/vibe_reference.dart';
 import 'nai_image_metadata.dart';
 
 part 'local_image_record.freezed.dart';
@@ -28,7 +28,7 @@ class LocalImageRecord with _$LocalImageRecord {
     MetadataStatus metadataStatus, // 元数据状态
     @HiveField(5) @Default(false) bool isFavorite, // 是否收藏
     @HiveField(6) @Default([]) List<String> tags, // 标签列表
-    @HiveField(7) VibeReferenceV4? vibeData, // Vibe 参考数据
+    @HiveField(7) VibeReference? vibeData, // Vibe 参考数据
     @HiveField(8) @Default(false) bool hasVibeMetadata, // 是否有 Vibe 元数据
   }) = _LocalImageRecord;
 

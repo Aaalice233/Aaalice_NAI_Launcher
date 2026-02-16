@@ -3,7 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../../../../data/models/vibe/vibe_library_entry.dart';
-import '../../../../../data/models/vibe/vibe_reference_v4.dart';
+import '../../../../../data/models/vibe/vibe_reference.dart';
 import '../../../../themes/design_tokens.dart';
 import '../../../../widgets/common/animated_favorite_button.dart';
 

@@ -9,7 +9,7 @@ import '../../core/utils/app_logger.dart';
 import '../../core/utils/hive_storage_helper.dart';
 import '../../core/utils/vibe_library_path_helper.dart';
 import '../models/vibe/vibe_library_entry.dart';
-import '../models/vibe/vibe_reference_v4.dart';
+import '../models/vibe/vibe_reference.dart';
 import 'vibe_file_storage_service.dart';
 
 typedef ProgressCallback = void Function(VibeLibraryMigrationProgress progress);
@@ -368,7 +368,7 @@ class VibeLibraryMigrationService {
     final vibePath = await VibeLibraryPathHelper.instance.getPath();
     await VibeLibraryPathHelper.instance.ensurePathExists(vibePath);
 
-    final vibe = VibeReferenceV4(
+    final vibe = VibeReference(
       displayName:
           entry.vibeDisplayName.isEmpty ? entry.name : entry.vibeDisplayName,
       vibeEncoding: entry.vibeEncoding,

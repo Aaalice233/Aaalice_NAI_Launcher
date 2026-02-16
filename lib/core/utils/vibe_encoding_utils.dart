@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import '../../data/models/vibe/vibe_reference_v4.dart';
+import '../../data/models/vibe/vibe_reference.dart';
 
 class VibeEncodingUtils {
   static const String _type = 'naiv4vibe';
@@ -12,25 +12,25 @@ class VibeEncodingUtils {
 
   static const int _maxPayloadLength = 2 * 1024 * 1024;
 
-  static String encodeToJson(VibeReferenceV4 vibe) {
+  static String encodeToJson(VibeReference vibe) {
     final payload = _buildPayload(vibe, encoding: _encodingJson);
     return const JsonEncoder.withIndent('  ').convert(payload);
   }
 
-  static String encodeToBase64(VibeReferenceV4 vibe) {
+  static String encodeToBase64(VibeReference vibe) {
     final payload = _buildPayload(vibe, encoding: _encodingBase64);
     final jsonString = jsonEncode(payload);
     return base64Encode(utf8.encode(jsonString));
   }
 
-  static String encodeToUrlSafeBase64(VibeReferenceV4 vibe) {
+  static String encodeToUrlSafeBase64(VibeReference vibe) {
     final payload = _buildPayload(vibe, encoding: _encodingBase64Url);
     final jsonString = jsonEncode(payload);
     final encoded = base64UrlEncode(utf8.encode(jsonString));
     return encoded.replaceAll('=', '');
   }
 
-  static VibeReferenceV4 decode(String encoded) {
+  static VibeReference decode(String encoded) {
     try {
       final payload = _parsePayload(encoded);
       final data = _asMap(payload['data'], fieldName: 'data');
@@ -45,7 +45,7 @@ class VibeEncodingUtils {
           .toDouble();
       final sourceType = _parseSourceType(data['sourceType'], vibeEncoding);
 
-      return VibeReferenceV4(
+      return VibeReference(
         displayName: displayName,
         vibeEncoding: vibeEncoding,
         strength: strength,
@@ -71,7 +71,7 @@ class VibeEncodingUtils {
   }
 
   static Map<String, dynamic> _buildPayload(
-    VibeReferenceV4 vibe, {
+    VibeReference vibe, {
     required String encoding,
   }) {
     if (vibe.displayName.trim().isEmpty) {

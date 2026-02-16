@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-part 'vibe_reference_v4.freezed.dart';
+part 'vibe_reference.freezed.dart';
 
 /// Vibe 数据来源类型
 enum VibeSourceType {
@@ -47,8 +47,8 @@ extension VibeSourceTypeExtension on VibeSourceType {
 /// 1. 预编码模式: 从 PNG iTXt 或 .naiv4vibe 文件中提取的 Base64 编码数据
 /// 2. 原始图片模式: 需要服务端编码，消耗 2 Anlas/张
 @freezed
-class VibeReferenceV4 with _$VibeReferenceV4 {
-  const factory VibeReferenceV4({
+class VibeReference with _$VibeReference {
+  const factory VibeReference({
     /// 显示名称 (文件名或从 JSON 提取)
     required String displayName,
 
@@ -73,5 +73,5 @@ class VibeReferenceV4 with _$VibeReferenceV4 {
 
     /// 数据来源类型
     @Default(VibeSourceType.rawImage) VibeSourceType sourceType,
-  }) = _VibeReferenceV4;
+  }) = _VibeReference;
 }

@@ -1072,10 +1072,8 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     }
 
     // 添加选中的Vibe到生成参数
-    for (final entry in selectedEntries) {
-      final vibeRef = entry.toVibeReference();
-      paramsNotifier.addVibeReferenceV4(vibeRef);
-    }
+    final vibes = selectedEntries.map((e) => e.toVibeReference()).toList();
+    paramsNotifier.addVibeReferences(vibes);
 
     // 显示成功提示
     if (mounted) {
@@ -2686,7 +2684,7 @@ class _VibeLibraryContentViewState
       return;
     }
 
-    paramsNotifier.addVibeReferenceV4(entry.toVibeReference());
+    paramsNotifier.addVibeReferences([entry.toVibeReference()]);
     ref.read(vibeLibraryNotifierProvider.notifier).recordUsage(entry.id);
     AppToast.success(context, '已发送到生成页面: ${entry.displayName}');
     context.go(AppRoutes.home);
@@ -2713,7 +2711,7 @@ class _VibeLibraryContentViewState
           infoExtracted: infoExtracted,
         );
 
-    paramsNotifier.addVibeReferenceV4(vibeRef);
+    paramsNotifier.addVibeReferences([vibeRef]);
     ref.read(vibeLibraryNotifierProvider.notifier).recordUsage(entry.id);
     AppToast.success(context, '已发送到生成页面: ${entry.displayName}');
     context.go(AppRoutes.home);

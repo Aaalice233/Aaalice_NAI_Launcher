@@ -1095,7 +1095,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
           ref.read(generationParamsNotifierProvider.notifier);
 
       // 添加 vibe 到生成参数
-      paramsNotifier.addVibeReferenceV4(vibeData);
+      paramsNotifier.addVibeReferences([vibeData]);
 
       if (mounted) {
         AppToast.success(

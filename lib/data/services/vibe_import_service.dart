@@ -8,7 +8,7 @@ import '../../core/utils/app_logger.dart';
 import '../../core/utils/vibe_file_parser.dart';
 import '../../core/utils/vibe_image_embedder.dart';
 import '../models/vibe/vibe_library_entry.dart';
-import '../models/vibe/vibe_reference_v4.dart';
+import '../models/vibe/vibe_reference.dart';
 
 typedef ImportProgressCallback = void Function(
   int current,
@@ -24,7 +24,7 @@ typedef VibeNamingCallback = Future<String?> Function(
 
 typedef BundleImportOptionCallback = Future<BundleImportOption?> Function(
   String bundleName,
-  List<VibeReferenceV4> vibes,
+  List<VibeReference> vibes,
 );
 
 class BundleImportOption {
@@ -365,7 +365,7 @@ class VibeImportService {
     return File(path).readAsBytes();
   }
 
-  Future<List<VibeReferenceV4>> _parseEncodingItem(
+  Future<List<VibeReference>> _parseEncodingItem(
     VibeEncodingImportItem item,
   ) async {
     final normalized = item.encoding.trim();
@@ -392,12 +392,12 @@ class VibeImportService {
         vibeBytes,
         defaultStrength: item.defaultStrength,
       );
-      return <VibeReferenceV4>[single];
+      return <VibeReference>[single];
     }
 
     final displayName = item.displayName ?? item.source;
-    return <VibeReferenceV4>[
-      VibeReferenceV4(
+    return <VibeReference>[
+      VibeReference(
         displayName: displayName,
         vibeEncoding: normalized,
         strength: item.defaultStrength,
@@ -431,7 +431,7 @@ class VibeImportService {
 
   Future<List<_ParsedSource>> _prepareFileSources({
     required String fileName,
-    required List<VibeReferenceV4> references,
+    required List<VibeReference> references,
     required BundleImportOptionCallback? onBundleOption,
   }) async {
     if (references.isEmpty) {
@@ -489,7 +489,7 @@ class VibeImportService {
         .toList();
   }
 
-  bool _isBundleFile(String fileName, List<VibeReferenceV4> references) {
+  bool _isBundleFile(String fileName, List<VibeReference> references) {
     final lowerName = fileName.toLowerCase();
     if (lowerName.endsWith('.naiv4vibebundle')) {
       return true;
@@ -537,13 +537,13 @@ class VibeImportService {
   }
 
   VibeLibraryEntry _buildEntry(
-    VibeReferenceV4 reference, {
+    VibeReference reference, {
     required String name,
     required String? categoryId,
     required List<String>? tags,
     required VibeLibraryEntry? conflictEntry,
     required ConflictResolution strategy,
-    List<VibeReferenceV4>? bundledReferences,
+    List<VibeReference>? bundledReferences,
     String? bundleFileName,
   }) {
     final tagsToUse = tags ?? const <String>[];
@@ -624,8 +624,8 @@ class _ParsedSource {
   });
 
   final String source;
-  final VibeReferenceV4 reference;
+  final VibeReference reference;
   final String? preferredName;
-  final List<VibeReferenceV4>? bundledReferences;
+  final List<VibeReference>? bundledReferences;
   final String? bundleFileName;
 }

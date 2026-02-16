@@ -4,7 +4,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 
-import 'vibe_reference_v4.dart';
+import 'vibe_reference.dart';
 
 part 'vibe_library_entry.freezed.dart';
 part 'vibe_library_entry.g.dart';
@@ -80,10 +80,10 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
     @HiveField(19) List<Uint8List>? bundledVibePreviews,
   }) = _VibeLibraryEntry;
 
-  /// 从 VibeReferenceV4 创建库条目
+  /// 从 VibeReference 创建库条目
   factory VibeLibraryEntry.fromVibeReference({
     required String name,
-    required VibeReferenceV4 vibeData,
+    required VibeReference vibeData,
     String? categoryId,
     List<String>? tags,
     Uint8List? thumbnail,
@@ -142,9 +142,9 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
     );
   }
 
-  /// 转换为 VibeReferenceV4
-  VibeReferenceV4 toVibeReference() {
-    return VibeReferenceV4(
+  /// 转换为 VibeReference
+  VibeReference toVibeReference() {
+    return VibeReference(
       displayName: vibeDisplayName,
       vibeEncoding: vibeEncoding,
       thumbnail: vibeThumbnail,
@@ -219,8 +219,8 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
     );
   }
 
-  /// 从 VibeReferenceV4 更新 vibe 数据
-  VibeLibraryEntry updateVibeData(VibeReferenceV4 vibeData) {
+  /// 从 VibeReference 更新 vibe 数据
+  VibeLibraryEntry updateVibeData(VibeReference vibeData) {
     return copyWith(
       vibeDisplayName: vibeData.displayName,
       vibeEncoding: vibeData.vibeEncoding,

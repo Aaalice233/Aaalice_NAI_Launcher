@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:png_chunks_extract/png_chunks_extract.dart' as png_extract;
 
-import '../../data/models/vibe/vibe_reference_v4.dart';
+import '../../data/models/vibe/vibe_reference.dart';
 import 'app_logger.dart';
 
 /// Vibe 文件解析器
@@ -33,7 +33,7 @@ class VibeFileParser {
   /// 支持智能检测：
   /// - 文件名包含 .naiv4vibebundle 但扩展名为 .png 时，优先尝试 bundle 解析
   /// - PNG 文件如果 iTXt 解析失败，尝试检测是否包含 JSON bundle 数据
-  static Future<List<VibeReferenceV4>> parseFile(
+  static Future<List<VibeReference>> parseFile(
     String fileName,
     Uint8List bytes, {
     double defaultStrength = 0.6,
@@ -91,7 +91,7 @@ class VibeFileParser {
         // 其他图片格式作为原始图片处理
         if (_imageExtensions.contains(extension)) {
           return [
-            VibeReferenceV4(
+            VibeReference(
               displayName: fileName,
               vibeEncoding: '',
               thumbnail: bytes,
@@ -110,7 +110,7 @@ class VibeFileParser {
   /// 尝试从 iTXt 块中提取预编码的 Vibe 数据
   /// 如果没有找到，尝试检测是否包含 JSON bundle 数据（Embed Into Image 格式）
   /// 如果都没有找到，则作为原始图片处理
-  static Future<VibeReferenceV4> fromPng(
+  static Future<VibeReference> fromPng(
     String fileName,
     Uint8List bytes, {
     double defaultStrength = 0.6,
@@ -136,7 +136,7 @@ class VibeFileParser {
 
       if (vibeEncoding != null && vibeEncoding.isNotEmpty) {
         // 找到预编码数据 - 使用png类型（isPreEncoded = true）
-        return VibeReferenceV4(
+        return VibeReference(
           displayName: fileName,
           vibeEncoding: vibeEncoding,
           thumbnail: bytes,
@@ -181,7 +181,7 @@ class VibeFileParser {
               strength = (importInfo['strength'] as num).toDouble();
             }
             
-            return VibeReferenceV4(
+            return VibeReference(
               displayName: name,
               vibeEncoding: extractedEncoding,
               thumbnail: bytes,
@@ -204,7 +204,7 @@ class VibeFileParser {
         'VibeParser',
       );
 
-      return VibeReferenceV4(
+      return VibeReference(
         displayName: fileName,
         vibeEncoding: '',
         thumbnail: bytes,
@@ -222,7 +222,7 @@ class VibeFileParser {
         'VibeParser',
       );
 
-      return VibeReferenceV4(
+      return VibeReference(
         displayName: fileName,
         vibeEncoding: '',
         thumbnail: bytes,
@@ -336,7 +336,7 @@ class VibeFileParser {
   }
 
   /// 从 .naiv4vibe 文件解析 Vibe 参考
-  static Future<VibeReferenceV4> fromNaiV4Vibe(
+  static Future<VibeReference> fromNaiV4Vibe(
     String fileName,
     Uint8List bytes, {
     double defaultStrength = 0.6,
@@ -357,7 +357,7 @@ class VibeFileParser {
       );
     }
 
-    return VibeReferenceV4(
+    return VibeReference(
       displayName: name,
       vibeEncoding: vibeEncoding,
       thumbnail: null,
@@ -367,7 +367,7 @@ class VibeFileParser {
   }
 
   /// 从 .naiv4vibebundle 文件解析多个 Vibe 参考
-  static Future<List<VibeReferenceV4>> fromBundle(
+  static Future<List<VibeReference>> fromBundle(
     String fileName,
     Uint8List bytes, {
     double defaultStrength = 0.6,
@@ -376,7 +376,7 @@ class VibeFileParser {
     final bundleData = jsonDecode(jsonString) as Map<String, dynamic>;
     final vibesList = bundleData['vibes'] as List<dynamic>? ?? [];
 
-    final results = <VibeReferenceV4>[];
+    final results = <VibeReference>[];
 
     for (var i = 0; i < vibesList.length; i++) {
       try {
@@ -390,7 +390,7 @@ class VibeFileParser {
         final vibeEncoding = _extractEncodingFromJson(vibeJson);
         if (vibeEncoding != null) {
           results.add(
-            VibeReferenceV4(
+            VibeReference(
               displayName: name,
               vibeEncoding: vibeEncoding,
               thumbnail: null,

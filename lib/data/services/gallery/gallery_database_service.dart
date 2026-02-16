@@ -10,7 +10,7 @@ import '../../../core/utils/app_logger.dart';
 import '../../../core/services/sqflite_bootstrap_service.dart';
 import '../../models/gallery/local_image_record.dart';
 import '../../models/gallery/nai_image_metadata.dart';
-import '../../models/vibe/vibe_reference_v4.dart';
+import '../../models/vibe/vibe_reference.dart';
 import '../vibe_metadata_service.dart';
 import 'gallery_database_schema.dart';
 
@@ -896,8 +896,8 @@ class GalleryDatabaseService {
   /// 更新图片的 Vibe 数据
   ///
   /// [imageId] - 图片ID
-  /// [vibe] - VibeReferenceV4 对象，如果为 null 则清除 Vibe 数据
-  Future<void> updateItemVibeData(int imageId, VibeReferenceV4? vibe) async {
+  /// [vibe] - VibeReference 对象，如果为 null 则清除 Vibe 数据
+  Future<void> updateItemVibeData(int imageId, VibeReference? vibe) async {
     await database.update(
       'metadata',
       {
@@ -1053,7 +1053,7 @@ class GalleryDatabaseService {
   }
 
   /// 获取图片的 Vibe 数据
-  Future<VibeReferenceV4?> getVibeData(int imageId) async {
+  Future<VibeReference?> getVibeData(int imageId) async {
     final result = await database.query(
       'metadata',
       columns: [
@@ -1079,7 +1079,7 @@ class GalleryDatabaseService {
       orElse: () => VibeSourceType.png,
     );
 
-    return VibeReferenceV4(
+    return VibeReference(
       displayName: '', // 从图片文件名获取更好，但这里没有
       vibeEncoding: encoding,
       strength: (row['vibe_strength'] as num?)?.toDouble() ?? 0.6,
@@ -1190,7 +1190,7 @@ class GalleryDatabaseService {
   }
 
   /// 从数据库行解析 Vibe 数据
-  VibeReferenceV4? _parseVibeData(Map<String, dynamic> row) {
+  VibeReference? _parseVibeData(Map<String, dynamic> row) {
     if (row['has_vibe'] != 1) return null;
 
     final encoding = row['vibe_encoding'] as String?;
@@ -1202,7 +1202,7 @@ class GalleryDatabaseService {
       orElse: () => VibeSourceType.png,
     );
 
-    return VibeReferenceV4(
+    return VibeReference(
       displayName: row['file_name'] as String? ?? '',
       vibeEncoding: encoding,
       strength: (row['vibe_strength'] as num?)?.toDouble() ?? 0.6,

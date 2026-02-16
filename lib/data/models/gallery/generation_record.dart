@@ -5,7 +5,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 
-import '../vibe/vibe_reference_v4.dart';
+import '../vibe/vibe_reference.dart';
 
 part 'generation_record.freezed.dart';
 part 'generation_record.g.dart';
@@ -100,7 +100,7 @@ class GenerationRecord with _$GenerationRecord {
     /// Vibe 参考数据 (Hive 专用，不序列化为 JSON)
     @HiveField(10)
     @JsonKey(includeFromJson: false, includeToJson: false)
-    VibeReferenceV4? vibeData,
+    VibeReference? vibeData,
 
     /// 是否有 Vibe 元数据
     @HiveField(11) @Default(false) bool hasVibeMetadata,

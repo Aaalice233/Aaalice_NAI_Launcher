@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../../core/enums/precise_ref_type.dart';
-import '../vibe/vibe_reference_v4.dart';
+import '../vibe/vibe_reference.dart';
 
 part 'image_params.freezed.dart';
 part 'image_params.g.dart';
@@ -181,7 +181,7 @@ class ImageParams with _$ImageParams {
     /// V4 Vibe 参考列表 (支持预编码和原始图片)
     @Default([])
     @JsonKey(includeFromJson: false, includeToJson: false)
-    List<VibeReferenceV4> vibeReferencesV4,
+    List<VibeReference> vibeReferencesV4,
 
     /// 是否标准化多个 Vibe 参考的强度值
     @Default(true) bool normalizeVibeStrength,

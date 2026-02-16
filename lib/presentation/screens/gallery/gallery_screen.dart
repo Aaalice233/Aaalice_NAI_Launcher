@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 
 import '../../../data/models/gallery/generation_record.dart';
-import '../../../data/models/vibe/vibe_reference_v4.dart';
+import '../../../data/models/vibe/vibe_reference.dart';
 import '../../providers/gallery_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../widgets/autocomplete/autocomplete.dart';
@@ -1119,7 +1119,7 @@ class _FullscreenViewer extends ConsumerWidget {
     // 添加到生成参数
     ref
         .read(generationParamsNotifierProvider.notifier)
-        .addVibeReferencesV4([vibe]);
+        .addVibeReferences([vibe]);
 
     // 关闭全屏查看器并导航到生成屏幕
     Navigator.of(context).pop();

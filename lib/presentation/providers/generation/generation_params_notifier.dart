@@ -12,7 +12,7 @@ import '../../../core/utils/app_logger.dart';
 import '../../../data/datasources/remote/nai_image_enhancement_api_service.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/vibe/vibe_library_entry.dart';
-import '../../../data/models/vibe/vibe_reference_v4.dart';
+import '../../../data/models/vibe/vibe_reference.dart';
 import '../../../data/services/vibe_library_storage_service.dart';
 
 part 'generation_params_notifier.g.dart';
@@ -87,7 +87,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   }
 
   /// 记录 Vibe 使用并更新最近列表
-  Future<void> _recordVibeUsage(VibeReferenceV4 vibe) async {
+  Future<void> _recordVibeUsage(VibeReference vibe) async {
     try {
       final storageService = ref.read(vibeLibraryStorageServiceProvider);
 
@@ -350,7 +350,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   /// 添加 V4 Vibe 参考
   /// 支持预编码 (.naiv4vibe, PNG 带元数据)
   /// 对于原始图片，会自动检查编码缓存避免重复 API 调用
-  void addVibeReferenceV4(VibeReferenceV4 vibe) {
+  void addVibeReference(VibeReference vibe) {
     if (state.vibeReferencesV4.length >= 16) return; // V4 支持最多 16 张
 
     var vibeToAdd = vibe;
@@ -479,10 +479,10 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
   /// 批量添加 V4 Vibe 参考
   /// 如果 vibe 已存在，会移除旧的并添加新的（调整顺序）
-  void addVibeReferencesV4(List<VibeReferenceV4> vibes) {
+  void addVibeReferences(List<VibeReference> vibes) {
     // 分批处理：先找出已存在的和新的
-    final toReorder = <VibeReferenceV4>[];
-    final toAdd = <VibeReferenceV4>[];
+    final toReorder = <VibeReference>[];
+    final toAdd = <VibeReference>[];
 
     for (final vibe in vibes) {
       final existingIndex = _findVibeIndex(state.vibeReferencesV4, vibe);
@@ -532,7 +532,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
   /// 在列表中查找相同的 vibe 的索引
   /// 返回索引，如果没有找到返回 -1
-  int _findVibeIndex(List<VibeReferenceV4> vibes, VibeReferenceV4 target) {
+  int _findVibeIndex(List<VibeReference> vibes, VibeReference target) {
     for (var i = 0; i < vibes.length; i++) {
       final vibe = vibes[i];
       // 如果 vibeEncoding 不为空，比较编码
@@ -557,7 +557,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   }
 
   /// 移除 V4 Vibe 参考
-  void removeVibeReferenceV4(int index) {
+  void removeVibeReference(int index) {
     if (index < 0 || index >= state.vibeReferencesV4.length) return;
     final newList = [...state.vibeReferencesV4];
     newList.removeAt(index);
@@ -566,7 +566,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   }
 
   /// 更新 V4 Vibe 参考配置
-  void updateVibeReferenceV4(
+  void updateVibeReference(
     int index, {
     double? strength,
     double? infoExtracted,
@@ -585,7 +585,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   }
 
   /// 清除所有 V4 Vibe 参考
-  void clearVibeReferencesV4() {
+  void clearVibeReferences() {
     state = state.copyWith(vibeReferencesV4: []);
     _scheduleGenerationStateSave(immediate: true);
   }
@@ -659,9 +659,9 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
         return false;
       }
 
-      // 转换为 VibeReferenceV4 并添加
+      // 转换为 VibeReference 并添加
       final vibe = entry.toVibeReference();
-      addVibeReferenceV4(vibe);
+      addVibeReference(vibe);
 
       // 记录使用
       await storageService.incrementUsedCount(entryId);
@@ -698,7 +698,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
         return false;
       }
 
-      // 转换为 VibeReferenceV4
+      // 转换为 VibeReference
       final vibe = entry.toVibeReference();
 
       // 更新指定位置的 vibe
@@ -858,7 +858,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
         return;
       }
 
-      final restoredVibes = <VibeReferenceV4>[];
+      final restoredVibes = <VibeReference>[];
       final vibeRefsData = stateData['vibeReferences'] as List?;
       if (vibeRefsData != null) {
         for (var i = 0; i < vibeRefsData.length; i++) {
@@ -880,7 +880,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
           );
 
           restoredVibes.add(
-            VibeReferenceV4(
+            VibeReference(
               displayName: refData['displayName'] as String? ?? 'Vibe ${i + 1}',
               vibeEncoding: refData['vibeEncoding'] as String? ?? '',
               thumbnail: thumbnailBytes ?? rawImageBytes,
@@ -905,7 +905,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
           }
 
           restoredVibes.add(
-            VibeReferenceV4(
+            VibeReference(
               displayName: 'Vibe ${i + 1}',
               vibeEncoding: encoding,
               sourceType: VibeSourceType.naiv4vibe,
