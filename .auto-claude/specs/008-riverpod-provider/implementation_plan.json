@@ -576,8 +576,9 @@
             "type": "manual",
             "instructions": "Review all data/services providers - most are service singletons that should keep keepAlive"
           },
-          "status": "pending",
-          "notes": "数据服务层Provider通常是单例服务，保留keepAlive"
+          "status": "completed",
+          "notes": "评估完成：为6个data/services服务添加keepAlive: true\n\n已更新的文件：\n1. bulk_operation_service.dart - 批量操作服务\n2. search_index_service.dart - 搜索索引服务\n3. vibe_bulk_operation_service.dart - Vibe批量操作服务\n4. lru_cache_service.dart - LRU缓存服务\n5. vibe_export_service.dart - Vibe导出服务\n6. local_metadata_cache_service.dart - 本地元数据缓存服务\n\n评估结论：\n- data/services目录下共32个服务文件\n- 20个服务已正确配置@Riverpod(keepAlive: true)\n- 6个服务从@riverpod更新为@Riverpod(keepAlive: true)\n- 6个服务无Provider（纯工具类如bracket_formatter.dart等）\n\n所有服务类Provider现在统一使用keepAlive: true策略，符合Service层Provider设计规范：\n- 无状态服务单例，内存占用小\n- 全局使用，多处依赖\n- 保持存活避免不必要的重建",
+          "updated_at": "2026-02-16T13:56:38.153156+00:00"
         },
         {
           "id": "subtask-7-2",
@@ -594,8 +595,9 @@
             "type": "manual",
             "instructions": "Review core/services providers - these are core services that should keep keepAlive"
           },
-          "status": "pending",
-          "notes": "核心服务层Provider，保留keepAlive"
+          "status": "completed",
+          "completed_at": "2026-02-16T15:00:00Z",
+          "notes": "评估完成：所有7个keepAlive Provider配置正确，无需修改\n\n已评估的Provider：\n1. danbooruTagsLazyServiceProvider (danbooru_tags_lazy_service.dart:1070) - Danbooru标签懒加载，含热数据缓存\n2. cooccurrenceServiceProvider (cooccurrence_service.dart:534) - 标签共现数据，含_coorcurrenceMap缓存\n3. smartTagRecommendationServiceProvider (smart_tag_recommendation_service.dart:236) - 智能标签推荐，依赖其他keepAlive服务\n4. tagCountingServiceProvider (tag_counting_service.dart:243) - 标签计数服务，含_filteredTagCountsCache\n5. unifiedTagDatabaseProvider (unified_tag_database.dart:1109) - 统一标签数据库，SQLite连接+LRU缓存\n6. unifiedTranslationServiceProvider (translation/translation_providers.dart:13) - 翻译服务，昂贵初始化\n7. translationInitProgressProvider (translation/translation_providers.dart:45) - 翻译初始化进度\n\n所有Provider都属于核心基础设施服务，具有昂贵的初始化成本、维护缓存数据或数据库连接、被多个功能模块依赖，需要在整个应用生命周期保持可用。"
         }
       ]
     },
@@ -799,7 +801,7 @@
   "executionPhase": "coding",
   "status": "in_progress",
   "planStatus": "in_progress",
-  "updated_at": "2026-02-16T13:53:37.831Z",
+  "updated_at": "2026-02-16T13:57:03.882Z",
   "xstateState": "backlog",
-  "last_updated": "2026-02-16T13:54:04.482448+00:00"
+  "last_updated": "2026-02-16T13:56:38.153156+00:00"
 }

@@ -474,3 +474,50 @@ auto-claude: subtask-6-4 - 评估vibe_library_provider - 保留keepAlive
 
 ---
 
+## Subtask 7-2: 评估core/services中的keepAlive Provider
+
+### 评估结论
+**决定：所有 7 个 Provider 都保留 keepAlive: true** - 无需修改
+
+### Provider 列表
+
+| Provider | 位置 | 类型 | 评估 |
+|----------|------|------|------|
+| `danbooruTagsLazyServiceProvider` | danbooru_tags_lazy_service.dart:1070 | 服务 | ✅ 保持 |
+| `cooccurrenceServiceProvider` | cooccurrence_service.dart:534 | 服务 | ✅ 保持 |
+| `smartTagRecommendationServiceProvider` | smart_tag_recommendation_service.dart:236 | 服务 | ✅ 保持 |
+| `tagCountingServiceProvider` | tag_counting_service.dart:243 | 服务 | ✅ 保持 |
+| `unifiedTagDatabaseProvider` | unified_tag_database.dart:1109 | 数据库 | ✅ 保持 |
+| `unifiedTranslationServiceProvider` | translation/translation_providers.dart:13 | Future | ✅ 保持 |
+| `translationInitProgressProvider` | translation/translation_providers.dart:45 | Stream | ✅ 保持 |
+
+### 评估详情
+
+1. **danbooruTagsLazyServiceProvider** - 管理 Danbooru 标签懒加载，包含热数据缓存，有昂贵的网络初始化
+2. **cooccurrenceServiceProvider** - 管理标签共现数据，包含 `_cooccurrenceMap` 缓存
+3. **smartTagRecommendationServiceProvider** - 智能标签推荐服务，虽状态较轻但依赖其他 keepAlive 服务
+4. **tagCountingServiceProvider** - 标签计数服务，包含 `_filteredTagCountsCache` 缓存
+5. **unifiedTagDatabaseProvider** - 核心统一标签数据库服务，管理 SQLite 连接，包含多个 LRU 缓存
+6. **unifiedTranslationServiceProvider** - 统一翻译服务，有昂贵的初始化过程
+7. **translationInitProgressProvider** - 翻译服务初始化进度指示器，全局性进度报告
+
+### 理由总结
+
+所有 Provider 都属于核心基础设施服务：
+- ✅ 具有昂贵的初始化成本
+- ✅ 维护缓存数据或数据库连接
+- ✅ 被多个功能模块依赖
+- ✅ 需要在整个应用生命周期保持可用
+
+**状态**: 已验证，所有 Provider 配置正确，无需代码修改。
+
+### 提交信息
+```
+auto-claude: subtask-7-2 - 评估core/services中的keepAlive Provider
+```
+
+### 状态
+✅ 已完成 - 2026-02-16
+
+---
+
