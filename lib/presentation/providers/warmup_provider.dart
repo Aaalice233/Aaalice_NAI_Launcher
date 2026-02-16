@@ -355,7 +355,6 @@ class WarmupNotifier extends _$WarmupNotifier {
   }
 
   void _registerBackgroundPhaseTasks() {
-    AppLogger.i('Registering background phase tasks...', 'Warmup');
     // 后台任务注册到 BackgroundTaskProvider
     // 实际执行在进入主界面后
     final backgroundNotifier = ref.read(backgroundTaskNotifierProvider.notifier);
@@ -412,11 +411,8 @@ class WarmupNotifier extends _$WarmupNotifier {
       _completer.complete();
 
       // 延迟1秒后启动后台任务，确保UI稳定和任务注册完成
-      AppLogger.i('Warmup complete, scheduling background tasks in 1 second...', 'Warmup');
       await Future.delayed(const Duration(seconds: 1));
-      AppLogger.i('Starting background tasks now', 'Warmup');
       Future.microtask(() {
-        AppLogger.i('Microtask executing startAll', 'Warmup');
         ref.read(backgroundTaskNotifierProvider.notifier).startAll();
       });
     } catch (e, stack) {
