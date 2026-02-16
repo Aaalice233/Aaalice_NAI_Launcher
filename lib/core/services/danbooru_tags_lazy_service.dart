@@ -119,12 +119,12 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
         return;
       }
 
-      // 如果数据库为空，强制下载
+      // 检查是否需要下载：基于 shouldRefresh() 的结果，同时处理空数据库情况
       var needsDownload = await shouldRefresh();
-      if (tagCount == 0) {
-        AppLogger.d('[DanbooruTagsLazy] cache decision: EMPTY DB FORCING DOWNLOAD - tagCount=0', 'DanbooruTagsLazy');
+      // 如果数据库为空但 shouldRefresh() 返回 false（异常情况），仍然需要下载
+      if (tagCount == 0 && !needsDownload) {
+        AppLogger.d('[DanbooruTagsLazy] cache decision: EMPTY DB BUT SHOULDREFRESH FALSE - forcing download', 'DanbooruTagsLazy');
         needsDownload = true;
-        _lastUpdate = null;
       }
 
       AppLogger.d(
