@@ -8,6 +8,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/nai_metadata_parser.dart';
+import '../../core/utils/state_update_throttler.dart';
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
 import '../../data/models/image/image_params.dart';
@@ -38,17 +39,31 @@ part 'image_generation_provider.g.dart';
 /// 图像生成状态 Notifier
 @Riverpod(keepAlive: true)
 class ImageGenerationNotifier extends _$ImageGenerationNotifier {
-  @override
-  ImageGenerationState build() {
-    return const ImageGenerationState();
-  }
-
   /// 生成图像
   /// 重试延迟策略 (毫秒)
   static const List<int> _retryDelays = [1000, 2000, 4000];
   static const int _maxRetries = 3;
 
+  /// 流式预览更新节流间隔 (毫秒)
+  static const int _streamPreviewThrottleMs = 100;
+
+  /// 流式预览更新节流器
+  late final StateUpdateThrottler<Uint8List> _streamPreviewThrottler;
+
   bool _isCancelled = false;
+
+  @override
+  ImageGenerationState build() {
+    _streamPreviewThrottler = StateUpdateThrottler<Uint8List>(
+      throttleInterval: const Duration(milliseconds: _streamPreviewThrottleMs),
+      leading: true,
+      trailing: true,
+      onUpdate: (value) {
+        state = state.copyWith(streamPreview: value);
+      },
+    );
+    return const ImageGenerationState();
+  }
 
   Future<void> generate(ImageParams params) async {
     _isCancelled = false;
