@@ -43,6 +43,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   AutoRefreshInterval _refreshInterval = AutoRefreshInterval.days30;
   bool _isCancelled = false;
   Future<void>? _metaLoadFuture;
+  int _totalTags = 0;
 
   @override
   DataSourceProgressCallback? get onProgress => _onProgress;
@@ -745,6 +746,19 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
         final json = jsonDecode(content) as Map<String, dynamic>;
         _lastUpdate = DateTime.parse(json['lastUpdate'] as String);
         _currentThreshold = json['hotThreshold'] as int? ?? 1000;
+        _totalTags = json['totalTags'] as int? ?? 0;
+        AppLogger.d(
+          '[DanbooruTagsLazy] _loadMeta: loaded metadata '
+          'lastUpdate=$_lastUpdate, '
+          'totalTags=$_totalTags, '
+          'hotThreshold=$_currentThreshold',
+          'DanbooruTagsLazy',
+        );
+      } else {
+        AppLogger.d(
+          '[DanbooruTagsLazy] _loadMeta: no metadata file found at ${metaFile.path}',
+          'DanbooruTagsLazy',
+        );
       }
 
       final prefs = await SharedPreferences.getInstance();
@@ -772,6 +786,15 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
       await metaFile.writeAsString(jsonEncode(json));
       _lastUpdate = now;
+      _totalTags = totalTags;
+
+      AppLogger.d(
+        '[DanbooruTagsLazy] _saveMeta: saved metadata to ${metaFile.path} '
+        'lastUpdate=$now, '
+        'totalTags=$totalTags, '
+        'hotThreshold=$_currentThreshold',
+        'DanbooruTagsLazy',
+      );
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(StorageKeys.danbooruTagsLastUpdate, now.millisecondsSinceEpoch);
