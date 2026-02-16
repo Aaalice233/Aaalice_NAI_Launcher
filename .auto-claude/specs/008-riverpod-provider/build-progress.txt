@@ -268,6 +268,74 @@ auto-claude: subtask-6-1 - 评估auth_provider - 保留keepAlive
 
 ---
 
+## Subtask 6-3: 评估local_gallery_provider - 保留keepAlive
+
+### 评估结论
+**决定：保留 keepAlive: true** - 无需修改
+
+理由：
+1. **StatefulShellRoute保活页面** - 本地画廊是应用路由架构中的"保活页面"之一（与onlineGallery一起），使用Offstage保持状态，用户切换标签页时期望状态保持
+2. **昂贵的后台操作** - 执行后台文件扫描和索引(`_initializeInBackground()`)，如果被dispose后重建，这些昂贵操作需要重新开始
+3. **大量状态管理** - 管理可能成千上万的图像文件(`allFiles`, `filteredFiles`)、元数据记录和分页状态，重复创建效率低下
+4. **用户状态持久化** - 用户期望滚动位置、过滤器、搜索查询和扫描进度在导航离开并返回时保持不变
+5. **单例仓库模式** - 使用`LocalGalleryRepository.instance`单例，Provider生命周期应与仓库生命周期匹配
+6. **跨功能依赖** - 画廊状态被多个功能访问（Vibe Transfer图像选择、批量操作等）
+
+### 管理的状态 (LocalGalleryState)
+
+- `List<File> allFiles` - 所有图像文件
+- `List<File> filteredFiles` - 过滤后的文件列表
+- `List<LocalImageRecord> currentImages` - 当前页图像记录（含元数据）
+- `String searchQuery` - 搜索关键词
+- `double? backgroundScanProgress` - 后台扫描进度
+- `String? scanPhase` - 扫描阶段（checking/indexing/completed）
+- 多种过滤器：日期、收藏、Vibe、标签、模型、采样器等
+
+### 关键方法
+
+- `initialize()` - 初始化画廊，立即显示文件列表，后台扫描索引
+- `_initializeInBackground()` - 后台扫描索引，不阻塞UI
+- `loadPage()` - 分页加载图像记录
+- `refresh()` - 增量扫描刷新
+- `performFullScan()` - 全量重建索引
+- `_applyFilters()` - 应用搜索和过滤条件
+
+### Provider结构
+
+```dart
+@Riverpod(keepAlive: true)  // ✅ 正确，需要全局保持
+class LocalGalleryNotifier extends _$LocalGalleryNotifier {
+  late final LocalGalleryRepository _repo;
+
+  @override
+  LocalGalleryState build() {
+    _repo = LocalGalleryRepository.instance;
+    return const LocalGalleryState();
+  }
+  // ...
+}
+```
+
+### 结论
+
+这是Riverpod中`keepAlive`的典型用例：
+- 保活页面状态 - 路由架构要求页面保持存活
+- 昂贵的后台操作 - 扫描和索引不应被中断
+- 大量状态缓存 - 文件列表和元数据重建成本高
+- 用户体验 - 状态应在整个应用会话中持续
+
+**状态**: 已验证，当前配置正确，无需代码修改。
+
+### 提交信息
+```
+auto-claude: subtask-6-3 - 评估local_gallery_provider - 保留keepAlive
+```
+
+### 状态
+✅ 已完成 - 2026-02-16
+
+---
+
 ## Subtask 6-2: 评估account_manager_provider - 保留keepAlive
 
 ### 评估结论
