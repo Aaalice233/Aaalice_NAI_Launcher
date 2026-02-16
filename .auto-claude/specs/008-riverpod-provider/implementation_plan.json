@@ -350,8 +350,9 @@
             "type": "manual",
             "instructions": "Review image_generation_provider - this manages active generation state"
           },
-          "status": "pending",
-          "notes": "图像生成状态管理，核心Provider保留keepAlive"
+          "status": "completed",
+          "completed_at": "2026-02-16T23:30:00Z",
+          "notes": "评估完成：保留keepAlive: true - 无需修改。理由：\n1. 长时运行操作 - 图像生成需要秒到分钟，用户可能导航离开并返回，期望看到进度/结果\n2. 状态价值 - 持有生成的图像数据(Uint8List)、历史记录(最多50张)、流式预览和进度跟踪\n3. UX影响 - 如果被dispose，生成的图像会消失，流式预览丢失，生成历史被清除\n4. 这是Riverpod keepAlive的典型用例 - 活跃工作状态持有重要用户生成数据\n\n管理的状态包括：currentImages, history(50张), streamPreview, displayImages, progress等"
         },
         {
           "id": "subtask-4-4",
@@ -788,7 +789,7 @@
   "executionPhase": "coding",
   "status": "in_progress",
   "planStatus": "in_progress",
-  "updated_at": "2026-02-16T13:35:57.688Z",
+  "updated_at": "2026-02-16T13:37:29.531Z",
   "xstateState": "backlog",
   "last_updated": "2026-02-16T13:34:50.793719+00:00"
 }

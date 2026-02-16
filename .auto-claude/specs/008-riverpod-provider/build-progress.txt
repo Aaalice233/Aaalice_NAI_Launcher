@@ -157,3 +157,51 @@ auto-claude: subtask-3-5 - 优化uc_preset_provider - 移除keepAlive
 
 ---
 
+## Subtask 4-3: 评估image_generation_provider - 保留keepAlive
+
+### 评估结论
+**决定：保留 keepAlive: true** - 无需修改
+
+理由：
+1. **长时运行操作** - 图像生成需要秒到分钟，用户可能导航离开并返回，期望看到进度/结果
+2. **状态价值** - 持有生成的图像数据(Uint8List)、历史记录(最多50张)、流式预览和进度跟踪
+3. **用户体验影响** - 如果被dispose，生成的图像会消失，流式预览丢失，生成历史被清除 - 不可接受的UX
+4. **状态类型** - "活跃工作状态" - 持有用户发起的操作结果，应该持久化
+
+### 管理的状态 (ImageGenerationState)
+
+- `GenerationStatus status` - idle/generating/completed/error/cancelled
+- `List<GeneratedImage> currentImages` - 当前批次结果
+- `List<GeneratedImage> history` - 最近50张生成的图像
+- `Uint8List? streamPreview` - 生成过程中的渐进式预览
+- `List<GeneratedImage> displayImages` - 中央显示区域图像
+- `double progress` - 0.0 到 1.0
+- `currentImage/totalImages` - 进度跟踪
+
+### 关键方法
+
+- `generate(ImageParams)` - 启动生成，包含重试逻辑、批处理、自动保存
+- `cancel()` - 取消正在进行的生成
+- `_generateBatchWithStream()` - 带流式预览的核心生成
+- `generateAndApplyRandomPrompt()` - 随机提示词生成（"抽卡模式"）
+
+### 结论
+
+这是Riverpod中`keepAlive`的典型用例 - 代表：
+1. 活跃/进行中的工作
+2. 重要的用户生成数据
+3. 应该 survived 导航和UI重建的状态
+4. 长时间运行操作状态管理
+
+**状态**: 已验证，无需代码修改。
+
+### 提交信息
+```
+auto-claude: subtask-4-3 - 评估image_generation_provider - 保留keepAlive
+```
+
+### 状态
+✅ 已完成 - 2026-02-16
+
+---
+
