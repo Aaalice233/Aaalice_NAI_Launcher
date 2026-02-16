@@ -7,14 +7,14 @@ part of 'reference_panel_notifier.dart';
 // **************************************************************************
 
 String _$referencePanelNotifierHash() =>
-    r'ec90c9de926e73bcee92d1d69620d3cee32f854a';
+    r'b92f6c0ead4874fb96d4e554c0404f4da204b4bd';
 
 /// 引用面板 UI 状态
 ///
 /// Copied from [ReferencePanelNotifier].
 @ProviderFor(ReferencePanelNotifier)
-final referencePanelNotifierProvider =
-    AutoDisposeNotifierProvider<ReferencePanelNotifier, ReferencePanelState>.internal(
+final referencePanelNotifierProvider = AutoDisposeNotifierProvider<
+    ReferencePanelNotifier, ReferencePanelState>.internal(
   ReferencePanelNotifier.new,
   name: r'referencePanelNotifierProvider',
   debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
