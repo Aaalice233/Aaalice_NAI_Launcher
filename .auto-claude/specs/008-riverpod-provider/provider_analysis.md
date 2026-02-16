@@ -255,9 +255,265 @@ When migrating to the new architecture:
 
 ---
 
+# Data & Core Layer KeepAlive Provider Analysis
+
+## Overview
+
+This section documents all `keepAlive: true` providers in the data layer (`lib/data/`) and core layer (`lib/core/`). These providers form the infrastructure and service foundation of the application.
+
+**Total Count: 34 keepAlive Providers**
+- Data Layer: 24 providers
+- Core Layer: 10 providers
+
+---
+
+## Data Layer Providers
+
+### 1. Authentication & Token Management (3)
+
+Providers managing authentication API services and token refresh functionality.
+
+| Provider | File | Purpose |
+|----------|------|---------|
+| `DanbooruAuth` | `services/danbooru_auth_service.dart` | Danbooru authentication state and credentials management |
+| `TokenRefreshService` | `services/token_refresh_service.dart` | Automatic JWT token refresh when expired |
+| `naiAuthApiService` | `datasources/remote/nai_auth_api_service.dart` | NAI authentication API service |
+
+**Key Characteristics:**
+- `DanbooruAuth` manages login/logout with 24-hour verification cache
+- `TokenRefreshService` prevents concurrent refresh with `_isRefreshing` flag
+- API service providers use `ref.watch(dioClientProvider)` for proper proxy configuration
+
+---
+
+### 2. NAI API Services (2)
+
+Providers for NovelAI API service instances.
+
+| Provider | File | Purpose |
+|----------|------|---------|
+| `naiUserInfoApiService` | `datasources/remote/nai_user_info_api_service.dart` | NAI user info and subscription API |
+| `naiTagSuggestionApiService` | `datasources/remote/nai_tag_suggestion_api_service.dart` | NAI tag suggestion API |
+
+**Key Characteristics:**
+- All services use `dioClientProvider` for HTTP client with auth interceptors
+- Tag suggestion uses separate Dio instance with shorter timeouts (5s)
+
+---
+
+### 3. Danbooru API & Cache Services (5)
+
+Providers for Danbooru integration including API services and caching.
+
+| Provider | File | Purpose |
+|----------|------|---------|
+| `danbooruApiService` | `datasources/remote/danbooru_api_service.dart` | Danbooru REST API client |
+| `DanbooruTagGroupService` | `datasources/remote/danbooru_tag_group_service.dart` | Tag group synchronization from Danbooru |
+| `DanbooruPoolService` | `datasources/remote/danbooru_pool_service.dart` | Pool/favorites synchronization |
+| `TagGroupCacheService` | `datasources/local/tag_group_cache_service.dart` | Local cache for tag groups |
+| `PoolCacheService` | `datasources/local/pool_cache_service.dart` | Local cache for pools |
+
+**Key Characteristics:**
+- API services depend on `danbooruApiServiceProvider`
+- Cache services provide memory + persistent storage caching
+- All cache services use `Map<int, dynamic>` for memory cache with size limits
+
+---
+
+### 4. Tag Data Sources (2)
+
+Providers for NAI tag data loading and management.
+
+| Provider | File | Purpose |
+|----------|------|---------|
+| `naiTagsDataSource` | `datasources/local/nai_tags_data_source.dart` | NAI built-in tags data source |
+| `naiTagsData` | `datasources/local/nai_tags_data_source.dart` | Async provider for loaded tag data |
+
+**Key Characteristics:**
+- `naiTagsDataSource` is a simple service provider
+- `naiTagsData` is a FutureProvider that loads JSON data
+- Data is cached in memory after first load
+
+---
+
+### 5. Tag Library Services (4)
+
+Providers for tag library management and related functionality.
+
+| Provider | File | Purpose |
+|----------|------|---------|
+| `tagLibraryService` | `services/tag_library_service.dart` | Tag library CRUD and sync operations |
+| `TagsStorageService` | `services/tags_storage_service.dart` | User-defined tags storage |
+| `tagTranslationService` | `services/tag_translation_service.dart` | Tag translation wrapper |
+| `AliasResolverService` | `services/alias_resolver_service.dart` | Alias reference resolution |
+
+**Key Characteristics:**
+- `TagLibraryService` uses Hive for persistence with `_ensureInit()` pattern
+- `tagTranslationService` wraps `UnifiedTranslationService` for backward compatibility
+- `AliasResolverService` depends on `tagLibraryPageNotifierProvider`
+
+---
+
+### 6. Statistics & Analytics (3)
+
+Providers for usage statistics and analytics.
+
+| Provider | File | Purpose |
+|----------|------|---------|
+| `AnlasStatisticsService` | `services/anlas_statistics_service.dart` | Daily Anlas consumption tracking |
+| `StatisticsService` | `services/statistics_service.dart` | Generation statistics aggregation |
+| `StatisticsCacheService` | `services/statistics_cache_service.dart` | Statistics data caching |
+
+**Key Characteristics:**
+- `AnlasStatisticsService` keeps 90 days of history in SharedPreferences
+- All statistics services use JSON serialization for persistence
+- Cached statistics improve dashboard loading performance
+
+---
+
+### 7. Storage Services (3)
+
+Providers for specialized storage functionality.
+
+| Provider | File | Purpose |
+|----------|------|---------|
+| `FavoritesStorageService` | `services/favorites_storage_service.dart` | User favorites persistence |
+| `VibeLibraryStorageService` | `services/vibe_library_storage_service.dart` | Vibe Transfer image library |
+| `SequentialStateService` | `services/sequential_state_service.dart` | Sequential generation state |
+
+**Key Characteristics:**
+- `VibeLibraryStorageService` uses `VibeFileStorageService` for file operations
+- `SequentialStateService` maintains counter state across app restarts
+
+---
+
+### 8. Prompt Generation (2)
+
+Providers for random prompt generation functionality.
+
+| Provider | File | Purpose |
+|----------|------|---------|
+| `RandomPromptGenerator` | `services/random_prompt_generator.dart` | Random prompt generation engine |
+| `WordlistService` | `services/wordlist_service.dart` | Word list storage for generation |
+
+**Key Characteristics:**
+- `RandomPromptGenerator` depends on multiple services (library, pool, wordlist)
+- Complex dependency injection pattern with 5+ dependencies
+
+---
+
+## Core Layer Providers
+
+### 1. Network Layer (1)
+
+| Provider | File | Purpose |
+|----------|------|---------|
+| `dioClient` | `network/dio_client.dart` | Global Dio HTTP client with proxy support |
+
+**Key Characteristics:**
+- Watches `currentProxyAddressProvider` for proxy configuration changes
+- Configures HTTP/2 or HTTP/1.1 based on proxy settings
+- Adds `AuthInterceptor` for automatic token injection
+
+---
+
+### 2. Database & Storage (3)
+
+| Provider | File | Purpose |
+|----------|------|---------|
+| `unifiedTagDatabase` | `services/unified_tag_database.dart` | SQLite database for tags and translations |
+| `secureStorageService` | `storage/secure_storage_service.dart` | Encrypted secure storage |
+| `danbooruTagsLazyService` | `services/danbooru_tags_lazy_service.dart` | Lazy-loading Danbooru tag service |
+
+**Key Characteristics:**
+- `UnifiedTagDatabase` provides SQLite backend for tag operations
+- `SecureStorageService` handles sensitive data (tokens, credentials)
+- `DanbooruTagsLazyService` implements `LazyDataSourceService` interface
+
+---
+
+### 3. Tag Intelligence Services (3)
+
+| Provider | File | Purpose |
+|----------|------|---------|
+| `cooccurrenceService` | `services/cooccurrence_service.dart` | Tag co-occurrence analysis |
+| `smartTagRecommendationService` | `services/smart_tag_recommendation_service.dart` | Smart tag recommendations |
+| `tagCountingService` | `services/tag_counting_service.dart` | Tag frequency counting |
+
+**Key Characteristics:**
+- `CooccurrenceService` analyzes tag relationships from Danbooru data
+- `SmartTagRecommendationService` combines co-occurrence with lazy tag data
+- All use `ref.read()` for service dependencies
+
+---
+
+### 4. Translation Services (2)
+
+| Provider | File | Purpose |
+|----------|------|---------|
+| `unifiedTranslationService` | `services/translation/translation_providers.dart` | Unified translation service |
+| `translationInitProgress` | `services/translation/translation_providers.dart` | Translation loading progress stream |
+
+**Key Characteristics:**
+- `unifiedTranslationService` is a FutureProvider that initializes on startup
+- Merges multiple data sources: NAI, e621, custom translations
+
+---
+
+### 5. App Lifecycle (1)
+
+| Provider | File | Purpose |
+|----------|------|---------|
+| `firstLaunchDetector` | `utils/first_launch_detector.dart` | Detects app first launch for onboarding |
+
+**Key Characteristics:**
+- Depends on `danbooruTagsLazyServiceProvider` for initial data sync
+- Determines if user needs to go through first-time setup
+
+---
+
+## Summary by Category
+
+### Data Layer (24 providers)
+
+| Category | Count | Providers |
+|----------|-------|-----------|
+| Authentication & Token | 3 | DanbooruAuth, TokenRefreshService, naiAuthApiService |
+| NAI API Services | 2 | naiUserInfoApiService, naiTagSuggestionApiService |
+| Danbooru API & Cache | 5 | danbooruApiService, DanbooruTagGroupService, DanbooruPoolService, TagGroupCacheService, PoolCacheService |
+| Tag Data Sources | 2 | naiTagsDataSource, naiTagsData |
+| Tag Library Services | 4 | tagLibraryService, TagsStorageService, tagTranslationService, AliasResolverService |
+| Statistics & Analytics | 3 | AnlasStatisticsService, StatisticsService, StatisticsCacheService |
+| Storage Services | 3 | FavoritesStorageService, VibeLibraryStorageService, SequentialStateService |
+| Prompt Generation | 2 | RandomPromptGenerator, WordlistService |
+
+### Core Layer (10 providers)
+
+| Category | Count | Providers |
+|----------|-------|-----------|
+| Network Layer | 1 | dioClient |
+| Database & Storage | 3 | unifiedTagDatabase, secureStorageService, danbooruTagsLazyService |
+| Tag Intelligence | 3 | cooccurrenceService, smartTagRecommendationService, tagCountingService |
+| Translation Services | 2 | unifiedTranslationService, translationInitProgress |
+| App Lifecycle | 1 | firstLaunchDetector |
+
+---
+
+## Combined Summary
+
+| Layer | Provider Count |
+|-------|----------------|
+| Presentation | 42 |
+| Data | 24 |
+| Core | 10 |
+| **Total** | **76** |
+
+---
+
 ## Notes
 
 - All providers use `@Riverpod(keepAlive: true)` (capital R) annotation
 - Generated files follow the `.g.dart` pattern
 - Each provider has a corresponding `xxxProvider` global variable generated by Riverpod
 - Controllers use the naming convention `XxxNotifier extends _$XxxNotifier`
+- Service providers (function-style) follow naming convention `xxxService` or `xxxApiService`
