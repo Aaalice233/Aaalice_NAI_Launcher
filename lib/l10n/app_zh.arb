@@ -265,6 +265,8 @@
   "generation_history": "历史",
   "generation_historyRecord": "历史记录",
   "generation_noHistory": "暂无历史记录",
+  "generation_emptyHistoryHint": "开始你的第一次创作，生成历史将在这里显示",
+  "generation_quickActions": "快速操作",
   "generation_clearHistory": "清除历史记录",
   "generation_clearHistoryConfirm": "确定要清除所有历史记录吗？此操作不可撤销。",
   "generation_model": "模型",
