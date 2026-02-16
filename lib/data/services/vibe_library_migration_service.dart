@@ -505,6 +505,7 @@ class _ExportedEntry {
   final String filePath;
 }
 
+@Deprecated('LegacyVibeLibraryEntry 已弃用，请使用 VibeLibraryEntry')
 class LegacyVibeLibraryEntry {
   LegacyVibeLibraryEntry({
     required this.id,
