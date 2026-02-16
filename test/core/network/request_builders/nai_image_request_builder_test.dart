@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/core/network/request_builders/nai_image_request_builder.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
-import 'package:nai_launcher/data/models/vibe/vibe_reference_v4.dart';
+import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 
 void main() {
   group('NAIImageRequestBuilder.build', () {
@@ -44,13 +44,13 @@ void main() {
       final params = ImageParams(
         model: 'nai-diffusion-4-full',
         vibeReferencesV4: [
-          VibeReferenceV4(
+          VibeReference(
             displayName: 'raw',
             vibeEncoding: '',
             rawImageData: Uint8List.fromList([1, 2, 3]),
             sourceType: VibeSourceType.rawImage,
           ),
-          const VibeReferenceV4(
+          const VibeReference(
             displayName: 'pre',
             vibeEncoding: 'pre-encoded',
             sourceType: VibeSourceType.png,

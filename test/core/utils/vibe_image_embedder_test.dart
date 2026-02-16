@@ -3,13 +3,13 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/utils/vibe_image_embedder.dart';
-import 'package:nai_launcher/data/models/vibe/vibe_reference_v4.dart';
+import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 
 void main() {
   group('VibeImageEmbedder', () {
     test('embedVibeToImage should produce extractable vibe metadata', () async {
       final imageBytes = _createInMemoryPngBytes();
-      const reference = VibeReferenceV4(
+      const reference = VibeReference(
         displayName: 'Test Vibe',
         vibeEncoding: 'YmFzZTY0X2VuY29kaW5n',
         strength: 0.75,
@@ -34,7 +34,7 @@ void main() {
       'embedVibeToImage and extractVibeFromImage should keep data unchanged in round trip',
       () async {
         final imageBytes = _createInMemoryPngBytes();
-        const original = VibeReferenceV4(
+        const original = VibeReference(
           displayName: 'Round Trip Vibe',
           vibeEncoding: 'cm91bmRfdHJpcF9lbmNvZGluZw==',
           strength: 0.61,
@@ -56,7 +56,7 @@ void main() {
 
     test('embedVibeToImage should throw on non-PNG bytes', () async {
       final nonPngBytes = Uint8List.fromList(utf8.encode('not a png file'));
-      const reference = VibeReferenceV4(
+      const reference = VibeReference(
         displayName: 'Invalid Input',
         vibeEncoding: 'dGVzdA==',
       );
