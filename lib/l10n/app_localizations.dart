@@ -13600,6 +13600,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Favorite'**
   String get viewer_tooltip_favorite;
+
+  /// No description provided for @presetManager_import.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Presets'**
+  String get presetManager_import;
+
+  /// No description provided for @presetManager_export.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Presets'**
+  String get presetManager_export;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

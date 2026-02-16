@@ -158,7 +158,7 @@ class _PresetConflictDialogState extends State<PresetConflictDialog> {
   /// 跳过此预设
   void _skip() {
     AppLogger.i('跳过预设导入: ${widget.importingPreset.name}', 'PresetConflictDialog');
-    Navigator.of(context).pop(const PresetConflictResult(
+    Navigator.of(context).pop(PresetConflictResult(
       resolution: ConflictResolution.skip,
       applyToAll: _applyToAll,
     ));

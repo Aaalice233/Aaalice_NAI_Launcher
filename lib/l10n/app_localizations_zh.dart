@@ -7214,4 +7214,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get viewer_tooltip_favorite => '收藏';
+
+  @override
+  String get presetManager_import => '导入预设';
+
+  @override
+  String get presetManager_export => '导出预设';
 }

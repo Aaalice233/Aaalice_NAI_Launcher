@@ -131,7 +131,7 @@ class PresetImportService {
   Future<PresetImportResult> importFromFile({
     required List<PlatformFile> files,
     ConflictResolution conflictResolution = ConflictResolution.rename,
-    ImportProgressCallback? onProgress,
+    PresetImportProgressCallback? onProgress,
     PresetNamingCallback? onNaming,
     PresetBundleImportOptionCallback? onBundleOption,
   }) async {
@@ -175,7 +175,7 @@ class PresetImportService {
   Future<PresetImportResult> importFromEncoding({
     required List<PresetEncodingImportItem> items,
     ConflictResolution conflictResolution = ConflictResolution.rename,
-    ImportProgressCallback? onProgress,
+    PresetImportProgressCallback? onProgress,
   }) async {
     if (items.isEmpty) return PresetImportResult.empty();
 
@@ -393,7 +393,7 @@ class PresetImportService {
   Future<PresetImportResult> _importParsedSources(
     List<_ParsedSource> sources, {
     required ConflictResolution conflictResolution,
-    required ImportProgressCallback? onProgress,
+    required PresetImportProgressCallback? onProgress,
     required PresetNamingCallback? onNaming,
     required String progressPrefix,
   }) async {

@@ -3616,6 +3616,9 @@
   "viewer_tooltip_save": "Save",
   "viewer_tooltip_reuse_params": "Reuse Parameters",
   "viewer_tooltip_copy_image": "Copy Image",
-  "viewer_tooltip_favorite": "Favorite"
+  "viewer_tooltip_favorite": "Favorite",
+
+  "presetManager_import": "Import Presets",
+  "presetManager_export": "Export Presets"
 
 }
