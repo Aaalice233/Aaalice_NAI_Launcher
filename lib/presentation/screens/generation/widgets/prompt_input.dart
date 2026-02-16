@@ -1168,39 +1168,12 @@ class _NegativePromptTooltip extends StatelessWidget {
   }
 
   Widget _buildHeader(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.error.withOpacity(isDark ? 0.2 : 0.1),
-            theme.colorScheme.error.withOpacity(isDark ? 0.1 : 0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.error.withOpacity(0.2),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.block,
-            size: 14,
-            color: theme.colorScheme.error,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            l10n.prompt_negativePrompt,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.error,
-            ),
-          ),
-        ],
-      ),
+    return TooltipHeader(
+      theme: theme,
+      label: l10n.prompt_negativePrompt,
+      icon: Icons.block,
+      color: theme.colorScheme.error,
+      isDark: isDark,
     );
   }
 
