@@ -298,7 +298,7 @@ class VibeExportService {
 }
 
 /// VibeExportService Provider
-@riverpod
+@Riverpod(keepAlive: true)
 VibeExportService vibeExportService(Ref ref) {
   return VibeExportService();
 }

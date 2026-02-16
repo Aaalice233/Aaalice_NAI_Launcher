@@ -1052,7 +1052,7 @@ class BulkOperationConfig {
 }
 
 /// VibeBulkOperationService Provider
-@riverpod
+@Riverpod(keepAlive: true)
 VibeBulkOperationService vibeBulkOperationService(Ref ref) {
   final storageService = ref.watch(vibeLibraryStorageServiceProvider);
   final exportService = ref.watch(vibeExportServiceProvider);

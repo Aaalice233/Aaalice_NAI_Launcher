@@ -65,7 +65,7 @@ class LocalMetadataCacheService {
 }
 
 /// LocalMetadataCacheService Provider
-@riverpod
+@Riverpod(keepAlive: true)
 LocalMetadataCacheService localMetadataCacheService(Ref ref) {
   return LocalMetadataCacheService();
 }

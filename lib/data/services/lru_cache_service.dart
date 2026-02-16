@@ -170,7 +170,7 @@ class LruCacheService {
 }
 
 /// LruCacheService Provider
-@riverpod
+@Riverpod(keepAlive: true)
 LruCacheService lruCacheService(Ref ref) {
   return LruCacheService();
 }

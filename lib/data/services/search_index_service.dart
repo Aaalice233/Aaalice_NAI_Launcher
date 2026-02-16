@@ -453,7 +453,7 @@ class SearchIndexService {
 }
 
 /// SearchIndexService Provider
-@riverpod
+@Riverpod(keepAlive: true)
 SearchIndexService searchIndexService(Ref ref) {
   final service = SearchIndexService();
   // Initialize the service when provider is first read

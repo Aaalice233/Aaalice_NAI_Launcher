@@ -356,7 +356,7 @@ class BulkOperationService {
 }
 
 /// BulkOperationService Provider
-@riverpod
+@Riverpod(keepAlive: true)
 BulkOperationService bulkOperationService(Ref ref) {
   return BulkOperationService();
 }
