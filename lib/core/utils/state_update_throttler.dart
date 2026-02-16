@@ -14,6 +14,8 @@ class StateUpdateThrottler<T> {
   final List<T> _pendingBatch = [];
   DateTime? _lastUpdateTime;
   bool _isFirstCall = true;
+  bool _isThrottlingWindow = false;
+  bool _isFlushed = false;
 
   /// 创建状态更新节流器
   ///
@@ -33,6 +35,9 @@ class StateUpdateThrottler<T> {
   /// 获取是否有挂起的更新
   bool get hasPendingUpdate => _pendingValue != null || _pendingBatch.isNotEmpty;
 
+  /// 获取是否有挂起的批量更新
+  bool get hasPendingBatchUpdate => _pendingBatch.isNotEmpty;
+
   /// 获取挂起的单个值
   T? get pendingValue => _pendingValue;
 
@@ -44,7 +49,7 @@ class StateUpdateThrottler<T> {
       _lastUpdateTime != null ? DateTime.now().difference(_lastUpdateTime!) : null;
 
   /// 是否正在节流等待中
-  bool get isThrottling => _throttleTimer?.isActive ?? false;
+  bool get isThrottling => _isThrottlingWindow;
 
   /// 触发状态更新
   ///
@@ -52,33 +57,46 @@ class StateUpdateThrottler<T> {
   void throttle(T value) {
     final now = DateTime.now();
 
-    // 首次调用且 leading 为 true，立即执行
-    if (_isFirstCall && leading) {
+    // 首次调用
+    if (_isFirstCall) {
       _isFirstCall = false;
-      _executeUpdate(value);
-      _lastUpdateTime = now;
-      _startThrottleTimer();
-      return;
-    }
-
-    _isFirstCall = false;
-
-    // 检查是否在节流间隔内
-    if (_lastUpdateTime != null &&
-        now.difference(_lastUpdateTime!) < throttleInterval) {
-      // 在节流间隔内，保存为挂起状态
-      _pendingValue = value;
-      _pendingBatch.add(value);
-
-      // 确保有计时器来处理 trailing 更新
-      if (_throttleTimer?.isActive != true) {
+      if (leading) {
+        // leading=true: 立即执行
+        // 执行单个回调
+        _executeUpdate(value);
+        // 有批量回调时，也执行批次
+        if (onBatchUpdate != null) {
+          _pendingBatch.add(value);
+          _executeBatchUpdate(List.from(_pendingBatch));
+          _pendingBatch.clear();
+        }
+        _lastUpdateTime = now;
+        _startThrottleTimer();
+      } else {
+        // leading=false: 保存为挂起，等待 trailing 执行
+        _pendingValue = value;
+        _pendingBatch.add(value);
         _startThrottleTimer();
       }
       return;
     }
 
+    // 检查是否在节流间隔内
+    if (_isThrottlingWindow) {
+      // 在节流间隔内，保存最新值和批次
+      _pendingValue = value;
+      _pendingBatch.add(value);
+      return;
+    }
+
     // 超出节流间隔，立即执行
-    _executeUpdate(value);
+    if (onBatchUpdate != null) {
+      _pendingBatch.add(value);
+      _executeBatchUpdate(List.from(_pendingBatch));
+      _pendingBatch.clear();
+    } else {
+      _executeUpdate(value);
+    }
     _lastUpdateTime = now;
     _startThrottleTimer();
   }
@@ -91,29 +109,31 @@ class StateUpdateThrottler<T> {
 
     final now = DateTime.now();
 
-    // 首次调用且 leading 为 true，立即批量执行
-    if (_isFirstCall && leading) {
+    // 首次调用
+    if (_isFirstCall) {
       _isFirstCall = false;
-      _executeBatchUpdate(values);
-      _lastUpdateTime = now;
-      _startThrottleTimer();
+      if (leading) {
+        // leading=true: 立即批量执行
+        _executeBatchUpdate(values);
+        _lastUpdateTime = now;
+        _startThrottleTimer();
+      } else {
+        // leading=false: 保存为挂起，等待 trailing 执行
+        _pendingBatch.addAll(values);
+        if (values.isNotEmpty) {
+          _pendingValue = values.last;
+        }
+        _startThrottleTimer();
+      }
       return;
     }
 
-    _isFirstCall = false;
-
     // 检查是否在节流间隔内
-    if (_lastUpdateTime != null &&
-        now.difference(_lastUpdateTime!) < throttleInterval) {
+    if (_isThrottlingWindow) {
       // 在节流间隔内，添加到挂起批次
       _pendingBatch.addAll(values);
       if (values.isNotEmpty) {
         _pendingValue = values.last;
-      }
-
-      // 确保有计时器来处理 trailing 更新
-      if (_throttleTimer?.isActive != true) {
-        _startThrottleTimer();
       }
       return;
     }
@@ -128,15 +148,20 @@ class StateUpdateThrottler<T> {
   ///
   /// 如果有挂起的更新，立即执行并清除计时器
   void flush() {
-    if (_pendingBatch.isNotEmpty) {
-      _executeBatchUpdate(List.from(_pendingBatch));
-    } else if (_pendingValue != null) {
-      _executeUpdate(_pendingValue as T);
-    }
-
-    _clearPending();
     _throttleTimer?.cancel();
     _throttleTimer = null;
+    _isThrottlingWindow = false;
+    _isFlushed = true;
+
+    if (_pendingBatch.isNotEmpty) {
+      _executeBatchUpdate(List.from(_pendingBatch));
+      _pendingBatch.clear();
+      _pendingValue = null;
+    } else if (_pendingValue != null) {
+      _executeUpdate(_pendingValue as T);
+      _pendingValue = null;
+    }
+
     _lastUpdateTime = DateTime.now();
   }
 
@@ -147,6 +172,7 @@ class StateUpdateThrottler<T> {
     _clearPending();
     _throttleTimer?.cancel();
     _throttleTimer = null;
+    _isThrottlingWindow = false;
   }
 
   /// 重置节流器状态
@@ -156,6 +182,7 @@ class StateUpdateThrottler<T> {
     cancel();
     _isFirstCall = true;
     _lastUpdateTime = null;
+    _isFlushed = false;
   }
 
   /// 释放资源
@@ -186,28 +213,25 @@ class StateUpdateThrottler<T> {
   /// 启动节流计时器
   void _startThrottleTimer() {
     _throttleTimer?.cancel();
+    _isThrottlingWindow = true;
+    _isFlushed = false;
 
-    final elapsed = _lastUpdateTime != null
-        ? DateTime.now().difference(_lastUpdateTime!)
-        : Duration.zero;
-    final remaining = throttleInterval - elapsed;
-
-    if (remaining <= Duration.zero) {
-      // 已经超出节流间隔，立即处理挂起的更新
-      if (trailing && hasPendingUpdate) {
-        flush();
+    _throttleTimer = Timer(throttleInterval, () {
+      // 如果已经被 flush 过，不再执行 trailing
+      if (_isFlushed) {
+        _isThrottlingWindow = false;
+        return;
       }
-      return;
-    }
-
-    _throttleTimer = Timer(remaining, () {
+      _isThrottlingWindow = false;
       if (trailing && hasPendingUpdate) {
-        if (_pendingBatch.isNotEmpty) {
+        // 有批量回调时执行批次，否则只执行最新值
+        if (onBatchUpdate != null && _pendingBatch.isNotEmpty) {
           _executeBatchUpdate(List.from(_pendingBatch));
+          _pendingBatch.clear();
         } else if (_pendingValue != null) {
           _executeUpdate(_pendingValue as T);
         }
-        _clearPending();
+        _pendingValue = null;
       }
       _lastUpdateTime = DateTime.now();
     });
