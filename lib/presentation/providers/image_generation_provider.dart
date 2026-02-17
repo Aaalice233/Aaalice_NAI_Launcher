@@ -66,6 +66,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         );
       },
     );
+    ref.onDispose(() {
+      _batchStateThrottler.dispose();
+    });
     return const ImageGenerationState();
   }
 
