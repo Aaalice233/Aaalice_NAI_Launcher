@@ -398,7 +398,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   /// - 支持断点续传：每轮写入后保存断点，崩溃后精确恢复
   Future<void> fetchArtistTags({
     required void Function(int currentPage, int importedCount, String message) onProgress,
-    int maxPages = 100, // 画师标签量大，限制页数
+    int maxPages = 200, // 画师标签量大，最多拉取20万条
     bool resume = true, // 是否尝试断点续传
   }) async {
     AppLogger.i('Starting artist tags fetch...', 'DanbooruTagsLazy');
@@ -916,6 +916,23 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   /// 获取当前标签数量
   Future<int> getTagCount() async {
     return await _tagDataSource.getCount();
+  }
+
+  /// 获取标签分类统计
+  Future<Map<String, int>> getCategoryStats() async {
+    final stats = <String, int>{};
+
+    // 获取总数
+    stats['total'] = await _tagDataSource.getCount();
+
+    // 获取各分类数量
+    stats['artist'] = await _tagDataSource.getCount(category: 1);
+    stats['general'] = await _tagDataSource.getCount(category: 0);
+    stats['copyright'] = await _tagDataSource.getCount(category: 2);
+    stats['character'] = await _tagDataSource.getCount(category: 3);
+    stats['meta'] = await _tagDataSource.getCount(category: 4);
+
+    return stats;
   }
 
   // ===========================================================================

@@ -660,7 +660,7 @@ class WarmupNotifier extends _$WarmupNotifier {
             message: message,
           );
         },
-        maxPages: 100, // 画师标签量大，限制页数
+        maxPages: 200, // 画师标签量大，最多拉取20万条
       );
 
       AppLogger.i('Artist tags fetch completed', 'Background');

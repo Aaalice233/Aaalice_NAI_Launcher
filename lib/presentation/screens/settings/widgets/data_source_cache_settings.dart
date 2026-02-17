@@ -6,6 +6,7 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../../core/database/database.dart';
 import '../../../../core/utils/app_logger.dart';
+import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/cache/data_source_cache_meta.dart';
 import '../../../providers/data_source_cache_provider.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -510,19 +511,65 @@ class _TagCompletionDataSection extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 if (isLoaded) ...[
+                  // 总标签数
                   Text(
                     '已缓存 ${_formatNumber(state.totalTags)} 个标签',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  if (state.lastUpdate != null)
+                  const SizedBox(height: 8),
+                  // 分类统计
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      if (state.categoryStats.general > 0)
+                        _buildCategoryChip(
+                          context,
+                          label: context.l10n.tagCategory_general,
+                          count: state.categoryStats.general,
+                          color: Colors.blue,
+                        ),
+                      if (state.categoryStats.artist > 0)
+                        _buildCategoryChip(
+                          context,
+                          label: context.l10n.tagCategory_artist,
+                          count: state.categoryStats.artist,
+                          color: Colors.orange,
+                        ),
+                      if (state.categoryStats.character > 0)
+                        _buildCategoryChip(
+                          context,
+                          label: context.l10n.tagCategory_character,
+                          count: state.categoryStats.character,
+                          color: Colors.purple,
+                        ),
+                      if (state.categoryStats.copyright > 0)
+                        _buildCategoryChip(
+                          context,
+                          label: context.l10n.tagCategory_copyright,
+                          count: state.categoryStats.copyright,
+                          color: Colors.green,
+                        ),
+                      if (state.categoryStats.meta > 0)
+                        _buildCategoryChip(
+                          context,
+                          label: context.l10n.tagCategory_meta,
+                          count: state.categoryStats.meta,
+                          color: Colors.grey,
+                        ),
+                    ],
+                  ),
+                  if (state.lastUpdate != null) ...[
+                    const SizedBox(height: 6),
                     Text(
                       '上次更新: ${timeago.format(state.lastUpdate!, locale: 'zh')}',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.outline,
                       ),
                     ),
+                  ],
                 ] else
                   Text(
                     '点击"立即同步"下载标签数据',
@@ -531,6 +578,48 @@ class _TagCompletionDataSection extends ConsumerWidget {
                     ),
                   ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryChip(
+    BuildContext context, {
+    required String label,
+    required int count,
+    required Color color,
+  }) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '$label ${_formatNumber(count)}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: color.withOpacity(0.9),
+              fontWeight: FontWeight.w500,
+              fontSize: 11,
             ),
           ),
         ],
