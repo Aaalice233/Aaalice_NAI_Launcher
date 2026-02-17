@@ -113,6 +113,12 @@ class VibeExportOptions with _$VibeExportOptions {
     /// 数据格式版本号
     /// 用于未来兼容性和迁移
     @HiveField(6) @Default(1) int version,
+
+    /// 是否包含完整图片数据
+    /// 仅适用于 full bundle 格式
+    /// - true: 包含完整的 Base64 编码图片数据
+    /// - false: 仅包含缩略图和元数据
+    @HiveField(7) @Default(false) bool includeImages,
   }) = _VibeExportOptions;
 
   factory VibeExportOptions.fromJson(Map<String, dynamic> json) =>
@@ -123,6 +129,7 @@ class VibeExportOptions with _$VibeExportOptions {
     String? fileName,
     bool includeThumbnail = true,
     bool compress = false,
+    bool includeImages = false,
   }) {
     return VibeExportOptions(
       format: VibeExportFormat.bundle,
@@ -130,6 +137,23 @@ class VibeExportOptions with _$VibeExportOptions {
       fileName: fileName,
       includeThumbnail: includeThumbnail,
       compress: compress,
+      includeImages: includeImages,
+    );
+  }
+
+  /// 创建用于完整 Bundle 导出的选项（包含图片数据）
+  factory VibeExportOptions.fullBundle({
+    String? fileName,
+    bool includeThumbnail = true,
+    bool compress = false,
+  }) {
+    return VibeExportOptions(
+      format: VibeExportFormat.bundle,
+      includeEncoding: true,
+      fileName: fileName,
+      includeThumbnail: includeThumbnail,
+      compress: compress,
+      includeImages: true,
     );
   }
 
@@ -201,5 +225,10 @@ class VibeExportOptions with _$VibeExportOptions {
   /// 切换缩略图包含状态
   VibeExportOptions toggleIncludeThumbnail() {
     return copyWith(includeThumbnail: !includeThumbnail);
+  }
+
+  /// 切换完整图片包含状态
+  VibeExportOptions toggleIncludeImages() {
+    return copyWith(includeImages: !includeImages);
   }
 }

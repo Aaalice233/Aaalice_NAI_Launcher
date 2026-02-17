@@ -3656,6 +3656,8 @@
   "viewer_tooltip_copy_image": "Copy Image",
   "viewer_tooltip_favorite": "Favorite",
 
+  "presetManager_import": "Import Presets",
+  "presetManager_export": "Export Presets",
   "backgroundTask_downloadedCount": "Downloaded {count} tags",
   "@backgroundTask_downloadedCount": {
     "placeholders": {
