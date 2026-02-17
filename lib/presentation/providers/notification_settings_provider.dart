@@ -29,7 +29,7 @@ class NotificationSettings {
 }
 
 /// 音效设置 Provider
-@riverpod
+@Riverpod(keepAlive: true)
 class NotificationSettingsNotifier extends _$NotificationSettingsNotifier {
   @override
   NotificationSettings build() {

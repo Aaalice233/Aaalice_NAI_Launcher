@@ -12,7 +12,7 @@ part 'character_prompt_provider.g.dart';
 /// 数据自动持久化到本地存储。
 ///
 /// Requirements: 1.4
-@riverpod
+@Riverpod(keepAlive: true)
 class CharacterPromptNotifier extends _$CharacterPromptNotifier {
   late final CharacterPromptRepository _repository;
 

@@ -51,7 +51,7 @@ class QualityPresetState {
 }
 
 /// 质量词预设 Provider
-@riverpod
+@Riverpod(keepAlive: true)
 class QualityPresetNotifier extends _$QualityPresetNotifier {
   LocalStorageService get _storage => ref.read(localStorageServiceProvider);
 
