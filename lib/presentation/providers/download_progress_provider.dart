@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/database/database.dart';
+import '../../core/database/services/services.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/download_message_keys.dart';
 import '../../core/utils/localization_extension.dart';

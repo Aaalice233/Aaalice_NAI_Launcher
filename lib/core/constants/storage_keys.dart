@@ -187,6 +187,7 @@ class StorageKeys {
   static const String danbooruArtistsSyncFailed = 'danbooru_artists_sync_failed';
   static const String danbooruArtistsTotal = 'danbooru_artists_total';
   static const String danbooruArtistsMinPostCount = 'danbooru_artists_min_post_count';
+  static const String danbooruArtistsSyncCheckpoint = 'danbooru_artists_sync_checkpoint';
 
   // 共现数据刷新间隔
   static const String cooccurrenceRefreshInterval = 'cooccurrence_refresh_interval';

@@ -14,7 +14,7 @@ import 'core/constants/storage_keys.dart';
 import 'core/network/proxy_service.dart';
 import 'core/network/system_proxy_http_overrides.dart';
 import 'core/shortcuts/shortcut_storage.dart';
-import 'core/database/database.dart';
+import 'core/database/database_manager.dart';
 import 'core/services/data_migration_service.dart';
 import 'core/services/sqflite_bootstrap_service.dart';
 import 'core/utils/app_logger.dart';
@@ -174,7 +174,10 @@ void main() async {
   // 初始化 SQLite FFI（Windows/Linux 桌面端必需）
   await SqfliteBootstrapService.instance.ensureInitialized();
 
-  // 在 Hive 初始化之前执行迁移，避免新路径先创建占位文件导致旧数据被误跳过
+  // 初始化 Hive（使用子目录存储，支持迁移旧数据）
+  await HiveStorageHelper.instance.init();
+
+  // 在 Hive 初始化之后执行文件迁移
   try {
     final migrationResult = await DataMigrationService.instance.migrateAll();
     AppLogger.i('Startup migration result: $migrationResult', 'Main');
@@ -182,8 +185,38 @@ void main() async {
     AppLogger.w('Startup migration failed (will continue): $e', 'Main');
   }
 
-  // 初始化 Hive（使用子目录存储，支持迁移旧数据）
-  await HiveStorageHelper.instance.init();
+  // ===== V2 架构：数据库初始化和恢复（在 runApp 之前完成）====
+  AppLogger.i('等待数据库初始化...', 'Main');
+  final container = ProviderContainer();
+  
+  try {
+    // V2 架构：DatabaseManagerV2 自动处理热重启检测
+    final manager = await DatabaseManager.initialize();
+    await manager.initialized;
+    
+    // 检查数据完整性
+    final stats = await manager.getStatistics();
+    final tableStats = stats['tables'] as Map<String, int>? ?? {};
+    final translationCount = tableStats['translations'] ?? 0;
+    final cooccurrenceCount = tableStats['cooccurrences'] ?? 0;
+    
+    AppLogger.i(
+      '数据表状态: translations=$translationCount, cooccurrences=$cooccurrenceCount',
+      'Main',
+    );
+    
+    // 如果需要恢复（首次启动或数据缺失）
+    if (translationCount == 0 || cooccurrenceCount == 0) {
+      AppLogger.w('核心数据缺失，执行恢复..', 'Main');
+      await manager.recover();
+      AppLogger.i('数据恢复完成', 'Main');
+    }
+    
+    AppLogger.i('数据库初始化完成', 'Main');
+  } catch (e, stack) {
+    AppLogger.e('数据库初始化失败', e, stack, 'Main');
+    // 继续启动，应用内会显示错误',
+  }
 
   // 预先打开 Hive boxes (确保 LocalStorageService 可用)
   await Hive.openBox(StorageKeys.settingsBox);
@@ -211,7 +244,7 @@ void main() async {
   timeago.setLocaleMessages('zh_CN', timeago.ZhCnMessages());
 
   // 后台预加载 NAI 标签数据（不阻塞启动）
-  final container = ProviderContainer();
+  // 使用已创建的 container
   Future.microtask(() async {
     try {
       await container.read(naiTagsDataSourceProvider).loadData();
@@ -231,7 +264,7 @@ void main() async {
       setupWindowsWakeUpChannel();
     }
 
-    // 从 Hive 读取保存的窗口状态
+    // 从 Hive 读取保存的窗口状态',
     final box = Hive.box(StorageKeys.settingsBox);
     final savedWidth =
         box.get(StorageKeys.windowWidth, defaultValue: 1400.0) as double;
@@ -243,7 +276,7 @@ void main() async {
     final windowOptions = WindowOptions(
       size: Size(savedWidth, savedHeight),
       minimumSize: const Size(800, 600),
-      center: savedX == null || savedY == null, // 首次启动居中，之后恢复位置
+      center: savedX == null || savedY == null, // 首次启动居中，之后恢复位置',
       backgroundColor: Colors.transparent,
       skipTaskbar: false,
       titleBarStyle: TitleBarStyle.normal,
@@ -251,7 +284,7 @@ void main() async {
     );
 
     await windowManager.waitUntilReadyToShow(windowOptions, () async {
-      // 如果有保存的位置，恢复窗口位置
+      // 如果有保存的位置，恢复窗口位置',
       if (savedX != null && savedY != null) {
         await windowManager.setPosition(Offset(savedX, savedY));
         AppLogger.d(
@@ -272,7 +305,7 @@ void main() async {
     // 初始化系统托盘（仅 Windows）
     if (Platform.isWindows) {
       try {
-        // 设置托盘图标和提示
+        // 设置托盘图标和提示',
         // tray_manager 使用 Flutter 资源路径格式（相对于 data/flutter_assets/）
         await trayManager.setIcon('assets/icons/app_icon.ico');
         await trayManager.setToolTip('NAI Launcher');

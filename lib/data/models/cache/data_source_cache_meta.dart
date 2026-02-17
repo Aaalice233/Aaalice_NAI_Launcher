@@ -152,6 +152,95 @@ class TagsCacheMeta {
   }
 }
 
+/// 画师标签同步状态
+enum ArtistSyncStatus {
+  idle,      // 空闲状态
+  running,   // 进行中
+  paused,    // 用户暂停
+  failed,    // 失败（可恢复）
+  completed, // 已完成
+}
+
+/// 画师标签同步断点
+///
+/// 用于记录画师标签拉取进度，支持断点续传
+class ArtistsSyncCheckpoint {
+  final int lastFetchedPage;      // 最后成功拉取的页码（0表示从未开始）
+  final int importedCount;        // 已导入的记录数
+  final DateTime? startTime;      // 本次同步开始时间
+  final ArtistSyncStatus status;  // 同步状态
+  final String? sessionId;        // 本次同步会话ID（防止多次启动冲突）
+  final DateTime? lastUpdated;    // 最后更新时间
+
+  const ArtistsSyncCheckpoint({
+    this.lastFetchedPage = 0,
+    this.importedCount = 0,
+    this.startTime,
+    this.status = ArtistSyncStatus.idle,
+    this.sessionId,
+    this.lastUpdated,
+  });
+
+  /// 初始状态
+  factory ArtistsSyncCheckpoint.initial() => const ArtistsSyncCheckpoint();
+
+  /// 从JSON解析
+  factory ArtistsSyncCheckpoint.fromJson(Map<String, dynamic> json) {
+    return ArtistsSyncCheckpoint(
+      lastFetchedPage: json['lastFetchedPage'] as int? ?? 0,
+      importedCount: json['importedCount'] as int? ?? 0,
+      startTime: json['startTime'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(json['startTime'] as int)
+          : null,
+      status: ArtistSyncStatus.values[json['status'] as int? ?? 0],
+      sessionId: json['sessionId'] as String?,
+      lastUpdated: json['lastUpdated'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(json['lastUpdated'] as int)
+          : null,
+    );
+  }
+
+  /// 转为JSON
+  Map<String, dynamic> toJson() => {
+    'lastFetchedPage': lastFetchedPage,
+    'importedCount': importedCount,
+    'startTime': startTime?.millisecondsSinceEpoch,
+    'status': status.index,
+    'sessionId': sessionId,
+    'lastUpdated': lastUpdated?.millisecondsSinceEpoch,
+  };
+
+  /// 是否可以恢复
+  bool get canResume =>
+      (status == ArtistSyncStatus.paused || status == ArtistSyncStatus.failed) &&
+      !isStale;
+
+  /// 是否已过期（超过24小时）
+  bool get isStale {
+    if (lastUpdated == null) return false;
+    return DateTime.now().difference(lastUpdated!).inHours > 24;
+  }
+
+  /// 复制并修改
+  ArtistsSyncCheckpoint copyWith({
+    int? lastFetchedPage,
+    int? importedCount,
+    DateTime? startTime,
+    ArtistSyncStatus? status,
+    String? sessionId,
+    DateTime? lastUpdated,
+  }) {
+    return ArtistsSyncCheckpoint(
+      lastFetchedPage: lastFetchedPage ?? this.lastFetchedPage,
+      importedCount: importedCount ?? this.importedCount,
+      startTime: startTime ?? this.startTime,
+      status: status ?? this.status,
+      sessionId: sessionId ?? this.sessionId,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
+    );
+  }
+}
+
 /// 画师标签缓存元数据
 class ArtistsCacheMeta {
   final DateTime lastUpdate;

@@ -36,8 +36,9 @@ class LocalTagStrategy extends AutocompleteStrategy<LocalTag> {
 
   /// 工厂方法：创建 LocalTagStrategy
   static Future<LocalTagStrategy> create(WidgetRef ref, AutocompleteConfig config) async {
+    final service = await ref.read(danbooruTagsLazyServiceProvider.future);
     return LocalTagStrategy._(
-      danbooruService: await ref.read(danbooruTagsLazyServiceProvider.future),
+      danbooruService: service,
       config: config,
     );
   }

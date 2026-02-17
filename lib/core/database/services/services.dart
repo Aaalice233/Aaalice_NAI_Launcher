@@ -36,3 +36,12 @@ export 'cooccurrence_service.dart'
 export 'translation_service.dart'
     show
         TranslationService;
+
+export 'service_providers.dart'
+    show
+        danbooruTagDataSourceV2Provider,
+        translationDataSourceProvider,
+        cooccurrenceDataSourceProvider,
+        translationServiceProvider,
+        cooccurrenceServiceProvider,
+        completionServiceProvider;

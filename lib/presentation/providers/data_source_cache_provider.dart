@@ -1,6 +1,6 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/database/database.dart';
+import '../../core/database/services/services.dart';
 import '../../core/services/danbooru_tags_lazy_service.dart';
 import '../../data/models/cache/data_source_cache_meta.dart';
 

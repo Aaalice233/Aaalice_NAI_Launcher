@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import '../utils/app_logger.dart';
-import 'connection_pool.dart';
+import 'connection_pool_holder.dart';
 
 /// 健康检查结果
 enum HealthStatus {
@@ -78,7 +78,7 @@ class HealthChecker {
   /// 返回：健康检查结果
   Future<HealthCheckResult> quickCheck() async {
     final stopwatch = Stopwatch()..start();
-    final db = await ConnectionPool.instance.acquire();
+    final db = await ConnectionPoolHolder.instance.acquire();
 
     try {
       // 检查数据库是否可查询
@@ -145,7 +145,7 @@ class HealthChecker {
       _lastResult = result;
       return result;
     } finally {
-      await ConnectionPool.instance.release(db);
+      await ConnectionPoolHolder.instance.release(db);
     }
   }
 
@@ -160,7 +160,7 @@ class HealthChecker {
   /// 返回：健康检查结果
   Future<HealthCheckResult> fullCheck() async {
     final stopwatch = Stopwatch()..start();
-    final db = await ConnectionPool.instance.acquire();
+    final db = await ConnectionPoolHolder.instance.acquire();
 
     try {
       // PRAGMA integrity_check - 无超时限制
@@ -267,7 +267,7 @@ class HealthChecker {
       _lastResult = result;
       return result;
     } finally {
-      await ConnectionPool.instance.release(db);
+      await ConnectionPoolHolder.instance.release(db);
     }
   }
 
@@ -281,7 +281,7 @@ class HealthChecker {
   /// 返回：健康检查结果
   Future<HealthCheckResult> validateData() async {
     final stopwatch = Stopwatch()..start();
-    final db = await ConnectionPool.instance.acquire();
+    final db = await ConnectionPoolHolder.instance.acquire();
 
     try {
       final validationErrors = <String>[];
@@ -412,7 +412,7 @@ class HealthChecker {
       _lastResult = result;
       return result;
     } finally {
-      await ConnectionPool.instance.release(db);
+      await ConnectionPoolHolder.instance.release(db);
     }
   }
 

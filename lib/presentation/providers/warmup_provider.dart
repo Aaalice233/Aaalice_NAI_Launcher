@@ -16,7 +16,6 @@ import '../../core/services/data_migration_service.dart';
 import '../../core/services/translation/translation_providers.dart';
 import '../../core/services/warmup_task_scheduler.dart';
 import 'background_task_provider.dart';
-import 'data_source_cache_provider.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/repositories/local_gallery_repository.dart';
 import 'auth_provider.dart';
@@ -435,16 +434,11 @@ class WarmupNotifier extends _$WarmupNotifier {
 
   /// 轻量级初始化统一数据库（带进度反馈、错误处理和损坏检测）
   Future<void> _initUnifiedDatabaseLightweight() async {
-    AppLogger.i('Initializing unified tag database (lightweight)...', 'Warmup');
+    AppLogger.i('等待数据库准备就绪...', 'Warmup');
 
     try {
-      // 更新进度状态
-      state = state.copyWith(subTaskMessage: '正在准备数据库文件...');
-
-      // 使用新的 DatabaseManager 初始化
+      // 数据库已在 main() 中初始化和恢复，这里只需等待就绪
       final manager = await ref.watch(databaseManagerProvider.future);
-
-      // 等待初始化完成
       await manager.initialized.timeout(
         const Duration(seconds: 60),
         onTimeout: () {
@@ -453,36 +447,11 @@ class WarmupNotifier extends _$WarmupNotifier {
         },
       );
 
-      // 预热阶段：检测数据库是否损坏
-      state = state.copyWith(subTaskMessage: '正在检查数据库完整性...');
-      final healthCheck = await manager.quickHealthCheck();
-
-      if (healthCheck.isCorrupted) {
-        AppLogger.w('Database corruption detected during warmup, rebuilding...', 'Warmup');
-        state = state.copyWith(subTaskMessage: '检测到数据库损坏，正在修复...');
-        await manager.recover();
-        AppLogger.i('Database rebuilt successfully during warmup', 'Warmup');
-      }
-
-      AppLogger.i('Unified tag database initialized', 'Warmup');
+      AppLogger.i('数据库已就绪', 'Warmup');
     } on TimeoutException {
       rethrow;
     } catch (e, stack) {
       AppLogger.e('Database initialization failed', e, stack, 'Warmup');
-      // 检查是否是数据库损坏错误
-      if (e.toString().contains('database disk image is malformed') ||
-          e.toString().contains('database is corrupted')) {
-        AppLogger.w('Database corruption detected, attempting rebuild...', 'Warmup');
-        state = state.copyWith(subTaskMessage: '检测到数据库损坏，正在修复...');
-        try {
-          final manager = await ref.watch(databaseManagerProvider.future);
-          await manager.recover();
-          AppLogger.i('Database rebuilt successfully after corruption', 'Warmup');
-          return;
-        } catch (rebuildError) {
-          AppLogger.e('Failed to rebuild database', rebuildError, null, 'Warmup');
-        }
-      }
       // 数据库初始化失败不应阻塞启动，记录错误但继续
       AppLogger.w('Continuing without database - will retry on first use', 'Warmup');
     }
@@ -553,31 +522,11 @@ class WarmupNotifier extends _$WarmupNotifier {
         AppLogger.i('共现数据已就绪（$count 条记录）', 'Warmup');
       }
     } on StateError catch (e) {
-      // ConnectionPool disposed 或其他状态错误，不阻塞启动
+      // 数据库正在恢复中，不阻塞启动
       AppLogger.w('共现数据初始化时数据库正在恢复，将在后台重试: $e', 'Warmup');
     } catch (e, stack) {
       AppLogger.e('共现数据初始化失败', e, stack, 'Warmup');
     }
-  }
-
-  Future<void> _checkAndImportCooccurrence() async {
-    // 使用新的 CooccurrenceService 进行 CSV 导入
-    final service = await ref.watch(cooccurrenceServiceProvider.future);
-
-    // 直接导入 CSV，等待完成（不是后台任务）
-    await service.importCsvToSQLite(
-      onProgress: (progress, message) {
-        ref
-            .read(backgroundTaskNotifierProvider.notifier)
-            .updateProgress('cooccurrence_import', progress, message: message);
-      },
-    ).timeout(
-      const Duration(minutes: 3), // 给足够时间导入（共现数据量大）
-      onTimeout: () {
-        AppLogger.w('共现数据导入超时', 'Warmup');
-        return -1;
-      },
-    );
   }
 
   Future<void> _preloadTranslationInBackground() async {
@@ -590,44 +539,6 @@ class WarmupNotifier extends _$WarmupNotifier {
     } on TimeoutException {
       AppLogger.w('Translation initialization timeout, will retry later', 'Warmup');
     }
-  }
-
-  Future<void> _preloadDanbooruTagsInBackground() async {
-    final service = await ref.read(danbooruTagsLazyServiceProvider.future);
-    final cacheStateAsync = ref.read(danbooruTagsCacheNotifierProvider);
-
-    service.onProgress = (progress, message) {
-      ref
-          .read(backgroundTaskNotifierProvider.notifier)
-          .updateProgress('danbooru_tags_preload', progress, message: message);
-    };
-
-    // 轻量级初始化
-    await service.initializeLightweight();
-
-    // 检查是否需要自动刷新（根据设置中的自动刷新间隔）
-    final shouldRefresh = await service.shouldRefreshInBackground();
-    final tagCount = await service.getTagCount();
-
-    if (tagCount == 0 || shouldRefresh) {
-      AppLogger.i('Danbooru tags need refresh (count: $tagCount, shouldRefresh: $shouldRefresh)', 'Warmup');
-      // 自动触发数据拉取
-      await service.refresh();
-
-      // 如果开启了同步画师，也同步画师数据
-      if (cacheStateAsync is AsyncData &&
-          cacheStateAsync.value != null &&
-          cacheStateAsync.value!.syncArtists) {
-        AppLogger.i('Artist sync is enabled, syncing artists...', 'Warmup');
-        // TODO: 实现画师同步
-        // await ref.read(danbooruTagsCacheNotifierProvider.notifier).syncArtists();
-      }
-    } else {
-      // 不需要刷新，只加载热数据
-      await service.preloadHotDataInBackground();
-    }
-
-    service.onProgress = null;
   }
 
   /// 拉取一般标签（非画师标签，category != 1）
@@ -652,6 +563,18 @@ class WarmupNotifier extends _$WarmupNotifier {
       AppLogger.w('Cannot check tag count, database recovering: $e', 'Warmup');
     } catch (e) {
       AppLogger.w('Failed to check tag count: $e', 'Warmup');
+    }
+
+    // 检查是否需要刷新
+    try {
+      final needsRefresh = await service.shouldRefresh();
+      if (!needsRefresh) {
+        AppLogger.i('Danbooru tags are up to date, skipping fetch', 'Warmup');
+        return;
+      }
+      AppLogger.i('Danbooru tags need refresh, starting fetch...', 'Warmup');
+    } catch (e) {
+      AppLogger.w('Failed to check refresh status, will try to fetch: $e', 'Warmup');
     }
 
     // 设置进度回调（不显示百分比，只显示数量和状态）
@@ -708,6 +631,18 @@ class WarmupNotifier extends _$WarmupNotifier {
     final notifier = ref.read(backgroundTaskNotifierProvider.notifier);
 
     try {
+      // 检查是否需要刷新
+      final shouldFetch = await service.shouldFetchArtistTags();
+      if (!shouldFetch) {
+        AppLogger.i('Artist tags are up to date, skipping fetch', 'Background');
+        notifier.updateProgress(
+          'artist_tags_fetch',
+          1.0,
+          message: '画师标签已是最新',
+        );
+        return;
+      }
+
       // 初始状态
       notifier.updateProgress(
         'artist_tags_fetch',
@@ -741,10 +676,10 @@ class WarmupNotifier extends _$WarmupNotifier {
     try {
       // 使用新的 DatabaseManager 获取统计信息
       final manager = await ref.watch(databaseManagerProvider.future);
-      
+
       // 等待初始化完成
       await manager.initialized;
-      
+
       final stats = await manager.getStatistics();
       final tableStats = stats['tables'] as Map<String, int>? ?? {};
 
@@ -758,20 +693,14 @@ class WarmupNotifier extends _$WarmupNotifier {
         'Warmup',
       );
 
-      // 1. 恢复 translations 和 cooccurrences（从预打包数据库）
+      // 1. 检查 translations 和 cooccurrences
+      // 注意：核心数据恢复已在 main() 中完成，这里只检查状态
       if (translationCount == 0 || cooccurrenceCount == 0) {
         AppLogger.w(
-          '检测到核心数据缺失，从预打包数据库恢复...',
+          '核心数据为空，将在后台通过API拉取补充',
           'Warmup',
         );
-        state = state.copyWith(
-          subTaskMessage: '正在恢复核心数据（翻译+共现）...',
-        );
-
-        // 使用 RecoveryManager 重新导入预打包数据
-        await manager.recover();
-
-        AppLogger.i('核心数据恢复完成', 'Warmup');
+        // 不再调用 recover()，避免重复恢复导致 ConnectionPool 被替换
       }
 
       // 2. 恢复 danbooru_tags（从API）

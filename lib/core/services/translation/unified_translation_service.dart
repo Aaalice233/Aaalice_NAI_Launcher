@@ -3,7 +3,10 @@ import 'dart:isolate';
 
 import 'package:csv/csv.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../constants/storage_keys.dart';
+import '../../../data/models/cache/data_source_cache_meta.dart';
 import '../../database/datasources/translation_data_source.dart' as new_ds;
 import '../../utils/app_logger.dart';
 import '../../utils/tag_normalizer.dart';
@@ -104,11 +107,34 @@ class UnifiedTranslationService {
         return true;
       }
 
+      // 检查是否超过刷新间隔
+      final prefs = await SharedPreferences.getInstance();
+      final lastUpdateMillis = prefs.getInt(StorageKeys.hfTranslationLastUpdate);
+      if (lastUpdateMillis != null) {
+        final lastUpdate = DateTime.fromMillisecondsSinceEpoch(lastUpdateMillis);
+        final interval = AutoRefreshInterval.days30; // 默认30天
+        if (interval.shouldRefresh(lastUpdate)) {
+          AppLogger.i('[UnifiedTranslation] Cache expired (last update: $lastUpdate), reloading...', 'UnifiedTranslation');
+          return true;
+        }
+      }
+
       AppLogger.d('[UnifiedTranslation] Found $count cached translations', 'UnifiedTranslation');
       return false;
     } catch (e) {
       AppLogger.w('[UnifiedTranslation] Error checking cache status: $e', 'UnifiedTranslation');
       return true;
+    }
+  }
+
+  /// 保存更新时间戳
+  Future<void> _saveLastUpdate() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(StorageKeys.hfTranslationLastUpdate, DateTime.now().millisecondsSinceEpoch);
+      AppLogger.i('[UnifiedTranslation] Saved last update timestamp', 'UnifiedTranslation');
+    } catch (e) {
+      AppLogger.w('[UnifiedTranslation] Failed to save last update timestamp: $e', 'UnifiedTranslation');
     }
   }
 
@@ -158,6 +184,9 @@ class UnifiedTranslationService {
 
       // 加载热数据
       await _loadHotDataFromDb();
+
+      // 保存更新时间戳
+      await _saveLastUpdate();
   }
 
   /// 直接从 CSV 加载（降级方案，不缓存到数据库）

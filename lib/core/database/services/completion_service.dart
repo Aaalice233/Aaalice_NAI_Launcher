@@ -1,5 +1,5 @@
 import '../../utils/app_logger.dart';
-import '../datasources/danbooru_tag_data_source.dart';
+import '../datasources/danbooru_tag_datasource_v2.dart';
 import '../datasources/translation_data_source.dart';
 
 /// 补全结果
@@ -52,7 +52,7 @@ class CompletionResult {
 /// 提供标签自动补全功能的高级服务层。
 /// 基于 DanbooruTagDataSource 进行前缀搜索，并结合 TranslationDataSource 提供翻译。
 class CompletionService {
-  final DanbooruTagDataSource _tagDataSource;
+  final DanbooruTagDataSourceV2 _tagDataSource;
   final TranslationDataSource _translationDataSource;
 
   CompletionService(this._tagDataSource, this._translationDataSource);
@@ -179,7 +179,7 @@ class CompletionService {
       final tagRecords = await _tagDataSource.searchByPrefix(
         prefix,
         limit: limit,
-        category: category,
+        category: category?.value,
       );
 
       if (tagRecords.isEmpty) {
@@ -237,10 +237,9 @@ class CompletionService {
     }
 
     try {
-      // 1. 模糊搜索
-      final tagRecords = await _tagDataSource.search(
+      // 1. 模糊搜索（使用 LIKE %query% 模式）
+      final tagRecords = await _tagDataSource.searchFuzzy(
         query,
-        mode: TagSearchMode.contains,
         limit: limit,
       );
 
@@ -295,7 +294,7 @@ class CompletionService {
     try {
       final records = await _tagDataSource.getHotTags(
         limit: limit,
-        category: category,
+        category: category?.value,
       );
 
       if (records.isEmpty) {
@@ -367,7 +366,7 @@ class CompletionService {
   /// 获取标签总数
   Future<int> getTagCount({TagCategory? category}) async {
     try {
-      return await _tagDataSource.getCount(category: category);
+      return await _tagDataSource.getCount(category: category?.value);
     } catch (e, stack) {
       AppLogger.e(
         'Failed to get tag count',

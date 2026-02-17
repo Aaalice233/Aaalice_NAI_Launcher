@@ -140,8 +140,11 @@ class TranslationDataSource extends BaseDataSource {
 
   final LRUCache<String, String> _cache = LRUCache(maxSize: _maxCacheSize);
 
-  // 数据库连接（通过外部注入）
+  // 数据库连接（通过外部注入，旧模式）
   dynamic _db;
+
+  // 连接池（新模式，优先使用）
+  dynamic _connectionPool;
 
   @override
   String get name => 'translation';
@@ -157,6 +160,32 @@ class TranslationDataSource extends BaseDataSource {
   /// 在初始化前必须设置数据库连接
   void setDatabase(dynamic db) {
     _db = db;
+  }
+
+  /// 设置连接池
+  ///
+  /// 使用连接池模式，每次操作时动态获取连接
+  void setConnectionPool(dynamic pool) {
+    _connectionPool = pool;
+  }
+
+  /// 获取数据库连接
+  ///
+  /// 优先使用连接池，回退到固定连接
+  Future<dynamic> _acquireDb() async {
+    if (_connectionPool != null) {
+      return await _connectionPool.acquire();
+    }
+    return _db;
+  }
+
+  /// 释放数据库连接
+  ///
+  /// 如果是从连接池获取的，需要释放
+  Future<void> _releaseDb(dynamic db) async {
+    if (_connectionPool != null && db != null) {
+      await _connectionPool.release(db);
+    }
   }
 
   /// 查询单个翻译
@@ -231,14 +260,15 @@ class TranslationDataSource extends BaseDataSource {
     bool matchTag = true,
     bool matchTranslation = true,
   }) async {
-    if (query.isEmpty || _db == null) return [];
+    final db = await _acquireDb();
+    if (query.isEmpty || db == null) return [];
 
     try {
       final results = <TranslationMatch>[];
       final lowerQuery = query.toLowerCase();
 
       if (matchTag) {
-        final tagResults = await _db.rawQuery(
+        final tagResults = await db.rawQuery(
           'SELECT en_tag, zh_translation FROM $_tableName '
           'WHERE en_tag LIKE ? ORDER BY en_tag LIMIT ?',
           ['%$lowerQuery%', limit],
@@ -259,7 +289,7 @@ class TranslationDataSource extends BaseDataSource {
       }
 
       if (matchTranslation) {
-        final transResults = await _db.rawQuery(
+        final transResults = await db.rawQuery(
           'SELECT en_tag, zh_translation FROM $_tableName '
           'WHERE zh_translation LIKE ? ORDER BY zh_translation LIMIT ?',
           ['%$query%', limit],
@@ -290,31 +320,37 @@ class TranslationDataSource extends BaseDataSource {
     } catch (e, stack) {
       AppLogger.e('Failed to search translations', e, stack, 'TranslationDS');
       return [];
+    } finally {
+      await _releaseDb(db);
     }
   }
 
   /// 获取翻译总数
   Future<int> getCount() async {
-    if (_db == null) return 0;
+    final db = await _acquireDb();
+    if (db == null) return 0;
 
     try {
-      final result = await _db.rawQuery(
+      final result = await db.rawQuery(
         'SELECT COUNT(*) as count FROM $_tableName',
       );
       return (result.first['count'] as num?)?.toInt() ?? 0;
     } catch (e) {
       AppLogger.w('Failed to get translation count: $e', 'TranslationDS');
       return 0;
+    } finally {
+      await _releaseDb(db);
     }
   }
 
   /// 插入或更新翻译记录
   Future<void> upsert(TranslationRecord record) async {
-    if (_db == null) throw StateError('Database not initialized');
+    final db = await _acquireDb();
+    if (db == null) throw StateError('Database not initialized');
 
     try {
       // 使用 INSERT OR REPLACE 语法
-      await _db.rawInsert(
+      await db.rawInsert(
         'INSERT OR REPLACE INTO $_tableName (en_tag, zh_translation, source, last_accessed) VALUES (?, ?, ?, ?)',
         [
           record.enTag,
@@ -329,30 +365,37 @@ class TranslationDataSource extends BaseDataSource {
     } catch (e, stack) {
       AppLogger.e('Failed to upsert translation', e, stack, 'TranslationDS');
       rethrow;
+    } finally {
+      await _releaseDb(db);
     }
   }
 
   /// 批量插入翻译记录
   Future<void> upsertBatch(List<TranslationRecord> records) async {
-    if (_db == null) throw StateError('Database not initialized');
     if (records.isEmpty) return;
 
+    final db = await _acquireDb();
+    if (db == null) throw StateError('Database not initialized');
+
     try {
-      final batch = _db.batch();
+      // 使用事务保护批量操作
+      await db.transaction((txn) async {
+        final batch = txn.batch();
 
-      for (final record in records) {
-        batch.rawInsert(
-          'INSERT OR REPLACE INTO $_tableName (en_tag, zh_translation, source, last_accessed) VALUES (?, ?, ?, ?)',
-          [
-            record.enTag,
-            record.zhTranslation,
-            record.source,
-            DateTime.now().millisecondsSinceEpoch,
-          ],
-        );
-      }
+        for (final record in records) {
+          batch.rawInsert(
+            'INSERT OR REPLACE INTO $_tableName (en_tag, zh_translation, source, last_accessed) VALUES (?, ?, ?, ?)',
+            [
+              record.enTag,
+              record.zhTranslation,
+              record.source,
+              DateTime.now().millisecondsSinceEpoch,
+            ],
+          );
+        }
 
-      await batch.commit(noResult: true);
+        await batch.commit(noResult: true);
+      });
 
       // 更新缓存
       for (final record in records) {
@@ -371,6 +414,8 @@ class TranslationDataSource extends BaseDataSource {
         'TranslationDS',
       );
       rethrow;
+    } finally {
+      await _releaseDb(db);
     }
   }
 
@@ -379,20 +424,21 @@ class TranslationDataSource extends BaseDataSource {
 
   @override
   Future<void> doInitialize() async {
-    if (_db == null) {
+    final db = await _acquireDb();
+    if (db == null) {
       throw StateError('Database connection not set. Call setDatabase() first.');
     }
 
     // 验证表是否存在
     try {
-      final result = await _db.rawQuery(
+      final result = await db.rawQuery(
         "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
         [_tableName],
       );
 
       if (result.isEmpty) {
         // 创建表
-        await _db.execute('''
+        await db.execute('''
           CREATE TABLE IF NOT EXISTS $_tableName (
             en_tag TEXT PRIMARY KEY,
             zh_translation TEXT NOT NULL,
@@ -402,8 +448,8 @@ class TranslationDataSource extends BaseDataSource {
         ''');
 
         // 创建索引
-        await _db.execute('''
-          CREATE INDEX IF NOT EXISTS idx_translations_source 
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_translations_source
           ON $_tableName(source)
         ''');
 
@@ -417,12 +463,15 @@ class TranslationDataSource extends BaseDataSource {
         'TranslationDS',
       );
       rethrow;
+    } finally {
+      await _releaseDb(db);
     }
   }
 
   @override
   Future<DataSourceHealth> doCheckHealth() async {
-    if (_db == null) {
+    final db = await _acquireDb();
+    if (db == null) {
       return DataSourceHealth(
         status: HealthStatus.corrupted,
         message: 'Database connection is null',
@@ -432,7 +481,7 @@ class TranslationDataSource extends BaseDataSource {
 
     try {
       // 检查表是否存在
-      final result = await _db.rawQuery(
+      final result = await db.rawQuery(
         "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
         [_tableName],
       );
@@ -446,7 +495,7 @@ class TranslationDataSource extends BaseDataSource {
       }
 
       // 尝试查询
-      await _db.rawQuery('SELECT 1 FROM $_tableName LIMIT 1');
+      await db.rawQuery('SELECT 1 FROM $_tableName LIMIT 1');
 
       final count = await getCount();
 
@@ -467,6 +516,8 @@ class TranslationDataSource extends BaseDataSource {
         details: {'error': e.toString()},
         timestamp: DateTime.now(),
       );
+    } finally {
+      await _releaseDb(db);
     }
   }
 
@@ -494,10 +545,11 @@ class TranslationDataSource extends BaseDataSource {
   // 私有辅助方法
 
   Future<String?> _queryFromDb(String normalizedTag) async {
-    if (_db == null) return null;
+    final db = await _acquireDb();
+    if (db == null) return null;
 
     try {
-      final result = await _db.query(
+      final result = await db.query(
         _tableName,
         columns: ['zh_translation'],
         where: 'en_tag = ?',
@@ -512,15 +564,18 @@ class TranslationDataSource extends BaseDataSource {
     } catch (e) {
       AppLogger.w('Failed to query translation from DB: $e', 'TranslationDS');
       return null;
+    } finally {
+      await _releaseDb(db);
     }
   }
 
   Future<Map<String, String>> _queryBatchFromDb(List<String> tags) async {
-    if (_db == null || tags.isEmpty) return {};
+    final db = await _acquireDb();
+    if (db == null || tags.isEmpty) return {};
 
     try {
       final placeholders = tags.map((_) => '?').join(',');
-      final result = await _db.rawQuery(
+      final result = await db.rawQuery(
         'SELECT en_tag, zh_translation FROM $_tableName WHERE en_tag IN ($placeholders)',
         tags,
       );
@@ -532,6 +587,8 @@ class TranslationDataSource extends BaseDataSource {
     } catch (e) {
       AppLogger.w('Failed to batch query translations: $e', 'TranslationDS');
       return {};
+    } finally {
+      await _releaseDb(db);
     }
   }
 

@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 export '../../database/datasources/translation_data_source.dart' show TranslationMatch;
 
 import '../../database/datasources/translation_data_source.dart' as new_ds;
+import '../../database/services/service_providers.dart';
 import 'translation_data_source.dart';
 import 'unified_translation_service.dart';
 
@@ -18,6 +19,10 @@ Future<UnifiedTranslationService> unifiedTranslationService(Ref ref) async {
   final service = UnifiedTranslationService(
     dataSources: PredefinedDataSources.all,
   );
+
+  // 注入数据库数据源（关键修复：确保数据能持久化到数据库）
+  final dataSource = await ref.watch(translationDataSourceProvider.future);
+  service.setTranslationDataSource(dataSource);
 
   // 等待初始化完成
   await service.initialize();

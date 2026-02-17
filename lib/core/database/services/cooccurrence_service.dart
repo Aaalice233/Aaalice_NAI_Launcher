@@ -2,7 +2,9 @@ import '../../utils/app_logger.dart';
 import 'dart:async';
 
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../constants/storage_keys.dart';
 import '../datasources/cooccurrence_data_source.dart';
 
 /// 推荐结果
@@ -65,13 +67,16 @@ enum AutoRefreshInterval {
 /// 基于 CooccurrenceDataSource，支持获取相关标签推荐。
 class CooccurrenceService {
   final CooccurrenceDataSource _dataSource;
-  
+
   bool _isLoaded = false;
   bool _hasData = false;
   DateTime? _lastUpdate;
   final AutoRefreshInterval _refreshInterval = AutoRefreshInterval.days30;
 
-  CooccurrenceService(this._dataSource);
+  CooccurrenceService(this._dataSource) {
+    // 构造函数中异步加载 meta
+    _loadMeta();
+  }
   
   /// 数据是否已加载
   bool get isLoaded => _isLoaded;
@@ -93,16 +98,23 @@ class CooccurrenceService {
     final stopwatch = Stopwatch()..start();
 
     try {
+      // 确保 meta 已加载
+      await _loadMeta();
+
       // 检查数据是否已存在
       final count = await _dataSource.getCount();
-      
+
       if (count > 0) {
         _isLoaded = true;
         _hasData = true;
-        _lastUpdate = DateTime.now();
+        // 如果没有记录更新时间，使用当前时间
+        if (_lastUpdate == null) {
+          _lastUpdate = DateTime.now();
+          await _saveMeta(count);
+        }
         stopwatch.stop();
         AppLogger.i(
-          'Cooccurrence data up to date ($count records) in ${stopwatch.elapsedMilliseconds}ms',
+          'Cooccurrence data up to date ($count records, lastUpdate: $_lastUpdate) in ${stopwatch.elapsedMilliseconds}ms',
           'Cooccurrence',
         );
         return true;
@@ -138,10 +150,50 @@ class CooccurrenceService {
         _isLoaded = true;
         _hasData = true;
         _lastUpdate = DateTime.now();
+        await _saveMeta(imported);
         AppLogger.i('Cooccurrence background import completed', 'Cooccurrence');
       }
     } catch (e, stack) {
       AppLogger.e('Background import failed', e, stack, 'Cooccurrence');
+    }
+  }
+
+  /// 加载元数据（上次更新时间等）
+  Future<void> _loadMeta() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lastUpdateMillis = prefs.getInt(StorageKeys.cooccurrenceLastUpdate);
+      if (lastUpdateMillis != null) {
+        _lastUpdate = DateTime.fromMillisecondsSinceEpoch(lastUpdateMillis);
+        AppLogger.i('Cooccurrence meta loaded: lastUpdate=$_lastUpdate', 'Cooccurrence');
+      }
+    } catch (e) {
+      AppLogger.w('Failed to load cooccurrence meta: $e', 'Cooccurrence');
+    }
+  }
+
+  /// 保存元数据
+  Future<void> _saveMeta(int totalRecords) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final now = DateTime.now();
+      await prefs.setInt(StorageKeys.cooccurrenceLastUpdate, now.millisecondsSinceEpoch);
+      _lastUpdate = now;
+      AppLogger.i('Cooccurrence meta saved: lastUpdate=$now, records=$totalRecords', 'Cooccurrence');
+    } catch (e) {
+      AppLogger.w('Failed to save cooccurrence meta: $e', 'Cooccurrence');
+    }
+  }
+
+  /// 清除元数据（用于重置缓存状态）
+  Future<void> clearMeta() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(StorageKeys.cooccurrenceLastUpdate);
+      _lastUpdate = null;
+      AppLogger.i('Cooccurrence meta cleared', 'Cooccurrence');
+    } catch (e) {
+      AppLogger.w('Failed to clear cooccurrence meta: $e', 'Cooccurrence');
     }
   }
 

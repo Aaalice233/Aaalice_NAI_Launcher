@@ -65,8 +65,11 @@ class CooccurrenceDataSource extends BaseDataSource {
   final Map<String, List<RelatedTag>> _relatedCache = {};
   static const int _maxCacheSize = 1000;
 
-  // 数据库连接
+  // 数据库连接（通过外部注入，旧模式）
   dynamic _db;
+
+  // 连接池（新模式，优先使用）
+  dynamic _connectionPool;
 
   // 可选的翻译数据源引用
   dynamic _translationDataSource;
@@ -83,6 +86,32 @@ class CooccurrenceDataSource extends BaseDataSource {
   /// 设置数据库连接
   void setDatabase(dynamic db) {
     _db = db;
+  }
+
+  /// 设置连接池
+  ///
+  /// 使用连接池模式，每次操作时动态获取连接
+  void setConnectionPool(dynamic pool) {
+    _connectionPool = pool;
+  }
+
+  /// 获取数据库连接
+  ///
+  /// 优先使用连接池，回退到固定连接
+  Future<dynamic> _acquireDb() async {
+    if (_connectionPool != null) {
+      return await _connectionPool.acquire();
+    }
+    return _db;
+  }
+
+  /// 释放数据库连接
+  ///
+  /// 如果是从连接池获取的，需要释放
+  Future<void> _releaseDb(dynamic db) async {
+    if (_connectionPool != null && db != null) {
+      await _connectionPool.release(db);
+    }
   }
 
   /// 设置翻译数据源
@@ -103,7 +132,8 @@ class CooccurrenceDataSource extends BaseDataSource {
     int limit = 20,
     int minCount = 1,
   }) async {
-    if (tag.isEmpty || _db == null) return [];
+    final db = await _acquireDb();
+    if (tag.isEmpty || db == null) return [];
 
     final normalizedTag = tag.toLowerCase().trim();
 
@@ -118,7 +148,7 @@ class CooccurrenceDataSource extends BaseDataSource {
     }
 
     try {
-      final results = await _db.query(
+      final results = await db.query(
         _tableName,
         columns: ['tag2', 'count', 'cooccurrence_score'],
         where: 'tag1 = ? AND count >= ?',
@@ -147,6 +177,8 @@ class CooccurrenceDataSource extends BaseDataSource {
         'CooccurrenceDS',
       );
       return [];
+    } finally {
+      await _releaseDb(db);
     }
   }
 
@@ -158,7 +190,8 @@ class CooccurrenceDataSource extends BaseDataSource {
     List<String> tags, {
     int limit = 10,
   }) async {
-    if (tags.isEmpty || _db == null) return {};
+    final db = await _acquireDb();
+    if (tags.isEmpty || db == null) return {};
 
     final result = <String, List<RelatedTag>>{};
 
@@ -166,7 +199,7 @@ class CooccurrenceDataSource extends BaseDataSource {
       final normalizedTags = tags.map((t) => t.toLowerCase().trim()).toList();
       final placeholders = normalizedTags.map((_) => '?').join(',');
 
-      final rows = await _db.rawQuery(
+      final rows = await db.rawQuery(
         'SELECT tag1, tag2, count, cooccurrence_score '
         'FROM $_tableName '
         'WHERE tag1 IN ($placeholders) '
@@ -207,6 +240,8 @@ class CooccurrenceDataSource extends BaseDataSource {
         'CooccurrenceDS',
       );
       return {};
+    } finally {
+      await _releaseDb(db);
     }
   }
 
@@ -214,10 +249,11 @@ class CooccurrenceDataSource extends BaseDataSource {
   ///
   /// [limit] 返回结果数量限制
   Future<List<RelatedTag>> getPopularCooccurrences({int limit = 100}) async {
-    if (_db == null) return [];
+    final db = await _acquireDb();
+    if (db == null) return [];
 
     try {
-      final results = await _db.query(
+      final results = await db.query(
         _tableName,
         columns: ['tag1', 'tag2', 'count', 'cooccurrence_score'],
         orderBy: 'count DESC',
@@ -239,6 +275,8 @@ class CooccurrenceDataSource extends BaseDataSource {
         'CooccurrenceDS',
       );
       return [];
+    } finally {
+      await _releaseDb(db);
     }
   }
 
@@ -250,13 +288,14 @@ class CooccurrenceDataSource extends BaseDataSource {
     String tag1,
     String tag2,
   ) async {
-    if (_db == null) return 0.0;
+    final db = await _acquireDb();
+    if (db == null) return 0.0;
 
     final t1 = tag1.toLowerCase().trim();
     final t2 = tag2.toLowerCase().trim();
 
     try {
-      final result = await _db.query(
+      final result = await db.query(
         _tableName,
         columns: ['count'],
         where: '(tag1 = ? AND tag2 = ?) OR (tag1 = ? AND tag2 = ?)',
@@ -269,11 +308,11 @@ class CooccurrenceDataSource extends BaseDataSource {
       final cooccurrence = (result.first['count'] as num?)?.toInt() ?? 0;
 
       // 获取两个标签的独立计数（近似值，从共现表中获取）
-      final count1Result = await _db.rawQuery(
+      final count1Result = await db.rawQuery(
         'SELECT SUM(count) as total FROM $_tableName WHERE tag1 = ?',
         [t1],
       );
-      final count2Result = await _db.rawQuery(
+      final count2Result = await db.rawQuery(
         'SELECT SUM(count) as total FROM $_tableName WHERE tag1 = ?',
         [t2],
       );
@@ -292,30 +331,36 @@ class CooccurrenceDataSource extends BaseDataSource {
         'CooccurrenceDS',
       );
       return 0.0;
+    } finally {
+      await _releaseDb(db);
     }
   }
 
   /// 获取共现记录总数
   Future<int> getCount() async {
-    if (_db == null) return 0;
+    final db = await _acquireDb();
+    if (db == null) return 0;
 
     try {
-      final result = await _db.rawQuery(
+      final result = await db.rawQuery(
         'SELECT COUNT(*) as count FROM $_tableName',
       );
       return (result.first['count'] as num?)?.toInt() ?? 0;
     } catch (e) {
       AppLogger.w('Failed to get cooccurrence count: $e', 'CooccurrenceDS');
       return 0;
+    } finally {
+      await _releaseDb(db);
     }
   }
 
   /// 获取与指定标签相关的唯一标签数量
   Future<int> getRelatedTagCount(String tag) async {
-    if (_db == null || tag.isEmpty) return 0;
+    final db = await _acquireDb();
+    if (db == null || tag.isEmpty) return 0;
 
     try {
-      final result = await _db.rawQuery(
+      final result = await db.rawQuery(
         'SELECT COUNT(*) as count FROM $_tableName WHERE tag1 = ?',
         [tag.toLowerCase().trim()],
       );
@@ -323,15 +368,18 @@ class CooccurrenceDataSource extends BaseDataSource {
     } catch (e) {
       AppLogger.w('Failed to get related tag count: $e', 'CooccurrenceDS');
       return 0;
+    } finally {
+      await _releaseDb(db);
     }
   }
 
   /// 插入共现记录
   Future<void> insert(CooccurrenceRecord record) async {
-    if (_db == null) throw StateError('Database not initialized');
+    final db = await _acquireDb();
+    if (db == null) throw StateError('Database not initialized');
 
     try {
-      await _db.rawInsert(
+      await db.rawInsert(
         'INSERT OR REPLACE INTO $_tableName (tag1, tag2, count, cooccurrence_score) VALUES (?, ?, ?, ?)',
         [
           record.tag1.toLowerCase().trim(),
@@ -346,30 +394,37 @@ class CooccurrenceDataSource extends BaseDataSource {
     } catch (e, stack) {
       AppLogger.e('Failed to insert cooccurrence', e, stack, 'CooccurrenceDS');
       rethrow;
+    } finally {
+      await _releaseDb(db);
     }
   }
 
   /// 批量插入共现记录
   Future<void> insertBatch(List<CooccurrenceRecord> records) async {
-    if (_db == null) throw StateError('Database not initialized');
     if (records.isEmpty) return;
 
+    final db = await _acquireDb();
+    if (db == null) throw StateError('Database not initialized');
+
     try {
-      final batch = _db.batch();
+      // 使用事务保护批量操作
+      await db.transaction((txn) async {
+        final batch = txn.batch();
 
-      for (final record in records) {
-        batch.rawInsert(
-          'INSERT OR REPLACE INTO $_tableName (tag1, tag2, count, cooccurrence_score) VALUES (?, ?, ?, ?)',
-          [
-            record.tag1.toLowerCase().trim(),
-            record.tag2.toLowerCase().trim(),
-            record.count,
-            record.cooccurrenceScore,
-          ],
-        );
-      }
+        for (final record in records) {
+          batch.rawInsert(
+            'INSERT OR REPLACE INTO $_tableName (tag1, tag2, count, cooccurrence_score) VALUES (?, ?, ?, ?)',
+            [
+              record.tag1.toLowerCase().trim(),
+              record.tag2.toLowerCase().trim(),
+              record.count,
+              record.cooccurrenceScore,
+            ],
+          );
+        }
 
-      await batch.commit(noResult: true);
+        await batch.commit(noResult: true);
+      });
 
       // 清除缓存（批量插入可能涉及大量标签）
       _relatedCache.clear();
@@ -386,6 +441,8 @@ class CooccurrenceDataSource extends BaseDataSource {
         'CooccurrenceDS',
       );
       rethrow;
+    } finally {
+      await _releaseDb(db);
     }
   }
 
@@ -401,7 +458,8 @@ class CooccurrenceDataSource extends BaseDataSource {
     String csvContent, {
     void Function(double progress, String message)? onProgress,
   }) async {
-    if (_db == null) throw StateError('Database not initialized');
+    final db = await _acquireDb();
+    if (db == null) throw StateError('Database not initialized');
 
     final stopwatch = Stopwatch()..start();
     onProgress?.call(0.0, '解析 CSV 数据...');
@@ -491,20 +549,25 @@ class CooccurrenceDataSource extends BaseDataSource {
       AppLogger.e('Failed to import CSV', e, stack, 'CooccurrenceDS');
       onProgress?.call(1.0, '导入失败');
       rethrow;
+    } finally {
+      await _releaseDb(db);
     }
   }
 
   /// 清除所有共现数据
   Future<void> clearData() async {
-    if (_db == null) return;
+    final db = await _acquireDb();
+    if (db == null) return;
 
     try {
-      await _db.delete(_tableName);
+      await db.delete(_tableName);
       _relatedCache.clear();
       AppLogger.i('All cooccurrence data cleared', 'CooccurrenceDS');
     } catch (e, stack) {
       AppLogger.e('Failed to clear cooccurrences', e, stack, 'CooccurrenceDS');
       rethrow;
+    } finally {
+      await _releaseDb(db);
     }
   }
 
@@ -516,20 +579,21 @@ class CooccurrenceDataSource extends BaseDataSource {
 
   @override
   Future<void> doInitialize() async {
-    if (_db == null) {
+    final db = await _acquireDb();
+    if (db == null) {
       throw StateError('Database connection not set. Call setDatabase() first.');
     }
 
     // 验证表是否存在
     try {
-      final result = await _db.rawQuery(
+      final result = await db.rawQuery(
         "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
         [_tableName],
       );
 
       if (result.isEmpty) {
         // 创建表
-        await _db.execute('''
+        await db.execute('''
           CREATE TABLE IF NOT EXISTS $_tableName (
             tag1 TEXT NOT NULL,
             tag2 TEXT NOT NULL,
@@ -540,13 +604,13 @@ class CooccurrenceDataSource extends BaseDataSource {
         ''');
 
         // 创建索引
-        await _db.execute('''
-          CREATE INDEX IF NOT EXISTS idx_cooccurrences_tag1_count_desc 
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_cooccurrences_tag1_count_desc
           ON $_tableName(tag1, count DESC, tag2)
         ''');
 
-        await _db.execute('''
-          CREATE INDEX IF NOT EXISTS idx_cooccurrences_count_desc 
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_cooccurrences_count_desc
           ON $_tableName(count DESC)
         ''');
 
@@ -560,12 +624,15 @@ class CooccurrenceDataSource extends BaseDataSource {
         'CooccurrenceDS',
       );
       rethrow;
+    } finally {
+      await _releaseDb(db);
     }
   }
 
   @override
   Future<DataSourceHealth> doCheckHealth() async {
-    if (_db == null) {
+    final db = await _acquireDb();
+    if (db == null) {
       return DataSourceHealth(
         status: HealthStatus.corrupted,
         message: 'Database connection is null',
@@ -575,7 +642,7 @@ class CooccurrenceDataSource extends BaseDataSource {
 
     try {
       // 检查表是否存在
-      final result = await _db.rawQuery(
+      final result = await db.rawQuery(
         "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
         [_tableName],
       );
@@ -589,7 +656,7 @@ class CooccurrenceDataSource extends BaseDataSource {
       }
 
       // 尝试查询
-      await _db.rawQuery('SELECT 1 FROM $_tableName LIMIT 1');
+      await db.rawQuery('SELECT 1 FROM $_tableName LIMIT 1');
 
       final count = await getCount();
 
@@ -609,6 +676,8 @@ class CooccurrenceDataSource extends BaseDataSource {
         details: {'error': e.toString()},
         timestamp: DateTime.now(),
       );
+    } finally {
+      await _releaseDb(db);
     }
   }
 
@@ -628,6 +697,7 @@ class CooccurrenceDataSource extends BaseDataSource {
   Future<void> doDispose() async {
     _relatedCache.clear();
     _db = null;
+    _connectionPool = null;
     _translationDataSource = null;
   }
 

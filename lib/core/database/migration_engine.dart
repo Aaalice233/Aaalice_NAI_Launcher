@@ -1,7 +1,7 @@
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../utils/app_logger.dart';
-import 'connection_pool.dart';
+import 'connection_pool_holder.dart';
 
 /// 迁移结果
 class MigrationResult {
@@ -100,7 +100,7 @@ class MigrationEngine {
   Future<void> initialize() async {
     if (_initialized) return;
 
-    final db = await ConnectionPool.instance.acquire();
+    final db = await ConnectionPoolHolder.instance.acquire();
     try {
       // 创建元数据表
       await db.execute('''
@@ -120,7 +120,7 @@ class MigrationEngine {
       AppLogger.e('Failed to initialize MigrationEngine', e, stack, 'MigrationEngine');
       rethrow;
     } finally {
-      await ConnectionPool.instance.release(db);
+      await ConnectionPoolHolder.instance.release(db);
     }
   }
 
@@ -155,11 +155,11 @@ class MigrationEngine {
 
   /// 获取当前数据库版本
   Future<int> getCurrentVersion() async {
-    final db = await ConnectionPool.instance.acquire();
+    final db = await ConnectionPoolHolder.instance.acquire();
     try {
       return await _getVersion(db);
     } finally {
-      await ConnectionPool.instance.release(db);
+      await ConnectionPoolHolder.instance.release(db);
     }
   }
 
@@ -205,7 +205,7 @@ class MigrationEngine {
     }
 
     final appliedMigrations = <String>[];
-    final db = await ConnectionPool.instance.acquire();
+    final db = await ConnectionPoolHolder.instance.acquire();
 
     try {
       // 获取需要应用的迁移
@@ -258,7 +258,7 @@ class MigrationEngine {
         details: {'migrationsApplied': pendingMigrations.length},
       );
     } finally {
-      await ConnectionPool.instance.release(db);
+      await ConnectionPoolHolder.instance.release(db);
     }
   }
 
@@ -297,7 +297,7 @@ class MigrationEngine {
     }
 
     final appliedMigrations = <String>[];
-    final db = await ConnectionPool.instance.acquire();
+    final db = await ConnectionPoolHolder.instance.acquire();
 
     try {
       // 获取需要回滚的迁移（按版本降序）
@@ -352,7 +352,7 @@ class MigrationEngine {
         details: {'migrationsRolledBack': migrationsToRollback.length},
       );
     } finally {
-      await ConnectionPool.instance.release(db);
+      await ConnectionPoolHolder.instance.release(db);
     }
   }
 

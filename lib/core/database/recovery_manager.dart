@@ -6,7 +6,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../services/sqflite_bootstrap_service.dart';
 import '../utils/app_logger.dart';
-import 'connection_pool.dart';
+import 'connection_pool_holder.dart';
 
 /// 恢复操作结果
 class RecoveryResult {
@@ -109,9 +109,6 @@ class RecoveryManager {
     AppLogger.w('Rebuilding database from scratch', 'RecoveryManager');
 
     try {
-      // 关闭连接池
-      await ConnectionPool.instance.dispose();
-
       final dbFile = File(_dbPath!);
 
       // 备份损坏的数据库（如果存在）
@@ -129,8 +126,8 @@ class RecoveryManager {
       final db = await databaseFactoryFfi.openDatabase(_dbPath!);
       await db.close();
 
-      // 重新初始化连接池
-      await ConnectionPool.initialize(dbPath: _dbPath!);
+      // 重置连接池（使用新实例）
+      await ConnectionPoolHolder.reset(dbPath: _dbPath!);
 
       AppLogger.i('Database rebuilt successfully', 'RecoveryManager');
       return RecoveryResult.success('Database rebuilt successfully', {
@@ -163,9 +160,6 @@ class RecoveryManager {
         return RecoveryResult.failure('Prebuilt database asset not found: $_prebuiltDbAsset');
       }
 
-      // 关闭连接池
-      await ConnectionPool.instance.dispose();
-
       final dbFile = File(_dbPath!);
 
       // 备份损坏的数据库（如果存在）
@@ -179,8 +173,8 @@ class RecoveryManager {
       final bytes = await rootBundle.load(_prebuiltDbAsset);
       await dbFile.writeAsBytes(bytes.buffer.asUint8List());
 
-      // 重新初始化连接池
-      await ConnectionPool.initialize(dbPath: _dbPath!);
+      // 重置连接池（使用新实例）
+      await ConnectionPoolHolder.reset(dbPath: _dbPath!);
 
       AppLogger.i('Database restored from prebuilt successfully', 'RecoveryManager');
       return RecoveryResult.success('Database restored from prebuilt', {
@@ -212,9 +206,6 @@ class RecoveryManager {
     AppLogger.i('Attempting to restore from backup', 'RecoveryManager');
 
     try {
-      // 关闭连接池
-      await ConnectionPool.instance.dispose();
-
       final dbFile = File(_dbPath!);
 
       // 备份损坏的数据库（如果存在）
@@ -226,8 +217,8 @@ class RecoveryManager {
       // 从备份恢复
       await backupFile.copy(_dbPath!);
 
-      // 重新初始化连接池
-      await ConnectionPool.initialize(dbPath: _dbPath!);
+      // 重置连接池（使用新实例）
+      await ConnectionPoolHolder.reset(dbPath: _dbPath!);
 
       AppLogger.i('Database restored from backup successfully', 'RecoveryManager');
       return RecoveryResult.success('Database restored from backup', {

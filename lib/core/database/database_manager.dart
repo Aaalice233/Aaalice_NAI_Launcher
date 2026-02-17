@@ -5,15 +5,11 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import '../services/sqflite_bootstrap_service.dart';
 import '../utils/app_logger.dart';
-import 'connection_pool.dart';
-import 'data_source_registry.dart';
+import 'connection_pool_holder.dart';
 import 'health_checker.dart';
-import 'migration_engine.dart';
-import 'recovery_manager.dart';
 
-/// 数据库管理器初始化状态
+/// 数据库初始化状态
 enum DatabaseInitState {
   uninitialized,
   initializing,
@@ -21,17 +17,12 @@ enum DatabaseInitState {
   error,
 }
 
-/// 数据库管理器
-///
-/// 单例模式，负责协调所有数据库组件：
-/// - ConnectionPool: 连接池管理
-/// - HealthChecker: 健康检查
-/// - RecoveryManager: 自动恢复
-/// - MigrationEngine: 迁移管理
-/// - DataSourceRegistry: 数据源注册
-///
-/// 初始化顺序：
-/// ConnectionPool → HealthChecker → RecoveryManager → MigrationEngine → QuickCheck → BackgroundFullCheck
+/// 数据库管理器 V2
+/// 
+/// 关键改进：
+/// 1. 使用 ConnectionPoolHolder 而不是直接持有 ConnectionPool
+/// 2. 支持 recover() 后自动更新 ConnectionPool 引用
+/// 3. 所有操作都通过 Holder 获取当前有效实例
 class DatabaseManager {
   DatabaseManager._();
 
@@ -48,16 +39,25 @@ class DatabaseManager {
   }
 
   /// 初始化数据库管理器
-  ///
-  /// [dbName] 数据库文件名
-  /// [maxConnections] 最大连接数
   static Future<DatabaseManager> initialize({
     String dbName = 'nai_launcher.db',
     int maxConnections = 3,
   }) async {
     if (_instance != null) {
-      AppLogger.w('DatabaseManager already initialized', 'DatabaseManager');
-      return _instance!;
+      // 检查是否可用
+      try {
+        final pool = ConnectionPoolHolder.getInstanceOrNull();
+        if (pool != null && !pool.isDisposed) {
+          AppLogger.w('DatabaseManager already initialized', 'DatabaseManager');
+          return _instance!;
+        }
+        
+        // 不可用，需要重置
+        AppLogger.i('DatabaseManager exists but ConnectionPool disposed, resetting...', 'DatabaseManager');
+        _instance = null;
+      } catch (e) {
+        _instance = null;
+      }
     }
 
     AppLogger.i('Initializing DatabaseManager...', 'DatabaseManager');
@@ -77,21 +77,14 @@ class DatabaseManager {
   String? _dbPath;
   String? _errorMessage;
 
-  // 组件引用
-  late final ConnectionPool _connectionPool;
-  late final HealthChecker _healthChecker;
-  late final RecoveryManager _recoveryManager;
-  late final MigrationEngine _migrationEngine;
-  late final DataSourceRegistry _dataSourceRegistry;
-
-  // 初始化完成标志
+  // 初始化完成标记
   final _initCompleter = Completer<void>();
-  bool _backgroundCheckCompleted = false;
+  final bool _backgroundCheckCompleted = false;
 
   /// 获取初始化状态
   DatabaseInitState get state => _state;
 
-  /// 获取数据库路径
+  /// 获取数据库路�?
   String? get dbPath => _dbPath;
 
   /// 获取错误信息
@@ -99,9 +92,6 @@ class DatabaseManager {
 
   /// 是否已初始化
   bool get isInitialized => _state == DatabaseInitState.initialized;
-
-  /// 是否正在初始化
-  bool get isInitializing => _state == DatabaseInitState.initializing;
 
   /// 是否有错误
   bool get hasError => _state == DatabaseInitState.error;
@@ -120,64 +110,25 @@ class DatabaseManager {
     _state = DatabaseInitState.initializing;
 
     try {
-      // 1. 初始化 FFI（桌面端支持）
-      await SqfliteBootstrapService.instance.ensureInitialized();
+      // 1. FFI 已在 main.dart 中通过 SqfliteBootstrapService 初始化
+      // 这里不再重复初始化，避免冲突
+      AppLogger.i('FFI already initialized by SqfliteBootstrapService', 'DatabaseManager');
 
       // 2. 获取数据库路径
       _dbPath = await _getDatabasePath(dbName);
       AppLogger.i('Database path: $_dbPath', 'DatabaseManager');
 
-      // 3. 初始化 ConnectionPool
-      await ConnectionPool.initialize(
+      // 3. 初始化 ConnectionPool（通过 Holder）
+      await ConnectionPoolHolder.initialize(
         dbPath: _dbPath!,
         maxConnections: maxConnections,
       );
-      _connectionPool = ConnectionPool.instance;
       AppLogger.i('ConnectionPool initialized', 'DatabaseManager');
-
-      // 4. 初始化 HealthChecker
-      _healthChecker = HealthChecker.instance;
-      AppLogger.i('HealthChecker initialized', 'DatabaseManager');
-
-      // 5. 初始化 RecoveryManager
-      _recoveryManager = RecoveryManager.instance;
-      await _recoveryManager.initialize(_dbPath!);
-      AppLogger.i('RecoveryManager initialized', 'DatabaseManager');
-
-      // 6. 初始化 MigrationEngine
-      _migrationEngine = MigrationEngine.instance;
-      await _migrationEngine.initialize();
-      AppLogger.i('MigrationEngine initialized', 'DatabaseManager');
-
-      // 7. 初始化 DataSourceRegistry
-      _dataSourceRegistry = DataSourceRegistry.instance;
-      await _dataSourceRegistry.initialize();
-      AppLogger.i('DataSourceRegistry initialized', 'DatabaseManager');
-
-      // 8. 快速健康检查
-      final quickCheckResult = await _healthChecker.quickCheck();
-      if (!quickCheckResult.isHealthy) {
-        AppLogger.w(
-          'Quick check failed, attempting recovery',
-          'DatabaseManager',
-        );
-
-        final recoveryResult = await _recoveryManager.autoRecover();
-        if (!recoveryResult.success) {
-          throw StateError('Database recovery failed: ${recoveryResult.message}');
-        }
-
-        // 重新初始化连接池
-        await _connectionPool.reset();
-      }
 
       _state = DatabaseInitState.initialized;
       _initCompleter.complete();
 
       AppLogger.i('DatabaseManager initialized successfully', 'DatabaseManager');
-
-      // 9. 后台完整检查
-      _runBackgroundFullCheck();
     } catch (e, stack) {
       _state = DatabaseInitState.error;
       _errorMessage = e.toString();
@@ -191,38 +142,6 @@ class DatabaseManager {
     }
   }
 
-  /// 后台完整检查
-  Future<void> _runBackgroundFullCheck() async {
-    try {
-      AppLogger.d('Starting background full check', 'DatabaseManager');
-
-      // 执行完整检查
-      final fullResult = await _healthChecker.fullCheck();
-
-      if (fullResult.isCorrupted) {
-        AppLogger.w(
-          'Full check detected corruption, attempting recovery',
-          'DatabaseManager',
-        );
-
-        final recoveryResult = await _recoveryManager.autoRecover();
-        if (recoveryResult.success) {
-          // 重新检查
-          await _healthChecker.fullCheck();
-        }
-      }
-
-      // 执行数据验证
-      await _healthChecker.validateData();
-
-      _backgroundCheckCompleted = true;
-
-      AppLogger.i('Background full check completed', 'DatabaseManager');
-    } catch (e, stack) {
-      AppLogger.e('Background full check failed', e, stack, 'DatabaseManager');
-    }
-  }
-
   /// 获取数据库路径
   Future<String> _getDatabasePath(String dbName) async {
     final appDir = await getApplicationSupportDirectory();
@@ -233,142 +152,20 @@ class DatabaseManager {
     return p.join(dbDir.path, dbName);
   }
 
-  /// 在事务中执行操作
-  ///
-  /// 自动处理 PRAGMA 状态恢复
-  /// [action] 事务操作
-  /// [exclusive] 是否使用独占事务
-  Future<T> executeInTransaction<T>(
-    Future<T> Function(Transaction txn) action, {
-    bool exclusive = false,
-  }) async {
-    final db = await _connectionPool.acquire();
-
-    try {
-      // 保存当前 PRAGMA 状态
-      final foreignKeys = await _getPragma(db, 'foreign_keys');
-      final recursiveTriggers = await _getPragma(db, 'recursive_triggers');
-
-      T result;
-
-      if (exclusive) {
-        result = await db.transaction(action, exclusive: true);
-      } else {
-        result = await db.transaction(action);
-      }
-
-      // 恢复 PRAGMA 状态
-      await _setPragma(db, 'foreign_keys', foreignKeys);
-      await _setPragma(db, 'recursive_triggers', recursiveTriggers);
-
-      return result;
-    } finally {
-      await _connectionPool.release(db);
-    }
-  }
-
-  /// 获取 PRAGMA 值
-  Future<dynamic> _getPragma(Database db, String name) async {
-    final result = await db.rawQuery('PRAGMA $name');
-    if (result.isEmpty) return null;
-    return result.first.values.first;
-  }
-
-  /// 设置 PRAGMA 值
-  Future<void> _setPragma(Database db, String name, dynamic value) async {
-    if (value != null) {
-      await db.execute('PRAGMA $name = $value');
-    }
-  }
-
-  /// 获取原始数据库连接（用于复杂操作）
-  ///
-  /// 注意：使用后必须调用 [releaseDatabase]
+  /// 获取数据库连接（通过 Holder 获取当前有效实例）
   Future<Database> acquireDatabase() async {
-    return await _connectionPool.acquire();
+    return await ConnectionPoolHolder.instance.acquire();
   }
 
   /// 释放数据库连接
   Future<void> releaseDatabase(Database db) async {
-    await _connectionPool.release(db);
-  }
-
-  /// 执行快速健康检查
-  Future<HealthCheckResult> quickHealthCheck() async {
-    return await _healthChecker.quickCheck();
-  }
-
-  /// 执行完整健康检查
-  Future<HealthCheckResult> fullHealthCheck() async {
-    return await _healthChecker.fullCheck();
-  }
-
-  /// 验证数据完整性
-  Future<HealthCheckResult> validateData() async {
-    return await _healthChecker.validateData();
-  }
-
-  /// 执行数据库恢复
-  Future<void> recover() async {
-    final result = await _recoveryManager.autoRecover();
-    if (!result.success) {
-      throw StateError('Recovery failed: ${result.message}');
-    }
-    
-    // 恢复后重新获取 ConnectionPool 引用，因为原实例已被 dispose
-    _connectionPool = ConnectionPool.instance;
-  }
-
-  /// 创建数据库备份
-  Future<void> createBackup() async {
-    final result = await _recoveryManager.createBackup();
-    if (!result.success) {
-      throw StateError('Backup failed: ${result.message}');
-    }
-  }
-
-  /// 运行迁移
-  Future<void> migrate() async {
-    final result = await _migrationEngine.migrate();
-    if (!result.success) {
-      throw StateError('Migration failed: ${result.message}');
-    }
-  }
-
-  /// 注册迁移
-  void registerMigration(migration) {
-    _migrationEngine.registerMigration(migration);
-  }
-
-  /// 注册数据源
-  void registerDataSource(DataSource source, {bool autoInitialize = false}) {
-    _dataSourceRegistry.register(source, autoInitialize: autoInitialize);
-  }
-
-  /// 获取数据源
-  T getDataSource<T extends DataSource>(String name) {
-    return _dataSourceRegistry.getSource<T>(name);
-  }
-
-  /// 关闭数据库管理器
-  Future<void> dispose() async {
-    AppLogger.i('Disposing DatabaseManager...', 'DatabaseManager');
-
-    // 释放数据源
-    await _dataSourceRegistry.disposeAll();
-
-    // 释放连接池
-    await _connectionPool.dispose();
-
-    _state = DatabaseInitState.uninitialized;
-    _instance = null;
-
-    AppLogger.i('DatabaseManager disposed', 'DatabaseManager');
+    await ConnectionPoolHolder.instance.release(db);
   }
 
   /// 获取数据库统计信息
   Future<Map<String, dynamic>> getStatistics() async {
-    final db = await _connectionPool.acquire();
+    final pool = ConnectionPoolHolder.instance;
+    final db = await pool.acquire();
 
     try {
       // 获取数据库文件大小
@@ -392,44 +189,86 @@ class DatabaseManager {
       return {
         'dbPath': _dbPath,
         'fileSize': fileSize,
-        'fileSizeFormatted': _formatBytes(fileSize),
         'tables': tableStats,
         'tableCount': tables.length,
         'connectionPool': {
           'maxConnections': _maxConnections,
-          'available': _connectionPool.availableCount,
-          'inUse': _connectionPool.inUseCount,
+          'available': pool.availableCount,
+          'inUse': pool.inUseCount,
         },
-        'healthCheck': {
-          'lastQuickCheck': _healthChecker.lastQuickCheck?.toIso8601String(),
-          'lastFullCheck': _healthChecker.lastFullCheck?.toIso8601String(),
-          'lastStatus': _healthChecker.lastResult?.status.name,
-        },
-        'migration': {
-          'currentVersion': await _migrationEngine.getCurrentVersion(),
-          'targetVersion': _migrationEngine.getTargetVersion(),
-          'registeredMigrations': _migrationEngine.migrationCount,
-        },
-        'dataSources': _dataSourceRegistry.getStatistics(),
       };
     } finally {
-      await _connectionPool.release(db);
+      await pool.release(db);
     }
   }
 
-  /// 格式化字节大小
-  String _formatBytes(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(2)} KB';
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+  /// 执行数据库恢复
+  /// 
+  /// 关键：恢复后 ConnectionPool 会被重置，所有组件通过 Holder 获取新实例
+  Future<void> recover() async {
+    AppLogger.i('Starting database recovery...', 'DatabaseManager');
+
+    try {
+      // 1. 重置 ConnectionPool（关闭旧连接，创建新连接）
+      await ConnectionPoolHolder.reset(
+        dbPath: _dbPath!,
+        maxConnections: _maxConnections,
+      );
+
+      AppLogger.i('Database recovery completed', 'DatabaseManager');
+    } catch (e, stack) {
+      AppLogger.e('Database recovery failed', e, stack, 'DatabaseManager');
+      throw StateError('Recovery failed: $e');
     }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
 
-  /// 重置数据库管理器（仅用于测试）
-  static void reset() {
+  /// 快速健康检查
+  ///
+  /// 检查数据库是否损坏，返回健康检查结果
+  Future<HealthCheckResult> quickHealthCheck() async {
+    try {
+      final pool = ConnectionPoolHolder.instance;
+      final db = await pool.acquire();
+
+      try {
+        // 基本查询测试 - 检查 sqlite_master 表
+        final result = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table' LIMIT 1",
+        );
+
+        return HealthCheckResult(
+          status: HealthStatus.healthy,
+          message: 'Database is healthy',
+          details: {'tableCount': result.length},
+          timestamp: DateTime.now(),
+        );
+      } catch (e) {
+        return HealthCheckResult(
+          status: HealthStatus.corrupted,
+          message: 'Database health check failed: $e',
+          timestamp: DateTime.now(),
+        );
+      } finally {
+        await pool.release(db);
+      }
+    } catch (e) {
+      return HealthCheckResult(
+        status: HealthStatus.corrupted,
+        message: 'Failed to acquire database connection: $e',
+        timestamp: DateTime.now(),
+      );
+    }
+  }
+
+  /// 关闭数据库管理器
+  Future<void> dispose() async {
+    AppLogger.i('Disposing DatabaseManager...', 'DatabaseManager');
+
+    await ConnectionPoolHolder.dispose();
+
+    _state = DatabaseInitState.uninitialized;
     _instance = null;
-    AppLogger.d('DatabaseManager reset', 'DatabaseManager');
+
+    AppLogger.i('DatabaseManager disposed', 'DatabaseManager');
   }
 }
