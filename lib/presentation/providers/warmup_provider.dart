@@ -10,6 +10,7 @@ import '../../core/network/proxy_service.dart';
 import '../../core/enums/warmup_phase.dart';
 import '../../core/services/app_warmup_service.dart';
 import '../../core/services/cooccurrence_service.dart';
+import '../../core/services/artist_tags_isolate_service.dart';
 import '../../core/services/danbooru_tags_lazy_service.dart';
 import '../../core/services/data_migration_service.dart';
 import '../../core/services/translation/translation_providers.dart';
@@ -352,6 +353,18 @@ class WarmupNotifier extends _$WarmupNotifier {
         task: _loadSubscriptionCached,
       ),
     );
+
+    // 7. 拉取一般标签（非画师标签）
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_fetchGeneralTags',
+        displayName: '拉取标签数据',
+        phase: WarmupPhase.quick,
+        weight: 3,
+        timeout: const Duration(seconds: 60),
+        task: _fetchGeneralTags,
+      ),
+    );
   }
 
   void _registerBackgroundPhaseTasks() {
@@ -378,6 +391,13 @@ class WarmupNotifier extends _$WarmupNotifier {
       'danbooru_tags_preload',
       '标签数据',
       () => _preloadDanbooruTagsInBackground(),
+    );
+
+    // 画师标签Isolate拉取
+    backgroundNotifier.registerTask(
+      'artist_tags_isolate_fetch',
+      '画师标签同步',
+      () => _fetchArtistTagsInIsolate(),
     );
   }
 
@@ -571,5 +591,61 @@ class WarmupNotifier extends _$WarmupNotifier {
     }
 
     service.onProgress = null;
+  }
+
+  /// 拉取一般标签（非画师标签，category != 1）
+  Future<void> _fetchGeneralTags() async {
+    AppLogger.i('开始拉取一般标签...', 'Warmup');
+
+    final service = ref.read(danbooruTagsLazyServiceProvider);
+
+    // 设置进度回调
+    service.onProgress = (progress, message) {
+      state = state.copyWith(
+        subTaskMessage: '拉取标签: ${(progress * 100).toInt()}% - $message',
+      );
+    };
+
+    try {
+      // 只拉取一般标签（category != 1）
+      await service.fetchGeneralTags(
+        threshold: 1000, // 热度阈值
+        maxPages: 50,    // 最多50页
+      ).timeout(
+        const Duration(seconds: 60),
+        onTimeout: () {
+          AppLogger.w('General tags fetch timeout', 'Warmup');
+          // 超时不阻塞，后台会继续
+        },
+      );
+
+      AppLogger.i('General tags fetched successfully', 'Warmup');
+    } catch (e) {
+      AppLogger.w('Failed to fetch general tags: $e', 'Warmup');
+      // 失败不阻塞，进入主页后后台会重试
+    } finally {
+      service.onProgress = null;
+    }
+  }
+
+  /// 在Isolate中拉取画师标签
+  Future<void> _fetchArtistTagsInIsolate() async {
+    AppLogger.i('Starting artist tags fetch in isolate...', 'Background');
+
+    await ArtistTagsIsolateService.fetchInBackground(
+      onProgress: (progress, message) {
+        ref.read(backgroundTaskNotifierProvider.notifier).updateProgress(
+          'artist_tags_isolate_fetch',
+          progress,
+          message: message,
+        );
+      },
+      onComplete: () {
+        AppLogger.i('Artist tags fetch completed', 'Background');
+      },
+      onError: (error) {
+        AppLogger.e('Artist tags fetch error: $error', 'Background');
+      },
+    );
   }
 }

@@ -179,6 +179,17 @@ Future<void> _createTables(Database db) async {
     )
   ''');
 
+  // danbooru_tags 表 - 空表，用于运行时从API填充标签数据
+  await db.execute('''
+    CREATE TABLE IF NOT EXISTS danbooru_tags (
+      id INTEGER PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      category INTEGER NOT NULL DEFAULT 0,
+      post_count INTEGER NOT NULL DEFAULT 0,
+      last_updated INTEGER NOT NULL
+    )
+  ''');
+
   // 创建索引
   await db.execute('''
     CREATE INDEX IF NOT EXISTS idx_cooccurrences_tag1
@@ -188,6 +199,22 @@ Future<void> _createTables(Database db) async {
   await db.execute('''
     CREATE INDEX IF NOT EXISTS idx_cooccurrences_count
     ON cooccurrences(count DESC)
+  ''');
+
+  // danbooru_tags 表索引
+  await db.execute('''
+    CREATE INDEX IF NOT EXISTS idx_danbooru_tags_name
+    ON danbooru_tags(name)
+  ''');
+
+  await db.execute('''
+    CREATE INDEX IF NOT EXISTS idx_danbooru_tags_category
+    ON danbooru_tags(category)
+  ''');
+
+  await db.execute('''
+    CREATE INDEX IF NOT EXISTS idx_danbooru_tags_post_count
+    ON danbooru_tags(post_count DESC)
   ''');
 }
 

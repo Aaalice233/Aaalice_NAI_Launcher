@@ -25,6 +25,49 @@ class DataSourceCacheSettings extends ConsumerStatefulWidget {
       _DataSourceCacheSettingsState();
 }
 
+/// 清除数据对话框
+class _ClearingDialog extends StatelessWidget {
+  const _ClearingDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 32,
+            spreadRadius: -8,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 48,
+            height: 48,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            '正在清除数据...',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _DataSourceCacheSettingsState
     extends ConsumerState<DataSourceCacheSettings> {
   @override
@@ -145,88 +188,70 @@ class _DataSourceCacheSettingsState
     );
 
     if (confirmed == true && context.mounted) {
-      await _clearAllCaches(context);
+      // 等待确认对话框完全关闭
+      await Future.delayed(const Duration(milliseconds: 150));
+      if (context.mounted) {
+        await _clearAllCaches(context);
+      }
     }
   }
 
   /// 清除 Danbooru 标签缓存
   Future<void> _clearAllCaches(BuildContext context) async {
-    final rootContext = context;
-
     if (!context.mounted) return;
 
+    // 显示加载对话框
+    // ignore: use_build_context_synchronously
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) {
-        return PopScope(
+        return const PopScope(
           canPop: false,
           child: Center(
-            child: Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 32,
-                    spreadRadius: -8,
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 48,
-                    height: 48,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 3,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    '正在清除数据...',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                        ),
-                  ),
-                ],
-              ),
-            ),
+            child: _ClearingDialog(),
           ),
         );
       },
     );
 
-    await Future.delayed(const Duration(milliseconds: 100));
+    // 等待对话框完全显示
+    await Future.delayed(const Duration(milliseconds: 200));
 
     try {
       final dbConnection = ref.read(tagDatabaseConnectionProvider);
       await dbConnection.clearAllTables();
+      // 清除缓存并更新UI状态，不需要invalidate，clearCache已更新状态
       await ref.read(danbooruTagsCacheNotifierProvider.notifier).clearCache();
-      ref.invalidate(danbooruTagsCacheNotifierProvider);
 
-      // 关闭对话框（使用 rootContext 避免 use_build_context_synchronously 警告）
-      if (rootContext.mounted) {
-        Navigator.of(rootContext).pop();
-      }
+      // 等待一小段时间确保操作完成
       await Future.delayed(const Duration(milliseconds: 100));
 
-      if (rootContext.mounted) {
-        AppToast.success(rootContext, '标签数据已清除，下次启动时将重新加载');
+      // 关闭对话框 - 使用 rootNavigator 确保关闭最顶层的对话框
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      // 等待对话框完全关闭
+      await Future.delayed(const Duration(milliseconds: 150));
+
+      if (context.mounted) {
+        AppToast.success(context, '标签数据已清除，下次启动时将重新加载');
       }
     } catch (e) {
-      // 关闭对话框（使用 rootContext 避免 use_build_context_synchronously 警告）
-      if (rootContext.mounted) {
-        Navigator.of(rootContext).pop();
-      }
+      // 等待一小段时间
       await Future.delayed(const Duration(milliseconds: 100));
 
-      if (rootContext.mounted) {
-        AppToast.error(rootContext, '重置失败: $e');
+      // 关闭对话框
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      // 等待对话框完全关闭
+      await Future.delayed(const Duration(milliseconds: 150));
+
+      if (context.mounted) {
+        AppToast.error(context, '重置失败: $e');
       }
     }
   }

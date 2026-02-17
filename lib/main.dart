@@ -16,6 +16,7 @@ import 'core/network/system_proxy_http_overrides.dart';
 import 'core/shortcuts/shortcut_storage.dart';
 import 'core/services/data_migration_service.dart';
 import 'core/services/sqflite_bootstrap_service.dart';
+import 'core/services/unified_tag_database.dart';
 import 'core/utils/app_logger.dart';
 import 'core/utils/hive_storage_helper.dart';
 import 'data/datasources/local/nai_tags_data_source.dart';
@@ -84,9 +85,20 @@ class AppTrayListener extends TrayListener {
         AppLogger.d('Window shown via tray menu', 'TrayListener');
       } else if (menuItem.key == 'exit') {
         // 退出应用（真正关闭）
-        // 1. 先销毁托盘图标，避免残留在系统托盘中
+        AppLogger.i('Application exiting, closing database...', 'TrayListener');
+
+        // 1. 关闭数据库连接（避免 Windows 文件锁定）
+        try {
+          final db = UnifiedTagDatabase();
+          await db.close();
+          AppLogger.i('Database closed successfully', 'TrayListener');
+        } catch (e) {
+          AppLogger.w('Error closing database: $e', 'TrayListener');
+        }
+
+        // 2. 先销毁托盘图标，避免残留在系统托盘中
         await trayManager.destroy();
-        // 2. 解除 preventClose，再销毁窗口
+        // 3. 解除 preventClose，再销毁窗口
         await windowManager.setPreventClose(false);
         await windowManager.destroy();
         AppLogger.d('Application exited via tray menu', 'TrayListener');

@@ -126,6 +126,8 @@ dev_dependencies:
   # 属性基测试
   glados: ^1.1.1
 
+  path_provider_platform_interface: any
+  plugin_platform_interface: any
 flutter:
   uses-material-design: true
   generate: true

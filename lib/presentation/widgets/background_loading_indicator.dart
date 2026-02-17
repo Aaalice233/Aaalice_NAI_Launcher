@@ -27,11 +27,88 @@ class BackgroundLoadingIndicator extends ConsumerWidget {
       return _buildCompletedIndicator(context, ref);
     }
 
+    // 优先显示画师标签同步任务进度
+    final artistTask = state.tasks.firstWhere(
+      (t) => t.id == 'artist_tags_isolate_fetch' && t.status == BackgroundTaskStatus.running,
+      orElse: () => state.tasks.firstWhere(
+        (t) => t.id == 'artist_tags_isolate_fetch' && t.status == BackgroundTaskStatus.pending,
+        orElse: () => state.tasks.first,
+      ),
+    );
+
+    if (artistTask.id == 'artist_tags_isolate_fetch' && !artistTask.isDone) {
+      return _buildArtistTagProgressIndicator(context, artistTask);
+    }
+
     // 显示当前任务进度
     final currentTask = state.runningTasks.firstOrNull ?? state.pendingTasks.firstOrNull;
     if (currentTask == null) return const SizedBox.shrink();
 
     return _buildProgressIndicator(context, currentTask, state.overallProgress);
+  }
+
+  /// 画师标签同步专用进度指示器
+  Widget _buildArtistTagProgressIndicator(BuildContext context, BackgroundTask task) {
+    final theme = Theme.of(context);
+
+    return Material(
+      elevation: 2,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          border: Border(
+            bottom: BorderSide(color: theme.dividerColor),
+          ),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation(theme.colorScheme.primary),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.palette,
+                        size: 14,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '同步画师标签: ${(task.progress * 100).toInt()}%',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (task.message != null && task.message!.isNotEmpty)
+                    Text(
+                      task.message!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                        fontSize: 11,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildProgressIndicator(BuildContext context, BackgroundTask task, double overallProgress) {

@@ -650,6 +650,145 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   Future<int> getTagCount() async {
     return await _unifiedDb.getDanbooruTagCount();
   }
+
+  // ===========================================================================
+  // 分层标签拉取支持（预打包数据库 + 分层获取架构）
+  // ===========================================================================
+
+  /// 拉取一般标签（非画师标签，category != 1）
+  ///
+  /// 用于预热阶段快速拉取高频一般标签，排除数量庞大的画师标签
+  Future<void> fetchGeneralTags({
+    required int threshold,
+    required int maxPages,
+  }) async {
+    _onProgress?.call(0.0, '准备拉取标签...');
+
+    final allTags = <LocalTag>[];
+    var currentPage = 1;
+
+    while (currentPage <= maxPages && !_isCancelled) {
+      // 并发拉取多页
+      final remainingPages = maxPages - currentPage + 1;
+      final actualBatchSize = _concurrentRequests < remainingPages
+          ? _concurrentRequests
+          : remainingPages;
+
+      final futures = List.generate(actualBatchSize, (i) {
+        final page = currentPage + i;
+        return _fetchTagsPageWithCategory(
+          page: page,
+          threshold: threshold,
+          excludeCategory: 1, // 排除画师标签 category=1
+        );
+      });
+
+      final results = await Future.wait(futures);
+
+      for (final tags in results) {
+        if (tags != null) {
+          allTags.addAll(tags);
+        }
+      }
+
+      // 报告进度
+      final progress = currentPage / maxPages;
+      _onProgress?.call(
+        progress * 0.9,
+        '已拉取 ${allTags.length} 条标签',
+      );
+
+      currentPage += actualBatchSize;
+
+      // 间隔避免限流
+      if (currentPage <= maxPages && !_isCancelled) {
+        await Future.delayed(
+          const Duration(milliseconds: _requestIntervalMs),
+        );
+      }
+    }
+
+    if (_isCancelled) {
+      AppLogger.w('General tags fetch cancelled', 'DanbooruTagsLazy');
+      return;
+    }
+
+    // 导入数据库
+    _onProgress?.call(0.95, '导入数据库...');
+    final records = allTags
+        .map(
+          (t) => DanbooruTagRecord(
+            tag: t.tag,
+            category: t.category,
+            postCount: t.count,
+            lastUpdated: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          ),
+        )
+        .toList();
+
+    await _unifiedDb.insertDanbooruTags(records);
+
+    _onProgress?.call(1.0, '标签拉取完成');
+    AppLogger.i(
+      'General tags fetched: ${allTags.length} tags (threshold >= $threshold)',
+      'DanbooruTagsLazy',
+    );
+  }
+
+  /// 拉取指定页的标签（带分类过滤）
+  Future<List<LocalTag>?> _fetchTagsPageWithCategory({
+    required int page,
+    required int threshold,
+    required int excludeCategory,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '$_baseUrl$_tagsEndpoint',
+        queryParameters: {
+          'page': page,
+          'limit': _pageSize,
+          'search[order]': 'count',
+          'search[post_count]': '>=$threshold',
+          // 不指定category，在结果中过滤
+        },
+        options: Options(
+          receiveTimeout: const Duration(seconds: 30),
+          sendTimeout: const Duration(seconds: 10),
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'NAI-Launcher/1.0',
+          },
+        ),
+      );
+
+      if (response.data is List) {
+        final tags = (response.data as List)
+            .map((item) {
+              if (item is Map<String, dynamic>) {
+                return LocalTag(
+                  tag: (item['name'] as String?)?.toLowerCase() ?? '',
+                  category: item['category'] as int? ?? 0,
+                  count: item['post_count'] as int? ?? 0,
+                );
+              }
+              return null;
+            })
+            .where((tag) => tag != null && tag.tag.isNotEmpty)
+            .cast<LocalTag>()
+            .where((tag) => tag.category != excludeCategory) // 过滤画师标签
+            .toList();
+        return tags;
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return [];
+      }
+      AppLogger.w('Failed to fetch page $page: $e', 'DanbooruTagsLazy');
+    } catch (e) {
+      AppLogger.w('Failed to fetch page $page: $e', 'DanbooruTagsLazy');
+    }
+    return null;
+  }
 }
 
 @Riverpod(keepAlive: true)

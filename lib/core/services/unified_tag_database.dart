@@ -498,6 +498,62 @@ class UnifiedTagDatabase {
 
   // ==================== DanbooruTags 表操作 ====================
 
+  /// 批量导入标签（优化版本，支持大量数据）
+  Future<void> batchImportTagsWithIsolate(
+    List<DanbooruTagRecord> records, {
+    required void Function(double progress) onProgress,
+  }) async {
+    const batchSize = 5000;
+    final total = records.length;
+    var imported = 0;
+
+    // 分批导入
+    for (var i = 0; i < total; i += batchSize) {
+      final end = (i + batchSize < total) ? i + batchSize : total;
+      final batch = records.sublist(i, end);
+
+      await _batchInsertTags(batch);
+
+      imported += batch.length;
+      onProgress(imported / total);
+
+      // 每批导入后让出时间片，避免阻塞
+      await Future.delayed(Duration.zero);
+    }
+  }
+
+  /// 内部批量插入标签（无进度回调，用于 batchImportTagsWithIsolate）
+  Future<void> _batchInsertTags(List<DanbooruTagRecord> records) async {
+    if (records.isEmpty) return;
+
+    final db = await _getDb();
+
+    await db.execute('PRAGMA journal_mode = MEMORY');
+    await db.execute('PRAGMA synchronous = OFF');
+
+    try {
+      final batch = db.batch();
+
+      for (final record in records) {
+        batch.insert(
+          'danbooru_tags',
+          {
+            'tag': record.tag.toLowerCase().trim(),
+            'category': record.category,
+            'post_count': record.postCount,
+            'last_updated': record.lastUpdated,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+
+      await batch.commit(noResult: true);
+    } finally {
+      await db.execute('PRAGMA synchronous = NORMAL');
+      await db.execute('PRAGMA journal_mode = WAL');
+    }
+  }
+
   /// 批量插入 Danbooru 标签
   Future<void> insertDanbooruTags(
     List<DanbooruTagRecord> records, {

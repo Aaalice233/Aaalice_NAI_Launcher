@@ -9,23 +9,33 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../utils/app_logger.dart';
 
 /// 数据库连接管理器
-/// 
+///
 /// 负责管理数据库连接的生命周期，包括：
 /// - 初始化和打开连接
 /// - 检测连接健康状态
 /// - 自动重建损坏的连接
 /// - 确保所有操作使用有效的连接
+///
+/// 使用单例模式确保全局只有一个数据库连接实例
 class TagDatabaseConnection {
   static const String _databaseName = 'tag_data.db';
   static const int _databaseVersion = 2;
-  
+
+  // 单例实例
+  static final TagDatabaseConnection _instance = TagDatabaseConnection._internal();
+
+  /// 获取单例实例
+  factory TagDatabaseConnection() => _instance;
+
+  TagDatabaseConnection._internal();
+
   Database? _db;
   bool _isInitializing = false;
   final _initCompleter = Completer<void>();
-  
+
   /// 获取数据库实例（可能为 null）
   Database? get db => _db;
-  
+
   /// 检查数据库是否已初始化且连接有效
   bool get isConnected => _db != null;
   
@@ -160,42 +170,103 @@ class TagDatabaseConnection {
     return File(dbPath).exists();
   }
 
-  /// 内部方法：打开数据库
+  /// 内部方法：打开数据库（带重试逻辑）
   Future<void> _openDatabase() async {
     _ensureSqliteFfiInitialized();
-    
+
     final dbPath = await _getDatabasePath();
-    
+
     // 确保目录存在
     final dbDir = Directory(path.dirname(dbPath));
     if (!await dbDir.exists()) {
       await dbDir.create(recursive: true);
     }
-    
+
     // 如果数据库文件不存在，尝试从 assets 加载
     final dbFile = File(dbPath);
     if (!await dbFile.exists()) {
       await _extractPrebuiltDatabase(dbPath);
     }
-    
-    _db = await openDatabase(
-      dbPath,
-      version: _databaseVersion,
-      onCreate: _onCreate,
-      onUpgrade: _onUpgrade,
-      singleInstance: true,
-    );
-    
-    // 验证表结构
-    await _verifyTables();
-    
-    // 设置 PRAGMA
-    await _db!.execute('PRAGMA foreign_keys = ON');
-    await _db!.execute('PRAGMA journal_mode = WAL');
-    await _db!.execute('PRAGMA synchronous = NORMAL');
-    await _db!.execute('PRAGMA busy_timeout = 5000');
-    
-    AppLogger.i('Database connection established', 'TagDatabaseConnection');
+
+    // 尝试打开数据库，带重试逻辑
+    const maxRetries = 3;
+    const retryDelay = Duration(milliseconds: 500);
+
+    for (var attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        _db = await openDatabase(
+          dbPath,
+          version: _databaseVersion,
+          onCreate: _onCreate,
+          onUpgrade: _onUpgrade,
+          singleInstance: true,
+        );
+
+        // 验证表结构
+        await _verifyTables();
+
+        // 设置 PRAGMA
+        await _db!.execute('PRAGMA foreign_keys = ON');
+        await _db!.execute('PRAGMA journal_mode = WAL');
+        await _db!.execute('PRAGMA synchronous = NORMAL');
+        await _db!.execute('PRAGMA busy_timeout = 5000');
+
+        AppLogger.i('Database connection established (attempt $attempt)', 'TagDatabaseConnection');
+        return;
+      } catch (e) {
+        final isLockedError = e.toString().contains('database is locked');
+
+        if (isLockedError && attempt < maxRetries) {
+          AppLogger.w('Database locked, waiting before retry $attempt/$maxRetries...', 'TagDatabaseConnection');
+          await Future.delayed(retryDelay);
+          continue;
+        }
+
+        // 如果不是锁定错误或是最后一次尝试，则抛出异常
+        if (!isLockedError || attempt >= maxRetries) {
+          // 如果是锁定错误，尝试重建数据库
+          if (isLockedError) {
+            AppLogger.w('Database still locked after $maxRetries retries, attempting rebuild...', 'TagDatabaseConnection');
+            await _forceUnlockAndRebuild(dbPath);
+            // 重建后递归重试一次
+            return _openDatabase();
+          }
+          rethrow;
+        }
+      }
+    }
+  }
+
+  /// 强制解锁并重建数据库（当数据库被锁定时）
+  Future<void> _forceUnlockAndRebuild(String dbPath) async {
+    AppLogger.w('Force unlocking database...', 'TagDatabaseConnection');
+
+    // 先尝试关闭任何现有连接
+    await _closeConnection();
+
+    // 等待一小段时间让文件锁释放
+    await Future.delayed(const Duration(milliseconds: 1000));
+
+    // 删除 WAL 和 SHM 文件（这些可能是锁定的原因）
+    final filesToDelete = [
+      '$dbPath-wal',
+      '$dbPath-shm',
+    ];
+
+    for (final filePath in filesToDelete) {
+      try {
+        final file = File(filePath);
+        if (await file.exists()) {
+          await file.delete();
+          AppLogger.i('Deleted lock file: $filePath', 'TagDatabaseConnection');
+        }
+      } catch (e) {
+        AppLogger.w('Failed to delete $filePath: $e', 'TagDatabaseConnection');
+      }
+    }
+
+    // 再次等待
+    await Future.delayed(const Duration(milliseconds: 500));
   }
   
   /// 关闭当前连接

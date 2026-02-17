@@ -80,6 +80,8 @@ class DanbooruTagsCacheState {
 /// Danbooru 标签缓存 Notifier
 @Riverpod(keepAlive: true)
 class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
+  bool _isClearing = false;
+
   @override
   DanbooruTagsCacheState build() {
     // 在 build 中同步初始化状态，避免访问未初始化的 state
@@ -105,7 +107,10 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
       final db = ref.read(unifiedTagDatabaseProvider);
       await db.initialize();
       final count = await db.getDanbooruTagCount();
-      state = state.copyWith(totalTags: count);
+      // 防止清除操作后的竞态条件
+      if (!_isClearing) {
+        state = state.copyWith(totalTags: count);
+      }
     } catch (e) {
       // 静默失败，保持现有状态
     }
@@ -163,6 +168,7 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
 
   /// 清除缓存
   Future<void> clearCache() async {
+    _isClearing = true;
     final service = ref.read(danbooruTagsLazyServiceProvider);
     await service.clearCache();
 
@@ -170,6 +176,10 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
       lastUpdate: null,
       totalTags: 0,
     );
+
+    // 延迟重置标志，确保任何正在进行的 _loadTagCount 不会覆盖状态
+    await Future.delayed(const Duration(milliseconds: 500));
+    _isClearing = false;
   }
 
   /// 设置自动刷新间隔
