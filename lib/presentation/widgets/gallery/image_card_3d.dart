@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -6,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../themes/theme_extension.dart';
 import '../common/animated_favorite_button.dart';
+import '../progressive_image_widget.dart';
 
 /// Steam风格图片卡片
 ///
@@ -275,38 +275,15 @@ class _ImageCard3DState extends State<ImageCard3D>
   }
 
   Widget _buildImage() {
-    final file = File(widget.record.path);
-    final pixelRatio = MediaQuery.of(context).devicePixelRatio;
-    final cacheWidth = (widget.width * pixelRatio).toInt();
-
-    return Container(
-      color: Colors.black.withOpacity(0.05),
-      child: Image.file(
-        file,
-        fit: BoxFit.contain,
-        cacheWidth: cacheWidth,
-        gaplessPlayback: true,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            color: Colors.grey[300],
-            child: const Center(
-              child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
-            ),
-          );
-        },
-        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-          if (wasSynchronouslyLoaded || frame != null) {
-            return child;
-          }
-          // Show placeholder while loading
-          return Container(
-            color: Colors.grey[200],
-            child: const Center(
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          );
-        },
-      ),
+    return ProgressiveImageWidget(
+      imagePath: widget.record.path,
+      width: widget.width,
+      height: widget.height,
+      fit: BoxFit.cover,
+      useRepaintBoundary: false, // Already wrapped in RepaintBoundary in build()
+      thumbnailQuality: 0.15,
+      transitionDuration: const Duration(milliseconds: 350),
+      usePrimaryColorPlaceholder: true,
     );
   }
 
