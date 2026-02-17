@@ -149,16 +149,9 @@ class _DataSourceCacheSettingsState
     }
   }
 
-  void _closeDialog(BuildContext? ctx) {
-    if (ctx?.mounted ?? false) {
-      Navigator.of(ctx!).pop();
-    }
-  }
-
   /// 清除 Danbooru 标签缓存
   Future<void> _clearAllCaches(BuildContext context) async {
     final rootContext = context;
-    BuildContext? dialogContext;
 
     if (!context.mounted) return;
 
@@ -166,7 +159,6 @@ class _DataSourceCacheSettingsState
       context: context,
       barrierDismissible: false,
       builder: (ctx) {
-        dialogContext = ctx;
         return PopScope(
           canPop: false,
           child: Center(
@@ -217,14 +209,20 @@ class _DataSourceCacheSettingsState
       await ref.read(danbooruTagsCacheNotifierProvider.notifier).clearCache();
       ref.invalidate(danbooruTagsCacheNotifierProvider);
 
-      _closeDialog(dialogContext);
+      // 关闭对话框（使用 rootContext 避免 use_build_context_synchronously 警告）
+      if (rootContext.mounted) {
+        Navigator.of(rootContext).pop();
+      }
       await Future.delayed(const Duration(milliseconds: 100));
 
       if (rootContext.mounted) {
         AppToast.success(rootContext, '标签数据已清除，下次启动时将重新加载');
       }
     } catch (e) {
-      _closeDialog(dialogContext);
+      // 关闭对话框（使用 rootContext 避免 use_build_context_synchronously 警告）
+      if (rootContext.mounted) {
+        Navigator.of(rootContext).pop();
+      }
       await Future.delayed(const Duration(milliseconds: 100));
 
       if (rootContext.mounted) {

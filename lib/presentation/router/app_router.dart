@@ -5,9 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/shortcuts/default_shortcuts.dart';
-import '../../core/utils/app_logger.dart';
 import '../providers/auth_provider.dart' show authNotifierProvider, AuthStatus;
-import '../providers/download_progress_provider.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/generation/generation_screen.dart';
 import '../screens/gallery/gallery_screen.dart';
@@ -339,39 +337,42 @@ class MainShell extends ConsumerStatefulWidget {
 }
 
 class _MainShellState extends ConsumerState<MainShell> {
-  bool _initialized = false;
-
   @override
   void initState() {
     super.initState();
-    // 在 Overlay 可用后初始化下载服务
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeDownloadServices();
-    });
+    // TODO: 下载服务 provider 已移除，如需恢复请重新定义 downloadProgressNotifierProvider
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   _initializeDownloadServices();
+    // });
   }
 
-  void _initializeDownloadServices() async {
-    if (_initialized) return;
-    _initialized = true;
-
-    // 现在 Overlay 已经准备好了，可以安全地初始化下载服务
-    final downloadNotifier =
-        ref.read(downloadProgressNotifierProvider.notifier);
-
-    if (mounted) {
-      downloadNotifier.setContext(context);
-    }
-
-    // 下载共现标签数据（100MB）
-    if (mounted) {
-      try {
-        await downloadNotifier.downloadCooccurrenceData();
-      } catch (e) {
-        AppLogger.e(
-            'Failed to download cooccurrence data', e, null, 'AppRouter',);
-      }
-    }
-  }
+  // TODO: 此方法暂时禁用，因为 downloadProgressNotifierProvider 未定义
+  // void _initializeDownloadServices() async {
+  //   if (_initialized) return;
+  //   _initialized = true;
+  //
+  //   // 现在 Overlay 已经准备好了，可以安全地初始化下载服务
+  //   final downloadNotifier =
+  //       ref.read(downloadProgressNotifierProvider.notifier);
+  //
+  //   if (mounted) {
+  //     downloadNotifier.setContext(context);
+  //   }
+  //
+  //   // 下载共现标签数据（100MB）
+  //   if (mounted) {
+  //     try {
+  //       await downloadNotifier.downloadCooccurrenceData();
+  //     } catch (e) {
+  //       AppLogger.e(
+  //         'Failed to download cooccurrence data',
+  //         e,
+  //         null,
+  //         'AppRouter',
+  //       );
+  //     }
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
