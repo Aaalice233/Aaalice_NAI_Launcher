@@ -333,10 +333,19 @@ class _DataSourceCacheSettingsState
             AppLogger.w('Table $table does not exist, skipping', 'CacheSettings');
             continue;
           }
-          
+
           try {
+            // 先获取清空前的计数
+            final countResult = await db.rawQuery('SELECT COUNT(*) as count FROM $table');
+            final beforeCount = (countResult.first['count'] as num?)?.toInt() ?? 0;
+
             await db.execute('DELETE FROM $table');
-            AppLogger.i('Cleared table: $table', 'CacheSettings');
+
+            // 验证清空后的计数
+            final afterResult = await db.rawQuery('SELECT COUNT(*) as count FROM $table');
+            final afterCount = (afterResult.first['count'] as num?)?.toInt() ?? 0;
+
+            AppLogger.i('Cleared table: $table (was $beforeCount rows, now $afterCount)', 'CacheSettings');
           } catch (e) {
             AppLogger.w('Failed to clear table $table: $e', 'CacheSettings');
           }

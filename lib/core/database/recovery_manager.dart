@@ -51,7 +51,7 @@ class RecoveryManager {
   /// 获取单例实例
   static RecoveryManager get instance => _instance;
 
-  static const String _prebuiltDbAsset = 'assets/database/nai_gallery.db';
+  static const String _prebuiltDbAsset = 'assets/database/prebuilt_tags.db.gz';
   static const String _backupSuffix = '.backup';
   static const String _corruptedSuffix = '.corrupted';
 
@@ -169,9 +169,20 @@ class RecoveryManager {
         await dbFile.delete();
       }
 
-      // 从 asset 复制
+      // 从 asset 复制（支持 gzip 压缩）
       final bytes = await rootBundle.load(_prebuiltDbAsset);
-      await dbFile.writeAsBytes(bytes.buffer.asUint8List());
+      final data = bytes.buffer.asUint8List();
+
+      // 检查是否需要解压（.gz 结尾）
+      Uint8List dbData;
+      if (_prebuiltDbAsset.endsWith('.gz')) {
+        AppLogger.d('Decompressing gzip database...', 'RecoveryManager');
+        dbData = Uint8List.fromList(gzip.decode(data));
+      } else {
+        dbData = data;
+      }
+
+      await dbFile.writeAsBytes(dbData);
 
       // 重置连接池（使用新实例）
       await ConnectionPoolHolder.reset(dbPath: _dbPath!);

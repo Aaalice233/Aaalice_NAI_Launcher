@@ -94,9 +94,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
   @override
   Future<void> initialize() async {
-    if (_isInitialized && _hotDataCache.isNotEmpty) {
-      return;
-    }
+    if (_isInitialized) return;
 
     try {
       _onProgress?.call(0.0, '初始化标签数据...');
@@ -109,37 +107,17 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       final tagCount = await _tagDataSource.getCount();
       AppLogger.i('Danbooru tag count in database: $tagCount', 'DanbooruTagsLazy');
 
-      // 如果数据库为空，强制下载
-      var needsDownload = await shouldRefresh();
+      // 加载元数据
+      await _loadMeta();
+
+      // 如果数据库为空，记录需要下载，但不阻塞初始化
       if (tagCount == 0) {
-        AppLogger.w('Database is empty, forcing download', 'DanbooruTagsLazy');
-        needsDownload = true;
+        AppLogger.w('Database is empty, will download in warmup phase', 'DanbooruTagsLazy');
         _lastUpdate = null;
       }
 
-      AppLogger.i(
-        'Danbooru tags shouldRefresh: $needsDownload, lastUpdate: $_lastUpdate',
-        'DanbooruTagsLazy',
-      );
-
-      if (needsDownload) {
-        _onProgress?.call(0.3, '需要下载标签数据...');
-        AppLogger.i('Danbooru tags need download, starting...', 'DanbooruTagsLazy');
-        await refresh();
-        _onProgress?.call(0.9, '标签数据下载完成');
-      } else {
-        _onProgress?.call(0.5, '使用本地缓存数据');
-      }
-
+      // 尝试加载热数据（如果数据库有数据）
       await _loadHotData();
-
-      // 如果热数据为空，再次尝试下载
-      if (_hotDataCache.isEmpty && tagCount == 0) {
-        AppLogger.w('Hot data is empty, triggering download...', 'DanbooruTagsLazy');
-        _onProgress?.call(0.3, '数据库为空，需要下载标签数据...');
-        await refresh();
-        await _loadHotData();
-      }
 
       _onProgress?.call(1.0, '标签数据初始化完成');
       _isInitialized = true;
@@ -271,6 +249,14 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
   @override
   Future<bool> shouldRefresh() async {
+    // 首先检查数据库中是否有数据
+    final count = await _tagDataSource.getCount();
+    if (count == 0) {
+      AppLogger.i('Danbooru tags database is empty, need to fetch', 'DanbooruTagsLazy');
+      return true;
+    }
+
+    // 有数据时检查是否需要刷新（基于时间）
     if (_lastUpdate == null) {
       await _loadMeta();
     }
@@ -409,36 +395,46 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   /// - 使用分页和并发控制避免限流
   /// - 分批写入数据库，避免内存溢出
   /// - 进度回调显示当前页数和数量（不显示总数，因为画师标签数量不固定）
-  /// - 支持断点续传，可从中断处恢复
+  /// - 支持断点续传：每轮写入后保存断点，崩溃后精确恢复
   Future<void> fetchArtistTags({
     required void Function(int currentPage, int importedCount, String message) onProgress,
     int maxPages = 100, // 画师标签量大，限制页数
-    bool resumeFromCheckpoint = true, // 是否尝试断点续传
+    bool resume = true, // 是否尝试断点续传
   }) async {
     AppLogger.i('Starting artist tags fetch...', 'DanbooruTagsLazy');
 
     _isRefreshing = true;
     _isCancelled = false;
 
-    // 检查是否需要断点续传
-    final checkpoint = await _loadCheckpoint();
+    // 检查断点续传
     var currentPage = 1;
     var importedCount = 0;
-    String? sessionId;
 
-    if (resumeFromCheckpoint && checkpoint.canResume) {
-      currentPage = checkpoint.lastFetchedPage + 1;
-      importedCount = checkpoint.importedCount;
-      sessionId = checkpoint.sessionId;
-      AppLogger.i('Resuming artist tags fetch from page $currentPage (imported: $importedCount)', 'DanbooruTagsLazy');
-      onProgress(currentPage, importedCount, '恢复拉取：从第 $currentPage 页继续，已导入 $importedCount 条');
-    } else {
-      // 新会话
-      sessionId = DateTime.now().millisecondsSinceEpoch.toString();
-      AppLogger.i('Starting fresh artist tags fetch (session: $sessionId)', 'DanbooruTagsLazy');
+    if (resume) {
+      final prefs = await SharedPreferences.getInstance();
+      // 处理可能的类型不匹配问题（之前版本存的是字符串）
+      int? lastPage;
+
+      // 先获取原始值，避免类型转换错误
+      final rawValue = prefs.get(StorageKeys.danbooruArtistsSyncCheckpoint);
+      if (rawValue is int) {
+        lastPage = rawValue;
+      } else if (rawValue is String) {
+        lastPage = int.tryParse(rawValue);
+        // 清除不兼容的数据，下次会存储为 int
+        await prefs.remove(StorageKeys.danbooruArtistsSyncCheckpoint);
+      }
+      // rawValue 为 null 或其他类型时，lastPage 保持为 null
+
+      if (lastPage != null && lastPage > 0) {
+        currentPage = lastPage + 1;
+        importedCount = await _tagDataSource.getCount(category: 1);
+        AppLogger.i('Resuming artist tags fetch from page $currentPage (last successful: $lastPage)', 'DanbooruTagsLazy');
+        onProgress(currentPage, importedCount, '恢复拉取：从第 $currentPage 页继续，已导入 $importedCount 条');
+      }
     }
 
-    const batchInsertThreshold = 5000; // 每5000条写入一次
+    const batchInsertThreshold = 4000; // 每轮并发写入一次（与 _pageSize * _concurrentRequests 一致）
     final records = <LocalTag>[];
 
     try {
@@ -484,21 +480,16 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
           importedCount += records.length;
           records.clear();
 
-          // 保存断点（每批写入后）
-          await _saveCheckpoint(ArtistsSyncCheckpoint(
-            lastFetchedPage: currentPage + actualBatchSize - 1,
-            importedCount: importedCount,
-            startTime: checkpoint.startTime ?? DateTime.now(),
-            status: ArtistSyncStatus.running,
-            sessionId: sessionId,
-            lastUpdated: DateTime.now(),
-          ),);
+          // 保存断点：记录最后成功拉取的页码
+          final lastSuccessfulPage = currentPage + actualBatchSize - 1;
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setInt(StorageKeys.danbooruArtistsSyncCheckpoint, lastSuccessfulPage);
 
           // 进度回调：显示当前页数和数量（不显示总页数）
           onProgress(
-            currentPage + actualBatchSize - 1,
+            lastSuccessfulPage,
             importedCount,
-            '第 ${currentPage + actualBatchSize - 1} 页，已导入 $importedCount 条',
+            '第 $lastSuccessfulPage 页，已导入 $importedCount 条',
           );
 
           // 让出时间片，避免阻塞UI
@@ -534,31 +525,16 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
         '画师标签导入完成，共 $importedCount 条',
       );
 
-      // 标记为完成并清除断点
-      await _saveCheckpoint(ArtistsSyncCheckpoint(
-        lastFetchedPage: maxPages,
-        importedCount: importedCount,
-        startTime: checkpoint.startTime ?? DateTime.now(),
-        status: ArtistSyncStatus.completed,
-        sessionId: sessionId,
-        lastUpdated: DateTime.now(),
-      ),);
+      // 完成后清除断点
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(StorageKeys.danbooruArtistsSyncCheckpoint);
 
       // 保存更新时间戳
       await _saveArtistMeta(importedCount);
 
       AppLogger.i('Artist tags fetch completed: $importedCount tags', 'DanbooruTagsLazy');
     } catch (e, stack) {
-      // 标记为失败，保留断点以便恢复
-      await _saveCheckpoint(ArtistsSyncCheckpoint(
-        lastFetchedPage: currentPage - 1,
-        importedCount: importedCount,
-        startTime: checkpoint.startTime ?? DateTime.now(),
-        status: ArtistSyncStatus.failed,
-        sessionId: sessionId,
-        lastUpdated: DateTime.now(),
-      ),);
-
+      // 异常时断点已保存，无需额外处理
       AppLogger.e('Failed to fetch artist tags', e, stack, 'DanbooruTagsLazy');
       rethrow;
     } finally {
@@ -751,7 +727,37 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   @override
   Future<void> clearCache() async {
     _hotDataCache.clear();
-    AppLogger.i('Danbooru tags cache cleared', 'DanbooruTagsLazy');
+
+    // 重置初始化状态（关键：下次初始化时会重新检查并下载数据）
+    _isInitialized = false;
+
+    // 清除元数据
+    _lastUpdate = null;
+    _currentThreshold = 1000;
+    _refreshInterval = AutoRefreshInterval.days30;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(StorageKeys.danbooruTagsLastUpdate);
+    await prefs.remove(StorageKeys.danbooruTagsRefreshIntervalDays);
+
+    // 清除画师标签元数据（断点续传和上次更新时间）
+    await prefs.remove(StorageKeys.danbooruArtistsSyncCheckpoint);
+    await prefs.remove(StorageKeys.danbooruArtistsLastUpdate);
+    await prefs.remove(StorageKeys.danbooruArtistsTotal);
+
+    // 删除元数据文件（关键：否则重启后会从文件加载旧的 _lastUpdate）
+    try {
+      final cacheDir = await _getCacheDirectory();
+      final metaFile = File('${cacheDir.path}/$_metaFileName');
+      if (await metaFile.exists()) {
+        await metaFile.delete();
+        AppLogger.i('Deleted meta file: ${metaFile.path}', 'DanbooruTagsLazy');
+      }
+    } catch (e) {
+      AppLogger.w('Failed to delete meta file: $e', 'DanbooruTagsLazy');
+    }
+
+    AppLogger.i('Danbooru tags cache cleared (including metadata, checkpoint, and init state)', 'DanbooruTagsLazy');
   }
 
   // 兼容旧 API 的方法
@@ -835,16 +841,59 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   }
 
   /// 检查是否应该拉取画师标签
+  ///
+  /// 返回 true 的情况：
+  /// - 有未完成的断点续传
+  /// - 数据为空
+  /// - 数据已过期（超过7天）
   Future<bool> shouldFetchArtistTags() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final lastUpdateMillis = prefs.getInt(StorageKeys.danbooruArtistsLastUpdate);
-      if (lastUpdateMillis == null) return true;
 
-      final lastUpdate = DateTime.fromMillisecondsSinceEpoch(lastUpdateMillis);
-      // 画师标签默认7天刷新一次
-      final daysSinceUpdate = DateTime.now().difference(lastUpdate).inDays;
-      return daysSinceUpdate >= 7;
+      // 1. 检查是否有未完成的断点续传
+      int? checkpoint;
+      final checkpointRaw = prefs.get(StorageKeys.danbooruArtistsSyncCheckpoint);
+      if (checkpointRaw is int) {
+        checkpoint = checkpointRaw;
+      } else if (checkpointRaw is String) {
+        checkpoint = int.tryParse(checkpointRaw);
+        await prefs.remove(StorageKeys.danbooruArtistsSyncCheckpoint);
+      }
+      if (checkpoint != null && checkpoint > 0) {
+        AppLogger.i('Artist tags has incomplete sync at page $checkpoint, need to resume', 'DanbooruTagsLazy');
+        return true;
+      }
+
+      // 2. 检查数据是否过期
+      int? lastUpdateMillis;
+      final lastUpdateRaw = prefs.get(StorageKeys.danbooruArtistsLastUpdate);
+      if (lastUpdateRaw is int) {
+        lastUpdateMillis = lastUpdateRaw;
+      } else if (lastUpdateRaw is String) {
+        lastUpdateMillis = int.tryParse(lastUpdateRaw);
+        await prefs.remove(StorageKeys.danbooruArtistsLastUpdate);
+      }
+      final existingCount = await _tagDataSource.getCount(category: 1);
+
+      // 数据为空，需要拉取
+      if (existingCount == 0) {
+        AppLogger.i('Artist tags are empty, need to fetch', 'DanbooruTagsLazy');
+        return true;
+      }
+
+      // 超过7天未更新，需要刷新
+      if (lastUpdateMillis != null) {
+        final lastUpdate = DateTime.fromMillisecondsSinceEpoch(lastUpdateMillis);
+        final daysSinceUpdate = DateTime.now().difference(lastUpdate).inDays;
+        if (daysSinceUpdate >= 7) {
+          AppLogger.i('Artist tags expired (${daysSinceUpdate}d ago), need refresh', 'DanbooruTagsLazy');
+          return true;
+        }
+      }
+
+      // 数据已是最新
+      AppLogger.i('Artist tags are up to date ($existingCount records)', 'DanbooruTagsLazy');
+      return false;
     } catch (e) {
       AppLogger.w('Failed to check artist tags refresh status: $e', 'DanbooruTagsLazy');
       return true;
@@ -862,49 +911,6 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     } catch (e) {
       AppLogger.w('Failed to save artist tags meta: $e', 'DanbooruTagsLazy');
     }
-  }
-
-  /// 加载画师标签同步断点
-  Future<ArtistsSyncCheckpoint> _loadCheckpoint() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final jsonStr = prefs.getString(StorageKeys.danbooruArtistsSyncCheckpoint);
-      if (jsonStr == null) return ArtistsSyncCheckpoint.initial();
-
-      final json = jsonDecode(jsonStr) as Map<String, dynamic>;
-      return ArtistsSyncCheckpoint.fromJson(json);
-    } catch (e) {
-      AppLogger.w('Failed to load artist sync checkpoint: $e', 'DanbooruTagsLazy');
-      return ArtistsSyncCheckpoint.initial();
-    }
-  }
-
-  /// 保存画师标签同步断点
-  Future<void> _saveCheckpoint(ArtistsSyncCheckpoint checkpoint) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final json = checkpoint.toJson();
-      await prefs.setString(StorageKeys.danbooruArtistsSyncCheckpoint, jsonEncode(json));
-    } catch (e) {
-      AppLogger.w('Failed to save artist sync checkpoint: $e', 'DanbooruTagsLazy');
-    }
-  }
-
-  /// 清除画师标签同步断点
-  Future<void> clearArtistSyncCheckpoint() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(StorageKeys.danbooruArtistsSyncCheckpoint);
-      AppLogger.i('Artist sync checkpoint cleared', 'DanbooruTagsLazy');
-    } catch (e) {
-      AppLogger.w('Failed to clear artist sync checkpoint: $e', 'DanbooruTagsLazy');
-    }
-  }
-
-  /// 检查是否有未完成的画师标签同步
-  Future<bool> hasIncompleteArtistSync() async {
-    final checkpoint = await _loadCheckpoint();
-    return checkpoint.canResume;
   }
 
   /// 获取当前标签数量

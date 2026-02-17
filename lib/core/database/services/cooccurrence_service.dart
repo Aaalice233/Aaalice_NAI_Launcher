@@ -144,7 +144,11 @@ class CooccurrenceService {
     void Function(double progress, String message)? onProgress,
   }) async {
     try {
-      final imported = await importCsvToSQLite(onProgress: onProgress);
+      // 后台导入使用增量模式（不清空预构建数据库中的数据）
+      final imported = await importCsvToSQLite(
+        onProgress: onProgress,
+        incremental: true,
+      );
 
       if (imported > 0) {
         _isLoaded = true;
@@ -368,9 +372,11 @@ class CooccurrenceService {
   /// 使用批量插入以获得最佳性能。
   ///
   /// [onProgress] 进度回调 (progress: 0.0-1.0, message: 状态消息)
+  /// [incremental] 是否为增量导入（不清空已有数据）
   /// 返回导入的记录数，-1 表示失败
   Future<int> importCsvToSQLite({
     void Function(double progress, String message)? onProgress,
+    bool incremental = false,
   }) async {
     final stopwatch = Stopwatch()..start();
     onProgress?.call(0.0, '读取 CSV 文件...');
@@ -390,6 +396,7 @@ class CooccurrenceService {
           // 调整进度范围: 0.1-1.0
           onProgress?.call(0.1 + progress * 0.9, message);
         },
+        incremental: incremental,
       );
 
       stopwatch.stop();

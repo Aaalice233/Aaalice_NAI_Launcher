@@ -281,8 +281,13 @@ Future<void> _importTranslations(Database db, File file) async {
 
 /// 导入共现数据
 Future<void> _importCooccurrences(Database db, File file) async {
+  print('  读取共现数据文件: ${file.path}');
+  print('  文件大小: ${await file.length()} bytes');
+
   final content = await file.readAsString();
   final lines = content.split('\n');
+
+  print('  总行数: ${lines.length}');
 
   // 跳过标题行
   final startIndex =
@@ -292,7 +297,8 @@ Future<void> _importCooccurrences(Database db, File file) async {
   var lastProgress = 0;
 
   // 限制导入数量（共现数据量很大，选择高频的）
-  const maxCooccurrences = 500000;
+  // 目标：预构建数据库压缩后不超过 100MB
+  const maxCooccurrences = 300000;  // 30万条高频共现数据
 
   // 先解析并排序
   print('  分析共现数据...');
@@ -306,7 +312,9 @@ Future<void> _importCooccurrences(Database db, File file) async {
     if (parts.length >= 3) {
       final tag1 = parts[0].trim().toLowerCase();
       final tag2 = parts[1].trim().toLowerCase();
-      final count = int.tryParse(parts[2].trim()) ?? 0;
+      // count 可能是小数格式 (如 3816210.0)，使用 double 解析再转 int
+      final countDouble = double.tryParse(parts[2].trim()) ?? 0.0;
+      final count = countDouble.toInt();
 
       if (tag1.isNotEmpty && tag2.isNotEmpty && count > 0) {
         entries.add(_CooccurrenceEntry(tag1, tag2, count));

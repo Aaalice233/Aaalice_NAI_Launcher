@@ -112,7 +112,7 @@ class UnifiedTranslationService {
       final lastUpdateMillis = prefs.getInt(StorageKeys.hfTranslationLastUpdate);
       if (lastUpdateMillis != null) {
         final lastUpdate = DateTime.fromMillisecondsSinceEpoch(lastUpdateMillis);
-        final interval = AutoRefreshInterval.days30; // 默认30天
+        const interval = AutoRefreshInterval.days30; // 默认30天
         if (interval.shouldRefresh(lastUpdate)) {
           AppLogger.i('[UnifiedTranslation] Cache expired (last update: $lastUpdate), reloading...', 'UnifiedTranslation');
           return true;

@@ -453,10 +453,12 @@ class CooccurrenceDataSource extends BaseDataSource {
   ///
   /// [csvContent] CSV 文件内容
   /// [onProgress] 进度回调 (progress: 0.0-1.0, message: 状态消息)
+  /// [incremental] 是否为增量导入（不清空已有数据）
   /// 返回导入的记录数
   Future<int> importFromCsv(
     String csvContent, {
     void Function(double progress, String message)? onProgress,
+    bool incremental = false,
   }) async {
     final db = await _acquireDb();
     if (db == null) throw StateError('Database not initialized');
@@ -512,8 +514,10 @@ class CooccurrenceDataSource extends BaseDataSource {
 
       onProgress?.call(0.3, '准备导入 ${records.length} 条记录...');
 
-      // 2. 清空旧数据
-      await clearData();
+      // 2. 清空旧数据（仅在非增量模式下）
+      if (!incremental) {
+        await clearData();
+      }
 
       // 3. 批量插入（分批处理避免内存问题）
       const batchSize = 10000;

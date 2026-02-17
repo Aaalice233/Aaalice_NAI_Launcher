@@ -2,6 +2,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/database/services/services.dart';
 import '../../core/services/danbooru_tags_lazy_service.dart';
+import '../../core/utils/app_logger.dart';
 import '../../data/models/cache/data_source_cache_meta.dart';
 
 part 'data_source_cache_provider.g.dart';
@@ -173,17 +174,33 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
   Future<void> clearCache() async {
     if (_isClearing) return;
     _isClearing = true;
-    await _requireService.clearCache();
 
-    final currentState = await future;
-    state = AsyncValue.data(currentState.copyWith(
-      lastUpdate: null,
-      totalTags: 0,
-    ),);
+    try {
+      // 如果服务已初始化，清除服务状态
+      if (_service != null) {
+        await _service!.clearCache();
+      }
 
-    // 延迟重置标志
-    await Future.delayed(const Duration(milliseconds: 500));
-    _isClearing = false;
+      // 更新状态为已清除
+      state = const AsyncValue.data(
+        DanbooruTagsCacheState(
+          lastUpdate: null,
+          totalTags: 0,
+          hotPreset: TagHotPreset.common1k,
+          customThreshold: 1000,
+          refreshInterval: AutoRefreshInterval.days30,
+        ),
+      );
+
+      // 关键：invalidate 懒加载服务 Provider，确保下次访问时重新创建实例
+      ref.invalidate(danbooruTagsLazyServiceProvider);
+      AppLogger.i(
+        'Invalidated danbooruTagsLazyServiceProvider after clear cache',
+        'DanbooruTagsCacheNotifier',
+      );
+    } finally {
+      _isClearing = false;
+    }
   }
 
   /// 设置自动刷新间隔
