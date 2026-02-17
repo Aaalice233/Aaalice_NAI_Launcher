@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/enums/precise_ref_type.dart';
 import '../../../core/storage/local_storage_service.dart';
@@ -1034,5 +1035,46 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   /// 更新添加原始图像
   void updateAddOriginalImage(bool addOriginalImage) {
     state = state.copyWith(addOriginalImage: addOriginalImage);
+  }
+
+  // ==================== 面板展开状态管理 ====================
+
+  /// 加载面板展开状态
+  Future<void> loadPanelStates() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final advancedExpanded = prefs.getBool('generation_advanced_options_expanded');
+      if (advancedExpanded != null) {
+        state = state.copyWith(advancedOptionsExpanded: advancedExpanded);
+      }
+    } catch (e) {
+      AppLogger.e('Failed to load panel states', e);
+    }
+  }
+
+  /// 保存面板展开状态
+  Future<void> savePanelStates() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(
+        'generation_advanced_options_expanded',
+        state.advancedOptionsExpanded,
+      );
+    } catch (e) {
+      AppLogger.e('Failed to save panel states', e);
+    }
+  }
+
+  /// 切换高级选项面板展开状态
+  Future<void> toggleAdvancedOptionsExpanded() async {
+    final newState = !state.advancedOptionsExpanded;
+    state = state.copyWith(advancedOptionsExpanded: newState);
+    await savePanelStates();
+  }
+
+  /// 设置高级选项面板展开状态
+  Future<void> setAdvancedOptionsExpanded(bool expanded) async {
+    state = state.copyWith(advancedOptionsExpanded: expanded);
+    await savePanelStates();
   }
 }

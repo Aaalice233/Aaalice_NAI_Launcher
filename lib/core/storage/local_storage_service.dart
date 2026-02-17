@@ -563,6 +563,78 @@ class LocalStorageService {
     await setSetting(StorageKeys.promptMaximized, maximized);
   }
 
+  // ==================== Panel Expansion States ====================
+
+  /// 获取高级选项面板展开状态 (默认展开)
+  bool getAdvancedOptionsExpanded() {
+    return getSetting<bool>(
+          StorageKeys.advancedOptionsExpanded,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存高级选项面板展开状态
+  Future<void> setAdvancedOptionsExpanded(bool expanded) async {
+    await setSetting(StorageKeys.advancedOptionsExpanded, expanded);
+  }
+
+  /// 获取 Img2Img 面板展开状态 (默认展开)
+  bool getImg2ImgExpanded() {
+    return getSetting<bool>(
+          StorageKeys.img2imgExpanded,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存 Img2Img 面板展开状态
+  Future<void> setImg2ImgExpanded(bool expanded) async {
+    await setSetting(StorageKeys.img2imgExpanded, expanded);
+  }
+
+  /// 获取 Vibe Transfer 面板展开状态 (默认展开)
+  bool getVibeTransferExpanded() {
+    return getSetting<bool>(
+          StorageKeys.vibeTransferExpanded,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存 Vibe Transfer 面板展开状态
+  Future<void> setVibeTransferExpanded(bool expanded) async {
+    await setSetting(StorageKeys.vibeTransferExpanded, expanded);
+  }
+
+  /// 获取 Precise Ref 面板展开状态 (默认展开)
+  bool getPreciseRefExpanded() {
+    return getSetting<bool>(
+          StorageKeys.preciseRefExpanded,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存 Precise Ref 面板展开状态
+  Future<void> setPreciseRefExpanded(bool expanded) async {
+    await setSetting(StorageKeys.preciseRefExpanded, expanded);
+  }
+
+  /// 获取角色面板展开状态 (默认展开)
+  bool getCharacterPanelExpanded() {
+    return getSetting<bool>(
+          StorageKeys.characterPanelExpanded,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存角色面板展开状态
+  Future<void> setCharacterPanelExpanded(bool expanded) async {
+    await setSetting(StorageKeys.characterPanelExpanded, expanded);
+  }
+
   // ==================== Lifecycle ====================
 
   /// 关闭存储

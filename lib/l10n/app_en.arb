@@ -287,6 +287,13 @@
   "generation_noHistory": "No history records",
   "generation_clearHistory": "Clear History",
   "generation_clearHistoryConfirm": "Are you sure you want to clear all history records? This action cannot be undone.",
+  "generation_startCreating": "Start Creating",
+  "generation_noHistoryGuide": "Your generation history will appear here. Enter a prompt and click the generate button to start creating!",
+  "generation_randomPrompt": "Random Prompt",
+  "generation_randomPromptSubtitle": "Generate a random prompt for inspiration",
+  "generation_clearPrompt": "Clear Prompt",
+  "generation_clearPromptSubtitle": "Clear current prompt input",
+  "generation_promptCleared": "Prompt cleared",
   "generation_model": "Model",
   "generation_imageSize": "Image Size",
   "generation_sampler": "Sampler",
@@ -1323,6 +1330,8 @@
   "warmup_danbooruTagsInit": "Initializing Danbooru tags...",
   "warmup_group_dataSourceInitialization": "Initializing data source services...",
   "warmup_group_dataSourceInitialization_complete": "Data source services ready",
+  "warmup_unifiedDbInit": "Initializing unified database...",
+  "warmup_dataMigration": "Data migration...",
 
   "performanceReport_title": "Startup Performance",
   "performanceReport_export": "Export Report",
@@ -3600,6 +3609,27 @@
   "settings_hivePathSaved": "Data storage path saved, effective after restart",
   "settings_restartRequiredTitle": "Restart Required",
   "settings_changePathConfirm": "After changing the data storage path, the app needs to restart to take effect.\\n\\nThe new path will take effect on the next startup. Continue?",
-  "settings_resetPathConfirm": "After resetting the data storage path, the app needs to restart to take effect.\\n\\nThe default path will take effect on the next startup. Continue?"
+  "settings_resetPathConfirm": "After resetting the data storage path, the app needs to restart to take effect.\\n\\nThe default path will take effect on the next startup. Continue?",
+
+  "viewer_help_button_tooltip": "Shortcut Help",
+  "viewer_tooltip_close": "Close",
+  "viewer_tooltip_save": "Save",
+  "viewer_tooltip_reuse_params": "Reuse Parameters",
+  "viewer_tooltip_copy_image": "Copy Image",
+  "viewer_tooltip_favorite": "Favorite",
+
+  "backgroundTask_downloadedCount": "Downloaded {count} tags",
+  "@backgroundTask_downloadedCount": {
+    "placeholders": {
+      "count": {"type": "int", "format": "decimalPattern"}
+    }
+  },
+  "backgroundTask_downloadedCountWithTotal": "Downloaded {count}/{total} tags",
+  "@backgroundTask_downloadedCountWithTotal": {
+    "placeholders": {
+      "count": {"type": "int", "format": "decimalPattern"},
+      "total": {"type": "int", "format": "decimalPattern"}
+    }
+  }
 
 }

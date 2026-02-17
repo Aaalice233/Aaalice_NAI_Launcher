@@ -13,6 +13,7 @@ import 'components/detail_image_page.dart';
 import 'components/detail_metadata_panel.dart';
 import 'components/detail_thumbnail_bar.dart';
 import 'components/detail_top_bar.dart';
+import 'components/viewer_shortcut_hints.dart';
 import 'image_detail_data.dart';
 
 /// 图像详情查看器回调函数
@@ -146,6 +147,7 @@ class _ImageDetailViewerState extends State<ImageDetailViewer> {
   late ScrollController _thumbnailController;
   late int _currentIndex;
   bool _showControls = true;
+  bool _showShortcutHints = false;
   final _focusNode = FocusNode();
   final Map<int, TransformationController> _transformationControllers = {};
 
@@ -204,6 +206,10 @@ class _ImageDetailViewerState extends State<ImageDetailViewer> {
 
   void _toggleControls() {
     setState(() => _showControls = !_showControls);
+  }
+
+  void _toggleShortcutHints() {
+    setState(() => _showShortcutHints = !_showShortcutHints);
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
@@ -354,6 +360,8 @@ class _ImageDetailViewerState extends State<ImageDetailViewer> {
       ShortcutIds.reuseGalleryParams: _reuseGalleryParams,
       // 删除图片
       ShortcutIds.deleteImage: _deleteImage,
+      // 显示快捷键帮助
+      ShortcutIds.showShortcutHelp: _toggleShortcutHints,
     };
 
     return PageShortcuts(
@@ -474,6 +482,25 @@ class _ImageDetailViewerState extends State<ImageDetailViewer> {
               ),
             ),
         ],
+
+        // 快捷键提示覆盖层
+        Positioned(
+          right: 16,
+          bottom: widget.showThumbnails && widget.images.length > 1 ? 160 : 80,
+          child: ViewerShortcutHints(
+            visible: _showShortcutHints,
+          ),
+        ),
+
+        // 快捷键提示切换按钮
+        Positioned(
+          right: 16,
+          bottom: widget.showThumbnails && widget.images.length > 1 ? 120 : 40,
+          child: ViewerShortcutHintsButton(
+            isVisible: _showShortcutHints,
+            onToggle: _toggleShortcutHints,
+          ),
+        ),
       ],
     );
   }

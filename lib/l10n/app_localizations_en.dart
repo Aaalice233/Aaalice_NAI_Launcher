@@ -705,6 +705,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generation_clearHistoryConfirm => 'Are you sure you want to clear all history records? This action cannot be undone.';
 
   @override
+  String get generation_startCreating => 'Start Creating';
+
+  @override
+  String get generation_noHistoryGuide => 'Your generation history will appear here. Enter a prompt and click the generate button to start creating!';
+
+  @override
+  String get generation_randomPrompt => 'Random Prompt';
+
+  @override
+  String get generation_randomPromptSubtitle => 'Generate a random prompt for inspiration';
+
+  @override
+  String get generation_clearPrompt => 'Clear Prompt';
+
+  @override
+  String get generation_clearPromptSubtitle => 'Clear current prompt input';
+
+  @override
+  String get generation_promptCleared => 'Prompt cleared';
+
+  @override
   String get generation_model => 'Model';
 
   @override
@@ -2787,6 +2808,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get warmup_group_dataSourceInitialization_complete => 'Data source services ready';
+
+  @override
+  String get warmup_unifiedDbInit => 'Initializing unified database...';
+
+  @override
+  String get warmup_dataMigration => 'Data migration...';
 
   @override
   String get performanceReport_title => 'Startup Performance';
@@ -7169,4 +7196,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_resetPathConfirm => 'After resetting the data storage path, the app needs to restart to take effect.\\n\\nThe default path will take effect on the next startup. Continue?';
+
+  @override
+  String get viewer_help_button_tooltip => 'Shortcut Help';
+
+  @override
+  String get viewer_tooltip_close => 'Close';
+
+  @override
+  String get viewer_tooltip_save => 'Save';
+
+  @override
+  String get viewer_tooltip_reuse_params => 'Reuse Parameters';
+
+  @override
+  String get viewer_tooltip_copy_image => 'Copy Image';
+
+  @override
+  String get viewer_tooltip_favorite => 'Favorite';
+
+  @override
+  String backgroundTask_downloadedCount(int count) {
+    return 'Downloaded $count tags';
+  }
+
+  @override
+  String backgroundTask_downloadedCountWithTotal(int count, int total) {
+    return 'Downloaded $count/$total tags';
+  }
 }

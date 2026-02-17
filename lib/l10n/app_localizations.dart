@@ -1451,6 +1451,48 @@ abstract class AppLocalizations {
   /// **'Are you sure you want to clear all history records? This action cannot be undone.'**
   String get generation_clearHistoryConfirm;
 
+  /// No description provided for @generation_startCreating.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Creating'**
+  String get generation_startCreating;
+
+  /// No description provided for @generation_noHistoryGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Your generation history will appear here. Enter a prompt and click the generate button to start creating!'**
+  String get generation_noHistoryGuide;
+
+  /// No description provided for @generation_randomPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Random Prompt'**
+  String get generation_randomPrompt;
+
+  /// No description provided for @generation_randomPromptSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate a random prompt for inspiration'**
+  String get generation_randomPromptSubtitle;
+
+  /// No description provided for @generation_clearPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Prompt'**
+  String get generation_clearPrompt;
+
+  /// No description provided for @generation_clearPromptSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear current prompt input'**
+  String get generation_clearPromptSubtitle;
+
+  /// No description provided for @generation_promptCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt cleared'**
+  String get generation_promptCleared;
+
   /// No description provided for @generation_model.
   ///
   /// In en, this message translates to:
@@ -5338,6 +5380,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Data source services ready'**
   String get warmup_group_dataSourceInitialization_complete;
+
+  /// No description provided for @warmup_unifiedDbInit.
+  ///
+  /// In en, this message translates to:
+  /// **'Initializing unified database...'**
+  String get warmup_unifiedDbInit;
+
+  /// No description provided for @warmup_dataMigration.
+  ///
+  /// In en, this message translates to:
+  /// **'Data migration...'**
+  String get warmup_dataMigration;
 
   /// No description provided for @performanceReport_title.
   ///
@@ -13510,6 +13564,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'After resetting the data storage path, the app needs to restart to take effect.\\n\\nThe default path will take effect on the next startup. Continue?'**
   String get settings_resetPathConfirm;
+
+  /// No description provided for @viewer_help_button_tooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Shortcut Help'**
+  String get viewer_help_button_tooltip;
+
+  /// No description provided for @viewer_tooltip_close.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get viewer_tooltip_close;
+
+  /// No description provided for @viewer_tooltip_save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get viewer_tooltip_save;
+
+  /// No description provided for @viewer_tooltip_reuse_params.
+  ///
+  /// In en, this message translates to:
+  /// **'Reuse Parameters'**
+  String get viewer_tooltip_reuse_params;
+
+  /// No description provided for @viewer_tooltip_copy_image.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Image'**
+  String get viewer_tooltip_copy_image;
+
+  /// No description provided for @viewer_tooltip_favorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite'**
+  String get viewer_tooltip_favorite;
+
+  /// No description provided for @backgroundTask_downloadedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded {count} tags'**
+  String backgroundTask_downloadedCount(int count);
+
+  /// No description provided for @backgroundTask_downloadedCountWithTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded {count}/{total} tags'**
+  String backgroundTask_downloadedCountWithTotal(int count, int total);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

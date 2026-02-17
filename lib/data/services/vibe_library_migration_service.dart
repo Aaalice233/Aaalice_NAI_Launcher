@@ -46,6 +46,7 @@ class VibeLibraryMigrationResult {
   final String? backupPath;
 }
 
+@Deprecated('VibeLibraryMigrationService 已弃用，迁移功能已整合到 VibeLibraryEntryRepository')
 class VibeLibraryMigrationService {
   VibeLibraryMigrationService({VibeFileStorageService? fileStorage})
       : _fileStorage = fileStorage ?? VibeFileStorageService();
@@ -174,7 +175,7 @@ class VibeLibraryMigrationService {
   }
 
   Future<(List<_ExportedEntry>, int)> _exportAllEntries(
-    List<LegacyVibeLibraryEntryV20> legacyEntries,
+    List<LegacyVibeLibraryEntry> legacyEntries,
     ProgressCallback? onProgress,
     List<String> createdFiles,
   ) async {
@@ -274,9 +275,9 @@ class VibeLibraryMigrationService {
     return backupDir.path;
   }
 
-  Future<List<LegacyVibeLibraryEntryV20>> _readLegacyEntries() async {
+  Future<List<LegacyVibeLibraryEntry>> _readLegacyEntries() async {
     if (!Hive.isAdapterRegistered(_legacyTypeId)) {
-      Hive.registerAdapter(LegacyVibeLibraryEntryV20Adapter());
+      Hive.registerAdapter(LegacyVibeLibraryEntryAdapter());
     }
 
     if (Hive.isBoxOpen(_entriesBoxName)) {
@@ -284,7 +285,7 @@ class VibeLibraryMigrationService {
     }
 
     try {
-      final box = await Hive.openBox<LegacyVibeLibraryEntryV20>(_entriesBoxName);
+      final box = await Hive.openBox<LegacyVibeLibraryEntry>(_entriesBoxName);
       final entries = box.values.toList(growable: false);
       await box.close();
       AppLogger.i('读取到旧条目 ${entries.length} 条', _tag);
@@ -306,7 +307,7 @@ class VibeLibraryMigrationService {
         final backupPath = await _backupCorruptHiveFiles();
         await _deleteCorruptHiveFiles();
         AppLogger.i('已备份 corrupt 文件到: $backupPath', _tag);
-        return <LegacyVibeLibraryEntryV20>[];
+        return <LegacyVibeLibraryEntry>[];
       }
       rethrow;
     }
@@ -364,7 +365,7 @@ class VibeLibraryMigrationService {
     }
   }
 
-  Future<_ExportedEntry> _exportEntry(LegacyVibeLibraryEntryV20 entry) async {
+  Future<_ExportedEntry> _exportEntry(LegacyVibeLibraryEntry entry) async {
     final vibePath = await VibeLibraryPathHelper.instance.getPath();
     await VibeLibraryPathHelper.instance.ensurePathExists(vibePath);
 
@@ -393,7 +394,7 @@ class VibeLibraryMigrationService {
     }
 
     final legacyBox =
-        await Hive.openBox<LegacyVibeLibraryEntryV20>(_entriesBoxName);
+        await Hive.openBox<LegacyVibeLibraryEntry>(_entriesBoxName);
     await legacyBox.clear();
     await legacyBox.close();
 
@@ -500,12 +501,13 @@ class _ExportedEntry {
     required this.filePath,
   });
 
-  final LegacyVibeLibraryEntryV20 legacy;
+  final LegacyVibeLibraryEntry legacy;
   final String filePath;
 }
 
-class LegacyVibeLibraryEntryV20 {
-  LegacyVibeLibraryEntryV20({
+@Deprecated('LegacyVibeLibraryEntry 已弃用，请使用 VibeLibraryEntry')
+class LegacyVibeLibraryEntry {
+  LegacyVibeLibraryEntry({
     required this.id,
     required this.name,
     required this.vibeDisplayName,
@@ -542,19 +544,19 @@ class LegacyVibeLibraryEntryV20 {
   final Uint8List? thumbnail;
 }
 
-class LegacyVibeLibraryEntryV20Adapter
-    extends TypeAdapter<LegacyVibeLibraryEntryV20> {
+class LegacyVibeLibraryEntryAdapter
+    extends TypeAdapter<LegacyVibeLibraryEntry> {
   @override
   final int typeId = 20;
 
   @override
-  LegacyVibeLibraryEntryV20 read(BinaryReader reader) {
+  LegacyVibeLibraryEntry read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
 
-    return LegacyVibeLibraryEntryV20(
+    return LegacyVibeLibraryEntry(
       id: fields[0] as String? ?? '',
       name: fields[1] as String? ?? '',
       vibeDisplayName: fields[2] as String? ?? '',
@@ -575,7 +577,7 @@ class LegacyVibeLibraryEntryV20Adapter
   }
 
   @override
-  void write(BinaryWriter writer, LegacyVibeLibraryEntryV20 obj) {
+  void write(BinaryWriter writer, LegacyVibeLibraryEntry obj) {
     writer
       ..writeByte(16)
       ..writeByte(0)
@@ -618,7 +620,7 @@ class LegacyVibeLibraryEntryV20Adapter
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
-        other is LegacyVibeLibraryEntryV20Adapter &&
+        other is LegacyVibeLibraryEntryAdapter &&
             runtimeType == other.runtimeType &&
             typeId == other.typeId;
   }

@@ -267,6 +267,13 @@
   "generation_noHistory": "暂无历史记录",
   "generation_clearHistory": "清除历史记录",
   "generation_clearHistoryConfirm": "确定要清除所有历史记录吗？此操作不可撤销。",
+  "generation_startCreating": "开始创作",
+  "generation_noHistoryGuide": "您的生成历史将显示在这里。输入提示词并点击生成按钮开始创作吧！",
+  "generation_randomPrompt": "随机提示词",
+  "generation_randomPromptSubtitle": "生成随机提示词以获取灵感",
+  "generation_clearPrompt": "清空提示词",
+  "generation_clearPromptSubtitle": "清空当前提示词输入",
+  "generation_promptCleared": "提示词已清空",
   "generation_model": "模型",
   "generation_imageSize": "图像尺寸",
   "generation_sampler": "采样器",
@@ -989,6 +996,8 @@
   "warmup_danbooruTagsInit": "初始化 Danbooru 标签...",
   "warmup_group_dataSourceInitialization": "初始化数据源服务...",
   "warmup_group_dataSourceInitialization_complete": "数据源服务就绪",
+  "warmup_unifiedDbInit": "初始化统一数据库...",
+  "warmup_dataMigration": "数据迁移...",
 
   "performanceReport_title": "启动性能",
   "performanceReport_export": "导出报告",
@@ -3161,6 +3170,13 @@
   "shortcut_help_search": "搜索快捷键...",
   "shortcut_help_customize": "自定义快捷键",
 
+  "viewer_help_button_tooltip": "快捷键帮助",
+  "viewer_tooltip_close": "关闭",
+  "viewer_tooltip_save": "保存",
+  "viewer_tooltip_reuse_params": "复用参数",
+  "viewer_tooltip_copy_image": "复制图像",
+  "viewer_tooltip_favorite": "收藏",
+
   "vibeLibrary_title": "Vibe 库",
   "vibeLibrary_save": "保存到库",
   "vibeLibrary_import": "导入 Vibe",
@@ -3253,6 +3269,20 @@
   "settings_hivePathSaved": "数据存储路径已保存，重启后生效",
   "settings_restartRequiredTitle": "需要重启应用",
   "settings_changePathConfirm": "更改数据存储路径后，需要重启应用才能生效。\\n\\n新路径将在下次启动时生效。是否继续？",
-  "settings_resetPathConfirm": "重置数据存储路径后，需要重启应用才能生效。\\n\\n默认路径将在下次启动时生效。是否继续？"
+  "settings_resetPathConfirm": "重置数据存储路径后，需要重启应用才能生效。\\n\\n默认路径将在下次启动时生效。是否继续？",
+
+  "backgroundTask_downloadedCount": "已下载 {count} 个标签",
+  "@backgroundTask_downloadedCount": {
+    "placeholders": {
+      "count": {"type": "int", "format": "decimalPattern"}
+    }
+  },
+  "backgroundTask_downloadedCountWithTotal": "已下载 {count}/{total} 个标签",
+  "@backgroundTask_downloadedCountWithTotal": {
+    "placeholders": {
+      "count": {"type": "int", "format": "decimalPattern"},
+      "total": {"type": "int", "format": "decimalPattern"}
+    }
+  }
 
 }
