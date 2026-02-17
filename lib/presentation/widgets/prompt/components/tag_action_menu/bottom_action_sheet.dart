@@ -1,9 +1,9 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/prompt/prompt_tag.dart';
 import '../../core/prompt_tag_colors.dart';
 
@@ -395,9 +395,8 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
           if (widget.onToggleFavorite != null) ...[
             Expanded(
               child: _ActionButton(
-                icon: widget.isFavorite
-                    ? Icons.favorite
-                    : Icons.favorite_border,
+                icon:
+                    widget.isFavorite ? Icons.favorite : Icons.favorite_border,
                 label: widget.isFavorite ? 'Unfavorite' : 'Favorite',
                 onTap: () {
                   widget.onToggleFavorite?.call();

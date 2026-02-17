@@ -1,6 +1,7 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/localization_extension.dart';
+import '../../widgets/common/themed_divider.dart';
 
 /// NAI随机算法说明弹窗
 ///
@@ -248,7 +249,7 @@ class NaiAlgorithmDialog extends StatelessWidget {
                             context.l10n.naiAlgorithm_mainPromptTags,
                             theme.colorScheme.primary,
                           ),
-                          const Divider(height: 16),
+                          const ThemedDivider(height: 16),
                           _buildStructureItem(
                             theme,
                             context.l10n.naiAlgorithm_characterPrompt,

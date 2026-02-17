@@ -1,5 +1,3 @@
-import 'dart:isolate';
-
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -153,9 +151,12 @@ class WordlistService {
     _categoryIndex[type] = categoryIndex;
   }
 
-  /// 解析 CSV 内容（在 Isolate 中执行）
+  /// 解析 CSV 内容
+  ///
+  /// 注：Isolate.run 在 Windows 上与 Freezed 对象存在序列化兼容性问题，
+  /// 且 CSV 解析速度足够快，无需异步隔离执行，故直接使用同步实现。
   Future<List<WordlistEntry>> _parseCsvContentAsync(String content) async {
-    return Isolate.run(() => _parseCsvContentSync(content));
+    return _parseCsvContentSync(content);
   }
 
   /// 同步解析 CSV 内容（供 Isolate 使用）

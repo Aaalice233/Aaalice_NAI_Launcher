@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -5,7 +6,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../core/services/warmup_metrics_service.dart';
 import '../../../data/models/warmup/warmup_metrics.dart';
 import '../../widgets/common/app_toast.dart';
@@ -21,11 +21,58 @@ class PerformanceReportScreen extends ConsumerStatefulWidget {
 
 class _PerformanceReportScreenState
     extends ConsumerState<PerformanceReportScreen> {
+  List<List<WarmupTaskMetrics>> _sessions = [];
+  Map<String, Map<String, int>?> _taskStats = {};
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final metricsService = ref.read(warmupMetricsServiceProvider);
+    final sessions = await metricsService.getRecentSessions(10);
+
+    // 预加载所有任务统计数据
+    final taskStats = <String, Map<String, int>?>{};
+    final taskNames = <String>{};
+    for (final session in sessions) {
+      for (final task in session) {
+        taskNames.add(task.taskName);
+      }
+    }
+    for (final taskName in taskNames) {
+      taskStats[taskName] = await metricsService.getStatsForTask(taskName);
+    }
+
+    if (mounted) {
+      setState(() {
+        _sessions = sessions;
+        _taskStats = taskStats;
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final metricsService = ref.watch(warmupMetricsServiceProvider);
-    final sessions = metricsService.getRecentSessions(10);
+
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(context.l10n.performanceReport_title),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    final sessions = _sessions;
 
     return Scaffold(
       appBar: AppBar(
@@ -120,17 +167,20 @@ class _PerformanceReportScreenState
         }
       }
     }
-    final successRate =
-        totalTasksCount > 0 ? (successCount / totalTasksCount * 100).round() : 0;
+    final successRate = totalTasksCount > 0
+        ? (successCount / totalTasksCount * 100).round()
+        : 0;
 
     // 计算平均总耗时
     final avgTotalDuration = sessions.isEmpty
         ? 0
         : sessions
-                .map((session) => session.fold<int>(
-                      0,
-                      (sum, task) => sum + task.durationMs,
-                    ),)
+                .map(
+                  (session) => session.fold<int>(
+                    0,
+                    (sum, task) => sum + task.durationMs,
+                  ),
+                )
                 .reduce((a, b) => a + b) ~/
             sessions.length;
 
@@ -250,9 +300,7 @@ class _PerformanceReportScreenState
     // 按任务名称分组并计算统计信息
     final taskStats = <String, Map<String, dynamic>>{};
     for (final taskName in taskNames) {
-      final stats = ref
-          .read(warmupMetricsServiceProvider)
-          .getStatsForTask(taskName);
+      final stats = _taskStats[taskName];
       if (stats != null) {
         // 计算成功率
         int successCount = 0;
@@ -267,9 +315,8 @@ class _PerformanceReportScreenState
             successCount++;
           }
         }
-        final successRate = totalCount > 0
-            ? (successCount / totalCount * 100).round()
-            : 0;
+        final successRate =
+            totalCount > 0 ? (successCount / totalCount * 100).round() : 0;
 
         taskStats[taskName] = {
           ...stats,
@@ -407,11 +454,14 @@ class _PerformanceReportScreenState
           ),
           TextButton(
             onPressed: () async {
+              final scaffoldContext = context;
               Navigator.pop(dialogContext);
               await metricsService.clear();
-              if (context.mounted) {
-                setState(() {}); // 刷新界面
-                AppToast.success(context, '性能数据已清空');
+              if (scaffoldContext.mounted) {
+                await _loadData(); // 刷新数据
+                if (scaffoldContext.mounted) {
+                  AppToast.success(scaffoldContext, '性能数据已清空');
+                }
               }
             },
             child: const Text('清空', style: TextStyle(color: Colors.red)),

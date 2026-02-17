@@ -10,6 +10,18 @@ import '../models/danbooru/danbooru_user.dart';
 
 part 'danbooru_auth_service.g.dart';
 
+/// 凭据验证结果
+enum CredentialVerifyResult {
+  /// 验证成功
+  success,
+
+  /// 凭据无效（需要清除）
+  invalidCredentials,
+
+  /// 网络错误（保留凭据）
+  networkError,
+}
+
 /// Danbooru 认证状态
 class DanbooruAuthState {
   final DanbooruCredentials? credentials;
@@ -103,12 +115,45 @@ class DanbooruAuth extends _$DanbooruAuth {
         state = state.copyWith(credentials: credentials, isLoading: true);
 
         // 验证凭据
-        final isValid = await _verifyCredentials(credentials);
+        final result = await _verifyCredentialsWithResult(credentials);
 
-        // 如果验证失败，清除已保存的凭据
-        if (!isValid) {
-          await prefs.remove(_credentialsKey);
-          AppLogger.w('Saved credentials invalid, cleared', 'DanbooruAuth');
+        switch (result) {
+          case CredentialVerifyResult.success:
+            // 验证成功，状态已在 _verifyCredentialsWithResult 中更新
+            AppLogger.i(
+              'Saved credentials verified successfully',
+              'DanbooruAuth',
+            );
+            break;
+
+          case CredentialVerifyResult.invalidCredentials:
+            // 凭据无效（如401错误），清除已保存的凭据
+            await prefs.remove(_credentialsKey);
+            state = state.copyWith(
+              clearCredentials: true,
+              clearUser: true,
+              isLoading: false,
+              error: '凭据已失效，请重新登录',
+            );
+            AppLogger.w(
+              'Saved credentials invalid (401), cleared',
+              'DanbooruAuth',
+            );
+            break;
+
+          case CredentialVerifyResult.networkError:
+            // 网络错误，保留凭据但标记为未验证状态
+            // 允许离线使用，下次网络恢复时重试验证
+            state = state.copyWith(
+              credentials: credentials,
+              isLoading: false,
+              clearVerifiedAt: true, // 清除验证时间，标记为需要重新验证
+            );
+            AppLogger.w(
+              'Network error during credential verification, keeping credentials for retry',
+              'DanbooruAuth',
+            );
+            break;
         }
       }
     } catch (e, stack) {
@@ -121,12 +166,17 @@ class DanbooruAuth extends _$DanbooruAuth {
     }
   }
 
-  /// 验证凭据并获取用户信息
-  Future<bool> _verifyCredentials(DanbooruCredentials credentials) async {
+  /// 验证凭据并获取用户信息（返回详细结果）
+  ///
+  /// 区分网络错误和凭据无效，避免网络问题导致凭据被误删
+  Future<CredentialVerifyResult> _verifyCredentialsWithResult(
+    DanbooruCredentials credentials,
+  ) async {
     try {
       state = state.copyWith(isLoading: true, clearError: true);
 
-      final user = await _fetchUserProfile(credentials);
+      final (user, isNetworkError) =
+          await _fetchUserProfileWithErrorType(credentials);
 
       if (user != null) {
         state = state.copyWith(
@@ -135,20 +185,29 @@ class DanbooruAuth extends _$DanbooruAuth {
           isLoading: false,
           lastVerifiedAt: DateTime.now(),
         );
-        return true;
+        return CredentialVerifyResult.success;
+      } else if (isNetworkError) {
+        // 网络错误，保留凭据
+        state = state.copyWith(
+          isLoading: false,
+          error: '网络连接失败，将在网络恢复后重试',
+        );
+        return CredentialVerifyResult.networkError;
       } else {
+        // 凭据无效
         state = state.copyWith(
           isLoading: false,
           error: '无法验证凭据，请检查用户名和 API Key 是否正确',
         );
-        return false;
+        return CredentialVerifyResult.invalidCredentials;
       }
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
         error: '验证失败: $e',
       );
-      return false;
+      // 未知异常视为网络错误，不删除凭据
+      return CredentialVerifyResult.networkError;
     }
   }
 
@@ -176,13 +235,21 @@ class DanbooruAuth extends _$DanbooruAuth {
       // 先验证凭据是否有效
       AppLogger.i('Verifying Danbooru credentials...', 'DanbooruAuth');
 
-      final user = await _fetchUserProfile(credentials);
+      final (user, isNetworkError) =
+          await _fetchUserProfileWithErrorType(credentials);
 
       if (user == null) {
-        state = state.copyWith(
-          isLoading: false,
-          error: '无法验证凭据，请检查用户名和 API Key 是否正确',
-        );
+        if (isNetworkError) {
+          state = state.copyWith(
+            isLoading: false,
+            error: '网络连接失败，请检查网络连接',
+          );
+        } else {
+          state = state.copyWith(
+            isLoading: false,
+            error: '无法验证凭据，请检查用户名和 API Key 是否正确',
+          );
+        }
         AppLogger.w('Danbooru credential verification failed', 'DanbooruAuth');
         return false;
       }
@@ -214,10 +281,13 @@ class DanbooruAuth extends _$DanbooruAuth {
     }
   }
 
-  /// 从API获取用户信息
+  /// 从API获取用户信息（带错误类型）
   ///
-  /// 使用 DanbooruApiService 验证凭据并获取用户信息
-  Future<DanbooruUser?> _fetchUserProfile(
+  /// 返回 (用户信息, 是否为网络错误)
+  /// - 成功: (user, false)
+  /// - 凭据无效: (null, false)
+  /// - 网络错误: (null, true)
+  Future<(DanbooruUser?, bool isNetworkError)> _fetchUserProfileWithErrorType(
     DanbooruCredentials credentials,
   ) async {
     try {
@@ -237,24 +307,31 @@ class DanbooruAuth extends _$DanbooruAuth {
         ),
       );
 
-      final user = await apiService.verifyCredentials(credentials);
+      final (user, isNetworkError) =
+          await apiService.verifyCredentialsWithErrorType(credentials);
 
       if (user != null) {
         AppLogger.i(
           'User profile fetched successfully: ${user.name}',
           'DanbooruAuth',
         );
+      } else if (isNetworkError) {
+        AppLogger.w(
+          'Network error while fetching user profile',
+          'DanbooruAuth',
+        );
       } else {
         AppLogger.w(
-          'Failed to fetch user profile or invalid credentials',
+          'Failed to fetch user profile - invalid credentials',
           'DanbooruAuth',
         );
       }
 
-      return user;
+      return (user, isNetworkError);
     } catch (e, stack) {
       AppLogger.e('Failed to fetch user profile', e, stack, 'DanbooruAuth');
-      return null;
+      // 未知异常视为网络错误
+      return (null, true);
     }
   }
 

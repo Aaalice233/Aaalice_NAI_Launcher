@@ -1,7 +1,6 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
-
-import '../../../core/utils/localization_extension.dart';
 
 /// Emoji 选择器对话框
 ///

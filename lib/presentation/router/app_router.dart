@@ -1,14 +1,12 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/storage/app_state_storage.dart';
-import '../../core/storage/crash_recovery_service.dart';
-import '../../core/utils/localization_extension.dart';
+import '../../core/shortcuts/default_shortcuts.dart';
+import '../../core/utils/app_logger.dart';
 import '../providers/auth_provider.dart' show authNotifierProvider, AuthStatus;
-import '../providers/download_progress_provider.dart';
-import '../widgets/common/recovery_dialog.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/generation/generation_screen.dart';
 import '../screens/gallery/gallery_screen.dart';
@@ -18,13 +16,27 @@ import '../screens/prompt_config/prompt_config_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/slideshow_screen.dart';
 import '../screens/image_comparison_screen.dart';
-import '../screens/statistics_screen.dart';
+import '../screens/statistics/statistics_screen.dart';
+import '../screens/tag_library_page/tag_library_page_screen.dart';
+import '../screens/vibe_library/vibe_library_screen.dart';
+import '../widgets/background/background_task_indicator.dart';
+import '../widgets/drop/global_drop_handler.dart';
 import '../widgets/navigation/main_nav_rail.dart';
-import '../widgets/queue/replication_queue_bar.dart';
-import '../providers/queue_execution_provider.dart';
-import '../providers/replication_queue_provider.dart';
+import '../widgets/queue/floating_queue_button.dart';
+import '../widgets/queue/queue_management_page.dart';
+import '../widgets/shortcuts/shortcut_aware_widget.dart';
+import '../widgets/shortcuts/shortcut_help_dialog.dart';
 
 part 'app_router.g.dart';
+
+/// 队列管理面板显示状态 Provider
+final queueManagementVisibleProvider = StateProvider<bool>((ref) => false);
+
+/// 悬浮球手动关闭状态 Provider
+///
+/// 当用户主动关闭悬浮球时设为 true，悬浮球将不再显示
+/// 当队列有新任务添加时自动重置为 false
+final floatingButtonClosedProvider = StateProvider<bool>((ref) => false);
 
 /// Navigator Keys for StatefulShellRoute branches
 // ignore: unused_element
@@ -36,6 +48,10 @@ final _onlineGalleryKey =
     GlobalKey<NavigatorState>(debugLabel: 'onlineGallery');
 final _settingsKey = GlobalKey<NavigatorState>(debugLabel: 'settings');
 final _promptConfigKey = GlobalKey<NavigatorState>(debugLabel: 'promptConfig');
+final _statisticsKey = GlobalKey<NavigatorState>(debugLabel: 'statistics');
+final _tagLibraryPageKey =
+    GlobalKey<NavigatorState>(debugLabel: 'tagLibraryPage');
+final _vibeLibraryKey = GlobalKey<NavigatorState>(debugLabel: 'vibeLibrary');
 
 /// 路由路径常量
 class AppRoutes {
@@ -52,21 +68,28 @@ class AppRoutes {
   static const String slideshow = '/slideshow';
   static const String comparison = '/comparison';
   static const String statistics = '/statistics';
+  static const String tagLibraryPage = '/tag-library';
+  static const String vibeLibrary = '/vibe-library';
 }
 
 /// 应用路由 Provider
 ///
-/// 使用 ref.watch + ValueNotifier 桥接认证状态到 GoRouter 的 refreshListenable
-/// 注意：不要使用 ref.listen 在 provider 中，因为这会触发 AssertionError
-/// ref.listen 只能在 ConsumerWidget 的 build 方法中使用
-@riverpod
+/// 使用 ref.listen 监听认证状态变化并通知 GoRouter
+/// 避免使用 ref.watch 导致 GoRouter 实例频繁重建
+@Riverpod(keepAlive: true)
 GoRouter appRouter(Ref ref) {
-  // 使用 ref.watch 监听认证状态变化
-  // 当状态变化时，provider 会重建，ValueNotifier 也会更新
-  final authState = ref.watch(authNotifierProvider);
+  // 创建 ValueNotifier 作为 refreshListenable
+  // 初始值无关紧要，只要变化就会触发重定向
+  final authStateNotifier = ValueNotifier<int>(0);
 
-  // 创建 ValueNotifier 桥接到 GoRouter 的 refreshListenable
-  final authStateNotifier = ValueNotifier<AuthStatus>(authState.status);
+  // 监听认证状态变化 (status 或 isAuthenticated)
+  ref.listen(
+    authNotifierProvider.select((value) => value.status),
+    (previous, next) {
+      // 触发 GoRouter 刷新
+      authStateNotifier.value++;
+    },
+  );
 
   // 当 provider 被销毁时清理
   ref.onDispose(() {
@@ -113,27 +136,10 @@ GoRouter appRouter(Ref ref) {
       GoRoute(
         path: AppRoutes.login,
         name: 'login',
-        pageBuilder: (context, state) => CustomTransitionPage(
-          key: state.pageKey,
+        pageBuilder: (context, state) => _buildFadeSlidePage(
+          state: state,
           child: const LoginScreen(),
-          transitionDuration: const Duration(milliseconds: 300),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            // 使用淡入淡出 + 轻微垂直位移的组合动画
-            // 与 login_form_container.dart 保持一致的动画风格
-            return FadeTransition(
-              opacity:
-                  CurveTween(curve: Curves.easeOutCubic).animate(animation),
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0.0, 0.05), // 从下方 5% 处滑入
-                  end: Offset.zero,
-                ).animate(
-                  CurveTween(curve: Curves.easeOutCubic).animate(animation),
-                ),
-                child: child,
-              ),
-            );
-          },
+          slideOffset: const Offset(0.0, 0.05),
         ),
       ),
 
@@ -154,35 +160,17 @@ GoRouter appRouter(Ref ref) {
               GoRoute(
                 path: AppRoutes.home,
                 name: 'home',
-                pageBuilder: (context, state) => CustomTransitionPage(
-                  key: state.pageKey,
+                pageBuilder: (context, state) => _buildFadePage(
+                  state: state,
                   child: const GenerationScreen(),
-                  transitionDuration: const Duration(milliseconds: 300),
-                  transitionsBuilder:
-                      (context, animation, secondaryAnimation, child) {
-                    return FadeTransition(
-                      opacity: CurveTween(curve: Curves.easeOutCubic)
-                          .animate(animation),
-                      child: child,
-                    );
-                  },
                 ),
               ),
               GoRoute(
                 path: AppRoutes.generation,
                 name: 'generation',
-                pageBuilder: (context, state) => CustomTransitionPage(
-                  key: state.pageKey,
+                pageBuilder: (context, state) => _buildFadePage(
+                  state: state,
                   child: const GenerationScreen(),
-                  transitionDuration: const Duration(milliseconds: 300),
-                  transitionsBuilder:
-                      (context, animation, secondaryAnimation, child) {
-                    return FadeTransition(
-                      opacity: CurveTween(curve: Curves.easeOutCubic)
-                          .animate(animation),
-                      child: child,
-                    );
-                  },
                 ),
               ),
             ],
@@ -220,8 +208,6 @@ GoRouter appRouter(Ref ref) {
                           ) ??
                           0;
 
-                      // TODO: 从状态获取图片列表
-                      // 目前使用空列表进行测试
                       return MaterialPage(
                         key: state.pageKey,
                         child: SlideshowScreen(
@@ -236,24 +222,11 @@ GoRouter appRouter(Ref ref) {
                     path: AppRoutes.comparison,
                     name: 'comparison',
                     pageBuilder: (context, state) {
-                      // TODO: 从状态获取图片列表
-                      // 目前使用空列表进行测试
                       return MaterialPage(
                         key: state.pageKey,
                         child: const ImageComparisonScreen(
                           images: [],
                         ),
-                      );
-                    },
-                  ),
-                  // 统计仪表盘子路由
-                  GoRoute(
-                    path: AppRoutes.statistics,
-                    name: 'statistics',
-                    pageBuilder: (context, state) {
-                      return MaterialPage(
-                        key: state.pageKey,
-                        child: const StatisticsScreen(),
                       );
                     },
                   ),
@@ -297,6 +270,42 @@ GoRouter appRouter(Ref ref) {
               ),
             ],
           ),
+
+          // Branch 6: 统计页 - 不保活
+          StatefulShellBranch(
+            navigatorKey: _statisticsKey,
+            routes: [
+              GoRoute(
+                path: AppRoutes.statistics,
+                name: 'statistics',
+                builder: (context, state) => const StatisticsScreen(),
+              ),
+            ],
+          ),
+
+          // Branch 7: 词库页 - 保活
+          StatefulShellBranch(
+            navigatorKey: _tagLibraryPageKey,
+            routes: [
+              GoRoute(
+                path: AppRoutes.tagLibraryPage,
+                name: 'tagLibraryPage',
+                builder: (context, state) => const TagLibraryPageScreen(),
+              ),
+            ],
+          ),
+
+          // Branch 8: Vibe库页 - 保活
+          StatefulShellBranch(
+            navigatorKey: _vibeLibraryKey,
+            routes: [
+              GoRoute(
+                path: AppRoutes.vibeLibrary,
+                name: 'vibeLibrary',
+                builder: (context, state) => const VibeLibraryScreen(),
+              ),
+            ],
+          ),
         ],
       ),
     ],
@@ -331,15 +340,13 @@ class MainShell extends ConsumerStatefulWidget {
 
 class _MainShellState extends ConsumerState<MainShell> {
   bool _initialized = false;
-  bool _recoveryChecked = false;
 
   @override
   void initState() {
     super.initState();
-    // 在 Overlay 可用后初始化下载服务和检查崩溃恢复
+    // 在 Overlay 可用后初始化下载服务
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeDownloadServices();
-      _checkCrashRecovery();
     });
   }
 
@@ -347,79 +354,8 @@ class _MainShellState extends ConsumerState<MainShell> {
     if (_initialized) return;
     _initialized = true;
 
-    // 现在 Overlay 已经准备好了，可以安全地初始化下载服务
-    final downloadNotifier =
-        ref.read(downloadProgressNotifierProvider.notifier);
-
-    if (mounted) {
-      downloadNotifier.setContext(context);
-    }
-
-    // 后台初始化标签数据
-    await downloadNotifier.initializeTagData();
-
-    // 下载共现标签数据（100MB）
-    if (mounted) {
-      downloadNotifier.downloadCooccurrenceData();
-    }
-  }
-
-  /// 检查崩溃恢复
-  ///
-  /// 在应用启动后检查是否有可恢复的会话状态，
-  /// 如果有则显示恢复对话框让用户选择
-  Future<void> _checkCrashRecovery() async {
-    if (_recoveryChecked) return;
-    _recoveryChecked = true;
-
-    try {
-      final crashRecoveryService = ref.read(crashRecoveryServiceProvider);
-
-      // 分析崩溃情况
-      final analysis = await crashRecoveryService.analyzeCrash();
-
-      if (!analysis.hasCrashDetected) {
-        return;
-      }
-
-      if (!analysis.canRecover) {
-        // 无法恢复，清理日志
-        await crashRecoveryService.clearJournal();
-        return;
-      }
-
-      if (!mounted) return;
-
-      // 显示恢复对话框
-      final result = await RecoveryDialog.show(
-        context: context,
-        analysisResult: analysis,
-      );
-
-      if (!mounted) return;
-
-      if (result == RecoveryDialogResult.recover) {
-        // 用户选择恢复 - 恢复会话状态
-        await crashRecoveryService.logRecoveryAttempt(
-          success: true,
-          recoveredState: analysis.recoveryPoint?.sessionState,
-        );
-
-        // 触发队列执行恢复
-        final queueExecutionNotifier =
-            ref.read(queueExecutionNotifierProvider.notifier);
-        await queueExecutionNotifier.checkAndRecover();
-      } else {
-        // 用户选择放弃恢复 - 清理状态
-        await crashRecoveryService.clearJournal();
-
-        // 清除应用状态存储
-        final appStateStorage = ref.read(appStateStorageProvider);
-        await appStateStorage.clearQueueExecutionState();
-      }
-    } catch (e) {
-      // 静默处理错误
-    }
+    // 所有数据加载已在预热阶段完成，这里无需额外操作
+    AppLogger.i('Download services initialization skipped - all data loaded in warmup', 'AppRouter');
   }
 
   @override
@@ -453,20 +389,68 @@ class _MainShellState extends ConsumerState<MainShell> {
       }).toList(),
     );
 
+    // 使用 GlobalDropHandler 包装内容，支持拖拽图片到任意页面
+    final dropEnabledContent = GlobalDropHandler(
+      child: contentStack,
+    );
+
+    // 定义全局快捷键动作映射（使用 ShortcutIds 常量）
+    final globalShortcuts = <String, VoidCallback>{
+      // 页面导航
+      ShortcutIds.navigateToGeneration: () {
+        widget.navigationShell.goBranch(0);
+      },
+      ShortcutIds.navigateToLocalGallery: () {
+        widget.navigationShell.goBranch(2);
+      },
+      ShortcutIds.navigateToOnlineGallery: () {
+        widget.navigationShell.goBranch(3);
+      },
+      ShortcutIds.navigateToSettings: () {
+        widget.navigationShell.goBranch(4);
+      },
+      ShortcutIds.navigateToRandomConfig: () {
+        widget.navigationShell.goBranch(5);
+      },
+      ShortcutIds.navigateToStatistics: () {
+        widget.navigationShell.goBranch(6);
+      },
+      ShortcutIds.navigateToTagLibrary: () {
+        widget.navigationShell.goBranch(7);
+      },
+      // 显示快捷键帮助
+      ShortcutIds.showShortcutHelp: () {
+        ShortcutHelpDialog.show(context);
+      },
+      // 显示/隐藏队列
+      ShortcutIds.toggleQueue: () {
+        final isVisible = ref.read(queueManagementVisibleProvider);
+        ref.read(queueManagementVisibleProvider.notifier).state = !isVisible;
+      },
+    };
+
+    // 使用 ShortcutAwareWidget 包装全局快捷键
+    final shortcutEnabledContent = ShortcutAwareWidget(
+      contextType: ShortcutContext.global,
+      shortcuts: globalShortcuts,
+      autofocus: true,
+      child: dropEnabledContent,
+    );
+
     return LayoutBuilder(
       builder: (context, constraints) {
         // 桌面端：使用侧边导航
         if (constraints.maxWidth >= 800) {
           return DesktopShell(
             navigationShell: widget.navigationShell,
-            content: contentStack,
+            content: shortcutEnabledContent,
           );
         }
 
         // 移动端：使用底部导航
         return MobileShell(
           navigationShell: widget.navigationShell,
-          content: contentStack,
+          content: shortcutEnabledContent,
         );
       },
     );
@@ -486,12 +470,7 @@ class DesktopShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentIndex = navigationShell.currentIndex;
-    // 在主界面(0)、本地画廊(2)、在线画廊(3) Tab 显示队列悬浮栏
-    final showQueueBar =
-        currentIndex == 0 || currentIndex == 2 || currentIndex == 3;
-    final queueState = ref.watch(replicationQueueNotifierProvider);
-    final hasQueueItems = !queueState.isEmpty;
+    final isQueueVisible = ref.watch(queueManagementVisibleProvider);
 
     return Scaffold(
       body: Row(
@@ -501,18 +480,31 @@ class DesktopShell extends ConsumerWidget {
 
           // 主内容区
           Expanded(
-            child: Stack(
-              children: [
-                content,
-                // 队列悬浮栏（仅在特定 Tab 且有队列项时显示）
-                if (showQueueBar && hasQueueItems)
-                  const Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: ReplicationQueueBar(),
-                  ),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    content,
+                    // 队列悬浮球 - 传入实际可用区域大小
+                    FloatingQueueButton(
+                      onTap: () => ref
+                          .read(queueManagementVisibleProvider.notifier)
+                          .state = !isQueueVisible,
+                      containerSize:
+                          Size(constraints.maxWidth, constraints.maxHeight),
+                    ),
+                    // 队列管理面板
+                    _QueuePanel(
+                      isVisible: isQueueVisible,
+                      maxWidth: 650,
+                      heightFactor: 0.85,
+                    ),
+                    // 后台任务进度指示器
+                    const DesktopBackgroundTaskIndicator(),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -534,27 +526,34 @@ class MobileShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentIndex = navigationShell.currentIndex;
-    // 在主界面(0)、本地画廊(2)、在线画廊(3) Tab 显示队列悬浮栏
-    final showQueueBar =
-        currentIndex == 0 || currentIndex == 2 || currentIndex == 3;
-    final queueState = ref.watch(replicationQueueNotifierProvider);
-    final hasQueueItems = !queueState.isEmpty;
+    final isQueueVisible = ref.watch(queueManagementVisibleProvider);
 
     return Scaffold(
-      body: Stack(
-        children: [
-          content,
-          // 队列悬浮栏（仅在特定 Tab 且有队列项时显示）
-          // 底部导航栏高度约 80px
-          if (showQueueBar && hasQueueItems)
-            const Positioned(
-              left: 0,
-              right: 0,
-              bottom: 80,
-              child: ReplicationQueueBar(),
-            ),
-        ],
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              content,
+              // 队列悬浮球 - 传入实际可用区域大小
+              FloatingQueueButton(
+                onTap: () => ref
+                    .read(queueManagementVisibleProvider.notifier)
+                    .state = !isQueueVisible,
+                containerSize:
+                    Size(constraints.maxWidth, constraints.maxHeight),
+              ),
+              // 队列管理面板
+              _QueuePanel(
+                isVisible: isQueueVisible,
+                maxWidth: double.infinity,
+                heightFactor: 0.85,
+              ),
+              // 后台任务进度指示器
+              const MobileBackgroundTaskIndicator(),
+            ],
+          );
+        },
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _getSelectedIndex(),
@@ -606,5 +605,139 @@ class MobileShell extends ConsumerWidget {
         branchIndex = 0; // home
     }
     navigationShell.goBranch(branchIndex);
+  }
+}
+
+// ============================================
+// 页面过渡动画辅助方法
+// ============================================
+
+const _defaultTransitionDuration = Duration(milliseconds: 300);
+const _defaultCurve = Curves.easeOutCubic;
+
+/// 构建淡入页面过渡
+CustomTransitionPage<void> _buildFadePage({
+  required GoRouterState state,
+  required Widget child,
+  Duration duration = _defaultTransitionDuration,
+}) {
+  return CustomTransitionPage(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: duration,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return FadeTransition(
+        opacity: CurveTween(curve: _defaultCurve).animate(animation),
+        child: child,
+      );
+    },
+  );
+}
+
+/// 构建淡入+滑动页面过渡
+CustomTransitionPage<void> _buildFadeSlidePage({
+  required GoRouterState state,
+  required Widget child,
+  Offset slideOffset = Offset.zero,
+  Duration duration = _defaultTransitionDuration,
+}) {
+  return CustomTransitionPage(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: duration,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curvedAnimation =
+          CurveTween(curve: _defaultCurve).animate(animation);
+      return FadeTransition(
+        opacity: curvedAnimation,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: slideOffset,
+            end: Offset.zero,
+          ).animate(curvedAnimation),
+          child: child,
+        ),
+      );
+    },
+  );
+}
+
+// ============================================
+// 队列面板组件
+// ============================================
+
+/// 队列管理面板组件
+///
+/// 带背景遮罩、滑动动画和队列管理页面
+class _QueuePanel extends ConsumerWidget {
+  final bool isVisible;
+  final double maxWidth;
+  final double heightFactor;
+
+  const _QueuePanel({
+    required this.isVisible,
+    required this.maxWidth,
+    required this.heightFactor,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Stack(
+          children: [
+            // 背景遮罩
+            if (isVisible)
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: () => ref
+                      .read(queueManagementVisibleProvider.notifier)
+                      .state = false,
+                  child: Container(color: Colors.black54),
+                ),
+              ),
+            // 滑动面板
+            TweenAnimationBuilder<Offset>(
+              tween: Tween(
+                begin: const Offset(0, 1),
+                end: isVisible ? Offset.zero : const Offset(0, 1),
+              ),
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              builder: (context, offset, child) {
+                return IgnorePointer(
+                  ignoring: offset.dy >= 0.5,
+                  child: FractionalTranslation(
+                    translation: offset,
+                    child: child,
+                  ),
+                );
+              },
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: maxWidth),
+                  child: Material(
+                    color: theme.scaffoldBackgroundColor,
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(16)),
+                    clipBehavior: Clip.antiAlias,
+                    child: SafeArea(
+                      top: false,
+                      child: SizedBox(
+                        height: constraints.maxHeight * heightFactor,
+                        child: const QueueManagementPage(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

@@ -1,14 +1,18 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:file_picker/file_picker.dart';
 
-import '../../../../core/utils/localization_extension.dart';
+import '../../../widgets/common/themed_divider.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../widgets/image_editor/image_editor_screen.dart';
+import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/image_picker_card/image_picker_card.dart';
+import '../../../widgets/common/collapsible_image_panel.dart';
 
 /// Img2Img 面板组件
 class Img2ImgPanel extends ConsumerStatefulWidget {
@@ -26,151 +30,71 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
     final theme = Theme.of(context);
     final params = ref.watch(generationParamsNotifierProvider);
     final hasSourceImage = params.sourceImage != null;
-    final isImg2ImgMode = params.action == ImageGenerationAction.img2img;
+    final showBackground = hasSourceImage && !_isExpanded;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          // 背景图片层（折叠且有图片时显示）
-          if (hasSourceImage && !_isExpanded)
-            Positioned.fill(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.memory(
-                    params.sourceImage!,
-                    fit: BoxFit.cover,
-                  ),
-                  // 暗化遮罩
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.5),
-                          Colors.black.withOpacity(0.75),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          // 内容层
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 标题栏
-              InkWell(
-                onTap: () => setState(() => _isExpanded = !_isExpanded),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.image,
-                        size: 20,
-                        color: hasSourceImage && _isExpanded
-                            ? Colors.white
-                            : isImg2ImgMode
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.onSurface.withOpacity(0.6),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          context.l10n.img2img_title,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: hasSourceImage && _isExpanded
-                                ? Colors.white
-                                : isImg2ImgMode
-                                    ? theme.colorScheme.primary
-                                    : null,
-                          ),
-                        ),
-                      ),
-                      if (hasSourceImage)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _isExpanded
-                                ? Colors.white.withOpacity(0.2)
-                                : theme.colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            context.l10n.img2img_enabled,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: _isExpanded
-                                  ? Colors.white
-                                  : theme.colorScheme.onPrimaryContainer,
-                            ),
-                          ),
-                        ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        _isExpanded
-                            ? Icons.keyboard_arrow_up
-                            : Icons.keyboard_arrow_down,
-                        size: 20,
-                        color:
-                            hasSourceImage && _isExpanded ? Colors.white : null,
-                      ),
-                    ],
-                  ),
+    return CollapsibleImagePanel(
+      title: context.l10n.img2img_title,
+      icon: Icons.image,
+      isExpanded: _isExpanded,
+      onToggle: () => setState(() => _isExpanded = !_isExpanded),
+      hasData: hasSourceImage,
+      backgroundImage: hasSourceImage
+          ? Image.memory(
+              params.sourceImage!,
+              fit: BoxFit.cover,
+            )
+          : null,
+      badge: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 8,
+          vertical: 2,
+        ),
+        decoration: BoxDecoration(
+          color: showBackground
+              ? Colors.white.withOpacity(0.2)
+              : theme.colorScheme.primaryContainer,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          context.l10n.img2img_enabled,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: showBackground
+                ? Colors.white
+                : theme.colorScheme.onPrimaryContainer,
+          ),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const ThemedDivider(),
+
+            // 源图像选择
+            _buildSourceImageSection(theme, params),
+
+            if (hasSourceImage) ...[
+              const SizedBox(height: 16),
+              // 强度滑块
+              _buildStrengthSlider(theme, params),
+              const SizedBox(height: 12),
+              // 噪声滑块
+              _buildNoiseSlider(theme, params),
+              const SizedBox(height: 12),
+              // 清除按钮
+              OutlinedButton.icon(
+                onPressed: _clearImg2Img,
+                icon: const Icon(Icons.clear, size: 18),
+                label: Text(context.l10n.img2img_clearSettings),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: Colors.white38),
                 ),
-              ),
-
-              // 展开内容
-              AnimatedCrossFade(
-                duration: const Duration(milliseconds: 200),
-                crossFadeState: _isExpanded
-                    ? CrossFadeState.showFirst
-                    : CrossFadeState.showSecond,
-                firstChild: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Divider(color: hasSourceImage ? Colors.white24 : null),
-
-                      // 源图像选择
-                      _buildSourceImageSection(theme, params),
-
-                      if (hasSourceImage) ...[
-                        const SizedBox(height: 16),
-                        // 强度滑块
-                        _buildStrengthSlider(theme, params),
-                        const SizedBox(height: 12),
-                        // 噪声滑块
-                        _buildNoiseSlider(theme, params),
-                        const SizedBox(height: 12),
-                        // 清除按钮
-                        OutlinedButton.icon(
-                          onPressed: _clearImg2Img,
-                          icon: const Icon(Icons.clear, size: 18),
-                          label: Text(context.l10n.img2img_clearSettings),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white38),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                secondChild: const SizedBox.shrink(),
               ),
             ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -282,18 +206,34 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           children: [
             // 上传图片选项
             Expanded(
-              child: _SourceOptionCard(
+              child: ImagePickerCard(
                 icon: Icons.upload_file,
                 label: context.l10n.img2img_uploadImage,
-                onTap: _pickImage,
+                height: 80,
+                onImageSelected: (bytes, fileName, path) {
+                  ref
+                      .read(generationParamsNotifierProvider.notifier)
+                      .setSourceImage(bytes);
+                  ref
+                      .read(generationParamsNotifierProvider.notifier)
+                      .updateAction(ImageGenerationAction.img2img);
+                },
+                onError: (error) {
+                  AppToast.error(
+                    context,
+                    context.l10n.img2img_selectFailed(error),
+                  );
+                },
               ),
             ),
             const SizedBox(width: 8),
             // 绘制草图选项
             Expanded(
-              child: _SourceOptionCard(
+              child: ImagePickerCard(
                 icon: Icons.brush,
                 label: context.l10n.img2img_drawSketch,
+                height: 80,
+                enableDragDrop: false,
                 onTap: _openBlankCanvas,
               ),
             ),
@@ -433,10 +373,9 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.img2img_selectFailed(e.toString())),
-          ),
+        AppToast.error(
+          context,
+          context.l10n.img2img_selectFailed(e.toString()),
         );
       }
     }
@@ -470,10 +409,9 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.img2img_selectFailed(e.toString())),
-          ),
+        AppToast.error(
+          context,
+          context.l10n.img2img_selectFailed(e.toString()),
         );
       }
     }
@@ -581,76 +519,6 @@ class _IconButton extends StatelessWidget {
               size: 16,
               color: Colors.white,
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 源图像选项卡片
-class _SourceOptionCard extends StatefulWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _SourceOptionCard({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  State<_SourceOptionCard> createState() => _SourceOptionCardState();
-}
-
-class _SourceOptionCardState extends State<_SourceOptionCard> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: InkWell(
-        onTap: widget.onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          height: 80,
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: _isHovered
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outline.withOpacity(0.5),
-              width: _isHovered ? 1.5 : 1.0,
-            ),
-            borderRadius: BorderRadius.circular(8),
-            color:
-                _isHovered ? theme.colorScheme.primary.withOpacity(0.05) : null,
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                widget.icon,
-                size: 24,
-                color: _isHovered
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface.withOpacity(0.6),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                widget.label,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: _isHovered
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurface.withOpacity(0.6),
-                ),
-              ),
-            ],
           ),
         ),
       ),

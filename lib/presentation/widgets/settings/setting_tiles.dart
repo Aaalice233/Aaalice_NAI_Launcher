@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../common/themed_slider.dart';
+
 /// 滑块设置项
 ///
 /// 用于显示带有标题、描述和滑块的设置项
@@ -69,17 +71,12 @@ class SliderSettingTile extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 4,
-            ),
-            child: Slider(
-              value: value.clamp(min, max),
-              min: min,
-              max: max,
-              divisions: divisions,
-              onChanged: onChanged,
-            ),
+          ThemedSlider(
+            value: value.clamp(min, max),
+            min: min,
+            max: max,
+            divisions: divisions,
+            onChanged: onChanged,
           ),
         ],
       ),

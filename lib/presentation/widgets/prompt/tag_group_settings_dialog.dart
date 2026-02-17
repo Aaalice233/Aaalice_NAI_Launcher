@@ -1,10 +1,11 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/prompt/random_category.dart';
 import '../../../data/models/prompt/random_tag_group.dart';
 import '../../../data/models/prompt/tag_scope.dart';
 import '../settings/setting_tiles.dart';
+import '../../widgets/common/themed_divider.dart';
 
 /// 词组设置对话框
 ///
@@ -140,7 +141,7 @@ class _TagGroupSettingsDialogState extends State<TagGroupSettingsDialog> {
                       },
                     ),
 
-                    const Divider(height: 1),
+                    const ThemedDivider(height: 1),
 
                     // 选取模式
                     ChipSelectTile<SelectionMode>(
@@ -173,7 +174,7 @@ class _TagGroupSettingsDialogState extends State<TagGroupSettingsDialog> {
                       ),
                     ],
 
-                    const Divider(height: 1),
+                    const ThemedDivider(height: 1),
 
                     // 打乱顺序
                     SwitchListTile(
@@ -188,7 +189,7 @@ class _TagGroupSettingsDialogState extends State<TagGroupSettingsDialog> {
                       },
                     ),
 
-                    const Divider(height: 1),
+                    const ThemedDivider(height: 1),
 
                     // 权重括号
                     RangeSliderSettingTile(
@@ -213,12 +214,12 @@ class _TagGroupSettingsDialogState extends State<TagGroupSettingsDialog> {
                     if (_bracketMin != 0 || _bracketMax != 0)
                       _buildBracketPreview(theme, l10n),
 
-                    const Divider(height: 1),
+                    const ThemedDivider(height: 1),
 
                     // 作用域设置
                     _buildScopeSection(theme, l10n),
 
-                    const Divider(height: 1),
+                    const ThemedDivider(height: 1),
 
                     // 性别限定设置
                     _buildGenderRestrictionSection(theme, l10n),
@@ -272,9 +273,8 @@ class _TagGroupSettingsDialogState extends State<TagGroupSettingsDialog> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(color: theme.dividerColor),
-        ),
+        border:
+            Border(top: BorderSide(color: theme.dividerColor.withOpacity(0.3))),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,

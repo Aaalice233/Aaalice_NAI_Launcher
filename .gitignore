@@ -100,11 +100,9 @@ nul
 .qoder/
 .kiro
 .sisyphus/
-.opencode/
+CLAUDE.md
 AGENTS.md
 .claude/
-.auto-claude-security.json
-.claude_settings.json
 
 # Local folders
 logs/
@@ -120,24 +118,3 @@ nai_web_copy/
 .worktrees/
 .security-key
 logs/security/
-.sisyphus/
-.opencode/
-test/
-NAI COPY/
-analyze_report.txt
-install-log.txt
-
-# Working documentation files (should be in .auto-claude/specs/, not root)
-BUILD_*.md
-HOW_TO_*.md
-PERFORMANCE_*.md
-QA_*.md
-REDUCED_*.md
-WINDOWS_*.md
-.subtask-*.md
-.verification_*.md
-ROOT_CAUSE_*.md
-SUBTASK_*.md
-VERIFICATION_*.md
-mask_upload_*.md
-CLAUDE.md

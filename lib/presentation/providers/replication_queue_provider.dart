@@ -1,9 +1,10 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/storage/app_state_storage.dart';
-import '../../core/storage/crash_recovery_service.dart';
 import '../../core/storage/replication_queue_storage.dart';
+import '../../core/storage/queue_state_storage.dart';
 import '../../data/models/queue/replication_task.dart';
+import '../../data/models/queue/replication_task_status.dart';
+import '../router/app_router.dart';
 
 part 'replication_queue_provider.g.dart';
 
@@ -13,20 +14,36 @@ const int kMaxQueueCapacity = 50;
 /// 复刻队列状态
 class ReplicationQueueState {
   final List<ReplicationTask> tasks;
+  final List<ReplicationTask> failedTasks;
+  final List<ReplicationTask> completedTasks;
   final bool isLoading;
+  final bool isSelectionMode;
+  final Set<String> selectedTaskIds;
 
   const ReplicationQueueState({
     this.tasks = const [],
+    this.failedTasks = const [],
+    this.completedTasks = const [],
     this.isLoading = false,
+    this.isSelectionMode = false,
+    this.selectedTaskIds = const {},
   });
 
   ReplicationQueueState copyWith({
     List<ReplicationTask>? tasks,
+    List<ReplicationTask>? failedTasks,
+    List<ReplicationTask>? completedTasks,
     bool? isLoading,
+    bool? isSelectionMode,
+    Set<String>? selectedTaskIds,
   }) {
     return ReplicationQueueState(
       tasks: tasks ?? this.tasks,
+      failedTasks: failedTasks ?? this.failedTasks,
+      completedTasks: completedTasks ?? this.completedTasks,
       isLoading: isLoading ?? this.isLoading,
+      isSelectionMode: isSelectionMode ?? this.isSelectionMode,
+      selectedTaskIds: selectedTaskIds ?? this.selectedTaskIds,
     );
   }
 
@@ -41,6 +58,22 @@ class ReplicationQueueState {
 
   /// 剩余容量
   int get remainingCapacity => kMaxQueueCapacity - tasks.length;
+
+  /// 是否有失败任务
+  bool get hasFailedTasks => failedTasks.isNotEmpty;
+
+  /// 失败任务数量
+  int get failedCount => failedTasks.length;
+
+  /// 完成任务数量
+  int get completedCount => completedTasks.length;
+
+  /// 选中的任务数量
+  int get selectedCount => selectedTaskIds.length;
+
+  /// 是否全选
+  bool get isAllSelected =>
+      tasks.isNotEmpty && selectedTaskIds.length == tasks.length;
 }
 
 /// 复刻队列状态管理 Provider
@@ -50,29 +83,38 @@ class ReplicationQueueState {
 @Riverpod(keepAlive: true)
 class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
   late final ReplicationQueueStorage _storage;
-  late final AppStateStorage _appStateStorage;
-  late final CrashRecoveryService _crashRecoveryService;
+  late final QueueStateStorage _stateStorage;
 
   @override
   ReplicationQueueState build() {
     _storage = ref.read(replicationQueueStorageProvider);
-    _appStateStorage = ref.read(appStateStorageProvider);
-    _crashRecoveryService = ref.read(crashRecoveryServiceProvider);
-    // 异步加载持久化数据
-    _loadFromStorage();
-    return const ReplicationQueueState(isLoading: true);
+    _stateStorage = ref.read(queueStateStorageProvider);
+    // 同步加载持久化数据（Hive Box 已在 main.dart 中预先打开）
+    return _loadFromStorageSync();
   }
 
-  /// 从存储加载队列
-  Future<void> _loadFromStorage() async {
+  /// 同步加载队列数据
+  ReplicationQueueState _loadFromStorageSync() {
     try {
-      final tasks = await _storage.load();
-      state = state.copyWith(
-        tasks: tasks,
+      final tasks = _storage.load();
+      final failedTasks = _stateStorage.loadFailedTasks();
+
+      // 加载时将所有 running 状态的任务重置为 pending
+      // （因为应用重启后实际上没有任务在运行）
+      final restoredTasks = tasks.map((task) {
+        if (task.status == ReplicationTaskStatus.running) {
+          return task.copyWith(status: ReplicationTaskStatus.pending);
+        }
+        return task;
+      }).toList();
+
+      return ReplicationQueueState(
+        tasks: restoredTasks,
+        failedTasks: failedTasks,
         isLoading: false,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false);
+      return const ReplicationQueueState(isLoading: false);
     }
   }
 
@@ -81,144 +123,9 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     await _storage.save(state.tasks);
   }
 
-  /// 检查并恢复崩溃前的队列状态
-  ///
-  /// 在应用启动时调用，检测是否有未完成的队列任务需要恢复
-  /// 返回 true 表示成功恢复，false 表示没有可恢复的状态
-  Future<bool> checkAndRecover() async {
-    try {
-      // 分析崩溃情况
-      final analysis = await _crashRecoveryService.analyzeCrash();
-
-      if (!analysis.hasCrashDetected || !analysis.canRecover) {
-        return false;
-      }
-
-      final recoveryPoint = analysis.recoveryPoint;
-      if (recoveryPoint?.sessionState == null) {
-        return false;
-      }
-
-      // 记录恢复尝试
-      await _crashRecoveryService.logRecoveryAttempt(
-        success: false,
-        recoveredState: recoveryPoint!.sessionState,
-      );
-
-      // 恢复队列执行状态到 AppStateStorage
-      final sessionState = recoveryPoint.sessionState!;
-
-      // 如果队列在崩溃时正在执行，恢复队列任务列表
-      if (sessionState.hasActiveQueueExecution) {
-        // 重新加载队列数据
-        await _loadFromStorage();
-
-        // 记录恢复成功
-        await _crashRecoveryService.logRecoveryAttempt(
-          success: true,
-          recoveredState: sessionState,
-        );
-
-        return true;
-      }
-
-      return false;
-    } catch (e) {
-      // 恢复失败时记录
-      await _crashRecoveryService.logRecoveryAttempt(
-        success: false,
-        error: e.toString(),
-      );
-      return false;
-    }
-  }
-
-  /// 记录队列执行开始
-  ///
-  /// 在队列开始执行时调用，用于崩溃恢复
-  Future<void> recordQueueExecutionStart({
-    required String taskId,
-    required int currentIndex,
-  }) async {
-    try {
-      // 更新应用状态存储
-      await _appStateStorage.recordQueueExecutionStart(
-        taskId: taskId,
-        currentIndex: currentIndex,
-        totalTasks: state.tasks.length,
-      );
-
-      // 创建崩溃恢复日志
-      final sessionState = await _appStateStorage.loadSessionState();
-      if (sessionState != null) {
-        await _crashRecoveryService.logQueueStart(sessionState);
-      }
-    } catch (e) {
-      // 静默处理，不影响主流程
-    }
-  }
-
-  /// 记录队列执行进度
-  ///
-  /// 在每个任务完成时调用
-  Future<void> recordQueueProgress({
-    required int currentIndex,
-    String? currentTaskId,
-  }) async {
-    try {
-      // 更新应用状态存储
-      await _appStateStorage.updateQueueExecutionProgress(
-        currentIndex: currentIndex,
-        currentTaskId: currentTaskId,
-      );
-
-      // 记录进度到崩溃恢复日志
-      final sessionState = await _appStateStorage.loadSessionState();
-      if (sessionState != null) {
-        await _crashRecoveryService.logQueueProgress(
-          sessionState,
-          message: 'Task $currentIndex/${state.tasks.length}',
-        );
-      }
-    } catch (e) {
-      // 静默处理
-    }
-  }
-
-  /// 记录队列执行完成
-  ///
-  /// 在队列执行完成或出错时调用
-  Future<void> recordQueueExecutionEnd({bool success = true}) async {
-    try {
-      if (success) {
-        await _appStateStorage.clearQueueExecutionState();
-
-        // 记录完成到崩溃恢复日志
-        final sessionState = await _appStateStorage.loadSessionState();
-        if (sessionState != null) {
-          await _crashRecoveryService.logQueueComplete(sessionState);
-        }
-      }
-    } catch (e) {
-      // 静默处理
-    }
-  }
-
-  /// 创建恢复点
-  ///
-  /// 在关键操作前调用，保存当前队列状态的完整快照
-  Future<void> createCheckpoint({String? operationName}) async {
-    try {
-      final sessionState = await _appStateStorage.loadSessionState();
-      if (sessionState != null) {
-        await _crashRecoveryService.createCheckpoint(
-          sessionState,
-          operationName: operationName,
-        );
-      }
-    } catch (e) {
-      // 静默处理
-    }
+  /// 保存失败任务到存储
+  Future<void> _saveFailedTasks() async {
+    await _stateStorage.saveFailedTasks(state.failedTasks);
   }
 
   /// 添加单个任务到队列
@@ -228,14 +135,14 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     if (state.isFull) {
       return false;
     }
-
-    // 创建恢复点
-    await createCheckpoint(operationName: 'add_task');
-
     state = state.copyWith(
       tasks: [...state.tasks, task],
     );
     await _saveToStorage();
+
+    // 添加任务时重置悬浮球关闭状态，确保悬浮球可见
+    ref.read(floatingButtonClosedProvider.notifier).state = false;
+
     return true;
   }
 
@@ -248,24 +155,23 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     final remaining = state.remainingCapacity;
     if (remaining <= 0) return 0;
 
-    // 创建恢复点
-    await createCheckpoint(operationName: 'add_all_tasks');
-
     final toAdd = tasks.take(remaining).toList();
     state = state.copyWith(
       tasks: [...state.tasks, ...toAdd],
     );
     await _saveToStorage();
+
+    // 添加任务时重置悬浮球关闭状态，确保悬浮球可见
+    ref.read(floatingButtonClosedProvider.notifier).state = false;
+
     return toAdd.length;
   }
 
   /// 移除指定任务
   Future<void> remove(String taskId) async {
-    // 创建恢复点
-    await createCheckpoint(operationName: 'remove_task');
-
     state = state.copyWith(
       tasks: state.tasks.where((t) => t.id != taskId).toList(),
+      selectedTaskIds: state.selectedTaskIds.difference({taskId}),
     );
     await _saveToStorage();
   }
@@ -278,9 +184,6 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
         newIndex > state.tasks.length) {
       return;
     }
-
-    // 创建恢复点
-    await createCheckpoint(operationName: 'reorder_tasks');
 
     final tasks = List<ReplicationTask>.from(state.tasks);
     final task = tasks.removeAt(oldIndex);
@@ -295,12 +198,12 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
 
   /// 清空队列
   Future<void> clear() async {
-    // 创建恢复点
-    await createCheckpoint(operationName: 'clear_queue');
-
-    state = state.copyWith(tasks: []);
+    state = state.copyWith(
+      tasks: [],
+      selectedTaskIds: {},
+      isSelectionMode: false,
+    );
     await _storage.clear();
-    await _appStateStorage.clearQueueExecutionState();
   }
 
   /// 获取队列中的下一个任务（不移除）
@@ -312,10 +215,266 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
   /// 标记任务已完成（移除第一个任务）
   Future<void> markCompleted() async {
     if (state.isEmpty) return;
+
+    final completedTask = state.tasks.first.copyWith(
+      status: ReplicationTaskStatus.completed,
+      completedAt: DateTime.now(),
+    );
+
     state = state.copyWith(
       tasks: state.tasks.sublist(1),
+      completedTasks: [...state.completedTasks.take(99), completedTask],
     );
     await _saveToStorage();
+  }
+
+  /// 更新任务状态
+  Future<void> updateTaskStatus(
+    String taskId,
+    ReplicationTaskStatus status, {
+    String? errorMessage,
+  }) async {
+    final tasks = state.tasks.map((t) {
+      if (t.id == taskId) {
+        return t.copyWith(
+          status: status,
+          errorMessage: errorMessage,
+          startedAt: status == ReplicationTaskStatus.running
+              ? DateTime.now()
+              : t.startedAt,
+          completedAt: status.isTerminal ? DateTime.now() : t.completedAt,
+        );
+      }
+      return t;
+    }).toList();
+
+    state = state.copyWith(tasks: tasks);
+    await _saveToStorage();
+  }
+
+  /// 更新任务
+  Future<void> updateTask(ReplicationTask updatedTask) async {
+    final tasks = state.tasks.map((t) {
+      if (t.id == updatedTask.id) {
+        return updatedTask;
+      }
+      return t;
+    }).toList();
+
+    state = state.copyWith(tasks: tasks);
+    await _saveToStorage();
+  }
+
+  /// 将任务移到队首（置顶）
+  Future<void> pinToTop(String taskId) async {
+    final taskIndex = state.tasks.indexWhere((t) => t.id == taskId);
+    if (taskIndex <= 0) return; // 已经在队首或不存在
+
+    final tasks = List<ReplicationTask>.from(state.tasks);
+    final task = tasks.removeAt(taskIndex);
+    tasks.insert(0, task);
+
+    state = state.copyWith(tasks: tasks);
+    await _saveToStorage();
+  }
+
+  /// 移入失败任务池
+  Future<void> moveToFailedPool(String taskId) async {
+    final task = state.tasks.firstWhere(
+      (t) => t.id == taskId,
+      orElse: () => ReplicationTask.create(prompt: ''),
+    );
+
+    if (task.prompt.isEmpty) return;
+
+    final failedTask = task.copyWith(
+      status: ReplicationTaskStatus.failed,
+      completedAt: DateTime.now(),
+    );
+
+    state = state.copyWith(
+      tasks: state.tasks.where((t) => t.id != taskId).toList(),
+      failedTasks: [...state.failedTasks, failedTask],
+    );
+
+    await _saveToStorage();
+    await _saveFailedTasks();
+  }
+
+  /// 从失败池重试任务（移回队首）
+  Future<void> retryFailedTask(String taskId) async {
+    final task = state.failedTasks.firstWhere(
+      (t) => t.id == taskId,
+      orElse: () => ReplicationTask.create(prompt: ''),
+    );
+
+    if (task.prompt.isEmpty || state.isFull) return;
+
+    final retriedTask = task.copyWith(
+      status: ReplicationTaskStatus.pending,
+      retryCount: 0,
+      errorMessage: null,
+    );
+
+    state = state.copyWith(
+      tasks: [retriedTask, ...state.tasks],
+      failedTasks: state.failedTasks.where((t) => t.id != taskId).toList(),
+    );
+
+    await _saveToStorage();
+    await _saveFailedTasks();
+  }
+
+  /// 从失败池重新入队（移到队尾）
+  Future<void> requeueFailedTask(String taskId) async {
+    final task = state.failedTasks.firstWhere(
+      (t) => t.id == taskId,
+      orElse: () => ReplicationTask.create(prompt: ''),
+    );
+
+    if (task.prompt.isEmpty || state.isFull) return;
+
+    final requeuedTask = task.copyWith(
+      status: ReplicationTaskStatus.pending,
+      retryCount: 0,
+      errorMessage: null,
+    );
+
+    state = state.copyWith(
+      tasks: [...state.tasks, requeuedTask],
+      failedTasks: state.failedTasks.where((t) => t.id != taskId).toList(),
+    );
+
+    await _saveToStorage();
+    await _saveFailedTasks();
+  }
+
+  /// 清空失败任务池
+  Future<void> clearFailedTasks() async {
+    state = state.copyWith(failedTasks: []);
+    await _saveFailedTasks();
+  }
+
+  /// 删除单个失败任务
+  Future<void> removeFailedTask(String taskId) async {
+    state = state.copyWith(
+      failedTasks: state.failedTasks.where((t) => t.id != taskId).toList(),
+    );
+    await _saveFailedTasks();
+  }
+
+  // ========== 批量操作 ==========
+
+  /// 进入/退出选择模式
+  void toggleSelectionMode() {
+    state = state.copyWith(
+      isSelectionMode: !state.isSelectionMode,
+      selectedTaskIds: state.isSelectionMode ? {} : state.selectedTaskIds,
+    );
+  }
+
+  /// 退出选择模式
+  void exitSelectionMode() {
+    state = state.copyWith(
+      isSelectionMode: false,
+      selectedTaskIds: {},
+    );
+  }
+
+  /// 切换任务选中状态
+  void toggleTaskSelection(String taskId) {
+    final newSelected = Set<String>.from(state.selectedTaskIds);
+    if (newSelected.contains(taskId)) {
+      newSelected.remove(taskId);
+    } else {
+      newSelected.add(taskId);
+    }
+    state = state.copyWith(selectedTaskIds: newSelected);
+  }
+
+  /// 全选
+  void selectAll() {
+    state = state.copyWith(
+      selectedTaskIds: state.tasks.map((t) => t.id).toSet(),
+    );
+  }
+
+  /// 反选
+  void invertSelection() {
+    final allIds = state.tasks.map((t) => t.id).toSet();
+    final newSelected = allIds.difference(state.selectedTaskIds);
+    state = state.copyWith(selectedTaskIds: newSelected);
+  }
+
+  /// 取消全选
+  void clearSelection() {
+    state = state.copyWith(selectedTaskIds: {});
+  }
+
+  /// 批量删除选中的任务
+  Future<void> deleteSelected() async {
+    if (state.selectedTaskIds.isEmpty) return;
+
+    state = state.copyWith(
+      tasks: state.tasks
+          .where((t) => !state.selectedTaskIds.contains(t.id))
+          .toList(),
+      selectedTaskIds: {},
+      isSelectionMode: false,
+    );
+    await _saveToStorage();
+  }
+
+  /// 批量置顶选中的任务
+  Future<void> pinSelectedToTop() async {
+    if (state.selectedTaskIds.isEmpty) return;
+
+    final selectedTasks =
+        state.tasks.where((t) => state.selectedTaskIds.contains(t.id)).toList();
+    final otherTasks = state.tasks
+        .where((t) => !state.selectedTaskIds.contains(t.id))
+        .toList();
+
+    state = state.copyWith(
+      tasks: [...selectedTasks, ...otherTasks],
+      selectedTaskIds: {},
+      isSelectionMode: false,
+    );
+    await _saveToStorage();
+  }
+
+  /// 复制任务
+  Future<bool> duplicateTask(String taskId) async {
+    if (state.isFull) return false;
+
+    final task = state.tasks.firstWhere(
+      (t) => t.id == taskId,
+      orElse: () => ReplicationTask.create(prompt: ''),
+    );
+
+    if (task.prompt.isEmpty) return false;
+
+    final newTask = ReplicationTask.create(
+      prompt: task.prompt,
+      negativePrompt: task.negativePrompt,
+      thumbnailUrl: task.thumbnailUrl,
+      source: task.source,
+      seed: task.seed,
+      sampler: task.sampler,
+      steps: task.steps,
+      cfgScale: task.cfgScale,
+      model: task.model,
+      width: task.width,
+      height: task.height,
+    );
+
+    final taskIndex = state.tasks.indexWhere((t) => t.id == taskId);
+    final tasks = List<ReplicationTask>.from(state.tasks);
+    tasks.insert(taskIndex + 1, newTask);
+
+    state = state.copyWith(tasks: tasks);
+    await _saveToStorage();
+    return true;
   }
 
   /// 设置加载状态（用于持久化加载）
@@ -325,37 +484,18 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
 
   /// 从持久化数据恢复队列
   void restore(List<ReplicationTask> tasks) {
+    // 恢复时将所有 running 状态的任务重置为 pending
+    // （因为应用重启后实际上没有任务在运行）
+    final restoredTasks = tasks.take(kMaxQueueCapacity).map((task) {
+      if (task.status == ReplicationTaskStatus.running) {
+        return task.copyWith(status: ReplicationTaskStatus.pending);
+      }
+      return task;
+    }).toList();
+
     state = state.copyWith(
-      tasks: tasks.take(kMaxQueueCapacity).toList(),
+      tasks: restoredTasks,
       isLoading: false,
     );
-  }
-
-  /// 恢复队列从崩溃前的状态
-  ///
-  /// 需要配合 SessionState 使用
-  Future<void> restoreFromCrashState({
-    required int startIndex,
-    List<ReplicationTask>? recoveredTasks,
-  }) async {
-    try {
-      if (recoveredTasks != null && recoveredTasks.isNotEmpty) {
-        // 如果提供了恢复的任务列表，使用它
-        final filteredTasks = recoveredTasks.skip(startIndex).toList();
-        if (filteredTasks.length > kMaxQueueCapacity) {
-          state = state.copyWith(
-            tasks: filteredTasks.take(kMaxQueueCapacity).toList(),
-          );
-        } else {
-          state = state.copyWith(tasks: filteredTasks);
-        }
-        await _saveToStorage();
-      }
-
-      // 记录恢复完成
-      await recordQueueExecutionEnd(success: true);
-    } catch (e) {
-      // 恢复失败时继续执行
-    }
   }
 }

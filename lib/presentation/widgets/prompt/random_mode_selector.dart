@@ -1,9 +1,10 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/prompt/random_prompt_result.dart';
 import '../../providers/random_mode_provider.dart';
+import '../../widgets/common/themed_divider.dart';
 
 /// 随机模式选择器
 ///
@@ -101,30 +102,13 @@ class RandomModeSelector extends ConsumerWidget {
     );
   }
 
-  IconData _getModeIcon(RandomGenerationMode mode) {
-    return switch (mode) {
-      RandomGenerationMode.naiOfficial => Icons.auto_awesome,
-      RandomGenerationMode.custom => Icons.tune,
-      RandomGenerationMode.hybrid => Icons.merge_type,
-    };
-  }
+  IconData _getModeIcon(RandomGenerationMode mode) => mode.icon;
 
-  String _getModeName(BuildContext context, RandomGenerationMode mode) {
-    return switch (mode) {
-      RandomGenerationMode.naiOfficial => context.l10n.randomMode_naiOfficial,
-      RandomGenerationMode.custom => context.l10n.randomMode_custom,
-      RandomGenerationMode.hybrid => context.l10n.randomMode_hybrid,
-    };
-  }
+  String _getModeName(BuildContext context, RandomGenerationMode mode) =>
+      mode.getName(context.l10n);
 
-  String _getModeDescription(BuildContext context, RandomGenerationMode mode) {
-    return switch (mode) {
-      RandomGenerationMode.naiOfficial =>
-        context.l10n.randomMode_naiOfficialDesc,
-      RandomGenerationMode.custom => context.l10n.randomMode_customDesc,
-      RandomGenerationMode.hybrid => context.l10n.randomMode_hybridDesc,
-    };
-  }
+  String _getModeDescription(BuildContext context, RandomGenerationMode mode) =>
+      mode.getDescription(context.l10n);
 }
 
 /// 随机模式选择弹出菜单
@@ -216,30 +200,13 @@ class RandomModePopupMenu extends ConsumerWidget {
     );
   }
 
-  IconData _getModeIcon(RandomGenerationMode mode) {
-    return switch (mode) {
-      RandomGenerationMode.naiOfficial => Icons.auto_awesome,
-      RandomGenerationMode.custom => Icons.tune,
-      RandomGenerationMode.hybrid => Icons.merge_type,
-    };
-  }
+  IconData _getModeIcon(RandomGenerationMode mode) => mode.icon;
 
-  String _getModeName(BuildContext context, RandomGenerationMode mode) {
-    return switch (mode) {
-      RandomGenerationMode.naiOfficial => context.l10n.randomMode_naiOfficial,
-      RandomGenerationMode.custom => context.l10n.randomMode_custom,
-      RandomGenerationMode.hybrid => context.l10n.randomMode_hybrid,
-    };
-  }
+  String _getModeName(BuildContext context, RandomGenerationMode mode) =>
+      mode.getName(context.l10n);
 
-  String _getModeDescription(BuildContext context, RandomGenerationMode mode) {
-    return switch (mode) {
-      RandomGenerationMode.naiOfficial =>
-        context.l10n.randomMode_naiOfficialDesc,
-      RandomGenerationMode.custom => context.l10n.randomMode_customDesc,
-      RandomGenerationMode.hybrid => context.l10n.randomMode_hybridDesc,
-    };
-  }
+  String _getModeDescription(BuildContext context, RandomGenerationMode mode) =>
+      mode.getDescription(context.l10n);
 }
 
 /// 随机模式选择底部表单
@@ -284,7 +251,7 @@ class RandomModeBottomSheet extends StatelessWidget {
               ],
             ),
           ),
-          const Divider(height: 1),
+          const ThemedDivider(height: 1),
           Padding(
             padding: const EdgeInsets.all(8),
             child: RandomModeSelector(

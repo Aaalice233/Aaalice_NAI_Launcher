@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../data/models/character/character_prompt.dart';
 import '../unified/unified_prompt_config.dart';
 import '../unified/unified_prompt_input.dart';
 import 'prompt_editor_toolbar.dart';
@@ -69,6 +70,12 @@ class PromptEditorWithToolbar extends ConsumerStatefulWidget {
   /// 工具栏后置自定义按钮
   final List<Widget>? toolbarTrailingActions;
 
+  /// ComfyUI 多角色导入回调
+  ///
+  /// 当用户确认导入 ComfyUI 格式的多角色提示词时触发。
+  final void Function(String globalPrompt, List<CharacterPrompt> characters)?
+      onComfyuiImport;
+
   const PromptEditorWithToolbar({
     super.key,
     this.toolbarConfig = const PromptEditorToolbarConfig(),
@@ -87,6 +94,7 @@ class PromptEditorWithToolbar extends ConsumerStatefulWidget {
     this.expands = false,
     this.toolbarLeadingActions,
     this.toolbarTrailingActions,
+    this.onComfyuiImport,
   });
 
   @override
@@ -183,6 +191,7 @@ class _PromptEditorWithToolbarState
             maxLines: widget.maxLines,
             minLines: widget.minLines,
             expands: widget.expands,
+            onComfyuiImport: widget.onComfyuiImport,
           ),
         ),
       ],

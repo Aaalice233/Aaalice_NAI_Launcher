@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/utils/app_logger.dart';
 import '../../data/models/online_gallery/danbooru_post.dart';
 import '../../data/services/tag_translation_service.dart';
 
@@ -109,7 +110,9 @@ class PostTooltip extends ConsumerWidget {
             style: const TextStyle(color: Colors.white70, fontSize: 11),
           ),
         );
-      } catch (_) {}
+      } catch (e, st) {
+        AppLogger.e('Failed to parse createdAt date', e, st);
+      }
     }
 
     // 艺术家
@@ -126,7 +129,7 @@ class PostTooltip extends ConsumerWidget {
         ),
       );
       final artistTexts = post.artistTags.take(3).map((t) {
-        final translation = translationService.translateTag(t);
+        final translation = translationService.translateTagSync(t);
         final display = t.replaceAll('_', ' ');
         return translation != null ? '$display ($translation)' : display;
       }).join(', ');
@@ -152,7 +155,7 @@ class PostTooltip extends ConsumerWidget {
         ),
       );
       final charTexts = post.characterTags.take(5).map((t) {
-        final translation = translationService.translate(t, isCharacter: true);
+        final translation = translationService.translateCharacterSync(t);
         final display = t.replaceAll('_', ' ');
         return translation != null ? '$display ($translation)' : display;
       }).join(', ');
@@ -186,7 +189,7 @@ class PostTooltip extends ConsumerWidget {
         ),
       );
       final copyrightTexts = post.copyrightTags.take(3).map((t) {
-        final translation = translationService.translateTag(t);
+        final translation = translationService.translateTagSync(t);
         final display = t.replaceAll('_', ' ');
         return translation != null ? '$display ($translation)' : display;
       }).join(', ');
@@ -212,7 +215,7 @@ class PostTooltip extends ConsumerWidget {
         ),
       );
       final tagTexts = post.generalTags.take(8).map((t) {
-        final translation = translationService.translateTag(t);
+        final translation = translationService.translateTagSync(t);
         final display = t.replaceAll('_', ' ');
         return translation != null ? '$display ($translation)' : display;
       }).join(', ');

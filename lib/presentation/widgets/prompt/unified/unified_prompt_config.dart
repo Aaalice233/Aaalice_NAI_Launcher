@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import '../../../widgets/autocomplete/autocomplete_controller.dart';
 
 /// 统一提示词输入配置
@@ -27,6 +29,12 @@ class UnifiedPromptConfig {
   /// 启用后，自动将 Stable Diffusion 语法转换为 NAI 语法。
   final bool enableSdSyntaxAutoConvert;
 
+  /// 是否启用 ComfyUI 多角色语法导入
+  ///
+  /// 启用后，粘贴 ComfyUI Prompt Control 格式的多角色提示词时
+  /// 会弹出导入确认框，支持转换为 NAI 多角色格式。
+  final bool enableComfyuiImport;
+
   // ==================== 外观选项 ====================
 
   /// 是否紧凑模式
@@ -52,6 +60,15 @@ class UnifiedPromptConfig {
   /// 输入框提示文本
   final String? hintText;
 
+  /// 是否显示清空按钮（有内容时显示在输入框右上角）
+  final bool showClearButton;
+
+  /// 清空按钮回调（可选）
+  final VoidCallback? onClearPressed;
+
+  /// 清空前是否需要确认对话框
+  final bool clearNeedsConfirm;
+
   // ==================== 自动补全配置 ====================
 
   /// 自动补全配置
@@ -62,11 +79,15 @@ class UnifiedPromptConfig {
     this.enableSyntaxHighlight = true,
     this.enableAutoFormat = true,
     this.enableSdSyntaxAutoConvert = false,
+    this.enableComfyuiImport = false,
     this.compact = false,
     this.readOnly = false,
     this.maxHeight,
     this.emptyHint,
     this.hintText,
+    this.showClearButton = false,
+    this.onClearPressed,
+    this.clearNeedsConfirm = false,
     this.autocompleteConfig = const AutocompleteConfig(),
   });
 
@@ -106,17 +127,42 @@ class UnifiedPromptConfig {
     ),
   );
 
+  /// 主提示词输入框预设配置
+  ///
+  /// 适用于生成页面的主提示词输入框。
+  /// 包含词库别名功能的提示说明。
+  static const mainPromptInput = UnifiedPromptConfig(
+    enableAutocomplete: true,
+    enableSyntaxHighlight: true,
+    enableAutoFormat: true,
+    enableSdSyntaxAutoConvert: false,
+    enableComfyuiImport: true,
+    compact: false,
+    readOnly: false,
+    hintText: "输入提示词描述画面，输入 < 引用词库，支持自动补全标签",
+    autocompleteConfig: AutocompleteConfig(
+      maxSuggestions: 15,
+      showTranslation: true,
+      showCategory: true,
+      autoInsertComma: true,
+    ),
+  );
+
   /// 创建配置副本并覆盖指定属性
   UnifiedPromptConfig copyWith({
     bool? enableAutocomplete,
     bool? enableSyntaxHighlight,
     bool? enableAutoFormat,
     bool? enableSdSyntaxAutoConvert,
+    bool? enableComfyuiImport,
     bool? compact,
     bool? readOnly,
     double? maxHeight,
     String? emptyHint,
     String? hintText,
+    bool? showClearButton,
+    VoidCallback? onClearPressed,
+    bool? clearNeedsConfirm,
     AutocompleteConfig? autocompleteConfig,
   }) {
     return UnifiedPromptConfig(
@@ -126,11 +172,15 @@ class UnifiedPromptConfig {
       enableAutoFormat: enableAutoFormat ?? this.enableAutoFormat,
       enableSdSyntaxAutoConvert:
           enableSdSyntaxAutoConvert ?? this.enableSdSyntaxAutoConvert,
+      enableComfyuiImport: enableComfyuiImport ?? this.enableComfyuiImport,
       compact: compact ?? this.compact,
       readOnly: readOnly ?? this.readOnly,
       maxHeight: maxHeight ?? this.maxHeight,
       emptyHint: emptyHint ?? this.emptyHint,
       hintText: hintText ?? this.hintText,
+      showClearButton: showClearButton ?? this.showClearButton,
+      onClearPressed: onClearPressed ?? this.onClearPressed,
+      clearNeedsConfirm: clearNeedsConfirm ?? this.clearNeedsConfirm,
       autocompleteConfig: autocompleteConfig ?? this.autocompleteConfig,
     );
   }
@@ -143,11 +193,14 @@ class UnifiedPromptConfig {
         other.enableSyntaxHighlight == enableSyntaxHighlight &&
         other.enableAutoFormat == enableAutoFormat &&
         other.enableSdSyntaxAutoConvert == enableSdSyntaxAutoConvert &&
+        other.enableComfyuiImport == enableComfyuiImport &&
         other.compact == compact &&
         other.readOnly == readOnly &&
         other.maxHeight == maxHeight &&
         other.emptyHint == emptyHint &&
-        other.hintText == hintText;
+        other.hintText == hintText &&
+        other.showClearButton == showClearButton &&
+        other.clearNeedsConfirm == clearNeedsConfirm;
   }
 
   @override
@@ -157,11 +210,14 @@ class UnifiedPromptConfig {
       enableSyntaxHighlight,
       enableAutoFormat,
       enableSdSyntaxAutoConvert,
+      enableComfyuiImport,
       compact,
       readOnly,
       maxHeight,
       emptyHint,
       hintText,
+      showClearButton,
+      clearNeedsConfirm,
     );
   }
 }

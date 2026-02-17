@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/cache/tag_cache_service.dart';
+import '../../core/services/danbooru_tags_lazy_service.dart';
+import '../../core/services/translation/translation_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/danbooru_api_service.dart';
 import '../../data/models/tag/tag_suggestion.dart';
@@ -79,6 +81,12 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
   /// Danbooru API 服务
   late DanbooruApiService _apiService;
 
+  /// Danbooru 标签懒加载服务（用于获取翻译）
+  late DanbooruTagsLazyService _danbooruService;
+
+  /// 统一翻译服务（异步初始化）
+  UnifiedTranslationService? _translationService;
+
   /// 是否已初始化缓存
   bool _cacheInitialized = false;
 
@@ -86,6 +94,15 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
   TagSuggestionState build() {
     _apiService = ref.watch(danbooruApiServiceProvider);
     _cacheService = ref.watch(tagCacheServiceProvider);
+    _danbooruService = ref.watch(danbooruTagsLazyServiceProvider);
+
+    // 监听翻译服务初始化
+    ref.listen(unifiedTranslationServiceProvider, (prev, next) {
+      next.whenData((service) {
+        _translationService = service;
+        AppLogger.d('[DanbooruSuggestion] Translation service initialized', 'DanbooruSuggestion');
+      });
+    });
 
     // 初始化缓存
     _initCache();
@@ -163,12 +180,29 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
           'Using cached tags for: $query (${cachedTags.length} tags)',
           'Provider',
         );
-        state = TagSuggestionState(
-          suggestions: cachedTags,
-          isLoading: false,
-          currentQuery: query,
-          source: TagSuggestionSource.memoryCache,
+        // 检查缓存数据是否缺少翻译，如果有需要则补充
+        final needsTranslation = cachedTags.any(
+          (t) => t.translation == null || t.translation!.isEmpty,
         );
+        if (needsTranslation &&
+            (_translationService?.isInitialized == true || _danbooruService.isInitialized)) {
+          AppLogger.d('Cache missing translations, injecting...', 'Provider');
+          final tagsWithTranslation = await _injectTranslations(cachedTags);
+          await _cacheService.set(query, tagsWithTranslation);
+          state = TagSuggestionState(
+            suggestions: tagsWithTranslation,
+            isLoading: false,
+            currentQuery: query,
+            source: TagSuggestionSource.memoryCache,
+          );
+        } else {
+          state = TagSuggestionState(
+            suggestions: cachedTags,
+            isLoading: false,
+            currentQuery: query,
+            source: TagSuggestionSource.memoryCache,
+          );
+        }
         return;
       }
 
@@ -177,11 +211,14 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
       final tags = await _apiService.suggestTags(query, limit: 20);
 
       if (tags.isNotEmpty) {
-        // 缓存结果
-        await _cacheService.set(query, tags);
+        // 注入翻译
+        final tagsWithTranslation = await _injectTranslations(tags);
+
+        // 缓存结果（包含翻译）
+        await _cacheService.set(query, tagsWithTranslation);
 
         state = TagSuggestionState(
-          suggestions: tags,
+          suggestions: tagsWithTranslation,
           isLoading: false,
           currentQuery: query,
           source: TagSuggestionSource.danbooru,
@@ -205,6 +242,80 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
         source: TagSuggestionSource.none,
       );
     }
+  }
+
+  /// 获取统一翻译服务（等待初始化完成）
+  Future<UnifiedTranslationService?> _getTranslationService() async {
+    // 如果已经初始化，直接返回
+    if (_translationService?.isInitialized == true) {
+      return _translationService;
+    }
+
+    // 等待服务初始化完成
+    try {
+      final service = await ref.read(unifiedTranslationServiceProvider.future);
+      _translationService = service;
+      return service;
+    } catch (e) {
+      AppLogger.w('[_getTranslationService] Failed to get service: $e', 'DanbooruSuggestion');
+      return null;
+    }
+  }
+
+  /// 为标签列表注入翻译
+  ///
+  /// 优先使用统一翻译服务（多数据源合并），
+  /// 如果统一服务没有翻译，则回退到 DanbooruTagsLazyService
+  Future<List<TagSuggestion>> _injectTranslations(List<TagSuggestion> tags) async {
+    AppLogger.d('[_injectTranslations] start, tags count: ${tags.length}', 'DanbooruSuggestion');
+
+    // 确保获取翻译服务（等待初始化完成）
+    final translationService = await _getTranslationService();
+    AppLogger.d('[_injectTranslations] translationService ready: ${translationService?.isInitialized}', 'DanbooruSuggestion');
+    AppLogger.d('[_injectTranslations] _danbooruService.isInitialized: ${_danbooruService.isInitialized}', 'DanbooruSuggestion');
+
+    final results = <TagSuggestion>[];
+    for (final tag in tags) {
+      // 如果已有翻译，跳过
+      if (tag.translation != null && tag.translation!.isNotEmpty) {
+        AppLogger.d('[_injectTranslations] tag="${tag.tag}" already has translation', 'DanbooruSuggestion');
+        results.add(tag);
+        continue;
+      }
+
+      // 1. 优先使用统一翻译服务（合并多个数据源）
+      String? translation;
+
+      if (translationService != null && translationService.isInitialized) {
+        translation = await translationService.getTranslation(tag.tag);
+        if (translation != null && translation.isNotEmpty && translation != '0') {
+          AppLogger.d('[_injectTranslations] tag="${tag.tag}" found in unified service: "$translation"', 'DanbooruSuggestion');
+          results.add(tag.copyWith(translation: translation));
+          continue;
+        }
+      }
+
+      // 2. 回退到 DanbooruTagsLazyService
+      if (_danbooruService.isInitialized) {
+        try {
+          AppLogger.d('[_injectTranslations] trying danbooru service for tag="${tag.tag}"', 'DanbooruSuggestion');
+          final localTag = await _danbooruService.get(tag.tag);
+          if (localTag != null && localTag.translation != null) {
+            AppLogger.d('[_injectTranslations] tag="${tag.tag}" found in danbooru service: "${localTag.translation}"', 'DanbooruSuggestion');
+            results.add(tag.copyWith(translation: localTag.translation));
+            continue;
+          }
+        } catch (e) {
+          AppLogger.w('[_injectTranslations] error fetching translation for "${tag.tag}": $e', 'DanbooruSuggestion');
+        }
+      }
+
+      // 没有找到翻译
+      AppLogger.d('[_injectTranslations] tag="${tag.tag}" no translation found', 'DanbooruSuggestion');
+      results.add(tag);
+    }
+
+    return results;
   }
 
   /// 清空建议

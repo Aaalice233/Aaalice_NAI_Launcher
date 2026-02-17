@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../core/editor_state.dart';
 import 'tool_base.dart';
+import '../../../widgets/common/themed_divider.dart';
 
 /// 拾色器工具
 class ColorPickerTool extends EditorTool {
@@ -679,7 +680,7 @@ class _ColorPickerSettingsPanel extends StatelessWidget {
             ),
           ),
         ),
-        const Divider(height: 1),
+        const ThemedDivider(height: 1),
 
         // 使用提示
         Padding(

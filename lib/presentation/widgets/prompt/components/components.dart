@@ -16,3 +16,6 @@ export 'tag_action_menu/bottom_action_sheet.dart';
 
 // 批量选择
 export 'batch_selection/selection_overlay.dart';
+
+// 词库条目菜单项
+export 'library_entry_menu_item.dart';

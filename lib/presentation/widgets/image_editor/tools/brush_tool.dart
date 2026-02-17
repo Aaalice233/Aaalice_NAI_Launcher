@@ -1,11 +1,13 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/utils/localization_extension.dart';
 import '../core/editor_state.dart';
 import '../core/history_manager.dart';
 import 'color_picker_tool.dart';
 import 'tool_base.dart';
+import '../../../widgets/common/themed_divider.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 笔刷预设
 class BrushPreset {
@@ -290,7 +292,7 @@ class _BrushSettingsPanelState extends State<_BrushSettingsPanel> {
             ),
           ),
         ),
-        const Divider(height: 1),
+        const ThemedDivider(height: 1),
 
         // 笔刷预设
         Padding(
@@ -333,7 +335,7 @@ class _BrushSettingsPanelState extends State<_BrushSettingsPanel> {
             ],
           ),
         ),
-        const Divider(height: 1),
+        const ThemedDivider(height: 1),
 
         // 大小
         _SettingRow(
@@ -501,7 +503,7 @@ class _SettingRow extends StatelessWidget {
           SizedBox(
             width: 50,
             child: controller != null
-                ? TextField(
+                ? ThemedInput(
                     controller: controller,
                     style: theme.textTheme.bodySmall,
                     textAlign: TextAlign.center,

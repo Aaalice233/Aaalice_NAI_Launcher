@@ -14,8 +14,8 @@ class GalleryMigrationService {
   /// 旧存储键
   static const String _oldRecordsKey = 'generation_records';
 
-  /// 新 Box 名称（使用后缀区分）
-  static const String _newBoxName = '${StorageKeys.galleryBox}_v2';
+  /// 新 Box 名称
+  static const String _newBoxName = StorageKeys.galleryBox;
 
   /// 单例
   static final GalleryMigrationService _instance = GalleryMigrationService._();

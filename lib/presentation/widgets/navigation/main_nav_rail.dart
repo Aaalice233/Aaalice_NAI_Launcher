@@ -1,16 +1,18 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/auth/saved_account.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_mode_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../auth/account_avatar.dart';
 import '../auth/login_form_container.dart';
+
+import '../common/app_toast.dart';
 
 class MainNavRail extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
@@ -22,16 +24,19 @@ class MainNavRail extends ConsumerWidget {
     final theme = Theme.of(context);
 
     // 使用 navigationShell.currentIndex 获取当前选中索引
-    // Branches: 0=home, 1=gallery, 2=localGallery, 3=onlineGallery, 4=settings, 5=promptConfig
+    // Branches: 0=home, 1=gallery, 2=localGallery, 3=onlineGallery, 4=settings, 5=promptConfig, 6=statistics, 7=tagLibraryPage, 8=vibeLibrary
     final currentIndex = navigationShell.currentIndex;
 
     // 映射 branch index 到 nav rail index
-    // Nav rail: 0=home, 1=localGallery, 2=onlineGallery, 3=promptConfig, 4=settings
+    // Nav rail: 0=home, 1=localGallery, 2=vibeLibrary, 3=onlineGallery, 4=promptConfig, 5=tagLibraryPage, 6=statistics, 7=settings
     int selectedIndex = 0;
     if (currentIndex == 2) selectedIndex = 1; // localGallery
-    if (currentIndex == 3) selectedIndex = 2; // onlineGallery
-    if (currentIndex == 5) selectedIndex = 3; // promptConfig
-    if (currentIndex == 4) selectedIndex = 4; // settings
+    if (currentIndex == 8) selectedIndex = 2; // vibeLibrary
+    if (currentIndex == 3) selectedIndex = 3; // onlineGallery
+    if (currentIndex == 5) selectedIndex = 4; // promptConfig
+    if (currentIndex == 7) selectedIndex = 5; // tagLibraryPage
+    if (currentIndex == 6) selectedIndex = 6; // statistics
+    if (currentIndex == 4) selectedIndex = 7; // settings
 
     return Container(
       width: 60,
@@ -67,11 +72,19 @@ class MainNavRail extends ConsumerWidget {
             onTap: () => navigationShell.goBranch(2), // localGallery branch
           ),
 
+          // Vibe库
+          _NavIcon(
+            icon: Icons.auto_awesome, // Vibe Library
+            label: 'Vibe库',
+            isSelected: selectedIndex == 2,
+            onTap: () => navigationShell.goBranch(8), // vibeLibrary branch
+          ),
+
           // 在线画廊
           _NavIcon(
             icon: Icons.photo_library, // Online Gallery
             label: context.l10n.nav_onlineGallery,
-            isSelected: selectedIndex == 2,
+            isSelected: selectedIndex == 3,
             onTap: () => navigationShell.goBranch(3), // onlineGallery branch
           ),
 
@@ -79,17 +92,24 @@ class MainNavRail extends ConsumerWidget {
           _NavIcon(
             icon: Icons.casino, // Random prompt config
             label: context.l10n.nav_randomConfig,
-            isSelected: selectedIndex == 3,
+            isSelected: selectedIndex == 4,
             onTap: () => navigationShell.goBranch(5), // promptConfig branch
           ),
 
-          // 词库（未来功能）
+          // 词库
           _NavIcon(
-            icon: Icons.book, // Tags/Dictionary placeholder
+            icon: Icons.book,
             label: context.l10n.nav_dictionary,
-            isSelected: false,
-            onTap: () {}, // 词库功能 - 待产品规划
-            isDisabled: true,
+            isSelected: selectedIndex == 5,
+            onTap: () => navigationShell.goBranch(7), // tagLibraryPage branch
+          ),
+
+          // 画廊统计
+          _NavIcon(
+            icon: Icons.bar_chart, // Gallery Statistics
+            label: context.l10n.statistics_title,
+            isSelected: selectedIndex == 6,
+            onTap: () => navigationShell.goBranch(6), // statistics branch
           ),
 
           const Spacer(),
@@ -103,15 +123,16 @@ class MainNavRail extends ConsumerWidget {
           ),
 
           // GitHub 仓库
-          const _GitHubIcon(
+          _GitHubIcon(
             url: 'https://github.com/Aaalice233/Aaalice_NAI_Launcher',
+            label: context.l10n.nav_githubRepo,
           ),
 
           // Bottom Settings
           _NavIcon(
             icon: Icons.settings,
             label: context.l10n.nav_settings,
-            isSelected: selectedIndex == 4,
+            isSelected: selectedIndex == 7,
             onTap: () => navigationShell.goBranch(4), // settings branch
           ),
           const SizedBox(height: 16),
@@ -124,8 +145,9 @@ class MainNavRail extends ConsumerWidget {
 /// GitHub 图标（自定义绘制）
 class _GitHubIcon extends StatefulWidget {
   final String url;
+  final String label;
 
-  const _GitHubIcon({required this.url});
+  const _GitHubIcon({required this.url, required this.label});
 
   @override
   State<_GitHubIcon> createState() => _GitHubIconState();
@@ -149,35 +171,40 @@ class _GitHubIconState extends State<_GitHubIcon> {
         ? Colors.white
         : const Color(0xFF24292E);
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      width: 48,
-      height: 48,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: _launchUrl,
-          onHover: (val) => setState(() => _isHovering = val),
-          onTapDown: (_) => setState(() => _isPressed = true),
-          onTapUp: (_) => setState(() => _isPressed = false),
-          onTapCancel: () => setState(() => _isPressed = false),
-          borderRadius: BorderRadius.circular(8),
-          child: AnimatedScale(
-            scale: _isPressed ? 0.92 : (_isHovering ? 1.1 : 1.0),
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            child: AnimatedContainer(
+    return Tooltip(
+      message: widget.label,
+      preferBelow: false,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        width: 48,
+        height: 48,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _launchUrl,
+            onHover: (val) => setState(() => _isHovering = val),
+            onTapDown: (_) => setState(() => _isPressed = true),
+            onTapUp: (_) => setState(() => _isPressed = false),
+            onTapCancel: () => setState(() => _isPressed = false),
+            borderRadius: BorderRadius.circular(8),
+            child: AnimatedScale(
+              scale: _isPressed ? 0.92 : (_isHovering ? 1.1 : 1.0),
               duration: const Duration(milliseconds: 200),
-              decoration: BoxDecoration(
-                color:
-                    _isHovering ? color.withOpacity(0.15) : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Center(
-                child: CustomPaint(
-                  size: const Size(24, 24),
-                  painter: _GitHubLogoPainter(
-                    color: color.withOpacity(_isHovering ? 1.0 : 0.7),
+              curve: Curves.easeOutCubic,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                decoration: BoxDecoration(
+                  color: _isHovering
+                      ? color.withOpacity(0.15)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: CustomPaint(
+                    size: const Size(24, 24),
+                    painter: _GitHubLogoPainter(
+                      color: color.withOpacity(_isHovering ? 1.0 : 0.7),
+                    ),
                   ),
                 ),
               ),
@@ -448,35 +475,39 @@ class _ExternalLinkIconState extends State<_ExternalLinkIcon> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      width: 48,
-      height: 48,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: _launchUrl,
-          onHover: (val) => setState(() => _isHovering = val),
-          onTapDown: (_) => setState(() => _isPressed = true),
-          onTapUp: (_) => setState(() => _isPressed = false),
-          onTapCancel: () => setState(() => _isPressed = false),
-          borderRadius: BorderRadius.circular(8),
-          child: AnimatedScale(
-            scale: _isPressed ? 0.92 : (_isHovering ? 1.1 : 1.0),
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            child: AnimatedContainer(
+    return Tooltip(
+      message: widget.label,
+      preferBelow: false,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        width: 48,
+        height: 48,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _launchUrl,
+            onHover: (val) => setState(() => _isHovering = val),
+            onTapDown: (_) => setState(() => _isPressed = true),
+            onTapUp: (_) => setState(() => _isPressed = false),
+            onTapCancel: () => setState(() => _isPressed = false),
+            borderRadius: BorderRadius.circular(8),
+            child: AnimatedScale(
+              scale: _isPressed ? 0.92 : (_isHovering ? 1.1 : 1.0),
               duration: const Duration(milliseconds: 200),
-              decoration: BoxDecoration(
-                color: _isHovering
-                    ? widget.color.withOpacity(0.15)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                widget.icon,
-                color: widget.color.withOpacity(_isHovering ? 1.0 : 0.7),
-                size: 24,
+              curve: Curves.easeOutCubic,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                decoration: BoxDecoration(
+                  color: _isHovering
+                      ? widget.color.withOpacity(0.15)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  widget.icon,
+                  color: widget.color.withOpacity(_isHovering ? 1.0 : 0.7),
+                  size: 24,
+                ),
               ),
             ),
           ),
@@ -498,6 +529,7 @@ class _NavIcon extends StatefulWidget {
     required this.label,
     required this.isSelected,
     required this.onTap,
+    // ignore: unused_element
     this.isDisabled = false,
   });
 
@@ -805,9 +837,7 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
 
     if (token == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.auth_tokenNotFound)),
-        );
+        AppToast.info(context, context.l10n.auth_tokenNotFound);
       }
       return;
     }
@@ -850,9 +880,7 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
             errorMessage = context.l10n.auth_loginFailed;
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
+        AppToast.error(context, errorMessage);
       }
     }
   }
@@ -861,6 +889,8 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
   void _showAddAccountDialog(BuildContext context) {
     // 重置 AuthMode 为默认模式（credentials）
     widget.ref.read(authModeNotifierProvider.notifier).reset();
+    // 立即清除之前的登录错误状态（无延迟）
+    widget.ref.read(authNotifierProvider.notifier).clearError(delayMs: 0);
 
     showDialog(
       context: context,
@@ -868,7 +898,7 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 450),
           child: Padding(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [

@@ -1,8 +1,8 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_prompt_parser.dart';
 import '../../../data/models/prompt/prompt_tag.dart';
 import '../../../data/models/prompt/tag_favorite.dart';
@@ -10,6 +10,9 @@ import '../../../data/models/tag/tag_suggestion.dart';
 import '../../providers/danbooru_suggestion_provider.dart';
 import '../../providers/tag_favorite_provider.dart';
 import '../common/themed_container.dart';
+import '../../widgets/common/themed_divider.dart';
+import '../../widgets/common/app_toast.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 标签收藏面板
 ///
@@ -96,13 +99,7 @@ class _TagFavoritePanelState extends ConsumerState<TagFavoritePanel> {
     // 检查是否已存在
     if (_isTagInCurrentTags(tag)) {
       // 已存在，显示提示
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.tag_alreadyAdded),
-          duration: const Duration(seconds: 1),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppToast.info(context, context.l10n.tag_alreadyAdded);
       return;
     }
 
@@ -126,13 +123,7 @@ class _TagFavoritePanelState extends ConsumerState<TagFavoritePanel> {
     // 检查是否已存在
     if (_isTagTextInCurrentTags(suggestion.tag)) {
       // 已存在，显示提示
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.tag_alreadyAdded),
-          duration: const Duration(seconds: 1),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppToast.info(context, context.l10n.tag_alreadyAdded);
       return;
     }
 
@@ -268,7 +259,7 @@ class _TagFavoritePanelState extends ConsumerState<TagFavoritePanel> {
   Widget _buildSearchBar(BuildContext context) {
     final theme = Theme.of(context);
 
-    return TextField(
+    return ThemedInput(
       controller: _searchController,
       focusNode: _searchFocusNode,
       decoration: InputDecoration(
@@ -346,7 +337,7 @@ class _TagFavoritePanelState extends ConsumerState<TagFavoritePanel> {
             ],
           ),
         ),
-        const Divider(height: 1),
+        const ThemedDivider(height: 1),
         // 建议列表
         Expanded(
           child: ListView.separated(

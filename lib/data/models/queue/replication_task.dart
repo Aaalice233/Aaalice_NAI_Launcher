@@ -1,6 +1,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:uuid/uuid.dart';
 
+import 'replication_task_status.dart';
+
 part 'replication_task.freezed.dart';
 part 'replication_task.g.dart';
 
@@ -38,6 +40,44 @@ class ReplicationTask with _$ReplicationTask {
 
     /// 创建时间
     required DateTime createdAt,
+
+    // === 扩展字段 ===
+
+    /// 任务状态
+    @Default(ReplicationTaskStatus.pending) ReplicationTaskStatus status,
+
+    /// 随机种子
+    int? seed,
+
+    /// 采样器
+    String? sampler,
+
+    /// 采样步数
+    int? steps,
+
+    /// CFG Scale
+    double? cfgScale,
+
+    /// 模型名称
+    String? model,
+
+    /// 图像宽度
+    int? width,
+
+    /// 图像高度
+    int? height,
+
+    /// 错误信息
+    String? errorMessage,
+
+    /// 重试次数
+    @Default(0) int retryCount,
+
+    /// 开始执行时间
+    DateTime? startedAt,
+
+    /// 完成时间
+    DateTime? completedAt,
   }) = _ReplicationTask;
 
   /// 创建新的复刻任务
@@ -46,6 +86,13 @@ class ReplicationTask with _$ReplicationTask {
     String negativePrompt = '',
     String? thumbnailUrl,
     ReplicationTaskSource source = ReplicationTaskSource.online,
+    int? seed,
+    String? sampler,
+    int? steps,
+    double? cfgScale,
+    String? model,
+    int? width,
+    int? height,
   }) {
     return ReplicationTask(
       id: const Uuid().v4(),
@@ -54,6 +101,13 @@ class ReplicationTask with _$ReplicationTask {
       thumbnailUrl: thumbnailUrl,
       source: source,
       createdAt: DateTime.now(),
+      seed: seed,
+      sampler: sampler,
+      steps: steps,
+      cfgScale: cfgScale,
+      model: model,
+      width: width,
+      height: height,
     );
   }
 

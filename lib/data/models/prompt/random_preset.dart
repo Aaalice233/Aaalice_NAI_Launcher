@@ -7,6 +7,7 @@ import 'default_categories.dart';
 import 'default_tag_group_mappings.dart';
 import 'pool_mapping.dart';
 import 'random_category.dart';
+import 'random_tag_group.dart';
 import 'tag_group_mapping.dart';
 
 part 'random_preset.freezed.dart';
@@ -31,6 +32,9 @@ class RandomPreset with _$RandomPreset {
 
     /// 是否为默认预设（不可删除）
     @Default(false) bool isDefault,
+
+    /// 是否基于默认预设创建（用于判断是否显示重置按钮）
+    @Default(false) bool isBasedOnDefault,
 
     /// 数据版本
     @Default(2) int version,
@@ -183,8 +187,31 @@ class RandomPreset with _$RandomPreset {
   }
 
   /// 获取词库总标签数
+  ///
+  /// 包括：
+  /// - categories 中的自定义标签
+  /// - tagGroupMappings 中已同步的 Danbooru 标签
+  /// - poolMappings 中已同步的 Pool 标签
   int get totalTagCount {
-    return categories.fold(0, (sum, cat) => sum + cat.totalTagCount);
+    // 1. 类别中的自定义标签（只计算 custom 和 builtin 类型）
+    int customTagCount = 0;
+    for (final cat in categories) {
+      for (final group in cat.groups) {
+        if (group.sourceType == TagGroupSourceType.custom ||
+            group.sourceType == TagGroupSourceType.builtin) {
+          customTagCount += group.tagCount;
+        }
+      }
+    }
+
+    // 2. TagGroup 映射中的标签数
+    final tagGroupTagCount = tagGroupMappings
+        .where((m) => m.enabled)
+        .fold(0, (sum, m) => sum + m.lastSyncedTagCount);
+
+    // 3. Pool 不计算标签数（Pool 是基于帖子的，不是基于标签的）
+
+    return customTagCount + tagGroupTagCount;
   }
 
   /// 获取启用的标签数

@@ -1,13 +1,16 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_prompt_parser.dart';
 import '../../../data/models/prompt/prompt_tag.dart';
 import '../../../data/models/prompt/tag_template.dart';
 import '../../providers/tag_template_provider.dart';
 import '../common/themed_container.dart';
+
+import '../common/app_toast.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// 标签模板面板
 ///
@@ -70,12 +73,9 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
     HapticFeedback.lightImpact();
 
     // 显示提示
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(context.l10n.tag_templateInserted(template.displayName)),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
+    AppToast.info(
+      context,
+      context.l10n.tag_templateInserted(template.displayName),
     );
   }
 
@@ -89,35 +89,31 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
         : widget.currentTags;
 
     if (tagsToSave.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.l10n.tag_templateNoTags),
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppToast.info(context, context.l10n.tag_templateNoTags);
       return;
     }
 
     showDialog(
       context: context,
-      builder: (context) => _CreateTemplateDialog(
+      builder: (dialogContext) => _CreateTemplateDialog(
         initialTags: tagsToSave,
         onConfirm: (name, description) async {
-          final result = await ref
-              .read(tagTemplateNotifierProvider.notifier)
-              .saveTemplate(
-                name: name,
-                tags: tagsToSave,
-                description: description,
-              );
+          final messenger = ScaffoldMessenger.of(dialogContext);
+          final l10n = dialogContext.l10n;
+
+          final result =
+              await ref.read(tagTemplateNotifierProvider.notifier).saveTemplate(
+                    name: name,
+                    tags: tagsToSave,
+                    description: description,
+                  );
 
           if (result == null) {
             // 保存失败（名称冲突）
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 SnackBar(
-                  content: Text(context.l10n.tag_templateNameExists),
+                  content: Text(l10n.tag_templateNameExists),
                   duration: const Duration(seconds: 2),
                   behavior: SnackBarBehavior.floating,
                 ),
@@ -126,9 +122,9 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
           } else {
             // 保存成功
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 SnackBar(
-                  content: Text(context.l10n.tag_templateSaved),
+                  content: Text(l10n.tag_templateSaved),
                   duration: const Duration(seconds: 2),
                   behavior: SnackBarBehavior.floating,
                 ),
@@ -470,7 +466,7 @@ class _CreateTemplateDialogState extends State<_CreateTemplateDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // 模板名称
-              TextFormField(
+              ThemedFormInput(
                 controller: _nameController,
                 autofocus: true,
                 decoration: InputDecoration(
@@ -488,7 +484,7 @@ class _CreateTemplateDialogState extends State<_CreateTemplateDialog> {
               const SizedBox(height: 16),
 
               // 模板描述
-              TextFormField(
+              ThemedFormInput(
                 controller: _descriptionController,
                 maxLines: 2,
                 decoration: InputDecoration(
@@ -503,7 +499,8 @@ class _CreateTemplateDialogState extends State<_CreateTemplateDialog> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                  color: theme.colorScheme.surfaceContainerHighest
+                      .withOpacity(0.3),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: theme.colorScheme.outline.withOpacity(0.3),

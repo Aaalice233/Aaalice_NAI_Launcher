@@ -42,16 +42,5 @@ class TagGroupPresetCache {
   /// 2. 点击"立即同步"
   /// 3. 从同步结果提取数据填充到此处
   /// 4. 提交到 git 作为软件内置初始数据
-  static const Map<String, Map<String, dynamic>> _cache = {
-    // TODO: 开发者同步后填充数据
-    // 示例:
-    // 'tag_group:hair_color': {
-    //   'count': 52,
-    //   'originalCount': 128,
-    //   'tags': [
-    //     {'name': 'blonde_hair', 'postCount': 1234567},
-    //     {'name': 'black_hair', 'postCount': 987654},
-    //   ],
-    // },
-  };
+  static const Map<String, Map<String, dynamic>> _cache = {};
 }

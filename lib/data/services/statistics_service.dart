@@ -1,9 +1,14 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
+import '../models/gallery/daily_trend_statistics.dart';
 import '../models/gallery/gallery_statistics.dart';
 import '../models/gallery/local_image_record.dart';
+import '../models/gallery/nai_image_metadata.dart';
 
 part 'statistics_service.g.dart';
 
@@ -75,28 +80,23 @@ class StatisticsService {
     List<LocalImageRecord> records,
     int totalImages,
   ) {
-    final resolutionCounts = <String, int>{};
+    final counts = <String, int>{};
 
     for (final record in records) {
-      if (record.metadata?.width != null && record.metadata?.height != null) {
-        final width = record.metadata!.width!;
-        final height = record.metadata!.height!;
+      final width = record.metadata?.width;
+      final height = record.metadata?.height;
+      if (width != null && height != null) {
         final resolution = '${width}x$height';
-        resolutionCounts[resolution] = (resolutionCounts[resolution] ?? 0) + 1;
+        counts[resolution] = (counts[resolution] ?? 0) + 1;
       }
     }
 
-    // 按数量降序排序
-    final sortedEntries = resolutionCounts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    return sortedEntries.map((entry) {
-      return ResolutionStatistics(
-        label: entry.key,
-        count: entry.value,
-        percentage: totalImages > 0 ? (entry.value / totalImages) * 100 : 0.0,
-      );
-    }).toList();
+    return _sortedStatistics<ResolutionStatistics>(
+      counts,
+      totalImages,
+      (label, count, percentage) =>
+          ResolutionStatistics(label: label, count: count, percentage: percentage),
+    );
   }
 
   /// 计算模型分布统计
@@ -104,26 +104,14 @@ class StatisticsService {
     List<LocalImageRecord> records,
     int totalImages,
   ) {
-    final modelCounts = <String, int>{};
+    final counts = _countByKey(records, (r) => r.metadata?.model);
 
-    for (final record in records) {
-      final model = record.metadata?.model;
-      if (model != null && model.isNotEmpty) {
-        modelCounts[model] = (modelCounts[model] ?? 0) + 1;
-      }
-    }
-
-    // 按数量降序排序
-    final sortedEntries = modelCounts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    return sortedEntries.map((entry) {
-      return ModelStatistics(
-        modelName: entry.key,
-        count: entry.value,
-        percentage: totalImages > 0 ? (entry.value / totalImages) * 100 : 0.0,
-      );
-    }).toList();
+    return _sortedStatistics<ModelStatistics>(
+      counts,
+      totalImages,
+      (label, count, percentage) =>
+          ModelStatistics(modelName: label, count: count, percentage: percentage),
+    );
   }
 
   /// 计算采样器分布统计
@@ -131,44 +119,63 @@ class StatisticsService {
     List<LocalImageRecord> records,
     int totalImages,
   ) {
-    final samplerCounts = <String, int>{};
+    final counts = <String, int>{};
 
     for (final record in records) {
       final sampler = record.metadata?.sampler;
       if (sampler != null && sampler.isNotEmpty) {
-        // 格式化采样器名称（如 k_euler_ancestral -> Euler Ancestral）
-        final formattedSampler = _formatSamplerName(sampler);
-        samplerCounts[formattedSampler] =
-            (samplerCounts[formattedSampler] ?? 0) + 1;
+        final formatted = _formatSamplerName(sampler);
+        counts[formatted] = (counts[formatted] ?? 0) + 1;
       }
     }
 
-    // 按数量降序排序
-    final sortedEntries = samplerCounts.entries.toList()
+    return _sortedStatistics<SamplerStatistics>(
+      counts,
+      totalImages,
+      (label, count, percentage) =>
+          SamplerStatistics(samplerName: label, count: count, percentage: percentage),
+    );
+  }
+
+  /// 通用计数方法
+  Map<String, int> _countByKey(
+    List<LocalImageRecord> records,
+    String? Function(LocalImageRecord) keyExtractor,
+  ) {
+    final counts = <String, int>{};
+
+    for (final record in records) {
+      final key = keyExtractor(record);
+      if (key != null && key.isNotEmpty) {
+        counts[key] = (counts[key] ?? 0) + 1;
+      }
+    }
+
+    return counts;
+  }
+
+  /// 通用统计排序和转换
+  List<T> _sortedStatistics<T>(
+    Map<String, int> counts,
+    int totalImages,
+    T Function(String label, int count, double percentage) factory,
+  ) {
+    final sorted = counts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    return sortedEntries.map((entry) {
-      return SamplerStatistics(
-        samplerName: entry.key,
-        count: entry.value,
-        percentage: totalImages > 0 ? (entry.value / totalImages) * 100 : 0.0,
-      );
+    return sorted.map((e) {
+      final percentage = totalImages > 0 ? (e.value / totalImages) * 100 : 0.0;
+      return factory(e.key, e.value, percentage);
     }).toList();
   }
 
-  /// 格式化采样器名称
-  ///
-  /// 将 k_euler_ancestral 转换为 Euler Ancestral
+  /// 格式化采样器名称 (k_euler_ancestral -> Euler Ancestral)
   String _formatSamplerName(String sampler) {
     return sampler
         .replaceAll('k_', '')
         .replaceAll('_', ' ')
         .split(' ')
-        .map(
-          (word) => word.isNotEmpty
-              ? '${word[0].toUpperCase()}${word.substring(1)}'
-              : '',
-        )
+        .map((word) => word.isNotEmpty ? word[0].toUpperCase() + word.substring(1) : '')
         .join(' ');
   }
 
@@ -179,62 +186,407 @@ class StatisticsService {
   ) {
     const mb = 1024 * 1024;
 
-    final sizeRanges = <String, int>{
-      '< 1 MB': 0,
-      '1-2 MB': 0,
-      '2-5 MB': 0,
-      '5-10 MB': 0,
-      '> 10 MB': 0,
-    };
+    final counts = <String, int>{};
 
     for (final record in records) {
       final sizeMB = record.size / mb;
-
-      if (sizeMB < 1) {
-        sizeRanges['< 1 MB'] = sizeRanges['< 1 MB']! + 1;
-      } else if (sizeMB < 2) {
-        sizeRanges['1-2 MB'] = sizeRanges['1-2 MB']! + 1;
-      } else if (sizeMB < 5) {
-        sizeRanges['2-5 MB'] = sizeRanges['2-5 MB']! + 1;
-      } else if (sizeMB < 10) {
-        sizeRanges['5-10 MB'] = sizeRanges['5-10 MB']! + 1;
-      } else {
-        sizeRanges['> 10 MB'] = sizeRanges['> 10 MB']! + 1;
-      }
+      final label = switch (sizeMB) {
+        < 1 => '< 1 MB',
+        < 2 => '1-2 MB',
+        < 5 => '2-5 MB',
+        < 10 => '5-10 MB',
+        _ => '> 10 MB',
+      };
+      counts[label] = (counts[label] ?? 0) + 1;
     }
 
-    // Filter out ranges with zero count, then map to statistics
-    return sizeRanges.entries.where((entry) => entry.value > 0).map((entry) {
+    return counts.entries.where((e) => e.value > 0).map((e) {
+      final percentage = totalImages > 0 ? (e.value / totalImages) * 100 : 0.0;
       return SizeDistributionStatistics(
-        label: entry.key,
-        count: entry.value,
-        percentage: totalImages > 0 ? (entry.value / totalImages) * 100 : 0.0,
+        label: e.key,
+        count: e.value,
+        percentage: percentage,
       );
     }).toList();
   }
 
-  /// 增量更新统计数据
-  ///
-  /// [currentStats] - 当前统计数据
-  /// [newRecords] - 新增的图片记录
-  /// [removedRecords] - 移除的图片记录
-  /// 返回更新后的统计数据
+  /// 增量更新统计数据 (当前实现返回原统计，建议调用者重新计算)
   GalleryStatistics updateStatistics(
     GalleryStatistics currentStats,
     List<LocalImageRecord> newRecords,
     List<LocalImageRecord> removedRecords,
   ) {
-    // 注意：这里简化处理，实际应该基于所有记录重新计算
-    // 由于分布统计可能涉及所有数据，重新计算更准确
     AppLogger.d(
       'Updating statistics: +${newRecords.length} -${removedRecords.length}',
       'Statistics',
     );
-
-    // 对于生产环境，建议保留完整的记录列表并重新计算
-    // 这里仅返回当前统计数据，实际调用者应重新计算
     return currentStats;
   }
+
+  /// 异步计算完整的画廊统计数据
+  Future<GalleryStatistics> computeAllStatistics(
+    List<LocalImageRecord> records,
+  ) async {
+    AppLogger.d(
+      'Computing all statistics for ${records.length} images',
+      'Statistics',
+    );
+
+    final results = await Future.wait([
+      compute(_computeAllStatisticsIsolate, records),
+      computeTimeTrends(records, groupBy: 'daily'),
+      computeTagStatistics(records, limit: 20),
+      computeParameterDistribution(records),
+      computeFavoritesStatistics(records),
+      computeRecentActivity(records, days: 30),
+    ]);
+
+    return (results[0] as GalleryStatistics).copyWith(
+      dailyTrends: results[1] as List<DailyTrendStatistics>,
+      tagDistribution: results[2] as List<TagStatistics>,
+      parameterDistribution: results[3] as List<ParameterStatistics>,
+      favoritesStatistics: results[4] as Map<String, dynamic>,
+      recentActivity: results[5] as List<Map<String, dynamic>>,
+    );
+  }
+
+  /// 异步计算时间趋势统计
+  Future<List<DailyTrendStatistics>> computeTimeTrends(
+    List<LocalImageRecord> records, {
+    String groupBy = 'daily',
+  }) async {
+    AppLogger.d(
+      'Computing time trends ($groupBy) for ${records.length} images',
+      'Statistics',
+    );
+
+    return compute(_computeTimeTrendsIsolate, _TimeTrendParams(records, groupBy));
+  }
+
+  /// 异步计算标签使用统计
+  Future<List<TagStatistics>> computeTagStatistics(
+    List<LocalImageRecord> records, {
+    int limit = 20,
+  }) async {
+    AppLogger.d(
+      'Computing tag statistics for ${records.length} images',
+      'Statistics',
+    );
+
+    return compute(_computeTagStatisticsIsolate, _TagStatisticsParams(records, limit));
+  }
+
+  /// 异步计算参数分布统计
+  Future<List<ParameterStatistics>> computeParameterDistribution(
+    List<LocalImageRecord> records, {
+    List<String>? parameters,
+  }) async {
+    AppLogger.d(
+      'Computing parameter distribution for ${records.length} images',
+      'Statistics',
+    );
+
+    const defaultParams = [
+      'steps',
+      'scale',
+      'sampler',
+      'noise_schedule',
+      'smear',
+      'sm_dyn',
+      'cfg_rescale',
+    ];
+
+    return compute(
+      _computeParameterDistributionIsolate,
+      _ParameterDistributionParams(records, parameters ?? defaultParams),
+    );
+  }
+
+  /// 异步计算收藏相关统计
+  Future<Map<String, dynamic>> computeFavoritesStatistics(
+    List<LocalImageRecord> records,
+  ) async {
+    AppLogger.d(
+      'Computing favorites statistics for ${records.length} images',
+      'Statistics',
+    );
+
+    return compute(_computeFavoritesStatisticsIsolate, records);
+  }
+
+  /// 异步计算最近活动时间线
+  Future<List<Map<String, dynamic>>> computeRecentActivity(
+    List<LocalImageRecord> records, {
+    int days = 30,
+  }) async {
+    AppLogger.d(
+      'Computing recent activity (last $days days) for ${records.length} images',
+      'Statistics',
+    );
+
+    return compute(_computeRecentActivityIsolate, _RecentActivityParams(records, days));
+  }
+}
+
+// ============================================================================
+// Isolate 静态计算函数
+// ============================================================================
+
+/// 在 isolate 中计算完整统计数据
+GalleryStatistics _computeAllStatisticsIsolate(
+  List<LocalImageRecord> records,
+) {
+  final service = StatisticsService();
+  return service.calculateStatistics(records);
+}
+
+class _TimeTrendParams {
+  final List<LocalImageRecord> records;
+  final String groupBy;
+
+  _TimeTrendParams(this.records, this.groupBy);
+}
+
+List<DailyTrendStatistics> _computeTimeTrendsIsolate(_TimeTrendParams params) {
+  final records = params.records;
+  final groupBy = params.groupBy;
+
+  if (records.isEmpty) return [];
+
+  final groupedData = _groupRecordsByTime(records, groupBy);
+  final sortedKeys = groupedData.keys.toList()..sort();
+
+  final trends = sortedKeys.map((key) {
+    final groupRecords = groupedData[key]!;
+    final date = _parseTimeKey(key, groupBy);
+
+    return DailyTrendStatistics(
+      date: date,
+      count: groupRecords.length,
+      totalSizeBytes: groupRecords.fold(0, (sum, r) => sum + r.size),
+      favoriteCount: groupRecords.where((r) => r.isFavorite).length,
+      taggedImageCount: groupRecords.where((r) => r.tags.isNotEmpty).length,
+      percentage: 0.0,
+    );
+  }).toList();
+
+  final totalImages = records.length;
+  if (totalImages == 0) return trends;
+
+  return trends.map((t) {
+    final percentage = (t.count / totalImages * 100).clamp(0.0, 100.0);
+    return t.copyWith(percentage: percentage);
+  }).toList();
+}
+
+Map<String, List<LocalImageRecord>> _groupRecordsByTime(
+  List<LocalImageRecord> records,
+  String groupBy,
+) {
+  final groupedData = <String, List<LocalImageRecord>>{};
+
+  for (final record in records) {
+    final date = record.modifiedAt;
+    final key = switch (groupBy) {
+      'monthly' => '${date.year}-${date.month.toString().padLeft(2, '0')}',
+      'weekly' => _formatWeekKey(date),
+      _ =>
+        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
+    };
+    groupedData.putIfAbsent(key, () => []).add(record);
+  }
+
+  return groupedData;
+}
+
+String _formatWeekKey(DateTime date) {
+  final dayOfYear = date.difference(DateTime(date.year, 1, 1)).inDays + 1;
+  final weekNumber = ((dayOfYear - date.weekday + 10) / 7).floor();
+  return '${date.year}-W${weekNumber.toString().padLeft(2, '0')}';
+}
+
+DateTime _parseTimeKey(String key, String groupBy) {
+  final parts = key.split('-');
+
+  return switch (groupBy) {
+    'monthly' => DateTime(int.parse(parts[0]), int.parse(parts[1])),
+    'weekly' => DateTime(
+        int.parse(parts[0]),
+        1,
+        1 + (int.parse(parts[1].substring(1)) - 1) * 7,
+      ),
+    _ => DateTime(
+        int.parse(parts[0]),
+        int.parse(parts[1]),
+        int.parse(parts[2]),
+      ),
+  };
+}
+
+class _TagStatisticsParams {
+  final List<LocalImageRecord> records;
+  final int limit;
+
+  _TagStatisticsParams(this.records, this.limit);
+}
+
+List<TagStatistics> _computeTagStatisticsIsolate(_TagStatisticsParams params) {
+  final records = params.records;
+  final limit = params.limit;
+
+  final tagCounts = <String, int>{};
+
+  for (final record in records) {
+    for (final tag in record.tags) {
+      if (tag.isNotEmpty) {
+        tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
+      }
+    }
+  }
+
+  final sortedEntries = tagCounts.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+
+  final topEntries = sortedEntries.take(limit).toList();
+  final totalImages = records.length;
+
+  return topEntries.map((entry) {
+    return TagStatistics(
+      tagName: entry.key,
+      count: entry.value,
+      percentage: totalImages > 0 ? (entry.value / totalImages) * 100 : 0.0,
+    );
+  }).toList();
+}
+
+class _ParameterDistributionParams {
+  final List<LocalImageRecord> records;
+  final List<String> parameters;
+
+  _ParameterDistributionParams(this.records, this.parameters);
+}
+
+List<ParameterStatistics> _computeParameterDistributionIsolate(
+  _ParameterDistributionParams params,
+) {
+  final records = params.records;
+  final parameters = params.parameters;
+
+  final paramCounts = <String, Map<String, int>>{};
+
+  for (final record in records) {
+    final metadata = record.metadata;
+    if (metadata == null) continue;
+
+    for (final paramName in parameters) {
+      final value = _getParamValue(metadata, paramName);
+      if (value != null && value.isNotEmpty) {
+        paramCounts.putIfAbsent(paramName, () => {});
+        paramCounts[paramName]![value] = (paramCounts[paramName]![value] ?? 0) + 1;
+      }
+    }
+  }
+
+  final results = <ParameterStatistics>[];
+  final totalImages = records.length;
+
+  for (final paramName in parameters) {
+    final counts = paramCounts[paramName];
+    if (counts == null || counts.isEmpty) continue;
+
+    final sortedEntries = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    for (final entry in sortedEntries) {
+      results.add(
+        ParameterStatistics(
+          parameterName: paramName,
+          value: entry.key,
+          count: entry.value,
+          percentage: totalImages > 0 ? (entry.value / totalImages) * 100 : 0.0,
+        ),
+      );
+    }
+  }
+
+  return results;
+}
+
+String? _getParamValue(NaiImageMetadata metadata, String paramName) {
+  return switch (paramName) {
+    'steps' => metadata.steps?.toString(),
+    'scale' => metadata.scale?.toString(),
+    'sampler' => metadata.sampler,
+    'noise_schedule' => metadata.noiseSchedule,
+    'smear' => metadata.smea?.toString(),
+    'sm_dyn' => metadata.smeaDyn?.toString(),
+    'cfg_rescale' => metadata.cfgRescale?.toString(),
+    _ => null,
+  };
+}
+
+Map<String, dynamic> _computeFavoritesStatisticsIsolate(
+  List<LocalImageRecord> records,
+) {
+  final favoriteRecords = records.where((r) => r.isFavorite).toList();
+
+  final favoriteCount = favoriteRecords.length;
+  final totalSize = favoriteRecords.fold<int>(0, (sum, r) => sum + r.size);
+  final averageSize = favoriteCount > 0 ? totalSize / favoriteCount : 0.0;
+
+  final favoriteByDate = <String, int>{};
+  for (final record in favoriteRecords) {
+    final dateKey =
+        '${record.modifiedAt.year}-${record.modifiedAt.month.toString().padLeft(2, '0')}-${record.modifiedAt.day.toString().padLeft(2, '0')}';
+    favoriteByDate[dateKey] = (favoriteByDate[dateKey] ?? 0) + 1;
+  }
+
+  return {
+    'favoriteCount': favoriteCount,
+    'totalSizeBytes': totalSize,
+    'averageSizeBytes': averageSize,
+    'favoriteByDate': favoriteByDate,
+    'percentage': records.isNotEmpty ? (favoriteCount / records.length) * 100 : 0.0,
+  };
+}
+
+class _RecentActivityParams {
+  final List<LocalImageRecord> records;
+  final int days;
+
+  _RecentActivityParams(this.records, this.days);
+}
+
+List<Map<String, dynamic>> _computeRecentActivityIsolate(
+  _RecentActivityParams params,
+) {
+  final records = params.records;
+  final days = params.days;
+
+  final cutoffDate = DateTime.now().subtract(Duration(days: days));
+
+  final recentRecords = records
+      .where((r) => r.modifiedAt.isAfter(cutoffDate))
+      .toList()
+    ..sort((a, b) => b.modifiedAt.compareTo(a.modifiedAt));
+
+  return recentRecords.map((record) {
+    final meta = record.metadata;
+    return {
+      'path': record.path,
+      'size': record.size,
+      'modifiedAt': record.modifiedAt.toIso8601String(),
+      'isFavorite': record.isFavorite,
+      'tags': record.tags,
+      'hasMetadata': record.hasMetadata,
+      'width': meta?.width,
+      'height': meta?.height,
+      'model': meta?.model,
+      'sampler': meta?.sampler,
+      'steps': meta?.steps,
+      'scale': meta?.scale,
+    };
+  }).toList();
 }
 
 /// Provider

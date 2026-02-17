@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/editor_state.dart';
+import '../../../../../core/utils/app_logger.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 颜色面板
 class ColorPanel extends StatelessWidget {
@@ -382,7 +384,7 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: TextField(
+                  child: ThemedInput(
                     controller: _hexController,
                     decoration: const InputDecoration(
                       prefixText: '#',
@@ -449,7 +451,9 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
           _hsvColor = HSVColor.fromColor(color);
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      AppLogger.w('Invalid hex color format: $value', 'ColorPanel');
+    }
   }
 }
 

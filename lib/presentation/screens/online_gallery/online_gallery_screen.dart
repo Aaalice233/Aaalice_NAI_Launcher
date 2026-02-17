@@ -3,9 +3,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
+
 
 import '../../../core/cache/danbooru_image_cache_manager.dart';
 import '../../../core/utils/localization_extension.dart';
@@ -20,26 +20,27 @@ import '../../providers/selection_mode_provider.dart';
 import '../../widgets/danbooru_login_dialog.dart';
 import '../../widgets/danbooru_post_card.dart';
 import '../../widgets/online_gallery/post_detail_dialog.dart';
+import '../../widgets/virtualized_masonry_grid.dart';
+
 
 /// 在线画廊页面
 class OnlineGalleryScreen extends ConsumerStatefulWidget {
   const OnlineGalleryScreen({super.key});
 
   @override
-  ConsumerState<OnlineGalleryScreen> createState() =>
-      _OnlineGalleryScreenState();
+  ConsumerState<OnlineGalleryScreen> createState() => _OnlineGalleryScreenState();
 }
 
 class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-
+  
   /// 页码输入控制器
   final TextEditingController _pageController = TextEditingController();
   final FocusNode _pageFocusNode = FocusNode();
   bool _isEditingPage = false;
-
+  
   /// 当前视图模式（用于检测模式切换）
   GalleryViewMode? _lastViewMode;
 
@@ -53,7 +54,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     _scrollController.addListener(_onScroll);
     // 添加页码焦点监听
     _pageFocusNode.addListener(_onPageFocusChange);
-
+    
     // 只在首次进入（无数据）时加载，切换Tab回来时不再重新加载
     // 用户需要刷新时可点击刷新按钮
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -70,7 +71,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       _lastViewMode = state.viewMode;
     });
   }
-
+  
   /// 滚动监听 - 无限滚动加载更多
   void _onScroll() {
     if (_scrollController.position.pixels >=
@@ -78,16 +79,15 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       ref.read(onlineGalleryNotifierProvider.notifier).loadMore();
     }
   }
-
+  
   /// 保存当前滚动位置
   void _saveScrollOffset() {
     if (_scrollController.hasClients) {
-      ref
-          .read(onlineGalleryNotifierProvider.notifier)
+      ref.read(onlineGalleryNotifierProvider.notifier)
           .saveScrollOffset(_scrollController.offset);
     }
   }
-
+  
   /// 恢复滚动位置
   void _restoreScrollOffset(double offset) {
     if (_scrollController.hasClients && offset > 0) {
@@ -109,7 +109,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     _pageFocusNode.dispose();
     super.dispose();
   }
-
+  
   /// 页码焦点变化处理
   void _onPageFocusChange() {
     if (!_pageFocusNode.hasFocus && _isEditingPage) {
@@ -118,7 +118,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       });
     }
   }
-
+  
   /// 开始编辑页码
   void _startEditingPage(int currentPage) {
     setState(() {
@@ -133,7 +133,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       _pageFocusNode.requestFocus();
     });
   }
-
+  
   /// 提交页码跳转
   void _submitPage() {
     final input = _pageController.text.trim();
@@ -141,15 +141,15 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       setState(() => _isEditingPage = false);
       return;
     }
-
+    
     final parsed = int.tryParse(input);
     if (parsed == null || parsed < 1) {
       setState(() => _isEditingPage = false);
       return;
     }
-
+    
     setState(() => _isEditingPage = false);
-
+    
     final state = ref.read(onlineGalleryNotifierProvider);
     if (parsed != state.page) {
       ref.read(onlineGalleryNotifierProvider.notifier).goToPage(parsed);
@@ -234,8 +234,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           const SizedBox(width: 24),
           // 图片计数
           Text(
-            context.l10n
-                .onlineGallery_imageCount(state.posts.length.toString()),
+            context.l10n.onlineGallery_imageCount(state.posts.length.toString()),
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -244,7 +243,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       ),
     );
   }
-
+  
   /// 可点击的页码显示
   Widget _buildPageDisplay(ThemeData theme, OnlineGalleryState state) {
     return InkWell(
@@ -286,7 +285,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       ),
     );
   }
-
+  
   /// 页码输入框
   Widget _buildPageInput(ThemeData theme, OnlineGalleryState state) {
     return SizedBox(
@@ -301,8 +300,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         ),
         decoration: InputDecoration(
           isDense: true,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -316,11 +314,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     );
   }
 
-  Widget _buildToolbar(
-    ThemeData theme,
-    OnlineGalleryState state,
-    DanbooruAuthState authState,
-  ) {
+  Widget _buildToolbar(ThemeData theme, OnlineGalleryState state, DanbooruAuthState authState) {
     final selectionState = ref.watch(onlineGallerySelectionNotifierProvider);
 
     if (selectionState.isActive) {
@@ -336,9 +330,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           children: [
             IconButton(
               icon: const Icon(Icons.close),
-              onPressed: () => ref
-                  .read(onlineGallerySelectionNotifierProvider.notifier)
-                  .exit(),
+              onPressed: () => ref.read(onlineGallerySelectionNotifierProvider.notifier).exit(),
               tooltip: '退出多选',
             ),
             const SizedBox(width: 8),
@@ -352,23 +344,17 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             const Spacer(),
             IconButton(
               icon: const Icon(Icons.playlist_add),
-              onPressed: selectionState.selectedIds.isNotEmpty
-                  ? _addSelectedToQueue
-                  : null,
+              onPressed: selectionState.selectedIds.isNotEmpty ? _addSelectedToQueue : null,
               tooltip: '加入队列',
             ),
             IconButton(
               icon: const Icon(Icons.favorite_border),
-              onPressed: selectionState.selectedIds.isNotEmpty
-                  ? _favoriteSelected
-                  : null,
+              onPressed: selectionState.selectedIds.isNotEmpty ? _favoriteSelected : null,
               tooltip: '批量收藏',
             ),
             IconButton(
               icon: const Icon(Icons.download),
-              onPressed: selectionState.selectedIds.isNotEmpty
-                  ? _downloadSelected
-                  : null,
+              onPressed: selectionState.selectedIds.isNotEmpty ? _downloadSelected : null,
               tooltip: '批量下载',
             ),
           ],
@@ -412,11 +398,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     );
   }
 
-  Widget _buildModeSelector(
-    ThemeData theme,
-    OnlineGalleryState state,
-    DanbooruAuthState authState,
-  ) {
+  Widget _buildModeSelector(ThemeData theme, OnlineGalleryState state, DanbooruAuthState authState) {
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
@@ -441,9 +423,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             isSelected: state.viewMode == GalleryViewMode.popular,
             onTap: () {
               _saveScrollOffset(); // 保存当前滚动位置
-              ref
-                  .read(onlineGalleryNotifierProvider.notifier)
-                  .switchToPopular();
+              ref.read(onlineGalleryNotifierProvider.notifier).switchToPopular();
             },
           ),
           _ModeButton(
@@ -456,9 +436,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                 return;
               }
               _saveScrollOffset(); // 保存当前滚动位置
-              ref
-                  .read(onlineGalleryNotifierProvider.notifier)
-                  .switchToFavorites();
+              ref.read(onlineGalleryNotifierProvider.notifier).switchToFavorites();
             },
             isLast: true,
             showBadge: !authState.isLoggedIn,
@@ -492,11 +470,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           ),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
-                  icon: Icon(
-                    Icons.close,
-                    size: 16,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+                  icon: Icon(Icons.close, size: 16, color: theme.colorScheme.onSurfaceVariant),
                   onPressed: () {
                     _searchController.clear();
                     ref.read(onlineGalleryNotifierProvider.notifier).search('');
@@ -515,11 +489,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     );
   }
 
-  Widget _buildFilterAndActions(
-    ThemeData theme,
-    OnlineGalleryState state,
-    DanbooruAuthState authState,
-  ) {
+  Widget _buildFilterAndActions(ThemeData theme, OnlineGalleryState state, DanbooruAuthState authState) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -528,9 +498,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           _SourceDropdown(
             selected: state.source,
             onChanged: (source) {
-              ref
-                  .read(onlineGalleryNotifierProvider.notifier)
-                  .setSource(source);
+              ref.read(onlineGalleryNotifierProvider.notifier).setSource(source);
             },
           ),
           const SizedBox(width: 8),
@@ -552,8 +520,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         FilledButton.tonalIcon(
           onPressed: state.isLoading
               ? null
-              : () =>
-                  ref.read(onlineGalleryNotifierProvider.notifier).refresh(),
+              : () => ref.read(onlineGalleryNotifierProvider.notifier).refresh(),
           icon: state.isLoading
               ? SizedBox(
                   width: 16,
@@ -588,9 +555,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
   /// 构建日期范围筛选按钮
   Widget _buildDateRangeButton(ThemeData theme, OnlineGalleryState state) {
-    final hasDateRange =
-        state.dateRangeStart != null || state.dateRangeEnd != null;
-
+    final hasDateRange = state.dateRangeStart != null || state.dateRangeEnd != null;
+    
     return OutlinedButton.icon(
       onPressed: () => _selectDateRange(context, state),
       icon: Icon(
@@ -610,8 +576,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         visualDensity: VisualDensity.compact,
-        side:
-            hasDateRange ? BorderSide(color: theme.colorScheme.primary) : null,
+        side: hasDateRange
+            ? BorderSide(color: theme.colorScheme.primary)
+            : null,
       ),
     );
   }
@@ -630,25 +597,15 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   }
 
   /// 选择日期范围
-  Future<void> _selectDateRange(
-    BuildContext context,
-    OnlineGalleryState state,
-  ) async {
+  Future<void> _selectDateRange(BuildContext context, OnlineGalleryState state) async {
     final now = DateTime.now();
     final picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2005),
       lastDate: now,
-      initialDateRange:
-          state.dateRangeStart != null && state.dateRangeEnd != null
-              ? DateTimeRange(
-                  start: state.dateRangeStart!,
-                  end: state.dateRangeEnd!,
-                )
-              : DateTimeRange(
-                  start: now.subtract(const Duration(days: 30)),
-                  end: now,
-                ),
+      initialDateRange: state.dateRangeStart != null && state.dateRangeEnd != null
+          ? DateTimeRange(start: state.dateRangeStart!, end: state.dateRangeEnd!)
+          : DateTimeRange(start: now.subtract(const Duration(days: 30)), end: now),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -687,15 +644,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  authState.credentials?.username ?? '',
-                  style: theme.textTheme.titleSmall,
-                ),
+                Text(authState.credentials?.username ?? '', style: theme.textTheme.titleSmall),
                 if (authState.user != null)
                   Text(
                     authState.user!.levelName,
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
               ],
             ),
@@ -704,11 +657,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           PopupMenuItem<String>(
             value: 'logout',
             child: Row(
-              children: [
-                const Icon(Icons.logout, size: 18),
-                const SizedBox(width: 8),
-                Text(context.l10n.onlineGallery_logout),
-              ],
+              children: [const Icon(Icons.logout, size: 18), const SizedBox(width: 8), Text(context.l10n.onlineGallery_logout)],
             ),
           ),
         ],
@@ -719,11 +668,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             color: theme.colorScheme.primaryContainer,
             shape: BoxShape.circle,
           ),
-          child: Icon(
-            Icons.person,
-            size: 18,
-            color: theme.colorScheme.onPrimaryContainer,
-          ),
+          child: Icon(Icons.person, size: 18, color: theme.colorScheme.onPrimaryContainer),
         ),
       );
     }
@@ -745,24 +690,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         // 时间范围
         SegmentedButton<PopularScale>(
           segments: [
-            ButtonSegment(
-              value: PopularScale.day,
-              label: Text(context.l10n.onlineGallery_dayRank),
-            ),
-            ButtonSegment(
-              value: PopularScale.week,
-              label: Text(context.l10n.onlineGallery_weekRank),
-            ),
-            ButtonSegment(
-              value: PopularScale.month,
-              label: Text(context.l10n.onlineGallery_monthRank),
-            ),
+            ButtonSegment(value: PopularScale.day, label: Text(context.l10n.onlineGallery_dayRank)),
+            ButtonSegment(value: PopularScale.week, label: Text(context.l10n.onlineGallery_weekRank)),
+            ButtonSegment(value: PopularScale.month, label: Text(context.l10n.onlineGallery_monthRank)),
           ],
           selected: {state.popularScale},
           onSelectionChanged: (selected) {
-            ref
-                .read(onlineGalleryNotifierProvider.notifier)
-                .setPopularScale(selected.first);
+            ref.read(onlineGalleryNotifierProvider.notifier).setPopularScale(selected.first);
           },
           style: const ButtonStyle(
             visualDensity: VisualDensity.compact,
@@ -788,9 +722,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         if (state.popularDate != null) ...[
           const SizedBox(width: 4),
           IconButton(
-            onPressed: () => ref
-                .read(onlineGalleryNotifierProvider.notifier)
-                .setPopularDate(null),
+            onPressed: () => ref.read(onlineGalleryNotifierProvider.notifier).setPopularDate(null),
             icon: const Icon(Icons.close, size: 16),
             tooltip: context.l10n.onlineGallery_clear,
             style: IconButton.styleFrom(padding: const EdgeInsets.all(4)),
@@ -800,17 +732,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         // 计数
         Text(
           context.l10n.onlineGallery_imageCount(state.posts.length.toString()),
-          style: theme.textTheme.bodySmall
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
       ],
     );
   }
 
-  Future<void> _selectDate(
-    BuildContext context,
-    OnlineGalleryState state,
-  ) async {
+  Future<void> _selectDate(BuildContext context, OnlineGalleryState state) async {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
@@ -824,10 +752,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   }
 
   void _showLoginDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => const DanbooruLoginDialog(),
-    );
+    showDialog(context: context, builder: (context) => const DanbooruLoginDialog());
   }
 
   Widget _buildContent(ThemeData theme, OnlineGalleryState state) {
@@ -842,20 +767,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           children: [
             Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
             const SizedBox(height: 12),
-            Text(
-              context.l10n.onlineGallery_loadFailed,
-              style: theme.textTheme.titleMedium,
-            ),
+            Text(context.l10n.onlineGallery_loadFailed, style: theme.textTheme.titleMedium),
             const SizedBox(height: 4),
-            Text(
-              state.error!,
-              style: theme.textTheme.bodySmall,
-              textAlign: TextAlign.center,
-            ),
+            Text(state.error!, style: theme.textTheme.bodySmall, textAlign: TextAlign.center),
             const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: () =>
-                  ref.read(onlineGalleryNotifierProvider.notifier).refresh(),
+              onPressed: () => ref.read(onlineGalleryNotifierProvider.notifier).refresh(),
               icon: const Icon(Icons.refresh, size: 18),
               label: Text(context.l10n.common_retry),
             ),
@@ -870,17 +787,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              state.viewMode == GalleryViewMode.favorites
-                  ? Icons.favorite_border
-                  : Icons.image_not_supported_outlined,
+              state.viewMode == GalleryViewMode.favorites ? Icons.favorite_border : Icons.image_not_supported_outlined,
               size: 48,
               color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
             ),
             const SizedBox(height: 12),
             Text(
-              state.viewMode == GalleryViewMode.favorites
-                  ? context.l10n.onlineGallery_favoritesEmpty
-                  : context.l10n.onlineGallery_noResults,
+              state.viewMode == GalleryViewMode.favorites ? context.l10n.onlineGallery_favoritesEmpty : context.l10n.onlineGallery_noResults,
               style: theme.textTheme.titleMedium,
             ),
           ],
@@ -892,21 +805,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     final columnCount = (screenWidth / 200).floor().clamp(2, 8);
     final itemWidth = (screenWidth - 24 - (columnCount - 1) * 6) / columnCount;
 
-    return MasonryGridView.count(
-      // PageStorageKey 让 Flutter 自动保存/恢复滚动位置
-      key: PageStorageKey<String>('online_gallery_${state.viewMode.name}'),
-      controller: _scrollController,
-      padding: const EdgeInsets.all(12),
-      crossAxisCount: columnCount,
-      mainAxisSpacing: 6,
-      crossAxisSpacing: 6,
-      itemCount:
-          state.posts.length + (state.hasMore || state.error != null ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index >= state.posts.length) {
-          // 显示错误重试按钮或加载指示器
-          if (state.error != null) {
-            return Center(
+    // 构建尾部加载指示器
+    Widget? footerWidget;
+    if (state.hasMore || state.error != null) {
+      footerWidget = state.error != null
+          ? Center(
               child: TextButton(
                 onPressed: () {
                   ref.read(onlineGalleryNotifierProvider.notifier).loadMore();
@@ -916,22 +819,32 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                   style: TextStyle(color: theme.colorScheme.error),
                 ),
               ),
+            )
+          : const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(),
+              ),
             );
-          }
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: CircularProgressIndicator(),
-            ),
-          );
-        }
+    }
 
+    return VirtualizedMasonryGrid(
+      // PageStorageKey 让 Flutter 自动保存/恢复滚动位置
+      key: PageStorageKey<String>('online_gallery_${state.viewMode.name}'),
+      controller: _scrollController,
+      padding: const EdgeInsets.all(12),
+      crossAxisCount: columnCount,
+      mainAxisSpacing: 6,
+      crossAxisSpacing: 6,
+      itemCount: state.posts.length,
+      footerWidget: footerWidget,
+      addAutomaticKeepAlives: true,
+      addRepaintBoundaries: true,
+      itemBuilder: (context, index) {
         final post = state.posts[index];
         final isFavorited = state.favoritedPostIds.contains(post.id);
-        final selectionState =
-            ref.watch(onlineGallerySelectionNotifierProvider);
-        final isSelected =
-            selectionState.selectedIds.contains(post.id.toString());
+        final selectionState = ref.watch(onlineGallerySelectionNotifierProvider);
+        final isSelected = selectionState.selectedIds.contains(post.id.toString());
         final canSelect = post.tags.isNotEmpty;
 
         // 智能预加载：提前缓存后续 10 张图片
@@ -946,15 +859,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           canSelect: canSelect,
           onTap: () => _showPostDetail(context, post),
           onSelectionToggle: () {
-            ref
-                .read(onlineGallerySelectionNotifierProvider.notifier)
-                .toggle(post.id.toString());
+            ref.read(onlineGallerySelectionNotifierProvider.notifier).toggle(post.id.toString());
           },
           onLongPress: () {
             if (!selectionState.isActive) {
-              ref
-                  .read(onlineGallerySelectionNotifierProvider.notifier)
-                  .enterAndSelect(post.id.toString());
+              ref.read(onlineGallerySelectionNotifierProvider.notifier).enterAndSelect(post.id.toString());
             }
           },
           onTagTap: (tag) {
@@ -967,9 +876,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               _showLoginDialog(context);
               return;
             }
-            ref
-                .read(onlineGalleryNotifierProvider.notifier)
-                .toggleFavorite(post.id);
+            ref.read(onlineGalleryNotifierProvider.notifier).toggleFavorite(post.id);
           },
         );
       },
@@ -1008,22 +915,20 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   Future<void> _addSelectedToQueue() async {
     final selectionState = ref.read(onlineGallerySelectionNotifierProvider);
     final galleryState = ref.read(onlineGalleryNotifierProvider);
-
+    
     final selectedPosts = galleryState.posts
         .where((p) => selectionState.selectedIds.contains(p.id.toString()))
         .toList();
-
+        
     if (selectedPosts.isEmpty) return;
 
     final tasks = selectedPosts
         .where((p) => p.tags.isNotEmpty)
-        .map(
-          (p) => ReplicationTask.create(
-            prompt: p.tags.join(', '),
-            thumbnailUrl: p.previewUrl,
-            source: ReplicationTaskSource.online,
-          ),
-        )
+        .map((p) => ReplicationTask.create(
+              prompt: p.tags.join(', '),
+              thumbnailUrl: p.previewUrl,
+              source: ReplicationTaskSource.online,
+            ),)
         .toList();
 
     if (tasks.isEmpty) {
@@ -1033,9 +938,10 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       return;
     }
 
-    final addedCount =
-        await ref.read(replicationQueueNotifierProvider.notifier).addAll(tasks);
-
+    final addedCount = await ref
+        .read(replicationQueueNotifierProvider.notifier)
+        .addAll(tasks);
+        
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('已添加 $addedCount 个任务到队列')),
@@ -1065,9 +971,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     for (final idStr in selectedIds) {
       final id = int.tryParse(idStr);
       if (id != null && !galleryState.favoritedPostIds.contains(id)) {
-        await ref
-            .read(onlineGalleryNotifierProvider.notifier)
-            .toggleFavorite(id);
+        await ref.read(onlineGalleryNotifierProvider.notifier).toggleFavorite(id);
         count++;
         // 简单的限流
         await Future.delayed(const Duration(milliseconds: 100));
@@ -1086,11 +990,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   Future<void> _downloadSelected() async {
     final selectionState = ref.read(onlineGallerySelectionNotifierProvider);
     final galleryState = ref.read(onlineGalleryNotifierProvider);
-
+    
     final selectedPosts = galleryState.posts
         .where((p) => selectionState.selectedIds.contains(p.id.toString()))
         .toList();
-
+        
     if (selectedPosts.isEmpty) return;
 
     // 选择保存目录
@@ -1108,27 +1012,22 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     int failCount = 0;
 
     // 并行下载
-    await Future.wait(
-      selectedPosts.map(
-        (post) async {
-          try {
-            final url = post.largeFileUrl ?? post.sampleUrl ?? post.previewUrl;
-            if (url.isEmpty) return;
+    await Future.wait(selectedPosts.map((post) async {
+      try {
+        final url = post.largeFileUrl ?? post.sampleUrl ?? post.previewUrl;
+        if (url.isEmpty) return;
 
-            final file =
-                await DanbooruImageCacheManager.instance.getSingleFile(url);
-            final fileName = path.basename(Uri.parse(url).path);
-            final destination = path.join(result, fileName);
-
-            await file.copy(destination);
-            successCount++;
-          } catch (e) {
-            failCount++;
-            debugPrint('Download failed for post ${post.id}: $e');
-          }
-        },
-      ),
-    );
+        final file = await DanbooruImageCacheManager.instance.getSingleFile(url);
+        final fileName = path.basename(Uri.parse(url).path);
+        final destination = path.join(result, fileName);
+        
+        await file.copy(destination);
+        successCount++;
+      } catch (e) {
+        failCount++;
+        debugPrint('Download failed for post ${post.id}: $e');
+      }
+    },),);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1180,9 +1079,7 @@ class _ModeButtonState extends State<_ModeButton> {
           decoration: BoxDecoration(
             color: widget.isSelected
                 ? theme.colorScheme.primary
-                : (_isHovering
-                    ? theme.colorScheme.surfaceContainerHighest
-                    : Colors.transparent),
+                : (_isHovering ? theme.colorScheme.surfaceContainerHighest : Colors.transparent),
             borderRadius: BorderRadius.horizontal(
               left: widget.isFirst ? const Radius.circular(8) : Radius.zero,
               right: widget.isLast ? const Radius.circular(8) : Radius.zero,
@@ -1194,20 +1091,15 @@ class _ModeButtonState extends State<_ModeButton> {
               Icon(
                 widget.icon,
                 size: 18,
-                color: widget.isSelected
-                    ? theme.colorScheme.onPrimary
-                    : theme.colorScheme.onSurfaceVariant,
+                color: widget.isSelected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 6),
               Text(
                 widget.label,
                 style: TextStyle(
                   fontSize: 13,
-                  fontWeight:
-                      widget.isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: widget.isSelected
-                      ? theme.colorScheme.onPrimary
-                      : theme.colorScheme.onSurfaceVariant,
+                  fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.normal,
+                  color: widget.isSelected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurfaceVariant,
                 ),
               ),
               if (widget.showBadge)
@@ -1238,11 +1130,7 @@ class _SourceDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final sources = {
-      'danbooru': 'Danbooru',
-      'safebooru': 'Safebooru',
-      'gelbooru': 'Gelbooru',
-    };
+    final sources = {'danbooru': 'Danbooru', 'safebooru': 'Safebooru', 'gelbooru': 'Gelbooru'};
 
     return PopupMenuButton<String>(
       onSelected: onChanged,
@@ -1254,16 +1142,8 @@ class _SourceDropdown extends StatelessWidget {
           value: e.key,
           child: Row(
             children: [
-              Text(
-                e.value,
-                style: TextStyle(
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                ),
-              ),
-              if (isSelected) ...[
-                const Spacer(),
-                Icon(Icons.check, size: 16, color: theme.colorScheme.primary),
-              ],
+              Text(e.value, style: TextStyle(fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal)),
+              if (isSelected) ...[const Spacer(), Icon(Icons.check, size: 16, color: theme.colorScheme.primary)],
             ],
           ),
         );
@@ -1278,19 +1158,9 @@ class _SourceDropdown extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              sources[selected] ?? selected,
-              style: TextStyle(
-                fontSize: 12,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Text(sources[selected] ?? selected, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
             const SizedBox(width: 4),
-            Icon(
-              Icons.arrow_drop_down,
-              size: 16,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            Icon(Icons.arrow_drop_down, size: 16, color: theme.colorScheme.onSurfaceVariant),
           ],
         ),
       ),
@@ -1306,19 +1176,18 @@ class _RatingDropdown extends StatelessWidget {
   const _RatingDropdown({required this.selected, required this.onChanged});
 
   List<(String, String, Color?)> _getRatings(BuildContext context) => [
-        ('all', context.l10n.onlineGallery_all, null),
-        ('g', 'G', Colors.green),
-        ('s', 'S', Colors.amber),
-        ('q', 'Q', Colors.orange),
-        ('e', 'E', Colors.red),
-      ];
+    ('all', context.l10n.onlineGallery_all, null),
+    ('g', 'G', Colors.green),
+    ('s', 'S', Colors.amber),
+    ('q', 'Q', Colors.orange),
+    ('e', 'E', Colors.red),
+  ];
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final ratings = _getRatings(context);
-    final current =
-        ratings.firstWhere((r) => r.$1 == selected, orElse: () => ratings[0]);
+    final current = ratings.firstWhere((r) => r.$1 == selected, orElse: () => ratings[0]);
 
     return PopupMenuButton<String>(
       onSelected: onChanged,
@@ -1330,24 +1199,10 @@ class _RatingDropdown extends StatelessWidget {
           value: r.$1,
           child: Row(
             children: [
-              if (r.$3 != null)
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration:
-                      BoxDecoration(color: r.$3, shape: BoxShape.circle),
-                ),
+              if (r.$3 != null) Container(width: 8, height: 8, decoration: BoxDecoration(color: r.$3, shape: BoxShape.circle)),
               if (r.$3 != null) const SizedBox(width: 8),
-              Text(
-                r.$2,
-                style: TextStyle(
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                ),
-              ),
-              if (isSelected) ...[
-                const Spacer(),
-                Icon(Icons.check, size: 16, color: theme.colorScheme.primary),
-              ],
+              Text(r.$2, style: TextStyle(fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal)),
+              if (isSelected) ...[const Spacer(), Icon(Icons.check, size: 16, color: theme.colorScheme.primary)],
             ],
           ),
         );
@@ -1363,30 +1218,16 @@ class _RatingDropdown extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (current.$3 != null) ...[
-              Container(
-                width: 8,
-                height: 8,
-                decoration:
-                    BoxDecoration(color: current.$3, shape: BoxShape.circle),
-              ),
+              Container(width: 8, height: 8, decoration: BoxDecoration(color: current.$3, shape: BoxShape.circle)),
               const SizedBox(width: 6),
             ],
-            Text(
-              current.$2,
-              style: TextStyle(
-                fontSize: 12,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Text(current.$2, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
             const SizedBox(width: 4),
-            Icon(
-              Icons.arrow_drop_down,
-              size: 16,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            Icon(Icons.arrow_drop_down, size: 16, color: theme.colorScheme.onSurfaceVariant),
           ],
         ),
       ),
     );
   }
 }
+

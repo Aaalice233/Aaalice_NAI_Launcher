@@ -5,6 +5,8 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 
+import '../vibe/vibe_reference.dart';
+
 part 'generation_record.freezed.dart';
 part 'generation_record.g.dart';
 
@@ -94,6 +96,14 @@ class GenerationRecord with _$GenerationRecord {
 
     /// 图像文件大小（字节）
     @HiveField(9) @Default(0) int fileSize,
+
+    /// Vibe 参考数据 (Hive 专用，不序列化为 JSON)
+    @HiveField(10)
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    VibeReference? vibeData,
+
+    /// 是否有 Vibe 元数据
+    @HiveField(11) @Default(false) bool hasVibeMetadata,
   }) = _GenerationRecord;
 
   factory GenerationRecord.fromJson(Map<String, dynamic> json) =>
@@ -188,6 +198,9 @@ class GalleryFilter with _$GalleryFilter {
 
     /// 只显示收藏
     @Default(false) bool favoritesOnly,
+
+    /// 只显示 Vibe 图片
+    @Default(false) bool vibeOnly,
 
     /// 模型筛选
     String? modelFilter,

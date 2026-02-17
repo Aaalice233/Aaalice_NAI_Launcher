@@ -7,12 +7,14 @@ class CardActionButtonConfig {
   final String tooltip;
   final VoidCallback onPressed;
   final Color? iconColor;
+  final bool isLoading;
 
   const CardActionButtonConfig({
     required this.icon,
     required this.tooltip,
     required this.onPressed,
     this.iconColor,
+    this.isLoading = false,
   });
 }
 
@@ -22,6 +24,7 @@ class CardActionButtons extends StatefulWidget {
   final bool visible;
   final Duration hoverDelay;
   final Duration animationDuration;
+  final Axis direction;
 
   const CardActionButtons({
     super.key,
@@ -29,6 +32,7 @@ class CardActionButtons extends StatefulWidget {
     required this.visible,
     this.hoverDelay = const Duration(milliseconds: 300),
     this.animationDuration = const Duration(milliseconds: 150),
+    this.direction = Axis.horizontal,
   });
 
   @override
@@ -46,7 +50,7 @@ class _CardActionButtonsState extends State<CardActionButtons>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: widget.animationDuration,
+      duration: const Duration(milliseconds: 400),
     );
   }
 
@@ -88,74 +92,99 @@ class _CardActionButtonsState extends State<CardActionButtons>
       return const SizedBox.shrink();
     }
 
-    return Row(
+    return Flex(
+      direction: widget.direction,
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.end,
       children: List.generate(widget.buttons.length, (index) {
-        // 从右向左展开：右边的按钮先出现
-        // 假设 buttons 列表顺序是从左到右显示的 (A, B, C, D, E)
-        // E 是最右边。
-        // 我们希望 E 先出现，然后 D，然后 C...
-        // 列表索引: 0..4. 长度 5.
-        // index 4 (E) delay 0
-        // index 3 (D) delay 1
-        // ...
-        // delay = (length - 1 - index) * 50ms
-
-        final buttonIndex = index;
-        final reversedIndex = widget.buttons.length - 1 - index;
-        // Delay calculated but applied via Interval animation below
-        // final delay = Duration(milliseconds: reversedIndex * 50);
-
-        // 计算每个按钮的动画区间
-        // 总时长 = 基础时长 + 最大延迟
-        // 这里简化处理：使用 SlideTransition/ScaleTransition 配合 Interval
-
-        // 实际上，为了简单的 staggered 效果，我们可以让每个按钮有自己的动画进度
-        // 或者使用同一个 controller 但不同的 Interval
-
-        final startTime = reversedIndex * 0.1; // 0.0, 0.1, 0.2...
-        final endTime = startTime + 0.6; // 持续 0.6 的时间片段
-        // 归一化到 0.0 - 1.0
+        // 依次展开：第一个按钮先出现
+        final staggerDelay = index * 0.12;
+        final startTime = staggerDelay.clamp(0.0, 0.6);
+        final endTime = (startTime + 0.4).clamp(0.0, 1.0);
 
         final animation = CurvedAnimation(
           parent: _controller,
-          curve: Interval(
-            (startTime * 0.5).clamp(0.0, 1.0), // 压缩一下时间以适应 controller
-            (endTime * 0.5).clamp(0.0, 1.0),
-            curve: Curves.easeOutBack,
-          ),
+          curve: Interval(startTime, endTime, curve: Curves.elasticOut),
         );
 
-        return FadeTransition(
-          opacity: animation,
-          child: ScaleTransition(
-            scale: animation,
+        // 根据布局方向决定滑动方向：
+        // 垂直布局：从上往下滑入
+        // 水平布局：从左往右滑入
+        final slideAnimation = Tween<Offset>(
+          begin: widget.direction == Axis.vertical
+              ? const Offset(0, -0.5)
+              : const Offset(-0.5, 0),
+          end: Offset.zero,
+        ).animate(animation);
+
+        return SlideTransition(
+          position: slideAnimation,
+          child: FadeTransition(
+            opacity: animation,
             child: Padding(
-              padding: const EdgeInsets.only(left: 4),
-              child: _buildButton(widget.buttons[buttonIndex]),
+              padding: EdgeInsets.only(
+                left: widget.direction == Axis.horizontal ? 4 : 0,
+                top: widget.direction == Axis.vertical ? 4 : 0,
+              ),
+              child: _CardActionButton(config: widget.buttons[index]),
             ),
           ),
         );
       }),
     );
   }
+}
 
-  Widget _buildButton(CardActionButtonConfig config) {
+/// 单个卡片操作按钮（带悬浮动效）
+class _CardActionButton extends StatefulWidget {
+  final CardActionButtonConfig config;
+
+  const _CardActionButton({required this.config});
+
+  @override
+  State<_CardActionButton> createState() => _CardActionButtonState();
+}
+
+class _CardActionButtonState extends State<_CardActionButton> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
     return Tooltip(
-      message: config.tooltip,
-      child: GestureDetector(
-        onTap: config.onPressed,
-        child: Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.6),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            config.icon,
-            color: config.iconColor ?? Colors.white,
-            size: 18,
+      message: widget.config.tooltip,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovering = true),
+        onExit: (_) => setState(() => _isHovering = false),
+        child: GestureDetector(
+          onTap: widget.config.isLoading ? null : widget.config.onPressed,
+          child: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: _isHovering
+                  ? Colors.white.withOpacity(0.25)
+                  : Colors.black.withOpacity(0.55),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 4,
+                ),
+              ],
+            ),
+            child: widget.config.isLoading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Icon(
+                    widget.config.icon,
+                    color: widget.config.iconColor ?? Colors.white,
+                    size: 16,
+                  ),
           ),
         ),
       ),

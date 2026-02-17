@@ -1,11 +1,13 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/api_constants.dart';
-import '../../../core/utils/localization_extension.dart';
 import '../../providers/auth_mode_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../common/floating_label_input.dart';
+import '../common/themed_checkbox.dart';
 
 /// 邮箱密码登录表单
 class CredentialsLoginForm extends ConsumerStatefulWidget {
@@ -27,9 +29,16 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
   late final TextEditingController passwordController;
   final formKey = GlobalKey<FormState>();
 
+  // 本地错误状态（用于添加账号场景，避免影响全局 authState）
+  AuthErrorCode? _localErrorCode;
+  int? _localHttpStatusCode;
+  bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
+    // 清除可能残留的全局错误状态
+    ref.read(authNotifierProvider.notifier).clearError(delayMs: 0);
     emailController = TextEditingController();
     passwordController = TextEditingController();
   }
@@ -46,26 +55,27 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
     final obscurePassword = ref.watch(obscurePasswordProvider);
     final authState = ref.watch(authNotifierProvider);
 
+    // 统一错误状态：优先使用本地错误（添加账号场景），否则使用全局状态
+    final hasError = _localErrorCode != null || authState.hasError;
+    final errorCode = _localErrorCode ?? authState.errorCode;
+    final httpStatusCode = _localHttpStatusCode ?? authState.httpStatusCode;
+    // 统一加载状态
+    final isLoading = _isLoading || authState.isLoading;
+
     return Form(
       key: formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // 邮箱输入
-          TextFormField(
+          FloatingLabelInput(
+            label: context.l10n.auth_email,
             controller: emailController,
-            decoration: InputDecoration(
-              labelText: context.l10n.auth_email,
-              hintText: 'user@example.com',
-              prefixIcon: const Icon(Icons.email_outlined),
-              border: const OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(12)),
-              ),
-              filled: true,
-              fillColor: Colors.transparent,
-            ),
+            hintText: 'user@example.com',
+            prefixIcon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
+            required: true,
             validator: (value) {
               if (value == null || value.isEmpty) {
                 return context.l10n.auth_emailRequired;
@@ -79,32 +89,18 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
           const SizedBox(height: 16),
 
           // 密码输入
-          TextFormField(
+          FloatingLabelPasswordInput(
+            label: context.l10n.auth_password,
             controller: passwordController,
-            obscureText: obscurePassword,
-            decoration: InputDecoration(
-              labelText: context.l10n.auth_password,
-              prefixIcon: const Icon(Icons.lock_outlined),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  obscurePassword
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                ),
-                onPressed: () {
-                  ref
-                      .read(authModeNotifierProvider.notifier)
-                      .togglePasswordVisibility();
-                },
-              ),
-              border: const OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(12)),
-              ),
-              filled: true,
-              fillColor: Colors.transparent,
-            ),
             textInputAction: TextInputAction.done,
             onFieldSubmitted: (_) => _handleLogin(),
+            required: true,
+            isVisible: !obscurePassword,
+            onVisibilityChanged: (_) {
+              ref
+                  .read(authModeNotifierProvider.notifier)
+                  .togglePasswordVisibility();
+            },
             validator: (value) {
               if (value == null || value.isEmpty) {
                 return context.l10n.auth_passwordRequired;
@@ -120,12 +116,13 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
           // 自动登录开关
           Row(
             children: [
-              Checkbox(
+              ThemedCheckbox(
                 value: ref.watch(autoLoginProvider),
                 onChanged: (value) {
                   ref.read(authModeNotifierProvider.notifier).toggleAutoLogin();
                 },
               ),
+              const SizedBox(width: 8),
               Text(context.l10n.auth_autoLogin),
               const Spacer(),
               TextButton(
@@ -140,7 +137,7 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
           SizedBox(
             height: 56,
             child: ElevatedButton(
-              onPressed: authState.isLoading ? null : _handleLogin,
+              onPressed: isLoading ? null : _handleLogin,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Theme.of(context).colorScheme.onPrimary,
@@ -148,7 +145,7 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: authState.isLoading
+              child: isLoading
                   ? const SizedBox(
                       width: 24,
                       height: 24,
@@ -168,7 +165,7 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
           ),
 
           // 错误提示
-          if (authState.hasError) ...[
+          if (hasError) ...[
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -183,14 +180,15 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
                     children: [
                       Icon(
                         Icons.error_outline,
-                        color: Theme.of(context).colorScheme.error,
+                        color: Theme.of(context).colorScheme.onErrorContainer,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          _getErrorMessage(authState.errorCode),
+                          _getErrorMessage(errorCode),
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
+                            color:
+                                Theme.of(context).colorScheme.onErrorContainer,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -199,8 +197,8 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
                   ),
                   // 显示恢复建议
                   if (_getErrorRecoveryHint(
-                        authState.errorCode,
-                        authState.httpStatusCode,
+                        errorCode,
+                        httpStatusCode,
                       ) !=
                       null) ...[
                     const SizedBox(height: 8),
@@ -208,13 +206,13 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
                       padding: const EdgeInsets.only(left: 32),
                       child: Text(
                         _getErrorRecoveryHint(
-                          authState.errorCode,
-                          authState.httpStatusCode,
+                          errorCode,
+                          httpStatusCode,
                         )!,
                         style: TextStyle(
                           color: Theme.of(context)
                               .colorScheme
-                              .error
+                              .onErrorContainer
                               .withOpacity(0.8),
                           fontSize: 12,
                         ),
@@ -222,10 +220,10 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
                     ),
                   ],
                   // 网络错误显示重试按钮
-                  if (_isNetworkError(authState.errorCode)) ...[
+                  if (_isNetworkError(errorCode)) ...[
                     const SizedBox(height: 12),
                     ElevatedButton.icon(
-                      onPressed: authState.isLoading ? null : _handleLogin,
+                      onPressed: isLoading ? null : _handleLogin,
                       icon: const Icon(Icons.refresh, size: 18),
                       label: Text(context.l10n.common_retry),
                       style: ElevatedButton.styleFrom(
@@ -305,17 +303,58 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
   Future<void> _handleLogin() async {
     if (!formKey.currentState!.validate()) return;
 
-    // 保存 notifier 引用，避免 widget disposed 后使用 ref
+    // 清除之前的本地错误状态
+    setState(() {
+      _localErrorCode = null;
+      _localHttpStatusCode = null;
+      _isLoading = true;
+    });
+
     final authNotifier = ref.read(authNotifierProvider.notifier);
+    final currentAuthState = ref.read(authNotifierProvider);
 
-    final success = await authNotifier.loginWithCredentials(
-      emailController.text,
-      passwordController.text,
-    );
+    // 如果当前已登录（添加账号场景），使用不影响全局状态的登录方法
+    if (currentAuthState.isAuthenticated) {
+      final email = emailController.text.trim().toLowerCase();
+      final password = passwordController.text.trim();
+      final result = await authNotifier.tryAddAccount(
+        email,
+        password,
+      );
 
-    // 检查 widget 是否仍然 mounted
-    if (mounted && success && widget.onLoginSuccess != null) {
-      widget.onLoginSuccess!();
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (result.success) {
+        widget.onLoginSuccess?.call();
+      } else {
+        // 登录失败，设置本地错误状态
+        setState(() {
+          _localErrorCode = result.errorCode;
+          _localHttpStatusCode = result.httpStatusCode;
+        });
+      }
+    } else {
+      // 未登录状态，使用正常的登录流程
+      final email = emailController.text.trim().toLowerCase();
+      final password = passwordController.text.trim();
+      final success = await authNotifier.loginWithCredentials(
+        email,
+        password,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (success) {
+        widget.onLoginSuccess?.call();
+      }
     }
   }
 }

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,9 +9,11 @@ import 'package:share_plus/share_plus.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../data/models/gallery/local_image_record.dart';
-import '../../data/models/gallery/nai_image_metadata.dart';
 import 'common/app_toast.dart';
-import 'prompt/random_manager/components/pro_context_menu.dart';
+import 'common/animated_favorite_button.dart';
+import 'common/image_detail/image_detail_data.dart';
+import 'common/image_detail/image_detail_viewer.dart';
+import 'common/pro_context_menu.dart';
 
 /// 本地图片卡片组件（支持右键菜单和长按）
 class LocalImageCard extends StatefulWidget {
@@ -24,6 +25,9 @@ class LocalImageCard extends StatefulWidget {
   final VoidCallback? onSelectionToggle;
   final VoidCallback? onLongPress;
   final VoidCallback? onDeleted;
+  final void Function(LocalImageRecord)? onReuseMetadata;
+  final void Function(LocalImageRecord)? onSendToImg2Img;
+  final void Function(LocalImageRecord)? onFavoriteToggle;
 
   const LocalImageCard({
     super.key,
@@ -35,25 +39,50 @@ class LocalImageCard extends StatefulWidget {
     this.onSelectionToggle,
     this.onLongPress,
     this.onDeleted,
+    this.onReuseMetadata,
+    this.onSendToImg2Img,
+    this.onFavoriteToggle,
   });
 
   @override
   State<LocalImageCard> createState() => _LocalImageCardState();
 }
 
-class _LocalImageCardState extends State<LocalImageCard> {
+class _LocalImageCardState extends State<LocalImageCard>
+    with AutomaticKeepAliveClientMixin {
   Timer? _longPressTimer;
-  bool _isHovering = false;
 
   // Pinch gesture state
   double _scale = 1.0;
   Offset? _scaleStartPosition;
   bool _showThumbnailPreview = false;
 
+  /// 是否已预缓存详情图片
+  bool _isPrecached = false;
+
+  @override
+  bool get wantKeepAlive => true; // 保持状态，避免翻页回来后重新加载
+
   @override
   void dispose() {
     _longPressTimer?.cancel();
     super.dispose();
+  }
+
+  /// 预缓存详情图片
+  ///
+  /// 在鼠标悬停时预加载图片，提升点击后的响应速度
+  void _precacheDetailImage() {
+    if (_isPrecached) return;
+    _isPrecached = true;
+
+    // 异步预加载，不阻塞 UI
+    precacheImage(
+      FileImage(File(widget.record.path)),
+      context,
+    ).catchError((_) {
+      // 忽略预加载错误
+    });
   }
 
   /// 显示上下文菜单
@@ -113,6 +142,29 @@ class _LocalImageCardState extends State<LocalImageCard> {
           }
         },
       ),
+      const ProMenuItem.divider(),
+      // 复用数据
+      if (widget.onReuseMetadata != null)
+        ProMenuItem(
+          id: 'reuse_metadata',
+          label: '复用数据',
+          icon: Icons.replay,
+          onTap: () {
+            widget.onReuseMetadata?.call(widget.record);
+          },
+        ),
+      // 发送到图生图
+      if (widget.onSendToImg2Img != null)
+        ProMenuItem(
+          id: 'send_to_img2img',
+          label: '发送到图生图',
+          icon: Icons.image_outlined,
+          onTap: () {
+            widget.onSendToImg2Img?.call(widget.record);
+          },
+        ),
+      if (widget.onReuseMetadata != null || widget.onSendToImg2Img != null)
+        const ProMenuItem.divider(),
       ProMenuItem(
         id: 'open_file',
         label: '在文件管理器中打开',
@@ -143,10 +195,12 @@ class _LocalImageCardState extends State<LocalImageCard> {
           }
         },
       ),
+      const ProMenuItem.divider(),
       ProMenuItem(
         id: 'delete',
         label: '删除图片',
         icon: Icons.delete_outline,
+        isDanger: true,
         onTap: () {
           if (mounted) {
             _showDeleteConfirmationDialog();
@@ -167,261 +221,35 @@ class _LocalImageCardState extends State<LocalImageCard> {
   }
 
   /// 显示详情对话框
+  ///
+  /// 使用统一的 ImageDetailViewer 组件显示图片详情
   void _showDetailsDialog() {
-    final metadata = widget.record.metadata;
-    if (metadata == null) return;
-
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Dismiss',
-      barrierColor: Colors.black87,
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return Center(
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              width: MediaQuery.of(context).size.width * 0.9,
-              height: MediaQuery.of(context).size.height * 0.9,
-              constraints:
-                  const BoxConstraints(maxWidth: 1400, maxHeight: 1000),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.5),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final isDesktop = constraints.maxWidth > 800;
-
-                  final closeButton = IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                    tooltip: '关闭',
-                  );
-
-                  if (isDesktop) {
-                    return Row(
-                      children: [
-                        // 左侧：大图预览
-                        Expanded(
-                          flex: 7,
-                          child: Container(
-                            color: Colors.black,
-                            child: Stack(
-                              children: [
-                                InteractiveViewer(
-                                  minScale: 0.5,
-                                  maxScale: 4.0,
-                                  child: Center(
-                                    child: Image.file(
-                                      File(widget.record.path),
-                                      fit: BoxFit.contain,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        // 右侧：元数据面板
-                        Expanded(
-                          flex: 3,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              border: Border(
-                                left: BorderSide(
-                                  color: Theme.of(context).dividerColor,
-                                ),
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                // 标题栏
-                                Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        '图片详情',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge,
-                                      ),
-                                      closeButton,
-                                    ],
-                                  ),
-                                ),
-                                const Divider(height: 1),
-                                // 滚动内容
-                                Expanded(
-                                  child: SingleChildScrollView(
-                                    padding: const EdgeInsets.all(16),
-                                    child: _buildMetadataContent(
-                                      context,
-                                      metadata,
-                                    ),
-                                  ),
-                                ),
-                                // 底部操作栏
-                                const Divider(height: 1),
-                                Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: ElevatedButton.icon(
-                                          onPressed: () {
-                                            Clipboard.setData(
-                                              ClipboardData(
-                                                text: metadata.fullPrompt,
-                                              ),
-                                            );
-                                            AppToast.success(
-                                              context,
-                                              'Prompt 已复制',
-                                            );
-                                          },
-                                          icon: const Icon(Icons.copy),
-                                          label: const Text('复制 Prompt'),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  } else {
-                    // 移动端布局
-                    return Stack(
-                      children: [
-                        Column(
-                          children: [
-                            // 图片区域
-                            Expanded(
-                              flex: 5,
-                              child: Container(
-                                color: Colors.black,
-                                child: InteractiveViewer(
-                                  child: Center(
-                                    child: Image.file(
-                                      File(widget.record.path),
-                                      fit: BoxFit.contain,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            // 元数据区域
-                            Expanded(
-                              flex: 5,
-                              child: Column(
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          '图片详情',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .titleMedium,
-                                        ),
-                                        ElevatedButton.icon(
-                                          onPressed: () {
-                                            Clipboard.setData(
-                                              ClipboardData(
-                                                text: metadata.fullPrompt,
-                                              ),
-                                            );
-                                            AppToast.success(
-                                              context,
-                                              'Prompt 已复制',
-                                            );
-                                          },
-                                          icon:
-                                              const Icon(Icons.copy, size: 16),
-                                          label: const Text('复制 Prompt'),
-                                          style: ElevatedButton.styleFrom(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 8,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const Divider(height: 1),
-                                  Expanded(
-                                    child: SingleChildScrollView(
-                                      padding: const EdgeInsets.all(16),
-                                      child: _buildMetadataContent(
-                                        context,
-                                        metadata,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        // 浮动关闭按钮
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: CircleAvatar(
-                            backgroundColor: Colors.black54,
-                            child: IconButton(
-                              icon:
-                                  const Icon(Icons.close, color: Colors.white),
-                              onPressed: () => Navigator.of(context).pop(),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                },
-              ),
-            ),
-          ),
-        );
-      },
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(
-          opacity: animation,
-          child: ScaleTransition(
-            scale: CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutBack,
-            ),
-            child: child,
-          ),
-        );
-      },
+    // 使用统一的 ImageDetailViewer 替代自定义 Dialog
+    // 即使没有元数据也可以查看图片
+    ImageDetailViewer.showSingle(
+      context,
+      image: LocalImageDetailData(
+        widget.record,
+        getFavoriteStatus: (_) => widget.record.isFavorite,
+      ),
+      showMetadataPanel: true,
+      callbacks: ImageDetailCallbacks(
+        onFavoriteToggle: widget.onFavoriteToggle != null
+            ? (image) => widget.onFavoriteToggle!(widget.record)
+            : null,
+        onReuseMetadata: widget.onReuseMetadata != null
+            ? (image, options) {
+                widget.onReuseMetadata!(widget.record);
+              }
+            : null,
+      ),
+      heroTag: 'local_image_${widget.record.path.hashCode}',
     );
   }
 
   /// 复制图片到剪贴板
   Future<void> _copyImage(BuildContext context) async {
+    File? tempFile;
     try {
       final sourceFile = File(widget.record.path);
 
@@ -433,17 +261,30 @@ class _LocalImageCardState extends State<LocalImageCard> {
         return;
       }
 
-      await Clipboard.setData(const ClipboardData(text: ''));
       final tempDir = await getTemporaryDirectory();
-      final file = File(
+      tempFile = File(
         '${tempDir.path}/NAI_${DateTime.now().millisecondsSinceEpoch}.png',
       );
-      await file.writeAsBytes(await sourceFile.readAsBytes());
+      await tempFile.writeAsBytes(await sourceFile.readAsBytes());
 
-      await Process.run('powershell', [
-        '-command',
-        'Set-Clipboard -Path "${file.path}"',
+      // 使用 PowerShell 复制图像到剪贴板
+      // 使用 [System.Windows.Forms.Clipboard]::SetImage() 正确复制图像数据
+      final result = await Process.run('powershell', [
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        'Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; \$image = [System.Drawing.Image]::FromFile("${tempFile.path}"); [System.Windows.Forms.Clipboard]::SetImage(\$image); \$image.Dispose();',
       ]);
+
+      // 检查 PowerShell 命令执行结果
+      if (result.exitCode != 0) {
+        final errorOutput = result.stderr.toString();
+        throw Exception('PowerShell 命令失败 (exitCode: ${result.exitCode}): $errorOutput');
+      }
+
+      // 延迟删除临时文件，确保 PowerShell 完成读取
+      await Future.delayed(const Duration(milliseconds: 500));
 
       if (context.mounted) {
         AppToast.success(context, '已复制到剪贴板');
@@ -451,6 +292,15 @@ class _LocalImageCardState extends State<LocalImageCard> {
     } catch (e) {
       if (context.mounted) {
         AppToast.error(context, '复制失败: $e');
+      }
+    } finally {
+      // 清理临时文件
+      if (tempFile != null && await tempFile.exists()) {
+        try {
+          await tempFile.delete();
+        } catch (_) {
+          // 忽略删除错误
+        }
       }
     }
   }
@@ -470,7 +320,8 @@ class _LocalImageCardState extends State<LocalImageCard> {
       }
 
       // 使用 explorer /select 打开文件管理器并选中文件
-      await Process.run('explorer', ['/select,"$filePath"']);
+      // 使用 Process.start 避免等待进程完成导致的延迟
+      await Process.start('explorer', ['/select,"$filePath"']);
 
       if (context.mounted) {
         AppToast.success(context, '已在文件管理器中打开');
@@ -571,635 +422,616 @@ class _LocalImageCardState extends State<LocalImageCard> {
     }
   }
 
-  Widget _buildMetadataContent(
-    BuildContext context,
-    NaiImageMetadata metadata,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildInfoCard(
-          context,
-          title: '基本信息',
-          children: [
-            _buildInfoRow(
-              context,
-              Icons.insert_drive_file_outlined,
-              '文件名',
-              path.basename(widget.record.path),
-            ),
-            const SizedBox(height: 8),
-            _buildInfoRow(
-              context,
-              Icons.folder_open_outlined,
-              '路径',
-              widget.record.path,
-            ),
-            const SizedBox(height: 8),
-            _buildInfoRow(
-              context,
-              Icons.data_usage,
-              '大小',
-              '${(widget.record.size / 1024).toStringAsFixed(2)} KB',
-            ),
-            const SizedBox(height: 8),
-            _buildInfoRow(
-              context,
-              Icons.access_time,
-              '修改时间',
-              '${timeago.format(widget.record.modifiedAt, locale: Localizations.localeOf(context).languageCode == 'zh' ? 'zh' : 'en')} (${widget.record.modifiedAt.toString().substring(0, 19)})',
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        _buildInfoCard(
-          context,
-          title: '生成参数',
-          children: [
-            if (metadata.seed != null) ...[
-              _buildInfoRow(
-                context,
-                Icons.tag,
-                'Seed',
-                metadata.seed.toString(),
-              ),
-              const SizedBox(height: 8),
-            ],
-            if (metadata.steps != null) ...[
-              _buildInfoRow(
-                context,
-                Icons.repeat,
-                'Steps',
-                metadata.steps.toString(),
-              ),
-              const SizedBox(height: 8),
-            ],
-            if (metadata.scale != null) ...[
-              _buildInfoRow(
-                context,
-                Icons.tune,
-                'CFG Scale',
-                metadata.scale.toString(),
-              ),
-              const SizedBox(height: 8),
-            ],
-            if (metadata.sampler != null) ...[
-              _buildInfoRow(
-                context,
-                Icons.shuffle,
-                'Sampler',
-                metadata.displaySampler,
-              ),
-              const SizedBox(height: 8),
-            ],
-            if (metadata.sizeString.isNotEmpty) ...[
-              _buildInfoRow(
-                context,
-                Icons.aspect_ratio,
-                '尺寸',
-                metadata.sizeString,
-              ),
-              const SizedBox(height: 8),
-            ],
-            if (metadata.model != null) ...[
-              _buildInfoRow(context, Icons.smart_toy, '模型', metadata.model!),
-              const SizedBox(height: 8),
-            ],
-            if (metadata.smea == true || metadata.smeaDyn == true) ...[
-              _buildInfoRow(
-                context,
-                Icons.auto_awesome,
-                'SMEA',
-                metadata.smeaDyn == true
-                    ? 'DYN'
-                    : (metadata.smea == true ? 'ON' : 'OFF'),
-              ),
-              const SizedBox(height: 8),
-            ],
-            if (metadata.noiseSchedule != null) ...[
-              _buildInfoRow(
-                context,
-                Icons.waves,
-                'Noise Schedule',
-                metadata.noiseSchedule!,
-              ),
-              const SizedBox(height: 8),
-            ],
-            if (metadata.cfgRescale != null && metadata.cfgRescale! > 0) ...[
-              _buildInfoRow(
-                context,
-                Icons.balance,
-                'CFG Rescale',
-                metadata.cfgRescale.toString(),
-              ),
-              const SizedBox(height: 8),
-            ],
-            // 获取图片实际尺寸
-            FutureBuilder<ui.ImageDescriptor>(
-              future: _getImageSize(widget.record.path),
-              builder: (context, snapshot) {
-                if (snapshot.hasData && metadata.sizeString.isEmpty) {
-                  return _buildInfoRow(
-                    context,
-                    Icons.aspect_ratio,
-                    '尺寸',
-                    '${snapshot.data!.width} x ${snapshot.data!.height}',
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        _buildInfoCard(
-          context,
-          title: 'Prompt',
-          children: [
-            SelectableText(
-              metadata.fullPrompt.isNotEmpty ? metadata.fullPrompt : '(无)',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontFamily: 'monospace',
-                    height: 1.5,
-                  ),
-            ),
-          ],
-        ),
-        if (metadata.negativePrompt.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _buildInfoCard(
-            context,
-            title: '负向提示词 (UC)',
-            children: [
-              SelectableText(
-                metadata.negativePrompt,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontFamily: 'monospace',
-                      height: 1.5,
-                      color:
-                          Theme.of(context).colorScheme.error.withOpacity(0.8),
-                    ),
-              ),
-            ],
-          ),
-        ],
-        if (metadata.rawJson != null) ...[
-          const SizedBox(height: 16),
-          _buildInfoCard(
-            context,
-            title: '原始 JSON',
-            children: [
-              SelectableText(
-                metadata.rawJson!,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontFamily: 'monospace',
-                      height: 1.5,
-                    ),
-              ),
-            ],
-          ),
-        ],
-      ],
-    );
-  }
-
-  Future<ui.ImageDescriptor> _getImageSize(String path) async {
-    final buffer = await ui.ImmutableBuffer.fromFilePath(path);
-    final descriptor = await ui.ImageDescriptor.encoded(buffer);
-    return descriptor;
-  }
-
-  Widget _buildInfoCard(
-    BuildContext context, {
-    required String title,
-    required List<Widget> children,
-  }) {
-    return Card(
-      elevation: 0,
-      color: Theme.of(context)
-          .colorScheme
-          .surfaceContainerHighest
-          .withOpacity(0.3),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(4),
-        side:
-            BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.1)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(
-    BuildContext context,
-    IconData icon,
-    String label,
-    String value,
-  ) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(
-          icon,
-          size: 16,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-              ),
-              const SizedBox(height: 2),
-              SelectableText(
-                value,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    super.build(context); // AutomaticKeepAliveClientMixin 需要调用
+    
     final pixelRatio = MediaQuery.of(context).devicePixelRatio;
     final cacheWidth = (widget.itemWidth * pixelRatio).toInt();
-    final metadata = widget.record.metadata;
     // Calculate height dynamically based on aspect ratio, with max height constraint
     final maxHeight = widget.itemWidth * 3;
-    final itemHeight = (widget.itemWidth / widget.aspectRatio).clamp(0.0, maxHeight);
+    final itemHeight =
+        (widget.itemWidth / widget.aspectRatio).clamp(0.0, maxHeight);
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      child: GestureDetector(
-        // 点击
-        onTap: () {
-          if (widget.selectionMode) {
-            widget.onSelectionToggle?.call();
-          } else {
-            _showDetailsDialog();
-          }
-        },
-
-        // 桌面端：右键菜单
-        onSecondaryTapDown: (details) {
-          if (!widget.selectionMode) {
-            _showContextMenu(details.globalPosition);
-          }
-        },
-
-        // 移动端：长按
-        onLongPressStart: (details) {
-          if (!widget.selectionMode) {
-            _longPressTimer = Timer(const Duration(milliseconds: 500), () {
-              // 如果提供了 onLongPress 回调（进入多选），则执行它
-              // 否则显示上下文菜单
-              if (widget.onLongPress != null) {
-                widget.onLongPress!();
-              } else {
-                _showContextMenu(details.globalPosition);
-              }
-            });
-          }
-        },
-        onLongPressEnd: (details) {
-          _longPressTimer?.cancel();
-        },
-        onLongPressCancel: () {
-          _longPressTimer?.cancel();
-        },
-
-        // 双击缩放
-        onDoubleTap: () {
-          if (!widget.selectionMode) {
-            _showDetailsDialog();
-          }
-        },
-
-        // Pinch 缩放手势 - 显示缩略图预览
-        onScaleStart: (details) {
-          if (!widget.selectionMode && details.pointerCount > 1) {
-            setState(() {
-              _scale = 1.0;
-              _scaleStartPosition = details.localFocalPoint;
-              _showThumbnailPreview = true;
-            });
-          }
-        },
-        onScaleUpdate: (details) {
-          if (_showThumbnailPreview) {
-            setState(() {
-              _scale = details.scale;
-            });
-          }
-        },
-        onScaleEnd: (details) {
-          if (_showThumbnailPreview) {
-            // 如果缩放足够大，打开详情页
-            if (_scale > 1.5) {
+    return RepaintBoundary(
+      child: MouseRegion(
+        cursor: widget.selectionMode
+            ? SystemMouseCursors.click
+            : SystemMouseCursors.basic,
+        // 鼠标悬停时预缓存详情图片
+        onEnter: (_) => _precacheDetailImage(),
+        child: GestureDetector(
+          // 点击
+          onTap: () {
+            if (widget.selectionMode) {
+              widget.onSelectionToggle?.call();
+            } else {
               _showDetailsDialog();
             }
-            setState(() {
-              _showThumbnailPreview = false;
-              _scale = 1.0;
-              _scaleStartPosition = null;
-            });
-          }
-        },
+          },
 
-        child: Stack(
-          children: [
-            SizedBox(
-              width: widget.itemWidth,
-              height: itemHeight,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                      color: Colors.black.withOpacity(0.1),
-                    ),
-                  ],
-                  border: widget.isSelected
-                      ? Border.all(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 3,
-                        )
-                      : null,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Stack(
-                        children: [
+          // 桌面端：右键菜单
+          onSecondaryTapDown: (details) {
+            if (!widget.selectionMode) {
+              _showContextMenu(details.globalPosition);
+            }
+          },
+
+          // 移动端：长按
+          onLongPressStart: (details) {
+            if (!widget.selectionMode) {
+              _longPressTimer = Timer(const Duration(milliseconds: 500), () {
+                // 如果提供了 onLongPress 回调（进入多选），则执行它
+                // 否则显示上下文菜单
+                if (widget.onLongPress != null) {
+                  widget.onLongPress!();
+                } else {
+                  _showContextMenu(details.globalPosition);
+                }
+              });
+            }
+          },
+          onLongPressEnd: (details) {
+            _longPressTimer?.cancel();
+          },
+          onLongPressCancel: () {
+            _longPressTimer?.cancel();
+          },
+
+          // 双击缩放
+          onDoubleTap: () {
+            if (!widget.selectionMode) {
+              _showDetailsDialog();
+            }
+          },
+
+          // Pinch 缩放手势 - 显示缩略图预览
+          onScaleStart: (details) {
+            if (!widget.selectionMode && details.pointerCount > 1) {
+              setState(() {
+                _scale = 1.0;
+                _scaleStartPosition = details.localFocalPoint;
+                _showThumbnailPreview = true;
+              });
+            }
+          },
+          onScaleUpdate: (details) {
+            if (_showThumbnailPreview) {
+              setState(() {
+                _scale = details.scale;
+              });
+            }
+          },
+          onScaleEnd: (details) {
+            if (_showThumbnailPreview) {
+              // 如果缩放足够大，打开详情页
+              if (_scale > 1.5) {
+                _showDetailsDialog();
+              }
+              setState(() {
+                _showThumbnailPreview = false;
+                _scale = 1.0;
+                _scaleStartPosition = null;
+              });
+            }
+          },
+
+          child: Stack(
+            children: [
+              SizedBox(
+                width: widget.itemWidth,
+                height: itemHeight,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                        color: Colors.black.withOpacity(0.12),
+                      ),
+                    ],
+                    border: widget.isSelected
+                        ? Border.all(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 3,
+                          )
+                        : null,
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Stack(
+                      children: [
                         Image.file(
                           File(widget.record.path),
                           cacheWidth: cacheWidth, // 优化内存占用
                           fit: BoxFit.cover,
                           width: double.infinity,
+                          gaplessPlayback: true, // 防止图片切换时闪白
+                          frameBuilder:
+                              (context, child, frame, wasSynchronouslyLoaded) {
+                            if (wasSynchronouslyLoaded) return child;
+                            return AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              child: frame != null
+                                  ? child
+                                  : _ImagePlaceholder(
+                                      width: widget.itemWidth,
+                                      aspectRatio: widget.aspectRatio,
+                                    ),
+                            );
+                          },
                           errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest,
-                              child: Center(
-                                child: Icon(
-                                  Icons.broken_image,
-                                  size: 48,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                                ),
-                              ),
+                            return _ImageError(
+                              width: widget.itemWidth,
+                              aspectRatio: widget.aspectRatio,
                             );
                           },
                         ),
+                        // Vibe badge - 显示在右上角
+                        if (widget.record.hasVibeMetadata)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withOpacity(0.8),
+                                borderRadius: BorderRadius.circular(6),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.auto_awesome,
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
                 ),
               ),
-            // Selection Overlay
-            if (widget.selectionMode && widget.isSelected)
-              Positioned.fill(
-                          child: Container(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withOpacity(0.2),
+              // Selection Overlay and Checkbox
+              if (widget.selectionMode)
+                _SelectionIndicator(
+                  isSelected: widget.isSelected,
+                ),
+              // Hover overlay (only shown when not in selection mode)
+              if (!widget.selectionMode)
+                _HoverOverlay(
+                  record: widget.record,
+                  onFavoriteToggle: widget.onFavoriteToggle != null
+                      ? () => widget.onFavoriteToggle!(widget.record)
+                      : null,
+                ),
+              // Pinch 缩略图预览 overlay
+              if (_showThumbnailPreview && _scaleStartPosition != null)
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black54,
+                    child: Center(
+                      child: Transform.scale(
+                        scale: _scale.clamp(0.8, 2.0),
+                        child: Container(
+                          width: widget.itemWidth * 0.8,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.5),
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
                           ),
-                        ),
-                      // Checkbox
-                      if (widget.selectionMode)
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: widget.isSelected
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Colors.black.withOpacity(0.4),
-                              border: Border.all(
-                                color: Colors.white,
-                                width: 2,
-                              ),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(4),
-                              child: Icon(
-                                Icons.check,
-                                size: 16,
-                                color: widget.isSelected
-                                    ? Theme.of(context).colorScheme.onPrimary
-                                    : Colors.transparent,
-                              ),
-                            ),
-                          ),
-                        ),
-                      if (!widget.selectionMode)
-                        Positioned.fill(
-                          child: AnimatedOpacity(
-                            duration: const Duration(milliseconds: 200),
-                            opacity: _isHovering ? 1.0 : 0.0,
-                            child: Container(
-                              decoration: const BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [Colors.transparent, Colors.black87],
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                ),
-                              ),
-                              padding: const EdgeInsets.all(8.0),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    path.basename(widget.record.path),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Row(
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          timeago.format(
-                                            widget.record.modifiedAt,
-                                            locale:
-                                                Localizations.localeOf(context)
-                                                            .languageCode ==
-                                                        'zh'
-                                                    ? 'zh'
-                                                    : 'en',
-                                          ),
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 10,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                          maxLines: 1,
-                                        ),
-                                      ),
-                                      if (metadata?.seed != null) ...[
-                                        const SizedBox(width: 8),
-                                        Flexible(
-                                          child: Text(
-                                            'Seed: ${metadata!.seed}',
-                                            style: const TextStyle(
-                                              color: Colors.white70,
-                                              fontSize: 10,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                            maxLines: 1,
-                                          ),
-                                        ),
-                                      ],
-                                      if (metadata?.width != null &&
-                                          metadata?.height != null) ...[
-                                        const SizedBox(width: 8),
-                                        Flexible(
-                                          child: Text(
-                                            '${metadata?.width} x ${metadata?.height}',
-                                            style: const TextStyle(
-                                              color: Colors.white70,
-                                              fontSize: 10,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                            maxLines: 1,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  if (metadata?.prompt.isNotEmpty == true)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 4.0),
-                                      child: Text(
-                                        metadata!.prompt,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  // Tags display
-                                  if (widget.record.tags.isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 4.0),
-                                      child: Wrap(
-                                        spacing: 4.0,
-                                        runSpacing: 2.0,
-                                        children: widget.record.tags
-                                            .take(3)
-                                            .map((tag) {
-                                          final displayTag = tag.length > 15
-                                              ? '${tag.substring(0, 15)}...'
-                                              : tag;
-                                          return Chip(
-                                            label: Text(
-                                              displayTag,
-                                              style: const TextStyle(
-                                                fontSize: 9,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                            backgroundColor:
-                                                Colors.white24,
-                                            padding: EdgeInsets.zero,
-                                            materialTapTargetSize:
-                                                MaterialTapTargetSize
-                                                    .shrinkWrap,
-                                            visualDensity:
-                                                VisualDensity.compact,
-                                          );
-                                        }).toList(),
-                                      ),
-                                    )
-                                  else
-                                    const Padding(
-                                      padding: EdgeInsets.only(top: 4.0),
-                                      child: Text(
-                                        'No tags',
-                                        style: TextStyle(
-                                          color: Colors.white60,
-                                          fontSize: 10,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.file(
+                              File(widget.record.path),
+                              fit: BoxFit.contain,
                             ),
                           ),
                         ),
-                      // Pinch 缩略图预览 overlay
-                      if (_showThumbnailPreview && _scaleStartPosition != null)
-                        Positioned.fill(
-                          child: Container(
-                            color: Colors.black54,
-                            child: Center(
-                              child: Transform.scale(
-                                scale: _scale.clamp(0.8, 2.0),
-                                child: Container(
-                                  width: widget.itemWidth * 0.8,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(8),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.5),
-                                        blurRadius: 20,
-                                        offset: const Offset(0, 10),
-                                      ),
-                                    ],
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.file(
-                                      File(widget.record.path),
-                                      fit: BoxFit.contain,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-          ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+/// 图片加载占位符（带 shimmer 效果）
+class _ImagePlaceholder extends StatelessWidget {
+  final double width;
+  final double aspectRatio;
+
+  const _ImagePlaceholder({
+    required this.width,
+    required this.aspectRatio,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: width / aspectRatio,
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 图片加载错误显示
+class _ImageError extends StatelessWidget {
+  final double width;
+  final double aspectRatio;
+
+  const _ImageError({
+    required this.width,
+    required this.aspectRatio,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: width / aspectRatio,
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.broken_image,
+            size: 32,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '加载失败',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Selection indicator widget
+/// This widget handles the selection visual feedback independently
+class _SelectionIndicator extends StatefulWidget {
+  final bool isSelected;
+
+  const _SelectionIndicator({
+    required this.isSelected,
+  });
+
+  @override
+  State<_SelectionIndicator> createState() => _SelectionIndicatorState();
+}
+
+class _SelectionIndicatorState extends State<_SelectionIndicator>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    );
+    if (widget.isSelected) {
+      _controller.forward();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _SelectionIndicator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isSelected != oldWidget.isSelected) {
+      if (widget.isSelected) {
+        _controller.forward();
+      } else {
+        _controller.reverse();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Stack(
+      children: [
+        // Selection Overlay
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          decoration: BoxDecoration(
+            color: widget.isSelected
+                ? colorScheme.primary.withOpacity(0.15)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        // Checkbox
+        Positioned(
+          top: 8,
+          right: 8,
+          child: ScaleTransition(
+            scale: _scaleAnimation,
+            child: Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: widget.isSelected
+                    ? colorScheme.primary
+                    : Colors.black.withOpacity(0.5),
+                border: Border.all(
+                  color: Colors.white,
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.check,
+                size: 18,
+                color: widget.isSelected
+                    ? colorScheme.onPrimary
+                    : Colors.transparent,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Hover overlay widget with separate state management
+/// This prevents hover state changes from causing the entire card to rebuild
+class _HoverOverlay extends StatefulWidget {
+  final LocalImageRecord record;
+  final VoidCallback? onFavoriteToggle;
+
+  const _HoverOverlay({
+    required this.record,
+    this.onFavoriteToggle,
+  });
+
+  @override
+  State<_HoverOverlay> createState() => _HoverOverlayState();
+}
+
+class _HoverOverlayState extends State<_HoverOverlay> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final metadata = widget.record.metadata;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      child: Stack(
+        children: [
+          // 主体内容
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOut,
+            transform: Matrix4.identity()..scale(_isHovering ? 1.02 : 1.0),
+            transformAlignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: _isHovering
+                  ? Border.all(
+                      color: colorScheme.primary.withOpacity(0.25),
+                      width: 2,
+                    )
+                  : null,
+              boxShadow: _isHovering
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.25),
+                        blurRadius: 20,
+                        offset: const Offset(0, 6),
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 150),
+              opacity: _isHovering ? 1.0 : 0.0,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: const LinearGradient(
+                    colors: [Colors.transparent, Colors.black87],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: [0.3, 1.0],
+                  ),
+                ),
+                padding: const EdgeInsets.all(10.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      path.basename(widget.record.path),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            timeago.format(
+                              widget.record.modifiedAt,
+                              locale: Localizations.localeOf(context)
+                                          .languageCode ==
+                                      'zh'
+                                  ? 'zh'
+                                  : 'en',
+                            ),
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 11,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                        if (metadata?.seed != null && metadata!.seed! > 0) ...[
+                          Text(
+                            ' | ',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.5),
+                              fontSize: 11,
+                            ),
+                          ),
+                          Flexible(
+                            child: Text(
+                              '${metadata.seed}',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.7),
+                                fontSize: 11,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                        ],
+                        if (metadata?.width != null &&
+                            metadata?.height != null) ...[
+                          Text(
+                            ' | ',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.5),
+                              fontSize: 11,
+                            ),
+                          ),
+                          Text(
+                            '${metadata?.width}x${metadata?.height}',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (metadata?.prompt.isNotEmpty == true)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6.0),
+                        child: Text(
+                          metadata!.prompt,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 11,
+                            height: 1.3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    // Tags display
+                    if (widget.record.tags.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6.0),
+                        child: Wrap(
+                          spacing: 4.0,
+                          runSpacing: 4.0,
+                          children: widget.record.tags.take(3).map((tag) {
+                            final displayTag = tag.length > 12
+                                ? '${tag.substring(0, 12)}...'
+                                : tag;
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                displayTag,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // 右上角收藏按钮（悬浮时显示）
+          if (_isHovering && widget.onFavoriteToggle != null)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: CardFavoriteButton(
+                isFavorite: widget.record.isFavorite,
+                onToggle: widget.onFavoriteToggle,
+                size: 18,
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -1242,8 +1074,9 @@ class _ContextMenuRoute extends PopupRoute {
         builder: (context) {
           // Calculate adjusted position to keep menu within screen bounds
           final screenSize = MediaQuery.of(context).size;
-          const menuWidth = 200.0;
-          final menuHeight = items.length * 48.0;
+          const menuWidth = 180.0;
+          final menuHeight = items.where((i) => !i.isDivider).length * 36.0 +
+              items.where((i) => i.isDivider).length * 1.0;
 
           double left = position.dx;
           double top = position.dy;

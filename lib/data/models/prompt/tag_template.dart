@@ -151,7 +151,7 @@ extension TagTemplateListExtension on List<TagTemplate> {
   /// 查找包含指定标签ID的模板
   List<TagTemplate> findContainingTag(String tagId) {
     return where((template) =>
-        template.tags.any((tag) => tag.id == tagId)
+        template.tags.any((tag) => tag.id == tagId),
     ).toList();
   }
 
@@ -161,7 +161,7 @@ extension TagTemplateListExtension on List<TagTemplate> {
     final lowerQuery = query.toLowerCase();
     return where((template) =>
         template.name.toLowerCase().contains(lowerQuery) ||
-        (template.description?.toLowerCase().contains(lowerQuery) ?? false)
+        (template.description?.toLowerCase().contains(lowerQuery) ?? false),
     ).toList();
   }
 }

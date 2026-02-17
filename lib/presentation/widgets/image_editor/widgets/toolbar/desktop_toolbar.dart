@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/editor_state.dart';
 import '../../tools/tool_base.dart';
+import '../../../../widgets/common/themed_divider.dart';
 
 /// 检查是否可以清空当前图层
 bool _canClearActiveLayer(EditorState state) {
@@ -59,7 +60,7 @@ class DesktopToolbar extends StatelessWidget {
             },
           ),
 
-          const Divider(height: 16),
+          const ThemedDivider(height: 16),
 
           // 撤销/重做/清空 - 监听历史管理器和图层管理器
           ListenableBuilder(

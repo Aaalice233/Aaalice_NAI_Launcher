@@ -1,0 +1,133 @@
+{
+  "project_name": "NAI Launcher",
+  "project_type": "desktop-app",
+  "tech_stack": {
+    "primary_language": "Dart",
+    "frameworks": ["Flutter", "Riverpod", "GoRouter"],
+    "key_dependencies": [
+      "flutter_riverpod: ^2.5.1",
+      "dio: ^5.4.0",
+      "hive: ^2.2.3",
+      "go_router: ^14.2.0",
+      "freezed: ^2.5.2",
+      "window_manager: ^0.3.9",
+      "sqflite_common_ffi: ^2.3.4"
+    ]
+  },
+  "target_audience": {
+    "primary_persona": "AI艺术创作者和NovelAI重度用户，特别是需要高效批量生成动漫风格图像的桌面端用户",
+    "secondary_personas": [
+      "Stable Diffusion用户寻求更稳定的NovelAI体验",
+      "二次元/动漫爱好者和插画师",
+      "需要离线画廊管理的数字收藏家",
+      "寻求简化工作流的AI艺术初学者"
+    ],
+    "pain_points": [
+      "NovelAI官方网页版缺乏批量生成和高级参数配置，每次只能单张生成",
+      "订阅模式昂贵($10-$25/月)，Anlas消耗不透明，难以预测成本",
+      "Stable Diffusion WebUI安装和配置复杂，需要Git/Python/CUDA环境知识",
+      "ComfyUI节点工作流学习曲线陡峭，对初学者非常intimidating",
+      "生成的图片缺乏有效的本地管理和检索系统，无法离线查看历史",
+      "提示词(Prompt)编写效率低，缺乏标签库和智能补全",
+      "更新频繁导致的稳定性问题和工作流失效"
+    ],
+    "goals": [
+      "高效批量生成动漫风格AI图像",
+      "管理和组织大量生成的图片，支持离线查看",
+      "简化提示词编写流程，提高创作效率",
+      "获得稳定的桌面端体验，无需复杂配置",
+      "集成Danbooru灵感获取和工作流衔接",
+      "降低AI图像生成的总体成本"
+    ],
+    "usage_context": "主要在Windows桌面环境使用，用户通常是数字艺术爱好者或专业创作者，需要长时间、大批量的图像生成会话，同时管理数千张生成的图片"
+  },
+  "product_vision": {
+    "one_liner": "专为NovelAI打造的专业级跨平台桌面客户端，提供批量生成、本地画廊管理和智能提示词系统的完整工作流解决方案",
+    "problem_statement": "NovelAI生态缺乏专业的第三方桌面客户端，现有工具要么功能有限(官方网页版)，要么过于复杂需要技术背景(Stable Diffusion WebUI/ComfyUI)，用户在效率、稳定性和易用性之间难以平衡",
+    "value_proposition": "作为原生桌面应用提供开箱即用的NovelAI体验，无需配置环境；创新的悬浮球队列系统支持后台批量生成；SQLite索引的本地画廊提供专业级的图片管理；深度集成Danbooru标签系统和Vibe Transfer功能；在易用性和专业功能之间取得平衡",
+    "success_metrics": [
+      "用户平均单次生成会话的图片数量(目标: 50+张)",
+      "本地画廊管理的图片规模(目标: 10000+张)",
+      "提示词编写效率提升(通过标签库和智能补全)",
+      "用户留存率和日活跃用户(DAU)",
+      "社区口碑和GitHub Stars增长"
+    ]
+  },
+  "current_state": {
+    "maturity": "growth",
+    "existing_features": [
+      "图像生成 - NovelAI API文本到图像生成，支持多参数配置",
+      "Vibe Transfer - 图像风格迁移，支持Vibe库管理",
+      "本地画廊 - SQLite索引的本地图像管理，元数据缓存",
+      "在线画廊 - Danbooru集成，标签搜索、池浏览",
+      "提示词系统 - 动态语法解析、权重调整、标签库管理",
+      "队列系统 - 批量生成任务管理，悬浮球UI控制",
+      "快捷键系统 - 完整的键盘快捷键支持，可自定义配置",
+      "多平台支持 - Windows、Android、Linux",
+      "国际化支持 - 中英文界面",
+      "系统托盘和窗口管理 - 桌面端原生体验"
+    ],
+    "known_gaps": [
+      "iOS/macOS平台支持缺失",
+      "云端同步和跨设备工作流支持",
+      "高级图像编辑功能(局部重绘、扩图等)",
+      "社区分享和预设市场功能",
+      "更深入的AI模型训练/微调功能",
+      "视频生成支持"
+    ],
+    "technical_debt": [
+      "232个代码生成文件需要维护，变更时构建时间较长",
+      "Hive存储迁移历史可能导致旧数据兼容问题",
+      "多平台测试覆盖率需要提升",
+      "大型共现标签数据(100MB+)的延迟加载需要优化"
+    ]
+  },
+  "competitive_context": {
+    "alternatives": [
+      "NovelAI Official Web Interface",
+      "AUTOMATIC1111 Stable Diffusion WebUI",
+      "ComfyUI",
+      "InvokeAI"
+    ],
+    "differentiators": [
+      "专注NovelAI生态的原生桌面客户端，深度集成NAI特有功能(Vibe Transfer等)",
+      "创新的悬浮球队列UI，支持后台生成、暂停/恢复、优先级调整",
+      "SQLite索引的本地画廊，支持Danbooru风格标签、元数据搜索",
+      "开箱即用的体验，无需配置Python/CUDA环境",
+      "平衡易用性和专业功能，提供渐进式学习曲线",
+      "离线优先的本地数据管理，隐私友好"
+    ],
+    "market_position": "填补NovelAI生态专业桌面客户端的空白，定位为'NovelAI的Power User工具'，介于官方网页版(易用但功能有限)和ComfyUI(功能强大但复杂)之间的细分市场",
+    "competitor_pain_points": [
+      "复杂的安装配置和环境依赖(A1111/ComfyUI)",
+      "缺乏稳定的批量/队列生成功能",
+      "本地图像管理和检索困难",
+      "更新频繁导致的稳定性问题",
+      "提示词编写效率低，缺乏智能辅助",
+      "云端服务成本高且不可预测(NovelAI)",
+      "steep learning curve for beginners"
+    ],
+    "competitor_analysis_available": true
+  },
+  "constraints": {
+    "technical": [
+      "依赖NovelAI API，受限于其服务可用性和定价策略",
+      "Flutter桌面端生态相对移动端较新，部分插件支持有限",
+      "跨平台一致性挑战，特别是Windows/Linux差异",
+      "大量图片和元数据的本地存储性能优化需求"
+    ],
+    "resources": [
+      "当前为个人/小型团队开发模式",
+      "维护959个Dart文件和29万行代码的工程复杂度",
+      "多平台测试和发布的人力成本",
+      "社区支持和文档维护的时间投入"
+    ],
+    "dependencies": [
+      "NovelAI API服务可用性和政策变化风险",
+      "Flutter SDK版本更新兼容性",
+      "第三方包维护状态(window_manager, hive等)",
+      "Danbooru API访问限制"
+    ]
+  },
+  "created_at": "2025-02-16T22:20:00Z"
+}

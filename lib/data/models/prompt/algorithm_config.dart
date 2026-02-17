@@ -169,39 +169,31 @@ class AlgorithmConfig with _$AlgorithmConfig {
   }
 
   /// 根据权重随机选择性别
-  String selectGender(int Function() randomInt) {
-    final total = genderWeights.values.fold<int>(0, (sum, w) => sum + w);
-    if (total <= 0) return 'female';
-
-    final target = (randomInt() % total) + 1;
-    var cumulative = 0;
-
-    for (final entry in genderWeights.entries) {
-      cumulative += entry.value;
-      if (target <= cumulative) {
-        return entry.key;
-      }
-    }
-
-    return 'female';
-  }
+  String selectGender(int Function() randomInt) =>
+      _weightedRandomSelect(genderWeights, randomInt, 'female');
 
   /// 根据权重随机选择服装类型
-  String selectClothingType(int Function() randomInt) {
-    final total = clothingTypeWeights.values.fold<int>(0, (sum, w) => sum + w);
-    if (total <= 0) return 'normal';
+  String selectClothingType(int Function() randomInt) =>
+      _weightedRandomSelect(clothingTypeWeights, randomInt, 'normal');
+
+  /// 加权随机选择通用实现
+  String _weightedRandomSelect(
+    Map<String, int> weights,
+    int Function() randomInt,
+    String defaultValue,
+  ) {
+    final total = weights.values.fold<int>(0, (sum, w) => sum + w);
+    if (total <= 0) return defaultValue;
 
     final target = (randomInt() % total) + 1;
     var cumulative = 0;
 
-    for (final entry in clothingTypeWeights.entries) {
+    for (final entry in weights.entries) {
       cumulative += entry.value;
-      if (target <= cumulative) {
-        return entry.key;
-      }
+      if (target <= cumulative) return entry.key;
     }
 
-    return 'normal';
+    return defaultValue;
   }
 
   /// 计算总权重

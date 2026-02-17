@@ -50,6 +50,8 @@ class GrungePalette extends BaseColorModule {
         onSurfaceVariant: Color(0xFFD4CFC0), // Old paper tint
         outline: Color(0xFF525252), // Neutral-600
         error: _accent,
+        errorContainer: Color(0xFF5C1A1A), // Dark red for error container
+        onErrorContainer: Color(0xFFFFDAD6), // Light pink for error text
       );
 
   @override

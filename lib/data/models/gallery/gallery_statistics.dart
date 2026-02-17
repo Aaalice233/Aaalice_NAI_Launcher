@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'daily_trend_statistics.dart';
+
 part 'gallery_statistics.freezed.dart';
 
 /// 图片尺寸分布统计
@@ -58,6 +60,35 @@ class SizeDistributionStatistics with _$SizeDistributionStatistics {
   const SizeDistributionStatistics._();
 }
 
+/// 标签分布统计
+///
+/// 用于统计不同标签的使用频率
+@freezed
+class TagStatistics with _$TagStatistics {
+  const factory TagStatistics({
+    required String tagName, // 标签名称（如 "anime", "landscape"）
+    required int count, // 使用该标签的图片数量
+    @Default(0) double percentage, // 百分比 (0-100)
+  }) = _TagStatistics;
+
+  const TagStatistics._();
+}
+
+/// 参数分布统计
+///
+/// 用于统计不同生成参数的使用频率
+@freezed
+class ParameterStatistics with _$ParameterStatistics {
+  const factory ParameterStatistics({
+    required String parameterName, // 参数名称（如 "steps", "scale"）
+    required String value, // 参数值
+    required int count, // 使用该参数的图片数量
+    @Default(0) double percentage, // 百分比 (0-100)
+  }) = _ParameterStatistics;
+
+  const ParameterStatistics._();
+}
+
 /// 画廊统计数据模型
 ///
 /// 包含画廊的完整统计信息，用于统计仪表盘显示
@@ -95,6 +126,27 @@ class GalleryStatistics with _$GalleryStatistics {
     /// 文件大小分布统计
     @Default([]) List<SizeDistributionStatistics> sizeDistribution,
 
+    /// 标签分布统计
+    @Default([]) List<TagStatistics> tagDistribution,
+
+    /// 参数分布统计
+    @Default([]) List<ParameterStatistics> parameterDistribution,
+
+    /// 每日趋势统计
+    @Default([]) List<DailyTrendStatistics> dailyTrends,
+
+    /// 每周趋势统计
+    @Default([]) List<WeeklyTrendStatistics> weeklyTrends,
+
+    /// 每月趋势统计
+    @Default([]) List<MonthlyTrendStatistics> monthlyTrends,
+
+    /// 收藏统计信息
+    @Default({}) Map<String, dynamic> favoritesStatistics,
+
+    /// 最近活动时间线
+    @Default([]) List<Map<String, dynamic>> recentActivity,
+
     /// 统计生成时间
     required DateTime calculatedAt,
   }) = _GalleryStatistics;
@@ -117,18 +169,12 @@ class GalleryStatistics with _$GalleryStatistics {
 
   /// 格式化字节数为可读字符串
   String _formatBytes(int bytes) {
-    if (bytes < 1024) {
-      return '$bytes B';
-    } else if (bytes < 1024 * 1024) {
-      final kb = (bytes / 1024).toStringAsFixed(2);
-      return '$kb KB';
-    } else if (bytes < 1024 * 1024 * 1024) {
-      final mb = (bytes / (1024 * 1024)).toStringAsFixed(2);
-      return '$mb MB';
-    } else {
-      final gb = (bytes / (1024 * 1024 * 1024)).toStringAsFixed(2);
-      return '$gb GB';
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(2)} KB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
     }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
 
   /// 获取收藏图片占比

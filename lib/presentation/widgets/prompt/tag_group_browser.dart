@@ -1,12 +1,14 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/utils/localization_extension.dart';
+import '../common/themed_divider.dart';
 import '../../../data/models/prompt/tag_category.dart';
 import '../../../data/models/tag/tag_suggestion.dart';
 import '../../providers/danbooru_suggestion_provider.dart';
 import '../../providers/tag_library_provider.dart';
 import '../autocomplete/autocomplete.dart';
+import '../common/themed_input.dart';
 
 /// 标签分组浏览器
 ///
@@ -156,7 +158,8 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
               }
 
               final isExpanded = _expandedCategories[category] ?? false;
-              final categoryName = TagSubCategoryHelper.getDisplayName(category);
+              final categoryName =
+                  TagSubCategoryHelper.getDisplayName(category);
 
               return _buildCategoryTile(
                 theme: theme,
@@ -185,56 +188,61 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
           ),
         ),
       ),
-      child: AutocompleteTextField(
+      child: AutocompleteWrapper.localTag(
         controller: _searchController,
         focusNode: _searchFocusNode,
-        enableAutocomplete: true,
+        ref: ref,
         config: const AutocompleteConfig(
           maxSuggestions: 10,
           showTranslation: true,
           autoInsertComma: false,
         ),
-        decoration: InputDecoration(
-          hintText: context.l10n.tagGroupBrowser_searchHint,
-          hintStyle: TextStyle(
-            fontSize: 14,
-            color: theme.colorScheme.onSurface.withOpacity(0.5),
-          ),
-          prefixIcon: Icon(
-            Icons.search,
-            color: theme.colorScheme.onSurface.withOpacity(0.5),
-          ),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: Icon(
-                    Icons.clear,
-                    color: theme.colorScheme.onSurface.withOpacity(0.5),
-                  ),
-                  onPressed: () {
-                    _searchController.clear();
-                    ref.read(danbooruSuggestionNotifierProvider.notifier).clear();
-                    setState(() {});
-                  },
-                )
-              : null,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 12,
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          filled: true,
-          fillColor: theme.colorScheme.surfaceContainerHighest,
-        ),
-        style: const TextStyle(fontSize: 14),
-        onSubmitted: (_) {
-          setState(() {});
-        },
         onChanged: (_) {
           setState(() {});
         },
+        child: ThemedInput(
+          controller: _searchController,
+          decoration: InputDecoration(
+            hintText: context.l10n.tagGroupBrowser_searchHint,
+            hintStyle: TextStyle(
+              fontSize: 14,
+              color: theme.colorScheme.onSurface.withOpacity(0.5),
+            ),
+            prefixIcon: Icon(
+              Icons.search,
+              color: theme.colorScheme.onSurface.withOpacity(0.5),
+            ),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: Icon(
+                      Icons.clear,
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    ),
+                    onPressed: () {
+                      _searchController.clear();
+                      ref
+                          .read(danbooruSuggestionNotifierProvider.notifier)
+                          .clear();
+                      setState(() {});
+                    },
+                  )
+                : null,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide.none,
+            ),
+            filled: true,
+            fillColor: theme.colorScheme.surfaceContainerHighest,
+          ),
+          style: const TextStyle(fontSize: 14),
+          onSubmitted: (_) {
+            setState(() {});
+          },
+        ),
       ),
     );
   }
@@ -306,14 +314,14 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _handleTagTap(suggestion.tag),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color: isSelected
                 ? theme.colorScheme.primary.withOpacity(0.15)
                 : theme.colorScheme.primaryContainer.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: isSelected
                   ? theme.colorScheme.primary.withOpacity(0.5)
@@ -382,7 +390,7 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         side: BorderSide(
           color: theme.colorScheme.outline.withOpacity(0.1),
         ),
@@ -394,8 +402,8 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
           InkWell(
             onTap: () => _toggleCategory(category),
             borderRadius: BorderRadius.vertical(
-              top: const Radius.circular(12),
-              bottom: isExpanded ? Radius.zero : const Radius.circular(12),
+              top: const Radius.circular(8),
+              bottom: isExpanded ? Radius.zero : const Radius.circular(8),
             ),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -515,7 +523,7 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
 
     return Column(
       children: [
-        Divider(height: 1, color: theme.colorScheme.outline.withOpacity(0.1)),
+        const ThemedDivider(height: 1),
         Padding(
           padding: const EdgeInsets.all(12),
           child: Wrap(
@@ -537,14 +545,14 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _handleTagTap(tagText),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color: isSelected
                 ? theme.colorScheme.primary.withOpacity(0.15)
                 : theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: isSelected
                   ? theme.colorScheme.primary.withOpacity(0.5)

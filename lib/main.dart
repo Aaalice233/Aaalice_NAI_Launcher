@@ -1,19 +1,39 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:window_manager/window_manager.dart';
 import 'package:tray_manager/tray_manager.dart';
-import 'dart:io';
+import 'package:video_player_media_kit/video_player_media_kit.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'package:timeago/timeago.dart' as timeago;
 
 import 'core/constants/storage_keys.dart';
+import 'l10n/app_localizations.dart';
+import 'l10n/app_localizations_en.dart';
+import 'l10n/app_localizations_zh.dart';
+import 'core/network/proxy_service.dart';
 import 'core/network/system_proxy_http_overrides.dart';
-import 'core/network/windows_proxy_helper.dart';
-import 'core/storage/crash_recovery_service.dart';
+import 'core/shortcuts/shortcut_storage.dart';
+import 'core/services/data_migration_service.dart';
+import 'core/services/sqflite_bootstrap_service.dart';
 import 'core/utils/app_logger.dart';
+import 'core/utils/hive_storage_helper.dart';
 import 'data/datasources/local/nai_tags_data_source.dart';
 import 'presentation/screens/splash/app_bootstrap.dart';
+
+/// Get localized strings based on the stored locale setting
+/// Used in main() before the app is initialized
+AppLocalizations _getLocalizedStrings() {
+  final box = Hive.box(StorageKeys.settingsBox);
+  final localeCode = box.get(StorageKeys.locale, defaultValue: 'zh') as String;
+  if (localeCode == 'en') {
+    return AppLocalizationsEn();
+  }
+  return AppLocalizationsZh();
+}
 
 /// 窗口状态观察者，用于保存窗口位置和大小
 class WindowStateObserver extends WidgetsBindingObserver {
@@ -93,7 +113,7 @@ class AppTrayListener extends TrayListener {
   }
 }
 
-/// 窗口监听器，处理窗口关闭事件
+/// 窗口监听器，处理窗口关闭和显示事件
 class AppWindowListener extends WindowListener {
   @override
   Future<void> onWindowClose() async {
@@ -107,16 +127,66 @@ class AppWindowListener extends WindowListener {
       AppLogger.e('Failed to hide window to tray: $e', 'WindowListener');
     }
   }
+
+  @override
+  Future<void> onWindowFocus() async {
+    // 窗口获得焦点时的处理
+    AppLogger.d('Window focused', 'WindowListener');
+  }
+}
+
+/// 处理来自 Windows 原生层的唤醒消息
+/// 当新实例启动时，已存在的实例会收到此消息
+void setupWindowsWakeUpChannel() {
+  if (!Platform.isWindows) return;
+  
+  const channel = MethodChannel('com.nailauncher/window_control');
+  channel.setMethodCallHandler((call) async {
+    if (call.method == 'wakeUp') {
+      try {
+        // 确保窗口显示并置于前台
+        await windowManager.show();
+        await windowManager.focus();
+        await windowManager.restore();
+        AppLogger.i('Window woken up by new instance', 'Main');
+      } catch (e) {
+        AppLogger.e('Failed to wake up window: $e', 'Main');
+      }
+    }
+  });
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // 初始化日志系统（必须在其他操作之前）
+  await AppLogger.initialize(isTestEnvironment: false);
+  AppLogger.i('Application starting', 'Main');
 
-  // 初始化日志系统
-  await AppLogger.init();
+  // 增加图片缓存限制，防止本地画廊滚动时图片被回收变白
+  PaintingBinding.instance.imageCache.maximumSize = 500; // 最大缓存 500 张图片
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 200 << 20; // 200MB
 
-  // 初始化 Hive
-  await Hive.initFlutter();
+  // 初始化 Windows 视频播放支持
+  VideoPlayerMediaKit.ensureInitialized(
+    windows: true,
+  );
+
+  // 日志系统已自动初始化，无需显式调用
+
+  // 初始化 SQLite FFI（Windows/Linux 桌面端必需）
+  await SqfliteBootstrapService.instance.ensureInitialized();
+
+  // 在 Hive 初始化之前执行迁移，避免新路径先创建占位文件导致旧数据被误跳过
+  try {
+    final migrationResult = await DataMigrationService.instance.migrateAll();
+    AppLogger.i('Startup migration result: $migrationResult', 'Main');
+  } catch (e) {
+    AppLogger.w('Startup migration failed (will continue): $e', 'Main');
+  }
+
+  // 初始化 Hive（使用子目录存储，支持迁移旧数据）
+  await HiveStorageHelper.instance.init();
 
   // 预先打开 Hive boxes (确保 LocalStorageService 可用)
   await Hive.openBox(StorageKeys.settingsBox);
@@ -128,28 +198,23 @@ void main() async {
   await Hive.openBox(StorageKeys.localFavoritesBox);
   await Hive.openBox(StorageKeys.tagsBox);
   await Hive.openBox(StorageKeys.searchIndexBox);
-  // Additional Hive boxes
-  await Hive.openBox(StorageKeys.replicationQueueBox);
-  await Hive.openBox(StorageKeys.warmupMetricsBox);
-  await Hive.openBox(StorageKeys.appStateBox);
-  await Hive.openBox(StorageKeys.favoritesBox);
+  // 统计数据缓存 Box
+  await Hive.openBox(StorageKeys.statisticsCacheBox);
+  // 队列相关 Box（预加载以避免首次打开队列管理页面时的延迟）
+  await Hive.openBox<String>(StorageKeys.replicationQueueBox);
+  await Hive.openBox<String>(StorageKeys.queueExecutionStateBox);
+
+  // 初始化快捷键存储
+  final shortcutStorage = ShortcutStorage();
+  await shortcutStorage.init();
+  AppLogger.d('Shortcut storage initialized', 'Main');
 
   // Timeago 本地化配置
   timeago.setLocaleMessages('zh', timeago.ZhCnMessages());
   timeago.setLocaleMessages('zh_CN', timeago.ZhCnMessages());
 
-  // 创建 ProviderContainer
-  final container = ProviderContainer();
-
-  // 记录会话开始（用于崩溃恢复检测）
-  final crashRecoveryService = container.read(crashRecoveryServiceProvider);
-  await crashRecoveryService.logSessionState(
-    type: JournalEntryType.sessionStart,
-    metadata: {'startTime': DateTime.now().toIso8601String()},
-  );
-  AppLogger.i('Session start logged for crash recovery', 'Main');
-
   // 后台预加载 NAI 标签数据（不阻塞启动）
+  final container = ProviderContainer();
   Future.microtask(() async {
     try {
       await container.read(naiTagsDataSourceProvider).loadData();
@@ -163,6 +228,11 @@ void main() async {
   // 桌面端窗口配置
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     await windowManager.ensureInitialized();
+    
+    // 设置 Windows 唤醒消息处理（单实例唤醒）
+    if (Platform.isWindows) {
+      setupWindowsWakeUpChannel();
+    }
 
     // 从 Hive 读取保存的窗口状态
     final box = Hive.box(StorageKeys.settingsBox);
@@ -210,16 +280,19 @@ void main() async {
         await trayManager.setIcon('assets/icons/app_icon.ico');
         await trayManager.setToolTip('NAI Launcher');
 
+        // 获取本地化字符串
+        final l10n = _getLocalizedStrings();
+
         final menu = Menu(
           items: [
             MenuItem(
               key: 'show',
-              label: '显示窗口',
+              label: l10n.tray_show,
             ),
             MenuItem.separator(),
             MenuItem(
               key: 'exit',
-              label: '退出',
+              label: l10n.tray_exit,
             ),
           ],
         );
@@ -238,12 +311,46 @@ void main() async {
     }
   }
 
-  // Windows 系统代理配置
-  if (Platform.isWindows) {
-    final proxy = WindowsProxyHelper.getSystemProxy();
-    if (proxy != null && proxy != 'DIRECT') {
-      HttpOverrides.global = SystemProxyHttpOverrides(proxy);
-      AppLogger.i('Applied system proxy: $proxy', 'NETWORK');
+  // 系统代理配置（根据用户设置）
+  if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+    final settingsBox = Hive.box(StorageKeys.settingsBox);
+    final proxyEnabled =
+        settingsBox.get(StorageKeys.proxyEnabled, defaultValue: true) as bool;
+
+    if (proxyEnabled) {
+      final proxyMode = settingsBox.get(
+        StorageKeys.proxyMode,
+        defaultValue: 'auto',
+      ) as String;
+
+      String? proxyAddress;
+
+      if (proxyMode == 'manual') {
+        // 手动模式：从设置读取
+        final host = settingsBox.get(StorageKeys.proxyManualHost) as String?;
+        final port = settingsBox.get(StorageKeys.proxyManualPort) as int?;
+        if (host != null && host.isNotEmpty && port != null && port > 0) {
+          proxyAddress = '$host:$port';
+        }
+      } else {
+        // 自动模式：从系统获取
+        proxyAddress = ProxyService.getSystemProxyAddress();
+      }
+
+      if (proxyAddress != null && proxyAddress.isNotEmpty) {
+        HttpOverrides.global = SystemProxyHttpOverrides('PROXY $proxyAddress');
+        AppLogger.i(
+          'Applied proxy: $proxyAddress (mode: $proxyMode)',
+          'NETWORK',
+        );
+      } else {
+        AppLogger.w(
+          'Proxy enabled but no proxy address available (mode: $proxyMode)',
+          'NETWORK',
+        );
+      }
+    } else {
+      AppLogger.d('Proxy disabled by user settings', 'NETWORK');
     }
   }
 
@@ -253,12 +360,10 @@ void main() async {
     AppLogger.d('Window state observer registered', 'Main');
   }
 
-  // 运行应用
   runApp(
     UncontrolledProviderScope(
       container: container,
       child: const AppBootstrap(),
     ),
   );
-
 }

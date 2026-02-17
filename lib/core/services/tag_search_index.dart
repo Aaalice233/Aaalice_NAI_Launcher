@@ -4,6 +4,9 @@ import 'dart:isolate';
 import '../../data/models/tag/local_tag.dart';
 import '../utils/app_logger.dart';
 
+/// 调试模式开关
+const _debugSearch = false;
+
 /// Trie 节点
 class _TrieNode {
   final Map<String, _TrieNode> children = {};
@@ -297,28 +300,50 @@ class TagSearchIndex {
         .add(index);
   }
 
-  /// 搜索标签
+  /// 搜索标签（支持懒加载）
   /// [query] 搜索词
   /// [limit] 最大返回数量
   List<LocalTag> search(String query, {int limit = 20}) {
     if (query.isEmpty) return [];
 
     final normalizedQuery = query.trim().toLowerCase();
+    if (_debugSearch) {
+      AppLogger.d('TagSearchIndex.search: "$normalizedQuery", _isReady=$_isReady', 'TagSearch');
+    }
+
+    // 索引未就绪且未在构建时，触发后台构建
+    if (!_isReady && !_isBuilding && _allTags.isNotEmpty) {
+      _buildIndexAsync();
+    }
 
     // 判断是否包含中文
     final containsChinese = _containsChinese(normalizedQuery);
 
-    if (containsChinese) {
-      return _searchChinese(normalizedQuery, limit);
-    } else {
-      return _searchEnglish(normalizedQuery, limit);
+    final results = containsChinese
+        ? _searchChinese(normalizedQuery, limit)
+        : _searchEnglish(normalizedQuery, limit);
+
+    if (_debugSearch) {
+      AppLogger.d('TagSearchIndex.search: found ${results.length} results for "$normalizedQuery": ${results.take(5).map((t) => '"${t.tag}"').join(', ')}', 'TagSearch');
     }
+
+    return results;
+  }
+
+  /// 异步构建索引（不阻塞主线程）
+  void _buildIndexAsync() {
+    if (_isBuilding || _isReady) return;
+
+    buildIndex(_allTags, useIsolate: true);
   }
 
   /// 英文前缀搜索
   List<LocalTag> _searchEnglish(String prefix, int limit) {
     if (!_isReady) {
       // 索引未就绪，使用简单搜索
+      if (_debugSearch) {
+        AppLogger.d('_searchEnglish: index not ready, using simple search for "$prefix"', 'TagSearch');
+      }
       return _simpleSearch(prefix, limit);
     }
 
@@ -326,17 +351,30 @@ class TagSearchIndex {
 
     // 从 Trie 搜索
     var node = _root;
+    var matchedPrefix = '';
     for (final codeUnit in prefix.codeUnits) {
       final char = String.fromCharCode(codeUnit);
+      matchedPrefix += char;
       if (!node.children.containsKey(char)) {
+        if (_debugSearch) {
+          AppLogger.d('_searchEnglish: char "$char" not found in Trie (matched: "$matchedPrefix")', 'TagSearch');
+        }
         break;
       }
       node = node.children[char]!;
     }
 
+    if (_debugSearch) {
+      AppLogger.d('_searchEnglish: Trie traversal for "$prefix" ended at node with ${node.tagIndices.length} indices', 'TagSearch');
+    }
+
     // 收集所有匹配的标签索引
     if (node != _root) {
       _collectFromNode(node, resultIndices, limit * 2);
+    }
+
+    if (_debugSearch) {
+      AppLogger.d('_searchEnglish: collected ${resultIndices.length} indices: ${resultIndices.take(10).join(', ')}', 'TagSearch');
     }
 
     // 转换为标签列表并排序
@@ -347,19 +385,18 @@ class TagSearchIndex {
 
     // 按相关性排序：精确匹配 > 前缀匹配 > count
     results.sort((a, b) {
-      final aExact =
-          a.tag.toLowerCase() == prefix || (a.alias?.toLowerCase() == prefix);
-      final bExact =
-          b.tag.toLowerCase() == prefix || (b.alias?.toLowerCase() == prefix);
+      final aTag = a.tag.toLowerCase();
+      final bTag = b.tag.toLowerCase();
+      final aAlias = a.alias?.toLowerCase();
+      final bAlias = b.alias?.toLowerCase();
 
+      final aExact = aTag == prefix || aAlias == prefix;
+      final bExact = bTag == prefix || bAlias == prefix;
       if (aExact && !bExact) return -1;
       if (!aExact && bExact) return 1;
 
-      final aStartsWith = a.tag.toLowerCase().startsWith(prefix) ||
-          (a.alias?.toLowerCase().startsWith(prefix) ?? false);
-      final bStartsWith = b.tag.toLowerCase().startsWith(prefix) ||
-          (b.alias?.toLowerCase().startsWith(prefix) ?? false);
-
+      final aStartsWith = aTag.startsWith(prefix) || (aAlias?.startsWith(prefix) ?? false);
+      final bStartsWith = bTag.startsWith(prefix) || (bAlias?.startsWith(prefix) ?? false);
       if (aStartsWith && !bStartsWith) return -1;
       if (!aStartsWith && bStartsWith) return 1;
 
@@ -497,6 +534,24 @@ class TagSearchIndex {
   /// 判断字符串是否包含中文
   bool _containsChinese(String text) {
     return RegExp(r'[\u4e00-\u9fa5]').hasMatch(text);
+  }
+
+  /// 设置标签列表（用于懒加载模式）
+  ///
+  /// 调用此方法后，索引不会立即构建，而是在首次搜索时触发
+  void setTags(List<LocalTag> tags) {
+    _allTags = List.from(tags)..sort((a, b) => b.count.compareTo(a.count));
+    // 清除索引状态，强制下次搜索时重建索引
+    // 必须清除索引，因为 _allTags 已被替换，旧的索引数字会指向错误的标签
+    _root.children.clear();
+    _chineseIndex.clear();
+    _chineseTieredIndex.clear();
+    _aliasIndex.clear();
+    _isReady = false;
+    _isBuilding = false;
+    if (_debugSearch) {
+      AppLogger.d('TagSearchIndex.setTags: ${_allTags.length} tags, index cleared', 'TagSearch');
+    }
   }
 
   /// 清空索引

@@ -1,397 +1,516 @@
+import 'dart:async';
 import 'dart:io';
-import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../core/constants/storage_keys.dart';
 import '../../core/utils/app_logger.dart';
-import '../../core/utils/nai_metadata_parser.dart';
-import '../models/gallery/local_image_record.dart';
-import '../models/gallery/nai_image_metadata.dart';
-import '../services/local_metadata_cache_service.dart';
+import '../../data/models/gallery/local_image_record.dart';
 
-/// 顶级函数：在 Isolate 中解析 NAI 隐写元数据 (用于 compute)
-///
-/// 避免主线程阻塞，提升 UI 流畅度
-Future<NaiImageMetadata?> parseNaiMetadataInIsolate(
-  Map<String, dynamic> data,
-) async {
-  try {
-    final bytes = data['bytes'] as Uint8List;
-    return await NaiMetadataParser.extractFromBytes(bytes);
-  } catch (e) {
-    return null; // 解析失败返回 null
-  }
+import '../services/gallery/gallery_database_service.dart';
+import '../services/gallery/gallery_file_watcher_service.dart';
+import '../services/gallery/gallery_scan_service.dart';
+import '../services/gallery/gallery_search_service.dart';
+
+/// 分页查询结果
+class PagedResult<T> {
+  final List<T> items;
+  final int page;
+  final int pageSize;
+  final int totalCount;
+  final int totalPages;
+
+  PagedResult({
+    required this.items,
+    required this.page,
+    required this.pageSize,
+    required this.totalCount,
+    required this.totalPages,
+  });
+
+  bool get hasMore => page < totalPages - 1;
 }
 
-/// 本地画廊仓库
+/// 批量操作结果（保持兼容）
+typedef BulkOperationResult = ({
+  int success,
+  int failed,
+  List<String> errors,
+});
+
+/// 本地画廊仓库（简化版）
 ///
-/// 负责扫描 App 生成的图片目录并解析元数据
+/// 架构原则：
+/// 1. **SQLite是唯一数据源** - 无冗余缓存层
+/// 2. **自动文件监听** - 通过 FileWatcherService 实时增量更新
+/// 3. **预热阶段智能决策** - 根据待处理文件数量决定是否扫描
 class LocalGalleryRepository {
   LocalGalleryRepository._();
+  static final LocalGalleryRepository instance = LocalGalleryRepository._();
 
-  /// 元数据缓存服务
-  final _cacheService = LocalMetadataCacheService();
+  final _db = GalleryDatabaseService.instance;
+  final _scanService = GalleryScanService.instance;
+  final _watcher = GalleryFileWatcherService.instance;
+  final _searchService = GallerySearchService.instance;
 
-  /// 获取收藏 Box
+  bool _initialized = false;
+  bool get isInitialized => _initialized;
+
+  /// 预热阶段最大处理文件数，超过则跳过预热扫描
+  static const int _warmupMaxFiles = 1000;
+
+  /// 获取收藏 Box（保持兼容）
   Box get _favoritesBox => Hive.box(StorageKeys.localFavoritesBox);
-
-  /// 获取标签 Box
   Box get _tagsBox => Hive.box(StorageKeys.tagsBox);
 
-  /// 获取图片保存目录（公共方法）
+  // ============================================================
+  // 初始化（预热阶段）
+  // ============================================================
+
+  /// 初始化仓库（应用预热阶段调用）
   ///
-  /// 优先使用用户设置的自定义路径,否则使用默认路径
-  /// 这是唯一的保存路径获取方法，保证保存和扫描使用同一目录
-  Future<Directory> getImageDirectory() async {
-    return _getImageDirectory();
+  /// 优化策略：
+  /// 1. 初始化数据库
+  /// 2. 快速检测需要处理的文件数量
+  /// 3. 【关键决策】如果 <=1000张，在预热阶段处理；如果 >1000张，跳过预热扫描
+  /// 4. 启动文件监听
+  /// 5. 【应用启动后】后台继续完整增量扫描（不阻塞）
+  Future<void> initialize({ScanProgressCallback? onProgress}) async {
+    if (_initialized) return;
+
+    final stopwatch = Stopwatch()..start();
+    AppLogger.i('Initializing LocalGalleryRepository...', 'LocalGalleryRepo');
+
+    try {
+      // 1. 初始化数据库
+      await _db.init();
+      _initialized = true;
+
+      final dir = await getImageDirectory();
+      if (!await dir.exists()) {
+        AppLogger.w('Image directory does not exist', 'LocalGalleryRepo');
+        return;
+      }
+
+      // 2. 快速检测需要处理的文件数量（最多2秒）
+      AppLogger.i('Detecting files need processing...', 'LocalGalleryRepo');
+      final (totalFiles, needProcessing) = await _detectWithTimeout(dir);
+
+      AppLogger.i(
+        'Detection result: $totalFiles total, $needProcessing need processing (threshold: $_warmupMaxFiles)',
+        'LocalGalleryRepo',
+      );
+
+      // 3. 【关键决策】根据待处理文件数量决定策略
+      if (needProcessing > 0 && needProcessing <= _warmupMaxFiles) {
+        // 情况A: 有少量文件需要处理（<=1000），在预热阶段快速处理
+        AppLogger.i(
+          'Warmup scan: processing $needProcessing files...',
+          'LocalGalleryRepo',
+        );
+        onProgress?.call(processed: 0, total: needProcessing, phase: 'indexing');
+
+        final result = await _scanService.quickStartupScan(
+          dir,
+          maxFiles: _warmupMaxFiles,
+          onProgress: onProgress,
+        );
+
+        AppLogger.i(
+          'Warmup scan completed: ${result.filesAdded} added, ${result.filesUpdated} updated',
+          'LocalGalleryRepo',
+        );
+      } else if (needProcessing > _warmupMaxFiles) {
+        // 情况B: 有大量文件需要处理（>1000），跳过预热扫描，让用户快速进入
+        AppLogger.i(
+          'Too many files need processing ($needProcessing > $_warmupMaxFiles), skipping warmup scan',
+          'LocalGalleryRepo',
+        );
+        // 通知UI有后台扫描待执行
+        onProgress?.call(processed: 0, total: needProcessing, phase: 'pending');
+      } else {
+        // 情况C: 没有文件需要处理，数据库已是最新
+        AppLogger.i('All files up to date, no scan needed', 'LocalGalleryRepo');
+      }
+
+      // 4. 启动文件监听（自动增量更新）
+      await _watcher.watch(dir);
+
+      stopwatch.stop();
+      AppLogger.i(
+        'LocalGalleryRepository initialized in ${stopwatch.elapsedMilliseconds}ms',
+        'LocalGalleryRepo',
+      );
+
+      // 5. 【应用启动后】后台继续完整增量扫描（不阻塞）
+      // 如果有剩余文件需要处理，在后台继续
+      if (needProcessing > _warmupMaxFiles) {
+        _startBackgroundScan(dir, onProgress: onProgress);
+      }
+
+    } catch (e, stack) {
+      AppLogger.e('Failed to initialize', e, stack, 'LocalGalleryRepo');
+      _initialized = true; // 即使出错也标记初始化完成，不阻塞应用
+    }
   }
 
-  /// 获取图片保存目录（内部方法）
-  ///
-  /// 优先使用用户设置的自定义路径,否则使用默认路径
-  Future<Directory> _getImageDirectory() async {
-    // 1. 获取图片保存路径（优先使用用户设置的自定义路径）
-    // 从 Hive 读取,与 LocalStorageService 保持一致
+  /// 快速检测文件（带2秒超时）
+  Future<(int total, int needProcessing)> _detectWithTimeout(Directory dir) async {
+    try {
+      return await _scanService.detectFilesNeedProcessing(dir).timeout(
+        const Duration(seconds: 2),
+        onTimeout: () {
+          AppLogger.w('File detection timeout, assuming many files', 'LocalGalleryRepo');
+          return (0, _warmupMaxFiles + 1); // 超时则假设有大量文件，跳过预热
+        },
+      );
+    } catch (e) {
+      AppLogger.w('File detection failed: $e', 'LocalGalleryRepo');
+      return (0, 0); // 检测失败，假设没有文件需要处理
+    }
+  }
+
+  /// 启动后台扫描（应用启动后执行，不阻塞UI）
+  void _startBackgroundScan(
+    Directory dir, {
+    ScanProgressCallback? onProgress,
+  }) {
+    // 使用 Timer 延迟执行，确保UI先完成渲染
+    Timer(const Duration(milliseconds: 100), () async {
+      AppLogger.i('Starting background complete scan...', 'LocalGalleryRepo');
+
+      try {
+        final result = await _scanService.incrementalScan(
+          dir,
+          onProgress: onProgress,
+        );
+
+        AppLogger.i(
+          'Background scan completed: ${result.filesAdded} added, ${result.filesUpdated} updated, ${result.filesSkipped} cached',
+          'LocalGalleryRepo',
+        );
+
+        // 通知扫描完成
+        onProgress?.call(processed: result.filesScanned, total: result.filesScanned, phase: 'completed');
+      } catch (e) {
+        AppLogger.w('Background scan failed: $e', 'LocalGalleryRepo');
+      }
+    });
+  }
+
+  // ============================================================
+  // 文件列表
+  // ============================================================
+
+  /// 获取图片保存目录
+  Future<Directory> getImageDirectory() async {
     final settingsBox = Hive.box(StorageKeys.settingsBox);
     final customPath = settingsBox.get(StorageKeys.imageSavePath) as String?;
 
-    final Directory imageDir;
     if (customPath != null && customPath.isNotEmpty) {
-      // 使用用户设置的自定义路径
-      imageDir = Directory(customPath);
-      AppLogger.i(
-        'Using custom save path: ${imageDir.path}',
-        'LocalGalleryRepo',
-      );
-    } else {
-      // 使用默认路径：App 文档目录下的 nai_launcher/images
-      final appDir = await getApplicationDocumentsDirectory();
-      imageDir = Directory('${appDir.path}/nai_launcher/images');
-      AppLogger.i(
-        'Using default save path: ${imageDir.path}',
-        'LocalGalleryRepo',
-      );
+      return Directory(customPath);
     }
 
-    return imageDir;
+    final appDir = await getApplicationDocumentsDirectory();
+    final newPath = '${appDir.path}/NAI_Launcher/images';
+
+    // 检查是否需要从旧路径迁移
+    await _migrateImagesIfNeeded(appDir.path, newPath);
+
+    return Directory(newPath);
   }
 
-  /// 快速路径：获取所有文件路径而不解析元数据
+  /// 从旧位置迁移图片（如果需要）
   ///
-  /// 返回按修改时间降序排列的文件列表（最新优先）
+  /// 旧位置：{appDir}/nai_launcher/images/
+  /// 新位置：{appDir}/NAI_Launcher/images/
+  Future<void> _migrateImagesIfNeeded(String appDirPath, String newPath) async {
+    try {
+      // 如果新路径已存在且有文件，不需要迁移
+      final newDir = Directory(newPath);
+      if (await newDir.exists()) {
+        final files = await newDir.list().toList();
+        if (files.isNotEmpty) {
+          return; // 新位置已有数据，不迁移
+        }
+      }
+
+      // 检查旧位置是否存在
+      final oldPath = '$appDirPath/nai_launcher/images';
+      final oldDir = Directory(oldPath);
+      if (!await oldDir.exists()) {
+        return; // 没有旧数据需要迁移
+      }
+
+      // 检查旧位置是否有文件
+      final oldFiles = await oldDir.list().toList();
+      if (oldFiles.isEmpty) {
+        return; // 旧位置为空，不需要迁移
+      }
+
+      AppLogger.i('发现旧版本图片数据，开始迁移...', 'LocalGallery');
+      AppLogger.i('从: $oldPath', 'LocalGallery');
+      AppLogger.i('到: $newPath', 'LocalGallery');
+
+      // 确保新目录存在
+      if (!await newDir.exists()) {
+        await newDir.create(recursive: true);
+      }
+
+      // 迁移文件
+      var migratedCount = 0;
+      for (final entity in oldFiles) {
+        try {
+          final fileName = p.basename(entity.path);
+          final newFilePath = '$newPath/$fileName';
+
+          if (entity is File) {
+            await entity.copy(newFilePath);
+            migratedCount++;
+          }
+        } catch (e) {
+          AppLogger.e('迁移失败 ${entity.path}: $e', 'LocalGallery');
+        }
+      }
+
+      if (migratedCount > 0) {
+        AppLogger.i('图片数据迁移完成: $migratedCount 个文件', 'LocalGallery');
+        AppLogger.i('旧数据保留在: $oldPath（可手动删除）', 'LocalGallery');
+      }
+    } catch (e, stackTrace) {
+      AppLogger.e('图片迁移过程出错: $e', 'LocalGallery', stackTrace);
+    }
+  }
+
+  /// 获取所有图片文件（从文件系统，用于UI展示）
+  ///
+  /// 注意：这只是获取文件列表，不涉及元数据解析，不依赖扫描
   Future<List<File>> getAllImageFiles() async {
-    final stopwatch = Stopwatch()..start();
-    final dir = await _getImageDirectory();
+    final dir = await getImageDirectory();
     if (!dir.existsSync()) return [];
+
+    final stopwatch = Stopwatch()..start();
     final files = dir
         .listSync(recursive: false)
         .whereType<File>()
-        .where((f) => f.path.toLowerCase().endsWith('.png'))
+        .where((f) {
+          final ext = f.path.toLowerCase();
+          return ext.endsWith('.png') || ext.endsWith('.jpg') || 
+                 ext.endsWith('.jpeg') || ext.endsWith('.webp');
+        })
         .toList()
-      // 降序排序（最新优先）- 业务需求
       ..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+
     stopwatch.stop();
-    AppLogger.i(
-      'Indexing completed: ${files.length} files in ${stopwatch.elapsedMilliseconds}ms',
+    AppLogger.d(
+      'Listed ${files.length} files in ${stopwatch.elapsedMilliseconds}ms',
       'LocalGalleryRepo',
     );
     return files;
   }
 
-  /// 加载文件记录（批量解析元数据，带缓存）
+  // ============================================================
+  // 记录加载
+  // ============================================================
+
+  /// 加载文件记录（从数据库或实时解析）
   ///
-  /// [files] 要加载的文件列表
-  /// 返回解析后的记录列表
+  /// 优先级：
+  /// 1. 数据库（已索引）- 最快
+  /// 2. 实时解析（未索引）- 解析并存入数据库
+  ///
+  /// 优化：使用批量查询替代N+1查询，单次SQL查询所有记录
   Future<List<LocalImageRecord>> loadRecords(List<File> files) async {
     final stopwatch = Stopwatch()..start();
-    int cacheHits = 0;
-    int cacheMisses = 0;
+    final records = <LocalImageRecord>[];
 
-    final records = await Future.wait(
-      files.map((file) async {
-        if (!file.existsSync()) {
-          return LocalImageRecord(
-            path: file.path,
-            size: 0,
-            modifiedAt: DateTime.now(),
-            metadataStatus: MetadataStatus.none,
-            isFavorite: isFavorite(file.path),
-            tags: getTags(file.path),
-          );
-        }
-
-        final filePath = file.path;
-        final fileModified = file.lastModifiedSync();
-
-        // 尝试从缓存获取
-        final cached = _cacheService.get(filePath);
-        if (cached != null) {
-          final cachedTs = cached['ts'] as DateTime;
-          // 时间戳匹配 → 缓存命中
-          if (cachedTs.millisecondsSinceEpoch ==
-              fileModified.millisecondsSinceEpoch) {
-            cacheHits++;
-            final meta = cached['meta'] as NaiImageMetadata;
-            return LocalImageRecord(
-              path: filePath,
-              size: file.lengthSync(),
-              modifiedAt: fileModified,
-              metadata: meta,
-              metadataStatus:
-                  meta.hasData ? MetadataStatus.success : MetadataStatus.none,
-              isFavorite: isFavorite(filePath),
-              tags: getTags(filePath),
-            );
-          }
-        }
-
-        // 缓存未命中，解析文件
-        cacheMisses++;
-        try {
-          final bytes = await file.readAsBytes();
-          final meta =
-              await compute(parseNaiMetadataInIsolate, {'bytes': bytes});
-
-          // 写入缓存
-          if (meta != null) {
-            await _cacheService.put(filePath, meta, fileModified);
-          }
-
-          return LocalImageRecord(
-            path: filePath,
-            size: bytes.length,
-            modifiedAt: fileModified,
-            metadata: meta,
-            metadataStatus: meta != null && meta.hasData
-                ? MetadataStatus.success
-                : MetadataStatus.none,
-            isFavorite: isFavorite(filePath),
-            tags: getTags(filePath),
-          );
-        } catch (e) {
-          AppLogger.w(
-            'Failed to parse metadata for $filePath: $e',
-            'LocalGalleryRepo',
-          );
-          return LocalImageRecord(
-            path: filePath,
-            size: 0,
-            modifiedAt: fileModified,
-            metadataStatus: MetadataStatus.failed,
-            isFavorite: isFavorite(filePath),
-            tags: getTags(filePath),
-          );
-        }
-      }),
-    );
-    stopwatch.stop();
-
-    // 统计解析成功数量
-    final successCount =
-        records.where((r) => r.metadataStatus == MetadataStatus.success).length;
-    AppLogger.i(
-      'Page load completed: ${records.length} records ($successCount with metadata) '
-          'in ${stopwatch.elapsedMilliseconds}ms [cache: $cacheHits hits, $cacheMisses misses]',
-      'LocalGalleryRepo',
-    );
-    return records;
-  }
-
-  /// 从单个文件解析元数据
-  ///
-  /// 用于拖放等场景，需要即时解析
-  Future<NaiImageMetadata?> parseMetadataFromFile(File file) async {
     try {
-      final bytes = await file.readAsBytes();
-      return await NaiMetadataParser.extractFromBytes(bytes);
-    } catch (e) {
-      AppLogger.e(
-        'Failed to parse metadata from file: ${file.path}',
-        e,
-        null,
+      // 1. 尝试从数据库批量获取（已索引）
+      if (_initialized) {
+        final filePaths = files.map((f) => f.path).toList();
+        final rows = await _db.queryImagesByPaths(filePaths);
+
+        // 构建路径到数据库记录的映射
+        final dbRecordMap = <String, LocalImageRecord>{};
+        for (final row in rows) {
+          final path = row['file_path'] as String;
+          dbRecordMap[path] = _db.mapToLocalImageRecord(row);
+        }
+
+        // 2. 对于数据库中不存在的记录，实时解析
+        for (final file in files) {
+          final dbRecord = dbRecordMap[file.path];
+          if (dbRecord != null) {
+            records.add(dbRecord);
+          } else {
+            final modified = await file.lastModified();
+            final basicRecord = await _parseBasicInfo(file, modified);
+            records.add(basicRecord);
+          }
+        }
+      } else {
+        // 数据库未初始化，全部实时解析
+        final futures = files.map((file) async {
+          final modified = await file.lastModified();
+          return _parseBasicInfo(file, modified);
+        });
+        final results = await Future.wait(futures, eagerError: false);
+        records.addAll(results.whereType<LocalImageRecord>());
+      }
+
+      stopwatch.stop();
+      AppLogger.d(
+        'Loaded ${records.length} records in ${stopwatch.elapsedMilliseconds}ms',
         'LocalGalleryRepo',
       );
-      return null;
+      return records;
+    } catch (e, stack) {
+      AppLogger.e('Failed to load records', e, stack, 'LocalGalleryRepo');
+      return records;
     }
   }
 
-  /// 从字节数据解析元数据
-  ///
-  /// 用于拖放等场景
-  Future<NaiImageMetadata?> parseMetadataFromBytes(Uint8List bytes) async {
-    try {
-      return await NaiMetadataParser.extractFromBytes(bytes);
-    } catch (e) {
-      AppLogger.e(
-        'Failed to parse metadata from bytes',
-        e,
-        null,
-        'LocalGalleryRepo',
-      );
-      return null;
-    }
+  /// 解析基本信息（快速，不读取完整元数据）
+  Future<LocalImageRecord> _parseBasicInfo(File file, DateTime modified) async {
+    final stat = await file.stat();
+
+    return LocalImageRecord(
+      path: file.path,
+      size: stat.size,
+      modifiedAt: modified,
+      isFavorite: isFavorite(file.path),
+      tags: getTags(file.path),
+    );
   }
 
-  /// 获取图片的收藏状态
+  // ============================================================
+  // 搜索
+  // ============================================================
+
+  /// 搜索图片（FTS5全文搜索）
+  Future<List<LocalImageRecord>> searchImages(
+    String query, {
+    int limit = 1000,
+  }) async {
+    if (!_initialized) return [];
+
+    final result = await _searchService.search(query, limit: limit);
+
+    // 批量查询图片记录，避免N+1查询
+    if (result.imageIds.isEmpty) return [];
+
+    final rows = await _db.queryImagesByIds(result.imageIds);
+    return rows.map((row) => _db.mapToLocalImageRecord(row)).toList();
+  }
+
+  /// 高级搜索
+  Future<List<LocalImageRecord>> advancedSearch({
+    String? textQuery,
+    DateTime? dateStart,
+    DateTime? dateEnd,
+    bool favoritesOnly = false,
+    int limit = 1000,
+  }) async {
+    if (!_initialized) return [];
+
+    final results = await _searchService.advancedSearch(
+      textQuery: textQuery,
+      dateStart: dateStart,
+      dateEnd: dateEnd,
+      favoritesOnly: favoritesOnly,
+      limit: limit,
+    );
+
+    return results.map((row) => _db.mapToLocalImageRecord(row)).toList();
+  }
+
+  // ============================================================
+  // 收藏
+  // ============================================================
+
   bool isFavorite(String filePath) {
     return _favoritesBox.get(filePath, defaultValue: false) as bool;
   }
 
-  /// 设置图片的收藏状态
   Future<void> setFavorite(String filePath, bool isFavorite) async {
     await _favoritesBox.put(filePath, isFavorite);
-    AppLogger.d(
-      'Set favorite: $filePath -> $isFavorite',
-      'LocalGalleryRepo',
-    );
+
+    // 同步到数据库
+    if (_initialized) {
+      final imageId = await _db.getImageIdByPath(filePath);
+      if (imageId != null) {
+        final currentlyFav = await _db.isFavorite(imageId);
+        if (isFavorite != currentlyFav) {
+          await _db.toggleFavorite(imageId);
+        }
+      }
+    }
   }
 
-  /// 切换图片的收藏状态
   Future<bool> toggleFavorite(String filePath) async {
-    final current = isFavorite(filePath);
-    final newState = !current;
+    final newState = !isFavorite(filePath);
     await setFavorite(filePath, newState);
     return newState;
   }
 
-  /// 获取图片的标签列表
+  int getTotalFavoriteCount() {
+    return _favoritesBox.values.where((v) => v == true).length;
+  }
+
+  // ============================================================
+  // 标签
+  // ============================================================
+
   List<String> getTags(String filePath) {
     final tags = _tagsBox.get(filePath, defaultValue: <String>[]);
     return List<String>.from(tags as List);
   }
 
-  /// 设置图片的标签列表
   Future<void> setTags(String filePath, List<String> tags) async {
     await _tagsBox.put(filePath, tags);
-    AppLogger.d(
-      'Set tags: $filePath -> $tags',
-      'LocalGalleryRepo',
-    );
-  }
 
-  /// 添加标签到图片
-  Future<void> addTag(String filePath, String tag) async {
-    final currentTags = getTags(filePath);
-    if (!currentTags.contains(tag)) {
-      final newTags = [...currentTags, tag];
-      await setTags(filePath, newTags);
-    }
-  }
-
-  /// 从图片移除标签
-  Future<void> removeTag(String filePath, String tag) async {
-    final currentTags = getTags(filePath);
-    if (currentTags.contains(tag)) {
-      final newTags = currentTags.where((t) => t != tag).toList();
-      await setTags(filePath, newTags);
-    }
-  }
-
-  /// 批量导出图片元数据到 JSON 文件
-  ///
-  /// [records] 要导出的图片记录列表
-  /// 返回导出的文件路径，失败返回 null
-  Future<File?> exportMetadataToJson(List<LocalImageRecord> records) async {
-    try {
-      final stopwatch = Stopwatch()..start();
-
-      // 1. 准备导出数据
-      final exportData = records.map((record) {
-        final map = <String, dynamic>{
-          'path': record.path,
-          'fileName': record.path.split(Platform.pathSeparator).last,
-          'size': record.size,
-          'modifiedAt': record.modifiedAt.toIso8601String(),
-          'isFavorite': record.isFavorite,
-          'tags': record.tags,
-          'metadataStatus': record.metadataStatus.name,
-        };
-
-        // 添加元数据（如果有）
-        if (record.metadata != null && record.metadata!.hasData) {
-          final meta = record.metadata!;
-          map['metadata'] = {
-            'prompt': meta.prompt,
-            'negativePrompt': meta.negativePrompt,
-            'seed': meta.seed,
-            'sampler': meta.sampler,
-            'steps': meta.steps,
-            'scale': meta.scale,
-            'width': meta.width,
-            'height': meta.height,
-            'model': meta.model,
-            'smea': meta.smea,
-            'smeaDyn': meta.smeaDyn,
-            'noiseSchedule': meta.noiseSchedule,
-            'cfgRescale': meta.cfgRescale,
-            'ucPreset': meta.ucPreset,
-            'qualityToggle': meta.qualityToggle,
-            'isImg2Img': meta.isImg2Img,
-            'strength': meta.strength,
-            'noise': meta.noise,
-            'software': meta.software,
-            'version': meta.version,
-            'source': meta.source,
-            'characterPrompts': meta.characterPrompts,
-            'characterNegativePrompts': meta.characterNegativePrompts,
-          };
+    // 同步到数据库
+    if (_initialized) {
+      final imageId = await _db.getImageIdByPath(filePath);
+      if (imageId != null) {
+        final existingTags = await _db.getImageTags(imageId);
+        for (final tag in existingTags) {
+          if (!tags.contains(tag)) await _db.removeTag(imageId, tag);
         }
-
-        return map;
-      }).toList();
-
-      // 2. 创建 JSON 对象
-      final jsonData = {
-        'exportedAt': DateTime.now().toIso8601String(),
-        'totalImages': records.length,
-        'images': exportData,
-      };
-
-      // 3. 获取下载目录
-      final downloadsDir = await getDownloadsDirectory();
-      if (downloadsDir == null) {
-        AppLogger.e(
-          'Failed to get downloads directory',
-          null,
-          null,
-          'LocalGalleryRepo',
-        );
-        return null;
+        for (final tag in tags) {
+          if (!existingTags.contains(tag)) await _db.addTag(imageId, tag);
+        }
       }
-
-      // 4. 生成文件名（带时间戳）
-      final timestamp =
-          DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
-      final fileName = 'nai_metadata_export_$timestamp.json';
-      final filePath = '${downloadsDir.path}${Platform.pathSeparator}$fileName';
-      final file = File(filePath);
-
-      // 5. 写入 JSON 文件
-      await file.writeAsString(
-        const JsonEncoder.withIndent('  ').convert(jsonData),
-      );
-
-      stopwatch.stop();
-      AppLogger.i(
-        'Exported ${records.length} images to $fileName in ${stopwatch.elapsedMilliseconds}ms',
-        'LocalGalleryRepo',
-      );
-
-      return file;
-    } catch (e) {
-      AppLogger.e(
-        'Failed to export metadata',
-        e,
-        null,
-        'LocalGalleryRepo',
-      );
-      return null;
     }
   }
 
-  /// 单例实例
-  static final LocalGalleryRepository instance = LocalGalleryRepository._();
+  // ============================================================
+  // 扫描操作
+  // ============================================================
+
+  /// 手动触发全量扫描
+  Future<ScanResult> performFullScan({ScanProgressCallback? onProgress}) async {
+    _ensureInitialized();
+    final dir = await getImageDirectory();
+    return await _scanService.fullScan(dir, onProgress: onProgress);
+  }
+
+  /// 手动触发增量扫描
+  Future<ScanResult> performIncrementalScan() async {
+    _ensureInitialized();
+    final dir = await getImageDirectory();
+    return await _scanService.incrementalScan(dir);
+  }
+
+  // ============================================================
+  // 工具方法
+  // ============================================================
+
+  void _ensureInitialized() {
+    if (!_initialized) {
+      throw StateError('LocalGalleryRepository not initialized');
+    }
+  }
 }

@@ -155,7 +155,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   Widget _buildTitle(ThemeData theme, Color primaryColor) {
     final lighterColor = Color.lerp(primaryColor, Colors.white, 0.4)!;
-
+    
     return Column(
       children: [
         ShaderMask(
@@ -202,18 +202,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         return l10n.warmup_initTagSystem;
       case 'warmup_loadingPromptConfig':
         return l10n.warmup_loadingPromptConfig;
+      case 'warmup_unifiedDbInit':
+        return l10n.warmup_unifiedDbInit;
+      case 'warmup_dataMigration':
+        return l10n.warmup_dataMigration;
       default:
         return taskKey;
     }
   }
 
-  Widget _buildProgressSection(
-    ThemeData theme,
-    Color primaryColor,
-    WarmupProgress progress,
-  ) {
+  Widget _buildProgressSection(ThemeData theme, Color primaryColor, WarmupProgress progress) {
     final translatedTask = _translateTaskKey(context, progress.currentTask);
-
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 48),
       child: Column(
@@ -242,7 +242,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   Widget _buildProgressBar(ThemeData theme, Color primaryColor, double value) {
     final lighterColor = Color.lerp(primaryColor, Colors.white, 0.4)!;
-
+    
     return Container(
       height: 4,
       constraints: const BoxConstraints(maxWidth: 300),

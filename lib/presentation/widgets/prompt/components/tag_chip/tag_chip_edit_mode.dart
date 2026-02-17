@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../providers/image_generation_provider.dart';
 import '../../../autocomplete/autocomplete.dart';
+import '../../../common/themed_input.dart';
 import '../../core/prompt_tag_config.dart';
 import '../../core/prompt_tag_colors.dart';
 
@@ -150,7 +151,8 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode>
       widget.category,
       isDark: theme.brightness == Brightness.dark,
     );
-    final gradientColor = CategoryGradient.getGradientStartColor(widget.category);
+    final gradientColor =
+        CategoryGradient.getGradientStartColor(widget.category);
 
     return KeyboardListener(
       focusNode: FocusNode(),
@@ -199,67 +201,71 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode>
                   : null,
             ),
             child: IntrinsicWidth(
-              child: AutocompleteTextField(
+              child: AutocompleteWrapper.localTag(
                 controller: _controller,
                 focusNode: _focusNode,
-                enableAutocomplete: enableAutocomplete,
+                ref: ref,
+                enabled: enableAutocomplete,
                 config: const AutocompleteConfig(
                   maxSuggestions: 10,
                   showTranslation: true,
                   autoInsertComma: false,
                 ),
-                style: TextStyle(
-                  fontSize: compact
-                      ? TagChipSizes.compactFontSize
-                      : TagChipSizes.normalFontSize,
-                  fontWeight: FontWeight.w500,
-                  height: 1.2,
+                child: ThemedInput(
+                  controller: _controller,
+                  style: TextStyle(
+                    fontSize: compact
+                        ? TagChipSizes.compactFontSize
+                        : TagChipSizes.normalFontSize,
+                    fontWeight: FontWeight.w500,
+                    height: 1.2,
+                  ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: TagChipSizes.editInputPadding,
+                      vertical: compact ? 8 : 10,
+                    ),
+                    filled: false, // Use transparent to show gradient
+                    fillColor: Colors.transparent,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        compact
+                            ? TagChipSizes.compactBorderRadius
+                            : TagChipSizes.normalBorderRadius,
+                      ),
+                      borderSide: BorderSide(
+                        color: widget.borderColor ??
+                            gradientColor.withOpacity(0.3),
+                        width: borderWidth,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        compact
+                            ? TagChipSizes.compactBorderRadius
+                            : TagChipSizes.normalBorderRadius,
+                      ),
+                      borderSide: BorderSide(
+                        color: widget.borderColor ??
+                            gradientColor.withOpacity(0.3),
+                        width: borderWidth,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        compact
+                            ? TagChipSizes.compactBorderRadius
+                            : TagChipSizes.normalBorderRadius,
+                      ),
+                      borderSide: BorderSide(
+                        color: gradientColor,
+                        width: borderWidth,
+                      ),
+                    ),
+                  ),
+                  onSubmitted: (_) => _commitEdit(),
                 ),
-                decoration: InputDecoration(
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: TagChipSizes.editInputPadding,
-                    vertical: compact ? 8 : 10,
-                  ),
-                  filled: false, // Use transparent to show gradient
-                  fillColor: Colors.transparent,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(
-                      compact
-                          ? TagChipSizes.compactBorderRadius
-                          : TagChipSizes.normalBorderRadius,
-                    ),
-                    borderSide: BorderSide(
-                      color: widget.borderColor ??
-                          gradientColor.withOpacity(0.3),
-                      width: borderWidth,
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(
-                      compact
-                          ? TagChipSizes.compactBorderRadius
-                          : TagChipSizes.normalBorderRadius,
-                    ),
-                    borderSide: BorderSide(
-                      color: widget.borderColor ??
-                          gradientColor.withOpacity(0.3),
-                      width: borderWidth,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(
-                      compact
-                          ? TagChipSizes.compactBorderRadius
-                          : TagChipSizes.normalBorderRadius,
-                    ),
-                    borderSide: BorderSide(
-                      color: gradientColor,
-                      width: borderWidth,
-                    ),
-                  ),
-                ),
-                onSubmitted: (_) => _commitEdit(),
               ),
             ),
           );

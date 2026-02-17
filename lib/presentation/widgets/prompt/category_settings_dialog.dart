@@ -1,9 +1,10 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/prompt/random_category.dart';
 import '../../../data/models/prompt/tag_scope.dart';
 import '../settings/setting_tiles.dart';
+import '../../widgets/common/themed_divider.dart';
 
 /// 类别设置对话框
 ///
@@ -130,7 +131,7 @@ class _CategorySettingsDialogState extends State<CategorySettingsDialog> {
                       },
                     ),
 
-                    const Divider(height: 1),
+                    const ThemedDivider(height: 1),
 
                     // 词组选取模式
                     ChipSelectTile<SelectionMode>(
@@ -163,7 +164,7 @@ class _CategorySettingsDialogState extends State<CategorySettingsDialog> {
                       ),
                     ],
 
-                    const Divider(height: 1),
+                    const ThemedDivider(height: 1),
 
                     // 打乱顺序
                     SwitchListTile(
@@ -178,17 +179,17 @@ class _CategorySettingsDialogState extends State<CategorySettingsDialog> {
                       },
                     ),
 
-                    const Divider(height: 1),
+                    const ThemedDivider(height: 1),
 
                     // 作用域设置
                     _buildScopeSection(theme, l10n),
 
-                    const Divider(height: 1),
+                    const ThemedDivider(height: 1),
 
                     // 性别限定设置
                     _buildGenderRestrictionSection(theme, l10n),
 
-                    const Divider(height: 1),
+                    const ThemedDivider(height: 1),
 
                     // 统一权重括号设置
                     _buildUnifiedBracketSection(theme, l10n),
@@ -238,9 +239,8 @@ class _CategorySettingsDialogState extends State<CategorySettingsDialog> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(color: theme.dividerColor),
-        ),
+        border:
+            Border(top: BorderSide(color: theme.dividerColor.withOpacity(0.3))),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,

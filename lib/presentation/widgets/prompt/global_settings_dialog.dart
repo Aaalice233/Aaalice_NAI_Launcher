@@ -1,11 +1,16 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../core/utils/localization_extension.dart';
+import '../common/themed_checkbox.dart';
 import '../../../data/models/prompt/algorithm_config.dart';
 import '../../../data/models/prompt/character_count_config.dart';
 import '../../providers/random_preset_provider.dart';
+import '../../widgets/common/themed_divider.dart';
+import '../../widgets/common/app_toast.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 人数类别配置对话框
 ///
@@ -164,7 +169,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
           children: [
             // 标题栏
             _buildHeader(theme, l10n),
-            const Divider(height: 1),
+            const ThemedDivider(height: 1),
             // 类别列表
             Flexible(
               child: SingleChildScrollView(
@@ -176,7 +181,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                 ),
               ),
             ),
-            const Divider(height: 1),
+            const ThemedDivider(height: 1),
             // 底部按钮
             _buildFooter(theme, l10n),
           ],
@@ -313,7 +318,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                   const SizedBox(width: 8),
                   SizedBox(
                     width: 60,
-                    child: TextFormField(
+                    child: ThemedFormInput(
                       initialValue: '${category.weight}',
                       keyboardType: TextInputType.number,
                       textAlign: TextAlign.center,
@@ -340,7 +345,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
           ),
           // 展开内容
           if (isExpanded) ...[
-            const Divider(height: 1),
+            const ThemedDivider(height: 1),
             Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -406,9 +411,10 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
       child: Row(
         children: [
           // 启用复选框
-          Checkbox(
+          ThemedCheckbox(
             value: option.enabled,
             onChanged: (_) => _toggleTagOptionEnabled(categoryId, option.id),
+            size: 18,
           ),
           // 标签名称和提示词信息
           Expanded(
@@ -439,7 +445,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
           // 权重输入
           SizedBox(
             width: 70,
-            child: TextFormField(
+            child: ThemedFormInput(
               initialValue: '${option.weight}',
               keyboardType: TextInputType.number,
               textAlign: TextAlign.center,
@@ -521,7 +527,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      TextField(
+                      ThemedInput(
                         controller: labelController,
                         decoration: InputDecoration(
                           labelText: l10n.characterCountConfig_displayName,
@@ -529,7 +535,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      TextField(
+                      ThemedInput(
                         controller: mainPromptController,
                         decoration: InputDecoration(
                           labelText: l10n.characterCountConfig_mainPromptLabel,
@@ -614,7 +620,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                         );
                       }),
                       const SizedBox(height: 12),
-                      TextField(
+                      ThemedInput(
                         controller: weightController,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
@@ -697,7 +703,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                     Row(
                       children: [
                         Expanded(
-                          child: TextField(
+                          child: ThemedInput(
                             controller: controller,
                             decoration: InputDecoration(
                               hintText: l10n.characterCountConfig_addSlotHint,
@@ -712,12 +718,9 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                             final value = controller.text.trim();
                             if (value.isEmpty) return;
                             if (_config.customSlotOptions.contains(value)) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    l10n.characterCountConfig_slotExists,
-                                  ),
-                                ),
+                              AppToast.warning(
+                                context,
+                                l10n.characterCountConfig_slotExists,
                               );
                               return;
                             }

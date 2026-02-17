@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -5,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../core/utils/localization_extension.dart';
 import '../../../../widgets/common/app_toast.dart';
 
 import '../../../../../data/models/prompt/prompt_tag.dart';
@@ -129,10 +129,12 @@ class _TagChipState extends ConsumerState<TagChip>
     _weightAnimation = Tween<double>(
       begin: _currentWeight,
       end: _currentWeight,
-    ).animate(CurvedAnimation(
-      parent: _weightController,
-      curve: Curves.easeOut,
-    ));
+    ).animate(
+      CurvedAnimation(
+        parent: _weightController,
+        curve: Curves.easeOut,
+      ),
+    );
 
     _weightAnimation.addListener(() {
       setState(() {
@@ -175,10 +177,12 @@ class _TagChipState extends ConsumerState<TagChip>
     _weightAnimation = Tween<double>(
       begin: oldValue,
       end: newValue,
-    ).animate(CurvedAnimation(
-      parent: _weightController,
-      curve: Curves.easeOut,
-    ));
+    ).animate(
+      CurvedAnimation(
+        parent: _weightController,
+        curve: Curves.easeOut,
+      ),
+    );
 
     _weightController.forward(from: 0);
   }
@@ -194,13 +198,13 @@ class _TagChipState extends ConsumerState<TagChip>
     return favorites.any((f) => f.tag.text == widget.tag.text);
   }
 
-  void _fetchTranslation() {
+  Future<void> _fetchTranslation() async {
     if (widget.tag.translation != null) {
       _translation = widget.tag.translation;
       return;
     }
     final translationService = ref.read(tagTranslationServiceProvider);
-    _translation = translationService.translate(
+    _translation = await translationService.translate(
       widget.tag.text,
       isCharacter: widget.tag.category == 4,
     );
@@ -331,7 +335,8 @@ class _TagChipState extends ConsumerState<TagChip>
   }
 
   /// 构建带语法高亮的文本组件
-  Widget _buildSyntaxHighlightedText(ThemeData theme, Color effectiveColor, bool isEnabled) {
+  Widget _buildSyntaxHighlightedText(
+      ThemeData theme, Color effectiveColor, bool isEnabled,) {
     final displayText = _displayText;
     final name = widget.tag.displayName;
     final weight = _currentWeight;
@@ -369,69 +374,77 @@ class _TagChipState extends ConsumerState<TagChip>
                 .replaceAll(RegExp(r'\.$'), '');
 
         // 权重数字（等宽字体）
-        spans.add(TextSpan(
-          text: weightStr,
-          style: TextStyle(
-            fontSize: widget.compact
-                ? TagChipSizes.compactFontSize
-                : TagChipSizes.normalFontSize,
-            fontWeight: FontWeight.w500,
-            height: 1.2,
-            fontFamily: 'monospace',
-            color: isEnabled
-                ? effectiveColor.withOpacity(0.9)
-                : theme.colorScheme.onSurface.withOpacity(0.35),
-            decoration: isEnabled ? null : TextDecoration.lineThrough,
+        spans.add(
+          TextSpan(
+            text: weightStr,
+            style: TextStyle(
+              fontSize: widget.compact
+                  ? TagChipSizes.compactFontSize
+                  : TagChipSizes.normalFontSize,
+              fontWeight: FontWeight.w500,
+              height: 1.2,
+              fontFamily: 'monospace',
+              color: isEnabled
+                  ? effectiveColor.withOpacity(0.9)
+                  : theme.colorScheme.onSurface.withOpacity(0.35),
+              decoration: isEnabled ? null : TextDecoration.lineThrough,
+            ),
           ),
-        ));
+        );
 
         // 双冒号（括号颜色）
-        spans.add(TextSpan(
-          text: '::',
-          style: TextStyle(
-            fontSize: widget.compact
-                ? TagChipSizes.compactFontSize
-                : TagChipSizes.normalFontSize,
-            fontWeight: FontWeight.w500,
-            height: 1.2,
-            color: isEnabled
-                ? effectiveColor.withOpacity(0.6)
-                : theme.colorScheme.onSurface.withOpacity(0.2),
-            decoration: isEnabled ? null : TextDecoration.lineThrough,
+        spans.add(
+          TextSpan(
+            text: '::',
+            style: TextStyle(
+              fontSize: widget.compact
+                  ? TagChipSizes.compactFontSize
+                  : TagChipSizes.normalFontSize,
+              fontWeight: FontWeight.w500,
+              height: 1.2,
+              color: isEnabled
+                  ? effectiveColor.withOpacity(0.6)
+                  : theme.colorScheme.onSurface.withOpacity(0.2),
+              decoration: isEnabled ? null : TextDecoration.lineThrough,
+            ),
           ),
-        ));
+        );
 
         // 标签名称
-        spans.add(TextSpan(
-          text: name,
-          style: TextStyle(
-            fontSize: widget.compact
-                ? TagChipSizes.compactFontSize
-                : TagChipSizes.normalFontSize,
-            fontWeight: FontWeight.w500,
-            height: 1.2,
-            color: isEnabled
-                ? theme.colorScheme.onSurface.withOpacity(0.9)
-                : theme.colorScheme.onSurface.withOpacity(0.35),
-            decoration: isEnabled ? null : TextDecoration.lineThrough,
+        spans.add(
+          TextSpan(
+            text: name,
+            style: TextStyle(
+              fontSize: widget.compact
+                  ? TagChipSizes.compactFontSize
+                  : TagChipSizes.normalFontSize,
+              fontWeight: FontWeight.w500,
+              height: 1.2,
+              color: isEnabled
+                  ? theme.colorScheme.onSurface.withOpacity(0.9)
+                  : theme.colorScheme.onSurface.withOpacity(0.35),
+              decoration: isEnabled ? null : TextDecoration.lineThrough,
+            ),
           ),
-        ));
+        );
 
         // 结尾双冒号（括号颜色）
-        spans.add(TextSpan(
-          text: '::',
-          style: TextStyle(
-            fontSize: widget.compact
-                ? TagChipSizes.compactFontSize
-                : TagChipSizes.normalFontSize,
-            fontWeight: FontWeight.w500,
-            height: 1.2,
-            color: isEnabled
-                ? effectiveColor.withOpacity(0.6)
-                : theme.colorScheme.onSurface.withOpacity(0.2),
-            decoration: isEnabled ? null : TextDecoration.lineThrough,
+        spans.add(
+          TextSpan(
+            text: '::',
+            style: TextStyle(
+              fontSize: widget.compact
+                  ? TagChipSizes.compactFontSize
+                  : TagChipSizes.normalFontSize,
+              fontWeight: FontWeight.w500,
+              height: 1.2,
+              color: isEnabled
+                  ? effectiveColor.withOpacity(0.6)
+                  : theme.colorScheme.onSurface.withOpacity(0.2),
+              decoration: isEnabled ? null : TextDecoration.lineThrough,
+            ),
           ),
-        ));
+        );
         break;
 
       case WeightSyntaxType.bracket:
@@ -440,86 +453,96 @@ class _TagChipState extends ConsumerState<TagChip>
         final layers = widget.tag.bracketLayers;
         if (layers > 0) {
           // 开括号
-          spans.add(TextSpan(
-            text: '{' * layers,
-            style: TextStyle(
-              fontSize: widget.compact
-                  ? TagChipSizes.compactFontSize
-                  : TagChipSizes.normalFontSize,
-              fontWeight: FontWeight.w500,
-              height: 1.2,
-              color: isEnabled
-                  ? effectiveColor.withOpacity(0.6)
-                  : theme.colorScheme.onSurface.withOpacity(0.2),
-              decoration: isEnabled ? null : TextDecoration.lineThrough,
+          spans.add(
+            TextSpan(
+              text: '{' * layers,
+              style: TextStyle(
+                fontSize: widget.compact
+                    ? TagChipSizes.compactFontSize
+                    : TagChipSizes.normalFontSize,
+                fontWeight: FontWeight.w500,
+                height: 1.2,
+                color: isEnabled
+                    ? effectiveColor.withOpacity(0.6)
+                    : theme.colorScheme.onSurface.withOpacity(0.2),
+                decoration: isEnabled ? null : TextDecoration.lineThrough,
+              ),
             ),
-          ));
+          );
         } else if (layers < 0) {
           // 开括号
-          spans.add(TextSpan(
-            text: '[' * (-layers),
-            style: TextStyle(
-              fontSize: widget.compact
-                  ? TagChipSizes.compactFontSize
-                  : TagChipSizes.normalFontSize,
-              fontWeight: FontWeight.w500,
-              height: 1.2,
-              color: isEnabled
-                  ? effectiveColor.withOpacity(0.6)
-                  : theme.colorScheme.onSurface.withOpacity(0.2),
-              decoration: isEnabled ? null : TextDecoration.lineThrough,
+          spans.add(
+            TextSpan(
+              text: '[' * (-layers),
+              style: TextStyle(
+                fontSize: widget.compact
+                    ? TagChipSizes.compactFontSize
+                    : TagChipSizes.normalFontSize,
+                fontWeight: FontWeight.w500,
+                height: 1.2,
+                color: isEnabled
+                    ? effectiveColor.withOpacity(0.6)
+                    : theme.colorScheme.onSurface.withOpacity(0.2),
+                decoration: isEnabled ? null : TextDecoration.lineThrough,
+              ),
             ),
-          ));
+          );
         }
 
         // 标签名称
-        spans.add(TextSpan(
-          text: name,
-          style: TextStyle(
-            fontSize: widget.compact
-                ? TagChipSizes.compactFontSize
-                : TagChipSizes.normalFontSize,
-            fontWeight: FontWeight.w500,
-            height: 1.2,
-            color: isEnabled
-                ? theme.colorScheme.onSurface.withOpacity(0.9)
-                : theme.colorScheme.onSurface.withOpacity(0.35),
-            decoration: isEnabled ? null : TextDecoration.lineThrough,
+        spans.add(
+          TextSpan(
+            text: name,
+            style: TextStyle(
+              fontSize: widget.compact
+                  ? TagChipSizes.compactFontSize
+                  : TagChipSizes.normalFontSize,
+              fontWeight: FontWeight.w500,
+              height: 1.2,
+              color: isEnabled
+                  ? theme.colorScheme.onSurface.withOpacity(0.9)
+                  : theme.colorScheme.onSurface.withOpacity(0.35),
+              decoration: isEnabled ? null : TextDecoration.lineThrough,
+            ),
           ),
-        ));
+        );
 
         if (layers > 0) {
           // 闭括号
-          spans.add(TextSpan(
-            text: '}' * layers,
-            style: TextStyle(
-              fontSize: widget.compact
-                  ? TagChipSizes.compactFontSize
-                  : TagChipSizes.normalFontSize,
-              fontWeight: FontWeight.w500,
-              height: 1.2,
-              color: isEnabled
-                  ? effectiveColor.withOpacity(0.6)
-                  : theme.colorScheme.onSurface.withOpacity(0.2),
-              decoration: isEnabled ? null : TextDecoration.lineThrough,
+          spans.add(
+            TextSpan(
+              text: '}' * layers,
+              style: TextStyle(
+                fontSize: widget.compact
+                    ? TagChipSizes.compactFontSize
+                    : TagChipSizes.normalFontSize,
+                fontWeight: FontWeight.w500,
+                height: 1.2,
+                color: isEnabled
+                    ? effectiveColor.withOpacity(0.6)
+                    : theme.colorScheme.onSurface.withOpacity(0.2),
+                decoration: isEnabled ? null : TextDecoration.lineThrough,
+              ),
             ),
-          ));
+          );
         } else if (layers < 0) {
           // 闭括号
-          spans.add(TextSpan(
-            text: ']' * (-layers),
-            style: TextStyle(
-              fontSize: widget.compact
-                  ? TagChipSizes.compactFontSize
-                  : TagChipSizes.normalFontSize,
-              fontWeight: FontWeight.w500,
-              height: 1.2,
-              color: isEnabled
-                  ? effectiveColor.withOpacity(0.6)
-                  : theme.colorScheme.onSurface.withOpacity(0.2),
-              decoration: isEnabled ? null : TextDecoration.lineThrough,
+          spans.add(
+            TextSpan(
+              text: ']' * (-layers),
+              style: TextStyle(
+                fontSize: widget.compact
+                    ? TagChipSizes.compactFontSize
+                    : TagChipSizes.normalFontSize,
+                fontWeight: FontWeight.w500,
+                height: 1.2,
+                color: isEnabled
+                    ? effectiveColor.withOpacity(0.6)
+                    : theme.colorScheme.onSurface.withOpacity(0.2),
+                decoration: isEnabled ? null : TextDecoration.lineThrough,
+              ),
             ),
-          ));
+          );
         }
         break;
     }
@@ -584,14 +607,19 @@ class _TagChipState extends ConsumerState<TagChip>
                     : TagShadowConfig.disabledBlurRadius;
 
     final shadowOffset = widget.isDragging
-        ? Offset(TagShadowConfig.draggingOffsetX, TagShadowConfig.draggingOffsetY)
+        ? const Offset(
+            TagShadowConfig.draggingOffsetX, TagShadowConfig.draggingOffsetY,)
         : _isHovering
-            ? Offset(TagShadowConfig.hoverOffsetX, TagShadowConfig.hoverOffsetY)
+            ? const Offset(
+                TagShadowConfig.hoverOffsetX, TagShadowConfig.hoverOffsetY,)
             : isSelected
-                ? Offset(TagShadowConfig.selectedOffsetX, TagShadowConfig.selectedOffsetY)
+                ? const Offset(TagShadowConfig.selectedOffsetX,
+                    TagShadowConfig.selectedOffsetY,)
                 : isEnabled
-                    ? Offset(TagShadowConfig.normalOffsetX, TagShadowConfig.normalOffsetY)
-                    : Offset(TagShadowConfig.disabledOffsetX, TagShadowConfig.disabledOffsetY);
+                    ? const Offset(TagShadowConfig.normalOffsetX,
+                        TagShadowConfig.normalOffsetY,)
+                    : const Offset(TagShadowConfig.disabledOffsetX,
+                        TagShadowConfig.disabledOffsetY,);
 
     final shadowOpacity = widget.isDragging
         ? TagShadowConfig.draggingOpacity
@@ -613,7 +641,8 @@ class _TagChipState extends ConsumerState<TagChip>
 
     // 标签芯片（包含文本和删除按钮）- 使用 AnimatedContainer 实现平滑颜色过渡
     final tagChipContent = AnimatedContainer(
-      duration: reducedMotion ? Duration.zero : const Duration(milliseconds: 200),
+      duration:
+          reducedMotion ? Duration.zero : const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
       padding: EdgeInsets.only(
         left: widget.compact
@@ -701,7 +730,8 @@ class _TagChipState extends ConsumerState<TagChip>
 
     // Apply brightness overlay on hover - 使用 200ms 实现平滑过渡
     final tagChip = AnimatedContainer(
-      duration: reducedMotion ? Duration.zero : const Duration(milliseconds: 200),
+      duration:
+          reducedMotion ? Duration.zero : const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
       foregroundDecoration: BoxDecoration(
         color: _isHovering && !TagChip.isMobile && !reducedMotion
@@ -980,7 +1010,9 @@ class _DeleteButtonState extends State<_DeleteButton>
         child: GestureDetector(
           onTap: _handleTap,
           child: AnimatedContainer(
-            duration: reducedMotion ? Duration.zero : const Duration(milliseconds: 200),
+            duration: reducedMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 200),
             curve: Curves.easeInOut,
             padding: const EdgeInsets.only(left: 6),
             child: AnimatedBuilder(
@@ -994,7 +1026,9 @@ class _DeleteButtonState extends State<_DeleteButton>
                   child: Opacity(
                     opacity: opacity,
                     child: AnimatedContainer(
-                      duration: reducedMotion ? Duration.zero : const Duration(milliseconds: 200),
+                      duration: reducedMotion
+                          ? Duration.zero
+                          : const Duration(milliseconds: 200),
                       curve: Curves.easeInOut,
                       padding: const EdgeInsets.all(2),
                       decoration: BoxDecoration(
@@ -1008,7 +1042,8 @@ class _DeleteButtonState extends State<_DeleteButton>
                         size: 12,
                         color: _isHovering
                             ? widget.theme.colorScheme.error
-                            : widget.theme.colorScheme.onSurface.withOpacity(0.4),
+                            : widget.theme.colorScheme.onSurface
+                                .withOpacity(0.4),
                       ),
                     ),
                   ),
@@ -1080,7 +1115,9 @@ class _FavoriteButtonState extends State<_FavoriteButton>
         child: GestureDetector(
           onTap: _handleTap,
           child: AnimatedContainer(
-            duration: reducedMotion ? Duration.zero : const Duration(milliseconds: 200),
+            duration: reducedMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 200),
             curve: Curves.easeInOut,
             padding: const EdgeInsets.only(left: 4),
             child: AnimatedBuilder(
@@ -1091,19 +1128,24 @@ class _FavoriteButtonState extends State<_FavoriteButton>
                 return Transform.scale(
                   scale: scale,
                   child: AnimatedContainer(
-                    duration: reducedMotion ? Duration.zero : const Duration(milliseconds: 200),
+                    duration: reducedMotion
+                        ? Duration.zero
+                        : const Duration(milliseconds: 200),
                     curve: Curves.easeInOut,
                     padding: const EdgeInsets.all(2),
                     decoration: BoxDecoration(
                       color: _isHovering
                           ? (widget.isFavorite
                               ? Colors.red.withOpacity(0.15)
-                              : widget.theme.colorScheme.primary.withOpacity(0.15))
+                              : widget.theme.colorScheme.primary
+                                  .withOpacity(0.15))
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Icon(
-                      widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+                      widget.isFavorite
+                          ? Icons.favorite
+                          : Icons.favorite_border,
                       size: 12,
                       color: widget.isFavorite
                           ? (_isHovering
@@ -1111,7 +1153,8 @@ class _FavoriteButtonState extends State<_FavoriteButton>
                               : Colors.red.shade300)
                           : (_isHovering
                               ? widget.theme.colorScheme.primary
-                              : widget.theme.colorScheme.onSurface.withOpacity(0.4)),
+                              : widget.theme.colorScheme.onSurface
+                                  .withOpacity(0.4)),
                     ),
                   ),
                 );

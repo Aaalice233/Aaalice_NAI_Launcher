@@ -1,29 +1,51 @@
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui' as ui;
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import 'package:intl/intl.dart';
+import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/storage_keys.dart';
+import '../../../core/shortcuts/default_shortcuts.dart';
+import '../../../core/utils/nai_prompt_formatter.dart';
 import '../../../core/utils/permission_utils.dart';
-import '../../../data/repositories/local_gallery_repository.dart';
+import '../../../core/utils/sd_to_nai_converter.dart';
+import '../../../core/utils/zip_utils.dart';
+import '../../../data/models/character/character_prompt.dart' as char;
 import '../../../data/models/gallery/local_image_record.dart';
-import '../../../data/models/queue/replication_task.dart';
+import '../../../data/models/image/image_params.dart';
+import '../../../data/models/metadata/metadata_import_options.dart';
+import '../../../data/repositories/gallery_folder_repository.dart';
+import '../../providers/bulk_operation_provider.dart';
+import '../../providers/character_prompt_provider.dart';
+import '../../providers/collection_provider.dart';
+import '../../providers/gallery_category_provider.dart';
+import '../../providers/gallery_folder_provider.dart';
+import '../../providers/image_generation_provider.dart';
 import '../../providers/local_gallery_provider.dart';
-import '../../providers/replication_queue_provider.dart';
 import '../../providers/selection_mode_provider.dart';
+import '../../widgets/bulk_metadata_edit_dialog.dart';
+import '../../widgets/collection_select_dialog.dart';
+import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/pagination_bar.dart';
-import '../../widgets/grouped_grid_view.dart';
-import '../../widgets/local_image_card.dart';
+import '../../widgets/common/themed_confirm_dialog.dart';
+import '../../widgets/common/themed_input_dialog.dart';
+import '../../widgets/gallery/gallery_category_tree_view.dart';
+import '../../widgets/gallery/gallery_content_view.dart';
+import '../../widgets/gallery/gallery_state_views.dart';
+import '../../widgets/gallery/image_send_destination_dialog.dart';
+import '../../widgets/gallery/local_gallery_toolbar.dart';
 import '../../widgets/gallery_filter_panel.dart';
+import '../../widgets/grouped_grid_view.dart'
+    show GroupedGridViewState, ImageDateGroup;
+import '../../widgets/shortcuts/shortcut_aware_widget.dart';
 
 /// 本地画廊屏幕
+/// Local gallery screen
 class LocalGalleryScreen extends ConsumerStatefulWidget {
   const LocalGalleryScreen({super.key});
 
@@ -32,186 +54,483 @@ class LocalGalleryScreen extends ConsumerStatefulWidget {
 }
 
 class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  Timer? _debounceTimer;
-
   /// Key for accessing GroupedGridView's scrollToGroup method
   /// 用于访问 GroupedGridView 的 scrollToGroup 方法的键
   final GlobalKey<GroupedGridViewState> _groupedGridViewKey =
       GlobalKey<GroupedGridViewState>();
 
-  /// 宽高比缓存
-  /// Aspect ratio cache for storing calculated aspect ratios
-  final Map<String, double> _aspectRatioCache = {};
+  /// Focus node for keyboard shortcuts
+  /// 用于键盘快捷键的焦点节点
+  final FocusNode _shortcutsFocusNode = FocusNode();
+
+  /// 是否使用3D卡片视图
+  /// Whether to use 3D card view mode
+  final bool _use3DCardView = true;
+
+  /// 是否显示分类面板
+  /// Whether to show category panel
+  bool _showCategoryPanel = true;
+
+  /// 缓存的快捷方式映射
+  late final Map<String, VoidCallback> _shortcuts = {
+    ShortcutIds.previousPage: _goToPreviousPage,
+    ShortcutIds.nextPage: _goToNextPage,
+    ShortcutIds.refreshGallery: _refreshGallery,
+    ShortcutIds.focusSearch: _focusSearch,
+    ShortcutIds.enterSelectionMode: _enterSelectionMode,
+    ShortcutIds.openFilterPanel: () => showGalleryFilterPanel(context),
+    ShortcutIds.clearFilter: _clearFilters,
+    ShortcutIds.toggleCategoryPanel: _toggleCategoryPanel,
+    ShortcutIds.jumpToDate: _jumpToDate,
+    ShortcutIds.openFolder: _openGalleryFolder,
+  };
 
   @override
   void initState() {
     super.initState();
-    // 首次加载时检查权限并扫描图片
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _checkPermissionsAndScan();
       await _showFirstTimeTip();
     });
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    _debounceTimer?.cancel();
-    super.dispose();
+  void _goToPreviousPage() {
+    final state = ref.read(localGalleryNotifierProvider);
+    if (state.currentPage > 0) {
+      ref
+          .read(localGalleryNotifierProvider.notifier)
+          .loadPage(state.currentPage - 1);
+    }
   }
 
-  /// 搜索防抖
-  void _onSearchChanged(String value) {
-    _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-      ref.read(localGalleryNotifierProvider.notifier).setSearchQuery(value);
+  void _goToNextPage() {
+    final state = ref.read(localGalleryNotifierProvider);
+    if (state.currentPage < state.totalPages - 1) {
+      ref
+          .read(localGalleryNotifierProvider.notifier)
+          .loadPage(state.currentPage + 1);
+    }
+  }
+
+  void _refreshGallery() {
+    ref.read(localGalleryNotifierProvider.notifier).refresh();
+  }
+
+  void _focusSearch() {
+    final focusNode = FocusManager.instance.primaryFocus;
+    focusNode?.unfocus();
+    Future.delayed(const Duration(milliseconds: 50), () {
+      FocusManager.instance.primaryFocus?.requestFocus();
     });
   }
 
-  /// 批量加入队列
-  Future<void> _addSelectedToQueue() async {
-    final selectionState = ref.read(localGallerySelectionNotifierProvider);
-    final galleryState = ref.read(localGalleryNotifierProvider);
+  void _enterSelectionMode() {
+    ref.read(localGallerySelectionNotifierProvider.notifier).enter();
+  }
 
-    final selectedImages = galleryState.currentImages
-        .where((img) => selectionState.selectedIds.contains(img.path))
-        .toList();
+  void _clearFilters() {
+    ref.read(localGalleryNotifierProvider.notifier).clearAllFilters();
+  }
 
-    if (selectedImages.isEmpty) return;
+  @override
+  void dispose() {
+    _shortcutsFocusNode.dispose();
+    super.dispose();
+  }
 
-    final tasks = selectedImages
-        .where((img) => img.metadata?.prompt.isNotEmpty == true)
-        .map(
-          (img) => ReplicationTask.create(
-            prompt: img.metadata!.prompt,
-            thumbnailUrl: img.path, // 本地路径
-            source: ReplicationTaskSource.local,
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(localGalleryNotifierProvider);
+    final bulkOpState = ref.watch(bulkOperationNotifierProvider);
+    final categoryState = ref.watch(galleryCategoryNotifierProvider);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final theme = Theme.of(context);
+
+    final contentWidth = _showCategoryPanel && screenWidth > 800
+        ? screenWidth - 250
+        : screenWidth;
+    final columns = (contentWidth / 200).floor().clamp(2, 8);
+    final itemWidth = contentWidth / columns;
+
+    return PageShortcuts(
+      contextType: ShortcutContext.gallery,
+      shortcuts: _shortcuts,
+      child: KeyboardListener(
+        focusNode: _shortcutsFocusNode,
+        autofocus: true,
+        onKeyEvent: (event) => _handleKeyEvent(event, bulkOpState),
+        child: Scaffold(
+          body: Row(
+            children: [
+              if (_showCategoryPanel && screenWidth > 800)
+                _buildCategoryPanel(theme, state, categoryState),
+              Expanded(
+                child: Column(
+                  children: [
+                    _buildToolbarOrSelectionBar(state, bulkOpState),
+                    Expanded(
+                      child: _buildBody(state, columns, itemWidth),
+                    ),
+                    if (!state.isIndexing &&
+                        state.filteredFiles.isNotEmpty &&
+                        state.totalPages > 0)
+                      PaginationBar(
+                        currentPage: state.currentPage,
+                        totalPages: state.totalPages,
+                        totalItems: state.filteredCount,
+                        itemsPerPage: state.pageSize,
+                        onPageChanged: (p) => ref
+                            .read(localGalleryNotifierProvider.notifier)
+                            .loadPage(p),
+                        onItemsPerPageChanged: (size) => ref
+                            .read(localGalleryNotifierProvider.notifier)
+                            .setPageSize(size),
+                        showItemsPerPage: true,
+                        showTotalInfo: true,
+                        compact: contentWidth < 600,
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        )
-        .toList();
+        ),
+      ),
+    );
+  }
 
-    if (tasks.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('选中的图片没有 Prompt 信息')),
-      );
+  Widget _buildCategoryPanel(
+    ThemeData theme,
+    LocalGalleryState state,
+    GalleryCategoryState categoryState,
+  ) {
+    return Container(
+      width: 250,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        border: Border(
+          right: BorderSide(
+            color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Column(
+        children: [
+          _buildCategoryPanelHeader(theme),
+          Divider(
+            height: 1,
+            color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+          ),
+          Expanded(
+            child: GalleryCategoryTreeView(
+              categories: categoryState.categories,
+              totalImageCount: state.allFiles.length,
+              favoriteCount: ref
+                  .read(localGalleryNotifierProvider.notifier)
+                  .getTotalFavoriteCount(),
+              selectedCategoryId: categoryState.selectedCategoryId,
+              onCategorySelected: _handleCategorySelected,
+              onCategoryRename: (id, newName) => ref
+                  .read(galleryCategoryNotifierProvider.notifier)
+                  .renameCategory(id, newName),
+              onCategoryDelete: _handleCategoryDelete,
+              onAddSubCategory: _handleAddSubCategory,
+              onCategoryMove: (categoryId, newParentId) => ref
+                  .read(galleryCategoryNotifierProvider.notifier)
+                  .moveCategory(categoryId, newParentId),
+              onCategoryReorder: (parentId, oldIndex, newIndex) => ref
+                  .read(galleryCategoryNotifierProvider.notifier)
+                  .reorderCategories(parentId, oldIndex, newIndex),
+              onImageDrop: (imagePath, categoryId) =>
+                  _handleImageDrop(imagePath, categoryId!),
+              onSyncWithFileSystem: _handleSyncWithFileSystem,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryPanelHeader(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      constraints: const BoxConstraints(minHeight: 62),
+      child: Row(
+        children: [
+          Icon(
+            Icons.folder_outlined,
+            size: 20,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '分类',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          FilledButton.tonalIcon(
+            onPressed: _createCategory,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('新建', style: TextStyle(fontSize: 13)),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _createCategory() async {
+    final name = await ThemedInputDialog.show(
+      context: context,
+      title: '新建分类',
+      hintText: '请输入分类名称',
+      confirmText: '创建',
+      cancelText: '取消',
+    );
+    if (name != null && name.isNotEmpty) {
+      await ref
+          .read(galleryCategoryNotifierProvider.notifier)
+          .createCategory(name, parentId: null);
+    }
+  }
+
+  void _handleCategorySelected(String? id) {
+    ref.read(galleryCategoryNotifierProvider.notifier).selectCategory(id);
+    ref
+        .read(localGalleryNotifierProvider.notifier)
+        .setShowFavoritesOnly(id == 'favorites');
+  }
+
+  Future<void> _handleCategoryDelete(String id) async {
+    final confirmed = await ThemedConfirmDialog.show(
+      context: context,
+      title: '确认删除',
+      content: '确定要删除此分类吗？文件夹及其内容将被保留。',
+      confirmText: '删除',
+      cancelText: '取消',
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_outline,
+    );
+    if (confirmed) {
+      await ref
+          .read(galleryCategoryNotifierProvider.notifier)
+          .deleteCategory(id, deleteFolder: false);
+    }
+  }
+
+  Future<void> _handleAddSubCategory(String? parentId) async {
+    final name = await ThemedInputDialog.show(
+      context: context,
+      title: parentId == null ? '新建分类' : '新建子分类',
+      hintText: '请输入分类名称',
+      confirmText: '创建',
+      cancelText: '取消',
+    );
+    if (name != null && name.isNotEmpty) {
+      await ref
+          .read(galleryCategoryNotifierProvider.notifier)
+          .createCategory(name, parentId: parentId);
+    }
+  }
+
+  Future<void> _handleImageDrop(String imagePath, String categoryId) async {
+    final newPath = await ref
+        .read(galleryCategoryNotifierProvider.notifier)
+        .moveImageToCategory(imagePath, categoryId);
+    if (newPath != null) {
+      ref.read(localGalleryNotifierProvider.notifier).refresh();
+      if (mounted) {
+        AppToast.success(context, '图片已移动到分类');
+      }
+    }
+  }
+
+  Future<void> _handleSyncWithFileSystem() async {
+    await ref
+        .read(galleryCategoryNotifierProvider.notifier)
+        .syncWithFileSystem();
+    if (mounted) {
+      AppToast.success(context, '分类已与文件夹同步');
+    }
+  }
+
+  /// 处理重建索引
+  Future<void> _handleRebuildIndex() async {
+    final notifier = ref.read(localGalleryNotifierProvider.notifier);
+    final state = ref.read(localGalleryNotifierProvider);
+
+    // 如果已经在更新中，则取消
+    if (state.isRebuildingIndex) {
+      await notifier.performFullScan(); // 这会触发取消
+      if (mounted) {
+        AppToast.info(context, '已取消索引更新');
+      }
       return;
     }
 
-    final addedCount =
-        await ref.read(replicationQueueNotifierProvider.notifier).addAll(tasks);
+    // 开始更新
+    final result = await notifier.performFullScan();
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已添加 $addedCount 个任务到队列')),
+    if (!mounted) return;
+
+    if (result == null) {
+      // 可能是取消或失败
+      final currentState = ref.read(localGalleryNotifierProvider);
+      if (!currentState.isRebuildingIndex) {
+        // 确实已经停止了，可能是取消
+        AppToast.info(context, '索引更新已停止');
+      }
+      return;
+    }
+
+    if (result.filesAdded == 0 &&
+        result.filesUpdated == 0 &&
+        result.filesDeleted == 0) {
+      // 没有变化
+      AppToast.info(context, '索引已是最新，无需更新');
+    } else {
+      // 有更新
+      final parts = <String>[];
+      if (result.filesAdded > 0) parts.add('新增 ${result.filesAdded} 张');
+      if (result.filesUpdated > 0) parts.add('更新 ${result.filesUpdated} 张');
+      if (result.filesDeleted > 0) parts.add('删除 ${result.filesDeleted} 张');
+
+      AppToast.success(context, '索引更新完成：${parts.join('，')}');
+    }
+  }
+
+  /// 构建工具栏或选择栏
+  Widget _buildToolbarOrSelectionBar(
+    LocalGalleryState state,
+    BulkOperationState bulkOpState,
+  ) {
+    // 使用独立的美化工具栏组件
+    return LocalGalleryToolbar(
+      use3DCardView: _use3DCardView,
+      onRefresh: () =>
+          ref.read(localGalleryNotifierProvider.notifier).refresh(),
+      onRebuildIndex: () => _handleRebuildIndex(),
+      onEnterSelectionMode: () =>
+          ref.read(localGallerySelectionNotifierProvider.notifier).enter(),
+      canUndo: bulkOpState.canUndo,
+      canRedo: bulkOpState.canRedo,
+      onUndo: bulkOpState.canUndo
+          ? () => ref.read(bulkOperationNotifierProvider.notifier).undo()
+          : null,
+      onRedo: bulkOpState.canRedo
+          ? () => ref.read(bulkOperationNotifierProvider.notifier).redo()
+          : null,
+      groupedGridViewKey: _groupedGridViewKey,
+      onAddToCollection: _addSelectedToCollection,
+      onDeleteSelected: _deleteSelectedImages,
+      onPackSelected: _packSelectedImages,
+      onEditMetadata: _editSelectedMetadata,
+      onMoveToFolder: _moveSelectedToFolder,
+      showCategoryPanel: _showCategoryPanel,
+      onOpenFolder: () => _openGalleryFolder(),
+    );
+  }
+
+  /// Build main body content
+  /// 构建主体内容
+  Widget _buildBody(LocalGalleryState state, int columns, double itemWidth) {
+    if (state.error != null) {
+      return GalleryErrorView(
+        error: state.error,
+        onRetry: () =>
+            ref.read(localGalleryNotifierProvider.notifier).refresh(),
       );
-      ref.read(localGallerySelectionNotifierProvider.notifier).exit();
+    }
+
+    // 只有在真正加载中且没有文件时才显示加载视图
+    // 后台索引时不应阻止用户浏览已加载的文件
+    if (state.isLoading && state.allFiles.isEmpty) {
+      return const GalleryLoadingView();
+    }
+
+    if (state.allFiles.isEmpty) {
+      return const GalleryEmptyView();
+    }
+
+    return GalleryContentView(
+      use3DCardView: _use3DCardView,
+      columns: columns,
+      itemWidth: itemWidth,
+      groupedGridViewKey: _groupedGridViewKey,
+      onReuseMetadata: _reuseMetadata,
+      onSendToImg2Img: _sendToImg2Img,
+      onContextMenu: (record, position) {
+        _showImageContextMenu(record, position);
+      },
+    );
+  }
+
+  /// Handle keyboard events for undo/redo
+  /// 处理撤销/重做的键盘事件
+  void _handleKeyEvent(KeyEvent event, BulkOperationState bulkOpState) {
+    if (event is KeyDownEvent) {
+      final isCtrlPressed = HardwareKeyboard.instance.isControlPressed;
+
+      if (isCtrlPressed) {
+        if (event.logicalKey == LogicalKeyboardKey.keyZ) {
+          if (HardwareKeyboard.instance.isShiftPressed) {
+            // Ctrl+Shift+Z for redo
+            if (bulkOpState.canRedo) _redo();
+          } else {
+            // Ctrl+Z for undo
+            if (bulkOpState.canUndo) _undo();
+          }
+        } else if (event.logicalKey == LogicalKeyboardKey.keyY) {
+          // Ctrl+Y for redo
+          if (bulkOpState.canRedo) _redo();
+        }
+      }
     }
   }
 
-  /// 计算图片宽高比
-  /// Calculate aspect ratio from metadata or image file
-  Future<double> _calculateAspectRatio(LocalImageRecord record) async {
-    // 首先尝试从元数据获取尺寸
-    // Try to get dimensions from metadata first
-    final metadata = record.metadata;
-    if (metadata != null && metadata.width != null && metadata.height != null) {
-      final width = metadata.width!;
-      final height = metadata.height!;
-      if (width > 0 && height > 0) {
-        return width / height;
-      }
-    }
-
-    // 如果元数据中没有尺寸信息，从图片文件读取
-    // If metadata doesn't have dimensions, read from image file
-    try {
-      final buffer = await ui.ImmutableBuffer.fromFilePath(record.path);
-      final descriptor = await ui.ImageDescriptor.encoded(buffer);
-      final width = descriptor.width;
-      final height = descriptor.height;
-      if (width > 0 && height > 0) {
-        return width / height;
-      }
-    } catch (e) {
-      // 如果读取失败，返回默认宽高比
-      // If reading fails, return default aspect ratio
-    }
-
-    // 默认宽高比（基于常见的 NAI 生成尺寸）
-    // Default aspect ratio (based on common NAI generation dimensions)
-    return 1.0;
-  }
+  // ============================================================
+  // Permission and initialization methods
+  // 权限和初始化方法
+  // ============================================================
 
   /// 检查权限并扫描图片
   Future<void> _checkPermissionsAndScan() async {
-    // 检查权限状态
     final hasPermission = await PermissionUtils.checkGalleryPermission();
 
     if (!hasPermission) {
-      // 请求权限
       final granted = await PermissionUtils.requestGalleryPermission();
-
       if (!granted && mounted) {
-        // 权限被拒绝，显示引导对话框
         _showPermissionDeniedDialog();
         return;
       }
     }
 
-    // 有权限，开始扫描
     if (mounted) {
       ref.read(localGalleryNotifierProvider.notifier).initialize();
     }
   }
 
   /// 显示权限被拒绝对话框
-  void _showPermissionDeniedDialog() {
-    final theme = Theme.of(context);
-
-    showDialog(
+  void _showPermissionDeniedDialog() async {
+    final confirmed = await ThemedConfirmDialog.show(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.colorScheme.surfaceContainerHigh,
-        title: Text(
-          '需要存储权限',
-          style: TextStyle(
-            color: theme.colorScheme.onSurface,
-          ),
-        ),
-        content: Text(
-          '本地画廊需要访问存储权限才能扫描您生成的图片。\n\n'
-          '请在设置中授予权限后重试。',
-          style: TextStyle(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              '取消',
-              style: TextStyle(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              PermissionUtils.openAppSettings();
-            },
-            child: Text(
-              '打开设置',
-              style: TextStyle(
-                color: theme.colorScheme.onPrimary,
-              ),
-            ),
-          ),
-        ],
-      ),
+      title: context.l10n.localGallery_permissionRequiredTitle,
+      content: context.l10n.localGallery_permissionRequiredContent,
+      confirmText: context.l10n.localGallery_openSettings,
+      cancelText: context.l10n.common_cancel,
+      type: ThemedConfirmDialogType.warning,
+      icon: Icons.folder_off_outlined,
     );
+
+    if (confirmed) {
+      PermissionUtils.openAppSettings();
+    }
   }
 
   /// 显示首次使用提示
@@ -222,496 +541,760 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
     if (hasSeenTip || !mounted) return;
 
-    // 标记已显示
     await prefs.setBool(StorageKeys.hasSeenLocalGalleryTip, true);
-
-    // 延迟显示，避免与权限对话框冲突
     await Future.delayed(const Duration(milliseconds: 500));
 
     if (!mounted) return;
 
-    final theme = Theme.of(context);
-
-    showDialog(
+    await ThemedConfirmDialog.showInfo(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: theme.colorScheme.surfaceContainerHigh,
-        title: Text(
-          '💡 使用提示',
-          style: TextStyle(
-            color: theme.colorScheme.onSurface,
-          ),
-        ),
-        content: Text(
-          '右键点击（桌面端）或长按（移动端）图片可以：\n\n'
-          '• 复制 Prompt\n'
-          '• 复制 Seed\n'
-          '• 查看完整元数据',
-          style: TextStyle(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              '知道了',
-              style: TextStyle(
-                color: theme.colorScheme.onPrimary,
-              ),
-            ),
-          ),
-        ],
-      ),
+      title: context.l10n.localGallery_firstTimeTipTitle,
+      content: context.l10n.localGallery_firstTimeTipContent,
+      confirmText: context.l10n.localGallery_gotIt,
+      icon: Icons.lightbulb_outline,
     );
   }
 
-  /// 打开图片保存文件夹
-  Future<void> _openImageFolder() async {
-    try {
-      final dir = await LocalGalleryRepository.instance.getImageDirectory();
+  // ============================================================
+  // Folder operations
+  // 文件夹操作
+  // ============================================================
 
-      // 确保目录存在
-      if (!await dir.exists()) {
-        await dir.create(recursive: true);
+  /// 打开画廊文件夹
+  Future<void> _openGalleryFolder() async {
+    try {
+      final rootPath = await GalleryFolderRepository.instance.getRootPath();
+      if (rootPath == null || rootPath.isEmpty) {
+        if (mounted) {
+          AppToast.info(context, '未设置保存目录');
+        }
+        return;
       }
 
-      // 获取绝对路径
-      final absolutePath = dir.absolute.path;
-
-      // 显示路径信息（调试用）
-      debugPrint('Opening folder: $absolutePath');
-
-      // 使用系统资源管理器打开文件夹
-      if (Platform.isWindows) {
-        // Windows: 将正斜杠替换为反斜杠，直接使用 explorer.exe
-        final windowsPath = absolutePath.replaceAll('/', '\\');
-        debugPrint('Windows path: $windowsPath');
-
-        // 直接调用 explorer.exe，路径作为参数
-        await Process.run('explorer.exe', [windowsPath]);
-      } else if (Platform.isMacOS) {
-        await Process.run('open', [absolutePath]);
-      } else if (Platform.isLinux) {
-        await Process.run('xdg-open', [absolutePath]);
-      } else {
-        // 其他平台使用 url_launcher
-        final uri = Uri.directory(absolutePath);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri);
+      final dir = Directory(rootPath);
+      if (!await dir.exists()) {
+        if (mounted) {
+          AppToast.info(context, '文件夹不存在');
         }
+        return;
+      }
+
+      if (Platform.isWindows) {
+        // 使用 Process.start 避免等待进程完成导致的延迟
+        await Process.start('explorer', [rootPath]);
+      } else if (Platform.isMacOS) {
+        await Process.start('open', [rootPath]);
+      } else if (Platform.isLinux) {
+        await Process.start('xdg-open', [rootPath]);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('无法打开文件夹: $e')),
-        );
+        AppToast.error(context, '打开文件夹失败: $e');
       }
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final state = ref.watch(localGalleryNotifierProvider);
-    final screenWidth = MediaQuery.of(context).size.width;
-    final theme = Theme.of(context);
+  // ============================================================
+  // Undo/Redo operations
+  // 撤销/重做操作
+  // ============================================================
 
-    // 计算列数（200px/列，最少2列，最多8列）
-    final columns = (screenWidth / 200).floor().clamp(2, 8);
-    final itemWidth = screenWidth / columns;
+  /// 撤销上一步操作
+  Future<void> _undo() async {
+    await ref.read(bulkOperationNotifierProvider.notifier).undo();
+    await ref.read(localGalleryNotifierProvider.notifier).refresh();
 
-    return Scaffold(
-      body: Column(
-        children: [
-          // 顶部工具栏
-          _buildToolbar(theme, state),
-          // 主体内容
-          Expanded(
-            child: state.error != null
-                ? _buildErrorState(theme, state)
-                : state.isIndexing
-                    ? _buildIndexingState()
-                    : state.allFiles.isEmpty
-                        ? _buildEmptyState(context)
-                        : _buildContent(theme, state, columns, itemWidth),
+    if (mounted) {
+      AppToast.info(context, context.l10n.localGallery_undone);
+    }
+  }
+
+  /// 重做上一步撤销的操作
+  Future<void> _redo() async {
+    await ref.read(bulkOperationNotifierProvider.notifier).redo();
+    await ref.read(localGalleryNotifierProvider.notifier).refresh();
+
+    if (mounted) {
+      AppToast.info(context, context.l10n.localGallery_redone);
+    }
+  }
+
+  // ============================================================
+  // Bulk operations
+  // 批量操作
+  // ============================================================
+
+  /// 批量删除选中的图片
+  Future<void> _deleteSelectedImages() async {
+    final selectionState = ref.read(localGallerySelectionNotifierProvider);
+    final galleryState = ref.read(localGalleryNotifierProvider);
+
+    final selectedImages = galleryState.currentImages
+        .where((img) => selectionState.selectedIds.contains(img.path))
+        .toList();
+
+    if (selectedImages.isEmpty) return;
+
+    final confirmed = await ThemedConfirmDialog.show(
+      context: context,
+      title: context.l10n.localGallery_confirmBulkDelete,
+      content: context.l10n
+          .localGallery_confirmBulkDeleteContent(selectedImages.length),
+      confirmText: context.l10n.common_delete,
+      cancelText: context.l10n.common_cancel,
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_forever_outlined,
+    );
+
+    if (!confirmed || !mounted) return;
+
+    final deletedImages = <LocalImageRecord>[];
+    for (final image in selectedImages) {
+      try {
+        final file = File(image.path);
+        if (await file.exists()) {
+          await file.delete();
+          deletedImages.add(image);
+        }
+      } catch (e) {
+        // Skip failed deletions
+      }
+    }
+
+    ref.read(localGallerySelectionNotifierProvider.notifier).exit();
+    await ref.read(localGalleryNotifierProvider.notifier).refresh();
+
+    if (mounted && deletedImages.isNotEmpty) {
+      AppToast.success(
+        context,
+        context.l10n.localGallery_deletedImages(deletedImages.length),
+      );
+    }
+  }
+
+  /// 批量打包选中的图片成压缩包
+  Future<void> _packSelectedImages() async {
+    final selectionState = ref.read(localGallerySelectionNotifierProvider);
+    final galleryState = ref.read(localGalleryNotifierProvider);
+
+    final selectedImages = galleryState.currentImages
+        .where((img) => selectionState.selectedIds.contains(img.path))
+        .toList();
+
+    if (selectedImages.isEmpty || !mounted) return;
+
+    // 直接使用保存文件对话框，用户可以选择路径并输入文件名
+    final defaultName = 'images_${DateTime.now().millisecondsSinceEpoch}';
+    final outputPath = await FilePicker.platform.saveFile(
+      dialogTitle: '保存压缩包',
+      fileName: '$defaultName.zip',
+      type: FileType.custom,
+      allowedExtensions: ['zip'],
+    );
+
+    if (outputPath == null || !mounted) return;
+
+    // 确保文件名以 .zip 结尾
+    final finalPath =
+        outputPath.endsWith('.zip') ? outputPath : '$outputPath.zip';
+
+    // 显示打包进度
+    AppToast.info(context, '正在打包 ${selectedImages.length} 张图片...');
+
+    // 执行打包
+    final imagePaths = selectedImages.map((img) => img.path).toList();
+    final success = await ZipUtils.createZipFromImages(
+      imagePaths,
+      finalPath,
+    );
+
+    if (mounted) {
+      if (success) {
+        AppToast.success(context, '已打包 ${selectedImages.length} 张图片');
+        ref.read(localGallerySelectionNotifierProvider.notifier).exit();
+      } else {
+        AppToast.error(context, '打包失败');
+      }
+    }
+  }
+
+  /// 批量编辑选中的图片元数据
+  Future<void> _editSelectedMetadata() async {
+    final selectionState = ref.read(localGallerySelectionNotifierProvider);
+    if (selectionState.selectedIds.isEmpty || !mounted) return;
+    showBulkMetadataEditDialog(context);
+  }
+
+  /// 批量移动选中的图片到文件夹
+  Future<void> _moveSelectedToFolder() async {
+    final selectionState = ref.read(localGallerySelectionNotifierProvider);
+    final galleryState = ref.read(localGalleryNotifierProvider);
+    final folderState = ref.read(galleryFolderNotifierProvider);
+
+    final selectedImages = galleryState.currentImages
+        .where((img) => selectionState.selectedIds.contains(img.path))
+        .toList();
+
+    if (selectedImages.isEmpty) return;
+
+    final folders = folderState.folders;
+    if (folders.isEmpty) {
+      if (mounted) {
+        AppToast.info(context, context.l10n.localGallery_noFoldersAvailable);
+      }
+      return;
+    }
+
+    final selectedFolder = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.l10n.localGallery_moveToFolder),
+        content: SizedBox(
+          width: 300,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: folders.length,
+            itemBuilder: (context, index) {
+              final folder = folders[index];
+              return ListTile(
+                leading: const Icon(Icons.folder),
+                title: Text(folder.name),
+                subtitle: Text(
+                  context.l10n.localGallery_imageCount(folder.imageCount),
+                ),
+                onTap: () => Navigator.of(context).pop(folder.path),
+              );
+            },
           ),
-          // 底部分页条
-          if (!state.isIndexing &&
-              state.filteredFiles.isNotEmpty &&
-              state.totalPages > 1)
-            PaginationBar(
-              currentPage: state.currentPage,
-              totalPages: state.totalPages,
-              onPageChanged: (p) =>
-                  ref.read(localGalleryNotifierProvider.notifier).loadPage(p),
-            ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(context.l10n.common_cancel),
+          ),
         ],
       ),
     );
+
+    if (selectedFolder == null || !mounted) return;
+
+    final imagePaths = selectedImages.map((img) => img.path).toList();
+    final movedCount =
+        await GalleryFolderRepository.instance.moveImagesToFolder(
+      imagePaths,
+      selectedFolder,
+    );
+
+    if (mounted) {
+      if (movedCount > 0) {
+        AppToast.info(
+          context,
+          context.l10n.localGallery_movedImages(movedCount),
+        );
+        ref.read(localGallerySelectionNotifierProvider.notifier).exit();
+        ref.read(localGalleryNotifierProvider.notifier).refresh();
+        ref.read(galleryFolderNotifierProvider.notifier).refresh();
+      } else {
+        AppToast.info(context, context.l10n.localGallery_moveImagesFailed);
+      }
+    }
   }
 
-  /// 构建顶部工具栏
-  Widget _buildToolbar(ThemeData theme, LocalGalleryState state) {
-    final selectionState = ref.watch(localGallerySelectionNotifierProvider);
-    final isDark = theme.brightness == Brightness.dark;
+  /// 批量添加选中的图片到集合
+  Future<void> _addSelectedToCollection() async {
+    final selectionState = ref.read(localGallerySelectionNotifierProvider);
+    final galleryState = ref.read(localGalleryNotifierProvider);
 
-    if (selectionState.isActive) {
-      return ClipRRect(
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? theme.colorScheme.primaryContainer.withOpacity(0.85)
-                  : theme.colorScheme.primaryContainer.withOpacity(0.7),
-              border: Border(
-                bottom: BorderSide(
-                  color: theme.dividerColor.withOpacity(isDark ? 0.2 : 0.3),
-                ),
-              ),
-            ),
-            child: Row(
-              children: [
-                _RoundedIconButton(
-                  icon: Icons.close,
-                  tooltip: '退出多选',
-                  onPressed: () => ref
-                      .read(localGallerySelectionNotifierProvider.notifier)
-                      .exit(),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '已选择 ${selectionState.selectedIds.length} 项',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.onPrimaryContainer,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                _RoundedIconButton(
-                  icon: Icons.playlist_add,
-                  tooltip: '加入队列',
-                  onPressed: selectionState.selectedIds.isNotEmpty
-                      ? _addSelectedToQueue
-                      : null,
-                ),
-                // 本地画廊不需要批量下载和收藏
-              ],
-            ),
+    final selectedImages = galleryState.currentImages
+        .where((img) => selectionState.selectedIds.contains(img.path))
+        .toList();
+
+    if (selectedImages.isEmpty || !mounted) return;
+
+    final result = await CollectionSelectDialog.show(
+      context,
+      theme: Theme.of(context),
+    );
+
+    if (result == null) return;
+
+    final imagePaths = selectedImages.map((img) => img.path).toList();
+    final addedCount = await ref
+        .read(collectionNotifierProvider.notifier)
+        .addImagesToCollection(result.collectionId, imagePaths);
+
+    if (mounted) {
+      if (addedCount > 0) {
+        AppToast.success(
+          context,
+          context.l10n.localGallery_addedToCollection(
+            addedCount,
+            result.collectionName,
           ),
-        ),
-      );
+        );
+        ref.read(localGallerySelectionNotifierProvider.notifier).exit();
+      } else {
+        AppToast.info(context, context.l10n.localGallery_addToCollectionFailed);
+      }
+    }
+  }
+
+  // ============================================================
+  // Image operations (reuse metadata, send to img2img)
+  // 图片操作（复用元数据、发送到图生图）
+  // ============================================================
+
+  /// 复用图片的元数据参数到主界面
+  Future<void> _reuseMetadata(LocalImageRecord record) async {
+    final metadata = record.metadata;
+    if (metadata == null || !metadata.hasData) return;
+
+    // 显示参数选择对话框
+    final options = await showDialog<MetadataImportOptions>(
+      context: context,
+      builder: (context) => _buildImportOptionsDialog(metadata),
+    );
+
+    if (options == null || !mounted) return; // 用户取消
+
+    final paramsNotifier = ref.read(generationParamsNotifierProvider.notifier);
+
+    // 只有在勾选导入多角色提示词时才清空
+    if (options.importCharacterPrompts &&
+        metadata.characterPrompts.isNotEmpty) {
+      final characterNotifier =
+          ref.read(characterPromptNotifierProvider.notifier);
+      characterNotifier.clearAllCharacters();
     }
 
-    return ClipRRect(
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          decoration: BoxDecoration(
-            color: isDark
-                ? theme.colorScheme.surfaceContainerHigh.withOpacity(0.9)
-                : theme.colorScheme.surface.withOpacity(0.8),
-            border: Border(
-              bottom: BorderSide(
-                color: theme.dividerColor.withOpacity(isDark ? 0.2 : 0.3),
-              ),
-            ),
-          ),
+    // 根据选项应用参数
+    var appliedCount = 0;
+
+    if (options.importPrompt && metadata.prompt.isNotEmpty) {
+      paramsNotifier.updatePrompt(_formatPrompt(metadata.prompt));
+      appliedCount++;
+    }
+
+    if (options.importNegativePrompt && metadata.negativePrompt.isNotEmpty) {
+      paramsNotifier
+          .updateNegativePrompt(_formatPrompt(metadata.negativePrompt));
+      appliedCount++;
+    }
+
+    if (options.importCharacterPrompts &&
+        metadata.characterPrompts.isNotEmpty) {
+      _applyCharacterPrompts(metadata);
+      appliedCount++;
+    }
+
+    // 应用单个参数
+    _applyParam(options.importSeed, metadata.seed, paramsNotifier.updateSeed);
+    _applyParam(
+        options.importSteps, metadata.steps, paramsNotifier.updateSteps,);
+    _applyParam(
+        options.importScale, metadata.scale, paramsNotifier.updateScale,);
+    _applyParam(
+        options.importSampler, metadata.sampler, paramsNotifier.updateSampler,);
+    _applyParam(
+        options.importModel, metadata.model, paramsNotifier.updateModel,);
+    _applyParam(options.importSmea, metadata.smea, paramsNotifier.updateSmea);
+    _applyParam(
+        options.importSmeaDyn, metadata.smeaDyn, paramsNotifier.updateSmeaDyn,);
+    _applyParam(options.importNoiseSchedule, metadata.noiseSchedule,
+        paramsNotifier.updateNoiseSchedule,);
+    _applyParam(options.importCfgRescale, metadata.cfgRescale,
+        paramsNotifier.updateCfgRescale,);
+    _applyParam(options.importQualityToggle, metadata.qualityToggle,
+        paramsNotifier.updateQualityToggle,);
+    _applyParam(options.importUcPreset, metadata.ucPreset,
+        paramsNotifier.updateUcPreset,);
+
+    if (options.importSize &&
+        metadata.width != null &&
+        metadata.height != null) {
+      paramsNotifier.updateSize(metadata.width!, metadata.height!);
+      appliedCount++;
+    }
+
+    if (!mounted) return;
+
+    if (appliedCount > 0) {
+      AppToast.info(
+          context, context.l10n.metadataImport_appliedToMain(appliedCount),);
+    } else {
+      AppToast.warning(context, context.l10n.metadataImport_noParamsSelected);
+    }
+  }
+
+  /// 构建导入选项对话框（简化版，用于画廊）
+  Widget _buildImportOptionsDialog(dynamic metadata) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+
+    return AlertDialog(
+      title: Text(l10n.metadataImport_title),
+      content: SizedBox(
+        width: 400,
+        child: SingleChildScrollView(
           child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 第一行：标题 + 操作按钮
-              Row(
+              // 快速预设按钮
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  Text(
-                    '本地画廊',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
+                  ActionChip(
+                    label: Text(l10n.metadataImport_selectAll),
+                    avatar: const Icon(Icons.select_all, size: 18),
+                    onPressed: () => Navigator.of(context).pop(
+                      MetadataImportOptions.all(),
+                    ),
+                    backgroundColor: theme.colorScheme.primaryContainer,
+                    side: BorderSide.none,
+                  ),
+                  ActionChip(
+                    label: Text(l10n.metadataImport_promptsOnly),
+                    avatar: const Icon(Icons.text_fields, size: 18),
+                    onPressed: () => Navigator.of(context).pop(
+                      MetadataImportOptions.promptsOnly(),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  // 图片计数
-                  if (!state.isIndexing)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? theme.colorScheme.primaryContainer
-                                .withOpacity(0.4)
-                            : theme.colorScheme.primaryContainer
-                                .withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        state.hasFilters
-                            ? '${state.filteredCount} / ${state.totalCount}'
-                            : '${state.totalCount}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: isDark
-                              ? theme.colorScheme.onPrimaryContainer
-                              : theme.colorScheme.onSurface,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                  ActionChip(
+                    label: Text(l10n.metadataImport_generationOnly),
+                    avatar: const Icon(Icons.tune, size: 18),
+                    onPressed: () => Navigator.of(context).pop(
+                      MetadataImportOptions.generationOnly(),
                     ),
-                  const Spacer(),
-                  // 多选模式切换
-                  _RoundedIconButton(
-                    icon: Icons.checklist,
-                    tooltip: '多选模式',
-                    onPressed: () {
-                      ref
-                          .read(localGallerySelectionNotifierProvider.notifier)
-                          .enter();
-                    },
                   ),
-                  const SizedBox(width: 8),
-                  // 打开文件夹按钮
-                  _RoundedTextButton(
-                    icon: Icons.folder_open,
-                    label: '打开文件夹',
-                    onPressed: _openImageFolder,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  // 刷新按钮
-                  if (state.isIndexing)
-                    const Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  else
-                    _RoundedTextButton(
-                      icon: Icons.refresh,
-                      label: '刷新',
-                      onPressed: () {
-                        ref
-                            .read(localGalleryNotifierProvider.notifier)
-                            .refresh();
-                      },
-                      color: theme.colorScheme.secondary,
-                    ),
                 ],
               ),
-              const SizedBox(height: 8),
-              // 第二行：搜索框 + 日期过滤
-              Row(
-                children: [
-                  // 搜索框
-                  Expanded(
-                    child: _buildSearchField(theme, state),
-                  ),
-                  const SizedBox(width: 12),
-                  // 日期范围过滤按钮
-                  _buildDateRangeButton(theme, state),
-                  const SizedBox(width: 8),
-                  // 日期选择器按钮（跳转到指定日期）
-                  _buildDatePickerButton(theme),
-                  const SizedBox(width: 8),
-                  // 高级筛选按钮
-                  _RoundedIconButton(
-                    icon: Icons.tune,
-                    tooltip: '高级筛选',
-                    onPressed: () => showGalleryFilterPanel(context),
-                  ),
-                  // 清除过滤按钮
-                  if (state.hasFilters) ...[
-                    const SizedBox(width: 8),
-                    _RoundedIconButton(
-                      icon: Icons.filter_alt_off,
-                      tooltip: '清除所有过滤',
-                      onPressed: () {
-                        _searchController.clear();
-                        ref
-                            .read(localGalleryNotifierProvider.notifier)
-                            .clearAllFilters();
-                      },
-                      color: theme.colorScheme.error,
-                    ),
-                  ],
-                ],
+              const SizedBox(height: 16),
+              Text(
+                l10n.metadataImport_quickSelectHint,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
         ),
       ),
-    );
-  }
-
-  /// 构建搜索框
-  Widget _buildSearchField(ThemeData theme, LocalGalleryState state) {
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      height: 36,
-      decoration: BoxDecoration(
-        color: isDark
-            ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.6)
-            : theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: TextField(
-        controller: _searchController,
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: theme.colorScheme.onSurface,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.common_cancel),
         ),
-        decoration: InputDecoration(
-          hintText: '搜索文件名或 Prompt...',
-          hintStyle: TextStyle(
-            color: theme.colorScheme.onSurfaceVariant
-                .withOpacity(isDark ? 0.6 : 0.5),
-            fontSize: 13,
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(
+            MetadataImportOptions.all(),
           ),
-          prefixIcon: Icon(
-            Icons.search,
-            size: 18,
-            color: theme.colorScheme.onSurfaceVariant
-                .withOpacity(isDark ? 0.7 : 0.6),
-          ),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: Icon(
-                    Icons.close,
-                    size: 16,
-                    color: theme.colorScheme.onSurfaceVariant
-                        .withOpacity(isDark ? 0.7 : 0.6),
-                  ),
-                  onPressed: () {
-                    _searchController.clear();
-                    ref
-                        .read(localGalleryNotifierProvider.notifier)
-                        .setSearchQuery('');
-                  },
-                )
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 8),
-          isDense: true,
+          child: Text(l10n.common_confirm),
         ),
-        onChanged: (value) {
-          setState(() {}); // 更新清除按钮显示状态
-          _onSearchChanged(value);
-        },
-        onSubmitted: (value) {
-          _debounceTimer?.cancel();
-          ref.read(localGalleryNotifierProvider.notifier).setSearchQuery(value);
-        },
-      ),
+      ],
     );
   }
 
-  /// 构建日期范围按钮
-  Widget _buildDateRangeButton(ThemeData theme, LocalGalleryState state) {
-    final hasDateRange = state.dateStart != null || state.dateEnd != null;
-
-    return OutlinedButton.icon(
-      onPressed: () => _selectDateRange(context, state),
-      icon: Icon(
-        Icons.date_range,
-        size: 16,
-        color: hasDateRange ? theme.colorScheme.primary : null,
-      ),
-      label: Text(
-        hasDateRange
-            ? _formatDateRange(state.dateStart, state.dateEnd)
-            : '日期过滤',
-        style: TextStyle(
-          fontSize: 12,
-          color: hasDateRange ? theme.colorScheme.primary : null,
-        ),
-      ),
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        visualDensity: VisualDensity.compact,
-        side:
-            hasDateRange ? BorderSide(color: theme.colorScheme.primary) : null,
-      ),
-    );
+  /// 格式化提示词（SD→NAI + 格式化）
+  String _formatPrompt(String prompt) {
+    return NaiPromptFormatter.format(SdToNaiConverter.convert(prompt));
   }
 
-  /// 格式化日期范围显示
-  String _formatDateRange(DateTime? start, DateTime? end) {
-    final format = DateFormat('MM-dd');
-    if (start != null && end != null) {
-      return '${format.format(start)}~${format.format(end)}';
-    } else if (start != null) {
-      return '${format.format(start)}~';
-    } else if (end != null) {
-      return '~${format.format(end)}';
+  /// 应用单个参数（如果条件满足）
+  void _applyParam<T>(bool shouldApply, T? value, void Function(T) updater) {
+    if (shouldApply && value != null) {
+      updater(value);
     }
-    return '';
   }
 
-  /// 构建日期选择器按钮（跳转到指定日期）
-  Widget _buildDatePickerButton(ThemeData theme) {
-    final l10n = AppLocalizations.of(context)!;
+  /// 应用多角色提示词
+  void _applyCharacterPrompts(dynamic metadata) {
+    final characterNotifier =
+        ref.read(characterPromptNotifierProvider.notifier);
+    final characters = <char.CharacterPrompt>[];
 
-    return OutlinedButton.icon(
-      onPressed: () => _pickDateAndJump(context),
-      icon: const Icon(
-        Icons.calendar_today,
-        size: 16,
-      ),
-      label: Text(
-        l10n.localGallery_jumpToDate,
-        style: const TextStyle(fontSize: 12),
-      ),
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        visualDensity: VisualDensity.compact,
-      ),
-    );
+    for (var i = 0; i < metadata.characterPrompts.length; i++) {
+      final prompt = _formatPrompt(metadata.characterPrompts[i]);
+      var negPrompt = i < metadata.characterNegativePrompts.length
+          ? metadata.characterNegativePrompts[i]
+          : '';
+      if (negPrompt.isNotEmpty) {
+        negPrompt = _formatPrompt(negPrompt);
+      }
+
+      characters.add(
+        char.CharacterPrompt.create(
+          name: 'Character ${i + 1}',
+          gender: _inferGenderFromPrompt(prompt),
+          prompt: prompt,
+          negativePrompt: negPrompt,
+        ),
+      );
+    }
+    characterNotifier.replaceAll(characters);
   }
 
-  /// 选择日期范围
-  Future<void> _selectDateRange(
-    BuildContext context,
-    LocalGalleryState state,
-  ) async {
-    final now = DateTime.now();
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: now,
-      initialDateRange: state.dateStart != null && state.dateEnd != null
-          ? DateTimeRange(start: state.dateStart!, end: state.dateEnd!)
-          : DateTimeRange(
-              start: now.subtract(const Duration(days: 30)),
-              end: now,
-            ),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            dialogTheme: DialogTheme(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-          ),
-          child: child!,
+  /// 从提示词推断角色性别
+  char.CharacterGender _inferGenderFromPrompt(String prompt) {
+    final lowerPrompt = prompt.toLowerCase();
+    if (lowerPrompt.contains('1girl') ||
+        lowerPrompt.contains('girl,') ||
+        lowerPrompt.startsWith('girl')) {
+      return char.CharacterGender.female;
+    } else if (lowerPrompt.contains('1boy') ||
+        lowerPrompt.contains('boy,') ||
+        lowerPrompt.startsWith('boy')) {
+      return char.CharacterGender.male;
+    }
+    return char.CharacterGender.other;
+  }
+
+  /// 发送图片到图生图
+  Future<void> _sendToImg2Img(LocalImageRecord record) async {
+    try {
+      final file = File(record.path);
+      if (!await file.exists()) {
+        if (mounted) {
+          AppToast.info(context, '图片文件不存在');
+        }
+        return;
+      }
+
+      final imageBytes = await file.readAsBytes();
+      final paramsNotifier =
+          ref.read(generationParamsNotifierProvider.notifier);
+
+      paramsNotifier.setSourceImage(imageBytes);
+      paramsNotifier.updateAction(ImageGenerationAction.img2img);
+
+      if (mounted) {
+        AppToast.success(context, '图片已发送到图生图，请切换到生成页面');
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, '发送失败: $e');
+      }
+    }
+  }
+
+  /// 发送图片到 Vibe Transfer
+  /// 提取图片中的 vibe 数据并添加到生成参数
+  Future<void> _sendToVibeTransfer(LocalImageRecord record) async {
+    try {
+      // 检查是否有 vibe 数据
+      final vibeData = record.vibeData;
+      if (vibeData == null) {
+        if (mounted) {
+          AppToast.warning(context, '此图片不包含 Vibe 数据');
+        }
+        return;
+      }
+
+      final paramsNotifier =
+          ref.read(generationParamsNotifierProvider.notifier);
+
+      // 添加 vibe 到生成参数
+      paramsNotifier.addVibeReferences([vibeData]);
+
+      if (mounted) {
+        AppToast.success(
+          context,
+          'Vibe "${vibeData.displayName}" 已添加到生成参数',
         );
-      },
-    );
-
-    if (picked != null) {
-      ref.read(localGalleryNotifierProvider.notifier).setDateRange(
-            picked.start,
-            picked.end,
-          );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, '添加 Vibe 失败: $e');
+      }
     }
   }
 
-  /// 选择日期并跳转到对应分组
-  /// Select date and jump to corresponding group
-  Future<void> _pickDateAndJump(BuildContext context) async {
+  /// 显示发送目标选择对话框
+  Future<void> _showSendDestinationDialog(LocalImageRecord record) async {
+    final destination = await ImageSendDestinationDialog.show(context, record);
+
+    if (destination == null || !mounted) return;
+
+    switch (destination) {
+      case SendDestination.img2img:
+        await _sendToImg2Img(record);
+      case SendDestination.vibeTransfer:
+        await _sendToVibeTransfer(record);
+    }
+  }
+
+  /// 显示图片右键上下文菜单
+  Future<void> _showImageContextMenu(
+    LocalImageRecord record,
+    Offset position,
+  ) async {
+    final metadata = record.metadata;
+
+    final value = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx + 1,
+        position.dy + 1,
+      ),
+      items: [
+        // 发送到选项
+        const PopupMenuItem(
+          value: 'send_to',
+          child: Row(
+            children: [
+              Icon(Icons.send, size: 18),
+              SizedBox(width: 8),
+              Text('发送到...'),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        if (metadata?.prompt.isNotEmpty == true)
+          const PopupMenuItem(
+            value: 'copy_prompt',
+            child: Row(
+              children: [
+                Icon(Icons.content_copy, size: 18),
+                SizedBox(width: 8),
+                Text('复制 Prompt'),
+              ],
+            ),
+          ),
+        if (metadata?.seed != null)
+          const PopupMenuItem(
+            value: 'copy_seed',
+            child: Row(
+              children: [
+                Icon(Icons.tag, size: 18),
+                SizedBox(width: 8),
+                Text('复制 Seed'),
+              ],
+            ),
+          ),
+        const PopupMenuItem(
+          value: 'open_folder',
+          child: Row(
+            children: [
+              Icon(Icons.folder_open, size: 18),
+              SizedBox(width: 8),
+              Text('在文件夹中显示'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline, size: 18, color: Colors.red),
+              SizedBox(width: 8),
+              Text('删除', style: TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (value == null || !context.mounted) return;
+
+    switch (value) {
+      case 'send_to':
+        await _showSendDestinationDialog(record);
+      case 'copy_prompt':
+        if (metadata?.fullPrompt.isNotEmpty == true) {
+          await Clipboard.setData(ClipboardData(text: metadata!.fullPrompt));
+          if (mounted) {
+            AppToast.success(context, 'Prompt 已复制');
+          }
+        }
+      case 'copy_seed':
+        if (metadata?.seed != null) {
+          await Clipboard.setData(
+            ClipboardData(text: metadata!.seed.toString()),
+          );
+          if (mounted) {
+            AppToast.success(context, 'Seed 已复制');
+          }
+        }
+      case 'open_folder':
+        await _openFileInFolder(record.path);
+      case 'delete':
+        await _confirmDeleteImage(record);
+    }
+  }
+
+  /// 在文件夹中打开文件
+  Future<void> _openFileInFolder(String filePath) async {
+    try {
+      if (Platform.isWindows) {
+        await Process.start('explorer', ['/select,', filePath]);
+      } else if (Platform.isMacOS) {
+        await Process.start('open', ['-R', filePath]);
+      } else if (Platform.isLinux) {
+        await Process.start('xdg-open', [path.dirname(filePath)]);
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, '无法打开文件夹: $e');
+      }
+    }
+  }
+
+  /// 确认删除图片
+  Future<void> _confirmDeleteImage(LocalImageRecord record) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认删除'),
+        content: Text(
+          '确定要删除图片「${path.basename(record.path)}」吗？\n\n此操作无法撤销。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        final file = File(record.path);
+        if (await file.exists()) {
+          await file.delete();
+          await ref.read(localGalleryNotifierProvider.notifier).refresh();
+          if (mounted) {
+            AppToast.success(context, '图片已删除');
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          AppToast.error(context, '删除失败: $e');
+        }
+      }
+    }
+  }
+
+  /// 切换分类面板显示状态
+  void _toggleCategoryPanel() {
+    setState(() {
+      _showCategoryPanel = !_showCategoryPanel;
+    });
+  }
+
+  /// 跳转到日期
+  Future<void> _jumpToDate() async {
     final now = DateTime.now();
 
     final picked = await showDatePicker(
@@ -724,7 +1307,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
           data: Theme.of(pickerContext).copyWith(
             dialogTheme: DialogTheme(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
           ),
@@ -735,576 +1318,54 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
     if (picked != null && mounted) {
       // 确保分组视图已激活
-      // Ensure grouped view is activated
       final currentState = ref.read(localGalleryNotifierProvider);
       final notifier = ref.read(localGalleryNotifierProvider.notifier);
       if (!currentState.isGroupedView) {
-        notifier.setGroupedView(true);
+        await notifier.setGroupedView(true);
       }
 
-      // 等待分组数据加载完成
-      // Wait for grouped data to load
+      // 等待分组数据加载
       await Future.delayed(const Duration(milliseconds: 300));
 
       if (!mounted) return;
 
-      // 计算选中日期属于哪个分组
-      // Calculate which group the selected date belongs to
+      // 计算所选日期属于哪个分组
       final today = DateTime(now.year, now.month, now.day);
       final yesterday = today.subtract(const Duration(days: 1));
       final thisWeekStart = today.subtract(Duration(days: today.weekday - 1));
       final selectedDate = DateTime(picked.year, picked.month, picked.day);
 
-      ImageDateGroup? targetGroup;
+      // ignore: undefined_enum_constant
+      dynamic targetGroup;
 
+      // ignore: undefined_enum_constant
       if (selectedDate == today) {
         targetGroup = ImageDateGroup.today;
+        // ignore: undefined_enum_constant
       } else if (selectedDate == yesterday) {
         targetGroup = ImageDateGroup.yesterday;
+        // ignore: undefined_enum_constant
       } else if (selectedDate.isAfter(thisWeekStart) &&
           selectedDate.isBefore(today)) {
         targetGroup = ImageDateGroup.thisWeek;
+        // ignore: undefined_enum_constant
       } else {
         targetGroup = ImageDateGroup.earlier;
       }
 
-      // 跳转到对应分组
-      // Jump to corresponding group
-      _groupedGridViewKey.currentState?.scrollToGroup(targetGroup);
+      // 使用 key 跳转到对应分组
+      if (_groupedGridViewKey.currentState != null) {
+        (_groupedGridViewKey.currentState as dynamic)
+            .scrollToGroup(targetGroup);
+      }
 
-      // 显示提示消息
-      // Show hint message
+      // 显示提示
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '已跳转到 ${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}',
-            ),
-            duration: const Duration(seconds: 2),
-          ),
+        AppToast.info(
+          context,
+          '已跳转到 ${picked.year}-${picked.month.toString().padLeft(2, '0')}',
         );
       }
     }
-  }
-
-  /// 构建错误状态
-  Widget _buildErrorState(ThemeData theme, LocalGalleryState state) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.error_outline,
-            size: 48,
-            color: theme.colorScheme.error,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            '加载失败: ${state.error}',
-            style: TextStyle(
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () =>
-                ref.read(localGalleryNotifierProvider.notifier).refresh(),
-            child: Text(
-              '重试',
-              style: TextStyle(
-                color: theme.colorScheme.onPrimary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 构建索引状态
-  Widget _buildIndexingState() {
-    final theme = Theme.of(context);
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(
-            color: theme.colorScheme.primary,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            '索引本地图片中...',
-            style: TextStyle(
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 构建空状态
-  Widget _buildEmptyState(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.image_not_supported,
-            size: 64,
-            color: theme.colorScheme.onSurfaceVariant
-                .withOpacity(isDark ? 0.6 : 1.0),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            '暂无本地图片',
-            style: TextStyle(
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '生成的图片将保存在此处',
-            style: TextStyle(
-              color: theme.colorScheme.onSurfaceVariant
-                  .withOpacity(isDark ? 0.7 : 1.0),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 构建内容区
-  Widget _buildContent(
-    ThemeData theme,
-    LocalGalleryState state,
-    int columns,
-    double itemWidth,
-  ) {
-    // 分组视图
-    // Grouped view
-    if (state.isGroupedView) {
-      // 分组视图中加载骨架屏
-      // Loading skeleton in grouped view
-      if (state.isGroupedLoading) {
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                '加载分组图片中...',
-                style: TextStyle(
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-        );
-      }
-
-      // 分组视图无结果
-      // No results in grouped view
-      if (state.groupedImages.isEmpty) {
-        final isDark = theme.brightness == Brightness.dark;
-
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.search_off,
-                size: 48,
-                color: theme.colorScheme.onSurfaceVariant
-                    .withOpacity(isDark ? 0.6 : 0.5),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                '无匹配结果',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextButton.icon(
-                onPressed: () {
-                  _searchController.clear();
-                  ref
-                      .read(localGalleryNotifierProvider.notifier)
-                      .clearAllFilters();
-                },
-                icon: const Icon(Icons.filter_alt_off, size: 16),
-                label: const Text('清除过滤'),
-                style: TextButton.styleFrom(
-                  foregroundColor: theme.colorScheme.primary,
-                ),
-              ),
-            ],
-          ),
-        );
-      }
-
-      // 显示分组视图
-      // Show grouped view
-      final selectionState = ref.watch(localGallerySelectionNotifierProvider);
-
-      return GroupedGridView(
-        key: _groupedGridViewKey,
-        images: state.groupedImages,
-        columns: columns,
-        itemWidth: itemWidth,
-        selectionMode: selectionState.isActive,
-        buildSelected: (path) => selectionState.selectedIds.contains(path),
-        buildCard: (record) {
-          final isSelected = selectionState.selectedIds.contains(record.path);
-
-          // Get or calculate aspect ratio for grouped view
-          double aspectRatio = _aspectRatioCache[record.path] ?? 1.0;
-
-          // Calculate and cache aspect ratio asynchronously if not cached
-          if (!_aspectRatioCache.containsKey(record.path)) {
-            _calculateAspectRatio(record).then((value) {
-              if (mounted && value != aspectRatio) {
-                setState(() {
-                  _aspectRatioCache[record.path] = value;
-                });
-              }
-            });
-          }
-
-          return LocalImageCard(
-            record: record,
-            itemWidth: itemWidth,
-            aspectRatio: aspectRatio,
-            selectionMode: selectionState.isActive,
-            isSelected: isSelected,
-            onSelectionToggle: () {
-              ref
-                  .read(localGallerySelectionNotifierProvider.notifier)
-                  .toggle(record.path);
-            },
-            onLongPress: () {
-              if (!selectionState.isActive) {
-                ref
-                    .read(localGallerySelectionNotifierProvider.notifier)
-                    .enterAndSelect(record.path);
-              }
-            },
-            onDeleted: () {
-              // 刷新分组视图
-              ref.read(localGalleryNotifierProvider.notifier).refresh();
-            },
-          );
-        },
-      );
-    }
-
-    // 过滤后无结果
-    if (state.filteredFiles.isEmpty && state.hasFilters) {
-      final isDark = theme.brightness == Brightness.dark;
-
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.search_off,
-              size: 48,
-              color: theme.colorScheme.onSurfaceVariant
-                  .withOpacity(isDark ? 0.6 : 0.5),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '无匹配结果',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextButton.icon(
-              onPressed: () {
-                _searchController.clear();
-                ref
-                    .read(localGalleryNotifierProvider.notifier)
-                    .clearAllFilters();
-              },
-              icon: const Icon(Icons.filter_alt_off, size: 16),
-              label: const Text('清除过滤'),
-              style: TextButton.styleFrom(
-                foregroundColor: theme.colorScheme.primary,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // 加载中骨架屏
-    if (state.isPageLoading) {
-      return GridView.builder(
-        key: const PageStorageKey<String>('local_gallery_grid_loading'),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: columns,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-        ),
-        itemCount:
-            state.currentImages.isNotEmpty ? state.currentImages.length : 20,
-        itemBuilder: (c, i) {
-          return const Card(
-            clipBehavior: Clip.antiAlias,
-            child: _ShimmerSkeleton(height: 250),
-          );
-        },
-      );
-    }
-
-    // 正常内容
-    return MasonryGridView.count(
-      key: const PageStorageKey<String>('local_gallery_grid'),
-      crossAxisCount: columns,
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      itemCount: state.currentImages.length,
-      itemBuilder: (c, i) {
-        final record = state.currentImages[i];
-        final selectionState = ref.watch(localGallerySelectionNotifierProvider);
-        final isSelected = selectionState.selectedIds.contains(record.path);
-
-        // 获取或计算宽高比
-        // Get or calculate aspect ratio
-        double aspectRatio = _aspectRatioCache[record.path] ?? 1.0;
-
-        // 异步计算并缓存宽高比
-        // Calculate and cache aspect ratio asynchronously
-        _calculateAspectRatio(record).then((value) {
-          if (mounted && value != aspectRatio) {
-            setState(() {
-              _aspectRatioCache[record.path] = value;
-            });
-          }
-        });
-
-        return LocalImageCard(
-          record: record,
-          itemWidth: itemWidth,
-          aspectRatio: aspectRatio,
-          selectionMode: selectionState.isActive,
-          isSelected: isSelected,
-          onSelectionToggle: () {
-            ref
-                .read(localGallerySelectionNotifierProvider.notifier)
-                .toggle(record.path);
-          },
-          onLongPress: () {
-            if (!selectionState.isActive) {
-              ref
-                  .read(localGallerySelectionNotifierProvider.notifier)
-                  .enterAndSelect(record.path);
-            }
-          },
-          onDeleted: () {
-            // 刷新当前页
-            ref
-                .read(localGalleryNotifierProvider.notifier)
-                .loadPage(state.currentPage);
-          },
-        );
-      },
-    );
-  }
-}
-
-/// 圆角图标按钮（带悬停动画）
-class _RoundedIconButton extends StatefulWidget {
-  final IconData icon;
-  final String? tooltip;
-  final VoidCallback? onPressed;
-  final Color? color;
-
-  const _RoundedIconButton({
-    required this.icon,
-    this.tooltip,
-    this.onPressed,
-    this.color,
-  });
-
-  @override
-  State<_RoundedIconButton> createState() => _RoundedIconButtonState();
-}
-
-class _RoundedIconButtonState extends State<_RoundedIconButton> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final effectiveColor = widget.color ?? theme.colorScheme.onSurfaceVariant;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeInOut,
-        decoration: BoxDecoration(
-          color: _isHovered
-              ? effectiveColor.withOpacity(isDark ? 0.2 : 0.15)
-              : effectiveColor.withOpacity(isDark ? 0.08 : 0.05),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: effectiveColor.withOpacity(isDark ? 0.15 : 0.2),
-            width: 1,
-          ),
-        ),
-        child: IconButton(
-          icon: Icon(widget.icon),
-          tooltip: widget.tooltip,
-          onPressed: widget.onPressed,
-          color: effectiveColor,
-          style: IconButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 圆角文本按钮（带悬停动画）
-class _RoundedTextButton extends StatefulWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback? onPressed;
-  final Color color;
-
-  const _RoundedTextButton({
-    required this.icon,
-    required this.label,
-    this.onPressed,
-    required this.color,
-  });
-
-  @override
-  State<_RoundedTextButton> createState() => _RoundedTextButtonState();
-}
-
-class _RoundedTextButtonState extends State<_RoundedTextButton> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeInOut,
-        decoration: BoxDecoration(
-          color: _isHovered
-              ? widget.color.withOpacity(isDark ? 0.25 : 0.2)
-              : widget.color.withOpacity(isDark ? 0.12 : 0.1),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: widget.color.withOpacity(isDark ? 0.25 : 0.3),
-            width: 1,
-          ),
-        ),
-        child: TextButton.icon(
-          onPressed: widget.onPressed,
-          icon: Icon(widget.icon, size: 18),
-          label: Text(widget.label),
-          style: TextButton.styleFrom(
-            foregroundColor: widget.color,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 简单的 Shimmer 骨架屏组件
-class _ShimmerSkeleton extends StatefulWidget {
-  final double height;
-
-  const _ShimmerSkeleton({required this.height});
-
-  @override
-  State<_ShimmerSkeleton> createState() => _ShimmerSkeletonState();
-}
-
-class _ShimmerSkeletonState extends State<_ShimmerSkeleton>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDark = colorScheme.brightness == Brightness.dark;
-
-    // Dark mode: use lighter shimmer on dark surface
-    // Light mode: use darker shimmer on light surface
-    final baseColor = isDark
-        ? colorScheme.surfaceContainerHighest.withOpacity(0.2)
-        : colorScheme.surfaceContainerHighest.withOpacity(0.3);
-    final highlightColor = isDark
-        ? colorScheme.surfaceContainerHighest.withOpacity(0.5)
-        : colorScheme.surfaceContainerHighest.withOpacity(0.6);
-
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return Container(
-          height: widget.height,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment(
-                -1.0 + (_controller.value * 2),
-                -0.3,
-              ), // 稍微倾斜
-              end: Alignment(
-                1.0 + (_controller.value * 2),
-                0.3,
-              ),
-              colors: [baseColor, highlightColor, baseColor],
-              stops: const [0.1, 0.5, 0.9],
-            ),
-          ),
-        );
-      },
-    );
   }
 }
