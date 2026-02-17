@@ -10,43 +10,33 @@ import '../../../../core/utils/vibe_export_utils.dart';
 import '../../../../data/models/vibe/vibe_library_category.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
+import '../../../../data/models/vibe/vibe_export_format.dart';
 
 import '../../../widgets/common/app_toast.dart';
 
-/// Vibe 导出格式枚举
-enum VibeExportFormat {
-  /// 单个 .naiv4vibe 文件
-  single,
-
-  /// 打包为 .naiv4vibebundle 文件
-  bundle,
-}
-
-extension VibeExportFormatExtension on VibeExportFormat {
-  String get displayName {
+/// VibeExportFormat 本地化扩展
+extension VibeExportFormatUiExtension on VibeExportFormat {
+  /// 获取显示名称（中文）
+  String get uiDisplayName {
     switch (this) {
-      case VibeExportFormat.single:
-        return '单独文件 (.naiv4vibe)';
       case VibeExportFormat.bundle:
         return '打包文件 (.naiv4vibebundle)';
+      case VibeExportFormat.encoding:
+        return '单独文件 (.naiv4vibe)';
+      case VibeExportFormat.embeddedImage:
+        return '嵌入图片 (PNG)';
     }
   }
 
-  String get fileExtension {
+  /// 获取描述（中文）
+  String get uiDescription {
     switch (this) {
-      case VibeExportFormat.single:
-        return 'naiv4vibe';
-      case VibeExportFormat.bundle:
-        return 'naiv4vibebundle';
-    }
-  }
-
-  String get description {
-    switch (this) {
-      case VibeExportFormat.single:
-        return '每个 Vibe 导出为独立文件，适合分享单个 Vibe';
       case VibeExportFormat.bundle:
         return '多个 Vibe 打包为一个文件，适合批量备份';
+      case VibeExportFormat.encoding:
+        return '每个 Vibe 导出为独立文件，适合分享单个 Vibe';
+      case VibeExportFormat.embeddedImage:
+        return '将 Vibe 数据嵌入到 PNG 图片元数据中';
     }
   }
 }
@@ -67,7 +57,7 @@ class VibeExportDialog extends ConsumerStatefulWidget {
 }
 
 class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
-  VibeExportFormat _exportFormat = VibeExportFormat.single;
+  VibeExportFormat _exportFormat = VibeExportFormat.encoding;
   bool _includeThumbnails = true;
   bool _includeFullData = true;
   bool _isExporting = false;
@@ -313,13 +303,13 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          format.displayName,
+                          format.uiDisplayName,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                         Text(
-                          format.description,
+                          format.uiDescription,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.outline,
                           ),
@@ -819,8 +809,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
       if (_exportFormat == VibeExportFormat.bundle) {
         // 导出为 bundle 格式
         await _exportAsBundle(selectedEntries);
-      } else {
-        // 导出为单独文件
+      } else if (_exportFormat == VibeExportFormat.encoding) {
+        // 导出为单独文件 (使用 encoding 格式)
         await _exportAsSingleFiles(selectedEntries);
       }
 
