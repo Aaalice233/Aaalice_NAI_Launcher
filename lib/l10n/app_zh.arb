@@ -3269,6 +3269,20 @@
   "settings_hivePathSaved": "数据存储路径已保存，重启后生效",
   "settings_restartRequiredTitle": "需要重启应用",
   "settings_changePathConfirm": "更改数据存储路径后，需要重启应用才能生效。\\n\\n新路径将在下次启动时生效。是否继续？",
-  "settings_resetPathConfirm": "重置数据存储路径后，需要重启应用才能生效。\\n\\n默认路径将在下次启动时生效。是否继续？"
+  "settings_resetPathConfirm": "重置数据存储路径后，需要重启应用才能生效。\\n\\n默认路径将在下次启动时生效。是否继续？",
+
+  "backgroundTask_downloadedCount": "已下载 {count} 个标签",
+  "@backgroundTask_downloadedCount": {
+    "placeholders": {
+      "count": {"type": "int", "format": "decimalPattern"}
+    }
+  },
+  "backgroundTask_downloadedCountWithTotal": "已下载 {count}/{total} 个标签",
+  "@backgroundTask_downloadedCountWithTotal": {
+    "placeholders": {
+      "count": {"type": "int", "format": "decimalPattern"},
+      "total": {"type": "int", "format": "decimalPattern"}
+    }
+  }
 
 }

@@ -503,7 +503,7 @@ class PresetGeneratorStrategy {
     return RandomPromptResult.multiCharacter(
       mainPrompt: mainTags.join(', '),
       characters: characters,
-      seed: random is Random ? random.hashCode : null,
+      seed: random.hashCode,
     );
   }
 

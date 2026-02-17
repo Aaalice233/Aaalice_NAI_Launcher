@@ -1,6 +1,5 @@
 import 'dart:math';
 
-import '../../../core/utils/app_logger.dart';
 import '../../models/character/character_prompt.dart';
 import '../../models/prompt/algorithm_config.dart';
 import '../../models/prompt/random_prompt_result.dart';
