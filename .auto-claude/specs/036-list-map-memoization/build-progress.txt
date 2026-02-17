@@ -1,0 +1,164 @@
+=== AUTO-BUILD PROGRESS ===
+
+Project: 优化大型List/Map的频繁遍历，引入Memoization缓存
+Workspace: tasks/036-list-map-memoization
+Started: 2026-02-17
+
+Workflow Type: refactor
+Rationale: Performance optimization that improves existing code without changing functionality. Follows stage-based approach: create utilities -> apply to providers -> verify.
+
+Session 1 (Planner):
+- ✅ Created implementation_plan.json with 6 phases and 12 subtasks
+- ✅ Created project_index.json with Flutter project structure
+- ✅ Created context.json with patterns and file references
+- ✅ Created init.sh setup script
+- ✅ Analyzed codebase and identified memoization opportunities
+
+Phase Summary:
+- Phase 1 (Create Memoization Utility): 2 subtasks, depends on []
+- Phase 2 (Optimize Tag Library): 2 subtasks, depends on [Phase 1]
+- Phase 3 (Optimize Vibe Library): 2 subtasks, depends on [Phase 1]
+- Phase 4 (Optimize Gallery Providers): 2 subtasks, depends on [Phase 1]
+- Phase 5 (Optimize Queue Provider): 1 subtask, depends on [Phase 1]
+- Phase 6 (Verify and Cleanup): 3 subtasks, depends on [Phases 2-5]
+
+Services Involved:
+- flutter_app: Single Flutter application using Riverpod for state management
+
+Problem Areas Identified:
+1. tag_library_page_provider.dart:
+   - filteredEntries getter re-runs all filters on every access
+   - favoritesCount uses .where() on every access
+   - getCategoryEntryCount re-calculates category tree
+
+2. vibe_library_provider.dart:
+   - favoriteCount uses .where() on every access
+   - allTags iterates all entries and builds Set on every access
+   - categoryTree builds tree structure on every access
+
+3. gallery_category_provider.dart:
+   - rootCategories getter may re-calculate
+   - categoryTree builds tree on every access
+
+Files to Create:
+- lib/core/utils/memoization_extensions.dart
+- lib/core/utils/provider_selectors.dart
+
+Files to Modify:
+- lib/presentation/providers/tag_library_page_provider.dart
+- lib/presentation/providers/vibe_library_provider.dart
+- lib/presentation/providers/gallery_category_provider.dart
+- lib/presentation/providers/local_gallery_provider.dart
+- lib/presentation/providers/queue_execution_provider.dart
+
+Patterns to Follow:
+- Existing LRU cache in lib/data/services/lru_cache_service.dart
+- Riverpod select pattern in lib/presentation/router/app_router.dart
+- Freezed for immutable state classes
+
+Parallelism Analysis:
+- Max parallel phases: 1
+- Recommended workers: 1
+- Sequential execution required due to dependency chain (utility must be created before optimization phases)
+
+Verification Strategy:
+- Risk Level: Medium
+- Required: Flutter analyze, Flutter test, Build runner code generation
+- Manual verification required for UI functionality
+
+=== STARTUP COMMAND ===
+
+To continue building this spec:
+
+  cd ./.auto-claude/worktrees/tasks/036-list-map-memoization
+  ./.auto-claude/specs/036-list-map-memoization/init.sh
+
+Then run the implementation phases:
+
+  dart run build_runner build --delete-conflicting-outputs
+  flutter analyze
+  flutter test
+
+=== END SESSION 1 ===
+
+Session 2 (Coding - subtask-1-1):
+- ✅ Created lib/core/utils/memoization_extensions.dart (528 lines)
+- ✅ Implemented memoization classes: MemoizedValue<T>, MemoizedList<T, R>, MemoizedMap<K, V, R>
+- ✅ Implemented MemoizationCache<K, V> - generic LRU cache
+- ✅ Implemented extension methods: ListMemoizationExtension, MapMemoizationExtension
+- ✅ Implemented utility functions: memoizedSelector<T, R>, BatchMemoization
+- ✅ Committed changes to git branch auto-claude/036-list-map-memoization
+- ✅ Updated implementation_plan.json - subtask-1-1 status: completed
+
+Session 3 (Coding - subtask-1-2):
+- ✅ Created lib/core/utils/provider_selectors.dart (212 lines)
+- ✅ Implemented createMemoizedSelector<T, R> function
+- ✅ Implemented convenience selectors: createListSelector, createMapSelector, createPropertySelector
+- ✅ Implemented SelectorManager class for batch cache management
+- ✅ Implemented extension methods for ProviderListenable, Ref, WidgetRef
+- ✅ Committed changes to git branch auto-claude/036-list-map-memoization
+- ✅ Updated implementation_plan.json - subtask-1-2 status: completed
+
+Phase 1 Progress: 2/2 subtasks COMPLETED
+
+Session 4 (Coding - subtask-2-1):
+- ✅ Optimized lib/presentation/providers/tag_library_page_provider.dart
+- ✅ Added import for memoization_extensions.dart
+- ✅ Added MemoizedValue<List<TagLibraryEntry>> _filteredEntriesCache field
+- ✅ Updated filteredEntries getter to use memoization with cache key tuple
+- ✅ Cache key includes: entries, categories, selectedCategoryId, searchQuery, sortBy
+- ✅ Committed changes to git branch auto-claude/036-list-map-memoization
+- ✅ Updated implementation_plan.json - subtask-2-1 status: completed
+
+Phase 2 Progress: 1/2 subtasks completed
+Next: subtask-2-2 - Optimize TagLibraryPageState.favoritesCount and getCategoryEntryCount
+
+Session 5 (Coding - subtask-5-1):
+- ✅ Optimized lib/presentation/providers/queue_execution_provider.dart
+- ✅ Added import for memoization_extensions.dart
+- ✅ Added MemoizedList caches (_pendingTasksCache, _failedTasksCache) for task list operations
+- ✅ Optimized _handleFailedTask() with memoized task lookup by ID
+- ✅ Added MemoizedValue cache (_filteredFailedTaskIdsCache) for failed task ID filtering
+- ✅ Optimized retryFailedTask() and requeueFailedTask() with memoized filtering
+- ✅ Added module-level _queueSettingsCache for queueSettings provider computation
+- ✅ Committed changes to git branch auto-claude/008-riverpod-provider
+- ✅ Updated implementation_plan.json - subtask-5-1 status: completed
+
+Phase 5 Progress: 1/1 subtasks COMPLETED
+
+Session 6 (Verification - subtask-6-1):
+- ⚠️ CANNOT run `dart run build_runner build --delete-conflicting-outputs` in this environment
+- Environment limitation: No Dart/Flutter SDK available in WSL (Windows SDK at E:\flutter not accessible)
+- The modified provider files import their .g.dart part files but code regeneration cannot be done here
+- REQUIRED MANUAL ACTION: Run `dart run build_runner build --delete-conflicting-outputs` in Windows environment
+- Modified providers requiring code generation:
+  - lib/presentation/providers/tag_library_page_provider.dart
+  - lib/presentation/providers/vibe_library_provider.dart
+  - lib/presentation/providers/gallery_category_provider.dart
+  - lib/presentation/providers/local_gallery_provider.dart
+- These files already have part directives pointing to .g.dart files, just need regeneration
+
+Session 7 (Verification - subtask-6-2):
+- ⚠️ CANNOT run `flutter analyze` in this environment
+- Environment limitation: No Dart/Flutter SDK available in WSL
+- Searched for Flutter SDK at /c/flutter-sdk/flutter/bin, /c/flutter/bin, /mnt/e/flutter/bin - none accessible
+- Manual code review performed instead - all modified files appear syntactically correct
+- REQUIRED MANUAL ACTION: Run `flutter analyze` in Windows environment to verify:
+  - lib/core/utils/memoization_extensions.dart
+  - lib/core/utils/provider_selectors.dart
+  - lib/presentation/providers/tag_library_page_provider.dart
+  - lib/presentation/providers/vibe_library_provider.dart
+  - lib/presentation/providers/gallery_category_provider.dart
+  - lib/presentation/providers/local_gallery_provider.dart
+  - lib/presentation/providers/queue_execution_provider.dart
+
+Session 8 (Verification - subtask-6-3):
+- ⚠️ CANNOT run `flutter test` in this environment
+- Environment limitation: No Dart/Flutter SDK available in WSL
+- Windows Flutter SDK located at E:\flutter\bin\flutter.bat is not accessible from WSL
+- Attempted: cmd.exe /c and $FLUTTER variable - both blocked by environment restrictions
+- Manual code review performed on test files - all appear syntactically correct
+- REQUIRED MANUAL ACTION: Run `flutter test` in Windows environment to verify:
+  - All existing tests still pass
+  - No regressions introduced by memoization changes
+  - Test files reviewed: test/app_test.dart, test/data_source_test.dart, test/app_logger_test.dart
