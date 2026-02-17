@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../providers/background_task_provider.dart' show BackgroundTask, backgroundTaskNotifierProvider;
 
@@ -45,7 +46,7 @@ class BackgroundTaskIndicator extends ConsumerWidget {
               const SizedBox(height: 8),
               _buildProgressBar(task.progress, colorScheme),
               const SizedBox(height: 4),
-              _buildProgressInfo(task, theme, colorScheme),
+              _buildProgressInfo(context, task, theme, colorScheme),
             ],
           ),
         ),
@@ -106,6 +107,7 @@ class BackgroundTaskIndicator extends ConsumerWidget {
   }
 
   Widget _buildProgressInfo(
+    BuildContext context,
     BackgroundTask task,
     ThemeData theme,
     ColorScheme colorScheme,
@@ -114,7 +116,7 @@ class BackgroundTaskIndicator extends ConsumerWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          task.message ?? '${(task.progress * 100).toInt()}%',
+          _getProgressText(context, task),
           style: theme.textTheme.bodySmall?.copyWith(
             color: colorScheme.onSurfaceVariant,
           ),
@@ -131,6 +133,26 @@ class BackgroundTaskIndicator extends ConsumerWidget {
           ),
       ],
     );
+  }
+
+  /// 获取进度文本
+  /// 优先级：localized count text > message > percentage
+  String _getProgressText(BuildContext context, BackgroundTask task) {
+    final l10n = context.l10n;
+
+    // 如果有处理数量，显示本地化计数文本
+    if (task.processedCount != null && task.processedCount! > 0) {
+      if (task.totalCount != null && task.totalCount! > 0) {
+        return l10n.backgroundTask_downloadedCountWithTotal(
+          task.processedCount!,
+          task.totalCount!,
+        );
+      }
+      return l10n.backgroundTask_downloadedCount(task.processedCount!);
+    }
+
+    // 回退到消息或百分比
+    return task.message ?? '${(task.progress * 100).toInt()}%';
   }
 }
 

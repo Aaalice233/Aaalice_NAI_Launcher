@@ -46,8 +46,10 @@ class DataSourceInitProgress {
 /// 刷新进度回调
 typedef DataSourceProgressCallback = void Function(
   double progress,
-  String? message,
-);
+  String? message, {
+  int? processedCount,
+  int? totalCount,
+});
 
 /// 懒加载数据源接口
 /// 统一共现数据、翻译数据、Danbooru标签的数据源架构
@@ -126,7 +128,7 @@ class UnifiedDataSourceManager {
     final futures = _services.map((service) async {
       try {
         // 设置进度回调
-        service.onProgress = (progress, message) {
+        service.onProgress = (progress, message, {processedCount, totalCount}) {
           progressMap[service.serviceName] = DataSourceInitProgress(
             sourceName: service.serviceName,
             overallProgress: progress,

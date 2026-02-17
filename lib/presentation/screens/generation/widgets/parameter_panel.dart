@@ -408,6 +408,12 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
             style: theme.textTheme.titleSmall,
           ),
           tilePadding: EdgeInsets.zero,
+          initiallyExpanded: params.advancedOptionsExpanded,
+          onExpansionChanged: (expanded) {
+            ref
+                .read(generationParamsNotifierProvider.notifier)
+                .setAdvancedOptionsExpanded(expanded);
+          },
           children: [
             // V3 模型: SMEA 选项 (非 DDIM 采样器时显示)
             if (params.isV3Model && !params.sampler.contains('ddim')) ...[

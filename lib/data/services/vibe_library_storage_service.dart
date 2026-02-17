@@ -41,15 +41,8 @@ class VibeEntryRenameResult {
 /// 负责 Vibe 库条目和分类的 CRUD 操作
 /// 使用 Hive 本地存储，支持搜索、筛选和使用统计
 class VibeLibraryStorageService {
-  // Fallback box names for recovery scenarios (corrupt data, migration failures)
-  // TODO: These can be removed after VibeLibraryMigrationService is verified stable for 2+ releases
   static const String _entriesBoxName = 'vibe_library_entries';
-  static const String _entriesFallbackBoxName = 'vibe_library_entries_fallback';
-  static const String _entriesEmergencyBoxName = 'vibe_library_entries_emergency';
-  static const String _entriesRecoveryBoxName = 'vibe_library_entries_recovery';
   static const String _categoriesBoxName = 'vibe_library_categories';
-  static const String _categoriesRecoveryBoxName =
-      'vibe_library_categories_recovery';
   static const String _tag = 'VibeLibrary';
 
   VibeLibraryStorageService({VibeFileStorageService? fileStorage})
@@ -70,55 +63,18 @@ class VibeLibraryStorageService {
       Hive.registerAdapter(VibeLibraryCategoryAdapter());
     }
 
-    _entriesBox = await _openEntriesBoxWithFallback();
+    _entriesBox = await _openEntriesBox();
 
-    _categoriesBox = await _openCategoriesBoxWithFallback();
+    _categoriesBox = await _openCategoriesBox();
     AppLogger.d('VibeLibraryStorageService initialized', 'VibeLibrary');
   }
 
-  bool _isUnknownTypeIdError(Object error) {
-    return error is HiveError &&
-        error.toString().contains('unknown typeId');
+  Future<Box<VibeLibraryEntry>> _openEntriesBox() async {
+    return Hive.openBox<VibeLibraryEntry>(_entriesBoxName);
   }
 
-  // TODO: Remove fallback chain after VibeLibraryMigrationService is verified stable for 2+ releases
-  Future<Box<VibeLibraryEntry>> _openEntriesBoxWithFallback() async {
-    final candidates = <String>[
-      _entriesBoxName,
-      _entriesFallbackBoxName,
-      _entriesEmergencyBoxName,
-    ];
-
-    Object? lastError;
-    for (final boxName in candidates) {
-      try {
-        final box = await Hive.openBox<VibeLibraryEntry>(boxName);
-        if (boxName != _entriesBoxName) {
-          AppLogger.i('已切换到新 Vibe 条目缓存箱: $boxName', _tag);
-        }
-        return box;
-      } catch (e) {
-        lastError = e;
-        if (_isUnknownTypeIdError(e)) {
-          AppLogger.i('检测到旧版 Vibe 数据格式，跳过缓存箱 $boxName: $e', _tag);
-          continue;
-        }
-        rethrow;
-      }
-    }
-
-    AppLogger.w('所有默认 Vibe 条目缓存箱均不可用，切换恢复箱: $lastError', _tag);
-    return Hive.openBox<VibeLibraryEntry>(_entriesRecoveryBoxName);
-  }
-
-  Future<Box<VibeLibraryCategory>> _openCategoriesBoxWithFallback() async {
-    try {
-      return await Hive.openBox<VibeLibraryCategory>(_categoriesBoxName);
-    } catch (e, stackTrace) {
-      AppLogger.w('打开分类缓存箱失败，切换到恢复箱: $e', _tag);
-      AppLogger.e('Open categories box failed', e, stackTrace, _tag);
-      return Hive.openBox<VibeLibraryCategory>(_categoriesRecoveryBoxName);
-    }
+  Future<Box<VibeLibraryCategory>> _openCategoriesBox() async {
+    return Hive.openBox<VibeLibraryCategory>(_categoriesBoxName);
   }
 
   /// 确保已初始化（线程安全）

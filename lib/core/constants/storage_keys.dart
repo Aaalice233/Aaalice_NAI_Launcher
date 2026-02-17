@@ -47,6 +47,13 @@ class StorageKeys {
   static const String promptAreaHeight = 'prompt_area_height';
   static const String promptMaximized = 'prompt_maximized';
 
+  // Panel Expansion State Keys (面板展开状态)
+  static const String advancedOptionsExpanded = 'advanced_options_expanded';
+  static const String img2imgExpanded = 'img2img_expanded';
+  static const String vibeTransferExpanded = 'vibe_transfer_expanded';
+  static const String preciseRefExpanded = 'precise_ref_expanded';
+  static const String characterPanelExpanded = 'character_panel_expanded';
+
   // Panel Width Keys (面板宽度)
   static const String historyPanelWidth = 'history_panel_width';
   static const String defaultModel = 'default_model';
@@ -154,6 +161,9 @@ class StorageKeys {
   static const String tagLibraryCategoriesData = 'tag_library_categories_data';
   static const String tagLibraryViewMode = 'tag_library_view_mode';
 
+  // Gallery Folder (画廊文件夹相关)
+  static const String galleryFolderViewMode = 'gallery_folder_view_mode';
+
   // Statistics Cache (统计数据缓存)
   static const String statisticsCacheBox = 'statistics_cache';
   static const String statisticsCacheData = 'statistics_cache_data';
@@ -180,6 +190,8 @@ class StorageKeys {
       'enable_smart_tag_recommendation';
   static const String enableCooccurrenceRecommendation =
       'enable_cooccurrence_recommendation';
+  static const String enableSmartFolderSuggestion =
+      'enable_smart_folder_suggestion';
 
   // Danbooru 画师同步设置
   static const String danbooruSyncArtists = 'danbooru_sync_artists';

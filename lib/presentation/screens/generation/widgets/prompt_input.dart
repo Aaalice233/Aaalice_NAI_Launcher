@@ -30,6 +30,7 @@ import '../../../widgets/prompt/uc_preset_selector.dart';
 import '../../../widgets/character/character_prompt_button.dart';
 import '../../../widgets/prompt/fixed_tags_button.dart';
 import '../../../providers/pending_prompt_provider.dart';
+import 'prompt_tooltip_components.dart';
 
 /// Prompt 输入组件 (带自动补全)
 class PromptInputWidget extends ConsumerStatefulWidget {
@@ -818,13 +819,20 @@ class _PositivePromptTooltip extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 顶部统计标题
-        _buildHeader(isDark),
+        TooltipHeader(
+          theme: theme,
+          label: l10n.prompt_positivePrompt,
+          icon: Icons.auto_awesome,
+          color: theme.colorScheme.primary,
+          isDark: isDark,
+        ),
 
         const SizedBox(height: 10),
 
         // 固定词（前缀）- 解析别名
         if (hasPrefixes) ...[
-          _buildSection(
+          TooltipSection(
+            theme: theme,
             icon: Icons.arrow_forward_rounded,
             label: l10n.fixedTags_prefix,
             color: theme.colorScheme.primary,
@@ -838,7 +846,8 @@ class _PositivePromptTooltip extends StatelessWidget {
 
         // 用户输入 - 解析别名
         if (userPrompt.trim().isNotEmpty) ...[
-          _buildSection(
+          TooltipSection(
+            theme: theme,
             icon: Icons.edit_rounded,
             label: l10n.prompt_mainPositive,
             color: theme.colorScheme.secondary,
@@ -850,7 +859,8 @@ class _PositivePromptTooltip extends StatelessWidget {
 
         // 质量词
         if (hasQuality) ...[
-          _buildSection(
+          TooltipSection(
+            theme: theme,
             icon: Icons.star_rounded,
             label: l10n.qualityTags_positive,
             color: Colors.amber,
@@ -871,7 +881,8 @@ class _PositivePromptTooltip extends StatelessWidget {
 
         // 固定词（后缀）- 解析别名
         if (hasSuffixes) ...[
-          _buildSection(
+          TooltipSection(
+            theme: theme,
             icon: Icons.arrow_back_rounded,
             label: l10n.fixedTags_suffix,
             color: theme.colorScheme.tertiary,
@@ -899,187 +910,14 @@ class _PositivePromptTooltip extends StatelessWidget {
         ),
 
         // 最终生效提示词
-        _buildFinalPromptSection(effectivePrompt, isDark),
+        TooltipFinalPromptSection(
+          theme: theme,
+          prompt: effectivePrompt,
+          isDark: isDark,
+          label: l10n.prompt_finalPrompt,
+          isNegative: false,
+        ),
       ],
-    );
-  }
-
-  Widget _buildHeader(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primary.withOpacity(isDark ? 0.2 : 0.1),
-            theme.colorScheme.primary.withOpacity(isDark ? 0.1 : 0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.primary.withOpacity(0.2),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.auto_awesome,
-            size: 14,
-            color: theme.colorScheme.primary,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            l10n.prompt_positivePrompt,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.primary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSection({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required String content,
-    required bool isDark,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: isDark
-            ? theme.colorScheme.surfaceContainerHigh.withOpacity(0.4)
-            : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 3,
-                height: 14,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [color, color.withOpacity(0.4)],
-                  ),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Icon(icon, size: 12, color: color),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 120),
-            child: ScrollbarTheme(
-              data: ScrollbarThemeData(
-                thumbVisibility: WidgetStateProperty.all(true),
-                thickness: WidgetStateProperty.all(4),
-              ),
-              child: SingleChildScrollView(
-                child: Text(
-                  content,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: theme.colorScheme.onSurface.withOpacity(0.8),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFinalPromptSection(String prompt, bool isDark) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            theme.colorScheme.primaryContainer.withOpacity(isDark ? 0.3 : 0.4),
-            theme.colorScheme.secondaryContainer
-                .withOpacity(isDark ? 0.2 : 0.3),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: theme.colorScheme.primary.withOpacity(0.2),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.output_rounded,
-                size: 12,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                l10n.prompt_finalPrompt,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-              const Spacer(),
-              // 复制按钮
-              _CopyIconButton(
-                content: prompt,
-                color: theme.colorScheme.primary,
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 150),
-            child: ScrollbarTheme(
-              data: ScrollbarThemeData(
-                thumbVisibility: WidgetStateProperty.all(true),
-                thickness: WidgetStateProperty.all(4),
-              ),
-              child: SingleChildScrollView(
-                child: Text(
-                  prompt,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: theme.colorScheme.onSurface,
-                    height: 1.4,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1259,13 +1097,20 @@ class _NegativePromptTooltip extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 顶部标题
-        _buildHeader(isDark),
+        TooltipHeader(
+          theme: theme,
+          label: l10n.prompt_negativePrompt,
+          icon: Icons.block,
+          color: theme.colorScheme.error,
+          isDark: isDark,
+        ),
 
         const SizedBox(height: 10),
 
         // UC预设
         if (hasPreset) ...[
-          _buildSection(
+          TooltipSection(
+            theme: theme,
             icon: Icons.shield_rounded,
             label: l10n.qualityTags_negative,
             color: theme.colorScheme.error,
@@ -1277,7 +1122,8 @@ class _NegativePromptTooltip extends StatelessWidget {
 
         // 用户输入 - 解析别名
         if (hasUserInput) ...[
-          _buildSection(
+          TooltipSection(
+            theme: theme,
             icon: Icons.edit_rounded,
             label: l10n.prompt_mainNegative,
             color: theme.colorScheme.tertiary,
@@ -1303,188 +1149,14 @@ class _NegativePromptTooltip extends StatelessWidget {
         ),
 
         // 最终生效负面提示词
-        _buildFinalSection(effectiveNegative, isDark),
+        TooltipFinalPromptSection(
+          theme: theme,
+          prompt: effectiveNegative,
+          isDark: isDark,
+          label: l10n.prompt_finalNegative,
+          isNegative: true,
+        ),
       ],
-    );
-  }
-
-  Widget _buildHeader(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.error.withOpacity(isDark ? 0.2 : 0.1),
-            theme.colorScheme.error.withOpacity(isDark ? 0.1 : 0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.error.withOpacity(0.2),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.block,
-            size: 14,
-            color: theme.colorScheme.error,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            l10n.prompt_negativePrompt,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.error,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSection({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required String content,
-    required bool isDark,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: isDark
-            ? theme.colorScheme.surfaceContainerHigh.withOpacity(0.4)
-            : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 3,
-                height: 14,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [color, color.withOpacity(0.4)],
-                  ),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Icon(icon, size: 12, color: color),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 120),
-            child: ScrollbarTheme(
-              data: ScrollbarThemeData(
-                thumbVisibility: WidgetStateProperty.all(true),
-                thickness: WidgetStateProperty.all(4),
-              ),
-              child: SingleChildScrollView(
-                child: Text(
-                  content,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: theme.colorScheme.onSurface.withOpacity(0.8),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFinalSection(String prompt, bool isDark) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            theme.colorScheme.errorContainer.withOpacity(isDark ? 0.3 : 0.4),
-            theme.colorScheme.surfaceContainerHighest
-                .withOpacity(isDark ? 0.2 : 0.3),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: theme.colorScheme.error.withOpacity(0.2),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.output_rounded,
-                size: 12,
-                color: theme.colorScheme.error,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                l10n.prompt_finalNegative,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.error,
-                ),
-              ),
-              const Spacer(),
-              // 复制按钮
-              if (prompt.isNotEmpty)
-                _CopyIconButton(
-                  content: prompt,
-                  color: theme.colorScheme.error,
-                ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 150),
-            child: ScrollbarTheme(
-              data: ScrollbarThemeData(
-                thumbVisibility: WidgetStateProperty.all(true),
-                thickness: WidgetStateProperty.all(4),
-              ),
-              child: SingleChildScrollView(
-                child: Text(
-                  prompt.isEmpty ? '-' : prompt,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: theme.colorScheme.onSurface,
-                    height: 1.4,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 

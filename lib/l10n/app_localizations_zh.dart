@@ -705,6 +705,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get generation_clearHistoryConfirm => '确定要清除所有历史记录吗？此操作不可撤销。';
 
   @override
+  String get generation_startCreating => '开始创作';
+
+  @override
+  String get generation_noHistoryGuide => '您的生成历史将显示在这里。输入提示词并点击生成按钮开始创作吧！';
+
+  @override
+  String get generation_randomPrompt => '随机提示词';
+
+  @override
+  String get generation_randomPromptSubtitle => '生成随机提示词以获取灵感';
+
+  @override
+  String get generation_clearPrompt => '清空提示词';
+
+  @override
+  String get generation_clearPromptSubtitle => '清空当前提示词输入';
+
+  @override
+  String get generation_promptCleared => '提示词已清空';
+
+  @override
   String get generation_model => '模型';
 
   @override
@@ -2787,6 +2808,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get warmup_group_dataSourceInitialization_complete => '数据源服务就绪';
+
+  @override
+  String get warmup_unifiedDbInit => '初始化统一数据库...';
+
+  @override
+  String get warmup_dataMigration => '数据迁移...';
 
   @override
   String get performanceReport_title => '启动性能';
@@ -7169,4 +7196,32 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_resetPathConfirm => '重置数据存储路径后，需要重启应用才能生效。\\n\\n默认路径将在下次启动时生效。是否继续？';
+
+  @override
+  String get viewer_help_button_tooltip => '快捷键帮助';
+
+  @override
+  String get viewer_tooltip_close => '关闭';
+
+  @override
+  String get viewer_tooltip_save => '保存';
+
+  @override
+  String get viewer_tooltip_reuse_params => '复用参数';
+
+  @override
+  String get viewer_tooltip_copy_image => '复制图像';
+
+  @override
+  String get viewer_tooltip_favorite => '收藏';
+
+  @override
+  String backgroundTask_downloadedCount(int count) {
+    return '已下载 $count 个标签';
+  }
+
+  @override
+  String backgroundTask_downloadedCountWithTotal(int count, int total) {
+    return '已下载 $count/$total 个标签';
+  }
 }

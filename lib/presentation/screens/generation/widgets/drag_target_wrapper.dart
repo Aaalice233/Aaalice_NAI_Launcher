@@ -193,7 +193,6 @@ class DragTargetWrapper extends ConsumerWidget {
 
       if (result != null && result.files.isNotEmpty) {
         final notifier = ref.read(generationParamsNotifierProvider.notifier);
-        final panelNotifier = ref.read(referencePanelNotifierProvider.notifier);
 
         for (final file in result.files) {
           Uint8List? bytes;
@@ -231,6 +230,8 @@ class DragTargetWrapper extends ConsumerWidget {
 
                 if (encodeNow && context.mounted) {
                   final params = ref.read(generationParamsNotifierProvider);
+                  final panelNotifier =
+                      ref.read(referencePanelNotifierProvider.notifier);
                   final encodedVibes = await panelNotifier.encodeVibesNow(
                     vibes,
                     model: params.model,
@@ -240,7 +241,11 @@ class DragTargetWrapper extends ConsumerWidget {
                     vibes = encodedVibes;
                     if (autoSaveToLibrary && context.mounted) {
                       await _saveEncodedVibesToLibrary(
-                        context, ref, encodedVibes, fileName,);
+                        context,
+                        ref,
+                        encodedVibes,
+                        fileName,
+                      );
                     }
                   } else {
                     final continueAnyway = await showDialog<bool>(

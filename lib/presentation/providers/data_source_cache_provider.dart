@@ -118,7 +118,7 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
     state = state.copyWith(isRefreshing: true, progress: 0.0, error: null);
 
     final service = ref.read(danbooruTagsLazyServiceProvider);
-    service.onProgress = (progress, message) {
+    service.onProgress = (progress, message, {processedCount, totalCount}) {
       state = state.copyWith(progress: progress, message: message);
     };
 

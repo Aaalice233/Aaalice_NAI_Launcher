@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:png_chunks_extract/png_chunks_extract.dart' as png_extract;
@@ -103,6 +104,24 @@ class VibeFileParser {
         }
         throw FormatException('Unsupported file type: $extension');
     }
+  }
+
+  /// 从 PNG 文件解析 Vibe 参考（Isolate 版本）
+  ///
+  /// 在单独的 isolate 中执行解析，避免阻塞 UI 线程
+  /// 适用于大文件或批量处理场景
+  static Future<VibeReference> fromPngInIsolate(
+    String fileName,
+    Uint8List bytes, {
+    double defaultStrength = 0.6,
+  }) async {
+    return Isolate.run(() async {
+      return fromPng(
+        fileName,
+        bytes,
+        defaultStrength: defaultStrength,
+      );
+    });
   }
 
   /// 从 PNG 文件解析 Vibe 参考
