@@ -7216,6 +7216,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get viewer_tooltip_favorite => 'Favorite';
 
   @override
+  String get presetManager_import => 'Import Presets';
+
+  @override
+  String get presetManager_export => 'Export Presets';
+
+  @override
   String backgroundTask_downloadedCount(int count) {
     return 'Downloaded $count tags';
   }

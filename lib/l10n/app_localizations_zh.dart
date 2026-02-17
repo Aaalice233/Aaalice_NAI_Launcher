@@ -7216,6 +7216,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get viewer_tooltip_favorite => '收藏';
 
   @override
+  String get presetManager_import => '导入预设';
+
+  @override
+  String get presetManager_export => '导出预设';
+
+  @override
   String backgroundTask_downloadedCount(int count) {
     return '已下载 $count 个标签';
   }

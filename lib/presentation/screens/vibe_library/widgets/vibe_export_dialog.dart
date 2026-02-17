@@ -10,43 +10,33 @@ import '../../../../core/utils/vibe_export_utils.dart';
 import '../../../../data/models/vibe/vibe_library_category.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
+import '../../../../data/models/vibe/vibe_export_format.dart';
 
 import '../../../widgets/common/app_toast.dart';
 
-/// Vibe 导出格式枚举
-enum VibeExportFormat {
-  /// 单个 .naiv4vibe 文件
-  single,
-
-  /// 打包为 .naiv4vibebundle 文件
-  bundle,
-}
-
-extension VibeExportFormatExtension on VibeExportFormat {
-  String get displayName {
+/// VibeExportFormat 本地化扩展
+extension VibeExportFormatUiExtension on VibeExportFormat {
+  /// 获取显示名称（中文）
+  String get uiDisplayName {
     switch (this) {
-      case VibeExportFormat.single:
-        return '单独文件 (.naiv4vibe)';
       case VibeExportFormat.bundle:
         return '打包文件 (.naiv4vibebundle)';
+      case VibeExportFormat.encoding:
+        return '单独文件 (.naiv4vibe)';
+      case VibeExportFormat.embeddedImage:
+        return '嵌入图片 (PNG)';
     }
   }
 
-  String get fileExtension {
+  /// 获取描述（中文）
+  String get uiDescription {
     switch (this) {
-      case VibeExportFormat.single:
-        return 'naiv4vibe';
-      case VibeExportFormat.bundle:
-        return 'naiv4vibebundle';
-    }
-  }
-
-  String get description {
-    switch (this) {
-      case VibeExportFormat.single:
-        return '每个 Vibe 导出为独立文件，适合分享单个 Vibe';
       case VibeExportFormat.bundle:
         return '多个 Vibe 打包为一个文件，适合批量备份';
+      case VibeExportFormat.encoding:
+        return '每个 Vibe 导出为独立文件，适合分享单个 Vibe';
+      case VibeExportFormat.embeddedImage:
+        return '将 Vibe 数据嵌入到 PNG 图片元数据中';
     }
   }
 }
@@ -67,8 +57,9 @@ class VibeExportDialog extends ConsumerStatefulWidget {
 }
 
 class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
-  VibeExportFormat _exportFormat = VibeExportFormat.single;
+  VibeExportFormat _exportFormat = VibeExportFormat.encoding;
   bool _includeThumbnails = true;
+  bool _includeFullData = true;
   bool _isExporting = false;
   double _progress = 0;
   String _progressMessage = '';
@@ -182,9 +173,20 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
 
                 // 选项
                 CheckboxListTile(
+                  title: const Text('包含完整数据'),
+                  subtitle: const Text('包含原始图片数据和完整的 Vibe 编码'),
+                  value: _includeFullData,
+                  onChanged: (value) {
+                    setState(() => _includeFullData = value ?? true);
+                  },
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+                CheckboxListTile(
                   title: Text(context.l10n.vibe_export_include_thumbnails),
                   subtitle: Text(
-                      context.l10n.vibe_export_include_thumbnails_subtitle,),
+                    context.l10n.vibe_export_include_thumbnails_subtitle,
+                  ),
                   value: _includeThumbnails,
                   onChanged: (value) {
                     setState(() => _includeThumbnails = value ?? true);
@@ -301,13 +303,13 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          format.displayName,
+                          format.uiDisplayName,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                         Text(
-                          format.description,
+                          format.uiDescription,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.outline,
                           ),
@@ -807,8 +809,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
       if (_exportFormat == VibeExportFormat.bundle) {
         // 导出为 bundle 格式
         await _exportAsBundle(selectedEntries);
-      } else {
-        // 导出为单独文件
+      } else if (_exportFormat == VibeExportFormat.encoding) {
+        // 导出为单独文件 (使用 encoding 格式)
         await _exportAsSingleFiles(selectedEntries);
       }
 
@@ -823,6 +825,21 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
         AppToast.error(context, '导出失败: $e');
       }
     }
+  }
+
+  /// 创建用于导出的 VibeReference，根据选项决定是否包含完整数据
+  VibeReference _createExportReference(VibeLibraryEntry entry) {
+    final baseRef = entry.toVibeReference();
+
+    if (_includeFullData) {
+      // 完整导出：保留所有数据
+      return baseRef;
+    }
+
+    // 非完整导出：移除原始图片数据，仅保留编码
+    return baseRef.copyWith(
+      rawImageData: null,
+    );
   }
 
   /// 导出为单独文件
@@ -848,7 +865,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
         _progressMessage = '正在导出: ${entry.displayName}';
       });
 
-      final vibeRef = entry.toVibeReference();
+      // 根据选项创建导出用的 VibeReference
+      final vibeRef = _createExportReference(entry);
 
       // 导出单个 vibe
       final exportedPath = await VibeExportUtils.exportToNaiv4Vibe(
@@ -877,8 +895,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
       _progressMessage = '正在打包 ${entries.length} 个 Vibe...';
     });
 
-    // 转换为 VibeReference 列表
-    final vibes = entries.map((e) => e.toVibeReference()).toList();
+    // 根据选项创建导出用的 VibeReference 列表
+    final vibes = entries.map((e) => _createExportReference(e)).toList();
 
     setState(() {
       _progress = 0.6;

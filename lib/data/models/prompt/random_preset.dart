@@ -513,4 +513,170 @@ class RandomPreset with _$RandomPreset {
       updatedAt: now,
     );
   }
+
+  // ========== 批量导出支持 ==========
+
+  /// 构建批量导出的元数据结构
+  ///
+  /// [presets] - 要导出的预设列表
+  /// [exportVersion] - 导出格式版本，默认为 1
+  /// [description] - 导出描述/备注
+  /// [options] - 可选的导出选项配置
+  ///
+  /// 返回包含批量导出元数据和预设列表的 Map 结构
+  static Map<String, dynamic> buildBatchExportData(
+    List<RandomPreset> presets, {
+    int exportVersion = 1,
+    String? description,
+    Map<String, dynamic>? options,
+  }) {
+    final exportTime = DateTime.now();
+
+    return {
+      'identifier': 'novelai-random-preset-bundle',
+      'exportVersion': exportVersion,
+      'exportedAt': exportTime.toIso8601String(),
+      'presetCount': presets.length,
+      'description': description,
+      'exportOptions': options,
+      'presets': presets.map((p) => p.toExportJson()).toList(),
+    };
+  }
+
+  /// 从批量导出数据解析预设列表
+  ///
+  /// [json] - 批量导出的 JSON 数据
+  ///
+  /// 返回解析后的预设列表和元数据信息
+  static BatchPresetImportResult parseBatchExportData(
+    Map<String, dynamic> json,
+  ) {
+    // 验证标识符
+    final identifier = json['identifier'] as String?;
+    if (identifier != 'novelai-random-preset-bundle') {
+      throw FormatException(
+        '无效的预设批量导出文件标识符: $identifier',
+      );
+    }
+
+    // 验证版本
+    final exportVersion = json['exportVersion'] as int? ?? 1;
+    if (exportVersion > 1) {
+      throw FormatException(
+        '不支持的批量导出版本: $exportVersion，请更新应用后重试',
+      );
+    }
+
+    // 解析元数据
+    final metadata = PresetBatchExportMetadata(
+      exportVersion: exportVersion,
+      exportedAt: json['exportedAt'] != null
+          ? DateTime.tryParse(json['exportedAt'] as String)
+          : null,
+      presetCount: json['presetCount'] as int? ?? 0,
+      description: json['description'] as String?,
+      exportOptions: json['exportOptions'] as Map<String, dynamic>?,
+    );
+
+    // 解析预设列表
+    final presets = <RandomPreset>[];
+    final presetsJson = json['presets'] as List<dynamic>?;
+    if (presetsJson != null) {
+      for (final presetJson in presetsJson) {
+        try {
+          presets.add(
+            RandomPreset.fromExportJson(presetJson as Map<String, dynamic>),
+          );
+        } catch (e) {
+          // 跳过无效的预设条目，继续解析其他
+          continue;
+        }
+      }
+    }
+
+    return BatchPresetImportResult(
+      metadata: metadata,
+      presets: presets,
+      parsedCount: presets.length,
+      expectedCount: metadata.presetCount,
+    );
+  }
+
+  /// 验证批量导出数据的格式是否有效
+  static bool isValidBatchExportData(Map<String, dynamic> json) {
+    final identifier = json['identifier'] as String?;
+    if (identifier != 'novelai-random-preset-bundle') {
+      return false;
+    }
+
+    final exportVersion = json['exportVersion'] as int? ?? 1;
+    if (exportVersion > 1) {
+      return false;
+    }
+
+    final presets = json['presets'];
+    return presets is List && presets.isNotEmpty;
+  }
+}
+
+/// 预设批量导出元数据
+///
+/// 包含批量导出操作的相关元数据信息
+class PresetBatchExportMetadata {
+  /// 导出格式版本
+  final int exportVersion;
+
+  /// 导出时间
+  final DateTime? exportedAt;
+
+  /// 预设数量
+  final int presetCount;
+
+  /// 导出描述/备注
+  final String? description;
+
+  /// 导出选项配置
+  final Map<String, dynamic>? exportOptions;
+
+  const PresetBatchExportMetadata({
+    required this.exportVersion,
+    this.exportedAt,
+    required this.presetCount,
+    this.description,
+    this.exportOptions,
+  });
+
+  /// 检查导出是否完整（实际解析数量与预期数量一致）
+  bool isComplete(int actualCount) => actualCount == presetCount;
+}
+
+/// 批量预设导入结果
+///
+/// 包含从批量导出数据解析后的预设列表和元数据
+class BatchPresetImportResult {
+  /// 导出元数据
+  final PresetBatchExportMetadata metadata;
+
+  /// 解析后的预设列表
+  final List<RandomPreset> presets;
+
+  /// 成功解析的预设数量
+  final int parsedCount;
+
+  /// 预期的预设数量
+  final int expectedCount;
+
+  const BatchPresetImportResult({
+    required this.metadata,
+    required this.presets,
+    required this.parsedCount,
+    required this.expectedCount,
+  });
+
+  /// 检查导入是否完整
+  bool get isComplete => parsedCount == expectedCount;
+
+  /// 获取导入成功率
+  double get successRate =>
+      expectedCount > 0 ? parsedCount / expectedCount : 0.0;
 }

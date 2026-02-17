@@ -394,6 +394,104 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     return newPreset;
   }
 
+  /// 批量导出所有预设
+  ///
+  /// [description] - 导出描述/备注
+  /// [includeDefault] - 是否包含默认预设，默认为 false
+  ///
+  /// 返回 JSON 字符串，包含批量导出的预设数据
+  String exportAllPresets({
+    String? description,
+    bool includeDefault = false,
+  }) {
+    final presetsToExport = includeDefault
+        ? state.presets
+        : state.presets.where((p) => !p.isDefault).toList();
+
+    final exportData = RandomPreset.buildBatchExportData(
+      presetsToExport,
+      description: description,
+    );
+
+    const encoder = JsonEncoder.withIndent('  ');
+    return encoder.convert(exportData);
+  }
+
+  /// 批量导入预设
+  ///
+  /// [jsonString] - 批量导出的 JSON 字符串
+  /// [onConflict] - 冲突处理方式：rename（重命名，默认）/ skip（跳过）/ overwrite（覆盖）
+  ///
+  /// 返回导入结果，包含成功导入的预设列表和统计信息
+  Future<BatchPresetImportResult> importPresetsBatch(
+    String jsonString, {
+    ImportConflictPolicy onConflict = ImportConflictPolicy.rename,
+  }) async {
+    try {
+      final data = jsonDecode(jsonString) as Map<String, dynamic>;
+      final result = RandomPreset.parseBatchExportData(data);
+
+      if (result.presets.isEmpty) {
+        return result;
+      }
+
+      final importedPresets = <RandomPreset>[];
+      final existingNames = state.presets.map((p) => p.name).toSet();
+
+      for (final preset in result.presets) {
+        // 跳过默认预设（不应该导出默认预设）
+        if (preset.isDefault) continue;
+
+        // 处理命名冲突
+        var newPreset = preset;
+        if (existingNames.contains(preset.name)) {
+          switch (onConflict) {
+            case ImportConflictPolicy.skip:
+              continue; // 跳过冲突的预设
+            case ImportConflictPolicy.rename:
+              var newName = preset.name;
+              var counter = 1;
+              while (existingNames.contains(newName)) {
+                newName = '${preset.name} ($counter)';
+                counter++;
+              }
+              newPreset = preset.copyWith(name: newName);
+              existingNames.add(newName);
+            case ImportConflictPolicy.overwrite:
+              // 删除旧的同名预设
+              final existingIndex = state.presets.indexWhere(
+                (p) => p.name == preset.name,
+              );
+              if (existingIndex != -1) {
+                final existingId = state.presets[existingIndex].id;
+                await _deletePreset(existingId);
+              }
+          }
+        } else {
+          existingNames.add(preset.name);
+        }
+
+        // 添加导入的预设
+        await _savePreset(newPreset);
+        importedPresets.add(newPreset);
+      }
+
+      // 更新状态
+      final newPresets = [...state.presets, ...importedPresets];
+      state = state.copyWith(presets: newPresets);
+
+      return BatchPresetImportResult(
+        metadata: result.metadata,
+        presets: importedPresets,
+        parsedCount: importedPresets.length,
+        expectedCount: result.expectedCount,
+      );
+    } catch (e) {
+      state = state.copyWith(error: '批量导入预设失败: $e');
+      rethrow;
+    }
+  }
+
   // ========== Tag Group 映射管理 ==========
 
   /// 添加 Tag Group 映射到当前预设
@@ -666,6 +764,18 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     state = state.copyWith(presets: newPresets);
     await _savePreset(resetPreset);
   }
+}
+
+/// 批量导入冲突处理策略
+enum ImportConflictPolicy {
+  /// 重命名导入的预设（添加序号后缀）
+  rename,
+
+  /// 跳过冲突的预设
+  skip,
+
+  /// 覆盖现有预设
+  overwrite,
 }
 
 /// 计算真实的标签数量（包括内置词库）
