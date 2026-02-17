@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:super_clipboard/super_clipboard.dart';
+import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../data/models/gallery/gallery_folder.dart';
 import '../../providers/gallery_folder_provider.dart';
@@ -41,6 +45,7 @@ class FolderTabs extends ConsumerWidget {
                     label: '全部',
                     count: folderState.totalImageCount,
                     isActive: folderState.isAllSelected,
+                    folderId: null,
                     onTap: () {
                       ref
                           .read(galleryFolderNotifierProvider.notifier)
@@ -56,6 +61,7 @@ class FolderTabs extends ConsumerWidget {
                           label: folder.name,
                           count: folder.imageCount,
                           isActive: folderState.selectedFolderId == folder.id,
+                          folderId: folder.id,
                           onTap: () {
                             ref
                                 .read(galleryFolderNotifierProvider.notifier)
@@ -130,11 +136,16 @@ class FolderTabs extends ConsumerWidget {
         PopupMenuItem(
           child: Row(
             children: [
-              Icon(Icons.delete_outline,
-                  size: 18, color: Theme.of(context).colorScheme.error,),
+              Icon(
+                Icons.delete_outline,
+                size: 18,
+                color: Theme.of(context).colorScheme.error,
+              ),
               const SizedBox(width: 8),
-              Text('删除',
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),),
+              Text(
+                '删除',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ],
           ),
           onTap: () => _showDeleteFolderDialog(context, ref, folder),
@@ -292,12 +303,15 @@ class FolderTabs extends ConsumerWidget {
 }
 
 /// 文件夹标签
-class _FolderTab extends StatefulWidget {
+///
+/// 支持拖拽图片到标签上以移动到对应文件夹
+class _FolderTab extends ConsumerStatefulWidget {
   final String label;
   final int count;
   final bool isActive;
   final VoidCallback onTap;
   final void Function(TapDownDetails)? onContextMenu;
+  final String? folderId;
 
   const _FolderTab({
     required this.label,
@@ -305,14 +319,16 @@ class _FolderTab extends StatefulWidget {
     required this.isActive,
     required this.onTap,
     this.onContextMenu,
+    this.folderId,
   });
 
   @override
-  State<_FolderTab> createState() => _FolderTabState();
+  ConsumerState<_FolderTab> createState() => _FolderTabState();
 }
 
-class _FolderTabState extends State<_FolderTab> {
+class _FolderTabState extends ConsumerState<_FolderTab> {
   bool _isHovered = false;
+  bool _isDraggingOver = false;
 
   @override
   Widget build(BuildContext context) {
@@ -320,7 +336,7 @@ class _FolderTabState extends State<_FolderTab> {
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
-    return MouseRegion(
+    final Widget tabContent = MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       cursor: SystemMouseCursors.click,
@@ -332,18 +348,10 @@ class _FolderTabState extends State<_FolderTab> {
           curve: Curves.easeOut,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: widget.isActive
-                ? colorScheme.primaryContainer.withOpacity(isDark ? 0.4 : 0.3)
-                : _isHovered
-                    ? colorScheme.surfaceContainerHighest.withOpacity(0.5)
-                    : Colors.transparent,
+            color: _getBackgroundColor(colorScheme, isDark),
             border: Border.all(
-              color: widget.isActive
-                  ? colorScheme.primary
-                  : _isHovered
-                      ? colorScheme.outline.withOpacity(0.3)
-                      : colorScheme.outline.withOpacity(0.15),
-              width: widget.isActive ? 1.5 : 1,
+              color: _getBorderColor(colorScheme),
+              width: _isDraggingOver ? 2 : (widget.isActive ? 1.5 : 1),
             ),
             borderRadius: BorderRadius.circular(8),
           ),
@@ -385,6 +393,123 @@ class _FolderTabState extends State<_FolderTab> {
         ),
       ),
     );
+
+    // 包装为拖拽目标
+    return DropRegion(
+      formats: Formats.standardFormats,
+      hitTestBehavior: HitTestBehavior.opaque,
+      onDropOver: (event) {
+        // 检查是否包含文件
+        if (event.session.allowedOperations.contains(DropOperation.copy)) {
+          if (!_isDraggingOver) {
+            setState(() => _isDraggingOver = true);
+          }
+          return DropOperation.copy;
+        }
+        return DropOperation.none;
+      },
+      onDropLeave: (event) {
+        if (_isDraggingOver) {
+          setState(() => _isDraggingOver = false);
+        }
+      },
+      onPerformDrop: (event) async {
+        setState(() => _isDraggingOver = false);
+        await _handleDrop(event);
+      },
+      child: tabContent,
+    );
+  }
+
+  Color _getBackgroundColor(ColorScheme colorScheme, bool isDark) {
+    if (_isDraggingOver) {
+      return colorScheme.primaryContainer.withOpacity(isDark ? 0.6 : 0.4);
+    }
+    if (widget.isActive) {
+      return colorScheme.primaryContainer.withOpacity(isDark ? 0.4 : 0.3);
+    }
+    if (_isHovered) {
+      return colorScheme.surfaceContainerHighest.withOpacity(0.5);
+    }
+    return Colors.transparent;
+  }
+
+  Color _getBorderColor(ColorScheme colorScheme) {
+    if (_isDraggingOver) {
+      return colorScheme.primary;
+    }
+    if (widget.isActive) {
+      return colorScheme.primary;
+    }
+    if (_isHovered) {
+      return colorScheme.outline.withOpacity(0.3);
+    }
+    return colorScheme.outline.withOpacity(0.15);
+  }
+
+  Future<void> _handleDrop(PerformDropEvent event) async {
+    final imagePaths = <String>[];
+
+    for (final item in event.session.items) {
+      final reader = item.dataReader;
+      if (reader == null) continue;
+
+      final imagePath = await _getImagePath(reader);
+      if (imagePath != null) {
+        imagePaths.add(imagePath);
+      }
+    }
+
+    if (imagePaths.isEmpty) return;
+
+    // 批量移动图片到文件夹
+    final notifier = ref.read(galleryFolderNotifierProvider.notifier);
+    final movedCount =
+        await notifier.moveImagesToFolder(imagePaths, widget.folderId);
+
+    if (mounted) {
+      if (movedCount > 0) {
+        final folderName = widget.label;
+        if (movedCount == 1) {
+          AppToast.success(context, '已移动 1 张图片到「$folderName」');
+        } else {
+          AppToast.success(context, '已移动 $movedCount 张图片到「$folderName」');
+        }
+      } else {
+        AppToast.error(context, '移动图片失败');
+      }
+    }
+  }
+
+  Future<String?> _getImagePath(DataReader reader) async {
+    // 尝试获取文件 URI
+    if (reader.canProvide(Formats.fileUri)) {
+      final uri = await _getFileUri(reader);
+      if (uri != null) {
+        final filePath = uri.toFilePath();
+        // 检查是否为图片文件
+        if (_isImageFile(filePath)) {
+          return filePath;
+        }
+      }
+    }
+    return null;
+  }
+
+  Future<Uri?> _getFileUri(DataReader reader) {
+    final completer = Completer<Uri?>();
+    reader.getValue(Formats.fileUri, (uri) => completer.complete(uri));
+    return completer.future;
+  }
+
+  bool _isImageFile(String filePath) {
+    final lowerPath = filePath.toLowerCase();
+    return lowerPath.endsWith('.png') ||
+        lowerPath.endsWith('.jpg') ||
+        lowerPath.endsWith('.jpeg') ||
+        lowerPath.endsWith('.gif') ||
+        lowerPath.endsWith('.webp') ||
+        lowerPath.endsWith('.bmp');
   }
 }
 
