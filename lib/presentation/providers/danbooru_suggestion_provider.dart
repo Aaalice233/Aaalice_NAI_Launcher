@@ -82,7 +82,12 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
   late DanbooruApiService _apiService;
 
   /// Danbooru 标签懒加载服务（用于获取翻译）
-  late DanbooruTagsLazyService _danbooruService;
+  DanbooruTagsLazyService? _danbooruService;
+  
+  Future<DanbooruTagsLazyService> get _danbooruServiceAsync async {
+    _danbooruService ??= await ref.read(danbooruTagsLazyServiceProvider.future);
+    return _danbooruService!;
+  }
 
   /// 统一翻译服务（异步初始化）
   UnifiedTranslationService? _translationService;
@@ -94,7 +99,13 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
   TagSuggestionState build() {
     _apiService = ref.watch(danbooruApiServiceProvider);
     _cacheService = ref.watch(tagCacheServiceProvider);
-    _danbooruService = ref.watch(danbooruTagsLazyServiceProvider);
+    // 异步初始化 DanbooruTagsLazyService
+    ref.listen(danbooruTagsLazyServiceProvider, (prev, next) {
+      next.whenData((service) {
+        _danbooruService = service;
+        AppLogger.d('[DanbooruSuggestion] DanbooruTagsLazyService initialized', 'DanbooruSuggestion');
+      });
+    });
 
     // 监听翻译服务初始化
     ref.listen(unifiedTranslationServiceProvider, (prev, next) {
@@ -184,8 +195,9 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
         final needsTranslation = cachedTags.any(
           (t) => t.translation == null || t.translation!.isEmpty,
         );
+        final danbooruService = await _danbooruServiceAsync;
         if (needsTranslation &&
-            (_translationService?.isInitialized == true || _danbooruService.isInitialized)) {
+            (_translationService?.isInitialized == true || danbooruService.isInitialized)) {
           AppLogger.d('Cache missing translations, injecting...', 'Provider');
           final tagsWithTranslation = await _injectTranslations(cachedTags);
           await _cacheService.set(query, tagsWithTranslation);
@@ -271,8 +283,9 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
 
     // 确保获取翻译服务（等待初始化完成）
     final translationService = await _getTranslationService();
+    final danbooruService = await _danbooruServiceAsync;
     AppLogger.d('[_injectTranslations] translationService ready: ${translationService?.isInitialized}', 'DanbooruSuggestion');
-    AppLogger.d('[_injectTranslations] _danbooruService.isInitialized: ${_danbooruService.isInitialized}', 'DanbooruSuggestion');
+    AppLogger.d('[_injectTranslations] danbooruService.isInitialized: ${danbooruService.isInitialized}', 'DanbooruSuggestion');
 
     final results = <TagSuggestion>[];
     for (final tag in tags) {
@@ -296,10 +309,10 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
       }
 
       // 2. 回退到 DanbooruTagsLazyService
-      if (_danbooruService.isInitialized) {
+      if (danbooruService.isInitialized) {
         try {
           AppLogger.d('[_injectTranslations] trying danbooru service for tag="${tag.tag}"', 'DanbooruSuggestion');
-          final localTag = await _danbooruService.get(tag.tag);
+          final localTag = await danbooruService.get(tag.tag);
           if (localTag != null && localTag.translation != null) {
             AppLogger.d('[_injectTranslations] tag="${tag.tag}" found in danbooru service: "${localTag.translation}"', 'DanbooruSuggestion');
             results.add(tag.copyWith(translation: localTag.translation));

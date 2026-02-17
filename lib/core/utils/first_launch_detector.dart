@@ -97,8 +97,8 @@ class FirstLaunchDetector {
 
 /// FirstLaunchDetector Provider
 @Riverpod(keepAlive: true)
-FirstLaunchDetector firstLaunchDetector(Ref ref) {
-  final tagsService = ref.read(danbooruTagsLazyServiceProvider);
+Future<FirstLaunchDetector> firstLaunchDetector(Ref ref) async {
+  final tagsService = await ref.watch(danbooruTagsLazyServiceProvider.future);
 
   return FirstLaunchDetector(
     tagsService: tagsService,
@@ -146,7 +146,7 @@ class FirstLaunchNotifier extends _$FirstLaunchNotifier {
   ///
   /// 新的非阻塞实现：只标记需要刷新，不执行实际同步
   Future<void> checkAndSync(BuildContext context) async {
-    final detector = ref.read(firstLaunchDetectorProvider);
+    final detector = await ref.read(firstLaunchDetectorProvider.future);
 
     final isFirst = await detector.isFirstLaunch();
     state = state.copyWith(isFirstLaunch: isFirst);

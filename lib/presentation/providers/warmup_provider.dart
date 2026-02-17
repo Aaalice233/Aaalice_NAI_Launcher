@@ -593,8 +593,8 @@ class WarmupNotifier extends _$WarmupNotifier {
   }
 
   Future<void> _preloadDanbooruTagsInBackground() async {
-    final service = ref.read(danbooruTagsLazyServiceProvider);
-    final cacheState = ref.read(danbooruTagsCacheNotifierProvider);
+    final service = await ref.read(danbooruTagsLazyServiceProvider.future);
+    final cacheStateAsync = ref.read(danbooruTagsCacheNotifierProvider);
 
     service.onProgress = (progress, message) {
       ref
@@ -615,7 +615,9 @@ class WarmupNotifier extends _$WarmupNotifier {
       await service.refresh();
 
       // 如果开启了同步画师，也同步画师数据
-      if (cacheState.syncArtists) {
+      if (cacheStateAsync is AsyncData &&
+          cacheStateAsync.value != null &&
+          cacheStateAsync.value!.syncArtists) {
         AppLogger.i('Artist sync is enabled, syncing artists...', 'Warmup');
         // TODO: 实现画师同步
         // await ref.read(danbooruTagsCacheNotifierProvider.notifier).syncArtists();
@@ -632,7 +634,7 @@ class WarmupNotifier extends _$WarmupNotifier {
   Future<void> _fetchGeneralTags() async {
     AppLogger.i('开始拉取一般标签...', 'Warmup');
 
-    final service = ref.read(danbooruTagsLazyServiceProvider);
+    final service = await ref.read(danbooruTagsLazyServiceProvider.future);
 
     // 先检测数据库中是否已有数据
     try {
@@ -652,10 +654,10 @@ class WarmupNotifier extends _$WarmupNotifier {
       AppLogger.w('Failed to check tag count: $e', 'Warmup');
     }
 
-    // 设置进度回调
+    // 设置进度回调（不显示百分比，只显示数量和状态）
     service.onProgress = (progress, message) {
       state = state.copyWith(
-        subTaskMessage: '拉取标签: ${(progress * 100).toInt()}% - $message',
+        subTaskMessage: '拉取标签: $message',
       );
     };
 
@@ -702,7 +704,7 @@ class WarmupNotifier extends _$WarmupNotifier {
   Future<void> _fetchArtistTagsInBackground() async {
     AppLogger.i('Starting artist tags fetch...', 'Background');
 
-    final service = ref.read(danbooruTagsLazyServiceProvider);
+    final service = await ref.read(danbooruTagsLazyServiceProvider.future);
     final notifier = ref.read(backgroundTaskNotifierProvider.notifier);
 
     try {
@@ -782,7 +784,7 @@ class WarmupNotifier extends _$WarmupNotifier {
           subTaskMessage: '正在从服务器拉取标签数据...',
         );
 
-        final service = ref.read(danbooruTagsLazyServiceProvider);
+        final service = await ref.read(danbooruTagsLazyServiceProvider.future);
         await service.fetchGeneralTags(
           threshold: 1000,
           maxPages: 50,

@@ -52,8 +52,11 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
   /// 焦点节点（可选，如果不提供则自动管理）
   final FocusNode? focusNode;
 
-  /// 补全策略
-  final AutocompleteStrategy strategy;
+  /// 补全策略（同步）
+  final AutocompleteStrategy? strategy;
+
+  /// 异步补全策略（优先于 strategy）
+  final Future<AutocompleteStrategy>? asyncStrategy;
 
   /// 是否启用自动补全
   final bool enabled;
@@ -80,7 +83,8 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
     super.key,
     required this.child,
     required this.controller,
-    required this.strategy,
+    this.strategy,
+    this.asyncStrategy,
     this.focusNode,
     this.enabled = true,
     this.onChanged,
@@ -89,7 +93,7 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
     this.contentPadding,
     this.maxLines,
     this.expands = false,
-  });
+  }) : assert(strategy != null || asyncStrategy != null, '必须提供 strategy 或 asyncStrategy');
 
   /// 便捷构造：使用本地标签策略
   factory AutocompleteWrapper.localTag({
@@ -110,7 +114,7 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
     return AutocompleteWrapper(
       key: key,
       controller: controller,
-      strategy: LocalTagStrategy.create(ref, config),
+      asyncStrategy: LocalTagStrategy.create(ref, config),
       focusNode: focusNode,
       enabled: enabled,
       onChanged: onChanged,
@@ -142,12 +146,14 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
     return AutocompleteWrapper(
       key: key,
       controller: controller,
-      strategy: CompositeStrategy(
-        strategies: [
-          LocalTagStrategy.create(ref, config),
-          AliasStrategy.create(ref),
-        ],
-        strategySelector: defaultStrategySelector,
+      asyncStrategy: LocalTagStrategy.create(ref, config).then(
+        (localTagStrategy) => CompositeStrategy(
+          strategies: [
+            localTagStrategy,
+            AliasStrategy.create(ref),
+          ],
+          strategySelector: defaultStrategySelector,
+        ),
       ),
       focusNode: focusNode,
       enabled: enabled,
@@ -280,12 +286,34 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   // 防抖延迟时间
   static const Duration _searchDebounceDelay = Duration(milliseconds: 50);
 
+  // 异步策略加载
+  AutocompleteStrategy? _resolvedStrategy;
+
+  AutocompleteStrategy? get _effectiveStrategy =>
+      widget.strategy ?? _resolvedStrategy;
+
   @override
   void initState() {
     super.initState();
     _initFocusNode();
     widget.controller.addListener(_onTextChanged);
-    widget.strategy.addListener(_onStrategyChanged);
+    _initStrategy();
+  }
+
+  void _initStrategy() {
+    if (widget.strategy != null) {
+      _resolvedStrategy = widget.strategy;
+      _resolvedStrategy!.addListener(_onStrategyChanged);
+    } else if (widget.asyncStrategy != null) {
+      widget.asyncStrategy!.then((strategy) {
+        if (mounted) {
+          setState(() {
+            _resolvedStrategy = strategy;
+          });
+          strategy.addListener(_onStrategyChanged);
+        }
+      });
+    }
   }
 
   void _initFocusNode() {
@@ -312,9 +340,11 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       }
       _initFocusNode();
     }
-    if (oldWidget.strategy != widget.strategy) {
-      oldWidget.strategy.removeListener(_onStrategyChanged);
-      widget.strategy.addListener(_onStrategyChanged);
+    if (oldWidget.strategy != widget.strategy ||
+        oldWidget.asyncStrategy != widget.asyncStrategy) {
+      oldWidget.strategy?.removeListener(_onStrategyChanged);
+      _resolvedStrategy?.removeListener(_onStrategyChanged);
+      _initStrategy();
     }
   }
 
@@ -325,7 +355,8 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     _removeOverlay();
     _focusNode.removeListener(_onFocusChanged);
     widget.controller.removeListener(_onTextChanged);
-    widget.strategy.removeListener(_onStrategyChanged);
+    widget.strategy?.removeListener(_onStrategyChanged);
+    _resolvedStrategy?.removeListener(_onStrategyChanged);
     _scrollController.dispose();
     if (_ownsFocusNode) {
       _focusNode.dispose();
@@ -365,7 +396,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     _searchDebounceTimer = Timer(_searchDebounceDelay, () {
       if (!mounted) return;
       // 委托给策略处理搜索
-      widget.strategy.search(text, cursorPosition);
+      _effectiveStrategy?.search(text, cursorPosition);
     });
 
     widget.onChanged?.call(text);
@@ -376,8 +407,11 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     if (_hideTimer?.isActive == true) {
       _hideTimer?.cancel();
     }
-    
-    if (widget.strategy.hasSuggestions) {
+
+    final strategy = _effectiveStrategy;
+    if (strategy == null) return;
+
+    if (strategy.hasSuggestions) {
       // 有建议时确保取消隐藏计时器
       if (_hideTimer?.isActive == true) {
         _hideTimer?.cancel();
@@ -386,17 +420,17 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
         _showSuggestionsOverlay();
       }
       // 确保 selectedIndex 在有效范围内
-      final suggestionsLength = widget.strategy.suggestions.length;
+      final suggestionsLength = strategy.suggestions.length;
       if (_selectedIndex >= suggestionsLength) {
         _selectedIndex = suggestionsLength > 0 ? 0 : -1;
       } else if (_selectedIndex < 0 && suggestionsLength > 0) {
         _selectedIndex = 0;
       }
-    } else if (!widget.strategy.isLoading && _showSuggestions) {
+    } else if (!strategy.isLoading && _showSuggestions) {
       // 延迟隐藏，给策略切换留出时间
       // 如果150ms内又有新建议，取消隐藏
       _hideTimer = Timer(const Duration(milliseconds: 300), () {
-        if (mounted && !widget.strategy.hasSuggestions && _showSuggestions) {
+        if (mounted && !_effectiveStrategy!.hasSuggestions && _showSuggestions) {
           _hideSuggestions();
         }
       });
@@ -436,7 +470,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     });
 
     _removeOverlay();
-    widget.strategy.clear();
+    _effectiveStrategy?.clear();
   }
 
   void _removeOverlay() {
@@ -478,7 +512,11 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
             : Offset(0, size.height + 4);
 
         // 获取当前建议列表
-        final suggestions = widget.strategy.suggestions;
+        final strategy = _effectiveStrategy;
+        if (strategy == null) {
+          return const SizedBox.shrink();
+        }
+        final suggestions = strategy.suggestions;
         final suggestionsLength = suggestions.length;
 
         // 获取配置
@@ -512,7 +550,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
               },
               child: GenericAutocompleteOverlay(
                 suggestions: suggestions
-                    .map((item) => widget.strategy.toSuggestionData(item))
+                    .map((item) => strategy.toSuggestionData(item))
                     .toList(),
                 selectedIndex: _selectedIndex,
                 onSelect: (index) {
@@ -521,7 +559,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
                   }
                 },
                 config: config,
-                isLoading: widget.strategy.isLoading,
+                isLoading: strategy.isLoading,
                 scrollController: _scrollController,
                 languageCode: locale.languageCode,
               ),
@@ -534,7 +572,9 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
 
   /// 获取配置（从策略中提取或使用默认配置）
   AutocompleteConfig _getConfig() {
-    final strategy = widget.strategy;
+    final strategy = _effectiveStrategy;
+    if (strategy == null) return const AutocompleteConfig();
+
     if (strategy is LocalTagStrategy) {
       return strategy.config;
     }
@@ -553,7 +593,13 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       return;
     }
     _isSelecting = true;
-    
+
+    final strategy = _effectiveStrategy;
+    if (strategy == null) {
+      _isSelecting = false;
+      return;
+    }
+
     final text = widget.controller.text;
     final cursorPosition = widget.controller.selection.baseOffset;
 
@@ -562,7 +608,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       return;
     }
 
-    final (newText, newCursorPosition) = widget.strategy.applySuggestion(
+    final (newText, newCursorPosition) = strategy.applySuggestion(
       suggestion,
       text,
       cursorPosition,
@@ -577,7 +623,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
 
     // 通知外部选择了补全建议
     widget.onSuggestionSelected?.call(newText);
-    
+
     // 延迟重置标志，防止同一键盘事件触发多次
     // 延长到 300ms，确保共现菜单显示后不会立即被选择
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -590,13 +636,16 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     if (_isSelecting) {
       return KeyEventResult.handled;
     }
-    
+
     // 补全菜单未显示时，不阻止任何键
     if (!_showSuggestions) {
       return KeyEventResult.ignored;
     }
 
-    final suggestions = widget.strategy.suggestions;
+    final strategy = _effectiveStrategy;
+    if (strategy == null) return KeyEventResult.ignored;
+
+    final suggestions = strategy.suggestions;
     final suggestionsLength = suggestions.length;
 
     // 没有建议时，不阻止任何键

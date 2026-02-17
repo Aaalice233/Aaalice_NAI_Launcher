@@ -439,7 +439,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
         AutocompleteWrapper(
           controller: _tagsController,
           focusNode: _tagsFocusNode,
-          strategy: LocalTagStrategy.create(
+          asyncStrategy: LocalTagStrategy.create(
             ref,
             const AutocompleteConfig(
               maxSuggestions: 10,

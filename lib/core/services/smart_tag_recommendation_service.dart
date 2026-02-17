@@ -224,7 +224,7 @@ class _CandidateScore {
 @Riverpod(keepAlive: true)
 Future<SmartTagRecommendationService> smartTagRecommendationService(Ref ref) async {
   final cooccurrenceService = await ref.watch(cooccurrenceServiceProvider.future);
-  final danbooruService = ref.read(danbooruTagsLazyServiceProvider);
+  final danbooruService = await ref.watch(danbooruTagsLazyServiceProvider.future);
 
   return SmartTagRecommendationService(
     cooccurrenceService,

@@ -112,14 +112,14 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   Timer? _debounceTimer;
-  LocalTagStrategy? _searchStrategy;
+  Future<LocalTagStrategy>? _searchStrategyFuture;
 
   @override
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
     _debounceTimer?.cancel();
-    _searchStrategy?.dispose();
+    // Future 不需要 dispose
     super.dispose();
   }
 
@@ -383,8 +383,8 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
   /// Build search field
   /// 构建搜索框 - 类似在线画廊的简洁圆角样式
   Widget _buildSearchField(ThemeData theme, LocalGalleryState state) {
-    // 缓存策略实例，避免每次build都创建新的
-    _searchStrategy ??= LocalTagStrategy.create(
+    // 缓存策略 Future，避免每次build都创建新的
+    _searchStrategyFuture ??= LocalTagStrategy.create(
       ref,
       const AutocompleteConfig(
         minQueryLength: 2,
@@ -398,7 +398,7 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
     return AutocompleteWrapper(
       controller: _searchController,
       focusNode: _searchFocusNode,
-      strategy: _searchStrategy!,
+      asyncStrategy: _searchStrategyFuture!,
       onSuggestionSelected: (value) {
         // 选择补全建议后立即触发搜索
         _debounceTimer?.cancel();

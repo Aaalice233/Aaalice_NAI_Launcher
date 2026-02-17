@@ -33,8 +33,8 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
   late FocusNode _promptFocusNode;
   bool _showParameters = false;
 
-  /// 自动补全策略（在 initState 中创建，避免每次 build 重新创建）
-  CompositeStrategy? _autocompleteStrategy;
+  /// 自动补全策略 Future（异步初始化）
+  Future<AutocompleteStrategy>? _autocompleteStrategyFuture;
 
   @override
   void initState() {
@@ -47,28 +47,29 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
   void dispose() {
     _promptController.dispose();
     _promptFocusNode.dispose();
-    _autocompleteStrategy?.dispose();
     super.dispose();
   }
 
-  /// 确保自动补全策略已创建
-  CompositeStrategy _ensureAutocompleteStrategy() {
-    _autocompleteStrategy ??= CompositeStrategy(
-      strategies: [
-        LocalTagStrategy.create(
-          ref,
-          const AutocompleteConfig(
-            maxSuggestions: 15,
-            showTranslation: true,
-            showCategory: true,
-            autoInsertComma: true,
-          ),
-        ),
-        AliasStrategy.create(ref),
-      ],
-      strategySelector: defaultStrategySelector,
-    );
-    return _autocompleteStrategy!;
+  /// 确保自动补全策略 Future 已创建
+  Future<AutocompleteStrategy> _ensureAutocompleteStrategyFuture() {
+    _autocompleteStrategyFuture ??= LocalTagStrategy.create(
+      ref,
+      const AutocompleteConfig(
+        maxSuggestions: 15,
+        showTranslation: true,
+        showCategory: true,
+        autoInsertComma: true,
+      ),
+    ).then((localTagStrategy) {
+      return CompositeStrategy(
+        strategies: [
+          localTagStrategy,
+          AliasStrategy.create(ref),
+        ],
+        strategySelector: defaultStrategySelector,
+      );
+    });
+    return _autocompleteStrategyFuture!;
   }
 
   @override
@@ -211,7 +212,7 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
             child: AutocompleteWrapper(
               controller: _promptController,
               focusNode: _promptFocusNode,
-              strategy: _ensureAutocompleteStrategy(),
+              asyncStrategy: _ensureAutocompleteStrategyFuture(),
               maxLines: 6,
               expands: false,
               contentPadding: const EdgeInsets.all(12),

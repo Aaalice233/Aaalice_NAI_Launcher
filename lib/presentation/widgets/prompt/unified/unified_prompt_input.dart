@@ -99,8 +99,8 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   /// 焦点节点
   FocusNode? _internalFocusNode;
 
-  /// 自动补全策略（在 initState 中创建，避免每次 build 重新创建）
-  CompositeStrategy? _autocompleteStrategy;
+  /// 自动补全策略 Future（异步初始化）
+  Future<AutocompleteStrategy>? _autocompleteStrategyFuture;
 
   /// 获取有效的文本控制器
   TextEditingController get _effectiveController {
@@ -192,7 +192,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     _internalController?.dispose();
     _syntaxController?.dispose();
     _internalFocusNode?.dispose();
-    _autocompleteStrategy?.dispose();
     super.dispose();
   }
 
@@ -247,17 +246,22 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     }
   }
 
-  /// 确保自动补全策略已创建
-  CompositeStrategy _ensureAutocompleteStrategy() {
-    _autocompleteStrategy ??= CompositeStrategy(
-      strategies: [
-        LocalTagStrategy.create(ref, widget.config.autocompleteConfig),
-        AliasStrategy.create(ref),
-        CooccurrenceStrategy.create(ref, widget.config.autocompleteConfig),
-      ],
-      strategySelector: defaultStrategySelector,
-    );
-    return _autocompleteStrategy!;
+  /// 确保自动补全策略 Future 已创建
+  Future<AutocompleteStrategy> _ensureAutocompleteStrategyFuture() {
+    _autocompleteStrategyFuture ??= LocalTagStrategy.create(
+      ref,
+      widget.config.autocompleteConfig,
+    ).then((localTagStrategy) {
+      return CompositeStrategy(
+        strategies: [
+          localTagStrategy,
+          AliasStrategy.create(ref),
+          CooccurrenceStrategy.create(ref, widget.config.autocompleteConfig),
+        ],
+        strategySelector: defaultStrategySelector,
+      );
+    });
+    return _autocompleteStrategyFuture!;
   }
 
   /// 同步外部控制器变化到内部状态
@@ -423,7 +427,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       return AutocompleteWrapper(
         controller: _effectiveController,
         focusNode: _effectiveFocusNode,
-        strategy: _ensureAutocompleteStrategy(),
+        asyncStrategy: _ensureAutocompleteStrategyFuture(),
         enabled: !widget.config.readOnly,
         onChanged: _handleTextChanged,
         contentPadding: effectiveDecoration.contentPadding,

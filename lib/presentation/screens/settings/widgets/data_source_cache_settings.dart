@@ -366,17 +366,21 @@ class _TagCompletionDataSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(danbooruTagsCacheNotifierProvider);
-    final isSyncing = state.isRefreshing;
-
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 头部信息区域
-          _buildHeader(context, state),
-          const SizedBox(height: 20),
+    final asyncState = ref.watch(danbooruTagsCacheNotifierProvider);
+    
+    return asyncState.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stack) => Center(child: Text('Error: $error')),
+      data: (state) {
+        final isSyncing = state.isRefreshing;
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 头部信息区域
+              _buildHeader(context, state),
+              const SizedBox(height: 20),
 
           // 热度档位选择 + 自动刷新间隔（横向并排，顶部对齐）
           Row(
@@ -430,6 +434,8 @@ class _TagCompletionDataSection extends ConsumerWidget {
           _buildActionButtons(context, ref, state),
         ],
       ),
+        );
+      },
     );
   }
 

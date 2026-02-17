@@ -81,117 +81,122 @@ class DanbooruTagsCacheState {
 @Riverpod(keepAlive: true)
 class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
   bool _isClearing = false;
+  DanbooruTagsLazyService? _service;
 
   @override
-  DanbooruTagsCacheState build() {
-    // 在 build 中同步初始化状态，避免访问未初始化的 state
-    final service = ref.read(danbooruTagsLazyServiceProvider);
-    final preset = service.getHotPreset();
-    final refreshInterval = service.getRefreshInterval();
-
-    // 异步加载标签数量
-    _loadTagCount();
+  Future<DanbooruTagsCacheState> build() async {
+    // 等待服务初始化完成
+    _service = await ref.watch(danbooruTagsLazyServiceProvider.future);
+    
+    final preset = _service!.getHotPreset();
+    final refreshInterval = _service!.getRefreshInterval();
+    
+    // 获取标签数量
+    var count = 0;
+    try {
+      final completionService = await ref.read(completionServiceProvider.future);
+      count = await completionService.getTagCount();
+    } catch (e) {
+      // 静默失败
+    }
 
     return DanbooruTagsCacheState(
-      lastUpdate: service.lastUpdate,
-      totalTags: 0,
+      lastUpdate: _service!.lastUpdate,
+      totalTags: count,
       hotPreset: preset,
-      customThreshold: service.currentThreshold,
+      customThreshold: _service!.currentThreshold,
       refreshInterval: refreshInterval,
     );
   }
 
-  /// 从数据库加载标签数量
-  Future<void> _loadTagCount() async {
-    try {
-      // 使用新的 CompletionService 获取标签数量
-      final completionService = await ref.read(completionServiceProvider.future);
-      final count = await completionService.getTagCount();
-      // 防止清除操作后的竞态条件
-      if (!_isClearing) {
-        state = state.copyWith(totalTags: count);
-      }
-    } catch (e) {
-      // 静默失败，保持现有状态
+  DanbooruTagsLazyService get _requireService {
+    if (_service == null) {
+      throw StateError('DanbooruTagsLazyService not initialized');
     }
+    return _service!;
   }
 
   /// 手动刷新标签数据
   Future<void> refresh() async {
-    if (state.isRefreshing) return;
+    final currentState = await future;
+    if (currentState.isRefreshing) return;
 
-    state = state.copyWith(isRefreshing: true, progress: 0.0, error: null);
-
-    final service = ref.read(danbooruTagsLazyServiceProvider);
-    service.onProgress = (progress, message) {
-      state = state.copyWith(progress: progress, message: message);
-    };
+    state = const AsyncLoading();
 
     try {
-      await service.refresh();
+      _requireService.onProgress = (progress, message) {
+        // 更新状态
+        state = AsyncValue.data(currentState.copyWith(
+          isRefreshing: true,
+          progress: progress,
+          message: message,
+        ),);
+      };
+
+      await _requireService.refresh();
+      
       // 刷新完成后重新加载标签数量
       final completionService = await ref.read(completionServiceProvider.future);
       final count = await completionService.getTagCount();
-      state = state.copyWith(
+      
+      state = AsyncValue.data(currentState.copyWith(
         isRefreshing: false,
         progress: 1.0,
         lastUpdate: DateTime.now(),
         totalTags: count,
         message: null,
-      );
-    } catch (e) {
-      state = state.copyWith(
-        isRefreshing: false,
-        error: e.toString(),
-      );
+      ),);
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
     } finally {
-      service.onProgress = null;
+      _requireService.onProgress = null;
     }
   }
 
   /// 取消同步
   void cancelSync() {
-    final service = ref.read(danbooruTagsLazyServiceProvider);
-    service.cancelRefresh();
+    _requireService.cancelRefresh();
   }
 
   /// 设置热度档位
   Future<void> setHotPreset(TagHotPreset preset, {int? customThreshold}) async {
-    final service = ref.read(danbooruTagsLazyServiceProvider);
-    await service.setHotPreset(preset, customThreshold: customThreshold);
+    await _requireService.setHotPreset(preset, customThreshold: customThreshold);
 
-    state = state.copyWith(
+    final currentState = await future;
+    state = AsyncValue.data(currentState.copyWith(
       hotPreset: preset,
-      customThreshold: customThreshold ?? state.customThreshold,
-    );
+      customThreshold: customThreshold ?? currentState.customThreshold,
+    ),);
   }
 
   /// 清除缓存
   Future<void> clearCache() async {
+    if (_isClearing) return;
     _isClearing = true;
-    final service = ref.read(danbooruTagsLazyServiceProvider);
-    await service.clearCache();
+    await _requireService.clearCache();
 
-    state = state.copyWith(
+    final currentState = await future;
+    state = AsyncValue.data(currentState.copyWith(
       lastUpdate: null,
       totalTags: 0,
-    );
+    ),);
 
-    // 延迟重置标志，确保任何正在进行的 _loadTagCount 不会覆盖状态
+    // 延迟重置标志
     await Future.delayed(const Duration(milliseconds: 500));
     _isClearing = false;
   }
 
   /// 设置自动刷新间隔
   Future<void> setRefreshInterval(AutoRefreshInterval interval) async {
-    final service = ref.read(danbooruTagsLazyServiceProvider);
-    await service.setRefreshInterval(interval);
-    state = state.copyWith(refreshInterval: interval);
+    await _requireService.setRefreshInterval(interval);
+    final currentState = await future;
+    state = AsyncValue.data(currentState.copyWith(refreshInterval: interval));
   }
 
   /// 设置是否同步画师
   Future<void> setSyncArtists(bool value) async {
-    state = state.copyWith(syncArtists: value);
+    final currentState = await future;
+    state = AsyncValue.data(currentState.copyWith(syncArtists: value));
     // TODO: 持久化到存储
   }
 
@@ -201,8 +206,9 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
   }
 
   /// 取消画师同步
-  void cancelArtistsSync() {
-    state = state.copyWith(isSyncingArtists: false);
+  Future<void> cancelArtistsSync() async {
+    final currentState = await future;
+    state = AsyncValue.data(currentState.copyWith(isSyncingArtists: false));
   }
   
 } 

@@ -166,19 +166,16 @@ class BackgroundRefreshNotifier extends _$BackgroundRefreshNotifier {
 
   /// 注册所有数据源服务
   Future<void> _registerAllServices() async {
-    // 注意：这里使用 ref.read 获取服务实例
-    // 由于 build 方法中不能直接使用 ref，我们需要延迟获取
-    Future.microtask(() {
-      try {
-        final danbooruTagsService = ref.read(danbooruTagsLazyServiceProvider);
+    // 异步获取服务实例
+    try {
+      final danbooruTagsService = await ref.read(danbooruTagsLazyServiceProvider.future);
 
-        registerServices([
-          danbooruTagsService,
-        ]);
-      } catch (e) {
-        AppLogger.w('Failed to register some services: $e', 'BackgroundRefresh');
-      }
-    });
+      registerServices([
+        danbooruTagsService,
+      ]);
+    } catch (e) {
+      AppLogger.w('Failed to register some services: $e', 'BackgroundRefresh');
+    }
   }
 
   /// 刷新单个数据源

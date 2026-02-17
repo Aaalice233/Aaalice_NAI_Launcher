@@ -411,7 +411,7 @@ class _BulkMetadataEditDialogState
             child: AutocompleteWrapper(
               controller: controller,
               focusNode: focusNode,
-              strategy: LocalTagStrategy.create(
+              asyncStrategy: LocalTagStrategy.create(
                 ref,
                 const AutocompleteConfig(
                   maxSuggestions: 10,
