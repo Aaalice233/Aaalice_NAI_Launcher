@@ -23,7 +23,7 @@ class VibeMetadataService {
     double defaultStrength = 0.6,
   }) async {
     try {
-      final reference = await VibeFileParser.fromPng(
+      final reference = await VibeFileParser.fromPngInIsolate(
         'image.png',
         image,
         defaultStrength: defaultStrength,
@@ -81,8 +81,8 @@ class VibeMetadataService {
       // 提取文件名
       final fileName = filePath.split(Platform.pathSeparator).last;
 
-      // 解析 Vibe 数据
-      final reference = await VibeFileParser.fromPng(
+      // 解析 Vibe 数据 (使用 isolate 避免阻塞 UI 线程)
+      final reference = await VibeFileParser.fromPngInIsolate(
         fileName,
         bytes,
         defaultStrength: defaultStrength,
@@ -120,7 +120,7 @@ class VibeMetadataService {
   /// 返回 true 如果图片包含 NovelAI_Vibe_Encoding_Base64 iTXt 块
   Future<bool> hasVibeMetadata(Uint8List image) async {
     try {
-      final reference = await VibeFileParser.fromPng(
+      final reference = await VibeFileParser.fromPngInIsolate(
         'image.png',
         image,
       );

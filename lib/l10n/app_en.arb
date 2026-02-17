@@ -3619,6 +3619,19 @@
   "viewer_tooltip_favorite": "Favorite",
 
   "presetManager_import": "Import Presets",
-  "presetManager_export": "Export Presets"
+  "presetManager_export": "Export Presets",
+  "backgroundTask_downloadedCount": "Downloaded {count} tags",
+  "@backgroundTask_downloadedCount": {
+    "placeholders": {
+      "count": {"type": "int", "format": "decimalPattern"}
+    }
+  },
+  "backgroundTask_downloadedCountWithTotal": "Downloaded {count}/{total} tags",
+  "@backgroundTask_downloadedCountWithTotal": {
+    "placeholders": {
+      "count": {"type": "int", "format": "decimalPattern"},
+      "total": {"type": "int", "format": "decimalPattern"}
+    }
+  }
 
 }

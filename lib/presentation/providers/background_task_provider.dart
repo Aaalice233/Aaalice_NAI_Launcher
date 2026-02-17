@@ -26,6 +26,8 @@ class BackgroundTask {
   final DateTime? startTime;
   final DateTime? endTime;
   final String? error;
+  final int? processedCount;
+  final int? totalCount;
 
   const BackgroundTask({
     required this.id,
@@ -37,6 +39,8 @@ class BackgroundTask {
     this.startTime,
     this.endTime,
     this.error,
+    this.processedCount,
+    this.totalCount,
   });
 
   BackgroundTask copyWith({
@@ -49,6 +53,8 @@ class BackgroundTask {
     DateTime? startTime,
     DateTime? endTime,
     String? error,
+    int? processedCount,
+    int? totalCount,
   }) {
     return BackgroundTask(
       id: id ?? this.id,
@@ -60,6 +66,8 @@ class BackgroundTask {
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
       error: error ?? this.error,
+      processedCount: processedCount ?? this.processedCount,
+      totalCount: totalCount ?? this.totalCount,
     );
   }
 
@@ -231,7 +239,13 @@ class BackgroundTaskNotifier extends _$BackgroundTaskNotifier {
   }
 
   /// 更新任务进度
-  void updateProgress(String id, double progress, {String? message}) {
+  void updateProgress(
+    String id,
+    double progress, {
+    String? message,
+    int? processedCount,
+    int? totalCount,
+  }) {
     if (state.isPaused) return;
 
     final taskIndex = state.tasks.indexWhere((t) => t.id == id);
@@ -240,6 +254,8 @@ class BackgroundTaskNotifier extends _$BackgroundTaskNotifier {
     final updatedTask = state.tasks[taskIndex].copyWith(
       progress: progress.clamp(0.0, 1.0),
       message: message,
+      processedCount: processedCount,
+      totalCount: totalCount,
     );
 
     final newTasks = [...state.tasks];

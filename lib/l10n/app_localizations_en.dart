@@ -7220,4 +7220,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get presetManager_export => 'Export Presets';
+
+  @override
+  String backgroundTask_downloadedCount(int count) {
+    return 'Downloaded $count tags';
+  }
+
+  @override
+  String backgroundTask_downloadedCountWithTotal(int count, int total) {
+    return 'Downloaded $count/$total tags';
+  }
 }

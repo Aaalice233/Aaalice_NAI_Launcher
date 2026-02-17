@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/shortcuts/default_shortcuts.dart';
+import '../../providers/gallery_folder_provider.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../bulk_action_bar.dart';
@@ -81,6 +82,14 @@ class LocalGalleryToolbar extends ConsumerStatefulWidget {
   /// 分类面板切换按钮回调
   final VoidCallback? onToggleCategoryPanel;
 
+  /// Current folder view mode
+  /// 当前文件夹视图模式
+  final FolderViewMode folderViewMode;
+
+  /// Callback when folder view mode is toggled
+  /// 文件夹视图模式切换回调
+  final VoidCallback? onToggleFolderViewMode;
+
   const LocalGalleryToolbar({
     super.key,
     this.use3DCardView = true,
@@ -101,6 +110,8 @@ class LocalGalleryToolbar extends ConsumerStatefulWidget {
     this.onMoveToFolder,
     this.showCategoryPanel = true,
     this.onToggleCategoryPanel,
+    this.folderViewMode = FolderViewMode.tree,
+    this.onToggleFolderViewMode,
   });
 
   @override
@@ -320,6 +331,23 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
                       tooltip: widget.showCategoryPanel ? '隐藏分类面板' : '显示分类面板',
                       shortcutId: ShortcutIds.toggleCategoryPanel,
                       onPressed: widget.onToggleCategoryPanel,
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  // Folder view mode toggle (only when category panel is visible)
+                  if (widget.showCategoryPanel &&
+                      widget.onToggleFolderViewMode != null) ...[
+                    CompactIconButton(
+                      icon: widget.folderViewMode == FolderViewMode.tabs
+                          ? Icons.folder_outlined
+                          : Icons.account_tree_outlined,
+                      label: widget.folderViewMode == FolderViewMode.tabs
+                          ? '标签'
+                          : '树形',
+                      tooltip: widget.folderViewMode == FolderViewMode.tabs
+                          ? '切换为树形视图'
+                          : '切换为标签视图',
+                      onPressed: widget.onToggleFolderViewMode,
                     ),
                     const SizedBox(width: 6),
                   ],

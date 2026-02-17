@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../data/models/gallery/local_image_record.dart';
-import 'image_card_3d.dart';
+import 'draggable_image_card.dart';
 
 /// 响应式布局工具
 class ResponsiveLayout {
@@ -65,6 +66,25 @@ class VirtualGalleryGrid extends StatefulWidget {
   final void Function(LocalImageRecord record, int index)? onFavoriteToggle;
   final Set<int>? selectedIndices;
 
+  // ===== 选择模式相关属性 =====
+
+  /// 是否处于选择模式
+  final bool isSelectionMode;
+
+  /// 切换选择状态回调
+  final void Function(LocalImageRecord record, int index)? onToggleSelection;
+
+  // ===== 拖拽相关属性 =====
+
+  /// 是否启用拖拽
+  final bool enableDrag;
+
+  /// 拖拽开始回调
+  final VoidCallback? onDragStarted;
+
+  /// 拖拽结束回调
+  final VoidCallback? onDragEnded;
+
   const VirtualGalleryGrid({
     super.key,
     required this.images,
@@ -77,6 +97,11 @@ class VirtualGalleryGrid extends StatefulWidget {
     this.onSecondaryTapDown,
     this.onFavoriteToggle,
     this.selectedIndices,
+    this.isSelectionMode = false,
+    this.onToggleSelection,
+    this.enableDrag = false,
+    this.onDragStarted,
+    this.onDragEnded,
   });
 
   @override
@@ -154,12 +179,14 @@ class _VirtualGalleryGridState extends State<VirtualGalleryGrid> {
             final isSelected = widget.selectedIndices?.contains(index) ?? false;
 
             return RepaintBoundary(
-              child: ImageCard3D(
+              child: DraggableImageCard(
                 key: ValueKey(record.path),
                 record: record,
                 width: itemWidth,
                 height: itemHeight,
                 isSelected: isSelected,
+                isSelectionMode: widget.isSelectionMode,
+                enableDrag: widget.enableDrag,
                 onTap: widget.onTap != null
                     ? () => widget.onTap!(record, index)
                     : null,
@@ -176,6 +203,14 @@ class _VirtualGalleryGridState extends State<VirtualGalleryGrid> {
                 onFavoriteToggle: widget.onFavoriteToggle != null
                     ? () => widget.onFavoriteToggle!(record, index)
                     : null,
+                onToggleSelection: widget.onToggleSelection != null
+                    ? () {
+                        HapticFeedback.mediumImpact();
+                        widget.onToggleSelection!(record, index);
+                      }
+                    : null,
+                onDragStarted: widget.onDragStarted,
+                onDragEnded: widget.onDragEnded,
               ),
             );
           },

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
+import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -14,12 +16,25 @@ import '../../models/vibe/vibe_reference.dart';
 import '../vibe_metadata_service.dart';
 import 'gallery_database_schema.dart';
 
+/// Vibe 提取结果（从 isolate 返回）
+class _VibeExtractionResult {
+  final int imageId;
+  final VibeReference? vibe;
+  final String? error;
+
+  _VibeExtractionResult(this.imageId, this.vibe, this.error);
+}
+
 /// 画廊数据库服务
 ///
 /// 使用SQLite存储图片索引和元数据，支持FTS5全文搜索
 class GalleryDatabaseService {
   static const String _dbName = 'nai_gallery.db';
   static const int _dbVersion = 2;
+
+  /// 使用 isolate 的阈值（小批量在主线程处理，大批量使用 isolate）
+  static const int _isolateThreshold = 50;
+  static const int _batchSize = 10;
 
   final VibeMetadataService _vibeService = VibeMetadataService();
 
@@ -1026,56 +1041,42 @@ class GalleryDatabaseService {
   /// [imageIds] - 图片ID列表
   ///
   /// 返回成功提取的图片ID列表
+  ///
+  /// 策略：
+  /// - 小批量（<=50张）：主线程直接处理，避免 isolate 开销
+  /// - 大批量（>50张）：使用 isolate 批量提取 Vibe 数据
   Future<List<int>> batchExtractAndSaveVibe(List<int> imageIds) async {
+    if (imageIds.isEmpty) return [];
+
+    // 小批量：主线程直接处理
+    if (imageIds.length <= _isolateThreshold) {
+      AppLogger.d(
+        'Processing ${imageIds.length} Vibe extractions in main thread',
+        'GalleryDatabaseService',
+      );
+      return _batchExtractInMainThread(imageIds);
+    }
+
+    // 大批量：使用 isolate
+    AppLogger.d(
+      'Processing ${imageIds.length} Vibe extractions with isolate',
+      'GalleryDatabaseService',
+    );
+    return _batchExtractWithIsolate(imageIds);
+  }
+
+  /// 在主线程批量处理 Vibe 提取（小批量）
+  Future<List<int>> _batchExtractInMainThread(List<int> imageIds) async {
     final successfulIds = <int>[];
 
     await database.transaction((txn) async {
       for (final imageId in imageIds) {
         try {
-          // 获取图片路径
-          final result = await txn.query(
-            'images',
-            columns: ['file_path'],
-            where: 'id = ? AND is_deleted = 0',
-            whereArgs: [imageId],
-            limit: 1,
-          );
-
-          if (result.isEmpty) continue;
-
-          final filePath = result.first['file_path'] as String?;
-          if (filePath == null) continue;
-
-          // 检查是否为 PNG 文件
-          final extension = filePath.split('.').last.toLowerCase();
-          if (extension != 'png') continue;
-
-          // 读取文件并提取 Vibe
-          final file = File(filePath);
-          if (!await file.exists()) continue;
-
-          final bytes = await file.readAsBytes();
-          final vibe = await _vibeService.extractVibeFromImage(bytes);
-
-          if (vibe == null || vibe.vibeEncoding.isEmpty) continue;
-
-          // 更新数据库
-          await txn.update(
-            'metadata',
-            {
-              'vibe_encoding': vibe.vibeEncoding,
-              'vibe_strength': vibe.strength,
-              'vibe_info_extracted': vibe.infoExtracted,
-              'vibe_source_type': vibe.sourceType.name,
-              'has_vibe': 1,
-            },
-            where: 'image_id = ?',
-            whereArgs: [imageId],
-          );
-
-          successfulIds.add(imageId);
+          final result = await _extractVibeForImage(txn, imageId);
+          if (result.vibe != null) {
+            successfulIds.add(imageId);
+          }
         } catch (e) {
-          // 继续处理其他图片
           AppLogger.w(
             'Failed to extract Vibe for image $imageId: $e',
             'GalleryDatabaseService',
@@ -1089,6 +1090,183 @@ class GalleryDatabaseService {
       'GalleryDatabaseService',
     );
     return successfulIds;
+  }
+
+  /// 使用 Isolate 批量处理 Vibe 提取（大批量）
+  Future<List<int>> _batchExtractWithIsolate(List<int> imageIds) async {
+    final successfulIds = <int>[];
+
+    // 首先获取所有图片的路径
+    final imagePaths = <int, String>{};
+    await database.transaction((txn) async {
+      for (final imageId in imageIds) {
+        final result = await txn.query(
+          'images',
+          columns: ['id', 'file_path'],
+          where: 'id = ? AND is_deleted = 0',
+          whereArgs: [imageId],
+          limit: 1,
+        );
+        if (result.isNotEmpty) {
+          final filePath = result.first['file_path'] as String?;
+          if (filePath != null && filePath.toLowerCase().endsWith('.png')) {
+            imagePaths[imageId] = filePath;
+          }
+        }
+      }
+    });
+
+    if (imagePaths.isEmpty) {
+      AppLogger.d('No PNG files found for Vibe extraction', 'GalleryDatabaseService');
+      return [];
+    }
+
+    // 分批处理，每批读取文件并在 isolate 中提取 Vibe
+    final entries = imagePaths.entries.toList();
+    for (var i = 0; i < entries.length; i += _batchSize) {
+      final batch = entries.skip(i).take(_batchSize).toList();
+
+      // 读取文件字节
+      final batchData = <({int imageId, String path, Uint8List bytes})>[];
+      for (final entry in batch) {
+        try {
+          final file = File(entry.value);
+          if (await file.exists()) {
+            final bytes = await file.readAsBytes();
+            batchData.add((imageId: entry.key, path: entry.value, bytes: bytes));
+          }
+        } catch (e) {
+          AppLogger.w('Failed to read file ${entry.value}: $e', 'GalleryDatabaseService');
+        }
+      }
+
+      if (batchData.isEmpty) continue;
+
+      // 在 isolate 中提取 Vibe
+      final results = await _extractVibesInIsolate(batchData);
+
+      // 保存结果到数据库
+      await database.transaction((txn) async {
+        for (final result in results) {
+          if (result.vibe != null) {
+            try {
+              await txn.update(
+                'metadata',
+                {
+                  'vibe_encoding': result.vibe!.vibeEncoding,
+                  'vibe_strength': result.vibe!.strength,
+                  'vibe_info_extracted': result.vibe!.infoExtracted,
+                  'vibe_source_type': result.vibe!.sourceType.name,
+                  'has_vibe': 1,
+                },
+                where: 'image_id = ?',
+                whereArgs: [result.imageId],
+              );
+              successfulIds.add(result.imageId);
+            } catch (e) {
+              AppLogger.w(
+                'Failed to save Vibe for image ${result.imageId}: $e',
+                'GalleryDatabaseService',
+              );
+            }
+          }
+          if (result.error != null) {
+            AppLogger.w(
+              'Vibe extraction error for image ${result.imageId}: ${result.error}',
+              'GalleryDatabaseService',
+            );
+          }
+        }
+      });
+
+      // 让出时间片
+      await Future.delayed(Duration.zero);
+    }
+
+    AppLogger.i(
+      'Batch Vibe extraction completed: ${successfulIds.length}/${imageIds.length} successful',
+      'GalleryDatabaseService',
+    );
+    return successfulIds;
+  }
+
+  /// 在 isolate 中批量提取 Vibe 数据
+  Future<List<_VibeExtractionResult>> _extractVibesInIsolate(
+    List<({int imageId, String path, Uint8List bytes})> batchData,
+  ) async {
+    return await Isolate.run(() async {
+      final results = <_VibeExtractionResult>[];
+      final vibeService = VibeMetadataService();
+
+      for (final data in batchData) {
+        try {
+          final vibe = await vibeService.extractVibeFromImage(data.bytes);
+          results.add(_VibeExtractionResult(data.imageId, vibe, null));
+        } catch (e) {
+          results.add(_VibeExtractionResult(data.imageId, null, e.toString()));
+        }
+      }
+
+      return results;
+    });
+  }
+
+  /// 为单个图片提取 Vibe（事务内使用）
+  Future<_VibeExtractionResult> _extractVibeForImage(
+    Transaction txn,
+    int imageId,
+  ) async {
+    // 获取图片路径
+    final result = await txn.query(
+      'images',
+      columns: ['file_path'],
+      where: 'id = ? AND is_deleted = 0',
+      whereArgs: [imageId],
+      limit: 1,
+    );
+
+    if (result.isEmpty) {
+      return _VibeExtractionResult(imageId, null, 'Image not found');
+    }
+
+    final filePath = result.first['file_path'] as String?;
+    if (filePath == null) {
+      return _VibeExtractionResult(imageId, null, 'File path is null');
+    }
+
+    // 检查是否为 PNG 文件
+    if (!filePath.toLowerCase().endsWith('.png')) {
+      return _VibeExtractionResult(imageId, null, 'Not a PNG file');
+    }
+
+    // 读取文件并提取 Vibe
+    final file = File(filePath);
+    if (!await file.exists()) {
+      return _VibeExtractionResult(imageId, null, 'File not found');
+    }
+
+    final bytes = await file.readAsBytes();
+    final vibe = await _vibeService.extractVibeFromImage(bytes);
+
+    if (vibe == null || vibe.vibeEncoding.isEmpty) {
+      return _VibeExtractionResult(imageId, null, 'No Vibe data found');
+    }
+
+    // 更新数据库
+    await txn.update(
+      'metadata',
+      {
+        'vibe_encoding': vibe.vibeEncoding,
+        'vibe_strength': vibe.strength,
+        'vibe_info_extracted': vibe.infoExtracted,
+        'vibe_source_type': vibe.sourceType.name,
+        'has_vibe': 1,
+      },
+      where: 'image_id = ?',
+      whereArgs: [imageId],
+    );
+
+    return _VibeExtractionResult(imageId, vibe, null);
   }
 
   /// 检查图片是否有 Vibe 数据

@@ -13612,6 +13612,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Export Presets'**
   String get presetManager_export;
+
+  /// No description provided for @backgroundTask_downloadedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded {count} tags'**
+  String backgroundTask_downloadedCount(int count);
+
+  /// No description provided for @backgroundTask_downloadedCountWithTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded {count}/{total} tags'**
+  String backgroundTask_downloadedCountWithTotal(int count, int total);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

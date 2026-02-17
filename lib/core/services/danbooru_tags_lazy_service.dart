@@ -536,6 +536,8 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     var consecutiveEmpty = 0;
     var artistTagCount = 0;
     var shouldStop = false;
+    // 预估画师标签总数（基于典型Danbooru数据库规模）
+    var estimatedTotalTags = 80000;
 
     while (currentPage <= _maxPages && !shouldStop && !_isCancelled) {
       const batchSize = _concurrentRequests;
@@ -578,9 +580,19 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
       if (shouldStop) break;
 
-      // 画师标签进度：45% ~ 90%
-      final progress = 0.45 + (currentPage / _maxPages * 0.45).clamp(0.0, 0.45);
-      _onProgress?.call(progress, '拉取画师标签... $artistTagCount 个 (第 $currentPage 页)');
+      // 动态调整预估总数：当实际数量接近预估时，扩大预估
+      if (artistTagCount >= estimatedTotalTags * 0.9 && batchHasData) {
+        estimatedTotalTags = artistTagCount + _pageSize * 2;
+      }
+
+      // 画师标签进度：45% ~ 90%，使用 count-based 进度报告
+      final progress = 0.45 + (artistTagCount / estimatedTotalTags * 0.45).clamp(0.0, 0.45);
+      _onProgress?.call(
+        progress,
+        '拉取画师标签... $artistTagCount 个 (第 $currentPage 页)',
+        processedCount: artistTagCount,
+        totalCount: estimatedTotalTags,
+      );
 
       currentPage += actualBatchSize;
 

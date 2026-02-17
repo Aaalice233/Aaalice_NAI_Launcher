@@ -46,89 +46,109 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 标题栏
-        Padding(
-          padding:
-              const EdgeInsets.only(left: 8, right: 4, top: 12, bottom: 12),
-          child: Row(
-            children: [
-              // 折叠按钮
-              _buildCollapseButton(theme),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  context.l10n.generation_historyRecord,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // 当宽度极窄时，只显示折叠按钮
+            if (constraints.maxWidth < 40) {
+              return Padding(
+                padding: const EdgeInsets.only(
+                  left: 8,
+                  right: 4,
+                  top: 12,
+                  bottom: 12,
                 ),
-              ),
-              if (state.history.isNotEmpty ||
-                  state.currentImages.isNotEmpty) ...[
-                const SizedBox(width: 4),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '${_getAllSelectableImages(state).length}',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onPrimaryContainer,
+                child: _buildCollapseButton(theme),
+              );
+            }
+
+            return Padding(
+              padding:
+                  const EdgeInsets.only(left: 8, right: 4, top: 12, bottom: 12),
+              child: Row(
+                children: [
+                  // 折叠按钮
+                  _buildCollapseButton(theme),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      context.l10n.generation_historyRecord,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                ),
-              ],
-              const Spacer(),
-              // 全选按钮
-              if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      final allImages = _getAllSelectableImages(state);
-                      if (_selectedIds.length == allImages.length) {
-                        _selectedIds.clear();
-                      } else {
-                        _selectedIds.clear();
-                        _selectedIds.addAll(allImages.map((img) => img.id));
-                      }
-                    });
-                  },
-                  icon: Icon(
-                    _selectedIds.length == _getAllSelectableImages(state).length
-                        ? Icons.deselect
-                        : Icons.select_all,
-                    size: 20,
-                  ),
-                  tooltip: _selectedIds.length ==
-                          _getAllSelectableImages(state).length
-                      ? context.l10n.common_deselectAll
-                      : context.l10n.common_selectAll,
-                  style: IconButton.styleFrom(
-                    foregroundColor: theme.colorScheme.primary,
-                  ),
-                  visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(),
-                  padding: const EdgeInsets.all(8),
-                ),
-              if (state.history.isNotEmpty || state.currentImages.isNotEmpty)
-                IconButton(
-                  onPressed: () {
-                    _showClearDialog(context, ref);
-                  },
-                  icon: const Icon(Icons.delete_outline, size: 20),
-                  tooltip: context.l10n.common_clear,
-                  style: IconButton.styleFrom(
-                    foregroundColor: theme.colorScheme.error,
-                  ),
-                  visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(),
-                  padding: const EdgeInsets.all(8),
-                ),
-            ],
-          ),
+                  if (state.history.isNotEmpty ||
+                      state.currentImages.isNotEmpty) ...[
+                    const SizedBox(width: 4),
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${_getAllSelectableImages(state).length}',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  // 全选按钮
+                  if (state.history.isNotEmpty ||
+                      state.currentImages.isNotEmpty)
+                    IconButton(
+                      onPressed: () {
+                        setState(() {
+                          final allImages = _getAllSelectableImages(state);
+                          if (_selectedIds.length == allImages.length) {
+                            _selectedIds.clear();
+                          } else {
+                            _selectedIds.clear();
+                            _selectedIds.addAll(allImages.map((img) => img.id));
+                          }
+                        });
+                      },
+                      icon: Icon(
+                        _selectedIds.length ==
+                                _getAllSelectableImages(state).length
+                            ? Icons.deselect
+                            : Icons.select_all,
+                        size: 20,
+                      ),
+                      tooltip: _selectedIds.length ==
+                              _getAllSelectableImages(state).length
+                          ? context.l10n.common_deselectAll
+                          : context.l10n.common_selectAll,
+                      style: IconButton.styleFrom(
+                        foregroundColor: theme.colorScheme.primary,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(8),
+                    ),
+                  if (state.history.isNotEmpty ||
+                      state.currentImages.isNotEmpty)
+                    IconButton(
+                      onPressed: () {
+                        _showClearDialog(context, ref);
+                      },
+                      icon: const Icon(Icons.delete_outline, size: 20),
+                      tooltip: context.l10n.common_clear,
+                      style: IconButton.styleFrom(
+                        foregroundColor: theme.colorScheme.error,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(8),
+                    ),
+                ],
+              ),
+            );
+          },
         ),
         const ThemedDivider(height: 1),
 
