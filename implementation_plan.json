@@ -1,0 +1,47 @@
+{
+  "spec_name": "fix-row-overflow-in-history-panel",
+  "workflow_type": "simple",
+  "total_phases": 1,
+  "recommended_workers": 1,
+  "phases": [
+    {
+      "phase": 1,
+      "name": "Implementation",
+      "description": "Fix Row overflow errors in history_panel.dart",
+      "depends_on": [],
+      "subtasks": [
+        {
+          "id": "subtask-1-1",
+          "description": "Fix header Row overflow at line 52 by restructuring the Row layout to handle extremely narrow widths",
+          "service": "main",
+          "status": "pending",
+          "files_to_create": [],
+          "files_to_modify": ["lib/presentation/screens/generation/widgets/history_panel.dart"],
+          "patterns_from": [],
+          "verification": {
+            "type": "manual",
+            "run": "flutter analyze lib/presentation/screens/generation/widgets/history_panel.dart"
+          }
+        },
+        {
+          "id": "subtask-1-2",
+          "description": "Fix empty state Row overflow at line 217 by adding layout adaptation for narrow widths",
+          "service": "main",
+          "status": "pending",
+          "files_to_create": [],
+          "files_to_modify": ["lib/presentation/screens/generation/widgets/history_panel.dart"],
+          "patterns_from": [],
+          "verification": {
+            "type": "manual",
+            "run": "flutter analyze lib/presentation/screens/generation/widgets/history_panel.dart"
+          }
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "created_at": "2026-02-16",
+    "complexity": "simple",
+    "estimated_sessions": 1
+  }
+}
