@@ -8,6 +8,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/nai_metadata_parser.dart';
+import '../../core/utils/state_update_throttler.dart';
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
 import '../../data/models/image/image_params.dart';
@@ -38,17 +39,38 @@ part 'image_generation_provider.g.dart';
 /// 图像生成状态 Notifier
 @Riverpod(keepAlive: true)
 class ImageGenerationNotifier extends _$ImageGenerationNotifier {
-  @override
-  ImageGenerationState build() {
-    return const ImageGenerationState();
-  }
-
   /// 生成图像
   /// 重试延迟策略 (毫秒)
   static const List<int> _retryDelays = [1000, 2000, 4000];
   static const int _maxRetries = 3;
 
+  /// 批量状态更新节流间隔 (毫秒)
+  static const int _batchStateThrottleMs = 50;
+
+  /// 批量状态更新节流器
+  late final StateUpdateThrottler<_BatchStateUpdate> _batchStateThrottler;
+
   bool _isCancelled = false;
+
+  @override
+  ImageGenerationState build() {
+    _batchStateThrottler = StateUpdateThrottler<_BatchStateUpdate>(
+      throttleInterval: const Duration(milliseconds: _batchStateThrottleMs),
+      leading: true,
+      trailing: true,
+      onUpdate: (update) {
+        state = state.copyWith(
+          currentImage: update.currentImage,
+          progress: update.progress,
+          streamPreview: update.streamPreview,
+        );
+      },
+    );
+    ref.onDispose(() {
+      _batchStateThrottler.dispose();
+    });
+    return const ImageGenerationState();
+  }
 
   Future<void> generate(ImageParams params) async {
     _isCancelled = false;
@@ -271,6 +293,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     }
 
     // 完成（不再随机，保持图像和提示词对应）
+    // 先刷新节流器，确保最终状态被正确应用
+    _batchStateThrottler.flush();
     state = state.copyWith(
       status: _isCancelled
           ? GenerationStatus.cancelled
@@ -529,15 +553,20 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final images = <Uint8List>[];
     bool useNonStreamFallback = false; // 记录是否需要回退到非流式
 
+    // 重置批量状态节流器
+    _batchStateThrottler.reset();
+
     // 逐张生成以支持流式预览
     for (int i = 0; i < batchSize; i++) {
       if (_isCancelled) break;
 
-      // 更新当前进度
-      state = state.copyWith(
-        currentImage: currentStart + i,
-        progress: (currentStart + i - 1) / total,
-        clearStreamPreview: true,
+      // 使用节流器批量更新状态
+      _batchStateThrottler.throttle(
+        _BatchStateUpdate(
+          currentImage: currentStart + i,
+          progress: (currentStart + i - 1) / total,
+          streamPreview: null,
+        ),
       );
 
       // 为每张图使用不同的种子
@@ -591,10 +620,13 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             }
 
             if (chunk.hasPreview) {
-              // 更新流式预览
-              state = state.copyWith(
-                progress: (currentStart + i - 1 + chunk.progress) / total,
-                streamPreview: chunk.previewImage,
+              // 使用节流器批量更新状态和流式预览
+              _batchStateThrottler.throttle(
+                _BatchStateUpdate(
+                  currentImage: currentStart + i,
+                  progress: (currentStart + i - 1 + chunk.progress) / total,
+                  streamPreview: chunk.previewImage,
+                ),
               );
             }
 
@@ -1041,4 +1073,19 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
     return result.mainPrompt;
   }
+}
+
+/// 批量状态更新数据类
+///
+/// 用于将多个状态更新打包，通过节流器批量处理
+class _BatchStateUpdate {
+  final int currentImage;
+  final double progress;
+  final Uint8List? streamPreview;
+
+  const _BatchStateUpdate({
+    required this.currentImage,
+    required this.progress,
+    this.streamPreview,
+  });
 }
