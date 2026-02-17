@@ -32,7 +32,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   static const String _cacheDirName = 'tag_cache';
   static const String _metaFileName = 'danbooru_tags_meta.json';
 
-  final DanbooruTagDataSource _tagDataSource;
+  late DanbooruTagDataSource _tagDataSource;
   final Dio _dio;
 
   final Map<String, LocalTag> _hotDataCache = {};
@@ -43,13 +43,33 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   int _currentThreshold = 1000;
   AutoRefreshInterval _refreshInterval = AutoRefreshInterval.days30;
   bool _isCancelled = false;
+  final Completer<void> _initCompleter = Completer<void>();
 
   @override
   DataSourceProgressCallback? get onProgress => _onProgress;
 
+  /// 主构造函数
   DanbooruTagsLazyService(this._tagDataSource, this._dio) {
     unawaited(_loadMeta());
+    _initCompleter.complete();
   }
+
+  /// 延迟初始化构造函数（用于 Provider 同步创建）
+  DanbooruTagsLazyService._uninitialized(this._dio) {
+    unawaited(_loadMeta());
+  }
+
+  /// 使用数据源初始化（延迟初始化用）
+  Future<void> _initializeWithDataSource(DanbooruTagDataSource dataSource) async {
+    _tagDataSource = dataSource;
+    await initialize();
+    if (!_initCompleter.isCompleted) {
+      _initCompleter.complete();
+    }
+  }
+
+  /// 等待初始化完成
+  Future<void> get _initialized => _initCompleter.future;
 
   @override
   String get serviceName => 'danbooru_tags';
@@ -922,8 +942,8 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 }
 
 @Riverpod(keepAlive: true)
-Future<DanbooruTagsLazyService> danbooruTagsLazyService(Ref ref) async {
-  final tagDataSource = await ref.watch(danbooruTagDataSourceProvider.future);
+DanbooruTagsLazyService danbooruTagsLazyService(Ref ref) {
+  // 同步创建服务，初始化在后台进行
   final dio = Dio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 15),
@@ -931,7 +951,25 @@ Future<DanbooruTagsLazyService> danbooruTagsLazyService(Ref ref) async {
       sendTimeout: const Duration(seconds: 15),
     ),
   );
-  return DanbooruTagsLazyService(tagDataSource, dio);
+  
+  // 创建一个占位服务，实际数据源会在 initialize() 中设置
+  // 使用一个延迟初始化的方式
+  final service = DanbooruTagsLazyService._uninitialized(dio);
+  
+  // 在后台异步初始化
+  _initializeService(ref, service);
+  
+  return service;
+}
+
+/// 后台初始化服务
+Future<void> _initializeService(Ref ref, DanbooruTagsLazyService service) async {
+  try {
+    final tagDataSource = await ref.read(danbooruTagDataSourceProvider.future);
+    await service._initializeWithDataSource(tagDataSource);
+  } catch (e, stack) {
+    AppLogger.e('Failed to initialize DanbooruTagsLazyService', e, stack, 'DanbooruTagsLazy');
+  }
 }
 
 /// 辅助方法：获取翻译（临时实现）
