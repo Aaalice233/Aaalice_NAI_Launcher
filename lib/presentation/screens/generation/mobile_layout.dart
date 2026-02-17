@@ -15,7 +15,6 @@ import '../../widgets/common/anlas_cost_badge.dart';
 import 'widgets/parameter_panel.dart';
 
 import '../../widgets/common/app_toast.dart';
-import '../../widgets/background_loading_indicator.dart';
 
 /// 移动端单栏布局
 class MobileGenerationLayout extends ConsumerStatefulWidget {
@@ -84,9 +83,6 @@ class _MobileGenerationLayoutState
       ),
       body: Column(
         children: [
-          // 后台加载指示器
-          const BackgroundLoadingIndicator(),
-
           // Prompt 输入区（最大化时占满空间）
           isPromptMaximized
               ? Expanded(

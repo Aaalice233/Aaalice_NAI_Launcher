@@ -33,7 +33,6 @@ import '../../widgets/common/themed_button.dart';
 import '../../widgets/common/anlas_cost_badge.dart';
 import '../../widgets/common/themed_divider.dart';
 import '../../widgets/shortcuts/shortcut_aware_widget.dart';
-import '../../widgets/background_loading_indicator.dart';
 import 'widgets/parameter_panel.dart';
 import 'widgets/prompt_input.dart';
 import 'widgets/image_preview.dart';
@@ -105,9 +104,6 @@ class _DesktopGenerationLayoutState
         Expanded(
           child: Column(
             children: [
-              // 后台加载指示器
-              const BackgroundLoadingIndicator(),
-
               // 顶部 Prompt 输入区（最大化时占满空间）
               isPromptMaximized
                   ? Expanded(
