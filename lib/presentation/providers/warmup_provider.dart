@@ -177,15 +177,15 @@ class WarmupNotifier extends _$WarmupNotifier {
     _startWarmup();
   }
 
-  /// 检查网络环境（带超时）
-  Future<void> _checkNetworkEnvironmentWithTimeout() async {
-    const timeout = Duration(seconds: 30);
+  /// 检查网络环境（循环等待直到连接成功）
+  Future<void> _checkNetworkEnvironment() async {
     const checkInterval = Duration(seconds: 2);
-    const maxAttempts = 15; // 30秒 / 2秒 = 15次
 
-    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+    var attempt = 0;
+    while (true) {
+      attempt++;
       state = state.copyWith(
-        subTaskMessage: '正在检测网络连接... (尝试 ${attempt + 1}/$maxAttempts)',
+        subTaskMessage: '正在检测网络连接... (尝试 $attempt)',
       );
 
       final result = await ProxyService.testNovelAIConnection();
@@ -199,22 +199,13 @@ class WarmupNotifier extends _$WarmupNotifier {
       }
 
       AppLogger.w(
-        'Network check attempt ${attempt + 1} failed: ${result.errorMessage}',
+        'Network check attempt $attempt failed: ${result.errorMessage}',
         'Warmup',
       );
 
-      if (attempt < maxAttempts - 1) {
-        await Future.delayed(checkInterval);
-      }
+      // 等待后重试
+      await Future.delayed(checkInterval);
     }
-
-    // 超时后记录日志但不阻塞
-    AppLogger.w(
-      'Network check timeout after ${timeout.inSeconds}s, continuing offline',
-      'Warmup',
-    );
-    state = state.copyWith(subTaskMessage: '网络检测超时，继续离线启动');
-    await Future.delayed(const Duration(seconds: 1));
   }
 
   // ===========================================================================
@@ -281,88 +272,103 @@ class WarmupNotifier extends _$WarmupNotifier {
   }
 
   void _registerQuickPhaseTasks() {
-    // 1. 数据库初始化（移到 Quick 阶段，允许更长超时）
+    // 1. 数据库初始化
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_unifiedDbInit',
         displayName: '初始化数据库',
         phase: WarmupPhase.quick,
         weight: 2,
-        timeout: const Duration(seconds: 60),
         task: _initUnifiedDatabaseLightweight,
       ),
     );
 
-    // 2. 共现数据初始化（轻量级检查，依赖数据库）
+    // 2. 翻译数据初始化（在预热阶段完成，不显示后台进度）
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_translationInit',
+        displayName: '初始化翻译数据',
+        phase: WarmupPhase.quick,
+        weight: 1,
+        task: _preloadTranslationInBackground,
+      ),
+    );
+
+    // 3. 共现数据初始化（轻量级检查，依赖数据库）
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_cooccurrenceInit',
         displayName: '初始化共现数据',
         phase: WarmupPhase.quick,
         weight: 1,
-        timeout: const Duration(seconds: 10),
         task: _initCooccurrenceData,
       ),
     );
 
-    // 3. 轻量级网络检测（带超时）
+    // 4. 网络检测
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_networkCheck',
         displayName: '检测网络',
         phase: WarmupPhase.quick,
         weight: 1,
-        timeout: const Duration(seconds: 30),
-        task: _checkNetworkEnvironmentWithTimeout,
+        task: _checkNetworkEnvironment,
       ),
     );
 
-    // 4. 提示词配置
+    // 5. 提示词配置
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_loadingPromptConfig',
         displayName: '加载提示词配置',
         phase: WarmupPhase.quick,
         weight: 1,
-        timeout: const Duration(seconds: 10),
         task: _loadPromptConfig,
       ),
     );
 
-    // 5. 画廊计数
+    // 6. 画廊计数
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_galleryFileCount',
         displayName: '扫描画廊',
         phase: WarmupPhase.quick,
         weight: 1,
-        timeout: const Duration(seconds: 3),
         task: _countGalleryFiles,
       ),
     );
 
-    // 6. 订阅信息（仅缓存，不强制网络）
+    // 7. 订阅信息（仅缓存，不强制网络）
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_subscription',
         displayName: '加载订阅信息',
         phase: WarmupPhase.quick,
         weight: 1,
-        timeout: const Duration(seconds: 3),
         task: _loadSubscriptionCached,
       ),
     );
 
-    // 注意：标签拉取已移到 Background 阶段，避免阻塞主界面
+    // 8. 一般标签数据拉取（在预热阶段完成，进入主页后不再显示后台进度）
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_generalTagsFetch',
+        displayName: '加载标签数据',
+        phase: WarmupPhase.quick,
+        weight: 2,
+        task: _fetchGeneralTags,
+      ),
+    );
 
-    // 7. 检查并恢复数据（处理清除缓存后的数据缺失）
+    // 注意：画师标签拉取在 Background 阶段，避免阻塞主界面
+
+    // 9. 检查并恢复数据（处理清除缓存后的数据缺失）
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_checkAndRecoverData',
         displayName: '检查数据完整性',
         phase: WarmupPhase.quick,
         weight: 1,
-        timeout: const Duration(seconds: 65),
         task: _checkAndRecoverData,
       ),
     );
@@ -373,39 +379,11 @@ class WarmupNotifier extends _$WarmupNotifier {
     // 实际执行在进入主界面后
     final backgroundNotifier = ref.read(backgroundTaskNotifierProvider.notifier);
 
-    // 共现数据导入/更新（如果需要）
-    backgroundNotifier.registerTask(
-      'cooccurrence_import',
-      '共现数据导入',
-      () => _checkAndImportCooccurrence(),
-    );
-
-    // 翻译数据后台加载
-    backgroundNotifier.registerTask(
-      'translation_preload',
-      '翻译数据',
-      () => _preloadTranslationInBackground(),
-    );
-
-    // Danbooru标签后台加载
-    backgroundNotifier.registerTask(
-      'danbooru_tags_preload',
-      '标签数据',
-      () => _preloadDanbooruTagsInBackground(),
-    );
-
-    // 画师标签拉取（使用新的 fetchArtistTags 方法，显示页数和数量）
+    // 只有画师标签在后台拉取（数据量大，不阻塞主界面）
     backgroundNotifier.registerTask(
       'artist_tags_fetch',
       '画师标签同步',
       () => _fetchArtistTagsInBackground(),
-    );
-
-    // 一般标签拉取（从 Quick 阶段移到 Background，避免阻塞主界面）
-    backgroundNotifier.registerTask(
-      'general_tags_fetch',
-      '一般标签拉取',
-      () => _fetchGeneralTags(),
     );
   }
 

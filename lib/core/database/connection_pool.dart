@@ -232,21 +232,18 @@ class ConnectionPool {
 
 /// 简单的互斥锁实现
 class Mutex {
-  Future<void>? _lock;
+  Completer<void>? _completer;
 
   Future<void> acquire() async {
-    while (_lock != null) {
-      await _lock;
+    while (_completer != null) {
+      await _completer!.future;
     }
-    final completer = Completer<void>();
-    _lock = completer.future;
+    _completer = Completer<void>();
   }
 
   void release() {
-    final lock = _lock;
-    _lock = null;
-    if (lock != null && lock is! Completer) {
-      (lock as dynamic).complete();
-    }
+    final completer = _completer;
+    _completer = null;
+    completer?.complete();
   }
 }
