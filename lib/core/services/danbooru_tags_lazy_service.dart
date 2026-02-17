@@ -798,6 +798,18 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
   /// 获取当前标签数量
   Future<int> getTagCount() async {
+    // 如果数据源还未初始化，等待初始化完成
+    if (!_isInitialized) {
+      try {
+        await _initialized.timeout(const Duration(seconds: 10));
+      } on TimeoutException {
+        AppLogger.w('Timeout waiting for service initialization', 'DanbooruTagsLazy');
+        return 0;
+      } catch (e) {
+        AppLogger.w('Service not initialized yet: $e', 'DanbooruTagsLazy');
+        return 0;
+      }
+    }
     return await _tagDataSource.getCount();
   }
 
@@ -967,6 +979,9 @@ Future<void> _initializeService(Ref ref, DanbooruTagsLazyService service) async 
   try {
     final tagDataSource = await ref.read(danbooruTagDataSourceProvider.future);
     await service._initializeWithDataSource(tagDataSource);
+  } on StateError catch (e) {
+    // 数据库正在恢复中，服务保持未初始化状态，后续调用会优雅处理
+    AppLogger.w('Database recovering during service init, will retry later: $e', 'DanbooruTagsLazy');
   } catch (e, stack) {
     AppLogger.e('Failed to initialize DanbooruTagsLazyService', e, stack, 'DanbooruTagsLazy');
   }

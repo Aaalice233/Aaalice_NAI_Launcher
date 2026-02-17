@@ -314,6 +314,9 @@ class DatabaseManager {
     if (!result.success) {
       throw StateError('Recovery failed: ${result.message}');
     }
+    
+    // 恢复后重新获取 ConnectionPool 引用，因为原实例已被 dispose
+    _connectionPool = ConnectionPool.instance;
   }
 
   /// 创建数据库备份

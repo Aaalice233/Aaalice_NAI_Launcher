@@ -290,6 +290,7 @@ class WarmupNotifier extends _$WarmupNotifier {
         displayName: '初始化翻译数据',
         phase: WarmupPhase.quick,
         weight: 1,
+        timeout: const Duration(seconds: 35),
         task: _preloadTranslationInBackground,
       ),
     );
@@ -356,6 +357,7 @@ class WarmupNotifier extends _$WarmupNotifier {
         displayName: '加载标签数据',
         phase: WarmupPhase.quick,
         weight: 2,
+        timeout: const Duration(seconds: 65),
         task: _fetchGeneralTags,
       ),
     );
@@ -532,9 +534,9 @@ class WarmupNotifier extends _$WarmupNotifier {
   Future<void> _initCooccurrenceData() async {
     AppLogger.i('开始初始化共现数据...', 'Warmup');
 
-    final manager = await ref.watch(databaseManagerProvider.future);
-
     try {
+      final manager = await ref.watch(databaseManagerProvider.future);
+
       // 等待新数据库管理器初始化
       await manager.initialized;
 
@@ -550,6 +552,9 @@ class WarmupNotifier extends _$WarmupNotifier {
       } else {
         AppLogger.i('共现数据已就绪（$count 条记录）', 'Warmup');
       }
+    } on StateError catch (e) {
+      // ConnectionPool disposed 或其他状态错误，不阻塞启动
+      AppLogger.w('共现数据初始化时数据库正在恢复，将在后台重试: $e', 'Warmup');
     } catch (e, stack) {
       AppLogger.e('共现数据初始化失败', e, stack, 'Warmup');
     }
@@ -577,7 +582,14 @@ class WarmupNotifier extends _$WarmupNotifier {
 
   Future<void> _preloadTranslationInBackground() async {
     // 统一翻译服务在读取 provider 时自动初始化
-    await ref.read(unifiedTranslationServiceProvider.future);
+    // 增加超时时间，CSV加载可能需要较长时间
+    try {
+      await ref.read(unifiedTranslationServiceProvider.future).timeout(
+        const Duration(seconds: 30),
+      );
+    } on TimeoutException {
+      AppLogger.w('Translation initialization timeout, will retry later', 'Warmup');
+    }
   }
 
   Future<void> _preloadDanbooruTagsInBackground() async {
@@ -633,6 +645,9 @@ class WarmupNotifier extends _$WarmupNotifier {
       } else {
         AppLogger.i('Tag database has $tagCount records, checking if refresh needed...', 'Warmup');
       }
+    } on StateError catch (e) {
+      // 数据库正在恢复中
+      AppLogger.w('Cannot check tag count, database recovering: $e', 'Warmup');
     } catch (e) {
       AppLogger.w('Failed to check tag count: $e', 'Warmup');
     }
@@ -669,6 +684,9 @@ class WarmupNotifier extends _$WarmupNotifier {
       }
 
       AppLogger.i('General tags fetched successfully', 'Warmup');
+    } on StateError catch (e) {
+      // 数据库正在恢复中，不阻塞启动
+      AppLogger.w('Cannot fetch tags, database recovering: $e', 'Warmup');
     } catch (e) {
       AppLogger.w('Failed to fetch general tags: $e', 'Warmup');
       // 失败不阻塞，进入主页后后台会重试
@@ -721,6 +739,10 @@ class WarmupNotifier extends _$WarmupNotifier {
     try {
       // 使用新的 DatabaseManager 获取统计信息
       final manager = await ref.watch(databaseManagerProvider.future);
+      
+      // 等待初始化完成
+      await manager.initialized;
+      
       final stats = await manager.getStatistics();
       final tableStats = stats['tables'] as Map<String, int>? ?? {};
 
@@ -773,6 +795,9 @@ class WarmupNotifier extends _$WarmupNotifier {
 
         AppLogger.i('标签数据拉取完成', 'Warmup');
       }
+    } on StateError catch (e) {
+      // 数据库正在恢复中，不阻塞启动
+      AppLogger.w('检查数据完整性时数据库正在恢复，将在后台重试: $e', 'Warmup');
     } catch (e) {
       AppLogger.w('检查数据完整性失败: $e', 'Warmup');
       // 非致命错误，继续启动
