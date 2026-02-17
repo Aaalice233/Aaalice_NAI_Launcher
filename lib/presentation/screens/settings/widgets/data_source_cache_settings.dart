@@ -4,14 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
-import '../../../../core/services/tag_database_connection.dart';
+import '../../../../core/database/database.dart';
+import '../../../../core/utils/app_logger.dart';
 import '../../../../data/models/cache/data_source_cache_meta.dart';
 import '../../../providers/data_source_cache_provider.dart';
 import '../../../widgets/common/app_toast.dart';
-
-/// Provider for TagDatabaseConnection
-final tagDatabaseConnectionProvider =
-    Provider((ref) => TagDatabaseConnection());
 
 /// 标签补全数据源管理设置组件
 ///
@@ -219,8 +216,33 @@ class _DataSourceCacheSettingsState
     await Future.delayed(const Duration(milliseconds: 200));
 
     try {
-      final dbConnection = ref.read(tagDatabaseConnectionProvider);
-      await dbConnection.clearAllTables();
+      // 先检测数据库是否损坏
+      final healthResult = await DatabaseManager.instance.quickHealthCheck();
+      if (healthResult.isCorrupted) {
+        AppLogger.w('Database corruption detected during clear cache, rebuilding...', 'CacheSettings');
+        // 数据库损坏时直接重建，而不是尝试清空
+        await DatabaseManager.instance.recover();
+        
+        // 等待一小段时间确保操作完成
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        // 关闭对话框
+        if (context.mounted) {
+          Navigator.of(context, rootNavigator: true).pop();
+        }
+
+        // 等待对话框完全关闭
+        await Future.delayed(const Duration(milliseconds: 150));
+
+        if (context.mounted) {
+          AppToast.success(context, '数据库已修复并重建，下次启动时将重新加载数据');
+        }
+        return;
+      }
+      
+      // 数据库正常时，执行清空操作
+      await _clearAllTables();
+
       // 清除缓存并更新UI状态，不需要invalidate，clearCache已更新状态
       await ref.read(danbooruTagsCacheNotifierProvider.notifier).clearCache();
 
@@ -236,9 +258,37 @@ class _DataSourceCacheSettingsState
       await Future.delayed(const Duration(milliseconds: 150));
 
       if (context.mounted) {
-        AppToast.success(context, '标签数据已清除，下次启动时将重新加载');
+        AppToast.success(context, '标签数据已清除，下次启动时将自动恢复');
       }
     } catch (e) {
+      // 检查是否是数据库损坏错误
+      final errorStr = e.toString();
+      final isCorrupted = errorStr.contains('database disk image is malformed') ||
+                         errorStr.contains('database is corrupted') ||
+                         errorStr.contains('database is locked');
+      
+      if (isCorrupted) {
+        try {
+          AppLogger.w('Attempting to rebuild corrupted database after clear failure...', 'CacheSettings');
+          await DatabaseManager.instance.recover();
+          
+          // 关闭对话框
+          if (context.mounted) {
+            Navigator.of(context, rootNavigator: true).pop();
+          }
+
+          // 等待对话框完全关闭
+          await Future.delayed(const Duration(milliseconds: 150));
+
+          if (context.mounted) {
+            AppToast.success(context, '数据库已修复并重建，请重新尝试清除缓存');
+          }
+          return;
+        } catch (_) {
+          // 重建也失败了，继续显示错误
+        }
+      }
+      
       // 等待一小段时间
       await Future.delayed(const Duration(milliseconds: 100));
 
@@ -253,6 +303,59 @@ class _DataSourceCacheSettingsState
       if (context.mounted) {
         AppToast.error(context, '重置失败: $e');
       }
+    }
+  }
+
+  /// 清空所有数据表（使用新数据库架构）
+  Future<void> _clearAllTables() async {
+    AppLogger.i('Clearing all data tables (keeping metadata)...', 'CacheSettings');
+
+    try {
+      final db = await DatabaseManager.instance.acquireDatabase();
+
+      try {
+        // 需要清空的数据表（保留 metadata 表）
+        final dataTables = [
+          'danbooru_tags',
+          'translations', 
+          'cooccurrences',
+        ];
+        
+        // 获取实际存在的表
+        final result = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table'",
+        );
+        final existingTables = result.map((r) => r['name'] as String).toSet();
+        
+        // 逐个清空数据表
+        for (final table in dataTables) {
+          if (!existingTables.contains(table)) {
+            AppLogger.w('Table $table does not exist, skipping', 'CacheSettings');
+            continue;
+          }
+          
+          try {
+            await db.execute('DELETE FROM $table');
+            AppLogger.i('Cleared table: $table', 'CacheSettings');
+          } catch (e) {
+            AppLogger.w('Failed to clear table $table: $e', 'CacheSettings');
+          }
+        }
+        
+        // 重置 SQLite 序列（如果有自增字段）
+        try {
+          await db.execute('DELETE FROM sqlite_sequence WHERE 1=1');
+        } catch (e) {
+          // sqlite_sequence 可能不存在，忽略错误
+        }
+        
+        AppLogger.i('Data tables cleared successfully', 'CacheSettings');
+      } finally {
+        await DatabaseManager.instance.releaseDatabase(db);
+      }
+    } catch (e) {
+      AppLogger.e('Failed to clear data tables', e, null, 'CacheSettings');
+      rethrow;
     }
   }
 }

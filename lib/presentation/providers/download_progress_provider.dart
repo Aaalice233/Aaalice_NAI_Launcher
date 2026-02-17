@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/services/cooccurrence_service.dart';
+import '../../core/database/database.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/download_message_keys.dart';
 import '../../core/utils/localization_extension.dart';
@@ -113,7 +113,7 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
   ///
   /// [force] 是否强制下载，忽略刷新间隔检查
   Future<bool> downloadCooccurrenceData({bool force = false}) async {
-    final cooccurrenceService = ref.read(cooccurrenceServiceProvider);
+    final cooccurrenceService = await ref.watch(cooccurrenceServiceProvider.future);
 
     AppLogger.i(
         'downloadCooccurrenceData called: isLoaded=${cooccurrenceService.isLoaded}, force=$force',

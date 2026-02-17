@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/storage_keys.dart';
 import '../utils/app_logger.dart';
-import 'cooccurrence_service.dart';
+import '../database/database.dart' hide Recommendation;
 import 'danbooru_tags_lazy_service.dart';
 import 'translation/translation_providers.dart';
 
@@ -222,8 +222,8 @@ class _CandidateScore {
 
 /// SmartTagRecommendationService Provider
 @Riverpod(keepAlive: true)
-SmartTagRecommendationService smartTagRecommendationService(Ref ref) {
-  final cooccurrenceService = ref.read(cooccurrenceServiceProvider);
+Future<SmartTagRecommendationService> smartTagRecommendationService(Ref ref) async {
+  final cooccurrenceService = await ref.watch(cooccurrenceServiceProvider.future);
   final danbooruService = ref.read(danbooruTagsLazyServiceProvider);
 
   return SmartTagRecommendationService(

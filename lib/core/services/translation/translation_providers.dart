@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../unified_tag_database.dart';
+// 从新的数据源导出 TranslationMatch
+export '../../database/datasources/translation_data_source.dart' show TranslationMatch;
+
+import '../../database/datasources/translation_data_source.dart' as new_ds;
 import 'translation_data_source.dart';
 import 'unified_translation_service.dart';
 
@@ -57,7 +60,7 @@ Future<Map<String, DataSourceStats>> translationDataSourceStats(Ref ref) async {
 
 /// 翻译搜索 Provider
 @riverpod
-Future<List<TranslationMatch>> searchTranslations(
+Future<List<new_ds.TranslationMatch>> searchTranslations(
   Ref ref, {
   required String query,
   int limit = 20,

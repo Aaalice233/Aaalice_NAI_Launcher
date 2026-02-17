@@ -1,7 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/database/database.dart';
 import '../../core/services/danbooru_tags_lazy_service.dart';
-import '../../core/services/unified_tag_database.dart';
 import '../../data/models/cache/data_source_cache_meta.dart';
 
 part 'data_source_cache_provider.g.dart';
@@ -104,9 +104,9 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
   /// 从数据库加载标签数量
   Future<void> _loadTagCount() async {
     try {
-      final db = ref.read(unifiedTagDatabaseProvider);
-      await db.initialize();
-      final count = await db.getDanbooruTagCount();
+      // 使用新的 CompletionService 获取标签数量
+      final completionService = await ref.read(completionServiceProvider.future);
+      final count = await completionService.getTagCount();
       // 防止清除操作后的竞态条件
       if (!_isClearing) {
         state = state.copyWith(totalTags: count);
@@ -130,8 +130,8 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
     try {
       await service.refresh();
       // 刷新完成后重新加载标签数量
-      final db = ref.read(unifiedTagDatabaseProvider);
-      final count = await db.getDanbooruTagCount();
+      final completionService = await ref.read(completionServiceProvider.future);
+      final count = await completionService.getTagCount();
       state = state.copyWith(
         isRefreshing: false,
         progress: 1.0,

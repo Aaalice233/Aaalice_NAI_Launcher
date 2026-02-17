@@ -4,9 +4,9 @@ import 'dart:isolate';
 import 'package:csv/csv.dart';
 import 'package:flutter/services.dart';
 
+import '../../database/datasources/translation_data_source.dart' as new_ds;
 import '../../utils/app_logger.dart';
 import '../../utils/tag_normalizer.dart';
-import '../unified_tag_database.dart';
 import 'translation_data_source.dart';
 
 /// 统一翻译服务
@@ -16,8 +16,8 @@ class UnifiedTranslationService {
   /// 数据源配置列表
   final List<TranslationDataSourceConfig> _dataSourceConfigs;
 
-  /// 数据库引用
-  UnifiedTagDatabase? _db;
+  /// 翻译数据源引用（新的数据源）
+  new_ds.TranslationDataSource? _translationDataSource;
 
   /// 热数据缓存（高频查询的标签）
   final Map<String, String> _hotCache = {};
@@ -29,9 +29,6 @@ class UnifiedTranslationService {
   final Map<String, DataSourceStats> _stats = {};
 
   static const int _maxHotCacheSize = 1000;
-
-  /// 缓存版本号（修改此值可强制重新加载）
-  static const int _cacheVersion = 6; // 强制刷新：修复CSV换行符问题
 
   UnifiedTranslationService({
     List<TranslationDataSourceConfig>? dataSources,
@@ -47,12 +44,9 @@ class UnifiedTranslationService {
   List<TranslationDataSourceConfig> get dataSourceConfigs =>
       List.unmodifiable(_dataSourceConfigs);
 
-  /// 获取数据库实例
-  UnifiedTagDatabase get _database {
-    if (_db == null) {
-      throw StateError('UnifiedTranslationService not initialized');
-    }
-    return _db!;
+  /// 设置翻译数据源
+  void setTranslationDataSource(new_ds.TranslationDataSource dataSource) {
+    _translationDataSource = dataSource;
   }
 
   /// 初始化服务
@@ -65,10 +59,6 @@ class UnifiedTranslationService {
     final stopwatch = Stopwatch()..start();
 
     try {
-      // 初始化数据库
-      _db = UnifiedTagDatabase();
-      await _database.initialize();
-
       // 检查是否需要重新加载（CSV 更新或首次运行）
       final needsReload = await _checkNeedsReload();
 
@@ -105,15 +95,10 @@ class UnifiedTranslationService {
   /// 检查是否需要重新加载 CSV
   Future<bool> _checkNeedsReload() async {
     try {
-      // 检查缓存版本号
-      final cachedVersion = await _database.getTranslationCacheVersion();
-      if (cachedVersion != _cacheVersion) {
-        AppLogger.d('[UnifiedTranslation] Cache version changed: $cachedVersion -> $_cacheVersion', 'UnifiedTranslation');
-        return true;
-      }
+      if (_translationDataSource == null) return true;
 
       // 检查是否有翻译数据
-      final count = await _database.getTranslationCount();
+      final count = await _translationDataSource!.getCount();
       if (count == 0) {
         AppLogger.d('[UnifiedTranslation] No cached translations found', 'UnifiedTranslation');
         return true;
@@ -135,46 +120,44 @@ class UnifiedTranslationService {
         .toList()
       ..sort((a, b) => a.priority.compareTo(b.priority));
 
-    // 先清空旧缓存
-    await _database.clearTranslations();
-
     // 加载每个数据源
-    final allTranslations = <String, String>{};
-    for (final config in sortedConfigs) {
-      final translations = await _loadDataSource(config);
+      final allTranslations = <String, String>{};
+      for (final config in sortedConfigs) {
+        final translations = await _loadDataSource(config);
 
-      // 合并到总表（高优先级覆盖低优先级）
-      for (final entry in translations.entries) {
-        final normalizedTag = TagNormalizer.normalize(entry.key);
-        allTranslations[normalizedTag] = entry.value;
+        // 合并到总表（高优先级覆盖低优先级）
+        for (final entry in translations.entries) {
+          final normalizedTag = TagNormalizer.normalize(entry.key);
+          allTranslations[normalizedTag] = entry.value;
+        }
+
+        _stats[config.id] = DataSourceStats(
+          id: config.id,
+          name: config.name,
+          loadedCount: translations.length,
+          loadTimeMs: 0, // 会在后面统计
+        );
       }
 
-      _stats[config.id] = DataSourceStats(
-        id: config.id,
-        name: config.name,
-        loadedCount: translations.length,
-        loadTimeMs: 0, // 会在后面统计
-      );
-    }
+      // 批量存入数据库
+      AppLogger.i('[UnifiedTranslation] Saving ${allTranslations.length} translations to database...', 'UnifiedTranslation');
+      final dbStopwatch = Stopwatch()..start();
 
-    // 批量存入数据库
-    AppLogger.i('[UnifiedTranslation] Saving ${allTranslations.length} translations to database...', 'UnifiedTranslation');
-    final dbStopwatch = Stopwatch()..start();
+      if (_translationDataSource != null) {
+        final records = allTranslations.entries.map((e) => new_ds.TranslationRecord(
+          enTag: e.key,
+          zhTranslation: e.value,
+          source: 'merged',
+        ),).toList();
 
-    final records = allTranslations.entries.map((e) => TranslationRecord(
-      enTag: e.key,
-      zhTranslation: e.value,
-      source: 'merged',
-    ),).toList();
+        await _translationDataSource!.upsertBatch(records);
+      }
 
-    await _database.insertTranslations(records);
-    await _database.setTranslationCacheVersion(_cacheVersion);
+      dbStopwatch.stop();
+      AppLogger.i('[UnifiedTranslation] Saved to database in ${dbStopwatch.elapsedMilliseconds}ms', 'UnifiedTranslation');
 
-    dbStopwatch.stop();
-    AppLogger.i('[UnifiedTranslation] Saved to database in ${dbStopwatch.elapsedMilliseconds}ms', 'UnifiedTranslation');
-
-    // 加载热数据
-    await _loadHotDataFromDb();
+      // 加载热数据
+      await _loadHotDataFromDb();
   }
 
   /// 直接从 CSV 加载（降级方案，不缓存到数据库）
@@ -205,8 +188,10 @@ class UnifiedTranslationService {
       'simple_background', 'white_background',
     ];
 
-    final translations = await _database.getTranslations(hotTags);
-    _hotCache.addAll(translations);
+    if (_translationDataSource != null) {
+      final translations = await _translationDataSource!.queryBatch(hotTags.toList());
+      _hotCache.addAll(translations);
+    }
 
     AppLogger.i(
       '[UnifiedTranslation] Loaded ${_hotCache.length} hot translations from DB',
@@ -330,7 +315,8 @@ class UnifiedTranslationService {
 
     // 查数据库
     try {
-      final translation = await _database.getTranslation(normalizedTag);
+      if (_translationDataSource == null) return null;
+      final translation = await _translationDataSource!.query(normalizedTag);
 
       // 添加到热缓存
       if (translation != null) {
@@ -350,7 +336,8 @@ class UnifiedTranslationService {
     final normalizedTags = tags.map(TagNormalizer.normalize).toList();
 
     try {
-      return await _database.getTranslations(normalizedTags);
+      if (_translationDataSource == null) return result;
+      return await _translationDataSource!.queryBatch(normalizedTags);
     } catch (e) {
       AppLogger.w('[UnifiedTranslation] Error querying translations: $e', 'UnifiedTranslation');
       return result;
@@ -389,14 +376,15 @@ class UnifiedTranslationService {
   }
 
   /// 搜索翻译（支持部分匹配）
-  Future<List<TranslationMatch>> searchTranslations(
+  Future<List<new_ds.TranslationMatch>> searchTranslations(
     String query, {
     int limit = 20,
     bool matchTag = true,
     bool matchTranslation = true,
   }) async {
     try {
-      return await _database.searchTranslations(
+      if (_translationDataSource == null) return [];
+      return await _translationDataSource!.search(
         query,
         limit: limit,
         matchTag: matchTag,
@@ -411,7 +399,8 @@ class UnifiedTranslationService {
   /// 获取翻译数量
   Future<int> getTranslationCount() async {
     try {
-      return await _database.getTranslationCount();
+      if (_translationDataSource == null) return 0;
+      return await _translationDataSource!.getCount();
     } catch (e) {
       return 0;
     }
@@ -420,10 +409,23 @@ class UnifiedTranslationService {
   /// 强制刷新缓存（重新加载 CSV）
   Future<void> refreshCache() async {
     AppLogger.i('[UnifiedTranslation] Force refreshing cache...', 'UnifiedTranslation');
-    await _database.setTranslationCacheVersion(-1); // 设置无效版本号强制刷新
     _hotCache.clear();
     _stats.clear();
     await initialize();
+  }
+
+  /// 清除所有数据
+  Future<void> clear() async {
+    _hotCache.clear();
+    _stats.clear();
+    _isInitialized = false;
+    try {
+      if (_translationDataSource != null) {
+        await _translationDataSource!.doClear();
+      }
+    } catch (e) {
+      AppLogger.w('[UnifiedTranslation] Error clearing cache: $e', 'UnifiedTranslation');
+    }
   }
 
   /// 输出统计日志
@@ -444,18 +446,6 @@ class UnifiedTranslationService {
       }
     }
     AppLogger.i('=====================================', 'UnifiedTranslation');
-  }
-
-  /// 清除所有数据
-  Future<void> clear() async {
-    _hotCache.clear();
-    _stats.clear();
-    _isInitialized = false;
-    try {
-      await _database.clearTranslations();
-    } catch (e) {
-      AppLogger.w('[UnifiedTranslation] Error clearing cache: $e', 'UnifiedTranslation');
-    }
   }
 }
 
@@ -480,4 +470,4 @@ class DataSourceStats {
   });
 }
 
-// TranslationMatch 类从 unified_tag_database.dart 导入
+// TranslationMatch 类从新的 translation_data_source.dart 导入

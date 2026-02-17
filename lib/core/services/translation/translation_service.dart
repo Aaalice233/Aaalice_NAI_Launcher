@@ -23,7 +23,7 @@ export 'translation_data_source.dart'
         PredefinedCooccurrenceSources,
         CooccurrenceDataSourceConfig;
 
-export '../unified_tag_database.dart' show TranslationMatch;
+export '../../database/datasources/translation_data_source.dart' show TranslationMatch;
 
 export 'unified_translation_service.dart'
     show UnifiedTranslationService, DataSourceStats;

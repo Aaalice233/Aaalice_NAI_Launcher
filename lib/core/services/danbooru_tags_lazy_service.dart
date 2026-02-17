@@ -11,10 +11,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/cache/data_source_cache_meta.dart';
 import '../../data/models/tag/local_tag.dart';
 import '../constants/storage_keys.dart';
+import '../database/datasources/danbooru_tag_data_source.dart';
+import '../database/database_providers.dart';
 import '../utils/app_logger.dart';
 import '../utils/tag_normalizer.dart';
 import 'lazy_data_source_service.dart';
-import 'unified_tag_database.dart';
 
 part 'danbooru_tags_lazy_service.g.dart';
 
@@ -31,7 +32,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   static const String _cacheDirName = 'tag_cache';
   static const String _metaFileName = 'danbooru_tags_meta.json';
 
-  final UnifiedTagDatabase _unifiedDb;
+  final DanbooruTagDataSource _tagDataSource;
   final Dio _dio;
 
   final Map<String, LocalTag> _hotDataCache = {};
@@ -46,7 +47,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   @override
   DataSourceProgressCallback? get onProgress => _onProgress;
 
-  DanbooruTagsLazyService(this._unifiedDb, this._dio) {
+  DanbooruTagsLazyService(this._tagDataSource, this._dio) {
     unawaited(_loadMeta());
   }
 
@@ -88,11 +89,11 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       _onProgress?.call(0.0, '初始化标签数据...');
 
       // 确保数据库已初始化
-      await _unifiedDb.initialize();
+      await _tagDataSource.initialize();
       _onProgress?.call(0.2, '数据库已就绪');
 
       // 检查数据库中实际有多少记录
-      final tagCount = await _unifiedDb.getDanbooruTagCount();
+      final tagCount = await _tagDataSource.getCount();
       AppLogger.i('Danbooru tag count in database: $tagCount', 'DanbooruTagsLazy');
 
       // 如果数据库为空，强制下载
@@ -148,7 +149,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   Future<void> _loadHotData() async {
     _onProgress?.call(0.0, '加载热数据...');
 
-    final records = await _unifiedDb.getDanbooruTags(hotKeys.toList());
+    final records = await _tagDataSource.getByNames(hotKeys.toList());
     final tags = records
         .map(
           (r) => LocalTag(
@@ -159,23 +160,10 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
         )
         .toList();
 
-    // 批量获取翻译
-    if (tags.isNotEmpty) {
-      final translations = await _unifiedDb.getTranslationsBatch(
-        tags.map((t) => t.tag).toList(),
-      );
-
-      for (final tag in tags) {
-        // 统一使用标准化标签作为 key 查找翻译
-        final normalizedTag = TagNormalizer.normalize(tag.tag);
-        final translation = translations[normalizedTag];
-        AppLogger.d('[_loadHotData] tag="${tag.tag}", normalized="$normalizedTag", translation="$translation"', 'DanbooruTagsLazy');
-        if (translation != null) {
-          _hotDataCache[tag.tag] = tag.copyWith(translation: translation);
-        } else {
-          _hotDataCache[tag.tag] = tag;
-        }
-      }
+    // TODO: 需要从 TranslationDataSource 批量获取翻译
+    // 暂时直接使用标签数据，不添加翻译
+    for (final tag in tags) {
+      _hotDataCache[tag.tag] = tag;
     }
 
     _onProgress?.call(1.0, '热数据加载完成');
@@ -198,11 +186,12 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       return cached;
     }
 
-    final record = await _unifiedDb.getDanbooruTag(normalizedKey);
+    final record = await _tagDataSource.getByName(normalizedKey);
     AppLogger.d('[DanbooruTagsLazy] DB record: ${record != null ? "found" : "not found"}', 'DanbooruTagsLazy');
     if (record != null) {
-      // 获取翻译
-      final translation = await _unifiedDb.getTranslation(normalizedKey);
+      // 获取翻译（通过 TranslationDataSource）
+      // TODO: 需要通过依赖注入获取 TranslationDataSource
+      final translation = await _getTranslation(normalizedKey);
       AppLogger.d('[DanbooruTagsLazy] DB translation: "$translation"', 'DanbooruTagsLazy');
       return LocalTag(
         tag: record.tag,
@@ -220,10 +209,14 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     int? category,
     int limit = 20,
   }) async {
-    final records = await _unifiedDb.searchDanbooruTags(
+    // 使用新的数据源搜索标签
+    final records = await _tagDataSource.search(
       query,
-      category: category,
       limit: limit,
+      category: category != null ? TagCategory.values.firstWhere(
+        (c) => c.value == category,
+        orElse: () => TagCategory.general,
+      ) : null,
     );
 
     // 批量获取翻译
@@ -237,22 +230,8 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
         )
         .toList();
 
-    if (tags.isNotEmpty) {
-      final translations = await _unifiedDb.getTranslationsBatch(
-        tags.map((t) => t.tag).toList(),
-      );
-
-      return tags.map((tag) {
-        // 统一使用标准化标签作为 key 查找翻译
-        final normalizedTag = TagNormalizer.normalize(tag.tag);
-        final translation = translations[normalizedTag];
-        if (translation != null) {
-          return tag.copyWith(translation: translation);
-        }
-        return tag;
-      }).toList();
-    }
-
+    // TODO: 需要通过依赖注入获取 TranslationDataSource 来批量获取翻译
+    // 暂时返回没有翻译的标签
     return tags;
   }
 
@@ -261,10 +240,12 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     int minCount = 1000,
     int limit = 100,
   }) async {
-    final records = await _unifiedDb.getHotDanbooruTags(
-      category: category,
-      minCount: minCount,
+    final records = await _tagDataSource.getHotTags(
       limit: limit,
+      category: category != null ? TagCategory.values.firstWhere(
+        (c) => c.value == category,
+        orElse: () => TagCategory.general,
+      ) : null,
     );
     final tags = records
         .map(
@@ -276,23 +257,8 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
         )
         .toList();
 
-    // 批量获取翻译
-    if (tags.isNotEmpty) {
-      final translations = await _unifiedDb.getTranslationsBatch(
-        tags.map((t) => t.tag).toList(),
-      );
-
-      return tags.map((tag) {
-        // 统一使用标准化标签作为 key 查找翻译
-        final normalizedTag = TagNormalizer.normalize(tag.tag);
-        final translation = translations[normalizedTag];
-        if (translation != null) {
-          return tag.copyWith(translation: translation);
-        }
-        return tag;
-      }).toList();
-    }
-
+    // TODO: 需要通过依赖注入获取 TranslationDataSource 来批量获取翻译
+    // 暂时返回没有翻译的标签
     return tags;
   }
 
@@ -387,7 +353,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
       _onProgress?.call(0.95, '导入数据库...');
 
-      // 导入数据 - UnifiedTagDatabase 会自动处理连接问题
+      // 导入数据 - 使用新的数据源
       final records = allTags
           .map(
             (t) => DanbooruTagRecord(
@@ -400,7 +366,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
           .toList();
 
       AppLogger.i('Preparing to import ${records.length} tags...', 'DanbooruTagsLazy');
-      await _unifiedDb.insertDanbooruTags(records);
+      await _tagDataSource.upsertBatch(records);
       AppLogger.i('Successfully imported ${records.length} tags', 'DanbooruTagsLazy');
 
       _onProgress?.call(0.99, '更新热数据...');
@@ -427,6 +393,170 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
   void cancelRefresh() {
     _isCancelled = true;
+  }
+
+  /// 拉取画师标签（category = 1）
+  ///
+  /// 特点：
+  /// - 后台顺序拉取，不阻塞UI
+  /// - 使用分页和并发控制避免限流
+  /// - 分批写入数据库，避免内存溢出
+  /// - 进度回调显示当前页数和数量（不显示总数，因为画师标签数量不固定）
+  Future<void> fetchArtistTags({
+    required void Function(int currentPage, int importedCount, String message) onProgress,
+    int maxPages = 100, // 画师标签量大，限制页数
+  }) async {
+    AppLogger.i('Starting artist tags fetch...', 'DanbooruTagsLazy');
+
+    _isRefreshing = true;
+    _isCancelled = false;
+
+    var currentPage = 1;
+    var importedCount = 0;
+    const batchInsertThreshold = 5000; // 每5000条写入一次
+    final records = <LocalTag>[];
+
+    try {
+      while (currentPage <= maxPages && !_isCancelled) {
+        // 拉取一页画师标签（4页并发）
+        const batchSize = _concurrentRequests;
+        final remainingPages = maxPages - currentPage + 1;
+        final actualBatchSize = batchSize < remainingPages ? batchSize : remainingPages;
+
+        final futures = List.generate(actualBatchSize, (i) {
+          final page = currentPage + i;
+          return _fetchArtistTagsPage(page: page,);
+        });
+
+        final results = await Future.wait(futures);
+
+        var batchHasData = false;
+        for (var i = 0; i < results.length; i++) {
+          final tags = results[i];
+          if (tags != null && tags.isNotEmpty) {
+            batchHasData = true;
+            records.addAll(tags);
+          }
+        }
+
+        if (!batchHasData) {
+          AppLogger.i('No more artist tags available', 'DanbooruTagsLazy');
+          break;
+        }
+
+        // 达到阈值，批量写入
+        if (records.length >= batchInsertThreshold) {
+          final dbRecords = records
+              .map((t) => DanbooruTagRecord(
+                    tag: t.tag,
+                    category: 1, // 画师标签 category = 1
+                    postCount: t.count,
+                    lastUpdated: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+                  ),)
+              .toList();
+
+          await _tagDataSource.upsertBatch(dbRecords);
+          importedCount += records.length;
+          records.clear();
+
+          // 进度回调：显示当前页数和数量（不显示总页数）
+          onProgress(
+            currentPage + actualBatchSize - 1,
+            importedCount,
+            '第 ${currentPage + actualBatchSize - 1} 页，已导入 $importedCount 条',
+          );
+
+          // 让出时间片，避免阻塞UI
+          await Future.delayed(const Duration(milliseconds: 100));
+        }
+
+        currentPage += actualBatchSize;
+
+        // 请求间隔，避免限流
+        if (currentPage <= maxPages && !_isCancelled) {
+          await Future.delayed(const Duration(milliseconds: _requestIntervalMs));
+        }
+      }
+
+      // 写入剩余数据
+      if (records.isNotEmpty && !_isCancelled) {
+        final dbRecords = records
+            .map((t) => DanbooruTagRecord(
+                  tag: t.tag,
+                  category: 1,
+                  postCount: t.count,
+                  lastUpdated: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+                ),)
+            .toList();
+
+        await _tagDataSource.upsertBatch(dbRecords);
+        importedCount += records.length;
+      }
+
+      onProgress(
+        currentPage - 1,
+        importedCount,
+        '画师标签导入完成，共 $importedCount 条',
+      );
+
+      AppLogger.i('Artist tags fetch completed: $importedCount tags', 'DanbooruTagsLazy');
+    } catch (e, stack) {
+      AppLogger.e('Failed to fetch artist tags', e, stack, 'DanbooruTagsLazy');
+      rethrow;
+    } finally {
+      _isRefreshing = false;
+      _isCancelled = false;
+    }
+  }
+
+  /// 拉取画师标签页
+  Future<List<LocalTag>?> _fetchArtistTagsPage({required int page}) async {
+    try {
+      final response = await _dio.get(
+        '$_baseUrl$_tagsEndpoint',
+        queryParameters: {
+          'page': page,
+          'limit': _pageSize,
+          'search[order]': 'count',
+          'search[category]': '1', // 只拉取画师标签
+        },
+        options: Options(
+          receiveTimeout: const Duration(seconds: 30),
+          sendTimeout: const Duration(seconds: 10),
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'NAI-Launcher/1.0',
+          },
+        ),
+      );
+
+      if (response.data is List) {
+        final tags = <LocalTag>[];
+        for (final item in response.data as List) {
+          if (item is Map<String, dynamic>) {
+            final tag = LocalTag(
+              tag: (item['name'] as String?)?.toLowerCase() ?? '',
+              category: item['category'] as int? ?? 0,
+              count: item['post_count'] as int? ?? 0,
+            );
+            if (tag.tag.isNotEmpty) {
+              tags.add(tag);
+            }
+          }
+        }
+        return tags;
+      }
+      return null;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return [];
+      }
+      AppLogger.w('Failed to fetch artist tags page $page: $e', 'DanbooruTagsLazy');
+      return null;
+    } catch (e) {
+      AppLogger.w('Failed to fetch artist tags page $page: $e', 'DanbooruTagsLazy');
+      return null;
+    }
   }
 
   int _estimateTotalTags(int minPostCount) {
@@ -598,7 +728,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     if (_isInitialized) return;
 
     try {
-      await _unifiedDb.getDanbooruTagCount();
+      await _tagDataSource.getCount();
       _isInitialized = true; // 标记为已初始化，即使数据为空
       // 注意：不触发 refresh()，数据下载留到后台阶段
     } catch (e) {
@@ -616,7 +746,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       await _loadHotData();
 
       // 检查是否需要后台更新
-      final tagCount = await _unifiedDb.getDanbooruTagCount();
+      final tagCount = await _tagDataSource.getCount();
       if (tagCount == 0) {
         _onProgress?.call(0.5, '需要下载标签数据...');
         // 标记为需要下载，但由用户触发或后台静默下载
@@ -648,7 +778,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
   /// 获取当前标签数量
   Future<int> getTagCount() async {
-    return await _unifiedDb.getDanbooruTagCount();
+    return await _tagDataSource.getCount();
   }
 
   // ===========================================================================
@@ -726,7 +856,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
         )
         .toList();
 
-    await _unifiedDb.insertDanbooruTags(records);
+    await _tagDataSource.upsertBatch(records);
 
     _onProgress?.call(1.0, '标签拉取完成');
     AppLogger.i(
@@ -792,8 +922,8 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 }
 
 @Riverpod(keepAlive: true)
-DanbooruTagsLazyService danbooruTagsLazyService(Ref ref) {
-  final unifiedDb = ref.watch(unifiedTagDatabaseProvider);
+Future<DanbooruTagsLazyService> danbooruTagsLazyService(Ref ref) async {
+  final tagDataSource = await ref.watch(danbooruTagDataSourceProvider.future);
   final dio = Dio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 15),
@@ -801,5 +931,12 @@ DanbooruTagsLazyService danbooruTagsLazyService(Ref ref) {
       sendTimeout: const Duration(seconds: 15),
     ),
   );
-  return DanbooruTagsLazyService(unifiedDb, dio);
+  return DanbooruTagsLazyService(tagDataSource, dio);
+}
+
+/// 辅助方法：获取翻译（临时实现）
+Future<String?> _getTranslation(String tag) async {
+  // TODO: 需要从 TranslationDataSource 获取翻译
+  // 这是一个临时实现，实际应该从依赖注入获取
+  return null;
 }

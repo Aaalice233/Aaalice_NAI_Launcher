@@ -9,12 +9,11 @@ import '../../core/cache/danbooru_image_cache_manager.dart';
 import '../../core/network/proxy_service.dart';
 import '../../core/enums/warmup_phase.dart';
 import '../../core/services/app_warmup_service.dart';
-import '../../core/services/cooccurrence_service.dart';
-import '../../core/services/artist_tags_isolate_service.dart';
+import '../../core/database/database.dart';
+// import '../../core/services/artist_tags_isolate_service.dart'; // 暂时未使用，改用 fetchArtistTags
 import '../../core/services/danbooru_tags_lazy_service.dart';
 import '../../core/services/data_migration_service.dart';
 import '../../core/services/translation/translation_providers.dart';
-import '../../core/services/unified_tag_database.dart';
 import '../../core/services/warmup_task_scheduler.dart';
 import 'background_task_provider.dart';
 import 'data_source_cache_provider.dart';
@@ -354,15 +353,17 @@ class WarmupNotifier extends _$WarmupNotifier {
       ),
     );
 
-    // 7. 拉取一般标签（非画师标签）
+    // 注意：标签拉取已移到 Background 阶段，避免阻塞主界面
+
+    // 7. 检查并恢复数据（处理清除缓存后的数据缺失）
     _scheduler.registerTask(
       PhasedWarmupTask(
-        name: 'warmup_fetchGeneralTags',
-        displayName: '拉取标签数据',
+        name: 'warmup_checkAndRecoverData',
+        displayName: '检查数据完整性',
         phase: WarmupPhase.quick,
-        weight: 3,
-        timeout: const Duration(seconds: 60),
-        task: _fetchGeneralTags,
+        weight: 1,
+        timeout: const Duration(seconds: 65),
+        task: _checkAndRecoverData,
       ),
     );
   }
@@ -393,11 +394,18 @@ class WarmupNotifier extends _$WarmupNotifier {
       () => _preloadDanbooruTagsInBackground(),
     );
 
-    // 画师标签Isolate拉取
+    // 画师标签拉取（使用新的 fetchArtistTags 方法，显示页数和数量）
     backgroundNotifier.registerTask(
-      'artist_tags_isolate_fetch',
+      'artist_tags_fetch',
       '画师标签同步',
-      () => _fetchArtistTagsInIsolate(),
+      () => _fetchArtistTagsInBackground(),
+    );
+
+    // 一般标签拉取（从 Quick 阶段移到 Background，避免阻塞主界面）
+    backgroundNotifier.registerTask(
+      'general_tags_fetch',
+      '一般标签拉取',
+      () => _fetchGeneralTags(),
     );
   }
 
@@ -445,7 +453,7 @@ class WarmupNotifier extends _$WarmupNotifier {
     }
   }
 
-  /// 轻量级初始化统一数据库（带进度反馈和错误处理）
+  /// 轻量级初始化统一数据库（带进度反馈、错误处理和损坏检测）
   Future<void> _initUnifiedDatabaseLightweight() async {
     AppLogger.i('Initializing unified tag database (lightweight)...', 'Warmup');
 
@@ -453,10 +461,11 @@ class WarmupNotifier extends _$WarmupNotifier {
       // 更新进度状态
       state = state.copyWith(subTaskMessage: '正在准备数据库文件...');
 
-      final db = ref.read(unifiedTagDatabaseProvider);
+      // 使用新的 DatabaseManager 初始化
+      final manager = await ref.watch(databaseManagerProvider.future);
 
-      // 使用较长的超时，但允许用户看到进度
-      await db.initialize().timeout(
+      // 等待初始化完成
+      await manager.initialized.timeout(
         const Duration(seconds: 60),
         onTimeout: () {
           AppLogger.w('Database initialization timeout', 'Warmup');
@@ -464,11 +473,36 @@ class WarmupNotifier extends _$WarmupNotifier {
         },
       );
 
+      // 预热阶段：检测数据库是否损坏
+      state = state.copyWith(subTaskMessage: '正在检查数据库完整性...');
+      final healthCheck = await manager.quickHealthCheck();
+
+      if (healthCheck.isCorrupted) {
+        AppLogger.w('Database corruption detected during warmup, rebuilding...', 'Warmup');
+        state = state.copyWith(subTaskMessage: '检测到数据库损坏，正在修复...');
+        await manager.recover();
+        AppLogger.i('Database rebuilt successfully during warmup', 'Warmup');
+      }
+
       AppLogger.i('Unified tag database initialized', 'Warmup');
     } on TimeoutException {
       rethrow;
     } catch (e, stack) {
       AppLogger.e('Database initialization failed', e, stack, 'Warmup');
+      // 检查是否是数据库损坏错误
+      if (e.toString().contains('database disk image is malformed') ||
+          e.toString().contains('database is corrupted')) {
+        AppLogger.w('Database corruption detected, attempting rebuild...', 'Warmup');
+        state = state.copyWith(subTaskMessage: '检测到数据库损坏，正在修复...');
+        try {
+          final manager = await ref.watch(databaseManagerProvider.future);
+          await manager.recover();
+          AppLogger.i('Database rebuilt successfully after corruption', 'Warmup');
+          return;
+        } catch (rebuildError) {
+          AppLogger.e('Failed to rebuild database', rebuildError, null, 'Warmup');
+        }
+      }
       // 数据库初始化失败不应阻塞启动，记录错误但继续
       AppLogger.w('Continuing without database - will retry on first use', 'Warmup');
     }
@@ -520,26 +554,23 @@ class WarmupNotifier extends _$WarmupNotifier {
   Future<void> _initCooccurrenceData() async {
     AppLogger.i('开始初始化共现数据...', 'Warmup');
 
-    final service = ref.read(cooccurrenceServiceProvider);
-    final unifiedDb = ref.read(unifiedTagDatabaseProvider);
+    final manager = await ref.watch(databaseManagerProvider.future);
 
     try {
-      // 设置数据库连接
-      service.setUnifiedDatabase(unifiedDb);
+      // 等待新数据库管理器初始化
+      await manager.initialized;
 
-      // 统一初始化流程
-      final isReady = await service.initializeUnified().timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          AppLogger.w('共现数据初始化超时', 'Warmup');
-          return false;
-        },
-      );
+      // 使用数据库统计获取共现记录数
+      final stats = await manager.getStatistics();
+      final tableStats = stats['tables'] as Map<String, int>? ?? {};
+      final count = tableStats['cooccurrences'] ?? 0;
 
-      if (isReady) {
-        AppLogger.i('共现数据已就绪（SQLite）', 'Warmup');
+      AppLogger.i('共现数据记录数: $count', 'Warmup');
+
+      if (count == 0) {
+        AppLogger.w('共现数据为空，需要后台导入', 'Warmup');
       } else {
-        AppLogger.i('共现数据需要后台导入', 'Warmup');
+        AppLogger.i('共现数据已就绪（$count 条记录）', 'Warmup');
       }
     } catch (e, stack) {
       AppLogger.e('共现数据初始化失败', e, stack, 'Warmup');
@@ -547,9 +578,23 @@ class WarmupNotifier extends _$WarmupNotifier {
   }
 
   Future<void> _checkAndImportCooccurrence() async {
-    final service = ref.read(cooccurrenceServiceProvider);
+    // 使用新的 CooccurrenceService 进行 CSV 导入
+    final service = await ref.watch(cooccurrenceServiceProvider.future);
 
-    await service.performBackgroundImport();
+    // 直接导入 CSV，等待完成（不是后台任务）
+    await service.importCsvToSQLite(
+      onProgress: (progress, message) {
+        ref
+            .read(backgroundTaskNotifierProvider.notifier)
+            .updateProgress('cooccurrence_import', progress, message: message);
+      },
+    ).timeout(
+      const Duration(minutes: 3), // 给足够时间导入（共现数据量大）
+      onTimeout: () {
+        AppLogger.w('共现数据导入超时', 'Warmup');
+        return -1;
+      },
+    );
   }
 
   Future<void> _preloadTranslationInBackground() async {
@@ -599,6 +644,21 @@ class WarmupNotifier extends _$WarmupNotifier {
 
     final service = ref.read(danbooruTagsLazyServiceProvider);
 
+    // 先检测数据库中是否已有数据
+    try {
+      final tagCount = await service.getTagCount();
+      AppLogger.i('Current danbooru tag count: $tagCount', 'Warmup');
+      
+      if (tagCount == 0) {
+        state = state.copyWith(subTaskMessage: '检测到标签数据为空，开始从服务器拉取...');
+        AppLogger.i('Tag database is empty, will fetch from API', 'Warmup');
+      } else {
+        AppLogger.i('Tag database has $tagCount records, checking if refresh needed...', 'Warmup');
+      }
+    } catch (e) {
+      AppLogger.w('Failed to check tag count: $e', 'Warmup');
+    }
+
     // 设置进度回调
     service.onProgress = (progress, message) {
       state = state.copyWith(
@@ -619,6 +679,17 @@ class WarmupNotifier extends _$WarmupNotifier {
         },
       );
 
+      // 验证拉取后的数据
+      try {
+        final newCount = await service.getTagCount();
+        AppLogger.i('After fetch: danbooru tag count = $newCount', 'Warmup');
+        if (newCount == 0) {
+          AppLogger.w('Tag count is still 0 after fetch, may need retry', 'Warmup');
+        }
+      } catch (e) {
+        AppLogger.w('Failed to verify tag count after fetch: $e', 'Warmup');
+      }
+
       AppLogger.i('General tags fetched successfully', 'Warmup');
     } catch (e) {
       AppLogger.w('Failed to fetch general tags: $e', 'Warmup');
@@ -628,24 +699,105 @@ class WarmupNotifier extends _$WarmupNotifier {
     }
   }
 
-  /// 在Isolate中拉取画师标签
-  Future<void> _fetchArtistTagsInIsolate() async {
-    AppLogger.i('Starting artist tags fetch in isolate...', 'Background');
+  /// 拉取画师标签
+  ///
+  /// 使用新的 fetchArtistTags 方法，显示页数和数量（不是百分比）
+  /// 进度显示在右下角的独立进度条组件上
+  Future<void> _fetchArtistTagsInBackground() async {
+    AppLogger.i('Starting artist tags fetch...', 'Background');
 
-    await ArtistTagsIsolateService.fetchInBackground(
-      onProgress: (progress, message) {
-        ref.read(backgroundTaskNotifierProvider.notifier).updateProgress(
-          'artist_tags_isolate_fetch',
-          progress,
-          message: message,
+    final service = ref.read(danbooruTagsLazyServiceProvider);
+    final notifier = ref.read(backgroundTaskNotifierProvider.notifier);
+
+    try {
+      // 初始状态
+      notifier.updateProgress(
+        'artist_tags_fetch',
+        0.0,
+        message: '准备拉取画师标签...',
+      );
+
+      // 使用新的 fetchArtistTags 方法
+      await service.fetchArtistTags(
+        onProgress: (currentPage, importedCount, message) {
+          // 更新后台任务进度（不显示进度条，因为不知道总数）
+          notifier.updateProgress(
+            'artist_tags_fetch',
+            0, // 不确定进度，使用循环动画
+            message: message,
+          );
+        },
+        maxPages: 100, // 画师标签量大，限制页数
+      );
+
+      AppLogger.i('Artist tags fetch completed', 'Background');
+    } catch (e, stack) {
+      AppLogger.e('Artist tags fetch error: $e', e, stack, 'Background');
+    }
+  }
+
+  /// 检查并恢复数据（处理清除缓存后的数据缺失）
+  Future<void> _checkAndRecoverData() async {
+    AppLogger.i('检查数据完整性...', 'Warmup');
+
+    try {
+      // 使用新的 DatabaseManager 获取统计信息
+      final manager = await ref.watch(databaseManagerProvider.future);
+      final stats = await manager.getStatistics();
+      final tableStats = stats['tables'] as Map<String, int>? ?? {};
+
+      // 获取各表记录数
+      final translationCount = tableStats['translations'] ?? 0;
+      final cooccurrenceCount = tableStats['cooccurrences'] ?? 0;
+      final danbooruCount = tableStats['danbooru_tags'] ?? 0;
+
+      AppLogger.i(
+        '数据表状态: translations=$translationCount, cooccurrences=$cooccurrenceCount, danbooru_tags=$danbooruCount',
+        'Warmup',
+      );
+
+      // 1. 恢复 translations 和 cooccurrences（从预打包数据库）
+      if (translationCount == 0 || cooccurrenceCount == 0) {
+        AppLogger.w(
+          '检测到核心数据缺失，从预打包数据库恢复...',
+          'Warmup',
         );
-      },
-      onComplete: () {
-        AppLogger.i('Artist tags fetch completed', 'Background');
-      },
-      onError: (error) {
-        AppLogger.e('Artist tags fetch error: $error', 'Background');
-      },
-    );
+        state = state.copyWith(
+          subTaskMessage: '正在恢复核心数据（翻译+共现）...',
+        );
+
+        // 使用 RecoveryManager 重新导入预打包数据
+        await manager.recover();
+
+        AppLogger.i('核心数据恢复完成', 'Warmup');
+      }
+
+      // 2. 恢复 danbooru_tags（从API）
+      if (danbooruCount == 0) {
+        AppLogger.w(
+          '标签数据为空，触发从服务器拉取',
+          'Warmup',
+        );
+        state = state.copyWith(
+          subTaskMessage: '正在从服务器拉取标签数据...',
+        );
+
+        final service = ref.read(danbooruTagsLazyServiceProvider);
+        await service.fetchGeneralTags(
+          threshold: 1000,
+          maxPages: 50,
+        ).timeout(
+          const Duration(seconds: 60),
+          onTimeout: () {
+            AppLogger.w('标签拉取超时，将在后台继续', 'Warmup');
+          },
+        );
+
+        AppLogger.i('标签数据拉取完成', 'Warmup');
+      }
+    } catch (e) {
+      AppLogger.w('检查数据完整性失败: $e', 'Warmup');
+      // 非致命错误，继续启动
+    }
   }
 }

@@ -12,7 +12,8 @@ import '../generic_suggestion_tile.dart';
 /// 触发条件：光标前有 "tag," 模式且后面没有新输入时
 /// 显示与该标签共现的相关标签推荐
 class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
-  final SmartTagRecommendationService _recommendationService;
+  final Future<SmartTagRecommendationService> _recommendationServiceFuture;
+  SmartTagRecommendationService? _recommendationService;
   final AutocompleteConfig _config;
   final WidgetRef _ref;
 
@@ -23,17 +24,17 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
   bool _isLoading = false;
 
   CooccurrenceStrategy._({
-    required SmartTagRecommendationService recommendationService,
+    required Future<SmartTagRecommendationService> recommendationServiceFuture,
     required AutocompleteConfig config,
     required WidgetRef ref,
-  })  : _recommendationService = recommendationService,
+  })  : _recommendationServiceFuture = recommendationServiceFuture,
         _config = config,
         _ref = ref;
 
   /// 工厂方法：创建 CooccurrenceStrategy
   static CooccurrenceStrategy create(WidgetRef ref, AutocompleteConfig config) {
     return CooccurrenceStrategy._(
-      recommendationService: ref.read(smartTagRecommendationServiceProvider),
+      recommendationServiceFuture: ref.watch(smartTagRecommendationServiceProvider.future),
       config: config,
       ref: ref,
     );
@@ -64,8 +65,11 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
 
     AppLogger.d('CooccurrenceStrategy: extracted previous tag: "$previousTag"', 'CooccurrenceStrategy');
 
+    // 确保服务已加载
+    _recommendationService ??= await _recommendationServiceFuture;
+
     // 检查共现数据是否可用
-    if (!_recommendationService.isDataAvailable) {
+    if (!_recommendationService!.isDataAvailable) {
       clear();
       return;
     }
@@ -75,7 +79,7 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
 
     try {
       // 获取推荐标签
-      final recommendations = await _recommendationService.getRecommendationsForTag(
+      final recommendations = await _recommendationService!.getRecommendationsForTag(
         previousTag,
         limit: _config.maxSuggestions * 2, // 获取更多以便过滤
       );
