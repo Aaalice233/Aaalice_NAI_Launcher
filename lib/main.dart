@@ -20,6 +20,7 @@ import 'core/services/sqflite_bootstrap_service.dart';
 import 'core/utils/app_logger.dart';
 import 'core/utils/hive_storage_helper.dart';
 import 'data/datasources/local/nai_tags_data_source.dart';
+import 'presentation/providers/data_source_cache_provider.dart';
 import 'presentation/screens/splash/app_bootstrap.dart';
 
 /// 窗口状态观察者，用于保存窗口位置和大小
@@ -252,6 +253,19 @@ void main() async {
     } catch (e) {
       AppLogger.w('NAI tags preload failed: $e', 'Main');
       // 预加载失败不影响应用启动
+    }
+  });
+
+  // 后台自动同步画师标签（不阻塞启动）
+  // 延迟5秒执行，避免与数据库初始化冲突
+  Future.delayed(const Duration(seconds: 5), () async {
+    try {
+      AppLogger.i('Checking artist tags sync...', 'Main');
+      final notifier = container.read(danbooruTagsCacheNotifierProvider.notifier);
+      await notifier.checkAndSyncArtists();
+    } catch (e) {
+      AppLogger.w('Artist tags auto-sync failed: $e', 'Main');
+      // 同步失败不影响应用启动
     }
   });
 

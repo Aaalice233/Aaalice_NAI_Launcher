@@ -189,6 +189,16 @@ class StorageKeys {
   static const String danbooruArtistsMinPostCount = 'danbooru_artists_min_post_count';
   static const String danbooruArtistsSyncCheckpoint = 'danbooru_artists_sync_checkpoint';
 
+  // 分类阈值配置（V2新增）
+  static const String danbooruCategoryThresholds = 'danbooru_category_thresholds';
+  
+  // 五个类别的独立热度阈值
+  static const String danbooruGeneralThreshold = 'danbooru_general_threshold';
+  static const String danbooruArtistThreshold = 'danbooru_artist_threshold';
+  static const String danbooruCharacterThreshold = 'danbooru_character_threshold';
+  static const String danbooruCopyrightThreshold = 'danbooru_copyright_threshold';
+  static const String danbooruMetaThreshold = 'danbooru_meta_threshold';
+
   // 共现数据刷新间隔
   static const String cooccurrenceRefreshInterval = 'cooccurrence_refresh_interval';
   static const String cooccurrenceLastUpdate = 'cooccurrence_last_update';

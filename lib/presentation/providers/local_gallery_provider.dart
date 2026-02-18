@@ -512,7 +512,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   // 标签
   // ============================================================
 
-  List<String> getTags(String filePath) => _repo.getTags(filePath);
+  Future<List<String>> getTags(String filePath) async => await _repo.getTags(filePath);
 
   Future<void> setTags(String filePath, List<String> tags) async {
     await _repo.setTags(filePath, tags);

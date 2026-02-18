@@ -28,11 +28,11 @@ class MainNavRail extends ConsumerWidget {
     final currentIndex = navigationShell.currentIndex;
 
     // 映射 branch index 到 nav rail index
-    // Nav rail: 0=home, 1=localGallery, 2=vibeLibrary, 3=onlineGallery, 4=promptConfig, 5=tagLibraryPage, 6=statistics, 7=settings
+    // Nav rail: 0=home, 1=localGallery, 2=onlineGallery, 3=vibeLibrary, 4=promptConfig, 5=tagLibraryPage, 6=statistics, 7=settings
     int selectedIndex = 0;
     if (currentIndex == 2) selectedIndex = 1; // localGallery
-    if (currentIndex == 8) selectedIndex = 2; // vibeLibrary
-    if (currentIndex == 3) selectedIndex = 3; // onlineGallery
+    if (currentIndex == 3) selectedIndex = 2; // onlineGallery
+    if (currentIndex == 8) selectedIndex = 3; // vibeLibrary
     if (currentIndex == 5) selectedIndex = 4; // promptConfig
     if (currentIndex == 7) selectedIndex = 5; // tagLibraryPage
     if (currentIndex == 6) selectedIndex = 6; // statistics
@@ -72,20 +72,20 @@ class MainNavRail extends ConsumerWidget {
             onTap: () => navigationShell.goBranch(2), // localGallery branch
           ),
 
-          // Vibe库
-          _NavIcon(
-            icon: Icons.auto_awesome, // Vibe Library
-            label: 'Vibe库',
-            isSelected: selectedIndex == 2,
-            onTap: () => navigationShell.goBranch(8), // vibeLibrary branch
-          ),
-
           // 在线画廊
           _NavIcon(
             icon: Icons.photo_library, // Online Gallery
             label: context.l10n.nav_onlineGallery,
-            isSelected: selectedIndex == 3,
+            isSelected: selectedIndex == 2,
             onTap: () => navigationShell.goBranch(3), // onlineGallery branch
+          ),
+
+          // Vibe库
+          _NavIcon(
+            icon: Icons.auto_awesome, // Vibe Library
+            label: 'Vibe库',
+            isSelected: selectedIndex == 3,
+            onTap: () => navigationShell.goBranch(8), // vibeLibrary branch
           ),
 
           // 随机配置

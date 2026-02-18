@@ -233,7 +233,7 @@ class BulkOperationService {
       onProgress?.call(current: i, total: imagePaths.length, currentItem: imagePath, isComplete: false);
 
       try {
-        final currentTags = _galleryRepository.getTags(imagePath);
+        final currentTags = await _galleryRepository.getTags(imagePath);
         final updatedTags = List<String>.from(currentTags)
           ..addAll(tagsToAdd.where((tag) => !currentTags.contains(tag)))
           ..removeWhere((tag) => tagsToRemove.contains(tag));

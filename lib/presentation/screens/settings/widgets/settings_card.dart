@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 /// 
 /// 统一设置板块的卡片样式，支持标题、图标、右侧操作按钮和内容区。
 class SettingsCard extends StatelessWidget {
-  /// 标题文字
-  final String title;
+  /// 标题文字（可选，为 null 时不显示标题栏）
+  final String? title;
 
   /// 可选图标
   final IconData? icon;
@@ -21,7 +21,7 @@ class SettingsCard extends StatelessWidget {
 
   const SettingsCard({
     super.key,
-    required this.title,
+    this.title,
     this.icon,
     this.trailing,
     required this.child,
@@ -44,35 +44,38 @@ class SettingsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 标题区域
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              children: [
-                if (icon != null) ...[
-                  Icon(
-                    icon,
-                    size: 20,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                Expanded(
-                  child: Text(
-                    title,
-                    style: theme.textTheme.titleSmall?.copyWith(
+          // 标题区域（仅在 title 不为 null 时显示）
+          if (title != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Row(
+                children: [
+                  if (icon != null) ...[
+                    Icon(
+                      icon,
+                      size: 20,
                       color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w600,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: Text(
+                      title!,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
-                if (trailing != null) trailing!,
-              ],
+                  if (trailing != null) trailing!,
+                ],
+              ),
             ),
-          ),
           // 内容区域
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+            padding: title != null
+                ? const EdgeInsets.fromLTRB(12, 8, 12, 16)
+                : const EdgeInsets.fromLTRB(12, 16, 12, 16),
             child: child,
           ),
           // 分隔线

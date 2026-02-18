@@ -134,7 +134,7 @@ class _BulkMetadataEditCommand extends HistoryCommand {
     // Apply the metadata changes
     for (final imagePath in _imagePaths) {
       try {
-        final currentTags = _repository.getTags(imagePath);
+        final currentTags = await _repository.getTags(imagePath);
         final updatedTags = List<String>.from(currentTags);
 
         // Add new tags
@@ -441,7 +441,7 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
       // Store original tags for undo
       final originalTags = <String, List<String>>{};
       for (final path in imagePaths) {
-        originalTags[path] = _galleryRepository.getTags(path);
+        originalTags[path] = await _galleryRepository.getTags(path);
       }
 
       final result = await _service.bulkEditMetadata(
@@ -533,7 +533,7 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
       // Store original favorite states for undo
       final originalStates = <String, bool>{};
       for (final path in imagePaths) {
-        originalStates[path] = _galleryRepository.isFavorite(path);
+        originalStates[path] = await _galleryRepository.isFavorite(path);
       }
 
       final result = await _service.bulkToggleFavorite(

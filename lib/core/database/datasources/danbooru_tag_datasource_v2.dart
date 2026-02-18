@@ -39,7 +39,56 @@ class DanbooruTagDataSourceV2 extends BaseDataSource {
 
   /// 获取数据库连接（从 Holder 获取当前有效实例）
   Future<dynamic> _acquireDb() async {
-    return await ConnectionPoolHolder.instance.acquire();
+    // 关键修复：如果连接池未初始化（可能正在重置），等待并重试
+    var retryCount = 0;
+    const maxRetries = 10;
+
+    while (retryCount < maxRetries) {
+      try {
+        if (!ConnectionPoolHolder.isInitialized) {
+          throw StateError('Connection pool not initialized');
+        }
+        final db = await ConnectionPoolHolder.instance.acquire();
+
+        // 关键修复：验证连接是否真正可用（可能被外部关闭）
+        try {
+          await db.rawQuery('SELECT 1');
+          return db;
+        } catch (e) {
+          // 连接无效，释放它并让循环重试
+          AppLogger.w(
+            'Acquired connection is invalid, releasing and retrying...',
+            'DanbooruTagDSV2',
+          );
+          try {
+            await ConnectionPoolHolder.instance.release(db);
+          } catch (_) {
+            // 忽略释放错误
+          }
+          throw StateError('Database connection invalid');
+        }
+      } catch (e) {
+        final errorStr = e.toString().toLowerCase();
+        final isDbClosed = errorStr.contains('database_closed') ||
+            errorStr.contains('not initialized') ||
+            errorStr.contains('connection invalid');
+        if (isDbClosed && retryCount < maxRetries - 1) {
+          retryCount++;
+          AppLogger.w(
+            'Database connection not ready, retrying ($retryCount/$maxRetries)...',
+            'DanbooruTagDSV2',
+          );
+          // 指数退避：100ms, 200ms, 400ms...
+          await Future.delayed(
+            Duration(milliseconds: 100 * (1 << (retryCount - 1))),
+          );
+        } else {
+          rethrow;
+        }
+      }
+    }
+    
+    throw StateError('Failed to acquire database connection after $maxRetries retries');
   }
 
   /// 释放数据库连接
@@ -461,6 +510,10 @@ class DanbooruTagDataSourceV2 extends BaseDataSource {
 
   /// 获取标签总数
   Future<int> getCount({int? category}) async {
+    AppLogger.i(
+      '[DatabaseQuery] DanbooruTagDataSourceV2.getCount() START - category=$category, table=$_tableName',
+      'DanbooruTagDSV2',
+    );
     final db = await _acquireDb();
 
     try {
@@ -469,15 +522,30 @@ class DanbooruTagDataSourceV2 extends BaseDataSource {
           'SELECT COUNT(*) as count FROM $_tableName WHERE category = ?',
           [category],
         );
-        return (result.first['count'] as num?)?.toInt() ?? 0;
+        final count = (result.first['count'] as num?)?.toInt() ?? 0;
+        AppLogger.i(
+          '[DatabaseQuery] DanbooruTagDataSourceV2.getCount() END - category=$category, count=$count',
+          'DanbooruTagDSV2',
+        );
+        return count;
       } else {
         final result = await db.rawQuery(
           'SELECT COUNT(*) as count FROM $_tableName',
         );
-        return (result.first['count'] as num?)?.toInt() ?? 0;
+        final count = (result.first['count'] as num?)?.toInt() ?? 0;
+        AppLogger.i(
+          '[DatabaseQuery] DanbooruTagDataSourceV2.getCount() END - total count=$count',
+          'DanbooruTagDSV2',
+        );
+        return count;
       }
     } catch (e) {
-      AppLogger.w('Failed to get Danbooru tag count: $e', 'DanbooruTagDSV2');
+      AppLogger.e(
+        '[DatabaseQuery] DanbooruTagDataSourceV2.getCount() FAILED - returning 0',
+        e,
+        null,
+        'DanbooruTagDSV2',
+      );
       return 0;
     } finally {
       await _releaseDb(db);

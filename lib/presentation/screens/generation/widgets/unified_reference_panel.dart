@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/constants/storage_keys.dart';
+import '../../../providers/vibe_library_provider.dart';
 import '../../../widgets/common/themed_divider.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
 import '../../../../data/models/image/image_params.dart';
@@ -56,6 +57,7 @@ extension VibeLibraryEntryMatching on List<VibeLibraryEntry> {
   }
 
   VibeLibraryEntry? findMatchingEntry(VibeReference vibe) {
+    // 优先使用 encoding 匹配（最准确）
     if (vibe.vibeEncoding.isNotEmpty) {
       for (final entry in this) {
         if (entry.vibeEncoding.isNotEmpty &&
@@ -63,9 +65,11 @@ extension VibeLibraryEntryMatching on List<VibeLibraryEntry> {
           return entry;
         }
       }
+      // encoding 不为空但没有匹配，说明是新 vibe
       return null;
     }
 
+    // 其次使用 thumbnail 哈希匹配
     if (vibe.thumbnail != null) {
       final vibeHash = _calculateVibeThumbnailHash(vibe.thumbnail!);
       for (final entry in this) {
@@ -76,15 +80,10 @@ extension VibeLibraryEntryMatching on List<VibeLibraryEntry> {
           }
         }
       }
-      return null;
     }
 
-    for (final entry in this) {
-      if (entry.vibeDisplayName == vibe.displayName) {
-        return entry;
-      }
-    }
-
+    // 不再仅根据名称匹配，避免误判
+    // 只有 encoding 或 thumbnail 完全匹配才认为是同一个 vibe
     return null;
   }
 }
@@ -936,10 +935,19 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
         // 检查是否已存在相同的 vibe
         final existingEntry = await _findExistingEntry(storageService, vibe);
 
+        AppLogger.d(
+          '保存 Vibe: name=${vibe.displayName}, encoding=${vibe.vibeEncoding.substring(0, vibe.vibeEncoding.length > 20 ? 20 : vibe.vibeEncoding.length)}..., existing=${existingEntry?.id ?? "null"}',
+          'UnifiedReferencePanel',
+        );
+
         if (existingEntry != null) {
           // 已存在：更新使用记录
           await storageService.incrementUsedCount(existingEntry.id);
           reusedCount++;
+          AppLogger.d(
+            'Vibe 已存在，更新使用记录: ${existingEntry.id}',
+            'UnifiedReferencePanel',
+          );
         } else {
           // 不存在：创建新条目
           final entry = VibeLibraryEntry.fromVibeReference(
@@ -950,6 +958,10 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
           );
           await storageService.saveEntry(entry);
           savedCount++;
+          AppLogger.i(
+            '新 Vibe 已保存: ${entry.id}, name=${entry.name}',
+            'UnifiedReferencePanel',
+          );
         }
       }
 
@@ -964,6 +976,8 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
         }
         AppToast.success(context, message);
         _loadRecentEntries(); // 刷新最近列表
+        // 通知 Vibe 库刷新
+        ref.read(vibeLibraryNotifierProvider.notifier).reload();
       }
     } catch (e, stackTrace) {
       AppLogger.e('Failed to save encoded vibes to library', e, stackTrace);

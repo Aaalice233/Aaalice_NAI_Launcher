@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/hive_storage_helper.dart';
 import '../../../data/models/vibe/vibe_library_category.dart';
 import '../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../data/services/vibe_import_service.dart';
@@ -509,6 +510,14 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
               const SizedBox(width: 6),
               // 刷新按钮
               _buildRefreshButton(state, theme),
+              const SizedBox(width: 6),
+              // 打开文件夹按钮
+              CompactIconButton(
+                icon: Icons.folder_open_outlined,
+                label: '文件夹',
+                tooltip: '打开 Vibe 库文件夹',
+                onPressed: () => _openVibeLibraryFolder(),
+              ),
             ],
           ),
         ),
@@ -1144,6 +1153,34 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         onSelect: (_) {},
       ),
     );
+  }
+
+  /// 打开 Vibe 库文件夹
+  Future<void> _openVibeLibraryFolder() async {
+    try {
+      final hivePath = await HiveStorageHelper.instance.getPath();
+      final dir = Directory(hivePath);
+
+      if (!await dir.exists()) {
+        if (mounted) {
+          AppToast.info(context, '文件夹不存在');
+        }
+        return;
+      }
+
+      if (Platform.isWindows) {
+        // 使用 Process.start 避免等待进程完成导致的延迟
+        await Process.start('explorer', [hivePath]);
+      } else if (Platform.isMacOS) {
+        await Process.start('open', [hivePath]);
+      } else if (Platform.isLinux) {
+        await Process.start('xdg-open', [hivePath]);
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, '打开文件夹失败: $e');
+      }
+    }
   }
 
   /// 导入 Vibe 文件

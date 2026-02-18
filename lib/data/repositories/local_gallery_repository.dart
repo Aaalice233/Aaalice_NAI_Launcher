@@ -58,6 +58,32 @@ class LocalGalleryRepository {
   bool _initialized = false;
   bool get isInitialized => _initialized;
 
+  /// 防止并发初始化
+  Future<void>? _initFuture;
+
+  /// 确保已初始化（自动初始化）
+  Future<void> _ensureInitializedAsync() async {
+    if (_initialized) return;
+
+    // 使用锁防止并发初始化
+    if (_initFuture != null) {
+      await _initFuture;
+      return;
+    }
+
+    final completer = Completer<void>();
+    _initFuture = completer.future;
+
+    try {
+      await initialize();
+      completer.complete();
+    } catch (e) {
+      completer.completeError(e);
+      _initFuture = null;
+      rethrow;
+    }
+  }
+
   /// 预热阶段最大处理文件数，超过则跳过预热扫描
   static const int _warmupMaxFiles = 1000;
 
@@ -376,8 +402,8 @@ class LocalGalleryRepository {
       path: file.path,
       size: stat.size,
       modifiedAt: modified,
-      isFavorite: isFavorite(file.path),
-      tags: getTags(file.path),
+      isFavorite: await isFavorite(file.path),
+      tags: await getTags(file.path),
     );
   }
 
@@ -430,7 +456,8 @@ class LocalGalleryRepository {
   // 收藏
   // ============================================================
 
-  bool isFavorite(String filePath) {
+  Future<bool> isFavorite(String filePath) async {
+    await _ensureInitializedAsync();
     return _favoritesBox.get(filePath, defaultValue: false) as bool;
   }
 
@@ -450,7 +477,7 @@ class LocalGalleryRepository {
   }
 
   Future<bool> toggleFavorite(String filePath) async {
-    final newState = !isFavorite(filePath);
+    final newState = !(await isFavorite(filePath));
     await setFavorite(filePath, newState);
     return newState;
   }
@@ -463,7 +490,8 @@ class LocalGalleryRepository {
   // 标签
   // ============================================================
 
-  List<String> getTags(String filePath) {
+  Future<List<String>> getTags(String filePath) async {
+    await _ensureInitializedAsync();
     final tags = _tagsBox.get(filePath, defaultValue: <String>[]);
     return List<String>.from(tags as List);
   }

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../utils/app_logger.dart';
 import '../connection_pool_holder.dart';
 import '../datasources/cooccurrence_data_source.dart';
 import '../datasources/danbooru_tag_datasource_v2.dart';
@@ -14,8 +15,16 @@ part 'service_providers.g.dart';
 /// DanbooruTag DataSource V2 Provider
 @Riverpod(keepAlive: true)
 Future<DanbooruTagDataSourceV2> danbooruTagDataSourceV2(Ref ref) async {
+  AppLogger.i(
+    '[ProviderLifecycle] danbooruTagDataSourceV2Provider BUILD START',
+    'DanbooruTagDataSource',
+  );
   final dataSource = DanbooruTagDataSourceV2();
   await dataSource.initialize();
+  AppLogger.i(
+    '[ProviderLifecycle] danbooruTagDataSourceV2Provider BUILD END - hash=${dataSource.hashCode}',
+    'DanbooruTagDataSource',
+  );
   return dataSource;
 }
 

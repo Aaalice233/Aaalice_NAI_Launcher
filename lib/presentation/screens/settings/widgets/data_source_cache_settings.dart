@@ -4,17 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
-import '../../../../core/database/database.dart';
+import '../../../../core/database/datasources/danbooru_tag_datasource_v2_provider.dart';
+import '../../../../core/services/cache_clear_service.dart';
+import '../../../../core/services/danbooru_tags_lazy_service.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/cache/data_source_cache_meta.dart';
 import '../../../providers/data_source_cache_provider.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../widgets/settings_card.dart';
 
 /// 标签补全数据源管理设置组件
-///
-/// 用于设置页面，管理 Danbooru 标签缓存
-/// - 标签补全数据（Danbooru API）
 class DataSourceCacheSettings extends ConsumerStatefulWidget {
   const DataSourceCacheSettings({super.key});
 
@@ -70,57 +70,118 @@ class _DataSourceCacheSettingsState
     extends ConsumerState<DataSourceCacheSettings> {
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final asyncState = ref.watch(danbooruTagsCacheNotifierProvider);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 主内容卡片（标题已在外部settings_screen中显示）
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Container(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: theme.colorScheme.outlineVariant.withOpacity(0.3),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                  spreadRadius: -4,
+    // 日志追踪：UI 状态决策
+    asyncState.when(
+      loading: () => AppLogger.i(
+        '[UI] Provider状态: loading - 显示加载指示器',
+        'DataSourceCacheSettings',
+      ),
+      error: (error, stack) => AppLogger.w(
+        '[UI] Provider状态: error - 错误: $error',
+        'DataSourceCacheSettings',
+      ),
+      data: (state) {
+        final isLoaded = state.totalTags > 0;
+        AppLogger.i(
+          '[UI] Provider状态: data - '
+          'totalTags=${state.totalTags}, '
+          'isLoaded=$isLoaded, '
+          'lastUpdate=${state.lastUpdate}, '
+          'categoryStats=${state.categoryStats.toString()}',
+          'DataSourceCacheSettings',
+        );
+      },
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 1. 数据源状态卡片
+          asyncState.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => _ErrorStateCard(message: error.toString()),
+            data: (state) => Column(
+              children: [
+                _StatusCard(state: state),
+                const SizedBox(height: 16),
+                // 2. 同步设置卡片
+                _SyncSettingsCard(
+                  state: state,
+                  onGeneralThresholdChanged: (preset, customThreshold) {
+                    ref
+                        .read(danbooruTagsCacheNotifierProvider.notifier)
+                        .setGeneralThreshold(preset,
+                            customThreshold: customThreshold,);
+                  },
+                  onArtistThresholdChanged: (preset, customThreshold) {
+                    ref
+                        .read(danbooruTagsCacheNotifierProvider.notifier)
+                        .setArtistThreshold(preset,
+                            customThreshold: customThreshold,);
+                  },
+                  onCharacterThresholdChanged: (preset, customThreshold) {
+                    ref
+                        .read(danbooruTagsCacheNotifierProvider.notifier)
+                        .setCharacterThreshold(preset,
+                            customThreshold: customThreshold,);
+                  },
+                  onCopyrightThresholdChanged: (preset, customThreshold) {
+                    ref
+                        .read(danbooruTagsCacheNotifierProvider.notifier)
+                        .setCopyrightThreshold(preset,
+                            customThreshold: customThreshold,);
+                  },
+                  onMetaThresholdChanged: (preset, customThreshold) {
+                    ref
+                        .read(danbooruTagsCacheNotifierProvider.notifier)
+                        .setMetaThreshold(preset,
+                            customThreshold: customThreshold,);
+                  },
+                  onRefreshIntervalChanged: (interval) {
+                    ref
+                        .read(danbooruTagsCacheNotifierProvider.notifier)
+                        .setRefreshInterval(interval);
+                  },
+                ),
+                const SizedBox(height: 16),
+                // 3. 操作区域
+                if (state.isRefreshing) ...[
+                  _SyncProgressCard(
+                    progress: state.progress,
+                    message: state.message,
+                    onCancel: () => ref
+                        .read(danbooruTagsCacheNotifierProvider.notifier)
+                        .cancelSync(),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                if (state.error != null) ...[
+                  _ErrorMessageCard(message: state.error!),
+                  const SizedBox(height: 16),
+                ],
+                _ActionCard(
+                  isSyncing: state.isRefreshing,
+                  onSync: () => ref
+                      .read(danbooruTagsCacheNotifierProvider.notifier)
+                      .refresh(),
+                  onCancel: () => ref
+                      .read(danbooruTagsCacheNotifierProvider.notifier)
+                      .cancelSync(),
+                ),
+                const SizedBox(height: 24),
+                // 4. 危险操作区域
+                _DangerZoneCard(
+                  onClearAll: () => _showClearAllDialog(context),
                 ),
               ],
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // 标签补全数据部分
-                  const _TagCompletionDataSection(),
-
-                  // 分隔线
-                  Divider(
-                    color: theme.colorScheme.outlineVariant.withOpacity(0.3),
-                    height: 1,
-                    indent: 20,
-                    endIndent: 20,
-                  ),
-
-                  // 清除所有缓存按钮
-                  _ClearAllCacheButton(
-                    onClearAll: () => _showClearAllDialog(context),
-                  ),
-                ],
-              ),
-            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -186,7 +247,6 @@ class _DataSourceCacheSettingsState
     );
 
     if (confirmed == true && context.mounted) {
-      // 等待确认对话框完全关闭
       await Future.delayed(const Duration(milliseconds: 150));
       if (context.mounted) {
         await _clearAllCaches(context);
@@ -194,267 +254,93 @@ class _DataSourceCacheSettingsState
     }
   }
 
-  /// 清除 Danbooru 标签缓存
+  /// 清除 Danbooru 标签缓存 - 使用新架构
   Future<void> _clearAllCaches(BuildContext context) async {
     if (!context.mounted) return;
 
-    // 显示加载对话框
-    // ignore: use_build_context_synchronously
+    // 设置 Ref 以启用新架构
+    cacheClearService.setRef(ref);
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) {
-        return const PopScope(
-          canPop: false,
-          child: Center(
-            child: _ClearingDialog(),
-          ),
-        );
-      },
+      builder: (ctx) => const PopScope(
+        canPop: false,
+        child: Center(child: _ClearingDialog()),
+      ),
     );
 
-    // 等待对话框完全显示
     await Future.delayed(const Duration(milliseconds: 200));
 
     try {
-      // 先检测数据库是否损坏
-      final healthResult = await DatabaseManager.instance.quickHealthCheck();
-      if (healthResult.isCorrupted) {
-        AppLogger.w('Database corruption detected during clear cache, rebuilding...', 'CacheSettings');
-        // 数据库损坏时直接重建，而不是尝试清空
-        await DatabaseManager.instance.recover();
-        
-        // 等待一小段时间确保操作完成
-        await Future.delayed(const Duration(milliseconds: 100));
+      // 获取服务实例
+      final service = await ref.read(danbooruTagsLazyServiceProvider.future);
 
-        // 关闭对话框
-        if (context.mounted) {
-          Navigator.of(context, rootNavigator: true).pop();
-        }
+      // 使用统一的清除服务，传入服务层清除回调
+      final result = await cacheClearService.clearAllCache(
+        serviceClearCallback: () => service.clearCache(),
+      );
 
-        // 等待对话框完全关闭
-        await Future.delayed(const Duration(milliseconds: 150));
-
-        if (context.mounted) {
-          AppToast.success(context, '数据库已修复并重建，下次启动时将重新加载数据');
-        }
-        return;
-      }
-      
-      // 数据库正常时，执行清空操作
-      await _clearAllTables();
-
-      // 清除缓存并更新UI状态，不需要invalidate，clearCache已更新状态
-      await ref.read(danbooruTagsCacheNotifierProvider.notifier).clearCache();
-
-      // 等待一小段时间确保操作完成
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      // 关闭对话框 - 使用 rootNavigator 确保关闭最顶层的对话框
       if (context.mounted) {
         Navigator.of(context, rootNavigator: true).pop();
       }
 
-      // 等待对话框完全关闭
-      await Future.delayed(const Duration(milliseconds: 150));
-
-      if (context.mounted) {
-        AppToast.success(context, '标签数据已清除，下次启动时将自动恢复');
-      }
-    } catch (e) {
-      // 检查是否是数据库损坏错误
-      final errorStr = e.toString();
-      final isCorrupted = errorStr.contains('database disk image is malformed') ||
-                         errorStr.contains('database is corrupted') ||
-                         errorStr.contains('database is locked');
-      
-      if (isCorrupted) {
-        try {
-          AppLogger.w('Attempting to rebuild corrupted database after clear failure...', 'CacheSettings');
-          await DatabaseManager.instance.recover();
-          
-          // 关闭对话框
-          if (context.mounted) {
-            Navigator.of(context, rootNavigator: true).pop();
-          }
-
-          // 等待对话框完全关闭
-          await Future.delayed(const Duration(milliseconds: 150));
-
-          if (context.mounted) {
-            AppToast.success(context, '数据库已修复并重建，请重新尝试清除缓存');
-          }
-          return;
-        } catch (_) {
-          // 重建也失败了，继续显示错误
-        }
-      }
-      
-      // 等待一小段时间
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      // 关闭对话框
-      if (context.mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-
-      // 等待对话框完全关闭
-      await Future.delayed(const Duration(milliseconds: 150));
-
-      if (context.mounted) {
-        AppToast.error(context, '重置失败: $e');
-      }
-    }
-  }
-
-  /// 清空所有数据表（使用新数据库架构）
-  Future<void> _clearAllTables() async {
-    AppLogger.i('Clearing all data tables (keeping metadata)...', 'CacheSettings');
-
-    try {
-      final db = await DatabaseManager.instance.acquireDatabase();
-
-      try {
-        // 需要清空的数据表（保留 metadata 表）
-        final dataTables = [
-          'danbooru_tags',
-          'translations', 
-          'cooccurrences',
-        ];
-        
-        // 获取实际存在的表
-        final result = await db.rawQuery(
-          "SELECT name FROM sqlite_master WHERE type='table'",
+      if (result.success) {
+        AppLogger.i(
+          '[CacheSettings] Clear success: ${result.totalRemoved} rows removed',
+          'CacheSettings',
         );
-        final existingTables = result.map((r) => r['name'] as String).toSet();
-        
-        // 逐个清空数据表
-        for (final table in dataTables) {
-          if (!existingTables.contains(table)) {
-            AppLogger.w('Table $table does not exist, skipping', 'CacheSettings');
-            continue;
-          }
 
-          try {
-            // 先获取清空前的计数
-            final countResult = await db.rawQuery('SELECT COUNT(*) as count FROM $table');
-            final beforeCount = (countResult.first['count'] as num?)?.toInt() ?? 0;
-
-            await db.execute('DELETE FROM $table');
-
-            // 验证清空后的计数
-            final afterResult = await db.rawQuery('SELECT COUNT(*) as count FROM $table');
-            final afterCount = (afterResult.first['count'] as num?)?.toInt() ?? 0;
-
-            AppLogger.i('Cleared table: $table (was $beforeCount rows, now $afterCount)', 'CacheSettings');
-          } catch (e) {
-            AppLogger.w('Failed to clear table $table: $e', 'CacheSettings');
-          }
+        if (context.mounted) {
+          AppToast.success(
+            context,
+            '已清除 ${result.totalRemoved} 条数据，下次启动时将自动恢复',
+          );
         }
-        
-        // 重置 SQLite 序列（如果有自增字段）
-        try {
-          await db.execute('DELETE FROM sqlite_sequence WHERE 1=1');
-        } catch (e) {
-          // sqlite_sequence 可能不存在，忽略错误
+
+        // 关键修复：无论新旧架构，都必须使 Provider 失效
+        // 因为清除操作会重置 ConnectionPoolHolder，缓存的 Provider 仍持有旧连接
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (context.mounted) {
+          // 按依赖顺序失效：先失效数据源 Provider，再失效服务 Provider
+          ref.invalidate(danbooruTagDataSourceV2Provider);
+          ref.invalidate(danbooruTagsLazyServiceProvider);
+          ref.invalidate(danbooruTagsCacheNotifierProvider);
+          AppLogger.i(
+            '[CacheSettings] Providers invalidated after cache clear',
+            'CacheSettings',
+          );
         }
-        
-        AppLogger.i('Data tables cleared successfully', 'CacheSettings');
-      } finally {
-        await DatabaseManager.instance.releaseDatabase(db);
+      } else {
+        // 清除失败（如数据库损坏已自动修复）
+        if (context.mounted) {
+          AppToast.warning(context, result.error ?? '清除失败，请重试');
+        }
       }
-    } catch (e) {
-      AppLogger.e('Failed to clear data tables', e, null, 'CacheSettings');
-      rethrow;
+    } catch (e, stack) {
+      AppLogger.e('[CacheSettings] Clear cache error', e, stack, 'CacheSettings');
+
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        AppToast.error(context, '清除失败: $e');
+      }
     }
   }
+
 }
 
-/// 标签补全数据部分
-class _TagCompletionDataSection extends ConsumerWidget {
-  const _TagCompletionDataSection();
+/// 数据源状态卡片
+class _StatusCard extends StatelessWidget {
+  final DanbooruTagsCacheState state;
+
+  const _StatusCard({required this.state});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final asyncState = ref.watch(danbooruTagsCacheNotifierProvider);
-    
-    return asyncState.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => Center(child: Text('Error: $error')),
-      data: (state) {
-        final isSyncing = state.isRefreshing;
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 头部信息区域
-              _buildHeader(context, state),
-              const SizedBox(height: 20),
-
-          // 热度档位选择 + 自动刷新间隔（横向并排，顶部对齐）
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 左侧：热度筛选
-              Expanded(
-                child: _HotPresetSelector(
-                  preset: state.hotPreset,
-                  customThreshold: state.customThreshold,
-                  onPresetChanged: (preset, customThreshold) {
-                    ref
-                        .read(danbooruTagsCacheNotifierProvider.notifier)
-                        .setHotPreset(preset, customThreshold: customThreshold);
-                  },
-                ),
-              ),
-              const SizedBox(width: 24),
-              // 右侧：自动刷新间隔
-              Expanded(
-                child: _RefreshIntervalSelector(
-                  value: state.refreshInterval,
-                  onChanged: (interval) {
-                    ref
-                        .read(danbooruTagsCacheNotifierProvider.notifier)
-                        .setRefreshInterval(interval);
-                  },
-                ),
-              ),
-            ],
-          ),
-
-          // 进度条（仅在同步时显示）
-          if (isSyncing) ...[
-            const SizedBox(height: 20),
-            _SyncProgressIndicator(
-              progress: state.progress,
-              message: state.message,
-            ),
-          ],
-
-          // 错误信息
-          if (state.error != null) ...[
-            const SizedBox(height: 16),
-            _ErrorMessage(message: state.error!),
-          ],
-
-          const SizedBox(height: 20),
-
-          // 操作按钮（包含画师同步开关）
-          _buildActionButtons(context, ref, state),
-        ],
-      ),
-        );
-      },
-    );
-  }
-
-  Widget _buildHeader(BuildContext context, DanbooruTagsCacheState state) {
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isLoaded = state.totalTags > 0;
 
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -477,126 +363,146 @@ class _TagCompletionDataSection extends ConsumerWidget {
           width: 1,
         ),
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isLoaded
-                  ? theme.colorScheme.primary.withOpacity(0.15)
-                  : theme.colorScheme.outline.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              isLoaded ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
-              size: 24,
-              color: isLoaded
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outline,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isLoaded ? '数据源已就绪' : '数据源未加载',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: isLoaded
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                if (isLoaded) ...[
-                  // 总标签数
-                  Text(
-                    '已缓存 ${_formatNumber(state.totalTags)} 个标签',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          children: [
+            // 头部状态信息
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isLoaded
+                          ? theme.colorScheme.primary.withOpacity(0.15)
+                          : theme.colorScheme.outline.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      isLoaded ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+                      size: 28,
+                      color: isLoaded
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.outline,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  // 分类统计
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      if (state.categoryStats.general > 0)
-                        _buildCategoryChip(
-                          context,
-                          label: context.l10n.tagCategory_general,
-                          count: state.categoryStats.general,
-                          color: Colors.blue,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isLoaded ? '数据源已就绪' : '数据源未加载',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: isLoaded
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurface,
+                          ),
                         ),
-                      if (state.categoryStats.artist > 0)
-                        _buildCategoryChip(
-                          context,
-                          label: context.l10n.tagCategory_artist,
-                          count: state.categoryStats.artist,
-                          color: Colors.orange,
+                        const SizedBox(height: 4),
+                        Text(
+                          isLoaded
+                              ? '已缓存 ${_formatNumber(state.totalTags)} 个标签'
+                              : '点击"立即同步"下载标签数据',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
-                      if (state.categoryStats.character > 0)
-                        _buildCategoryChip(
-                          context,
-                          label: context.l10n.tagCategory_character,
-                          count: state.categoryStats.character,
-                          color: Colors.purple,
-                        ),
-                      if (state.categoryStats.copyright > 0)
-                        _buildCategoryChip(
-                          context,
-                          label: context.l10n.tagCategory_copyright,
-                          count: state.categoryStats.copyright,
-                          color: Colors.green,
-                        ),
-                      if (state.categoryStats.meta > 0)
-                        _buildCategoryChip(
-                          context,
-                          label: context.l10n.tagCategory_meta,
-                          count: state.categoryStats.meta,
-                          color: Colors.grey,
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
-                  if (state.lastUpdate != null) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      '上次更新: ${timeago.format(state.lastUpdate!, locale: 'zh')}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.outline,
-                      ),
+                ],
+              ),
+            ),
+            // 分类统计
+            if (isLoaded) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    // 始终显示所有5个类别，确保加起来等于总数
+                    _CategoryChip(
+                      label: context.l10n.tagCategory_general,
+                      count: state.categoryStats.general,
+                      color: Colors.blue,
+                    ),
+                    _CategoryChip(
+                      label: context.l10n.tagCategory_artist,
+                      count: state.categoryStats.artist,
+                      color: Colors.orange,
+                    ),
+                    _CategoryChip(
+                      label: context.l10n.tagCategory_character,
+                      count: state.categoryStats.character,
+                      color: Colors.purple,
+                    ),
+                    _CategoryChip(
+                      label: context.l10n.tagCategory_copyright,
+                      count: state.categoryStats.copyright,
+                      color: Colors.green,
+                    ),
+                    _CategoryChip(
+                      label: context.l10n.tagCategory_meta,
+                      count: state.categoryStats.meta,
+                      color: Colors.grey,
                     ),
                   ],
-                ] else
-                  Text(
-                    '点击"立即同步"下载标签数据',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                ),
+              ),
+            ],
+            // 上次更新时间
+            if (state.lastUpdate != null) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                child: Text(
+                  '上次更新: ${timeago.format(state.lastUpdate!, locale: 'zh')}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.outline,
                   ),
-              ],
-            ),
-          ),
-        ],
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildCategoryChip(
-    BuildContext context, {
-    required String label,
-    required int count,
-    required Color color,
-  }) {
+  String _formatNumber(int number) {
+    return number.toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        );
+  }
+}
+
+/// 分类统计芯片
+class _CategoryChip extends StatelessWidget {
+  final String label;
+  final int count;
+  final Color color;
+
+  const _CategoryChip({
+    required this.label,
+    required this.count,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: color.withOpacity(0.3),
           width: 1,
@@ -606,20 +512,19 @@ class _TagCompletionDataSection extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 6,
-            height: 6,
+            width: 8,
+            height: 8,
             decoration: BoxDecoration(
               color: color,
               shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 6),
           Text(
             '$label ${_formatNumber(count)}',
             style: theme.textTheme.bodySmall?.copyWith(
               color: color.withOpacity(0.9),
               fontWeight: FontWeight.w500,
-              fontSize: 11,
             ),
           ),
         ],
@@ -633,35 +538,194 @@ class _TagCompletionDataSection extends ConsumerWidget {
           (Match m) => '${m[1]},',
         );
   }
+}
 
-  Widget _buildActionButtons(
-      BuildContext context, WidgetRef ref, DanbooruTagsCacheState state,) {
-    final isSyncing = state.isRefreshing;
+/// 同步设置卡片
+class _SyncSettingsCard extends StatelessWidget {
+  final DanbooruTagsCacheState state;
+  final void Function(TagHotPreset preset, int? customThreshold)
+      onGeneralThresholdChanged;
+  final void Function(TagHotPreset preset, int? customThreshold)
+      onArtistThresholdChanged;
+  final void Function(TagHotPreset preset, int? customThreshold)
+      onCharacterThresholdChanged;
+  final void Function(TagHotPreset preset, int? customThreshold)
+      onCopyrightThresholdChanged;
+  final void Function(TagHotPreset preset, int? customThreshold)
+      onMetaThresholdChanged;
+  final ValueChanged<AutoRefreshInterval> onRefreshIntervalChanged;
+
+  const _SyncSettingsCard({
+    required this.state,
+    required this.onGeneralThresholdChanged,
+    required this.onArtistThresholdChanged,
+    required this.onCharacterThresholdChanged,
+    required this.onCopyrightThresholdChanged,
+    required this.onMetaThresholdChanged,
+    required this.onRefreshIntervalChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SettingsCard(
+      title: null,
+      showDivider: false,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 热度阈值区域
+          _buildThresholdSection(context),
+          const SizedBox(height: 24),
+          // 其他设置行
+          _buildSecondarySettingsRow(context),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThresholdSection(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 标题
+        Row(
+          children: [
+            Icon(
+              Icons.local_fire_department_outlined,
+              size: 18,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '热度阈值',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '选择不同类别标签的热度阈值',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.outline,
+          ),
+        ),
+        const SizedBox(height: 16),
+        // 五个分类分两行
+        Row(
+          children: [
+            Expanded(
+              child: _CategoryThresholdBox(
+                icon: Icons.label_outline,
+                iconColor: Colors.blue,
+                label: '一般',
+                preset: state.categoryThresholds.generalPreset,
+                customThreshold: state.categoryThresholds.generalCustomThreshold,
+                onChanged: onGeneralThresholdChanged,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _CategoryThresholdBox(
+                icon: Icons.brush_outlined,
+                iconColor: Colors.orange,
+                label: '画师',
+                preset: state.categoryThresholds.artistPreset,
+                customThreshold: state.categoryThresholds.artistCustomThreshold,
+                onChanged: onArtistThresholdChanged,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _CategoryThresholdBox(
+                icon: Icons.person_outline,
+                iconColor: Colors.purple,
+                label: '角色',
+                preset: state.categoryThresholds.characterPreset,
+                customThreshold: state.categoryThresholds.characterCustomThreshold,
+                onChanged: onCharacterThresholdChanged,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _CategoryThresholdBox(
+                icon: Icons.copyright_outlined,
+                iconColor: Colors.green,
+                label: '版权',
+                preset: state.categoryThresholds.copyrightPreset,
+                customThreshold: state.categoryThresholds.copyrightCustomThreshold,
+                onChanged: onCopyrightThresholdChanged,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _CategoryThresholdBox(
+                icon: Icons.code_outlined,
+                iconColor: Colors.grey,
+                label: '元标签',
+                preset: state.categoryThresholds.metaPreset,
+                customThreshold: state.categoryThresholds.metaCustomThreshold,
+                onChanged: onMetaThresholdChanged,
+              ),
+            ),
+            const SizedBox(width: 12),
+            // 占位保持对齐
+            Expanded(
+              child: Container(),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSecondarySettingsRow(BuildContext context) {
+    final theme = Theme.of(context);
 
     return Row(
       children: [
-        // 同步画师开关（移到左边，宽度紧凑）
-        _ArtistSyncCheckbox(
-          value: state.syncArtists,
-          isSyncing: isSyncing,
-          onChanged: (value) => ref
-              .read(danbooruTagsCacheNotifierProvider.notifier)
-              .setSyncArtists(value),
-        ),
-        const SizedBox(width: 12),
-        // 立即同步按钮
+        // 自动刷新间隔
         Expanded(
-          child: _ActionButton(
-            icon: isSyncing ? Icons.stop_circle_outlined : Icons.sync_outlined,
-            label: isSyncing ? '取消同步' : '立即同步',
-            isPrimary: true,
-            onPressed: isSyncing
-                ? () => ref
-                    .read(danbooruTagsCacheNotifierProvider.notifier)
-                    .cancelSync()
-                : () => ref
-                    .read(danbooruTagsCacheNotifierProvider.notifier)
-                    .refresh(),
+          flex: 3,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.schedule_outlined,
+                    size: 18,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '自动刷新间隔',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                children: AutoRefreshInterval.values.map((interval) {
+                  final isSelected = interval == state.refreshInterval;
+                  return _ChoiceChip(
+                    label: interval.displayName,
+                    isSelected: isSelected,
+                    onSelected: () => onRefreshIntervalChanged(interval),
+                  );
+                }).toList(),
+              ),
+            ],
           ),
         ),
       ],
@@ -669,129 +733,138 @@ class _TagCompletionDataSection extends ConsumerWidget {
   }
 }
 
-/// 热度档位选择器
-class _HotPresetSelector extends StatelessWidget {
+/// 分类阈值选择框
+class _CategoryThresholdBox extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String label;
   final TagHotPreset preset;
   final int customThreshold;
-  final void Function(TagHotPreset preset, int? customThreshold)
-      onPresetChanged;
+  final void Function(TagHotPreset preset, int? customThreshold) onChanged;
 
-  const _HotPresetSelector({
+  const _CategoryThresholdBox({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
     required this.preset,
     required this.customThreshold,
-    required this.onPresetChanged,
+    required this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.local_fire_department_outlined,
-              size: 16,
-              color: theme.colorScheme.outline,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              '热度筛选',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.outline,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+          width: 1,
         ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: TagHotPreset.values.map((p) {
-            final isSelected = p == preset;
-            return _PresetChip(
-              label: p.displayName,
-              isSelected: isSelected,
-              onSelected: () => onPresetChanged(p, null),
-            );
-          }).toList(),
-        ),
-        if (preset == TagHotPreset.custom) ...[
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '自定义阈值',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        customThreshold.toString(),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                  ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题行
+          Row(
+            children: [
+              Icon(icon, size: 16, color: iconColor),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(height: 12),
-                SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    activeTrackColor: theme.colorScheme.primary,
-                    inactiveTrackColor:
-                        theme.colorScheme.surfaceContainerHighest,
-                    thumbColor: theme.colorScheme.primary,
-                    overlayColor: theme.colorScheme.primary.withOpacity(0.1),
-                    trackHeight: 4,
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  preset == TagHotPreset.custom
+                      ? '>$customThreshold'
+                      : preset.displayName,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: iconColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
                   ),
-                  child: Slider(
-                    value: customThreshold.toDouble(),
-                    min: 10,
-                    max: 50000,
-                    divisions: 100,
-                    onChanged: (v) => onPresetChanged(preset, v.toInt()),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // 选项按钮
+          Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            children: TagHotPreset.values.map((p) {
+              final isSelected = p == preset;
+              return _SmallChoiceChip(
+                label: p.displayName,
+                isSelected: isSelected,
+                accentColor: iconColor,
+                onSelected: () => onChanged(p, p.isCustom ? customThreshold : null),
+              );
+            }).toList(),
+          ),
+          // 自定义滑块
+          if (preset == TagHotPreset.custom) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      activeTrackColor: iconColor,
+                      inactiveTrackColor: theme.colorScheme.surfaceContainerHighest,
+                      thumbColor: iconColor,
+                      overlayColor: iconColor.withOpacity(0.1),
+                      trackHeight: 3,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                    ),
+                    child: Slider(
+                      value: customThreshold.toDouble(),
+                      min: 10,
+                      max: 10000,
+                      divisions: 100,
+                      onChanged: (v) => onChanged(preset, v.toInt()),
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 40,
+                  child: Text(
+                    customThreshold.toString(),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.right,
                   ),
                 ),
               ],
             ),
-          ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
 
-/// 预设选择芯片
-class _PresetChip extends StatelessWidget {
+/// 选择芯片
+class _ChoiceChip extends StatelessWidget {
   final String label;
   final bool isSelected;
   final VoidCallback onSelected;
 
-  const _PresetChip({
+  const _ChoiceChip({
     required this.label,
     required this.isSelected,
     required this.onSelected,
@@ -805,18 +878,18 @@ class _PresetChip extends StatelessWidget {
       color: isSelected
           ? theme.colorScheme.primary
           : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: onSelected,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: Text(
             label,
             style: theme.textTheme.bodySmall?.copyWith(
               color: isSelected
                   ? theme.colorScheme.onPrimary
-                  : theme.colorScheme.onSurface,
+                  : theme.colorScheme.onSurfaceVariant,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
             ),
           ),
@@ -826,65 +899,119 @@ class _PresetChip extends StatelessWidget {
   }
 }
 
-/// 自动刷新间隔选择器
-class _RefreshIntervalSelector extends StatelessWidget {
-  final AutoRefreshInterval value;
-  final ValueChanged<AutoRefreshInterval> onChanged;
+/// 小型选择芯片
+class _SmallChoiceChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final Color accentColor;
+  final VoidCallback onSelected;
 
-  const _RefreshIntervalSelector({
-    required this.value,
-    required this.onChanged,
+  const _SmallChoiceChip({
+    required this.label,
+    required this.isSelected,
+    required this.accentColor,
+    required this.onSelected,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.schedule_outlined,
-              size: 16,
-              color: theme.colorScheme.outline,
+    return Material(
+      color: isSelected
+          ? accentColor.withOpacity(0.2)
+          : theme.colorScheme.surface.withOpacity(0.5),
+      borderRadius: BorderRadius.circular(6),
+      child: InkWell(
+        onTap: onSelected,
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: 11,
+              color: isSelected ? accentColor : theme.colorScheme.onSurfaceVariant,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
             ),
-            const SizedBox(width: 6),
-            Text(
-              '自动刷新间隔',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.outline,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
+          ),
         ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          children: AutoRefreshInterval.values.map((interval) {
-            final isSelected = interval == value;
-            return _PresetChip(
-              label: interval.displayName,
-              isSelected: isSelected,
-              onSelected: () => onChanged(interval),
-            );
-          }).toList(),
-        ),
-      ],
+      ),
     );
   }
 }
 
-/// 同步进度指示器
-class _SyncProgressIndicator extends StatelessWidget {
+/// 操作卡片
+class _ActionCard extends StatelessWidget {
+  final bool isSyncing;
+  final VoidCallback onSync;
+  final VoidCallback onCancel;
+
+  const _ActionCard({
+    required this.isSyncing,
+    required this.onSync,
+    required this.onCancel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.primary.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: isSyncing ? onCancel : onSync,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  isSyncing ? Icons.stop_circle_outlined : Icons.sync_outlined,
+                  size: 20,
+                  color: theme.colorScheme.onPrimary,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  isSyncing ? '取消同步' : '立即同步',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 同步进度卡片
+class _SyncProgressCard extends StatelessWidget {
   final double progress;
   final String? message;
+  final VoidCallback onCancel;
 
-  const _SyncProgressIndicator({
+  const _SyncProgressCard({
     required this.progress,
     this.message,
+    required this.onCancel,
   });
 
   @override
@@ -907,8 +1034,8 @@ class _SyncProgressIndicator extends StatelessWidget {
           Row(
             children: [
               SizedBox(
-                width: 16,
-                height: 16,
+                width: 20,
+                height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
                   value: progress > 0 ? progress : null,
@@ -961,11 +1088,11 @@ class _SyncProgressIndicator extends StatelessWidget {
   }
 }
 
-/// 错误信息组件
-class _ErrorMessage extends StatelessWidget {
+/// 错误信息卡片
+class _ErrorMessageCard extends StatelessWidget {
   final String message;
 
-  const _ErrorMessage({required this.message});
+  const _ErrorMessageCard({required this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -1003,227 +1130,119 @@ class _ErrorMessage extends StatelessWidget {
   }
 }
 
-/// 同步画师复选框（紧凑样式）
-class _ArtistSyncCheckbox extends StatelessWidget {
-  final bool value;
-  final bool isSyncing;
-  final ValueChanged<bool> onChanged;
+/// 错误状态卡片
+class _ErrorStateCard extends StatelessWidget {
+  final String message;
 
-  const _ArtistSyncCheckbox({
-    required this.value,
-    required this.isSyncing,
-    required this.onChanged,
-  });
+  const _ErrorStateCard({required this.message});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Material(
-      color: value
-          ? theme.colorScheme.primaryContainer.withOpacity(0.3)
-          : theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: isSyncing ? null : () => onChanged(!value),
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: value
-                  ? theme.colorScheme.primary.withOpacity(0.5)
-                  : theme.colorScheme.outline.withOpacity(0.2),
-              width: 1,
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.colorScheme.error.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 28,
+            color: theme.colorScheme.error,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              '加载失败: $message',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onErrorContainer,
+              ),
             ),
-            borderRadius: BorderRadius.circular(10),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                value ? Icons.check_box : Icons.check_box_outline_blank,
-                size: 18,
-                color: isSyncing
-                    ? theme.colorScheme.outline
-                    : theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                '同步画师',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: isSyncing
-                      ? theme.colorScheme.outline
-                      : theme.colorScheme.onSurface,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }
 }
 
-/// 操作按钮
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isPrimary;
-  final VoidCallback? onPressed;
-
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    this.isPrimary = false,
-    this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Material(
-      color: isPrimary
-          ? theme.colorScheme.primary
-          : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isPrimary
-                    ? theme.colorScheme.onPrimary
-                    : theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: isPrimary
-                      ? theme.colorScheme.onPrimary
-                      : theme.colorScheme.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 清除所有缓存按钮（实心背景 + 悬停动效）
-class _ClearAllCacheButton extends StatefulWidget {
+/// 危险区域卡片
+class _DangerZoneCard extends StatefulWidget {
   final VoidCallback onClearAll;
 
-  const _ClearAllCacheButton({required this.onClearAll});
+  const _DangerZoneCard({required this.onClearAll});
 
   @override
-  State<_ClearAllCacheButton> createState() => _ClearAllCacheButtonState();
+  State<_DangerZoneCard> createState() => _DangerZoneCardState();
 }
 
-class _ClearAllCacheButtonState extends State<_ClearAllCacheButton> {
+class _DangerZoneCardState extends State<_DangerZoneCard> {
   bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOut,
-          decoration: BoxDecoration(
-            // 实心背景：使用 errorContainer 作为基础色
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        decoration: BoxDecoration(
+          color: _isHovered
+              ? theme.colorScheme.errorContainer.withOpacity(0.6)
+              : theme.colorScheme.errorContainer.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
             color: _isHovered
-                ? theme.colorScheme.errorContainer.withOpacity(0.8)
-                : theme.colorScheme.errorContainer.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(12),
-            // 边框：悬停时更明显
-            border: Border.all(
-              color: _isHovered
-                  ? theme.colorScheme.error.withOpacity(0.6)
-                  : theme.colorScheme.error.withOpacity(0.3),
-              width: _isHovered ? 2 : 1.5,
-            ),
-            // 阴影：悬停时添加发光效果
-            boxShadow: _isHovered
-                ? [
-                    BoxShadow(
-                      color: theme.colorScheme.error.withOpacity(0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
+                ? theme.colorScheme.error.withOpacity(0.5)
+                : theme.colorScheme.error.withOpacity(0.3),
+            width: _isHovered ? 2 : 1,
           ),
-          child: Material(
-            color: Colors.transparent,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            onTap: widget.onClearAll,
             borderRadius: BorderRadius.circular(12),
-            child: InkWell(
-              onTap: widget.onClearAll,
-              borderRadius: BorderRadius.circular(12),
-              // 自定义涟漪颜色
-              splashColor: theme.colorScheme.error.withOpacity(0.1),
-              highlightColor: theme.colorScheme.error.withOpacity(0.05),
-              child: AnimatedPadding(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeInOut,
-                padding: EdgeInsets.symmetric(
-                  vertical: _isHovered ? 16 : 14,
-                  horizontal: 20,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // 图标：悬停时有轻微缩放
-                    AnimatedScale(
-                      scale: _isHovered ? 1.1 : 1.0,
-                      duration: const Duration(milliseconds: 200),
-                      child: Icon(
-                        Icons.delete_sweep_outlined,
-                        size: 18,
-                        color: theme.colorScheme.error,
-                      ),
+            splashColor: theme.colorScheme.error.withOpacity(0.1),
+            highlightColor: theme.colorScheme.error.withOpacity(0.05),
+            child: AnimatedPadding(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              padding: EdgeInsets.symmetric(
+                vertical: _isHovered ? 14 : 12,
+                horizontal: 16,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AnimatedScale(
+                    scale: _isHovered ? 1.1 : 1.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      Icons.delete_sweep_outlined,
+                      size: 18,
+                      color: theme.colorScheme.error,
                     ),
-                    const SizedBox(width: 8),
-                    // 文字：悬停时更亮
-                    Text(
-                      '清除所有标签数据',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.error,
-                        fontWeight: FontWeight.w600,
-                        // 悬停时稍微增大字体
-                        fontSize: _isHovered ? 15 : 14,
-                      ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '清除所有标签数据',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.error,
+                      fontWeight: FontWeight.w600,
                     ),
-                    const SizedBox(width: 4),
-                    // 悬停时显示箭头提示
-                    AnimatedOpacity(
-                      opacity: _isHovered ? 1.0 : 0.0,
-                      duration: const Duration(milliseconds: 200),
-                      child: Icon(
-                        Icons.arrow_forward_ios,
-                        size: 12,
-                        color: theme.colorScheme.error.withOpacity(0.7),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

@@ -1,4 +1,5 @@
 import 'connection_pool.dart';
+import '../utils/app_logger.dart';
 
 /// ConnectionPool 全局持有者
 /// 
@@ -41,28 +42,37 @@ class ConnectionPoolHolder {
   }
 
   /// 重置（热重启或数据库恢复后）
-  /// 
-  /// 1. 关闭旧连接池
-  /// 2. 创建新连接池
-  /// 3. 替换全局实例
+  ///
+  /// 1. 原子性替换：先将 _instance 设为 null，阻止新请求获取旧实例
+  /// 2. 关闭旧连接池
+  /// 3. 创建并初始化新连接池
+  /// 4. 原子性设置新实例
   static Future<ConnectionPool> reset({
     required String dbPath,
     int maxConnections = 3,
   }) async {
-    // 1. 关闭旧连接池
+    // 1. 原子性获取并清空旧实例
+    // 这确保新请求会收到 "not initialized" 错误，而不是获取到正在关闭的实例
     final oldInstance = _instance;
+    _instance = null;
+
+    // 2. 关闭旧连接池（此时新请求已经被阻止）
     if (oldInstance != null) {
       await oldInstance.dispose();
     }
 
-    // 2. 创建新连接池
-    _instance = ConnectionPool(
+    // 3. 创建并初始化新连接池
+    final newInstance = ConnectionPool(
       dbPath: dbPath,
       maxConnections: maxConnections,
     );
-    await _instance!.initialize();
+    await newInstance.initialize();
 
-    return _instance!;
+    // 4. 原子性设置新实例
+    _instance = newInstance;
+
+    AppLogger.i('ConnectionPool reset completed', 'ConnectionPoolHolder');
+    return newInstance;
   }
 
   /// 获取当前实例（如果已初始化）

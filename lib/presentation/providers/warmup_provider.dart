@@ -16,6 +16,7 @@ import '../../core/services/data_migration_service.dart';
 import '../../core/services/translation/translation_providers.dart';
 import '../../core/services/warmup_task_scheduler.dart';
 import 'background_task_provider.dart';
+import 'data_source_cache_provider.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/repositories/local_gallery_repository.dart';
 import 'auth_provider.dart';
@@ -349,15 +350,15 @@ class WarmupNotifier extends _$WarmupNotifier {
       ),
     );
 
-    // 8. 一般标签数据拉取（在预热阶段完成，进入主页后不再显示后台进度）
+    // 8. 一般标签和角色标签数据拉取（在预热阶段完成，进入主页后不再显示后台进度）
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_generalTagsFetch',
         displayName: '加载标签数据',
         phase: WarmupPhase.quick,
         weight: 2,
-        timeout: const Duration(seconds: 65),
-        task: _fetchGeneralTags,
+        timeout: const Duration(seconds: 90),
+        task: _fetchGeneralAndCharacterTags,
       ),
     );
 
@@ -541,40 +542,87 @@ class WarmupNotifier extends _$WarmupNotifier {
     }
   }
 
-  /// 拉取一般标签（非画师标签，category != 1）
-  Future<void> _fetchGeneralTags() async {
-    AppLogger.i('开始拉取一般标签...', 'Warmup');
+  /// 拉取一般标签和角色标签
+  Future<void> _fetchGeneralAndCharacterTags() async {
+    AppLogger.i('[_fetchGeneralAndCharacterTags] 开始检查并拉取标签...', 'Warmup');
 
     final service = await ref.read(danbooruTagsLazyServiceProvider.future);
 
-    // 先检测数据库中是否已有数据
-    try {
-      final tagCount = await service.getTagCount();
-      AppLogger.i('Current danbooru tag count: $tagCount', 'Warmup');
-      
-      if (tagCount == 0) {
-        state = state.copyWith(subTaskMessage: '检测到标签数据为空，开始从服务器拉取...');
-        AppLogger.i('Tag database is empty, will fetch from API', 'Warmup');
-      } else {
-        AppLogger.i('Tag database has $tagCount records, checking if refresh needed...', 'Warmup');
-      }
-    } on StateError catch (e) {
-      // 数据库正在恢复中
-      AppLogger.w('Cannot check tag count, database recovering: $e', 'Warmup');
-    } catch (e) {
-      AppLogger.w('Failed to check tag count: $e', 'Warmup');
-    }
+    // 直接检查各分类数量，不依赖 shouldRefresh() 的时间判断
+    var needsGeneralFetch = false;
+    var needsCharacterFetch = false;
+    var needsCopyrightFetch = false;
+    var needsMetaFetch = false;
 
-    // 检查是否需要刷新
     try {
-      final needsRefresh = await service.shouldRefresh();
-      if (!needsRefresh) {
-        AppLogger.i('Danbooru tags are up to date, skipping fetch', 'Warmup');
+      // 获取各分类数量
+      final stats = await service.getCategoryStats();
+      final generalCount = stats['general'] ?? 0;
+      final characterCount = stats['character'] ?? 0;
+      final copyrightCount = stats['copyright'] ?? 0;
+      final metaCount = stats['meta'] ?? 0;
+      final totalCount = stats['total'] ?? 0;
+
+      AppLogger.i(
+        '[_fetchGeneralAndCharacterTags] 当前分类统计: '
+        'total=$totalCount, general=$generalCount, character=$characterCount, '
+        'copyright=$copyrightCount, meta=$metaCount',
+        'Warmup',
+      );
+
+      // 如果总数为0或任何主要分类为0，需要拉取
+      needsGeneralFetch = totalCount == 0 || generalCount == 0;
+      needsCharacterFetch = totalCount == 0 || characterCount == 0;
+      needsCopyrightFetch = totalCount == 0 || copyrightCount == 0;
+      needsMetaFetch = totalCount == 0 || metaCount == 0;
+
+      // 额外检查：也调用 shouldRefresh() 来考虑时间因素
+      // 但如果分类为空，强制拉取
+      try {
+        final needsTimeRefresh = await service.shouldRefresh();
+        if (needsTimeRefresh) {
+          AppLogger.i(
+            '[_fetchGeneralAndCharacterTags] shouldRefresh() 返回 true，需要刷新',
+            'Warmup',
+          );
+          needsGeneralFetch = true;
+          needsCharacterFetch = true;
+          needsCopyrightFetch = true;
+          needsMetaFetch = true;
+        }
+      } catch (e) {
+        AppLogger.w(
+          '[_fetchGeneralAndCharacterTags] shouldRefresh() 失败，基于数量判断: $e',
+          'Warmup',
+        );
+      }
+
+      if (!needsGeneralFetch &&
+          !needsCharacterFetch &&
+          !needsCopyrightFetch &&
+          !needsMetaFetch) {
+        AppLogger.i(
+          '[_fetchGeneralAndCharacterTags] 所有分类都有数据，跳过拉取',
+          'Warmup',
+        );
         return;
       }
-      AppLogger.i('Danbooru tags need refresh, starting fetch...', 'Warmup');
+
+      AppLogger.i(
+        '[_fetchGeneralAndCharacterTags] 需要拉取: '
+        'general=$needsGeneralFetch, character=$needsCharacterFetch, '
+        'copyright=$needsCopyrightFetch, meta=$needsMetaFetch',
+        'Warmup',
+      );
     } catch (e) {
-      AppLogger.w('Failed to check refresh status, will try to fetch: $e', 'Warmup');
+      AppLogger.w(
+        '[_fetchGeneralAndCharacterTags] 获取分类统计失败，将尝试拉取所有: $e',
+        'Warmup',
+      );
+      needsGeneralFetch = true;
+      needsCharacterFetch = true;
+      needsCopyrightFetch = true;
+      needsMetaFetch = true;
     }
 
     // 设置进度回调（不显示百分比，只显示数量和状态）
@@ -585,17 +633,76 @@ class WarmupNotifier extends _$WarmupNotifier {
     };
 
     try {
-      // 只拉取一般标签（category != 1）
-      await service.fetchGeneralTags(
-        threshold: 1000, // 热度阈值
-        maxPages: 50,    // 最多50页
-      ).timeout(
-        const Duration(seconds: 60),
-        onTimeout: () {
-          AppLogger.w('General tags fetch timeout', 'Warmup');
-          // 超时不阻塞，后台会继续
-        },
-      );
+      // 1. 拉取一般标签（category = 0）
+      if (needsGeneralFetch) {
+        await service.fetchGeneralTags(
+          threshold: 1000, // 热度阈值
+          maxPages: 50,    // 最多50页
+        ).timeout(
+          const Duration(seconds: 60),
+          onTimeout: () {
+            AppLogger.w('General tags fetch timeout', 'Warmup');
+            // 超时不阻塞，继续拉取角色标签
+          },
+        );
+        AppLogger.i('General tags fetched successfully', 'Warmup');
+      } else {
+        AppLogger.i('Skipping general tags fetch (already has data)', 'Warmup');
+      }
+
+      // 2. 拉取角色标签（category = 4）
+      if (needsCharacterFetch) {
+        state = state.copyWith(subTaskMessage: '拉取角色标签...');
+        await service.fetchCharacterTags(
+          threshold: 100,  // 角色标签阈值较低
+          maxPages: 50,    // 最多50页
+        ).timeout(
+          const Duration(seconds: 60),
+          onTimeout: () {
+            AppLogger.w('Character tags fetch timeout', 'Warmup');
+            // 超时不阻塞
+          },
+        );
+        AppLogger.i('Character tags fetched successfully', 'Warmup');
+      } else {
+        AppLogger.i('Skipping character tags fetch (already has data)', 'Warmup');
+      }
+
+      // 3. 拉取版权标签（category = 3）
+      if (needsCopyrightFetch) {
+        state = state.copyWith(subTaskMessage: '拉取版权标签...');
+        await service.fetchCopyrightTags(
+          threshold: 500,  // 版权标签阈值中等
+          maxPages: 50,    // 最多50页
+        ).timeout(
+          const Duration(seconds: 60),
+          onTimeout: () {
+            AppLogger.w('Copyright tags fetch timeout', 'Warmup');
+            // 超时不阻塞
+          },
+        );
+        AppLogger.i('Copyright tags fetched successfully', 'Warmup');
+      } else {
+        AppLogger.i('Skipping copyright tags fetch (already has data)', 'Warmup');
+      }
+
+      // 4. 拉取元标签（category = 5）
+      if (needsMetaFetch) {
+        state = state.copyWith(subTaskMessage: '拉取元标签...');
+        await service.fetchMetaTags(
+          threshold: 10000,  // 元标签阈值较高
+          maxPages: 50,      // 最多50页
+        ).timeout(
+          const Duration(seconds: 60),
+          onTimeout: () {
+            AppLogger.w('Meta tags fetch timeout', 'Warmup');
+            // 超时不阻塞
+          },
+        );
+        AppLogger.i('Meta tags fetched successfully', 'Warmup');
+      } else {
+        AppLogger.i('Skipping meta tags fetch (already has data)', 'Warmup');
+      }
 
       // 验证拉取后的数据
       try {
@@ -608,12 +715,42 @@ class WarmupNotifier extends _$WarmupNotifier {
         AppLogger.w('Failed to verify tag count after fetch: $e', 'Warmup');
       }
 
-      AppLogger.i('General tags fetched successfully', 'Warmup');
+      // 🔴 关键：所有分类拉取完成后，保存元数据（统一设置 _lastUpdate）
+      try {
+        await service.saveMetaAfterFetch();
+        AppLogger.i('Tags meta saved after all categories fetched', 'Warmup');
+      } catch (e) {
+        AppLogger.w('Failed to save tags meta: $e', 'Warmup');
+      }
+
+      // 🔴 关键：数据拉取完成后刷新 Provider，让 UI 更新
+      // 关键修复：同时失效服务和数据源 Provider，确保下次获取时使用新连接
+      AppLogger.i(
+        'Invalidating providers after tags fetch: '
+        'danbooruTagsLazyServiceProvider, danbooruTagsCacheNotifierProvider',
+        'Warmup',
+      );
+      ref.invalidate(danbooruTagsLazyServiceProvider);
+      ref.invalidate(danbooruTagsCacheNotifierProvider);
+
+      // 验证最终数据
+      try {
+        final finalStats = await service.getCategoryStats();
+        AppLogger.i(
+          '[_fetchGeneralAndCharacterTags] 最终分类统计: '
+          'total=${finalStats['total']}, general=${finalStats['general']}, '
+          'character=${finalStats['character']}, copyright=${finalStats['copyright']}, '
+          'meta=${finalStats['meta']}',
+          'Warmup',
+        );
+      } catch (e) {
+        AppLogger.w('Failed to get final category stats: $e', 'Warmup');
+      }
     } on StateError catch (e) {
       // 数据库正在恢复中，不阻塞启动
       AppLogger.w('Cannot fetch tags, database recovering: $e', 'Warmup');
     } catch (e) {
-      AppLogger.w('Failed to fetch general tags: $e', 'Warmup');
+      AppLogger.w('Failed to fetch tags: $e', 'Warmup');
       // 失败不阻塞，进入主页后后台会重试
     } finally {
       service.onProgress = null;
@@ -704,27 +841,102 @@ class WarmupNotifier extends _$WarmupNotifier {
       }
 
       // 2. 恢复 danbooru_tags（从API）
-      if (danbooruCount == 0) {
+      // 不仅检查总数，还检查各分类数量
+      final service = await ref.read(danbooruTagsLazyServiceProvider.future);
+      final categoryStats = await service.getCategoryStats();
+
+      final generalCount = categoryStats['general'] ?? 0;
+      final characterCount = categoryStats['character'] ?? 0;
+      final copyrightCount = categoryStats['copyright'] ?? 0;
+      final metaCount = categoryStats['meta'] ?? 0;
+
+      AppLogger.i(
+        'Danbooru标签分类统计: general=$generalCount, character=$characterCount, '
+        'copyright=$copyrightCount, meta=$metaCount',
+        'Warmup',
+      );
+
+      // 判断哪些分类需要拉取
+      final needsGeneralFetch = generalCount == 0;
+      final needsCharacterFetch = characterCount == 0;
+      final needsCopyrightFetch = copyrightCount == 0;
+      final needsMetaFetch = metaCount == 0;
+
+      if (needsGeneralFetch || needsCharacterFetch || needsCopyrightFetch || needsMetaFetch) {
         AppLogger.w(
-          '标签数据为空，触发从服务器拉取',
+          '部分标签分类为空，触发补充拉取: '
+          'general=$needsGeneralFetch, character=$needsCharacterFetch, '
+          'copyright=$needsCopyrightFetch, meta=$needsMetaFetch',
           'Warmup',
         );
         state = state.copyWith(
           subTaskMessage: '正在从服务器拉取标签数据...',
         );
 
-        final service = await ref.read(danbooruTagsLazyServiceProvider.future);
-        await service.fetchGeneralTags(
-          threshold: 1000,
-          maxPages: 50,
-        ).timeout(
-          const Duration(seconds: 60),
-          onTimeout: () {
-            AppLogger.w('标签拉取超时，将在后台继续', 'Warmup');
-          },
-        );
+        // 拉取一般标签
+        if (needsGeneralFetch) {
+          await service.fetchGeneralTags(
+            threshold: 1000,
+            maxPages: 50,
+          ).timeout(
+            const Duration(seconds: 60),
+            onTimeout: () {
+              AppLogger.w('一般标签拉取超时，将在后台继续', 'Warmup');
+            },
+          );
+        }
+
+        // 拉取角色标签
+        if (needsCharacterFetch) {
+          state = state.copyWith(
+            subTaskMessage: '正在拉取角色标签...',
+          );
+          await service.fetchCharacterTags(
+            threshold: 100,
+            maxPages: 50,
+          ).timeout(
+            const Duration(seconds: 60),
+            onTimeout: () {
+              AppLogger.w('角色标签拉取超时，将在后台继续', 'Warmup');
+            },
+          );
+        }
+
+        // 拉取版权标签
+        if (needsCopyrightFetch) {
+          state = state.copyWith(
+            subTaskMessage: '正在拉取版权标签...',
+          );
+          await service.fetchCopyrightTags(
+            threshold: 500,
+            maxPages: 50,
+          ).timeout(
+            const Duration(seconds: 60),
+            onTimeout: () {
+              AppLogger.w('版权标签拉取超时，将在后台继续', 'Warmup');
+            },
+          );
+        }
+
+        // 拉取元标签
+        if (needsMetaFetch) {
+          state = state.copyWith(
+            subTaskMessage: '正在拉取元标签...',
+          );
+          await service.fetchMetaTags(
+            threshold: 10000,
+            maxPages: 50,
+          ).timeout(
+            const Duration(seconds: 60),
+            onTimeout: () {
+              AppLogger.w('元标签拉取超时，将在后台继续', 'Warmup');
+            },
+          );
+        }
 
         AppLogger.i('标签数据拉取完成', 'Warmup');
+      } else {
+        AppLogger.i('所有标签分类数据已存在，跳过拉取', 'Warmup');
       }
     } on StateError catch (e) {
       // 数据库正在恢复中，不阻塞启动

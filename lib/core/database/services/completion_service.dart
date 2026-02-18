@@ -365,11 +365,20 @@ class CompletionService {
 
   /// 获取标签总数
   Future<int> getTagCount({TagCategory? category}) async {
+    AppLogger.i(
+      '[DataQuery] CompletionService.getTagCount() START - category=$category',
+      'CompletionService',
+    );
     try {
-      return await _tagDataSource.getCount(category: category?.value);
+      final count = await _tagDataSource.getCount(category: category?.value);
+      AppLogger.i(
+        '[DataQuery] CompletionService.getTagCount() END - result=$count',
+        'CompletionService',
+      );
+      return count;
     } catch (e, stack) {
       AppLogger.e(
-        'Failed to get tag count',
+        '[DataQuery] CompletionService.getTagCount() FAILED - returning 0',
         e,
         stack,
         'CompletionService',
