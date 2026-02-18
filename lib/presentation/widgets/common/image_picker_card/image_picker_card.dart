@@ -364,7 +364,7 @@ class _ImagePickerCardState extends State<ImagePickerCard> {
 
       // 尝试获取文件 URI
       if (reader.canProvide(Formats.fileUri)) {
-        reader.getValue(Formats.fileUri, (uri) async {
+        final progress = reader.getValue(Formats.fileUri, (uri) async {
           if (uri == null) return;
 
           try {
@@ -373,40 +373,55 @@ class _ImagePickerCardState extends State<ImagePickerCard> {
             final fileName = filePath.split(Platform.pathSeparator).last;
             final bytes = await file.readAsBytes();
 
-            _handleFileResult(bytes, fileName, filePath);
+            if (mounted) {
+              _handleFileResult(bytes, fileName, filePath);
+            }
           } catch (e) {
             widget.onError?.call('读取文件失败: $e');
           }
+        }, onError: (e) {
+          widget.onError?.call('获取文件URI失败: $e');
         });
-        return;
+        // 关键检查：如果返回 null，说明格式不可用
+        if (progress != null) return;
       }
 
       // 尝试获取 PNG 数据
       if (reader.canProvide(Formats.png)) {
-        reader.getFile(Formats.png, (file) async {
+        final progress = reader.getFile(Formats.png, (file) async {
           try {
             final bytes = await file.readAll();
             final fileName = file.fileName ?? 'dropped_image.png';
-            _handleFileResult(Uint8List.fromList(bytes), fileName, null);
+            if (mounted) {
+              _handleFileResult(Uint8List.fromList(bytes), fileName, null);
+            }
           } catch (e) {
             widget.onError?.call('读取图片失败: $e');
           }
+        }, onError: (e) {
+          widget.onError?.call('获取PNG失败: $e');
         });
-        return;
+        // 关键检查：如果返回 null，说明格式不可用
+        if (progress != null) return;
       }
 
       // 尝试获取 JPEG 数据
       if (reader.canProvide(Formats.jpeg)) {
-        reader.getFile(Formats.jpeg, (file) async {
+        final progress = reader.getFile(Formats.jpeg, (file) async {
           try {
             final bytes = await file.readAll();
             final fileName = file.fileName ?? 'dropped_image.jpg';
-            _handleFileResult(Uint8List.fromList(bytes), fileName, null);
+            if (mounted) {
+              _handleFileResult(Uint8List.fromList(bytes), fileName, null);
+            }
           } catch (e) {
             widget.onError?.call('读取图片失败: $e');
           }
+        }, onError: (e) {
+          widget.onError?.call('获取JPEG失败: $e');
         });
-        return;
+        // 关键检查：如果返回 null，说明格式不可用
+        if (progress != null) return;
       }
     }
   }

@@ -178,6 +178,10 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     if (imageFormat != null) {
       try {
         final file = await _getImageFile(reader, imageFormat);
+        if (file == null) {
+          AppLogger.w('无法读取拖放的图片文件', 'DropHandler');
+          return null;
+        }
         final bytes = await file.readAll();
         final extension = imageFormat == Formats.png ? 'png' : 'jpg';
         final fileName = file.fileName ?? 'dropped_image.$extension';
@@ -193,10 +197,39 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     return null;
   }
 
-  Future<Uri?> _getFileUri(DataReader reader) {
+  Future<Uri?> _getFileUri(DataReader reader) async {
     final completer = Completer<Uri?>();
-    reader.getValue(Formats.fileUri, (uri) => completer.complete(uri));
-    return completer.future;
+
+    // 关键检查：如果 getValue 返回 null，说明格式不可用，直接返回 null
+    final progress = reader.getValue(Formats.fileUri, (uri) {
+      if (!completer.isCompleted) {
+        completer.complete(uri);
+      }
+    }, onError: (e) {
+      AppLogger.w('获取文件URI错误: $e', 'DropHandler');
+      if (!completer.isCompleted) {
+        completer.complete(null);
+      }
+    });
+
+    if (progress == null) {
+      // 格式不可用，不需要等待回调
+      return null;
+    }
+
+    // 添加超时保护，防止某些拖拽源不触发回调导致永久挂起
+    try {
+      return await completer.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          AppLogger.w('获取文件URI超时', 'DropHandler');
+          return null;
+        },
+      );
+    } catch (e) {
+      AppLogger.w('获取文件URI失败: $e', 'DropHandler');
+      return null;
+    }
   }
 
   FileFormat? _getSupportedImageFormat(DataReader reader) {
@@ -205,10 +238,39 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     return null;
   }
 
-  Future<DataReaderFile> _getImageFile(DataReader reader, FileFormat format) {
-    final completer = Completer<DataReaderFile>();
-    reader.getFile(format, (file) => completer.complete(file));
-    return completer.future;
+  Future<DataReaderFile?> _getImageFile(DataReader reader, FileFormat format) async {
+    final completer = Completer<DataReaderFile?>();
+
+    // 关键检查：如果 getFile 返回 null，说明格式不可用，直接返回 null
+    final progress = reader.getFile(format, (file) {
+      if (!completer.isCompleted) {
+        completer.complete(file);
+      }
+    }, onError: (e) {
+      AppLogger.w('获取图片文件错误: $e', 'DropHandler');
+      if (!completer.isCompleted) {
+        completer.complete(null);
+      }
+    });
+
+    if (progress == null) {
+      // 格式不可用，不需要等待回调
+      return null;
+    }
+
+    // 添加超时保护，防止某些拖拽源不触发回调导致永久挂起
+    try {
+      return await completer.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          AppLogger.w('获取图片文件超时', 'DropHandler');
+          return null;
+        },
+      );
+    } catch (e) {
+      AppLogger.w('获取图片文件失败: $e', 'DropHandler');
+      return null;
+    }
   }
 
   Future<void> _processDroppedFile(String fileName, Uint8List bytes) async {

@@ -97,7 +97,7 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
       // 尝试读取图片格式（SimpleFileFormat 需用 getFile 而非 getValue）
       for (final format in [Formats.png, Formats.jpeg]) {
         if (reader.canProvide(format)) {
-          reader.getFile(format, (file) async {
+          final progress = reader.getFile(format, (file) async {
             try {
               final bytes = await file.readAll();
               if (!mounted) return;
@@ -109,8 +109,14 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
                 'VibePreviewDropZone',
               );
             }
+          }, onError: (e) {
+            AppLogger.w(
+              'Failed to get dropped file: $e',
+              'VibePreviewDropZone',
+            );
           });
-          return;
+          // 关键检查：如果返回 null，说明格式不可用
+          if (progress != null) return;
         }
       }
     }
