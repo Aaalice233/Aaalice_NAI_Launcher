@@ -173,12 +173,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // 桌面/平板端显示 NavigationRail
           if (!isMobile) _buildNavigationRail(context, isExtended),
           if (!isMobile) const VerticalDivider(thickness: 1, width: 1),
-          // 内容区 - 居中显示，限制最大宽度
+          // 内容区 - 置顶排列，限制最大宽度
           Expanded(
             child: SingleChildScrollView(
               controller: _contentScrollController,
               padding: const EdgeInsets.all(24),
-              child: Center(
+              child: Align(
+                alignment: Alignment.topCenter,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 900),
                   child: _sections[_selectedIndex].widget,
