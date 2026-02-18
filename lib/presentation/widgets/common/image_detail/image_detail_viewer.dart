@@ -145,7 +145,8 @@ class _ImageDetailViewerState extends State<ImageDetailViewer> {
   late PageController _pageController;
   late ScrollController _thumbnailController;
   late int _currentIndex;
-  bool _showControls = true;
+  // 始终显示控制栏（不自动收起）
+  final bool _showControls = true;
   final _focusNode = FocusNode();
   final Map<int, TransformationController> _transformationControllers = {};
 
@@ -200,10 +201,6 @@ class _ImageDetailViewerState extends State<ImageDetailViewer> {
   void _onPageChanged(int index) {
     setState(() => _currentIndex = index);
     _scrollToThumbnail(index);
-  }
-
-  void _toggleControls() {
-    setState(() => _showControls = !_showControls);
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
@@ -388,9 +385,8 @@ class _ImageDetailViewerState extends State<ImageDetailViewer> {
     return Stack(
       children: [
         // 主图预览区域
-        GestureDetector(
-          onTap: _toggleControls,
-          child: PageView.builder(
+        // 注意：移除 onTap 切换控制栏，让顶部工具栏始终显示
+        PageView.builder(
             controller: _pageController,
             itemCount: widget.images.length,
             onPageChanged: _onPageChanged,
@@ -411,7 +407,6 @@ class _ImageDetailViewerState extends State<ImageDetailViewer> {
               );
             },
           ),
-        ),
 
         // 顶部控制栏
         AnimatedPositioned(

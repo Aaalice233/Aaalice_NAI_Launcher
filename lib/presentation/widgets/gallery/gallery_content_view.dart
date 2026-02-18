@@ -618,6 +618,9 @@ class LocalGalleryContentView extends ConsumerWidget {
     this.groupedGridViewKey,
   });
 
+  /// 防止重复打开详情页的标志
+  static bool _isOpeningDetail = false;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(localGalleryNotifierProvider);
@@ -625,6 +628,10 @@ class LocalGalleryContentView extends ConsumerWidget {
 
     // 显示图片详情查看器
     void showImageDetailViewer(List<LocalImageRecord> images, int initialIndex) {
+      // 防止重复点击打开多个详情页
+      if (_isOpeningDetail) return;
+      _isOpeningDetail = true;
+
       // 获取最新的收藏状态的函数
       bool getFavoriteStatus(String path) {
         final providerState = ref.read(localGalleryNotifierProvider);
@@ -642,29 +649,40 @@ class LocalGalleryContentView extends ConsumerWidget {
         );
       }).toList();
 
-      ImageDetailViewer.show(
-        context,
-        images: imageDataList,
-        initialIndex: initialIndex,
-        showMetadataPanel: true,
-        showThumbnails: images.length > 1,
-        callbacks: ImageDetailCallbacks(
-          onReuseMetadata: onReuseMetadata != null
-              ? (data, options) {
-                  if (data is LocalImageDetailData) {
-                    onReuseMetadata!(data.record);
+      // 使用 Future.microtask 将导航操作推迟到下一帧，避免阻塞 UI
+      Future.microtask(() {
+        if (!context.mounted) {
+          _isOpeningDetail = false;
+          return;
+        }
+
+        ImageDetailViewer.show(
+          context,
+          images: imageDataList,
+          initialIndex: initialIndex,
+          showMetadataPanel: true,
+          showThumbnails: images.length > 1,
+          callbacks: ImageDetailCallbacks(
+            onReuseMetadata: onReuseMetadata != null
+                ? (data, options) {
+                    if (data is LocalImageDetailData) {
+                      onReuseMetadata!(data.record);
+                    }
                   }
-                }
-              : null,
-          onFavoriteToggle: (data) {
-            if (data is LocalImageDetailData) {
-              ref
-                  .read(localGalleryNotifierProvider.notifier)
-                  .toggleFavorite(data.record.path);
-            }
-          },
-        ),
-      );
+                : null,
+            onFavoriteToggle: (data) {
+              if (data is LocalImageDetailData) {
+                ref
+                    .read(localGalleryNotifierProvider.notifier)
+                    .toggleFavorite(data.record.path);
+              }
+            },
+          ),
+        ).then((_) {
+          // 详情页关闭后，重置标志
+          _isOpeningDetail = false;
+        });
+      });
     }
 
     return GenericGalleryContentView<LocalImageRecord>(
