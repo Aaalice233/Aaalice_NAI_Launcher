@@ -27,9 +27,13 @@ class _AccountSettingsSectionState
     return SettingsCard(
       title: context.l10n.settings_account,
       icon: Icons.person,
-      child: AccountDetailTile(
-        onEdit: () => _showProfileSheet(context),
-        onLogin: () => _navigateToLogin(context),
+      // 移除默认padding，因为AccountDetailTile内部已有margin
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+        child: AccountDetailTile(
+          onEdit: () => _showProfileSheet(context),
+          onLogin: () => _navigateToLogin(context),
+        ),
       ),
     );
   }

@@ -72,7 +72,7 @@ class SettingsCard extends StatelessWidget {
           ),
           // 内容区域
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
             child: child,
           ),
           // 分隔线
