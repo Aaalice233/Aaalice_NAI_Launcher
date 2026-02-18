@@ -1537,4 +1537,381 @@ class GalleryDataSource extends BaseDataSource {
     await loadFavoritesCache();
     return _favoriteCache.toList();
   }
+
+  // ============================================================
+  // FTS5 全文搜索
+  // ============================================================
+
+  /// FTS5 全文搜索
+  ///
+  /// [query] 搜索关键词
+  /// [limit] 返回结果数量限制，默认100
+  ///
+  /// 处理搜索词，添加通配符支持，查询 gallery_fts_index 表
+  /// 返回匹配的 image_id 列表
+  Future<List<int>> searchFullText(String query, {int limit = 100}) async {
+    if (query.trim().isEmpty) return [];
+
+    final db = await _acquireDb();
+
+    try {
+      // 处理搜索词，添加通配符支持
+      final searchQuery = query
+          .split(RegExp(r'\s+'))
+          .where((s) => s.isNotEmpty)
+          .map((s) => '"$s"*')
+          .join(' OR ');
+
+      final results = await db.rawQuery(
+        '''
+        SELECT image_id FROM $_ftsIndexTable
+        WHERE $_ftsIndexTable MATCH ?
+        ORDER BY rank
+        LIMIT ?
+        ''',
+        [searchQuery, limit],
+      );
+
+      return results.map((row) => (row['image_id'] as num).toInt()).toList();
+    } catch (e, stack) {
+      AppLogger.e('Failed to search full text: $query', e, stack, 'GalleryDS');
+      return [];
+    } finally {
+      await _releaseDb(db);
+    }
+  }
+
+  /// 高级搜索（组合条件）
+  ///
+  /// [textQuery] 文本搜索关键词（可选）
+  /// [dateStart] 日期范围开始（可选）
+  /// [dateEnd] 日期范围结束（可选）
+  /// [favoritesOnly] 仅搜索收藏的图片（可选）
+  /// [limit] 返回结果数量限制，默认100
+  ///
+  /// 如果有 textQuery，使用 FTS5 虚拟表进行文本搜索
+  /// 否则使用普通 JOIN 查询
+  Future<List<int>> advancedSearch({
+    String? textQuery,
+    DateTime? dateStart,
+    DateTime? dateEnd,
+    bool favoritesOnly = false,
+    int limit = 100,
+  }) async {
+    final db = await _acquireDb();
+
+    try {
+      // 如果有文本查询，先使用 FTS5 搜索
+      List<int>? textSearchIds;
+      if (textQuery != null && textQuery.trim().isNotEmpty) {
+        textSearchIds = await searchFullText(textQuery, limit: limit * 2);
+        if (textSearchIds.isEmpty) {
+          return [];
+        }
+      }
+
+      // 构建查询条件
+      final conditions = <String>['i.is_deleted = 0'];
+      final args = <dynamic>[];
+
+      // 收藏过滤
+      if (favoritesOnly) {
+        conditions.add('f.image_id IS NOT NULL');
+      }
+
+      // 日期范围过滤
+      if (dateStart != null) {
+        conditions.add('i.modified_at >= ?');
+        args.add(dateStart.millisecondsSinceEpoch);
+      }
+      if (dateEnd != null) {
+        conditions.add('i.modified_at <= ?');
+        args.add(dateEnd.millisecondsSinceEpoch);
+      }
+
+      // 如果有文本搜索结果，添加 ID 过滤
+      if (textSearchIds != null && textSearchIds.isNotEmpty) {
+        final placeholders = List.filled(textSearchIds.length, '?').join(',');
+        conditions.add('i.id IN ($placeholders)');
+        args.addAll(textSearchIds);
+      }
+
+      final whereClause = conditions.join(' AND ');
+
+      final results = await db.rawQuery(
+        '''
+        SELECT i.id FROM $_imagesTable i
+        LEFT JOIN $_favoritesTable f ON i.id = f.image_id
+        WHERE $whereClause
+        ORDER BY i.modified_at DESC
+        LIMIT ?
+        ''',
+        [...args, limit],
+      );
+
+      return results.map((row) => (row['id'] as num).toInt()).toList();
+    } catch (e, stack) {
+      AppLogger.e('Failed to perform advanced search', e, stack, 'GalleryDS');
+      return [];
+    } finally {
+      await _releaseDb(db);
+    }
+  }
+
+  // ============================================================
+  // 标签操作
+  // ============================================================
+
+  /// 添加标签到图片
+  ///
+  /// [imageId] 图片ID
+  /// [tagName] 标签名称
+  ///
+  /// 使用事务，插入或获取标签（INSERT OR IGNORE），然后创建图片-标签关联
+  Future<void> addTag(int imageId, String tagName) async {
+    if (tagName.trim().isEmpty) return;
+
+    final normalizedTag = tagName.trim();
+    final tagId = _generateTagId(normalizedTag);
+
+    final db = await _acquireDb();
+
+    try {
+      await db.transaction((txn) async {
+        // 插入或忽略标签
+        await txn.insert(
+          _tagsTable,
+          {
+            'id': tagId,
+            'name': normalizedTag,
+            'usage_count': 0,
+          },
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
+
+        // 创建图片-标签关联
+        await txn.insert(
+          _imageTagsTable,
+          {
+            'image_id': imageId,
+            'tag_id': tagId,
+          },
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
+
+        // 更新标签使用次数
+        await txn.rawUpdate(
+          '''
+          UPDATE $_tagsTable
+          SET usage_count = (
+            SELECT COUNT(*) FROM $_imageTagsTable WHERE tag_id = ?
+          )
+          WHERE id = ?
+          ''',
+          [tagId, tagId],
+        );
+      });
+
+      AppLogger.d('Added tag "$normalizedTag" to image $imageId', 'GalleryDS');
+    } catch (e, stack) {
+      AppLogger.e(
+        'Failed to add tag "$normalizedTag" to image $imageId',
+        e,
+        stack,
+        'GalleryDS',
+      );
+      rethrow;
+    } finally {
+      await _releaseDb(db);
+    }
+  }
+
+  /// 从图片移除标签
+  ///
+  /// [imageId] 图片ID
+  /// [tagName] 标签名称
+  ///
+  /// 使用事务，删除图片-标签关联
+  Future<void> removeTag(int imageId, String tagName) async {
+    if (tagName.trim().isEmpty) return;
+
+    final normalizedTag = tagName.trim();
+    final tagId = _generateTagId(normalizedTag);
+
+    final db = await _acquireDb();
+
+    try {
+      await db.transaction((txn) async {
+        // 删除图片-标签关联
+        await txn.delete(
+          _imageTagsTable,
+          where: 'image_id = ? AND tag_id = ?',
+          whereArgs: [imageId, tagId],
+        );
+
+        // 更新标签使用次数
+        await txn.rawUpdate(
+          '''
+          UPDATE $_tagsTable
+          SET usage_count = (
+            SELECT COUNT(*) FROM $_imageTagsTable WHERE tag_id = ?
+          )
+          WHERE id = ?
+          ''',
+          [tagId, tagId],
+        );
+
+        // 如果标签不再被使用，可以选择删除标签（可选）
+        // 这里保留标签，只是 usage_count 变为 0
+      });
+
+      AppLogger.d(
+        'Removed tag "$normalizedTag" from image $imageId',
+        'GalleryDS',
+      );
+    } catch (e, stack) {
+      AppLogger.e(
+        'Failed to remove tag "$normalizedTag" from image $imageId',
+        e,
+        stack,
+        'GalleryDS',
+      );
+      rethrow;
+    } finally {
+      await _releaseDb(db);
+    }
+  }
+
+  /// 获取图片的所有标签
+  ///
+  /// [imageId] 图片ID
+  ///
+  /// 查询 tags 和 image_tags 表，返回标签名称列表
+  Future<List<String>> getImageTags(int imageId) async {
+    final db = await _acquireDb();
+
+    try {
+      final results = await db.rawQuery(
+        '''
+        SELECT t.name
+        FROM $_tagsTable t
+        INNER JOIN $_imageTagsTable it ON t.id = it.tag_id
+        WHERE it.image_id = ?
+        ORDER BY t.name ASC
+        ''',
+        [imageId],
+      );
+
+      return results.map((row) => row['name'] as String).toList();
+    } catch (e, stack) {
+      AppLogger.e('Failed to get tags for image $imageId', e, stack, 'GalleryDS');
+      return [];
+    } finally {
+      await _releaseDb(db);
+    }
+  }
+
+  /// 设置图片标签（完全替换）
+  ///
+  /// [imageId] 图片ID
+  /// [tags] 标签名称列表
+  ///
+  /// 使用事务，先删除现有标签关联，然后批量插入新标签
+  /// 每个标签：插入标签表（如不存在），获取ID，创建关联
+  Future<void> setImageTags(int imageId, List<String> tags) async {
+    final normalizedTags = tags
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty)
+        .toSet()
+        .toList();
+
+    final db = await _acquireDb();
+
+    try {
+      await db.transaction((txn) async {
+        // 获取当前标签，用于后续更新 usage_count
+        final currentTagsResult = await txn.rawQuery(
+          '''
+          SELECT t.id
+          FROM $_tagsTable t
+          INNER JOIN $_imageTagsTable it ON t.id = it.tag_id
+          WHERE it.image_id = ?
+          ''',
+          [imageId],
+        );
+        final oldTagIds = currentTagsResult
+            .map((row) => row['id'] as String)
+            .toSet();
+
+        // 删除该图片的所有标签关联
+        await txn.delete(
+          _imageTagsTable,
+          where: 'image_id = ?',
+          whereArgs: [imageId],
+        );
+
+        // 批量插入新标签
+        for (final tagName in normalizedTags) {
+          final tagId = _generateTagId(tagName);
+
+          // 插入或忽略标签
+          await txn.insert(
+            _tagsTable,
+            {
+              'id': tagId,
+              'name': tagName,
+              'usage_count': 0,
+            },
+            conflictAlgorithm: ConflictAlgorithm.ignore,
+          );
+
+          // 创建图片-标签关联
+          await txn.insert(
+            _imageTagsTable,
+            {
+              'image_id': imageId,
+              'tag_id': tagId,
+            },
+            conflictAlgorithm: ConflictAlgorithm.ignore,
+          );
+        }
+
+        // 更新所有受影响标签的 usage_count
+        final allTagIds = <String>{...oldTagIds};
+        for (final tagName in normalizedTags) {
+          allTagIds.add(_generateTagId(tagName));
+        }
+
+        for (final tagId in allTagIds) {
+          await txn.rawUpdate(
+            '''
+            UPDATE $_tagsTable
+            SET usage_count = (
+              SELECT COUNT(*) FROM $_imageTagsTable WHERE tag_id = ?
+            )
+            WHERE id = ?
+            ''',
+            [tagId, tagId],
+          );
+        }
+      });
+
+      AppLogger.d(
+        'Set ${normalizedTags.length} tags for image $imageId',
+        'GalleryDS',
+      );
+    } catch (e, stack) {
+      AppLogger.e('Failed to set tags for image $imageId', e, stack, 'GalleryDS');
+      rethrow;
+    } finally {
+      await _releaseDb(db);
+    }
+  }
+
+  /// 生成标签ID
+  ///
+  /// 使用标签名称的小写形式作为ID，确保一致性
+  String _generateTagId(String tagName) {
+    return tagName.toLowerCase().trim();
+  }
 }
