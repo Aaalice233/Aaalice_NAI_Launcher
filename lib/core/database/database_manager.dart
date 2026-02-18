@@ -8,6 +8,9 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../utils/app_logger.dart';
 import 'connection_pool_holder.dart';
 import 'health_checker.dart';
+import 'data_source.dart';
+import 'datasources/gallery_data_source.dart';
+import 'migrations/gallery_data_migration.dart';
 
 /// 数据库初始化状态
 enum DatabaseInitState {
@@ -81,6 +84,21 @@ class DatabaseManager {
   final _initCompleter = Completer<void>();
   final bool _backgroundCheckCompleted = false;
 
+  // 数据源注册表
+  final Map<String, DataSource> _dataSources = {};
+
+  /// 获取已注册的数据源
+  Map<String, DataSource> get dataSources => Map.unmodifiable(_dataSources);
+
+  /// 获取指定名称的数据源
+  T? getDataSource<T extends DataSource>(String name) {
+    final ds = _dataSources[name];
+    if (ds is T) {
+      return ds;
+    }
+    return null;
+  }
+
   /// 获取初始化状态
   DatabaseInitState get state => _state;
 
@@ -126,6 +144,10 @@ class DatabaseManager {
       AppLogger.i('ConnectionPool initialized', 'DatabaseManager');
 
       _state = DatabaseInitState.initialized;
+
+      // 注册所有数据源
+      await _registerDataSources();
+
       _initCompleter.complete();
 
       AppLogger.i('DatabaseManager initialized successfully', 'DatabaseManager');
@@ -264,11 +286,66 @@ class DatabaseManager {
   Future<void> dispose() async {
     AppLogger.i('Disposing DatabaseManager...', 'DatabaseManager');
 
+    // 释放所有数据源
+    for (final entry in _dataSources.entries) {
+      try {
+        await entry.value.dispose();
+        AppLogger.i('DataSource "${entry.key}" disposed', 'DatabaseManager');
+      } catch (e) {
+        AppLogger.w('Failed to dispose DataSource "${entry.key}": $e', 'DatabaseManager');
+      }
+    }
+    _dataSources.clear();
+
     await ConnectionPoolHolder.dispose();
 
     _state = DatabaseInitState.uninitialized;
     _instance = null;
 
     AppLogger.i('DatabaseManager disposed', 'DatabaseManager');
+  }
+
+  // ===========================================================================
+  // 数据源管理
+  // ===========================================================================
+
+  /// 注册所有数据源
+  Future<void> _registerDataSources() async {
+    AppLogger.i('Registering data sources...', 'DatabaseManager');
+
+    // 注册画廊数据源
+    final galleryDataSource = GalleryDataSource();
+    _dataSources[galleryDataSource.name] = galleryDataSource;
+
+    // 初始化画廊数据源
+    try {
+      await galleryDataSource.initialize();
+      AppLogger.i('GalleryDataSource initialized', 'DatabaseManager');
+    } catch (e, stack) {
+      AppLogger.e('Failed to initialize GalleryDataSource', e, stack, 'DatabaseManager');
+      // 数据源初始化失败不应阻塞整体启动
+    }
+
+    // 检查并执行数据迁移
+    await _checkAndMigrateGalleryData(galleryDataSource);
+
+    AppLogger.i('Data sources registered: ${_dataSources.keys.join(', ')}', 'DatabaseManager');
+  }
+
+  /// 检查并执行画廊数据迁移
+  Future<void> _checkAndMigrateGalleryData(GalleryDataSource dataSource) async {
+    try {
+      if (await GalleryDataMigration.needsMigration()) {
+        AppLogger.i('Gallery data migration needed, starting...', 'DatabaseManager');
+        final result = await GalleryDataMigration.migrate(dataSource);
+        if (result.success) {
+          AppLogger.i('Gallery migration completed: ${result.imagesMigrated} images migrated', 'DatabaseManager');
+        } else {
+          AppLogger.w('Gallery migration failed: ${result.error}', 'DatabaseManager');
+        }
+      }
+    } catch (e) {
+      AppLogger.w('Failed to check/migrate gallery data: $e', 'DatabaseManager');
+    }
   }
 }

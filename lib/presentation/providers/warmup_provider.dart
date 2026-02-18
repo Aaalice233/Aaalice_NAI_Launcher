@@ -10,6 +10,7 @@ import '../../core/network/proxy_service.dart';
 import '../../core/enums/warmup_phase.dart';
 import '../../core/services/app_warmup_service.dart';
 import '../../core/database/database.dart';
+import '../../core/database/datasources/gallery_data_source.dart';
 // import '../../core/services/artist_tags_isolate_service.dart'; // 暂时未使用，改用 fetchArtistTags
 import '../../core/services/danbooru_tags_lazy_service.dart';
 import '../../core/services/data_migration_service.dart';
@@ -302,7 +303,12 @@ class WarmupNotifier extends _$WarmupNotifier {
         displayName: '初始化共现数据',
         phase: WarmupPhase.quick,
         weight: 1,
-        task: _initCooccurrenceData,
+        task: () async {
+          // 先执行轻量级检查
+          await _initCooccurrenceData();
+          // 如果数据缺失，在后台导入
+          await _importCooccurrenceDataInBackground();
+        },
       ),
     );
 
@@ -328,7 +334,19 @@ class WarmupNotifier extends _$WarmupNotifier {
       ),
     );
 
-    // 6. 画廊计数
+    // 6. 画廊数据源初始化
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_galleryDataSource',
+        displayName: '初始化画廊索引',
+        phase: WarmupPhase.quick,
+        weight: 3,
+        timeout: const Duration(seconds: 30),
+        task: _initGalleryDataSource,
+      ),
+    );
+
+    // 7. 画廊计数
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_galleryFileCount',
@@ -458,10 +476,59 @@ class WarmupNotifier extends _$WarmupNotifier {
     }
   }
 
+  /// 后台导入共现数据（解决首次启动或清除缓存后数据缺失问题）
+  Future<void> _importCooccurrenceDataInBackground() async {
+    AppLogger.i('开始后台导入共现数据...', 'Warmup');
+
+    try {
+      final cooccurrenceService = await ref.watch(cooccurrenceServiceProvider.future);
+
+      // 检查数据是否已存在
+      final isReady = await cooccurrenceService.initializeUnified();
+
+      if (isReady) {
+        AppLogger.i('共现数据已存在，跳过导入', 'Warmup');
+        return;
+      }
+
+      AppLogger.i('共现数据缺失，开始后台导入...', 'Warmup');
+
+      // 执行后台导入
+      await cooccurrenceService.performBackgroundImport(
+        onProgress: (progress, message) {
+          AppLogger.d('共现数据导入进度: $progress - $message', 'Warmup');
+        },
+      );
+
+      AppLogger.i('共现数据后台导入完成', 'Warmup');
+    } catch (e, stack) {
+      AppLogger.e('共现数据后台导入失败', e, stack, 'Warmup');
+      // 导入失败不阻塞启动，后续使用时会重试
+    }
+  }
+
   /// 加载提示词配置
   Future<void> _loadPromptConfig() async {
     final notifier = ref.read(promptConfigNotifierProvider.notifier);
     await notifier.whenLoaded.timeout(const Duration(seconds: 8));
+  }
+
+  /// 初始化画廊数据源
+  Future<void> _initGalleryDataSource() async {
+    try {
+      // 获取 DatabaseManager 并等待初始化
+      final dbManager = await ref.read(databaseManagerProvider.future);
+
+      // 获取 GalleryDataSource
+      final galleryDs = dbManager.getDataSource<GalleryDataSource>('gallery');
+      if (galleryDs != null) {
+        // 数据源已初始化（DatabaseManager 中已完成）
+        AppLogger.i('GalleryDataSource initialized in warmup phase', 'Warmup');
+      }
+    } catch (e, stack) {
+      AppLogger.w('GalleryDataSource warmup failed: $e', 'Warmup');
+      // 不抛出异常，避免阻塞启动
+    }
   }
 
   /// 统计画廊文件数
