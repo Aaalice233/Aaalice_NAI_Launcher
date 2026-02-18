@@ -18,6 +18,7 @@ import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/image_detail/image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_viewer.dart';
 import '../../../widgets/common/selectable_image_card.dart';
+import '../../../utils/image_detail_opener.dart';
 import '../../tag_library_page/widgets/entry_add_dialog.dart';
 import 'upscale_dialog.dart';
 
@@ -30,9 +31,6 @@ class ImagePreviewWidget extends ConsumerStatefulWidget {
 }
 
 class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
-  /// 防止重复打开详情页
-  bool _isOpeningDetail = false;
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(imageGenerationNotifierProvider);
@@ -501,10 +499,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
   }
 
   void _showFullscreenImage(Uint8List imageBytes) {
-    // 防止重复点击
-    if (_isOpeningDetail) return;
-    _isOpeningDetail = true;
-
     final state = ref.read(imageGenerationNotifierProvider);
     final params = ref.read(generationParamsNotifierProvider);
     final characterConfig = ref.read(characterPromptNotifierProvider);
@@ -543,8 +537,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       );
     }).toList();
 
-    // 立即打开详情页，不等待元数据提取
-    ImageDetailViewer.show(
+    // 使用 ImageDetailOpener 打开详情页（带防重复点击）
+    ImageDetailOpener.showMultipleImmediate(
       context,
       images: allImages,
       initialIndex: initialIndex,
@@ -553,12 +547,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       callbacks: ImageDetailCallbacks(
         onSave: (image) => _saveImage(context, image),
       ),
-    ).then((_) {
-      // 详情页关闭后重置标志
-      if (mounted) {
-        setState(() => _isOpeningDetail = false);
-      }
-    });
+    );
 
     // 在后台提取实际的 seed（如果参数中是 -1）
     // 这不会影响详情页的打开速度

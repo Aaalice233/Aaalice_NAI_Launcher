@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../data/models/gallery/local_image_record.dart';
+import '../utils/image_detail_opener.dart';
 import 'common/app_toast.dart';
 import 'common/animated_favorite_button.dart';
 import 'common/image_detail/image_detail_data.dart';
@@ -59,9 +60,6 @@ class _LocalImageCardState extends State<LocalImageCard>
 
   /// 是否已预缓存详情图片
   bool _isPrecached = false;
-
-  /// 是否正在打开详情页（防止重复点击）
-  bool _isOpeningDetail = false;
 
   @override
   bool get wantKeepAlive => true; // 保持状态，避免翻页回来后重新加载
@@ -227,45 +225,26 @@ class _LocalImageCardState extends State<LocalImageCard>
   ///
   /// 使用统一的 ImageDetailViewer 组件显示图片详情
   void _showDetailsDialog() {
-    // 防止重复点击打开多个详情页
-    if (_isOpeningDetail) return;
-    _isOpeningDetail = true;
-
-    // 使用 Future.microtask 将导航操作推迟到下一帧
-    // 这样点击反馈（如水波纹）能立即显示，不会阻塞 UI
-    Future.microtask(() {
-      if (!mounted) {
-        _isOpeningDetail = false;
-        return;
-      }
-
-      // 使用统一的 ImageDetailViewer 替代自定义 Dialog
-      // 即使没有元数据也可以查看图片
-      ImageDetailViewer.showSingle(
-        context,
-        image: LocalImageDetailData(
-          widget.record,
-          getFavoriteStatus: (_) => widget.record.isFavorite,
-        ),
-        showMetadataPanel: true,
-        callbacks: ImageDetailCallbacks(
-          onFavoriteToggle: widget.onFavoriteToggle != null
-              ? (image) => widget.onFavoriteToggle!(widget.record)
-              : null,
-          onReuseMetadata: widget.onReuseMetadata != null
-              ? (image, options) {
-                  widget.onReuseMetadata!(widget.record);
-                }
-              : null,
-        ),
-        heroTag: 'local_image_${widget.record.path.hashCode}',
-      ).then((_) {
-        // 详情页关闭后，重置标志
-        if (mounted) {
-          setState(() => _isOpeningDetail = false);
-        }
-      });
-    });
+    // 使用 ImageDetailOpener 打开详情页（带防重复点击）
+    ImageDetailOpener.showSingleImmediate(
+      context,
+      image: LocalImageDetailData(
+        widget.record,
+        getFavoriteStatus: (_) => widget.record.isFavorite,
+      ),
+      showMetadataPanel: true,
+      callbacks: ImageDetailCallbacks(
+        onFavoriteToggle: widget.onFavoriteToggle != null
+            ? (image) => widget.onFavoriteToggle!(widget.record)
+            : null,
+        onReuseMetadata: widget.onReuseMetadata != null
+            ? (image, options) {
+                widget.onReuseMetadata!(widget.record);
+              }
+            : null,
+      ),
+      heroTag: 'local_image_${widget.record.path.hashCode}',
+    );
   }
 
   /// 复制图片到剪贴板

@@ -27,6 +27,7 @@ import '../../widgets/anlas/anlas_balance_chip.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/image_detail/image_detail_data.dart';
 import '../../widgets/common/image_detail/image_detail_viewer.dart';
+import '../../utils/image_detail_opener.dart';
 import '../../widgets/generation/auto_save_toggle_chip.dart';
 import '../../widgets/common/draggable_number_input.dart';
 import '../../widgets/common/themed_button.dart';
@@ -62,6 +63,7 @@ class _DesktopGenerationLayoutState
   // 拖拽状态（拖拽时禁用动画以避免粘滞感）
   bool _isResizingLeft = false;
   bool _isResizingRight = false;
+
 
   /// 切换提示词区域最大化状态
   void _togglePromptMaximize() {
@@ -400,6 +402,88 @@ class _DesktopGenerationLayoutState
       ),
     );
   }
+
+  /// 显示全屏预览（静态方法，可被其他类访问）
+  static void _showFullscreenPreview(
+    BuildContext context,
+    WidgetRef ref,
+    List<GeneratedImage> images,
+  ) {
+    final params = ref.read(generationParamsNotifierProvider);
+    final characterConfig = ref.read(characterPromptNotifierProvider);
+
+    // 立即构建基础数据（不提取元数据）
+    final allImages = images.map((img) {
+      return GeneratedImageDetailData.fromParams(
+        imageBytes: img.bytes,
+        prompt: params.prompt,
+        negativePrompt: params.negativePrompt,
+        seed: params.seed == -1 ? 0 : params.seed,
+        steps: params.steps,
+        scale: params.scale,
+        width: params.width,
+        height: params.height,
+        model: params.model,
+        sampler: params.sampler,
+        smea: params.smea,
+        smeaDyn: params.smeaDyn,
+        noiseSchedule: params.noiseSchedule,
+        cfgRescale: params.cfgRescale,
+        characterPrompts: characterConfig.characters
+            .where((c) => c.enabled && c.prompt.isNotEmpty)
+            .map((c) => c.prompt)
+            .toList(),
+        characterNegativePrompts: characterConfig.characters
+            .where((c) => c.enabled)
+            .map((c) => c.negativePrompt)
+            .toList(),
+        id: img.id,
+      );
+    }).toList();
+
+    // 使用 ImageDetailOpener 打开详情页（带防重复点击）
+    ImageDetailOpener.showMultipleImmediate(
+      context,
+      images: allImages,
+      initialIndex: 0,
+      showMetadataPanel: true,
+      showThumbnails: allImages.length > 1,
+      callbacks: ImageDetailCallbacks(
+        onSave: (image) => _saveImageFromDetail(context, ref, image),
+      ),
+    );
+  }
+
+  /// 从详情页保存图像（静态方法，可被其他类访问）
+  static Future<void> _saveImageFromDetail(
+    BuildContext context,
+    WidgetRef ref,
+    ImageDetailData image,
+  ) async {
+    try {
+      final imageBytes = await image.getImageBytes();
+      final saveDirPath = LocalGalleryRepository.instance.getImageDirectory();
+      if (saveDirPath == null) return;
+      final saveDir = Directory(saveDirPath);
+      if (!await saveDir.exists()) {
+        await saveDir.create(recursive: true);
+      }
+
+      final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File('$saveDirPath/$fileName');
+      await file.writeAsBytes(imageBytes);
+
+      ref.read(localGalleryNotifierProvider.notifier).refresh();
+
+      if (context.mounted) {
+        AppToast.success(context, context.l10n.image_imageSaved(saveDirPath));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
+      }
+    }
+  }
 }
 
 /// 生成控制按钮
@@ -533,7 +617,11 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
       ShortcutIds.fullscreenPreview: () {
         final generationState = ref.read(imageGenerationNotifierProvider);
         if (generationState.displayImages.isNotEmpty) {
-          _showFullscreenPreview(context, ref, generationState.displayImages);
+          _DesktopGenerationLayoutState._showFullscreenPreview(
+            context,
+            ref,
+            generationState.displayImages,
+          );
         }
       },
       // 打开参数面板
@@ -892,104 +980,6 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     } catch (e) {
       if (context.mounted) {
         AppToast.error(context, '复制图像失败: $e');
-      }
-    }
-  }
-
-  /// 显示全屏预览
-  void _showFullscreenPreview(
-    BuildContext context,
-    WidgetRef ref,
-    List<GeneratedImage> images,
-  ) async {
-    final params = ref.read(generationParamsNotifierProvider);
-    final characterConfig = ref.read(characterPromptNotifierProvider);
-
-    // 将所有图像转换为 GeneratedImageDetailData
-    final allImages = <GeneratedImageDetailData>[];
-    for (final img in images) {
-      // 尝试从图片中提取实际的 seed
-      int actualSeed = params.seed;
-      if (params.seed == -1) {
-        final extractedMeta =
-            await NaiMetadataParser.extractFromBytes(img.bytes);
-        if (extractedMeta != null &&
-            extractedMeta.seed != null &&
-            extractedMeta.seed! > 0) {
-          actualSeed = extractedMeta.seed!;
-        }
-      }
-
-      allImages.add(
-        GeneratedImageDetailData.fromParams(
-          imageBytes: img.bytes,
-          prompt: params.prompt,
-          negativePrompt: params.negativePrompt,
-          seed: actualSeed,
-          steps: params.steps,
-          scale: params.scale,
-          width: params.width,
-          height: params.height,
-          model: params.model,
-          sampler: params.sampler,
-          smea: params.smea,
-          smeaDyn: params.smeaDyn,
-          noiseSchedule: params.noiseSchedule,
-          cfgRescale: params.cfgRescale,
-          characterPrompts: characterConfig.characters
-              .where((c) => c.enabled && c.prompt.isNotEmpty)
-              .map((c) => c.prompt)
-              .toList(),
-          characterNegativePrompts: characterConfig.characters
-              .where((c) => c.enabled)
-              .map((c) => c.negativePrompt)
-              .toList(),
-          id: img.id,
-        ),
-      );
-    }
-
-    if (!context.mounted) return;
-
-    ImageDetailViewer.show(
-      context,
-      images: allImages,
-      initialIndex: 0,
-      showMetadataPanel: true,
-      showThumbnails: allImages.length > 1,
-      callbacks: ImageDetailCallbacks(
-        onSave: (image) => _saveImageFromDetail(context, ref, image),
-      ),
-    );
-  }
-
-  /// 从详情页保存图像
-  Future<void> _saveImageFromDetail(
-    BuildContext context,
-    WidgetRef ref,
-    ImageDetailData image,
-  ) async {
-    try {
-      final imageBytes = await image.getImageBytes();
-      final saveDirPath = LocalGalleryRepository.instance.getImageDirectory();
-      if (saveDirPath == null) return;
-      final saveDir = Directory(saveDirPath);
-      if (!await saveDir.exists()) {
-        await saveDir.create(recursive: true);
-      }
-
-      final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File('$saveDirPath/$fileName');
-      await file.writeAsBytes(imageBytes);
-
-      ref.read(localGalleryNotifierProvider.notifier).refresh();
-
-      if (context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(saveDirPath));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
       }
     }
   }
