@@ -175,16 +175,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           if (!isMobile) const VerticalDivider(thickness: 1, width: 1),
           // 内容区 - 置顶排列，限制最大宽度
           Expanded(
-            child: SingleChildScrollView(
-              controller: _contentScrollController,
-              padding: const EdgeInsets.all(24),
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 900),
-                  child: _sections[_selectedIndex].widget,
-                ),
-              ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  controller: _contentScrollController,
+                  padding: const EdgeInsets.all(24),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                      maxWidth: 900,
+                    ),
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: _sections[_selectedIndex].widget,
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
