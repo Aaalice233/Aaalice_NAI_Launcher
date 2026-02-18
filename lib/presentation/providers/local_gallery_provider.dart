@@ -5,6 +5,8 @@ import 'dart:math';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/database/database_providers.dart';
+import '../../core/database/datasources/gallery_data_source.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/local_image_record.dart';
 import '../../data/repositories/local_gallery_repository.dart';
@@ -65,6 +67,8 @@ class LocalGalleryState with _$LocalGalleryState {
     @Default(false) bool isRebuildingIndex,
     /// 错误信息
     String? error,
+    /// 首次索引提示信息
+    String? firstTimeIndexMessage,
   }) = _LocalGalleryState;
 
   const LocalGalleryState._();
@@ -93,20 +97,48 @@ class LocalGalleryState with _$LocalGalleryState {
       filterResolution != null;
 }
 
-/// 本地画廊 Notifier（简化版）
+/// GalleryDataSource Provider
+///
+/// 使用新的数据源架构，从 DatabaseManager 获取 GalleryDataSource
+@Riverpod(keepAlive: true)
+class GalleryDataSourceNotifier extends _$GalleryDataSourceNotifier {
+  @override
+  Future<GalleryDataSource> build() async {
+    final dbManager = await ref.watch(databaseManagerProvider.future);
+    final dataSource = dbManager.getDataSource<GalleryDataSource>('gallery');
+    if (dataSource == null) {
+      throw StateError('GalleryDataSource not found');
+    }
+    return dataSource;
+  }
+}
+
+/// 本地画廊 Notifier（使用新数据源架构）
 ///
 /// 依赖关系：
-/// - LocalGalleryRepository: 数据操作
+/// - GalleryDataSource: 新的数据源（收藏、标签操作）
+/// - LocalGalleryRepository: 保留用于文件扫描和元数据加载
 /// - SQLite (via Repository): 唯一数据源
 /// - FileWatcherService (via Repository): 自动增量更新
 @Riverpod(keepAlive: true)
 class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   late final LocalGalleryRepository _repo;
+  GalleryDataSource? _dataSource;
 
   @override
   LocalGalleryState build() {
     _repo = LocalGalleryRepository.instance;
     return const LocalGalleryState();
+  }
+
+  /// 获取数据源（懒加载）
+  Future<GalleryDataSource> _getDataSource() async {
+    if (_dataSource != null) {
+      return _dataSource!;
+    }
+    final dataSource = await ref.read(galleryDataSourceNotifierProvider.future);
+    _dataSource = dataSource;
+    return dataSource;
   }
 
   // ============================================================
@@ -132,10 +164,19 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       // 【关键】先加载文件列表，让用户立即看到图片
       // 这一步不依赖数据库，直接从文件系统读取
       final files = await _repo.getAllImageFiles();
+
+      // 检测是否为首次大量索引
+      String? firstTimeMessage;
+      if (files.length > 10000) {
+        firstTimeMessage = '检测到 ${files.length} 张图片，首次索引可能需要几分钟，应用仍可正常使用';
+        AppLogger.i(firstTimeMessage, 'LocalGalleryNotifier');
+      }
+
       state = state.copyWith(
         allFiles: files,
         filteredFiles: files,
         isLoading: false,  // 文件列表已显示，可以交互了
+        firstTimeIndexMessage: firstTimeMessage,
       );
 
       // 加载首页（显示图片）
@@ -170,7 +211,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       );
       // 后台刷新，不显示加载状态，避免干扰用户浏览
       await loadPage(state.currentPage, showLoading: false);
-      
+
       // 延迟清理扫描状态（让用户看到 100% 完成）
       Future.delayed(const Duration(seconds: 2), () {
         if (state.scanPhase == 'completed') {
@@ -235,7 +276,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   // ============================================================
 
   /// 加载指定页面
-  /// 
+  ///
   /// [showLoading] - 是否显示加载状态。后台刷新时应为 false，避免干扰用户浏览
   Future<void> loadPage(int page, {bool showLoading = true}) async {
     if (state.filteredFiles.isEmpty) {
@@ -286,7 +327,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
 
     _shouldCancelRebuild = false;
     state = state.copyWith(isRebuildingIndex: true, isLoading: true);
-    
+
     try {
       final result = await _repo.performFullScan(
         onProgress: ({required processed, required total, currentFile, required phase}) {
@@ -302,7 +343,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
           );
         },
       );
-      
+
       if (_shouldCancelRebuild) {
         AppLogger.i('Rebuild index cancelled by user', 'LocalGalleryNotifier');
         state = state.copyWith(
@@ -311,7 +352,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         );
         return null;
       }
-      
+
       final files = await _repo.getAllImageFiles();
       state = state.copyWith(
         allFiles: files,
@@ -494,28 +535,89 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       state.filterResolution != null;
 
   // ============================================================
-  // 收藏
+  // 收藏（使用新数据源）
   // ============================================================
 
   Future<void> toggleFavorite(String filePath) async {
     try {
-      await _repo.toggleFavorite(filePath);
+      final dataSource = await _getDataSource();
+      final imageId = await dataSource.getImageIdByPath(filePath);
+
+      if (imageId != null) {
+        // 使用新数据源切换收藏状态
+        await dataSource.toggleFavorite(imageId);
+        AppLogger.d('Toggled favorite for image $imageId via GalleryDataSource', 'LocalGalleryNotifier');
+      } else {
+        // 如果图片不在数据库中，回退到旧仓库的 Hive 存储
+        AppLogger.w('Image not found in database, falling back to repository: $filePath', 'LocalGalleryNotifier');
+        await _repo.toggleFavorite(filePath);
+      }
+
       await loadPage(state.currentPage);
     } catch (e) {
       AppLogger.e('Toggle favorite failed', e, null, 'LocalGalleryNotifier');
     }
   }
 
+  Future<bool> isFavorite(String filePath) async {
+    try {
+      final dataSource = await _getDataSource();
+      final imageId = await dataSource.getImageIdByPath(filePath);
+
+      if (imageId != null) {
+        return await dataSource.isFavorite(imageId);
+      }
+
+      // 回退到旧仓库
+      return await _repo.isFavorite(filePath);
+    } catch (e) {
+      AppLogger.e('Check favorite failed', e, null, 'LocalGalleryNotifier');
+      return false;
+    }
+  }
+
   int getTotalFavoriteCount() => _repo.getTotalFavoriteCount();
 
   // ============================================================
-  // 标签
+  // 标签（使用新数据源）
   // ============================================================
 
-  Future<List<String>> getTags(String filePath) async => await _repo.getTags(filePath);
+  Future<List<String>> getTags(String filePath) async {
+    try {
+      final dataSource = await _getDataSource();
+      final imageId = await dataSource.getImageIdByPath(filePath);
+
+      if (imageId != null) {
+        // 使用新数据源获取标签
+        return await dataSource.getImageTags(imageId);
+      }
+
+      // 回退到旧仓库
+      return await _repo.getTags(filePath);
+    } catch (e) {
+      AppLogger.e('Get tags failed', e, null, 'LocalGalleryNotifier');
+      return [];
+    }
+  }
 
   Future<void> setTags(String filePath, List<String> tags) async {
-    await _repo.setTags(filePath, tags);
-    await loadPage(state.currentPage);
+    try {
+      final dataSource = await _getDataSource();
+      final imageId = await dataSource.getImageIdByPath(filePath);
+
+      if (imageId != null) {
+        // 使用新数据源设置标签
+        await dataSource.setImageTags(imageId, tags);
+        AppLogger.d('Set tags for image $imageId via GalleryDataSource', 'LocalGalleryNotifier');
+      } else {
+        // 如果图片不在数据库中，回退到旧仓库的 Hive 存储
+        AppLogger.w('Image not found in database, falling back to repository: $filePath', 'LocalGalleryNotifier');
+        await _repo.setTags(filePath, tags);
+      }
+
+      await loadPage(state.currentPage);
+    } catch (e) {
+      AppLogger.e('Set tags failed', e, null, 'LocalGalleryNotifier');
+    }
   }
 }
