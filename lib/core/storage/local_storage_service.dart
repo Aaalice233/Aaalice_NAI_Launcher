@@ -83,9 +83,9 @@ class LocalStorageService {
   String getDefaultModel() {
     return getSetting<String>(
           StorageKeys.defaultModel,
-          defaultValue: 'nai-diffusion-3',
+          defaultValue: 'nai-diffusion-4-5-full',
         ) ??
-        'nai-diffusion-3';
+        'nai-diffusion-4-5-full';
   }
 
   /// 保存默认模型

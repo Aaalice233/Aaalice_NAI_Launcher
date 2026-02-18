@@ -85,13 +85,37 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     ShortcutIds.openFolder: _openGalleryFolder,
   };
 
+  /// 应用生命周期状态监听
+  AppLifecycleListener? _lifecycleListener;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _checkPermissionsAndScan();
       await _showFirstTimeTip();
+      // 页面加载完成后自动执行增量扫描
+      await _autoRefresh();
     });
+
+    // 监听应用生命周期，当应用从后台恢复时自动刷新
+    _lifecycleListener = AppLifecycleListener(
+      onResume: () {
+        // 延迟执行，等待应用完全恢复
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _autoRefresh();
+          }
+        });
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener?.dispose();
+    _shortcutsFocusNode.dispose();
+    super.dispose();
   }
 
   void _goToPreviousPage() {
@@ -130,12 +154,6 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
   void _clearFilters() {
     ref.read(localGalleryNotifierProvider.notifier).clearAllFilters();
-  }
-
-  @override
-  void dispose() {
-    _shortcutsFocusNode.dispose();
-    super.dispose();
   }
 
   @override
@@ -360,49 +378,11 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     }
   }
 
-  /// 处理重建索引
-  Future<void> _handleRebuildIndex() async {
+  /// 后台自动刷新（增量扫描）
+  /// 在页面获得焦点时自动触发
+  Future<void> _autoRefresh() async {
     final notifier = ref.read(localGalleryNotifierProvider.notifier);
-    final state = ref.read(localGalleryNotifierProvider);
-
-    // 如果已经在更新中，则取消
-    if (state.isRebuildingIndex) {
-      await notifier.performFullScan(); // 这会触发取消
-      if (mounted) {
-        AppToast.info(context, '已取消索引更新');
-      }
-      return;
-    }
-
-    // 开始更新
-    final result = await notifier.performFullScan();
-
-    if (!mounted) return;
-
-    if (result == null) {
-      // 可能是取消或失败
-      final currentState = ref.read(localGalleryNotifierProvider);
-      if (!currentState.isRebuildingIndex) {
-        // 确实已经停止了，可能是取消
-        AppToast.info(context, '索引更新已停止');
-      }
-      return;
-    }
-
-    if (result.filesAdded == 0 &&
-        result.filesUpdated == 0 &&
-        result.filesDeleted == 0) {
-      // 没有变化
-      AppToast.info(context, '索引已是最新，无需更新');
-    } else {
-      // 有更新
-      final parts = <String>[];
-      if (result.filesAdded > 0) parts.add('新增 ${result.filesAdded} 张');
-      if (result.filesUpdated > 0) parts.add('更新 ${result.filesUpdated} 张');
-      if (result.filesDeleted > 0) parts.add('删除 ${result.filesDeleted} 张');
-
-      AppToast.success(context, '索引更新完成：${parts.join('，')}');
-    }
+    await notifier.refresh();
   }
 
   /// 构建工具栏或选择栏
@@ -415,7 +395,6 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       use3DCardView: _use3DCardView,
       onRefresh: () =>
           ref.read(localGalleryNotifierProvider.notifier).refresh(),
-      onRebuildIndex: () => _handleRebuildIndex(),
       onEnterSelectionMode: () =>
           ref.read(localGallerySelectionNotifierProvider.notifier).enter(),
       canUndo: bulkOpState.canUndo,
@@ -512,7 +491,21 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     }
 
     if (mounted) {
-      ref.read(localGalleryNotifierProvider.notifier).initialize();
+      await ref.read(localGalleryNotifierProvider.notifier).initialize();
+      _showFirstTimeIndexTipIfNeeded();
+    }
+  }
+
+  /// 显示首次大量索引提示
+  void _showFirstTimeIndexTipIfNeeded() {
+    final state = ref.read(localGalleryNotifierProvider);
+    if (state.firstTimeIndexMessage != null && mounted) {
+      // 延迟显示，让用户先看到页面
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          AppToast.info(context, state.firstTimeIndexMessage!);
+        }
+      });
     }
   }
 

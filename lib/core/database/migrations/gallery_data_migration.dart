@@ -212,7 +212,7 @@ class GalleryDataMigration {
       if (await walFile.exists()) {
         await walFile.delete();
       }
-    } catch (e, stack) {
+    } catch (e) {
       AppLogger.w('Failed to delete old database: $e', 'GalleryMigration');
     }
   }

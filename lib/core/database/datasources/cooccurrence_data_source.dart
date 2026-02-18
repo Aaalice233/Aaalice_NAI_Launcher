@@ -1,4 +1,5 @@
 import '../../utils/app_logger.dart';
+import '../connection_pool_holder.dart';
 import '../data_source.dart';
 
 /// 相关标签记录
@@ -65,14 +66,11 @@ class CooccurrenceDataSource extends BaseDataSource {
   final Map<String, List<RelatedTag>> _relatedCache = {};
   static const int _maxCacheSize = 1000;
 
-  // 数据库连接（通过外部注入，旧模式）
-  dynamic _db;
-
-  // 连接池（新模式，优先使用）
-  dynamic _connectionPool;
-
   // 可选的翻译数据源引用
   dynamic _translationDataSource;
+
+  // 数据库连接（通过外部注入，旧模式回退）
+  dynamic _db;
 
   @override
   String get name => 'cooccurrence';
@@ -83,34 +81,42 @@ class CooccurrenceDataSource extends BaseDataSource {
   @override
   Set<String> get dependencies => {'translation'};
 
-  /// 设置数据库连接
+  /// 设置数据库连接（旧模式兼容）
   void setDatabase(dynamic db) {
     _db = db;
-  }
-
-  /// 设置连接池
-  ///
-  /// 使用连接池模式，每次操作时动态获取连接
-  void setConnectionPool(dynamic pool) {
-    _connectionPool = pool;
   }
 
   /// 获取数据库连接
   ///
   /// 优先使用连接池，回退到固定连接
+  /// 注意：每次使用时都获取当前连接池实例，以支持 recover 后重新连接
   Future<dynamic> _acquireDb() async {
-    if (_connectionPool != null) {
-      return await _connectionPool.acquire();
+    try {
+      // 优先使用 ConnectionPoolHolder 获取当前实例（支持 recover 后重新连接）
+      if (ConnectionPoolHolder.isInitialized) {
+        AppLogger.d('[CooccurrenceDS] Acquiring connection from pool', 'CooccurrenceDS');
+        return await ConnectionPoolHolder.instance.acquire();
+      }
+      // 回退到固定连接（旧模式兼容）
+      AppLogger.d('[CooccurrenceDS] Using fallback database connection', 'CooccurrenceDS');
+      return _db;
+    } catch (e, stack) {
+      AppLogger.e('[CooccurrenceDS] Failed to acquire database connection', e, stack, 'CooccurrenceDS');
+      // 如果有回退连接，使用回退连接
+      if (_db != null) {
+        AppLogger.w('[CooccurrenceDS] Falling back to legacy database connection', 'CooccurrenceDS');
+        return _db;
+      }
+      rethrow;
     }
-    return _db;
   }
 
   /// 释放数据库连接
   ///
   /// 如果是从连接池获取的，需要释放
   Future<void> _releaseDb(dynamic db) async {
-    if (_connectionPool != null && db != null) {
-      await _connectionPool.release(db);
+    if (db != null && ConnectionPoolHolder.isInitialized) {
+      await ConnectionPoolHolder.instance.release(db);
     }
   }
 
@@ -148,6 +154,7 @@ class CooccurrenceDataSource extends BaseDataSource {
     }
 
     try {
+      AppLogger.d('[CooccurrenceDS] Querying related tags for "$normalizedTag"', 'CooccurrenceDS');
       final results = await db.query(
         _tableName,
         columns: ['tag2', 'count', 'cooccurrence_score'],
@@ -157,7 +164,9 @@ class CooccurrenceDataSource extends BaseDataSource {
         limit: limit,
       );
 
-      final relatedTags = results.map((row) {
+      AppLogger.d('[CooccurrenceDS] Query returned ${results.length} rows', 'CooccurrenceDS');
+
+      final relatedTags = results.map<RelatedTag>((row) {
         return RelatedTag(
           tag: row['tag2'] as String,
           count: (row['count'] as num?)?.toInt() ?? 0,
@@ -171,7 +180,7 @@ class CooccurrenceDataSource extends BaseDataSource {
       return relatedTags;
     } catch (e, stack) {
       AppLogger.e(
-        'Failed to get related tags for "$normalizedTag"',
+        '[CooccurrenceDS] Failed to get related tags for "$normalizedTag": $e',
         e,
         stack,
         'CooccurrenceDS',
@@ -260,7 +269,7 @@ class CooccurrenceDataSource extends BaseDataSource {
         limit: limit,
       );
 
-      return results.map((row) {
+      return results.map<RelatedTag>((row) {
         return RelatedTag(
           tag: '${row['tag1']} → ${row['tag2']}',
           count: (row['count'] as num?)?.toInt() ?? 0,
@@ -701,7 +710,6 @@ class CooccurrenceDataSource extends BaseDataSource {
   Future<void> doDispose() async {
     _relatedCache.clear();
     _db = null;
-    _connectionPool = null;
     _translationDataSource = null;
   }
 

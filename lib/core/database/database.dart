@@ -55,12 +55,12 @@ export 'data_source.dart'
         DataSourceState,
         DataSourceType,
         DataSourceHealth,
-        DataSourceInfo;
+        DataSourceInfo,
+        HealthStatus;
 
 export 'health_checker.dart'
     show
-        HealthCheckResult,
-        HealthStatus;
+        HealthCheckResult;
 
 // ============================================================================
 // DataSources

@@ -386,30 +386,33 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
 
   /// 构建空状态 - 双卡片并排布局：从文件添加 + 从库导入
   Widget _buildEmptyState(BuildContext context, ThemeData theme) {
-    return Row(
-      children: [
-        // 从文件添加
-        Expanded(
-          child: _EmptyStateCard(
-            icon: Icons.add_photo_alternate_outlined,
-            title: context.l10n.vibe_addFromFileTitle,
-            subtitle: context.l10n.vibe_addFromFileSubtitle,
-            onTap: () async => await _addVibe(),
-            theme: theme,
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 从文件添加
+          Expanded(
+            child: _EmptyStateCard(
+              icon: Icons.add_photo_alternate_outlined,
+              title: context.l10n.vibe_addFromFileTitle,
+              subtitle: context.l10n.vibe_addFromFileSubtitle,
+              onTap: () async => await _addVibe(),
+              theme: theme,
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        // 从库导入
-        Expanded(
-          child: _EmptyStateCard(
-            icon: Icons.folder_open_outlined,
-            title: context.l10n.vibe_addFromLibraryTitle,
-            subtitle: context.l10n.vibe_addFromLibrarySubtitle,
-            onTap: () async => await _importFromLibrary(),
-            theme: theme,
+          const SizedBox(width: 12),
+          // 从库导入
+          Expanded(
+            child: _EmptyStateCard(
+              icon: Icons.folder_open_outlined,
+              title: context.l10n.vibe_addFromLibraryTitle,
+              subtitle: context.l10n.vibe_addFromLibrarySubtitle,
+              onTap: () async => await _importFromLibrary(),
+              theme: theme,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

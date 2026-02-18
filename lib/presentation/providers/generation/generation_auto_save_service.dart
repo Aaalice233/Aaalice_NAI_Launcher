@@ -31,8 +31,10 @@ class GenerationAutoSaveService {
     if (!saveSettings.autoSave) return;
 
     try {
-      final saveDir =
-          await LocalGalleryRepository.instance.getImageDirectory();
+      final saveDirPath =
+          LocalGalleryRepository.instance.getImageDirectory();
+      if (saveDirPath == null) return;
+      final saveDir = Directory(saveDirPath);
       if (!await saveDir.exists()) {
         await saveDir.create(recursive: true);
       }
@@ -125,7 +127,9 @@ class GenerationAutoSaveService {
           );
 
           final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-          final file = File('${saveDir.path}/$fileName');
+          final saveDirPath = LocalGalleryRepository.instance.getImageDirectory();
+          if (saveDirPath == null) continue;
+          final file = File('$saveDirPath/$fileName');
           await file.writeAsBytes(embeddedBytes);
           savedCount++;
 

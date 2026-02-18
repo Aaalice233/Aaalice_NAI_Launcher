@@ -525,7 +525,7 @@ class WarmupNotifier extends _$WarmupNotifier {
         // 数据源已初始化（DatabaseManager 中已完成）
         AppLogger.i('GalleryDataSource initialized in warmup phase', 'Warmup');
       }
-    } catch (e, stack) {
+    } catch (e) {
       AppLogger.w('GalleryDataSource warmup failed: $e', 'Warmup');
       // 不抛出异常，避免阻塞启动
     }

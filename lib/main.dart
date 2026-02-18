@@ -111,8 +111,10 @@ class AppTrayListener extends TrayListener {
   }
 }
 
-/// 窗口监听器，处理窗口关闭和显示事件
+/// 窗口监听器，处理窗口关闭、大小变化和显示事件
 class AppWindowListener extends WindowListener {
+  DateTime? _lastResizeSave;
+
   @override
   Future<void> onWindowClose() async {
     // 阻止默认关闭行为，改为隐藏到托盘
@@ -130,6 +132,64 @@ class AppWindowListener extends WindowListener {
   Future<void> onWindowFocus() async {
     // 窗口获得焦点时的处理
     AppLogger.d('Window focused', 'WindowListener');
+  }
+
+  @override
+  Future<void> onWindowResize() async {
+    // 窗口大小变化时实时保存（带防抖）
+    final now = DateTime.now();
+    if (_lastResizeSave != null &&
+        now.difference(_lastResizeSave!) < const Duration(milliseconds: 500)) {
+      return;
+    }
+    _lastResizeSave = now;
+
+    try {
+      final size = await windowManager.getSize();
+      final position = await windowManager.getPosition();
+      final box = Hive.box(StorageKeys.settingsBox);
+
+      await box.put(StorageKeys.windowWidth, size.width);
+      await box.put(StorageKeys.windowHeight, size.height);
+      await box.put(StorageKeys.windowX, position.dx);
+      await box.put(StorageKeys.windowY, position.dy);
+
+      AppLogger.d(
+        'Window size/position saved: ${size.width}x${size.height} at (${position.dx}, ${position.dy})',
+        'WindowListener',
+      );
+    } catch (e) {
+      AppLogger.w('Failed to save window state on resize: $e', 'WindowListener');
+    }
+  }
+
+  @override
+  Future<void> onWindowMove() async {
+    // 窗口移动时也保存位置
+    final now = DateTime.now();
+    if (_lastResizeSave != null &&
+        now.difference(_lastResizeSave!) < const Duration(milliseconds: 500)) {
+      return;
+    }
+    _lastResizeSave = now;
+
+    try {
+      final size = await windowManager.getSize();
+      final position = await windowManager.getPosition();
+      final box = Hive.box(StorageKeys.settingsBox);
+
+      await box.put(StorageKeys.windowWidth, size.width);
+      await box.put(StorageKeys.windowHeight, size.height);
+      await box.put(StorageKeys.windowX, position.dx);
+      await box.put(StorageKeys.windowY, position.dy);
+
+      AppLogger.d(
+        'Window position saved: (${position.dx}, ${position.dy})',
+        'WindowListener',
+      );
+    } catch (e) {
+      AppLogger.w('Failed to save window position on move: $e', 'WindowListener');
+    }
   }
 }
 
@@ -281,7 +341,7 @@ void main() async {
     // 从 Hive 读取保存的窗口状态',
     final box = Hive.box(StorageKeys.settingsBox);
     final savedWidth =
-        box.get(StorageKeys.windowWidth, defaultValue: 1400.0) as double;
+        box.get(StorageKeys.windowWidth, defaultValue: 1600.0) as double;
     final savedHeight =
         box.get(StorageKeys.windowHeight, defaultValue: 900.0) as double;
     final savedX = box.get(StorageKeys.windowX) as double?;

@@ -6,7 +6,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../core/utils/app_logger.dart';
-import '../models/gallery/local_image_record.dart';
 import '../models/gallery/nai_image_metadata.dart';
 import '../repositories/local_gallery_repository.dart';
 

@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/nai_metadata_parser.dart';
 import '../../models/gallery/nai_image_metadata.dart';
+import 'gallery_database_service.dart';
 
 /// 扫描结果
 class ScanResult {

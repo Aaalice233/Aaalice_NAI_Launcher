@@ -11,8 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/cache/data_source_cache_meta.dart';
 import '../../data/models/tag/local_tag.dart';
 import '../constants/storage_keys.dart';
-import '../database/datasources/danbooru_tag_datasource_v2.dart';
-import '../database/datasources/danbooru_tag_datasource_v2_provider.dart';
+import '../database/datasources/danbooru_tag_data_source.dart';
+import '../database/datasources/danbooru_tag_data_source_provider.dart';
 import '../utils/app_logger.dart';
 import '../utils/tag_normalizer.dart';
 import 'lazy_data_source_service.dart';
@@ -40,7 +40,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   static const String _cacheDirName = 'tag_cache';
   static const String _metaFileName = 'danbooru_tags_meta.json';
 
-  final DanbooruTagDataSourceV2 _tagDataSource;
+  final DanbooruTagDataSource _tagDataSource;
   final Dio _dio;
 
   final Map<String, LocalTag> _hotDataCache = {};
@@ -61,10 +61,10 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   DataSourceProgressCallback? get onProgress => _onProgress;
 
   /// 主构造函数 - 同步初始化
-  /// 
+  ///
   /// [dataSource] 必须已初始化完成
   DanbooruTagsLazyService({
-    required DanbooruTagDataSourceV2 dataSource,
+    required DanbooruTagDataSource dataSource,
     required Dio dio,
   })  : _tagDataSource = dataSource,
         _dio = dio;
@@ -1487,10 +1487,10 @@ Future<DanbooruTagsLazyService> danbooruTagsLazyService(Ref ref) async {
 
   // 等待数据源初始化完成
   AppLogger.i(
-    '[ProviderLifecycle] danbooruTagsLazyServiceProvider - waiting for danbooruTagDataSourceV2Provider',
+    '[ProviderLifecycle] danbooruTagsLazyServiceProvider - waiting for danbooruTagDataSourceProvider',
     'DanbooruTagsLazy',
   );
-  final tagDataSource = await ref.read(danbooruTagDataSourceV2Provider.future);
+  final tagDataSource = await ref.read(danbooruTagDataSourceProvider.future);
 
   // 创建并初始化服务（同步初始化，DataSource 必须已准备好）
   final service = DanbooruTagsLazyService(

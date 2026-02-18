@@ -169,12 +169,12 @@ class DatabaseStatusNotifier extends _$DatabaseStatusNotifier {
         // 清除完成后刷新 Provider
         // 关键：按依赖顺序失效 - 先失效数据源 Provider，再失效服务 Provider
         // 否则缓存的服务实例仍持有旧的数据源引用
-        ref.invalidate(danbooruTagDataSourceV2Provider);
+        ref.invalidate(danbooruTagDataSourceProvider);
         ref.invalidate(danbooruTagsLazyServiceProvider);
         ref.invalidate(danbooruTagsCacheNotifierProvider);
         AppLogger.i(
           '[DatabaseStatusNotifier] Providers invalidated after clear: '
-          'danbooruTagDataSourceV2Provider, danbooruTagsLazyServiceProvider, '
+          'danbooruTagDataSourceProvider, danbooruTagsLazyServiceProvider, '
           'danbooruTagsCacheNotifierProvider',
           'DatabaseStatusNotifier',
         );

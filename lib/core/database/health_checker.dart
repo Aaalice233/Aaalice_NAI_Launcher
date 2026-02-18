@@ -2,14 +2,7 @@ import 'dart:async';
 
 import '../utils/app_logger.dart';
 import 'connection_pool_holder.dart';
-
-/// 健康检查结果
-enum HealthStatus {
-  healthy,
-  degraded,
-  corrupted,
-  unknown,
-}
+import 'data_source.dart';
 
 /// 健康检查详情
 class HealthCheckResult {

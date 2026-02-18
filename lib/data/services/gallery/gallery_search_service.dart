@@ -1,4 +1,5 @@
 import '../../../core/utils/app_logger.dart';
+import 'gallery_database_service.dart';
 
 /// 搜索结果
 class SearchResult {

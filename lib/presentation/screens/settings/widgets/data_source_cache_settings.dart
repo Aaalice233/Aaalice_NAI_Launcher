@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
-import '../../../../core/database/datasources/danbooru_tag_datasource_v2_provider.dart';
+import '../../../../core/database/datasources/danbooru_tag_data_source_provider.dart';
 import '../../../../core/services/cache_clear_service.dart';
 import '../../../../core/services/danbooru_tags_lazy_service.dart';
 import '../../../../core/utils/app_logger.dart';
@@ -303,7 +303,7 @@ class _DataSourceCacheSettingsState
         await Future.delayed(const Duration(milliseconds: 300));
         if (context.mounted) {
           // 按依赖顺序失效：先失效数据源 Provider，再失效服务 Provider
-          ref.invalidate(danbooruTagDataSourceV2Provider);
+          ref.invalidate(danbooruTagDataSourceProvider);
           ref.invalidate(danbooruTagsLazyServiceProvider);
           ref.invalidate(danbooruTagsCacheNotifierProvider);
           AppLogger.i(

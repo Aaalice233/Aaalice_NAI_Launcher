@@ -76,7 +76,8 @@ class GalleryNotifier extends _$GalleryNotifier {
 
   @override
   GalleryState build() {
-    _repository = ref.watch(galleryRepositoryProvider);
+    // 使用同步的 GalleryRepository 实例
+    _repository = GalleryRepository();
     _initAsync();
     return const GalleryState(isLoading: true);
   }

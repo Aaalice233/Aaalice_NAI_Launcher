@@ -37,10 +37,6 @@ class LocalGalleryToolbar extends ConsumerStatefulWidget {
   /// 刷新按钮回调
   final VoidCallback? onRefresh;
 
-  /// Callback when rebuild index button is pressed
-  /// 更新索引按钮回调
-  final VoidCallback? onRebuildIndex;
-
   /// Callback when enter selection mode button is pressed
   /// 进入选择模式按钮回调
   final VoidCallback? onEnterSelectionMode;
@@ -87,7 +83,6 @@ class LocalGalleryToolbar extends ConsumerStatefulWidget {
     this.onToggleViewMode,
     this.onOpenFolder,
     this.onRefresh,
-    this.onRebuildIndex,
     this.onEnterSelectionMode,
     this.onUndo,
     this.onRedo,
@@ -358,18 +353,8 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
                   const SizedBox(width: 6),
                   // Refresh button (shows loading state when refreshing)
                   _RefreshButton(
-                    isRefreshing: state.isLoading && !state.isRebuildingIndex,
+                    isRefreshing: state.isLoading,
                     onRefresh: widget.onRefresh,
-                  ),
-                  const SizedBox(width: 6),
-                  // Rebuild Index button (with integrated progress)
-                  _RebuildIndexButton(
-                    isRebuilding: state.isRebuildingIndex,
-                    progress: state.backgroundScanProgress ?? 0.0,
-                    phase: state.scanPhase,
-                    scannedCount: state.scannedCount,
-                    totalCount: state.totalScanCount,
-                    onRebuild: widget.onRebuildIndex,
                   ),
                 ],
               ),
@@ -710,113 +695,3 @@ class _RefreshButton extends StatelessWidget {
   }
 }
 
-/// 重建索引按钮（集成进度显示）
-class _RebuildIndexButton extends StatelessWidget {
-  final bool isRebuilding;
-  final double progress;
-  final String? phase;
-  final int scannedCount;
-  final int totalCount;
-  final VoidCallback? onRebuild;
-
-  const _RebuildIndexButton({
-    required this.isRebuilding,
-    required this.progress,
-    this.phase,
-    required this.scannedCount,
-    required this.totalCount,
-    this.onRebuild,
-  });
-
-  String get _phaseText {
-    switch (phase) {
-      case 'checking':
-        return '检查文件...';
-      case 'indexing':
-        return '建立索引...';
-      case 'completed':
-        return '扫描完成';
-      default:
-        return '重建索引中...';
-    }
-  }
-
-  String get _tooltipText {
-    if (!isRebuilding) {
-      return '重建索引\n\n重新扫描所有图片并重建搜索索引\n适用于索引损坏或需要全量更新的场景';
-    }
-
-    final percent = (progress * 100).toInt();
-    final buffer = StringBuffer();
-    buffer.writeln('正在重建索引: $_phaseText');
-    buffer.writeln('进度: $percent% ($scannedCount/$totalCount)');
-    buffer.writeln();
-    buffer.writeln('点击可取消重建');
-
-    return buffer.toString();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    // 未重建状态
-    if (!isRebuilding) {
-      return CompactIconButton(
-        icon: Icons.storage_outlined,
-        label: '重建索引',
-        tooltip: _tooltipText,
-        onPressed: onRebuild,
-      );
-    }
-
-    // 重建中状态 - 显示进度环和取消按钮
-    return Tooltip(
-      message: _tooltipText,
-      waitDuration: const Duration(milliseconds: 300),
-      child: GestureDetector(
-        onTap: onRebuild,
-        child: Container(
-          height: 36,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: theme.colorScheme.primary.withOpacity(0.5),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 进度环
-              SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  value: progress > 0 ? progress : null,
-                  strokeWidth: 2.5,
-                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    theme.colorScheme.primary,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              // 百分比
-              Text(
-                '${(progress * 100).toInt()}%',
-                style: theme.textTheme.labelMedium?.copyWith(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

@@ -567,8 +567,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
   }
 
   /// 获取保存目录
-  Future<Directory> _getSaveDirectory() async {
-    final dir = await LocalGalleryRepository.instance.getImageDirectory();
+  Future<Directory?> _getSaveDirectory() async {
+    final dirPath = LocalGalleryRepository.instance.getImageDirectory();
+    if (dirPath == null) return null;
+    final dir = Directory(dirPath);
     if (!await dir.exists()) {
       await dir.create(recursive: true);
     }
@@ -580,6 +582,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     try {
       final imageBytes = await image.getImageBytes();
       final saveDir = await _getSaveDirectory();
+      if (saveDir == null) return;
       final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
       final file = File('${saveDir.path}/$fileName');
 

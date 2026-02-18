@@ -407,7 +407,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     if (_selectedIds.isEmpty) return;
 
     try {
-      final saveDir = await LocalGalleryRepository.instance.getImageDirectory();
+      final saveDirPath = LocalGalleryRepository.instance.getImageDirectory();
+      if (saveDirPath == null) return;
+      final saveDir = Directory(saveDirPath);
       if (!await saveDir.exists()) {
         await saveDir.create(recursive: true);
       }
@@ -421,14 +423,14 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
 
       for (int i = 0; i < selectedImages.length; i++) {
         final fileName = 'NAI_${timestamp}_${i + 1}.png';
-        final file = File('${saveDir.path}/$fileName');
+        final file = File('$saveDirPath/$fileName');
         await file.writeAsBytes(selectedImages[i].bytes);
       }
 
       ref.read(localGalleryNotifierProvider.notifier).refresh();
 
       if (context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
+        AppToast.success(context, context.l10n.image_imageSaved(saveDirPath));
         setState(() {
           _selectedIds.clear();
         });
@@ -514,14 +516,16 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     Uint8List imageBytes,
   ) async {
     try {
-      final saveDir = await LocalGalleryRepository.instance.getImageDirectory();
+      final saveDirPath = LocalGalleryRepository.instance.getImageDirectory();
+      if (saveDirPath == null) return;
+      final saveDir = Directory(saveDirPath);
       if (!await saveDir.exists()) {
         await saveDir.create(recursive: true);
       }
 
       // 保存图片
       final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File('${saveDir.path}/$fileName');
+      final file = File('$saveDirPath/$fileName');
       await file.writeAsBytes(imageBytes);
 
       ref.read(localGalleryNotifierProvider.notifier).refresh();
@@ -530,7 +534,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       await Process.start('explorer', ['/select,${file.path}']);
 
       if (context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
+        AppToast.success(context, context.l10n.image_imageSaved(saveDirPath));
       }
     } catch (e) {
       if (context.mounted) {
@@ -581,7 +585,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   ) async {
     try {
       final imageBytes = await image.getImageBytes();
-      final saveDir = await LocalGalleryRepository.instance.getImageDirectory();
+      final saveDirPath = LocalGalleryRepository.instance.getImageDirectory();
+      if (saveDirPath == null) return;
+      final saveDir = Directory(saveDirPath);
       if (!await saveDir.exists()) {
         await saveDir.create(recursive: true);
       }
@@ -659,13 +665,13 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       );
 
       final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File('${saveDir.path}/$fileName');
+      final file = File('$saveDirPath/$fileName');
       await file.writeAsBytes(embeddedBytes);
 
       ref.read(localGalleryNotifierProvider.notifier).refresh();
 
       if (context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
+        AppToast.success(context, context.l10n.image_imageSaved(saveDirPath));
       }
     } catch (e) {
       if (context.mounted) {

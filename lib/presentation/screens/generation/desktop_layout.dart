@@ -748,7 +748,9 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     GeneratedImage image,
   ) async {
     try {
-      final saveDir = await LocalGalleryRepository.instance.getImageDirectory();
+      final saveDirPath = LocalGalleryRepository.instance.getImageDirectory();
+      if (saveDirPath == null) return;
+      final saveDir = Directory(saveDirPath);
       if (!await saveDir.exists()) {
         await saveDir.create(recursive: true);
       }
@@ -845,13 +847,13 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
       );
 
       final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File('${saveDir.path}/$fileName');
+      final file = File('$saveDirPath/$fileName');
       await file.writeAsBytes(embeddedBytes);
 
       ref.read(localGalleryNotifierProvider.notifier).refresh();
 
       if (context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
+        AppToast.success(context, context.l10n.image_imageSaved(saveDirPath));
       }
     } catch (e) {
       if (context.mounted) {
@@ -969,19 +971,21 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
   ) async {
     try {
       final imageBytes = await image.getImageBytes();
-      final saveDir = await LocalGalleryRepository.instance.getImageDirectory();
+      final saveDirPath = LocalGalleryRepository.instance.getImageDirectory();
+      if (saveDirPath == null) return;
+      final saveDir = Directory(saveDirPath);
       if (!await saveDir.exists()) {
         await saveDir.create(recursive: true);
       }
 
       final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File('${saveDir.path}/$fileName');
+      final file = File('$saveDirPath/$fileName');
       await file.writeAsBytes(imageBytes);
 
       ref.read(localGalleryNotifierProvider.notifier).refresh();
 
       if (context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
+        AppToast.success(context, context.l10n.image_imageSaved(saveDirPath));
       }
     } catch (e) {
       if (context.mounted) {

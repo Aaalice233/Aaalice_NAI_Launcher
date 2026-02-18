@@ -9,6 +9,7 @@ import '../../core/database/database_providers.dart';
 import '../../core/database/datasources/gallery_data_source.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/local_image_record.dart';
+import '../../data/repositories/local_gallery_repository.dart' show LocalGalleryRepository, ScanResult;
 
 part 'local_gallery_provider.freezed.dart';
 part 'local_gallery_provider.g.dart';

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:convert';
 
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
@@ -18,7 +19,21 @@ class GalleryCategoryRepository {
   static const _categoriesFileName = '.gallery_categories.json';
   static const _supportedExtensions = {'.png', '.jpg', '.jpeg', '.webp'};
 
-  Future<String?> getRootPath() async => Future.value(_localStorage.getImageSavePath());
+  /// 获取图片保存根路径
+  ///
+  /// 优先使用用户设置的自定义路径，如果没有设置则返回默认路径
+  /// 默认路径：Documents/NAI_Launcher/images/
+  Future<String?> getRootPath() async {
+    // 优先使用用户设置的自定义路径
+    final customPath = _localStorage.getImageSavePath();
+    if (customPath != null && customPath.isNotEmpty) {
+      return customPath;
+    }
+
+    // 使用默认路径
+    final appDir = await getApplicationDocumentsDirectory();
+    return p.join(appDir.path, 'NAI_Launcher', 'images');
+  }
 
   Future<String?> _getCategoriesFilePath() async {
     final rootPath = await getRootPath();

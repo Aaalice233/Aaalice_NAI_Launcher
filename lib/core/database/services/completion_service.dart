@@ -1,5 +1,5 @@
 import '../../utils/app_logger.dart';
-import '../datasources/danbooru_tag_datasource_v2.dart';
+import '../datasources/danbooru_tag_data_source.dart';
 import '../datasources/translation_data_source.dart';
 
 /// 补全结果
@@ -52,7 +52,7 @@ class CompletionResult {
 /// 提供标签自动补全功能的高级服务层。
 /// 基于 DanbooruTagDataSource 进行前缀搜索，并结合 TranslationDataSource 提供翻译。
 class CompletionService {
-  final DanbooruTagDataSourceV2 _tagDataSource;
+  final DanbooruTagDataSource _tagDataSource;
   final TranslationDataSource _translationDataSource;
 
   CompletionService(this._tagDataSource, this._translationDataSource);

@@ -39,7 +39,7 @@ export 'translation_service.dart'
 
 export 'service_providers.dart'
     show
-        danbooruTagDataSourceV2Provider,
+        danbooruTagDataSourceProvider,
         translationDataSourceProvider,
         cooccurrenceDataSourceProvider,
         translationServiceProvider,

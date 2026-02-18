@@ -5,7 +5,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/gallery/gallery_statistics.dart';
-import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/repositories/local_gallery_repository.dart';
 import '../../../data/services/statistics_cache_service.dart';
 import '../../../data/services/statistics_service.dart';
