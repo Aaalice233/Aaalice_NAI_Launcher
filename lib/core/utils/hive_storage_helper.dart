@@ -23,6 +23,7 @@ class HiveStorageHelper {
   /// 默认子目录名称
   static const String _defaultSubDir = 'hive';
 
+
   /// Settings box 中的自定义路径键名
   static const String _customHivePathKey = 'hive_storage_path';
 
@@ -32,10 +33,10 @@ class HiveStorageHelper {
   /// 是否已完成初始化
   bool _initialized = false;
 
-  /// 获取当前 Hive 存储路径
+  /// 获取当前 Hive 存储路径（数据库文件存放路径）
   ///
   /// 优先返回用户自定义路径，如果没有则返回默认路径
-  /// 默认路径: {appSupportDir}/NAI_Launcher/hive/ (Windows: %APPDATA%/NAI_Launcher/hive/)
+  /// 默认路径: {appSupportDir}/hive/ (Windows: %APPDATA%/com.example/nai_launcher/hive/)
   Future<String> getPath() async {
     if (_cachedPath != null) {
       return _cachedPath!;
@@ -48,9 +49,9 @@ class HiveStorageHelper {
       return customPath;
     }
 
-    // 使用默认路径: %APPDATA%/NAI_Launcher/hive/ (更合适存放应用内部数据)
+    // 使用默认路径: {appSupportDir}/hive/ (更合适存放应用内部数据)
     final appSupportDir = await getApplicationSupportDirectory();
-    final defaultPath = p.join(appSupportDir.path, 'NAI_Launcher', _defaultSubDir);
+    final defaultPath = p.join(appSupportDir.path, _defaultSubDir);
     _cachedPath = defaultPath;
     return defaultPath;
   }
@@ -69,7 +70,9 @@ class HiveStorageHelper {
       }
 
       // 检查新位置的 settings.hive
-      final newPath = p.join(appDir.path, 'NAI_Launcher', _defaultSubDir);
+      // 注意：getApplicationSupportDirectory() 已经包含应用包名，不需要再加 NAI_Launcher
+      final appSupportDir = await getApplicationSupportDirectory();
+      final newPath = p.join(appSupportDir.path, _defaultSubDir);
       final newSettingsPath = p.join(newPath, '${StorageKeys.settingsBox}.hive');
       final newSettingsFile = File(newSettingsPath);
 
@@ -149,12 +152,14 @@ class HiveStorageHelper {
   ///
   /// 旧位置 1：Documents 根目录下的 .hive 文件（最早的版本）
   /// 旧位置 2：Documents/NAI_Launcher/hive/（中间版本）
-  /// 新位置：%APPDATA%/NAI_Launcher/hive/（当前版本，更合适存放应用内部数据）
+  /// 旧位置 3：%APPDATA%/NAI_Launcher/hive/（上一版本，database 子目录之前）
+  /// 新位置：%APPDATA%/NAI_Launcher/hive/database/（当前版本，数据库存放在子目录中）
   ///
   /// 由 [DataMigrationService] 在预热阶段调用
   Future<void> migrateFromOldLocation(String newPath) async {
     try {
       final appDir = await getApplicationDocumentsDirectory();
+      final appSupportDir = await getApplicationSupportDirectory();
 
       // 检查所有可能的旧位置
       final oldLocations = [
@@ -162,6 +167,8 @@ class HiveStorageHelper {
         appDir.path,
         // 位置 2: Documents/NAI_Launcher/hive/（中间版本）
         p.join(appDir.path, 'NAI_Launcher', _defaultSubDir),
+        // 位置 3: APPDATA/hive/（上一版本，直接存放在 hive 下）
+        p.join(appSupportDir.path, _defaultSubDir),
       ];
 
       final filesToMigrate = <String, File>{}; // 使用 Map 去重，保留最新版本

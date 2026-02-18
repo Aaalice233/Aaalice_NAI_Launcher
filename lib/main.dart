@@ -156,7 +156,7 @@ void setupWindowsWakeUpChannel() {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // 初始化日志系统（必须在其他操作之前）
   await AppLogger.initialize(isTestEnvironment: false);
   AppLogger.i('应用启动', 'Main');

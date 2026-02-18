@@ -11,7 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/hive_storage_helper.dart';
+import '../../../core/utils/vibe_library_path_helper.dart';
 import '../../../data/models/vibe/vibe_library_category.dart';
 import '../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../data/services/vibe_import_service.dart';
@@ -508,9 +508,6 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
                 onPressed: state.entries.isEmpty ? null : () => _exportVibes(),
               ),
               const SizedBox(width: 6),
-              // 刷新按钮
-              _buildRefreshButton(state, theme),
-              const SizedBox(width: 6),
               // 打开文件夹按钮
               CompactIconButton(
                 icon: Icons.folder_open_outlined,
@@ -518,6 +515,9 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
                 tooltip: '打开 Vibe 库文件夹',
                 onPressed: () => _openVibeLibraryFolder(),
               ),
+              const SizedBox(width: 6),
+              // 刷新按钮
+              _buildRefreshButton(state, theme),
             ],
           ),
         ),
@@ -1155,26 +1155,25 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     );
   }
 
-  /// 打开 Vibe 库文件夹
+  /// 打开 Vibe 库文件夹（存放 .naiv4vibe 文件的地方）
   Future<void> _openVibeLibraryFolder() async {
     try {
-      final hivePath = await HiveStorageHelper.instance.getPath();
-      final dir = Directory(hivePath);
+      // 获取 vibe 文件存储路径
+      final vibePath = await VibeLibraryPathHelper.instance.getPath();
+      final dir = Directory(vibePath);
 
+      // 确保目录存在
       if (!await dir.exists()) {
-        if (mounted) {
-          AppToast.info(context, '文件夹不存在');
-        }
-        return;
+        await dir.create(recursive: true);
       }
 
       if (Platform.isWindows) {
         // 使用 Process.start 避免等待进程完成导致的延迟
-        await Process.start('explorer', [hivePath]);
+        await Process.start('explorer', [vibePath]);
       } else if (Platform.isMacOS) {
-        await Process.start('open', [hivePath]);
+        await Process.start('open', [vibePath]);
       } else if (Platform.isLinux) {
-        await Process.start('xdg-open', [hivePath]);
+        await Process.start('xdg-open', [vibePath]);
       }
     } catch (e) {
       if (mounted) {

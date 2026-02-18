@@ -1,4 +1,5 @@
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
@@ -837,36 +838,62 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     final model = params.model;
 
     // 显示编码进度对话框，使用 rootNavigator 确保正确关闭
+    final dialogCompleter = Completer<void>();
     BuildContext? dialogContext;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      useRootNavigator: true,
-      builder: (ctx) {
-        dialogContext = ctx;
-        return const AlertDialog(
-          content: Row(
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 16),
-              Text('正在编码 Vibe...'),
-            ],
-          ),
-        );
-      },
+
+    unawaited(
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        useRootNavigator: true,
+        builder: (ctx) {
+          dialogContext = ctx;
+          dialogCompleter.complete();
+          return const AlertDialog(
+            content: Row(
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 16),
+                Text('正在编码 Vibe...'),
+              ],
+            ),
+          );
+        },
+      ),
     );
+
+    // 等待对话框显示完成
+    await dialogCompleter.future;
+
+    void closeDialog() {
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.of(dialogContext!).pop();
+      }
+    }
 
     try {
       final encodedVibes = <VibeReference>[];
       for (final vibe in vibes) {
         if (vibe.sourceType == VibeSourceType.rawImage &&
             vibe.rawImageData != null) {
-          final encoding = await notifier.encodeVibeWithCache(
-            vibe.rawImageData!,
-            model: model,
-            informationExtracted: vibe.infoExtracted,
-            vibeName: vibe.displayName,
-          );
+          // 添加 30 秒超时保护，防止 API 无限卡住
+          final encoding = await notifier
+              .encodeVibeWithCache(
+                vibe.rawImageData!,
+                model: model,
+                informationExtracted: vibe.infoExtracted,
+                vibeName: vibe.displayName,
+              )
+              .timeout(
+                const Duration(seconds: 30),
+                onTimeout: () {
+                  AppLogger.w(
+                    'Vibe 编码超时: ${vibe.displayName}',
+                    'UnifiedReferencePanel',
+                  );
+                  return null;
+                },
+              );
 
           if (encoding != null) {
             encodedVibes.add(
@@ -886,10 +913,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
         }
       }
 
-      // 使用保存的 dialogContext 关闭对话框
-      if (dialogContext != null && dialogContext!.mounted) {
-        Navigator.of(dialogContext!).pop();
-      }
+      closeDialog();
 
       // 检查是否全部编码成功
       final allEncoded = encodedVibes.every(
@@ -909,12 +933,16 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
         }
         return encodedVibes;
       }
+    } on TimeoutException catch (e) {
+      AppLogger.e('Vibe 编码超时', e);
+      closeDialog();
+      if (mounted) {
+        AppToast.error(context, 'Vibe 编码超时，请检查网络连接后重试');
+      }
+      return null;
     } catch (e, stackTrace) {
       AppLogger.e('Failed to encode vibes', e, stackTrace);
-      // 使用保存的 dialogContext 关闭对话框
-      if (dialogContext != null && dialogContext!.mounted) {
-        Navigator.of(dialogContext!).pop();
-      }
+      closeDialog();
       return null;
     }
   }
