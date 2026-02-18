@@ -9,7 +9,6 @@ import 'package:path/path.dart' as p;
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/nai_metadata_parser.dart';
 import '../../models/gallery/nai_image_metadata.dart';
-import 'gallery_database_service.dart';
 
 /// 扫描结果
 class ScanResult {
@@ -330,8 +329,13 @@ class GalleryScanService {
         phase: 'indexing',
       );
 
-      // 让出时间片
-      await Future.delayed(Duration.zero);
+      // 让出时间片，避免阻塞UI
+      // 对于大批量文件，增加延迟以降低CPU占用
+      if (files.length > _isolateThreshold) {
+        await Future.delayed(const Duration(milliseconds: 10));
+      } else {
+        await Future.delayed(Duration.zero);
+      }
     }
   }
 
@@ -389,8 +393,13 @@ class GalleryScanService {
         phase: 'indexing',
       );
 
-      // 让出时间片
-      await Future.delayed(Duration.zero);
+      // 让出时间片，避免阻塞UI
+      // 对于大批量文件，增加延迟以降低CPU占用
+      if (files.length > _isolateThreshold) {
+        await Future.delayed(const Duration(milliseconds: 10));
+      } else {
+        await Future.delayed(Duration.zero);
+      }
     }
   }
 
