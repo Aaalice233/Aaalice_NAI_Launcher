@@ -487,6 +487,10 @@ class GalleryDataSource extends BaseDataSource {
   final LRUCache<int, GalleryMetadataRecord> _metadataCache =
       LRUCache(maxSize: _maxMetadataCacheSize);
 
+  // 收藏缓存
+  final Set<int> _favoriteCache = <int>{};
+  bool _favoritesLoaded = false;
+
   @override
   String get name => 'gallery';
 
@@ -557,6 +561,8 @@ class GalleryDataSource extends BaseDataSource {
   void clearCache() {
     _imageCache.clear();
     _metadataCache.clear();
+    _favoriteCache.clear();
+    _favoritesLoaded = false;
     AppLogger.i('Gallery cache cleared', 'GalleryDS');
   }
 
@@ -1245,5 +1251,290 @@ class GalleryDataSource extends BaseDataSource {
   Future<void> doDispose() async {
     clearCache();
     AppLogger.i('Gallery data source disposed', 'GalleryDS');
+  }
+
+  // ============================================================
+  // 元数据操作
+  // ============================================================
+
+  /// 插入或更新元数据
+  ///
+  /// [imageId] 图片ID
+  /// [metadata] NAI 图片元数据
+  ///
+  /// 使用 INSERT OR REPLACE 语义，如果存在则更新。
+  /// 插入后清除元数据缓存并更新 FTS5 索引。
+  Future<void> upsertMetadata(int imageId, NaiImageMetadata metadata) async {
+    final db = await _acquireDb();
+
+    try {
+      final fullPromptText = _buildFullPromptText(metadata);
+
+      await db.insert(
+        _metadataTable,
+        {
+          'image_id': imageId,
+          'prompt': metadata.prompt,
+          'negative_prompt': metadata.negativePrompt,
+          'seed': metadata.seed,
+          'sampler': metadata.sampler,
+          'steps': metadata.steps,
+          'cfg_scale': metadata.scale,
+          'width': metadata.width,
+          'height': metadata.height,
+          'model': metadata.model,
+          'smea': metadata.smea == true ? 1 : 0,
+          'smea_dyn': metadata.smeaDyn == true ? 1 : 0,
+          'noise_schedule': metadata.noiseSchedule,
+          'cfg_rescale': metadata.cfgRescale,
+          'uc_preset': metadata.ucPreset,
+          'quality_toggle': metadata.qualityToggle == true ? 1 : 0,
+          'is_img2img': metadata.isImg2Img ? 1 : 0,
+          'strength': metadata.strength,
+          'noise': metadata.noise,
+          'software': metadata.software,
+          'source': metadata.source,
+          'version': metadata.version,
+          'raw_json': metadata.rawJson,
+          'has_metadata': metadata.hasData ? 1 : 0,
+          'full_prompt_text': fullPromptText,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+      // 清除该图片的元数据缓存
+      _metadataCache.remove(imageId);
+
+      // 更新 FTS5 索引
+      await _updateFtsIndex(imageId, fullPromptText);
+
+      AppLogger.d('Upserted metadata for image: $imageId', 'GalleryDS');
+    } catch (e, stack) {
+      AppLogger.e('Failed to upsert metadata: $imageId', e, stack, 'GalleryDS');
+      rethrow;
+    } finally {
+      await _releaseDb(db);
+    }
+  }
+
+  /// 构建完整提示词文本（用于 FTS5 搜索）
+  ///
+  /// 合并 prompt, negativePrompt, characterPrompts
+  String _buildFullPromptText(NaiImageMetadata metadata) {
+    final buffer = StringBuffer();
+    buffer.write(metadata.prompt);
+    if (metadata.negativePrompt.isNotEmpty) {
+      buffer.write(' ');
+      buffer.write(metadata.negativePrompt);
+    }
+    for (final cp in metadata.characterPrompts) {
+      if (cp.isNotEmpty) {
+        buffer.write(' ');
+        buffer.write(cp);
+      }
+    }
+    return buffer.toString();
+  }
+
+  /// 更新 FTS5 索引
+  Future<void> _updateFtsIndex(int imageId, String promptText) async {
+    final db = await _acquireDb();
+
+    try {
+      // 先删除旧索引
+      await db.delete(
+        _ftsIndexTable,
+        where: 'image_id = ?',
+        whereArgs: [imageId],
+      );
+
+      // 插入新索引
+      await db.insert(_ftsIndexTable, {
+        'image_id': imageId,
+        'prompt_text': promptText,
+      });
+    } catch (e, stack) {
+      AppLogger.w('Failed to update FTS index for image $imageId: $e', 'GalleryDS');
+      // FTS 更新失败不应影响主流程
+    } finally {
+      await _releaseDb(db);
+    }
+  }
+
+  /// 根据图片ID获取元数据
+  ///
+  /// 先检查 _metadataCache，数据库查询后写入缓存
+  Future<GalleryMetadataRecord?> getMetadataByImageId(int imageId) async {
+    // 先检查缓存
+    final cached = _metadataCache.get(imageId);
+    if (cached != null) {
+      return cached;
+    }
+
+    final db = await _acquireDb();
+
+    try {
+      final result = await db.rawQuery(
+        '''
+        SELECT * FROM $_metadataTable
+        WHERE image_id = ?
+        ''',
+        [imageId],
+      );
+
+      if (result.isEmpty) return null;
+
+      final record = GalleryMetadataRecord.fromMap(result.first);
+
+      // 写入缓存
+      _metadataCache.put(imageId, record);
+
+      return record;
+    } catch (e, stack) {
+      AppLogger.e('Failed to get metadata by image ID: $imageId', e, stack, 'GalleryDS');
+      return null;
+    } finally {
+      await _releaseDb(db);
+    }
+  }
+
+  // ============================================================
+  // 收藏操作
+  // ============================================================
+
+  /// 切换收藏状态
+  ///
+  /// [imageId] 图片ID
+  ///
+  /// 如果存在则删除，不存在则插入。
+  /// 更新 _favoriteCache，返回新的收藏状态（true=已收藏，false=未收藏）
+  Future<bool> toggleFavorite(int imageId) async {
+    final db = await _acquireDb();
+
+    try {
+      // 检查是否已收藏
+      final exists = await db.rawQuery(
+        'SELECT 1 FROM $_favoritesTable WHERE image_id = ?',
+        [imageId],
+      );
+
+      final isCurrentlyFavorite = exists.isNotEmpty;
+
+      if (isCurrentlyFavorite) {
+        // 取消收藏
+        await db.delete(
+          _favoritesTable,
+          where: 'image_id = ?',
+          whereArgs: [imageId],
+        );
+        _favoriteCache.remove(imageId);
+        AppLogger.d('Removed favorite: $imageId', 'GalleryDS');
+        return false;
+      } else {
+        // 添加收藏
+        await db.insert(_favoritesTable, {
+          'image_id': imageId,
+          'favorited_at': DateTime.now().millisecondsSinceEpoch,
+        });
+        _favoriteCache.add(imageId);
+        AppLogger.d('Added favorite: $imageId', 'GalleryDS');
+        return true;
+      }
+    } catch (e, stack) {
+      AppLogger.e('Failed to toggle favorite: $imageId', e, stack, 'GalleryDS');
+      rethrow;
+    } finally {
+      await _releaseDb(db);
+    }
+  }
+
+  /// 检查是否已收藏
+  ///
+  /// [imageId] 图片ID
+  ///
+  /// 优先使用 _favoriteCache，如果缓存未加载则查询数据库
+  Future<bool> isFavorite(int imageId) async {
+    // 优先使用缓存
+    if (_favoritesLoaded) {
+      return _favoriteCache.contains(imageId);
+    }
+
+    // 缓存未加载，查询数据库
+    final db = await _acquireDb();
+
+    try {
+      final result = await db.rawQuery(
+        'SELECT 1 FROM $_favoritesTable WHERE image_id = ?',
+        [imageId],
+      );
+      return result.isNotEmpty;
+    } catch (e, stack) {
+      AppLogger.e('Failed to check favorite status: $imageId', e, stack, 'GalleryDS');
+      return false;
+    } finally {
+      await _releaseDb(db);
+    }
+  }
+
+  /// 加载所有收藏到缓存
+  ///
+  /// 一次性加载所有收藏ID到 _favoriteCache，设置 _favoritesLoaded = true
+  Future<void> loadFavoritesCache() async {
+    if (_favoritesLoaded) return;
+
+    final db = await _acquireDb();
+
+    try {
+      final results = await db.rawQuery(
+        'SELECT image_id FROM $_favoritesTable',
+      );
+
+      _favoriteCache.clear();
+      for (final row in results) {
+        final id = (row['image_id'] as num?)?.toInt();
+        if (id != null) {
+          _favoriteCache.add(id);
+        }
+      }
+
+      _favoritesLoaded = true;
+      AppLogger.i('Loaded ${_favoriteCache.length} favorites into cache', 'GalleryDS');
+    } catch (e, stack) {
+      AppLogger.e('Failed to load favorites cache', e, stack, 'GalleryDS');
+    } finally {
+      await _releaseDb(db);
+    }
+  }
+
+  /// 获取收藏数量
+  ///
+  /// 如果缓存已加载，直接返回缓存大小；否则查询数据库
+  Future<int> getFavoriteCount() async {
+    // 如果缓存已加载，直接返回
+    if (_favoritesLoaded) {
+      return _favoriteCache.length;
+    }
+
+    final db = await _acquireDb();
+
+    try {
+      final result = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM $_favoritesTable',
+      );
+      return (result.first['count'] as num?)?.toInt() ?? 0;
+    } catch (e, stack) {
+      AppLogger.e('Failed to get favorite count', e, stack, 'GalleryDS');
+      return 0;
+    } finally {
+      await _releaseDb(db);
+    }
+  }
+
+  /// 获取所有收藏的图片ID
+  ///
+  /// 先调用 loadFavoritesCache 确保缓存已加载
+  Future<List<int>> getFavoriteImageIds() async {
+    await loadFavoritesCache();
+    return _favoriteCache.toList();
   }
 }
