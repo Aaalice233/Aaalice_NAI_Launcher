@@ -118,6 +118,9 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
   AnimationController? _glowController;
   Animation<double>? _glowAnimation;
 
+  // 防止重复点击打开多个详情页
+  bool _isTapping = false;
+
   @override
   void initState() {
     super.initState();
@@ -460,7 +463,23 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       onExit: (_) => _onHoverExit(),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: widget.onTap ?? widget.onFullscreen,
+        onTap: () {
+          // 防止重复点击
+          if (_isTapping) return;
+          _isTapping = true;
+
+          final callback = widget.onTap ?? widget.onFullscreen;
+          if (callback != null) {
+            callback();
+          }
+
+          // 延迟重置标志，防止快速连续点击
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              setState(() => _isTapping = false);
+            }
+          });
+        },
         onSecondaryTapDown: widget.enableContextMenu
             ? (details) => _showContextMenu(context, details.globalPosition)
             : null,

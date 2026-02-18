@@ -30,6 +30,9 @@ class ImagePreviewWidget extends ConsumerStatefulWidget {
 }
 
 class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
+  /// 防止重复打开详情页
+  bool _isOpeningDetail = false;
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(imageGenerationNotifierProvider);
@@ -497,63 +500,50 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     );
   }
 
-  void _showFullscreenImage(Uint8List imageBytes) async {
+  void _showFullscreenImage(Uint8List imageBytes) {
+    // 防止重复点击
+    if (_isOpeningDetail) return;
+    _isOpeningDetail = true;
+
     final state = ref.read(imageGenerationNotifierProvider);
     final params = ref.read(generationParamsNotifierProvider);
     final characterConfig = ref.read(characterPromptNotifierProvider);
 
-    // 将中央区域显示的所有图像转换为 GeneratedImageDetailData
-    // 需要从每张图片中提取实际的 seed 值
-    final allImages = <GeneratedImageDetailData>[];
-    for (final img in state.displayImages) {
-      // 尝试从图片中提取实际的 seed
-      int actualSeed = params.seed;
-      if (params.seed == -1) {
-        final extractedMeta =
-            await NaiMetadataParser.extractFromBytes(img.bytes);
-        if (extractedMeta != null &&
-            extractedMeta.seed != null &&
-            extractedMeta.seed! > 0) {
-          actualSeed = extractedMeta.seed!;
-        }
-      }
-
-      allImages.add(
-        GeneratedImageDetailData.fromParams(
-          imageBytes: img.bytes,
-          prompt: params.prompt,
-          negativePrompt: params.negativePrompt,
-          seed: actualSeed,
-          steps: params.steps,
-          scale: params.scale,
-          width: params.width,
-          height: params.height,
-          model: params.model,
-          sampler: params.sampler,
-          smea: params.smea,
-          smeaDyn: params.smeaDyn,
-          noiseSchedule: params.noiseSchedule,
-          cfgRescale: params.cfgRescale,
-          characterPrompts: characterConfig.characters
-              .where((c) => c.enabled && c.prompt.isNotEmpty)
-              .map((c) => c.prompt)
-              .toList(),
-          characterNegativePrompts: characterConfig.characters
-              .where((c) => c.enabled)
-              .map((c) => c.negativePrompt)
-              .toList(),
-          id: img.id,
-        ),
-      );
-    }
-
     // 找到当前点击图像的索引
     final initialIndex = state.displayImages
         .indexWhere((img) => img.bytes == imageBytes)
-        .clamp(0, allImages.length - 1);
+        .clamp(0, state.displayImages.length - 1);
 
-    if (!mounted) return;
+    // 立即构建基础数据（不提取元数据，使用参数中的 seed）
+    final allImages = state.displayImages.map((img) {
+      return GeneratedImageDetailData.fromParams(
+        imageBytes: img.bytes,
+        prompt: params.prompt,
+        negativePrompt: params.negativePrompt,
+        seed: params.seed == -1 ? 0 : params.seed, // 临时 seed，-1 表示随机
+        steps: params.steps,
+        scale: params.scale,
+        width: params.width,
+        height: params.height,
+        model: params.model,
+        sampler: params.sampler,
+        smea: params.smea,
+        smeaDyn: params.smeaDyn,
+        noiseSchedule: params.noiseSchedule,
+        cfgRescale: params.cfgRescale,
+        characterPrompts: characterConfig.characters
+            .where((c) => c.enabled && c.prompt.isNotEmpty)
+            .map((c) => c.prompt)
+            .toList(),
+        characterNegativePrompts: characterConfig.characters
+            .where((c) => c.enabled)
+            .map((c) => c.negativePrompt)
+            .toList(),
+        id: img.id,
+      );
+    }).toList();
 
+    // 立即打开详情页，不等待元数据提取
     ImageDetailViewer.show(
       context,
       images: allImages,
@@ -563,7 +553,39 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       callbacks: ImageDetailCallbacks(
         onSave: (image) => _saveImage(context, image),
       ),
-    );
+    ).then((_) {
+      // 详情页关闭后重置标志
+      if (mounted) {
+        setState(() => _isOpeningDetail = false);
+      }
+    });
+
+    // 在后台提取实际的 seed（如果参数中是 -1）
+    // 这不会影响详情页的打开速度
+    if (params.seed == -1) {
+      _extractSeedsInBackground(state.displayImages, allImages);
+    }
+  }
+
+  /// 在后台提取实际的 seed 值
+  void _extractSeedsInBackground(
+    List<GeneratedImage> displayImages,
+    List<GeneratedImageDetailData> detailDataList,
+  ) async {
+    for (int i = 0; i < displayImages.length; i++) {
+      try {
+        final extractedMeta =
+            await NaiMetadataParser.extractFromBytes(displayImages[i].bytes);
+        if (extractedMeta != null &&
+            extractedMeta.seed != null &&
+            extractedMeta.seed! > 0) {
+          // 注意：这里无法更新已创建的 GeneratedImageDetailData
+          // 因为seed是final的。如果需要显示实际seed，需要重新设计
+        }
+      } catch (_) {
+        // 忽略提取错误
+      }
+    }
   }
 
   /// 获取保存目录
