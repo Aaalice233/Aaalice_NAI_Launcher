@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -16,6 +17,12 @@ import 'app_logger.dart';
 class VibeFileParser {
   /// PNG iTXt 块中的 Vibe 编码关键字
   static const String _iTXtKeyword = 'NovelAI_Vibe_Encoding_Base64';
+
+  /// 最大处理的文件大小（20MB）
+  static const int _maxFileSize = 20 * 1024 * 1024;
+
+  /// 解析超时时间
+  static const Duration _parseTimeout = Duration(seconds: 5);
 
   /// 支持的图片扩展名
   static const List<String> _imageExtensions = [
@@ -105,7 +112,7 @@ class VibeFileParser {
     }
   }
 
-  /// 从 PNG 文件解析 Vibe 参考
+  /// 从 PNG 文件解析 Vibe 参考（使用 Isolate 避免阻塞 UI）
   ///
   /// 尝试从 iTXt 块中提取预编码的 Vibe 数据
   /// 如果没有找到，尝试检测是否包含 JSON bundle 数据（Embed Into Image 格式）
@@ -115,102 +122,45 @@ class VibeFileParser {
     Uint8List bytes, {
     double defaultStrength = 0.6,
   }) async {
-    String? vibeEncoding;
-
-    try {
-      final chunks = png_extract.extractChunks(bytes);
-
-      for (final chunk in chunks) {
-        if (chunk['name'] == 'iTXt') {
-          final iTXtData = chunk['data'] as Uint8List;
-          vibeEncoding = _parseITXtChunk(iTXtData);
-          if (vibeEncoding != null) {
-            AppLogger.i(
-              'Found pre-encoded Vibe data in PNG: $fileName',
-              'VibeParser',
-            );
-            break;
-          }
-        }
-      }
-
-      if (vibeEncoding != null && vibeEncoding.isNotEmpty) {
-        // 找到预编码数据 - 使用png类型（isPreEncoded = true）
-        return VibeReference(
-          displayName: fileName,
-          vibeEncoding: vibeEncoding,
-          thumbnail: bytes,
-          strength: defaultStrength,
-          sourceType: VibeSourceType.png, // png类型被isPreEncoded视为预编码
-        );
-      }
-
-      // 没有找到 iTXt 数据，尝试检测 PNG 中是否包含 JSON 文本（Embed Into Image 格式）
-      // 有些工具会将 bundle JSON 作为文本块嵌入 PNG
-      AppLogger.i(
-        'No iTXt Vibe data found, checking for embedded JSON: $fileName',
+    // 文件大小检查
+    if (bytes.length > _maxFileSize) {
+      AppLogger.w(
+        'PNG file too large (${bytes.length} bytes), treating as raw image: $fileName',
         'VibeParser',
       );
-      
-      final embeddedJson = _extractEmbeddedJsonFromPng(chunks);
-      if (embeddedJson != null) {
-        AppLogger.i(
-          'Found embedded JSON data in PNG: $fileName',
-          'VibeParser',
-        );
-        
-        // 尝试解析为单个 vibe 或 bundle
-        try {
-          final jsonData = jsonDecode(embeddedJson) as Map<String, dynamic>;
-          
-          // 检查是否为 bundle
-          if (jsonData.containsKey('vibes')) {
-            AppLogger.i(
-              'PNG contains embedded bundle, but parseFile should handle this',
-              'VibeParser',
-            );
-          }
-          
-          // 检查是否为单个 vibe
-          final extractedEncoding = _extractEncodingFromJson(jsonData);
-          if (extractedEncoding != null) {
-            final name = jsonData['name'] as String? ?? fileName;
-            double strength = defaultStrength;
-            final importInfo = jsonData['importInfo'] as Map<String, dynamic>?;
-            if (importInfo != null && importInfo['strength'] != null) {
-              strength = (importInfo['strength'] as num).toDouble();
-            }
-            
-            return VibeReference(
-              displayName: name,
-              vibeEncoding: extractedEncoding,
-              thumbnail: bytes,
-              strength: strength.clamp(0.0, 1.0),
-              sourceType: VibeSourceType.png,
-            );
-          }
-        } catch (e) {
-          AppLogger.d(
-            'Failed to parse embedded JSON in PNG: $e',
-            'VibeParser',
-          );
-        }
-      }
-
-      // 没有找到任何 Vibe 数据 - 作为原始图片处理
-      AppLogger.i(
-        'No pre-encoded Vibe data found in PNG: $fileName, '
-            'will be encoded on demand (2 Anlas per image)',
-        'VibeParser',
-      );
-
       return VibeReference(
         displayName: fileName,
         vibeEncoding: '',
         thumbnail: bytes,
         rawImageData: bytes,
         strength: defaultStrength,
-        sourceType: VibeSourceType.rawImage, // 需要编码，消耗2 Anlas
+        sourceType: VibeSourceType.rawImage,
+      );
+    }
+
+    try {
+      // 使用 compute 将耗时操作移到 Isolate
+      final result = await compute(
+        _parsePngIsolate,
+        _PngParseParams(
+          fileName: fileName,
+          bytes: bytes,
+          defaultStrength: defaultStrength,
+        ),
+      ).timeout(_parseTimeout);
+      return result;
+    } on TimeoutException {
+      AppLogger.w(
+        'PNG parsing timeout, treating as raw image: $fileName',
+        'VibeParser',
+      );
+      return VibeReference(
+        displayName: fileName,
+        vibeEncoding: '',
+        thumbnail: bytes,
+        rawImageData: bytes,
+        strength: defaultStrength,
+        sourceType: VibeSourceType.rawImage,
       );
     } catch (e, stack) {
       // 解析失败 - 记录错误日志，作为原始图片处理
@@ -228,6 +178,85 @@ class VibeFileParser {
         thumbnail: bytes,
         rawImageData: bytes,
         strength: defaultStrength,
+        sourceType: VibeSourceType.rawImage,
+      );
+    }
+  }
+
+  /// PNG 解析参数
+  static Future<VibeReference> _parsePngIsolate(_PngParseParams params) async {
+    String? vibeEncoding;
+
+    try {
+      final chunks = png_extract.extractChunks(params.bytes);
+
+      for (final chunk in chunks) {
+        if (chunk['name'] == 'iTXt') {
+          final iTXtData = chunk['data'] as Uint8List;
+          vibeEncoding = _parseITXtChunk(iTXtData);
+          if (vibeEncoding != null) {
+            break;
+          }
+        }
+      }
+
+      if (vibeEncoding != null && vibeEncoding.isNotEmpty) {
+        // 找到预编码数据 - 使用png类型（isPreEncoded = true）
+        return VibeReference(
+          displayName: params.fileName,
+          vibeEncoding: vibeEncoding,
+          thumbnail: params.bytes,
+          strength: params.defaultStrength,
+          sourceType: VibeSourceType.png,
+        );
+      }
+
+      // 没有找到 iTXt 数据，尝试检测 PNG 中是否包含 JSON 文本
+      final embeddedJson = _extractEmbeddedJsonFromPng(chunks);
+      if (embeddedJson != null) {
+        try {
+          final jsonData = jsonDecode(embeddedJson) as Map<String, dynamic>;
+
+          // 检查是否为单个 vibe
+          final extractedEncoding = _extractEncodingFromJson(jsonData);
+          if (extractedEncoding != null) {
+            final name = jsonData['name'] as String? ?? params.fileName;
+            double strength = params.defaultStrength;
+            final importInfo = jsonData['importInfo'] as Map<String, dynamic>?;
+            if (importInfo != null && importInfo['strength'] != null) {
+              strength = (importInfo['strength'] as num).toDouble();
+            }
+
+            return VibeReference(
+              displayName: name,
+              vibeEncoding: extractedEncoding,
+              thumbnail: params.bytes,
+              strength: strength.clamp(0.0, 1.0),
+              sourceType: VibeSourceType.png,
+            );
+          }
+        } catch (e) {
+          // 忽略 JSON 解析错误
+        }
+      }
+
+      // 没有找到任何 Vibe 数据 - 作为原始图片处理
+      return VibeReference(
+        displayName: params.fileName,
+        vibeEncoding: '',
+        thumbnail: params.bytes,
+        rawImageData: params.bytes,
+        strength: params.defaultStrength,
+        sourceType: VibeSourceType.rawImage,
+      );
+    } catch (e) {
+      // 解析失败 - 作为原始图片处理
+      return VibeReference(
+        displayName: params.fileName,
+        vibeEncoding: '',
+        thumbnail: params.bytes,
+        rawImageData: params.bytes,
+        strength: params.defaultStrength,
         sourceType: VibeSourceType.rawImage,
       );
     }
@@ -455,4 +484,17 @@ class VibeFileParser {
     final extension = fileName.split('.').last.toLowerCase();
     return isSupportedImageExtension(extension);
   }
+}
+
+/// PNG 解析参数（用于 Isolate）
+class _PngParseParams {
+  final String fileName;
+  final Uint8List bytes;
+  final double defaultStrength;
+
+  _PngParseParams({
+    required this.fileName,
+    required this.bytes,
+    required this.defaultStrength,
+  });
 }

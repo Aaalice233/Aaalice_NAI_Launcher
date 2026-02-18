@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/database/database_providers.dart';
@@ -15,7 +16,7 @@ part 'gallery_repository.g.dart';
 ///
 /// 提供对 GalleryDataSource 的访问
 @Riverpod(keepAlive: true)
-Future<GalleryDataSource> galleryRepository(GalleryRepositoryRef ref) async {
+Future<GalleryDataSource> galleryRepository(Ref ref) async {
   final dbManager = await ref.watch(databaseManagerProvider.future);
   final dataSource = dbManager.getDataSource<GalleryDataSource>('gallery');
   if (dataSource == null) {

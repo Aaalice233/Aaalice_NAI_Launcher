@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:flutter/services.dart';
@@ -176,7 +177,9 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
             },
             onPerformDrop: (event) async {
               setState(() => _isDragging = false);
-              await _handleDrop(event);
+              // 重要：不要等待 _handleDrop 完成，让拖放回调立即返回
+              unawaited(_handleDrop(event));
+              return;
             },
             child: Stack(
               children: [
@@ -1445,6 +1448,42 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     return vibeFiles;
   }
 
+  /// 在 Isolate 中分类文件
+  static Future<Map<String, List<String>>> _classifyPathsIsolate(
+    List<String> paths,
+  ) async {
+    final folderPaths = <String>[];
+    final imagePaths = <String>[];
+    final vibeFilePaths = <String>[];
+
+    for (final path in paths) {
+      try {
+        final entity = await FileSystemEntity.type(path, followLinks: false);
+
+        if (entity == FileSystemEntityType.directory) {
+          folderPaths.add(path);
+        } else if (entity == FileSystemEntityType.file) {
+          final fileName = p.basename(path);
+          final ext = p.extension(fileName).toLowerCase();
+
+          if (ext == '.png') {
+            imagePaths.add(path);
+          } else if (ext == '.naiv4vibe' || ext == '.naiv4vibebundle') {
+            vibeFilePaths.add(path);
+          }
+        }
+      } catch (e) {
+        // 忽略无法访问的路径
+      }
+    }
+
+    return {
+      'folders': folderPaths,
+      'images': imagePaths,
+      'vibeFiles': vibeFilePaths,
+    };
+  }
+
   /// 处理拖拽文件
   /// 支持 .naiv4vibe, .naiv4vibebundle, .png 格式，以及文件夹
   Future<void> _handleDrop(PerformDropEvent event) async {
@@ -1457,10 +1496,27 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
       if (reader.canProvide(Formats.fileUri)) {
         final completer = Completer<Uri?>();
-        reader.getValue<Uri>(Formats.fileUri, (uri) {
-          completer.complete(uri);
-        });
-        final uri = await completer.future;
+        final progress = reader.getValue<Uri>(
+          Formats.fileUri,
+          (uri) {
+            if (!completer.isCompleted) {
+              completer.complete(uri);
+            }
+          },
+          onError: (e) {
+            if (!completer.isCompleted) {
+              completer.complete(null);
+            }
+          },
+        );
+
+        // 关键检查：如果返回 null，说明格式不可用
+        if (progress == null) continue;
+
+        final uri = await completer.future.timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => null,
+        );
         if (uri != null) {
           allPaths.add(uri.toFilePath());
         }
@@ -1469,28 +1525,11 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
     if (allPaths.isEmpty) return;
 
-    // 分类文件和文件夹
-    final folderPaths = <String>[];
-    final imagePaths = <String>[];
-    final vibeFilePaths = <String>[];
-
-    for (final path in allPaths) {
-      final entity = FileSystemEntity.typeSync(path, followLinks: false);
-
-      if (entity == FileSystemEntityType.directory) {
-        folderPaths.add(path);
-      } else if (entity == FileSystemEntityType.file) {
-        final fileName = p.basename(path);
-        final ext = p.extension(fileName).toLowerCase();
-
-        if (ext == '.png') {
-          imagePaths.add(path);
-        } else if (ext == '.naiv4vibe' || ext == '.naiv4vibebundle') {
-          vibeFilePaths.add(path);
-        }
-      }
-      // 其他类型静默跳过
-    }
+    // 使用 Isolate 分类文件和文件夹，避免阻塞 UI
+    final classified = await compute(_classifyPathsIsolate, allPaths);
+    final folderPaths = classified['folders'] ?? <String>[];
+    final imagePaths = classified['images'] ?? <String>[];
+    final vibeFilePaths = classified['vibeFiles'] ?? <String>[];
 
     // 递归扫描文件夹
     if (folderPaths.isNotEmpty) {
@@ -1519,22 +1558,26 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
             ? currentCategoryId
             : null;
 
+    // 并行读取图片文件，避免顺序阻塞
     final imageItems = <VibeImageImportItem>[];
     var preProcessFail = 0;
-    for (final path in imagePaths) {
-      try {
-        final bytes = await File(path).readAsBytes();
-        imageItems.add(
-          VibeImageImportItem(
-            source: p.basename(path),
-            bytes: bytes,
-          ),
-        );
-      } catch (e, stackTrace) {
-        AppLogger.e('读取拖拽图片失败: $path', e, stackTrace, 'VibeLibrary');
-        preProcessFail++;
-      }
-    }
+
+    await Future.wait(
+      imagePaths.map((path) async {
+        try {
+          final bytes = await File(path).readAsBytes();
+          imageItems.add(
+            VibeImageImportItem(
+              source: p.basename(path),
+              bytes: bytes,
+            ),
+          );
+        } catch (e, stackTrace) {
+          AppLogger.e('读取拖拽图片失败: $path', e, stackTrace, 'VibeLibrary');
+          preProcessFail++;
+        }
+      }),
+    );
 
     final vibeFiles = vibeFilePaths
         .map(

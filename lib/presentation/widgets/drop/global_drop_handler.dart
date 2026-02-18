@@ -78,7 +78,10 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       },
       onPerformDrop: (event) async {
         setState(() => _isDragging = false);
-        await _handleDrop(event);
+        // 重要：不要等待 _handleDrop 完成，让拖放回调立即返回
+        // 否则 Windows 拖放系统会卡死，导致资源管理器无响应
+        unawaited(_handleDrop(event));
+        return;
       },
       child: Stack(
         children: [
@@ -153,16 +156,36 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     }
   }
 
+  /// 文件读取参数（用于 Isolate）
+  static Future<_FileData?> _readFileInIsolate(_FileReadParams params) async {
+    try {
+      final file = File(params.filePath);
+      final bytes = await file.readAsBytes();
+      return _FileData(fileName: params.fileName, bytes: bytes);
+    } catch (e) {
+      return null;
+    }
+  }
+
   Future<_FileData?> _readFileData(DataReader reader) async {
     // 尝试获取文件 URI
     if (reader.canProvide(Formats.fileUri)) {
       final uri = await _getFileUri(reader);
       if (uri != null) {
         try {
-          final file = File(uri.toFilePath());
-          final fileName = file.path.split(Platform.pathSeparator).last;
-          final bytes = await file.readAsBytes();
-          return _FileData(fileName: fileName, bytes: bytes);
+          final filePath = uri.toFilePath();
+          final fileName = filePath.split(Platform.pathSeparator).last;
+
+          // 使用 compute 将文件读取移到 Isolate，避免阻塞 UI
+          final result = await compute(
+            _readFileInIsolate,
+            _FileReadParams(filePath: filePath, fileName: fileName),
+          );
+
+          if (result == null) {
+            _showError('读取文件失败');
+          }
+          return result;
         } catch (e) {
           if (kDebugMode) {
             AppLogger.d('Error reading dropped file: $e', 'DropHandler');
@@ -173,7 +196,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       return null;
     }
 
-    // 尝试获取图片数据
+    // 尝试获取图片数据（从拖放的原始数据，不是文件系统）
     final imageFormat = _getSupportedImageFormat(reader);
     if (imageFormat != null) {
       try {
@@ -201,16 +224,20 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     final completer = Completer<Uri?>();
 
     // 关键检查：如果 getValue 返回 null，说明格式不可用，直接返回 null
-    final progress = reader.getValue(Formats.fileUri, (uri) {
-      if (!completer.isCompleted) {
-        completer.complete(uri);
-      }
-    }, onError: (e) {
-      AppLogger.w('获取文件URI错误: $e', 'DropHandler');
-      if (!completer.isCompleted) {
-        completer.complete(null);
-      }
-    });
+    final progress = reader.getValue(
+      Formats.fileUri,
+      (uri) {
+        if (!completer.isCompleted) {
+          completer.complete(uri);
+        }
+      },
+      onError: (e) {
+        AppLogger.w('获取文件URI错误: $e', 'DropHandler');
+        if (!completer.isCompleted) {
+          completer.complete(null);
+        }
+      },
+    );
 
     if (progress == null) {
       // 格式不可用，不需要等待回调
@@ -238,20 +265,25 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     return null;
   }
 
-  Future<DataReaderFile?> _getImageFile(DataReader reader, FileFormat format) async {
+  Future<DataReaderFile?> _getImageFile(
+      DataReader reader, FileFormat format,) async {
     final completer = Completer<DataReaderFile?>();
 
     // 关键检查：如果 getFile 返回 null，说明格式不可用，直接返回 null
-    final progress = reader.getFile(format, (file) {
-      if (!completer.isCompleted) {
-        completer.complete(file);
-      }
-    }, onError: (e) {
-      AppLogger.w('获取图片文件错误: $e', 'DropHandler');
-      if (!completer.isCompleted) {
-        completer.complete(null);
-      }
-    });
+    final progress = reader.getFile(
+      format,
+      (file) {
+        if (!completer.isCompleted) {
+          completer.complete(file);
+        }
+      },
+      onError: (e) {
+        AppLogger.w('获取图片文件错误: $e', 'DropHandler');
+        if (!completer.isCompleted) {
+          completer.complete(null);
+        }
+      },
+    );
 
     if (progress == null) {
       // 格式不可用，不需要等待回调
@@ -321,11 +353,19 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
 
     await _handleDestination(
-        destination, fileName, bytes, detectedVibe, notifier, l10n,);
+      destination,
+      fileName,
+      bytes,
+      detectedVibe,
+      notifier,
+      l10n,
+    );
   }
 
   Future<VibeReference?> _detectVibeMetadata(
-      String fileName, Uint8List bytes,) async {
+    String fileName,
+    Uint8List bytes,
+  ) async {
     if (!fileName.toLowerCase().endsWith('.png')) return null;
 
     try {
@@ -368,8 +408,13 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         break;
 
       case ImageDestination.vibeTransferRaw:
-        await _handleVibeTransfer(fileName, bytes, notifier, l10n,
-            forceRaw: true,);
+        await _handleVibeTransfer(
+          fileName,
+          bytes,
+          notifier,
+          l10n,
+          forceRaw: true,
+        );
         break;
 
       case ImageDestination.characterReference:
@@ -386,8 +431,11 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     }
   }
 
-  void _handleImg2Img(Uint8List bytes, GenerationParamsNotifier notifier,
-      AppLocalizations l10n,) {
+  void _handleImg2Img(
+    Uint8List bytes,
+    GenerationParamsNotifier notifier,
+    AppLocalizations l10n,
+  ) {
     notifier.setSourceImage(bytes);
     notifier.updateAction(ImageGenerationAction.img2img);
 
@@ -441,7 +489,10 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
   }
 
   String _buildVibeMessage(
-      int currentCount, int addedCount, AppLocalizations l10n,) {
+    int currentCount,
+    int addedCount,
+    AppLocalizations l10n,
+  ) {
     if (currentCount > 0) {
       return '已追加 $addedCount 个风格参考';
     }
@@ -529,7 +580,9 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
 
       if (appliedCount > 0) {
         AppToast.success(
-            context, l10n.metadataImport_appliedCount(appliedCount),);
+          context,
+          l10n.metadataImport_appliedCount(appliedCount),
+        );
         _showMetadataAppliedDialog(metadata, options, l10n);
       } else {
         AppToast.warning(context, l10n.metadataImport_noParamsSelected);
@@ -881,4 +934,12 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     if (!mounted) return;
     AppToast.error(context, message);
   }
+}
+
+/// 文件读取参数（用于 Isolate）
+class _FileReadParams {
+  final String filePath;
+  final String fileName;
+
+  _FileReadParams({required this.filePath, required this.fileName});
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -15,13 +16,53 @@ class NaiMetadataParser {
   /// 魔法字节标识
   static const String _magic = 'stealth_pngcomp';
 
-  /// 从 PNG 文件字节提取元数据
+  /// 最大处理的文件大小（20MB）
+  static const int _maxFileSize = 20 * 1024 * 1024;
+
+  /// 解析超时时间
+  static const Duration _parseTimeout = Duration(seconds: 5);
+
+  /// 从 PNG 文件字节提取元数据（使用 Isolate 避免阻塞 UI）
   ///
   /// [bytes] PNG 图片的原始字节
   /// 返回解析后的元数据，如果解析失败返回 null
   static Future<NaiImageMetadata?> extractFromBytes(Uint8List bytes) async {
+    // 文件大小检查
+    if (bytes.length > _maxFileSize) {
+      AppLogger.w(
+        'PNG file too large (${bytes.length} bytes), skipping metadata extraction',
+        'NaiMetadataParser',
+      );
+      return null;
+    }
+
     try {
-      // 解码 PNG 图片
+      // 使用 compute 将耗时操作移到 Isolate
+      final result = await compute(
+        _extractMetadataIsolate,
+        bytes,
+      ).timeout(_parseTimeout);
+      return result;
+    } on TimeoutException {
+      AppLogger.w('PNG metadata extraction timeout', 'NaiMetadataParser');
+      return null;
+    } catch (e, stack) {
+      if (kDebugMode) {
+        AppLogger.e(
+          'Failed to extract NAI metadata',
+          e,
+          stack,
+          'NaiMetadataParser',
+        );
+      }
+      return null;
+    }
+  }
+
+  /// 在 Isolate 中执行元数据提取
+  static Future<NaiImageMetadata?> _extractMetadataIsolate(Uint8List bytes) async {
+    try {
+      // 解码 PNG图片 - 这是耗时操作
       final image = img.decodePng(bytes);
       if (image == null) {
         return null;
@@ -36,15 +77,7 @@ class NaiMetadataParser {
       // 解析 JSON
       final Map<String, dynamic> json = jsonDecode(jsonString);
       return NaiImageMetadata.fromNaiComment(json, rawJson: jsonString);
-    } catch (e, stack) {
-      if (kDebugMode) {
-        AppLogger.e(
-          'Failed to extract NAI metadata',
-          e,
-          stack,
-          'NaiMetadataParser',
-        );
-      }
+    } catch (e) {
       return null;
     }
   }
