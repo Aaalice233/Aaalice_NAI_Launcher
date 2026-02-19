@@ -1,111 +1,247 @@
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:image/image.dart' as img;
 
 import '../../data/models/vibe/vibe_reference.dart';
+import 'app_logger.dart';
 
 class VibeImageEmbedder {
   static const List<int> _pngSignature = <int>[
-    0x89,
-    0x50,
-    0x4E,
-    0x47,
-    0x0D,
-    0x0A,
-    0x1A,
-    0x0A,
+    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
   ];
 
   static const String _vibeKeyword = 'naiv4vibe';
   static const String _metadataType = 'naiv4vibe';
-  static const String _metadataVersion = '1.0';
+  static const String _naiDataKeyword = 'naidata';
+  static const String _itxtChunkType = 'iTXt';
+  static const String _textChunkType = 'tEXt';
+  static const String _idatChunkType = 'IDAT';
+  static const String _iendChunkType = 'IEND';
+
+  static const int _minPngSize = 20; // 8 (signature) + 12 (minimum chunk)
+  static const int _chunkHeaderSize = 12; // 4 (length) + 4 (type) + 4 (crc)
 
   static Future<Uint8List> embedVibeToImage(
     Uint8List imageBytes,
-    VibeReference vibeReference,
-  ) async {
-    return Future<Uint8List>(() {
-      try {
-        _ensureValidPng(imageBytes);
-        final chunks = _parsePngChunks(imageBytes);
-        final payloadJson = _encodeMetadataPayload(
-          _buildMetadataPayload(vibeReference),
-        );
-        final vibeChunk = _buildTextChunk(_vibeKeyword, payloadJson);
+    VibeReference vibeReference, {
+    String? thumbnailBase64,
+  }) async {
+    _ensureValidPng(imageBytes);
+    final chunks = _parsePngChunks(imageBytes);
 
-        final builder = BytesBuilder(copy: false)..add(_pngSignature);
-        var hasImageData = false;
-        var inserted = false;
+    final naiData = _buildNaiVibeData(vibeReference, thumbnailBase64);
+    final naiDataBase64 = base64.encode(utf8.encode(jsonEncode(naiData)));
+    final vibeChunk = _buildITxtChunk(_naiDataKeyword, naiDataBase64);
 
-        for (final chunk in chunks) {
-          final isVibeTextChunk = _isVibeTextChunk(chunk);
+    final builder = BytesBuilder(copy: false)..add(_pngSignature);
+    var idatFound = false;
 
-          if (chunk.type == 'IDAT' && !inserted) {
-            builder.add(vibeChunk);
-            inserted = true;
-          }
-
-          if (chunk.type == 'IDAT') {
-            hasImageData = true;
-          }
-
-          if (!isVibeTextChunk) {
-            builder.add(chunk.rawBytes);
-          }
-        }
-
-        if (!hasImageData) {
-          throw VibeEmbedException('PNG image is missing IDAT chunk');
-        }
-
-        if (!inserted) {
-          throw VibeEmbedException('Failed to insert naiv4vibe metadata chunk');
-        }
-
-        return builder.toBytes();
-      } on InvalidImageFormatException {
-        rethrow;
-      } on VibeEmbedException {
-        rethrow;
-      } catch (e) {
-        throw VibeEmbedException('Failed to embed vibe metadata: $e');
+    for (final chunk in chunks) {
+      if (chunk.type == _idatChunkType && !idatFound) {
+        builder.add(vibeChunk);
+        idatFound = true;
       }
-    });
+
+      if (!_isVibeChunk(chunk)) {
+        builder.add(chunk.rawBytes);
+      }
+    }
+
+    if (!idatFound) {
+      throw VibeEmbedException('PNG image is missing IDAT chunk');
+    }
+
+    return builder.toBytes();
   }
 
-  static Future<VibeReference> extractVibeFromImage(
-    Uint8List imageBytes,
-  ) async {
-    return Future<VibeReference>(() {
-      try {
-        final decoder = img.PngDecoder();
-        if (!decoder.isValidFile(imageBytes) ||
-            decoder.startDecode(imageBytes) == null) {
-          throw InvalidImageFormatException(
-            'Only valid PNG images can contain naiv4vibe metadata',
-          );
-        }
+  static Map<String, dynamic> _buildNaiVibeData(
+    VibeReference reference,
+    String? thumbnailBase64,
+  ) {
+    final now = DateTime.now().toIso8601String();
+    return {
+      'identifier': 'novelai-vibe-transfer-bundle',
+      'version': 1,
+      'vibes': [
+        {
+          'identifier': 'novelai-vibe-transfer',
+          'version': 1,
+          'type': 'image',
+          'image': thumbnailBase64 ?? '',
+          'id': _generateVibeId(),
+          'encodings': {'vibe': reference.vibeEncoding},
+          'name': reference.displayName,
+          'thumbnail': thumbnailBase64,
+          'createdAt': now,
+          'importInfo': {
+            'source': 'nai_launcher',
+            'importedAt': now,
+          },
+        },
+      ],
+    };
+  }
 
-        final payloadJson = decoder.info.textData[_vibeKeyword];
-        if (payloadJson == null || payloadJson.trim().isEmpty) {
-          throw NoVibeDataException(
-            'No naiv4vibe metadata found in PNG tEXt chunks',
-          );
-        }
+  static String _generateVibeId() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join('');
+  }
 
-        final payload = _decodeMetadataPayload(payloadJson);
-        return _payloadToVibeReference(payload);
-      } on InvalidImageFormatException {
-        rethrow;
-      } on NoVibeDataException {
-        rethrow;
-      } on VibeExtractException {
-        rethrow;
-      } catch (e) {
-        throw VibeExtractException('Failed to extract vibe metadata: $e');
+  static bool _isVibeChunk(_PngChunk chunk) {
+    if (chunk.type == _textChunkType) {
+      return _isVibeTextChunk(chunk);
+    }
+    if (chunk.type == _itxtChunkType) {
+      return _extractKeywordFromITxt(chunk.data) == _naiDataKeyword;
+    }
+    return false;
+  }
+
+  static String? _extractKeywordFromITxt(Uint8List data) {
+    final nullPos = data.indexOf(0);
+    if (nullPos <= 0) return null;
+    return utf8.decode(data.sublist(0, nullPos));
+  }
+
+  static Future<VibeReference> extractVibeFromImage(Uint8List imageBytes) async {
+    final decoder = img.PngDecoder();
+    if (!decoder.isValidFile(imageBytes) ||
+        decoder.startDecode(imageBytes) == null) {
+      throw InvalidImageFormatException(
+        'Only valid PNG images can contain naiv4vibe metadata',
+      );
+    }
+
+    // Try tEXt chunk first (legacy format)
+    final textData = decoder.info.textData;
+    final payloadJson = textData[_vibeKeyword];
+    if (payloadJson != null && payloadJson.trim().isNotEmpty) {
+      final payload = _decodeMetadataPayload(payloadJson);
+      return _payloadToVibeReference(payload);
+    }
+
+    // Try iTXt chunk (NAI official format)
+    final naiData = _extractNaiDataFromITxt(imageBytes);
+    if (naiData != null) {
+      AppLogger.d('Found NAI naidata format', 'VibeImageEmbedder');
+      return _parseNaiVibeData(naiData);
+    }
+
+    throw NoVibeDataException(
+      'No naiv4vibe or naidata metadata found in PNG. Available tEXt keys: ${textData.keys.toList()}',
+    );
+  }
+
+  static Map<String, dynamic>? _extractNaiDataFromITxt(Uint8List imageBytes) {
+    if (!_hasValidPngSignature(imageBytes)) return null;
+
+    final byteData = ByteData.sublistView(imageBytes);
+    var offset = _pngSignature.length;
+
+    while (offset + _chunkHeaderSize <= imageBytes.length) {
+      final dataLength = byteData.getUint32(offset, Endian.big);
+      final typeStart = offset + 4;
+      final dataStart = typeStart + 4;
+      final dataEnd = dataStart + dataLength;
+      final crcEnd = dataEnd + 4;
+
+      if (crcEnd > imageBytes.length) break;
+
+      final chunkType = ascii.decode(imageBytes.sublist(typeStart, dataStart));
+
+      if (chunkType == _itxtChunkType) {
+        final chunkData = imageBytes.sublist(dataStart, dataEnd);
+        final result = _parseITxtChunk(chunkData);
+        if (result != null && result['keyword'] == _naiDataKeyword) {
+          return result['data'] as Map<String, dynamic>?;
+        }
       }
-    });
+
+      if (chunkType == _iendChunkType) break;
+      offset = crcEnd;
+    }
+
+    return null;
+  }
+
+  static bool _hasValidPngSignature(Uint8List bytes) {
+    if (bytes.length < _pngSignature.length) return false;
+    for (var i = 0; i < _pngSignature.length; i++) {
+      if (bytes[i] != _pngSignature[i]) return false;
+    }
+    return true;
+  }
+
+  /// iTXt structure: keyword\0compression_flag\0compression_method\0language\0translated_keyword\0text
+  static Map<String, dynamic>? _parseITxtChunk(Uint8List data) {
+    try {
+      final keywordEnd = data.indexOf(0);
+      if (keywordEnd <= 0) return null;
+
+      final keyword = utf8.decode(data.sublist(0, keywordEnd));
+      var offset = keywordEnd + 1;
+
+      if (offset + 2 > data.length) return null;
+
+      final compressionFlag = data[offset];
+      offset += 2; // Skip compression flag and method
+
+      // Skip language tag and translated keyword
+      for (var i = 0; i < 2; i++) {
+        final end = data.indexOf(0, offset);
+        if (end < 0) return null;
+        offset = end + 1;
+      }
+
+      final textBytes = data.sublist(offset);
+      final text = compressionFlag == 1
+          ? utf8.decode(const ZLibDecoder().decodeBytes(textBytes))
+          : utf8.decode(textBytes);
+
+      final decoded = base64.decode(text);
+      final jsonData = jsonDecode(utf8.decode(decoded)) as Map<String, dynamic>;
+
+      return {'keyword': keyword, 'data': jsonData};
+    } catch (e) {
+      AppLogger.w('Failed to parse iTXt chunk: $e', 'VibeImageEmbedder');
+      return null;
+    }
+  }
+
+  static VibeReference _parseNaiVibeData(Map<String, dynamic> naiData) {
+    final identifier = naiData['identifier'] as String?;
+
+    if (identifier == 'novelai-vibe-transfer-bundle') {
+      final vibes = naiData['vibes'] as List<dynamic>?;
+      if (vibes == null || vibes.isEmpty) {
+        throw VibeExtractException('NAI vibe bundle contains no vibes');
+      }
+      return _parseNaiSingleVibe(vibes.first as Map<String, dynamic>);
+    }
+
+    if (identifier == 'novelai-vibe-transfer') {
+      return _parseNaiSingleVibe(naiData);
+    }
+
+    throw VibeExtractException('Unknown NAI data identifier: $identifier');
+  }
+
+  static VibeReference _parseNaiSingleVibe(Map<String, dynamic> vibe) {
+    final encodings = vibe['encodings'] as Map<String, dynamic>?;
+    final encoding = encodings?.values.first as String? ?? '';
+    final name = vibe['name'] as String? ?? 'vibe';
+
+    return VibeReference(
+      displayName: name,
+      vibeEncoding: encoding,
+      strength: 0.6,
+      infoExtracted: 1.0,
+      sourceType: VibeSourceType.png,
+    );
   }
 
   static void _ensureValidPng(Uint8List imageBytes) {
@@ -119,21 +255,19 @@ class VibeImageEmbedder {
   }
 
   static List<_PngChunk> _parsePngChunks(Uint8List bytes) {
-    if (bytes.length < _pngSignature.length + 12) {
+    if (bytes.length < _minPngSize) {
       throw InvalidImageFormatException('PNG data is too short');
     }
 
-    for (var i = 0; i < _pngSignature.length; i++) {
-      if (bytes[i] != _pngSignature[i]) {
-        throw InvalidImageFormatException('Invalid PNG signature');
-      }
+    if (!_hasValidPngSignature(bytes)) {
+      throw InvalidImageFormatException('Invalid PNG signature');
     }
 
-    final chunkList = <_PngChunk>[];
+    final chunks = <_PngChunk>[];
     final byteData = ByteData.sublistView(bytes);
     var offset = _pngSignature.length;
 
-    while (offset + 12 <= bytes.length) {
+    while (offset + _chunkHeaderSize <= bytes.length) {
       final dataLength = byteData.getUint32(offset, Endian.big);
       final typeStart = offset + 4;
       final dataStart = typeStart + 4;
@@ -145,75 +279,41 @@ class VibeImageEmbedder {
       }
 
       final chunkType = ascii.decode(bytes.sublist(typeStart, dataStart));
-      final chunkData = Uint8List.fromList(bytes.sublist(dataStart, dataEnd));
-      final rawBytes = Uint8List.fromList(bytes.sublist(offset, crcEnd));
 
-      chunkList.add(
+      chunks.add(
         _PngChunk(
           type: chunkType,
-          data: chunkData,
-          rawBytes: rawBytes,
+          data: Uint8List.fromList(bytes.sublist(dataStart, dataEnd)),
+          rawBytes: Uint8List.fromList(bytes.sublist(offset, crcEnd)),
         ),
       );
 
+      if (chunkType == _iendChunkType) break;
       offset = crcEnd;
-
-      if (chunkType == 'IEND') {
-        break;
-      }
     }
 
-    if (chunkList.isEmpty || chunkList.last.type != 'IEND') {
+    if (chunks.isEmpty || chunks.last.type != _iendChunkType) {
       throw InvalidImageFormatException('PNG is missing IEND chunk');
     }
 
-    return chunkList;
+    return chunks;
   }
 
   static bool _isVibeTextChunk(_PngChunk chunk) {
-    if (chunk.type != 'tEXt') {
-      return false;
-    }
+    if (chunk.type != _textChunkType) return false;
 
     final separator = chunk.data.indexOf(0);
-    if (separator <= 0) {
-      return false;
-    }
+    if (separator <= 0) return false;
 
     final keyword = latin1.decode(chunk.data.sublist(0, separator));
     return keyword == _vibeKeyword;
-  }
-
-  static Map<String, dynamic> _buildMetadataPayload(VibeReference reference) {
-    return <String, dynamic>{
-      'version': _metadataVersion,
-      'type': _metadataType,
-      'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      'data': <String, dynamic>{
-        'name': reference.displayName,
-        'displayName': reference.displayName,
-        'strength': reference.strength,
-        'infoExtracted': reference.infoExtracted,
-        'encoding': reference.vibeEncoding,
-        'vibeEncoding': reference.vibeEncoding,
-        'sourceType': reference.sourceType.name,
-        'rawImagePath': null,
-      },
-    };
-  }
-
-  static String _encodeMetadataPayload(Map<String, dynamic> payload) {
-    final rawJson = jsonEncode(payload);
-    return _escapeNonAscii(rawJson);
   }
 
   static Map<String, dynamic> _decodeMetadataPayload(String payloadJson) {
     try {
       final dynamic decoded = jsonDecode(payloadJson);
       if (decoded is! Map<String, dynamic>) {
-        throw VibeExtractException(
-          'Vibe metadata payload is not a JSON object',
-        );
+        throw VibeExtractException('Vibe metadata payload is not a JSON object');
       }
 
       final type = decoded['type'] as String?;
@@ -228,7 +328,7 @@ class VibeImageEmbedder {
   }
 
   static VibeReference _payloadToVibeReference(Map<String, dynamic> payload) {
-    final dynamic dataRaw = payload['data'];
+    final dataRaw = payload['data'];
     if (dataRaw is! Map<String, dynamic>) {
       throw VibeExtractException('Vibe metadata is missing data section');
     }
@@ -237,7 +337,6 @@ class VibeImageEmbedder {
         (dataRaw['displayName'] ?? dataRaw['name']) as String? ?? 'vibe';
     final vibeEncoding =
         (dataRaw['vibeEncoding'] ?? dataRaw['encoding']) as String? ?? '';
-
     final strength =
         _parseDouble(dataRaw['strength'], 0.6).clamp(0.0, 1.0).toDouble();
     final infoExtracted =
@@ -254,59 +353,47 @@ class VibeImageEmbedder {
   }
 
   static double _parseDouble(Object? value, double defaultValue) {
-    if (value is num) {
-      return value.toDouble();
-    }
-    if (value is String) {
-      return double.tryParse(value) ?? defaultValue;
-    }
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? defaultValue;
     return defaultValue;
   }
 
   static VibeSourceType _parseSourceType(Object? value, String vibeEncoding) {
     if (value is String) {
       for (final type in VibeSourceType.values) {
-        if (type.name == value) {
-          return type;
-        }
+        if (type.name == value) return type;
       }
     }
-
     return vibeEncoding.isNotEmpty
         ? VibeSourceType.png
         : VibeSourceType.rawImage;
   }
 
-  static Uint8List _buildTextChunk(String keyword, String text) {
+  /// iTXt structure: keyword\0compression_flag\0compression_method\0language\0translated_keyword\0text
+  static Uint8List _buildITxtChunk(String keyword, String text) {
     if (keyword.isEmpty || keyword.length > 79) {
-      throw VibeEmbedException('PNG tEXt keyword must be 1-79 characters');
+      throw VibeEmbedException('PNG iTXt keyword must be 1-79 characters');
     }
 
-    if (keyword.contains('\u0000')) {
-      throw VibeEmbedException('PNG tEXt keyword cannot contain null bytes');
-    }
+    final keywordBytes = utf8.encode(keyword);
+    final textBytes = utf8.encode(text);
 
-    final keywordBytes = latin1.encode(keyword);
-    final textBytes = latin1.encode(text);
+    final builder = BytesBuilder(copy: false)
+      ..add(keywordBytes)
+      ..addByte(0) // null separator
+      ..addByte(0) // compression flag (0 = uncompressed)
+      ..addByte(0) // compression method (0 = deflate)
+      ..addByte(0) // language tag (empty)
+      ..addByte(0) // translated keyword (empty)
+      ..add(textBytes);
 
-    final chunkDataLength = keywordBytes.length + 1 + textBytes.length;
-    final chunkData = Uint8List(chunkDataLength);
-
-    chunkData.setRange(0, keywordBytes.length, keywordBytes);
-    chunkData[keywordBytes.length] = 0;
-    chunkData.setRange(keywordBytes.length + 1, chunkDataLength, textBytes);
-
-    final chunkTypeBytes = ascii.encode('tEXt');
+    final chunkData = builder.toBytes();
+    final chunkTypeBytes = ascii.encode(_itxtChunkType);
     final crcInput = Uint8List(chunkTypeBytes.length + chunkData.length)
       ..setRange(0, chunkTypeBytes.length, chunkTypeBytes)
-      ..setRange(
-        chunkTypeBytes.length,
-        chunkTypeBytes.length + chunkData.length,
-        chunkData,
-      );
+      ..setRange(chunkTypeBytes.length, chunkTypeBytes.length + chunkData.length, chunkData);
 
     final out = BytesBuilder(copy: false);
-
     final lengthBytes = ByteData(4)..setUint32(0, chunkData.length, Endian.big);
     out.add(lengthBytes.buffer.asUint8List());
     out.add(chunkTypeBytes);
@@ -324,81 +411,41 @@ class VibeImageEmbedder {
     for (final byte in bytes) {
       var current = (crc ^ byte) & 0xFF;
       for (var bit = 0; bit < 8; bit++) {
-        if ((current & 1) != 0) {
-          current = 0xEDB88320 ^ (current >> 1);
-        } else {
-          current >>= 1;
-        }
+        current = (current & 1) != 0
+            ? 0xEDB88320 ^ (current >> 1)
+            : current >> 1;
       }
       crc = ((crc >> 8) ^ current) & 0xFFFFFFFF;
     }
 
     return (crc ^ 0xFFFFFFFF) & 0xFFFFFFFF;
   }
-
-  static String _escapeNonAscii(String value) {
-    final buffer = StringBuffer();
-
-    for (final rune in value.runes) {
-      if (rune <= 0x7F) {
-        buffer.writeCharCode(rune);
-        continue;
-      }
-
-      if (rune <= 0xFFFF) {
-        buffer.write('\\u${_toHex4(rune)}');
-        continue;
-      }
-
-      final codePoint = rune - 0x10000;
-      final highSurrogate = 0xD800 + (codePoint >> 10);
-      final lowSurrogate = 0xDC00 + (codePoint & 0x3FF);
-
-      buffer
-        ..write('\\u${_toHex4(highSurrogate)}')
-        ..write('\\u${_toHex4(lowSurrogate)}');
-    }
-
-    return buffer.toString();
-  }
-
-  static String _toHex4(int value) {
-    return value.toRadixString(16).padLeft(4, '0').toUpperCase();
-  }
 }
 
 class VibeEmbedException implements Exception {
   VibeEmbedException(this.message);
-
   final String message;
-
   @override
   String toString() => 'VibeEmbedException: $message';
 }
 
 class VibeExtractException implements Exception {
   VibeExtractException(this.message);
-
   final String message;
-
   @override
   String toString() => 'VibeExtractException: $message';
 }
 
 class InvalidImageFormatException implements Exception {
   InvalidImageFormatException(this.message);
-
   final String message;
-
   @override
   String toString() => 'InvalidImageFormatException: $message';
 }
 
 class NoVibeDataException implements Exception {
   NoVibeDataException(this.message);
-
   final String message;
-
   @override
   String toString() => 'NoVibeDataException: $message';
 }

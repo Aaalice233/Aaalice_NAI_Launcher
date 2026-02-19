@@ -1301,21 +1301,23 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     var totalFail = 0;
     final totalCount = imageItems.length + vibeFiles.length;
 
-    if (imageItems.isNotEmpty) {
-      try {
-        final result = await importService.importFromImage(
-          images: imageItems,
-          categoryId: targetCategoryId,
-          onProgress: (current, _, message) {
-            onProgress(current, totalCount, message);
-          },
-        );
-        totalSuccess += result.successCount;
-        totalFail += result.failCount;
-      } catch (e, stackTrace) {
-        AppLogger.e('导入图片 Vibe 失败', e, stackTrace, 'VibeLibrary');
-        totalFail += imageItems.length;
+    // 单独处理每张图片，以便支持无 Vibe 数据图片的编码流程
+    for (var i = 0; i < imageItems.length; i++) {
+      final imageItem = imageItems[i];
+      onProgress(i + 1, totalCount, '导入图片($i/${imageItems.length}): ${imageItem.source}');
+
+      final result = await _processSingleImageImport(
+        imageFile: imageItem,
+        importService: importService,
+        targetCategoryId: targetCategoryId,
+      );
+
+      if (result == true) {
+        totalSuccess++;
+      } else if (result == false) {
+        totalFail++;
       }
+      // result == null 表示用户取消，不计入成功或失败
     }
 
     if (vibeFiles.isNotEmpty) {
@@ -1402,6 +1404,11 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
   }
 
   Future<void> _handleImportResult(int totalSuccess, int totalFail) async {
+    // 用户全部取消，不显示任何提示
+    if (totalSuccess == 0 && totalFail == 0) {
+      return;
+    }
+
     if (totalSuccess > 0) {
       await ref.read(vibeLibraryNotifierProvider.notifier).reload();
     }
@@ -1643,6 +1650,11 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
       _importProgress = const ImportProgress();
     });
 
+    // 用户全部取消，不显示任何提示
+    if (totalSuccess == 0 && totalFail == 0) {
+      return;
+    }
+
     // 重新加载数据以确保UI显示导入的条目
     if (totalSuccess > 0) {
       await ref.read(vibeLibraryNotifierProvider.notifier).reload();
@@ -1855,6 +1867,11 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
     setState(() => _isImporting = false);
 
+    // 用户全部取消，不显示任何提示
+    if (totalSuccess == 0 && totalFail == 0) {
+      return;
+    }
+
     // 重新加载数据
     if (totalSuccess > 0) {
       await ref.read(vibeLibraryNotifierProvider.notifier).reload();
@@ -1885,13 +1902,12 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
   }) async {
     // 首先尝试提取 Vibe 数据
     try {
-      await VibeImageEmbedder.extractVibeFromImage(imageFile.bytes);
-      // 提取成功，正常导入
-      final importResult = await importService.importFromImage(
-        images: [imageFile],
+      final reference = await VibeImageEmbedder.extractVibeFromImage(imageFile.bytes);
+      // 提取成功，直接保存到 Vibe 库（不经过 importService.importFromImage 避免重复提取）
+      return await _saveVibeReference(
+        reference: reference,
         categoryId: targetCategoryId,
       );
-      return importResult.successCount > 0;
     } on NoVibeDataException {
       // 无 Vibe 数据，询问用户是否编码
       return await _handleImageEncoding(
@@ -1913,6 +1929,55 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     }
   }
 
+  /// 保存 VibeReference 到库
+  Future<bool> _saveVibeReference({
+    required VibeReference reference,
+    String? categoryId,
+  }) async {
+    try {
+      final notifier = ref.read(vibeLibraryNotifierProvider.notifier);
+
+      // 生成唯一名称（处理重名）
+      final baseName = reference.displayName.trim().isEmpty
+          ? 'vibe_${DateTime.now().millisecondsSinceEpoch}'
+          : reference.displayName.trim();
+      final uniqueName = _generateUniqueName(baseName);
+
+      // 创建条目
+      final entry = VibeLibraryEntry.fromVibeReference(
+        name: uniqueName,
+        vibeData: reference,
+        categoryId: categoryId,
+      );
+
+      await notifier.saveEntry(entry);
+      return true;
+    } catch (e, stackTrace) {
+      AppLogger.e('保存 Vibe 到库失败', e, stackTrace, 'VibeLibrary');
+      return false;
+    }
+  }
+
+  /// 生成唯一名称（避免重名）
+  String _generateUniqueName(String baseName) {
+    // 通过 provider 读取当前所有条目
+    final existingEntries = ref.read(vibeLibraryNotifierProvider).entries;
+    final existingNames = existingEntries.map((e) => e.name.toLowerCase()).toSet();
+
+    if (!existingNames.contains(baseName.toLowerCase())) {
+      return baseName;
+    }
+
+    // 名称冲突，添加序号
+    var index = 2;
+    var candidateName = '$baseName ($index)';
+    while (existingNames.contains(candidateName.toLowerCase())) {
+      index++;
+      candidateName = '$baseName ($index)';
+    }
+    return candidateName;
+  }
+
   /// 处理图片编码流程
   Future<bool?> _handleImageEncoding({
     required VibeImageImportItem imageFile,
@@ -1932,6 +1997,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     // 编码重试循环
     while (mounted) {
       // 显示编码中对话框
+      if (!mounted) break;
       encode_dialog.VibeImageEncodingDialog.show(context);
 
       String? encoding;
@@ -2091,6 +2157,11 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     }
 
     setState(() => _isImporting = false);
+
+    // 用户全部取消，不显示任何提示
+    if (totalSuccess == 0 && totalFail == 0) {
+      return;
+    }
 
     // 重新加载数据
     if (totalSuccess > 0) {
@@ -3057,7 +3128,6 @@ class _VibeLibraryContentViewState
       case null:
         return '重命名失败，请稍后重试';
     }
-    return null;
   }
 
   /// 更新条目参数
