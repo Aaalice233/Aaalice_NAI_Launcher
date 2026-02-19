@@ -9,6 +9,7 @@ import 'presentation/providers/theme_provider.dart';
 import 'presentation/providers/font_provider.dart';
 import 'presentation/providers/locale_provider.dart';
 import 'presentation/providers/queue_execution_provider.dart';
+import 'presentation/providers/subscription_provider.dart' hide anlasBalanceProvider;
 import 'presentation/themes/app_theme.dart';
 import 'presentation/widgets/shortcuts/shortcut_aware_widget.dart';
 import 'presentation/widgets/shortcuts/shortcut_help_dialog.dart';
@@ -24,6 +25,9 @@ class NAILauncherApp extends ConsumerWidget {
     final fontType = ref.watch(fontNotifierProvider);
     final locale = ref.watch(localeNotifierProvider);
     final router = ref.watch(appRouterProvider);
+
+    // 初始化余额变化监听器（自动记录点数消耗）
+    ref.watch(anlasBalanceWatcherProvider);
 
     // 定义全局快捷键映射
     final globalShortcuts = <String, VoidCallback>{

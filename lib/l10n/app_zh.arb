@@ -558,6 +558,8 @@
   "gallery_metaFileSize": "文件大小",
   "gallery_positivePrompt": "正向提示词",
   "gallery_negativePrompt": "负向提示词",
+  "gallery_promptCopied": "已复制提示词",
+  "gallery_seedCopied": "已复制 Seed",
 
   "preset_noPresets": "暂无预设",
   "preset_restoreDefault": "恢复默认",

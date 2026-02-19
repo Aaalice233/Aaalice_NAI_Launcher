@@ -756,6 +756,8 @@
   "gallery_metaFileSize": "File Size",
   "gallery_positivePrompt": "Positive Prompt",
   "gallery_negativePrompt": "Negative Prompt",
+  "gallery_promptCopied": "Prompt copied",
+  "gallery_seedCopied": "Seed copied",
 
   "preset_noPresets": "No presets",
   "preset_restoreDefault": "Restore Default",

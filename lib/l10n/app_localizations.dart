@@ -3071,6 +3071,18 @@ abstract class AppLocalizations {
   /// **'Negative Prompt'**
   String get gallery_negativePrompt;
 
+  /// No description provided for @gallery_promptCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt copied'**
+  String get gallery_promptCopied;
+
+  /// No description provided for @gallery_seedCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Seed copied'**
+  String get gallery_seedCopied;
+
   /// No description provided for @preset_noPresets.
   ///
   /// In en, this message translates to:

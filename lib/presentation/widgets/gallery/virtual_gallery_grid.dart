@@ -107,20 +107,16 @@ class _VirtualGalleryGridState extends State<VirtualGalleryGrid> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // 计算列数（基于固定卡片宽度）
-        final screenWidth = constraints.maxWidth;
-        final columns = ResponsiveLayout.calculateColumns(
-          screenWidth,
-          spacing: widget.spacing,
-          padding: widget.padding.horizontal / 2,
-        );
+        // 使用传入的列数，确保与父级计算一致
+        final columns = widget.columns;
 
         // 计算网格实际宽度（用于居中）
         final gridWidth = ResponsiveLayout.calculateGridWidth(
           columns,
           spacing: widget.spacing,
         );
-        final horizontalPadding = (screenWidth - gridWidth) / 2;
+        final horizontalPadding =
+            (constraints.maxWidth - gridWidth) / 2;
 
         return GridView.builder(
           // 使用 PrimaryScrollController，让 PageStorage 自动管理滚动位置

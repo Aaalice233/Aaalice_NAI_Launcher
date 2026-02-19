@@ -262,12 +262,22 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
                   // Filter button group
                   _buildDateRangeButton(theme, state),
                   const SizedBox(width: 6),
+                  // 日期分组视图切换按钮
                   CompactIconButton(
-                    icon: Icons.calendar_today,
-                    label: '日期',
-                    tooltip: '跳转到日期',
+                    icon: state.isGroupedView ? Icons.view_module : Icons.calendar_today,
+                    label: state.isGroupedView ? '网格' : '日期',
+                    tooltip: state.isGroupedView ? '切换到网格视图' : '切换到日期分组视图',
                     shortcutId: ShortcutIds.jumpToDate,
-                    onPressed: () => _pickDateAndJump(context),
+                    isActive: state.isGroupedView,
+                    onPressed: () {
+                      if (state.isGroupedView) {
+                        // 退出分组视图
+                        ref.read(localGalleryNotifierProvider.notifier).setGroupedView(false);
+                      } else {
+                        // 进入分组视图
+                        _pickDateAndJump(context);
+                      }
+                    },
                   ),
                   const SizedBox(width: 6),
                   CompactIconButton(

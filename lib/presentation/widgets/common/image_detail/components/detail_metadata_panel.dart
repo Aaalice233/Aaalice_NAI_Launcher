@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
+import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../app_toast.dart';
 import '../../themed_divider.dart';
@@ -265,24 +266,24 @@ class _MetadataContent extends StatelessWidget {
         ],
         // 生成参数
         _InfoSection(
-          title: '生成参数',
+          title: context.l10n.gallery_generationParams,
           icon: Icons.tune,
           children: [
             if (metadata.model != null)
-              _InfoRow(label: '模型', value: metadata.model!),
+              _InfoRow(label: context.l10n.gallery_metaModel, value: metadata.model!),
             if (metadata.seed != null)
-              _InfoRow(label: 'Seed', value: metadata.seed.toString()),
+              _InfoRow(label: context.l10n.gallery_metaSeed, value: metadata.seed.toString()),
             if (metadata.steps != null)
-              _InfoRow(label: 'Steps', value: metadata.steps.toString()),
+              _InfoRow(label: context.l10n.gallery_metaSteps, value: metadata.steps.toString()),
             if (metadata.scale != null)
-              _InfoRow(label: 'CFG Scale', value: metadata.scale.toString()),
+              _InfoRow(label: context.l10n.gallery_metaCfgScale, value: metadata.scale.toString()),
             if (metadata.sampler != null)
-              _InfoRow(label: '采样器', value: metadata.displaySampler),
+              _InfoRow(label: context.l10n.gallery_metaSampler, value: metadata.displaySampler),
             if (metadata.sizeString.isNotEmpty)
-              _InfoRow(label: '尺寸', value: metadata.sizeString),
+              _InfoRow(label: context.l10n.gallery_metaResolution, value: metadata.sizeString),
             if (metadata.smea == true || metadata.smeaDyn == true)
               _InfoRow(
-                label: 'SMEA',
+                label: context.l10n.gallery_metaSmea,
                 value: metadata.smeaDyn == true ? 'DYN' : 'ON',
               ),
             if (metadata.noiseSchedule != null)
@@ -292,12 +293,17 @@ class _MetadataContent extends StatelessWidget {
                 label: 'CFG Rescale',
                 value: metadata.cfgRescale.toString(),
               ),
+            if (metadata.qualityToggle == true)
+              _InfoRow(
+                label: context.l10n.qualityTags_label,
+                value: context.l10n.qualityTags_naiDefault,
+              ),
           ],
         ),
         const SizedBox(height: 16),
         // Prompt
         _ExpandableSection(
-          title: 'Prompt',
+          title: context.l10n.prompt_positivePrompt,
           icon: Icons.text_fields,
           content: metadata.fullPrompt.isNotEmpty ? metadata.fullPrompt : '(无)',
           initiallyExpanded: true,
@@ -305,7 +311,7 @@ class _MetadataContent extends StatelessWidget {
         if (metadata.negativePrompt.isNotEmpty) ...[
           const SizedBox(height: 16),
           _ExpandableSection(
-            title: '负向提示词',
+            title: context.l10n.prompt_negativePrompt,
             icon: Icons.text_fields_outlined,
             content: metadata.negativePrompt,
             isNegative: true,
@@ -583,10 +589,10 @@ class _ActionButtons extends StatelessWidget {
           Expanded(
             child: _ActionButton(
               icon: Icons.copy,
-              label: 'Prompt',
+              label: context.l10n.prompt_positivePrompt,
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: metadata.fullPrompt));
-                AppToast.success(context, 'Prompt 已复制');
+                AppToast.success(context, context.l10n.gallery_promptCopied);
               },
             ),
           ),
@@ -600,7 +606,7 @@ class _ActionButtons extends StatelessWidget {
                   Clipboard.setData(
                     ClipboardData(text: metadata.seed.toString()),
                   );
-                  AppToast.success(context, 'Seed 已复制');
+                  AppToast.success(context, context.l10n.gallery_seedCopied);
                 },
               ),
             ),

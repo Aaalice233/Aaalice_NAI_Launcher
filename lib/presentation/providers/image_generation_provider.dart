@@ -12,7 +12,6 @@ import '../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
 import '../../data/models/image/image_params.dart';
 import '../../data/repositories/gallery_folder_repository.dart';
-import '../../data/services/anlas_statistics_service.dart';
 import '../../data/services/statistics_cache_service.dart';
 import '../../data/services/alias_resolver_service.dart';
 import 'character_prompt_provider.dart';
@@ -90,9 +89,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       }
     }
 
-    // 记录生成前的余额，用于计算点数消耗
-    final balanceBefore = ref.read(anlasBalanceProvider);
-
     // 开始生成前清空当前图片
     state = state.copyWith(
       currentImages: [],
@@ -164,6 +160,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     if (batchCount == 1 && batchSize == 1) {
       await _generateSingle(baseParams, 1, 1);
       // 注意：生成完成通知由 QueueExecutionNotifier 统一管理
+      // 点数消耗由 AnlasBalanceWatcher 自动监听余额变化记录
       return;
     }
 
@@ -261,6 +258,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             currentImage: 0,
             totalImages: 0,
           );
+          // 点数消耗由 AnlasBalanceWatcher 自动监听余额变化记录
           return;
         }
         // 本批次失败，继续下一批
@@ -283,36 +281,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       totalImages: 0,
     );
 
-    // 生成完成后刷新 Anlas 余额并记录消耗
+    // 生成完成后刷新 Anlas 余额
+    // 点数消耗由 AnlasBalanceWatcher 自动监听余额变化记录
     await ref.read(subscriptionNotifierProvider.notifier).refreshBalance();
-
-    // 计算并记录点数消耗（无论是否取消，只要余额变化就记录）
-    if (balanceBefore != null) {
-      final balanceAfter = ref.read(anlasBalanceProvider);
-      AppLogger.d(
-        'Balance changed from $balanceBefore to $balanceAfter (cancelled: $_isCancelled)',
-        'AnlasStats',
-      );
-      if (balanceAfter != null) {
-        final cost = balanceBefore - balanceAfter;
-        if (cost > 0) {
-          try {
-            final anlasService =
-                await ref.read(anlasStatisticsServiceProvider.future);
-            await anlasService.recordCost(cost);
-            AppLogger.i('Recorded Anlas cost: $cost', 'AnlasStats');
-          } catch (e) {
-            AppLogger.e('Failed to record Anlas cost: $e', 'AnlasStats');
-          }
-        } else {
-          AppLogger.w('No Anlas cost recorded (cost: $cost)', 'AnlasStats');
-        }
-      } else {
-        AppLogger.w('Cannot record cost: balanceAfter is null', 'AnlasStats');
-      }
-    } else {
-      AppLogger.w('Cannot record cost: balanceBefore is null', 'AnlasStats');
-    }
 
     // 注意：生成完成通知由 QueueExecutionNotifier 统一管理
     // 以避免循环依赖（ImageGenerationNotifier ↔ QueueExecutionNotifier）

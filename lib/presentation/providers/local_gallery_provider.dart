@@ -678,7 +678,8 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     if (value) {
       await _loadGroupedImages();
     } else {
-      await loadPage(state.currentPage);
+      // 退出分组视图时，重新应用过滤以确保视图正确刷新
+      await _applyFilters();
     }
   }
 
@@ -749,7 +750,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     }
 
     // 回退到本地过滤
-    final filtered = state.allFiles.where((file) {
+    var filtered = state.allFiles.where((file) {
       if (query.isNotEmpty) {
         final name = file.path.split(Platform.pathSeparator).last.toLowerCase();
         if (!name.contains(query)) return false;
@@ -766,8 +767,32 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       return true;
     }).toList();
 
+    // 收藏过滤 - 使用数据库查询获取收藏的图片路径
+    if (state.showFavoritesOnly) {
+      try {
+        final dataSource = await _getDataSource();
+        final favoriteImageIds = await dataSource.getFavoriteImageIds();
+        final favoritePaths = <String>{};
+        for (final id in favoriteImageIds) {
+          final image = await dataSource.getImageById(id);
+          if (image != null) {
+            favoritePaths.add(image.filePath);
+          }
+        }
+        filtered = filtered.where((file) => favoritePaths.contains(file.path)).toList();
+      } catch (e) {
+        AppLogger.w('Failed to filter favorites: $e', 'LocalGalleryNotifier');
+      }
+    }
+
     state = state.copyWith(filteredFiles: filtered, currentPage: 0);
-    await loadPage(0);
+    
+    // 如果在分组视图下，重新加载分组图片
+    if (state.isGroupedView) {
+      await _loadGroupedImages();
+    } else {
+      await loadPage(0);
+    }
   }
 
   bool get _hasMetadataFilters =>
@@ -810,7 +835,21 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         }
       }
 
-      await loadPage(state.currentPage);
+      // 更新当前页显示的记录的收藏状态
+      final updatedCurrentImages = state.currentImages.map((record) {
+        if (record.path == filePath) {
+          return record.copyWith(isFavorite: !record.isFavorite);
+        }
+        return record;
+      }).toList();
+
+      // 更新当前页显示
+      state = state.copyWith(currentImages: updatedCurrentImages);
+      
+      // 如果启用了收藏过滤，重新应用过滤以更新列表
+      if (state.showFavoritesOnly) {
+        await _applyFilters();
+      }
     } catch (e) {
       AppLogger.e('Toggle favorite failed', e, null, 'LocalGalleryNotifier');
     }

@@ -1585,6 +1585,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gallery_negativePrompt => 'Negative Prompt';
 
   @override
+  String get gallery_promptCopied => 'Prompt copied';
+
+  @override
+  String get gallery_seedCopied => 'Seed copied';
+
+  @override
   String get preset_noPresets => 'No presets';
 
   @override

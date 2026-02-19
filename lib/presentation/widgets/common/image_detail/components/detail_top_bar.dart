@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../data/models/gallery/local_image_record.dart';
+import '../../../../providers/local_gallery_provider.dart';
 import '../../animated_favorite_button.dart';
 import '../image_detail_data.dart';
 
@@ -112,13 +115,36 @@ class DetailTopBar extends StatelessWidget {
 
           // 收藏按钮（仅本地图库显示）
           if (currentImage.showFavoriteButton && onFavoriteToggle != null)
-            AnimatedFavoriteButton(
-              isFavorite: currentImage.isFavorite,
-              size: 24,
-              inactiveColor: Colors.white,
-              showBackground: true,
-              backgroundColor: Colors.black.withOpacity(0.4),
-              onToggle: onFavoriteToggle,
+            Consumer(
+              builder: (context, ref, child) {
+                // 如果是本地图库图片，实时监听收藏状态
+                final isLocalImage = currentImage.identifier.isNotEmpty &&
+                    currentImage is LocalImageDetailData;
+                
+                bool isFavorite = currentImage.isFavorite;
+                
+                if (isLocalImage) {
+                  final galleryState = ref.watch(localGalleryNotifierProvider);
+                  final record = galleryState.currentImages
+                      .cast<LocalImageRecord?>()
+                      .firstWhere(
+                        (img) => img?.path == currentImage.identifier,
+                        orElse: () => null,
+                      );
+                  if (record != null) {
+                    isFavorite = record.isFavorite;
+                  }
+                }
+                
+                return AnimatedFavoriteButton(
+                  isFavorite: isFavorite,
+                  size: 24,
+                  inactiveColor: Colors.white,
+                  showBackground: true,
+                  backgroundColor: Colors.black.withOpacity(0.4),
+                  onToggle: onFavoriteToggle,
+                );
+              },
             ),
         ],
       ),

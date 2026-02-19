@@ -316,9 +316,14 @@ class _ImageCard3DState extends State<ImageCard3D>
 
     if (!showButton) return const SizedBox.shrink();
 
-    return CardFavoriteButton(
-      isFavorite: isFavorite,
-      onToggle: widget.onFavoriteToggle,
+    return GestureDetector(
+      // 拦截点击事件，防止冒泡到父级 GestureDetector 打开详情
+      onTap: () {},
+      behavior: HitTestBehavior.opaque,
+      child: CardFavoriteButton(
+        isFavorite: isFavorite,
+        onToggle: widget.onFavoriteToggle,
+      ),
     );
   }
 

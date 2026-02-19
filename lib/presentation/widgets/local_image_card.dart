@@ -3,12 +3,14 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../data/models/gallery/local_image_record.dart';
+import '../providers/local_gallery_provider.dart';
 import '../utils/image_detail_opener.dart';
 import 'common/app_toast.dart';
 import 'common/animated_favorite_button.dart';
@@ -831,7 +833,7 @@ class _SelectionIndicatorState extends State<_SelectionIndicator>
 
 /// Hover overlay widget with separate state management
 /// This prevents hover state changes from causing the entire card to rebuild
-class _HoverOverlay extends StatefulWidget {
+class _HoverOverlay extends ConsumerStatefulWidget {
   final LocalImageRecord record;
   final VoidCallback? onFavoriteToggle;
 
@@ -841,11 +843,35 @@ class _HoverOverlay extends StatefulWidget {
   });
 
   @override
-  State<_HoverOverlay> createState() => _HoverOverlayState();
+  ConsumerState<_HoverOverlay> createState() => _HoverOverlayState();
 }
 
-class _HoverOverlayState extends State<_HoverOverlay> {
+class _HoverOverlayState extends ConsumerState<_HoverOverlay> {
   bool _isHovering = false;
+
+  /// 构建收藏按钮
+  Widget _buildFavoriteButton() {
+    // 从 provider 获取最新的收藏状态
+    final galleryState = ref.watch(localGalleryNotifierProvider);
+    final currentRecord = galleryState.currentImages
+        .cast<LocalImageRecord?>()
+        .firstWhere(
+          (img) => img?.path == widget.record.path,
+          orElse: () => null,
+        );
+    final isFavorite = currentRecord?.isFavorite ?? widget.record.isFavorite;
+    
+    // 只有在悬浮或已收藏时才显示
+    if (!_isHovering && !isFavorite) {
+      return const SizedBox.shrink();
+    }
+    
+    return CardFavoriteButton(
+      isFavorite: isFavorite,
+      onToggle: widget.onFavoriteToggle,
+      size: 18,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1020,15 +1046,16 @@ class _HoverOverlayState extends State<_HoverOverlay> {
               ),
             ),
           ),
-          // 右上角收藏按钮（悬浮时显示）
-          if (_isHovering && widget.onFavoriteToggle != null)
+          // 右上角收藏按钮（悬浮时或已收藏时显示）
+          if (widget.onFavoriteToggle != null)
             Positioned(
               top: 8,
               right: 8,
-              child: CardFavoriteButton(
-                isFavorite: widget.record.isFavorite,
-                onToggle: widget.onFavoriteToggle,
-                size: 18,
+              child: GestureDetector(
+                // 拦截点击事件，防止冒泡到父级 GestureDetector 打开详情
+                onTap: () {},
+                behavior: HitTestBehavior.opaque,
+                child: _buildFavoriteButton(),
               ),
             ),
         ],

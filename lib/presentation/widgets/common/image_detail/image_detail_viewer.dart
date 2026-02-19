@@ -287,6 +287,8 @@ class _ImageDetailViewerState extends State<ImageDetailViewer> {
   void _toggleFavorite() {
     if (widget.callbacks?.onFavoriteToggle != null) {
       widget.callbacks!.onFavoriteToggle!(_currentImage);
+      // 触发重建以更新收藏按钮状态
+      setState(() {});
     }
   }
 

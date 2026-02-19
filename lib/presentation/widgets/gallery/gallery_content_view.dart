@@ -738,6 +738,9 @@ class LocalGalleryContentView extends ConsumerWidget {
             .read(localGallerySelectionNotifierProvider.notifier)
             .enterAndSelect(record.path);
       },
+      onFavoriteToggle: (record) {
+        ref.read(localGalleryNotifierProvider.notifier).toggleFavorite(record.path);
+      },
       onContextMenu: onContextMenu,
       onDeleted: onDeleted,
       onClearFilters: () {

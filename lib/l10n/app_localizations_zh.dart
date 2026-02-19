@@ -1585,6 +1585,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gallery_negativePrompt => '负向提示词';
 
   @override
+  String get gallery_promptCopied => '已复制提示词';
+
+  @override
+  String get gallery_seedCopied => '已复制 Seed';
+
+  @override
   String get preset_noPresets => '暂无预设';
 
   @override
