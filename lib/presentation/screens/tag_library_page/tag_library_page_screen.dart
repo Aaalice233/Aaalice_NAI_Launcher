@@ -27,30 +27,6 @@ import 'widgets/bulk_move_category_dialog.dart';
 import 'widgets/export_dialog.dart';
 import 'widgets/import_dialog.dart';
 
-/// 条目属性封装类，用于简化卡片和列表项的构建
-class _EntryProps {
-  final TagLibraryEntry entry;
-  final String categoryName;
-  final bool enableDrag;
-  final bool isSelectionMode;
-  final bool isSelected;
-  final VoidCallback onToggleSelection;
-  final VoidCallback onDelete;
-  final VoidCallback onEdit;
-  final VoidCallback onToggleFavorite;
-
-  const _EntryProps({
-    required this.entry,
-    required this.categoryName,
-    required this.enableDrag,
-    required this.isSelectionMode,
-    required this.isSelected,
-    required this.onToggleSelection,
-    required this.onDelete,
-    required this.onEdit,
-    required this.onToggleFavorite,
-  });
-}
 
 /// 词库页面
 class TagLibraryPageScreen extends ConsumerStatefulWidget {
@@ -425,7 +401,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     final categoryName = _getCategoryName(state.categories, entry.categoryId);
     final isSelected = selectionState.isSelected(entry.id);
 
-    selectionHandler() {
+    void toggleSelection() {
       final notifier = ref.read(tagLibrarySelectionNotifierProvider.notifier);
       if (HardwareKeyboard.instance.isShiftPressed) {
         notifier.selectRange(entry.id, allIds);
@@ -436,13 +412,11 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
       }
     }
 
-    final commonProps = _EntryProps(
-      entry: entry,
-      categoryName: categoryName,
+    final commonProps = (
       enableDrag: !selectionState.isActive,
       isSelectionMode: selectionState.isActive,
       isSelected: isSelected,
-      onToggleSelection: selectionHandler,
+      onToggleSelection: toggleSelection,
       onDelete: () => _showDeleteEntryConfirmation(entry.id),
       onEdit: () => _showEditDialog(entry),
       onToggleFavorite: () => ref
@@ -453,8 +427,8 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     if (isCard) {
       return EntryCard(
         key: ValueKey(entry.id),
-        entry: commonProps.entry,
-        categoryName: commonProps.categoryName,
+        entry: entry,
+        categoryName: categoryName,
         enableDrag: commonProps.enableDrag,
         isSelectionMode: commonProps.isSelectionMode,
         isSelected: commonProps.isSelected,
@@ -469,8 +443,8 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
 
     return EntryListItem(
       key: ValueKey(entry.id),
-      entry: commonProps.entry,
-      categoryName: commonProps.categoryName,
+      entry: entry,
+      categoryName: categoryName,
       enableDrag: commonProps.enableDrag,
       isSelectionMode: commonProps.isSelectionMode,
       isSelected: commonProps.isSelected,
@@ -766,94 +740,96 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
   }
 
   void _showEntryDetail(TagLibraryEntry entry) async {
-    // 显示发送选项对话框
-    final sendOptions = await SendToHomeDialog.show(
-      context,
-      entry: entry,
-    );
-
-    // 用户取消
+    final sendOptions = await SendToHomeDialog.show(context, entry: entry);
     if (sendOptions == null || !mounted) return;
 
     // 处理发送到固定词的情况
     if (sendOptions.targetType == SendTargetType.fixedTag) {
-      // 获取内容
-      final content = sendOptions.sendAsAlias
-          ? '<${entry.name}>'
-          : SdToNaiConverter.convert(entry.content);
-
-      // 添加到固定词列表
-      await ref.read(fixedTagsNotifierProvider.notifier).addEntry(
-            name: entry.name,
-            content: content,
-          );
-
-      if (!mounted) return;
-
-      // 显示成功提示
-      AppToast.success(context, '已添加到固定词');
+      await _handleSendToFixedTag(entry, sendOptions.sendAsAlias);
       return;
     }
 
-    // 处理发送内容
-    var content = entry.content;
+    // 处理发送到主页的情况
+    await _handleSendToHome(entry, sendOptions);
+  }
 
-    // 检查是否为竖线格式
-    final isPipeFormat = PipeParser.isPipeFormat(entry.content);
+  /// 处理发送到固定词
+  Future<void> _handleSendToFixedTag(
+    TagLibraryEntry entry,
+    bool sendAsAlias,
+  ) async {
+    final content = sendAsAlias
+        ? '<${entry.name}>'
+        : SdToNaiConverter.convert(entry.content);
 
-    if (sendOptions.sendAsAlias) {
-      // 作为别名发送：包装为 <条目名>
-      content = '<${entry.name}>';
-    } else if (isPipeFormat &&
-        (sendOptions.targetType == SendTargetType.replaceCharacter ||
-            sendOptions.targetType == SendTargetType.appendCharacter)) {
-      // 选择替换/追加角色且内容为竖线格式时，只发送角色部分（去掉主提示词）
-      final result = PipeParser.parse(entry.content);
-      // 只保留角色部分，用竖线连接
-      if (result.characters.isNotEmpty) {
-        content = result.characters.map((c) => c.prompt).join('\n| ');
-      }
-    }
+    await ref.read(fixedTagsNotifierProvider.notifier).addEntry(
+          name: entry.name,
+          content: content,
+        );
 
-    // 设置待填充提示词
+    if (!mounted) return;
+    AppToast.success(context, '已添加到固定词');
+  }
+
+  /// 处理发送到主页
+  Future<void> _handleSendToHome(
+    TagLibraryEntry entry,
+    SendOptions sendOptions,
+  ) async {
+    final content = _prepareContentForHome(entry, sendOptions);
+
     ref.read(pendingPromptNotifierProvider.notifier).set(
           prompt: content,
           targetType: sendOptions.targetType,
           clearOnConsume: true,
         );
 
-    // 记录使用
     await ref
         .read(tagLibraryPageNotifierProvider.notifier)
         .recordUsage(entry.id);
 
     if (!mounted) return;
 
-    // 显示提示
-    String message;
-    switch (sendOptions.targetType) {
-      case SendTargetType.mainPrompt:
-        message = context.l10n.sendToHome_successMainPrompt;
-        break;
-      case SendTargetType.smartDecompose:
-        message = '已智能分解并发送';
-        break;
-      case SendTargetType.replaceCharacter:
-        message = context.l10n.sendToHome_successReplaceCharacter;
-        break;
-      case SendTargetType.appendCharacter:
-        message = context.l10n.sendToHome_successAppendCharacter;
-        break;
-      case SendTargetType.fixedTag:
-        message = '已添加到固定词';
-        break;
-    }
+    final message = _getSendSuccessMessage(sendOptions.targetType);
     AppToast.success(context, message);
+    context.go(AppRoutes.home);
+  }
 
-    // 导航到主页
-    if (mounted) {
-      context.go(AppRoutes.home);
+  /// 准备发送到主页的内容
+  String _prepareContentForHome(TagLibraryEntry entry, SendOptions options) {
+    // 作为别名发送
+    if (options.sendAsAlias) {
+      return '<${entry.name}>';
     }
+
+    // 检查是否为竖线格式且需要提取角色部分
+    final isPipeFormat = PipeParser.isPipeFormat(entry.content);
+    final needsCharacterExtract =
+        isPipeFormat &&
+        (options.targetType == SendTargetType.replaceCharacter ||
+            options.targetType == SendTargetType.appendCharacter);
+
+    if (needsCharacterExtract) {
+      final result = PipeParser.parse(entry.content);
+      if (result.characters.isNotEmpty) {
+        return result.characters.map((c) => c.prompt).join('\n| ');
+      }
+    }
+
+    return entry.content;
+  }
+
+  /// 获取发送成功提示消息
+  String _getSendSuccessMessage(SendTargetType targetType) {
+    return switch (targetType) {
+      SendTargetType.mainPrompt => context.l10n.sendToHome_successMainPrompt,
+      SendTargetType.smartDecompose => '已智能分解并发送',
+      SendTargetType.replaceCharacter =>
+        context.l10n.sendToHome_successReplaceCharacter,
+      SendTargetType.appendCharacter =>
+        context.l10n.sendToHome_successAppendCharacter,
+      SendTargetType.fixedTag => '已添加到固定词',
+    };
   }
 
   void _showEditDialog(dynamic entry) {

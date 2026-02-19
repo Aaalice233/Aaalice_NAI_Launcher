@@ -78,19 +78,9 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
 
   /// 解析竖线格式结果
   ParsedResult get _parsedResult {
-    // 如果作为别名发送，直接返回别名形式，不做竖线解析
-    if (_sendAsAlias) {
-      return ParsedResult(
-        mainPrompt: _processedContent,
-        characters: [],
-      );
-    }
-
-    if (!_isPipeFormat) {
-      return ParsedResult(
-        mainPrompt: _processedContent,
-        characters: [],
-      );
+    // 如果作为别名发送或非竖线格式，直接返回内容
+    if (_sendAsAlias || !_isPipeFormat) {
+      return ParsedResult(mainPrompt: _processedContent, characters: const []);
     }
 
     final result = PipeParser.parse(_processedContent);
@@ -193,82 +183,68 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
 
   /// 构建发送目标选项
   Widget _buildTargetOptions(ThemeData theme) {
-    final options = <Widget>[];
-
-    // 主提示词选项（始终可用）
-    options.add(
-      _TargetOptionTile(
-        icon: Icons.auto_awesome,
-        iconColor: theme.colorScheme.primary,
-        title: context.l10n.sendToHome_mainPrompt,
-        subtitle: _isPipeFormat
-            ? '发送完整内容到主提示词（包含竖线）'
-            : context.l10n.sendToHome_mainPromptSubtitle,
-        isSelected: _selectedTarget == SendTargetType.mainPrompt,
-        onTap: () =>
-            setState(() => _selectedTarget = SendTargetType.mainPrompt),
-      ),
-    );
-
-    // 智能分解选项（仅竖线格式可用）
-    if (_isPipeFormat) {
-      options.add(const SizedBox(height: 8));
-      options.add(
+    return Column(
+      children: [
+        // 主提示词选项（始终可用）
         _TargetOptionTile(
-          icon: Icons.account_tree,
-          iconColor: theme.colorScheme.secondary,
-          title: '智能分解',
-          subtitle: '主提示词 + ${_parsedResult.characters.length}个角色',
-          isSelected: _selectedTarget == SendTargetType.smartDecompose,
+          icon: Icons.auto_awesome,
+          iconColor: theme.colorScheme.primary,
+          title: context.l10n.sendToHome_mainPrompt,
+          subtitle: _isPipeFormat
+              ? '发送完整内容到主提示词（包含竖线）'
+              : context.l10n.sendToHome_mainPromptSubtitle,
+          isSelected: _selectedTarget == SendTargetType.mainPrompt,
           onTap: () =>
-              setState(() => _selectedTarget = SendTargetType.smartDecompose),
-          isRecommended: true,
+              setState(() => _selectedTarget = SendTargetType.mainPrompt),
         ),
-      );
-    }
-
-    // 角色选项
-    options.add(const SizedBox(height: 8));
-    options.add(
-      _TargetOptionTile(
-        icon: Icons.swap_horiz,
-        iconColor: theme.colorScheme.tertiary,
-        title: context.l10n.sendToHome_replaceCharacter,
-        subtitle: context.l10n.sendToHome_replaceCharacterSubtitle,
-        isSelected: _selectedTarget == SendTargetType.replaceCharacter,
-        onTap: () =>
-            setState(() => _selectedTarget = SendTargetType.replaceCharacter),
-      ),
+        // 智能分解选项（仅竖线格式可用）
+        if (_isPipeFormat) ...[
+          const SizedBox(height: 8),
+          _TargetOptionTile(
+            icon: Icons.account_tree,
+            iconColor: theme.colorScheme.secondary,
+            title: '智能分解',
+            subtitle: '主提示词 + ${_parsedResult.characters.length}个角色',
+            isSelected: _selectedTarget == SendTargetType.smartDecompose,
+            onTap: () =>
+                setState(() => _selectedTarget = SendTargetType.smartDecompose),
+            isRecommended: true,
+          ),
+        ],
+        // 角色选项
+        const SizedBox(height: 8),
+        _TargetOptionTile(
+          icon: Icons.swap_horiz,
+          iconColor: theme.colorScheme.tertiary,
+          title: context.l10n.sendToHome_replaceCharacter,
+          subtitle: context.l10n.sendToHome_replaceCharacterSubtitle,
+          isSelected: _selectedTarget == SendTargetType.replaceCharacter,
+          onTap: () =>
+              setState(() => _selectedTarget = SendTargetType.replaceCharacter),
+        ),
+        const SizedBox(height: 8),
+        _TargetOptionTile(
+          icon: Icons.person_add,
+          iconColor: theme.colorScheme.tertiary,
+          title: context.l10n.sendToHome_appendCharacter,
+          subtitle: context.l10n.sendToHome_appendCharacterSubtitle,
+          isSelected: _selectedTarget == SendTargetType.appendCharacter,
+          onTap: () =>
+              setState(() => _selectedTarget = SendTargetType.appendCharacter),
+        ),
+        // 固定词选项
+        const SizedBox(height: 8),
+        _TargetOptionTile(
+          icon: Icons.push_pin,
+          iconColor: Colors.orange,
+          title: '发送到固定词',
+          subtitle: '追加到固定词列表',
+          isSelected: _selectedTarget == SendTargetType.fixedTag,
+          onTap: () =>
+              setState(() => _selectedTarget = SendTargetType.fixedTag),
+        ),
+      ],
     );
-
-    options.add(const SizedBox(height: 8));
-    options.add(
-      _TargetOptionTile(
-        icon: Icons.person_add,
-        iconColor: theme.colorScheme.tertiary,
-        title: context.l10n.sendToHome_appendCharacter,
-        subtitle: context.l10n.sendToHome_appendCharacterSubtitle,
-        isSelected: _selectedTarget == SendTargetType.appendCharacter,
-        onTap: () =>
-            setState(() => _selectedTarget = SendTargetType.appendCharacter),
-      ),
-    );
-
-    // 固定词选项
-    options.add(const SizedBox(height: 8));
-    options.add(
-      _TargetOptionTile(
-        icon: Icons.push_pin,
-        iconColor: Colors.orange,
-        title: '发送到固定词',
-        subtitle: '追加到固定词列表',
-        isSelected: _selectedTarget == SendTargetType.fixedTag,
-        onTap: () =>
-            setState(() => _selectedTarget = SendTargetType.fixedTag),
-      ),
-    );
-
-    return Column(children: options);
   }
 
   /// 构建别名解析开关
@@ -364,73 +340,71 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
   Widget _buildPreviewContent(ThemeData theme, ParsedResult parsed) {
     // 作为别名发送时，统一显示别名形式
     if (_sendAsAlias) {
-      final label = switch (_selectedTarget) {
-        SendTargetType.mainPrompt => '主提示词',
-        SendTargetType.smartDecompose => '智能分解',
-        SendTargetType.replaceCharacter ||
-        SendTargetType.appendCharacter =>
-          '角色提示词',
-        SendTargetType.fixedTag => '固定词',
-      };
-      return _PreviewItem(
-        label: label,
-        content: _processedContent,
-        color: switch (_selectedTarget) {
-          SendTargetType.mainPrompt => theme.colorScheme.primary,
-          SendTargetType.fixedTag => Colors.orange,
-          _ => theme.colorScheme.tertiary,
-        },
-      );
+      return _buildAliasPreview(theme);
     }
 
-    switch (_selectedTarget) {
-      case SendTargetType.smartDecompose:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _PreviewItem(
-              label: '主提示词',
-              content: parsed.mainPrompt,
-              color: theme.colorScheme.primary,
-            ),
-            ...parsed.characters.asMap().entries.map((e) {
-              return _PreviewItem(
-                label: '角色 ${e.key + 1}',
-                content: e.value,
-                color: theme.colorScheme.secondary,
-              );
-            }),
-          ],
-        );
-
-      case SendTargetType.mainPrompt:
-        return _PreviewItem(
+    return switch (_selectedTarget) {
+      SendTargetType.smartDecompose => _buildSmartDecomposePreview(theme, parsed),
+      SendTargetType.mainPrompt => _PreviewItem(
           label: '主提示词',
           content: _processedContent,
           color: theme.colorScheme.primary,
-        );
-
-      case SendTargetType.replaceCharacter:
-      case SendTargetType.appendCharacter:
-        // 如果有竖线格式，只显示角色部分；否则显示全部内容
-        final characterContent = _isPipeFormat && parsed.characters.isNotEmpty
-            ? parsed.characters.join('\n| ')
-            : _processedContent;
-        return _PreviewItem(
-          label: _isPipeFormat && parsed.characters.isNotEmpty
-              ? '角色提示词 (${parsed.characters.length}个)'
-              : '角色提示词',
-          content: characterContent,
-          color: theme.colorScheme.tertiary,
-        );
-
-      case SendTargetType.fixedTag:
-        return _PreviewItem(
+        ),
+      SendTargetType.replaceCharacter ||
+      SendTargetType.appendCharacter => _buildCharacterPreview(parsed),
+      SendTargetType.fixedTag => _PreviewItem(
           label: '固定词',
           content: _processedContent,
           color: Colors.orange,
-        );
-    }
+        ),
+    };
+  }
+
+  /// 构建别名发送预览
+  Widget _buildAliasPreview(ThemeData theme) {
+    final (label, color) = switch (_selectedTarget) {
+      SendTargetType.mainPrompt => ('主提示词', theme.colorScheme.primary),
+      SendTargetType.smartDecompose => ('智能分解', theme.colorScheme.tertiary),
+      SendTargetType.replaceCharacter ||
+      SendTargetType.appendCharacter => ('角色提示词', theme.colorScheme.tertiary),
+      SendTargetType.fixedTag => ('固定词', Colors.orange),
+    };
+    return _PreviewItem(label: label, content: _processedContent, color: color);
+  }
+
+  /// 构建智能分解预览
+  Widget _buildSmartDecomposePreview(ThemeData theme, ParsedResult parsed) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _PreviewItem(
+          label: '主提示词',
+          content: parsed.mainPrompt,
+          color: theme.colorScheme.primary,
+        ),
+        ...parsed.characters.asMap().entries.map((e) => _PreviewItem(
+              label: '角色 ${e.key + 1}',
+              content: e.value,
+              color: theme.colorScheme.secondary,
+            ),),
+      ],
+    );
+  }
+
+  /// 构建角色预览
+  Widget _buildCharacterPreview(ParsedResult parsed) {
+    final hasCharacters = _isPipeFormat && parsed.characters.isNotEmpty;
+    final content = hasCharacters
+        ? parsed.characters.join('\n| ')
+        : _processedContent;
+    final label = hasCharacters
+        ? '角色提示词 (${parsed.characters.length}个)'
+        : '角色提示词';
+    return _PreviewItem(
+      label: label,
+      content: content,
+      color: Theme.of(context).colorScheme.tertiary,
+    );
   }
 }
 
