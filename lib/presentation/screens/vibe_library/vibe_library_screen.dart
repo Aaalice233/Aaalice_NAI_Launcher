@@ -1885,8 +1885,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
   }) async {
     // 首先尝试提取 Vibe 数据
     try {
-      final reference =
-          await VibeImageEmbedder.extractVibeFromImage(imageFile.bytes);
+      await VibeImageEmbedder.extractVibeFromImage(imageFile.bytes);
       // 提取成功，正常导入
       final importResult = await importService.importFromImage(
         images: [imageFile],
@@ -1900,6 +1899,14 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         targetCategoryId: targetCategoryId,
       );
     } catch (e) {
+      // 检查是否为 NoVibeDataException（类型可能不匹配时使用）
+      if (e is NoVibeDataException ||
+          e.toString().contains('No naiv4vibe metadata')) {
+        return await _handleImageEncoding(
+          imageFile: imageFile,
+          targetCategoryId: targetCategoryId,
+        );
+      }
       // 其他错误，记录为失败
       AppLogger.e('处理图片失败: ${imageFile.source}', e, null, 'VibeLibrary');
       return false;
