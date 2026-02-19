@@ -3204,8 +3204,8 @@ class _VibeLibraryContentViewState
     final paramsNotifier = ref.read(generationParamsNotifierProvider.notifier);
     final currentParams = ref.read(generationParamsNotifierProvider);
 
-    // 检查是否超过16个限制
-    if (currentParams.vibeReferencesV4.length >= 16) {
+    // 检查是否超过16个限制（仅在追加模式下检查）
+    if (!isShiftPressed && currentParams.vibeReferencesV4.length >= 16) {
       AppToast.warning(context, '已达到最大数量 (16张)');
       return;
     }
@@ -3236,10 +3236,10 @@ class _VibeLibraryContentViewState
           }
           ref.read(vibeLibraryNotifierProvider.notifier).recordUsage(entry.id);
           if (context.mounted) {
-            AppToast.success(
-              context,
-              '已发送 ${adjustedVibes.length} 个 Vibe 到生成页面: ${entry.displayName}',
-            );
+            final message = isShiftPressed
+                ? '已替换为 ${adjustedVibes.length} 个 Vibe: ${entry.displayName}'
+                : '已发送 ${adjustedVibes.length} 个 Vibe 到生成页面: ${entry.displayName}';
+            AppToast.success(context, message);
             context.go(AppRoutes.home);
           }
           return;
@@ -3263,7 +3263,10 @@ class _VibeLibraryContentViewState
     }
     ref.read(vibeLibraryNotifierProvider.notifier).recordUsage(entry.id);
     if (context.mounted) {
-      AppToast.success(context, '已发送到生成页面: ${entry.displayName}');
+      final message = isShiftPressed
+          ? '已替换为: ${entry.displayName}'
+          : '已发送到生成页面: ${entry.displayName}';
+      AppToast.success(context, message);
       context.go(AppRoutes.home);
     }
   }
