@@ -192,14 +192,13 @@ class NAIImageRequestBuilder {
       for (int i = 0; i < params.vibeReferencesV4.length; i++) {
         final vibe = params.vibeReferencesV4[i];
 
-        if (vibe.sourceType.isPreEncoded && vibe.vibeEncoding.isNotEmpty) {
+        if (vibe.vibeEncoding.isNotEmpty) {
           allEncodings.add(vibe.vibeEncoding);
           allStrengths.add(vibe.strength);
           allInfoExtracted.add(vibe.infoExtracted);
           vibeEncodingMap[i] = vibe.vibeEncoding;
           AppLogger.d('V4 Vibe: Using pre-encoded vibe at index $i', 'ImgGen');
-        } else if (vibe.sourceType == VibeSourceType.rawImage &&
-            vibe.rawImageData != null) {
+        } else if (vibe.rawImageData != null) {
           AppLogger.d(
             'V4 Vibe: Encoding rawImage at index $i (2 Anlas)...',
             'ImgGen',
@@ -249,12 +248,12 @@ class NAIImageRequestBuilder {
       return vibeEncodingMap;
     }
 
-    final preEncodedVibes = params.vibeReferencesV4
-        .where((v) => v.sourceType.isPreEncoded && v.vibeEncoding.isNotEmpty)
+    final encodedVibes = params.vibeReferencesV4
+        .where((v) => v.vibeEncoding.isNotEmpty)
         .toList();
     final rawImageVibes = params.vibeReferencesV4
         .where(
-          (v) => v.sourceType == VibeSourceType.rawImage && v.rawImageData != null,
+          (v) => v.vibeEncoding.isEmpty && v.rawImageData != null,
         )
         .toList();
 
@@ -262,7 +261,7 @@ class NAIImageRequestBuilder {
     final allStrengths = <double>[];
     final allInfoExtracted = <double>[];
 
-    for (final vibe in preEncodedVibes) {
+    for (final vibe in encodedVibes) {
       allEncodings.add(vibe.vibeEncoding);
       allStrengths.add(vibe.strength);
       allInfoExtracted.add(vibe.infoExtracted);

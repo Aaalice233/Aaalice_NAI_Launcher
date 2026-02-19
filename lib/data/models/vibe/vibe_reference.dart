@@ -20,12 +20,6 @@ enum VibeSourceType {
 }
 
 extension VibeSourceTypeExtension on VibeSourceType {
-  /// 是否为预编码数据 (不需要服务端编码)
-  bool get isPreEncoded =>
-      this == VibeSourceType.png ||
-      this == VibeSourceType.naiv4vibe ||
-      this == VibeSourceType.naiv4vibebundle;
-
   /// 显示名称
   String get displayLabel {
     switch (this) {

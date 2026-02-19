@@ -161,9 +161,6 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
   /// 数据来源类型
   VibeSourceType get sourceType => VibeSourceType.values[sourceTypeIndex];
 
-  /// 是否为预编码数据 (不需要服务端编码)
-  bool get isPreEncoded => sourceType.isPreEncoded;
-
   /// 显示名称 (如果名称为空则使用 vibeDisplayName)
   String get displayName {
     if (name.isNotEmpty) return name;
@@ -333,11 +330,3 @@ extension VibeLibraryEntryListExtension on List<VibeLibraryEntry> {
     return tags;
   }
 
-  /// 获取预编码的 vibe 条目 (无需额外消耗 Anlas)
-  List<VibeLibraryEntry> get preEncoded =>
-      where((e) => e.isPreEncoded).toList();
-
-  /// 获取需要服务端编码的 vibe 条目 (消耗 2 Anlas/张)
-  List<VibeLibraryEntry> get rawImageEntries =>
-      where((e) => e.sourceType == VibeSourceType.rawImage).toList();
-}

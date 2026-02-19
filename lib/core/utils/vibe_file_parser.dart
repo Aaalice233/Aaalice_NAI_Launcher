@@ -201,7 +201,7 @@ class VibeFileParser {
       }
 
       if (vibeEncoding != null && vibeEncoding.isNotEmpty) {
-        // 找到预编码数据 - 使用png类型（isPreEncoded = true）
+        // 找到编码数据 - 使用 png 类型
         return VibeReference(
           displayName: params.fileName,
           vibeEncoding: vibeEncoding,

@@ -1932,9 +1932,7 @@ class _RecentVibeItem extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 2),
               decoration: BoxDecoration(
-                color: entry.isPreEncoded
-                    ? Colors.green.withOpacity(0.1)
-                    : Colors.orange.withOpacity(0.1),
+                color: colorScheme.primaryContainer.withOpacity(0.3),
                 borderRadius:
                     const BorderRadius.vertical(bottom: Radius.circular(7)),
               ),
@@ -1942,16 +1940,16 @@ class _RecentVibeItem extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    entry.isPreEncoded ? Icons.check_circle : Icons.warning,
+                    Icons.label_outline,
                     size: 8,
-                    color: entry.isPreEncoded ? Colors.green : Colors.orange,
+                    color: colorScheme.primary,
                   ),
                   const SizedBox(width: 2),
                   Text(
                     entry.sourceType.displayLabel,
                     style: TextStyle(
                       fontSize: 8,
-                      color: entry.isPreEncoded ? Colors.green : Colors.orange,
+                      color: colorScheme.primary,
                     ),
                   ),
                 ],

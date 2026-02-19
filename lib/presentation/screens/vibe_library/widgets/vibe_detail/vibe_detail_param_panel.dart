@@ -148,8 +148,7 @@ class VibeDetailParamPanel extends StatelessWidget {
 
   /// 来源类型标签
   Widget _buildSourceTypeChip(ThemeData theme) {
-    final isPreEncoded = entry.isPreEncoded;
-    final color = isPreEncoded ? Colors.green : Colors.orange;
+    final color = theme.colorScheme.primary;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -162,7 +161,7 @@ class VibeDetailParamPanel extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            isPreEncoded ? Icons.check_circle_outline : Icons.warning_amber,
+            Icons.label_outline,
             size: 12,
             color: color,
           ),
@@ -174,16 +173,6 @@ class VibeDetailParamPanel extends StatelessWidget {
               fontWeight: FontWeight.w500,
             ),
           ),
-          if (!isPreEncoded) ...[
-            const SizedBox(width: 4),
-            Text(
-              '(2 Anlas)',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: Colors.orange.withOpacity(0.8),
-                fontSize: 10,
-              ),
-            ),
-          ],
         ],
       ),
     );

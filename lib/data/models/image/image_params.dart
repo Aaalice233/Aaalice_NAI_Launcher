@@ -230,13 +230,6 @@ extension ImageParamsExtension on ImageParams {
   /// 检查是否有任何 Vibe 参考
   bool get hasAnyVibeReferences => vibeReferencesV4.isNotEmpty;
 
-  /// 计算需要编码的 Vibe 数量 (消耗 Anlas)
-  int get vibeEncodingCount =>
-      vibeReferencesV4.where((v) => !v.sourceType.isPreEncoded).length;
-
-  /// 计算 Vibe 编码成本 (每张 2 Anlas)
-  int get vibeEncodingCost => vibeEncodingCount * 2;
-
   /// 检查是否启用了 Precise Reference
   bool get hasPreciseReferences => preciseReferences.isNotEmpty;
 
