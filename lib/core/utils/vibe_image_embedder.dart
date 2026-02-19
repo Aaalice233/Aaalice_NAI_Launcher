@@ -24,15 +24,28 @@ class VibeImageEmbedder {
   static const int _minPngSize = 20; // 8 (signature) + 12 (minimum chunk)
   static const int _chunkHeaderSize = 12; // 4 (length) + 4 (type) + 4 (crc)
 
+  /// 嵌入单个 Vibe 到图片（保持向后兼容）
   static Future<Uint8List> embedVibeToImage(
     Uint8List imageBytes,
     VibeReference vibeReference, {
     String? thumbnailBase64,
   }) async {
+    return embedVibesToImage(imageBytes, [vibeReference]);
+  }
+
+  /// 嵌入多个 Vibes 到图片（bundle 格式）
+  static Future<Uint8List> embedVibesToImage(
+    Uint8List imageBytes,
+    List<VibeReference> vibeReferences,
+  ) async {
+    if (vibeReferences.isEmpty) {
+      throw ArgumentError('At least one vibe reference is required');
+    }
+
     _ensureValidPng(imageBytes);
     final chunks = _parsePngChunks(imageBytes);
 
-    final naiData = _buildNaiVibeData(vibeReference, thumbnailBase64);
+    final naiData = _buildNaiVibeBundleData(vibeReferences);
     final naiDataBase64 = base64.encode(utf8.encode(jsonEncode(naiData)));
     final vibeChunk = _buildITxtChunk(_naiDataKeyword, naiDataBase64);
 
@@ -57,31 +70,36 @@ class VibeImageEmbedder {
     return builder.toBytes();
   }
 
-  static Map<String, dynamic> _buildNaiVibeData(
-    VibeReference reference,
-    String? thumbnailBase64,
+  /// 构建包含多个 vibes 的 bundle 数据
+  static Map<String, dynamic> _buildNaiVibeBundleData(
+    List<VibeReference> references,
   ) {
     final now = DateTime.now().toIso8601String();
+    final vibes = references.map((ref) {
+      final thumbnailBase64 = ref.thumbnail != null
+          ? base64.encode(ref.thumbnail!)
+          : null;
+      return {
+        'identifier': 'novelai-vibe-transfer',
+        'version': 1,
+        'type': 'image',
+        'image': thumbnailBase64 ?? '',
+        'id': _generateVibeId(),
+        'encodings': {'vibe': ref.vibeEncoding},
+        'name': ref.displayName,
+        'thumbnail': thumbnailBase64,
+        'createdAt': now,
+        'importInfo': {
+          'source': 'nai_launcher',
+          'importedAt': now,
+        },
+      };
+    }).toList();
+
     return {
       'identifier': 'novelai-vibe-transfer-bundle',
       'version': 1,
-      'vibes': [
-        {
-          'identifier': 'novelai-vibe-transfer',
-          'version': 1,
-          'type': 'image',
-          'image': thumbnailBase64 ?? '',
-          'id': _generateVibeId(),
-          'encodings': {'vibe': reference.vibeEncoding},
-          'name': reference.displayName,
-          'thumbnail': thumbnailBase64,
-          'createdAt': now,
-          'importInfo': {
-            'source': 'nai_launcher',
-            'importedAt': now,
-          },
-        },
-      ],
+      'vibes': vibes,
     };
   }
 

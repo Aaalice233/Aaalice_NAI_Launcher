@@ -771,10 +771,14 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
                   color: theme.colorScheme.outline,
                 ),
               const SizedBox(width: 8),
-              Text(
-                entry.displayName,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              Flexible(
+                child: Text(
+                  entry.displayName,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
               ),
               if (isSelected) ...[

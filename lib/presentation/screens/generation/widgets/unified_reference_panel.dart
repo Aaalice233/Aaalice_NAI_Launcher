@@ -7,10 +7,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../core/utils/vibe_export_utils.dart';
+import '../../../../core/utils/vibe_image_embedder.dart';
 import '../../../../core/constants/storage_keys.dart';
 import '../../../providers/vibe_library_provider.dart';
 import '../../../widgets/common/themed_divider.dart';
@@ -206,6 +209,12 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
       onToggle: () => setState(() => _isExpanded = !_isExpanded),
       hasData: hasVibes,
       backgroundImage: _buildBackgroundImage(vibes),
+      // 标题右侧操作按钮：导出
+      headerActions: hasVibes
+          ? [
+              _buildExportButton(context, theme, vibes),
+            ]
+          : null,
       badge: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: 8,
@@ -348,6 +357,408 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
         ],
       ],
     );
+  }
+
+  /// 构建导出按钮（下拉菜单）
+  Widget _buildExportButton(
+    BuildContext context,
+    ThemeData theme,
+    List<VibeReference> vibes,
+  ) {
+    return PopupMenuButton<String>(
+      icon: Icon(
+        Icons.download,
+        size: 18,
+        color: theme.colorScheme.primary,
+      ),
+      tooltip: '导出 Vibe',
+      offset: const Offset(0, 32),
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'vibe',
+          child: Row(
+            children: [
+              Icon(
+                Icons.file_download,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              const Text('导出为 .vibe 文件'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'image',
+          child: Row(
+            children: [
+              Icon(
+                Icons.image,
+                size: 18,
+                color: theme.colorScheme.secondary,
+              ),
+              const SizedBox(width: 8),
+              const Text('嵌入到图片（可多选）'),
+            ],
+          ),
+        ),
+      ],
+      onSelected: (value) {
+        if (value == 'vibe') {
+          _exportAsVibeFile(vibes);
+        } else if (value == 'image') {
+          _embedIntoImage(vibes);
+        }
+      },
+    );
+  }
+
+  /// 导出为 .vibe 文件
+  ///
+  /// 单张：直接导出为 .naiv4vibe
+  /// 多张：询问导出为 bundle 还是逐个导出
+  Future<void> _exportAsVibeFile(List<VibeReference> vibes) async {
+    if (vibes.isEmpty) return;
+
+    try {
+      // 单张直接导出
+      if (vibes.length == 1) {
+        final result = await VibeExportUtils.exportToNaiv4Vibe(vibes.first);
+        if (result != null && mounted) {
+          AppToast.success(context, 'Vibe 导出成功');
+        }
+        return;
+      }
+
+      // 多张：询问导出方式
+      final exportType = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('导出多个 Vibe'),
+          content: const Text('请选择导出方式'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop('bundle'),
+              child: const Text('导出为 Bundle'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop('individual'),
+              child: const Text('逐个导出'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('取消'),
+            ),
+          ],
+        ),
+      );
+
+      if (exportType == null) return;
+
+      if (exportType == 'bundle') {
+        final result = await VibeExportUtils.exportToNaiv4VibeBundle(
+          vibes,
+          'vibe-bundle',
+        );
+        if (result != null && mounted) {
+          AppToast.success(context, 'Bundle 导出成功');
+        }
+      } else {
+        // 逐个导出
+        var successCount = 0;
+        for (final vibe in vibes) {
+          final result = await VibeExportUtils.exportToNaiv4Vibe(vibe);
+          if (result != null) successCount++;
+        }
+        if (mounted) {
+          AppToast.success(context, '已导出 $successCount/${vibes.length} 个 Vibe');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, '导出失败: $e');
+      }
+    }
+  }
+
+  /// 检查是否为 PNG 图片
+  bool _isPng(List<int> bytes) {
+    if (bytes.length < 8) return false;
+    // PNG 文件签名: 89 50 4E 47 0D 0A 1A 0A
+    return bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4E &&
+        bytes[3] == 0x47 &&
+        bytes[4] == 0x0D &&
+        bytes[5] == 0x0A &&
+        bytes[6] == 0x1A &&
+        bytes[7] == 0x0A;
+  }
+
+  /// 嵌入 Vibe 到图片
+  ///
+  /// 正确流程：
+  /// 1. 选择目标图片（容器）
+  /// 2. 选择要嵌入的 vibes（可多选）
+  /// 3. 执行嵌入并保存
+  Future<void> _embedIntoImage(List<VibeReference> vibes) async {
+    if (vibes.isEmpty) return;
+
+    // 过滤掉没有编码数据的 vibe
+    final embeddableVibes = vibes.where((v) {
+      return v.vibeEncoding.isNotEmpty || v.rawImageData != null;
+    }).toList();
+
+    if (embeddableVibes.isEmpty) {
+      if (mounted) {
+        AppToast.warning(context, '没有可嵌入的 Vibe（需要编码数据）');
+      }
+      return;
+    }
+
+    // 第一步：选择目标图片
+    final pickResult = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
+      allowMultiple: false,
+      dialogTitle: '选择要嵌入 Vibe 的目标图片',
+    );
+
+    if (pickResult == null || pickResult.files.isEmpty) return;
+
+    final file = pickResult.files.first;
+    final filePath = file.path;
+    Uint8List? imageBytes = file.bytes;
+
+    // Windows 平台下 bytes 可能为空，需要从 path 读取
+    if (imageBytes == null && filePath != null) {
+      try {
+        imageBytes = await File(filePath).readAsBytes();
+      } catch (e) {
+        if (mounted) {
+          AppToast.error(context, '读取文件失败: $e');
+        }
+        return;
+      }
+    }
+
+    if (imageBytes == null) {
+      if (mounted) {
+        AppToast.error(context, '无法读取图片文件');
+      }
+      return;
+    }
+
+    // 第二步：选择要嵌入的 vibes（多选对话框）
+    if (!mounted) return;
+
+    final selectedVibes = await showDialog<List<VibeReference>>(
+      context: context,
+      builder: (context) {
+        final selectedNames = <String>{};
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final theme = Theme.of(context);
+            final selectedCount = selectedNames.length;
+
+            return AlertDialog(
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('选择要嵌入的 Vibe'),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                    tooltip: '关闭',
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 400,
+                height: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 全选/取消全选按钮
+                    Row(
+                      children: [
+                        TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              if (selectedCount == embeddableVibes.length) {
+                                selectedNames.clear();
+                              } else {
+                                selectedNames.addAll(
+                                  embeddableVibes.map((v) => v.displayName),
+                                );
+                              }
+                            });
+                          },
+                          icon: Icon(
+                            selectedCount == embeddableVibes.length
+                                ? Icons.check_box_outlined
+                                : Icons.check_box_outline_blank,
+                          ),
+                          label: Text(
+                            selectedCount == embeddableVibes.length
+                                ? '取消全选'
+                                : '全选',
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '可嵌入: ${embeddableVibes.length} 个',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Vibe 列表
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: embeddableVibes.length,
+                        itemBuilder: (context, index) {
+                          final vibe = embeddableVibes[index];
+                          final isSelected = selectedNames.contains(vibe.displayName);
+
+                          return CheckboxListTile(
+                            value: isSelected,
+                            onChanged: (checked) {
+                              setState(() {
+                                if (checked == true) {
+                                  selectedNames.add(vibe.displayName);
+                                } else {
+                                  selectedNames.remove(vibe.displayName);
+                                }
+                              });
+                            },
+                            secondary: vibe.thumbnail != null
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: Image.memory(
+                                      vibe.thumbnail!,
+                                      width: 48,
+                                      height: 48,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                : Container(
+                                    width: 48,
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.surfaceContainerHigh,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Icon(Icons.image),
+                                  ),
+                            title: Text(
+                              vibe.displayName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              vibe.vibeEncoding.isNotEmpty ? '已编码' : '原始图片',
+                              style: TextStyle(
+                                color: vibe.vibeEncoding.isNotEmpty
+                                    ? Colors.green
+                                    : Colors.orange,
+                                fontSize: 12,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // 已选择数量
+                    Text(
+                      '已选择: $selectedCount 个',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('取消'),
+                ),
+                ElevatedButton(
+                  onPressed: selectedCount > 0
+                      ? () {
+                          final result = embeddableVibes
+                              .where((v) => selectedNames.contains(v.displayName))
+                              .toList();
+                          Navigator.of(context).pop(result);
+                        }
+                      : null,
+                  child: const Text('嵌入并保存'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (selectedVibes == null || selectedVibes.isEmpty) return;
+
+    // 第三步：执行嵌入
+    if (mounted) {
+      AppToast.info(context, '正在处理...');
+    }
+
+    try {
+      // 确保是 PNG 格式（如果不是则转换）
+      Uint8List processedBytes = imageBytes;
+      if (!_isPng(imageBytes)) {
+        final decoded = img.decodeImage(imageBytes);
+        if (decoded == null) {
+          if (mounted) {
+            AppToast.error(context, '无法解码图片');
+          }
+          return;
+        }
+        processedBytes = Uint8List.fromList(img.encodePng(decoded));
+      }
+
+      // 嵌入 vibes（使用 bundle 格式，一次嵌入所有）
+      final embeddedBytes = await VibeImageEmbedder.embedVibesToImage(
+        processedBytes,
+        selectedVibes,
+      );
+
+      // 保存嵌入后的图片
+      final defaultFileName = selectedVibes.length == 1
+          ? '${selectedVibes.first.displayName}_with_vibe.png'
+          : 'image_with_${selectedVibes.length}_vibes.png';
+
+      final savePath = await FilePicker.platform.saveFile(
+        dialogTitle: '保存嵌入 Vibe 的图片',
+        fileName: defaultFileName,
+        type: FileType.custom,
+        allowedExtensions: ['png'],
+      );
+
+      if (savePath == null) return;
+
+      await File(savePath).writeAsBytes(embeddedBytes);
+
+      if (mounted) {
+        AppToast.success(
+          context,
+          '已成功嵌入 ${selectedVibes.length} 个 Vibe 到图片',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, '嵌入失败: $e');
+      }
+    }
   }
 
   /// 构建库操作按钮（保存到库、从库导入）
