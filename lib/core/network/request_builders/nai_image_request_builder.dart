@@ -309,7 +309,7 @@ class NAIImageRequestBuilder {
           allInfoExtracted;
 
       AppLogger.d(
-        'V4 Vibe Transfer (Stream): ${preEncodedVibes.length} pre-encoded + ${rawImageVibes.length} encoded = ${allEncodings.length} total vibes',
+        'V4 Vibe Transfer (Stream): ${encodedVibes.length} encoded + ${rawImageVibes.length} raw = ${allEncodings.length} total vibes',
         'ImgGen',
       );
     }

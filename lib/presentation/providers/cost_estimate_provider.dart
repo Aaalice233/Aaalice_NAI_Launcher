@@ -56,9 +56,6 @@ int estimatedCost(Ref ref) {
   // 每次独立请求都可享受 Opus 免费（如果符合条件）
   int totalCost = singleRequestCost * batchCount;
 
-  // 加上 Vibe 编码成本 (每张非预编码图片 2 Anlas)
-  totalCost += params.vibeEncodingCost;
-
   return totalCost;
 }
 

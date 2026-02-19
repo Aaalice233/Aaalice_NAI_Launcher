@@ -329,4 +329,5 @@ extension VibeLibraryEntryListExtension on List<VibeLibraryEntry> {
     }
     return tags;
   }
+}
 
