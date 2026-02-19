@@ -567,27 +567,31 @@ class _HoverPreviewCardInner extends ConsumerWidget {
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: theme.colorScheme.primary.withOpacity(0.3),
+            width: 2,
+          ),
           boxShadow: [
-            // 主阴影 - 创造悬浮感
+            // 主阴影 - 深色悬浮感
             BoxShadow(
-              color: Colors.black.withOpacity(0.35),
-              blurRadius: 24,
-              spreadRadius: 4,
-              offset: const Offset(0, 8),
-            ),
-            // 中层阴影 - 增加层次感
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 40,
+              color: Colors.black.withOpacity(0.6),
+              blurRadius: 32,
               spreadRadius: 8,
-              offset: const Offset(0, 12),
+              offset: const Offset(0, 16),
             ),
-            // 边缘高光 - 强化立体感
+            // 中层阴影 - 扩散阴影
             BoxShadow(
-              color: theme.colorScheme.primary.withOpacity(0.15),
-              blurRadius: 16,
-              spreadRadius: -4,
-              offset: const Offset(0, -2),
+              color: Colors.black.withOpacity(0.4),
+              blurRadius: 60,
+              spreadRadius: 16,
+              offset: const Offset(0, 24),
+            ),
+            // 内发光效果 - 边缘高光
+            BoxShadow(
+              color: theme.colorScheme.primary.withOpacity(0.25),
+              blurRadius: 20,
+              spreadRadius: -8,
+              offset: const Offset(0, -4),
             ),
           ],
         ),
