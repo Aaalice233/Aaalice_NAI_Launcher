@@ -6,11 +6,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../utils/app_logger.dart';
+import 'connection_health_monitor.dart' as health_monitor;
 import 'connection_pool_holder.dart';
-import 'health_checker.dart';
 import 'data_source.dart';
 import 'datasources/gallery_data_source.dart';
+import 'health_checker.dart';
 import 'migrations/gallery_data_migration.dart';
+import 'metrics/metrics_reporter.dart' as metrics_reporter;
 
 /// 数据库初始化状态
 enum DatabaseInitState {
@@ -87,6 +89,12 @@ class DatabaseManager {
   // 数据源注册表
   final Map<String, DataSource> _dataSources = {};
 
+  // 健康监控器
+  health_monitor.ConnectionHealthMonitor? _healthMonitor;
+
+  // 指标报告器
+  metrics_reporter.MetricsReporter? _metricsReporter;
+
   /// 获取已注册的数据源
   Map<String, DataSource> get dataSources => Map.unmodifiable(_dataSources);
 
@@ -147,6 +155,12 @@ class DatabaseManager {
 
       // 注册所有数据源
       await _registerDataSources();
+
+      // 启动健康监控
+      _startHealthMonitoring();
+
+      // 启动指标报告（生产环境）
+      _startMetricsReporting();
 
       _initCompleter.complete();
 
@@ -286,6 +300,17 @@ class DatabaseManager {
   Future<void> dispose() async {
     AppLogger.i('Disposing DatabaseManager...', 'DatabaseManager');
 
+    // 停止健康监控
+    _healthMonitor?.stop();
+    _healthMonitor?.dispose();
+    _healthMonitor = null;
+    AppLogger.i('Health monitor stopped', 'DatabaseManager');
+
+    // 停止指标报告
+    _metricsReporter?.stopReporting();
+    _metricsReporter = null;
+    AppLogger.i('Metrics reporter stopped', 'DatabaseManager');
+
     // 释放所有数据源
     for (final entry in _dataSources.entries) {
       try {
@@ -329,7 +354,91 @@ class DatabaseManager {
     // 检查并执行数据迁移
     await _checkAndMigrateGalleryData(galleryDataSource);
 
+    // 预热连接池
+    await _warmupConnectionPool();
+
     AppLogger.i('Data sources registered: ${_dataSources.keys.join(', ')}', 'DatabaseManager');
+  }
+
+  /// 预热连接池
+  Future<void> _warmupConnectionPool() async {
+    try {
+      AppLogger.i('Warming up connection pool...', 'DatabaseManager');
+      final result = await ConnectionPoolHolder.warmup(
+        connections: _maxConnections,
+        timeout: const Duration(seconds: 5),
+      );
+
+      if (result.success) {
+        AppLogger.i(
+          'Connection pool warmed up successfully: '
+          '${result.validatedConnections} connections validated in ${result.duration.inMilliseconds}ms',
+          'DatabaseManager',
+        );
+      } else {
+        AppLogger.w(
+          'Connection pool warmup incomplete: '
+          '${result.validatedConnections} connections validated. Error: ${result.error}',
+          'DatabaseManager',
+        );
+      }
+    } catch (e, stack) {
+      AppLogger.e('Failed to warmup connection pool', e, stack, 'DatabaseManager');
+      // 预热失败不应阻塞整体启动
+    }
+  }
+
+  /// 启动健康监控
+  void _startHealthMonitoring() {
+    try {
+      _healthMonitor = health_monitor.ConnectionHealthMonitor(
+        config: health_monitor.HealthCheckConfig(),
+        onStatusChange: (oldStatus, newStatus, result) {
+          AppLogger.w(
+            'Database health status changed: $oldStatus -> $newStatus '
+            '(latency: ${result.connectionAcquireLatency.inMilliseconds}ms, '
+            'failureRate: ${result.failureRate.toStringAsFixed(2)}%)',
+            'DatabaseManager',
+          );
+        },
+        onAlert: (alertType, message, result) {
+          AppLogger.e(
+            'Database health alert [$alertType]: $message',
+            null,
+            null,
+            'DatabaseManager',
+          );
+        },
+      );
+      _healthMonitor!.start();
+      AppLogger.i(
+        'Health monitoring started (interval: 30s)',
+        'DatabaseManager',
+      );
+    } catch (e, stack) {
+      AppLogger.e('Failed to start health monitoring', e, stack, 'DatabaseManager');
+    }
+  }
+
+  /// 启动指标报告
+  void _startMetricsReporting() {
+    try {
+      _metricsReporter = metrics_reporter.MetricsReporter();
+
+      // 根据环境配置报告间隔（生产环境5分钟，开发环境10分钟）
+      const isProduction = bool.fromEnvironment('dart.vm.product', defaultValue: false);
+      const reportInterval = isProduction
+          ? Duration(minutes: 5)
+          : Duration(minutes: 10);
+
+      _metricsReporter!.startReporting(interval: reportInterval);
+      AppLogger.i(
+        'Metrics reporting started (interval: ${reportInterval.inMinutes}min, environment: ${isProduction ? 'production' : 'development'})',
+        'DatabaseManager',
+      );
+    } catch (e, stack) {
+      AppLogger.e('Failed to start metrics reporting', e, stack, 'DatabaseManager');
+    }
   }
 
   /// 检查并执行画廊数据迁移

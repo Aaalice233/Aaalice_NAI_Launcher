@@ -2,8 +2,10 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../utils/app_logger.dart';
+import '../base_data_source.dart';
+import '../connection_lease.dart';
 import '../connection_pool_holder.dart';
-import '../data_source.dart';
+import '../data_source.dart' show DataSourceHealth, DataSourceType, HealthStatus;
 import '../utils/lru_cache.dart';
 
 /// 元数据解析状态
@@ -380,7 +382,13 @@ class ScanLogRecord {
 ///
 /// 管理本地图片画廊的数据存储和查询。
 /// 支持图片元数据、标签、收藏和全文搜索。
-class GalleryDataSource extends BaseDataSource {
+///
+/// 使用 EnhancedBaseDataSource 提供的新特性：
+/// - ConnectionLease 连接生命周期管理
+/// - 自动重试机制
+/// - 超时控制
+/// - 流式查询支持
+class GalleryDataSource extends EnhancedBaseDataSource {
   static const int _maxImageCacheSize = 500;
   static const int _maxMetadataCacheSize = 200;
 
@@ -416,6 +424,7 @@ class GalleryDataSource extends BaseDataSource {
   ///
   /// 在重试期间检测连接池版本变化，如果版本变化则自动重新开始获取。
   /// 这解决了在长时间操作期间连接池被重置导致的问题。
+  @Deprecated('建议使用 acquireLease() 或 _executeWithLease() 替代')
   Future<dynamic> _acquireDb() async {
     var retryCount = 0;
     var poolVersion = ConnectionPoolHolder.version;
@@ -486,6 +495,7 @@ class GalleryDataSource extends BaseDataSource {
   /// 释放数据库连接（带错误处理）
   ///
   /// 如果连接池已被重置，静默忽略释放错误
+  @Deprecated('建议使用 lease.dispose() 替代')
   Future<void> _releaseDb(dynamic db) async {
     if (db == null) return;
 
@@ -517,6 +527,7 @@ class GalleryDataSource extends BaseDataSource {
   ///
   /// 如果在操作期间连接池被重置，会自动重试整个操作
   /// 这是处理并发数据库访问时连接池重置的最终解决方案
+  @Deprecated('建议使用 _executeWithLease() 替代')
   Future<T> _executeWithRetry<T>(
     Future<T> Function(dynamic db) operation, {
     String? operationName,
@@ -551,6 +562,167 @@ class GalleryDataSource extends BaseDataSource {
     throw StateError(
       'Operation${operationName != null ? ' $operationName' : ''} failed after $maxRetries retries',
     );
+  }
+
+  // ============================================================
+  // 连接租借机制（新架构）
+  // ============================================================
+
+  /// 获取连接租借（新架构）
+  ///
+  /// 使用 ConnectionLease 提供更严格的连接生命周期管理：
+  /// - 自动版本检测
+  /// - 定期健康检查
+  /// - 使用时长监控
+  /// - 自动失效检测
+  Future<ConnectionLease> _acquireLease({String? operationId}) async {
+    final lease = await acquireLease(
+      operationId: operationId ?? '${name}_${DateTime.now().millisecondsSinceEpoch}',
+      timeout: const Duration(seconds: 5),
+    );
+    return lease;
+  }
+
+  /// 使用连接租借执行操作（新架构）
+  ///
+  /// 这是推荐的新的操作模式，相比 _executeWithRetry 提供：
+  /// 1. 更强的连接健康检查
+  /// 2. 使用时长监控
+  /// 3. 更精确的版本检测
+  /// 4. 更好的诊断信息
+  ///
+  /// @Deprecated('建议直接使用 SimpleLeaseHelper 或 BaseDataSource.execute()')
+  @Deprecated('建议直接使用 SimpleLeaseHelper 或 BaseDataSource.execute()')
+  Future<T> _executeWithLease<T>(
+    Future<T> Function(Database db) operation, {
+    String? operationName,
+    int maxRetries = 3,
+  }) async {
+    var attempt = 0;
+    final operationId = '$name.${operationName ?? "anonymous"}.${DateTime.now().millisecondsSinceEpoch}';
+
+    while (attempt < maxRetries) {
+      ConnectionLease? lease;
+
+      try {
+        // 获取连接租借
+        lease = await _acquireLease(operationId: operationId);
+
+        // 执行操作（租借内部会自动验证）
+        final result = await lease.execute(
+          operation,
+          validateBefore: true,
+          autoRetry: false, // 我们自己在上层处理重试
+        );
+
+        // 检查使用时长
+        if (lease.usageTime > const Duration(seconds: 5)) {
+          AppLogger.w(
+            'Long running operation detected: ${lease.usageTime.inSeconds}s for $operationId',
+            'GalleryDS',
+          );
+        }
+
+        return result;
+      } on ConnectionVersionMismatchException catch (e) {
+        attempt++;
+        AppLogger.d(
+          '[$operationId] Connection version mismatch, retrying ($attempt/$maxRetries): $e',
+          'GalleryDS',
+        );
+        await Future.delayed(Duration(milliseconds: 200 * attempt));
+      } on ConnectionInvalidException catch (e) {
+        attempt++;
+        AppLogger.d(
+          '[$operationId] Connection invalid, retrying ($attempt/$maxRetries): $e',
+          'GalleryDS',
+        );
+        await Future.delayed(Duration(milliseconds: 200 * attempt));
+      } catch (e) {
+        // 检查是否为连接相关错误
+        if (_isDbConnectionError(e) && attempt < maxRetries - 1) {
+          attempt++;
+          AppLogger.d(
+            '[$operationId] Database connection error, retrying ($attempt/$maxRetries): $e',
+            'GalleryDS',
+          );
+          await Future.delayed(Duration(milliseconds: 200 * attempt));
+        } else {
+          rethrow;
+        }
+      } finally {
+        // 确保释放连接
+        if (lease != null) {
+          await lease.dispose();
+        }
+      }
+    }
+
+    throw StateError(
+      '[$operationId] Operation failed after $maxRetries retries',
+    );
+  }
+
+  /// 使用连接租借执行批量操作（新架构）
+  ///
+  /// 适用于大量数据的批量处理，特点：
+  /// - 每批使用独立的连接
+  /// - 批次间自动让出时间片
+  /// - 连接自动验证
+  Stream<T> _executeBatchWithLease<T>(
+    List<T> items,
+    Future<void> Function(Database db, T item) processor, {
+    String? operationName,
+    int batchSize = 50,
+  }) async* {
+    final chunks = _chunk(items, batchSize);
+    var chunkIndex = 0;
+
+    for (final chunk in chunks) {
+      final operationId = '$name.${operationName ?? "batch"}.chunk#$chunkIndex';
+      ConnectionLease? lease;
+
+      try {
+        // 获取新的连接租借
+        lease = await _acquireLease(operationId: operationId);
+
+        // 验证连接
+        if (!await lease.validate()) {
+          throw ConnectionInvalidException(operationId: operationId);
+        }
+
+        // 处理批次内所有项目
+        for (final item in chunk) {
+          await lease.execute(
+            (db) => processor(db, item),
+            validateBefore: false, // 批次内不复验
+          );
+          yield item;
+        }
+      } finally {
+        if (lease != null) {
+          await lease.dispose();
+        }
+      }
+
+      // 批次间让出时间片，避免阻塞
+      await Future.delayed(const Duration(milliseconds: 10));
+      chunkIndex++;
+    }
+  }
+
+  /// 分批辅助方法
+  List<List<T>> _chunk<T>(List<T> list, int chunkSize) {
+    final chunks = <List<T>>[];
+    for (var i = 0; i < list.length; i += chunkSize) {
+      chunks.add(
+        list.sublist(
+          i,
+          i + chunkSize > list.length ? list.length : i + chunkSize,
+        ),
+      );
+    }
+    return chunks;
   }
 
   /// 清除缓存
@@ -868,6 +1040,11 @@ class GalleryDataSource extends BaseDataSource {
   ///
   /// 使用 INSERT OR REPLACE 语义，如果存在相同 file_path 的记录则更新
   /// 返回插入/更新后的图片ID
+  ///
+  /// 使用新的 BaseDataSource.execute 模式，提供：
+  /// - 连接生命周期自动管理
+  /// - 自动重试机制
+  /// - 超时控制
   Future<int> upsertImage({
     required String filePath,
     required String fileName,
@@ -882,7 +1059,8 @@ class GalleryDataSource extends BaseDataSource {
     MetadataStatus? metadataStatus,
     bool? isFavorite,
   }) async {
-    return _executeWithRetry(
+    return execute(
+      'upsertImage',
       (db) async {
         final dateYmd = _formatDateYmd(modifiedAt);
         final now = DateTime.now();
@@ -932,7 +1110,7 @@ class GalleryDataSource extends BaseDataSource {
         AppLogger.d('Upserted image: $fileName (id=$id)', 'GalleryDS');
         return id;
       },
-      operationName: 'upsertImage',
+      timeout: const Duration(seconds: 30),
       maxRetries: 3,
     );
   }
@@ -942,7 +1120,8 @@ class GalleryDataSource extends BaseDataSource {
   /// 如果找不到记录，返回 null
   Future<int?> getImageIdByPath(String filePath) async {
     try {
-      return await _executeWithRetry(
+      return await execute(
+        'getImageIdByPath',
         (db) async {
           final result = await db.rawQuery(
             'SELECT id FROM $_imagesTable WHERE file_path = ? AND is_deleted = 0',
@@ -952,7 +1131,7 @@ class GalleryDataSource extends BaseDataSource {
           if (result.isEmpty) return null;
           return (result.first['id'] as num?)?.toInt();
         },
-        operationName: 'getImageIdByPath',
+        timeout: const Duration(seconds: 10),
         maxRetries: 3,
       );
     } catch (e, stack) {
@@ -964,6 +1143,11 @@ class GalleryDataSource extends BaseDataSource {
   /// 根据ID获取图片记录
   ///
   /// 使用 LRU 缓存，优先从缓存获取
+  ///
+  /// 使用新的 BaseDataSource.execute 模式，提供：
+  /// - 连接生命周期自动管理
+  /// - 自动重试机制
+  /// - 异常处理和日志记录
   Future<GalleryImageRecord?> getImageById(int id) async {
     // 先从缓存获取
     final cached = _imageCache.get(id);
@@ -971,30 +1155,33 @@ class GalleryDataSource extends BaseDataSource {
       return cached;
     }
 
-    final db = await _acquireDb();
-
     try {
-      final result = await db.rawQuery(
-        '''
-        SELECT * FROM $_imagesTable
-        WHERE id = ? AND is_deleted = 0
-        ''',
-        [id],
+      return await execute(
+        'getImageById',
+        (db) async {
+          final result = await db.rawQuery(
+            '''
+            SELECT * FROM $_imagesTable
+            WHERE id = ? AND is_deleted = 0
+            ''',
+            [id],
+          );
+
+          if (result.isEmpty) return null;
+
+          final record = GalleryImageRecord.fromMap(result.first);
+
+          // 存入缓存
+          _imageCache.put(id, record);
+
+          return record;
+        },
+        timeout: const Duration(seconds: 10),
+        maxRetries: 3,
       );
-
-      if (result.isEmpty) return null;
-
-      final record = GalleryImageRecord.fromMap(result.first);
-
-      // 存入缓存
-      _imageCache.put(id, record);
-
-      return record;
     } catch (e, stack) {
       AppLogger.e('Failed to get image by ID: $id', e, stack, 'GalleryDS');
       return null;
-    } finally {
-      await _releaseDb(db);
     }
   }
 
@@ -1062,27 +1249,21 @@ class GalleryDataSource extends BaseDataSource {
 
   /// 获取所有文件路径和哈希映射
   ///
-  /// 用于增量扫描，只返回未删除的记录
+  /// 用于增量扫描，只返回未删除的记录。
+  /// 使用流式查询处理大数据集，避免内存溢出。
   Future<Map<String, String?>> getAllFileHashes() async {
-    final db = await _acquireDb();
-
     try {
-      final results = await db.rawQuery(
-        '''
-        SELECT file_path, file_hash FROM $_imagesTable
-        WHERE is_deleted = 0
-        ''',
-      );
-
-      return {
-        for (final row in results)
-          row['file_path'] as String: row['file_hash'] as String?,
-      };
+      final result = <String, String?>{};
+      await for (final row in executeQueryStream(
+        'SELECT file_path, file_hash FROM $_imagesTable WHERE is_deleted = 0',
+        [],
+      )) {
+        result[row['file_path'] as String] = row['file_hash'] as String?;
+      }
+      return result;
     } catch (e, stack) {
       AppLogger.e('Failed to get all file hashes', e, stack, 'GalleryDS');
       return {};
-    } finally {
-      await _releaseDb(db);
     }
   }
 
@@ -1260,41 +1441,46 @@ class GalleryDataSource extends BaseDataSource {
   /// 使用 INSERT OR REPLACE 语义，如果存在则更新。
   /// 插入后清除元数据缓存并更新 FTS5 索引。
   Future<void> upsertMetadata(int imageId, NaiImageMetadata metadata) async {
-    final db = await _acquireDb();
-
     try {
       final fullPromptText = _buildFullPromptText(metadata);
 
-      await db.insert(
-        _metadataTable,
-        {
-          'image_id': imageId,
-          'prompt': metadata.prompt,
-          'negative_prompt': metadata.negativePrompt,
-          'seed': metadata.seed,
-          'sampler': metadata.sampler,
-          'steps': metadata.steps,
-          'cfg_scale': metadata.scale,
-          'width': metadata.width,
-          'height': metadata.height,
-          'model': metadata.model,
-          'smea': metadata.smea == true ? 1 : 0,
-          'smea_dyn': metadata.smeaDyn == true ? 1 : 0,
-          'noise_schedule': metadata.noiseSchedule,
-          'cfg_rescale': metadata.cfgRescale,
-          'uc_preset': metadata.ucPreset,
-          'quality_toggle': metadata.qualityToggle == true ? 1 : 0,
-          'is_img2img': metadata.isImg2Img ? 1 : 0,
-          'strength': metadata.strength,
-          'noise': metadata.noise,
-          'software': metadata.software,
-          'source': metadata.source,
-          'version': metadata.version,
-          'raw_json': metadata.rawJson,
-          'has_metadata': metadata.hasData ? 1 : 0,
-          'full_prompt_text': fullPromptText,
+      await execute(
+        'upsertMetadata',
+        (db) async {
+          await db.insert(
+            _metadataTable,
+            {
+              'image_id': imageId,
+              'prompt': metadata.prompt,
+              'negative_prompt': metadata.negativePrompt,
+              'seed': metadata.seed,
+              'sampler': metadata.sampler,
+              'steps': metadata.steps,
+              'cfg_scale': metadata.scale,
+              'width': metadata.width,
+              'height': metadata.height,
+              'model': metadata.model,
+              'smea': metadata.smea == true ? 1 : 0,
+              'smea_dyn': metadata.smeaDyn == true ? 1 : 0,
+              'noise_schedule': metadata.noiseSchedule,
+              'cfg_rescale': metadata.cfgRescale,
+              'uc_preset': metadata.ucPreset,
+              'quality_toggle': metadata.qualityToggle == true ? 1 : 0,
+              'is_img2img': metadata.isImg2Img ? 1 : 0,
+              'strength': metadata.strength,
+              'noise': metadata.noise,
+              'software': metadata.software,
+              'source': metadata.source,
+              'version': metadata.version,
+              'raw_json': metadata.rawJson,
+              'has_metadata': metadata.hasData ? 1 : 0,
+              'full_prompt_text': fullPromptText,
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
         },
-        conflictAlgorithm: ConflictAlgorithm.replace,
+        timeout: const Duration(seconds: 30),
+        maxRetries: 3,
       );
 
       // 清除该图片的元数据缓存
@@ -1307,8 +1493,6 @@ class GalleryDataSource extends BaseDataSource {
     } catch (e, stack) {
       AppLogger.e('Failed to upsert metadata: $imageId', e, stack, 'GalleryDS');
       rethrow;
-    } finally {
-      await _releaseDb(db);
     }
   }
 
@@ -1359,6 +1543,11 @@ class GalleryDataSource extends BaseDataSource {
   /// 根据图片ID获取元数据
   ///
   /// 先检查 _metadataCache，数据库查询后写入缓存
+  ///
+  /// 使用新的 BaseDataSource.execute 模式，提供：
+  /// - 连接生命周期自动管理
+  /// - 自动重试机制
+  /// - 异常处理和日志记录
   Future<GalleryMetadataRecord?> getMetadataByImageId(int imageId) async {
     // 先检查缓存
     final cached = _metadataCache.get(imageId);
@@ -1366,30 +1555,33 @@ class GalleryDataSource extends BaseDataSource {
       return cached;
     }
 
-    final db = await _acquireDb();
-
     try {
-      final result = await db.rawQuery(
-        '''
-        SELECT * FROM $_metadataTable
-        WHERE image_id = ?
-        ''',
-        [imageId],
+      return await execute(
+        'getMetadataByImageId',
+        (db) async {
+          final result = await db.rawQuery(
+            '''
+            SELECT * FROM $_metadataTable
+            WHERE image_id = ?
+            ''',
+            [imageId],
+          );
+
+          if (result.isEmpty) return null;
+
+          final record = GalleryMetadataRecord.fromMap(result.first);
+
+          // 写入缓存
+          _metadataCache.put(imageId, record);
+
+          return record;
+        },
+        timeout: const Duration(seconds: 10),
+        maxRetries: 3,
       );
-
-      if (result.isEmpty) return null;
-
-      final record = GalleryMetadataRecord.fromMap(result.first);
-
-      // 写入缓存
-      _metadataCache.put(imageId, record);
-
-      return record;
     } catch (e, stack) {
       AppLogger.e('Failed to get metadata by image ID: $imageId', e, stack, 'GalleryDS');
       return null;
-    } finally {
-      await _releaseDb(db);
     }
   }
 
@@ -1549,8 +1741,6 @@ class GalleryDataSource extends BaseDataSource {
   Future<List<int>> searchFullText(String query, {int limit = 100}) async {
     if (query.trim().isEmpty) return [];
 
-    final db = await _acquireDb();
-
     try {
       // 处理搜索词，添加通配符支持
       final searchQuery = query
@@ -1559,22 +1749,27 @@ class GalleryDataSource extends BaseDataSource {
           .map((s) => '"$s"*')
           .join(' OR ');
 
-      final results = await db.rawQuery(
-        '''
-        SELECT image_id FROM $_ftsIndexTable
-        WHERE $_ftsIndexTable MATCH ?
-        ORDER BY rank
-        LIMIT ?
-        ''',
-        [searchQuery, limit],
-      );
+      return await execute(
+        'searchFullText',
+        (db) async {
+          final results = await db.rawQuery(
+            '''
+            SELECT image_id FROM $_ftsIndexTable
+            WHERE $_ftsIndexTable MATCH ?
+            ORDER BY rank
+            LIMIT ?
+            ''',
+            [searchQuery, limit],
+          );
 
-      return results.map((row) => (row['image_id'] as num).toInt()).toList();
+          return results.map((row) => (row['image_id'] as num).toInt()).toList();
+        },
+        timeout: const Duration(seconds: 10),
+        maxRetries: 3,
+      );
     } catch (e, stack) {
       AppLogger.e('Failed to search full text: $query', e, stack, 'GalleryDS');
       return [];
-    } finally {
-      await _releaseDb(db);
     }
   }
 
@@ -1921,7 +2116,8 @@ class GalleryDataSource extends BaseDataSource {
   /// 用于扫描服务获取所有已索引的图片
   Future<List<GalleryImageRecord>> getAllImages() async {
     try {
-      return await _executeWithRetry(
+      return await execute(
+        'getAllImages',
         (db) async {
           final results = await db.rawQuery(
             '''
@@ -1933,7 +2129,7 @@ class GalleryDataSource extends BaseDataSource {
 
           return results.map((row) => GalleryImageRecord.fromMap(row)).toList();
         },
-        operationName: 'getAllImages',
+        timeout: const Duration(seconds: 60),
         maxRetries: 3,
       );
     } catch (e, stack) {
@@ -1946,39 +2142,42 @@ class GalleryDataSource extends BaseDataSource {
   ///
   /// 返回每个模型的使用次数和占比
   Future<List<Map<String, dynamic>>> getModelDistribution() async {
-    final db = await _acquireDb();
-
     try {
-      final results = await db.rawQuery(
-        '''
-        SELECT 
-          model,
-          COUNT(*) as count
-        FROM $_metadataTable
-        WHERE model IS NOT NULL AND model != ''
-        GROUP BY model
-        ORDER BY count DESC
-        ''',
-      );
+      return await execute(
+        'getModelDistribution',
+        (db) async {
+          final results = await db.rawQuery(
+            '''
+            SELECT 
+              model,
+              COUNT(*) as count
+            FROM $_metadataTable
+            WHERE model IS NOT NULL AND model != ''
+            GROUP BY model
+            ORDER BY count DESC
+            ''',
+          );
 
-      final total = results.fold<int>(
-        0,
-        (sum, row) => sum + (row['count'] as int),
-      );
+          final total = results.fold<int>(
+            0,
+            (sum, row) => sum + (row['count'] as int),
+          );
 
-      return results.map((row) {
-        final count = row['count'] as int;
-        return {
-          'model': row['model'] as String,
-          'count': count,
-          'percentage': total > 0 ? (count / total * 100) : 0.0,
-        };
-      }).toList();
+          return results.map((row) {
+            final count = row['count'] as int;
+            return {
+              'model': row['model'] as String,
+              'count': count,
+              'percentage': total > 0 ? (count / total * 100) : 0.0,
+            };
+          }).toList();
+        },
+        timeout: const Duration(seconds: 30),
+        maxRetries: 3,
+      );
     } catch (e, stack) {
       AppLogger.e('Failed to get model distribution', e, stack, 'GalleryDS');
       return [];
-    } finally {
-      await _releaseDb(db);
     }
   }
 
@@ -1986,39 +2185,42 @@ class GalleryDataSource extends BaseDataSource {
   ///
   /// 返回每个采样器的使用次数和占比
   Future<List<Map<String, dynamic>>> getSamplerDistribution() async {
-    final db = await _acquireDb();
-
     try {
-      final results = await db.rawQuery(
-        '''
-        SELECT 
-          sampler,
-          COUNT(*) as count
-        FROM $_metadataTable
-        WHERE sampler IS NOT NULL AND sampler != ''
-        GROUP BY sampler
-        ORDER BY count DESC
-        ''',
-      );
+      return await execute(
+        'getSamplerDistribution',
+        (db) async {
+          final results = await db.rawQuery(
+            '''
+            SELECT 
+              sampler,
+              COUNT(*) as count
+            FROM $_metadataTable
+            WHERE sampler IS NOT NULL AND sampler != ''
+            GROUP BY sampler
+            ORDER BY count DESC
+            ''',
+          );
 
-      final total = results.fold<int>(
-        0,
-        (sum, row) => sum + (row['count'] as int),
-      );
+          final total = results.fold<int>(
+            0,
+            (sum, row) => sum + (row['count'] as int),
+          );
 
-      return results.map((row) {
-        final count = row['count'] as int;
-        return {
-          'sampler': row['sampler'] as String,
-          'count': count,
-          'percentage': total > 0 ? (count / total * 100) : 0.0,
-        };
-      }).toList();
+          return results.map((row) {
+            final count = row['count'] as int;
+            return {
+              'sampler': row['sampler'] as String,
+              'count': count,
+              'percentage': total > 0 ? (count / total * 100) : 0.0,
+            };
+          }).toList();
+        },
+        timeout: const Duration(seconds: 30),
+        maxRetries: 3,
+      );
     } catch (e, stack) {
       AppLogger.e('Failed to get sampler distribution', e, stack, 'GalleryDS');
       return [];
-    } finally {
-      await _releaseDb(db);
     }
   }
 }

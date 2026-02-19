@@ -1,5 +1,27 @@
+import 'dart:async';
+
 import 'connection_pool.dart';
 import '../utils/app_logger.dart';
+import 'metrics/metrics_collector.dart';
+
+/// 连接池预热结果
+class WarmupResult {
+  final bool success;
+  final int validatedConnections;
+  final Duration duration;
+  final String? error;
+
+  WarmupResult({
+    required this.success,
+    required this.validatedConnections,
+    required this.duration,
+    this.error,
+  });
+
+  @override
+  String toString() =>
+      'WarmupResult(success: $success, connections: $validatedConnections, duration: ${duration.inMilliseconds}ms)';
+}
 
 /// ConnectionPool 全局持有者
 ///
@@ -84,6 +106,9 @@ class ConnectionPoolHolder {
       await oldInstance.dispose();
     }
 
+    // 记录池重置
+    MetricsCollector().recordPoolReset();
+
     // 3. 创建并初始化新连接池
     final newInstance = ConnectionPool(
       dbPath: dbPath,
@@ -113,5 +138,146 @@ class ConnectionPoolHolder {
       await inst.dispose();
       _instance = null;
     }
+  }
+
+  // ============================================================
+  // 连接池预热机制
+  // ============================================================
+
+  /// 预热连接池
+  ///
+  /// 获取指定数量的连接并验证它们真正可用，然后释放回连接池。
+  /// 这确保了在应用启动或重置后，连接池中的连接都是有效的。
+  ///
+  /// [connections] 要预热的连接数
+  /// [timeout] 每个连接的超时时间
+  /// [validationQuery] 用于验证连接的查询
+  static Future<WarmupResult> warmup({
+    int connections = 3,
+    Duration timeout = const Duration(seconds: 5),
+    String validationQuery = 'SELECT 1',
+  }) async {
+    final stopwatch = Stopwatch()..start();
+
+    if (!isInitialized) {
+      return WarmupResult(
+        success: false,
+        validatedConnections: 0,
+        duration: stopwatch.elapsed,
+        error: 'Connection pool not initialized',
+      );
+    }
+
+    final pool = instance;
+    final validatedConnections = <dynamic>[];
+    var lastError = '';
+
+    try {
+      // 获取并验证指定数量的连接
+      for (var i = 0; i < connections; i++) {
+        try {
+          final conn = await pool.acquire().timeout(timeout);
+
+          try {
+            // 执行验证查询
+            await conn.rawQuery(validationQuery).timeout(
+              const Duration(seconds: 2),
+            );
+
+            validatedConnections.add(conn);
+          } catch (e) {
+            lastError = 'Validation failed: $e';
+            // 验证失败，关闭这个连接
+            try {
+              await pool.release(conn);
+            } catch (_) {}
+          }
+        } on TimeoutException {
+          lastError = 'Connection acquisition timeout';
+          break;
+        } catch (e) {
+          lastError = 'Failed to acquire connection: $e';
+          break;
+        }
+      }
+
+      stopwatch.stop();
+
+      // 释放所有验证过的连接
+      for (final conn in validatedConnections) {
+        try {
+          await pool.release(conn);
+        } catch (e) {
+          // 忽略释放错误
+        }
+      }
+
+      final success = validatedConnections.length >= connections ~/ 2;
+
+      if (success) {
+        AppLogger.i(
+          'Connection pool warmed up: ${validatedConnections.length}/$connections connections validated in ${stopwatch.elapsed.inMilliseconds}ms',
+          'ConnectionPoolHolder',
+        );
+      } else {
+        AppLogger.w(
+          'Connection pool warmup incomplete: ${validatedConnections.length}/$connections connections validated. Last error: $lastError',
+          'ConnectionPoolHolder',
+        );
+      }
+
+      return WarmupResult(
+        success: success,
+        validatedConnections: validatedConnections.length,
+        duration: stopwatch.elapsed,
+        error: success ? null : lastError,
+      );
+    } catch (e) {
+      stopwatch.stop();
+
+      // 确保释放所有连接
+      for (final conn in validatedConnections) {
+        try {
+          await pool.release(conn);
+        } catch (_) {}
+      }
+
+      AppLogger.e(
+        'Connection pool warmup failed: $e',
+        null,
+        null,
+        'ConnectionPoolHolder',
+      );
+
+      return WarmupResult(
+        success: false,
+        validatedConnections: validatedConnections.length,
+        duration: stopwatch.elapsed,
+        error: e.toString(),
+      );
+    }
+  }
+
+  /// 重置并预热（便捷方法）
+  ///
+  /// 先重置连接池，然后立即预热
+  static Future<WarmupResult> resetAndWarmup({
+    required String dbPath,
+    int maxConnections = 3,
+    int warmupConnections = 3,
+    Duration warmupTimeout = const Duration(seconds: 5),
+  }) async {
+    await reset(
+      dbPath: dbPath,
+      maxConnections: maxConnections,
+    );
+
+    // 小延迟确保连接池完全就绪
+    await Future.delayed(const Duration(milliseconds: 100));
+
+    return await warmup(
+      connections: warmupConnections,
+      timeout: warmupTimeout,
+    );
   }
 }
