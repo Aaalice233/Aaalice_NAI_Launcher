@@ -1,4 +1,3 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as path;
 
 import '../../core/cache/danbooru_image_cache_manager.dart';
+import '../../core/utils/localization_extension.dart';
 import '../../data/models/online_gallery/danbooru_post.dart';
 import '../../data/models/queue/replication_task.dart';
 import '../../data/services/tag_translation_service.dart';

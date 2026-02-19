@@ -1,4 +1,3 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -39,6 +38,7 @@ import 'widgets/prompt_input.dart';
 import 'widgets/image_preview.dart';
 import 'widgets/history_panel.dart';
 import 'widgets/upscale_dialog.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 /// 桌面端三栏布局
@@ -63,7 +63,6 @@ class _DesktopGenerationLayoutState
   // 拖拽状态（拖拽时禁用动画以避免粘滞感）
   bool _isResizingLeft = false;
   bool _isResizingRight = false;
-
 
   /// 切换提示词区域最大化状态
   void _togglePromptMaximize() {
@@ -601,8 +600,10 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
       ShortcutIds.upscaleImage: () {
         final generationState = ref.read(imageGenerationNotifierProvider);
         if (generationState.displayImages.isNotEmpty) {
-          UpscaleDialog.show(context,
-              image: generationState.displayImages.first.bytes,);
+          UpscaleDialog.show(
+            context,
+            image: generationState.displayImages.first.bytes,
+          );
         }
       },
       // 复制图像（复制到剪贴板）
@@ -610,7 +611,10 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
         final generationState = ref.read(imageGenerationNotifierProvider);
         if (generationState.displayImages.isNotEmpty) {
           _copyImageToClipboard(
-              context, ref, generationState.displayImages.first.bytes,);
+            context,
+            ref,
+            generationState.displayImages.first.bytes,
+          );
         }
       },
       // 全屏预览

@@ -1,4 +1,3 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -6,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/utils/localization_extension.dart';
 import '../../../../widgets/common/app_toast.dart';
 
 import '../../../../../data/models/prompt/prompt_tag.dart';
@@ -336,7 +336,10 @@ class _TagChipState extends ConsumerState<TagChip>
 
   /// 构建带语法高亮的文本组件
   Widget _buildSyntaxHighlightedText(
-      ThemeData theme, Color effectiveColor, bool isEnabled,) {
+    ThemeData theme,
+    Color effectiveColor,
+    bool isEnabled,
+  ) {
     final displayText = _displayText;
     final name = widget.tag.displayName;
     final weight = _currentWeight;
@@ -608,18 +611,28 @@ class _TagChipState extends ConsumerState<TagChip>
 
     final shadowOffset = widget.isDragging
         ? const Offset(
-            TagShadowConfig.draggingOffsetX, TagShadowConfig.draggingOffsetY,)
+            TagShadowConfig.draggingOffsetX,
+            TagShadowConfig.draggingOffsetY,
+          )
         : _isHovering
             ? const Offset(
-                TagShadowConfig.hoverOffsetX, TagShadowConfig.hoverOffsetY,)
+                TagShadowConfig.hoverOffsetX,
+                TagShadowConfig.hoverOffsetY,
+              )
             : isSelected
-                ? const Offset(TagShadowConfig.selectedOffsetX,
-                    TagShadowConfig.selectedOffsetY,)
+                ? const Offset(
+                    TagShadowConfig.selectedOffsetX,
+                    TagShadowConfig.selectedOffsetY,
+                  )
                 : isEnabled
-                    ? const Offset(TagShadowConfig.normalOffsetX,
-                        TagShadowConfig.normalOffsetY,)
-                    : const Offset(TagShadowConfig.disabledOffsetX,
-                        TagShadowConfig.disabledOffsetY,);
+                    ? const Offset(
+                        TagShadowConfig.normalOffsetX,
+                        TagShadowConfig.normalOffsetY,
+                      )
+                    : const Offset(
+                        TagShadowConfig.disabledOffsetX,
+                        TagShadowConfig.disabledOffsetY,
+                      );
 
     final shadowOpacity = widget.isDragging
         ? TagShadowConfig.draggingOpacity

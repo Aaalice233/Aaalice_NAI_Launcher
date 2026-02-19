@@ -1,8 +1,8 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/app_warmup_service.dart';
+import '../../../core/utils/localization_extension.dart';
 import '../../providers/warmup_provider.dart';
 
 /// 启动画面
@@ -85,7 +85,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
                 // 进度区域
                 _buildProgressSection(
-                    theme, primaryColor, progress, warmupState.subTaskMessage,),
+                  theme,
+                  primaryColor,
+                  progress,
+                  warmupState.subTaskMessage,
+                ),
 
                 const SizedBox(height: 48),
               ],

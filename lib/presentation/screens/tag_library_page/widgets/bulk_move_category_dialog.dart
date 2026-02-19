@@ -1,5 +1,5 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../data/models/tag_library/tag_library_category.dart';
 
@@ -82,8 +82,11 @@ class BulkMoveCategoryDialog extends StatelessWidget {
   }
 
   /// 递归构建分类树
-  List<Widget> _buildCategoryTree(BuildContext context, String? parentId,
-      {int depth = 0,}) {
+  List<Widget> _buildCategoryTree(
+    BuildContext context,
+    String? parentId, {
+    int depth = 0,
+  }) {
     final result = <Widget>[];
 
     final children = categories.where((c) => c.parentId == parentId).toList()

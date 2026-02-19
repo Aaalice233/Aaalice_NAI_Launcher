@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
-import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/account_manager_provider.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -10,7 +10,7 @@ import '../../../widgets/settings/account_profile_sheet.dart';
 import '../widgets/settings_card.dart';
 
 /// 账户设置板块
-/// 
+///
 /// 显示当前账户信息，支持编辑账户资料和登录功能。
 class AccountSettingsSection extends ConsumerStatefulWidget {
   const AccountSettingsSection({super.key});

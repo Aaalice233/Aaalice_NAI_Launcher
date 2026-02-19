@@ -1,9 +1,9 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../common/themed_checkbox.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../data/models/prompt/algorithm_config.dart';
 import '../../../data/models/prompt/character_count_config.dart';
 import '../../providers/random_preset_provider.dart';

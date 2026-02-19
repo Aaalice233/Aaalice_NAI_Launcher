@@ -1,4 +1,3 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -7,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/utils/localization_extension.dart';
 import '../../providers/image_save_settings_provider.dart';
 import '../../themes/theme_extension.dart';
 import 'pro_context_menu.dart';
@@ -792,7 +792,8 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       if (result.exitCode != 0) {
         final errorOutput = result.stderr.toString();
         throw Exception(
-            'PowerShell 命令失败 (exitCode: ${result.exitCode}): $errorOutput',);
+          'PowerShell 命令失败 (exitCode: ${result.exitCode}): $errorOutput',
+        );
       }
 
       // 延迟删除临时文件，确保 PowerShell 完成读取

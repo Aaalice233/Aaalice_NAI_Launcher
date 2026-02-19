@@ -1,9 +1,9 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/services/danbooru_auth_service.dart';
+import '../../../core/utils/localization_extension.dart';
 
 import 'common/app_toast.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';

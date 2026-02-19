@@ -647,7 +647,8 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
         // 减小卡片宽度，增加列数：每列最小 140px，计算可容纳的列数
         const double itemWidth = 140;
         const double spacing = 12;
-        final crossAxisCount = ((availableWidth + spacing) / (itemWidth + spacing)).floor();
+        final crossAxisCount =
+            ((availableWidth + spacing) / (itemWidth + spacing)).floor();
         final columnCount = crossAxisCount.clamp(3, 6); // 最少3列，最多6列
 
         return CustomScrollView(
@@ -1041,8 +1042,8 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: theme.colorScheme.shadow
-                                      .withOpacity(0.3),
+                                  color:
+                                      theme.colorScheme.shadow.withOpacity(0.3),
                                   blurRadius: 4,
                                   offset: const Offset(0, 2),
                                 ),
@@ -1275,7 +1276,8 @@ class _SelectableVibeCardState extends State<_SelectableVibeCard> {
                       ? Image.memory(
                           thumbnail,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _buildPlaceholder(theme),
+                          errorBuilder: (_, __, ___) =>
+                              _buildPlaceholder(theme),
                         )
                       : _buildPlaceholder(theme),
 
@@ -1600,7 +1602,8 @@ class _SelectableBundleCardState extends State<_SelectableBundleCard> {
                       ? Image.memory(
                           thumbnail,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _buildPlaceholder(theme),
+                          errorBuilder: (_, __, ___) =>
+                              _buildPlaceholder(theme),
                         )
                       : _buildPlaceholder(theme),
 
@@ -1639,7 +1642,8 @@ class _SelectableBundleCardState extends State<_SelectableBundleCard> {
                     top: 8,
                     left: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4,),
                       decoration: BoxDecoration(
                         color: Colors.orange,
                         borderRadius: BorderRadius.circular(6),
@@ -1654,7 +1658,8 @@ class _SelectableBundleCardState extends State<_SelectableBundleCard> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.layers, size: 10, color: Colors.white),
+                          const Icon(Icons.layers,
+                              size: 10, color: Colors.white,),
                           const SizedBox(width: 4),
                           Text(
                             '×${widget.entry.bundledVibeCount}',

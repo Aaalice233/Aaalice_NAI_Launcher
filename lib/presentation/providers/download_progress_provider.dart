@@ -113,19 +113,23 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
   ///
   /// [force] 是否强制下载，忽略刷新间隔检查
   Future<bool> downloadCooccurrenceData({bool force = false}) async {
-    final cooccurrenceService = await ref.watch(cooccurrenceServiceProvider.future);
+    final cooccurrenceService =
+        await ref.watch(cooccurrenceServiceProvider.future);
 
     AppLogger.i(
-        'downloadCooccurrenceData called: isLoaded=${cooccurrenceService.isLoaded}, force=$force',
-        'DownloadProgress',);
+      'downloadCooccurrenceData called: isLoaded=${cooccurrenceService.isLoaded}, force=$force',
+      'DownloadProgress',
+    );
 
     // 检查是否需要下载/刷新
     if (!force) {
       // 1. 如果已经加载且不需要刷新，跳过
       if (cooccurrenceService.isLoaded) {
         final needsRefresh = await cooccurrenceService.shouldRefresh();
-        AppLogger.i('Cooccurrence isLoaded=true, needsRefresh=$needsRefresh',
-            'DownloadProgress',);
+        AppLogger.i(
+          'Cooccurrence isLoaded=true, needsRefresh=$needsRefresh',
+          'DownloadProgress',
+        );
         if (!needsRefresh) {
           return true; // 数据新鲜，无需刷新
         }
@@ -133,10 +137,14 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
 
       // 2. 尝试从缓存加载
       AppLogger.i(
-          'Trying to load cooccurrence from cache...', 'DownloadProgress',);
+        'Trying to load cooccurrence from cache...',
+        'DownloadProgress',
+      );
       final cacheLoaded = await cooccurrenceService.initializeUnified();
       AppLogger.i(
-          'Cooccurrence cache loaded: $cacheLoaded', 'DownloadProgress',);
+        'Cooccurrence cache loaded: $cacheLoaded',
+        'DownloadProgress',
+      );
       if (cacheLoaded) {
         // 缓存加载成功，检查是否需要刷新
         final needsRefresh = await cooccurrenceService.shouldRefresh();

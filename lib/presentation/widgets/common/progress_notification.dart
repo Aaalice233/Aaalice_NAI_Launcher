@@ -1,7 +1,7 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 /// 进度通知状态
 enum ProgressNotificationState {
@@ -511,7 +511,8 @@ class ProgressTaskWrapper<T> {
 
   /// 执行任务
   Future<T?> run(
-      Future<T> Function(ProgressNotificationController) task,) async {
+    Future<T> Function(ProgressNotificationController) task,
+  ) async {
     // 在异步操作前获取本地化字符串
     final l10n = context.l10n;
 

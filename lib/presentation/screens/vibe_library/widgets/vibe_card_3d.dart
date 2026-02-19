@@ -1,9 +1,9 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../themes/theme_extension.dart';
 import '../../../widgets/common/animated_favorite_button.dart';

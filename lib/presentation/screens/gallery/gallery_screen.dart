@@ -1,4 +1,3 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -7,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 
+import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/generation_record.dart';
 import '../../../data/models/vibe/vibe_reference.dart';
 import '../../providers/gallery_provider.dart';

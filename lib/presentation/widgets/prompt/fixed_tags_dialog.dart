@@ -1,9 +1,9 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';

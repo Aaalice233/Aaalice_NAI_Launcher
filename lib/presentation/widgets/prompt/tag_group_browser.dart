@@ -1,7 +1,7 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/localization_extension.dart';
 import '../common/themed_divider.dart';
 import '../../../data/models/prompt/tag_category.dart';
 import '../../../data/models/tag/tag_suggestion.dart';

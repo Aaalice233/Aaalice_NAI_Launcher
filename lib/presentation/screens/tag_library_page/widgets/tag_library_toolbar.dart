@@ -1,9 +1,9 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../providers/tag_library_selection_provider.dart';
 import '../../../widgets/bulk_action_bar.dart';

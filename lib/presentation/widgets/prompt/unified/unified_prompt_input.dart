@@ -1,6 +1,6 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../core/utils/nai_prompt_formatter.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
@@ -334,7 +334,9 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
   /// 显示保存到词库对话框
   Future<void> _showSaveToLibraryDialog(
-      BuildContext context, String selectedText,) async {
+    BuildContext context,
+    String selectedText,
+  ) async {
     final categories = ref.read(tagLibraryPageCategoriesProvider);
 
     await showDialog<void>(

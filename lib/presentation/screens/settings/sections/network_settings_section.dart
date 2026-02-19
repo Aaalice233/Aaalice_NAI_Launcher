@@ -11,7 +11,7 @@ import '../../../widgets/common/themed_input.dart';
 import '../widgets/settings_card.dart';
 
 /// 网络设置板块
-/// 
+///
 /// 包含代理设置：
 /// - 启用/禁用代理开关
 /// - 自动/手动代理模式选择
@@ -117,7 +117,8 @@ class NetworkSettingsSectionState
             // 手动模式输入框
             if (proxySettings.mode == ProxyMode.manual)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Row(
                   children: [
                     Expanded(

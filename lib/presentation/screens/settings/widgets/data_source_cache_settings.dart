@@ -7,8 +7,8 @@ import 'package:timeago/timeago.dart' as timeago;
 import '../../../../core/database/datasources/danbooru_tag_data_source_provider.dart';
 import '../../../../core/services/cache_clear_service.dart';
 import '../../../../core/services/danbooru_tags_lazy_service.dart';
-import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../core/utils/app_logger.dart';
 import '../../../../data/models/cache/data_source_cache_meta.dart';
 import '../../../providers/data_source_cache_provider.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -86,10 +86,10 @@ class _DataSourceCacheSettingsState
         final isLoaded = state.totalTags > 0;
         AppLogger.i(
           '[UI] Provider状态: data - '
-          'totalTags=${state.totalTags}, '
-          'isLoaded=$isLoaded, '
-          'lastUpdate=${state.lastUpdate}, '
-          'categoryStats=${state.categoryStats.toString()}',
+              'totalTags=${state.totalTags}, '
+              'isLoaded=$isLoaded, '
+              'lastUpdate=${state.lastUpdate}, '
+              'categoryStats=${state.categoryStats.toString()}',
           'DataSourceCacheSettings',
         );
       },
@@ -114,32 +114,42 @@ class _DataSourceCacheSettingsState
                   onGeneralThresholdChanged: (preset, customThreshold) {
                     ref
                         .read(danbooruTagsCacheNotifierProvider.notifier)
-                        .setGeneralThreshold(preset,
-                            customThreshold: customThreshold,);
+                        .setGeneralThreshold(
+                          preset,
+                          customThreshold: customThreshold,
+                        );
                   },
                   onArtistThresholdChanged: (preset, customThreshold) {
                     ref
                         .read(danbooruTagsCacheNotifierProvider.notifier)
-                        .setArtistThreshold(preset,
-                            customThreshold: customThreshold,);
+                        .setArtistThreshold(
+                          preset,
+                          customThreshold: customThreshold,
+                        );
                   },
                   onCharacterThresholdChanged: (preset, customThreshold) {
                     ref
                         .read(danbooruTagsCacheNotifierProvider.notifier)
-                        .setCharacterThreshold(preset,
-                            customThreshold: customThreshold,);
+                        .setCharacterThreshold(
+                          preset,
+                          customThreshold: customThreshold,
+                        );
                   },
                   onCopyrightThresholdChanged: (preset, customThreshold) {
                     ref
                         .read(danbooruTagsCacheNotifierProvider.notifier)
-                        .setCopyrightThreshold(preset,
-                            customThreshold: customThreshold,);
+                        .setCopyrightThreshold(
+                          preset,
+                          customThreshold: customThreshold,
+                        );
                   },
                   onMetaThresholdChanged: (preset, customThreshold) {
                     ref
                         .read(danbooruTagsCacheNotifierProvider.notifier)
-                        .setMetaThreshold(preset,
-                            customThreshold: customThreshold,);
+                        .setMetaThreshold(
+                          preset,
+                          customThreshold: customThreshold,
+                        );
                   },
                   onRefreshIntervalChanged: (interval) {
                     ref
@@ -318,7 +328,8 @@ class _DataSourceCacheSettingsState
         }
       }
     } catch (e, stack) {
-      AppLogger.e('[CacheSettings] Clear cache error', e, stack, 'CacheSettings');
+      AppLogger.e(
+          '[CacheSettings] Clear cache error', e, stack, 'CacheSettings',);
 
       if (context.mounted) {
         Navigator.of(context, rootNavigator: true).pop();
@@ -326,7 +337,6 @@ class _DataSourceCacheSettingsState
       }
     }
   }
-
 }
 
 /// 数据源状态卡片
@@ -381,7 +391,9 @@ class _StatusCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
-                      isLoaded ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+                      isLoaded
+                          ? Icons.cloud_done_outlined
+                          : Icons.cloud_off_outlined,
                       size: 28,
                       color: isLoaded
                           ? theme.colorScheme.primary
@@ -623,7 +635,8 @@ class _SyncSettingsCard extends StatelessWidget {
                 iconColor: Colors.blue,
                 label: '一般',
                 preset: state.categoryThresholds.generalPreset,
-                customThreshold: state.categoryThresholds.generalCustomThreshold,
+                customThreshold:
+                    state.categoryThresholds.generalCustomThreshold,
                 onChanged: onGeneralThresholdChanged,
               ),
             ),
@@ -645,7 +658,8 @@ class _SyncSettingsCard extends StatelessWidget {
                 iconColor: Colors.purple,
                 label: '角色',
                 preset: state.categoryThresholds.characterPreset,
-                customThreshold: state.categoryThresholds.characterCustomThreshold,
+                customThreshold:
+                    state.categoryThresholds.characterCustomThreshold,
                 onChanged: onCharacterThresholdChanged,
               ),
             ),
@@ -660,7 +674,8 @@ class _SyncSettingsCard extends StatelessWidget {
                 iconColor: Colors.green,
                 label: '版权',
                 preset: state.categoryThresholds.copyrightPreset,
-                customThreshold: state.categoryThresholds.copyrightCustomThreshold,
+                customThreshold:
+                    state.categoryThresholds.copyrightCustomThreshold,
                 onChanged: onCopyrightThresholdChanged,
               ),
             ),
@@ -810,7 +825,8 @@ class _CategoryThresholdBox extends StatelessWidget {
                 label: p.displayName,
                 isSelected: isSelected,
                 accentColor: iconColor,
-                onSelected: () => onChanged(p, p.isCustom ? customThreshold : null),
+                onSelected: () =>
+                    onChanged(p, p.isCustom ? customThreshold : null),
               );
             }).toList(),
           ),
@@ -823,11 +839,13 @@ class _CategoryThresholdBox extends StatelessWidget {
                   child: SliderTheme(
                     data: SliderTheme.of(context).copyWith(
                       activeTrackColor: iconColor,
-                      inactiveTrackColor: theme.colorScheme.surfaceContainerHighest,
+                      inactiveTrackColor:
+                          theme.colorScheme.surfaceContainerHighest,
                       thumbColor: iconColor,
                       overlayColor: iconColor.withOpacity(0.1),
                       trackHeight: 3,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                      thumbShape:
+                          const RoundSliderThumbShape(enabledThumbRadius: 6),
                     ),
                     child: Slider(
                       value: customThreshold.toDouble(),
@@ -931,7 +949,8 @@ class _SmallChoiceChip extends StatelessWidget {
             label,
             style: theme.textTheme.bodySmall?.copyWith(
               fontSize: 11,
-              color: isSelected ? accentColor : theme.colorScheme.onSurfaceVariant,
+              color:
+                  isSelected ? accentColor : theme.colorScheme.onSurfaceVariant,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
             ),
           ),

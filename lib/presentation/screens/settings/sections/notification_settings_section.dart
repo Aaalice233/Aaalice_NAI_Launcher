@@ -41,7 +41,9 @@ class NotificationSettingsSection extends ConsumerWidget {
               title: Text(l10n.settings_notificationCustomSound),
               subtitle: Text(
                 settings.customSoundPath != null
-                    ? settings.customSoundPath!.split(Platform.pathSeparator).last
+                    ? settings.customSoundPath!
+                        .split(Platform.pathSeparator)
+                        .last
                     : l10n.settings_notificationSelectSound,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

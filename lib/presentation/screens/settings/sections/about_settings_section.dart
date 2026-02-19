@@ -6,13 +6,14 @@ import 'package:url_launcher/url_launcher.dart';
 import '../widgets/settings_card.dart';
 
 /// 关于设置板块
-/// 
+///
 /// 显示应用信息、版本号和开源链接。
 class AboutSettingsSection extends ConsumerStatefulWidget {
   const AboutSettingsSection({super.key});
 
   @override
-  ConsumerState<AboutSettingsSection> createState() => _AboutSettingsSectionState();
+  ConsumerState<AboutSettingsSection> createState() =>
+      _AboutSettingsSectionState();
 }
 
 class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {

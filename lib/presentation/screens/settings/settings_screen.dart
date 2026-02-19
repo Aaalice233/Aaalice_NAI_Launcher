@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../../../core/utils/localization_extension.dart';
 import 'sections/account_settings_section.dart';
 import 'sections/appearance_settings_section.dart';
 import 'sections/shortcut_settings_section.dart';
@@ -148,23 +148,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       appBar: AppBar(
         title: Text(context.l10n.settings_title),
         // 滚动后变暗色
-        backgroundColor:
-            _isContentScrolled
-                ? theme.colorScheme.surfaceContainerHighest
-                : null,
+        backgroundColor: _isContentScrolled
+            ? theme.colorScheme.surfaceContainerHighest
+            : null,
         surfaceTintColor: Colors.transparent,
         // 移动端显示抽屉菜单按钮
-        leading:
-            isMobile
-                ? Builder(
-                  builder: (context) {
-                    return IconButton(
-                      icon: const Icon(Icons.menu),
-                      onPressed: () => Scaffold.of(context).openDrawer(),
-                    );
-                  },
-                )
-                : null,
+        leading: isMobile
+            ? Builder(
+                builder: (context) {
+                  return IconButton(
+                    icon: const Icon(Icons.menu),
+                    onPressed: () => Scaffold.of(context).openDrawer(),
+                  );
+                },
+              )
+            : null,
       ),
       // 移动端使用 Drawer
       drawer: isMobile ? _buildDrawer(context) : null,
@@ -220,14 +218,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       unselectedLabelTextStyle: TextStyle(
         color: theme.colorScheme.onSurface.withOpacity(0.6),
       ),
-      destinations:
-          _sections.map((section) {
-            return NavigationRailDestination(
-              icon: Icon(section.icon),
-              selectedIcon: Icon(section.selectedIcon),
-              label: Text(section.label),
-            );
-          }).toList(),
+      destinations: _sections.map((section) {
+        return NavigationRailDestination(
+          icon: Icon(section.icon),
+          selectedIcon: Icon(section.selectedIcon),
+          label: Text(section.label),
+        );
+      }).toList(),
     );
   }
 
@@ -273,25 +270,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   return ListTile(
                     leading: Icon(
                       isSelected ? section.selectedIcon : section.icon,
-                      color:
-                          isSelected
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurface.withOpacity(0.6),
+                      color: isSelected
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurface.withOpacity(0.6),
                     ),
                     title: Text(
                       section.label,
                       style: TextStyle(
-                        color:
-                            isSelected
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.onSurface,
+                        color: isSelected
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurface,
                         fontWeight:
                             isSelected ? FontWeight.w600 : FontWeight.normal,
                       ),
                     ),
                     selected: isSelected,
-                    selectedTileColor: theme.colorScheme.primaryContainer
-                        .withOpacity(0.3),
+                    selectedTileColor:
+                        theme.colorScheme.primaryContainer.withOpacity(0.3),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),

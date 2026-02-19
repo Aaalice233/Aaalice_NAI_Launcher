@@ -1,5 +1,5 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/widgets.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 /// 下载进度消息 key 常量
 ///

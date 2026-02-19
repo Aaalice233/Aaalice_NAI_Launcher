@@ -1,4 +1,3 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -6,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
@@ -266,7 +266,9 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
   }
 
   Future<DataReaderFile?> _getImageFile(
-      DataReader reader, FileFormat format,) async {
+    DataReader reader,
+    FileFormat format,
+  ) async {
     final completer = Completer<DataReaderFile?>();
 
     // 关键检查：如果 getFile 返回 null，说明格式不可用，直接返回 null

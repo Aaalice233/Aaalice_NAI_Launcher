@@ -1,4 +1,3 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -7,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:path/path.dart' as path;
 
 import '../../../core/cache/danbooru_image_cache_manager.dart';
@@ -907,7 +907,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
   /// 构建网格项
   Widget _buildGridItem(
-      ThemeData theme, OnlineGalleryState state, int index, double itemWidth,) {
+    ThemeData theme,
+    OnlineGalleryState state,
+    int index,
+    double itemWidth,
+  ) {
     // 加载更多指示器/错误重试
     if (index >= state.posts.length) {
       return _buildLoadMoreIndicator(theme, state);

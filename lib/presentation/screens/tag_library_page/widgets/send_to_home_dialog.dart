@@ -1,8 +1,8 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
+import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../../presentation/providers/pending_prompt_provider.dart';
@@ -483,7 +483,9 @@ class _TargetOptionTile extends StatelessWidget {
                       right: 0,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 4, vertical: 2,),
+                          horizontal: 4,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.primary,
                           borderRadius: BorderRadius.circular(4),

@@ -1,4 +1,3 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -11,6 +10,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/utils/app_logger.dart';
+import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/constants/storage_keys.dart';
 import '../../../providers/vibe_library_provider.dart';
 import '../../../widgets/common/themed_divider.dart';
@@ -883,21 +883,21 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
           // 添加 30 秒超时保护，防止 API 无限卡住
           final encoding = await notifier
               .encodeVibeWithCache(
-                vibe.rawImageData!,
-                model: model,
-                informationExtracted: vibe.infoExtracted,
-                vibeName: vibe.displayName,
-              )
+            vibe.rawImageData!,
+            model: model,
+            informationExtracted: vibe.infoExtracted,
+            vibeName: vibe.displayName,
+          )
               .timeout(
-                const Duration(seconds: 30),
-                onTimeout: () {
-                  AppLogger.w(
-                    'Vibe 编码超时: ${vibe.displayName}',
-                    'UnifiedReferencePanel',
-                  );
-                  return null;
-                },
+            const Duration(seconds: 30),
+            onTimeout: () {
+              AppLogger.w(
+                'Vibe 编码超时: ${vibe.displayName}',
+                'UnifiedReferencePanel',
               );
+              return null;
+            },
+          );
 
           if (encoding != null) {
             encodedVibes.add(
