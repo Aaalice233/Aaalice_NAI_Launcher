@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -634,6 +635,30 @@ class _ActionButton extends StatefulWidget {
 
 class _ActionButtonState extends State<_ActionButton> {
   bool _isHovered = false;
+  bool _showTooltip = false;
+  Timer? _tooltipTimer;
+
+  void _onEnter() {
+    setState(() {
+      _isHovered = true;
+      _showTooltip = true;
+    });
+    _tooltipTimer?.cancel();
+  }
+
+  void _onExit() {
+    setState(() => _isHovered = false);
+    _tooltipTimer?.cancel();
+    _tooltipTimer = Timer(const Duration(milliseconds: 100), () {
+      if (mounted) setState(() => _showTooltip = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _tooltipTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -646,40 +671,65 @@ class _ActionButtonState extends State<_ActionButton> {
         : (_isHovered ? Colors.black : Colors.black.withOpacity(0.65));
 
     return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
+      onEnter: (_) => _onEnter(),
+      onExit: (_) => _onExit(),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: widget.onTap,
-        child: Tooltip(
-          message: widget.tooltip,
-          preferBelow: false,
-          verticalOffset: 8,
-          waitDuration: const Duration(milliseconds: 100),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            curve: Curves.easeOut,
-            width: 32,
-            height: 32,
-            margin: const EdgeInsets.only(bottom: 4),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: backgroundColor,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(_isHovered ? 0.28 : 0.2),
-                  blurRadius: _isHovered ? 8 : 4,
-                  offset: Offset(0, _isHovered ? 3 : 2),
-                ),
-              ],
-            ),
-            child: AnimatedScale(
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // 按钮主体
+            AnimatedContainer(
               duration: const Duration(milliseconds: 120),
               curve: Curves.easeOut,
-              scale: _isHovered ? 1.08 : 1.0,
-              child: Icon(widget.icon, size: 16, color: iconColor),
+              width: 32,
+              height: 32,
+              margin: const EdgeInsets.only(bottom: 4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: backgroundColor,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(_isHovered ? 0.28 : 0.2),
+                    blurRadius: _isHovered ? 8 : 4,
+                    offset: Offset(0, _isHovered ? 3 : 2),
+                  ),
+                ],
+              ),
+              child: AnimatedScale(
+                duration: const Duration(milliseconds: 120),
+                curve: Curves.easeOut,
+                scale: _isHovered ? 1.08 : 1.0,
+                child: Icon(widget.icon, size: 16, color: iconColor),
+              ),
             ),
-          ),
+            // 自定义 Tooltip
+            if (_showTooltip)
+              Positioned(
+                right: 40,
+                top: 4,
+                child: AnimatedOpacity(
+                  opacity: _showTooltip ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 100),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.88),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      widget.tooltip,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
