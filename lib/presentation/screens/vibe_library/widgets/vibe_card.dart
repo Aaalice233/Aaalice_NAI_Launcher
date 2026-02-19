@@ -10,7 +10,7 @@ import '../../../widgets/common/animated_favorite_button.dart';
 ///
 /// 支持 Bundle 和非 Bundle 类型：
 /// - 非 Bundle: 简洁悬停效果（放大、阴影、发光边框）
-/// - Bundle: 斜向百叶窗展开效果，展示子 vibe 预览
+/// - Bundle: 悬停时以 Bento Box 网格展示子 vibe 预览
 class VibeCard extends StatefulWidget {
   final VibeLibraryEntry entry;
   final double width;
@@ -50,10 +50,10 @@ class VibeCard extends StatefulWidget {
 }
 
 class _VibeCardState extends State<VibeCard>
-    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   bool _isHovered = false;
-  late AnimationController _blindsController;
-  late Animation<double> _blindsAnimation;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
 
   @override
   bool get wantKeepAlive => true;
@@ -61,33 +61,33 @@ class _VibeCardState extends State<VibeCard>
   @override
   void initState() {
     super.initState();
-    _blindsController = AnimationController(
+    _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 350),
+      duration: const Duration(milliseconds: 250),
     );
-    _blindsAnimation = CurvedAnimation(
-      parent: _blindsController,
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
       curve: Curves.easeOutCubic,
     );
   }
 
   @override
   void dispose() {
-    _blindsController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
   void _onHoverEnter(PointerEvent event) {
     setState(() => _isHovered = true);
     if (widget.entry.isBundle) {
-      _blindsController.forward();
+      _animationController.forward();
     }
   }
 
   void _onHoverExit(PointerEvent event) {
     setState(() => _isHovered = false);
     if (widget.entry.isBundle) {
-      _blindsController.reverse();
+      _animationController.reverse();
     }
   }
 
@@ -117,7 +117,7 @@ class _VibeCardState extends State<VibeCard>
         onLongPress: widget.onLongPress,
         onSecondaryTapDown: widget.onSecondaryTapDown,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
           transform: Matrix4.identity()..scale(_isHovered ? 1.02 : 1.0),
           transformAlignment: Alignment.center,
@@ -134,21 +134,15 @@ class _VibeCardState extends State<VibeCard>
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // 主内容层（始终显示，Bundle悬停时淡出）
-                  AnimatedOpacity(
-                    opacity: (widget.entry.isBundle && _isHovered) ? 0.0 : 1.0,
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeOut,
-                    child: _buildMainContent(),
-                  ),
+                  // 主内容层（Bundle 悬停时淡出）
+                  if (!widget.entry.isBundle || !_isHovered)
+                    _buildMainContent(),
 
-                  // Bundle 百叶窗效果层（悬停时淡入）
+                  // Bundle 子 vibe 网格预览层（悬停时淡入）
                   if (widget.entry.isBundle)
-                    AnimatedOpacity(
-                      opacity: _isHovered ? 1.0 : 0.0,
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOut,
-                      child: _buildDiagonalBlindsEffect(),
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: _buildBundlePreviewGrid(),
                     ),
 
                   // 信息层
@@ -158,7 +152,7 @@ class _VibeCardState extends State<VibeCard>
                   if (widget.showFavoriteIndicator)
                     _buildFavoriteButton(),
 
-                  // Bundle 标识
+                  // Bundle 数量标识
                   if (widget.entry.isBundle)
                     _buildBundleBadge(),
 
@@ -251,63 +245,118 @@ class _VibeCardState extends State<VibeCard>
     );
   }
 
-  Widget _buildDiagonalBlindsEffect() {
-    final previews = widget.entry.bundledVibePreviews?.take(5).toList() ?? [];
+  /// Bundle 子 vibe Bento Box 网格预览
+  Widget _buildBundlePreviewGrid() {
+    final previews = widget.entry.bundledVibePreviews?.take(4).toList() ?? [];
     if (previews.isEmpty) return const SizedBox.shrink();
 
-    final count = previews.length.clamp(2, 5);
+    final count = previews.length;
+    final isSingle = count == 1;
 
     return Container(
-      color: Colors.black.withOpacity(0.7), // 深色背景遮盖主内容
-      child: AnimatedBuilder(
-        animation: _blindsAnimation,
-        builder: (context, child) {
-          final progress = _blindsAnimation.value;
+      color: Colors.black.withOpacity(0.85),
+      padding: const EdgeInsets.all(8),
+      child: isSingle
+          ? _buildSinglePreview(previews[0])
+          : _buildMultiPreviewGrid(previews, count),
+    );
+  }
 
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              // 子 vibe 预览层
-              ...List.generate(count, (index) {
-                return _buildStripContent(index, count, previews[index], progress);
-              }),
-
-              // 百叶窗叶片覆盖层
-              CustomPaint(
-                size: Size.infinite,
-                painter: _BlindsOverlayPainter(
-                  progress: progress,
-                  count: count,
-                  themeColor: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-            ],
-          );
-        },
+  /// 单个子 vibe 预览（大图）
+  Widget _buildSinglePreview(Uint8List preview) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Image.memory(
+        preview,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
       ),
     );
   }
 
-  Widget _buildStripContent(int index, int total, Uint8List preview, double progress) {
-    final stripHeight = (widget.height ?? widget.width) / total;
-    final y = index * stripHeight;
-    final diagonalOffset = widget.width * 0.3 * progress;
-
-    return Positioned(
-      left: -diagonalOffset,
-      top: y,
-      right: diagonalOffset,
-      height: stripHeight,
-      child: ClipPath(
-        clipper: _DiagonalStripClipper(index: index, total: total),
-        child: Image.memory(
-          preview,
-          fit: BoxFit.cover,
-          gaplessPlayback: true,
-          errorBuilder: (context, error, stackTrace) => Container(
-            color: Colors.grey[800],
-            child: const Icon(Icons.image_not_supported, color: Colors.grey),
+  /// 多个子 vibe 网格预览（Bento Box 风格）
+  Widget _buildMultiPreviewGrid(List<Uint8List> previews, int count) {
+    // 根据数量决定布局
+    if (count == 2) {
+      // 2 张：上下等分
+      return Column(
+        children: [
+          Expanded(child: _buildPreviewTile(previews[0], topLeft: true)),
+          const SizedBox(height: 6),
+          Expanded(child: _buildPreviewTile(previews[1], bottomLeft: true)),
+        ],
+      );
+    } else if (count == 3) {
+      // 3 张：左大右小上下
+      return Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: _buildPreviewTile(previews[0], topLeft: true, bottomLeft: true),
           ),
+          const SizedBox(width: 6),
+          Expanded(
+            flex: 1,
+            child: Column(
+              children: [
+                Expanded(child: _buildPreviewTile(previews[1], topRight: true)),
+                const SizedBox(height: 6),
+                Expanded(child: _buildPreviewTile(previews[2], bottomRight: true)),
+              ],
+            ),
+          ),
+        ],
+      );
+    } else {
+      // 4 张：2x2 网格
+      return Column(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                Expanded(child: _buildPreviewTile(previews[0], topLeft: true)),
+                const SizedBox(width: 6),
+                Expanded(child: _buildPreviewTile(previews[1], topRight: true)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          Expanded(
+            child: Row(
+              children: [
+                Expanded(child: _buildPreviewTile(previews[2], bottomLeft: true)),
+                const SizedBox(width: 6),
+                Expanded(child: _buildPreviewTile(previews[3], bottomRight: true)),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+  }
+
+  /// 单个预览块
+  Widget _buildPreviewTile(
+    Uint8List preview, {
+    bool topLeft = false,
+    bool topRight = false,
+    bool bottomLeft = false,
+    bool bottomRight = false,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.only(
+        topLeft: topLeft ? const Radius.circular(8) : Radius.zero,
+        topRight: topRight ? const Radius.circular(8) : Radius.zero,
+        bottomLeft: bottomLeft ? const Radius.circular(8) : Radius.zero,
+        bottomRight: bottomRight ? const Radius.circular(8) : Radius.zero,
+      ),
+      child: Image.memory(
+        preview,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (context, error, stackTrace) => Container(
+          color: Colors.grey[800],
+          child: const Icon(Icons.image_not_supported, color: Colors.grey, size: 20),
         ),
       ),
     );
@@ -529,85 +578,6 @@ class _VibeCardState extends State<VibeCard>
   }
 }
 
-/// 对角线条形裁剪器
-class _DiagonalStripClipper extends CustomClipper<Path> {
-  final int index;
-  final int total;
-
-  _DiagonalStripClipper({required this.index, required this.total});
-
-  @override
-  Path getClip(Size size) {
-    final diagonalOffset = size.width * 0.3;
-
-    return Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width - diagonalOffset, size.height)
-      ..lineTo(-diagonalOffset, size.height)
-      ..close();
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldDelegate) => false;
-}
-
-/// 百叶窗覆盖层绘制器
-class _BlindsOverlayPainter extends CustomPainter {
-  final double progress;
-  final int count;
-  final Color themeColor;
-
-  _BlindsOverlayPainter({
-    required this.progress,
-    required this.count,
-    required this.themeColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final stripHeight = size.height / count;
-    const diagonalOffsetBase = 0.3;
-
-    for (int i = 0; i < count; i++) {
-      final y = i * stripHeight;
-      // 默认状态(progress=0): 完整遮盖, 展开状态(progress=1): 完全移开
-      final diagonalOffset = size.width * diagonalOffsetBase * (1 - progress);
-
-      final path = Path()
-        ..moveTo(0, y)
-        ..lineTo(size.width, y)
-        ..lineTo(size.width - diagonalOffset, y + stripHeight)
-        ..lineTo(-diagonalOffset, y + stripHeight)
-        ..close();
-
-      // 叶片覆盖层：默认不透明遮盖，随进度淡出
-      final paint = Paint()
-        ..color = Colors.black.withOpacity(0.5 * (1 - progress))
-        ..style = PaintingStyle.fill;
-
-      canvas.drawPath(path, paint);
-
-      // 叶片边缘发光（仅展开时显示）
-      if (progress > 0.1) {
-        final borderPaint = Paint()
-          ..color = themeColor.withOpacity(0.6 * progress)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5;
-
-        canvas.drawPath(path, borderPaint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _BlindsOverlayPainter oldDelegate) {
-    return oldDelegate.progress != progress ||
-        oldDelegate.count != count ||
-        oldDelegate.themeColor != themeColor;
-  }
-}
-
 /// 操作按钮组件
 class _ActionButton extends StatefulWidget {
   final IconData icon;
@@ -632,23 +602,12 @@ class _ActionButtonState extends State<_ActionButton> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-
-    final Color backgroundColor;
-    final Color iconColor;
-
-    if (widget.isDanger) {
-      backgroundColor = _isHovered
-          ? colorScheme.error
-          : colorScheme.error.withOpacity(0.9);
-      iconColor = colorScheme.onError;
-    } else {
-      backgroundColor = _isHovered
-          ? Colors.white
-          : Colors.white.withOpacity(0.9);
-      iconColor = _isHovered
-          ? Colors.black
-          : Colors.black.withOpacity(0.65);
-    }
+    final backgroundColor = widget.isDanger
+        ? (_isHovered ? colorScheme.error : colorScheme.error.withOpacity(0.9))
+        : (_isHovered ? Colors.white : Colors.white.withOpacity(0.9));
+    final iconColor = widget.isDanger
+        ? colorScheme.onError
+        : (_isHovered ? Colors.black : Colors.black.withOpacity(0.65));
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
