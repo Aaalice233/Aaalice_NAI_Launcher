@@ -11,6 +11,7 @@ import '../../core/database/providers/database_state_providers.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/local_image_record.dart';
 import '../../data/repositories/gallery_folder_repository.dart';
+import '../../data/services/gallery/gallery_scan_service.dart';
 
 part 'local_gallery_provider.freezed.dart';
 part 'local_gallery_provider.g.dart';
@@ -453,8 +454,27 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       final files = await _getAllImageFiles();
       state = state.copyWith(allFiles: files, isLoading: false);
       await _applyFilters();
+
+      // 后台扫描新文件的元数据
+      unawaited(_scanNewFilesForMetadata(files));
     } catch (e) {
       state = state.copyWith(error: e.toString(), isLoading: false);
+    }
+  }
+
+  /// 后台扫描新文件的元数据
+  Future<void> _scanNewFilesForMetadata(List<File> files) async {
+    try {
+      final rootPath = await GalleryFolderRepository.instance.getRootPath();
+      if (rootPath == null) return;
+
+      final scanService = GalleryScanService.instance;
+      await scanService.processFiles(files);
+
+      // 扫描完成后刷新当前页以显示元数据
+      await loadPage(state.currentPage, showLoading: false);
+    } catch (e) {
+      AppLogger.w('Failed to scan new files for metadata: $e', 'LocalGalleryNotifier');
     }
   }
 
