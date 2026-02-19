@@ -87,6 +87,19 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
           ),
         ),
       ),
+      // 当有参考图时显示点数消耗提示
+      trailing: hasReferences
+          ? Tooltip(
+              message: context.l10n.preciseRef_costHint,
+              child: Icon(
+                Icons.info_outline,
+                size: 16,
+                color: showBackground
+                    ? Colors.white.withOpacity(0.8)
+                    : theme.colorScheme.primary.withOpacity(0.8),
+              ),
+            )
+          : null,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         child: Column(

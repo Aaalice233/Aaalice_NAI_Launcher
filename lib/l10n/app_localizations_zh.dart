@@ -6824,6 +6824,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preciseRef_typeCharacterAndStyle => '角色+风格';
 
   @override
+  String get preciseRef_costHint => '使用精准参考会消耗额外点数';
+
+  @override
   String get vibeLibrary_title => 'Vibe 库';
 
   @override

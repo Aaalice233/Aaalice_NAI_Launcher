@@ -1061,6 +1061,7 @@
   "preciseRef_typeCharacter": "角色",
   "preciseRef_typeStyle": "风格",
   "preciseRef_typeCharacterAndStyle": "角色+风格",
+  "preciseRef_costHint": "使用精准参考会消耗额外点数",
 
   "characterEditor_title": "多人角色提示词",
   "characterEditor_close": "关闭",

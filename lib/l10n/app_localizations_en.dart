@@ -6824,6 +6824,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preciseRef_typeCharacterAndStyle => 'Character + Style';
 
   @override
+  String get preciseRef_costHint => 'Using precise reference consumes extra points';
+
+  @override
   String get vibeLibrary_title => 'Vibe Library';
 
   @override

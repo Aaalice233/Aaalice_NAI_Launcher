@@ -11,6 +11,7 @@ class CollapsibleImagePanel extends StatelessWidget {
   final Widget? backgroundImage;
   final bool hasData;
   final Widget? badge;
+  final Widget? trailing;
   final Widget child;
 
   const CollapsibleImagePanel({
@@ -22,6 +23,7 @@ class CollapsibleImagePanel extends StatelessWidget {
     this.backgroundImage,
     this.hasData = false,
     this.badge,
+    this.trailing,
     required this.child,
   });
 
@@ -93,6 +95,10 @@ class CollapsibleImagePanel extends StatelessWidget {
                           ),
                         ),
                       ),
+                      if (trailing != null) ...[
+                        trailing!,
+                        const SizedBox(width: 4),
+                      ],
                       if (hasData && badge != null) ...[
                         badge!,
                         const SizedBox(width: 8),

@@ -3462,6 +3462,7 @@
   "preciseRef_typeCharacter": "Character",
   "preciseRef_typeStyle": "Style",
   "preciseRef_typeCharacterAndStyle": "Character + Style",
+  "preciseRef_costHint": "Using precise reference consumes extra points",
 
   "vibeLibrary_title": "Vibe Library",
   "vibeLibrary_save": "Save to Library",

@@ -12833,6 +12833,12 @@ abstract class AppLocalizations {
   /// **'Character + Style'**
   String get preciseRef_typeCharacterAndStyle;
 
+  /// No description provided for @preciseRef_costHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Using precise reference consumes extra points'**
+  String get preciseRef_costHint;
+
   /// No description provided for @vibeLibrary_title.
   ///
   /// In en, this message translates to:
