@@ -1,11 +1,13 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/shortcuts/default_shortcuts.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../providers/vibe_library_provider.dart';
+import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/shortcuts/shortcut_aware_widget.dart';
 import 'vibe_detail/bundle_gallery_strip.dart';
 import 'vibe_detail/vibe_detail_background.dart';
@@ -19,6 +21,7 @@ class VibeDetailCallbacks {
     VibeLibraryEntry entry,
     double strength,
     double infoExtracted,
+    bool isShiftPressed,
   )? onSendToGeneration;
 
   /// 导出回调
@@ -132,8 +135,15 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
   // ============================================================
 
   void _sendToGeneration() {
-    widget.callbacks?.onSendToGeneration
-        ?.call(_entry, _strength, _infoExtracted);
+    // 检测是否按住 Shift 键
+    final isShiftPressed = HardwareKeyboard.instance.isShiftPressed;
+
+    widget.callbacks?.onSendToGeneration?.call(
+      _entry,
+      _strength,
+      _infoExtracted,
+      isShiftPressed,
+    );
     Navigator.of(context).pop();
   }
 
@@ -222,11 +232,10 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
       }
     });
 
-    final messenger = ScaffoldMessenger.of(context);
     if (errorMessage == null) {
-      messenger.showSnackBar(const SnackBar(content: Text('重命名成功')));
+      AppToast.success(context, '重命名成功');
     } else {
-      messenger.showSnackBar(SnackBar(content: Text(errorMessage)));
+      AppToast.error(context, errorMessage);
     }
   }
 

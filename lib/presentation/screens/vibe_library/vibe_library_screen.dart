@@ -966,9 +966,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
     if (categories.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('没有可用的分类')),
-        );
+        AppToast.warning(context, '没有可用的分类');
       }
       return;
     }
@@ -1023,9 +1021,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
     ref.read(vibeLibrarySelectionNotifierProvider.notifier).exit();
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('已移动 $movedCount 个Vibe')),
-    );
+    AppToast.success(context, '已移动 $movedCount 个Vibe');
   }
 
   /// 批量切换收藏
@@ -1038,9 +1034,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     }
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('收藏状态已更新')),
-      );
+      AppToast.success(context, '收藏状态已更新');
       ref.read(vibeLibrarySelectionNotifierProvider.notifier).exit();
     }
   }
@@ -1149,9 +1143,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
       await ref.read(vibeLibraryNotifierProvider.notifier).deleteEntries(ids);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已删除 ${ids.length} 个Vibe')),
-        );
+        AppToast.success(context, '已删除 ${ids.length} 个Vibe');
         ref.read(vibeLibrarySelectionNotifierProvider.notifier).exit();
       }
     }
@@ -3043,12 +3035,13 @@ class _VibeLibraryContentViewState
       entry: entry,
       heroTag: 'vibe_${entry.id}',
       callbacks: VibeDetailCallbacks(
-        onSendToGeneration: (entry, strength, infoExtracted) async {
+        onSendToGeneration: (entry, strength, infoExtracted, isShiftPressed) async {
           await _sendEntryToGenerationWithParams(
             context,
             entry,
             strength,
             infoExtracted,
+            isShiftPressed,
           );
         },
         onExport: (entry) {
@@ -3185,6 +3178,7 @@ class _VibeLibraryContentViewState
     VibeLibraryEntry entry,
     double strength,
     double infoExtracted,
+    bool isShiftPressed,
   ) async {
     final paramsNotifier = ref.read(generationParamsNotifierProvider.notifier);
     final currentParams = ref.read(generationParamsNotifierProvider);
@@ -3214,7 +3208,11 @@ class _VibeLibraryContentViewState
               )
               .toList();
 
-          paramsNotifier.addVibeReferences(adjustedVibes);
+          if (isShiftPressed) {
+            paramsNotifier.setVibeReferences(adjustedVibes);
+          } else {
+            paramsNotifier.addVibeReferences(adjustedVibes);
+          }
           ref.read(vibeLibraryNotifierProvider.notifier).recordUsage(entry.id);
           if (context.mounted) {
             AppToast.success(
@@ -3237,7 +3235,11 @@ class _VibeLibraryContentViewState
       infoExtracted: infoExtracted,
     );
 
-    paramsNotifier.addVibeReferences([vibeRef]);
+    if (isShiftPressed) {
+      paramsNotifier.setVibeReferences([vibeRef]);
+    } else {
+      paramsNotifier.addVibeReferences([vibeRef]);
+    }
     ref.read(vibeLibraryNotifierProvider.notifier).recordUsage(entry.id);
     if (context.mounted) {
       AppToast.success(context, '已发送到生成页面: ${entry.displayName}');
