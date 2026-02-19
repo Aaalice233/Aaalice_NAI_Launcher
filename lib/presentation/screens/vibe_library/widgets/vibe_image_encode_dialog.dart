@@ -496,3 +496,62 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
     );
   }
 }
+
+/// Vibe 图片编码中对话框
+class VibeImageEncodingDialog extends StatelessWidget {
+  const VibeImageEncodingDialog({super.key});
+
+  static Future<void> show(BuildContext context) {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const VibeImageEncodingDialog(),
+    );
+  }
+
+  static void hide(BuildContext context) {
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 280),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 48,
+                height: 48,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                '正在编码图片...',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '请稍候',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
