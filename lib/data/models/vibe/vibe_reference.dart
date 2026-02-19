@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'vibe_reference.freezed.dart';
+part 'vibe_reference.g.dart';
 
 /// Vibe 数据来源类型
 enum VibeSourceType {
@@ -67,5 +68,15 @@ class VibeReference with _$VibeReference {
 
     /// 数据来源类型
     @Default(VibeSourceType.rawImage) VibeSourceType sourceType,
+
+    /// Bundle 来源名称 (如果从 bundle 中提取)
+    /// 用于 UI 显示该 vibe 来自哪个 bundle 文件
+    String? bundleSource,
   }) = _VibeReference;
+
+  const VibeReference._();
+
+  /// 从 JSON 构造
+  factory VibeReference.fromJson(Map<String, dynamic> json) =>
+      _$VibeReferenceFromJson(json);
 }

@@ -818,6 +818,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
           'strength': vibe.strength,
           'infoExtracted': vibe.infoExtracted,
           'sourceType': vibe.sourceType.name,
+          'bundleSource': vibe.bundleSource,
           'thumbnailBase64':
               previewBytes != null ? base64Encode(previewBytes) : null,
           'rawImageDataBase64': vibe.rawImageData != null
@@ -897,6 +898,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
               infoExtracted:
                   (refData['infoExtracted'] as num?)?.toDouble() ?? 0.7,
               sourceType: sourceType,
+              bundleSource: refData['bundleSource'] as String?,
             ),
           );
         }

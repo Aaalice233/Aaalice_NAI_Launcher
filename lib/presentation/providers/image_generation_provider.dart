@@ -286,18 +286,32 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     // 生成完成后刷新 Anlas 余额并记录消耗
     await ref.read(subscriptionNotifierProvider.notifier).refreshBalance();
 
-    // 计算并记录点数消耗
-    if (balanceBefore != null && !_isCancelled) {
+    // 计算并记录点数消耗（无论是否取消，只要余额变化就记录）
+    if (balanceBefore != null) {
       final balanceAfter = ref.read(anlasBalanceProvider);
+      AppLogger.d(
+        'Balance changed from $balanceBefore to $balanceAfter (cancelled: $_isCancelled)',
+        'AnlasStats',
+      );
       if (balanceAfter != null) {
         final cost = balanceBefore - balanceAfter;
         if (cost > 0) {
-          final anlasService =
-              await ref.read(anlasStatisticsServiceProvider.future);
-          await anlasService.recordCost(cost);
-          AppLogger.d('Recorded Anlas cost: $cost', 'AnlasStats');
+          try {
+            final anlasService =
+                await ref.read(anlasStatisticsServiceProvider.future);
+            await anlasService.recordCost(cost);
+            AppLogger.i('Recorded Anlas cost: $cost', 'AnlasStats');
+          } catch (e) {
+            AppLogger.e('Failed to record Anlas cost: $e', 'AnlasStats');
+          }
+        } else {
+          AppLogger.w('No Anlas cost recorded (cost: $cost)', 'AnlasStats');
         }
+      } else {
+        AppLogger.w('Cannot record cost: balanceAfter is null', 'AnlasStats');
       }
+    } else {
+      AppLogger.w('Cannot record cost: balanceBefore is null', 'AnlasStats');
     }
 
     // 注意：生成完成通知由 QueueExecutionNotifier 统一管理

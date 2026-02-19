@@ -15,8 +15,11 @@ import 'app_logger.dart';
 /// - .naiv4vibebundle JSON 包
 /// - 其他图片格式 (作为原始图片处理)
 class VibeFileParser {
-  /// PNG iTXt 块中的 Vibe 编码关键字
+  /// PNG iTXt 块中的 Vibe 编码关键字（官方格式）
   static const String _iTXtKeyword = 'NovelAI_Vibe_Encoding_Base64';
+  
+  /// NAI 官方 iTXt 关键字（嵌入图片使用）
+  static const String _naiDataKeyword = 'naidata';
 
   /// 最大处理的文件大小（20MB）
   static const int _maxFileSize = 20 * 1024 * 1024;
@@ -185,7 +188,8 @@ class VibeFileParser {
 
   /// PNG 解析参数
   static Future<VibeReference> _parsePngIsolate(_PngParseParams params) async {
-    String? vibeEncoding;
+    String? iTxtContent;
+    String? foundKeyword;
 
     try {
       final chunks = png_extract.extractChunks(params.bytes);
@@ -193,22 +197,60 @@ class VibeFileParser {
       for (final chunk in chunks) {
         if (chunk['name'] == 'iTXt') {
           final iTXtData = chunk['data'] as Uint8List;
-          vibeEncoding = _parseITXtChunk(iTXtData);
-          if (vibeEncoding != null) {
+          // 尝试解析 iTXt，同时获取内容和 keyword
+          final result = _parseITXtChunkWithKeyword(iTXtData);
+          if (result != null) {
+            iTxtContent = result.content;
+            foundKeyword = result.keyword;
             break;
           }
         }
       }
 
-      if (vibeEncoding != null && vibeEncoding.isNotEmpty) {
-        // 找到编码数据 - 使用 png 类型
-        return VibeReference(
-          displayName: params.fileName,
-          vibeEncoding: vibeEncoding,
-          thumbnail: params.bytes,
-          strength: params.defaultStrength,
-          sourceType: VibeSourceType.png,
-        );
+      if (iTxtContent != null && iTxtContent.isNotEmpty) {
+        // 根据 keyword 类型处理数据
+        if (foundKeyword == _naiDataKeyword) {
+          // naidata 格式：Base64 编码的 JSON bundle
+          try {
+            final jsonBytes = base64.decode(iTxtContent);
+            final jsonData = jsonDecode(utf8.decode(jsonBytes)) as Map<String, dynamic>;
+            
+            // 从 bundle 中提取第一个 vibe
+            final vibes = jsonData['vibes'] as List<dynamic>?;
+            if (vibes != null && vibes.isNotEmpty) {
+              final firstVibe = vibes.first as Map<String, dynamic>;
+              final extractedEncoding = _extractEncodingFromNaiVibe(firstVibe);
+              
+              if (extractedEncoding != null && extractedEncoding.isNotEmpty) {
+                final name = firstVibe['name'] as String? ?? params.fileName;
+                double strength = params.defaultStrength;
+                final importInfo = firstVibe['importInfo'] as Map<String, dynamic>?;
+                if (importInfo != null && importInfo['strength'] != null) {
+                  strength = (importInfo['strength'] as num).toDouble();
+                }
+
+                return VibeReference(
+                  displayName: name,
+                  vibeEncoding: extractedEncoding,
+                  thumbnail: params.bytes,
+                  strength: strength.clamp(0.0, 1.0),
+                  sourceType: VibeSourceType.png,
+                );
+              }
+            }
+          } catch (e) {
+            AppLogger.w('Failed to parse naidata format: $e', 'VibeParser');
+          }
+        } else {
+          // NovelAI_Vibe_Encoding_Base64 格式：直接是 encoding
+          return VibeReference(
+            displayName: params.fileName,
+            vibeEncoding: iTxtContent,
+            thumbnail: params.bytes,
+            strength: params.defaultStrength,
+            sourceType: VibeSourceType.png,
+          );
+        }
       }
 
       // 没有找到 iTXt 数据，尝试检测 PNG 中是否包含 JSON 文本
@@ -296,7 +338,7 @@ class VibeFileParser {
     return null;
   }
 
-  /// 解析 PNG iTXt 块
+  /// 解析 PNG iTXt 块（带 keyword 返回）
   ///
   /// iTXt 块格式:
   /// - Keyword (null-terminated)
@@ -305,14 +347,20 @@ class VibeFileParser {
   /// - Language tag (null-terminated)
   /// - Translated keyword (null-terminated)
   /// - Text
-  static String? _parseITXtChunk(Uint8List data) {
+  /// 
+  /// 支持两种关键字:
+  /// - NovelAI_Vibe_Encoding_Base64 (官方格式)
+  /// - naidata (嵌入图片使用)
+  /// 返回 ({String keyword, String content})? 的 Record 类型
+  static ({String keyword, String content})? _parseITXtChunkWithKeyword(Uint8List data) {
     try {
       // 查找关键字结束位置
       final int keywordEndIndex = data.indexOf(0);
       if (keywordEndIndex == -1) return null;
 
       final keyword = utf8.decode(data.sublist(0, keywordEndIndex));
-      if (keyword != _iTXtKeyword) return null;
+      // 支持两种关键字格式
+      if (keyword != _iTXtKeyword && keyword != _naiDataKeyword) return null;
 
       int currentIndex = keywordEndIndex + 1;
 
@@ -342,12 +390,46 @@ class VibeFileParser {
 
       // 提取文本内容
       if (currentIndex < data.length) {
-        return utf8.decode(data.sublist(currentIndex));
+        final content = utf8.decode(data.sublist(currentIndex));
+        return (keyword: keyword, content: content);
       }
     } catch (e) {
       if (kDebugMode) {
         AppLogger.d('Error parsing iTXt chunk: $e', 'VibeParser');
       }
+    }
+
+    return null;
+  }
+
+  /// 解析 PNG iTXt 块（向后兼容）
+  /// 
+  /// 只返回内容，不返回 keyword
+  static String? _parseITXtChunk(Uint8List data) {
+    final result = _parseITXtChunkWithKeyword(data);
+    return result?.content;
+  }
+
+  /// 从 NAI vibe 数据中提取 encoding
+  /// 
+  /// NAI 格式: encodings: {model: {hash: {encoding: "..."}}}
+  static String? _extractEncodingFromNaiVibe(Map<String, dynamic> vibe) {
+    final encodings = vibe['encodings'] as Map<String, dynamic>?;
+    if (encodings == null) return null;
+
+    // 获取第一个模型的 encoding
+    final firstModel = encodings.values.firstOrNull as Map<String, dynamic>?;
+    if (firstModel == null) return null;
+
+    // NAI 格式: {hash: {encoding: "..."}} 或 {vibe: {encoding: "..."}}
+    final hashData = firstModel.values.firstOrNull;
+    if (hashData is Map<String, dynamic>) {
+      return hashData['encoding'] as String?;
+    }
+    
+    // 也可能是直接的 encoding 字段
+    if (firstModel.containsKey('encoding')) {
+      return firstModel['encoding'] as String?;
     }
 
     return null;

@@ -118,9 +118,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
   bool _isRecentCollapsed = true; // 默认折叠
   List<VibeLibraryEntry> _recentEntries = [];
 
-  /// 跟踪 vibe 的 bundle 来源
-  /// Key: vibe displayName, Value: bundle 名称
-  final Map<String, String> _vibeBundleSources = {};
+
 
   @override
   void initState() {
@@ -1193,14 +1191,6 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
 
   void _removeVibe(int index) {
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
-    final vibes = ref.read(generationParamsNotifierProvider).vibeReferencesV4;
-
-    // 清理 bundle 来源记录
-    if (index < vibes.length) {
-      final vibeName = vibes[index].displayName;
-      _vibeBundleSources.remove(vibeName);
-    }
-
     notifier.removeVibeReference(index);
     notifier.saveGenerationState();
   }
@@ -1224,9 +1214,6 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
     notifier.clearVibeReferences();
     notifier.saveGenerationState();
-
-    // 清空 bundle 来源记录
-    _vibeBundleSources.clear();
 
     if (mounted && count > 0) {
       AppToast.success(context, '已删除 $count 个 Vibe');
@@ -1720,10 +1707,11 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
       }
 
       if (extractedVibes.isNotEmpty) {
-        for (final vibe in extractedVibes) {
-          _vibeBundleSources[vibe.displayName] = entry.displayName;
-        }
-        notifier.addVibeReferences(extractedVibes);
+        // 设置 bundle 来源
+        final vibesWithSource = extractedVibes.map((vibe) => vibe.copyWith(
+          bundleSource: entry.displayName,
+        ),).toList();
+        notifier.addVibeReferences(vibesWithSource);
 
         if (showToast && mounted) {
           AppToast.success(context, '已添加 ${extractedVibes.length} 个 Vibe');
@@ -1909,11 +1897,9 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
               if (hasVibes) ...[
                 ...List.generate(vibes.length, (index) {
                   final vibe = vibes[index];
-                  final bundleSource = _vibeBundleSources[vibe.displayName];
                   return _VibeCard(
                     index: index,
                     vibe: vibe,
-                    bundleSource: bundleSource,
                     onRemove: () => _removeVibe(index),
                     onStrengthChanged: (value) =>
                         _updateVibeStrength(index, value),
@@ -1943,7 +1929,6 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
 class _VibeCard extends StatelessWidget {
   final int index;
   final VibeReference vibe;
-  final String? bundleSource;
   final VoidCallback onRemove;
   final ValueChanged<double> onStrengthChanged;
   final ValueChanged<double> onInfoExtractedChanged;
@@ -1952,7 +1937,6 @@ class _VibeCard extends StatelessWidget {
   const _VibeCard({
     required this.index,
     required this.vibe,
-    this.bundleSource,
     required this.onRemove,
     required this.onStrengthChanged,
     required this.onInfoExtractedChanged,
@@ -1973,8 +1957,17 @@ class _VibeCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 左侧：缩略图（占满剩余高度）
-          _buildThumbnail(theme),
+          // 左侧：缩略图 + Bundle 标签
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildThumbnail(theme),
+              const SizedBox(height: 6),
+              // Bundle 来源标识移到缩略图下方，宽度与缩略图一致
+              if (vibe.bundleSource != null)
+                _buildBundleSourceChip(context, theme),
+            ],
+          ),
           const SizedBox(width: 12),
 
           // 右侧：滑条和源类型
@@ -1982,22 +1975,17 @@ class _VibeCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 顶部行：编码状态标签 + Bundle 来源 + 删除按钮
+                // 顶部行：编码状态标签 + 删除按钮
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     // 编码状态标签
                     _buildEncodingStatusChip(context, theme),
-                    // Bundle 来源标识
-                    if (bundleSource != null) ...[
-                      const SizedBox(width: 8),
-                      _buildBundleSourceChip(context, theme),
-                    ],
                     const Spacer(),
                     // 删除按钮（右上角）
                     SizedBox(
-                      height: 28,
                       width: 28,
+                      height: 28,
                       child: IconButton(
                         padding: EdgeInsets.zero,
                         icon: Icon(
@@ -2094,6 +2082,7 @@ class _VibeCard extends StatelessWidget {
     if (isEncoded) {
       // 已编码状态
       return Container(
+        constraints: const BoxConstraints(maxWidth: 80),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         decoration: BoxDecoration(
           color: Colors.green.withOpacity(0.1),
@@ -2111,11 +2100,15 @@ class _VibeCard extends StatelessWidget {
               color: Colors.green,
             ),
             const SizedBox(width: 4),
-            Text(
-              '已编码',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: Colors.green,
-                fontWeight: FontWeight.w500,
+            Flexible(
+              child: Text(
+                '已编码',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: Colors.green,
+                  fontWeight: FontWeight.w500,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
             ),
           ],
@@ -2124,6 +2117,7 @@ class _VibeCard extends StatelessWidget {
     } else if (needsEncoding) {
       // 需要编码状态
       return Container(
+        constraints: const BoxConstraints(maxWidth: 80),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         decoration: BoxDecoration(
           color: Colors.orange.withOpacity(0.1),
@@ -2141,19 +2135,15 @@ class _VibeCard extends StatelessWidget {
               color: Colors.orange,
             ),
             const SizedBox(width: 4),
-            Text(
-              '待编码',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: Colors.orange,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              '(2 Anlas)',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: Colors.orange.withOpacity(0.8),
-                fontSize: 10,
+            Flexible(
+              child: Text(
+                '待编码 (2 Anlas)',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: Colors.orange,
+                  fontWeight: FontWeight.w500,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
             ),
           ],
@@ -2162,6 +2152,7 @@ class _VibeCard extends StatelessWidget {
     } else {
       // 预编码文件状态
       return Container(
+        constraints: const BoxConstraints(maxWidth: 80),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         decoration: BoxDecoration(
           color: Colors.blue.withOpacity(0.1),
@@ -2179,11 +2170,15 @@ class _VibeCard extends StatelessWidget {
               color: Colors.blue,
             ),
             const SizedBox(width: 4),
-            Text(
-              vibe.sourceType.displayLabel,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: Colors.blue,
-                fontWeight: FontWeight.w500,
+            Flexible(
+              child: Text(
+                vibe.sourceType.displayLabel,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: Colors.blue,
+                  fontWeight: FontWeight.w500,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
             ),
           ],
@@ -2194,37 +2189,43 @@ class _VibeCard extends StatelessWidget {
 
   /// 构建 Bundle 来源标识
   Widget _buildBundleSourceChip(BuildContext context, ThemeData theme) {
-    if (bundleSource == null) return const SizedBox.shrink();
+    final source = vibe.bundleSource;
+    if (source == null) return const SizedBox.shrink();
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer.withOpacity(0.7),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(
-          color: theme.colorScheme.secondary.withOpacity(0.3),
+    // 宽度与缩略图一致 100px
+    return SizedBox(
+      width: 100,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.tertiaryContainer,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(
+            color: theme.colorScheme.tertiary.withOpacity(0.5),
+          ),
         ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.folder_zip,
-            size: 10,
-            color: theme.colorScheme.secondary,
-          ),
-          const SizedBox(width: 3),
-          Text(
-            bundleSource!,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.secondary,
-              fontWeight: FontWeight.w500,
-              fontSize: 10,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.folder_zip,
+              size: 12,
+              color: theme.colorScheme.onTertiaryContainer,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                source,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onTertiaryContainer,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

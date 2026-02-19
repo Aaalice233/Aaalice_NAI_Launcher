@@ -16,6 +16,9 @@ import 'fixed_tags_provider.dart';
 import 'quality_preset_provider.dart';
 import 'uc_preset_provider.dart';
 import '../../core/services/notification_service.dart';
+import '../../core/utils/app_logger.dart';
+import '../../data/services/anlas_statistics_service.dart';
+import 'subscription_provider.dart';
 
 part 'queue_execution_provider.g.dart';
 
@@ -164,6 +167,9 @@ class QueueSettings {
 @Riverpod(keepAlive: true)
 class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   late final QueueStateStorage _stateStorage;
+  
+  // 队列执行前的余额，用于计算总成本
+  int? _balanceBeforeQueue;
 
   @override
   QueueExecutionState build() {
@@ -577,6 +583,9 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       );
       _saveToStorage();
 
+      // 记录队列成本（异步，不阻塞）
+      _recordQueueCost();
+
       // 触发队列完成通知
       _triggerGenerationNotification();
       return;
@@ -646,6 +655,10 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   /// 开始新的执行会话
   void startNewSession() {
     final queueState = ref.read(replicationQueueNotifierProvider);
+    
+    // 记录队列开始前的余额
+    _balanceBeforeQueue = ref.read(anlasBalanceProvider);
+    
     state = state.copyWith(
       completedCount: 0,
       failedCount: 0,
@@ -655,6 +668,31 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       sessionStartTime: DateTime.now(),
     );
     _saveToStorage();
+  }
+  
+  /// 记录队列执行的成本
+  Future<void> _recordQueueCost() async {
+    if (_balanceBeforeQueue == null) return;
+    
+    try {
+      // 刷新余额获取最新值
+      await ref.read(subscriptionNotifierProvider.notifier).refreshBalance();
+      
+      final balanceAfter = ref.read(anlasBalanceProvider);
+      if (balanceAfter != null) {
+        final cost = _balanceBeforeQueue! - balanceAfter;
+        if (cost > 0) {
+          final anlasService = await ref.read(anlasStatisticsServiceProvider.future);
+          await anlasService.recordCost(cost);
+          AppLogger.i('Recorded queue Anlas cost: $cost', 'QueueCost');
+        }
+      }
+    } catch (e) {
+      AppLogger.w('Failed to record queue cost: $e', 'QueueCost');
+    } finally {
+      // 重置，避免重复记录
+      _balanceBeforeQueue = null;
+    }
   }
 }
 
