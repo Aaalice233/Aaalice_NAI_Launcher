@@ -4,9 +4,10 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/database/database_providers.dart';
+import '../../core/database/datasources/gallery_data_source.dart';
 import '../../core/utils/app_logger.dart';
-import '../../data/repositories/local_gallery_repository.dart'
-    hide BulkOperationResult;
+import '../../data/models/gallery/local_image_record.dart';
 import '../../data/services/bulk_operation_service.dart';
 import '../../core/utils/undo_redo_history.dart';
 import 'collection_provider.dart';
@@ -76,13 +77,10 @@ class BulkOperationState with _$BulkOperationState {
 
 /// Bulk delete command for undo/redo
 class _BulkDeleteCommand extends HistoryCommand {
-  // ignore: unused_field - Reserved for future undo support
-  final LocalGalleryRepository _repository;
   final List<String> _imagePaths;
 
   _BulkDeleteCommand(
     super.description,
-    this._repository,
     this._imagePaths,
   );
 
@@ -113,7 +111,7 @@ class _BulkDeleteCommand extends HistoryCommand {
 
 /// Bulk metadata edit command for undo/redo
 class _BulkMetadataEditCommand extends HistoryCommand {
-  final LocalGalleryRepository _repository;
+  final Ref _ref;
   final List<String> _imagePaths;
   final List<String> _tagsToAdd;
   final List<String> _tagsToRemove;
@@ -121,19 +119,50 @@ class _BulkMetadataEditCommand extends HistoryCommand {
 
   _BulkMetadataEditCommand(
     super.description,
-    this._repository,
+    this._ref,
     this._imagePaths,
     this._tagsToAdd,
     this._tagsToRemove,
     this._originalTags,
   );
 
+  Future<GalleryDataSource> _getDataSource() async {
+    final dbManager = await _ref.read(databaseManagerProvider.future);
+    final dataSource = dbManager.getDataSource<GalleryDataSource>('gallery');
+    if (dataSource == null) {
+      throw StateError('GalleryDataSource not found');
+    }
+    return dataSource;
+  }
+
   @override
   Future<void> execute() async {
+    final dataSource = await _getDataSource();
+
     // Apply the metadata changes
     for (final imagePath in _imagePaths) {
       try {
-        final currentTags = await _repository.getTags(imagePath);
+        var imageId = await dataSource.getImageIdByPath(imagePath);
+
+        // If image not in database, index it first
+        if (imageId == null) {
+          final file = File(imagePath);
+          if (await file.exists()) {
+            final stat = await file.stat();
+            final fileName = imagePath.split(Platform.pathSeparator).last;
+            imageId = await dataSource.upsertImage(
+              filePath: imagePath,
+              fileName: fileName,
+              fileSize: stat.size,
+              createdAt: stat.changed,
+              modifiedAt: stat.modified,
+            );
+          } else {
+            continue;
+          }
+        }
+
+        final currentTags = await dataSource.getImageTags(imageId);
         final updatedTags = List<String>.from(currentTags);
 
         // Add new tags
@@ -148,7 +177,7 @@ class _BulkMetadataEditCommand extends HistoryCommand {
           updatedTags.remove(tag);
         }
 
-        await _repository.setTags(imagePath, updatedTags);
+        await dataSource.setImageTags(imageId, updatedTags);
       } catch (e) {
         AppLogger.e(
           'Failed to edit metadata for $imagePath',
@@ -162,12 +191,33 @@ class _BulkMetadataEditCommand extends HistoryCommand {
 
   @override
   Future<void> undo() async {
+    final dataSource = await _getDataSource();
+
     // Restore original tags
     for (final imagePath in _imagePaths) {
       try {
         final originalTags = _originalTags[imagePath];
         if (originalTags != null) {
-          await _repository.setTags(imagePath, originalTags);
+          var imageId = await dataSource.getImageIdByPath(imagePath);
+
+          if (imageId == null) {
+            final file = File(imagePath);
+            if (await file.exists()) {
+              final stat = await file.stat();
+              final fileName = imagePath.split(Platform.pathSeparator).last;
+              imageId = await dataSource.upsertImage(
+                filePath: imagePath,
+                fileName: fileName,
+                fileSize: stat.size,
+                createdAt: stat.changed,
+                modifiedAt: stat.modified,
+              );
+            } else {
+              continue;
+            }
+          }
+
+          await dataSource.setImageTags(imageId, originalTags);
         }
       } catch (e) {
         AppLogger.e(
@@ -183,22 +233,56 @@ class _BulkMetadataEditCommand extends HistoryCommand {
 
 /// Bulk toggle favorite command for undo/redo
 class _BulkToggleFavoriteCommand extends HistoryCommand {
-  final LocalGalleryRepository _repository;
+  final Ref _ref;
   final Map<String, bool> _originalFavoriteStates;
   final bool _newFavoriteState;
 
   _BulkToggleFavoriteCommand(
     super.description,
-    this._repository,
+    this._ref,
     this._originalFavoriteStates,
     this._newFavoriteState,
   );
 
+  Future<GalleryDataSource> _getDataSource() async {
+    final dbManager = await _ref.read(databaseManagerProvider.future);
+    final dataSource = dbManager.getDataSource<GalleryDataSource>('gallery');
+    if (dataSource == null) {
+      throw StateError('GalleryDataSource not found');
+    }
+    return dataSource;
+  }
+
   @override
   Future<void> execute() async {
+    final dataSource = await _getDataSource();
+
     for (final entry in _originalFavoriteStates.entries) {
       try {
-        await _repository.setFavorite(entry.key, _newFavoriteState);
+        var imageId = await dataSource.getImageIdByPath(entry.key);
+
+        // If image not in database, index it first
+        if (imageId == null) {
+          final file = File(entry.key);
+          if (await file.exists()) {
+            final stat = await file.stat();
+            final fileName = entry.key.split(Platform.pathSeparator).last;
+            imageId = await dataSource.upsertImage(
+              filePath: entry.key,
+              fileName: fileName,
+              fileSize: stat.size,
+              createdAt: stat.changed,
+              modifiedAt: stat.modified,
+            );
+          } else {
+            continue;
+          }
+        }
+
+        final currentlyFavorite = await dataSource.isFavorite(imageId);
+        if (currentlyFavorite != _newFavoriteState) {
+          await dataSource.toggleFavorite(imageId);
+        }
       } catch (e) {
         AppLogger.e(
           'Failed to toggle favorite for ${entry.key}',
@@ -212,10 +296,34 @@ class _BulkToggleFavoriteCommand extends HistoryCommand {
 
   @override
   Future<void> undo() async {
+    final dataSource = await _getDataSource();
+
     // Restore original favorite states
     for (final entry in _originalFavoriteStates.entries) {
       try {
-        await _repository.setFavorite(entry.key, entry.value);
+        var imageId = await dataSource.getImageIdByPath(entry.key);
+
+        if (imageId == null) {
+          final file = File(entry.key);
+          if (await file.exists()) {
+            final stat = await file.stat();
+            final fileName = entry.key.split(Platform.pathSeparator).last;
+            imageId = await dataSource.upsertImage(
+              filePath: entry.key,
+              fileName: fileName,
+              fileSize: stat.size,
+              createdAt: stat.changed,
+              modifiedAt: stat.modified,
+            );
+          } else {
+            continue;
+          }
+        }
+
+        final currentlyFavorite = await dataSource.isFavorite(imageId);
+        if (currentlyFavorite != entry.value) {
+          await dataSource.toggleFavorite(imageId);
+        }
       } catch (e) {
         AppLogger.e(
           'Failed to undo favorite toggle for ${entry.key}',
@@ -231,23 +339,31 @@ class _BulkToggleFavoriteCommand extends HistoryCommand {
 /// Provider for BulkOperationService
 @riverpod
 BulkOperationService bulkOperationService(Ref ref) {
-  return BulkOperationService();
+  return BulkOperationService(ref: ref);
 }
 
 /// Bulk operation notifier with undo/redo support
 @Riverpod(keepAlive: true)
 class BulkOperationNotifier extends _$BulkOperationNotifier {
   late final BulkOperationService _service;
-  late final LocalGalleryRepository _galleryRepository;
   late final UndoRedoHistory _history;
 
   @override
   BulkOperationState build() {
     _service = ref.read(bulkOperationServiceProvider);
-    _galleryRepository = LocalGalleryRepository.instance;
     _history = UndoRedoHistory(maxSize: 50);
 
     return const BulkOperationState();
+  }
+
+  /// 获取 GalleryDataSource
+  Future<GalleryDataSource> _getDataSource() async {
+    final dbManager = await ref.read(databaseManagerProvider.future);
+    final dataSource = dbManager.getDataSource<GalleryDataSource>('gallery');
+    if (dataSource == null) {
+      throw StateError('GalleryDataSource not found');
+    }
+    return dataSource;
   }
 
   /// Bulk delete images
@@ -292,7 +408,6 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
       // Add to history
       final command = _BulkDeleteCommand(
         'Delete ${imagePaths.length} images',
-        _galleryRepository,
         imagePaths,
       );
       _history.push(command);
@@ -438,9 +553,15 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
 
     try {
       // Store original tags for undo
+      final dataSource = await _getDataSource();
       final originalTags = <String, List<String>>{};
       for (final path in imagePaths) {
-        originalTags[path] = await _galleryRepository.getTags(path);
+        final imageId = await dataSource.getImageIdByPath(path);
+        if (imageId != null) {
+          originalTags[path] = await dataSource.getImageTags(imageId);
+        } else {
+          originalTags[path] = [];
+        }
       }
 
       final result = await _service.bulkEditMetadata(
@@ -465,7 +586,7 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
       // Add to history
       final command = _BulkMetadataEditCommand(
         'Edit metadata for ${imagePaths.length} images',
-        _galleryRepository,
+        ref,
         imagePaths,
         tagsToAdd,
         tagsToRemove,
@@ -530,9 +651,15 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
 
     try {
       // Store original favorite states for undo
+      final dataSource = await _getDataSource();
       final originalStates = <String, bool>{};
       for (final path in imagePaths) {
-        originalStates[path] = await _galleryRepository.isFavorite(path);
+        final imageId = await dataSource.getImageIdByPath(path);
+        if (imageId != null) {
+          originalStates[path] = await dataSource.isFavorite(imageId);
+        } else {
+          originalStates[path] = false;
+        }
       }
 
       final result = await _service.bulkToggleFavorite(
@@ -556,7 +683,7 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
       // Add to history
       final command = _BulkToggleFavoriteCommand(
         'Toggle favorite for ${imagePaths.length} images to $isFavorite',
-        _galleryRepository,
+        ref,
         originalStates,
         isFavorite,
       );

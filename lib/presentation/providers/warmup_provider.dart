@@ -19,7 +19,7 @@ import '../../core/services/warmup_task_scheduler.dart';
 import 'background_task_provider.dart';
 import 'data_source_cache_provider.dart';
 import '../../core/utils/app_logger.dart';
-import '../../data/repositories/local_gallery_repository.dart';
+import '../../data/repositories/gallery_folder_repository.dart';
 import 'auth_provider.dart';
 import 'font_provider.dart';
 import 'prompt_config_provider.dart';
@@ -534,8 +534,8 @@ class WarmupNotifier extends _$WarmupNotifier {
   /// 统计画廊文件数
   Future<void> _countGalleryFiles() async {
     try {
-      final files = await LocalGalleryRepository.instance.getAllImageFiles();
-      AppLogger.i('Gallery file count: ${files.length}', 'Warmup');
+      final count = await GalleryFolderRepository.instance.getTotalImageCount();
+      AppLogger.i('Gallery file count: $count', 'Warmup');
     } catch (e) {
       AppLogger.w('Gallery file count failed: $e', 'Warmup');
     }

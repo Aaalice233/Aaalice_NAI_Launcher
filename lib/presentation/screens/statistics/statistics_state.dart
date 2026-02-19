@@ -3,9 +3,12 @@ import 'dart:math';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/database/database_providers.dart';
+import '../../../core/database/datasources/gallery_data_source.dart' as ds;
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/gallery/gallery_statistics.dart';
-import '../../../data/repositories/local_gallery_repository.dart';
+import '../../../data/models/gallery/local_image_record.dart';
+import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/services/statistics_cache_service.dart';
 import '../../../data/services/statistics_service.dart';
 
@@ -99,20 +102,70 @@ class StatisticsNotifier extends _$StatisticsNotifier {
   Future<void> _ensureRecordsLoaded() async {
     if (_isCacheValid) return;
 
-    final repository = LocalGalleryRepository.instance;
+    final dataSource = await _getDataSource();
 
-    // Get files directly from repository
-    final files = await repository.getAllImageFiles();
+    // Get all images from data source
+    final images = await dataSource.queryImages(
+      limit: 100000, // Large limit to get all images
+      offset: 0,
+      orderBy: 'modified_at',
+      descending: true,
+    );
 
     // Batch load records to avoid UI freeze
     const batchSize = 50;
     final allRecords = <LocalImageRecord>[];
 
-    for (var i = 0; i < files.length; i += batchSize) {
-      final end = min(i + batchSize, files.length);
-      final batch = files.sublist(i, end);
-      final records = await repository.loadRecords(batch);
-      allRecords.addAll(records);
+    for (var i = 0; i < images.length; i += batchSize) {
+      final end = min(i + batchSize, images.length);
+      final batch = images.sublist(i, end);
+
+      for (final image in batch) {
+        // Get metadata if available
+        final metadata = await dataSource.getMetadataByImageId(image.id!);
+
+        // Get tags
+        final tags = await dataSource.getImageTags(image.id!);
+
+        allRecords.add(LocalImageRecord(
+          path: image.filePath,
+          size: image.fileSize,
+          modifiedAt: image.modifiedAt,
+          isFavorite: image.isFavorite,
+          tags: tags,
+          metadata: metadata != null
+              ? NaiImageMetadata(
+                  prompt: metadata.prompt,
+                  negativePrompt: metadata.negativePrompt,
+                  seed: metadata.seed,
+                  sampler: metadata.sampler,
+                  steps: metadata.steps,
+                  scale: metadata.scale,
+                  width: metadata.width,
+                  height: metadata.height,
+                  model: metadata.model,
+                  smea: metadata.smea,
+                  smeaDyn: metadata.smeaDyn,
+                  noiseSchedule: metadata.noiseSchedule,
+                  cfgRescale: metadata.cfgRescale,
+                  ucPreset: metadata.ucPreset,
+                  qualityToggle: metadata.qualityToggle,
+                  isImg2Img: metadata.isImg2Img,
+                  strength: metadata.strength,
+                  noise: metadata.noise,
+                  software: metadata.software,
+                  source: metadata.source,
+                  version: metadata.version,
+                  rawJson: metadata.rawJson,
+                )
+              : null,
+          metadataStatus: image.metadataStatus == ds.MetadataStatus.success
+              ? MetadataStatus.success
+              : image.metadataStatus == ds.MetadataStatus.failed
+                  ? MetadataStatus.failed
+                  : MetadataStatus.none,
+        ),);
+      }
 
       // Yield to UI thread more frequently
       await Future.delayed(Duration.zero);
@@ -120,6 +173,16 @@ class StatisticsNotifier extends _$StatisticsNotifier {
 
     _cachedRecords = allRecords;
     _cacheTimestamp = DateTime.now();
+  }
+
+  /// Get GalleryDataSource instance
+  Future<ds.GalleryDataSource> _getDataSource() async {
+    final dbManager = await ref.read(databaseManagerProvider.future);
+    final dataSource = dbManager.getDataSource<ds.GalleryDataSource>('gallery');
+    if (dataSource == null) {
+      throw StateError('GalleryDataSource not found');
+    }
+    return dataSource;
   }
 
   /// Compute statistics (with result caching)
@@ -186,11 +249,10 @@ class StatisticsNotifier extends _$StatisticsNotifier {
   /// 带超时的预加载实现
   Future<void> _preloadWithTimeout() async {
     final cacheService = ref.read(statisticsCacheServiceProvider);
-    final repository = LocalGalleryRepository.instance;
 
     // Step 1: Quickly get current image count (带超时)
-    final files = await repository.getAllImageFiles();
-    final currentImageCount = files.length;
+    final dataSource = await _getDataSource();
+    final currentImageCount = await dataSource.countImages();
 
     // Step 2: Try loading from persistent cache
     final cachedStats = cacheService.getCache();

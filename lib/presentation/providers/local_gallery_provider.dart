@@ -9,10 +9,27 @@ import '../../core/database/database_providers.dart';
 import '../../core/database/datasources/gallery_data_source.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/local_image_record.dart';
-import '../../data/repositories/local_gallery_repository.dart' show LocalGalleryRepository, ScanResult;
+import '../../data/repositories/gallery_folder_repository.dart';
 
 part 'local_gallery_provider.freezed.dart';
 part 'local_gallery_provider.g.dart';
+
+/// 扫描结果
+class ScanResult {
+  final int totalFiles;
+  final int newFiles;
+  final int updatedFiles;
+  final int failedFiles;
+  final Duration duration;
+
+  const ScanResult({
+    required this.totalFiles,
+    required this.newFiles,
+    required this.updatedFiles,
+    required this.failedFiles,
+    required this.duration,
+  });
+}
 
 /// 本地画廊状态
 @freezed
@@ -116,17 +133,15 @@ class GalleryDataSourceNotifier extends _$GalleryDataSourceNotifier {
 ///
 /// 依赖关系：
 /// - GalleryDataSource: 新的数据源（收藏、标签操作）
-/// - LocalGalleryRepository: 保留用于文件扫描和元数据加载
+/// - GalleryFolderRepository: 文件系统操作
 /// - SQLite (via Repository): 唯一数据源
 /// - FileWatcherService (via Repository): 自动增量更新
 @Riverpod(keepAlive: true)
 class LocalGalleryNotifier extends _$LocalGalleryNotifier {
-  late final LocalGalleryRepository _repo;
   GalleryDataSource? _dataSource;
 
   @override
   LocalGalleryState build() {
-    _repo = LocalGalleryRepository.instance;
     return const LocalGalleryState();
   }
 
@@ -162,7 +177,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     try {
       // 【关键】先加载文件列表，让用户立即看到图片
       // 这一步不依赖数据库，直接从文件系统读取
-      final files = await _repo.getAllImageFiles();
+      final files = await _getAllImageFiles();
 
       // 检测是否为首次大量索引
       String? firstTimeMessage;
@@ -197,11 +212,106 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     }
   }
 
+  /// 从文件系统获取所有图片文件
+  Future<List<File>> _getAllImageFiles() async {
+    final rootPath = await GalleryFolderRepository.instance.getRootPath();
+    if (rootPath == null || rootPath.isEmpty) return [];
+
+    final rootDir = Directory(rootPath);
+    if (!await rootDir.exists()) return [];
+
+    final files = <File>[];
+    const supportedExtensions = {'.png', '.jpg', '.jpeg', '.webp'};
+
+    try {
+      await for (final entity in rootDir.list(recursive: true, followLinks: false)) {
+        if (entity is File) {
+          final ext = entity.path.split('.').last.toLowerCase();
+          if (supportedExtensions.contains('.$ext')) {
+            files.add(entity);
+          }
+        }
+      }
+      // 按修改时间排序（最新的在前）
+      files.sort((a, b) {
+        try {
+          final aStat = a.statSync();
+          final bStat = b.statSync();
+          return bStat.modified.compareTo(aStat.modified);
+        } catch (_) {
+          return 0;
+        }
+      });
+    } catch (e) {
+      AppLogger.e('Failed to get image files', e, null, 'LocalGalleryNotifier');
+    }
+
+    return files;
+  }
+
   /// 后台初始化（扫描索引）
   Future<void> _initializeInBackground() async {
     try {
-      // 初始化仓库（快速扫描 + 后台完整扫描）
-      await _repo.initialize(onProgress: _onScanProgress);
+      // 获取数据源进行后台索引
+      final dataSource = await _getDataSource();
+      final allFiles = state.allFiles;
+
+      if (allFiles.isEmpty) {
+        state = state.copyWith(
+          isIndexing: false,
+          isPageLoading: false,
+          backgroundScanProgress: null,
+          scanPhase: null,
+        );
+        return;
+      }
+
+      // 模拟进度更新
+      const batchSize = 100;
+      final total = allFiles.length;
+      var processed = 0;
+
+      for (var i = 0; i < total; i += batchSize) {
+        final end = (i + batchSize < total) ? i + batchSize : total;
+        final batch = allFiles.sublist(i, end);
+
+        // 处理每个文件
+        for (final file in batch) {
+          try {
+            final stat = await file.stat();
+            final fileName = file.path.split(Platform.pathSeparator).last;
+
+            // 插入或更新图片记录
+            await dataSource.upsertImage(
+              filePath: file.path,
+              fileName: fileName,
+              fileSize: stat.size,
+              createdAt: stat.changed,
+              modifiedAt: stat.modified,
+            );
+          } catch (e) {
+            AppLogger.w('Failed to index file: ${file.path}', 'LocalGalleryNotifier');
+          }
+        }
+
+        processed += batch.length;
+        _onScanProgress(
+          processed: processed,
+          total: total,
+          currentFile: batch.last.path.split(Platform.pathSeparator).last,
+          phase: 'indexing',
+        );
+
+        // 让出时间片，避免阻塞UI
+        await Future.delayed(Duration.zero);
+      }
+
+      // 完成
+      _onScanProgress(
+        processed: total,
+        total: total,
+        phase: 'completed',
+      );
 
       // 扫描完成后，静默刷新当前页以显示元数据（不显示加载中）
       state = state.copyWith(
@@ -292,19 +402,59 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       final end = min(start + state.pageSize, state.filteredFiles.length);
       final batch = state.filteredFiles.sublist(start, end);
 
-      final records = await _repo.loadRecords(batch);
+      final records = await _loadRecords(batch);
       state = state.copyWith(currentImages: records, isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, isIndexing: false, isPageLoading: false);
     }
   }
 
+  /// 从文件列表加载记录
+  Future<List<LocalImageRecord>> _loadRecords(List<File> files) async {
+    final dataSource = await _getDataSource();
+    final records = <LocalImageRecord>[];
+
+    for (final file in files) {
+      try {
+        final stat = await file.stat();
+
+        // 尝试从数据库获取图片ID和额外信息
+        final imageId = await dataSource.getImageIdByPath(file.path);
+
+        bool isFavorite = false;
+        List<String> tags = [];
+
+        if (imageId != null) {
+          isFavorite = await dataSource.isFavorite(imageId);
+          tags = await dataSource.getImageTags(imageId);
+        }
+
+        records.add(LocalImageRecord(
+          path: file.path,
+          size: stat.size,
+          modifiedAt: stat.modified,
+          isFavorite: isFavorite,
+          tags: tags,
+        ),);
+      } catch (e) {
+        AppLogger.w('Failed to load record for ${file.path}', 'LocalGalleryNotifier');
+        // 使用基本信息创建记录
+        records.add(LocalImageRecord(
+          path: file.path,
+          size: 0,
+          modifiedAt: DateTime.now(),
+        ),);
+      }
+    }
+
+    return records;
+  }
+
   /// 刷新（增量扫描）
   Future<void> refresh() async {
     state = state.copyWith(isLoading: true);
     try {
-      await _repo.performIncrementalScan();
-      final files = await _repo.getAllImageFiles();
+      final files = await _getAllImageFiles();
       state = state.copyWith(allFiles: files, isLoading: false);
       await _applyFilters();
     } catch (e) {
@@ -328,20 +478,63 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     state = state.copyWith(isRebuildingIndex: true, isLoading: true);
 
     try {
-      final result = await _repo.performFullScan(
-        onProgress: ({required processed, required total, currentFile, required phase}) {
-          // 检查是否被取消
-          if (_shouldCancelRebuild) {
-            return; // 忽略进度更新
+      final dataSource = await _getDataSource();
+      final allFiles = state.allFiles;
+      final total = allFiles.length;
+      var processed = 0;
+      var newFiles = 0;
+      var updatedFiles = 0;
+      var failedFiles = 0;
+      final stopwatch = Stopwatch()..start();
+
+      const batchSize = 100;
+      for (var i = 0; i < total; i += batchSize) {
+        if (_shouldCancelRebuild) {
+          break;
+        }
+
+        final end = (i + batchSize < total) ? i + batchSize : total;
+        final batch = allFiles.sublist(i, end);
+
+        for (final file in batch) {
+          try {
+            final stat = await file.stat();
+            final fileName = file.path.split(Platform.pathSeparator).last;
+
+            // 检查是否已存在
+            final existingId = await dataSource.getImageIdByPath(file.path);
+
+            await dataSource.upsertImage(
+              filePath: file.path,
+              fileName: fileName,
+              fileSize: stat.size,
+              createdAt: stat.changed,
+              modifiedAt: stat.modified,
+            );
+
+            if (existingId == null) {
+              newFiles++;
+            } else {
+              updatedFiles++;
+            }
+          } catch (e) {
+            failedFiles++;
           }
-          _onScanProgress(
-            processed: processed,
-            total: total,
-            currentFile: currentFile,
-            phase: phase,
-          );
-        },
-      );
+        }
+
+        processed += batch.length;
+        _onScanProgress(
+          processed: processed,
+          total: total,
+          currentFile: batch.last.path.split(Platform.pathSeparator).last,
+          phase: 'indexing',
+        );
+
+        // 让出时间片
+        await Future.delayed(Duration.zero);
+      }
+
+      stopwatch.stop();
 
       if (_shouldCancelRebuild) {
         AppLogger.i('Rebuild index cancelled by user', 'LocalGalleryNotifier');
@@ -352,14 +545,21 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         return null;
       }
 
-      final files = await _repo.getAllImageFiles();
+      final files = await _getAllImageFiles();
       state = state.copyWith(
         allFiles: files,
         isLoading: false,
         isRebuildingIndex: false,
       );
       await _applyFilters();
-      return result;
+
+      return ScanResult(
+        totalFiles: total,
+        newFiles: newFiles,
+        updatedFiles: updatedFiles,
+        failedFiles: failedFiles,
+        duration: stopwatch.elapsed,
+      );
     } catch (e) {
       state = state.copyWith(
         error: e.toString(),
@@ -441,7 +641,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   Future<void> _loadGroupedImages() async {
     state = state.copyWith(isGroupedLoading: true);
     try {
-      final records = await _repo.loadRecords(state.filteredFiles);
+      final records = await _loadRecords(state.filteredFiles);
       state = state.copyWith(groupedImages: records, isGroupedLoading: false);
     } catch (e) {
       state = state.copyWith(isGroupedLoading: false);
@@ -486,14 +686,17 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     // 有搜索关键词：使用数据库搜索
     if (query.isNotEmpty) {
       try {
-        final records = await _repo.advancedSearch(
+        final dataSource = await _getDataSource();
+        final imageIds = await dataSource.advancedSearch(
           textQuery: query,
           favoritesOnly: state.showFavoritesOnly,
           dateStart: state.dateStart,
           dateEnd: state.dateEnd,
           limit: 10000,
         );
-        final files = records.map((r) => File(r.path)).toList();
+        // 获取图片记录并转换为文件列表
+        final images = await dataSource.getImagesByIds(imageIds);
+        final files = images.map((img) => File(img.filePath)).toList();
         state = state.copyWith(filteredFiles: files, currentPage: 0);
         await loadPage(0);
         return;
@@ -547,9 +750,21 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         await dataSource.toggleFavorite(imageId);
         AppLogger.d('Toggled favorite for image $imageId via GalleryDataSource', 'LocalGalleryNotifier');
       } else {
-        // 如果图片不在数据库中，回退到旧仓库的 Hive 存储
-        AppLogger.w('Image not found in database, falling back to repository: $filePath', 'LocalGalleryNotifier');
-        await _repo.toggleFavorite(filePath);
+        // 如果图片不在数据库中，先索引它
+        AppLogger.w('Image not found in database, indexing first: $filePath', 'LocalGalleryNotifier');
+        final file = File(filePath);
+        if (await file.exists()) {
+          final stat = await file.stat();
+          final fileName = filePath.split(Platform.pathSeparator).last;
+          final newId = await dataSource.upsertImage(
+            filePath: filePath,
+            fileName: fileName,
+            fileSize: stat.size,
+            createdAt: stat.changed,
+            modifiedAt: stat.modified,
+          );
+          await dataSource.toggleFavorite(newId);
+        }
       }
 
       await loadPage(state.currentPage);
@@ -567,15 +782,22 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         return await dataSource.isFavorite(imageId);
       }
 
-      // 回退到旧仓库
-      return await _repo.isFavorite(filePath);
+      return false;
     } catch (e) {
       AppLogger.e('Check favorite failed', e, null, 'LocalGalleryNotifier');
       return false;
     }
   }
 
-  int getTotalFavoriteCount() => _repo.getTotalFavoriteCount();
+  Future<int> getTotalFavoriteCount() async {
+    try {
+      final dataSource = await _getDataSource();
+      return await dataSource.getFavoriteCount();
+    } catch (e) {
+      AppLogger.e('Get favorite count failed', e, null, 'LocalGalleryNotifier');
+      return 0;
+    }
+  }
 
   // ============================================================
   // 标签（使用新数据源）
@@ -591,8 +813,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         return await dataSource.getImageTags(imageId);
       }
 
-      // 回退到旧仓库
-      return await _repo.getTags(filePath);
+      return [];
     } catch (e) {
       AppLogger.e('Get tags failed', e, null, 'LocalGalleryNotifier');
       return [];
@@ -602,16 +823,28 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   Future<void> setTags(String filePath, List<String> tags) async {
     try {
       final dataSource = await _getDataSource();
-      final imageId = await dataSource.getImageIdByPath(filePath);
+      var imageId = await dataSource.getImageIdByPath(filePath);
 
       if (imageId != null) {
         // 使用新数据源设置标签
         await dataSource.setImageTags(imageId, tags);
         AppLogger.d('Set tags for image $imageId via GalleryDataSource', 'LocalGalleryNotifier');
       } else {
-        // 如果图片不在数据库中，回退到旧仓库的 Hive 存储
-        AppLogger.w('Image not found in database, falling back to repository: $filePath', 'LocalGalleryNotifier');
-        await _repo.setTags(filePath, tags);
+        // 如果图片不在数据库中，先索引它
+        AppLogger.w('Image not found in database, indexing first: $filePath', 'LocalGalleryNotifier');
+        final file = File(filePath);
+        if (await file.exists()) {
+          final stat = await file.stat();
+          final fileName = filePath.split(Platform.pathSeparator).last;
+          imageId = await dataSource.upsertImage(
+            filePath: filePath,
+            fileName: fileName,
+            fileSize: stat.size,
+            createdAt: stat.changed,
+            modifiedAt: stat.modified,
+          );
+          await dataSource.setImageTags(imageId, tags);
+        }
       }
 
       await loadPage(state.currentPage);

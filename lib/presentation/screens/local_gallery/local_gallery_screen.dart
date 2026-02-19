@@ -241,13 +241,16 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
             color: theme.colorScheme.outlineVariant.withOpacity(0.3),
           ),
           Expanded(
-            child: GalleryCategoryTreeView(
-              categories: categoryState.categories,
-              totalImageCount: state.allFiles.length,
-              favoriteCount: ref
+            child: FutureBuilder<int>(
+              future: ref
                   .read(localGalleryNotifierProvider.notifier)
                   .getTotalFavoriteCount(),
-              selectedCategoryId: categoryState.selectedCategoryId,
+              builder: (context, snapshot) {
+                return GalleryCategoryTreeView(
+                  categories: categoryState.categories,
+                  totalImageCount: state.allFiles.length,
+                  favoriteCount: snapshot.data ?? 0,
+                  selectedCategoryId: categoryState.selectedCategoryId,
               onCategorySelected: _handleCategorySelected,
               onCategoryRename: (id, newName) => ref
                   .read(galleryCategoryNotifierProvider.notifier)
@@ -263,6 +266,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
               onImageDrop: (imagePath, categoryId) =>
                   _handleImageDrop(imagePath, categoryId!),
               onSyncWithFileSystem: _handleSyncWithFileSystem,
+            );
+              },
             ),
           ),
         ],

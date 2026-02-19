@@ -5,9 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../core/database/database_providers.dart';
+import '../../core/database/datasources/gallery_data_source.dart';
 import '../../core/utils/app_logger.dart';
+import '../models/gallery/local_image_record.dart';
 import '../models/gallery/nai_image_metadata.dart';
-import '../repositories/local_gallery_repository.dart';
 
 part 'bulk_operation_service.g.dart';
 
@@ -28,10 +30,19 @@ typedef BulkOperationResult = ({
 
 /// Bulk operation service for managing batch operations on local images
 class BulkOperationService {
-  final LocalGalleryRepository _galleryRepository;
+  final Ref _ref;
 
-  BulkOperationService({LocalGalleryRepository? galleryRepository})
-      : _galleryRepository = galleryRepository ?? LocalGalleryRepository.instance;
+  BulkOperationService({Ref? ref}) : _ref = ref ?? _FakeRef();
+
+  /// 获取 GalleryDataSource
+  Future<GalleryDataSource> _getDataSource() async {
+    final dbManager = await _ref.read(databaseManagerProvider.future);
+    final dataSource = dbManager.getDataSource<GalleryDataSource>('gallery');
+    if (dataSource == null) {
+      throw StateError('GalleryDataSource not found');
+    }
+    return dataSource;
+  }
 
   /// 批量删除图片
   Future<BulkOperationResult> bulkDelete(
@@ -227,17 +238,41 @@ class BulkOperationService {
       'BulkOperationService',
     );
 
+    final dataSource = await _getDataSource();
+
     for (var i = 0; i < imagePaths.length; i++) {
       final imagePath = imagePaths[i];
       onProgress?.call(current: i, total: imagePaths.length, currentItem: imagePath, isComplete: false);
 
       try {
-        final currentTags = await _galleryRepository.getTags(imagePath);
+        // 获取或创建图片ID
+        var imageId = await dataSource.getImageIdByPath(imagePath);
+
+        if (imageId == null) {
+          // 图片不在数据库中，先索引它
+          final file = File(imagePath);
+          if (await file.exists()) {
+            final stat = await file.stat();
+            final fileName = imagePath.split(Platform.pathSeparator).last;
+            imageId = await dataSource.upsertImage(
+              filePath: imagePath,
+              fileName: fileName,
+              fileSize: stat.size,
+              createdAt: stat.changed,
+              modifiedAt: stat.modified,
+            );
+          } else {
+            throw Exception('File not found');
+          }
+        }
+
+        // 获取当前标签
+        final currentTags = await dataSource.getImageTags(imageId);
         final updatedTags = List<String>.from(currentTags)
           ..addAll(tagsToAdd.where((tag) => !currentTags.contains(tag)))
           ..removeWhere((tag) => tagsToRemove.contains(tag));
 
-        await _galleryRepository.setTags(imagePath, updatedTags);
+        await dataSource.setImageTags(imageId, updatedTags);
         successCount++;
         AppLogger.d(
           'Updated tags for $imagePath: ${currentTags.length} -> ${updatedTags.length} ($successCount/${imagePaths.length})',
@@ -276,12 +311,42 @@ class BulkOperationService {
       'BulkOperationService',
     );
 
+    final dataSource = await _getDataSource();
+
     for (var i = 0; i < imagePaths.length; i++) {
       final imagePath = imagePaths[i];
       onProgress?.call(current: i, total: imagePaths.length, currentItem: imagePath, isComplete: false);
 
       try {
-        await _galleryRepository.setFavorite(imagePath, isFavorite);
+        // 获取或创建图片ID
+        var imageId = await dataSource.getImageIdByPath(imagePath);
+
+        if (imageId == null) {
+          // 图片不在数据库中，先索引它
+          final file = File(imagePath);
+          if (await file.exists()) {
+            final stat = await file.stat();
+            final fileName = imagePath.split(Platform.pathSeparator).last;
+            imageId = await dataSource.upsertImage(
+              filePath: imagePath,
+              fileName: fileName,
+              fileSize: stat.size,
+              createdAt: stat.changed,
+              modifiedAt: stat.modified,
+            );
+          } else {
+            throw Exception('File not found');
+          }
+        }
+
+        // 检查当前收藏状态
+        final currentlyFavorite = await dataSource.isFavorite(imageId);
+
+        // 只有在状态需要改变时才切换
+        if (currentlyFavorite != isFavorite) {
+          await dataSource.toggleFavorite(imageId);
+        }
+
         successCount++;
         AppLogger.d(
           'Set favorite: $imagePath -> $isFavorite ($successCount/${imagePaths.length})',
@@ -354,8 +419,14 @@ class BulkOperationService {
   }
 }
 
+/// Fake Ref for when no ref is provided (for backward compatibility)
+class _FakeRef implements Ref {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
+}
+
 /// BulkOperationService Provider
 @riverpod
 BulkOperationService bulkOperationService(Ref ref) {
-  return BulkOperationService();
+  return BulkOperationService(ref: ref);
 }
