@@ -632,38 +632,37 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
                 ),
               ),
               // 信息区域
-              Expanded(
-                flex: 1,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 4, 10, 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        name,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontWeight:
-                              isSelected ? FontWeight.w600 : FontWeight.w500,
-                          color: isSelected
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurface,
-                          fontSize: 12,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 4, 10, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      name,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.w500,
+                        color: isSelected
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurface,
+                        fontSize: 12,
+                        height: 1.2,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '#${index + 1}',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant
-                              .withOpacity(0.7),
-                          fontSize: 10,
-                        ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '#${index + 1}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant
+                            .withOpacity(0.7),
+                        fontSize: 10,
+                        height: 1.2,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ],
