@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
+import 'package:path/path.dart' as p;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -224,6 +225,9 @@ class VibeLibraryStorageService {
   }
 
   /// 删除条目
+  ///
+  /// 注意：即使文件删除失败，也会删除 Hive 条目以保持数据一致性。
+  /// 文件删除失败会被记录但不会阻止条目删除。
   Future<bool> deleteEntry(String id) async {
     await _ensureInit();
     try {
@@ -234,8 +238,8 @@ class VibeLibraryStorageService {
       if (filePath != null && filePath.isNotEmpty) {
         final fileDeleted = await _fileStorage.deleteVibeFile(filePath);
         if (!fileDeleted) {
-          AppLogger.w('Skip deleting Hive entry because file delete failed: $id', _tag);
-          return false;
+          AppLogger.w('File delete failed but continuing to delete Hive entry: $id', _tag);
+          // 不返回 false，继续删除 Hive 条目以保持数据一致性
         }
       }
 
@@ -651,7 +655,13 @@ class VibeLibraryStorageService {
         throw StateError('Saved vibe file path is empty');
       }
 
-      return entry.copyWith(filePath: savedPath);
+      // 从实际保存的文件路径提取文件名（不含扩展名），确保 name 与文件名一致
+      final actualFileName = p.basenameWithoutExtension(savedPath);
+
+      return entry.copyWith(
+        filePath: savedPath,
+        name: actualFileName,
+      );
     } catch (e, stackTrace) {
       AppLogger.e('Failed to save entry file', e, stackTrace, _tag);
       rethrow;

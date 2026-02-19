@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../../data/models/vibe/vibe_reference.dart';
+import '../../../../../l10n/app_localizations.dart';
 import '../../../../themes/design_tokens.dart';
 import '../../../../widgets/common/animated_favorite_button.dart';
 
@@ -75,7 +76,7 @@ class VibeDetailParamPanel extends StatelessWidget {
                     children: [
                       _buildSliderSection(
                         context,
-                        label: 'Reference Strength',
+                        labelKey: 'strength',
                         value: strength,
                         onChanged: onStrengthChanged,
                         description: '控制 Vibe 对生成结果的影响强度',
@@ -84,7 +85,7 @@ class VibeDetailParamPanel extends StatelessWidget {
                       if (!entry.isPreEncoded) ...[
                         _buildSliderSection(
                           context,
-                          label: 'Information Extracted',
+                          labelKey: 'infoExtracted',
                           value: infoExtracted,
                           onChanged: onInfoExtractedChanged,
                           description: '控制从原始图片提取的信息量（消耗 2 Anlas）',
@@ -196,12 +197,18 @@ class VibeDetailParamPanel extends StatelessWidget {
   /// 滑块区域
   Widget _buildSliderSection(
     BuildContext context, {
-    required String label,
+    required String labelKey,
     required double value,
     required ValueChanged<double> onChanged,
     required String description,
   }) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    final labelText = switch (labelKey) {
+      'strength' => l10n.vibe_strength,
+      'infoExtracted' => l10n.vibe_infoExtracted,
+      _ => labelKey,
+    };
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,7 +217,7 @@ class VibeDetailParamPanel extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                label,
+                labelText,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),

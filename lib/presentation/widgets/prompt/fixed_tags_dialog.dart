@@ -744,8 +744,9 @@ class _FixedTagEntryTileState extends State<_FixedTagEntryTile> {
 
                 const SizedBox(width: 10),
 
-                // 名称 + 内容
+                // 名称 + 内容（占据大部分空间）
                 Expanded(
+                  flex: 3,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
@@ -769,9 +770,8 @@ class _FixedTagEntryTileState extends State<_FixedTagEntryTile> {
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       ),
-                      // 内容预览 - 仅内容与名称不同时显示
-                      if (entry.content.isNotEmpty &&
-                          entry.content != entry.displayName)
+                      // 内容预览 - 只要内容不为空就显示
+                      if (entry.content.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 2),
                           child: Text(
@@ -798,7 +798,7 @@ class _FixedTagEntryTileState extends State<_FixedTagEntryTile> {
 
                 const SizedBox(width: 8),
 
-                // 标签区 - 紧凑
+                // 标签区 - 紧凑（靠右）
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -871,7 +871,7 @@ class _FixedTagEntryTileState extends State<_FixedTagEntryTile> {
                   ],
                 ),
 
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
 
                 // 操作按钮 - 紧凑
                 AnimatedOpacity(

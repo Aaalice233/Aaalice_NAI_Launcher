@@ -427,9 +427,9 @@ class VibeFileStorageService {
       return generatedEntry.copyWith(filePath: filePath);
     }
 
+    // 保留用户设置的元数据，但 name 保持与文件名一致（用户可以通过重命名文件来重命名条目）
     return generatedEntry.copyWith(
       id: existingEntry.id,
-      name: existingEntry.name,
       categoryId: existingEntry.categoryId,
       tags: existingEntry.tags,
       isFavorite: existingEntry.isFavorite,

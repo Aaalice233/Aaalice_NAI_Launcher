@@ -357,98 +357,104 @@ class _FixedTagsButtonState extends ConsumerState<FixedTagsButton> {
     final color =
         isPrefix ? theme.colorScheme.primary : theme.colorScheme.tertiary;
     final hasWeight = entry.weight != 1.0;
-    final showContent = entry.content.isNotEmpty &&
-        entry.content.trim() != entry.displayName.trim();
-    final truncatedContent = entry.content.length > 25
-        ? '${entry.content.substring(0, 25)}...'
+    // 只要内容不为空就显示，充分利用空间
+    final showContent = entry.content.isNotEmpty;
+    // 增加截断长度，充分利用 Tooltip 宽度（约360px）
+    final truncatedContent = entry.content.length > 50
+        ? '${entry.content.substring(0, 50)}...'
         : entry.content;
 
-    return Row(
-      children: [
-        // 位置指示条
-        Container(
-          width: 3,
-          height: 20,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [color, color.withOpacity(0.4)],
-            ),
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 8),
-        // 名称
-        Flexible(
-          child: Text(
-            entry.displayName,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurface,
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        // 权重徽章
-        if (hasWeight) ...[
-          const SizedBox(width: 6),
+    return SizedBox(
+      width: double.infinity,
+      child: Row(
+        children: [
+          // 位置指示条
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+            width: 3,
+            height: 20,
             decoration: BoxDecoration(
-              color: entry.weight > 1.0
-                  ? theme.colorScheme.error.withOpacity(0.12)
-                  : theme.colorScheme.tertiary.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              '${entry.weight.toStringAsFixed(2)}x',
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                color: entry.weight > 1.0
-                    ? theme.colorScheme.error
-                    : theme.colorScheme.tertiary,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [color, color.withOpacity(0.4)],
               ),
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
-        ],
-        // 内容预览
-        if (showContent) ...[
-          const SizedBox(width: 6),
-          Expanded(
+          const SizedBox(width: 8),
+          // 名称（固定最大宽度，避免过长）
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 100),
             child: Text(
-              truncatedContent,
+              entry.displayName,
               style: TextStyle(
-                fontSize: 10,
-                color: theme.colorScheme.onSurface.withOpacity(0.5),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
               ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
-        ] else
-          const Spacer(),
-        // 位置标签
-        const SizedBox(width: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Text(
-            isPrefix
-                ? context.l10n.fixedTags_prefix
-                : context.l10n.fixedTags_suffix,
-            style: TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-              color: color,
+          // 权重徽章
+          if (hasWeight) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(
+                color: entry.weight > 1.0
+                    ? theme.colorScheme.error.withOpacity(0.12)
+                    : theme.colorScheme.tertiary.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                '${entry.weight.toStringAsFixed(2)}x',
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  color: entry.weight > 1.0
+                      ? theme.colorScheme.error
+                      : theme.colorScheme.tertiary,
+                ),
+              ),
+            ),
+          ],
+          // 间距
+          const SizedBox(width: 8),
+          // 内容预览（占据剩余空间）
+          if (showContent)
+            Expanded(
+              child: Text(
+                truncatedContent,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            )
+          else
+            const Spacer(),
+          // 位置标签（固定宽度，靠右）
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              isPrefix
+                  ? context.l10n.fixedTags_prefix
+                  : context.l10n.fixedTags_suffix,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

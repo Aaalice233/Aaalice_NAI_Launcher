@@ -2,6 +2,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:async';
 import 'dart:io';
 
+import 'package:collection/collection.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1063,7 +1064,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                     const SizedBox(height: 24),
                     // Reference Strength 滑条
                     _buildDialogSlider(
-                      label: 'Reference Strength',
+                      label: context.l10n.vibe_strength,
                       value: strengthValue,
                       onChanged: (value) =>
                           setState(() => strengthValue = value),
@@ -1071,7 +1072,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
                     const SizedBox(height: 16),
                     // Information Extracted 滑条
                     _buildDialogSlider(
-                      label: 'Information Extracted',
+                      label: context.l10n.vibe_infoExtracted,
                       value: infoExtractedValue,
                       onChanged: (value) =>
                           setState(() => infoExtractedValue = value),
@@ -1122,35 +1123,41 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
             infoExtracted: infoExtracted,
           );
 
-          // 检查是否已存在相同的 vibe（基于原始内容，不包括参数）
-          final existingEntry = await _findExistingEntry(storageService, vibe);
+          // 检查是否已存在相同名称的 vibe（基于名称去重，而非内容）
+          // 这样用户可以用不同名称保存相同内容
+          final allEntries = await storageService.getAllEntries();
+          final existingEntry = allEntries.firstWhereOrNull((entry) {
+            return entry.name.toLowerCase() == name.toLowerCase();
+          });
 
           if (existingEntry != null) {
-            // 已存在：更新使用记录（保留用户设置的新参数）
-            await storageService.incrementUsedCount(existingEntry.id);
+            // 已存在相同名称：删除旧条目和文件，创建新的（覆盖更新）
+            await storageService.deleteEntry(existingEntry.id);
             reusedCount++;
-          } else {
-            // 不存在：创建新条目
-            final entry = VibeLibraryEntry.fromVibeReference(
-              name: vibes.length == 1 ? name : '$name - ${vibe.displayName}',
-              vibeData: vibeWithParams,
-            );
-            await storageService.saveEntry(entry);
-            savedCount++;
           }
+
+          // 创建新条目（无论是否已存在，都创建新的）
+          final entry = VibeLibraryEntry.fromVibeReference(
+            name: vibes.length == 1 ? name : '$name - ${vibe.displayName}',
+            vibeData: vibeWithParams,
+          );
+          await storageService.saveEntry(entry);
+          savedCount++;
         }
 
         if (mounted) {
           String message;
           if (savedCount > 0 && reusedCount > 0) {
-            message = '新增 $savedCount 个，复用 $reusedCount 个';
+            message = '已覆盖 $reusedCount 个，新增 $savedCount 个';
           } else if (savedCount > 0) {
             message = '已保存到 Vibe 库';
           } else {
-            message = '库中已存在，已更新使用记录';
+            message = '没有保存任何 Vibe';
           }
           AppToast.success(context, message);
           _loadRecentEntries(); // 刷新最近列表
+          // 通知 Vibe 库刷新
+          ref.read(vibeLibraryNotifierProvider.notifier).reload();
         }
       } catch (e, stackTrace) {
         AppLogger.e('Failed to save to library', e, stackTrace);
