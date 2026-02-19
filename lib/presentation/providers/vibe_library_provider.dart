@@ -126,8 +126,14 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
     await _loadData(isInitializing: false);
   }
 
+  /// 仅从缓存加载数据（不扫描文件系统）- 用于快速显示
+  Future<void> loadFromCache() async {
+    await _loadData(isInitializing: false);
+  }
+
   /// 与文件系统同步
   /// 扫描 vibes 文件夹，添加新文件到库，删除已不存在的文件条目
+  /// 同步完成后自动刷新 UI
   Future<VibeFolderSyncResult> syncWithFileSystem() async {
     try {
       final result = await _storage.syncWithFileSystem(removeMissingEntries: true);
@@ -136,6 +142,12 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
         'upserted=${result.upsertedCount}, deleted=${result.deletedCount}',
         'VibeLibrary',
       );
+      
+      // 同步完成后刷新数据
+      if (result.upsertedCount > 0 || result.deletedCount > 0) {
+        await _loadData(isInitializing: false);
+      }
+      
       return result;
     } catch (e, stackTrace) {
       AppLogger.e('Failed to sync with file system', e, stackTrace, 'VibeLibrary');

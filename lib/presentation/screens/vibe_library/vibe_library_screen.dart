@@ -112,22 +112,39 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // 页面重新可见时刷新（同步文件系统）
-    _refreshIfNeeded();
+    // 页面重新可见时刷新（同步文件系统）- 在后台执行
+    _refreshIfNeededInBackground();
   }
 
   DateTime? _lastRefreshTime;
+  bool _isRefreshingInBackground = false;
 
-  void _refreshIfNeeded() {
+  /// 在后台刷新，不阻塞 UI
+  void _refreshIfNeededInBackground() {
     final now = DateTime.now();
     // 如果超过5秒没有刷新，则执行刷新
     if (_lastRefreshTime == null ||
         now.difference(_lastRefreshTime!) > const Duration(seconds: 5)) {
       _lastRefreshTime = now;
-      // 使用延迟避免在初始化时重复刷新
-      Future.delayed(const Duration(milliseconds: 100), () {
+      
+      // 避免重复刷新
+      if (_isRefreshingInBackground) return;
+      _isRefreshingInBackground = true;
+      
+      // 使用延迟避免在初始化时重复刷新，并在后台执行
+      Future.delayed(const Duration(milliseconds: 300), () async {
         if (mounted) {
-          ref.read(vibeLibraryNotifierProvider.notifier).reload();
+          try {
+            // 先执行轻量级的数据加载（从 Hive）
+            await ref.read(vibeLibraryNotifierProvider.notifier).loadFromCache();
+            
+            // 然后在后台同步文件系统（扫描文件夹）
+            await ref.read(vibeLibraryNotifierProvider.notifier).syncWithFileSystem();
+          } finally {
+            _isRefreshingInBackground = false;
+          }
+        } else {
+          _isRefreshingInBackground = false;
         }
       });
     }

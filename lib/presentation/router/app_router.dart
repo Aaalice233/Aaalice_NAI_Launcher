@@ -304,7 +304,8 @@ GoRouter appRouter(Ref ref) {
 /// 主布局 Shell - 包含导航 (StatefulShellRoute 版本)
 ///
 /// 使用混合保活策略：
-/// - 画廊页面（索引 2, 3）使用 Offstage 保活
+/// - 画廊页面（索引 1, 2）使用 Offstage 保活
+/// - Vibe库页面（索引 7）使用 Offstage 保活
 /// - 其他页面不保活
 class MainShell extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -326,7 +327,8 @@ class _MainShellState extends ConsumerState<MainShell> {
     final currentIndex = widget.navigationShell.currentIndex;
 
     // 构建混合保活内容栈
-    // - 索引 2 (localGallery) 和 3 (onlineGallery) 使用 Offstage 保活
+    // - 索引 1 (localGallery) 和 2 (onlineGallery) 使用 Offstage 保活
+    // - 索引 7 (vibeLibrary) 使用 Offstage 保活
     // - 其他索引不保活，切换时销毁重建
     final contentStack = IndexedStack(
       index: currentIndex,
@@ -335,9 +337,9 @@ class _MainShellState extends ConsumerState<MainShell> {
         final child = entry.value;
         final isActive = index == currentIndex;
 
-        // 画廊索引（2: localGallery, 3: onlineGallery）始终保持在树中
-        // 通过 TickerMode 控制动画
-        if (index == 2 || index == 3) {
+        // 保活页面：画廊（1, 2）和 Vibe 库（7）
+        // 始终保持在树中，通过 TickerMode 控制动画
+        if (index == 1 || index == 2 || index == 7) {
           return TickerMode(
             enabled: isActive,
             child: child,
