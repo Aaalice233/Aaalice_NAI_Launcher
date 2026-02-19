@@ -255,20 +255,22 @@ class _VibeCardState extends State<VibeCard>
         return Stack(
           fit: StackFit.expand,
           children: [
-            // 子 vibe 预览层
-            ...List.generate(count, (index) {
-              return _buildStripContent(index, count, previews[index], progress);
-            }),
+            // 子 vibe 预览层（仅动画过程中显示）
+            if (progress > 0)
+              ...List.generate(count, (index) {
+                return _buildStripContent(index, count, previews[index], progress);
+              }),
 
             // 百叶窗叶片层
-            CustomPaint(
-              size: Size.infinite,
-              painter: _BlindsOverlayPainter(
-                progress: progress,
-                count: count,
-                themeColor: Theme.of(context).colorScheme.primary,
+            if (progress > 0)
+              CustomPaint(
+                size: Size.infinite,
+                painter: _BlindsOverlayPainter(
+                  progress: progress,
+                  count: count,
+                  themeColor: Theme.of(context).colorScheme.primary,
+                ),
               ),
-            ),
           ],
         );
       },
