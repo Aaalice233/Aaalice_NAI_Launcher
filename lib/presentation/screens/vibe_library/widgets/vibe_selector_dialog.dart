@@ -110,12 +110,9 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
         _allEntries = allEntries;
         _recentEntries = recentEntries;
         _filteredEntries = allEntries;
-        _isLoading = false;
       });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -201,11 +198,7 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
 
   void _toggleTag(String tag) {
     setState(() {
-      if (_selectedTags.contains(tag)) {
-        _selectedTags.remove(tag);
-      } else {
-        _selectedTags.add(tag);
-      }
+      _selectedTags.contains(tag) ? _selectedTags.remove(tag) : _selectedTags.add(tag);
     });
     _applyFilters();
   }
@@ -225,42 +218,32 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
 
   void _toggleSelection(String id) {
     setState(() {
-      if (_selectedIds.contains(id)) {
-        _selectedIds.remove(id);
-      } else {
-        _selectedIds.add(id);
-      }
+      _selectedIds.contains(id) ? _selectedIds.remove(id) : _selectedIds.add(id);
     });
   }
 
   void _toggleBundleExpanded(String bundleId) {
     setState(() {
-      if (_expandedBundleIds.contains(bundleId)) {
-        _expandedBundleIds.remove(bundleId);
-      } else {
-        _expandedBundleIds.add(bundleId);
-      }
+      _expandedBundleIds.contains(bundleId)
+          ? _expandedBundleIds.remove(bundleId)
+          : _expandedBundleIds.add(bundleId);
     });
   }
 
   void _toggleBundleSelection(VibeLibraryEntry bundleEntry) {
     setState(() {
-      if (_selectedIds.contains(bundleEntry.id)) {
-        _selectedIds.remove(bundleEntry.id);
-      } else {
-        _selectedIds.add(bundleEntry.id);
-      }
+      _selectedIds.contains(bundleEntry.id)
+          ? _selectedIds.remove(bundleEntry.id)
+          : _selectedIds.add(bundleEntry.id);
     });
   }
 
   void _toggleBundledVibeSelection(String bundleId, int index) {
     final bundledVibeId = '$bundleId#vibe#$index';
     setState(() {
-      if (_selectedIds.contains(bundledVibeId)) {
-        _selectedIds.remove(bundledVibeId);
-      } else {
-        _selectedIds.add(bundledVibeId);
-      }
+      _selectedIds.contains(bundledVibeId)
+          ? _selectedIds.remove(bundledVibeId)
+          : _selectedIds.add(bundledVibeId);
     });
   }
 
@@ -1007,103 +990,51 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
     bool isSelected,
   ) {
     return Material(
-      color: Colors.transparent,
+      color: isSelected ? theme.colorScheme.primaryContainer.withOpacity(0.3) : theme.colorScheme.surface,
       borderRadius: BorderRadius.circular(10),
-      clipBehavior: Clip.none,
       child: InkWell(
         onTap: () => _toggleBundledVibeSelection(bundleId, index),
         borderRadius: BorderRadius.circular(10),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+        child: Container(
           decoration: BoxDecoration(
-            color: isSelected
-                ? theme.colorScheme.primaryContainer.withOpacity(0.3)
-                : theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isSelected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outlineVariant.withOpacity(0.5),
+              color: isSelected ? theme.colorScheme.primary : theme.colorScheme.outlineVariant.withOpacity(0.5),
               width: isSelected ? 2.5 : 1,
             ),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: theme.colorScheme.primary.withOpacity(0.25),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ]
-                : [
-                    BoxShadow(
-                      color: theme.colorScheme.shadow.withOpacity(0.08),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 缩略图区域
               Expanded(
                 child: Container(
                   margin: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: theme.colorScheme.outlineVariant.withOpacity(0.2),
-                    ),
+                    color: theme.colorScheme.surfaceContainerHigh,
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      // 缩略图
-                      thumbnail != null
-                          ? Image.memory(
-                              thumbnail,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  _buildBundledPlaceholder(theme),
-                            )
-                          : _buildBundledPlaceholder(theme),
-                      // 选中遮罩
-                      if (isSelected)
-                        Container(
-                          color: theme.colorScheme.primary.withOpacity(0.1),
+                      if (thumbnail != null)
+                        Image.memory(thumbnail, fit: BoxFit.cover)
+                      else
+                        Center(
+                          child: Icon(Icons.image_outlined, size: 24, color: theme.colorScheme.outline),
                         ),
-                      // 选中标记
+                      if (isSelected)
+                        Container(color: theme.colorScheme.primary.withOpacity(0.1)),
                       if (isSelected)
                         Positioned(
                           top: 4,
                           right: 4,
-                          child: Container(
-                            padding: const EdgeInsets.all(3),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color:
-                                      theme.colorScheme.shadow.withOpacity(0.3),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              Icons.check,
-                              size: 12,
-                              color: theme.colorScheme.onPrimary,
-                            ),
-                          ),
+                          child: _buildCheckIndicator(theme),
                         ),
                     ],
                   ),
                 ),
               ),
-              // 名称区域
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
                 child: Row(
@@ -1113,22 +1044,15 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
                         name,
                         style: theme.textTheme.bodySmall?.copyWith(
                           fontSize: 11,
-                          fontWeight:
-                              isSelected ? FontWeight.w600 : FontWeight.w500,
-                          color: isSelected
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurface,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                          color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     if (isSelected)
-                      Icon(
-                        Icons.check_circle,
-                        size: 14,
-                        color: theme.colorScheme.primary,
-                      ),
+                      Icon(Icons.check_circle, size: 14, color: theme.colorScheme.primary),
                   ],
                 ),
               ),
@@ -1139,16 +1063,21 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
     );
   }
 
-  Widget _buildBundledPlaceholder(ThemeData theme) {
+  Widget _buildCheckIndicator(ThemeData theme) {
     return Container(
-      color: theme.colorScheme.surfaceContainerHigh,
-      child: Center(
-        child: Icon(
-          Icons.image_outlined,
-          size: 24,
-          color: theme.colorScheme.outline,
-        ),
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withOpacity(0.3),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
+      child: Icon(Icons.check, size: 12, color: theme.colorScheme.onPrimary),
     );
   }
 
