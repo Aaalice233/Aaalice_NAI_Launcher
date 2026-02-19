@@ -134,7 +134,9 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
 
   void _sendToGeneration() {
     // 检测是否按住 Shift 键
-    final isShiftPressed = HardwareKeyboard.instance.isShiftPressed;
+    final physicalKeys = HardwareKeyboard.instance.physicalKeysPressed;
+    final isShiftPressed = physicalKeys.contains(PhysicalKeyboardKey.shiftLeft) ||
+        physicalKeys.contains(PhysicalKeyboardKey.shiftRight);
 
     widget.callbacks?.onSendToGeneration?.call(
       _entry,

@@ -3122,7 +3122,9 @@ class _VibeLibraryContentViewState
     final currentParams = ref.read(generationParamsNotifierProvider);
 
     // 检测是否按住 Shift 键
-    final isShiftPressed = HardwareKeyboard.instance.isShiftPressed;
+    final physicalKeys = HardwareKeyboard.instance.physicalKeysPressed;
+    final isShiftPressed = physicalKeys.contains(PhysicalKeyboardKey.shiftLeft) ||
+        physicalKeys.contains(PhysicalKeyboardKey.shiftRight);
 
     // 检查是否超过16个限制（仅在追加模式下检查）
     if (!isShiftPressed && currentParams.vibeReferencesV4.length >= 16) {
