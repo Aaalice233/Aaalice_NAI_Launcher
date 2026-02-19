@@ -193,6 +193,7 @@ class VibeLibraryStorageService {
               .toList();
           return previews.isEmpty ? null : previews;
         }(),
+        bundledVibeEncodings: vibes.map((v) => v.vibeEncoding).toList(),
       );
 
       await _entriesBox!.put(entry.id, entry);
@@ -688,7 +689,7 @@ class VibeLibraryStorageService {
       final vibeData = entry.toVibeReference();
       final savedPath = entry.isBundle
           ? await _fileStorage.saveBundleToFile(
-              [vibeData],
+              _buildBundleVibeReferences(entry),
               bundleName: entry.name,
             )
           : await _fileStorage.saveVibeToFile(
@@ -711,6 +712,38 @@ class VibeLibraryStorageService {
       AppLogger.e('Failed to save entry file', e, stackTrace, _tag);
       rethrow;
     }
+  }
+
+  /// 构建 bundle 中所有 vibes 的 VibeReference 列表
+  List<VibeReference> _buildBundleVibeReferences(VibeLibraryEntry entry) {
+    final encodings = entry.bundledVibeEncodings;
+    final names = entry.bundledVibeNames;
+    final previews = entry.bundledVibePreviews;
+
+    if (encodings == null || encodings.isEmpty) {
+      // 如果没有存储编码列表，只返回第一个 vibe
+      return [entry.toVibeReference()];
+    }
+
+    final results = <VibeReference>[];
+    for (var i = 0; i < encodings.length; i++) {
+      final encoding = encodings[i];
+      final name = names != null && i < names.length ? names[i] : '${entry.name}#$i';
+      final thumbnail = previews != null && i < previews.length ? previews[i] : null;
+
+      results.add(
+        VibeReference(
+          displayName: name,
+          vibeEncoding: encoding,
+          thumbnail: thumbnail,
+          strength: entry.strength,
+          infoExtracted: entry.infoExtracted,
+          sourceType: VibeSourceType.naiv4vibebundle,
+        ),
+      );
+    }
+
+    return results;
   }
 
   // ==================== Category CRUD ====================

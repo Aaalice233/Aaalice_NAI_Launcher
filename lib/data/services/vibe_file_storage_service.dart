@@ -377,6 +377,8 @@ class VibeFileStorageService {
     final names = vibes.map((item) => item.displayName).toList(growable: false);
     final generatedEntry = _buildBundleEntry(filePath, fallbackName, vibes);
 
+    final encodings = vibes.map((v) => v.vibeEncoding).toList(growable: false);
+
     return _mergeWithExistingEntry(
       generatedEntry: generatedEntry,
       existingEntry: existingEntry,
@@ -385,6 +387,7 @@ class VibeFileStorageService {
       bundleId: existingEntry?.bundleId ?? p.basenameWithoutExtension(filePath),
       bundledVibeNames: names,
       bundledVibePreviews: previews.isEmpty ? existingEntry?.bundledVibePreviews : previews,
+      bundledVibeEncodings: encodings,
     );
   }
 
@@ -441,6 +444,7 @@ class VibeFileStorageService {
       bundleId: existingEntry.bundleId,
       bundledVibeNames: existingEntry.bundledVibeNames,
       bundledVibePreviews: existingEntry.bundledVibePreviews,
+      bundledVibeEncodings: existingEntry.bundledVibeEncodings,
     );
   }
 

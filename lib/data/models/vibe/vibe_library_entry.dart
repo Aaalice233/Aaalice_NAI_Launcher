@@ -78,6 +78,9 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
 
     /// bundle 内部 vibe 缩略图缓存（前几个用于 UI 预览）
     @HiveField(19) List<Uint8List>? bundledVibePreviews,
+
+    /// bundle 内部 vibe 编码数据列表（用于重新保存 bundle 文件）
+    @HiveField(20) List<String>? bundledVibeEncodings,
   }) = _VibeLibraryEntry;
 
   /// 从 VibeReference 创建库条目

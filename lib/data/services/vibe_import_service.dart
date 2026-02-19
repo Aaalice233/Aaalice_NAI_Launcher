@@ -589,6 +589,7 @@ class VibeImportService {
         thumbnail: reference.thumbnail,
         bundledVibeNames: bundleData.names,
         bundledVibePreviews: bundleData.previews,
+        bundledVibeEncodings: bundleData.encodings,
         filePath: bundleFileName,
       );
     }
@@ -603,14 +604,15 @@ class VibeImportService {
     ).copyWith(
       bundledVibeNames: bundleData.names,
       bundledVibePreviews: bundleData.previews,
+      bundledVibeEncodings: bundleData.encodings,
     );
   }
 
-  ({List<String>? names, List<Uint8List>? previews}) _extractBundleData(
+  ({List<String>? names, List<Uint8List>? previews, List<String>? encodings}) _extractBundleData(
     List<VibeReference>? bundledReferences,
   ) {
     if (bundledReferences == null || bundledReferences.isEmpty) {
-      return (names: null, previews: null);
+      return (names: null, previews: null, encodings: null);
     }
 
     final names = bundledReferences
@@ -624,9 +626,15 @@ class VibeImportService {
         .take(4)
         .toList();
 
+    final encodings = bundledReferences
+        .map((item) => item.vibeEncoding)
+        .where((item) => item.trim().isNotEmpty)
+        .toList();
+
     return (
       names: names.isNotEmpty ? names : null,
       previews: previews.isNotEmpty ? previews : null,
+      encodings: encodings.isNotEmpty ? encodings : null,
     );
   }
 }
