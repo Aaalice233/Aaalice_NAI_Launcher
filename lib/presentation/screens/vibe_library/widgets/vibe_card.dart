@@ -645,34 +645,40 @@ class _ActionButtonState extends State<_ActionButton> {
         ? colorScheme.onError
         : (_isHovered ? Colors.black : Colors.black.withOpacity(0.65));
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          curve: Curves.easeOut,
-          width: 32,
-          height: 32,
-          margin: const EdgeInsets.only(bottom: 4),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: backgroundColor,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(_isHovered ? 0.28 : 0.2),
-                blurRadius: _isHovered ? 8 : 4,
-                offset: Offset(0, _isHovered ? 3 : 2),
-              ),
-            ],
-          ),
-          child: AnimatedScale(
+    return Tooltip(
+      message: widget.tooltip,
+      preferBelow: false,
+      verticalOffset: 8,
+      waitDuration: const Duration(milliseconds: 100),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
             duration: const Duration(milliseconds: 120),
             curve: Curves.easeOut,
-            scale: _isHovered ? 1.08 : 1.0,
-            child: Icon(widget.icon, size: 16, color: iconColor),
+            width: 32,
+            height: 32,
+            margin: const EdgeInsets.only(bottom: 4),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: backgroundColor,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(_isHovered ? 0.28 : 0.2),
+                  blurRadius: _isHovered ? 8 : 4,
+                  offset: Offset(0, _isHovered ? 3 : 2),
+                ),
+              ],
+            ),
+            child: AnimatedScale(
+              duration: const Duration(milliseconds: 120),
+              curve: Curves.easeOut,
+              scale: _isHovered ? 1.08 : 1.0,
+              child: Icon(widget.icon, size: 16, color: iconColor),
+            ),
           ),
         ),
       ),
