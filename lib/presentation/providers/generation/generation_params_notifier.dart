@@ -592,10 +592,10 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
   /// 设置 vibe references（替换现有）
   void setVibeReferences(List<VibeReference> vibes) {
-    // 限制最多16个
+    // 限制最多 16 个
     final limitedVibes = vibes.take(16).toList();
     state = state.copyWith(vibeReferencesV4: limitedVibes);
-    _scheduleGenerationStateSave();
+    _scheduleGenerationStateSave(immediate: true);
   }
 
   /// 设置 Vibe 强度标准化开关
