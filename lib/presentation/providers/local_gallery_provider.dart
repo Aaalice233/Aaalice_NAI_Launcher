@@ -138,21 +138,16 @@ class GalleryDataSourceNotifier extends _$GalleryDataSourceNotifier {
 /// - FileWatcherService (via Repository): 自动增量更新
 @Riverpod(keepAlive: true)
 class LocalGalleryNotifier extends _$LocalGalleryNotifier {
-  GalleryDataSource? _dataSource;
-
   @override
   LocalGalleryState build() {
     return const LocalGalleryState();
   }
 
-  /// 获取数据源（懒加载）
+  /// 获取数据源
+  ///
+  /// 每次都从 provider 获取，确保连接有效
   Future<GalleryDataSource> _getDataSource() async {
-    if (_dataSource != null) {
-      return _dataSource!;
-    }
-    final dataSource = await ref.read(galleryDataSourceNotifierProvider.future);
-    _dataSource = dataSource;
-    return dataSource;
+    return await ref.read(galleryDataSourceNotifierProvider.future);
   }
 
   // ============================================================
