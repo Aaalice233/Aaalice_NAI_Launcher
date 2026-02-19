@@ -82,18 +82,13 @@ class VibeDetailParamPanel extends StatelessWidget {
                         description: '控制 Vibe 对生成结果的影响强度',
                       ),
                       const SizedBox(height: DesignTokens.spacingLg),
-                      if (!entry.isPreEncoded) ...[
-                        _buildSliderSection(
-                          context,
-                          labelKey: 'infoExtracted',
-                          value: infoExtracted,
-                          onChanged: onInfoExtractedChanged,
-                          description: '控制从原始图片提取的信息量（消耗 2 Anlas）',
-                        ),
-                        const SizedBox(height: DesignTokens.spacingLg),
-                      ],
-                      // 标签编辑区
-                      _buildTagsSection(context),
+                      _buildSliderSection(
+                        context,
+                        labelKey: 'infoExtracted',
+                        value: infoExtracted,
+                        onChanged: onInfoExtractedChanged,
+                        description: '控制从原始图片提取的信息量（消耗 2 Anlas）',
+                      ),
                       const SizedBox(height: DesignTokens.spacingLg),
                       // 统计信息
                       _buildStatsSection(theme),
