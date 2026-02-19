@@ -134,13 +134,22 @@ class _VibeCardState extends State<VibeCard>
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // 主内容层（Bundle 悬停时淡出）
-                  if (!(widget.entry.isBundle && _isHovered))
-                    _buildMainContent(),
+                  // 主内容层（始终显示，Bundle悬停时淡出）
+                  AnimatedOpacity(
+                    opacity: (widget.entry.isBundle && _isHovered) ? 0.0 : 1.0,
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOut,
+                    child: _buildMainContent(),
+                  ),
 
-                  // Bundle 百叶窗效果层（悬停时显示）
-                  if (widget.entry.isBundle && _isHovered)
-                    _buildDiagonalBlindsEffect(),
+                  // Bundle 百叶窗效果层（悬停时淡入）
+                  if (widget.entry.isBundle)
+                    AnimatedOpacity(
+                      opacity: _isHovered ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOut,
+                      child: _buildDiagonalBlindsEffect(),
+                    ),
 
                   // 信息层
                   _buildInfoOverlay(),
@@ -248,22 +257,22 @@ class _VibeCardState extends State<VibeCard>
 
     final count = previews.length.clamp(2, 5);
 
-    return AnimatedBuilder(
-      animation: _blindsAnimation,
-      builder: (context, child) {
-        final progress = _blindsAnimation.value;
+    return Container(
+      color: Colors.black.withOpacity(0.7), // 深色背景遮盖主内容
+      child: AnimatedBuilder(
+        animation: _blindsAnimation,
+        builder: (context, child) {
+          final progress = _blindsAnimation.value;
 
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            // 子 vibe 预览层（仅动画过程中显示）
-            if (progress > 0)
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              // 子 vibe 预览层
               ...List.generate(count, (index) {
                 return _buildStripContent(index, count, previews[index], progress);
               }),
 
-            // 百叶窗叶片层
-            if (progress > 0)
+              // 百叶窗叶片覆盖层
               CustomPaint(
                 size: Size.infinite,
                 painter: _BlindsOverlayPainter(
@@ -272,9 +281,10 @@ class _VibeCardState extends State<VibeCard>
                   themeColor: Theme.of(context).colorScheme.primary,
                 ),
               ),
-          ],
-        );
-      },
+            ],
+          );
+        },
+      ),
     );
   }
 
