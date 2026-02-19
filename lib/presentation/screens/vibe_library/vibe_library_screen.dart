@@ -1885,7 +1885,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
   }) async {
     // 首先尝试提取 Vibe 数据
     try {
-      final reference = await VibeImageEmbedder.extractVibeFromImage(imageFile.bytes);
+      await VibeImageEmbedder.extractVibeFromImage(imageFile.bytes);
       // 提取成功，正常导入
       final importResult = await importService.importFromImage(
         images: [imageFile],
@@ -1924,6 +1924,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     // 编码重试循环
     while (mounted) {
       // 显示编码中对话框
+      // ignore: use_build_context_synchronously
       encode_dialog.VibeImageEncodingDialog.show(context);
 
       String? encoding;
