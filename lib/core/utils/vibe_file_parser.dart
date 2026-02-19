@@ -386,13 +386,56 @@ class VibeFileParser {
       );
     }
 
+    // 提取缩略图
+    final thumbnail = _extractThumbnailFromJson(jsonData);
+
     return VibeReference(
       displayName: name,
       vibeEncoding: vibeEncoding,
-      thumbnail: null,
+      thumbnail: thumbnail,
       strength: strength.clamp(0.0, 1.0),
       sourceType: VibeSourceType.naiv4vibe,
     );
+  }
+
+  /// 从 JSON 数据中提取缩略图
+  static Uint8List? _extractThumbnailFromJson(Map<String, dynamic> jsonData) {
+    try {
+      final thumbnailBase64 = jsonData['thumbnail'] as String?;
+      if (thumbnailBase64 != null && thumbnailBase64.isNotEmpty) {
+        final base64Data = _extractBase64FromDataUri(thumbnailBase64);
+        if (base64Data != null) {
+          return base64Decode(base64Data);
+        }
+      }
+
+      // 如果没有 thumbnail 字段，尝试从 image 字段提取
+      final imageBase64 = jsonData['image'] as String?;
+      if (imageBase64 != null && imageBase64.isNotEmpty) {
+        final base64Data = _extractBase64FromDataUri(imageBase64);
+        if (base64Data != null) {
+          return base64Decode(base64Data);
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        AppLogger.d('Error extracting thumbnail from JSON: $e', 'VibeParser');
+      }
+    }
+    return null;
+  }
+
+  /// 从 Data URI 中提取 base64 数据
+  /// 格式: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...
+  static String? _extractBase64FromDataUri(String dataUri) {
+    if (dataUri.startsWith('data:')) {
+      final commaIndex = dataUri.indexOf(',');
+      if (commaIndex != -1 && commaIndex < dataUri.length - 1) {
+        return dataUri.substring(commaIndex + 1);
+      }
+    }
+    // 如果不是 Data URI 格式，假设是纯 base64
+    return dataUri;
   }
 
   /// 从 .naiv4vibebundle 文件解析多个 Vibe 参考
@@ -418,11 +461,12 @@ class VibeFileParser {
 
         final vibeEncoding = _extractEncodingFromJson(vibeJson);
         if (vibeEncoding != null) {
+          final thumbnail = _extractThumbnailFromJson(vibeJson);
           results.add(
             VibeReference(
               displayName: name,
               vibeEncoding: vibeEncoding,
-              thumbnail: null,
+              thumbnail: thumbnail,
               strength: strength.clamp(0.0, 1.0),
               sourceType: VibeSourceType.naiv4vibebundle,
             ),

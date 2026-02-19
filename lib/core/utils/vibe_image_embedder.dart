@@ -125,14 +125,23 @@ class VibeImageEmbedder {
     if (payloadJson != null && payloadJson.trim().isNotEmpty) {
       final payload = _decodeMetadataPayload(payloadJson);
       final vibe = _payloadToVibeReference(payload);
-      return (vibes: [vibe], isBundle: false);
+      // 如果没有缩略图，使用原始图片
+      final vibeWithThumbnail = vibe.thumbnail == null
+          ? vibe.copyWith(thumbnail: imageBytes)
+          : vibe;
+      return (vibes: [vibeWithThumbnail], isBundle: false);
     }
 
     // Try iTXt chunk (NAI official format)
     final naiData = _extractNaiDataFromITxt(imageBytes);
     if (naiData != null) {
       AppLogger.d('Found NAI naidata format', 'VibeImageEmbedder');
-      return _parseNaiVibeData(naiData);
+      final result = _parseNaiVibeData(naiData);
+      // 为每个没有缩略图的 vibe 添加原始图片作为缩略图
+      final vibesWithThumbnails = result.vibes.map((vibe) {
+        return vibe.thumbnail == null ? vibe.copyWith(thumbnail: imageBytes) : vibe;
+      }).toList();
+      return (vibes: vibesWithThumbnails, isBundle: result.isBundle);
     }
 
     throw NoVibeDataException(
@@ -243,14 +252,61 @@ class VibeImageEmbedder {
   static VibeReference _parseNaiSingleVibe(Map<String, dynamic> vibe) {
     final name = vibe['name'] as String? ?? 'vibe';
     final encoding = _extractEncodingFromVibe(vibe);
+    final thumbnail = _extractThumbnailFromVibe(vibe);
 
     return VibeReference(
       displayName: name,
       vibeEncoding: encoding,
+      thumbnail: thumbnail,
       strength: 0.6,
       infoExtracted: 1.0,
       sourceType: VibeSourceType.png,
     );
+  }
+
+  /// 从 vibe 数据中提取缩略图
+  static Uint8List? _extractThumbnailFromVibe(Map<String, dynamic> vibe) {
+    try {
+      // 记录 vibe 中的可用字段，用于调试
+      AppLogger.d('Vibe fields: ${vibe.keys.toList()}', 'VibeImageEmbedder');
+
+      final thumbnailBase64 = vibe['thumbnail'] as String?;
+      if (thumbnailBase64 != null && thumbnailBase64.isNotEmpty) {
+        AppLogger.d('Found thumbnail field, length: ${thumbnailBase64.length}', 'VibeImageEmbedder');
+        final base64Data = _extractBase64FromDataUri(thumbnailBase64);
+        if (base64Data != null) {
+          return base64.decode(base64Data);
+        }
+      }
+
+      // 如果没有 thumbnail 字段，尝试从 image 字段提取
+      final imageBase64 = vibe['image'] as String?;
+      if (imageBase64 != null && imageBase64.isNotEmpty) {
+        AppLogger.d('Found image field, length: ${imageBase64.length}', 'VibeImageEmbedder');
+        final base64Data = _extractBase64FromDataUri(imageBase64);
+        if (base64Data != null) {
+          return base64.decode(base64Data);
+        }
+      }
+
+      AppLogger.w('No thumbnail or image field found in vibe data', 'VibeImageEmbedder');
+    } catch (e) {
+      AppLogger.w('Failed to extract thumbnail from vibe: $e', 'VibeImageEmbedder');
+    }
+    return null;
+  }
+
+  /// 从 Data URI 中提取 base64 数据
+  /// 格式: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...
+  static String? _extractBase64FromDataUri(String dataUri) {
+    if (dataUri.startsWith('data:')) {
+      final commaIndex = dataUri.indexOf(',');
+      if (commaIndex != -1 && commaIndex < dataUri.length - 1) {
+        return dataUri.substring(commaIndex + 1);
+      }
+    }
+    // 如果不是 Data URI 格式，假设是纯 base64
+    return dataUri;
   }
 
   /// Extract encoding from nested encodings structure
@@ -366,14 +422,29 @@ class VibeImageEmbedder {
     final infoExtracted =
         _parseDouble(dataRaw['infoExtracted'], 0.7).clamp(0.0, 1.0).toDouble();
     final sourceType = _parseSourceType(dataRaw['sourceType'], vibeEncoding);
+    final thumbnail = _extractThumbnailFromPayload(dataRaw);
 
     return VibeReference(
       displayName: displayName,
       vibeEncoding: vibeEncoding,
+      thumbnail: thumbnail,
       strength: strength,
       infoExtracted: infoExtracted,
       sourceType: sourceType,
     );
+  }
+
+  /// 从 legacy payload 数据中提取缩略图
+  static Uint8List? _extractThumbnailFromPayload(Map<String, dynamic> dataRaw) {
+    try {
+      final thumbnailBase64 = dataRaw['thumbnail'] as String?;
+      if (thumbnailBase64 != null && thumbnailBase64.isNotEmpty) {
+        return base64.decode(thumbnailBase64);
+      }
+    } catch (e) {
+      AppLogger.w('Failed to extract thumbnail from payload: $e', 'VibeImageEmbedder');
+    }
+    return null;
   }
 
   static double _parseDouble(Object? value, double defaultValue) {

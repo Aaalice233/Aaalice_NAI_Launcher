@@ -184,6 +184,10 @@ class VibeImportService {
         final result = await VibeImageEmbedder.extractVibeFromImage(image.bytes);
         // Add all vibes from the image (handles both single and bundle)
         for (final vibe in result.vibes) {
+          AppLogger.d(
+            'Extracted vibe: ${vibe.displayName}, thumbnail: ${vibe.thumbnail != null ? '${vibe.thumbnail!.length} bytes' : 'null'}',
+            'VibeImportService',
+          );
           sourceItems.add(_ParsedSource(source: image.source, reference: vibe));
         }
       } catch (e, stackTrace) {
@@ -331,6 +335,12 @@ class VibeImportService {
           strategy: conflictResolution,
           bundledReferences: source.bundledReferences,
           bundleFileName: source.bundleFileName,
+        );
+
+        AppLogger.d(
+          'Built entry: ${entry.name}, thumbnail: ${entry.thumbnail != null ? '${entry.thumbnail!.length} bytes' : 'null'}, '
+          'vibeThumbnail: ${entry.vibeThumbnail != null ? '${entry.vibeThumbnail!.length} bytes' : 'null'}',
+          'VibeImportService',
         );
 
         final saved = await _repository.saveEntry(entry);

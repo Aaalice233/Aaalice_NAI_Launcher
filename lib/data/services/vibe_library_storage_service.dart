@@ -220,7 +220,11 @@ class VibeLibraryStorageService {
         return null;
       }
 
-      var mergedEntry = entry.updateVibeData(vibeData).copyWith(filePath: filePath);
+      // 保留原始缩略图（如果从文件加载的没有缩略图）
+      final effectiveThumbnail = vibeData.thumbnail ?? entry.vibeThumbnail ?? entry.thumbnail;
+      var mergedEntry = entry
+          .updateVibeData(vibeData.copyWith(thumbnail: effectiveThumbnail))
+          .copyWith(filePath: filePath);
       if (entry.isBundle) {
         final previews = await _fileStorage.extractPreviewsFromBundle(filePath);
         if (previews.isNotEmpty) {
