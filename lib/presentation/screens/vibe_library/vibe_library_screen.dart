@@ -3144,10 +3144,14 @@ class _VibeLibraryContentViewState
           final vibes = await VibeFileParser.fromBundle(fileName, bytes);
 
           // 应用条目的 strength 和 infoExtracted 到所有 vibes
-          final adjustedVibes = vibes.map((vibe) => vibe.copyWith(
-            strength: entry.strength,
-            infoExtracted: entry.infoExtracted,
-          )).toList();
+          final adjustedVibes = vibes
+              .map(
+                (vibe) => vibe.copyWith(
+                  strength: entry.strength,
+                  infoExtracted: entry.infoExtracted,
+                ),
+              )
+              .toList();
 
           paramsNotifier.addVibeReferences(adjustedVibes);
           ref.read(vibeLibraryNotifierProvider.notifier).recordUsage(entry.id);
