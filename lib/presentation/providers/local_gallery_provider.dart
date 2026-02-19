@@ -7,6 +7,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/database/database_providers.dart';
 import '../../core/database/datasources/gallery_data_source.dart';
+import '../../core/database/providers/database_state_providers.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/local_image_record.dart';
 import '../../data/repositories/gallery_folder_repository.dart';
@@ -785,6 +786,13 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   }
 
   Future<int> getTotalFavoriteCount() async {
+    // 检查数据库是否正在恢复
+    final stateMachine = ref.read(databaseStateMachineProvider);
+    if (stateMachine.isTransitioning) {
+      AppLogger.d('Database is transitioning, returning cached favorite count (0)', 'LocalGalleryNotifier');
+      return 0;
+    }
+
     try {
       final dataSource = await _getDataSource();
       return await dataSource.getFavoriteCount();
