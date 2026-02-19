@@ -254,6 +254,20 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
       ),
     );
 
+    // 固定词选项
+    options.add(const SizedBox(height: 8));
+    options.add(
+      _TargetOptionTile(
+        icon: Icons.push_pin,
+        iconColor: Colors.orange,
+        title: '发送到固定词',
+        subtitle: '追加到固定词列表',
+        isSelected: _selectedTarget == SendTargetType.fixedTag,
+        onTap: () =>
+            setState(() => _selectedTarget = SendTargetType.fixedTag),
+      ),
+    );
+
     return Column(children: options);
   }
 
@@ -356,13 +370,16 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
         SendTargetType.replaceCharacter ||
         SendTargetType.appendCharacter =>
           '角色提示词',
+        SendTargetType.fixedTag => '固定词',
       };
       return _PreviewItem(
         label: label,
         content: _processedContent,
-        color: _selectedTarget == SendTargetType.mainPrompt
-            ? theme.colorScheme.primary
-            : theme.colorScheme.tertiary,
+        color: switch (_selectedTarget) {
+          SendTargetType.mainPrompt => theme.colorScheme.primary,
+          SendTargetType.fixedTag => Colors.orange,
+          _ => theme.colorScheme.tertiary,
+        },
       );
     }
 
@@ -405,6 +422,13 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
               : '角色提示词',
           content: characterContent,
           color: theme.colorScheme.tertiary,
+        );
+
+      case SendTargetType.fixedTag:
+        return _PreviewItem(
+          label: '固定词',
+          content: _processedContent,
+          color: Colors.orange,
         );
     }
   }

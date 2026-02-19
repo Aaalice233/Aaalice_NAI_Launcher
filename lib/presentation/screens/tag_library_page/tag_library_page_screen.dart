@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
+import '../../../core/utils/sd_to_nai_converter.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
+import '../../providers/fixed_tags_provider.dart';
 import '../../providers/pending_prompt_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../../providers/tag_library_selection_provider.dart';
@@ -773,6 +775,26 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     // 用户取消
     if (sendOptions == null || !mounted) return;
 
+    // 处理发送到固定词的情况
+    if (sendOptions.targetType == SendTargetType.fixedTag) {
+      // 获取内容
+      final content = sendOptions.sendAsAlias
+          ? '<${entry.name}>'
+          : SdToNaiConverter.convert(entry.content);
+
+      // 添加到固定词列表
+      await ref.read(fixedTagsNotifierProvider.notifier).addEntry(
+            name: entry.name,
+            content: content,
+          );
+
+      if (!mounted) return;
+
+      // 显示成功提示
+      AppToast.success(context, '已添加到固定词');
+      return;
+    }
+
     // 处理发送内容
     var content = entry.content;
 
@@ -821,6 +843,9 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
         break;
       case SendTargetType.appendCharacter:
         message = context.l10n.sendToHome_successAppendCharacter;
+        break;
+      case SendTargetType.fixedTag:
+        message = '已添加到固定词';
         break;
     }
     AppToast.success(context, message);
