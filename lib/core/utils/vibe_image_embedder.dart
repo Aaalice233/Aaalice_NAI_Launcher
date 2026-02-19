@@ -107,7 +107,10 @@ class VibeImageEmbedder {
     return utf8.decode(data.sublist(0, nullPos));
   }
 
-  static Future<VibeReference> extractVibeFromImage(Uint8List imageBytes) async {
+  /// Result of extracting vibes from image
+  static Future<({List<VibeReference> vibes, bool isBundle})> extractVibeFromImage(
+    Uint8List imageBytes,
+  ) async {
     final decoder = img.PngDecoder();
     if (!decoder.isValidFile(imageBytes) ||
         decoder.startDecode(imageBytes) == null) {
@@ -121,7 +124,8 @@ class VibeImageEmbedder {
     final payloadJson = textData[_vibeKeyword];
     if (payloadJson != null && payloadJson.trim().isNotEmpty) {
       final payload = _decodeMetadataPayload(payloadJson);
-      return _payloadToVibeReference(payload);
+      final vibe = _payloadToVibeReference(payload);
+      return (vibes: [vibe], isBundle: false);
     }
 
     // Try iTXt chunk (NAI official format)
@@ -212,7 +216,9 @@ class VibeImageEmbedder {
     }
   }
 
-  static VibeReference _parseNaiVibeData(Map<String, dynamic> naiData) {
+  static ({List<VibeReference> vibes, bool isBundle}) _parseNaiVibeData(
+    Map<String, dynamic> naiData,
+  ) {
     final identifier = naiData['identifier'] as String?;
 
     if (identifier == 'novelai-vibe-transfer-bundle') {
@@ -220,11 +226,15 @@ class VibeImageEmbedder {
       if (vibes == null || vibes.isEmpty) {
         throw VibeExtractException('NAI vibe bundle contains no vibes');
       }
-      return _parseNaiSingleVibe(vibes.first as Map<String, dynamic>);
+      final parsedVibes = vibes
+          .map((v) => _parseNaiSingleVibe(v as Map<String, dynamic>))
+          .toList();
+      return (vibes: parsedVibes, isBundle: true);
     }
 
     if (identifier == 'novelai-vibe-transfer') {
-      return _parseNaiSingleVibe(naiData);
+      final vibe = _parseNaiSingleVibe(naiData);
+      return (vibes: [vibe], isBundle: false);
     }
 
     throw VibeExtractException('Unknown NAI data identifier: $identifier');
@@ -232,20 +242,7 @@ class VibeImageEmbedder {
 
   static VibeReference _parseNaiSingleVibe(Map<String, dynamic> vibe) {
     final name = vibe['name'] as String? ?? 'vibe';
-
-    // Extract encoding from nested encodings structure
-    // Format: {model: {hash: {encoding: "..."}}}
-    String encoding = '';
-    final encodings = vibe['encodings'];
-    if (encodings is Map<String, dynamic>) {
-      final firstModel = encodings.values.firstOrNull;
-      if (firstModel is Map<String, dynamic>) {
-        final firstHash = firstModel.values.firstOrNull;
-        if (firstHash is Map<String, dynamic>) {
-          encoding = firstHash['encoding'] as String? ?? '';
-        }
-      }
-    }
+    final encoding = _extractEncodingFromVibe(vibe);
 
     return VibeReference(
       displayName: name,
@@ -254,6 +251,21 @@ class VibeImageEmbedder {
       infoExtracted: 1.0,
       sourceType: VibeSourceType.png,
     );
+  }
+
+  /// Extract encoding from nested encodings structure
+  /// Format: {model: {hash: {encoding: "..."}}}
+  static String _extractEncodingFromVibe(Map<String, dynamic> vibe) {
+    final encodings = vibe['encodings'];
+    if (encodings is! Map<String, dynamic>) return '';
+
+    final firstModel = encodings.values.firstOrNull;
+    if (firstModel is! Map<String, dynamic>) return '';
+
+    final firstHash = firstModel.values.firstOrNull;
+    if (firstHash is! Map<String, dynamic>) return '';
+
+    return firstHash['encoding'] as String? ?? '';
   }
 
   static void _ensureValidPng(Uint8List imageBytes) {

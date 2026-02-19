@@ -1902,28 +1902,34 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
   }) async {
     // 首先尝试提取 Vibe 数据
     try {
-      final reference = await VibeImageEmbedder.extractVibeFromImage(imageFile.bytes);
-      // 提取成功，直接保存到 Vibe 库（不经过 importService.importFromImage 避免重复提取）
+      final result = await VibeImageEmbedder.extractVibeFromImage(imageFile.bytes);
+
+      // 如果是 bundle（多个 vibes），让用户选择处理方式
+      if (result.isBundle && result.vibes.length > 1) {
+        return await _handleBundleImport(
+          imageFile: imageFile,
+          vibes: result.vibes,
+          targetCategoryId: targetCategoryId,
+        );
+      }
+
+      // 单个 vibe，直接保存
       return await _saveVibeReference(
-        reference: reference,
+        reference: result.vibes.first,
         categoryId: targetCategoryId,
       );
     } on NoVibeDataException {
-      // 无 Vibe 数据，询问用户是否编码
       return await _handleImageEncoding(
         imageFile: imageFile,
         targetCategoryId: targetCategoryId,
       );
     } catch (e) {
-      // 检查是否为 NoVibeDataException（类型可能不匹配时使用）
-      if (e is NoVibeDataException ||
-          e.toString().contains('No naiv4vibe metadata')) {
+      if (_isNoVibeDataError(e)) {
         return await _handleImageEncoding(
           imageFile: imageFile,
           targetCategoryId: targetCategoryId,
         );
       }
-      // 其他错误，记录为失败
       AppLogger.e('处理图片失败: ${imageFile.source}', e, null, 'VibeLibrary');
       return false;
     }
@@ -1978,7 +1984,79 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     return candidateName;
   }
 
+  /// 处理 Bundle 导入
+  Future<bool?> _handleBundleImport({
+    required VibeImageImportItem imageFile,
+    required List<VibeReference> vibes,
+    String? targetCategoryId,
+  }) async {
+    if (!mounted) return null;
+
+    // 显示 Bundle 导入选项对话框
+    final result = await showDialog<bundle_import_dialog.BundleImportResult>(
+      context: context,
+      builder: (context) => bundle_import_dialog.VibeBundleImportDialog(
+        bundleName: imageFile.source,
+        vibeNames: vibes.map((v) => v.displayName).toList(),
+      ),
+    );
+
+    if (result == null) return null; // 用户取消
+
+    final selectedVibes = _getSelectedVibesForBundle(result, vibes);
+    if (selectedVibes == null) return null;
+
+    // 保持为 Bundle - 只保存第一个 vibe 作为主条目
+    if (result.option == bundle_import_dialog.BundleImportOption.keepAsBundle) {
+      return await _saveVibeReference(
+        reference: selectedVibes.first,
+        categoryId: targetCategoryId,
+      );
+    }
+
+    // 拆分导入或选择性导入 - 保存所有选中的 vibes
+    return await _saveMultipleVibes(selectedVibes, targetCategoryId);
+  }
+
+  List<VibeReference>? _getSelectedVibesForBundle(
+    bundle_import_dialog.BundleImportResult result,
+    List<VibeReference> vibes,
+  ) {
+    switch (result.option) {
+      case bundle_import_dialog.BundleImportOption.keepAsBundle:
+      case bundle_import_dialog.BundleImportOption.split:
+        return vibes;
+      case bundle_import_dialog.BundleImportOption.importSelected:
+        final indices = result.selectedIndices;
+        if (indices == null || indices.isEmpty) return null;
+        return indices
+            .where((index) => index >= 0 && index < vibes.length)
+            .map((index) => vibes[index])
+            .toList();
+    }
+  }
+
+  Future<bool> _saveMultipleVibes(
+    List<VibeReference> vibes,
+    String? categoryId,
+  ) async {
+    var successCount = 0;
+    for (final vibe in vibes) {
+      final saved = await _saveVibeReference(
+        reference: vibe,
+        categoryId: categoryId,
+      );
+      if (saved) successCount++;
+    }
+    return successCount > 0;
+  }
+
   /// 处理图片编码流程
+  bool _isNoVibeDataError(Object e) {
+    return e is NoVibeDataException ||
+        e.toString().contains('No naiv4vibe metadata');
+  }
+
   Future<bool?> _handleImageEncoding({
     required VibeImageImportItem imageFile,
     String? targetCategoryId,
