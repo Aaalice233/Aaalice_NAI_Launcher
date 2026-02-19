@@ -87,16 +87,47 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
           ),
         ),
       ),
-      // 当有参考图时显示点数消耗提示
+      // 当有参考图时显示点数消耗提示（显眼样式）
       trailing: hasReferences
           ? Tooltip(
               message: context.l10n.preciseRef_costHint,
-              child: Icon(
-                Icons.info_outline,
-                size: 16,
-                color: showBackground
-                    ? Colors.white.withOpacity(0.8)
-                    : theme.colorScheme.primary.withOpacity(0.8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: showBackground
+                      ? Colors.orange.withOpacity(0.9)
+                      : Colors.orange.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: showBackground
+                        ? Colors.orange.shade300
+                        : Colors.orange.shade400,
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      size: 12,
+                      color: showBackground
+                          ? Colors.white
+                          : Colors.orange.shade700,
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      '消耗点数',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: showBackground
+                            ? Colors.white
+                            : Colors.orange.shade700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             )
           : null,
