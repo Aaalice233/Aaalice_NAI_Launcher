@@ -256,11 +256,15 @@ class VibeFileParser {
                       strength = (importInfo['strength'] as num).toDouble();
                     }
 
+                    // 提取 vibe 自己的缩略图，如果没有则使用原图
+                    final thumbnail = _extractThumbnailFromJson(vibeJson) ??
+                        params.bytes;
+
                     results.add(
                       VibeReference(
                         displayName: name,
                         vibeEncoding: extractedEncoding,
-                        thumbnail: params.bytes,
+                        thumbnail: thumbnail,
                         strength: strength.clamp(0.0, 1.0),
                         sourceType: VibeSourceType.png,
                       ),
