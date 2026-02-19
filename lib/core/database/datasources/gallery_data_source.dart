@@ -429,10 +429,7 @@ class GalleryDataSource extends BaseDataSource {
           await db.rawQuery('SELECT 1');
           return db;
         } catch (e) {
-          AppLogger.w(
-            'Acquired connection is invalid, releasing and retrying...',
-            'GalleryDS',
-          );
+          // 释放无效连接，不记录日志（这是正常恢复流程的一部分）
           try {
             await ConnectionPoolHolder.instance.release(db);
           } catch (_) {
@@ -447,10 +444,13 @@ class GalleryDataSource extends BaseDataSource {
             errorStr.contains('connection invalid');
         if (isDbClosed && retryCount < maxRetries - 1) {
           retryCount++;
-          AppLogger.w(
-            'Database connection not ready, retrying ($retryCount/$maxRetries)...',
-            'GalleryDS',
-          );
+          // 只在首次重试时记录日志，避免恢复期间产生过多警告
+          if (retryCount == 1) {
+            AppLogger.d(
+              'Database connection not ready, retrying...',
+              'GalleryDS',
+            );
+          }
           await Future.delayed(
             Duration(milliseconds: 100 * (1 << (retryCount - 1))),
           );
