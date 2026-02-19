@@ -92,13 +92,12 @@ class _VibeCardState extends State<VibeCard>
   }
 
   Uint8List? get _thumbnailData {
-    if (widget.entry.thumbnail != null && widget.entry.thumbnail!.isNotEmpty) {
-      return widget.entry.thumbnail;
-    }
-    if (widget.entry.vibeThumbnail != null &&
-        widget.entry.vibeThumbnail!.isNotEmpty) {
-      return widget.entry.vibeThumbnail;
-    }
+    final thumbnail = widget.entry.thumbnail;
+    if (thumbnail != null && thumbnail.isNotEmpty) return thumbnail;
+
+    final vibeThumbnail = widget.entry.vibeThumbnail;
+    if (vibeThumbnail != null && vibeThumbnail.isNotEmpty) return vibeThumbnail;
+
     return null;
   }
 
@@ -127,14 +126,7 @@ class _VibeCardState extends State<VibeCard>
             height: cardHeight,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              border: widget.isSelected
-                  ? Border.all(color: colorScheme.primary, width: 3)
-                  : _isHovered
-                      ? Border.all(
-                          color: colorScheme.primary.withOpacity(0.3),
-                          width: 2,
-                        )
-                      : null,
+              border: _buildBorder(colorScheme),
               boxShadow: _buildShadows(),
             ),
             child: ClipRRect(
@@ -174,6 +166,19 @@ class _VibeCardState extends State<VibeCard>
         ),
       ),
     );
+  }
+
+  Border? _buildBorder(ColorScheme colorScheme) {
+    if (widget.isSelected) {
+      return Border.all(color: colorScheme.primary, width: 3);
+    }
+    if (_isHovered) {
+      return Border.all(
+        color: colorScheme.primary.withOpacity(0.3),
+        width: 2,
+      );
+    }
+    return null;
   }
 
   List<BoxShadow> _buildShadows() {
@@ -615,12 +620,23 @@ class _ActionButtonState extends State<_ActionButton> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final backgroundColor = widget.isDanger
-        ? (_isHovered ? colorScheme.error : colorScheme.error.withOpacity(0.9))
-        : (_isHovered ? Colors.white : Colors.white.withOpacity(0.9));
-    final iconColor = widget.isDanger
-        ? colorScheme.onError
-        : (_isHovered ? Colors.black : Colors.black.withOpacity(0.65));
+
+    final Color backgroundColor;
+    final Color iconColor;
+
+    if (widget.isDanger) {
+      backgroundColor = _isHovered
+          ? colorScheme.error
+          : colorScheme.error.withOpacity(0.9);
+      iconColor = colorScheme.onError;
+    } else {
+      backgroundColor = _isHovered
+          ? Colors.white
+          : Colors.white.withOpacity(0.9);
+      iconColor = _isHovered
+          ? Colors.black
+          : Colors.black.withOpacity(0.65);
+    }
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
