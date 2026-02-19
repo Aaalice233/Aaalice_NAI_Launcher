@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/tag_library/tag_library_category.dart';
 import '../../providers/tag_library_page_provider.dart';
+import '../common/app_toast.dart';
 import '../common/image_picker_card/image_picker_card.dart';
 import '../common/themed_input.dart';
 
@@ -85,9 +86,7 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('保存失败: $e')),
-        );
+        AppToast.error(context, '保存失败: $e');
       }
     }
   }

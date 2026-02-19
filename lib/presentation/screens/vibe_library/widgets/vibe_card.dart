@@ -340,9 +340,9 @@ class _VibeCardState extends State<VibeCard>
     final cardHeight = (widget.height ?? widget.width) * 0.7;
 
     // 计算扇形角度
-    final maxAngle = 0.5; // 最大展开角度（弧度）
+    const maxAngle = 0.5; // 最大展开角度（弧度）
     final angleStep = total > 1 ? maxAngle / (total - 1) : 0.0;
-    final startAngle = -maxAngle / 2;
+    const startAngle = -maxAngle / 2;
     final targetAngle = startAngle + (index * angleStep);
 
     // 计算扇形半径（从中心点展开）

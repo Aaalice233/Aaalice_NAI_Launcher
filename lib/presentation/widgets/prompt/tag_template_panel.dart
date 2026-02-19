@@ -7,9 +7,8 @@ import '../../../core/utils/nai_prompt_parser.dart';
 import '../../../data/models/prompt/prompt_tag.dart';
 import '../../../data/models/prompt/tag_template.dart';
 import '../../providers/tag_template_provider.dart';
-import '../common/themed_container.dart';
-
 import '../common/app_toast.dart';
+import '../common/themed_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 /// 标签模板面板
@@ -98,7 +97,6 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
       builder: (dialogContext) => _CreateTemplateDialog(
         initialTags: tagsToSave,
         onConfirm: (name, description) async {
-          final messenger = ScaffoldMessenger.of(dialogContext);
           final l10n = dialogContext.l10n;
 
           final result =
@@ -111,24 +109,12 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
           if (result == null) {
             // 保存失败（名称冲突）
             if (mounted) {
-              messenger.showSnackBar(
-                SnackBar(
-                  content: Text(l10n.tag_templateNameExists),
-                  duration: const Duration(seconds: 2),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
+              AppToast.warning(dialogContext, l10n.tag_templateNameExists);
             }
           } else {
             // 保存成功
             if (mounted) {
-              messenger.showSnackBar(
-                SnackBar(
-                  content: Text(l10n.tag_templateSaved),
-                  duration: const Duration(seconds: 2),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
+              AppToast.success(dialogContext, l10n.tag_templateSaved);
             }
           }
         },

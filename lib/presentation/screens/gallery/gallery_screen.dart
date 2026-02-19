@@ -12,10 +12,9 @@ import '../../../data/models/vibe/vibe_reference.dart';
 import '../../providers/gallery_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../widgets/autocomplete/autocomplete.dart';
+import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/themed_input.dart';
 import '../../widgets/gallery/gallery_statistics_dialog.dart';
-
-import '../../widgets/common/app_toast.dart';
 
 /// 画廊页面
 class GalleryScreen extends ConsumerStatefulWidget {
@@ -532,7 +531,6 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   Future<void> _exportSelected(BuildContext context, GalleryState state) async {
     // 在任何异步操作前保存引用，避免跨异步间隙使用 context
     final l10n = context.l10n;
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     // 选择导出目录
     final result = await FilePicker.platform.getDirectoryPath();
@@ -547,12 +545,9 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     }
 
     if (mounted) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            l10n.gallery_exportSuccess(successCount.toString(), result),
-          ),
-        ),
+      AppToast.success(
+        context,
+        l10n.gallery_exportSuccess(successCount.toString(), result),
       );
       notifier.exitSelectionMode();
     }

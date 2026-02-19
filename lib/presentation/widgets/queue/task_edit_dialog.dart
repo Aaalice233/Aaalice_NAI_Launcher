@@ -7,6 +7,7 @@ import '../../../data/models/queue/replication_task.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../autocomplete/autocomplete_controller.dart';
+import '../common/app_toast.dart';
 import '../autocomplete/autocomplete_wrapper.dart';
 import '../autocomplete/autocomplete_strategy.dart';
 import '../autocomplete/strategies/local_tag_strategy.dart';
@@ -351,13 +352,9 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
 
     if (mounted) {
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.queue_taskDuplicated)),
-        );
+        AppToast.success(context, l10n.queue_taskDuplicated);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.queue_queueFull)),
-        );
+        AppToast.warning(context, l10n.queue_queueFull);
       }
     }
   }
