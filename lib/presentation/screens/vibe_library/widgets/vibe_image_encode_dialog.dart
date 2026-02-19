@@ -555,3 +555,70 @@ class VibeImageEncodingDialog extends StatelessWidget {
     );
   }
 }
+
+/// 编码错误处理结果
+enum VibeEncodeErrorAction {
+  skip,
+  retry,
+}
+
+/// Vibe 图片编码错误对话框
+class VibeImageEncodeErrorDialog extends StatelessWidget {
+  final String fileName;
+  final String errorMessage;
+
+  const VibeImageEncodeErrorDialog({
+    super.key,
+    required this.fileName,
+    required this.errorMessage,
+  });
+
+  static Future<VibeEncodeErrorAction?> show({
+    required BuildContext context,
+    required String fileName,
+    required String errorMessage,
+  }) {
+    return showDialog<VibeEncodeErrorAction>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => VibeImageEncodeErrorDialog(
+        fileName: fileName,
+        errorMessage: errorMessage,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return AlertDialog(
+      icon: Icon(Icons.error_outline, color: theme.colorScheme.error, size: 32),
+      title: const Text('编码失败'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('图片: $fileName'),
+          const SizedBox(height: 8),
+          Text(
+            '错误: $errorMessage',
+            style: TextStyle(color: theme.colorScheme.error),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton.icon(
+          onPressed: () => Navigator.of(context).pop(VibeEncodeErrorAction.skip),
+          icon: const Icon(Icons.skip_next),
+          label: const Text('跳过此图'),
+        ),
+        FilledButton.icon(
+          onPressed: () => Navigator.of(context).pop(VibeEncodeErrorAction.retry),
+          icon: const Icon(Icons.refresh),
+          label: const Text('重试'),
+        ),
+      ],
+    );
+  }
+}
