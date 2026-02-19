@@ -47,7 +47,7 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
     return AlertDialog(
       title: Text(l10n.metadataImport_title),
       content: SizedBox(
-        width: 400,
+        width: 500,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
