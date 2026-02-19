@@ -249,8 +249,6 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   /// 后台初始化（扫描索引）
   Future<void> _initializeInBackground() async {
     try {
-      // 获取数据源进行后台索引
-      final dataSource = await _getDataSource();
       final allFiles = state.allFiles;
 
       if (allFiles.isEmpty) {
@@ -272,6 +270,9 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         final end = (i + batchSize < total) ? i + batchSize : total;
         final batch = allFiles.sublist(i, end);
 
+        // 每批处理前重新获取数据源，确保连接有效
+        final batchDataSource = await _getDataSource();
+
         // 处理每个文件
         for (final file in batch) {
           try {
@@ -279,7 +280,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
             final fileName = file.path.split(Platform.pathSeparator).last;
 
             // 插入或更新图片记录
-            await dataSource.upsertImage(
+            await batchDataSource.upsertImage(
               filePath: file.path,
               fileName: fileName,
               fileSize: stat.size,
