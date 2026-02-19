@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -72,7 +70,6 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
   List<VibeLibraryEntry> _recentEntries = [];
   List<VibeLibraryEntry> _filteredEntries = [];
   Set<String> _selectedIds = {};
-  final Set<String> _expandedBundleIds = {};
 
   bool _isLoading = true;
   bool _isReplaceMode = false;
@@ -222,14 +219,6 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
     });
   }
 
-  void _toggleBundleExpanded(String bundleId) {
-    setState(() {
-      _expandedBundleIds.contains(bundleId)
-          ? _expandedBundleIds.remove(bundleId)
-          : _expandedBundleIds.add(bundleId);
-    });
-  }
-
   void _toggleBundleSelection(VibeLibraryEntry bundleEntry) {
     setState(() {
       _selectedIds.contains(bundleEntry.id)
@@ -238,18 +227,6 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
     });
   }
 
-  void _toggleBundledVibeSelection(String bundleId, int index) {
-    final bundledVibeId = '$bundleId#vibe#$index';
-    setState(() {
-      _selectedIds.contains(bundledVibeId)
-          ? _selectedIds.remove(bundledVibeId)
-          : _selectedIds.add(bundledVibeId);
-    });
-  }
-
-  bool _isBundledVibeSelected(String bundleId, int index) {
-    return _selectedIds.contains('$bundleId#vibe#$index');
-  }
 
   void _selectAll() {
     setState(() {
@@ -697,13 +674,6 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
     // 所有条目（包括 Bundle）放在同一个网格中
     slivers.add(_buildSliverGrid(entries, columnCount));
 
-    // Bundle 展开内容单独添加
-    for (final entry in entries) {
-      if (entry.isBundle && _expandedBundleIds.contains(entry.id)) {
-        slivers.add(_buildBundleExpandedContentSliver(entry));
-      }
-    }
-
     return slivers;
   }
 
@@ -721,8 +691,7 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
         final isSelected = _selectedIds.contains(entry.id);
 
         if (entry.isBundle) {
-          final isExpanded = _expandedBundleIds.contains(entry.id);
-          return _buildBundleCardCompact(entry, isSelected, isExpanded);
+          return _buildBundleCardCompact(entry, isSelected);
         } else {
           return _buildCompactVibeCard(entry, isSelected);
         }
@@ -730,97 +699,6 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
     );
   }
 
-  // Bundle 展开内容作为 Sliver (Step 5)
-  Widget _buildBundleExpandedContentSliver(VibeLibraryEntry entry) {
-    final theme = Theme.of(context);
-    final previews = entry.bundledVibePreviews ?? [];
-    final count = entry.bundledVibeCount;
-
-    return SliverToBoxAdapter(
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: theme.colorScheme.outline.withOpacity(0.1),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.grid_view,
-                  size: 16,
-                  color: theme.colorScheme.outline,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  context.l10n.bundle_internalVibes,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.outline,
-                  ),
-                ),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      for (var i = 0; i < count; i++) {
-                        _selectedIds.add('${entry.id}#vibe#$i');
-                      }
-                      _selectedIds.remove(entry.id);
-                    });
-                  },
-                  icon: const Icon(Icons.select_all, size: 16),
-                  label: Text(context.l10n.selectAll),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                childAspectRatio: 0.75,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-              ),
-              itemCount: count,
-              itemBuilder: (context, index) {
-                final isSelected = _isBundledVibeSelected(entry.id, index);
-                final thumbnail =
-                    index < previews.length ? previews[index] : null;
-                final vibeNames = entry.bundledVibeNames ?? [];
-                final name = index < vibeNames.length
-                    ? vibeNames[index]
-                    : 'Vibe ${index + 1}';
-
-                return _buildBundledVibeCard(
-                  theme,
-                  entry.id,
-                  index,
-                  name,
-                  thumbnail,
-                  isSelected,
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildSectionTitle(ThemeData theme, String title) {
     return Row(
@@ -926,160 +804,21 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
     );
   }
 
-  // Bundle 紧凑卡片 - 复用 VibeCard 并添加展开按钮
+  // Bundle 紧凑卡片 - 复用 VibeCard
   Widget _buildBundleCardCompact(
     VibeLibraryEntry entry,
     bool isSelected,
-    bool isExpanded,
   ) {
-    return Stack(
-      children: [
-        VibeCard(
-          entry: entry,
-          width: 140,
-          height: 175,
-          isSelected: isSelected,
-          showFavoriteIndicator: false,
-          onTap: () => _toggleBundleSelection(entry),
-        ),
-        // 展开/收起按钮
-        Positioned(
-          bottom: 4,
-          right: 4,
-          child: Material(
-            type: MaterialType.transparency,
-            child: InkWell(
-              onTap: () => _toggleBundleExpanded(entry.id),
-              borderRadius: BorderRadius.circular(16),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: AnimatedRotation(
-                  turns: isExpanded ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 300),
-                  child: const Icon(
-                    Icons.expand_more,
-                    size: 18,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
+    return VibeCard(
+      entry: entry,
+      width: 140,
+      height: 175,
+      isSelected: isSelected,
+      showFavoriteIndicator: false,
+      onTap: () => _toggleBundleSelection(entry),
     );
   }
 
-// Bundle 内部的 vibe 卡片
-  Widget _buildBundledVibeCard(
-    ThemeData theme,
-    String bundleId,
-    int index,
-    String name,
-    Uint8List? thumbnail,
-    bool isSelected,
-  ) {
-    return Material(
-      color: isSelected ? theme.colorScheme.primaryContainer.withOpacity(0.3) : theme.colorScheme.surface,
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: () => _toggleBundledVibeSelection(bundleId, index),
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: isSelected ? theme.colorScheme.primary : theme.colorScheme.outlineVariant.withOpacity(0.5),
-              width: isSelected ? 2.5 : 1,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Container(
-                  margin: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(6),
-                    color: theme.colorScheme.surfaceContainerHigh,
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      if (thumbnail != null)
-                        Image.memory(thumbnail, fit: BoxFit.cover)
-                      else
-                        Center(
-                          child: Icon(Icons.image_outlined, size: 24, color: theme.colorScheme.outline),
-                        ),
-                      if (isSelected)
-                        Container(color: theme.colorScheme.primary.withOpacity(0.1)),
-                      if (isSelected)
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: _buildCheckIndicator(theme),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        name,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontSize: 11,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                          color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (isSelected)
-                      Icon(Icons.check_circle, size: 14, color: theme.colorScheme.primary),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCheckIndicator(ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primary,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.shadow.withOpacity(0.3),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Icon(Icons.check, size: 12, color: theme.colorScheme.onPrimary),
-    );
-  }
 
   Widget _buildEmptyState(ThemeData theme) {
     return Expanded(
