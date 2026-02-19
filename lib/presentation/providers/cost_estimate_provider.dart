@@ -54,7 +54,7 @@ int estimatedCost(Ref ref) {
 
   // 总消耗 = 单次请求消耗 × 批次数量
   // 每次独立请求都可享受 Opus 免费（如果符合条件）
-  int totalCost = singleRequestCost * batchCount;
+  final totalCost = singleRequestCost * batchCount;
 
   return totalCost;
 }

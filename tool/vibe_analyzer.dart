@@ -133,7 +133,8 @@ Future<void> analyzePngFile(Uint8List bytes) async {
         } else {
           final dataStr = result['data'].toString();
           print(
-              '  Data: ${dataStr.substring(0, dataStr.length > 100 ? 100 : dataStr.length)}...');
+            '  Data: ${dataStr.substring(0, dataStr.length > 100 ? 100 : dataStr.length)}...',
+          );
         }
       }
     }

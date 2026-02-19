@@ -575,8 +575,7 @@ DanbooruApiService danbooruApiService(Ref ref) {
   final service = DanbooruApiService(dio);
 
   // 监听认证状态变化并更新 auth header
-  // ignore: unused_local_variable
-  final authState = ref.watch(danbooruAuthProvider);
+  ref.watch(danbooruAuthProvider);
   service.setAuthHeader(ref.read(danbooruAuthProvider.notifier).getAuthHeader());
 
   return service;

@@ -5,13 +5,11 @@ import 'package:flutter/painting.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/cache/danbooru_image_cache_manager.dart';
 import '../../core/network/proxy_service.dart';
 import '../../core/enums/warmup_phase.dart';
 import '../../core/services/app_warmup_service.dart';
 import '../../core/database/database.dart';
 import '../../core/database/datasources/gallery_data_source.dart';
-// import '../../core/services/artist_tags_isolate_service.dart'; // 暂时未使用，改用 fetchArtistTags
 import '../../core/services/danbooru_tags_lazy_service.dart';
 import '../../core/services/data_migration_service.dart';
 import '../../core/services/translation/translation_providers.dart';
@@ -133,8 +131,6 @@ class WarmupNotifier extends _$WarmupNotifier {
   Future<void> _configureImageCache() async {
     PaintingBinding.instance.imageCache.maximumSize = 500;
     PaintingBinding.instance.imageCache.maximumSizeBytes = 100 * 1024 * 1024;
-    // ignore: unused_local_variable
-    final cacheManager = DanbooruImageCacheManager.instance;
     AppLogger.i('Image cache configured: max=500, maxBytes=100MB', 'Warmup');
   }
 

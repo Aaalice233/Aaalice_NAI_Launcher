@@ -544,13 +544,12 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
       if (path != null) successCount++;
     }
 
-    if (mounted) {
-      AppToast.success(
-        context,
-        l10n.gallery_exportSuccess(successCount.toString(), result),
-      );
-      notifier.exitSelectionMode();
-    }
+    if (!context.mounted) return;
+    AppToast.success(
+      context,
+      l10n.gallery_exportSuccess(successCount.toString(), result),
+    );
+    notifier.exitSelectionMode();
   }
 
   void _showFullscreen(BuildContext context, GenerationRecord record) {

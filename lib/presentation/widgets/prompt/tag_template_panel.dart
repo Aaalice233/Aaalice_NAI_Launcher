@@ -108,14 +108,12 @@ class _TagTemplatePanelState extends ConsumerState<TagTemplatePanel> {
 
           if (result == null) {
             // 保存失败（名称冲突）
-            if (mounted) {
-              AppToast.warning(dialogContext, l10n.tag_templateNameExists);
-            }
+            if (!dialogContext.mounted) return;
+            AppToast.warning(dialogContext, l10n.tag_templateNameExists);
           } else {
             // 保存成功
-            if (mounted) {
-              AppToast.success(dialogContext, l10n.tag_templateSaved);
-            }
+            if (!dialogContext.mounted) return;
+            AppToast.success(dialogContext, l10n.tag_templateSaved);
           }
         },
       ),
