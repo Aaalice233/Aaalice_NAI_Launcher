@@ -190,7 +190,9 @@ class ConnectionPoolHolder {
             // 验证失败，关闭这个连接
             try {
               await pool.release(conn);
-            } catch (_) {}
+            } catch (e) {
+              AppLogger.d('Failed to release connection during warmup', 'ConnectionPool');
+            }
           }
         } on TimeoutException {
           lastError = 'Connection acquisition timeout';

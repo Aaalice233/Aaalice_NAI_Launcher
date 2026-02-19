@@ -122,8 +122,11 @@ class RecoveryManager {
       // 重新初始化 FFI
       await SqfliteBootstrapService.instance.ensureInitialized();
 
-      // 创建新数据库
-      final db = await databaseFactoryFfi.openDatabase(_dbPath!);
+      // 创建新数据库（使用 singleInstance: false 避免影响连接池）
+      final db = await databaseFactoryFfi.openDatabase(
+        _dbPath!,
+        options: OpenDatabaseOptions(singleInstance: false),
+      );
       await db.close();
 
       // 重置连接池（使用新实例）

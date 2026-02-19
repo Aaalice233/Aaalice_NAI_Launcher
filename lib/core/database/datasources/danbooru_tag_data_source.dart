@@ -1,5 +1,4 @@
 import '../../utils/app_logger.dart';
-import '../connection_pool_holder.dart';
 import '../data_source.dart';
 import '../lease_extensions.dart';
 
@@ -120,71 +119,6 @@ class DanbooruTagDataSource extends BaseDataSource {
   /// 获取翻译数据源
   dynamic get translationDataSource => _translationDataSource;
 
-  /// 获取数据库连接（从 Holder 获取当前有效实例）
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 ConnectionLease 模式
-  @Deprecated('请使用新架构方法替代')
-  Future<dynamic> _acquireDb() async {
-    // 关键修复：如果连接池未初始化（可能正在重置），等待并重试
-    var retryCount = 0;
-    const maxRetries = 10;
-
-    while (retryCount < maxRetries) {
-      try {
-        if (!ConnectionPoolHolder.isInitialized) {
-          throw StateError('Connection pool not initialized');
-        }
-        final db = await ConnectionPoolHolder.instance.acquire();
-
-        // 关键修复：验证连接是否真正可用（可能被外部关闭）
-        try {
-          await db.rawQuery('SELECT 1');
-          return db;
-        } catch (e) {
-          // 连接无效，释放它并让循环重试
-          AppLogger.w(
-            'Acquired connection is invalid, releasing and retrying...',
-            'DanbooruTagDS',
-          );
-          try {
-            await ConnectionPoolHolder.instance.release(db);
-          } catch (_) {
-            // 忽略释放错误
-          }
-          throw StateError('Database connection invalid');
-        }
-      } catch (e) {
-        final errorStr = e.toString().toLowerCase();
-        final isDbClosed = errorStr.contains('database_closed') ||
-            errorStr.contains('not initialized') ||
-            errorStr.contains('connection invalid');
-        if (isDbClosed && retryCount < maxRetries - 1) {
-          retryCount++;
-          AppLogger.w(
-            'Database connection not ready, retrying ($retryCount/$maxRetries)...',
-            'DanbooruTagDS',
-          );
-          // 指数退避：100ms, 200ms, 400ms...
-          await Future.delayed(
-            Duration(milliseconds: 100 * (1 << (retryCount - 1))),
-          );
-        } else {
-          rethrow;
-        }
-      }
-    }
-
-    throw StateError('Failed to acquire database connection after $maxRetries retries');
-  }
-
-  /// 释放数据库连接
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 ConnectionLease 模式
-  @Deprecated('请使用新架构方法替代')
-  Future<void> _releaseDb(dynamic db) async {
-    await ConnectionPoolHolder.instance.release(db);
-  }
-
   /// 根据标签名获取记录
   ///
   /// 使用新架构：ConnectionLease 连接生命周期管理
@@ -211,41 +145,6 @@ class DanbooruTagDataSource extends BaseDataSource {
     );
   }
 
-  /// 根据标签名获取记录 - 旧实现
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 getByName 方法
-  @Deprecated('请使用新架构方法替代')
-  Future<DanbooruTagRecord?> getByNameLegacy(String tag) async {
-    if (tag.isEmpty) return null;
-
-    final normalizedTag = tag.toLowerCase().trim();
-    final db = await _acquireDb();
-
-    try {
-      final result = await db.query(
-        _tableName,
-        columns: ['tag', 'category', 'post_count', 'last_updated'],
-        where: 'tag = ?',
-        whereArgs: [normalizedTag],
-        limit: 1,
-      );
-
-      if (result.isEmpty) return null;
-
-      return DanbooruTagRecord.fromMap(result.first);
-    } catch (e, stack) {
-      AppLogger.e(
-        'Failed to get Danbooru tag "$normalizedTag"',
-        e,
-        stack,
-        'DanbooruTagDS',
-      );
-      return null;
-    } finally {
-      await _releaseDb(db);
-    }
-  }
-
   /// 批量获取标签记录
   ///
   /// 使用新架构：ConnectionLease 连接生命周期管理
@@ -267,33 +166,6 @@ class DanbooruTagDataSource extends BaseDataSource {
         return result.map<DanbooruTagRecord>((row) => DanbooruTagRecord.fromMap(row)).toList();
       },
     );
-  }
-
-  /// 批量获取标签记录 - 旧实现
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 getByNames 方法
-  @Deprecated('请使用新架构方法替代')
-  Future<List<DanbooruTagRecord>> getByNamesLegacy(List<String> tags) async {
-    if (tags.isEmpty) return [];
-
-    final normalizedTags = tags.map((t) => t.toLowerCase().trim()).toList();
-    final placeholders = normalizedTags.map((_) => '?').join(',');
-    final db = await _acquireDb();
-
-    try {
-      final result = await db.rawQuery(
-        'SELECT tag, category, post_count, last_updated '
-        'FROM $_tableName WHERE tag IN ($placeholders)',
-        normalizedTags,
-      );
-
-      return result.map<DanbooruTagRecord>((row) => DanbooruTagRecord.fromMap(row)).toList();
-    } catch (e, stack) {
-      AppLogger.e('Failed to get Danbooru tags batch', e, stack, 'DanbooruTagDS');
-      return [];
-    } finally {
-      await _releaseDb(db);
-    }
   }
 
   /// 搜索标签（前缀匹配）
@@ -339,58 +211,6 @@ class DanbooruTagDataSource extends BaseDataSource {
     );
   }
 
-  /// 搜索标签（前缀匹配）- 旧实现
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 search 方法
-  @Deprecated('请使用新架构方法替代')
-  Future<List<DanbooruTagRecord>> searchLegacy(
-    String query, {
-    int limit = 20,
-    int? category,
-    int minPostCount = 0,
-  }) async {
-    if (query.isEmpty) return [];
-
-    final normalizedQuery = query.toLowerCase().trim();
-    final db = await _acquireDb();
-
-    try {
-      String whereClause = 'tag LIKE ?';
-      final List<dynamic> whereArgs = ['$normalizedQuery%'];
-
-      if (category != null) {
-        whereClause += ' AND category = ?';
-        whereArgs.add(category);
-      }
-
-      if (minPostCount > 0) {
-        whereClause += ' AND post_count >= ?';
-        whereArgs.add(minPostCount);
-      }
-
-      final result = await db.query(
-        _tableName,
-        columns: ['tag', 'category', 'post_count', 'last_updated'],
-        where: whereClause,
-        whereArgs: whereArgs,
-        orderBy: 'post_count DESC',
-        limit: limit,
-      );
-
-      return result.map<DanbooruTagRecord>((row) => DanbooruTagRecord.fromMap(row)).toList();
-    } catch (e, stack) {
-      AppLogger.e(
-        'Failed to search Danbooru tags',
-        e,
-        stack,
-        'DanbooruTagDS',
-      );
-      return [];
-    } finally {
-      await _releaseDb(db);
-    }
-  }
-
   /// 模糊搜索标签（包含匹配）
   ///
   /// 使用新架构：ConnectionLease 连接生命周期管理
@@ -432,58 +252,6 @@ class DanbooruTagDataSource extends BaseDataSource {
         return result.map<DanbooruTagRecord>((row) => DanbooruTagRecord.fromMap(row)).toList();
       },
     );
-  }
-
-  /// 模糊搜索标签（包含匹配）- 旧实现
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 searchFuzzy 方法
-  @Deprecated('请使用新架构方法替代')
-  Future<List<DanbooruTagRecord>> searchFuzzyLegacy(
-    String query, {
-    int limit = 20,
-    int? category,
-    int minPostCount = 0,
-  }) async {
-    if (query.isEmpty) return [];
-
-    final normalizedQuery = query.toLowerCase().trim();
-    final db = await _acquireDb();
-
-    try {
-      String whereClause = 'tag LIKE ?';
-      final List<dynamic> whereArgs = ['%$normalizedQuery%'];
-
-      if (category != null) {
-        whereClause += ' AND category = ?';
-        whereArgs.add(category);
-      }
-
-      if (minPostCount > 0) {
-        whereClause += ' AND post_count >= ?';
-        whereArgs.add(minPostCount);
-      }
-
-      final result = await db.query(
-        _tableName,
-        columns: ['tag', 'category', 'post_count', 'last_updated'],
-        where: whereClause,
-        whereArgs: whereArgs,
-        orderBy: 'post_count DESC',
-        limit: limit,
-      );
-
-      return result.map<DanbooruTagRecord>((row) => DanbooruTagRecord.fromMap(row)).toList();
-    } catch (e, stack) {
-      AppLogger.e(
-        'Failed to fuzzy search Danbooru tags',
-        e,
-        stack,
-        'DanbooruTagDS',
-      );
-      return [];
-    } finally {
-      await _releaseDb(db);
-    }
   }
 
   /// 获取热门标签
@@ -531,58 +299,6 @@ class DanbooruTagDataSource extends BaseDataSource {
         return tags;
       },
     );
-  }
-
-  /// 获取热门标签 - 旧实现
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 getHotTags 方法
-  @Deprecated('请使用新架构方法替代')
-  Future<List<DanbooruTagRecord>> getHotTagsLegacy({
-    int limit = 100,
-    int? category,
-    int minPostCount = 1000,
-  }) async {
-    // 检查缓存
-    if (_hotTagsCache != null) {
-      return _hotTagsCache!.where((tag) {
-        if (category != null && tag.category != category) return false;
-        if (tag.postCount < minPostCount) return false;
-        return true;
-      }).take(limit).toList();
-    }
-
-    final db = await _acquireDb();
-
-    try {
-      String whereClause = 'post_count >= ?';
-      final List<dynamic> whereArgs = [minPostCount];
-
-      if (category != null) {
-        whereClause += ' AND category = ?';
-        whereArgs.add(category);
-      }
-
-      final result = await db.query(
-        _tableName,
-        columns: ['tag', 'category', 'post_count', 'last_updated'],
-        where: whereClause,
-        whereArgs: whereArgs,
-        orderBy: 'post_count DESC',
-        limit: limit,
-      );
-
-      final tags = result.map<DanbooruTagRecord>((row) => DanbooruTagRecord.fromMap(row)).toList();
-
-      // 缓存结果
-      _hotTagsCache = tags;
-
-      return tags;
-    } catch (e, stack) {
-      AppLogger.e('Failed to get hot tags', e, stack, 'DanbooruTagDS');
-      return [];
-    } finally {
-      await _releaseDb(db);
-    }
   }
 
   /// 清除缓存
@@ -726,57 +442,6 @@ class DanbooruTagDataSource extends BaseDataSource {
     );
   }
 
-  /// 根据前缀搜索标签 - 旧实现
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 searchByPrefix 方法
-  @Deprecated('请使用新架构方法替代')
-  Future<List<DanbooruTagRecord>> searchByPrefixLegacy(
-    String prefix, {
-    int limit = 20,
-    int? category,
-  }) async {
-    if (prefix.isEmpty) return [];
-
-    final normalizedPrefix = prefix.toLowerCase().trim();
-    final db = await _acquireDb();
-
-    try {
-      if (category != null) {
-        final result = await db.query(
-          _tableName,
-          columns: ['tag', 'category', 'post_count', 'last_updated'],
-          where: 'tag LIKE ? AND category = ?',
-          whereArgs: ['$normalizedPrefix%', category],
-          orderBy: 'post_count DESC',
-          limit: limit,
-        );
-
-        return result.map<DanbooruTagRecord>((row) => DanbooruTagRecord.fromMap(row)).toList();
-      } else {
-        final result = await db.query(
-          _tableName,
-          columns: ['tag', 'category', 'post_count', 'last_updated'],
-          where: 'tag LIKE ?',
-          whereArgs: ['$normalizedPrefix%'],
-          orderBy: 'post_count DESC',
-          limit: limit,
-        );
-
-        return result.map<DanbooruTagRecord>((row) => DanbooruTagRecord.fromMap(row)).toList();
-      }
-    } catch (e, stack) {
-      AppLogger.e(
-        'Failed to search Danbooru tags by prefix',
-        e,
-        stack,
-        'DanbooruTagDS',
-      );
-      return [];
-    } finally {
-      await _releaseDb(db);
-    }
-  }
-
   /// 检查标签是否存在
   ///
   /// 使用新架构：ConnectionLease 连接生命周期管理
@@ -801,34 +466,6 @@ class DanbooruTagDataSource extends BaseDataSource {
     );
   }
 
-  /// 检查标签是否存在 - 旧实现
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 exists 方法
-  @Deprecated('请使用新架构方法替代')
-  Future<bool> existsLegacy(String tag) async {
-    if (tag.isEmpty) return false;
-
-    final normalizedTag = tag.toLowerCase().trim();
-    final db = await _acquireDb();
-
-    try {
-      final result = await db.query(
-        _tableName,
-        columns: ['tag'],
-        where: 'tag = ?',
-        whereArgs: [normalizedTag],
-        limit: 1,
-      );
-
-      return result.isNotEmpty;
-    } catch (e) {
-      AppLogger.w('Failed to check Danbooru tag existence: $e', 'DanbooruTagDS');
-      return false;
-    } finally {
-      await _releaseDb(db);
-    }
-  }
-
   /// 批量检查标签是否存在
   ///
   /// 使用新架构：ConnectionLease 连接生命周期管理
@@ -849,35 +486,6 @@ class DanbooruTagDataSource extends BaseDataSource {
         return result.map((row) => row['tag'] as String).toSet();
       },
     );
-  }
-
-  /// 批量检查标签是否存在 - 旧实现
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 existsBatch 方法
-  @Deprecated('请使用新架构方法替代')
-  Future<Set<String>> existsBatchLegacy(List<String> tags) async {
-    if (tags.isEmpty) return {};
-
-    final normalizedTags = tags.map((t) => t.toLowerCase().trim()).toList();
-    final placeholders = normalizedTags.map((_) => '?').join(',');
-    final db = await _acquireDb();
-
-    try {
-      final result = await db.rawQuery(
-        'SELECT tag FROM $_tableName WHERE tag IN ($placeholders)',
-        normalizedTags,
-      );
-
-      return result.map((row) => row['tag'] as String).toSet();
-    } catch (e) {
-      AppLogger.w(
-        'Failed to batch check Danbooru tag existence: $e',
-        'DanbooruTagDS',
-      );
-      return {};
-    } finally {
-      await _releaseDb(db);
-    }
   }
 
   @override
@@ -906,53 +514,6 @@ class DanbooruTagDataSource extends BaseDataSource {
         }
       },
     );
-  }
-
-  /// 获取标签总数 - 旧实现
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 getCount 方法
-  @Deprecated('请使用新架构方法替代')
-  Future<int> getCountLegacy({int? category}) async {
-    AppLogger.i(
-      '[DatabaseQuery] DanbooruTagDataSource.getCount() START - category=$category, table=$_tableName',
-      'DanbooruTagDS',
-    );
-    final db = await _acquireDb();
-
-    try {
-      if (category != null) {
-        final result = await db.rawQuery(
-          'SELECT COUNT(*) as count FROM $_tableName WHERE category = ?',
-          [category],
-        );
-        final count = (result.first['count'] as num?)?.toInt() ?? 0;
-        AppLogger.i(
-          '[DatabaseQuery] DanbooruTagDataSource.getCount() END - category=$category, count=$count',
-          'DanbooruTagDS',
-        );
-        return count;
-      } else {
-        final result = await db.rawQuery(
-          'SELECT COUNT(*) as count FROM $_tableName',
-        );
-        final count = (result.first['count'] as num?)?.toInt() ?? 0;
-        AppLogger.i(
-          '[DatabaseQuery] DanbooruTagDataSource.getCount() END - total count=$count',
-          'DanbooruTagDS',
-        );
-        return count;
-      }
-    } catch (e) {
-      AppLogger.e(
-        '[DatabaseQuery] DanbooruTagDataSource.getCount() FAILED - returning 0',
-        e,
-        null,
-        'DanbooruTagDS',
-      );
-      return 0;
-    } finally {
-      await _releaseDb(db);
-    }
   }
 
   /// 批量插入标签记录
@@ -986,44 +547,4 @@ class DanbooruTagDataSource extends BaseDataSource {
     );
   }
 
-  /// 批量插入标签记录 - 旧实现
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 upsertBatch 方法
-  @Deprecated('请使用新架构方法替代')
-  Future<void> upsertBatchLegacy(List<DanbooruTagRecord> records) async {
-    if (records.isEmpty) return;
-
-    final db = await _acquireDb();
-
-    try {
-      final batch = db.batch();
-
-      for (final record in records) {
-        batch.rawInsert(
-          'INSERT OR REPLACE INTO $_tableName (tag, category, post_count, last_updated) VALUES (?, ?, ?, ?)',
-          [
-            record.tag.toLowerCase().trim(),
-            record.category,
-            record.postCount,
-            record.lastUpdated,
-          ],
-        );
-      }
-
-      await batch.commit(noResult: true);
-
-      // 清除热门标签缓存
-      _hotTagsCache = null;
-    } catch (e, stack) {
-      AppLogger.e(
-        'Failed to upsert Danbooru tags batch',
-        e,
-        stack,
-        'DanbooruTagDS',
-      );
-      rethrow;
-    } finally {
-      await _releaseDb(db);
-    }
-  }
 }

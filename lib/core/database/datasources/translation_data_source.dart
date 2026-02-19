@@ -1,5 +1,4 @@
 import '../../utils/app_logger.dart';
-import '../connection_pool_holder.dart';
 import '../data_source.dart';
 import '../lease_extensions.dart';
 import '../utils/lru_cache.dart';
@@ -71,41 +70,6 @@ class TranslationDataSource extends BaseDataSource {
 
   @override
   Set<String> get dependencies => {}; // 无依赖
-
-  // 数据库连接（通过外部注入，旧模式回退）
-  dynamic _db;
-
-  /// 设置数据库连接
-  ///
-  /// 在初始化前必须设置数据库连接
-  @Deprecated('此模式已废弃，连接现在由 BaseDataSource 自动管理')
-  void setDatabase(dynamic db) {
-    _db = db;
-  }
-
-  /// 获取数据库连接
-  ///
-  /// 优先使用连接池，回退到固定连接
-  /// 注意：每次使用时都获取当前连接池实例，以支持 recover 后重新连接
-  @Deprecated('建议使用 BaseDataSource.execute() 或 acquireLease() 替代')
-  Future<dynamic> _acquireDb() async {
-    // 优先使用 ConnectionPoolHolder 获取当前实例（支持 recover 后重新连接）
-    if (ConnectionPoolHolder.isInitialized) {
-      return await ConnectionPoolHolder.instance.acquire();
-    }
-    // 回退到固定连接（旧模式兼容）
-    return _db;
-  }
-
-  /// 释放数据库连接
-  ///
-  /// 如果是从连接池获取的，需要释放
-  @Deprecated('建议使用 lease.dispose() 替代')
-  Future<void> _releaseDb(dynamic db) async {
-    if (db != null && ConnectionPoolHolder.isInitialized) {
-      await ConnectionPoolHolder.instance.release(db);
-    }
-  }
 
   /// 查询单个翻译
   ///
@@ -243,81 +207,6 @@ class TranslationDataSource extends BaseDataSource {
     );
   }
 
-  /// 搜索翻译（支持部分匹配）- 旧实现
-  ///
-  /// @deprecated 请使用 search 方法
-  @Deprecated('请使用 search 方法替代')
-  Future<List<TranslationMatch>> searchLegacy(
-    String query, {
-    int limit = 20,
-    bool matchTag = true,
-    bool matchTranslation = true,
-  }) async {
-    final db = await _acquireDb();
-    if (query.isEmpty || db == null) return [];
-
-    try {
-      final results = <TranslationMatch>[];
-      final lowerQuery = query.toLowerCase();
-
-      if (matchTag) {
-        final tagResults = await db.rawQuery(
-          'SELECT en_tag, zh_translation FROM $_tableName '
-          'WHERE en_tag LIKE ? ORDER BY en_tag LIMIT ?',
-          ['%$lowerQuery%', limit],
-        );
-
-        for (final row in tagResults) {
-          results.add(TranslationMatch(
-            tag: row['en_tag'] as String,
-            translation: row['zh_translation'] as String,
-            score: _calculateMatchScore(
-              row['en_tag'] as String,
-              lowerQuery,
-              isTagMatch: true,
-            ),
-          ),
-        );
-        }
-      }
-
-      if (matchTranslation) {
-        final transResults = await db.rawQuery(
-          'SELECT en_tag, zh_translation FROM $_tableName '
-          'WHERE zh_translation LIKE ? ORDER BY zh_translation LIMIT ?',
-          ['%$query%', limit],
-        );
-
-        for (final row in transResults) {
-          final tag = row['en_tag'] as String;
-          // 避免重复
-          if (!results.any((r) => r.tag == tag)) {
-            results.add(TranslationMatch(
-              tag: tag,
-              translation: row['zh_translation'] as String,
-              score: _calculateMatchScore(
-                row['zh_translation'] as String,
-                query,
-                isTagMatch: false,
-              ),
-            ),
-          );
-          }
-        }
-      }
-
-      // 按相关度排序
-      results.sort((a, b) => b.score.compareTo(a.score));
-
-      return results.take(limit).toList();
-    } catch (e, stack) {
-      AppLogger.e('Failed to search translations', e, stack, 'TranslationDS');
-      return [];
-    } finally {
-      await _releaseDb(db);
-    }
-  }
-
   /// 获取翻译总数
   Future<int> getCount() async {
     return await _leaseHelper.execute(
@@ -353,36 +242,6 @@ class TranslationDataSource extends BaseDataSource {
         _cache.put(record.enTag.toLowerCase(), record.zhTranslation);
       },
     );
-  }
-
-  /// 插入或更新翻译记录 - 旧实现
-  ///
-  /// @deprecated 请使用 upsert 方法
-  @Deprecated('请使用 upsert 方法替代')
-  Future<void> upsertLegacy(TranslationRecord record) async {
-    final db = await _acquireDb();
-    if (db == null) throw StateError('Database not initialized');
-
-    try {
-      // 使用 INSERT OR REPLACE 语法
-      await db.rawInsert(
-        'INSERT OR REPLACE INTO $_tableName (en_tag, zh_translation, source, last_accessed) VALUES (?, ?, ?, ?)',
-        [
-          record.enTag,
-          record.zhTranslation,
-          record.source,
-          DateTime.now().millisecondsSinceEpoch,
-        ],
-      );
-
-      // 更新缓存
-      _cache.put(record.enTag.toLowerCase(), record.zhTranslation);
-    } catch (e, stack) {
-      AppLogger.e('Failed to upsert translation', e, stack, 'TranslationDS');
-      rethrow;
-    } finally {
-      await _releaseDb(db);
-    }
   }
 
   /// 批量插入翻译记录
@@ -424,58 +283,6 @@ class TranslationDataSource extends BaseDataSource {
         );
       },
     );
-  }
-
-  /// 批量插入翻译记录 - 旧实现
-  ///
-  /// @deprecated 请使用 upsertBatch 方法
-  @Deprecated('请使用 upsertBatch 方法替代')
-  Future<void> upsertBatchLegacy(List<TranslationRecord> records) async {
-    if (records.isEmpty) return;
-
-    final db = await _acquireDb();
-    if (db == null) throw StateError('Database not initialized');
-
-    try {
-      // 使用事务保护批量操作
-      await db.transaction((txn) async {
-        final batch = txn.batch();
-
-        for (final record in records) {
-          batch.rawInsert(
-            'INSERT OR REPLACE INTO $_tableName (en_tag, zh_translation, source, last_accessed) VALUES (?, ?, ?, ?)',
-            [
-              record.enTag,
-              record.zhTranslation,
-              record.source,
-              DateTime.now().millisecondsSinceEpoch,
-            ],
-          );
-        }
-
-        await batch.commit(noResult: true);
-      });
-
-      // 更新缓存
-      for (final record in records) {
-        _cache.put(record.enTag.toLowerCase(), record.zhTranslation);
-      }
-
-      AppLogger.i(
-        'Inserted ${records.length} translations',
-        'TranslationDS',
-      );
-    } catch (e, stack) {
-      AppLogger.e(
-        'Failed to batch upsert translations',
-        e,
-        stack,
-        'TranslationDS',
-      );
-      rethrow;
-    } finally {
-      await _releaseDb(db);
-    }
   }
 
   /// 获取缓存统计信息
@@ -581,7 +388,6 @@ class TranslationDataSource extends BaseDataSource {
   @override
   Future<void> doDispose() async {
     _cache.clear();
-    _db = null;
   }
 
   // 私有辅助方法

@@ -475,7 +475,9 @@ class GalleryCategoryRepository {
           count++;
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      AppLogger.w('Failed to get total image count', 'GalleryCategoryRepository');
+    }
     return count;
   }
 }

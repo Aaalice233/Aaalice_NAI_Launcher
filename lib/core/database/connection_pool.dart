@@ -17,6 +17,7 @@ class ConnectionPool {
 
   final Queue<Database> _availableConnections = Queue<Database>();
   final Set<Database> _inUseConnections = <Database>{};
+  final Set<Database> _evictingConnections = <Database>{}; // 即将失效的连接
   final _lock = Mutex();
 
   bool _initialized = false;
@@ -53,11 +54,15 @@ class ConnectionPool {
   }
 
   /// 创建新连接
+  ///
+  /// 使用 singleInstance: false 确保每个连接是独立的实例，
+  /// 避免当底层数据库被关闭时影响所有连接。
   Future<Database> _createConnection() async {
     return await databaseFactoryFfi.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
         version: 1,
+        singleInstance: false,  // 重要：每个连接独立
         onConfigure: (db) async {
           // 启用外键和 WAL 模式
           await db.execute('PRAGMA foreign_keys = ON');
@@ -68,6 +73,8 @@ class ConnectionPool {
   }
 
   /// 获取数据库连接
+  ///
+  /// 从池中获取连接，如果连接已失效则自动创建新连接替代
   Future<Database> acquire() async {
     if (_disposed) {
       throw StateError('ConnectionPool has been disposed');
@@ -85,7 +92,19 @@ class ConnectionPool {
       }
 
       if (_availableConnections.isNotEmpty) {
-        final db = _availableConnections.removeFirst();
+        var db = _availableConnections.removeFirst();
+        
+        // 验证连接是否仍然有效
+        if (!db.isOpen) {
+          AppLogger.d('Connection from pool is closed, creating new one', 'ConnectionPool');
+          try {
+            await db.close();
+          } catch (_) {
+            // 忽略关闭错误
+          }
+          db = await _createConnection();
+        }
+        
         _inUseConnections.add(db);
         return db;
       }
@@ -98,14 +117,32 @@ class ConnectionPool {
   }
 
   /// 释放连接
+  ///
+  /// 关键改进：检查连接是否是"即将失效"的连接（来自旧连接池）。
+  /// 如果是，则关闭它而不是放回池中。
   Future<void> release(Database db) async {
-    if (_disposed) {
-      await db.close();
-      return;
-    }
-
     await _lock.acquire();
     try {
+      // 检查是否是即将失效的连接（来自正在关闭的连接池）
+      if (_evictingConnections.contains(db)) {
+        _evictingConnections.remove(db);
+        _inUseConnections.remove(db);
+        if (db.isOpen) {
+          await db.close();
+          AppLogger.d('Evicted connection closed during release', 'ConnectionPool');
+        }
+        return;
+      }
+      
+      // 如果连接池已完全 disposed，直接关闭连接
+      if (_disposed) {
+        _inUseConnections.remove(db);
+        if (db.isOpen) {
+          await db.close();
+        }
+        return;
+      }
+
       if (_inUseConnections.contains(db)) {
         _inUseConnections.remove(db);
 
@@ -129,11 +166,14 @@ class ConnectionPool {
     }
   }
 
-  /// 关闭所有连接
+  /// 优雅关闭连接池
+  ///
+  /// 关键改进：不再强制关闭正在使用的连接，而是标记它们为"即将失效"。
+  /// 这样正在进行的操作可以继续完成，但在释放连接时会关闭而不是放回池中。
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
-
+    
     await _lock.acquire();
     try {
       // 关闭所有可用连接
@@ -144,15 +184,21 @@ class ConnectionPool {
       }
       _availableConnections.clear();
 
-      // 关闭使用中连接（等待它们完成）
+      // 将使用中的连接标记为即将失效，而不是强制关闭
+      // 这样正在进行的操作可以继续，但在 release 时会关闭这些连接
       for (final db in _inUseConnections) {
-        if (db.isOpen) {
-          await db.close();
-        }
+        _evictingConnections.add(db);
       }
-      _inUseConnections.clear();
+      
+      final evictingCount = _evictingConnections.length;
+      if (evictingCount > 0) {
+        AppLogger.w(
+          'ConnectionPool graceful shutdown: $evictingCount connections still in use, marked for eviction',
+          'ConnectionPool',
+        );
+      }
 
-      AppLogger.i('ConnectionPool disposed', 'ConnectionPool');
+      AppLogger.i('ConnectionPool disposed (graceful)', 'ConnectionPool');
     } finally {
       _lock.release();
     }

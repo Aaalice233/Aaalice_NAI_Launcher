@@ -176,7 +176,10 @@ class GalleryDataMigration {
     await SqfliteBootstrapService.instance.ensureInitialized();
 
     final dbPath = await _getOldDatabasePath();
-    _oldDb = await databaseFactoryFfi.openDatabase(dbPath);
+    _oldDb = await databaseFactoryFfi.openDatabase(
+      dbPath,
+      options: OpenDatabaseOptions(singleInstance: false),
+    );
 
     AppLogger.i('Opened old database: $dbPath', 'GalleryMigration');
     return _oldDb!;

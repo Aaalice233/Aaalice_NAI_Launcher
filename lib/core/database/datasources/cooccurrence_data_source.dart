@@ -1,5 +1,4 @@
 import '../../utils/app_logger.dart';
-import '../connection_pool_holder.dart';
 import '../data_source.dart';
 import '../lease_extensions.dart';
 
@@ -72,9 +71,6 @@ class CooccurrenceDataSource extends BaseDataSource {
   // 可选的翻译数据源引用
   dynamic _translationDataSource;
 
-  // 数据库连接（通过外部注入，旧模式回退）
-  dynamic _db;
-
   // 租借助手（新架构）
   final SimpleLeaseHelper _leaseHelper = SimpleLeaseHelper('CooccurrenceDataSource');
 
@@ -86,48 +82,6 @@ class CooccurrenceDataSource extends BaseDataSource {
 
   @override
   Set<String> get dependencies => {'translation'};
-
-  /// 设置数据库连接（旧模式兼容）
-  @Deprecated('请使用新架构方法替代')
-  void setDatabase(dynamic db) {
-    _db = db;
-  }
-
-  /// 获取数据库连接
-  ///
-  /// 优先使用连接池，回退到固定连接
-  /// 注意：每次使用时都获取当前连接池实例，以支持 recover 后重新连接
-  @Deprecated('请使用新架构方法替代')
-  Future<dynamic> _acquireDb() async {
-    try {
-      // 优先使用 ConnectionPoolHolder 获取当前实例（支持 recover 后重新连接）
-      if (ConnectionPoolHolder.isInitialized) {
-        AppLogger.d('[CooccurrenceDS] Acquiring connection from pool', 'CooccurrenceDS');
-        return await ConnectionPoolHolder.instance.acquire();
-      }
-      // 回退到固定连接（旧模式兼容）
-      AppLogger.d('[CooccurrenceDS] Using fallback database connection', 'CooccurrenceDS');
-      return _db;
-    } catch (e, stack) {
-      AppLogger.e('[CooccurrenceDS] Failed to acquire database connection', e, stack, 'CooccurrenceDS');
-      // 如果有回退连接，使用回退连接
-      if (_db != null) {
-        AppLogger.w('[CooccurrenceDS] Falling back to legacy database connection', 'CooccurrenceDS');
-        return _db;
-      }
-      rethrow;
-    }
-  }
-
-  /// 释放数据库连接
-  ///
-  /// 如果是从连接池获取的，需要释放
-  @Deprecated('请使用新架构方法替代')
-  Future<void> _releaseDb(dynamic db) async {
-    if (db != null && ConnectionPoolHolder.isInitialized) {
-      await ConnectionPoolHolder.instance.release(db);
-    }
-  }
 
   /// 设置翻译数据源
   void setTranslationDataSource(dynamic dataSource) {
@@ -194,68 +148,6 @@ class CooccurrenceDataSource extends BaseDataSource {
     );
   }
 
-  /// 获取与指定标签共现的相关标签 - 旧实现
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 getRelatedTags 方法
-  @Deprecated('请使用新架构方法替代')
-  Future<List<RelatedTag>> getRelatedTagsLegacy(
-    String tag, {
-    int limit = 20,
-    int minCount = 1,
-  }) async {
-    final db = await _acquireDb();
-    if (tag.isEmpty || db == null) return [];
-
-    final normalizedTag = tag.toLowerCase().trim();
-
-    // 检查缓存
-    final cached = _relatedCache[normalizedTag];
-    if (cached != null) {
-      AppLogger.d('Cooccurrence cache hit: $normalizedTag', 'CooccurrenceDS');
-      return cached
-          .where((r) => r.count >= minCount)
-          .take(limit)
-          .toList();
-    }
-
-    try {
-      AppLogger.d('[CooccurrenceDS] Querying related tags for "$normalizedTag"', 'CooccurrenceDS');
-      final results = await db.query(
-        _tableName,
-        columns: ['tag2', 'count', 'cooccurrence_score'],
-        where: 'tag1 = ? AND count >= ?',
-        whereArgs: [normalizedTag, minCount],
-        orderBy: 'count DESC',
-        limit: limit,
-      );
-
-      AppLogger.d('[CooccurrenceDS] Query returned ${results.length} rows', 'CooccurrenceDS');
-
-      final relatedTags = results.map<RelatedTag>((row) {
-        return RelatedTag(
-          tag: row['tag2'] as String,
-          count: (row['count'] as num?)?.toInt() ?? 0,
-          cooccurrenceScore: (row['cooccurrence_score'] as num?)?.toDouble() ?? 0.0,
-        );
-      }).toList();
-
-      // 添加到缓存
-      _addToCache(normalizedTag, relatedTags);
-
-      return relatedTags;
-    } catch (e, stack) {
-      AppLogger.e(
-        '[CooccurrenceDS] Failed to get related tags for "$normalizedTag": $e',
-        e,
-        stack,
-        'CooccurrenceDS',
-      );
-      return [];
-    } finally {
-      await _releaseDb(db);
-    }
-  }
-
   /// 批量获取相关标签
   ///
   /// [tags] 标签列表
@@ -313,69 +205,6 @@ class CooccurrenceDataSource extends BaseDataSource {
     );
   }
 
-  /// 批量获取相关标签 - 旧实现
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 getRelatedTagsBatch 方法
-  @Deprecated('请使用新架构方法替代')
-  Future<Map<String, List<RelatedTag>>> getRelatedTagsBatchLegacy(
-    List<String> tags, {
-    int limit = 10,
-  }) async {
-    final db = await _acquireDb();
-    if (tags.isEmpty || db == null) return {};
-
-    final result = <String, List<RelatedTag>>{};
-
-    try {
-      final normalizedTags = tags.map((t) => t.toLowerCase().trim()).toList();
-      final placeholders = normalizedTags.map((_) => '?').join(',');
-
-      final rows = await db.rawQuery(
-        'SELECT tag1, tag2, count, cooccurrence_score '
-        'FROM $_tableName '
-        'WHERE tag1 IN ($placeholders) '
-        'ORDER BY tag1, count DESC',
-        normalizedTags,
-      );
-
-      // 按 tag1 分组
-      final groups = <String, List<RelatedTag>>{};
-      for (final row in rows) {
-        final tag1 = row['tag1'] as String;
-        groups.putIfAbsent(tag1, () => []).add(
-          RelatedTag(
-            tag: row['tag2'] as String,
-            count: (row['count'] as num?)?.toInt() ?? 0,
-            cooccurrenceScore: (row['cooccurrence_score'] as num?)?.toDouble() ?? 0.0,
-          ),
-        );
-      }
-
-      // 限制每个标签的结果数量并填充结果
-      for (final tag in normalizedTags) {
-        final related = groups[tag] ?? [];
-        result[tag] = related.take(limit).toList();
-
-        // 更新缓存
-        if (related.isNotEmpty) {
-          _addToCache(tag, related);
-        }
-      }
-
-      return result;
-    } catch (e, stack) {
-      AppLogger.e(
-        'Failed to batch get related tags',
-        e,
-        stack,
-        'CooccurrenceDS',
-      );
-      return {};
-    } finally {
-      await _releaseDb(db);
-    }
-  }
-
   /// 获取热门共现标签
   ///
   /// [limit] 返回结果数量限制
@@ -401,42 +230,6 @@ class CooccurrenceDataSource extends BaseDataSource {
         }).toList();
       },
     );
-  }
-
-  /// 获取热门共现标签 - 旧实现
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 getPopularCooccurrences 方法
-  @Deprecated('请使用新架构方法替代')
-  Future<List<RelatedTag>> getPopularCooccurrencesLegacy({int limit = 100}) async {
-    final db = await _acquireDb();
-    if (db == null) return [];
-
-    try {
-      final results = await db.query(
-        _tableName,
-        columns: ['tag1', 'tag2', 'count', 'cooccurrence_score'],
-        orderBy: 'count DESC',
-        limit: limit,
-      );
-
-      return results.map<RelatedTag>((row) {
-        return RelatedTag(
-          tag: '${row['tag1']} → ${row['tag2']}',
-          count: (row['count'] as num?)?.toInt() ?? 0,
-          cooccurrenceScore: (row['cooccurrence_score'] as num?)?.toDouble() ?? 0.0,
-        );
-      }).toList();
-    } catch (e, stack) {
-      AppLogger.e(
-        'Failed to get popular cooccurrences',
-        e,
-        stack,
-        'CooccurrenceDS',
-      );
-      return [];
-    } finally {
-      await _releaseDb(db);
-    }
   }
 
   /// 计算共现分数
@@ -489,62 +282,6 @@ class CooccurrenceDataSource extends BaseDataSource {
     );
   }
 
-  /// 计算共现分数 - 旧实现
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 calculateCooccurrenceScore 方法
-  @Deprecated('请使用新架构方法替代')
-  Future<double> calculateCooccurrenceScoreLegacy(
-    String tag1,
-    String tag2,
-  ) async {
-    final db = await _acquireDb();
-    if (db == null) return 0.0;
-
-    final t1 = tag1.toLowerCase().trim();
-    final t2 = tag2.toLowerCase().trim();
-
-    try {
-      final result = await db.query(
-        _tableName,
-        columns: ['count'],
-        where: '(tag1 = ? AND tag2 = ?) OR (tag1 = ? AND tag2 = ?)',
-        whereArgs: [t1, t2, t2, t1],
-        limit: 1,
-      );
-
-      if (result.isEmpty) return 0.0;
-
-      final cooccurrence = (result.first['count'] as num?)?.toInt() ?? 0;
-
-      // 获取两个标签的独立计数（近似值，从共现表中获取）
-      final count1Result = await db.rawQuery(
-        'SELECT SUM(count) as total FROM $_tableName WHERE tag1 = ?',
-        [t1],
-      );
-      final count2Result = await db.rawQuery(
-        'SELECT SUM(count) as total FROM $_tableName WHERE tag1 = ?',
-        [t2],
-      );
-
-      final count1 = (count1Result.first['total'] as num?)?.toInt() ?? 0;
-      final count2 = (count2Result.first['total'] as num?)?.toInt() ?? 0;
-
-      // Jaccard = cooccurrence / (count1 + count2 - cooccurrence)
-      final union = count1 + count2 - cooccurrence;
-      if (union <= 0) return 0.0;
-
-      return cooccurrence / union;
-    } catch (e) {
-      AppLogger.w(
-        'Failed to calculate cooccurrence score: $e',
-        'CooccurrenceDS',
-      );
-      return 0.0;
-    } finally {
-      await _releaseDb(db);
-    }
-  }
-
   /// 获取共现记录总数
   ///
   /// 使用新架构：ConnectionLease 连接生命周期管理
@@ -558,27 +295,6 @@ class CooccurrenceDataSource extends BaseDataSource {
         return (result.first['count'] as num?)?.toInt() ?? 0;
       },
     );
-  }
-
-  /// 获取共现记录总数 - 旧实现
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 getCount 方法
-  @Deprecated('请使用新架构方法替代')
-  Future<int> getCountLegacy() async {
-    final db = await _acquireDb();
-    if (db == null) return 0;
-
-    try {
-      final result = await db.rawQuery(
-        'SELECT COUNT(*) as count FROM $_tableName',
-      );
-      return (result.first['count'] as num?)?.toInt() ?? 0;
-    } catch (e) {
-      AppLogger.w('Failed to get cooccurrence count: $e', 'CooccurrenceDS');
-      return 0;
-    } finally {
-      await _releaseDb(db);
-    }
   }
 
   /// 获取与指定标签相关的唯一标签数量
@@ -597,28 +313,6 @@ class CooccurrenceDataSource extends BaseDataSource {
         return (result.first['count'] as num?)?.toInt() ?? 0;
       },
     );
-  }
-
-  /// 获取与指定标签相关的唯一标签数量 - 旧实现
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 getRelatedTagCount 方法
-  @Deprecated('请使用新架构方法替代')
-  Future<int> getRelatedTagCountLegacy(String tag) async {
-    final db = await _acquireDb();
-    if (db == null || tag.isEmpty) return 0;
-
-    try {
-      final result = await db.rawQuery(
-        'SELECT COUNT(*) as count FROM $_tableName WHERE tag1 = ?',
-        [tag.toLowerCase().trim()],
-      );
-      return (result.first['count'] as num?)?.toInt() ?? 0;
-    } catch (e) {
-      AppLogger.w('Failed to get related tag count: $e', 'CooccurrenceDS');
-      return 0;
-    } finally {
-      await _releaseDb(db);
-    }
   }
 
   /// 插入共现记录
@@ -642,35 +336,6 @@ class CooccurrenceDataSource extends BaseDataSource {
         _relatedCache.remove(record.tag1.toLowerCase().trim());
       },
     );
-  }
-
-  /// 插入共现记录 - 旧实现
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 insert 方法
-  @Deprecated('请使用新架构方法替代')
-  Future<void> insertLegacy(CooccurrenceRecord record) async {
-    final db = await _acquireDb();
-    if (db == null) throw StateError('Database not initialized');
-
-    try {
-      await db.rawInsert(
-        'INSERT OR REPLACE INTO $_tableName (tag1, tag2, count, cooccurrence_score) VALUES (?, ?, ?, ?)',
-        [
-          record.tag1.toLowerCase().trim(),
-          record.tag2.toLowerCase().trim(),
-          record.count,
-          record.cooccurrenceScore,
-        ],
-      );
-
-      // 清除相关缓存
-      _relatedCache.remove(record.tag1.toLowerCase().trim());
-    } catch (e, stack) {
-      AppLogger.e('Failed to insert cooccurrence', e, stack, 'CooccurrenceDS');
-      rethrow;
-    } finally {
-      await _releaseDb(db);
-    }
   }
 
   /// 批量插入共现记录
@@ -710,56 +375,6 @@ class CooccurrenceDataSource extends BaseDataSource {
         );
       },
     );
-  }
-
-  /// 批量插入共现记录 - 旧实现
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 insertBatch 方法
-  @Deprecated('请使用新架构方法替代')
-  Future<void> insertBatchLegacy(List<CooccurrenceRecord> records) async {
-    if (records.isEmpty) return;
-
-    final db = await _acquireDb();
-    if (db == null) throw StateError('Database not initialized');
-
-    try {
-      // 使用事务保护批量操作
-      await db.transaction((txn) async {
-        final batch = txn.batch();
-
-        for (final record in records) {
-          batch.rawInsert(
-            'INSERT OR REPLACE INTO $_tableName (tag1, tag2, count, cooccurrence_score) VALUES (?, ?, ?, ?)',
-            [
-              record.tag1.toLowerCase().trim(),
-              record.tag2.toLowerCase().trim(),
-              record.count,
-              record.cooccurrenceScore,
-            ],
-          );
-        }
-
-        await batch.commit(noResult: true);
-      });
-
-      // 清除缓存（批量插入可能涉及大量标签）
-      _relatedCache.clear();
-
-      AppLogger.i(
-        'Inserted ${records.length} cooccurrence records',
-        'CooccurrenceDS',
-      );
-    } catch (e, stack) {
-      AppLogger.e(
-        'Failed to batch insert cooccurrences',
-        e,
-        stack,
-        'CooccurrenceDS',
-      );
-      rethrow;
-    } finally {
-      await _releaseDb(db);
-    }
   }
 
   /// 从 CSV 内容导入共现数据
@@ -885,26 +500,6 @@ class CooccurrenceDataSource extends BaseDataSource {
     );
   }
 
-  /// 清除所有共现数据 - 旧实现
-  ///
-  /// @Deprecated('请使用新架构方法替代') 请使用 clearData 方法
-  @Deprecated('请使用新架构方法替代')
-  Future<void> clearDataLegacy() async {
-    final db = await _acquireDb();
-    if (db == null) return;
-
-    try {
-      await db.delete(_tableName);
-      _relatedCache.clear();
-      AppLogger.i('All cooccurrence data cleared', 'CooccurrenceDS');
-    } catch (e, stack) {
-      AppLogger.e('Failed to clear cooccurrences', e, stack, 'CooccurrenceDS');
-      rethrow;
-    } finally {
-      await _releaseDb(db);
-    }
-  }
-
   /// 获取缓存统计信息
   Map<String, dynamic> getCacheStatistics() => {
         'cacheSize': _relatedCache.length,
@@ -1012,7 +607,6 @@ class CooccurrenceDataSource extends BaseDataSource {
   @override
   Future<void> doDispose() async {
     _relatedCache.clear();
-    _db = null;
     _translationDataSource = null;
   }
 

@@ -140,7 +140,10 @@ abstract class EnhancedBaseDataSource extends ds.BaseDataSource {
             'database error',
             e,
           );
-          await Future.delayed(Duration(milliseconds: 200 * attempt));
+          // 数据库关闭错误需要更长的恢复时间
+          final isDbClosed = e.toString().toLowerCase().contains('database has already been closed');
+          final delayMs = isDbClosed ? 500 * attempt : 200 * attempt;
+          await Future.delayed(Duration(milliseconds: delayMs));
         } else {
           throw DataSourceOperationException(
             message: 'Operation failed: $e',

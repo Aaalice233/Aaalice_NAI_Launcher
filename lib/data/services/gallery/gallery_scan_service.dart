@@ -550,7 +550,9 @@ class GalleryScanService {
       try {
         final stat = await file.stat();
         filesWithTime[file] = stat.modified;
-      } catch (_) {}
+      } catch (e) {
+        // 文件可能已被删除或无法访问，跳过
+      }
     }
 
     final sortedEntries = filesWithTime.entries.toList()

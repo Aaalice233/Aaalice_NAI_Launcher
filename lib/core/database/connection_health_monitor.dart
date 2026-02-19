@@ -381,7 +381,9 @@ class ConnectionHealthMonitor {
       if (testConnection != null) {
         try {
           await ConnectionPoolHolder.instance.release(testConnection);
-        } catch (_) {}
+        } catch (e) {
+          AppLogger.d('Failed to release test connection', 'HealthMonitor');
+        }
       }
     }
 

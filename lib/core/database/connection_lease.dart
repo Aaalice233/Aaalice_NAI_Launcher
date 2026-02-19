@@ -365,7 +365,9 @@ Future<ConnectionLease> acquireLease({
         // 连接无效，释放并继续
         try {
           await ConnectionPoolHolder.instance.release(connection);
-        } catch (_) {}
+        } catch (e) {
+          AppLogger.w('Failed to release connection during retry', 'ConnectionLease');
+        }
         await Future.delayed(const Duration(milliseconds: 100));
         continue;
       }

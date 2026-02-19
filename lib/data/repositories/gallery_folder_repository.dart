@@ -89,7 +89,9 @@ class GalleryFolderRepository {
           count++;
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      AppLogger.w('Failed to get total image count', 'GalleryFolderRepository');
+    }
     return count;
   }
 
