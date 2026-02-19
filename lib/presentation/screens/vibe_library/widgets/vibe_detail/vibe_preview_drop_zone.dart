@@ -217,14 +217,12 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
           // 拖拽覆盖层
           if (_isDragging) _buildDragOverlay(),
 
-          // 关闭按钮
+          // 关闭按钮（左上角圆形按钮）
           Positioned(
             top: DesignTokens.spacingMd,
-            right: DesignTokens.spacingMd,
-            child: _buildIconButton(
-              icon: Icons.close,
+            left: DesignTokens.spacingMd,
+            child: _buildCircularCloseButton(
               onPressed: widget.onClose ?? () => Navigator.of(context).pop(),
-              tooltip: '关闭 (Esc)',
             ),
           ),
 
@@ -337,6 +335,27 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
           child: Padding(
             padding: const EdgeInsets.all(10),
             child: Icon(icon, color: Colors.white, size: 20),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 构建左上角圆形关闭按钮
+  Widget _buildCircularCloseButton({
+    required VoidCallback onPressed,
+  }) {
+    return Tooltip(
+      message: '关闭 (Esc)',
+      child: Material(
+        color: Colors.black.withOpacity(0.5),
+        shape: const CircleBorder(),
+        child: InkWell(
+          onTap: onPressed,
+          customBorder: const CircleBorder(),
+          child: const Padding(
+            padding: EdgeInsets.all(12),
+            child: Icon(Icons.close, color: Colors.white, size: 24),
           ),
         ),
       ),

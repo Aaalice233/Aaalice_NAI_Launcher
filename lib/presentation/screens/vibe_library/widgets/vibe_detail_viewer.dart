@@ -326,8 +326,8 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Layer 1: 沉浸式模糊背景
-            VibeDetailBackground(imageBytes: _imageBytes),
+            // Layer 1: 纯黑色背景
+            const VibeDetailBackground(),
 
             // Layer 2: 主内容区（Bundle 时为画廊条预留底部空间）
             SafeArea(

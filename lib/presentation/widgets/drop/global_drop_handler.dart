@@ -55,6 +55,7 @@ class GlobalDropHandler extends ConsumerStatefulWidget {
 
 class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
   bool _isDragging = false;
+  bool _isProcessing = false;
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +89,8 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
           widget.child,
           // 拖拽覆盖层
           if (_isDragging) _buildDropOverlay(context),
+          // 处理中覆盖层
+          if (_isProcessing) _buildProcessingOverlay(context),
         ],
       ),
     );
@@ -144,16 +147,83 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     );
   }
 
-  Future<void> _handleDrop(PerformDropEvent event) async {
-    for (final item in event.session.items) {
-      final reader = item.dataReader;
-      if (reader == null) continue;
+  /// 构建处理中覆盖层
+  Widget _buildProcessingOverlay(BuildContext context) {
+    final theme = Theme.of(context);
 
-      final fileData = await _readFileData(reader);
-      if (fileData != null) {
-        await _processDroppedFile(fileData.fileName, fileData.bytes);
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black.withOpacity(0.5),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 32,
+              vertical: 24,
+            ),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 20,
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 4,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  context.l10n.drop_processing,
+                  style: theme.textTheme.titleMedium,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleDrop(PerformDropEvent event) async {
+    // 显示处理中提示
+    _showProcessingIndicator();
+
+    try {
+      for (final item in event.session.items) {
+        final reader = item.dataReader;
+        if (reader == null) continue;
+
+        final fileData = await _readFileData(reader);
+        if (fileData != null) {
+          await _processDroppedFile(fileData.fileName, fileData.bytes);
+        }
       }
+    } finally {
+      // 关闭处理中提示
+      _hideProcessingIndicator();
     }
+  }
+
+  /// 显示处理中指示器
+  void _showProcessingIndicator() {
+    if (!mounted) return;
+    setState(() => _isProcessing = true);
+  }
+
+  /// 隐藏处理中指示器
+  void _hideProcessingIndicator() {
+    if (!mounted) return;
+    setState(() => _isProcessing = false);
   }
 
   /// 文件读取参数（用于 Isolate）

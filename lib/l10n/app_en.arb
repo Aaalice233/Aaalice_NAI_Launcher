@@ -1350,6 +1350,8 @@
 
   "drop_dialogTitle": "What do you want to do with this image?",
   "drop_hint": "Drop image here",
+  "drop_processing": "Processing image...",
+  "drop_processingSubtitle": "Please wait",
   "drop_img2img": "Image2Image",
   "drop_vibeTransfer": "Vibe Transfer",
   "drop_characterReference": "Character Reference",

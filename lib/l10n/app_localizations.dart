@@ -5423,6 +5423,18 @@ abstract class AppLocalizations {
   /// **'Drop image here'**
   String get drop_hint;
 
+  /// No description provided for @drop_processing.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing image...'**
+  String get drop_processing;
+
+  /// No description provided for @drop_processingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Please wait'**
+  String get drop_processingSubtitle;
+
   /// No description provided for @drop_img2img.
   ///
   /// In en, this message translates to:

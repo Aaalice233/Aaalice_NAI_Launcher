@@ -2833,6 +2833,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get drop_hint => 'Drop image here';
 
   @override
+  String get drop_processing => 'Processing image...';
+
+  @override
+  String get drop_processingSubtitle => 'Please wait';
+
+  @override
   String get drop_img2img => 'Image to Image';
 
   @override

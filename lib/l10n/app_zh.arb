@@ -1016,6 +1016,8 @@
 
   "drop_dialogTitle": "如何使用这张图片？",
   "drop_hint": "拖拽图片到这里",
+  "drop_processing": "正在解析图片...",
+  "drop_processingSubtitle": "请稍候",
   "drop_img2img": "图生图",
   "drop_vibeTransfer": "风格迁移",
   "drop_characterReference": "精准参考",

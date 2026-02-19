@@ -2833,6 +2833,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get drop_hint => '拖拽图片到这里';
 
   @override
+  String get drop_processing => '正在解析图片...';
+
+  @override
+  String get drop_processingSubtitle => '请稍候';
+
+  @override
   String get drop_img2img => '图生图';
 
   @override

@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
+import 'package:png_chunks_extract/png_chunks_extract.dart' as png_extract;
 
 import '../../data/models/gallery/nai_image_metadata.dart';
 import 'app_logger.dart';
@@ -37,7 +38,18 @@ class NaiMetadataParser {
     }
 
     try {
-      // 使用 compute 将耗时操作移到 Isolate
+      // 优化：先尝试快速解析标准 PNG 元数据 chunk（无需完整解码 PNG）
+      final fastResult = await compute(
+        _extractFromChunksIsolate,
+        bytes,
+      ).timeout(const Duration(seconds: 2));
+      
+      if (fastResult != null) {
+        AppLogger.d('NAI metadata extracted via fast chunk parsing', 'NaiMetadataParser');
+        return fastResult;
+      }
+
+      // 快速路径失败，尝试 stealth_pngcomp 解析（需要完整解码 PNG）
       final result = await compute(
         _extractMetadataIsolate,
         bytes,
@@ -59,7 +71,141 @@ class NaiMetadataParser {
     }
   }
 
-  /// 在 Isolate 中执行元数据提取
+  /// 快速路径：从 PNG chunks 提取标准元数据（无需完整解码 PNG）
+  /// 支持 tEXt, zTXt, iTXt chunks
+  static Future<NaiImageMetadata?> _extractFromChunksIsolate(Uint8List bytes) async {
+    try {
+      final chunks = png_extract.extractChunks(bytes);
+      
+      for (final chunk in chunks) {
+        final name = chunk['name'] as String?;
+        if (name == null) continue;
+        
+        // 检查 tEXt, zTXt, iTXt chunks
+        if (name == 'tEXt' || name == 'zTXt' || name == 'iTXt') {
+          final data = chunk['data'] as Uint8List?;
+          if (data == null) continue;
+          
+          // 尝试解析 chunk 数据
+          final textData = _parseTextChunk(data, name);
+          if (textData != null) {
+            // 检查是否是 NAI 元数据
+            final json = _tryParseNaiJson(textData);
+            if (json != null) {
+              return NaiImageMetadata.fromNaiComment(json, rawJson: textData);
+            }
+          }
+        }
+      }
+      
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+  
+  /// 解析 PNG text chunk（tEXt/zTXt/iTXt）
+  static String? _parseTextChunk(Uint8List data, String chunkType) {
+    try {
+      if (chunkType == 'tEXt') {
+        // tEXt: keyword\0text (Latin-1)
+        final nullIndex = data.indexOf(0);
+        if (nullIndex < 0) return null;
+        return latin1.decode(data.sublist(nullIndex + 1));
+      } else if (chunkType == 'zTXt') {
+        // zTXt: keyword\0compressionMethod\0compressedText
+        final firstNull = data.indexOf(0);
+        if (firstNull < 0 || firstNull + 1 >= data.length) return null;
+        final compressionMethod = data[firstNull + 1];
+        if (compressionMethod != 0) return null; // 不支持的压缩方法
+        
+        final compressedData = data.sublist(firstNull + 2);
+        return _inflateZlib(compressedData);
+      } else if (chunkType == 'iTXt') {
+        // iTXt: keyword\0compressed\0method\0language\0translatedKeyword\0text
+        return _parseITXtChunk(data);
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+  
+  /// 解析 iTXt chunk
+  static String? _parseITXtChunk(Uint8List data) {
+    try {
+      var offset = 0;
+      
+      // 读取 keyword（以\0结尾）
+      final keywordEnd = data.indexOf(0, offset);
+      if (keywordEnd < 0) return null;
+      // final keyword = utf8.decode(data.sublist(offset, keywordEnd));
+      offset = keywordEnd + 1;
+      
+      if (offset >= data.length) return null;
+      final compressed = data[offset++];
+      if (offset >= data.length) return null;
+      final method = data[offset++];
+      
+      // 跳过 language tag（以\0结尾）
+      final langEnd = data.indexOf(0, offset);
+      if (langEnd < 0) return null;
+      offset = langEnd + 1;
+      
+      // 跳过 translated keyword（以\0结尾）
+      final transEnd = data.indexOf(0, offset);
+      if (transEnd < 0) return null;
+      offset = transEnd + 1;
+      
+      // 读取文本内容
+      if (offset >= data.length) return null;
+      final textData = data.sublist(offset);
+      
+      if (compressed == 1) {
+        if (method != 0) return null; // 不支持的压缩方法
+        return _inflateZlib(textData);
+      } else {
+        return utf8.decode(textData);
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+  
+  /// 解压 zlib 压缩数据
+  static String? _inflateZlib(Uint8List data) {
+    try {
+      final codec = ZLibCodec();
+      final inflated = codec.decode(data);
+      return utf8.decode(inflated);
+    } catch (e) {
+      return null;
+    }
+  }
+  
+  /// 尝试解析 NAI JSON 数据
+  static Map<String, dynamic>? _tryParseNaiJson(String text) {
+    try {
+      // 检查是否包含 NAI 关键字
+      final lowerText = text.toLowerCase();
+      if (!lowerText.contains('prompt') && 
+          !lowerText.contains('sampler') && 
+          !lowerText.contains('steps')) {
+        return null;
+      }
+      
+      final json = jsonDecode(text) as Map<String, dynamic>;
+      // 验证是 NAI 元数据
+      if (json.containsKey('prompt') || json.containsKey('comment')) {
+        return json;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// 在 Isolate 中执行元数据提取（stealth_pngcomp 方式）
   static Future<NaiImageMetadata?> _extractMetadataIsolate(Uint8List bytes) async {
     try {
       // 解码 PNG图片 - 这是耗时操作
