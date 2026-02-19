@@ -23,6 +23,9 @@ enum ImageDestination {
   /// Vibe Transfer - 作为原始图片（需要编码）
   vibeTransferRaw,
 
+  /// 保存预编码 Vibe 到库
+  saveToVibeLibrary,
+
   /// 角色参考
   characterReference,
 
@@ -374,6 +377,15 @@ class ImageDestinationDialog extends ConsumerWidget {
                   subtitle: context.l10n.drop_useAsRawImageSubtitle,
                   onTap: () => Navigator.of(context)
                       .pop(ImageDestination.vibeTransferRaw),
+                ),
+                const SizedBox(height: 8),
+                // 保存到库按钮（仅当 Vibe 已编码时显示）
+                _DestinationButton(
+                  icon: Icons.save_outlined,
+                  label: '保存到 Vibe 库',
+                  subtitle: '将预编码 Vibe 数据保存到库中',
+                  onTap: () => Navigator.of(context)
+                      .pop(ImageDestination.saveToVibeLibrary),
                 ),
               ],
             ),

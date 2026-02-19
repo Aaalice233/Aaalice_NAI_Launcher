@@ -18,11 +18,14 @@ import '../../../data/models/character/character_prompt.dart' as char;
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/metadata/metadata_import_options.dart';
 import '../../../data/models/queue/replication_task.dart';
+import '../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../data/models/vibe/vibe_reference.dart';
+import '../../../data/services/vibe_library_storage_service.dart';
 import '../../../data/services/vibe_metadata_service.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/replication_queue_provider.dart';
+import '../../providers/vibe_library_provider.dart';
 import '../../router/app_router.dart';
 import '../common/app_toast.dart';
 import '../metadata/metadata_import_dialog.dart';
@@ -489,6 +492,12 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         );
         break;
 
+      case ImageDestination.saveToVibeLibrary:
+        if (detectedVibe != null) {
+          await _handleSaveToVibeLibrary(detectedVibe, l10n);
+        }
+        break;
+
       case ImageDestination.characterReference:
         _handleCharacterReference(bytes, notifier, l10n);
         break;
@@ -595,6 +604,83 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
           ? '已追加 1 个风格参考（复用预编码 Vibe）'
           : '已添加风格参考（复用预编码 Vibe，节省 2 Anlas）';
       AppToast.success(context, message);
+    }
+  }
+
+  /// 保存预编码 Vibe 到库
+  Future<void> _handleSaveToVibeLibrary(
+    VibeReference vibe,
+    AppLocalizations l10n,
+  ) async {
+    // 检查是否是未编码的原始图片
+    if (vibe.sourceType == VibeSourceType.rawImage && vibe.vibeEncoding.isEmpty) {
+      AppToast.warning(
+        context,
+        '此 Vibe 需要先编码才能保存到库中',
+      );
+      return;
+    }
+
+    // 显示保存对话框
+    final nameController = TextEditingController(text: vibe.displayName);
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('保存到 Vibe 库'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: '名称',
+                hintText: '输入保存名称',
+                border: OutlineInputBorder(),
+              ),
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.common_cancel),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (nameController.text.trim().isNotEmpty) {
+                Navigator.of(context).pop(true);
+              }
+            },
+            child: Text(l10n.common_save),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && mounted) {
+      try {
+        final storageService = ref.read(vibeLibraryStorageServiceProvider);
+        
+        // 创建库条目
+        final entry = VibeLibraryEntry.fromVibeReference(
+          name: nameController.text.trim(),
+          vibeData: vibe,
+        );
+        
+        await storageService.saveEntry(entry);
+        
+        // 刷新库
+        ref.read(vibeLibraryNotifierProvider.notifier).reload();
+
+        if (mounted) {
+          AppToast.success(context, '已保存到 Vibe 库');
+        }
+      } catch (e) {
+        if (mounted) {
+          AppToast.error(context, '保存失败: $e');
+        }
+      }
     }
   }
 
