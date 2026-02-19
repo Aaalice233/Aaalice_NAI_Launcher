@@ -6,10 +6,10 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../core/database/datasources/gallery_data_source.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/nai_metadata_parser.dart';
 import '../../models/gallery/nai_image_metadata.dart';
-import 'gallery_database_service.dart';
 
 /// 扫描结果
 class ScanResult {
@@ -50,7 +50,7 @@ class _ParseResult {
 /// - 小批量（<=500张）：主线程直接处理，避免 isolate 开销
 /// - 大批量（>500张）：使用 isolate 批量解析元数据
 class GalleryScanService {
-  final GalleryDatabaseService _db;
+  final GalleryDataSource _dataSource;
 
   static const List<String> _supportedExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
   static const int _batchSize = 50;
@@ -58,11 +58,11 @@ class GalleryScanService {
   /// 使用 isolate 的阈值
   static const int _isolateThreshold = 500;
 
-  GalleryScanService({required GalleryDatabaseService db}) : _db = db;
+  GalleryScanService({required GalleryDataSource dataSource}) : _dataSource = dataSource;
 
   static GalleryScanService? _instance;
   static GalleryScanService get instance {
-    _instance ??= GalleryScanService(db: GalleryDatabaseService.instance);
+    _instance ??= GalleryScanService(dataSource: GalleryDataSource());
     return _instance!;
   }
 
@@ -72,7 +72,7 @@ class GalleryScanService {
 
   /// 检测需要处理的文件数量
   Future<(int, int)> detectFilesNeedProcessing(Directory rootDir) async {
-    final existingFiles = await _db.getAllFileHashes();
+    final existingFiles = await _getAllFileHashes();
     final existingPaths = existingFiles.keys.toSet();
 
     int totalFiles = 0;
@@ -109,7 +109,7 @@ class GalleryScanService {
 
     try {
       onProgress?.call(processed: 0, total: 0, phase: 'checking');
-      final existingFiles = await _db.getAllFileHashes();
+      final existingFiles = await _getAllFileHashes();
 
       // 收集最近的文件
       final recentFiles = await _collectRecentFiles(rootDir, maxFiles: maxFiles);
@@ -173,7 +173,7 @@ class GalleryScanService {
     try {
       onProgress?.call(processed: 0, total: 0, phase: 'checking');
 
-      final existingFiles = await _db.getAllFileHashes();
+      final existingFiles = await _getAllFileHashes();
       final existingPaths = existingFiles.keys.toSet();
 
       final currentFiles = <File>[];
@@ -214,7 +214,7 @@ class GalleryScanService {
       final currentPaths = currentFiles.map((f) => f.path).toSet();
       final deletedPaths = existingPaths.difference(currentPaths);
       if (deletedPaths.isNotEmpty) {
-        await _db.batchMarkAsDeleted(deletedPaths.toList());
+        await _dataSource.batchMarkAsDeleted(deletedPaths.toList());
         result.filesDeleted = deletedPaths.length;
       }
 
@@ -281,12 +281,23 @@ class GalleryScanService {
   /// 标记文件为已删除
   Future<void> markAsDeleted(List<String> paths) async {
     if (paths.isEmpty) return;
-    await _db.batchMarkAsDeleted(paths);
+    await _dataSource.batchMarkAsDeleted(paths);
   }
 
   // ============================================================
   // 私有方法
   // ============================================================
+
+  /// 获取所有文件哈希
+  Future<Map<String, String>> _getAllFileHashes() async {
+    try {
+      final images = await _dataSource.getAllImages();
+      return {for (var img in images) img.filePath: img.fileHash ?? ''};
+    } catch (e, stack) {
+      AppLogger.e('Failed to get all file hashes', e, stack, 'GalleryScanService');
+      return {};
+    }
+  }
 
   /// 智能处理文件（根据数量选择策略）
   Future<void> _processFilesSmart(
@@ -456,7 +467,7 @@ class GalleryScanService {
           ? width / height
           : null;
 
-      final imageId = await _db.upsertImage(
+      final imageId = await _dataSource.upsertImage(
         filePath: path,
         fileName: fileName,
         fileSize: stat.size,
@@ -470,13 +481,13 @@ class GalleryScanService {
       );
 
       if (metadata != null && metadata.hasData) {
-        await _db.upsertMetadata(imageId, metadata);
+        await _dataSource.upsertMetadata(imageId, metadata);
       }
 
       if (isFullScan) {
         result.filesAdded++;
       } else {
-        final existingId = await _db.getImageIdByPath(path);
+        final existingId = await _dataSource.getImageIdByPath(path);
         if (existingId != null) {
           result.filesUpdated++;
         } else {
@@ -494,58 +505,32 @@ class GalleryScanService {
     ScanResult result, {
     required bool isFullScan,
   }) async {
-    try {
-      final stat = await file.stat();
-      final fileName = p.basename(file.path);
-      final fileHash = await _computeFileHash(file);
+    NaiImageMetadata? metadata;
+    int? width;
+    int? height;
 
-      NaiImageMetadata? metadata;
-      int? width;
-      int? height;
-
-      if (p.extension(file.path).toLowerCase() == '.png') {
+    // 提取 PNG 元数据
+    if (p.extension(file.path).toLowerCase() == '.png') {
+      try {
         final bytes = await file.readAsBytes();
         metadata = await NaiMetadataParser.extractFromBytes(bytes);
-        if (metadata != null) {
-          width = metadata.width;
-          height = metadata.height;
-        }
+        width = metadata?.width;
+        height = metadata?.height;
+      } catch (e) {
+        result.errors.add('${file.path}: $e');
+        return;
       }
-
-      final aspectRatio = (width != null && height != null && height > 0)
-          ? width / height
-          : null;
-
-      final imageId = await _db.upsertImage(
-        filePath: file.path,
-        fileName: fileName,
-        fileSize: stat.size,
-        fileHash: fileHash,
-        width: width,
-        height: height,
-        aspectRatio: aspectRatio,
-        createdAt: stat.modified,
-        modifiedAt: stat.modified,
-        resolutionKey: width != null && height != null ? '${width}x$height' : null,
-      );
-
-      if (metadata != null && metadata.hasData) {
-        await _db.upsertMetadata(imageId, metadata);
-      }
-
-      if (isFullScan) {
-        result.filesAdded++;
-      } else {
-        final existingId = await _db.getImageIdByPath(file.path);
-        if (existingId != null) {
-          result.filesUpdated++;
-        } else {
-          result.filesAdded++;
-        }
-      }
-    } catch (e) {
-      result.errors.add('${file.path}: $e');
     }
+
+    // 复用数据库写入逻辑
+    await _writeToDatabase(
+      file.path,
+      metadata,
+      width,
+      height,
+      result,
+      isFullScan: isFullScan,
+    );
   }
 
   /// 收集目录下所有图片文件

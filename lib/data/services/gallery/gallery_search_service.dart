@@ -1,5 +1,5 @@
+import '../../../core/database/datasources/gallery_data_source.dart';
 import '../../../core/utils/app_logger.dart';
-import 'gallery_database_service.dart';
 
 /// 搜索结果
 class SearchResult {
@@ -18,16 +18,16 @@ class SearchResult {
 ///
 /// 封装FTS5全文搜索和结构化查询
 class GallerySearchService {
-  final GalleryDatabaseService _db;
+  final GalleryDataSource _dataSource;
 
   /// 单例实例
   static GallerySearchService? _instance;
   static GallerySearchService get instance {
-    _instance ??= GallerySearchService(db: GalleryDatabaseService.instance);
+    _instance ??= GallerySearchService(dataSource: GalleryDataSource());
     return _instance!;
   }
 
-  GallerySearchService({required GalleryDatabaseService db}) : _db = db;
+  GallerySearchService({required GalleryDataSource dataSource}) : _dataSource = dataSource;
 
   /// 全文搜索
   ///
@@ -48,7 +48,7 @@ class GallerySearchService {
     }
 
     try {
-      final imageIds = await _db.searchFullText(query, limit: limit);
+      final imageIds = await _dataSource.searchFullText(query, limit: limit);
 
       stopwatch.stop();
 
@@ -96,7 +96,7 @@ class GallerySearchService {
       // 如果有文本搜索，先用FTS5获取候选ID
       List<int>? candidateIds;
       if (textQuery != null && textQuery.trim().isNotEmpty) {
-        candidateIds = await _db.searchFullText(textQuery, limit: 10000);
+        candidateIds = await _dataSource.searchFullText(textQuery, limit: 10000);
         if (candidateIds.isEmpty) {
           // FTS5没有匹配结果
           return [];
@@ -104,22 +104,14 @@ class GallerySearchService {
       }
 
       // 执行结构化查询
-      final results = await _db.queryImages(
+      final images = await _dataSource.queryImages(
+        orderBy: orderBy.split(' ').first,
+        descending: orderBy.contains('DESC'),
         limit: limit,
         offset: offset,
-        orderBy: orderBy,
-        favoritesOnly: favoritesOnly,
-        tags: tags,
-        dateStart: dateStart,
-        dateEnd: dateEnd,
-        model: model,
-        sampler: sampler,
-        minSteps: minSteps,
-        maxSteps: maxSteps,
-        minCfg: minCfg,
-        maxCfg: maxCfg,
-        resolution: resolution,
       );
+
+      final results = images.map((img) => img.toMap()).toList();
 
       // 如果有候选ID，过滤结果
       if (candidateIds != null) {
@@ -157,7 +149,7 @@ class GallerySearchService {
 
     try {
       // 从模型名称中搜索
-      final models = await _db.getModelDistribution();
+      final models = await _dataSource.getModelDistribution();
       final modelSuggestions = models
           .where(
             (m) =>
@@ -171,7 +163,7 @@ class GallerySearchService {
           .toList();
 
       // 从采样器名称中搜索
-      final samplers = await _db.getSamplerDistribution();
+      final samplers = await _dataSource.getSamplerDistribution();
       final samplerSuggestions = samplers
           .where(
             (s) =>
@@ -194,8 +186,8 @@ class GallerySearchService {
   Future<List<Map<String, dynamic>>> getPopularTerms({int limit = 20}) async {
     try {
       // 返回模型和采样器的使用频率
-      final models = await _db.getModelDistribution();
-      final samplers = await _db.getSamplerDistribution();
+      final models = await _dataSource.getModelDistribution();
+      final samplers = await _dataSource.getSamplerDistribution();
 
       final terms = <Map<String, dynamic>>[];
 

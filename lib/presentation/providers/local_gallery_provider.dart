@@ -6,10 +6,11 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/database/database_providers.dart';
-import '../../core/database/datasources/gallery_data_source.dart';
+import '../../core/database/datasources/gallery_data_source.dart' hide MetadataStatus;
 import '../../core/database/providers/database_state_providers.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/local_image_record.dart';
+import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/repositories/gallery_folder_repository.dart';
 import '../../data/services/gallery/gallery_scan_service.dart';
 
@@ -421,10 +422,42 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
 
         bool isFavorite = false;
         List<String> tags = [];
+        NaiImageMetadata? metadata;
+        MetadataStatus metadataStatus = MetadataStatus.none;
 
         if (imageId != null) {
           isFavorite = await dataSource.isFavorite(imageId);
           tags = await dataSource.getImageTags(imageId);
+
+          // 加载元数据
+          final metadataRecord = await dataSource.getMetadataByImageId(imageId);
+          if (metadataRecord != null) {
+            metadata = NaiImageMetadata(
+              prompt: metadataRecord.prompt,
+              negativePrompt: metadataRecord.negativePrompt,
+              seed: metadataRecord.seed,
+              sampler: metadataRecord.sampler,
+              steps: metadataRecord.steps,
+              scale: metadataRecord.scale,
+              width: metadataRecord.width,
+              height: metadataRecord.height,
+              model: metadataRecord.model,
+              smea: metadataRecord.smea,
+              smeaDyn: metadataRecord.smeaDyn,
+              noiseSchedule: metadataRecord.noiseSchedule,
+              cfgRescale: metadataRecord.cfgRescale,
+              ucPreset: metadataRecord.ucPreset,
+              qualityToggle: metadataRecord.qualityToggle,
+              isImg2Img: metadataRecord.isImg2Img,
+              strength: metadataRecord.strength,
+              noise: metadataRecord.noise,
+              software: metadataRecord.software,
+              source: metadataRecord.source,
+              version: metadataRecord.version,
+              rawJson: metadataRecord.rawJson,
+            );
+            metadataStatus = metadata.hasData ? MetadataStatus.success : MetadataStatus.none;
+          }
         }
 
         records.add(LocalImageRecord(
@@ -433,6 +466,8 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
           modifiedAt: stat.modified,
           isFavorite: isFavorite,
           tags: tags,
+          metadata: metadata,
+          metadataStatus: metadataStatus,
         ),);
       } catch (e) {
         AppLogger.w('Failed to load record for ${file.path}', 'LocalGalleryNotifier');

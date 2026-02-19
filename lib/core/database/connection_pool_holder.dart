@@ -2,11 +2,21 @@ import 'connection_pool.dart';
 import '../utils/app_logger.dart';
 
 /// ConnectionPool 全局持有者
-/// 
+///
 /// 不是单例！支持在热重启或数据库恢复时替换实例。
 /// 所有组件都通过此持有者获取 ConnectionPool，确保获取的是当前有效实例。
 class ConnectionPoolHolder {
   static ConnectionPool? _instance;
+
+  /// 连接池版本号，每次重置时递增
+  /// 用于检测连接池是否在操作期间被重置
+  static int _version = 0;
+
+  /// 获取当前连接池版本号
+  static int get version => _version;
+
+  /// 检查版本是否匹配（用于检测重置）
+  static bool isVersionValid(int expectedVersion) => _version == expectedVersion;
 
   /// 获取当前实例
   static ConnectionPool get instance {
@@ -33,11 +43,19 @@ class ConnectionPoolHolder {
       );
     }
 
+    _version++;
+    final currentVersion = _version;
+
     _instance = ConnectionPool(
       dbPath: dbPath,
       maxConnections: maxConnections,
     );
     await _instance!.initialize();
+
+    AppLogger.i(
+      'ConnectionPool initialized (version: $currentVersion)',
+      'ConnectionPoolHolder',
+    );
     return _instance!;
   }
 
@@ -47,6 +65,7 @@ class ConnectionPoolHolder {
   /// 2. 关闭旧连接池
   /// 3. 创建并初始化新连接池
   /// 4. 原子性设置新实例
+  /// 5. 递增版本号，使旧版本号的检测失效
   static Future<ConnectionPool> reset({
     required String dbPath,
     int maxConnections = 3,
@@ -55,6 +74,10 @@ class ConnectionPoolHolder {
     // 这确保新请求会收到 "not initialized" 错误，而不是获取到正在关闭的实例
     final oldInstance = _instance;
     _instance = null;
+
+    // 递增版本号 - 这会立即使所有正在进行的版本检测失效
+    _version++;
+    final currentVersion = _version;
 
     // 2. 关闭旧连接池（此时新请求已经被阻止）
     if (oldInstance != null) {
@@ -71,7 +94,10 @@ class ConnectionPoolHolder {
     // 4. 原子性设置新实例
     _instance = newInstance;
 
-    AppLogger.i('ConnectionPool reset completed', 'ConnectionPoolHolder');
+    AppLogger.i(
+      'ConnectionPool reset completed (version: $currentVersion)',
+      'ConnectionPoolHolder',
+    );
     return newInstance;
   }
 

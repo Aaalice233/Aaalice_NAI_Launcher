@@ -142,7 +142,7 @@ class GalleryImageRecord {
 ///
 /// 存储图片的 NAI 生成元数据
 class GalleryMetadataRecord {
-  final String imageId; // 关联的图片ID
+  final int imageId; // 关联的图片ID
   final String prompt; // 正向提示词
   final String negativePrompt; // 负向提示词
   final int? seed; // 随机种子
@@ -223,7 +223,7 @@ class GalleryMetadataRecord {
 
   factory GalleryMetadataRecord.fromMap(Map<String, dynamic> map) {
     return GalleryMetadataRecord(
-      imageId: map['image_id'] as String,
+      imageId: (map['image_id'] as num).toInt(),
       prompt: map['prompt'] as String? ?? '',
       negativePrompt: map['negative_prompt'] as String? ?? '',
       seed: map['seed'] as int?,
@@ -252,7 +252,7 @@ class GalleryMetadataRecord {
 
   /// 从 NaiImageMetadata 构造
   factory GalleryMetadataRecord.fromNaiMetadata(
-    String imageId,
+    int imageId,
     NaiImageMetadata metadata,
   ) {
     return GalleryMetadataRecord(
@@ -412,13 +412,27 @@ class GalleryDataSource extends BaseDataSource {
   @override
   Set<String> get dependencies => {}; // 无依赖
 
-  /// 获取数据库连接
+  /// 获取数据库连接（带版本检测）
+  ///
+  /// 在重试期间检测连接池版本变化，如果版本变化则自动重新开始获取。
+  /// 这解决了在长时间操作期间连接池被重置导致的问题。
   Future<dynamic> _acquireDb() async {
     var retryCount = 0;
-    const maxRetries = 10;
+    var poolVersion = ConnectionPoolHolder.version;
+    const maxRetries = 15; // 增加最大重试次数以应对重置
 
     while (retryCount < maxRetries) {
       try {
+        // 检查版本是否变化（连接池被重置）
+        if (!ConnectionPoolHolder.isVersionValid(poolVersion)) {
+          AppLogger.d(
+            'Connection pool was reset (version changed from $poolVersion to ${ConnectionPoolHolder.version}), retrying...',
+            'GalleryDS',
+          );
+          poolVersion = ConnectionPoolHolder.version;
+          retryCount = 0; // 重置重试计数，给新的连接池更多时间
+        }
+
         if (!ConnectionPoolHolder.isInitialized) {
           throw StateError('Connection pool not initialized');
         }
@@ -442,8 +456,13 @@ class GalleryDataSource extends BaseDataSource {
         final isDbClosed = errorStr.contains('database_closed') ||
             errorStr.contains('not initialized') ||
             errorStr.contains('connection invalid');
+
         if (isDbClosed && retryCount < maxRetries - 1) {
           retryCount++;
+
+          // 计算延迟时间（指数退避）
+          final delayMs = 100 * (1 << (retryCount.clamp(1, 6) - 1));
+
           // 只在首次重试时记录日志，避免恢复期间产生过多警告
           if (retryCount == 1) {
             AppLogger.d(
@@ -451,9 +470,8 @@ class GalleryDataSource extends BaseDataSource {
               'GalleryDS',
             );
           }
-          await Future.delayed(
-            Duration(milliseconds: 100 * (1 << (retryCount - 1))),
-          );
+
+          await Future.delayed(Duration(milliseconds: delayMs));
         } else {
           rethrow;
         }
@@ -461,12 +479,78 @@ class GalleryDataSource extends BaseDataSource {
     }
 
     throw StateError(
-        'Failed to acquire database connection after $maxRetries retries',);
+      'Failed to acquire database connection after $maxRetries retries',
+    );
   }
 
-  /// 释放数据库连接
+  /// 释放数据库连接（带错误处理）
+  ///
+  /// 如果连接池已被重置，静默忽略释放错误
   Future<void> _releaseDb(dynamic db) async {
-    await ConnectionPoolHolder.instance.release(db);
+    if (db == null) return;
+
+    try {
+      await ConnectionPoolHolder.instance.release(db);
+    } catch (e) {
+      // 如果连接池已被重置，释放可能会失败，这是正常的
+      // 此时连接已被旧池关闭，无需额外处理
+      final errorStr = e.toString().toLowerCase();
+      if (errorStr.contains('not initialized') ||
+          errorStr.contains('database_closed')) {
+        AppLogger.d('Database connection already closed by pool reset', 'GalleryDS');
+        return;
+      }
+      rethrow;
+    }
+  }
+
+  /// 检查错误是否为数据库连接错误
+  bool _isDbConnectionError(dynamic error) {
+    final errorStr = error.toString().toLowerCase();
+    return errorStr.contains('database_closed') ||
+        errorStr.contains('database has already been closed') ||
+        errorStr.contains('not initialized') ||
+        errorStr.contains('connection invalid');
+  }
+
+  /// 使用重试机制执行数据库操作
+  ///
+  /// 如果在操作期间连接池被重置，会自动重试整个操作
+  /// 这是处理并发数据库访问时连接池重置的最终解决方案
+  Future<T> _executeWithRetry<T>(
+    Future<T> Function(dynamic db) operation, {
+    String? operationName,
+    int maxRetries = 3,
+  }) async {
+    var attempt = 0;
+
+    while (attempt < maxRetries) {
+      final db = await _acquireDb();
+
+      try {
+        final result = await operation(db);
+        return result;
+      } catch (e) {
+        // 检查是否为连接错误
+        if (_isDbConnectionError(e) && attempt < maxRetries - 1) {
+          attempt++;
+          AppLogger.d(
+            'Database connection lost during operation${operationName != null ? ' ($operationName)' : ''}, retrying ($attempt/$maxRetries)...',
+            'GalleryDS',
+          );
+          // 短暂延迟让连接池有机会恢复
+          await Future.delayed(Duration(milliseconds: 100 * attempt));
+          continue;
+        }
+        rethrow;
+      } finally {
+        await _releaseDb(db);
+      }
+    }
+
+    throw StateError(
+      'Operation${operationName != null ? ' $operationName' : ''} failed after $maxRetries retries',
+    );
   }
 
   /// 清除缓存
@@ -798,83 +882,82 @@ class GalleryDataSource extends BaseDataSource {
     MetadataStatus? metadataStatus,
     bool? isFavorite,
   }) async {
-    final db = await _acquireDb();
+    return _executeWithRetry(
+      (db) async {
+        final dateYmd = _formatDateYmd(modifiedAt);
+        final now = DateTime.now();
 
-    try {
-      final dateYmd = _formatDateYmd(modifiedAt);
-      final now = DateTime.now();
+        // 首先尝试获取现有记录的ID（如果存在）
+        final existingResult = await db.rawQuery(
+          'SELECT id FROM $_imagesTable WHERE file_path = ?',
+          [filePath],
+        );
+        final existingId = existingResult.isNotEmpty
+            ? (existingResult.first['id'] as num?)?.toInt()
+            : null;
 
-      // 首先尝试获取现有记录的ID（如果存在）
-      final existingResult = await db.rawQuery(
-        'SELECT id FROM $_imagesTable WHERE file_path = ?',
-        [filePath],
-      );
-      final existingId = existingResult.isNotEmpty
-          ? (existingResult.first['id'] as num?)?.toInt()
-          : null;
+        // 如果存在，清除缓存
+        if (existingId != null) {
+          _imageCache.remove(existingId);
+        }
 
-      // 如果存在，清除缓存
-      if (existingId != null) {
-        _imageCache.remove(existingId);
-      }
+        final map = {
+          'file_path': filePath,
+          'file_name': fileName,
+          'file_size': fileSize,
+          'file_hash': fileHash,
+          'width': width,
+          'height': height,
+          'aspect_ratio': aspectRatio,
+          'created_at': createdAt.millisecondsSinceEpoch,
+          'modified_at': modifiedAt.millisecondsSinceEpoch,
+          'indexed_at': now.millisecondsSinceEpoch,
+          'date_ymd': dateYmd,
+          'resolution_key': resolutionKey,
+          'metadata_status': (metadataStatus ?? MetadataStatus.none).index,
+          'is_favorite': (isFavorite ?? false) ? 1 : 0,
+          'is_deleted': 0,
+        };
 
-      final map = {
-        'file_path': filePath,
-        'file_name': fileName,
-        'file_size': fileSize,
-        'file_hash': fileHash,
-        'width': width,
-        'height': height,
-        'aspect_ratio': aspectRatio,
-        'created_at': createdAt.millisecondsSinceEpoch,
-        'modified_at': modifiedAt.millisecondsSinceEpoch,
-        'indexed_at': now.millisecondsSinceEpoch,
-        'date_ymd': dateYmd,
-        'resolution_key': resolutionKey,
-        'metadata_status': (metadataStatus ?? MetadataStatus.none).index,
-        'is_favorite': (isFavorite ?? false) ? 1 : 0,
-        'is_deleted': 0,
-      };
+        if (existingId != null) {
+          map['id'] = existingId;
+        }
 
-      if (existingId != null) {
-        map['id'] = existingId;
-      }
+        final id = await db.insert(
+          _imagesTable,
+          map,
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
 
-      final id = await db.insert(
-        _imagesTable,
-        map,
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-
-      AppLogger.d('Upserted image: $fileName (id=$id)', 'GalleryDS');
-      return id;
-    } catch (e, stack) {
-      AppLogger.e('Failed to upsert image: $filePath', e, stack, 'GalleryDS');
-      rethrow;
-    } finally {
-      await _releaseDb(db);
-    }
+        AppLogger.d('Upserted image: $fileName (id=$id)', 'GalleryDS');
+        return id;
+      },
+      operationName: 'upsertImage',
+      maxRetries: 3,
+    );
   }
 
   /// 根据文件路径获取图片ID
   ///
   /// 如果找不到记录，返回 null
   Future<int?> getImageIdByPath(String filePath) async {
-    final db = await _acquireDb();
-
     try {
-      final result = await db.rawQuery(
-        'SELECT id FROM $_imagesTable WHERE file_path = ? AND is_deleted = 0',
-        [filePath],
-      );
+      return await _executeWithRetry(
+        (db) async {
+          final result = await db.rawQuery(
+            'SELECT id FROM $_imagesTable WHERE file_path = ? AND is_deleted = 0',
+            [filePath],
+          );
 
-      if (result.isEmpty) return null;
-      return (result.first['id'] as num?)?.toInt();
+          if (result.isEmpty) return null;
+          return (result.first['id'] as num?)?.toInt();
+        },
+        operationName: 'getImageIdByPath',
+        maxRetries: 3,
+      );
     } catch (e, stack) {
       AppLogger.e('Failed to get image ID by path: $filePath', e, stack, 'GalleryDS');
       return null;
-    } finally {
-      await _releaseDb(db);
     }
   }
 
@@ -1427,18 +1510,20 @@ class GalleryDataSource extends BaseDataSource {
       return _favoriteCache.length;
     }
 
-    final db = await _acquireDb();
-
     try {
-      final result = await db.rawQuery(
-        'SELECT COUNT(*) as count FROM $_favoritesTable',
+      return await _executeWithRetry(
+        (db) async {
+          final result = await db.rawQuery(
+            'SELECT COUNT(*) as count FROM $_favoritesTable',
+          );
+          return (result.first['count'] as num?)?.toInt() ?? 0;
+        },
+        operationName: 'getFavoriteCount',
+        maxRetries: 3,
       );
-      return (result.first['count'] as num?)?.toInt() ?? 0;
     } catch (e, stack) {
       AppLogger.e('Failed to get favorite count', e, stack, 'GalleryDS');
       return 0;
-    } finally {
-      await _releaseDb(db);
     }
   }
 
@@ -1714,7 +1799,7 @@ class GalleryDataSource extends BaseDataSource {
         [imageId],
       );
 
-      return results.map((row) => row['name'] as String).toList();
+      return results.map<String>((row) => row['name'] as String).toList();
     } catch (e, stack) {
       AppLogger.e('Failed to get tags for image $imageId', e, stack, 'GalleryDS');
       return [];
@@ -1825,5 +1910,115 @@ class GalleryDataSource extends BaseDataSource {
   /// 使用标签名称的小写形式作为ID，确保一致性
   String _generateTagId(String tagName) {
     return tagName.toLowerCase().trim();
+  }
+
+  // ============================================================
+  // 统计查询
+  // ============================================================
+
+  /// 获取所有图片（不限制数量）
+  ///
+  /// 用于扫描服务获取所有已索引的图片
+  Future<List<GalleryImageRecord>> getAllImages() async {
+    try {
+      return await _executeWithRetry(
+        (db) async {
+          final results = await db.rawQuery(
+            '''
+            SELECT * FROM $_imagesTable
+            WHERE is_deleted = 0
+            ORDER BY modified_at DESC
+            ''',
+          );
+
+          return results.map((row) => GalleryImageRecord.fromMap(row)).toList();
+        },
+        operationName: 'getAllImages',
+        maxRetries: 3,
+      );
+    } catch (e, stack) {
+      AppLogger.e('Failed to get all images', e, stack, 'GalleryDS');
+      return [];
+    }
+  }
+
+  /// 获取模型分布统计
+  ///
+  /// 返回每个模型的使用次数和占比
+  Future<List<Map<String, dynamic>>> getModelDistribution() async {
+    final db = await _acquireDb();
+
+    try {
+      final results = await db.rawQuery(
+        '''
+        SELECT 
+          model,
+          COUNT(*) as count
+        FROM $_metadataTable
+        WHERE model IS NOT NULL AND model != ''
+        GROUP BY model
+        ORDER BY count DESC
+        ''',
+      );
+
+      final total = results.fold<int>(
+        0,
+        (sum, row) => sum + (row['count'] as int),
+      );
+
+      return results.map((row) {
+        final count = row['count'] as int;
+        return {
+          'model': row['model'] as String,
+          'count': count,
+          'percentage': total > 0 ? (count / total * 100) : 0.0,
+        };
+      }).toList();
+    } catch (e, stack) {
+      AppLogger.e('Failed to get model distribution', e, stack, 'GalleryDS');
+      return [];
+    } finally {
+      await _releaseDb(db);
+    }
+  }
+
+  /// 获取采样器分布统计
+  ///
+  /// 返回每个采样器的使用次数和占比
+  Future<List<Map<String, dynamic>>> getSamplerDistribution() async {
+    final db = await _acquireDb();
+
+    try {
+      final results = await db.rawQuery(
+        '''
+        SELECT 
+          sampler,
+          COUNT(*) as count
+        FROM $_metadataTable
+        WHERE sampler IS NOT NULL AND sampler != ''
+        GROUP BY sampler
+        ORDER BY count DESC
+        ''',
+      );
+
+      final total = results.fold<int>(
+        0,
+        (sum, row) => sum + (row['count'] as int),
+      );
+
+      return results.map((row) {
+        final count = row['count'] as int;
+        return {
+          'sampler': row['sampler'] as String,
+          'count': count,
+          'percentage': total > 0 ? (count / total * 100) : 0.0,
+        };
+      }).toList();
+    } catch (e, stack) {
+      AppLogger.e('Failed to get sampler distribution', e, stack, 'GalleryDS');
+      return [];
+    } finally {
+      await _releaseDb(db);
+    }
   }
 }

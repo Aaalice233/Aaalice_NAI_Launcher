@@ -8,7 +8,6 @@ import '../../core/shortcuts/default_shortcuts.dart';
 import '../providers/auth_provider.dart' show authNotifierProvider, AuthStatus;
 import '../screens/auth/login_screen.dart';
 import '../screens/generation/generation_screen.dart';
-import '../screens/gallery/gallery_screen.dart';
 import '../screens/local_gallery/local_gallery_screen.dart';
 import '../screens/online_gallery/online_gallery_screen.dart';
 import '../screens/prompt_config/prompt_config_screen.dart';
@@ -39,7 +38,6 @@ final floatingButtonClosedProvider = StateProvider<bool>((ref) => false);
 
 /// Navigator Keys for StatefulShellRoute branches
 final _homeKey = GlobalKey<NavigatorState>(debugLabel: 'home');
-final _galleryKey = GlobalKey<NavigatorState>(debugLabel: 'gallery');
 final _localGalleryKey = GlobalKey<NavigatorState>(debugLabel: 'localGallery');
 final _onlineGalleryKey =
     GlobalKey<NavigatorState>(debugLabel: 'onlineGallery');
@@ -57,7 +55,6 @@ class AppRoutes {
   static const String login = '/login';
   static const String home = '/';
   static const String generation = '/generation';
-  static const String gallery = '/gallery';
   static const String localGallery = '/local-gallery';
   static const String onlineGallery = '/online-gallery';
   static const String settings = '/settings';
@@ -173,19 +170,7 @@ GoRouter appRouter(Ref ref) {
             ],
           ),
 
-          // Branch 1: 图库页（本地生成历史）- 不保活
-          StatefulShellBranch(
-            navigatorKey: _galleryKey,
-            routes: [
-              GoRoute(
-                path: AppRoutes.gallery,
-                name: 'gallery',
-                builder: (context, state) => const GalleryScreen(),
-              ),
-            ],
-          ),
-
-          // Branch 2: 本地画廊 - 保活
+          // Branch 1: 本地画廊 - 保活
           StatefulShellBranch(
             navigatorKey: _localGalleryKey,
             routes: [
@@ -232,7 +217,7 @@ GoRouter appRouter(Ref ref) {
             ],
           ),
 
-          // Branch 3: 在线画廊 - 保活
+          // Branch 2: 在线画廊 - 保活
           StatefulShellBranch(
             navigatorKey: _onlineGalleryKey,
             routes: [
@@ -244,7 +229,7 @@ GoRouter appRouter(Ref ref) {
             ],
           ),
 
-          // Branch 4: 设置页 - 不保活
+          // Branch 3: 设置页 - 不保活
           StatefulShellBranch(
             navigatorKey: _settingsKey,
             routes: [
@@ -256,7 +241,7 @@ GoRouter appRouter(Ref ref) {
             ],
           ),
 
-          // Branch 5: 随机提示词配置页 - 不保活
+          // Branch 4: 随机提示词配置页 - 不保活
           StatefulShellBranch(
             navigatorKey: _promptConfigKey,
             routes: [
@@ -268,7 +253,7 @@ GoRouter appRouter(Ref ref) {
             ],
           ),
 
-          // Branch 6: 统计页 - 不保活
+          // Branch 5: 统计页 - 不保活
           StatefulShellBranch(
             navigatorKey: _statisticsKey,
             routes: [
@@ -280,7 +265,7 @@ GoRouter appRouter(Ref ref) {
             ],
           ),
 
-          // Branch 7: 词库页 - 保活
+          // Branch 6: 词库页 - 保活
           StatefulShellBranch(
             navigatorKey: _tagLibraryPageKey,
             routes: [
@@ -292,7 +277,7 @@ GoRouter appRouter(Ref ref) {
             ],
           ),
 
-          // Branch 8: Vibe库页 - 保活
+          // Branch 7: Vibe库页 - 保活
           StatefulShellBranch(
             navigatorKey: _vibeLibraryKey,
             routes: [
