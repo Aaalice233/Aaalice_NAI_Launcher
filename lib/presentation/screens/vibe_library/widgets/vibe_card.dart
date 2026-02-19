@@ -645,17 +645,17 @@ class _ActionButtonState extends State<_ActionButton> {
         ? colorScheme.onError
         : (_isHovered ? Colors.black : Colors.black.withOpacity(0.65));
 
-    return Tooltip(
-      message: widget.tooltip,
-      preferBelow: false,
-      verticalOffset: 8,
-      waitDuration: const Duration(milliseconds: 100),
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          onTap: widget.onTap,
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Tooltip(
+          message: widget.tooltip,
+          preferBelow: false,
+          verticalOffset: 8,
+          waitDuration: const Duration(milliseconds: 100),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 120),
             curve: Curves.easeOut,
