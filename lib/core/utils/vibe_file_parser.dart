@@ -543,14 +543,6 @@ class VibeFileParser {
     return null;
   }
 
-  /// 解析 PNG iTXt 块（向后兼容）
-  /// 
-  /// 只返回内容，不返回 keyword
-  static String? _parseITXtChunk(Uint8List data) {
-    final result = _parseITXtChunkWithKeyword(data);
-    return result?.content;
-  }
-
   /// 从 NAI vibe 数据中提取 encoding
   /// 
   /// NAI 格式: encodings: {model: {hash: {encoding: "..."}}}
