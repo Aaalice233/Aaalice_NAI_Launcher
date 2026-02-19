@@ -11,18 +11,18 @@ class MetadataImportOptions with _$MetadataImportOptions {
     @Default(true) bool importPrompt, // 正向提示词
     @Default(true) bool importNegativePrompt, // 负向提示词
     @Default(true) bool importCharacterPrompts, // 多角色提示词
-    @Default(true) bool importSeed, // 种子
-    @Default(true) bool importSteps, // 步数
-    @Default(true) bool importScale, // CFG Scale
-    @Default(true) bool importSize, // 尺寸
-    @Default(true) bool importSampler, // 采样器
-    @Default(true) bool importModel, // 模型
-    @Default(true) bool importSmea, // SMEA
-    @Default(true) bool importSmeaDyn, // SMEA Dyn
-    @Default(true) bool importNoiseSchedule, // 噪声计划
-    @Default(true) bool importCfgRescale, // CFG Rescale
-    @Default(true) bool importQualityToggle, // 质量标签
-    @Default(true) bool importUcPreset, // UC 预设
+    @Default(false) bool importSeed, // 种子
+    @Default(false) bool importSteps, // 步数
+    @Default(false) bool importScale, // CFG Scale
+    @Default(false) bool importSize, // 尺寸
+    @Default(false) bool importSampler, // 采样器
+    @Default(false) bool importModel, // 模型
+    @Default(false) bool importSmea, // SMEA
+    @Default(false) bool importSmeaDyn, // SMEA Dyn
+    @Default(false) bool importNoiseSchedule, // 噪声计划
+    @Default(false) bool importCfgRescale, // CFG Rescale
+    @Default(false) bool importQualityToggle, // 质量标签
+    @Default(false) bool importUcPreset, // UC 预设
   }) = _MetadataImportOptions;
 
   const MetadataImportOptions._();

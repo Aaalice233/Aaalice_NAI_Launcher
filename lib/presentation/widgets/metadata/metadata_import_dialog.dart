@@ -136,39 +136,17 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                   () => _options = _options.copyWith(importSampler: value),
                 ),
               ),
-              _buildCheckbox(
-                label: l10n.metadataImport_model,
-                value: _options.importModel,
-                hasData: widget.metadata.model != null,
-                onChanged: (value) => setState(
-                  () => _options = _options.copyWith(importModel: value),
-                ),
-              ),
-
-              const SizedBox(height: 8),
-              Divider(color: theme.colorScheme.outlineVariant),
-              const SizedBox(height: 8),
-
-              // 高级选项
-              _buildSectionTitle(l10n.metadataImport_advancedSection),
-              if (widget.metadata.smea != null)
+              // 模型选项：仅在有数据时显示
+              if (widget.metadata.model != null)
                 _buildCheckbox(
-                  label: l10n.metadataImport_smea,
-                  value: _options.importSmea,
+                  label: l10n.metadataImport_model,
+                  value: _options.importModel,
                   hasData: true,
                   onChanged: (value) => setState(
-                    () => _options = _options.copyWith(importSmea: value),
+                    () => _options = _options.copyWith(importModel: value),
                   ),
                 ),
-              if (widget.metadata.smeaDyn != null)
-                _buildCheckbox(
-                  label: l10n.metadataImport_smeaDyn,
-                  value: _options.importSmeaDyn,
-                  hasData: true,
-                  onChanged: (value) => setState(
-                    () => _options = _options.copyWith(importSmeaDyn: value),
-                  ),
-                ),
+              // 噪声计划移至生成参数部分
               if (widget.metadata.noiseSchedule != null)
                 _buildCheckbox(
                   label: l10n.metadataImport_noiseSchedule,
@@ -177,34 +155,6 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                   onChanged: (value) => setState(
                     () => _options =
                         _options.copyWith(importNoiseSchedule: value),
-                  ),
-                ),
-              if (widget.metadata.cfgRescale != null)
-                _buildCheckbox(
-                  label: l10n.metadataImport_cfgRescale,
-                  value: _options.importCfgRescale,
-                  hasData: true,
-                  onChanged: (value) => setState(
-                    () => _options = _options.copyWith(importCfgRescale: value),
-                  ),
-                ),
-              if (widget.metadata.qualityToggle != null)
-                _buildCheckbox(
-                  label: l10n.metadataImport_qualityToggle,
-                  value: _options.importQualityToggle,
-                  hasData: true,
-                  onChanged: (value) => setState(
-                    () => _options =
-                        _options.copyWith(importQualityToggle: value),
-                  ),
-                ),
-              if (widget.metadata.ucPreset != null)
-                _buildCheckbox(
-                  label: l10n.metadataImport_ucPreset,
-                  value: _options.importUcPreset,
-                  hasData: true,
-                  onChanged: (value) => setState(
-                    () => _options = _options.copyWith(importUcPreset: value),
                   ),
                 ),
 
