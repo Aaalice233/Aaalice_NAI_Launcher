@@ -11,7 +11,7 @@ import '../../../widgets/common/animated_favorite_button.dart';
 ///
 /// 支持 Bundle 和非 Bundle 类型：
 /// - 非 Bundle: 简洁悬停效果
-/// - Bundle: 斜条拼接百叶窗效果，展示子 vibe 预览
+/// - Bundle: 扑克牌层叠展开效果
 class VibeCard extends StatefulWidget {
   final VibeLibraryEntry entry;
   final double width;
@@ -138,11 +138,11 @@ class _VibeCardState extends State<VibeCard>
                   // 主内容层
                   _buildMainContent(),
 
-                  // Bundle 斜条拼接百叶窗层（悬停时显示）
+                  // Bundle 扑克牌层叠展开层
                   if (widget.entry.isBundle)
                     FadeTransition(
                       opacity: _fadeAnimation,
-                      child: _buildDiagonalBlinds(),
+                      child: _buildCardStack(),
                     ),
 
                   // 信息层
@@ -245,50 +245,153 @@ class _VibeCardState extends State<VibeCard>
     );
   }
 
-  /// 斜条拼接百叶窗效果
-  Widget _buildDiagonalBlinds() {
+  /// 扑克牌层叠展开效果
+  Widget _buildCardStack() {
     final previews = widget.entry.bundledVibePreviews?.toList() ?? [];
     if (previews.isEmpty) return const SizedBox.shrink();
 
-    // 最多显示 6 条，循环使用预览图
-    final count = math.min(previews.length, 6);
-    final displayPreviews = previews.take(count).toList();
+    // 最多显示 5 张
+    final count = math.min(previews.length, 5);
 
     return Container(
-      color: Colors.black.withOpacity(0.6),
+      color: Colors.black.withOpacity(0.7),
+      child: AnimatedBuilder(
+        animation: _animationController,
+        builder: (context, child) {
+          final progress = _animationController.value;
+          return _buildFanLayout(previews.take(count).toList(), progress);
+        },
+      ),
+    );
+  }
+
+  /// 扇形展开布局
+  Widget _buildFanLayout(List<Uint8List> previews, double progress) {
+    final count = previews.length;
+    if (count == 0) return const SizedBox.shrink();
+
+    // 单张居中显示
+    if (count == 1) {
+      return Center(
+        child: _buildSingleCard(previews[0], progress, 0),
+      );
+    }
+
+    // 多张扇形展开
+    return Center(
       child: Stack(
-        fit: StackFit.expand,
+        alignment: Alignment.center,
         children: List.generate(count, (index) {
-          return _buildDiagonalStrip(index, count, displayPreviews[index]);
+          return _buildFanCard(previews[index], index, count, progress);
         }),
       ),
     );
   }
 
-  /// 单条斜向拼接块
-  Widget _buildDiagonalStrip(int index, int total, Uint8List preview) {
-    // 计算斜条的偏移和角度
-    final stripHeight = (widget.height ?? widget.width) / total;
-    final y = index * stripHeight;
+  /// 单张卡片
+  Widget _buildSingleCard(Uint8List preview, double progress, int index) {
+    final cardWidth = widget.width * 0.65;
+    final cardHeight = (widget.height ?? widget.width) * 0.75;
 
-    return Positioned(
-      top: y,
-      left: 0,
-      right: 0,
-      height: stripHeight,
-      child: ClipPath(
-        clipper: _DiagonalStripClipper(
-          index: index,
-          total: total,
-          angle: -0.15, // 斜向角度（弧度）
+    // 从收起状态到展开状态的动画
+    final scale = 0.8 + (0.2 * progress);
+    final translateY = 20.0 * (1 - progress);
+    final rotate = (index % 2 == 0 ? -1 : 1) * 0.05 * progress;
+
+    return Transform(
+      transform: Matrix4.identity()
+        ..translate(0.0, translateY)
+        ..rotateZ(rotate)
+        ..scale(scale),
+      alignment: Alignment.center,
+      child: Container(
+        width: cardWidth,
+        height: cardHeight,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.4 * progress),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+          border: Border.all(
+            color: Colors.white.withOpacity(0.8 * progress),
+            width: 2,
+          ),
         ),
-        child: Image.memory(
-          preview,
-          fit: BoxFit.cover,
-          gaplessPlayback: true,
-          errorBuilder: (context, error, stackTrace) => Container(
-            color: Colors.grey[800],
-            child: const Icon(Icons.image_not_supported, color: Colors.grey, size: 16),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Image.memory(
+            preview,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 扇形展开的卡片
+  Widget _buildFanCard(Uint8List preview, int index, int total, double progress) {
+    final cardWidth = widget.width * 0.55;
+    final cardHeight = (widget.height ?? widget.width) * 0.7;
+
+    // 计算扇形角度
+    final maxAngle = 0.5; // 最大展开角度（弧度）
+    final angleStep = total > 1 ? maxAngle / (total - 1) : 0.0;
+    final startAngle = -maxAngle / 2;
+    final targetAngle = startAngle + (index * angleStep);
+
+    // 计算扇形半径（从中心点展开）
+    final fanRadius = widget.width * 0.15;
+
+    // 当前动画值
+    final angle = targetAngle * progress;
+    final offsetX = math.sin(angle) * fanRadius * progress;
+    final offsetY = -math.cos(angle).abs() * fanRadius * 0.3 * progress;
+
+    // 层叠偏移（收起状态时的偏移）
+    final stackOffsetX = (index - total / 2) * 8.0 * (1 - progress);
+    final stackOffsetY = (index - total / 2).abs() * 2.0 * (1 - progress);
+
+    final currentX = stackOffsetX + offsetX;
+    final currentY = stackOffsetY + offsetY;
+
+    return Transform.translate(
+      offset: Offset(currentX, currentY),
+      child: Transform.rotate(
+        angle: angle,
+        alignment: Alignment.center,
+        child: Container(
+          width: cardWidth,
+          height: cardHeight,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3 + (0.2 * progress)),
+                blurRadius: 8 + (6 * progress),
+                offset: Offset(0, 4 + (4 * progress)),
+              ),
+            ],
+            border: Border.all(
+              color: Colors.white.withOpacity(0.6 + (0.3 * progress)),
+              width: 1.5,
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Image.memory(
+              preview,
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: Colors.grey[800],
+                child: const Icon(Icons.image_not_supported, color: Colors.grey, size: 20),
+              ),
+            ),
           ),
         ),
       ),
@@ -509,36 +612,6 @@ class _VibeCardState extends State<VibeCard>
       ),
     );
   }
-}
-
-/// 斜向裁剪器
-class _DiagonalStripClipper extends CustomClipper<Path> {
-  final int index;
-  final int total;
-  final double angle;
-
-  _DiagonalStripClipper({
-    required this.index,
-    required this.total,
-    required this.angle,
-  });
-
-  @override
-  Path getClip(Size size) {
-    final offset = size.height * angle.abs();
-
-    // 创建斜向条形的裁剪路径
-    // 每条都与上/下条有重叠，确保无缝拼接
-    return Path()
-      ..moveTo(-offset, 0)
-      ..lineTo(size.width + offset, 0)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldDelegate) => false;
 }
 
 /// 操作按钮组件
