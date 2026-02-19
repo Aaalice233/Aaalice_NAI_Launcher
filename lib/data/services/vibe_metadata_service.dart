@@ -153,4 +153,40 @@ class VibeMetadataService {
       return null;
     }
   }
+
+  /// 从图片中提取所有 Vibe 数据（支持 Bundle）
+  ///
+  /// [image] - PNG 图片字节数据
+  /// [defaultStrength] - 默认强度值 (0-1)
+  ///
+  /// 返回提取的 VibeReference 列表，如果没有找到则返回空列表
+  Future<List<VibeReference>> extractAllVibesFromImage(
+    Uint8List image, {
+    double defaultStrength = 0.6,
+  }) async {
+    try {
+      // 尝试作为 bundle 解析
+      final vibes = await VibeFileParser.extractBundleFromPng(
+        image,
+        defaultStrength: defaultStrength,
+      );
+
+      if (vibes.isNotEmpty) {
+        AppLogger.i(
+          'Successfully extracted ${vibes.length} Vibes from image as bundle',
+          'VibeMetadataService',
+        );
+      }
+
+      return vibes;
+    } catch (e, stack) {
+      AppLogger.e(
+        'Failed to extract all Vibes from image',
+        e,
+        stack,
+        'VibeMetadataService',
+      );
+      return [];
+    }
+  }
 }

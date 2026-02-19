@@ -411,6 +411,9 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
 
     // 检测是否包含 Vibe 元数据（仅 PNG）
     final detectedVibe = await _detectVibeMetadata(fileName, bytes);
+    
+    // 检测是否为 bundle（多个 vibes）
+    final detectedVibes = await _detectAllVibesInPng(fileName, bytes);
 
     if (!mounted) return;
 
@@ -421,6 +424,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       fileName: fileName,
       showExtractMetadata: showExtractMetadata,
       detectedVibe: detectedVibe,
+      isBundle: detectedVibes.length > 1,
     );
 
     if (destination == null || !mounted) return;
@@ -432,6 +436,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       fileName,
       bytes,
       detectedVibe,
+      detectedVibes,
       notifier,
       l10n,
     );
@@ -459,11 +464,35 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     }
   }
 
+  /// 检测 PNG 中所有 Vibe 数据（支持 Bundle）
+  Future<List<VibeReference>> _detectAllVibesInPng(
+    String fileName,
+    Uint8List bytes,
+  ) async {
+    if (!fileName.toLowerCase().endsWith('.png')) return [];
+
+    try {
+      final vibeService = VibeMetadataService();
+      final vibes = await vibeService.extractAllVibesFromImage(bytes);
+      if (vibes.isNotEmpty) {
+        AppLogger.i(
+          'Detected ${vibes.length} Vibes in dropped image: ${vibes.map((v) => v.displayName).join(", ")}',
+          'DropHandler',
+        );
+      }
+      return vibes;
+    } catch (e) {
+      AppLogger.d('Failed to detect all Vibes: $e', 'DropHandler');
+      return [];
+    }
+  }
+
   Future<void> _handleDestination(
     ImageDestination destination,
     String fileName,
     Uint8List bytes,
     VibeReference? detectedVibe,
+    List<VibeReference> detectedVibes,
     GenerationParamsNotifier notifier,
     AppLocalizations l10n,
   ) async {
@@ -493,8 +522,8 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         break;
 
       case ImageDestination.saveToVibeLibrary:
-        if (detectedVibe != null) {
-          await _handleSaveToVibeLibrary(detectedVibe, l10n);
+        if (detectedVibes.isNotEmpty) {
+          await _handleSaveToVibeLibrary(detectedVibes, l10n);
         }
         break;
 
@@ -607,29 +636,46 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     }
   }
 
-  /// 保存预编码 Vibe 到库
+  /// 保存预编码 Vibe 到库（支持 Bundle）
   Future<void> _handleSaveToVibeLibrary(
-    VibeReference vibe,
+    List<VibeReference> vibes,
     AppLocalizations l10n,
   ) async {
-    // 检查是否是未编码的原始图片
-    if (vibe.sourceType == VibeSourceType.rawImage && vibe.vibeEncoding.isEmpty) {
+    if (vibes.isEmpty) return;
+
+    // 检查是否有有效的编码数据
+    final invalidVibes = vibes.where((v) => v.vibeEncoding.isEmpty).toList();
+    if (invalidVibes.isNotEmpty) {
       AppToast.warning(
         context,
-        '此 Vibe 需要先编码才能保存到库中',
+        '${invalidVibes.length} 个 Vibe 缺少编码数据，无法保存',
       );
       return;
     }
 
+    final isBundle = vibes.length > 1;
+    final defaultName = isBundle 
+        ? vibes.first.displayName 
+        : vibes.first.displayName;
+
     // 显示保存对话框
-    final nameController = TextEditingController(text: vibe.displayName);
+    final nameController = TextEditingController(text: defaultName);
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('保存到 Vibe 库'),
+        title: Text(isBundle ? '保存 Vibe Bundle (${vibes.length} 个)' : '保存到 Vibe 库'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (isBundle)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  '包含以下 Vibe：\n${vibes.map((v) => '• ${v.displayName}').join('\n')}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
             TextField(
               controller: nameController,
               decoration: const InputDecoration(
@@ -662,19 +708,29 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       try {
         final storageService = ref.read(vibeLibraryStorageServiceProvider);
         
-        // 创建库条目
-        final entry = VibeLibraryEntry.fromVibeReference(
-          name: nameController.text.trim(),
-          vibeData: vibe,
-        );
-        
-        await storageService.saveEntry(entry);
+        if (isBundle) {
+          // 保存为 Bundle
+          await storageService.saveBundleEntry(
+            vibes,
+            name: nameController.text.trim(),
+          );
+        } else {
+          // 保存单个 Vibe
+          final entry = VibeLibraryEntry.fromVibeReference(
+            name: nameController.text.trim(),
+            vibeData: vibes.first,
+          );
+          await storageService.saveEntry(entry);
+        }
         
         // 刷新库
         ref.read(vibeLibraryNotifierProvider.notifier).reload();
 
         if (mounted) {
-          AppToast.success(context, '已保存到 Vibe 库');
+          AppToast.success(
+            context, 
+            isBundle ? '已保存 Bundle (${vibes.length} 个 Vibe)' : '已保存到 Vibe 库',
+          );
         }
       } catch (e) {
         if (mounted) {

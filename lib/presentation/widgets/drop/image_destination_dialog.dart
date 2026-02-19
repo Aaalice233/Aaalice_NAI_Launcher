@@ -52,12 +52,16 @@ class ImageDestinationDialog extends ConsumerWidget {
   /// 检测到的 Vibe 元数据（如果有）
   final VibeReference? detectedVibe;
 
+  /// 是否为 Bundle（包含多个 Vibe）
+  final bool isBundle;
+
   const ImageDestinationDialog({
     super.key,
     required this.imageBytes,
     required this.fileName,
     this.showExtractMetadata = true,
     this.detectedVibe,
+    this.isBundle = false,
   });
 
   /// 显示对话框
@@ -67,6 +71,7 @@ class ImageDestinationDialog extends ConsumerWidget {
     required String fileName,
     bool showExtractMetadata = true,
     VibeReference? detectedVibe,
+    bool isBundle = false,
   }) {
     return showDialog<ImageDestination>(
       context: context,
@@ -76,6 +81,7 @@ class ImageDestinationDialog extends ConsumerWidget {
         fileName: fileName,
         showExtractMetadata: showExtractMetadata,
         detectedVibe: detectedVibe,
+        isBundle: isBundle,
       ),
     );
   }
@@ -382,8 +388,10 @@ class ImageDestinationDialog extends ConsumerWidget {
                 // 保存到库按钮（仅当 Vibe 已编码时显示）
                 _DestinationButton(
                   icon: Icons.save_outlined,
-                  label: '保存到 Vibe 库',
-                  subtitle: '将预编码 Vibe 数据保存到库中',
+                  label: isBundle ? '保存 Vibe Bundle' : '保存到 Vibe 库',
+                  subtitle: isBundle 
+                      ? '将 ${detectedVibe?.displayName ?? ""} 等保存到库中'
+                      : '将预编码 Vibe 数据保存到库中',
                   onTap: () => Navigator.of(context)
                       .pop(ImageDestination.saveToVibeLibrary),
                 ),
