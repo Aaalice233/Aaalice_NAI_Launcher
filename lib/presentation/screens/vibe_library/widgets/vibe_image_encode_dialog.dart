@@ -49,15 +49,15 @@ class VibeImageEncodeDialog extends StatefulWidget {
   /// 显示对话框的便捷方法
   static Future<VibeImageEncodeConfig?> show({
     required BuildContext context,
-    Uint8List? thumbnail,
-    String? defaultName,
+    required Uint8List imageBytes,
+    required String fileName,
   }) {
     return showDialog<VibeImageEncodeConfig>(
       context: context,
       barrierDismissible: false,
       builder: (context) => VibeImageEncodeDialog(
-        thumbnail: thumbnail,
-        defaultName: defaultName,
+        thumbnail: imageBytes,
+        defaultName: fileName,
       ),
     );
   }
@@ -69,6 +69,7 @@ class VibeImageEncodeDialog extends StatefulWidget {
 class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
   late final TextEditingController _nameController;
   late final FocusNode _nameFocusNode;
+  late final FocusNode _keyboardFocusNode;
   double _strength = 0.6;
   double _infoExtracted = 0.7;
   String? _errorText;
@@ -84,6 +85,7 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
 
     _nameController = TextEditingController(text: initialName);
     _nameFocusNode = FocusNode();
+    _keyboardFocusNode = FocusNode();
 
     // 延迟聚焦和全选，确保渲染完成
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -104,6 +106,7 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
   void dispose() {
     _nameController.dispose();
     _nameFocusNode.dispose();
+    _keyboardFocusNode.dispose();
     super.dispose();
   }
 
@@ -150,7 +153,7 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
     final theme = Theme.of(context);
 
     return KeyboardListener(
-      focusNode: FocusNode(),
+      focusNode: _keyboardFocusNode,
       onKeyEvent: _handleKeyEvent,
       child: Dialog(
         shape: RoundedRectangleBorder(
@@ -448,7 +451,7 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
