@@ -231,9 +231,21 @@ class VibeImageEmbedder {
   }
 
   static VibeReference _parseNaiSingleVibe(Map<String, dynamic> vibe) {
-    final encodings = vibe['encodings'] as Map<String, dynamic>?;
-    final encoding = encodings?.values.first as String? ?? '';
     final name = vibe['name'] as String? ?? 'vibe';
+
+    // Extract encoding from nested encodings structure
+    // Format: {model: {hash: {encoding: "..."}}}
+    String encoding = '';
+    final encodings = vibe['encodings'];
+    if (encodings is Map<String, dynamic>) {
+      final firstModel = encodings.values.firstOrNull;
+      if (firstModel is Map<String, dynamic>) {
+        final firstHash = firstModel.values.firstOrNull;
+        if (firstHash is Map<String, dynamic>) {
+          encoding = firstHash['encoding'] as String? ?? '';
+        }
+      }
+    }
 
     return VibeReference(
       displayName: name,
