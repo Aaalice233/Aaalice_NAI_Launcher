@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -9,8 +10,8 @@ import '../../../widgets/common/animated_favorite_button.dart';
 /// 统一 Vibe 卡片组件
 ///
 /// 支持 Bundle 和非 Bundle 类型：
-/// - 非 Bundle: 简洁悬停效果（放大、阴影、发光边框）
-/// - Bundle: 悬停时以 Bento Box 网格展示子 vibe 预览
+/// - 非 Bundle: 简洁悬停效果
+/// - Bundle: 斜条拼接百叶窗效果，展示子 vibe 预览
 class VibeCard extends StatefulWidget {
   final VibeLibraryEntry entry;
   final double width;
@@ -63,7 +64,7 @@ class _VibeCardState extends State<VibeCard>
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 250),
+      duration: const Duration(milliseconds: 300),
     );
     _fadeAnimation = CurvedAnimation(
       parent: _animationController,
@@ -134,15 +135,14 @@ class _VibeCardState extends State<VibeCard>
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // 主内容层（Bundle 悬停时淡出）
-                  if (!widget.entry.isBundle || !_isHovered)
-                    _buildMainContent(),
+                  // 主内容层
+                  _buildMainContent(),
 
-                  // Bundle 子 vibe 网格预览层（悬停时淡入）
+                  // Bundle 斜条拼接百叶窗层（悬停时显示）
                   if (widget.entry.isBundle)
                     FadeTransition(
                       opacity: _fadeAnimation,
-                      child: _buildBundlePreviewGrid(),
+                      child: _buildDiagonalBlinds(),
                     ),
 
                   // 信息层
@@ -245,118 +245,51 @@ class _VibeCardState extends State<VibeCard>
     );
   }
 
-  /// Bundle 子 vibe Bento Box 网格预览
-  Widget _buildBundlePreviewGrid() {
-    final previews = widget.entry.bundledVibePreviews?.take(4).toList() ?? [];
+  /// 斜条拼接百叶窗效果
+  Widget _buildDiagonalBlinds() {
+    final previews = widget.entry.bundledVibePreviews?.toList() ?? [];
     if (previews.isEmpty) return const SizedBox.shrink();
 
-    final count = previews.length;
-    final isSingle = count == 1;
+    // 最多显示 6 条，循环使用预览图
+    final count = math.min(previews.length, 6);
+    final displayPreviews = previews.take(count).toList();
 
     return Container(
-      color: Colors.black.withOpacity(0.85),
-      padding: const EdgeInsets.all(8),
-      child: isSingle
-          ? _buildSinglePreview(previews[0])
-          : _buildMultiPreviewGrid(previews, count),
-    );
-  }
-
-  /// 单个子 vibe 预览（大图）
-  Widget _buildSinglePreview(Uint8List preview) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: Image.memory(
-        preview,
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
+      color: Colors.black.withOpacity(0.6),
+      child: Stack(
+        fit: StackFit.expand,
+        children: List.generate(count, (index) {
+          return _buildDiagonalStrip(index, count, displayPreviews[index]);
+        }),
       ),
     );
   }
 
-  /// 多个子 vibe 网格预览（Bento Box 风格）
-  Widget _buildMultiPreviewGrid(List<Uint8List> previews, int count) {
-    // 根据数量决定布局
-    if (count == 2) {
-      // 2 张：上下等分
-      return Column(
-        children: [
-          Expanded(child: _buildPreviewTile(previews[0], topLeft: true)),
-          const SizedBox(height: 6),
-          Expanded(child: _buildPreviewTile(previews[1], bottomLeft: true)),
-        ],
-      );
-    } else if (count == 3) {
-      // 3 张：左大右小上下
-      return Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: _buildPreviewTile(previews[0], topLeft: true, bottomLeft: true),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            flex: 1,
-            child: Column(
-              children: [
-                Expanded(child: _buildPreviewTile(previews[1], topRight: true)),
-                const SizedBox(height: 6),
-                Expanded(child: _buildPreviewTile(previews[2], bottomRight: true)),
-              ],
-            ),
-          ),
-        ],
-      );
-    } else {
-      // 4 张：2x2 网格
-      return Column(
-        children: [
-          Expanded(
-            child: Row(
-              children: [
-                Expanded(child: _buildPreviewTile(previews[0], topLeft: true)),
-                const SizedBox(width: 6),
-                Expanded(child: _buildPreviewTile(previews[1], topRight: true)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 6),
-          Expanded(
-            child: Row(
-              children: [
-                Expanded(child: _buildPreviewTile(previews[2], bottomLeft: true)),
-                const SizedBox(width: 6),
-                Expanded(child: _buildPreviewTile(previews[3], bottomRight: true)),
-              ],
-            ),
-          ),
-        ],
-      );
-    }
-  }
+  /// 单条斜向拼接块
+  Widget _buildDiagonalStrip(int index, int total, Uint8List preview) {
+    // 计算斜条的偏移和角度
+    final stripHeight = (widget.height ?? widget.width) / total;
+    final y = index * stripHeight;
 
-  /// 单个预览块
-  Widget _buildPreviewTile(
-    Uint8List preview, {
-    bool topLeft = false,
-    bool topRight = false,
-    bool bottomLeft = false,
-    bool bottomRight = false,
-  }) {
-    return ClipRRect(
-      borderRadius: BorderRadius.only(
-        topLeft: topLeft ? const Radius.circular(8) : Radius.zero,
-        topRight: topRight ? const Radius.circular(8) : Radius.zero,
-        bottomLeft: bottomLeft ? const Radius.circular(8) : Radius.zero,
-        bottomRight: bottomRight ? const Radius.circular(8) : Radius.zero,
-      ),
-      child: Image.memory(
-        preview,
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
-        errorBuilder: (context, error, stackTrace) => Container(
-          color: Colors.grey[800],
-          child: const Icon(Icons.image_not_supported, color: Colors.grey, size: 20),
+    return Positioned(
+      top: y,
+      left: 0,
+      right: 0,
+      height: stripHeight,
+      child: ClipPath(
+        clipper: _DiagonalStripClipper(
+          index: index,
+          total: total,
+          angle: -0.15, // 斜向角度（弧度）
+        ),
+        child: Image.memory(
+          preview,
+          fit: BoxFit.cover,
+          gaplessPlayback: true,
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: Colors.grey[800],
+            child: const Icon(Icons.image_not_supported, color: Colors.grey, size: 16),
+          ),
         ),
       ),
     );
@@ -576,6 +509,36 @@ class _VibeCardState extends State<VibeCard>
       ),
     );
   }
+}
+
+/// 斜向裁剪器
+class _DiagonalStripClipper extends CustomClipper<Path> {
+  final int index;
+  final int total;
+  final double angle;
+
+  _DiagonalStripClipper({
+    required this.index,
+    required this.total,
+    required this.angle,
+  });
+
+  @override
+  Path getClip(Size size) {
+    final offset = size.height * angle.abs();
+
+    // 创建斜向条形的裁剪路径
+    // 每条都与上/下条有重叠，确保无缝拼接
+    return Path()
+      ..moveTo(-offset, 0)
+      ..lineTo(size.width + offset, 0)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldDelegate) => false;
 }
 
 /// 操作按钮组件
