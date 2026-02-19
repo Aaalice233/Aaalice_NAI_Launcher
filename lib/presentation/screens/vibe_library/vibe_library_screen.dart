@@ -34,7 +34,7 @@ import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
 import '../../widgets/common/pro_context_menu.dart';
 import '../../widgets/gallery/gallery_state_views.dart';
-import 'widgets/vibe_card_3d.dart';
+import 'widgets/vibe_card.dart';
 import 'widgets/vibe_bundle_import_dialog.dart' as bundle_import_dialog;
 import 'widgets/vibe_detail_viewer.dart';
 import 'widgets/vibe_export_dialog.dart';
@@ -2997,7 +2997,7 @@ class _VibeLibraryContentViewState
         final entry = entries[index];
         final isSelected = selectionState.selectedIds.contains(entry.id);
 
-        return VibeCard3D(
+        return VibeCard(
           entry: entry,
           width: widget.itemWidth,
           height: widget.itemWidth,
