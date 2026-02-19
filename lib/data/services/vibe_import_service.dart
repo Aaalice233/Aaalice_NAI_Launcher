@@ -486,7 +486,9 @@ class VibeImportService {
         reference: anchorReference,
         preferredName: bundleName,
         bundledReferences: references,
-        bundleFileName: fileName,
+        // 不设置 bundleFileName，让 saveEntry 自动保存文件
+        // 否则 saveEntry 会认为文件已存在而跳过保存
+        bundleFileName: null,
       ),
     ];
   }
