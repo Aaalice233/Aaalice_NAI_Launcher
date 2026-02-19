@@ -3121,8 +3121,11 @@ class _VibeLibraryContentViewState
     final paramsNotifier = ref.read(generationParamsNotifierProvider.notifier);
     final currentParams = ref.read(generationParamsNotifierProvider);
 
-    // 检查是否超过16个限制
-    if (currentParams.vibeReferencesV4.length >= 16) {
+    // 检测是否按住 Shift 键
+    final isShiftPressed = HardwareKeyboard.instance.isShiftPressed;
+
+    // 检查是否超过16个限制（仅在追加模式下检查）
+    if (!isShiftPressed && currentParams.vibeReferencesV4.length >= 16) {
       AppToast.warning(context, '已达到最大数量 (16张)');
       return;
     }
@@ -3146,13 +3149,20 @@ class _VibeLibraryContentViewState
               )
               .toList();
 
-          paramsNotifier.addVibeReferences(adjustedVibes);
+          if (isShiftPressed) {
+            // Shift+点击：替换现有 vibes
+            paramsNotifier.setVibeReferences(adjustedVibes);
+          } else {
+            // 普通点击：追加 vibes
+            paramsNotifier.addVibeReferences(adjustedVibes);
+          }
+
           ref.read(vibeLibraryNotifierProvider.notifier).recordUsage(entry.id);
           if (context.mounted) {
-            AppToast.success(
-              context,
-              '已发送 ${adjustedVibes.length} 个 Vibe 到生成页面: ${entry.displayName}',
-            );
+            final message = isShiftPressed
+                ? '已替换为 ${adjustedVibes.length} 个 Vibe: ${entry.displayName}'
+                : '已发送 ${adjustedVibes.length} 个 Vibe 到生成页面: ${entry.displayName}';
+            AppToast.success(context, message);
             context.go(AppRoutes.home);
           }
           return;
@@ -3164,10 +3174,21 @@ class _VibeLibraryContentViewState
     }
 
     // 普通条目或 Bundle 文件不存在时，使用单个 vibe
-    paramsNotifier.addVibeReferences([entry.toVibeReference()]);
+    final vibeReference = entry.toVibeReference();
+    if (isShiftPressed) {
+      // Shift+点击：替换现有 vibes
+      paramsNotifier.setVibeReferences([vibeReference]);
+    } else {
+      // 普通点击：追加 vibes
+      paramsNotifier.addVibeReferences([vibeReference]);
+    }
+
     ref.read(vibeLibraryNotifierProvider.notifier).recordUsage(entry.id);
     if (context.mounted) {
-      AppToast.success(context, '已发送到生成页面: ${entry.displayName}');
+      final message = isShiftPressed
+          ? '已替换为: ${entry.displayName}'
+          : '已发送到生成页面: ${entry.displayName}';
+      AppToast.success(context, message);
       context.go(AppRoutes.home);
     }
   }
