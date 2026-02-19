@@ -12,6 +12,7 @@ import 'package:go_router/go_router.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/vibe_file_parser.dart';
 import '../../../core/utils/vibe_image_embedder.dart';
 import '../../../core/utils/vibe_library_path_helper.dart';
 import '../../../data/models/vibe/vibe_library_category.dart';
@@ -3026,7 +3027,7 @@ class _VibeLibraryContentViewState
                 .read(vibeLibraryNotifierProvider.notifier)
                 .toggleFavorite(entry.id);
           },
-          onSendToGeneration: () => _sendEntryToGeneration(context, entry),
+          onSendToGeneration: () async => _sendEntryToGeneration(context, entry),
           onExport: () => _exportSingleEntry(context, entry),
           onEdit: () => _showVibeDetail(context, entry),
           onDelete: () => _deleteSingleEntry(context, entry),
@@ -3042,8 +3043,8 @@ class _VibeLibraryContentViewState
       entry: entry,
       heroTag: 'vibe_${entry.id}',
       callbacks: VibeDetailCallbacks(
-        onSendToGeneration: (entry, strength, infoExtracted) {
-          _sendEntryToGenerationWithParams(
+        onSendToGeneration: (entry, strength, infoExtracted) async {
+          await _sendEntryToGenerationWithParams(
             context,
             entry,
             strength,
@@ -3077,7 +3078,7 @@ class _VibeLibraryContentViewState
         id: 'send_to_generation',
         label: '发送到生成',
         icon: Icons.send,
-        onTap: () => _sendEntryToGeneration(context, entry),
+        onTap: () async => _sendEntryToGeneration(context, entry),
       ),
       ProMenuItem(
         id: 'export',
@@ -3123,7 +3124,7 @@ class _VibeLibraryContentViewState
   }
 
   /// 发送单个条目到生成页面
-  void _sendEntryToGeneration(BuildContext context, VibeLibraryEntry entry) {
+  Future<void> _sendEntryToGeneration(BuildContext context, VibeLibraryEntry entry) async {
     final paramsNotifier = ref.read(generationParamsNotifierProvider.notifier);
     final currentParams = ref.read(generationParamsNotifierProvider);
 
@@ -3133,19 +3134,54 @@ class _VibeLibraryContentViewState
       return;
     }
 
+    // 处理 Bundle 条目：从文件读取所有 vibes
+    if (entry.isBundle && entry.filePath != null && entry.filePath!.isNotEmpty) {
+      final file = File(entry.filePath!);
+      if (await file.exists()) {
+        try {
+          final bytes = await file.readAsBytes();
+          final fileName = p.basename(entry.filePath!);
+          final vibes = await VibeFileParser.fromBundle(fileName, bytes);
+
+          // 应用条目的 strength 和 infoExtracted 到所有 vibes
+          final adjustedVibes = vibes.map((vibe) => vibe.copyWith(
+            strength: entry.strength,
+            infoExtracted: entry.infoExtracted,
+          )).toList();
+
+          paramsNotifier.addVibeReferences(adjustedVibes);
+          ref.read(vibeLibraryNotifierProvider.notifier).recordUsage(entry.id);
+          if (context.mounted) {
+            AppToast.success(
+              context,
+              '已发送 ${adjustedVibes.length} 个 Vibe 到生成页面: ${entry.displayName}',
+            );
+            context.go(AppRoutes.home);
+          }
+          return;
+        } catch (e, stackTrace) {
+          AppLogger.e('读取 Bundle 文件失败: ${entry.filePath}', e, stackTrace, 'VibeLibrary');
+          // 回退到单个 vibe 处理
+        }
+      }
+    }
+
+    // 普通条目或 Bundle 文件不存在时，使用单个 vibe
     paramsNotifier.addVibeReferences([entry.toVibeReference()]);
     ref.read(vibeLibraryNotifierProvider.notifier).recordUsage(entry.id);
-    AppToast.success(context, '已发送到生成页面: ${entry.displayName}');
-    context.go(AppRoutes.home);
+    if (context.mounted) {
+      AppToast.success(context, '已发送到生成页面: ${entry.displayName}');
+      context.go(AppRoutes.home);
+    }
   }
 
   /// 发送单个条目到生成页面（带参数）
-  void _sendEntryToGenerationWithParams(
+  Future<void> _sendEntryToGenerationWithParams(
     BuildContext context,
     VibeLibraryEntry entry,
     double strength,
     double infoExtracted,
-  ) {
+  ) async {
     final paramsNotifier = ref.read(generationParamsNotifierProvider.notifier);
     final currentParams = ref.read(generationParamsNotifierProvider);
 
@@ -3155,15 +3191,54 @@ class _VibeLibraryContentViewState
       return;
     }
 
+    // 处理 Bundle 条目：从文件读取所有 vibes
+    if (entry.isBundle && entry.filePath != null && entry.filePath!.isNotEmpty) {
+      final file = File(entry.filePath!);
+      if (await file.exists()) {
+        try {
+          final bytes = await file.readAsBytes();
+          final fileName = p.basename(entry.filePath!);
+          final vibes = await VibeFileParser.fromBundle(fileName, bytes);
+
+          // 应用传入的参数到所有 vibes
+          final adjustedVibes = vibes
+              .map(
+                (vibe) => vibe.copyWith(
+                  strength: strength,
+                  infoExtracted: infoExtracted,
+                ),
+              )
+              .toList();
+
+          paramsNotifier.addVibeReferences(adjustedVibes);
+          ref.read(vibeLibraryNotifierProvider.notifier).recordUsage(entry.id);
+          if (context.mounted) {
+            AppToast.success(
+              context,
+              '已发送 ${adjustedVibes.length} 个 Vibe 到生成页面: ${entry.displayName}',
+            );
+            context.go(AppRoutes.home);
+          }
+          return;
+        } catch (e, stackTrace) {
+          AppLogger.e('读取 Bundle 文件失败: ${entry.filePath}', e, stackTrace, 'VibeLibrary');
+          // 回退到单个 vibe 处理
+        }
+      }
+    }
+
+    // 普通条目或 Bundle 文件不存在时，使用单个 vibe
     final vibeRef = entry.toVibeReference().copyWith(
-          strength: strength,
-          infoExtracted: infoExtracted,
-        );
+      strength: strength,
+      infoExtracted: infoExtracted,
+    );
 
     paramsNotifier.addVibeReferences([vibeRef]);
     ref.read(vibeLibraryNotifierProvider.notifier).recordUsage(entry.id);
-    AppToast.success(context, '已发送到生成页面: ${entry.displayName}');
-    context.go(AppRoutes.home);
+    if (context.mounted) {
+      AppToast.success(context, '已发送到生成页面: ${entry.displayName}');
+      context.go(AppRoutes.home);
+    }
   }
 
   /// 导出单个条目
