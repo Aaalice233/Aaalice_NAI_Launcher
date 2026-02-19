@@ -1885,7 +1885,8 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
   }) async {
     // 首先尝试提取 Vibe 数据
     try {
-      await VibeImageEmbedder.extractVibeFromImage(imageFile.bytes);
+      final reference =
+          await VibeImageEmbedder.extractVibeFromImage(imageFile.bytes);
       // 提取成功，正常导入
       final importResult = await importService.importFromImage(
         images: [imageFile],
@@ -1924,7 +1925,6 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     // 编码重试循环
     while (mounted) {
       // 显示编码中对话框
-      // ignore: use_build_context_synchronously
       encode_dialog.VibeImageEncodingDialog.show(context);
 
       String? encoding;
@@ -1935,12 +1935,14 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         final params = ref.read(generationParamsNotifierProvider);
         final model = params.model;
 
-        encoding = await notifier.encodeVibeWithCache(
+        encoding = await notifier
+            .encodeVibeWithCache(
           imageFile.bytes,
           model: model,
           informationExtracted: config.infoExtracted,
           vibeName: config.name,
-        ).timeout(
+        )
+            .timeout(
           const Duration(seconds: 30),
           onTimeout: () {
             errorMessage = '编码超时，请检查网络连接';
@@ -3048,6 +3050,7 @@ class _VibeLibraryContentViewState
       case null:
         return '重命名失败，请稍后重试';
     }
+    return null;
   }
 
   /// 更新条目参数
