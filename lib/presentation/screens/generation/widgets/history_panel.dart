@@ -13,7 +13,7 @@ import '../../../../data/services/alias_resolver_service.dart';
 import '../../../providers/layout_state_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../../core/utils/nai_metadata_parser.dart';
-import '../../../../data/repositories/local_gallery_repository.dart';
+import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -408,7 +408,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     if (_selectedIds.isEmpty) return;
 
     try {
-      final saveDirPath = LocalGalleryRepository.instance.getImageDirectory();
+      final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
       if (saveDirPath == null) return;
       final saveDir = Directory(saveDirPath);
       if (!await saveDir.exists()) {
@@ -517,7 +517,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     Uint8List imageBytes,
   ) async {
     try {
-      final saveDirPath = LocalGalleryRepository.instance.getImageDirectory();
+      final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
       if (saveDirPath == null) return;
       final saveDir = Directory(saveDirPath);
       if (!await saveDir.exists()) {
@@ -605,7 +605,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   ) async {
     try {
       final imageBytes = await image.getImageBytes();
-      final saveDirPath = LocalGalleryRepository.instance.getImageDirectory();
+      final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
       if (saveDirPath == null) return;
       final saveDir = Directory(saveDirPath);
       if (!await saveDir.exists()) {

@@ -11,7 +11,7 @@ import '../../core/utils/nai_metadata_parser.dart';
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
 import '../../data/models/image/image_params.dart';
-import '../../data/repositories/local_gallery_repository.dart';
+import '../../data/repositories/gallery_folder_repository.dart';
 import '../../data/services/anlas_statistics_service.dart';
 import '../../data/services/statistics_cache_service.dart';
 import '../../data/services/alias_resolver_service.dart';
@@ -318,7 +318,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     if (!saveSettings.autoSave) return;
 
     try {
-      final saveDirPath = LocalGalleryRepository.instance.getImageDirectory();
+      final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
       if (saveDirPath == null) return;
       final saveDir = Directory(saveDirPath);
       if (!await saveDir.exists()) {
@@ -413,7 +413,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           );
 
           final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-          final saveDirPath = LocalGalleryRepository.instance.getImageDirectory();
+          final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
           if (saveDirPath == null) continue;
           final file = File('$saveDirPath/$fileName');
           await file.writeAsBytes(embeddedBytes);

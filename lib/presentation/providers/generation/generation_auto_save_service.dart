@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/nai_metadata_parser.dart';
 import '../../../data/models/image/image_params.dart';
-import '../../../data/repositories/local_gallery_repository.dart';
+import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../../data/services/statistics_cache_service.dart';
 import '../character_prompt_provider.dart';
 import '../image_save_settings_provider.dart';
@@ -31,8 +31,7 @@ class GenerationAutoSaveService {
     if (!saveSettings.autoSave) return;
 
     try {
-      final saveDirPath =
-          LocalGalleryRepository.instance.getImageDirectory();
+      final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
       if (saveDirPath == null) return;
       final saveDir = Directory(saveDirPath);
       if (!await saveDir.exists()) {
@@ -127,7 +126,7 @@ class GenerationAutoSaveService {
           );
 
           final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-          final saveDirPath = LocalGalleryRepository.instance.getImageDirectory();
+          final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
           if (saveDirPath == null) continue;
           final file = File('$saveDirPath/$fileName');
           await file.writeAsBytes(embeddedBytes);

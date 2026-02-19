@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_metadata_parser.dart';
-import '../../../../data/repositories/local_gallery_repository.dart';
+import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../../data/services/alias_resolver_service.dart';
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/image_generation_provider.dart';
@@ -579,7 +579,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
 
   /// 获取保存目录
   Future<Directory?> _getSaveDirectory() async {
-    final dirPath = LocalGalleryRepository.instance.getImageDirectory();
+    final dirPath = await GalleryFolderRepository.instance.getRootPath();
     if (dirPath == null) return null;
     final dir = Directory(dirPath);
     if (!await dir.exists()) {

@@ -12,7 +12,7 @@ import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/nai_metadata_parser.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/queue/replication_task.dart';
-import '../../../data/repositories/local_gallery_repository.dart';
+import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../../data/services/alias_resolver_service.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
@@ -461,7 +461,7 @@ class _DesktopGenerationLayoutState
   ) async {
     try {
       final imageBytes = await image.getImageBytes();
-      final saveDirPath = LocalGalleryRepository.instance.getImageDirectory();
+      final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
       if (saveDirPath == null) return;
       final saveDir = Directory(saveDirPath);
       if (!await saveDir.exists()) {
@@ -840,7 +840,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     GeneratedImage image,
   ) async {
     try {
-      final saveDirPath = LocalGalleryRepository.instance.getImageDirectory();
+      final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
       if (saveDirPath == null) return;
       final saveDir = Directory(saveDirPath);
       if (!await saveDir.exists()) {
