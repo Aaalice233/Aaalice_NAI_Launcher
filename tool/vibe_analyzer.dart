@@ -132,7 +132,8 @@ Future<void> analyzePngFile(Uint8List bytes) async {
           print('  Base64 length: ${data.length} chars');
         } else {
           final dataStr = result['data'].toString();
-          print('  Data: ${dataStr.substring(0, dataStr.length > 100 ? 100 : dataStr.length)}...');
+          print(
+              '  Data: ${dataStr.substring(0, dataStr.length > 100 ? 100 : dataStr.length)}...');
         }
       }
     }
@@ -239,7 +240,7 @@ Future<void> analyzeNaiv4VibeBundleFile(Uint8List bytes) async {
           try {
             final thumbBytes = base64Decode(base64Data);
             print('  Thumbnail decoded: ${thumbBytes.length} bytes');
-            await saveDebugFile('thumbnail_bundle_${i}.jpg', thumbBytes);
+            await saveDebugFile('thumbnail_bundle_$i.jpg', thumbBytes);
           } catch (e) {
             print('  ❌ Failed to decode thumbnail: $e');
           }
@@ -303,8 +304,10 @@ List<Map<String, dynamic>> parsePngChunks(Uint8List bytes) {
   var offset = pngSignature.length;
 
   while (offset + 12 <= bytes.length) {
-    final dataLength = (bytes[offset] << 24) | (bytes[offset + 1] << 16) |
-                       (bytes[offset + 2] << 8) | bytes[offset + 3];
+    final dataLength = (bytes[offset] << 24) |
+        (bytes[offset + 1] << 16) |
+        (bytes[offset + 2] << 8) |
+        bytes[offset + 3];
 
     final typeBytes = bytes.sublist(offset + 4, offset + 8);
     final type = ascii.decode(typeBytes);
@@ -327,7 +330,9 @@ List<Map<String, dynamic>> parsePngChunks(Uint8List bytes) {
 Map<String, dynamic>? parseITxtChunk(Uint8List data) {
   try {
     var offset = 0;
-    while (offset < data.length && data[offset] != 0) offset++;
+    while (offset < data.length && data[offset] != 0) {
+      offset++;
+    }
     if (offset >= data.length) return null;
 
     final keyword = utf8.decode(data.sublist(0, offset));
@@ -338,7 +343,9 @@ Map<String, dynamic>? parseITxtChunk(Uint8List data) {
     offset += 2;
 
     for (var i = 0; i < 2; i++) {
-      while (offset < data.length && data[offset] != 0) offset++;
+      while (offset < data.length && data[offset] != 0) {
+        offset++;
+      }
       if (offset >= data.length) return null;
       offset++;
     }
@@ -383,28 +390,28 @@ void printNaiData(Map<String, dynamic> naiData, {String indent = ''}) {
     if (vibes != null) {
       for (var i = 0; i < vibes.length; i++) {
         final vibe = vibes[i] as Map<String, dynamic>;
-        print('${indent}  Vibe #$i:');
-        print('${indent}    Name: ${vibe['name']}');
-        print('${indent}    Type: ${vibe['type']}');
-        print('${indent}    Has thumbnail: ${vibe['thumbnail'] != null}');
-        print('${indent}    Has image: ${vibe['image'] != null}');
+        print('$indent  Vibe #$i:');
+        print('$indent    Name: ${vibe['name']}');
+        print('$indent    Type: ${vibe['type']}');
+        print('$indent    Has thumbnail: ${vibe['thumbnail'] != null}');
+        print('$indent    Has image: ${vibe['image'] != null}');
 
         if (vibe['thumbnail'] != null) {
           final thumb = vibe['thumbnail'] as String;
-          print('${indent}    Thumbnail length: ${thumb.length} chars');
+          print('$indent    Thumbnail length: ${thumb.length} chars');
         }
 
         final encodings = vibe['encodings'] as Map<String, dynamic>?;
         if (encodings != null) {
-          print('${indent}    Encodings: ${encodings.keys.toList()}');
+          print('$indent    Encodings: ${encodings.keys.toList()}');
         }
       }
     }
   } else if (identifier == 'novelai-vibe-transfer') {
     print('${indent}Single vibe:');
-    print('${indent}  Name: ${naiData['name']}');
-    print('${indent}  Type: ${naiData['type']}');
-    print('${indent}  Has thumbnail: ${naiData['thumbnail'] != null}');
-    print('${indent}  Has image: ${naiData['image'] != null}');
+    print('$indent  Name: ${naiData['name']}');
+    print('$indent  Type: ${naiData['type']}');
+    print('$indent  Has thumbnail: ${naiData['thumbnail'] != null}');
+    print('$indent  Has image: ${naiData['image'] != null}');
   }
 }

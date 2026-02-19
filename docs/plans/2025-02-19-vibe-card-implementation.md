@@ -1,9 +1,53 @@
+# Vibe 卡片重构实现计划
+
+> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+
+**Goal:** 重写 VibeCard 组件，统一 Bundle 和非 Bundle 卡片，实现斜向百叶窗展开动画效果
+
+**Architecture:** 使用 StatefulWidget 管理动画状态，通过 Stack + Transform + ClipPath 实现斜向百叶窗分割效果。Bundle 卡片悬停时百叶窗叶片斜向展开，露出背后的子 vibe 预览。
+
+**Tech Stack:** Flutter, Dart, CustomPainter, AnimationController
+
+---
+
+## 前置检查
+
+### Task 0: 检查现有文件和引用
+
+**目的:** 了解当前 vibe_card_3d.dart 被哪些文件引用
+
+**命令:**
+```bash
+grep -r "VibeCard3D\|vibe_card_3d" lib/ --include="*.dart" -l
+```
+
+**预期输出:**
+- lib/presentation/screens/vibe_library/vibe_library_screen.dart
+- lib/presentation/screens/vibe_library/widgets/vibe_selector_dialog.dart
+- lib/presentation/screens/generation/widgets/unified_reference_panel.dart
+
+---
+
+## 第一阶段：创建新的统一 VibeCard 组件
+
+### Task 1: 创建新的 vibe_card.dart 文件
+
+**Files:**
+- Create: `lib/presentation/screens/vibe_library/widgets/vibe_card.dart`
+
+**步骤:**
+
+**Step 1: 创建基础组件结构**
+
+```dart
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
+import '../../../themes/theme_extension.dart';
 import '../../../widgets/common/animated_favorite_button.dart';
 
 /// 统一 Vibe 卡片组件
@@ -105,8 +149,9 @@ class _VibeCardState extends State<VibeCard>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final theme = Theme.of(context);
     final cardHeight = widget.height ?? widget.width;
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme = theme.colorScheme;
 
     return MouseRegion(
       onEnter: _onHoverEnter,
@@ -155,10 +200,6 @@ class _VibeCardState extends State<VibeCard>
                   // 收藏按钮
                   if (widget.showFavoriteIndicator)
                     _buildFavoriteButton(),
-
-                  // Bundle 标识
-                  if (widget.entry.isBundle)
-                    _buildBundleBadge(),
 
                   // 选中状态
                   if (widget.isSelected)
@@ -240,58 +281,18 @@ class _VibeCardState extends State<VibeCard>
     final previews = widget.entry.bundledVibePreviews?.take(5).toList() ?? [];
     if (previews.isEmpty) return const SizedBox.shrink();
 
-    final count = previews.length.clamp(2, 5);
-
     return AnimatedBuilder(
       animation: _blindsAnimation,
       builder: (context, child) {
-        final progress = _blindsAnimation.value;
-
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            // 子 vibe 预览层
-            ...List.generate(count, (index) {
-              return _buildStripContent(index, count, previews[index], progress);
-            }),
-
-            // 百叶窗叶片层
-            CustomPaint(
-              size: Size.infinite,
-              painter: _BlindsOverlayPainter(
-                progress: progress,
-                count: count,
-                themeColor: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-          ],
+        return CustomPaint(
+          size: Size.infinite,
+          painter: _DiagonalBlindsPainter(
+            progress: _blindsAnimation.value,
+            previews: previews,
+            themeColor: Theme.of(context).colorScheme.primary,
+          ),
         );
       },
-    );
-  }
-
-  Widget _buildStripContent(int index, int total, Uint8List preview, double progress) {
-    final stripHeight = (widget.height ?? widget.width) / total;
-    final y = index * stripHeight;
-    final diagonalOffset = widget.width * 0.3 * progress;
-
-    return Positioned(
-      left: -diagonalOffset,
-      top: y,
-      right: diagonalOffset,
-      height: stripHeight,
-      child: ClipPath(
-        clipper: _DiagonalStripClipper(index: index, total: total),
-        child: Image.memory(
-          preview,
-          fit: BoxFit.cover,
-          gaplessPlayback: true,
-          errorBuilder: (context, error, stackTrace) => Container(
-            color: Colors.grey[800],
-            child: const Icon(Icons.image_not_supported, color: Colors.grey),
-          ),
-        ),
-      ),
     );
   }
 
@@ -408,42 +409,6 @@ class _VibeCardState extends State<VibeCard>
     );
   }
 
-  Widget _buildBundleBadge() {
-    return Positioned(
-      top: 8,
-      left: 8,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.9),
-          borderRadius: BorderRadius.circular(4),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.folder_copy, size: 10, color: Colors.white),
-            const SizedBox(width: 2),
-            Text(
-              '${widget.entry.bundledVibeCount}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildSelectionOverlay(ColorScheme colorScheme) {
     return Positioned.fill(
       child: IgnorePointer(
@@ -511,38 +476,15 @@ class _VibeCardState extends State<VibeCard>
   }
 }
 
-/// 对角线条形裁剪器
-class _DiagonalStripClipper extends CustomClipper<Path> {
-  final int index;
-  final int total;
-
-  _DiagonalStripClipper({required this.index, required this.total});
-
-  @override
-  Path getClip(Size size) {
-    final diagonalOffset = size.width * 0.3;
-
-    return Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width - diagonalOffset, size.height)
-      ..lineTo(-diagonalOffset, size.height)
-      ..close();
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldDelegate) => false;
-}
-
-/// 百叶窗覆盖层绘制器
-class _BlindsOverlayPainter extends CustomPainter {
+/// 斜向百叶窗绘制器
+class _DiagonalBlindsPainter extends CustomPainter {
   final double progress;
-  final int count;
+  final List<Uint8List> previews;
   final Color themeColor;
 
-  _BlindsOverlayPainter({
+  _DiagonalBlindsPainter({
     required this.progress,
-    required this.count,
+    required this.previews,
     required this.themeColor,
   });
 
@@ -550,43 +492,92 @@ class _BlindsOverlayPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (progress <= 0) return;
 
+    final count = previews.length.clamp(2, 5);
     final stripHeight = size.height / count;
-    const diagonalOffsetBase = 0.3;
+    final diagonalOffset = size.width * 0.3;
 
     for (int i = 0; i < count; i++) {
       final y = i * stripHeight;
-      final diagonalOffset = size.width * diagonalOffsetBase * (1 - progress);
+      final slideOffset = diagonalOffset * progress;
 
-      final path = Path()
-        ..moveTo(0, y)
-        ..lineTo(size.width, y)
-        ..lineTo(size.width - diagonalOffset, y + stripHeight)
-        ..lineTo(-diagonalOffset, y + stripHeight)
-        ..close();
+      // 绘制子 vibe 预览（在叶片下方）
+      _drawStripContent(canvas, size, i, y, stripHeight, slideOffset);
 
-      // 叶片半透明覆盖层（随进度淡出）
-      final paint = Paint()
-        ..color = Colors.black.withOpacity(0.4 * (1 - progress))
-        ..style = PaintingStyle.fill;
-
-      canvas.drawPath(path, paint);
-
-      // 叶片边缘发光
-      if (progress > 0.1) {
-        final borderPaint = Paint()
-          ..color = themeColor.withOpacity(0.6 * progress)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5;
-
-        canvas.drawPath(path, borderPaint);
-      }
+      // 绘制百叶窗叶片（半透明的遮盖层）
+      _drawBlindStrip(canvas, size, y, stripHeight, slideOffset, i);
     }
   }
 
+  void _drawStripContent(
+    Canvas canvas,
+    Size size,
+    int index,
+    double y,
+    double height,
+    double slideOffset,
+  ) {
+    // 创建斜向裁剪路径
+    final path = Path()
+      ..moveTo(slideOffset, y)
+      ..lineTo(size.width + slideOffset, y)
+      ..lineTo(size.width - diagonalOffset + slideOffset, y + height)
+      ..lineTo(-diagonalOffset + slideOffset, y + height)
+      ..close();
+
+    // 这里应该绘制对应的子 vibe 预览
+    // 简化版本：使用主题色渐变块代替
+    final paint = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          themeColor.withOpacity(0.3 + index * 0.1),
+          themeColor.withOpacity(0.5 + index * 0.1),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ).createShader(Rect.fromLTWH(0, y, size.width, height));
+
+    canvas.drawPath(path, paint);
+  }
+
+  void _drawBlindStrip(
+    Canvas canvas,
+    Size size,
+    double y,
+    double height,
+    double slideOffset,
+    int index,
+  ) {
+    final path = Path()
+      ..moveTo(slideOffset, y)
+      ..lineTo(size.width + slideOffset, y)
+      ..lineTo(size.width - diagonalOffset + slideOffset, y + height)
+      ..lineTo(-diagonalOffset + slideOffset, y + height)
+      ..close();
+
+    // 叶片半透明覆盖层
+    final paint = Paint()
+      ..color = Colors.black.withOpacity(0.3 * (1 - progress))
+      ..style = PaintingStyle.fill;
+
+    canvas.drawPath(path, paint);
+
+    // 叶片边缘发光
+    if (progress > 0.1) {
+      final borderPaint = Paint()
+        ..color = themeColor.withOpacity(0.5 * progress)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5;
+
+      canvas.drawPath(path, borderPaint);
+    }
+  }
+
+  double get diagonalOffset => 50.0;
+
   @override
-  bool shouldRepaint(covariant _BlindsOverlayPainter oldDelegate) {
+  bool shouldRepaint(covariant _DiagonalBlindsPainter oldDelegate) {
     return oldDelegate.progress != progress ||
-        oldDelegate.count != count ||
+        oldDelegate.previews != previews ||
         oldDelegate.themeColor != themeColor;
   }
 }
@@ -656,3 +647,375 @@ class _ActionButtonState extends State<_ActionButton> {
     );
   }
 }
+```
+
+**Step 2: 验证文件创建**
+
+运行:
+```bash
+ls -la lib/presentation/screens/vibe_library/widgets/vibe_card.dart
+```
+
+预期: 文件存在
+
+**Step 3: Commit**
+
+```bash
+git add lib/presentation/screens/vibe_library/widgets/vibe_card.dart
+git commit -m "feat(vibe-card): 创建新的统一 VibeCard 组件框架"
+```
+
+---
+
+## 第二阶段：更新引用文件
+
+### Task 2: 更新 vibe_library_screen.dart
+
+**Files:**
+- Modify: `lib/presentation/screens/vibe_library/vibe_library_screen.dart`
+
+**步骤:**
+
+**Step 1: 修改导入语句**
+
+将:
+```dart
+import 'widgets/vibe_card_3d.dart';
+```
+
+改为:
+```dart
+import 'widgets/vibe_card.dart';
+```
+
+**Step 2: 替换组件使用**
+
+将所有 `VibeCard3D` 替换为 `VibeCard`。
+
+搜索文件中的 `VibeCard3D`，通常在使用的地方会有：
+```dart
+VibeCard3D(
+  entry: entry,
+  width: cardWidth,
+  // ...
+)
+```
+
+改为:
+```dart
+VibeCard(
+  entry: entry,
+  width: cardWidth,
+  // ...
+)
+```
+
+**Step 3: 运行分析检查**
+
+```bash
+/mnt/e/flutter/bin/flutter.bat analyze lib/presentation/screens/vibe_library/vibe_library_screen.dart
+```
+
+预期: 无错误
+
+**Step 4: Commit**
+
+```bash
+git add lib/presentation/screens/vibe_library/vibe_library_screen.dart
+git commit -m "refactor(vibe-card): 更新 vibe_library_screen 使用新的 VibeCard 组件"
+```
+
+---
+
+### Task 3: 更新 vibe_selector_dialog.dart
+
+**Files:**
+- Modify: `lib/presentation/screens/vibe_library/widgets/vibe_selector_dialog.dart`
+
+**步骤:**
+
+**Step 1: 修改导入语句**
+
+将:
+```dart
+import 'vibe_card_3d.dart';
+```
+
+改为:
+```dart
+import 'vibe_card.dart';
+```
+
+**Step 2: 替换组件使用**
+
+将所有 `VibeCard3D` 替换为 `VibeCard`。
+
+**Step 3: 运行分析检查**
+
+```bash
+/mnt/e/flutter/bin/flutter.bat analyze lib/presentation/screens/vibe_library/widgets/vibe_selector_dialog.dart
+```
+
+**Step 4: Commit**
+
+```bash
+git add lib/presentation/screens/vibe_library/widgets/vibe_selector_dialog.dart
+git commit -m "refactor(vibe-card): 更新 vibe_selector_dialog 使用新的 VibeCard 组件"
+```
+
+---
+
+### Task 4: 更新 unified_reference_panel.dart
+
+**Files:**
+- Modify: `lib/presentation/screens/generation/widgets/unified_reference_panel.dart`
+
+**步骤:**
+
+**Step 1: 修改导入语句**
+
+将:
+```dart
+import '../vibe_library/widgets/vibe_card_3d.dart';
+```
+
+改为:
+```dart
+import '../vibe_library/widgets/vibe_card.dart';
+```
+
+**Step 2: 替换组件使用**
+
+将所有 `VibeCard3D` 替换为 `VibeCard`。
+
+**Step 3: 运行分析检查**
+
+```bash
+/mnt/e/flutter/bin/flutter.bat analyze lib/presentation/screens/generation/widgets/unified_reference_panel.dart
+```
+
+**Step 4: Commit**
+
+```bash
+git add lib/presentation/screens/generation/widgets/unified_reference_panel.dart
+git commit -m "refactor(vibe-card): 更新 unified_reference_panel 使用新的 VibeCard 组件"
+```
+
+---
+
+## 第三阶段：删除旧文件
+
+### Task 5: 删除旧的 vibe_card_3d.dart
+
+**Files:**
+- Delete: `lib/presentation/screens/vibe_library/widgets/vibe_card_3d.dart`
+
+**步骤:**
+
+**Step 1: 删除文件**
+
+```bash
+rm lib/presentation/screens/vibe_library/widgets/vibe_card_3d.dart
+```
+
+**Step 2: 验证无残留引用**
+
+```bash
+grep -r "VibeCard3D\|vibe_card_3d" lib/ --include="*.dart"
+```
+
+预期: 无输出（或只有导入已更新文件的旧历史）
+
+**Step 3: 运行项目分析**
+
+```bash
+/mnt/e/flutter/bin/flutter.bat analyze
+```
+
+预期: 无错误
+
+**Step 4: Commit**
+
+```bash
+git add lib/presentation/screens/vibe_library/widgets/vibe_card_3d.dart
+git commit -m "chore(vibe-card): 删除旧的 VibeCard3D 组件"
+```
+
+---
+
+## 第四阶段：完善百叶窗效果
+
+### Task 6: 优化百叶窗绘制器显示子 vibe 缩略图
+
+**Files:**
+- Modify: `lib/presentation/screens/vibe_library/widgets/vibe_card.dart`
+（_DiagonalBlindsPainter 类）
+
+**步骤:**
+
+当前实现使用渐变块代替实际缩略图。需要修改为显示真实的子 vibe 缩略图。
+
+**Step 1: 修改绘制器以支持实际图像**
+
+由于 CustomPainter 中直接使用 Image.memory 比较复杂，考虑改用 Stack + Positioned 方式实现百叶窗效果。
+
+重写 `_buildDiagonalBlindsEffect` 方法：
+
+```dart
+Widget _buildDiagonalBlindsEffect() {
+  final previews = widget.entry.bundledVibePreviews?.take(5).toList() ?? [];
+  final names = widget.entry.bundledVibeNames?.take(5).toList() ?? [];
+  if (previews.isEmpty) return const SizedBox.shrink();
+
+  final count = previews.length.clamp(2, 5);
+
+  return AnimatedBuilder(
+    animation: _blindsAnimation,
+    builder: (context, child) {
+      final progress = _blindsAnimation.value;
+
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          // 子 vibe 预览层
+          ...List.generate(count, (index) {
+            return _buildStripContent(index, count, previews[index], progress);
+          }),
+
+          // 百叶窗叶片层
+          CustomPaint(
+            size: Size.infinite,
+            painter: _BlindsOverlayPainter(
+              progress: progress,
+              count: count,
+              themeColor: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+Widget _buildStripContent(int index, int total, Uint8List preview, double progress) {
+  final stripHeight = (widget.height ?? widget.width) / total;
+  final y = index * stripHeight;
+  final diagonalOffset = widget.width * 0.3 * progress;
+
+  return Positioned(
+    left: -diagonalOffset,
+    top: y,
+    right: diagonalOffset,
+    height: stripHeight,
+    child: ClipPath(
+      clipper: _DiagonalStripClipper(index: index, total: total),
+      child: Image.memory(
+        preview,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+      ),
+    ),
+  );
+}
+```
+
+添加对角线条形裁剪器：
+
+```dart
+class _DiagonalStripClipper extends CustomClipper<Path> {
+  final int index;
+  final int total;
+
+  _DiagonalStripClipper({required this.index, required this.total});
+
+  @override
+  Path getClip(Size size) {
+    final diagonalOffset = size.width * 0.3;
+    final y = 0.0;
+
+    return Path()
+      ..moveTo(0, y)
+      ..lineTo(size.width, y)
+      ..lineTo(size.width - diagonalOffset, size.height)
+      ..lineTo(-diagonalOffset, size.height)
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldDelegate) => false;
+}
+```
+
+**Step 2: 运行分析检查**
+
+```bash
+/mnt/e/flutter/bin/flutter.bat analyze lib/presentation/screens/vibe_library/widgets/vibe_card.dart
+```
+
+**Step 3: Commit**
+
+```bash
+git add lib/presentation/screens/vibe_library/widgets/vibe_card.dart
+git commit -m "feat(vibe-card): 优化百叶窗效果显示子 vibe 缩略图"
+```
+
+---
+
+## 第五阶段：代码生成和最终检查
+
+### Task 7: 运行代码生成（如果需要）
+
+检查是否有代码生成依赖：
+
+```bash
+/mnt/e/flutter/bin/dart.bat run build_runner build --delete-conflicting-outputs
+```
+
+---
+
+### Task 8: 最终分析检查
+
+```bash
+/mnt/e/flutter/bin/flutter.bat analyze
+```
+
+预期: 无错误
+
+---
+
+### Task 9: 最终 Commit
+
+```bash
+git status
+git add -A
+git commit -m "feat(vibe-card): 完成 VibeCard 重构，添加斜向百叶窗展开效果
+
+- 统一 Bundle 和非 Bundle 卡片使用同一组件
+- 实现斜向百叶窗展开动画效果
+- Bundle 卡片悬停时展示子 vibe 预览
+- 非 Bundle 卡片保持简洁悬停效果
+- 删除旧的 VibeCard3D 组件"
+```
+
+---
+
+## 验收清单
+
+- [ ] 新 VibeCard 组件创建完成
+- [ ] vibe_library_screen.dart 更新完成
+- [ ] vibe_selector_dialog.dart 更新完成
+- [ ] unified_reference_panel.dart 更新完成
+- [ ] 旧 vibe_card_3d.dart 已删除
+- [ ] Bundle 卡片悬停时显示百叶窗展开效果
+- [ ] 非 Bundle 卡片悬停时显示简洁效果
+- [ ] 项目分析无错误
+- [ ] 所有引用已更新
+
+---
+
+## 注意事项
+
+1. **测试 Bundle 卡片**: 确保有足够数据的 Bundle 条目来测试百叶窗效果
+2. **性能**: 如果子 vibe 数量较多，考虑限制预览数量（当前限制为 5 个）
+3. **主题适配**: 百叶窗颜色应随主题变化
+4. **动画流畅度**: 在低端设备上测试动画性能
