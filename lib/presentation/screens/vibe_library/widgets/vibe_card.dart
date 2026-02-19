@@ -134,11 +134,12 @@ class _VibeCardState extends State<VibeCard>
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // 主内容层
-                  _buildMainContent(),
+                  // 主内容层（Bundle 悬停时淡出）
+                  if (!(widget.entry.isBundle && _isHovered))
+                    _buildMainContent(),
 
-                  // Bundle 百叶窗效果层
-                  if (widget.entry.isBundle)
+                  // Bundle 百叶窗效果层（悬停时显示）
+                  if (widget.entry.isBundle && _isHovered)
                     _buildDiagonalBlindsEffect(),
 
                   // 信息层
