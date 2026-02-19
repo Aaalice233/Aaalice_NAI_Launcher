@@ -8,6 +8,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/vibe/vibe_library_category.dart';
 import '../../data/models/vibe/vibe_library_entry.dart';
+import '../../data/models/vibe/vibe_reference.dart';
 import '../../data/services/vibe_file_storage_service.dart';
 import '../../data/services/vibe_library_storage_service.dart';
 
@@ -335,6 +336,32 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
       return saved;
     } catch (e, stackTrace) {
       AppLogger.e('Failed to save entry', e, stackTrace, 'VibeLibrary');
+      state = state.copyWith(error: e.toString());
+      return null;
+    }
+  }
+
+  /// 保存 Bundle 条目
+  Future<VibeLibraryEntry?> saveBundleEntry(
+    List<VibeReference> vibes, {
+    required String name,
+    String? categoryId,
+    List<String>? tags,
+  }) async {
+    try {
+      final saved = await _storage.saveBundleEntry(
+        vibes,
+        name: name,
+        categoryId: categoryId,
+        tags: tags,
+      );
+      final entries = [...state.entries, saved];
+      state = state.copyWith(entries: entries);
+      await _applyFilters();
+      AppLogger.d('Bundle entry saved: ${saved.displayName}', 'VibeLibrary');
+      return saved;
+    } catch (e, stackTrace) {
+      AppLogger.e('Failed to save bundle entry', e, stackTrace, 'VibeLibrary');
       state = state.copyWith(error: e.toString());
       return null;
     }

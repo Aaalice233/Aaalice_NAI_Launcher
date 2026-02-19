@@ -2006,10 +2006,11 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     final selectedVibes = _getSelectedVibesForBundle(result, vibes);
     if (selectedVibes == null) return null;
 
-    // 保持为 Bundle - 只保存第一个 vibe 作为主条目
+    // 保持为 Bundle - 保存整个 bundle 为一个条目
     if (result.option == bundle_import_dialog.BundleImportOption.keepAsBundle) {
-      return await _saveVibeReference(
-        reference: selectedVibes.first,
+      return await _saveAsBundle(
+        vibes: selectedVibes,
+        bundleName: imageFile.source,
         categoryId: targetCategoryId,
       );
     }
@@ -2049,6 +2050,35 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
       if (saved) successCount++;
     }
     return successCount > 0;
+  }
+
+  /// 保存为 Bundle 条目
+  Future<bool> _saveAsBundle({
+    required List<VibeReference> vibes,
+    required String bundleName,
+    String? categoryId,
+  }) async {
+    try {
+      final notifier = ref.read(vibeLibraryNotifierProvider.notifier);
+
+      // 生成唯一名称（处理重名）
+      final baseName = bundleName.trim().isEmpty
+          ? 'vibe-bundle_${DateTime.now().millisecondsSinceEpoch}'
+          : bundleName.trim();
+      final uniqueName = _generateUniqueName(baseName);
+
+      // 使用 saveBundleEntry 保存整个 bundle
+      final saved = await notifier.saveBundleEntry(
+        vibes,
+        name: uniqueName,
+        categoryId: categoryId,
+      );
+
+      return saved != null;
+    } catch (e, stackTrace) {
+      AppLogger.e('保存 Bundle 到库失败', e, stackTrace, 'VibeLibrary');
+      return false;
+    }
   }
 
   /// 处理图片编码流程

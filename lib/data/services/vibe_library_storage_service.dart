@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/utils/app_logger.dart';
 import '../models/vibe/vibe_library_category.dart';
 import '../models/vibe/vibe_library_entry.dart';
+import '../models/vibe/vibe_reference.dart';
 import 'vibe_file_storage_service.dart';
 
 part 'vibe_library_storage_service.g.dart';
@@ -159,6 +160,46 @@ class VibeLibraryStorageService {
       return entryToSave;
     } catch (e, stackTrace) {
       AppLogger.e('Failed to save entry', e, stackTrace, _tag);
+      rethrow;
+    }
+  }
+
+  /// 保存 Bundle 条目（新增或更新）
+  Future<VibeLibraryEntry> saveBundleEntry(
+    List<VibeReference> vibes, {
+    required String name,
+    String? categoryId,
+    List<String>? tags,
+  }) async {
+    await _ensureInit();
+    try {
+      if (vibes.isEmpty) throw ArgumentError('vibes cannot be empty');
+
+      final filePath = await _fileStorage.saveBundleToFile(vibes, bundleName: name);
+      final entry = VibeLibraryEntry.fromVibeReference(
+        name: p.basenameWithoutExtension(filePath),
+        vibeData: vibes.first,
+        categoryId: categoryId,
+        tags: tags,
+        filePath: filePath,
+      ).copyWith(
+        bundleId: p.basenameWithoutExtension(filePath),
+        bundledVibeNames: vibes.map((v) => v.displayName).toList(),
+        bundledVibePreviews: () {
+          final previews = vibes
+              .where((v) => v.thumbnail != null)
+              .take(4)
+              .map((v) => v.thumbnail!)
+              .toList();
+          return previews.isEmpty ? null : previews;
+        }(),
+      );
+
+      await _entriesBox!.put(entry.id, entry);
+      AppLogger.d('Bundle entry saved: ${entry.displayName}', _tag);
+      return entry;
+    } catch (e, stackTrace) {
+      AppLogger.e('Failed to save bundle entry', e, stackTrace, _tag);
       rethrow;
     }
   }
