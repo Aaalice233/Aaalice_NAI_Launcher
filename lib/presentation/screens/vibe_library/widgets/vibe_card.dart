@@ -588,7 +588,7 @@ class _VibeCardState extends State<VibeCard>
             _ActionButton(
               icon: Icons.send,
               tooltip: context.l10n.vibe_reuseButton,
-              modifierHint: 'Shift+点击 替换', // 新增
+              modifierHint: 'Shift+点击 替换', // TODO: 添加国际化支持
               onTap: widget.onSendToGeneration,
             ),
           if (widget.onExport != null)
@@ -620,14 +620,16 @@ class _VibeCardState extends State<VibeCard>
 class _ActionButton extends StatefulWidget {
   final IconData icon;
   final String tooltip;
-  final String? modifierHint; // 新增：修饰键提示
+
+  /// 修饰键提示文本，如 "Shift+点击 替换"
+  final String? modifierHint;
   final VoidCallback? onTap;
   final bool isDanger;
 
   const _ActionButton({
     required this.icon,
     required this.tooltip,
-    this.modifierHint, // 新增
+    this.modifierHint,
     this.onTap,
     this.isDanger = false,
   });
