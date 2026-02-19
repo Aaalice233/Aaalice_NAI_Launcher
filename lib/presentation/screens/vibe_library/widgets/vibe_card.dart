@@ -553,13 +553,12 @@ class _BlindsOverlayPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (progress <= 0) return;
-
     final stripHeight = size.height / count;
     const diagonalOffsetBase = 0.3;
 
     for (int i = 0; i < count; i++) {
       final y = i * stripHeight;
+      // 默认状态(progress=0): 完整遮盖, 展开状态(progress=1): 完全移开
       final diagonalOffset = size.width * diagonalOffsetBase * (1 - progress);
 
       final path = Path()
@@ -569,14 +568,14 @@ class _BlindsOverlayPainter extends CustomPainter {
         ..lineTo(-diagonalOffset, y + stripHeight)
         ..close();
 
-      // 叶片半透明覆盖层（随进度淡出）
+      // 叶片覆盖层：默认不透明遮盖，随进度淡出
       final paint = Paint()
-        ..color = Colors.black.withOpacity(0.4 * (1 - progress))
+        ..color = Colors.black.withOpacity(0.5 * (1 - progress))
         ..style = PaintingStyle.fill;
 
       canvas.drawPath(path, paint);
 
-      // 叶片边缘发光
+      // 叶片边缘发光（仅展开时显示）
       if (progress > 0.1) {
         final borderPaint = Paint()
           ..color = themeColor.withOpacity(0.6 * progress)
