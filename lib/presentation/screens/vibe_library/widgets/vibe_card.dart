@@ -588,6 +588,7 @@ class _VibeCardState extends State<VibeCard>
             _ActionButton(
               icon: Icons.send,
               tooltip: context.l10n.vibe_reuseButton,
+              modifierHint: 'Shift+点击 替换', // 新增
               onTap: widget.onSendToGeneration,
             ),
           if (widget.onExport != null)
@@ -619,12 +620,14 @@ class _VibeCardState extends State<VibeCard>
 class _ActionButton extends StatefulWidget {
   final IconData icon;
   final String tooltip;
+  final String? modifierHint; // 新增：修饰键提示
   final VoidCallback? onTap;
   final bool isDanger;
 
   const _ActionButton({
     required this.icon,
     required this.tooltip,
+    this.modifierHint, // 新增
     this.onTap,
     this.isDanger = false,
   });
@@ -718,13 +721,29 @@ class _ActionButtonState extends State<_ActionButton> {
                       color: Colors.black.withOpacity(0.88),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Text(
-                      widget.tooltip,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          widget.tooltip,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (widget.modifierHint != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            widget.modifierHint!,
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ),
