@@ -334,7 +334,7 @@ nai_launcher/
 
    ```bash
    git clone https://github.com/Aaalice233/Aaalice_NAI_Launcher.git
-   cd nai_launcher
+   cd Aaalice_NAI_Launcher
    ```
 
 ### 构建运行
@@ -414,7 +414,7 @@ Closes #123
 ```
 MIT License
 
-Copyright (c) 2024 NAI Launcher Contributors
+Copyright (c) 2026 NAI Launcher Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
