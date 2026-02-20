@@ -63,7 +63,6 @@ class VirtualGalleryGrid extends StatefulWidget {
     TapDownDetails details,
   )? onSecondaryTapDown;
   final void Function(LocalImageRecord record, int index)? onFavoriteToggle;
-  final void Function(LocalImageRecord record, int index)? onCopyImage;
   final void Function(LocalImageRecord record, int index)? onSendToHome;
   final Set<int>? selectedIndices;
 
@@ -78,7 +77,6 @@ class VirtualGalleryGrid extends StatefulWidget {
     this.onLongPress,
     this.onSecondaryTapDown,
     this.onFavoriteToggle,
-    this.onCopyImage,
     this.onSendToHome,
     this.selectedIndices,
   });
@@ -175,9 +173,6 @@ class _VirtualGalleryGridState extends State<VirtualGalleryGrid> {
                     : null,
                 onFavoriteToggle: widget.onFavoriteToggle != null
                     ? () => widget.onFavoriteToggle!(record, index)
-                    : null,
-                onCopyImage: widget.onCopyImage != null
-                    ? () => widget.onCopyImage!(record, index)
                     : null,
                 onSendToHome: widget.onSendToHome != null
                     ? () => widget.onSendToHome!(record, index)

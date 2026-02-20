@@ -2,10 +2,12 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../themes/theme_extension.dart';
 import '../common/animated_favorite_button.dart';
+import '../common/app_toast.dart';
 
 /// Steam风格本地图片卡片
 ///
@@ -25,7 +27,6 @@ class LocalImageCard3D extends StatefulWidget {
   final bool isSelected;
   final bool showFavoriteIndicator;
   final VoidCallback? onFavoriteToggle;
-  final VoidCallback? onCopyImage;
   final VoidCallback? onSendToHome;
 
   const LocalImageCard3D({
@@ -40,7 +41,6 @@ class LocalImageCard3D extends StatefulWidget {
     this.isSelected = false,
     this.showFavoriteIndicator = true,
     this.onFavoriteToggle,
-    this.onCopyImage,
     this.onSendToHome,
   });
 
@@ -83,6 +83,56 @@ class _LocalImageCard3DState extends State<LocalImageCard3D>
 
   void _onHoverExit(PointerEvent event) {
     setState(() => _isHovered = false);
+  }
+
+  /// 复制图片到剪贴板
+  Future<void> _copyImageToClipboard() async {
+    File? tempFile;
+    try {
+      final sourceFile = File(widget.record.path);
+
+      if (!await sourceFile.exists()) {
+        if (mounted) {
+          AppToast.error(context, '文件不存在');
+        }
+        return;
+      }
+
+      final tempDir = await getTemporaryDirectory();
+      tempFile = File(
+        '${tempDir.path}/NAI_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      await tempFile.writeAsBytes(await sourceFile.readAsBytes());
+
+      // 使用 PowerShell 复制图像到剪贴板
+      final result = await Process.run('powershell', [
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        'Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; \$image = [System.Drawing.Image]::FromFile("${tempFile.path}"); [System.Windows.Forms.Clipboard]::SetImage(\$image); \$image.Dispose();',
+      ]);
+
+      if (result.exitCode != 0) {
+        throw Exception('PowerShell 命令失败');
+      }
+
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (mounted) {
+        AppToast.success(context, '已复制到剪贴板');
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, '复制失败: $e');
+      }
+    } finally {
+      if (tempFile != null && await tempFile.exists()) {
+        try {
+          await tempFile.delete();
+        } catch (_) {}
+      }
+    }
   }
 
   /// 获取主题适配的效果强度
@@ -316,21 +366,24 @@ class _LocalImageCard3DState extends State<LocalImageCard3D>
 
   /// 构建右侧竖向按钮组
   Widget _buildActionButtons() {
-    final hasCopy = widget.onCopyImage != null;
     final hasSend = widget.onSendToHome != null;
     final hasFavorite = widget.onFavoriteToggle != null;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // 复制按钮
-        if (hasCopy)
-          _buildActionButton(
-            icon: Icons.copy,
-            onTap: widget.onCopyImage,
-            tooltip: '复制图片',
-          ),
-        if (hasCopy && (hasSend || hasFavorite))
+        // 收藏按钮（排在第一个）
+        if (hasFavorite)
+          _buildFavoriteButton(),
+        if (hasFavorite)
+          const SizedBox(height: 8),
+        // 复制按钮（始终显示）
+        _buildActionButton(
+          icon: Icons.copy,
+          onTap: _copyImageToClipboard,
+          tooltip: '复制图片',
+        ),
+        if (hasSend)
           const SizedBox(height: 8),
         // 发送到主页按钮
         if (hasSend)
@@ -341,11 +394,6 @@ class _LocalImageCard3DState extends State<LocalImageCard3D>
               tooltip: '发送到主页',
             ),
           ),
-        if (hasSend && hasFavorite)
-          const SizedBox(height: 8),
-        // 收藏按钮
-        if (hasFavorite)
-          _buildFavoriteButton(),
       ],
     );
   }

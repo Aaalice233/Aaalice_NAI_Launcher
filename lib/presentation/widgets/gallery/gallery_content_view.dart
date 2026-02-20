@@ -166,9 +166,6 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
   /// 3D视图模式下的额外配置
   final Gallery3DViewConfig<T>? view3DConfig;
 
-  /// 复制图片回调（仅 LocalImageRecord 类型支持）
-  final void Function(LocalImageRecord record)? onCopyImage;
-
   /// 发送到主页回调（仅 LocalImageRecord 类型支持）
   final void Function(LocalImageRecord record)? onSendToHome;
 
@@ -204,7 +201,6 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
     this.onLoadPage,
     this.groupedGridViewKey,
     this.view3DConfig,
-    this.onCopyImage,
     this.onSendToHome,
     this.emptyTitle,
     this.emptySubtitle,
@@ -333,9 +329,6 @@ class _GenericGalleryContentViewState<T>
           onFavoriteToggle: () {
             widget.onFavoriteToggle?.call(record as T);
           },
-          onCopyImage: widget.onCopyImage != null
-              ? () => widget.onCopyImage!(record)
-              : null,
           onSendToHome: widget.onSendToHome != null
               ? () => widget.onSendToHome!(record)
               : null,
@@ -474,11 +467,6 @@ class _GenericGalleryContentViewState<T>
       onFavoriteToggle: (record, index) {
         widget.onFavoriteToggle?.call(state.currentImages[index]);
       },
-      onCopyImage: widget.onCopyImage != null
-          ? (record, index) {
-              widget.onCopyImage!(record);
-            }
-          : null,
       onSendToHome: widget.onSendToHome != null
           ? (record, index) {
               widget.onSendToHome!(record);
@@ -622,9 +610,6 @@ class LocalGalleryContentView extends ConsumerWidget {
   /// Callback when context menu is triggered
   final void Function(LocalImageRecord record, Offset position)? onContextMenu;
 
-  /// Callback when copy image is triggered
-  final void Function(LocalImageRecord record)? onCopyImage;
-
   /// Callback when send to home is triggered
   final void Function(LocalImageRecord record)? onSendToHome;
 
@@ -642,7 +627,6 @@ class LocalGalleryContentView extends ConsumerWidget {
     this.onReuseMetadata,
     this.onSendToImg2Img,
     this.onContextMenu,
-    this.onCopyImage,
     this.onSendToHome,
     this.onDeleted,
     this.groupedGridViewKey,
@@ -746,9 +730,6 @@ class LocalGalleryContentView extends ConsumerWidget {
                 .read(localGalleryNotifierProvider.notifier)
                 .toggleFavorite(record.path);
           },
-          onCopyImage: onCopyImage != null
-              ? () => onCopyImage!(record)
-              : null,
           onSendToHome: onReuseMetadata != null
               ? () => onReuseMetadata!(record)
               : null,
