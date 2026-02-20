@@ -21,6 +21,7 @@ class ProgressNotificationData {
   final DateTime startTime;
   final DateTime? endTime;
   final String? error;
+  final VoidCallback? onCancel;
 
   const ProgressNotificationData({
     required this.id,
@@ -31,6 +32,7 @@ class ProgressNotificationData {
     required this.startTime,
     this.endTime,
     this.error,
+    this.onCancel,
   });
 
   ProgressNotificationData copyWith({
@@ -42,6 +44,7 @@ class ProgressNotificationData {
     DateTime? startTime,
     DateTime? endTime,
     String? error,
+    VoidCallback? onCancel,
   }) {
     return ProgressNotificationData(
       id: id ?? this.id,
@@ -52,6 +55,7 @@ class ProgressNotificationData {
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
       error: error ?? this.error,
+      onCancel: onCancel ?? this.onCancel,
     );
   }
 
@@ -84,6 +88,9 @@ abstract class ProgressNotificationController {
 
   /// 关闭通知
   void dismiss();
+
+  /// 触发取消回调
+  void cancel();
 }
 
 /// 进度通知管理器
@@ -115,6 +122,7 @@ class ProgressNotificationManager extends ChangeNotifier {
     required String title,
     String? subtitle,
     double? initialProgress,
+    VoidCallback? onCancel,
   }) {
     // 如果已存在同ID通知，先移除
     if (_notifications.containsKey(id)) {
@@ -128,6 +136,7 @@ class ProgressNotificationManager extends ChangeNotifier {
       progress: initialProgress,
       state: ProgressNotificationState.running,
       startTime: DateTime.now(),
+      onCancel: onCancel,
     );
 
     _notifications[id] = notification;
@@ -241,6 +250,15 @@ class _ProgressNotificationControllerImpl
   @override
   void dismiss() {
     _manager.dismiss(_id);
+  }
+
+  @override
+  void cancel() {
+    final notification = _manager._notifications[_id];
+    if (notification != null && notification.onCancel != null) {
+      notification.onCancel!();
+      fail(title: '已取消');
+    }
   }
 }
 
@@ -394,6 +412,21 @@ class _ProgressNotificationCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (isRunning && data.onCancel != null) ...[
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: data.onCancel,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.cancel_outlined,
+                        size: 18,
+                        color: theme.colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ],
                 if (!isSuccess && !isError) ...[
                   const SizedBox(width: 8),
                   InkWell(
@@ -476,7 +509,7 @@ extension ProgressNotificationManagerExtension on BuildContext {
     );
   }
 
-  /// 显示带操作的进度通知（带取消按钮等）
+  /// 显示带取消按钮的进度通知
   ProgressNotificationController showCancellableProgress({
     required String id,
     required String title,
@@ -484,15 +517,13 @@ extension ProgressNotificationManagerExtension on BuildContext {
     double? initialProgress,
     VoidCallback? onCancel,
   }) {
-    final controller = ProgressNotificationManager().show(
+    return ProgressNotificationManager().show(
       id: id,
       title: title,
       subtitle: subtitle,
       initialProgress: initialProgress,
+      onCancel: onCancel,
     );
-
-    // TODO: 如果需要取消按钮，可以扩展通知卡片
-    return controller;
   }
 }
 

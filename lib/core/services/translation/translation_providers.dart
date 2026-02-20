@@ -49,13 +49,6 @@ Future<Map<String, String>> tagTranslations(Ref ref, List<String> tags) async {
   return service.getTranslations(tags);
 }
 
-/// 翻译服务初始化状态 Provider
-@Riverpod(keepAlive: true)
-Stream<double> translationInitProgress(Ref ref) async* {
-  // TODO: 实现进度报告
-  yield 1.0;
-}
-
 /// 数据源统计信息 Provider
 @riverpod
 Future<Map<String, DataSourceStats>> translationDataSourceStats(Ref ref) async {
