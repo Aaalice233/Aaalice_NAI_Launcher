@@ -407,15 +407,10 @@ class _LocalImageCard3DState extends State<LocalImageCard3D>
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 150),
       opacity: _isHovered ? 1.0 : 0.0,
-      child: GestureDetector(
-        // 阻止点击事件冒泡到父级
-        onTap: () {},
-        behavior: HitTestBehavior.opaque,
-        child: _HoverActionButton(
-          icon: icon,
-          onTap: onTap,
-          tooltip: tooltip,
-        ),
+      child: _HoverActionButton(
+        icon: icon,
+        onTap: onTap,
+        tooltip: tooltip,
       ),
     );
   }
@@ -840,39 +835,38 @@ class _HoverActionButtonState extends State<_HoverActionButton> {
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
-      child: AnimatedScale(
-        duration: const Duration(milliseconds: 150),
-        scale: _isHovering ? 1.15 : 1.0,
-        child: AnimatedContainer(
+      child: GestureDetector(
+        // 阻止事件冒泡到父级，同时执行实际点击回调
+        onTap: () {
+          widget.onTap?.call();
+        },
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedScale(
           duration: const Duration(milliseconds: 150),
-          decoration: BoxDecoration(
-            color: _isHovering
-                ? Colors.black.withOpacity(0.85)
-                : Colors.black.withOpacity(0.6),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: _isHovering
-                ? [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.4),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(20),
-            child: InkWell(
-              onTap: widget.onTap,
+          scale: _isHovering ? 1.15 : 1.0,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            decoration: BoxDecoration(
+              color: _isHovering
+                  ? Colors.black.withOpacity(0.85)
+                  : Colors.black.withOpacity(0.6),
               borderRadius: BorderRadius.circular(20),
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                child: Icon(
-                  widget.icon,
-                  size: 16,
-                  color: Colors.white,
-                ),
+              boxShadow: _isHovering
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              child: Icon(
+                widget.icon,
+                size: 16,
+                color: Colors.white,
               ),
             ),
           ),
