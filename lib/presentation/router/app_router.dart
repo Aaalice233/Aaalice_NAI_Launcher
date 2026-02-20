@@ -21,7 +21,6 @@ import '../widgets/drop/global_drop_handler.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 import '../widgets/queue/floating_queue_button.dart';
 import '../widgets/queue/queue_management_page.dart';
-import '../widgets/background_task_progress_card.dart';
 import '../widgets/shortcuts/shortcut_aware_widget.dart';
 import '../widgets/shortcuts/shortcut_help_dialog.dart';
 
@@ -451,8 +450,6 @@ class DesktopShell extends ConsumerWidget {
                   clipBehavior: Clip.none,
                   children: [
                     content,
-                    // 画师标签同步进度卡片（右下角）
-                    const CooccurrenceImportProgressCard(),
                     // 队列悬浮球 - 传入实际可用区域大小
                     FloatingQueueButton(
                       onTap: () => ref
@@ -500,8 +497,6 @@ class MobileShell extends ConsumerWidget {
             clipBehavior: Clip.none,
             children: [
               content,
-              // 画师标签同步进度卡片（右下角）
-              const CooccurrenceImportProgressCard(),
               // 队列悬浮球 - 传入实际可用区域大小
               FloatingQueueButton(
                 onTap: () => ref

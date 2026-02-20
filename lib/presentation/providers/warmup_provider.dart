@@ -14,7 +14,7 @@ import '../../core/services/danbooru_tags_lazy_service.dart';
 import '../../core/services/data_migration_service.dart';
 import '../../core/services/translation/translation_providers.dart';
 import '../../core/services/warmup_task_scheduler.dart';
-import 'background_task_provider.dart';
+
 import 'data_source_cache_provider.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/repositories/gallery_folder_repository.dart';
@@ -401,10 +401,6 @@ class WarmupNotifier extends _$WarmupNotifier {
   }
 
   void _registerBackgroundPhaseTasks() {
-    // 后台任务注册到 BackgroundTaskProvider
-    // 实际执行在进入主界面后
-    // final backgroundNotifier = ref.read(backgroundTaskNotifierProvider.notifier);
-
     // 注意：共现数据是预打包的数据库，在 _initCooccurrenceData() 中已完成初始化
     // 不需要额外的后台导入任务
   }
@@ -438,11 +434,7 @@ class WarmupNotifier extends _$WarmupNotifier {
       state = WarmupState.complete();
       _completer.complete();
 
-      // 延迟1秒后启动后台任务，确保UI稳定和任务注册完成
-      await Future.delayed(const Duration(seconds: 1));
-      Future.microtask(() {
-        ref.read(backgroundTaskNotifierProvider.notifier).startAll();
-      });
+      // 后台任务已移除（共现数据是预打包的数据库）
     } catch (e, stack) {
       AppLogger.e('Warmup failed', e, stack, 'Warmup');
       state = state.copyWith(
