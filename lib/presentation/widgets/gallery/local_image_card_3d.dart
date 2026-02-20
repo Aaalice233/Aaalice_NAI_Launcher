@@ -287,7 +287,12 @@ class _LocalImageCard3DState extends State<LocalImageCard3D>
                   Positioned(
                     top: 8,
                     right: 8,
-                    child: _buildActionButtons(),
+                    child: GestureDetector(
+                      // 阻止事件冒泡到父级的卡片点击
+                      onTap: () {},
+                      behavior: HitTestBehavior.opaque,
+                      child: _buildActionButtons(),
+                    ),
                   ),
 
                   // 5. 选中状态指示器
@@ -435,21 +440,22 @@ class _LocalImageCard3DState extends State<LocalImageCard3D>
     showDialog<void>(
       context: context,
       barrierColor: Colors.transparent,
-      builder: (context) => _SendToHomeMenu(
+      useRootNavigator: true,
+      builder: (dialogContext) => _SendToHomeMenu(
         position: Offset(left, top),
         onSendToTxt2Img: widget.onSendToHome != null
             ? () {
-                Navigator.of(context).pop();
+                Navigator.of(dialogContext).pop();
                 widget.onSendToHome!();
               }
             : null,
         onSendToImg2Img: () {
-          Navigator.of(context).pop();
-          _showToast(context, '图生图功能制作中');
+          Navigator.of(dialogContext).pop();
+          _showToast(dialogContext, '图生图功能制作中');
         },
         onUpscale: () {
-          Navigator.of(context).pop();
-          _showToast(context, '放大功能制作中');
+          Navigator.of(dialogContext).pop();
+          _showToast(dialogContext, '放大功能制作中');
         },
       ),
     );

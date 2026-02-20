@@ -18,7 +18,7 @@ import '../../../core/utils/zip_utils.dart';
 import '../../../data/models/character/character_prompt.dart' as char;
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/image/image_params.dart';
-import '../../../data/models/metadata/metadata_import_options.dart';
+import '../../widgets/metadata/metadata_import_dialog.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../providers/bulk_operation_provider.dart';
 import '../../providers/character_prompt_provider.dart';
@@ -848,9 +848,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     if (metadata == null || !metadata.hasData) return;
 
     // 显示参数选择对话框
-    final options = await showDialog<MetadataImportOptions>(
-      context: context,
-      builder: (context) => _buildImportOptionsDialog(metadata),
+    final options = await MetadataImportDialog.show(
+      context,
+      metadata: metadata,
     );
 
     if (options == null || !mounted) return; // 用户取消
@@ -951,76 +951,6 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     } else {
       AppToast.warning(context, context.l10n.metadataImport_noParamsSelected);
     }
-  }
-
-  /// 构建导入选项对话框（简化版，用于画廊）
-  Widget _buildImportOptionsDialog(dynamic metadata) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-
-    return AlertDialog(
-      title: Text(l10n.metadataImport_title),
-      content: SizedBox(
-        width: 400,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 快速预设按钮
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ActionChip(
-                    label: Text(l10n.metadataImport_selectAll),
-                    avatar: const Icon(Icons.select_all, size: 18),
-                    onPressed: () => Navigator.of(context).pop(
-                      MetadataImportOptions.all(),
-                    ),
-                    backgroundColor: theme.colorScheme.primaryContainer,
-                    side: BorderSide.none,
-                  ),
-                  ActionChip(
-                    label: Text(l10n.metadataImport_promptsOnly),
-                    avatar: const Icon(Icons.text_fields, size: 18),
-                    onPressed: () => Navigator.of(context).pop(
-                      MetadataImportOptions.promptsOnly(),
-                    ),
-                  ),
-                  ActionChip(
-                    label: Text(l10n.metadataImport_generationOnly),
-                    avatar: const Icon(Icons.tune, size: 18),
-                    onPressed: () => Navigator.of(context).pop(
-                      MetadataImportOptions.generationOnly(),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                l10n.metadataImport_quickSelectHint,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.common_cancel),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(
-            MetadataImportOptions.all(),
-          ),
-          child: Text(l10n.common_confirm),
-        ),
-      ],
-    );
   }
 
   /// 格式化提示词（SD→NAI + 格式化）
