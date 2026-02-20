@@ -33,6 +33,5 @@ export 'translation_providers.dart'
         unifiedTranslationServiceProvider,
         tagTranslationProvider,
         tagTranslationsProvider,
-        translationInitProgressProvider,
         translationDataSourceStatsProvider,
         searchTranslationsProvider;

@@ -351,12 +351,17 @@ class _DesktopGenerationLayoutState
     return MouseRegion(
       cursor: SystemMouseCursors.resizeColumn,
       child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
         onHorizontalDragStart:
             onDragStart != null ? (_) => onDragStart() : null,
         onHorizontalDragEnd: onDragEnd != null ? (_) => onDragEnd() : null,
-        onHorizontalDragUpdate: (details) => onDrag(details.delta.dx),
+        onHorizontalDragUpdate: (details) {
+          final delta = details.primaryDelta ?? details.delta.dx;
+          if (delta == 0) return;
+          onDrag(delta);
+        },
         child: Container(
-          width: 6,
+          width: 8,
           color: Colors.transparent,
           child: Center(
             child: Container(
@@ -377,15 +382,26 @@ class _DesktopGenerationLayoutState
     return MouseRegion(
       cursor: SystemMouseCursors.resizeRow,
       child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onVerticalDragStart: (_) {
+          // 开始拖拽时标记，避免其他组件干扰
+        },
         onVerticalDragUpdate: (details) {
-          final newHeight = (layoutState.promptAreaHeight + details.delta.dy)
+          // 使用 primaryDelta 提高精度，直接更新避免延迟
+          final delta = details.primaryDelta ?? details.delta.dy;
+          if (delta == 0) return;
+          
+          final currentHeight = ref.read(layoutStateNotifierProvider).promptAreaHeight;
+          final newHeight = (currentHeight + delta)
               .clamp(_promptAreaMinHeight, _promptAreaMaxHeight);
+          
+          // 使用 notifier 直接设置，避免重复读取 state
           ref
               .read(layoutStateNotifierProvider.notifier)
               .setPromptAreaHeight(newHeight);
         },
         child: Container(
-          height: 6,
+          height: 8,
           color: Colors.transparent,
           child: Center(
             child: Container(
