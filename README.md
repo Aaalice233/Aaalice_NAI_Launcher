@@ -1,7 +1,7 @@
 # NAI Launcher
 
 <p align="center">
-  <img src="assets/icons/app_icon.png" alt="NAI Launcher Logo" width="120">
+  <img src="assets/icons/Icon.png" alt="NAI Launcher Logo" width="120">
 </p>
 
 <p align="center">
@@ -49,7 +49,7 @@
 
 ## 🚀 项目简介
 
-**NAI Launcher** 是一个专为 [NovelAI](https://novelai.net/) 设计的跨平台第三方客户端，使用 **Flutter** 构建，支持 **Windows**、**Android** 和 **Linux** 平台。
+**NAI Launcher** 是一个专为 [NovelAI](https://novelai.net/) 设计的跨平台第三方客户端，使用 **Flutter** 构建，支持 **Windows** 和 **Android** 平台。
 
 本项目旨在为 NovelAI 用户提供更加便捷、高效的图像生成体验，同时提供强大的本地画廊管理功能。
 
@@ -82,7 +82,6 @@
 
 - ✅ **Windows** - 完整的桌面体验，支持窗口管理、系统托盘
 - ✅ **Android** - 移动端优化，支持触摸手势
-- ✅ **Linux** - 桌面端支持
 
 ### 高级特性
 
@@ -103,13 +102,12 @@
 |------|----------|
 | Windows | Windows 10 版本 1809+ (64位) |
 | Android | Android 8.0 (API 26)+ |
-| Linux | 支持 GTK3 的发行版 |
 
 ### 下载安装
 
 #### Windows
 
-1. 前往 [Releases](https://github.com/yourusername/nai_launcher/releases) 页面
+1. 前往 [Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases) 页面
 2. 下载最新版本的 `NAI-Launcher-Windows.zip`
 3. 解压到任意目录
 4. 运行 `nai_launcher.exe`
@@ -119,17 +117,6 @@
 1. 下载 `NAI-Launcher-Android.apk`
 2. 允许安装未知来源应用
 3. 安装并打开应用
-
-#### Linux
-
-```bash
-# 下载解压
-wget https://github.com/yourusername/nai_launcher/releases/download/v1.0.0/nai_launcher_linux.tar.gz
-tar -xzf nai_launcher_linux.tar.gz
-
-# 运行
-./nai_launcher
-```
 
 ### 从源码构建
 
@@ -142,8 +129,8 @@ tar -xzf nai_launcher_linux.tar.gz
 
 ```bash
 # 克隆仓库
-git clone https://github.com/yourusername/nai_launcher.git
-cd nai_launcher
+git clone https://github.com/Aaalice233/Aaalice_NAI_Launcher.git
+cd Aaalice_NAI_Launcher
 
 # 安装依赖
 flutter pub get
@@ -163,8 +150,6 @@ flutter build apk --release
 # 或构建 App Bundle
 flutter build appbundle --release
 
-# Linux
-flutter build linux --release
 ```
 
 ---
@@ -207,8 +192,10 @@ flutter build linux --release
 |--------|------|
 | `Ctrl + Enter` | 生成图片 |
 | `Ctrl + S` | 保存当前图片 |
-| `Ctrl + 1-9` | 切换底部标签页 |
+| `F1` | 打开快捷键帮助 |
 | `Esc` | 关闭弹窗/返回 |
+
+> 提示：按 `F1` 可在应用内查看完整的快捷键列表。
 
 ---
 
@@ -232,7 +219,8 @@ flutter build linux --release
 ### 本地存储
 
 - **[Hive](https://hivedb.dev/)** - 高性能键值存储
-- **[sqflite](https://github.com/tekartik/sqflite)** - SQLite 数据库
+- **[sqflite_common_ffi](https://github.com/tekartik/sqflite/tree/master/sqflite_common_ffi)** - SQLite 数据库（桌面端）
+- **[sqlite3_flutter_libs](https://github.com/simolus3/sqlite3.dart/tree/main/sqlite3_flutter_libs)** - SQLite 原生库
 - **[flutter_secure_storage](https://github.com/mogol/flutter_secure_storage)** - 安全存储
 
 ### 图片处理
@@ -283,11 +271,14 @@ nai_launcher/
 │   ├── data/                   # 数据层
 │   │   ├── datasources/        # 数据源
 │   │   ├── models/             # 数据模型
-│   │   └── repositories/       # 仓库实现
+│   │   ├── repositories/       # 仓库实现
+│   │   └── services/           # 数据服务
 │   ├── l10n/                   # 国际化
 │   ├── presentation/           # 展示层
 │   │   ├── providers/          # Riverpod Providers
 │   │   ├── screens/            # 页面
+│   │   ├── themes/             # 主题配置
+│   │   ├── utils/              # 展示层工具
 │   │   ├── widgets/            # 组件
 │   │   └── router/             # 路由配置
 │   ├── utils/                  # 通用工具
@@ -296,6 +287,7 @@ nai_launcher/
 ├── scripts/                    # 构建脚本
 ├── test/                       # 测试代码
 ├── tool/                       # 工具脚本
+├── tools/                      # 构建工具
 ├── windows/                    # Windows 平台配置
 ├── pubspec.yaml                # 依赖配置
 └── README.md                   # 项目说明
@@ -341,7 +333,7 @@ nai_launcher/
 3. **克隆项目**
 
    ```bash
-   git clone https://github.com/yourusername/nai_launcher.git
+   git clone https://github.com/Aaalice233/Aaalice_NAI_Launcher.git
    cd nai_launcher
    ```
 
@@ -417,7 +409,7 @@ Closes #123
 
 ## 📄 许可证
 
-本项目基于 [MIT 许可证](LICENSE) 开源。
+本项目基于 MIT 许可证开源。
 
 ```
 MIT License
