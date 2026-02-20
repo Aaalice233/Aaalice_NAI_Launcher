@@ -6,7 +6,6 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../themes/theme_extension.dart';
-import '../common/animated_favorite_button.dart';
 import '../common/app_toast.dart';
 
 /// Steam风格本地图片卡片
@@ -287,12 +286,7 @@ class _LocalImageCard3DState extends State<LocalImageCard3D>
                   Positioned(
                     top: 8,
                     right: 8,
-                    child: GestureDetector(
-                      // 阻止事件冒泡到父级的卡片点击
-                      onTap: () {},
-                      behavior: HitTestBehavior.opaque,
-                      child: _buildActionButtons(),
-                    ),
+                    child: _buildActionButtons(),
                   ),
 
                   // 5. 选中状态指示器
@@ -374,48 +368,54 @@ class _LocalImageCard3DState extends State<LocalImageCard3D>
     final hasSend = widget.onSendToHome != null;
     final hasFavorite = widget.onFavoriteToggle != null;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // 收藏按钮（排在第一个）
-        if (hasFavorite)
-          _buildFavoriteButton(),
-        if (hasFavorite)
-          const SizedBox(height: 8),
-        // 复制按钮（始终显示）
-        _buildActionButton(
-          icon: Icons.copy,
-          onTap: _copyImageToClipboard,
-          tooltip: '复制图片',
-        ),
-        if (hasSend)
-          const SizedBox(height: 8),
-        // 发送到主页按钮
-        if (hasSend)
-          Builder(
-            builder: (context) => _buildActionButton(
-              icon: Icons.send,
-              onTap: () => _showSendToHomeMenu(context),
-              tooltip: '发送到主页',
-            ),
-          ),
-      ],
-    );
-  }
+    // 计算需要显示多少个按钮
+    final buttonCount = (hasFavorite ? 1 : 0) + 1 + (hasSend ? 1 : 0);
+    if (buttonCount == 0) return const SizedBox.shrink();
 
-  /// 构建操作按钮
-  Widget _buildActionButton({
-    required IconData icon,
-    required VoidCallback? onTap,
-    required String tooltip,
-  }) {
+    // 整个按钮组区域包裹 GestureDetector 拦截所有事件
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 150),
       opacity: _isHovered ? 1.0 : 0.0,
-      child: _HoverActionButton(
-        icon: icon,
-        onTap: onTap,
-        tooltip: tooltip,
+      child: GestureDetector(
+        // 空 onTap 消费事件，阻止冒泡到父级
+        onTap: () {},
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          // 给整个按钮组一个背景色（透明），确保整个区域都能拦截事件
+          color: Colors.transparent,
+          padding: const EdgeInsets.all(4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 收藏按钮（排在第一个）
+              if (hasFavorite)
+                _ActionButton(
+                  icon: widget.record.isFavorite
+                      ? Icons.favorite
+                      : Icons.favorite_border,
+                  iconColor: widget.record.isFavorite ? Colors.red : Colors.white,
+                  onTap: widget.onFavoriteToggle,
+                ),
+              if (hasFavorite)
+                const SizedBox(height: 8),
+              // 复制按钮（始终显示）
+              _ActionButton(
+                icon: Icons.copy,
+                onTap: _copyImageToClipboard,
+              ),
+              if (hasSend)
+                const SizedBox(height: 8),
+              // 发送到主页按钮
+              if (hasSend)
+                Builder(
+                  builder: (context) => _ActionButton(
+                    icon: Icons.send,
+                    onTap: () => _showSendToHomeMenu(context),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -469,23 +469,6 @@ class _LocalImageCard3DState extends State<LocalImageCard3D>
         content: Text(message),
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  Widget _buildFavoriteButton() {
-    final isFavorite = widget.record.isFavorite;
-    final showButton = _isHovered || isFavorite;
-
-    if (!showButton) return const SizedBox.shrink();
-
-    return GestureDetector(
-      // 拦截点击事件，防止冒泡到父级 GestureDetector 打开详情
-      onTap: () {},
-      behavior: HitTestBehavior.opaque,
-      child: CardFavoriteButton(
-        isFavorite: isFavorite,
-        onToggle: widget.onFavoriteToggle,
       ),
     );
   }
@@ -815,25 +798,25 @@ class _GlossPainter extends CustomPainter {
   }
 }
 
-/// 悬浮操作按钮
+/// 操作按钮组件
 /// 
-/// 带独立悬浮动效（放大、背景变亮），并阻止点击事件冒泡
-class _HoverActionButton extends StatefulWidget {
+/// 带悬浮动效（放大、背景变亮），并阻止点击事件冒泡
+class _ActionButton extends StatefulWidget {
   final IconData icon;
   final VoidCallback? onTap;
-  final String tooltip;
+  final Color? iconColor;
 
-  const _HoverActionButton({
+  const _ActionButton({
     required this.icon,
     required this.onTap,
-    required this.tooltip,
+    this.iconColor,
   });
 
   @override
-  State<_HoverActionButton> createState() => _HoverActionButtonState();
+  State<_ActionButton> createState() => _ActionButtonState();
 }
 
-class _HoverActionButtonState extends State<_HoverActionButton> {
+class _ActionButtonState extends State<_ActionButton> {
   bool _isHovering = false;
 
   @override
@@ -842,10 +825,8 @@ class _HoverActionButtonState extends State<_HoverActionButton> {
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
       child: GestureDetector(
-        // 阻止事件冒泡到父级，同时执行实际点击回调
-        onTap: () {
-          widget.onTap?.call();
-        },
+        // 执行实际回调，同时通过 behavior: opaque 阻止事件冒泡
+        onTap: widget.onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedScale(
           duration: const Duration(milliseconds: 150),
@@ -872,7 +853,7 @@ class _HoverActionButtonState extends State<_HoverActionButton> {
               child: Icon(
                 widget.icon,
                 size: 16,
-                color: Colors.white,
+                color: widget.iconColor ?? Colors.white,
               ),
             ),
           ),
