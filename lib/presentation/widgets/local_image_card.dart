@@ -615,6 +615,7 @@ class _LocalImageCardState extends State<LocalImageCard>
                   onFavoriteToggle: widget.onFavoriteToggle != null
                       ? () => widget.onFavoriteToggle!(widget.record)
                       : null,
+                  onCopyImage: () => _copyImage(context),
                 ),
               // Pinch 缩略图预览 overlay
               if (_showThumbnailPreview && _scaleStartPosition != null)
@@ -836,10 +837,12 @@ class _SelectionIndicatorState extends State<_SelectionIndicator>
 class _HoverOverlay extends ConsumerStatefulWidget {
   final LocalImageRecord record;
   final VoidCallback? onFavoriteToggle;
+  final VoidCallback? onCopyImage;
 
   const _HoverOverlay({
     required this.record,
     this.onFavoriteToggle,
+    this.onCopyImage,
   });
 
   @override
@@ -1046,6 +1049,37 @@ class _HoverOverlayState extends ConsumerState<_HoverOverlay> {
               ),
             ),
           ),
+          // 左上角复制按钮（悬浮时显示）
+          if (widget.onCopyImage != null)
+            Positioned(
+              top: 8,
+              left: 8,
+              child: GestureDetector(
+                // 拦截点击事件，防止冒泡到父级 GestureDetector 打开详情
+                onTap: () {},
+                behavior: HitTestBehavior.opaque,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 150),
+                  opacity: _isHovering ? 1.0 : 0.0,
+                  child: Material(
+                    color: Colors.black.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(20),
+                    child: InkWell(
+                      onTap: widget.onCopyImage,
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        child: const Icon(
+                          Icons.copy,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           // 右上角收藏按钮（悬浮时或已收藏时显示）
           if (widget.onFavoriteToggle != null)
             Positioned(
