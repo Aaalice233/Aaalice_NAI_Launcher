@@ -403,15 +403,10 @@ class WarmupNotifier extends _$WarmupNotifier {
   void _registerBackgroundPhaseTasks() {
     // 后台任务注册到 BackgroundTaskProvider
     // 实际执行在进入主界面后
-    final backgroundNotifier = ref.read(backgroundTaskNotifierProvider.notifier);
+    // final backgroundNotifier = ref.read(backgroundTaskNotifierProvider.notifier);
 
-    // 共现数据导入（数据量大，不阻塞主界面）
-    // 使用独立的任务ID，但UI组件支持显示多种任务
-    backgroundNotifier.registerTask(
-      'cooccurrence_import',
-      '共现数据导入',
-      () => _importCooccurrenceDataInBackground(),
-    );
+    // 注意：共现数据是预打包的数据库，在 _initCooccurrenceData() 中已完成初始化
+    // 不需要额外的后台导入任务
   }
 
   /// 开始预热流程
@@ -480,49 +475,6 @@ class WarmupNotifier extends _$WarmupNotifier {
       AppLogger.e('Database initialization failed', e, stack, 'Warmup');
       // 数据库初始化失败不应阻塞启动，记录错误但继续
       AppLogger.w('Continuing without database - will retry on first use', 'Warmup');
-    }
-  }
-
-  /// 后台导入共现数据（解决首次启动或清除缓存后数据缺失问题）
-  ///
-  /// 使用 'artist_tags_fetch' 任务ID复用画师标签的进度UI
-  /// 因为画师标签已移到预热阶段执行
-  Future<void> _importCooccurrenceDataInBackground() async {
-    AppLogger.i('开始后台初始化共现数据...', 'Background');
-
-    final notifier = ref.read(backgroundTaskNotifierProvider.notifier);
-
-    try {
-      final cooccurrenceService = await ref.watch(cooccurrenceServiceProvider.future);
-
-      // 注册后台任务
-      notifier.updateProgress(
-        'cooccurrence_import',
-        0.0,
-        message: '准备初始化共现数据...',
-      );
-
-      // 预打包数据库，只需初始化
-      final isReady = await cooccurrenceService.initialize();
-
-      if (isReady) {
-        notifier.updateProgress(
-          'cooccurrence_import',
-          1.0,
-          message: '共现数据已就绪',
-        );
-        AppLogger.i('共现数据后台初始化完成', 'Background');
-      } else {
-        AppLogger.w('共现数据初始化返回 false', 'Background');
-      }
-    } catch (e, stack) {
-      AppLogger.e('共现数据后台初始化失败', e, stack, 'Background');
-      notifier.updateProgress(
-        'cooccurrence_import',
-        0.0,
-        message: '共现数据初始化失败',
-      );
-      // 初始化失败不阻塞启动，后续使用时会重试
     }
   }
 
