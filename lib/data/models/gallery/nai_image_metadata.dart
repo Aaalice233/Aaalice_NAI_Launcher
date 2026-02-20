@@ -157,13 +157,27 @@ class NaiImageMetadata with _$NaiImageMetadata {
       }
     }
 
+    // 提取 scale，支持多种可能的键名
+    double? extractScale() {
+      // 尝试不同的键名（NAI 不同版本可能使用不同键名）
+      final possibleKeys = ['scale', 'cfg_scale', 'cfg', 'guidance', 'prompt_guidance'];
+      for (final key in possibleKeys) {
+        final value = commentData[key];
+        if (value != null) {
+          if (value is num) return value.toDouble();
+          if (value is String) return double.tryParse(value);
+        }
+      }
+      return null;
+    }
+
     return NaiImageMetadata(
       prompt: commentData['prompt'] as String? ?? '',
       negativePrompt: commentData['uc'] as String? ?? '',
       seed: commentData['seed'] as int?,
       sampler: commentData['sampler'] as String?,
       steps: commentData['steps'] as int?,
-      scale: (commentData['scale'] as num?)?.toDouble(),
+      scale: extractScale(),
       width: commentData['width'] as int?,
       height: commentData['height'] as int?,
       model: commentData['model'] as String?,
