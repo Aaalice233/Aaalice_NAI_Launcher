@@ -1070,6 +1070,9 @@
 
   "characterEditor_title": "多人角色提示词",
   "characterEditor_close": "关闭",
+  "characterEditor_dock": "停靠",
+  "characterEditor_undock": "取消停靠",
+  "characterEditor_dockedHint": "角色面板已停靠到图像区域",
   "characterEditor_confirm": "确定",
   "characterEditor_clearAll": "清空所有",
   "characterEditor_clearAllTitle": "清空所有角色",

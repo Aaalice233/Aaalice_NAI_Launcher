@@ -2874,6 +2874,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get characterEditor_close => '关闭';
 
   @override
+  String get characterEditor_dock => '停靠';
+
+  @override
+  String get characterEditor_undock => '取消停靠';
+
+  @override
+  String get characterEditor_dockedHint => '角色面板已停靠到图像区域';
+
+  @override
   String get characterEditor_confirm => '确定';
 
   @override

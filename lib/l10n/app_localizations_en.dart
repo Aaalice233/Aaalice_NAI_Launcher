@@ -2874,6 +2874,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get characterEditor_close => 'Close';
 
   @override
+  String get characterEditor_dock => 'Dock';
+
+  @override
+  String get characterEditor_undock => 'Undock';
+
+  @override
+  String get characterEditor_dockedHint => 'Character panel is docked to image area';
+
+  @override
   String get characterEditor_confirm => 'Confirm';
 
   @override

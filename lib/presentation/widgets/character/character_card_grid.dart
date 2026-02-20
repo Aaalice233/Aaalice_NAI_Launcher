@@ -16,12 +16,14 @@ class CharacterCardGrid extends ConsumerWidget {
   final bool globalAiChoice;
   final ValueChanged<CharacterPrompt>? onCardTap;
   final ValueChanged<String>? onDelete;
+  final EdgeInsetsGeometry? padding;
 
   const CharacterCardGrid({
     super.key,
     this.globalAiChoice = false,
     this.onCardTap,
     this.onDelete,
+    this.padding,
   });
 
   @override
@@ -46,7 +48,7 @@ class CharacterCardGrid extends ConsumerWidget {
         final cardHeight = actualCardWidth / 0.72;
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(12),
+          padding: padding ?? const EdgeInsets.all(12),
           child: Center(
             child: Wrap(
               spacing: spacing,

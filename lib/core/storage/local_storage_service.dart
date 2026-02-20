@@ -563,6 +563,22 @@ class LocalStorageService {
     await setSetting(StorageKeys.promptMaximized, maximized);
   }
 
+  // ==================== Character Panel Dock ====================
+
+  /// 获取角色面板停靠状态 (默认未停靠)
+  bool getCharacterPanelDocked() {
+    return getSetting<bool>(
+          StorageKeys.characterPanelDocked,
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// 保存角色面板停靠状态
+  Future<void> setCharacterPanelDocked(bool docked) async {
+    await setSetting(StorageKeys.characterPanelDocked, docked);
+  }
+
   // ==================== Lifecycle ====================
 
   /// 关闭存储

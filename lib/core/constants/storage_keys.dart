@@ -47,6 +47,9 @@ class StorageKeys {
   static const String promptAreaHeight = 'prompt_area_height';
   static const String promptMaximized = 'prompt_maximized';
 
+  // Character Panel Dock State (多角色面板停靠状态)
+  static const String characterPanelDocked = 'character_panel_docked';
+
   // Panel Width Keys (面板宽度)
   static const String historyPanelWidth = 'history_panel_width';
   static const String defaultModel = 'default_model';

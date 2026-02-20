@@ -5501,6 +5501,24 @@ abstract class AppLocalizations {
   /// **'Close'**
   String get characterEditor_close;
 
+  /// No description provided for @characterEditor_dock.
+  ///
+  /// In en, this message translates to:
+  /// **'Dock'**
+  String get characterEditor_dock;
+
+  /// No description provided for @characterEditor_undock.
+  ///
+  /// In en, this message translates to:
+  /// **'Undock'**
+  String get characterEditor_undock;
+
+  /// No description provided for @characterEditor_dockedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Character panel is docked to image area'**
+  String get characterEditor_dockedHint;
+
   /// No description provided for @characterEditor_confirm.
   ///
   /// In en, this message translates to:

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../providers/character_panel_dock_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../common/themed_switch.dart';
 import 'add_character_buttons.dart';
@@ -141,6 +142,74 @@ class CharacterEditorDialog extends ConsumerWidget {
   }
 }
 
+/// 停靠切换按钮
+///
+/// 根据停靠状态显示不同样式：
+/// - 未停靠：显示📌图标 + "停靠"文字，普通样式
+/// - 已停靠：显示📌图标 + "取消停靠"文字，高亮样式
+class _DockToggleButton extends StatelessWidget {
+  final bool isDocked;
+  final VoidCallback onToggle;
+
+  const _DockToggleButton({
+    required this.isDocked,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onToggle,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isDocked
+                  ? colorScheme.primary.withOpacity(0.6)
+                  : colorScheme.outline.withOpacity(0.3),
+              width: 1,
+            ),
+            color: isDocked
+                ? colorScheme.primary.withOpacity(0.12)
+                : Colors.transparent,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isDocked ? Icons.pin_drop : Icons.push_pin_outlined,
+                size: 16,
+                color: isDocked
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                isDocked
+                    ? AppLocalizations.of(context)!.characterEditor_undock
+                    : AppLocalizations.of(context)!.characterEditor_dock,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: isDocked
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant,
+                  fontWeight: isDocked ? FontWeight.w600 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// 对话框头部组件
 class _DialogHeader extends ConsumerWidget {
   final VoidCallback onClose;
@@ -152,6 +221,7 @@ class _DialogHeader extends ConsumerWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
+    final isDocked = ref.watch(characterPanelDockProvider);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -182,6 +252,15 @@ class _DialogHeader extends ConsumerWidget {
           // 添加按钮组（集成到标题栏）
           const Expanded(
             child: AddCharacterButtons(),
+          ),
+          const SizedBox(width: 8),
+          // 停靠/取消停靠按钮
+          _DockToggleButton(
+            isDocked: isDocked,
+            onToggle: () {
+              ref.read(characterPanelDockProvider.notifier).toggle();
+              onClose();
+            },
           ),
           const SizedBox(width: 8),
           IconButton(

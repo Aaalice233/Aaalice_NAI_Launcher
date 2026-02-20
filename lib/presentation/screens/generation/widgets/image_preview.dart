@@ -6,24 +6,30 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_metadata_parser.dart';
+import '../../../../data/models/character/character_prompt.dart';
 import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../../data/services/alias_resolver_service.dart';
 import '../../../../data/services/image_metadata_service.dart';
+import '../../../providers/character_panel_dock_provider.dart';
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
+import '../../../widgets/character/character_card_grid.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_viewer.dart';
 import '../../../widgets/common/selectable_image_card.dart';
+import '../../../widgets/common/themed_switch.dart';
 import '../../../utils/image_detail_opener.dart';
 import '../../tag_library_page/widgets/entry_add_dialog.dart';
+import '../../../widgets/tag_library/tag_library_picker_dialog.dart';
 import 'upscale_dialog.dart';
 
 /// 图像预览组件
@@ -59,6 +65,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     ImageGenerationState state,
     ThemeData theme,
   ) {
+    // 检查角色面板停靠状态
+    final isDocked = ref.watch(characterPanelDockProvider);
+    if (isDocked) {
+      return const _DockedCharacterPanel();
+    }
+
     // 错误状态
     if (state.status == GenerationStatus.error) {
       return _buildErrorState(theme, state.errorMessage, context);
@@ -706,5 +718,455 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       return 'NovelAI Diffusion V3';
     }
     return 'NovelAI Diffusion';
+  }
+}
+
+/// 停靠状态的角色面板
+///
+/// 当角色面板处于停靠模式时，显示在中央图像区域
+/// 布局：标题栏 + 左侧竖直按钮栏 + 右侧角色网格 + 底部工具栏
+class _DockedCharacterPanel extends ConsumerWidget {
+  const _DockedCharacterPanel();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final config = ref.watch(characterPromptNotifierProvider);
+    final l10n = context.l10n;
+
+    return Container(
+      // 使用半透明表面色，让背景微妙透出
+      color: colorScheme.surface.withOpacity(0.95),
+      child: Column(
+        children: [
+          // 标题栏 - 横跨整个宽度
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.people,
+                  size: 20,
+                  color: colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  l10n.characterEditor_title,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Spacer(),
+                // 取消停靠按钮
+                _UndockButton(
+                  onPressed: () {
+                    ref.read(characterPanelDockProvider.notifier).undock();
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          // 极淡的分隔线
+          Divider(
+            height: 1,
+            thickness: 0.5,
+            color: colorScheme.outlineVariant.withOpacity(0.15),
+          ),
+
+          // 主内容区：左侧竖直按钮栏 + 右侧角色网格
+          Expanded(
+            child: Row(
+              children: [
+                // 左侧竖直按钮栏
+                Container(
+                  width: 64,
+                  decoration: BoxDecoration(
+                    border: Border(
+                      right: BorderSide(
+                        color: colorScheme.outlineVariant.withOpacity(0.15),
+                      ),
+                    ),
+                  ),
+                  child: const _VerticalAddButtons(),
+                ),
+
+                // 右侧角色卡片网格（紧贴边缘，无内边距）
+                Expanded(
+                  child: CharacterCardGrid(
+                    globalAiChoice: config.globalAiChoice,
+                    padding: EdgeInsets.zero,
+                    onCardTap: (character) {
+                      // 停靠模式下点击卡片打开编辑对话框
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: Text(l10n.characterEditor_editCharacter),
+                          content: Text(character.prompt),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: Text(l10n.common_cancel),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    onDelete: (id) {
+                      ref.read(characterPromptNotifierProvider.notifier).removeCharacter(id);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 底部分隔线
+          Divider(
+            height: 1,
+            thickness: 0.5,
+            color: colorScheme.outlineVariant.withOpacity(0.15),
+          ),
+
+          // 底部工具栏 - 横跨整个宽度，紧贴边缘
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 6, 16, 6),
+            child: Row(
+              children: [
+                // 全局AI选择开关（左侧留少量空间对齐按钮栏）
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        ref.read(characterPromptNotifierProvider.notifier).setGlobalAiChoice(
+                          !config.globalAiChoice,
+                        );
+                      },
+                      child: Text(
+                        l10n.characterEditor_globalAiChoice,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Tooltip(
+                      message: l10n.characterEditor_globalAiChoiceHint,
+                      child: Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: colorScheme.onSurfaceVariant.withOpacity(0.6),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ThemedSwitch(
+                      value: config.globalAiChoice,
+                      onChanged: (value) {
+                        ref.read(characterPromptNotifierProvider.notifier).setGlobalAiChoice(value);
+                      },
+                      scale: 0.85,
+                    ),
+                  ],
+                ),
+
+                const Spacer(),
+
+                // 清空所有按钮
+                if (config.characters.isNotEmpty)
+                  TextButton.icon(
+                    onPressed: () => _showClearAllConfirm(context, ref),
+                    icon: Icon(
+                      Icons.delete_sweep,
+                      size: 18,
+                      color: colorScheme.error,
+                    ),
+                    label: Text(
+                      l10n.characterEditor_clearAll,
+                      style: TextStyle(color: colorScheme.error),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showClearAllConfirm(BuildContext context, WidgetRef ref) async {
+    final l10n = context.l10n;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.characterEditor_clearAllTitle),
+        content: Text(l10n.characterEditor_clearAllConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: Text(l10n.common_clear),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      ref.read(characterPromptNotifierProvider.notifier).clearAllCharacters();
+    }
+  }
+}
+
+/// 左侧竖直添加按钮栏
+///
+/// 停靠模式下使用竖直布局的添加按钮
+class _VerticalAddButtons extends ConsumerWidget {
+  const _VerticalAddButtons();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 女性按钮
+          _VerticalGenderButton(
+            icon: Icons.female,
+            label: l10n.characterEditor_addFemale,
+            color: const Color(0xFFEC4899), // pink-500
+            onTap: () => _addCharacter(ref, CharacterGender.female),
+          ),
+          const SizedBox(height: 6),
+          // 男性按钮
+          _VerticalGenderButton(
+            icon: Icons.male,
+            label: l10n.characterEditor_addMale,
+            color: const Color(0xFF3B82F6), // blue-500
+            onTap: () => _addCharacter(ref, CharacterGender.male),
+          ),
+          const SizedBox(height: 6),
+          // 其他按钮
+          _VerticalGenderButton(
+            icon: Icons.transgender,
+            label: l10n.characterEditor_addOther,
+            color: const Color(0xFF8B5CF6), // violet-500
+            onTap: () => _addCharacter(ref, CharacterGender.other),
+          ),
+          const SizedBox(height: 6),
+          // 词库按钮
+          _VerticalLibraryButton(
+            onTap: () => _addFromLibrary(context, ref),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addCharacter(WidgetRef ref, CharacterGender gender) {
+    ref.read(characterPromptNotifierProvider.notifier).addCharacter(gender);
+  }
+
+  Future<void> _addFromLibrary(BuildContext context, WidgetRef ref) async {
+    final entry = await showDialog(
+      context: context,
+      builder: (context) => const TagLibraryPickerDialog(),
+    );
+
+    if (entry != null) {
+      ref.read(tagLibraryPageNotifierProvider.notifier).recordUsage(entry.id);
+      ref.read(characterPromptNotifierProvider.notifier).addCharacter(
+            CharacterGender.female,
+            name: entry.displayName,
+            prompt: entry.content,
+            thumbnailPath: entry.thumbnail,
+          );
+    }
+  }
+}
+
+/// 竖直性别按钮
+class _VerticalGenderButton extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _VerticalGenderButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  State<_VerticalGenderButton> createState() => _VerticalGenderButtonState();
+}
+
+class _VerticalGenderButtonState extends State<_VerticalGenderButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+          decoration: BoxDecoration(
+            color: _isHovered
+                ? widget.color.withOpacity(0.18)
+                : widget.color.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                widget.icon,
+                size: 22,
+                color: widget.color,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                widget.label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: _isHovered ? widget.color : colorScheme.onSurfaceVariant,
+                  fontWeight: _isHovered ? FontWeight.w600 : FontWeight.w500,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 竖直词库按钮
+class _VerticalLibraryButton extends StatefulWidget {
+  final VoidCallback onTap;
+
+  const _VerticalLibraryButton({required this.onTap});
+
+  @override
+  State<_VerticalLibraryButton> createState() => _VerticalLibraryButtonState();
+}
+
+class _VerticalLibraryButtonState extends State<_VerticalLibraryButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final accentColor = colorScheme.tertiary;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+          decoration: BoxDecoration(
+            color: _isHovered
+                ? accentColor.withOpacity(0.18)
+                : accentColor.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.library_books_outlined,
+                size: 22,
+                color: _isHovered ? accentColor : colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                l10n.characterEditor_addFromLibrary,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: _isHovered ? accentColor : colorScheme.onSurfaceVariant,
+                  fontWeight: _isHovered ? FontWeight.w600 : FontWeight.w500,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 取消停靠按钮
+class _UndockButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _UndockButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final l10n = context.l10n;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: colorScheme.primary.withOpacity(0.6),
+              width: 1,
+            ),
+            color: colorScheme.primary.withOpacity(0.12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.push_pin,
+                size: 16,
+                color: colorScheme.primary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                l10n.characterEditor_undock,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
