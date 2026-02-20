@@ -194,7 +194,7 @@ class DefaultShortcuts {
         ShortcutIds.nextImage: 'arrowright',
         ShortcutIds.zoomIn: 'equal',
         ShortcutIds.zoomOut: 'minus',
-        ShortcutIds.resetZoom: 'digit0',
+        ShortcutIds.resetZoom: '0',
         ShortcutIds.toggleFullscreen: 'f11',
         ShortcutIds.closeViewer: 'escape',
         ShortcutIds.toggleFavorite: 'f',
