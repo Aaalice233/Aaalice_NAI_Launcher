@@ -10,7 +10,7 @@ void main() async {
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
   
-  final csvPath = 'assets/translations/hf_danbooru_cooccurrence.csv';
+  const csvPath = 'assets/translations/hf_danbooru_cooccurrence.csv';
   final outputDir = Directory('assets/databases');
   final dbPath = p.absolute(p.join(outputDir.path, 'cooccurrence.db'));
   

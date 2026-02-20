@@ -12,7 +12,8 @@ import '../../data/models/cache/data_source_cache_meta.dart';
 import '../../data/models/tag/local_tag.dart';
 import '../constants/storage_keys.dart';
 import '../database/datasources/danbooru_tag_data_source.dart';
-import '../database/datasources/danbooru_tag_data_source_provider.dart';
+import '../database/datasources/translation_data_source.dart';
+import '../database/services/service_providers.dart';
 import '../utils/app_logger.dart';
 import '../utils/tag_normalizer.dart';
 import 'lazy_data_source_service.dart';
@@ -41,6 +42,7 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   static const String _metaFileName = 'danbooru_tags_meta.json';
 
   final DanbooruTagDataSource _tagDataSource;
+  final TranslationDataSource? _translationDataSource;
   final Dio _dio;
 
   final Map<String, LocalTag> _hotDataCache = {};
@@ -63,10 +65,13 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   /// 主构造函数 - 同步初始化
   ///
   /// [dataSource] 必须已初始化完成
+  /// [translationDataSource] 可选，用于获取标签翻译
   DanbooruTagsLazyService({
     required DanbooruTagDataSource dataSource,
     required Dio dio,
+    TranslationDataSource? translationDataSource,
   })  : _tagDataSource = dataSource,
+        _translationDataSource = translationDataSource,
         _dio = dio;
 
   @override
@@ -181,19 +186,29 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     _onProgress?.call(0.0, '加载热数据...');
 
     final records = await _tagDataSource.getByNames(hotKeys.toList());
-    final tags = records
-        .map(
-          (r) => LocalTag(
-            tag: r.tag,
-            category: r.category,
-            count: r.postCount,
-          ),
-        )
-        .toList();
 
-    // TODO: 需要从 TranslationDataSource 批量获取翻译
-    // 暂时直接使用标签数据，不添加翻译
-    for (final tag in tags) {
+    if (records.isEmpty) {
+      _onProgress?.call(1.0, '热数据加载完成');
+      AppLogger.i('No hot tags loaded from database', 'DanbooruTagsLazy');
+      return;
+    }
+
+    // 批量获取翻译
+    Map<String, String> translations = {};
+    if (_translationDataSource != null) {
+      final tagNames = records.map((r) => r.tag).toList();
+      translations = await _translationDataSource.queryBatch(tagNames);
+    }
+
+    // 构建带翻译的标签列表并加入缓存
+    for (final record in records) {
+      final translation = translations[record.tag.toLowerCase().trim()];
+      final tag = LocalTag(
+        tag: record.tag,
+        category: record.category,
+        count: record.postCount,
+        translation: translation,
+      );
       _hotDataCache[tag.tag] = tag;
     }
 
@@ -221,8 +236,10 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     AppLogger.d('[DanbooruTagsLazy] DB record: ${record != null ? "found" : "not found"}', 'DanbooruTagsLazy');
     if (record != null) {
       // 获取翻译（通过 TranslationDataSource）
-      // TODO: 需要通过依赖注入获取 TranslationDataSource
-      final translation = await _getTranslation(normalizedKey);
+      String? translation;
+      if (_translationDataSource != null) {
+        translation = await _translationDataSource.query(normalizedKey);
+      }
       AppLogger.d('[DanbooruTagsLazy] DB translation: "$translation"', 'DanbooruTagsLazy');
       return LocalTag(
         tag: record.tag,
@@ -247,19 +264,28 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       category: category,
     );
 
-    // 批量获取翻译
-    final tags = records
-        .map(
-          (r) => LocalTag(
-            tag: r.tag,
-            category: r.category,
-            count: r.postCount,
-          ),
-        )
-        .toList();
+    if (records.isEmpty) {
+      return [];
+    }
 
-    // TODO: 需要通过依赖注入获取 TranslationDataSource 来批量获取翻译
-    // 暂时返回没有翻译的标签
+    // 批量获取翻译
+    Map<String, String> translations = {};
+    if (_translationDataSource != null) {
+      final tagNames = records.map((r) => r.tag).toList();
+      translations = await _translationDataSource.queryBatch(tagNames);
+    }
+
+    // 构建带翻译的标签列表
+    final tags = records.map((r) {
+      final translation = translations[r.tag.toLowerCase().trim()];
+      return LocalTag(
+        tag: r.tag,
+        category: r.category,
+        count: r.postCount,
+        translation: translation,
+      );
+    }).toList();
+
     return tags;
   }
 
@@ -272,18 +298,29 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       limit: limit,
       category: category,
     );
-    final tags = records
-        .map(
-          (r) => LocalTag(
-            tag: r.tag,
-            category: r.category,
-            count: r.postCount,
-          ),
-        )
-        .toList();
 
-    // TODO: 需要通过依赖注入获取 TranslationDataSource 来批量获取翻译
-    // 暂时返回没有翻译的标签
+    if (records.isEmpty) {
+      return [];
+    }
+
+    // 批量获取翻译
+    Map<String, String> translations = {};
+    if (_translationDataSource != null) {
+      final tagNames = records.map((r) => r.tag).toList();
+      translations = await _translationDataSource.queryBatch(tagNames);
+    }
+
+    // 构建带翻译的标签列表
+    final tags = records.map((r) {
+      final translation = translations[r.tag.toLowerCase().trim()];
+      return LocalTag(
+        tag: r.tag,
+        category: r.category,
+        count: r.postCount,
+        translation: translation,
+      );
+    }).toList();
+
     return tags;
   }
 
@@ -1405,10 +1442,18 @@ Future<DanbooruTagsLazyService> danbooruTagsLazyService(Ref ref) async {
   );
   final tagDataSource = await ref.read(danbooruTagDataSourceProvider.future);
 
+  // 等待翻译数据源初始化
+  AppLogger.i(
+    '[ProviderLifecycle] danbooruTagsLazyServiceProvider - waiting for translationDataSourceProvider',
+    'DanbooruTagsLazy',
+  );
+  final translationDataSource = await ref.read(translationDataSourceProvider.future);
+
   // 创建并初始化服务（同步初始化，DataSource 必须已准备好）
   final service = DanbooruTagsLazyService(
     dataSource: tagDataSource,
     dio: dio,
+    translationDataSource: translationDataSource,
   );
   AppLogger.i(
     '[ProviderLifecycle] danbooruTagsLazyServiceProvider - service instance created, hash=${service.hashCode}',
@@ -1423,11 +1468,4 @@ Future<DanbooruTagsLazyService> danbooruTagsLazyService(Ref ref) async {
     'DanbooruTagsLazy',
   );
   return service;
-}
-
-/// 辅助方法：获取翻译（临时实现）
-Future<String?> _getTranslation(String tag) async {
-  // TODO: 需要从 TranslationDataSource 获取翻译
-  // 这是一个临时实现，实际应该从依赖注入获取
-  return null;
 }

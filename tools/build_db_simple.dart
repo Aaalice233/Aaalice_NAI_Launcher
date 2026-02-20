@@ -56,11 +56,11 @@ Future<void> buildTranslationDb() async {
 
   // 3. Load wai_characters.csv (translation,tag) - note: reversed order
   await _loadReversedCsv(
-      'assets/translations/wai_characters.csv', allTranslations);
+      'assets/translations/wai_characters.csv', allTranslations,);
 
   // 4. Load github_chening233.csv (danbooru_text,url,tag,translation)
   await _loadGithubCsv(
-      'assets/translations/github_chening233.csv', allTranslations);
+      'assets/translations/github_chening233.csv', allTranslations,);
 
   // 5. Extract from hf_danbooru_tags.csv aliases
   await _loadFromAliases(hfCsvPath, allTranslations);
@@ -99,9 +99,9 @@ Future<void> buildTranslationDb() async {
         ''');
         await db.execute('CREATE INDEX idx_tags_name ON tags(name)');
         await db.execute(
-            'CREATE INDEX idx_translations_tag_id ON translations(tag_id)');
+            'CREATE INDEX idx_translations_tag_id ON translations(tag_id)',);
         await db.execute(
-            'CREATE INDEX idx_translations_language ON translations(language)');
+            'CREATE INDEX idx_translations_language ON translations(language)',);
         print('Tables created');
       },
     ),
@@ -185,7 +185,7 @@ Future<void> buildTranslationDb() async {
   if (await dbFile.exists()) {
     final size = await dbFile.length();
     print(
-        'Translation database built: $processed tags, $transCount translations (${(size / 1024 / 1024).toStringAsFixed(2)} MB)');
+        'Translation database built: $processed tags, $transCount translations (${(size / 1024 / 1024).toStringAsFixed(2)} MB)',);
   } else {
     print('ERROR: Database file not found at $dbPath');
   }
@@ -193,7 +193,7 @@ Future<void> buildTranslationDb() async {
 
 /// Load simple CSV: tag,translation
 Future<void> _loadSimpleCsv(
-    String path, Map<String, Set<String>> result) async {
+    String path, Map<String, Set<String>> result,) async {
   final file = File(path);
   if (!await file.exists()) {
     print('Warning: $path not found');
@@ -222,7 +222,7 @@ Future<void> _loadSimpleCsv(
 
 /// Load reversed CSV: translation,tag
 Future<void> _loadReversedCsv(
-    String path, Map<String, Set<String>> result) async {
+    String path, Map<String, Set<String>> result,) async {
   final file = File(path);
   if (!await file.exists()) {
     print('Warning: $path not found');
@@ -251,7 +251,7 @@ Future<void> _loadReversedCsv(
 
 /// Load GitHub CSV: danbooru_text,danbooru_url,tag,translation
 Future<void> _loadGithubCsv(
-    String path, Map<String, Set<String>> result) async {
+    String path, Map<String, Set<String>> result,) async {
   final file = File(path);
   if (!await file.exists()) {
     print('Warning: $path not found');
@@ -291,7 +291,7 @@ Future<void> _loadGithubCsv(
 
 /// Extract Chinese translations from hf_danbooru_tags.csv aliases
 Future<void> _loadFromAliases(
-    String path, Map<String, Set<String>> result) async {
+    String path, Map<String, Set<String>> result,) async {
   final file = File(path);
   if (!await file.exists()) return;
 
@@ -414,14 +414,14 @@ Future<void> buildCooccurrenceDb() async {
   if (await dbFile.exists()) {
     final size = await dbFile.length();
     print(
-        'Cooccurrence database built: $processed records (${(size / 1024 / 1024).toStringAsFixed(2)} MB)');
+        'Cooccurrence database built: $processed records (${(size / 1024 / 1024).toStringAsFixed(2)} MB)',);
   } else {
     print('ERROR: Database file not found at $dbPath');
   }
 }
 
 Future<void> _insertBatch(
-    Transaction txn, String table, List<Map<String, dynamic>> rows) async {
+    Transaction txn, String table, List<Map<String, dynamic>> rows,) async {
   if (rows.isEmpty) return;
 
   final columns = rows.first.keys.toList();
