@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../themes/theme_extension.dart';
 import '../common/app_toast.dart';
+import '../common/floating_action_buttons.dart';
 
 /// Steam风格本地图片卡片
 ///
@@ -365,58 +366,30 @@ class _LocalImageCard3DState extends State<LocalImageCard3D>
 
   /// 构建右侧竖向按钮组
   Widget _buildActionButtons() {
-    final hasSend = widget.onSendToHome != null;
-    final hasFavorite = widget.onFavoriteToggle != null;
-
-    // 计算需要显示多少个按钮
-    final buttonCount = (hasFavorite ? 1 : 0) + 1 + (hasSend ? 1 : 0);
-    if (buttonCount == 0) return const SizedBox.shrink();
-
-    // 整个按钮组区域包裹 GestureDetector 拦截所有事件
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 150),
-      opacity: _isHovered ? 1.0 : 0.0,
-      child: GestureDetector(
-        // 空 onTap 消费事件，阻止冒泡到父级
-        onTap: () {},
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          // 给整个按钮组一个背景色（透明），确保整个区域都能拦截事件
-          color: Colors.transparent,
-          padding: const EdgeInsets.all(4),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 收藏按钮（排在第一个）
-              if (hasFavorite)
-                _ActionButton(
-                  icon: widget.record.isFavorite
-                      ? Icons.favorite
-                      : Icons.favorite_border,
-                  iconColor: widget.record.isFavorite ? Colors.red : Colors.white,
-                  onTap: widget.onFavoriteToggle,
-                ),
-              if (hasFavorite)
-                const SizedBox(height: 8),
-              // 复制按钮（始终显示）
-              _ActionButton(
-                icon: Icons.copy,
-                onTap: _copyImageToClipboard,
-              ),
-              if (hasSend)
-                const SizedBox(height: 8),
-              // 发送到主页按钮
-              if (hasSend)
-                Builder(
-                  builder: (context) => _ActionButton(
-                    icon: Icons.send,
-                    onTap: () => _showSendToHomeMenu(context),
-                  ),
-                ),
-            ],
-          ),
+    return FloatingActionButtons(
+      isVisible: _isHovered,
+      buttons: [
+        // 收藏按钮（排在第一个）
+        FloatingActionButtonData(
+          icon: widget.record.isFavorite
+              ? Icons.favorite
+              : Icons.favorite_border,
+          onTap: widget.onFavoriteToggle,
+          iconColor: widget.record.isFavorite ? Colors.red : Colors.white,
+          visible: widget.onFavoriteToggle != null,
         ),
-      ),
+        // 复制按钮（始终显示）
+        FloatingActionButtonData(
+          icon: Icons.copy,
+          onTap: _copyImageToClipboard,
+        ),
+        // 发送到主页按钮
+        FloatingActionButtonData(
+          icon: Icons.send,
+          onTap: () => _showSendToHomeMenu(context),
+          visible: widget.onSendToHome != null,
+        ),
+      ],
     );
   }
 
@@ -797,72 +770,6 @@ class _GlossPainter extends CustomPainter {
         oldDelegate.intensity != intensity;
   }
 }
-
-/// 操作按钮组件
-/// 
-/// 带悬浮动效（放大、背景变亮），并阻止点击事件冒泡
-class _ActionButton extends StatefulWidget {
-  final IconData icon;
-  final VoidCallback? onTap;
-  final Color? iconColor;
-
-  const _ActionButton({
-    required this.icon,
-    required this.onTap,
-    this.iconColor,
-  });
-
-  @override
-  State<_ActionButton> createState() => _ActionButtonState();
-}
-
-class _ActionButtonState extends State<_ActionButton> {
-  bool _isHovering = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      child: GestureDetector(
-        // 执行实际回调，同时通过 behavior: opaque 阻止事件冒泡
-        onTap: widget.onTap,
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedScale(
-          duration: const Duration(milliseconds: 150),
-          scale: _isHovering ? 1.15 : 1.0,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            decoration: BoxDecoration(
-              color: _isHovering
-                  ? Colors.black.withOpacity(0.85)
-                  : Colors.black.withOpacity(0.6),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: _isHovering
-                  ? [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.4),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Container(
-              padding: const EdgeInsets.all(6),
-              child: Icon(
-                widget.icon,
-                size: 16,
-                color: widget.iconColor ?? Colors.white,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 
 /// 发送到主页菜单
 /// 
