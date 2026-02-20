@@ -152,8 +152,8 @@ class HiveStorageHelper {
   ///
   /// 旧位置 1：Documents 根目录下的 .hive 文件（最早的版本）
   /// 旧位置 2：Documents/NAI_Launcher/hive/（中间版本）
-  /// 旧位置 3：%APPDATA%/NAI_Launcher/hive/（上一版本，database 子目录之前）
-  /// 新位置：%APPDATA%/NAI_Launcher/hive/database/（当前版本，数据库存放在子目录中）
+  /// 旧位置 3：%APPDATA%/NAI_Launcher/hive/（beta2.1版本）
+  /// 新位置：%APPDATA%/com.example/nai_launcher/hive/（当前版本）
   ///
   /// 由 [DataMigrationService] 在预热阶段调用
   Future<void> migrateFromOldLocation(String newPath) async {
@@ -162,13 +162,16 @@ class HiveStorageHelper {
       final appSupportDir = await getApplicationSupportDirectory();
 
       // 检查所有可能的旧位置
+      // getApplicationSupportDirectory() 返回 %APPDATA%/com.example/nai_launcher/
+      // 需要两次 p.dirname 才能到达 %APPDATA% 目录
+      final appDataDir = p.dirname(p.dirname(appSupportDir.path));
       final oldLocations = [
         // 位置 1: Documents 根目录（最早版本）
         appDir.path,
         // 位置 2: Documents/NAI_Launcher/hive/（中间版本）
         p.join(appDir.path, 'NAI_Launcher', _defaultSubDir),
-        // 位置 3: APPDATA/hive/（上一版本，直接存放在 hive 下）
-        p.join(appSupportDir.path, _defaultSubDir),
+        // 位置 3: %APPDATA%/NAI_Launcher/hive/（beta2.1版本）
+        p.join(appDataDir, 'NAI_Launcher', _defaultSubDir),
       ];
 
       final filesToMigrate = <String, File>{}; // 使用 Map 去重，保留最新版本
