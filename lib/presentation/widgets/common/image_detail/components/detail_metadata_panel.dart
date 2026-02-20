@@ -6,9 +6,14 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/gallery/nai_image_metadata.dart';
+import '../../add_to_library_dialog.dart';
 import '../../app_toast.dart';
+import '../../save_as_preset_dialog.dart';
 import '../../themed_divider.dart';
+import '../file_image_detail_data.dart';
 import '../image_detail_data.dart';
+import 'prompt_section.dart';
+import 'vibe_section.dart';
 
 /// 元数据面板组件
 ///
@@ -41,16 +46,74 @@ class DetailMetadataPanel extends StatefulWidget {
 
 class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
   late bool _isExpanded;
+  Future<NaiImageMetadata?>? _metadataFuture;
+  NaiImageMetadata? _loadedMetadata;
 
   @override
   void initState() {
     super.initState();
     _isExpanded = widget.initialExpanded;
+    _startMetadataLoading();
+  }
+
+  @override
+  void didUpdateWidget(covariant DetailMetadataPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 当图片变化时重新加载元数据
+    if (widget.currentImage?.identifier != oldWidget.currentImage?.identifier) {
+      _startMetadataLoading();
+    }
+  }
+
+  /// 启动元数据加载（双通道架构）
+  ///
+  /// **前台高优先级通道**：
+  /// - 用户主动打开详情页时触发
+  /// - 立即开始解析，不受后台预加载队列影响
+  /// - 从后台队列中移除重复任务（避免重复解析）
+  ///
+  /// **支持的数据源**：
+  /// - [FileImageDetailData]: 从 PNG 文件解析（已保存的图像）
+  /// - [GeneratedImageDetailData]: 从内存字节解析（未保存的图像）
+  void _startMetadataLoading() {
+    final image = widget.currentImage;
+    if (image == null) return;
+
+    // 1. 先检查同步可用的元数据
+    final syncMetadata = image.metadata;
+    if (syncMetadata != null && syncMetadata.hasData) {
+      _loadedMetadata = syncMetadata;
+      _metadataFuture = null;
+      return;
+    }
+
+    // 2. 异步加载元数据（支持所有数据源）
+    Future<NaiImageMetadata?>? future;
+    if (image is FileImageDetailData) {
+      future = image.getMetadataAsync();
+    } else if (image is GeneratedImageDetailData) {
+      future = image.getMetadataAsync();
+    }
+
+    if (future != null) {
+      _metadataFuture = future.then((metadata) {
+        if (mounted) {
+          setState(() => _loadedMetadata = metadata);
+        }
+        return metadata;
+      });
+    } else {
+      _metadataFuture = null;
+      _loadedMetadata = null;
+    }
   }
 
   void _toggleExpanded() {
     setState(() => _isExpanded = !_isExpanded);
   }
+
+  /// 获取当前可用的元数据（同步或已加载的异步）
+  NaiImageMetadata? get _currentMetadata => _loadedMetadata ?? widget.currentImage?.metadata;
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +152,8 @@ class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
   }
 
   Widget _buildExpandedPanel(ThemeData theme) {
-    final metadata = widget.currentImage?.metadata;
+    final metadata = _currentMetadata;
+    final isLoading = _metadataFuture != null && _loadedMetadata == null;
     final colorScheme = theme.colorScheme;
 
     return Column(
@@ -107,44 +171,85 @@ class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
                     style: TextStyle(color: colorScheme.onSurfaceVariant),
                   ),
                 )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: metadata != null && metadata.hasData
-                      ? _MetadataContent(
-                          metadata: metadata,
-                          fileInfo: widget.currentImage!.fileInfo,
-                        )
-                      : Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(32),
-                            child: Column(
-                              children: [
-                                Icon(
-                                  Icons.info_outline,
-                                  size: 48,
-                                  color: colorScheme.onSurfaceVariant
-                                      .withOpacity(0.5),
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  '此图片无元数据',
-                                  style: TextStyle(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                            ),
+              : isLoading
+                  ? _buildLoadingState(theme)
+                  : metadata != null && metadata.hasData
+                      ? SingleChildScrollView(
+                          padding: const EdgeInsets.all(16),
+                          child: _MetadataContent(
+                            metadata: metadata,
+                            fileInfo: widget.currentImage!.fileInfo,
                           ),
-                        ),
-                ),
+                        )
+                      : _buildNoMetadataState(theme),
         ),
-        if (metadata != null && metadata.hasData) ...[
-          const ThemedDivider(height: 1),
-          _ActionButtons(
-            metadata: metadata,
+        // 只在有元数据时显示操作按钮
+        if (metadata != null && metadata.hasData)
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const ThemedDivider(height: 1),
+              _ActionButtons(
+                metadata: metadata,
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  /// 构建加载状态
+  Widget _buildLoadingState(ThemeData theme) {
+    final colorScheme = theme.colorScheme;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 32,
+            height: 32,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '正在解析元数据...',
+            style: TextStyle(
+              color: colorScheme.onSurfaceVariant,
+              fontSize: 12,
+            ),
           ),
         ],
-      ],
+      ),
+    );
+  }
+
+  /// 构建无元数据状态
+  Widget _buildNoMetadataState(ThemeData theme) {
+    final colorScheme = theme.colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.info_outline,
+              size: 48,
+              color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '此图片无元数据',
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -301,24 +406,201 @@ class _MetadataContent extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        // Prompt
-        _ExpandableSection(
+        // 提示词分组展示
+        _buildPromptSections(context),
+      ],
+    );
+  }
+
+  /// 构建提示词分组
+  Widget _buildPromptSections(BuildContext context) {
+    // 如果有分离的字段，使用分组展示
+    if (metadata.hasSeparatedFields) {
+      // 合并固定词（前缀+后缀）
+      final fixedTags = [
+        ...metadata.fixedPrefixTags,
+        ...metadata.fixedSuffixTags,
+      ];
+
+      // 主提示词包含角色提示词
+      final mainPromptWithChars = _buildMainPromptWithCharacters();
+      final mainPromptTags = _extractTags(mainPromptWithChars);
+
+      // 负面提示词标签
+      final negativeTags = _extractTags(metadata.negativePrompt);
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 主提示词（包含角色提示词）
+          PromptSection(
+            title: '主提示词',
+            icon: Icons.text_fields,
+            content: mainPromptWithChars,
+            tags: mainPromptTags,
+            initiallyExpanded: true,
+            showAddToLibrary: mainPromptWithChars.isNotEmpty,
+            onAddToLibrary: () => _showAddToLibraryDialog(context, mainPromptWithChars),
+          ),
+          // 固定词（前缀+后缀合并）
+          if (fixedTags.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            PromptSection(
+              title: '固定词',
+              icon: Icons.push_pin_outlined,
+              content: fixedTags.join(', '),
+              tags: fixedTags,
+              initiallyExpanded: false,
+            ),
+          ],
+          // 质量词
+          if (metadata.qualityTags.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            PromptSection(
+              title: '质量词',
+              icon: Icons.high_quality,
+              content: metadata.qualityTags.join(', '),
+              tags: metadata.qualityTags,
+              initiallyExpanded: false,
+              showAddToLibrary: true,
+              onAddToLibrary: () => _showAddToLibraryDialog(context, metadata.qualityTags.join(', ')),
+            ),
+          ],
+          // 角色提示词详细卡片
+          if (metadata.characterInfos.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildCharacterSection(context),
+          ],
+          // Vibe数据
+          if (metadata.vibeReferences.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            VibeSection(
+              vibes: metadata.vibeReferences,
+              initiallyExpanded: true,
+              onSaveToLibrary: (vibe) => _showSaveVibeDialog(context, vibe),
+            ),
+          ],
+          // 负向提示词（使用标签形式）
+          if (metadata.negativePrompt.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            PromptSection(
+              title: context.l10n.prompt_negativePrompt,
+              icon: Icons.block,
+              content: metadata.negativePrompt,
+              tags: negativeTags,
+              initiallyExpanded: false,
+              contentColor: Theme.of(context).colorScheme.error.withOpacity(0.8),
+              borderColor: Theme.of(context).colorScheme.error,
+            ),
+          ],
+        ],
+      );
+    }
+
+    // 旧数据：使用简单展示
+    final mainPromptTags = _extractTags(metadata.fullPrompt);
+    final negativeTags = _extractTags(metadata.negativePrompt);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 主提示词
+        PromptSection(
           title: context.l10n.prompt_positivePrompt,
           icon: Icons.text_fields,
           content: metadata.fullPrompt.isNotEmpty ? metadata.fullPrompt : '(无)',
+          tags: mainPromptTags,
           initiallyExpanded: true,
+          showAddToLibrary: metadata.fullPrompt.isNotEmpty,
+          onAddToLibrary: () => _showAddToLibraryDialog(context, metadata.fullPrompt),
         ),
+        // 负向提示词（使用标签形式）
         if (metadata.negativePrompt.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _ExpandableSection(
+          const SizedBox(height: 12),
+          PromptSection(
             title: context.l10n.prompt_negativePrompt,
-            icon: Icons.text_fields_outlined,
+            icon: Icons.block,
             content: metadata.negativePrompt,
-            isNegative: true,
+            tags: negativeTags,
+            initiallyExpanded: false,
+            contentColor: Theme.of(context).colorScheme.error.withOpacity(0.8),
+            borderColor: Theme.of(context).colorScheme.error,
           ),
         ],
       ],
     );
+  }
+
+  /// 构建包含角色提示词的主提示词
+  String _buildMainPromptWithCharacters() {
+    final buffer = StringBuffer(metadata.mainPrompt);
+
+    // 添加角色提示词到主提示词
+    for (final character in metadata.characterInfos) {
+      if (character.prompt.isNotEmpty) {
+        if (buffer.isNotEmpty) {
+          buffer.write(', ');
+        }
+        buffer.write(character.prompt);
+      }
+    }
+
+    return buffer.toString();
+  }
+
+  /// 从提示词文本提取标签列表
+  List<String> _extractTags(String prompt) {
+    if (prompt.isEmpty) return [];
+    return prompt
+        .split(',')
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
+  }
+
+  /// 构建角色提示词分组（带折叠功能）
+  Widget _buildCharacterSection(BuildContext context) {
+    return PromptSection(
+      title: '角色提示词',
+      icon: Icons.people_outline,
+      content: metadata.characterInfos.map((c) => c.prompt).join(', '),
+      initiallyExpanded: false,
+      showAddToLibrary: false,
+      // 使用自定义内容展示角色卡片
+      customContent: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: metadata.characterInfos.asMap().entries.map((entry) {
+          final index = entry.key;
+          final character = entry.value;
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: index < metadata.characterInfos.length - 1 ? 8 : 0,
+            ),
+            child: CharacterPromptCard(
+              index: index,
+              prompt: character.prompt,
+              negativePrompt: character.negativePrompt,
+              position: character.position,
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  /// 显示添加到词库对话框
+  Future<void> _showAddToLibraryDialog(BuildContext context, String content) async {
+    await AddToLibraryDialog.show(
+      context,
+      content: content,
+      sourceTag: 'from_image',
+    );
+  }
+
+  /// 显示保存 Vibe 对话框
+  void _showSaveVibeDialog(BuildContext context, vibe) {
+    // TODO: 实现保存 Vibe 对话框（需要 VibeLibraryService）
+    AppToast.info(context, '保存到 Vibe 库功能即将推出');
   }
 
   String _formatTime(BuildContext context, DateTime time) {
@@ -445,135 +727,6 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-/// 可展开区块（用于 Prompt）
-class _ExpandableSection extends StatefulWidget {
-  final String title;
-  final IconData icon;
-  final String content;
-  final bool initiallyExpanded;
-  final bool isNegative;
-
-  const _ExpandableSection({
-    required this.title,
-    required this.icon,
-    required this.content,
-    this.initiallyExpanded = false,
-    this.isNegative = false,
-  });
-
-  @override
-  State<_ExpandableSection> createState() => _ExpandableSectionState();
-}
-
-class _ExpandableSectionState extends State<_ExpandableSection> {
-  late bool _isExpanded;
-
-  @override
-  void initState() {
-    super.initState();
-    _isExpanded = widget.initiallyExpanded;
-  }
-
-  void _copyContent() {
-    Clipboard.setData(ClipboardData(text: widget.content));
-    AppToast.success(context, '${widget.title}已复制');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            // 可点击的标题区域
-            Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _isExpanded = !_isExpanded),
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: Row(
-                    children: [
-                      Icon(widget.icon, size: 16, color: colorScheme.primary),
-                      const SizedBox(width: 6),
-                      Text(
-                        widget.title,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          color: colorScheme.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const Spacer(),
-                      Icon(
-                        _isExpanded ? Icons.expand_less : Icons.expand_more,
-                        size: 20,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // 复制按钮
-            const SizedBox(width: 4),
-            IconButton(
-              onPressed: _copyContent,
-              icon: Icon(
-                Icons.copy,
-                size: 16,
-                color: colorScheme.onSurfaceVariant,
-              ),
-              tooltip: '复制${widget.title}',
-              style: IconButton.styleFrom(
-                padding: const EdgeInsets.all(6),
-                minimumSize: const Size(28, 28),
-              ),
-            ),
-          ],
-        ),
-        AnimatedCrossFade(
-          firstChild: const SizedBox(height: 10),
-          secondChild: Column(
-            children: [
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: widget.isNegative
-                        ? colorScheme.error.withOpacity(0.2)
-                        : colorScheme.outline.withOpacity(0.1),
-                  ),
-                ),
-                child: SelectableText(
-                  widget.content,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontFamily: 'monospace',
-                    height: 1.5,
-                    color: widget.isNegative
-                        ? colorScheme.error.withOpacity(0.8)
-                        : null,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          crossFadeState: _isExpanded
-              ? CrossFadeState.showSecond
-              : CrossFadeState.showFirst,
-          duration: const Duration(milliseconds: 200),
-        ),
-      ],
-    );
-  }
-}
-
 /// 底部操作按钮
 class _ActionButtons extends StatelessWidget {
   final NaiImageMetadata metadata;
@@ -584,32 +737,51 @@ class _ActionButtons extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(12),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: _ActionButton(
-              icon: Icons.copy,
-              label: context.l10n.prompt_positivePrompt,
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: metadata.fullPrompt));
-                AppToast.success(context, context.l10n.gallery_promptCopied);
-              },
-            ),
-          ),
-          const SizedBox(width: 8),
-          if (metadata.seed != null)
-            Expanded(
-              child: _ActionButton(
-                icon: Icons.tag,
-                label: 'Seed',
-                onPressed: () {
-                  Clipboard.setData(
-                    ClipboardData(text: metadata.seed.toString()),
-                  );
-                  AppToast.success(context, context.l10n.gallery_seedCopied);
-                },
+          // 第一行：复制按钮
+          Row(
+            children: [
+              Expanded(
+                child: _ActionButton(
+                  icon: Icons.copy,
+                  label: context.l10n.prompt_positivePrompt,
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: metadata.fullPrompt));
+                    AppToast.success(context, context.l10n.gallery_promptCopied);
+                  },
+                ),
               ),
-            ),
+              const SizedBox(width: 8),
+              if (metadata.seed != null)
+                Expanded(
+                  child: _ActionButton(
+                    icon: Icons.tag,
+                    label: 'Seed',
+                    onPressed: () {
+                      Clipboard.setData(
+                        ClipboardData(text: metadata.seed.toString()),
+                      );
+                      AppToast.success(context, context.l10n.gallery_seedCopied);
+                    },
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // 第二行：保存按钮
+          Row(
+            children: [
+              Expanded(
+                child: _ActionButton(
+                  icon: Icons.bookmark_add,
+                  label: '保存预设',
+                  onPressed: () => SaveAsPresetDialog.show(context, metadata: metadata),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

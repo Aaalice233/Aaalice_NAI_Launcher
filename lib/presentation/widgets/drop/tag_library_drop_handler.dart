@@ -8,7 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/nai_metadata_parser.dart';
+import '../../../data/services/image_metadata_service.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../../screens/tag_library_page/widgets/entry_add_dialog.dart';
@@ -34,7 +34,7 @@ class TagLibraryDropHandler {
   }) async {
     try {
       // 解析图片元数据（此步骤不涉及 context）
-      final metadata = await NaiMetadataParser.extractFromBytes(bytes);
+      final metadata = await ImageMetadataService().getMetadataFromBytes(bytes);
       final prompt = metadata?.prompt ?? '';
 
       // 显示操作选择菜单

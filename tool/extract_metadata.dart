@@ -63,7 +63,8 @@ void _printMetadata(Map<String, dynamic> metadata) {
   Map<String, dynamic> commentData = {};
   if (metadata.containsKey('Comment') && metadata['Comment'] is String) {
     try {
-      commentData = jsonDecode(metadata['Comment'] as String) as Map<String, dynamic>;
+      commentData =
+          jsonDecode(metadata['Comment'] as String) as Map<String, dynamic>;
       print('从 Comment 字段解析的参数:');
     } catch (e) {
       print('Comment 字段解析失败: $e');
@@ -114,7 +115,14 @@ void _printMetadata(Map<String, dynamic> metadata) {
   print('');
   print('=== Scale 检查 ===');
   print('');
-  final scaleKeys = ['scale', 'cfg_scale', 'cfg', 'guidance', 'prompt_guidance', 'cfgScale'];
+  final scaleKeys = [
+    'scale',
+    'cfg_scale',
+    'cfg',
+    'guidance',
+    'prompt_guidance',
+    'cfgScale',
+  ];
   bool foundScale = false;
   for (final key in scaleKeys) {
     final value = commentData[key];
@@ -255,7 +263,7 @@ Future<Map<String, dynamic>?> _extractFromStealth(Uint8List bytes) async {
 
     print('提取到隐写数据: ${jsonString.length} 字符');
     return jsonDecode(jsonString) as Map<String, dynamic>;
-  } catch (e, stack) {
+  } catch (e) {
     print('提取失败: $e');
     return null;
   }

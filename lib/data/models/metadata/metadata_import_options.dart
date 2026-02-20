@@ -8,9 +8,28 @@ part 'metadata_import_options.freezed.dart';
 @freezed
 class MetadataImportOptions with _$MetadataImportOptions {
   const factory MetadataImportOptions({
-    @Default(true) bool importPrompt, // 正向提示词
+    // ========== 提示词相关 ==========
+    @Default(true) bool importPrompt, // 主提示词
     @Default(true) bool importNegativePrompt, // 负向提示词
-    @Default(true) bool importCharacterPrompts, // 多角色提示词
+
+    // 固定词（新增细分）
+    @Default(true) bool importFixedTags, // 固定词总开关
+    @Default(true) bool importFixedPrefix, // 固定前缀词
+    @Default(true) bool importFixedSuffix, // 固定后缀词
+
+    // 质量词（新增细分）
+    @Default(true) bool importQualityTags, // 质量词总开关
+    @Default([]) List<String> selectedQualityTags, // 选择的具体质量词
+
+    // 角色提示词（新增细分）
+    @Default(true) bool importCharacterPrompts, // 角色提示词总开关
+    @Default([]) List<int> selectedCharacterIndices, // 选择的角色索引
+
+    // Vibe数据（新增）
+    @Default(true) bool importVibeReferences, // Vibe数据总开关
+    @Default([]) List<int> selectedVibeIndices, // 选择的Vibe索引
+
+    // ========== 生成参数 ==========
     @Default(false) bool importSeed, // 种子
     @Default(false) bool importSteps, // 步数
     @Default(false) bool importScale, // CFG Scale
@@ -34,7 +53,12 @@ class MetadataImportOptions with _$MetadataImportOptions {
   factory MetadataImportOptions.promptsOnly() => const MetadataImportOptions(
         importPrompt: true,
         importNegativePrompt: true,
+        importFixedTags: true,
+        importFixedPrefix: true,
+        importFixedSuffix: true,
+        importQualityTags: true,
         importCharacterPrompts: true,
+        importVibeReferences: true,
         importSeed: false,
         importSteps: false,
         importScale: false,
@@ -53,7 +77,12 @@ class MetadataImportOptions with _$MetadataImportOptions {
   factory MetadataImportOptions.generationOnly() => const MetadataImportOptions(
         importPrompt: false,
         importNegativePrompt: false,
+        importFixedTags: false,
+        importFixedPrefix: false,
+        importFixedSuffix: false,
+        importQualityTags: false,
         importCharacterPrompts: false,
+        importVibeReferences: false,
         importSeed: true,
         importSteps: true,
         importScale: true,
@@ -72,7 +101,12 @@ class MetadataImportOptions with _$MetadataImportOptions {
   factory MetadataImportOptions.none() => const MetadataImportOptions(
         importPrompt: false,
         importNegativePrompt: false,
+        importFixedTags: false,
+        importFixedPrefix: false,
+        importFixedSuffix: false,
+        importQualityTags: false,
         importCharacterPrompts: false,
+        importVibeReferences: false,
         importSeed: false,
         importSteps: false,
         importScale: false,
@@ -87,12 +121,22 @@ class MetadataImportOptions with _$MetadataImportOptions {
         importUcPreset: false,
       );
 
-  /// 获取已选中的参数数量
+  /// 获取已选中的参数数量（按逻辑分组计数）
   int get selectedCount {
     var count = 0;
+    // 主提示词
     if (importPrompt) count++;
+    // 负向提示词
     if (importNegativePrompt) count++;
-    if (importCharacterPrompts) count++;
+    // 固定词（作为一个整体计数）
+    if (importFixedTags && (importFixedPrefix || importFixedSuffix)) count++;
+    // 质量词
+    if (importQualityTags && selectedQualityTags.isNotEmpty) count++;
+    // 角色提示词
+    if (importCharacterPrompts && selectedCharacterIndices.isNotEmpty) count++;
+    // Vibe数据
+    if (importVibeReferences && selectedVibeIndices.isNotEmpty) count++;
+    // 生成参数
     if (importSeed) count++;
     if (importSteps) count++;
     if (importScale) count++;
@@ -109,8 +153,17 @@ class MetadataImportOptions with _$MetadataImportOptions {
   }
 
   /// 是否全部选中
-  bool get isAllSelected => selectedCount == 15;
+  bool get isAllSelected => selectedCount == 16;
 
   /// 是否全部未选中
   bool get isNoneSelected => selectedCount == 0;
+
+  /// 是否导入任何提示词相关
+  bool get isImportingAnyPrompt =>
+      importPrompt ||
+      importNegativePrompt ||
+      (importFixedTags && (importFixedPrefix || importFixedSuffix)) ||
+      (importQualityTags && selectedQualityTags.isNotEmpty) ||
+      (importCharacterPrompts && selectedCharacterIndices.isNotEmpty) ||
+      (importVibeReferences && selectedVibeIndices.isNotEmpty);
 }

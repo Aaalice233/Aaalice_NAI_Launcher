@@ -10,12 +10,17 @@ class GeneratedImage {
   final int width;
   final int height;
 
+  /// 已保存的文件路径（如果有）
+  /// 当图像被保存到磁盘后，此字段会被填充
+  final String? filePath;
+
   GeneratedImage({
     required this.id,
     required this.bytes,
     required this.width,
     required this.height,
     DateTime? createdAt,
+    this.filePath,
   }) : createdAt = createdAt ?? DateTime.now();
 
   /// 创建新的生成图像（自动生成ID）
@@ -29,6 +34,18 @@ class GeneratedImage {
       bytes: bytes,
       width: width,
       height: height,
+    );
+  }
+
+  /// 创建已保存到文件的图像副本
+  GeneratedImage copyWithFilePath(String path) {
+    return GeneratedImage(
+      id: id,
+      bytes: bytes,
+      width: width,
+      height: height,
+      createdAt: createdAt,
+      filePath: path,
     );
   }
 

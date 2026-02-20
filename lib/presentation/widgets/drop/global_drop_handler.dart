@@ -12,7 +12,7 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/enums/precise_ref_type.dart';
 import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/nai_metadata_parser.dart';
+import '../../../data/services/image_metadata_service.dart';
 import '../../../core/utils/vibe_file_parser.dart';
 import '../../../data/models/character/character_prompt.dart' as char;
 import '../../../data/models/image/image_params.dart';
@@ -773,7 +773,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     AppLocalizations l10n,
   ) async {
     try {
-      final metadata = await NaiMetadataParser.extractFromBytes(bytes);
+      final metadata = await ImageMetadataService().getMetadataFromBytes(bytes);
 
       if (metadata == null || !metadata.hasData) {
         if (mounted) {
@@ -943,7 +943,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
 
   Future<void> _handleAddToQueue(Uint8List bytes, AppLocalizations l10n) async {
     try {
-      final metadata = await NaiMetadataParser.extractFromBytes(bytes);
+      final metadata = await ImageMetadataService().getMetadataFromBytes(bytes);
 
       if (metadata == null || metadata.prompt.isEmpty) {
         if (mounted) {

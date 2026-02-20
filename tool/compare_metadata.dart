@@ -5,10 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:image/image.dart' as img;
 import 'package:png_chunks_extract/png_chunks_extract.dart' as png_extract;
-
-const String _magic = 'stealth_pngcomp';
 
 // 我们应用支持的字段（来自 NaiImageMetadata）
 final Set<String> ourSupportedFields = {
@@ -132,9 +129,12 @@ void main(List<String> args) async {
     allOfficialFields.addAll(group);
   }
 
-  final supportedInOfficial = allOfficialFields.where(ourSupportedFields.contains).toList();
-  final notSupportedInOfficial = allOfficialFields.where((f) => !ourSupportedFields.contains(f)).toList();
-  final extraSupported = ourSupportedFields.where((f) => !allOfficialFields.contains(f)).toList();
+  final supportedInOfficial =
+      allOfficialFields.where(ourSupportedFields.contains).toList();
+  final notSupportedInOfficial =
+      allOfficialFields.where((f) => !ourSupportedFields.contains(f)).toList();
+  final extraSupported =
+      ourSupportedFields.where((f) => !allOfficialFields.contains(f)).toList();
 
   print('📊 统计:');
   print('  官方字段总数: ${allOfficialFields.length}');
@@ -162,9 +162,7 @@ void main(List<String> args) async {
       final value = metadata[field];
       final hasValue = value != null;
 
-      final status = isSupported
-          ? (hasValue ? '✅' : '⚠️')
-          : '❌';
+      final status = isSupported ? (hasValue ? '✅' : '⚠️') : '❌';
 
       final valueStr = hasValue
           ? (value is String && value.length > 40
@@ -183,7 +181,8 @@ void main(List<String> args) async {
   print('=' * 80);
   print('');
 
-  final unexpectedFields = metadata.keys.where((k) => !allOfficialFields.contains(k)).toList();
+  final unexpectedFields =
+      metadata.keys.where((k) => !allOfficialFields.contains(k)).toList();
   if (unexpectedFields.isEmpty) {
     print('  (无)');
   } else {
@@ -203,7 +202,8 @@ void main(List<String> args) async {
   print('=' * 80);
   print('');
 
-  final missingInImage = ourSupportedFields.where((f) => !metadata.containsKey(f)).toList();
+  final missingInImage =
+      ourSupportedFields.where((f) => !metadata.containsKey(f)).toList();
   if (missingInImage.isEmpty) {
     print('  (无，所有支持字段都存在)');
   } else {

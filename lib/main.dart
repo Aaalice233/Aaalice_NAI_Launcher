@@ -20,6 +20,11 @@ import 'core/services/sqflite_bootstrap_service.dart';
 import 'core/utils/app_logger.dart';
 import 'core/utils/hive_storage_helper.dart';
 import 'data/datasources/local/nai_tags_data_source.dart';
+import 'data/models/gallery/nai_image_metadata.dart';
+import 'data/repositories/gallery_folder_repository.dart';
+import 'data/services/gallery/gallery_scan_service.dart';
+import 'data/services/image_metadata_service.dart';
+import 'data/services/temp_image_service.dart';
 import 'presentation/providers/data_source_cache_provider.dart';
 import 'presentation/screens/splash/app_bootstrap.dart';
 
@@ -238,6 +243,14 @@ void main() async {
   // 初始化 Hive（使用子目录存储，支持迁移旧数据）
   await HiveStorageHelper.instance.init();
 
+  // 注册 Hive adapters（用于元数据存储）
+  if (!Hive.isAdapterRegistered(24)) {
+    Hive.registerAdapter(NaiImageMetadataAdapter());
+  }
+  if (!Hive.isAdapterRegistered(25)) {
+    Hive.registerAdapter(CharacterPromptInfoAdapter());
+  }
+
   // 在 Hive 初始化之后执行文件迁移
   try {
     final migrationResult = await DataMigrationService.instance.migrateAll();
@@ -284,7 +297,6 @@ void main() async {
   await Hive.openBox(StorageKeys.historyBox);
   await Hive.openBox(StorageKeys.tagCacheBox);
   await Hive.openBox(StorageKeys.galleryBox);
-  await Hive.openBox(StorageKeys.localMetadataCacheBox);
   // Local Gallery 新功能所需的 Hive boxes
   await Hive.openBox(StorageKeys.localFavoritesBox);
   await Hive.openBox(StorageKeys.tagsBox);
@@ -295,6 +307,31 @@ void main() async {
   await Hive.openBox<String>(StorageKeys.replicationQueueBox);
   await Hive.openBox<String>(StorageKeys.queueExecutionStateBox);
 
+  // 初始化图像元数据服务（包含持久化缓存，用于详情页快速加载）
+  await ImageMetadataService().initialize();
+  AppLogger.i('图像元数据服务初始化完成', 'Main');
+
+  // 后台全量扫描元数据（不阻塞启动，用于搜索功能）
+  Future.microtask(() async {
+    try {
+      final rootPath = await GalleryFolderRepository.instance.getRootPath();
+      if (rootPath == null) {
+        AppLogger.w('未设置图库路径，跳过后台扫描', 'Main');
+        return;
+      }
+
+      AppLogger.i('启动后台元数据全量扫描: $rootPath', 'Main');
+      final scanService = GalleryScanService.instance;
+      final result = await scanService.incrementalScan(Directory(rootPath));
+      AppLogger.i(
+        '元数据扫描完成: ${result.filesAdded} 新增, ${result.filesUpdated} 更新, ${result.filesSkipped} 跳过',
+        'Main',
+      );
+    } catch (e) {
+      AppLogger.w('后台元数据扫描失败: $e', 'Main');
+    }
+  });
+
   // 初始化快捷键存储
   final shortcutStorage = ShortcutStorage();
   await shortcutStorage.init();
@@ -303,6 +340,15 @@ void main() async {
   // Timeago 本地化配置
   timeago.setLocaleMessages('zh', timeago.ZhCnMessages());
   timeago.setLocaleMessages('zh_CN', timeago.ZhCnMessages());
+
+  // 清理过期临时文件（不阻塞启动）
+  Future.microtask(() async {
+    try {
+      await TempImageService().cleanupOldTempFiles();
+    } catch (e) {
+      AppLogger.w('Temp files cleanup failed: $e', 'Main');
+    }
+  });
 
   // 后台预加载 NAI 标签数据（不阻塞启动）
   // 使用已创建的 container

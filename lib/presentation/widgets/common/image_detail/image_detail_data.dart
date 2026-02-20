@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import '../../../../data/models/gallery/local_image_record.dart';
 import '../../../../data/models/gallery/nai_image_metadata.dart';
+import '../../../../data/services/image_metadata_service.dart';
 
 /// 图像详情数据抽象接口
 ///
@@ -133,6 +134,9 @@ class LocalImageDetailData implements ImageDetailData {
 }
 
 /// 生成图像数据适配器
+///
+/// 用于未保存到磁盘的图像（内存中的图像数据）
+/// 支持从内存字节异步解析元数据
 class GeneratedImageDetailData implements ImageDetailData {
   final Uint8List imageBytes;
   final NaiImageMetadata? _metadata;
@@ -145,51 +149,6 @@ class GeneratedImageDetailData implements ImageDetailData {
   })  : _metadata = metadata,
         _id = id ?? imageBytes.hashCode.toString();
 
-  /// 从生成参数构造
-  factory GeneratedImageDetailData.fromParams({
-    required Uint8List imageBytes,
-    required String prompt,
-    required String negativePrompt,
-    required int seed,
-    required int steps,
-    required double scale,
-    required int width,
-    required int height,
-    required String model,
-    required String sampler,
-    bool smea = false,
-    bool smeaDyn = false,
-    String? noiseSchedule,
-    double? cfgRescale,
-    List<String> characterPrompts = const [],
-    List<String> characterNegativePrompts = const [],
-    String? id,
-  }) {
-    final metadata = NaiImageMetadata(
-      prompt: prompt,
-      negativePrompt: negativePrompt,
-      seed: seed,
-      steps: steps,
-      scale: scale,
-      width: width,
-      height: height,
-      model: model,
-      sampler: sampler,
-      smea: smea,
-      smeaDyn: smeaDyn,
-      noiseSchedule: noiseSchedule,
-      cfgRescale: cfgRescale,
-      characterPrompts: characterPrompts,
-      characterNegativePrompts: characterNegativePrompts,
-    );
-
-    return GeneratedImageDetailData(
-      imageBytes: imageBytes,
-      metadata: metadata,
-      id: id,
-    );
-  }
-
   @override
   ImageProvider getImageProvider() {
     return MemoryImage(imageBytes);
@@ -200,8 +159,22 @@ class GeneratedImageDetailData implements ImageDetailData {
     return imageBytes;
   }
 
+  /// 同步获取元数据（如果已缓存）
   @override
   NaiImageMetadata? get metadata => _metadata;
+
+  /// 异步获取元数据（从内存字节解析）
+  ///
+  /// **前台高优先级调用** - 用户主动打开详情页时使用
+  /// 内存字节直接解析，不受后台队列影响
+  Future<NaiImageMetadata?> getMetadataAsync() async {
+    // 1. 先检查已缓存的元数据
+    if (_metadata != null) return _metadata;
+
+    // 2. 从内存字节直接解析（内存操作，无需排队）
+    // 使用相同的cacheKey确保与后续保存后的元数据共享
+    return ImageMetadataService().getMetadataFromBytes(imageBytes, cacheKey: _id);
+  }
 
   @override
   bool get isFavorite => false;
@@ -218,3 +191,5 @@ class GeneratedImageDetailData implements ImageDetailData {
   @override
   bool get showFavoriteButton => false;
 }
+
+

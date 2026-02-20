@@ -8,8 +8,10 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/nai_metadata_parser.dart';
+import '../../data/services/image_metadata_service.dart';
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
+import '../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../data/models/image/image_params.dart';
 import '../../data/repositories/gallery_folder_repository.dart';
 import '../../data/services/statistics_cache_service.dart';
@@ -313,6 +315,24 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       // 使用已解析别名的角色提示词（来自 params.characters）
       final characterConfig = ref.read(characterPromptNotifierProvider);
 
+      // 获取固定词信息
+      final fixedTagsState = ref.read(fixedTagsNotifierProvider);
+      final fixedPrefixTags = fixedTagsState.enabledPrefixes
+          .sortedByOrder()
+          .map((e) => e.weightedContent)
+          .where((c) => c.isNotEmpty)
+          .toList();
+      final fixedSuffixTags = fixedTagsState.enabledSuffixes
+          .sortedByOrder()
+          .map((e) => e.weightedContent)
+          .where((c) => c.isNotEmpty)
+          .toList();
+
+      AppLogger.i(
+        '[ImageGeneration] Fixed tags for save: enabled=${fixedTagsState.enabledCount}, prefix=$fixedPrefixTags, suffix=$fixedSuffixTags',
+        'ImageGeneration',
+      );
+
       // 构建 V4 多角色提示词结构（直接使用已解析的 params.characters）
       final charCaptions = <Map<String, dynamic>>[];
       final charNegCaptions = <Map<String, dynamic>>[];
@@ -339,7 +359,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           int actualSeed = params.seed;
           if (params.seed == -1) {
             final extractedMeta =
-                await NaiMetadataParser.extractFromBytes(image.bytes);
+                await ImageMetadataService().getMetadataFromBytes(image.bytes);
             if (extractedMeta != null &&
                 extractedMeta.seed != null &&
                 extractedMeta.seed! > 0) {
@@ -364,12 +384,20 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             'sampler': params.sampler,
             'sm': params.smea,
             'sm_dyn': params.smeaDyn,
+            // 保存固定词信息（应用专属）
+            'fixed_prefix': fixedPrefixTags,
+            'fixed_suffix': fixedSuffixTags,
           };
+
+          AppLogger.i(
+            '[ImageGeneration] Saving image with fixed_prefix=$fixedPrefixTags, fixed_suffix=$fixedSuffixTags',
+            'ImageGeneration',
+          );
 
           if (charCaptions.isNotEmpty) {
             commentJson['v4_prompt'] = {
               'caption': {
-                'base_caption': params.prompt,
+                'main_caption': params.prompt,
                 'char_captions': charCaptions,
               },
               'use_coords': !characterConfig.globalAiChoice,
@@ -377,7 +405,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             };
             commentJson['v4_negative_prompt'] = {
               'caption': {
-                'base_caption': params.negativePrompt,
+                'main_caption': params.negativePrompt,
                 'char_captions': charNegCaptions,
               },
               'use_coords': false,
@@ -392,9 +420,22 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             'Comment': jsonEncode(commentJson),
           };
 
+          AppLogger.i(
+            '[ImageGeneration] Embedding metadata: ${jsonEncode(metadata).substring(0, jsonEncode(metadata).length.clamp(0, 200))}...',
+            'ImageGeneration',
+          );
+
           final embeddedBytes = await NaiMetadataParser.embedMetadata(
             image.bytes,
             jsonEncode(metadata),
+          );
+
+          // 验证嵌入的元数据
+          final verifyMeta = await NaiMetadataParser.extractFromBytes(embeddedBytes);
+          AppLogger.i(
+            '[ImageGeneration] Verify embedded metadata: hasSeparatedFields=${verifyMeta?.hasSeparatedFields}, '
+            'fixedPrefix=${verifyMeta?.fixedPrefixTags.length}, fixedSuffix=${verifyMeta?.fixedSuffixTags.length}',
+            'ImageGeneration',
           );
 
           final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
@@ -403,6 +444,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           final file = File('$saveDirPath/$fileName');
           await file.writeAsBytes(embeddedBytes);
           savedCount++;
+
+          // 更新 filePath 到 GeneratedImage
+          final updatedImage = image.copyWithFilePath(file.path);
+          _updateImageInState(image.id, updatedImage);
 
           // 避免文件名冲突
           await Future.delayed(const Duration(milliseconds: 2));
@@ -421,6 +466,12 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           await cacheService.incrementImageCount(savedCount);
         } catch (e) {
           AppLogger.w('统计缓存增量更新失败: $e', 'AutoSave');
+        }
+
+        // 获取已保存的图像（有 filePath 的）并预加载元数据
+        final savedImages = images.where((img) => img.filePath != null).toList();
+        if (savedImages.isNotEmpty) {
+          _preloadMetadataInBackground(savedImages);
         }
 
         AppLogger.d('自动保存完成: $savedCount 张图像', 'AutoSave');
@@ -442,27 +493,28 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     return 'NovelAI Diffusion';
   }
 
+  /// 检查错误是否为取消操作
+  bool _isCancelledError(dynamic error) =>
+      _isCancelled || error.toString().toLowerCase().contains('cancelled');
+
+  /// 检查错误是否为流式不支持
+  bool _isStreamingNotAllowed(String error) {
+    final lower = error.toLowerCase();
+    return lower.contains('streaming is not allowed') ||
+        lower.contains('streaming not allowed') ||
+        lower.contains('stream is not allowed') ||
+        lower.contains('stream not allowed');
+  }
+
   /// 带重试的生成
-  ///
-  /// 返回 (图像列表, Vibe哈希映射)
-  Future<(List<Uint8List>, Map<int, String>)> _generateWithRetry(
-    ImageParams params,
-  ) async {
+  Future<(List<Uint8List>, Map<int, String>)> _generateWithRetry(ImageParams params) async {
     final apiService = ref.read(naiImageGenerationApiServiceProvider);
 
     for (int retry = 0; retry <= _maxRetries; retry++) {
       try {
-        // 使用新的 API，返回图像和哈希映射
-        return await apiService.generateImage(
-          params,
-          onProgress: (received, total) {
-            // 单张进度暂不更新
-          },
-        );
+        return await apiService.generateImage(params, onProgress: (_, __) {});
       } catch (e) {
-        if (_isCancelled || e.toString().contains('cancelled')) {
-          rethrow;
-        }
+        if (_isCancelledError(e)) rethrow;
 
         if (retry < _maxRetries) {
           AppLogger.w(
@@ -539,47 +591,38 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       Uint8List? image;
       for (int retry = 0; retry <= _maxRetries; retry++) {
         try {
-          // 如果已知流式不支持，直接使用非流式 API
+          // 使用非流式回退
           if (useNonStreamFallback) {
-            final fallbackImages = await apiService.generateImageCancellable(
+            final fallback = await apiService.generateImageCancellable(
               singleParams,
-              onProgress: (received, total) {},
+              onProgress: (_, __) {},
             );
-            if (fallbackImages.isNotEmpty) {
-              images.add(fallbackImages.first);
+            if (fallback.isNotEmpty) {
+              images.add(fallback.first);
               break;
             }
             continue;
           }
 
-          final stream = apiService.generateImageStream(singleParams);
-          bool streamingNotAllowed = false;
-
-          await for (final chunk in stream) {
-            if (_isCancelled) {
-              return images;
-            }
+          // 尝试流式生成
+          var streamingNotAllowed = false;
+          await for (final chunk in apiService.generateImageStream(singleParams)) {
+            if (_isCancelled) return images;
 
             if (chunk.hasError) {
-              // 检测流式生成不被允许的错误，自动回退到非流式
-              final errorLower = chunk.error?.toLowerCase() ?? '';
-              if (errorLower.contains('streaming is not allowed') ||
-                  errorLower.contains('streaming not allowed') ||
-                  errorLower.contains('stream is not allowed') ||
-                  errorLower.contains('stream not allowed')) {
+              if (_isStreamingNotAllowed(chunk.error ?? '')) {
                 AppLogger.w(
-                  'Streaming not allowed for this model, falling back to non-stream API for batch',
+                  'Streaming not allowed, falling back to non-stream API',
                   'Generation',
                 );
                 streamingNotAllowed = true;
-                useNonStreamFallback = true; // 后续所有图像都使用非流式
+                useNonStreamFallback = true;
                 break;
               }
               throw Exception(chunk.error);
             }
 
             if (chunk.hasPreview) {
-              // 更新流式预览
               state = state.copyWith(
                 progress: (currentStart + i - 1 + chunk.progress) / total,
                 streamPreview: chunk.previewImage,
@@ -591,14 +634,14 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             }
           }
 
-          // 如果流式不支持，重新用非流式生成当前图像
+          // 流式不支持，使用非流式回退
           if (streamingNotAllowed) {
-            final fallbackImages = await apiService.generateImageCancellable(
+            final fallback = await apiService.generateImageCancellable(
               singleParams,
-              onProgress: (received, total) {},
+              onProgress: (_, __) {},
             );
-            if (fallbackImages.isNotEmpty) {
-              images.add(fallbackImages.first);
+            if (fallback.isNotEmpty) {
+              images.add(fallback.first);
               break;
             }
             continue;
@@ -606,43 +649,33 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
           if (image != null) {
             images.add(image);
-            break; // 成功，退出重试循环
-          } else {
-            // 流式 API 未返回图像，使用非流式 API
-            final fallbackImages = await apiService.generateImageCancellable(
-              singleParams,
-              onProgress: (received, total) {},
-            );
-            if (fallbackImages.isNotEmpty) {
-              images.add(fallbackImages.first);
-              break;
-            }
-          }
-        } catch (e) {
-          if (_isCancelled || e.toString().contains('cancelled')) {
-            return images;
+            break;
           }
 
-          // 检测流式生成不被允许的错误，自动回退到非流式
-          final errorStr = e.toString().toLowerCase();
-          if (errorStr.contains('streaming is not allowed') ||
-              errorStr.contains('streaming not allowed') ||
-              errorStr.contains('stream is not allowed') ||
-              errorStr.contains('stream not allowed')) {
+          // 流式未返回图像，尝试非流式
+          final fallback = await apiService.generateImageCancellable(
+            singleParams,
+            onProgress: (_, __) {},
+          );
+          if (fallback.isNotEmpty) {
+            images.add(fallback.first);
+            break;
+          }
+        } catch (e) {
+          if (_isCancelledError(e)) return images;
+
+          if (_isStreamingNotAllowed(e.toString())) {
             AppLogger.w(
-              'Streaming not allowed for this model (exception), falling back to non-stream API for batch',
+              'Streaming not allowed (exception), falling back to non-stream API',
               'Generation',
             );
             useNonStreamFallback = true;
-            // 用非流式重新生成当前图像
             try {
-              final fallbackImages = await apiService.generateImageCancellable(
+              final fallback = await apiService.generateImageCancellable(
                 singleParams,
-                onProgress: (received, total) {},
+                onProgress: (_, __) {},
               );
-              if (fallbackImages.isNotEmpty) {
-                images.add(fallbackImages.first);
-              }
+              if (fallback.isNotEmpty) images.add(fallback.first);
             } catch (fallbackError) {
               AppLogger.e('非流式回退生成失败: $fallbackError');
             }
@@ -656,7 +689,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             await Future.delayed(Duration(milliseconds: _retryDelays[retry]));
           } else {
             AppLogger.e('生成第 ${currentStart + i} 张图像失败: $e');
-            // 继续生成下一张，不抛出异常
           }
         }
       }
@@ -700,14 +732,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         }
 
         if (chunk.hasError) {
-          // 检测流式生成不被允许的错误，自动回退到非流式
-          final errorLower = chunk.error?.toLowerCase() ?? '';
-          if (errorLower.contains('streaming is not allowed') ||
-              errorLower.contains('streaming not allowed') ||
-              errorLower.contains('stream is not allowed') ||
-              errorLower.contains('stream not allowed')) {
+          if (_isStreamingNotAllowed(chunk.error ?? '')) {
             AppLogger.w(
-              'Streaming not allowed for this model, falling back to non-stream API',
+              'Streaming not allowed, falling back to non-stream API',
               'Generation',
             );
             streamingNotAllowed = true;
@@ -767,6 +794,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         }
         // 自动保存
         await _autoSaveIfEnabled(generatedList, params);
+        // 后台预解析元数据（不阻塞）
+        _preloadMetadataInBackground(generatedList);
         return;
       }
 
@@ -790,6 +819,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         );
         // 自动保存
         await _autoSaveIfEnabled([generatedImage], params);
+        // 后台预解析元数据（不阻塞）
+        _preloadMetadataInBackground([generatedImage]);
       } else {
         // 流式 API 未返回图像，回退到非流式 API
         AppLogger.w(
@@ -824,9 +855,11 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         }
         // 自动保存
         await _autoSaveIfEnabled(generatedList, params);
+        // 后台预解析元数据（不阻塞）
+        _preloadMetadataInBackground(generatedList);
       }
     } catch (e) {
-      if (_isCancelled || e.toString().contains('cancelled')) {
+      if (_isCancelledError(e)) {
         state = state.copyWith(
           status: GenerationStatus.cancelled,
           progress: 0.0,
@@ -834,67 +867,53 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           totalImages: 0,
           clearStreamPreview: true,
         );
-      } else {
-        // 检测流式生成不被允许的错误，自动回退到非流式
-        final errorStr = e.toString().toLowerCase();
-        if (errorStr.contains('streaming is not allowed') ||
-            errorStr.contains('streaming not allowed') ||
-            errorStr.contains('stream is not allowed') ||
-            errorStr.contains('stream not allowed')) {
-          AppLogger.w(
-            'Streaming not allowed for this model (exception), falling back to non-stream API',
-            'Generation',
+      } else if (_isStreamingNotAllowed(e.toString())) {
+        AppLogger.w(
+          'Streaming not allowed (exception), falling back to non-stream API',
+          'Generation',
+        );
+        try {
+          final (imageBytes, vibeEncodings) = await _generateWithRetry(params);
+          final generatedList = imageBytes
+              .map((b) => GeneratedImage.create(b, width: params.width, height: params.height))
+              .toList();
+          state = state.copyWith(
+            status: GenerationStatus.completed,
+            currentImages: generatedList,
+            displayImages: generatedList,
+            displayWidth: params.width,
+            displayHeight: params.height,
+            history: [...generatedList, ...state.history].take(50).toList(),
+            progress: 1.0,
+            currentImage: 0,
+            totalImages: 0,
+            clearStreamPreview: true,
           );
-          try {
-            final (imageBytes, vibeEncodings) =
-                await _generateWithRetry(params);
-            final generatedList = imageBytes
-                .map(
-                  (b) => GeneratedImage.create(
-                    b,
-                    width: params.width,
-                    height: params.height,
-                  ),
-                )
-                .toList();
-            state = state.copyWith(
-              status: GenerationStatus.completed,
-              currentImages: generatedList,
-              displayImages: generatedList,
-              displayWidth: params.width,
-              displayHeight: params.height,
-              history: [...generatedList, ...state.history].take(50).toList(),
-              progress: 1.0,
-              currentImage: 0,
-              totalImages: 0,
-              clearStreamPreview: true,
-            );
-            if (vibeEncodings.isNotEmpty) {
-              _saveVibeEncodings(vibeEncodings);
-            }
-            // 自动保存
-            await _autoSaveIfEnabled(generatedList, params);
-            return;
-          } catch (fallbackError) {
-            state = state.copyWith(
-              status: GenerationStatus.error,
-              errorMessage: fallbackError.toString(),
-              progress: 0.0,
-              currentImage: 0,
-              totalImages: 0,
-              clearStreamPreview: true,
-            );
+          if (vibeEncodings.isNotEmpty) {
+            _saveVibeEncodings(vibeEncodings);
           }
-        } else {
+          await _autoSaveIfEnabled(generatedList, params);
+          // 后台预解析元数据（不阻塞）
+          _preloadMetadataInBackground(generatedList);
+        } catch (fallbackError) {
           state = state.copyWith(
             status: GenerationStatus.error,
-            errorMessage: e.toString(),
+            errorMessage: fallbackError.toString(),
             progress: 0.0,
             currentImage: 0,
             totalImages: 0,
             clearStreamPreview: true,
           );
         }
+      } else {
+        state = state.copyWith(
+          status: GenerationStatus.error,
+          errorMessage: e.toString(),
+          progress: 0.0,
+          currentImage: 0,
+          totalImages: 0,
+          clearStreamPreview: true,
+        );
       }
     }
   }
@@ -937,6 +956,43 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       currentImages: [],
       history: [],
     );
+  }
+
+  /// 更新显示图像列表
+  ///
+  /// 用于保存图像后更新 filePath 等信息
+  void updateDisplayImages(List<GeneratedImage> images) {
+    state = state.copyWith(
+      displayImages: images,
+    );
+  }
+
+  /// 更新状态中的单个图像
+  ///
+  /// 用于自动保存后更新图像的 filePath
+  void _updateImageInState(String imageId, GeneratedImage updatedImage) {
+    // 更新 currentImages
+    final updatedCurrentImages = state.currentImages.map((img) {
+      return img.id == imageId ? updatedImage : img;
+    }).toList();
+
+    // 更新 history
+    final updatedHistory = state.history.map((img) {
+      return img.id == imageId ? updatedImage : img;
+    }).toList();
+
+    // 更新 displayImages
+    final updatedDisplayImages = state.displayImages.map((img) {
+      return img.id == imageId ? updatedImage : img;
+    }).toList();
+
+    state = state.copyWith(
+      currentImages: updatedCurrentImages,
+      history: updatedHistory,
+      displayImages: updatedDisplayImages,
+    );
+
+    AppLogger.d('Updated filePath for image $imageId: ${updatedImage.filePath}', 'AutoSave');
   }
 
   /// 将 UI 层的角色提示词配置转换为 API 层的格式
@@ -1028,5 +1084,42 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     }
 
     return result.mainPrompt;
+  }
+
+  // ============================================================
+  // 后台元数据解析（生成完成后立即启动）
+  // ============================================================
+
+  /// 后台并行解析图像元数据
+  ///
+  /// 在图像生成完成后立即启动，将图像加入预加载队列。
+  /// 队列会按顺序处理，支持连续生成多张图像时的排队机制。
+  /// 这样用户打开详情页时元数据已经准备好了，无需等待。
+  void _preloadMetadataInBackground(List<GeneratedImage> images) {
+    if (images.isEmpty) return;
+
+    final service = ImageMetadataService();
+
+    AppLogger.d(
+      'Enqueuing ${images.length} images for metadata preloading',
+      'MetadataPreload',
+    );
+
+    // 将图像加入预加载队列
+    for (final image in images) {
+      service.enqueuePreload(
+        taskId: image.id,
+        filePath: image.filePath,
+        bytes: image.filePath == null ? image.bytes : null,
+      );
+    }
+
+    // 输出队列状态
+    final status = service.getPreloadQueueStatus();
+    AppLogger.d(
+      'Preload queue status: length=${status['queueLength']}, '
+      'processing=${status['processingCount']}, isProcessing=${status['isProcessing']}',
+      'MetadataPreload',
+    );
   }
 }

@@ -13,10 +13,13 @@ import '../../../../data/services/alias_resolver_service.dart';
 import '../../../providers/layout_state_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../../core/utils/nai_metadata_parser.dart';
+import '../../../../data/services/image_metadata_service.dart';
+
 import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_viewer.dart';
 import '../../../widgets/common/selectable_image_card.dart';
@@ -290,7 +293,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                   }
                 });
               },
-              onFullscreen: () => _showFullscreen(context, historyImage.bytes),
+              onFullscreen: () => _showFullscreen(context, historyImage),
               enableContextMenu: true,
               enableHoverScale: true,
               onOpenInExplorer: () =>
@@ -347,7 +350,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
             }
           });
         },
-        onFullscreen: () => _showFullscreen(context, imageBytes),
+        onFullscreen: () => _showFullscreen(context, image),
         enableContextMenu: true,
         enableHoverScale: true,
         onOpenInExplorer: () => _saveAndOpenInExplorer(context, imageBytes),
@@ -544,58 +547,44 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     }
   }
 
-  void _showFullscreen(BuildContext context, Uint8List imageBytes) {
-    // 立即使用默认参数打开详情页，不等待元数据提取
-    final imageData = GeneratedImageDetailData.fromParams(
-      imageBytes: imageBytes,
-      prompt: '',
-      negativePrompt: '',
-      seed: 0,
-      steps: 28,
-      scale: 5.0,
-      width: 832,
-      height: 1216,
-      model: 'nai-diffusion-4-full',
-      sampler: 'k_euler_ancestral',
-      smea: true,
-      smeaDyn: false,
-      noiseSchedule: 'native',
-      cfgRescale: 0.0,
-      characterPrompts: [],
-      characterNegativePrompts: [],
-    );
+  void _showFullscreen(BuildContext context, GeneratedImage image) {
+    final currentContext = context;
+
+    // 简化逻辑：统一使用 FileImageDetailData 从 PNG 文件解析元数据
+    // - 如果图像已保存（有 filePath），直接使用
+    // - 如果图像未保存，使用 GeneratedImageDetailData 作为 fallback
+    final ImageDetailData imageData;
+    if (image.filePath != null && image.filePath!.isNotEmpty) {
+      // 已保存的图像：使用 FileImageDetailData（异步解析元数据）
+      // 加入预加载队列（如果尚未解析）
+      ImageMetadataService().enqueuePreload(
+        taskId: image.id,
+        filePath: image.filePath,
+      );
+      imageData = FileImageDetailData(
+        filePath: image.filePath!,
+        cachedBytes: image.bytes,
+        id: image.id,
+      );
+    } else {
+      // 未保存的图像：使用 GeneratedImageDetailData（显示"无元数据"）
+      imageData = GeneratedImageDetailData(
+        imageBytes: image.bytes,
+        id: image.id,
+      );
+    }
+
+    if (!currentContext.mounted) return;
 
     // 使用 ImageDetailOpener 打开详情页（带防重复点击）
     ImageDetailOpener.showSingleImmediate(
-      context,
+      currentContext,
       image: imageData,
       showMetadataPanel: true,
       callbacks: ImageDetailCallbacks(
-        onSave: (image) => _saveImageFromDetail(context, image),
+        onSave: (img) => _saveImageFromDetail(currentContext, img),
       ),
     );
-
-    // 在后台提取元数据（如果需要显示实际的提示词等信息）
-    // 这里可以添加逻辑来更新已打开的详情页中的元数据
-    _extractMetadataInBackground(imageBytes, imageData);
-  }
-
-  /// 在后台提取元数据
-  void _extractMetadataInBackground(
-    Uint8List imageBytes,
-    GeneratedImageDetailData imageData,
-  ) async {
-    try {
-      final metadata = await NaiMetadataParser.extractFromBytes(imageBytes);
-      if (metadata != null && mounted) {
-        // 注意：由于 GeneratedImageDetailData 的字段是 final 的，
-        // 我们无法直接更新 imageData。如果需要显示实际元数据，
-        // 需要重新设计为使用状态管理或可变数据模型。
-        // 目前详情页会显示从图像中提取的元数据（通过 ImageDetailData 接口）。
-      }
-    } catch (_) {
-      // 忽略提取错误
-    }
   }
 
   /// 从详情页保存图像
@@ -613,7 +602,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       }
 
       // 从图像中提取元数据以获取正确的参数
-      final metadata = await NaiMetadataParser.extractFromBytes(imageBytes);
+      final metadata = await ImageMetadataService().getMetadataFromBytes(imageBytes);
 
       final commentJson = <String, dynamic>{
         'prompt': metadata?.prompt ?? '',
@@ -709,7 +698,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     String prompt = '';
 
     try {
-      final extractedMeta = await NaiMetadataParser.extractFromBytes(bytes);
+      final extractedMeta = await ImageMetadataService().getMetadataFromBytes(bytes);
       if (extractedMeta != null && extractedMeta.prompt.isNotEmpty) {
         prompt = extractedMeta.prompt;
       }

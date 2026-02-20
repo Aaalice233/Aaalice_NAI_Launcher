@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/nai_metadata_parser.dart';
+import '../../../data/services/image_metadata_service.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
@@ -24,6 +25,7 @@ import '../../providers/replication_queue_provider.dart';
 import '../../router/app_router.dart';
 import '../../widgets/anlas/anlas_balance_chip.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../widgets/common/image_detail/image_detail_data.dart';
 import '../../widgets/common/image_detail/image_detail_viewer.dart';
 import '../../utils/image_detail_opener.dart';
@@ -419,44 +421,43 @@ class _DesktopGenerationLayoutState
   }
 
   /// 显示全屏预览（静态方法，可被其他类访问）
+  ///
+  /// 简化逻辑：统一使用 FileImageDetailData 从 PNG 文件解析元数据
+  /// - 如果图像已保存（有 filePath），直接使用
+  /// - 如果图像未保存，先保存到磁盘再使用
+  /// - 元数据异步加载，详情页先显示，解析中显示转圈
   static void _showFullscreenPreview(
     BuildContext context,
     WidgetRef ref,
     List<GeneratedImage> images,
   ) {
-    final params = ref.read(generationParamsNotifierProvider);
-    final characterConfig = ref.read(characterPromptNotifierProvider);
-
-    // 立即构建基础数据（不提取元数据）
+    // 立即构建基础数据（使用 FileImageDetailData 从文件解析）
     final allImages = images.map((img) {
-      return GeneratedImageDetailData.fromParams(
+      // 如果图像已保存，直接使用 filePath
+      // 如果未保存，使用临时字节（这种情况在 auto-save 开启时应该很少）
+      if (img.filePath != null && img.filePath!.isNotEmpty) {
+        // 加入预加载队列（如果尚未解析）
+        ImageMetadataService().enqueuePreload(
+          taskId: img.id,
+          filePath: img.filePath,
+        );
+        return FileImageDetailData(
+          filePath: img.filePath!,
+          cachedBytes: img.bytes,
+          id: img.id,
+        );
+      }
+
+      // 未保存的图像：使用 GeneratedImageDetailData 作为 fallback
+      // 这种情况只应在 auto-save 关闭且用户未手动保存时发生
+      return GeneratedImageDetailData(
         imageBytes: img.bytes,
-        prompt: params.prompt,
-        negativePrompt: params.negativePrompt,
-        seed: params.seed == -1 ? 0 : params.seed,
-        steps: params.steps,
-        scale: params.scale,
-        width: params.width,
-        height: params.height,
-        model: params.model,
-        sampler: params.sampler,
-        smea: params.smea,
-        smeaDyn: params.smeaDyn,
-        noiseSchedule: params.noiseSchedule,
-        cfgRescale: params.cfgRescale,
-        characterPrompts: characterConfig.characters
-            .where((c) => c.enabled && c.prompt.isNotEmpty)
-            .map((c) => c.prompt)
-            .toList(),
-        characterNegativePrompts: characterConfig.characters
-            .where((c) => c.enabled)
-            .map((c) => c.negativePrompt)
-            .toList(),
         id: img.id,
       );
     }).toList();
 
     // 使用 ImageDetailOpener 打开详情页（带防重复点击）
+    // 使用 'generation_desktop' key 避免与本地图库的 'default' key 冲突
     ImageDetailOpener.showMultipleImmediate(
       context,
       images: allImages,
@@ -876,7 +877,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
       int actualSeed = params.seed;
       if (actualSeed == -1) {
         final extractedMeta =
-            await NaiMetadataParser.extractFromBytes(image.bytes);
+            await ImageMetadataService().getMetadataFromBytes(image.bytes);
         if (extractedMeta != null &&
             extractedMeta.seed != null &&
             extractedMeta.seed! > 0) {
@@ -1013,7 +1014,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     try {
       // 从图像元数据中提取参数
       final extractedMeta =
-          await NaiMetadataParser.extractFromBytes(image.bytes);
+          await ImageMetadataService().getMetadataFromBytes(image.bytes);
       if (extractedMeta != null) {
         // 更新提示词
         if (extractedMeta.prompt.isNotEmpty) {

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -13,6 +14,7 @@ import '../../data/models/gallery/local_image_record.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/repositories/gallery_folder_repository.dart';
 import '../../data/services/gallery/gallery_scan_service.dart';
+import '../../data/services/image_metadata_service.dart';
 
 part 'local_gallery_provider.freezed.dart';
 part 'local_gallery_provider.g.dart';
@@ -410,6 +412,9 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     final dataSource = await _getDataSource();
     final records = <LocalImageRecord>[];
 
+    // 预加载所有图片的元数据到缓存（后台执行，不阻塞）
+    _preloadMetadataBatch(files);
+
     for (final file in files) {
       try {
         final stat = await file.stat();
@@ -429,30 +434,20 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
           // 加载元数据
           final metadataRecord = await dataSource.getMetadataByImageId(imageId);
           if (metadataRecord != null) {
-            metadata = NaiImageMetadata(
-              prompt: metadataRecord.prompt,
-              negativePrompt: metadataRecord.negativePrompt,
-              seed: metadataRecord.seed,
-              sampler: metadataRecord.sampler,
-              steps: metadataRecord.steps,
-              scale: metadataRecord.scale,
-              width: metadataRecord.width,
-              height: metadataRecord.height,
-              model: metadataRecord.model,
-              smea: metadataRecord.smea,
-              smeaDyn: metadataRecord.smeaDyn,
-              noiseSchedule: metadataRecord.noiseSchedule,
-              cfgRescale: metadataRecord.cfgRescale,
-              ucPreset: metadataRecord.ucPreset,
-              qualityToggle: metadataRecord.qualityToggle,
-              isImg2Img: metadataRecord.isImg2Img,
-              strength: metadataRecord.strength,
-              noise: metadataRecord.noise,
-              software: metadataRecord.software,
-              source: metadataRecord.source,
-              version: metadataRecord.version,
-              rawJson: metadataRecord.rawJson,
-            );
+            // 如果有 rawJson，从中重新解析完整的元数据（包含新字段）
+            if (metadataRecord.rawJson != null && metadataRecord.rawJson!.isNotEmpty) {
+              try {
+                final json = jsonDecode(metadataRecord.rawJson!) as Map<String, dynamic>;
+                metadata = NaiImageMetadata.fromNaiComment(json, rawJson: metadataRecord.rawJson);
+              } catch (e) {
+                AppLogger.w('Failed to parse rawJson for $imageId, using basic metadata', 'LocalGalleryNotifier');
+                // 回退到基本元数据
+                metadata = _buildBasicMetadata(metadataRecord);
+              }
+            } else {
+              // 没有 rawJson，使用基本元数据
+              metadata = _buildBasicMetadata(metadataRecord);
+            }
             metadataStatus = metadata.hasData ? MetadataStatus.success : MetadataStatus.none;
           }
         }
@@ -478,6 +473,53 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     }
 
     return records;
+  }
+
+  /// 批量预加载元数据到缓存（后台执行，不阻塞UI）
+  void _preloadMetadataBatch(List<File> files) {
+    // 筛选出PNG文件
+    final pngFiles = files.where((f) => f.path.toLowerCase().endsWith('.png')).toList();
+    if (pngFiles.isEmpty) return;
+
+    // 后台预加载，不等待结果
+    Future.microtask(() {
+      try {
+        final images = pngFiles
+            .map((f) => GeneratedImageInfo(id: f.path, filePath: f.path))
+            .toList();
+        ImageMetadataService().preloadBatch(images);
+      } catch (e) {
+        AppLogger.w('Failed to preload metadata batch: $e', 'LocalGalleryNotifier');
+      }
+    });
+  }
+
+  /// 从 GalleryMetadataRecord 构建基本元数据（不包含新字段）
+  NaiImageMetadata _buildBasicMetadata(GalleryMetadataRecord record) {
+    return NaiImageMetadata(
+      prompt: record.prompt,
+      negativePrompt: record.negativePrompt,
+      seed: record.seed,
+      sampler: record.sampler,
+      steps: record.steps,
+      scale: record.scale,
+      width: record.width,
+      height: record.height,
+      model: record.model,
+      smea: record.smea,
+      smeaDyn: record.smeaDyn,
+      noiseSchedule: record.noiseSchedule,
+      cfgRescale: record.cfgRescale,
+      ucPreset: record.ucPreset,
+      qualityToggle: record.qualityToggle,
+      isImg2Img: record.isImg2Img,
+      strength: record.strength,
+      noise: record.noise,
+      software: record.software,
+      source: record.source,
+      version: record.version,
+      rawJson: record.rawJson,
+    );
   }
 
   /// 刷新（增量扫描）

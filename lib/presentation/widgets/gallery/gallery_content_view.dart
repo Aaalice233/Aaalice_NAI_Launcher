@@ -9,15 +9,14 @@ import '../../providers/local_gallery_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../widgets/grouped_grid_view.dart';
 import 'local_image_card_3d.dart';
-import '../common/image_detail/image_detail_data.dart';
 import '../common/image_detail/image_detail_viewer.dart';
+import '../common/image_detail/image_detail_data.dart';
 import '../common/shimmer_skeleton.dart';
 import '../../utils/image_detail_opener.dart';
 import 'virtual_gallery_grid.dart';
 import 'gallery_state_views.dart';
 
 /// 画廊项目构建函数类型
-/// Gallery item builder function type
 typedef GalleryItemBuilder<T> = Widget Function(
   BuildContext context,
   T item,
@@ -26,24 +25,13 @@ typedef GalleryItemBuilder<T> = Widget Function(
 );
 
 /// 画廊项目配置
-/// Configuration for building gallery items
 class GalleryItemConfig {
-  /// 是否处于选择模式
   final bool selectionMode;
-
-  /// 是否被选中
   final bool isSelected;
-
-  /// 项目宽度
   final double itemWidth;
-
-  /// 宽高比
   final double aspectRatio;
-
-  /// 选择切换回调
+  final VoidCallback? onTap;
   final VoidCallback? onSelectionToggle;
-
-  /// 长按回调
   final VoidCallback? onLongPress;
 
   const GalleryItemConfig({
@@ -51,131 +39,56 @@ class GalleryItemConfig {
     required this.isSelected,
     required this.itemWidth,
     required this.aspectRatio,
+    this.onTap,
     this.onSelectionToggle,
     this.onLongPress,
   });
 }
 
 /// 通用画廊状态接口
-/// Generic gallery state interface
 abstract class GalleryState<T> {
-  /// 当前页的图片列表
   List<T> get currentImages;
-
-  /// 分组后的图片（用于分组视图）
   List<LocalImageRecord> get groupedImages;
-
-  /// 是否处于分组视图
   bool get isGroupedView;
-
-  /// 是否正在加载页面
   bool get isPageLoading;
-
-  /// 是否正在加载分组
   bool get isGroupedLoading;
-
-  /// 当前页码
   int get currentPage;
-
-  /// 是否有筛选条件
   bool get hasFilters;
-
-  /// 筛选后的文件列表（用于判断是否为空）
   List<T> get filteredFiles;
 }
 
 /// 通用选择状态接口
-/// Generic selection state interface
 abstract class SelectionState {
-  /// 是否处于选择模式
   bool get isActive;
-
-  /// 已选中的ID集合
   Set<String> get selectedIds;
 }
 
-/// Gallery content view with grouped/3D/masonry view modes (Generic version)
 /// 画廊内容视图（含分组/3D/瀑布流切换）- 泛型版本
-///
-/// [T] 项目类型，如 LocalImageRecord 或 VibeLibraryEntry
 class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
-  /// Whether 3D card view mode is active
-  /// 是否启用3D卡片视图模式
   final bool use3DCardView;
-
-  /// Number of columns in the grid
-  /// 网格列数
   final int columns;
-
-  /// Width of each item
-  /// 每个项目的宽度
   final double itemWidth;
-
-  /// 画廊状态
   final GalleryState<T> state;
-
-  /// 选择状态
   final SelectionState selectionState;
-
-  /// 项目构建器
   final GalleryItemBuilder<T> itemBuilder;
-
-  /// ID提取器（用于选择状态匹配）
   final String Function(T item) idExtractor;
-
-  /// 宽高比提取器（可选，用于瀑布流视图）
   final Future<double> Function(T item)? aspectRatioExtractor;
-
-  /// 点击回调
   final void Function(T item, int index)? onTap;
-
-  /// 双击回调
   final void Function(T item, int index)? onDoubleTap;
-
-  /// 长按回调
   final void Function(T item, int index)? onLongPress;
-
-  /// 右键菜单回调
   final void Function(T item, Offset position)? onContextMenu;
-
-  /// 收藏切换回调
   final void Function(T item)? onFavoriteToggle;
-
-  /// 选择切换回调
   final void Function(T item)? onSelectionToggle;
-
-  /// 进入选择模式并选中回调
   final void Function(T item)? onEnterSelection;
-
-  /// 删除回调
   final VoidCallback? onDeleted;
-
-  /// 清除筛选回调
   final VoidCallback? onClearFilters;
-
-  /// 刷新回调
   final VoidCallback? onRefresh;
-
-  /// 加载指定页回调
   final void Function(int page)? onLoadPage;
-
-  /// Key for GroupedGridView to scroll to group
-  /// 用于滚动到分组的 GroupedGridView key
   final GlobalKey<GroupedGridViewState>? groupedGridViewKey;
-
-  /// 3D视图模式下的额外配置
   final Gallery3DViewConfig<T>? view3DConfig;
-
-  /// 发送到主页回调（仅 LocalImageRecord 类型支持）
   final void Function(LocalImageRecord record)? onSendToHome;
-
-  /// 空状态标题
   final String? emptyTitle;
-
-  /// 空状态副标题
   final String? emptySubtitle;
-
-  /// 空状态图标
   final IconData? emptyIcon;
 
   const GenericGalleryContentView({
@@ -214,10 +127,7 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
 
 /// 3D视图配置
 class Gallery3DViewConfig<T> {
-  /// 图片列表（用于详情查看器）
   final List<T> images;
-
-  /// 显示图片详情查看器
   final void Function(List<T> images, int initialIndex) showDetailViewer;
 
   const Gallery3DViewConfig({
@@ -337,47 +247,29 @@ class _GenericGalleryContentViewState<T>
     );
   }
 
-  /// Calculate aspect ratio for LocalImageRecord
   Future<double> _calculateAspectRatioForRecord(LocalImageRecord record) async {
-    // Try to get dimensions from metadata first
     final metadata = record.metadata;
-    if (metadata != null && metadata.width != null && metadata.height != null) {
-      final width = metadata.width!;
+    if (metadata?.width != null && metadata?.height != null) {
+      final width = metadata!.width!;
       final height = metadata.height!;
-      if (width > 0 && height > 0) {
-        return width / height;
-      }
+      if (width > 0 && height > 0) return width / height;
     }
 
-    // If metadata doesn't have dimensions, read from image file
     try {
       final buffer = await ui.ImmutableBuffer.fromFilePath(record.path);
       final descriptor = await ui.ImageDescriptor.encoded(buffer);
-      final width = descriptor.width;
-      final height = descriptor.height;
-      if (width > 0 && height > 0) {
-        return width / height;
+      if (descriptor.width > 0 && descriptor.height > 0) {
+        return descriptor.width / descriptor.height;
       }
-    } catch (e) {
-      // If reading fails, return default aspect ratio
-    }
+    } catch (_) {}
 
-    // Default aspect ratio
     return 1.0;
   }
 
-  /// Calculate aspect ratio for generic type
   Future<double> _calculateAspectRatio(T item) async {
-    if (widget.aspectRatioExtractor != null) {
-      return await widget.aspectRatioExtractor!(item);
-    }
-
-    // Default aspect ratio
-    return 1.0;
+    return await widget.aspectRatioExtractor?.call(item) ?? 1.0;
   }
 
-  /// Build loading skeleton
-  /// 构建加载骨架屏
   Widget _buildLoadingSkeleton() {
     return GridView.builder(
       key: const PageStorageKey<String>('gallery_grid_loading'),
@@ -386,28 +278,18 @@ class _GenericGalleryContentViewState<T>
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
       ),
-      itemCount:
-          widget.state.currentImages.isNotEmpty
-              ? widget.state.currentImages.length
-              : 20,
-      itemBuilder: (c, i) {
-        return const Card(
-          clipBehavior: Clip.antiAlias,
-          child: ShimmerSkeleton(height: 250),
-        );
-      },
+      itemCount: widget.state.currentImages.isNotEmpty
+          ? widget.state.currentImages.length
+          : 20,
+      itemBuilder: (_, __) => const Card(
+        clipBehavior: Clip.antiAlias,
+        child: ShimmerSkeleton(height: 250),
+      ),
     );
   }
 
-  /// Build 3D card view
-  /// 构建3D卡片视图
-  Widget _build3DCardView(
-    GalleryState<T> state,
-    SelectionState selectionState,
-  ) {
+  Widget _build3DCardView(GalleryState<T> state, SelectionState selectionState) {
     final selectedIndices = <int>{};
-
-    // Convert ids to indices
     for (int i = 0; i < state.currentImages.length; i++) {
       if (selectionState.selectedIds.contains(
         widget.idExtractor(state.currentImages[i]),
@@ -475,25 +357,15 @@ class _GenericGalleryContentViewState<T>
     );
   }
 
-  /// Convert generic items to LocalImageRecords for 3D view compatibility
-  /// 将泛型项目转换为 LocalImageRecord（用于3D视图的兼容性）
   List<LocalImageRecord> _convertToLocalImageRecords(List<T> items) {
     // 如果 T 已经是 LocalImageRecord，直接返回
     if (T == LocalImageRecord || items is List<LocalImageRecord>) {
       return items as List<LocalImageRecord>;
     }
-
-    // 否则返回空列表（3D视图需要适配）
-    // 实际使用时应该通过 view3DConfig 提供自定义3D视图
-    return [];
+    return <LocalImageRecord>[];
   }
 
-  /// Build masonry view
-  /// 构建瀑布流视图
-  Widget _buildMasonryView(
-    GalleryState<T> state,
-    SelectionState selectionState,
-  ) {
+  Widget _buildMasonryView(GalleryState<T> state, SelectionState selectionState) {
     return MasonryGridView.count(
       key: const PageStorageKey<String>('gallery_grid'),
       crossAxisCount: widget.columns,
@@ -502,38 +374,45 @@ class _GenericGalleryContentViewState<T>
       padding: const EdgeInsets.all(16),
       cacheExtent: 1000,
       itemCount: state.currentImages.length,
-      itemBuilder: (c, i) {
+      itemBuilder: (_, i) {
         final item = state.currentImages[i];
         final itemId = widget.idExtractor(item);
         final isSelected = selectionState.selectedIds.contains(itemId);
+        final aspectRatio = _aspectRatioCache[itemId] ?? 1.0;
 
-        // Get or calculate aspect ratio
-        final double aspectRatio = _aspectRatioCache[itemId] ?? 1.0;
-
-        // Calculate and cache aspect ratio asynchronously
         if (!_aspectRatioCache.containsKey(itemId)) {
           _calculateAspectRatio(item).then((value) {
             if (mounted && value != aspectRatio) {
-              setState(() {
-                _aspectRatioCache[itemId] = value;
-              });
+              setState(() => _aspectRatioCache[itemId] = value);
             }
           });
         }
 
-        final config = GalleryItemConfig(
-          selectionMode: selectionState.isActive,
-          isSelected: isSelected,
-          itemWidth: widget.itemWidth,
-          aspectRatio: aspectRatio,
-          onSelectionToggle: () => widget.onSelectionToggle?.call(item),
-          onLongPress:
-              !selectionState.isActive
-                  ? () => widget.onEnterSelection?.call(item)
-                  : null,
+        return widget.itemBuilder(
+          context,
+          item,
+          i,
+          GalleryItemConfig(
+            selectionMode: selectionState.isActive,
+            isSelected: isSelected,
+            itemWidth: widget.itemWidth,
+            aspectRatio: aspectRatio,
+            onTap: () {
+              if (widget.view3DConfig != null) {
+                widget.view3DConfig!.showDetailViewer(
+                  widget.view3DConfig!.images,
+                  i,
+                );
+              } else {
+                widget.onTap?.call(item, i);
+              }
+            },
+            onSelectionToggle: () => widget.onSelectionToggle?.call(item),
+            onLongPress: !selectionState.isActive
+                ? () => widget.onEnterSelection?.call(item)
+                : null,
+          ),
         );
-
-        return widget.itemBuilder(context, item, i, config);
       },
     );
   }
@@ -590,33 +469,15 @@ class _LocalSelectionStateAdapter implements SelectionState {
 }
 
 /// 向后兼容的画廊内容视图
-/// 使用 ConsumerWidget 自动读取本地画廊状态
 class LocalGalleryContentView extends ConsumerWidget {
-  /// Whether 3D card view mode is active
   final bool use3DCardView;
-
-  /// Number of columns in the grid
   final int columns;
-
-  /// Width of each item
   final double itemWidth;
-
-  /// Callback when reuse metadata is triggered
   final void Function(LocalImageRecord record)? onReuseMetadata;
-
-  /// Callback when send to img2img is triggered
   final void Function(LocalImageRecord record)? onSendToImg2Img;
-
-  /// Callback when context menu is triggered
   final void Function(LocalImageRecord record, Offset position)? onContextMenu;
-
-  /// Callback when send to home is triggered
   final void Function(LocalImageRecord record)? onSendToHome;
-
-  /// Callback when image is deleted
   final VoidCallback? onDeleted;
-
-  /// Key for GroupedGridView to scroll to group
   final GlobalKey<GroupedGridViewState>? groupedGridViewKey;
 
   const LocalGalleryContentView({
@@ -637,9 +498,7 @@ class LocalGalleryContentView extends ConsumerWidget {
     final state = ref.watch(localGalleryNotifierProvider);
     final selectionState = ref.watch(localGallerySelectionNotifierProvider);
 
-    // 显示图片详情查看器
     void showImageDetailViewer(List<LocalImageRecord> images, int initialIndex) {
-      // 获取最新的收藏状态的函数
       bool getFavoriteStatus(String path) {
         final providerState = ref.read(localGalleryNotifierProvider);
         final image = providerState.currentImages
@@ -648,38 +507,38 @@ class LocalGalleryContentView extends ConsumerWidget {
         return image?.isFavorite ?? false;
       }
 
-      // 将 LocalImageRecord 转换为 ImageDetailData
-      final imageDataList = images.map((record) {
-        return LocalImageDetailData(
-          record,
-          getFavoriteStatus: getFavoriteStatus,
-        );
-      }).toList();
-
-      // 使用 ImageDetailOpener 打开详情页（带防重复点击）
       ImageDetailOpener.showMultipleImmediate(
         context,
-        images: imageDataList,
+        images: images.map((r) => LocalImageDetailData(r, getFavoriteStatus: getFavoriteStatus)).toList(),
         initialIndex: initialIndex,
         showMetadataPanel: true,
         showThumbnails: images.length > 1,
         callbacks: ImageDetailCallbacks(
           onReuseMetadata: onReuseMetadata != null
-              ? (data, options) {
-                  if (data is LocalImageDetailData) {
-                    onReuseMetadata!(data.record);
-                  }
-                }
+              ? (data, _) => onReuseMetadata?.call((data as LocalImageDetailData).record)
               : null,
-          onFavoriteToggle: (data) {
-            if (data is LocalImageDetailData) {
-              ref
-                  .read(localGalleryNotifierProvider.notifier)
-                  .toggleFavorite(data.record.path);
-            }
-          },
+          onFavoriteToggle: (data) => ref
+              .read(localGalleryNotifierProvider.notifier)
+              .toggleFavorite((data as LocalImageDetailData).record.path),
         ),
       );
+    }
+
+    Future<double> getAspectRatio(LocalImageRecord record) async {
+      final metadata = record.metadata;
+      if (metadata?.width != null && metadata?.height != null) {
+        if (metadata!.width! > 0 && metadata.height! > 0) {
+          return metadata.width! / metadata.height!;
+        }
+      }
+      try {
+        final buffer = await ui.ImmutableBuffer.fromFilePath(record.path);
+        final descriptor = await ui.ImageDescriptor.encoded(buffer);
+        if (descriptor.width > 0 && descriptor.height > 0) {
+          return descriptor.width / descriptor.height;
+        }
+      } catch (_) {}
+      return 1.0;
     }
 
     return GenericGalleryContentView<LocalImageRecord>(
@@ -689,76 +548,33 @@ class LocalGalleryContentView extends ConsumerWidget {
       state: _LocalGalleryStateAdapter(state),
       selectionState: _LocalSelectionStateAdapter(selectionState),
       idExtractor: (record) => record.path,
-      aspectRatioExtractor: (record) async {
-        // Try to get dimensions from metadata first
-        final metadata = record.metadata;
-        if (metadata != null &&
-            metadata.width != null &&
-            metadata.height != null) {
-          final width = metadata.width!;
-          final height = metadata.height!;
-          if (width > 0 && height > 0) {
-            return width / height;
-          }
-        }
-
-        // If metadata doesn't have dimensions, read from image file
-        try {
-          final buffer = await ui.ImmutableBuffer.fromFilePath(record.path);
-          final descriptor = await ui.ImageDescriptor.encoded(buffer);
-          final width = descriptor.width;
-          final height = descriptor.height;
-          if (width > 0 && height > 0) {
-            return width / height;
-          }
-        } catch (e) {
-          // If reading fails, return default aspect ratio
-        }
-
-        return 1.0;
-      },
-      itemBuilder: (context, record, index, config) {
-        return LocalImageCard3D(
-          record: record,
-          width: config.itemWidth,
-          height: config.itemWidth / config.aspectRatio,
-          isSelected: config.isSelected,
-          onTap: config.onSelectionToggle,
-          onLongPress: config.onLongPress,
-          onFavoriteToggle: () {
-            ref
-                .read(localGalleryNotifierProvider.notifier)
-                .toggleFavorite(record.path);
-          },
-          onSendToHome: onReuseMetadata != null
-              ? () => onReuseMetadata!(record)
-              : null,
-        );
-      },
-      onSelectionToggle: (record) {
-        ref
-            .read(localGallerySelectionNotifierProvider.notifier)
-            .toggle(record.path);
-      },
-      onEnterSelection: (record) {
-        ref
-            .read(localGallerySelectionNotifierProvider.notifier)
-            .enterAndSelect(record.path);
-      },
-      onFavoriteToggle: (record) {
-        ref.read(localGalleryNotifierProvider.notifier).toggleFavorite(record.path);
-      },
+      aspectRatioExtractor: getAspectRatio,
+      itemBuilder: (context, record, index, config) => LocalImageCard3D(
+        record: record,
+        width: config.itemWidth,
+        height: config.itemWidth / config.aspectRatio,
+        isSelected: config.isSelected,
+        onTap: config.selectionMode ? config.onSelectionToggle : config.onTap,
+        onLongPress: config.onLongPress,
+        onFavoriteToggle: () => ref
+            .read(localGalleryNotifierProvider.notifier)
+            .toggleFavorite(record.path),
+        onSendToHome: onReuseMetadata != null ? () => onReuseMetadata!(record) : null,
+      ),
+      onSelectionToggle: (record) => ref
+          .read(localGallerySelectionNotifierProvider.notifier)
+          .toggle(record.path),
+      onEnterSelection: (record) => ref
+          .read(localGallerySelectionNotifierProvider.notifier)
+          .enterAndSelect(record.path),
+      onFavoriteToggle: (record) => ref
+          .read(localGalleryNotifierProvider.notifier)
+          .toggleFavorite(record.path),
       onContextMenu: onContextMenu,
       onDeleted: onDeleted,
-      onClearFilters: () {
-        ref.read(localGalleryNotifierProvider.notifier).clearAllFilters();
-      },
-      onRefresh: () {
-        ref.read(localGalleryNotifierProvider.notifier).refresh();
-      },
-      onLoadPage: (page) {
-        ref.read(localGalleryNotifierProvider.notifier).loadPage(page);
-      },
+      onClearFilters: () => ref.read(localGalleryNotifierProvider.notifier).clearAllFilters(),
+      onRefresh: () => ref.read(localGalleryNotifierProvider.notifier).refresh(),
+      onLoadPage: (page) => ref.read(localGalleryNotifierProvider.notifier).loadPage(page),
       groupedGridViewKey: groupedGridViewKey,
       view3DConfig: Gallery3DViewConfig<LocalImageRecord>(
         images: state.currentImages,
@@ -769,9 +585,5 @@ class LocalGalleryContentView extends ConsumerWidget {
   }
 }
 
-/// Gallery content view with grouped/3D/masonry view modes
-/// 画廊内容视图（含分组/3D/瀑布流切换）
-///
-/// 此类型别名指向 LocalGalleryContentView，保持完全向后兼容
-/// 现有的 LocalGalleryScreen 可以继续使用 GalleryContentView(...) 而不需要修改
+/// 向后兼容的类型别名
 typedef GalleryContentView = LocalGalleryContentView;

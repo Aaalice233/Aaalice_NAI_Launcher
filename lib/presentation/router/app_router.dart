@@ -21,6 +21,7 @@ import '../widgets/drop/global_drop_handler.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 import '../widgets/queue/floating_queue_button.dart';
 import '../widgets/queue/queue_management_page.dart';
+
 import '../widgets/shortcuts/shortcut_aware_widget.dart';
 import '../widgets/shortcuts/shortcut_help_dialog.dart';
 
@@ -321,6 +322,20 @@ class MainShell extends ConsumerStatefulWidget {
 }
 
 class _MainShellState extends ConsumerState<MainShell> {
+  int? _previousIndex;
+
+  @override
+  void didUpdateWidget(MainShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final currentIndex = widget.navigationShell.currentIndex;
+
+    // 页面切换检测（已移除互锁逻辑，不再需要重置标志）
+    if (_previousIndex != null && _previousIndex != currentIndex) {
+      // 不同页面间的图像详情页不再互锁
+    }
+    _previousIndex = currentIndex;
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentIndex = widget.navigationShell.currentIndex;

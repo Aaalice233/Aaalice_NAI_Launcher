@@ -10,6 +10,7 @@ import '../../../core/database/datasources/gallery_data_source.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/nai_metadata_parser.dart';
 import '../../models/gallery/nai_image_metadata.dart';
+import '../image_metadata_service.dart';
 
 /// 扫描结果
 class ScanResult {
@@ -382,7 +383,7 @@ class GalleryScanService {
       // 在 isolate 中批量解析
       final parseResult = await _parseInIsolate(paths, bytesList);
 
-      // 写入数据库
+      // 写入数据库并填充到 ImageMetadataService 缓存
       for (var j = 0; j < parseResult.results.length; j++) {
         final res = parseResult.results[j];
         await _writeToDatabase(
@@ -393,6 +394,11 @@ class GalleryScanService {
           result,
           isFullScan: isFullScan,
         );
+
+        // 将解析的元数据填充到 ImageMetadataService 缓存，避免重复解析
+        if (res.metadata != null && res.metadata!.hasData) {
+          ImageMetadataService().cacheMetadata(res.path, res.metadata!);
+        }
       }
 
       result.errors.addAll(parseResult.errors);
@@ -512,8 +518,8 @@ class GalleryScanService {
     // 提取 PNG 元数据
     if (p.extension(file.path).toLowerCase() == '.png') {
       try {
-        final bytes = await file.readAsBytes();
-        metadata = await NaiMetadataParser.extractFromBytes(bytes);
+        // 使用 ImageMetadataService 统一入口，享受 LRU 缓存和流式解析优化
+        metadata = await ImageMetadataService().getMetadata(file.path);
         width = metadata?.width;
         height = metadata?.height;
       } catch (e) {

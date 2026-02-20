@@ -52,20 +52,6 @@ class TagTranslationService {
     return _unifiedService.getTranslation(normalizedTag);
   }
 
-  /// 同步获取通用标签翻译（仅访问已加载的内存数据）
-  ///
-  /// 注意：由于底层使用 SQLite，同步方法只能检查热缓存
-  String? translateTagSync(String tag) {
-    final normalizedTag = TagNormalizer.normalize(tag);
-    return _unifiedService.getTranslationFromCache(normalizedTag);
-  }
-
-  /// 同步获取角色翻译（仅访问已加载的内存数据）
-  String? translateCharacterSync(String tag) {
-    // 角色翻译现在与标签翻译统一处理
-    return translateTagSync(tag);
-  }
-
   /// 通过中文查找英文标签
   ///
   /// [chinese] 中文翻译

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -6,15 +7,18 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_metadata_parser.dart';
 import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../../data/services/alias_resolver_service.dart';
+import '../../../../data/services/image_metadata_service.dart';
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_viewer.dart';
 import '../../../widgets/common/selectable_image_card.dart';
@@ -498,46 +502,39 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     );
   }
 
-  void _showFullscreenImage(Uint8List imageBytes) {
+  Future<void> _showFullscreenImage(Uint8List imageBytes) async {
     final state = ref.read(imageGenerationNotifierProvider);
-    final params = ref.read(generationParamsNotifierProvider);
-    final characterConfig = ref.read(characterPromptNotifierProvider);
 
     // 找到当前点击图像的索引
     final initialIndex = state.displayImages
         .indexWhere((img) => img.bytes == imageBytes)
         .clamp(0, state.displayImages.length - 1);
 
-    // 立即构建基础数据（不提取元数据，使用参数中的 seed）
+    // 简化逻辑：统一使用 FileImageDetailData 从 PNG 文件解析
+    // - 已保存的图像直接使用 filePath
+    // - 未保存的图像使用 GeneratedImageDetailData 作为 fallback
     final allImages = state.displayImages.map((img) {
-      return GeneratedImageDetailData.fromParams(
+      if (img.filePath != null && img.filePath!.isNotEmpty) {
+        // 加入预加载队列（如果尚未解析）
+        ImageMetadataService().enqueuePreload(
+          taskId: img.id,
+          filePath: img.filePath,
+        );
+        return FileImageDetailData(
+          filePath: img.filePath!,
+          cachedBytes: img.bytes,
+          id: img.id,
+        );
+      }
+
+      // 未保存的图像：使用 GeneratedImageDetailData 作为 fallback
+      return GeneratedImageDetailData(
         imageBytes: img.bytes,
-        prompt: params.prompt,
-        negativePrompt: params.negativePrompt,
-        seed: params.seed == -1 ? 0 : params.seed, // 临时 seed，-1 表示随机
-        steps: params.steps,
-        scale: params.scale,
-        width: params.width,
-        height: params.height,
-        model: params.model,
-        sampler: params.sampler,
-        smea: params.smea,
-        smeaDyn: params.smeaDyn,
-        noiseSchedule: params.noiseSchedule,
-        cfgRescale: params.cfgRescale,
-        characterPrompts: characterConfig.characters
-            .where((c) => c.enabled && c.prompt.isNotEmpty)
-            .map((c) => c.prompt)
-            .toList(),
-        characterNegativePrompts: characterConfig.characters
-            .where((c) => c.enabled)
-            .map((c) => c.negativePrompt)
-            .toList(),
         id: img.id,
       );
     }).toList();
 
-    // 使用 ImageDetailOpener 打开详情页（带防重复点击）
+    // 使用 ImageDetailOpener 打开详情页
     ImageDetailOpener.showMultipleImmediate(
       context,
       images: allImages,
@@ -548,33 +545,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         onSave: (image) => _saveImage(context, image),
       ),
     );
-
-    // 在后台提取实际的 seed（如果参数中是 -1）
-    // 这不会影响详情页的打开速度
-    if (params.seed == -1) {
-      _extractSeedsInBackground(state.displayImages, allImages);
-    }
-  }
-
-  /// 在后台提取实际的 seed 值
-  void _extractSeedsInBackground(
-    List<GeneratedImage> displayImages,
-    List<GeneratedImageDetailData> detailDataList,
-  ) async {
-    for (int i = 0; i < displayImages.length; i++) {
-      try {
-        final extractedMeta =
-            await NaiMetadataParser.extractFromBytes(displayImages[i].bytes);
-        if (extractedMeta != null &&
-            extractedMeta.seed != null &&
-            extractedMeta.seed! > 0) {
-          // 注意：这里无法更新已创建的 GeneratedImageDetailData
-          // 因为seed是final的。如果需要显示实际seed，需要重新设计
-        }
-      } catch (_) {
-        // 忽略提取错误
-      }
-    }
   }
 
   /// 获取保存目录
@@ -610,7 +580,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       int actualSeed = params.seed;
       if (actualSeed == -1) {
         final extractedMeta =
-            await NaiMetadataParser.extractFromBytes(imageBytes);
+            await ImageMetadataService().getMetadataFromBytes(imageBytes);
         if (extractedMeta != null &&
             extractedMeta.seed != null &&
             extractedMeta.seed! > 0) {
@@ -689,6 +659,31 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       );
 
       await file.writeAsBytes(embeddedBytes);
+
+      // 立即解析并缓存刚保存图像的元数据
+      unawaited(
+        ImageMetadataService().getMetadata(file.path).then((metadata) {
+          AppLogger.d(
+            '生成图像元数据已缓存: ${metadata?.prompt.substring(0, metadata.prompt.length > 30 ? 30 : metadata.prompt.length)}...',
+            'ImagePreview',
+          );
+        }).catchError((e) {
+          AppLogger.w('生成图像元数据缓存失败: $e', 'ImagePreview');
+        }),
+      );
+
+      // 更新保存图像的文件路径到状态
+      final currentState = ref.read(imageGenerationNotifierProvider);
+      final updatedImages = currentState.displayImages.map((img) {
+        if (img.id == image.identifier) {
+          return img.copyWithFilePath(file.path);
+        }
+        return img;
+      }).toList();
+
+      if (updatedImages.isNotEmpty) {
+        ref.read(imageGenerationNotifierProvider.notifier).updateDisplayImages(updatedImages);
+      }
 
       ref.read(localGalleryNotifierProvider.notifier).refresh();
 

@@ -369,29 +369,6 @@ class UnifiedTranslationService {
     _hotCache[tag] = translation;
   }
 
-  /// 从热缓存同步获取翻译
-  ///
-  /// 这是为了向后兼容 TagTranslationService 的同步方法。
-  /// 如果热缓存中没有，会触发异步加载，但本次返回 null。
-  String? getTranslationFromCache(String tag) {
-    final normalizedTag = TagNormalizer.normalize(tag);
-
-    // 先查热缓存
-    if (_hotCache.containsKey(normalizedTag)) {
-      return _hotCache[normalizedTag];
-    }
-
-    // 触发异步加载到缓存（但不等待）
-    if (_isInitialized) {
-      getTranslation(normalizedTag).then((translation) {
-        // 结果会被自动添加到热缓存
-        AppLogger.d('[UnifiedTranslation] Async loaded "$normalizedTag" for future cache hits', 'UnifiedTranslation');
-      });
-    }
-
-    return null;
-  }
-
   /// 搜索翻译（支持部分匹配）
   Future<List<new_ds.TranslationMatch>> searchTranslations(
     String query, {

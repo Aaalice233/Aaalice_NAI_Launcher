@@ -780,7 +780,7 @@ class _StatItem extends StatelessWidget {
   }
 }
 
-class _TagRow extends StatelessWidget {
+class _TagRow extends StatefulWidget {
   final IconData icon;
   final Color color;
   final List<String> tags;
@@ -796,26 +796,53 @@ class _TagRow extends StatelessWidget {
   });
 
   @override
+  State<_TagRow> createState() => _TagRowState();
+}
+
+class _TagRowState extends State<_TagRow> {
+  Map<String, String>? _translations;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTranslations();
+  }
+
+  @override
+  void didUpdateWidget(_TagRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.tags != oldWidget.tags) {
+      _translations = null;
+      _loadTranslations();
+    }
+  }
+
+  Future<void> _loadTranslations() async {
+    final translations = await widget.translationService.translateBatch(widget.tags);
+    if (mounted) {
+      setState(() => _translations = translations);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 14, color: color),
+        Icon(widget.icon, size: 14, color: widget.color),
         const SizedBox(width: 6),
         Expanded(
           child: Wrap(
             spacing: 4,
             runSpacing: 2,
-            children: tags.map((tag) {
-              final translation = isCharacter
-                  ? translationService.translateCharacterSync(tag)
-                  : translationService.translateTagSync(tag);
+            children: widget.tags.map((tag) {
+              final translation = _translations?[tag];
               final displayText = tag.replaceAll('_', ' ');
               return Text(
                 translation != null
                     ? '$displayText ($translation)'
                     : displayText,
-                style: TextStyle(fontSize: 11, color: color),
+                style: TextStyle(fontSize: 11, color: widget.color),
               );
             }).toList(),
           ),
