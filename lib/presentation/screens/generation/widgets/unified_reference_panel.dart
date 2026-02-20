@@ -1750,6 +1750,10 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
       return;
     }
 
+    // 更新使用统计（包括 bundle）
+    final storageService = ref.read(vibeLibraryStorageServiceProvider);
+    await storageService.incrementUsedCount(entry.id);
+
     // 如果是 bundle，提取所有内部 vibes
     if (entry.isBundle) {
       await _addVibesFromBundle(entry);
@@ -1758,10 +1762,6 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
 
     final vibe = entry.toVibeReference();
     notifier.addVibeReferences([vibe]);
-
-    // 更新使用统计
-    final storageService = ref.read(vibeLibraryStorageServiceProvider);
-    await storageService.incrementUsedCount(entry.id);
 
     if (mounted) {
       AppToast.success(context, '已添加: \${entry.displayName}');
@@ -2492,18 +2492,56 @@ class _RecentVibeItem extends StatelessWidget {
               child: ClipRRect(
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(7)),
-                child: entry.hasThumbnail || entry.hasVibeThumbnail
-                    ? Image.memory(
-                        entry.thumbnail ?? entry.vibeThumbnail!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                      )
-                    : Container(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        child: const Center(
-                          child: Icon(Icons.image, size: 24),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // 主缩略图
+                    entry.hasThumbnail || entry.hasVibeThumbnail
+                        ? Image.memory(
+                            entry.thumbnail ?? entry.vibeThumbnail!,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                          )
+                        : Container(
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            child: const Center(
+                              child: Icon(Icons.image, size: 24),
+                            ),
+                          ),
+                    // Bundle 标识
+                    if (entry.isBundle)
+                      Positioned(
+                        top: 2,
+                        right: 2,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withOpacity(0.9),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.layers,
+                                size: 10,
+                                color: theme.colorScheme.onPrimary,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                '${entry.bundledVibeCount}',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.onPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
+                  ],
+                ),
               ),
             ),
             // 名称
