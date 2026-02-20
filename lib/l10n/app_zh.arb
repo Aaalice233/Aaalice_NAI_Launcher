@@ -499,6 +499,7 @@
   "vibe_name": "名称",
   "vibe_strength": "强度",
   "vibe_infoExtracted": "信息提取",
+  "vibe_shiftReplaceHint": "Shift+点击 替换",
 
   "characterRef_title": "角色参考",
   "characterRef_hint": "上传角色参考图来保持角色一致性（仅 V4+ 模型支持）",

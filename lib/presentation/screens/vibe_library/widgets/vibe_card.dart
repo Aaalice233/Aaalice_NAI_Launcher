@@ -588,7 +588,7 @@ class _VibeCardState extends State<VibeCard>
             _ActionButton(
               icon: Icons.send,
               tooltip: context.l10n.vibe_reuseButton,
-              modifierHint: 'Shift+点击 替换', // TODO: 添加国际化支持
+              modifierHint: context.l10n.vibe_shiftReplaceHint,
               onTap: widget.onSendToGeneration,
             ),
           if (widget.onExport != null)

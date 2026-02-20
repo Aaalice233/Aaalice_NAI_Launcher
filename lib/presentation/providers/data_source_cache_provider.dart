@@ -410,8 +410,7 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
       }
 
       // 清除共现数据
-      // TODO: CooccurrenceService.clearAllData() 已移除，现在使用预构建数据库
-      // 如需清除缓存，可使用: await cooccurrenceService._dataSource.clear()
+      // 注意：CooccurrenceService.clearAllData() 已移除，现在使用预构建数据库（只读）
       AppLogger.i(
         '[ProviderLifecycle] clearCache() - cooccurrence data is read-only, skipping clear',
         'DanbooruTagsCacheNotifier',

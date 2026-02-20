@@ -671,6 +671,7 @@
   "vibe_name": "Name",
   "vibe_strength": "Strength",
   "vibe_infoExtracted": "Info Extracted",
+  "vibe_shiftReplaceHint": "Shift+Click to Replace",
 
   "characterRef_title": "Character Reference",
   "characterRef_hint": "Upload character reference images to maintain consistency (V4+ only)",

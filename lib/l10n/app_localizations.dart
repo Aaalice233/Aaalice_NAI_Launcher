@@ -2741,6 +2741,12 @@ abstract class AppLocalizations {
   /// **'Info Extracted'**
   String get vibe_infoExtracted;
 
+  /// No description provided for @vibe_shiftReplaceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Shift+Click to Replace'**
+  String get vibe_shiftReplaceHint;
+
   /// No description provided for @characterRef_title.
   ///
   /// In en, this message translates to:

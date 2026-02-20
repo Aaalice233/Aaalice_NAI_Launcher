@@ -1410,6 +1410,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibe_infoExtracted => 'Info Extracted';
 
   @override
+  String get vibe_shiftReplaceHint => 'Shift+Click to Replace';
+
+  @override
   String get characterRef_title => 'Character Reference';
 
   @override

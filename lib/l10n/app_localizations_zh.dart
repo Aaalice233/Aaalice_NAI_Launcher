@@ -1410,6 +1410,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_infoExtracted => '信息提取';
 
   @override
+  String get vibe_shiftReplaceHint => 'Shift+点击 替换';
+
+  @override
   String get characterRef_title => '角色参考';
 
   @override

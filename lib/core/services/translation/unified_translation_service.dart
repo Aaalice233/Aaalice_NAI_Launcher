@@ -166,7 +166,7 @@ class UnifiedTranslationService {
       }
 
       // 批量存入数据库
-      // TODO: TranslationDataSource 现在是只读的预构建数据库，不再支持写入操作
+      // 注意：TranslationDataSource 现在是只读的预构建数据库，不再支持写入操作
       // 如果需要保存下载的翻译，需要重新设计存储方案
       AppLogger.i('[UnifiedTranslation] Loaded ${allTranslations.length} translations from CSV (read-only mode, skipping save)', 'UnifiedTranslation');
 
