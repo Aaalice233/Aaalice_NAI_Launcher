@@ -299,7 +299,7 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
       // 1. 优先使用统一翻译服务（合并多个数据源）
       String? translation;
 
-      if (translationService != null && translationService.isInitialized) {
+      if (translationService != null) {
         translation = await translationService.getTranslation(tag.tag);
         if (translation != null && translation.isNotEmpty && translation != '0') {
           AppLogger.d('[_injectTranslations] tag="${tag.tag}" found in unified service: "$translation"', 'DanbooruSuggestion');

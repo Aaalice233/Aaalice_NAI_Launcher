@@ -138,7 +138,8 @@ class DatabaseStatusNotifier extends _$DatabaseStatusNotifier {
         // 由于 syncWithHolder() 确保了状态同步，现在可以正常使用
         final db = await lifecycle.acquireConnection();
         try {
-          const tables = ['danbooru_tags', 'translations', 'cooccurrences'];
+          // 只清除 Danbooru 标签表，保留翻译和共现数据
+          const tables = ['danbooru_tags'];
           final stats = <String, int>{};
 
           await db.execute('BEGIN TRANSACTION');
@@ -179,7 +180,7 @@ class DatabaseStatusNotifier extends _$DatabaseStatusNotifier {
           'DatabaseStatusNotifier',
         );
       },
-      tablesToClear: const ['danbooru_tags', 'translations', 'cooccurrences'],
+      tablesToClear: const ['danbooru_tags'],
     );
   }
 }

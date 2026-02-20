@@ -218,12 +218,13 @@ class _DataSourceCacheSettingsState
         ),
         title: const Text('清除标签数据源'),
         content: Text(
-          '确定要清除所有标签数据源吗？\n\n'
+          '确定要清除 Danbooru 标签补全数据吗？\n\n'
           '这将清空以下数据：\n'
-          '• Danbooru 标签补全数据\n'
+          '• Danbooru 标签补全数据\n\n'
+          '以下数据将保留：\n'
           '• 中英文标签翻译\n'
           '• 标签共现关系\n\n'
-          '清除后下次启动时将自动重新加载数据。',
+          '清除后下次启动时将自动重新加载标签数据。',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -1291,7 +1292,7 @@ class _DangerZoneCardState extends State<_DangerZoneCard> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '清除所有标签数据',
+                    '清除标签补全数据',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.error,
                       fontWeight: FontWeight.w600,
