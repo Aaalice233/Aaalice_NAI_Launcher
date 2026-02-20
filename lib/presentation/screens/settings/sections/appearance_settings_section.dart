@@ -38,7 +38,7 @@ class _AppearanceSettingsSectionState
             leading: const Icon(Icons.palette_outlined),
             title: Text(context.l10n.settings_style),
             subtitle: Text(
-              currentTheme == AppStyle.retroWave
+              currentTheme == AppStyle.grungeCollage
                   ? context.l10n.settings_defaultPreset
                   : currentTheme.displayName,
             ),

@@ -128,6 +128,7 @@ dev_dependencies:
 
   path_provider_platform_interface: any
   plugin_platform_interface: any
+  sqlite3: ^2.9.4
 flutter:
   uses-material-design: true
   generate: true
@@ -139,7 +140,7 @@ flutter:
     - assets/data/
     - assets/data/wordlists/
     - assets/sounds/
-    - assets/database/
+    - assets/databases/
 
   fonts:
     - family: LXGW ZhenKai GB

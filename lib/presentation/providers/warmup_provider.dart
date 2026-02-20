@@ -300,10 +300,8 @@ class WarmupNotifier extends _$WarmupNotifier {
         phase: WarmupPhase.quick,
         weight: 1,
         task: () async {
-          // 先执行轻量级检查
+          // 只执行轻量级检查，实际导入在 background 阶段
           await _initCooccurrenceData();
-          // 如果数据缺失，在后台导入
-          await _importCooccurrenceDataInBackground();
         },
       ),
     );
@@ -376,7 +374,19 @@ class WarmupNotifier extends _$WarmupNotifier {
       ),
     );
 
-    // 注意：画师标签拉取在 Background 阶段，避免阻塞主界面
+    // 9. 画师标签拉取（改为预热阶段执行，不再在后台执行）
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_artistTagsFetch',
+        displayName: '加载画师标签',
+        phase: WarmupPhase.quick,
+        weight: 2,
+        timeout: const Duration(seconds: 60),
+        task: _fetchArtistTagsInWarmup,
+      ),
+    );
+
+    // 注意：共现数据导入在 Background 阶段，避免阻塞主界面
 
     // 9. 检查并恢复数据（处理清除缓存后的数据缺失）
     _scheduler.registerTask(
@@ -395,11 +405,12 @@ class WarmupNotifier extends _$WarmupNotifier {
     // 实际执行在进入主界面后
     final backgroundNotifier = ref.read(backgroundTaskNotifierProvider.notifier);
 
-    // 只有画师标签在后台拉取（数据量大，不阻塞主界面）
+    // 共现数据导入（数据量大，不阻塞主界面）
+    // 使用独立的任务ID，但UI组件支持显示多种任务
     backgroundNotifier.registerTask(
-      'artist_tags_fetch',
-      '画师标签同步',
-      () => _fetchArtistTagsInBackground(),
+      'cooccurrence_import',
+      '共现数据导入',
+      () => _importCooccurrenceDataInBackground(),
     );
   }
 
@@ -473,33 +484,45 @@ class WarmupNotifier extends _$WarmupNotifier {
   }
 
   /// 后台导入共现数据（解决首次启动或清除缓存后数据缺失问题）
+  ///
+  /// 使用 'artist_tags_fetch' 任务ID复用画师标签的进度UI
+  /// 因为画师标签已移到预热阶段执行
   Future<void> _importCooccurrenceDataInBackground() async {
-    AppLogger.i('开始后台导入共现数据...', 'Warmup');
+    AppLogger.i('开始后台初始化共现数据...', 'Background');
+
+    final notifier = ref.read(backgroundTaskNotifierProvider.notifier);
 
     try {
       final cooccurrenceService = await ref.watch(cooccurrenceServiceProvider.future);
 
-      // 检查数据是否已存在
-      final isReady = await cooccurrenceService.initializeUnified();
-
-      if (isReady) {
-        AppLogger.i('共现数据已存在，跳过导入', 'Warmup');
-        return;
-      }
-
-      AppLogger.i('共现数据缺失，开始后台导入...', 'Warmup');
-
-      // 执行后台导入
-      await cooccurrenceService.performBackgroundImport(
-        onProgress: (progress, message) {
-          AppLogger.d('共现数据导入进度: $progress - $message', 'Warmup');
-        },
+      // 注册后台任务
+      notifier.updateProgress(
+        'cooccurrence_import',
+        0.0,
+        message: '准备初始化共现数据...',
       );
 
-      AppLogger.i('共现数据后台导入完成', 'Warmup');
+      // 预打包数据库，只需初始化
+      final isReady = await cooccurrenceService.initialize();
+
+      if (isReady) {
+        notifier.updateProgress(
+          'cooccurrence_import',
+          1.0,
+          message: '共现数据已就绪',
+        );
+        AppLogger.i('共现数据后台初始化完成', 'Background');
+      } else {
+        AppLogger.w('共现数据初始化返回 false', 'Background');
+      }
     } catch (e, stack) {
-      AppLogger.e('共现数据后台导入失败', e, stack, 'Warmup');
-      // 导入失败不阻塞启动，后续使用时会重试
+      AppLogger.e('共现数据后台初始化失败', e, stack, 'Background');
+      notifier.updateProgress(
+        'cooccurrence_import',
+        0.0,
+        message: '共现数据初始化失败',
+      );
+      // 初始化失败不阻塞启动，后续使用时会重试
     }
   }
 
@@ -568,22 +591,21 @@ class WarmupNotifier extends _$WarmupNotifier {
     AppLogger.i('开始初始化共现数据...', 'Warmup');
 
     try {
-      final manager = await ref.watch(databaseManagerProvider.future);
+      final cooccurrenceService = await ref.watch(cooccurrenceServiceProvider.future);
+      
+      // 初始化共现服务
+      final isReady = await cooccurrenceService.initialize();
 
-      // 等待新数据库管理器初始化
-      await manager.initialized;
-
-      // 使用数据库统计获取共现记录数
-      final stats = await manager.getStatistics();
-      final tableStats = stats['tables'] as Map<String, int>? ?? {};
-      final count = tableStats['cooccurrences'] ?? 0;
-
-      AppLogger.i('共现数据记录数: $count', 'Warmup');
-
-      if (count == 0) {
-        AppLogger.w('共现数据为空，需要后台导入', 'Warmup');
-      } else {
+      if (isReady) {
+        final count = await cooccurrenceService.getCount();
         AppLogger.i('共现数据已就绪（$count 条记录）', 'Warmup');
+      } else {
+        final count = await cooccurrenceService.getCount();
+        if (count > 0) {
+          AppLogger.w('共现数据不完整（$count 条记录），将在后台继续导入', 'Warmup');
+        } else {
+          AppLogger.i('共现数据为空，将在后台导入', 'Warmup');
+        }
       }
     } on StateError catch (e) {
       // 数据库正在恢复中，不阻塞启动
@@ -820,52 +842,24 @@ class WarmupNotifier extends _$WarmupNotifier {
     }
   }
 
-  /// 拉取画师标签
+  /// 拉取画师标签（预热阶段同步执行）
   ///
-  /// 使用新的 fetchArtistTags 方法，显示页数和数量（不是百分比）
-  /// 进度显示在右下角的独立进度条组件上
-  Future<void> _fetchArtistTagsInBackground() async {
-    AppLogger.i('Starting artist tags fetch...', 'Background');
-
-    final service = await ref.read(danbooruTagsLazyServiceProvider.future);
-    final notifier = ref.read(backgroundTaskNotifierProvider.notifier);
+  /// 使用 Provider 的 syncArtists 方法，在预热阶段同步完成
+  /// 由于有热度限制，数据量不大，不会阻塞太久
+  Future<void> _fetchArtistTagsInWarmup() async {
+    AppLogger.i('Starting artist tags fetch in warmup phase...', 'Warmup');
 
     try {
-      // 检查是否需要刷新
-      final shouldFetch = await service.shouldFetchArtistTags();
-      if (!shouldFetch) {
-        AppLogger.i('Artist tags are up to date, skipping fetch', 'Background');
-        notifier.updateProgress(
-          'artist_tags_fetch',
-          1.0,
-          message: '画师标签已是最新',
-        );
-        return;
-      }
-
-      // 初始状态
-      notifier.updateProgress(
-        'artist_tags_fetch',
-        0.0,
-        message: '准备拉取画师标签...',
+      // 使用 Provider 的 syncArtists 方法，确保完成后状态更新
+      // 这会正确处理重复拉取的检查，并在完成后更新 Provider 状态
+      await ref.read(danbooruTagsCacheNotifierProvider.notifier).syncArtists(
+        force: false, // 如果有数据则跳过
       );
 
-      // 使用新的 fetchArtistTags 方法
-      await service.fetchArtistTags(
-        onProgress: (currentPage, importedCount, message) {
-          // 更新后台任务进度（不显示进度条，因为不知道总数）
-          notifier.updateProgress(
-            'artist_tags_fetch',
-            0, // 不确定进度，使用循环动画
-            message: message,
-          );
-        },
-        maxPages: 200, // 画师标签量大，最多拉取20万条
-      );
-
-      AppLogger.i('Artist tags fetch completed', 'Background');
+      AppLogger.i('Artist tags fetch completed in warmup phase', 'Warmup');
     } catch (e, stack) {
-      AppLogger.e('Artist tags fetch error: $e', e, stack, 'Background');
+      AppLogger.e('Artist tags fetch error in warmup phase: $e', e, stack, 'Warmup');
+      // 预热阶段失败不阻塞，进入主页后可能重试
     }
   }
 

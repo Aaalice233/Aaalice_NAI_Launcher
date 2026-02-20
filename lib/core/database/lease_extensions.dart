@@ -46,10 +46,10 @@ abstract class LeaseBasedDataSource {
       ConnectionLease? lease;
 
       try {
-        // 获取连接租借
+        // 获取连接租借（大数据操作需要更长超时）
         lease = await acquireLease(
           operationId: operationId,
-          timeout: const Duration(seconds: 5),
+          timeout: const Duration(seconds: 30),
         );
 
         // 执行操作
@@ -215,18 +215,36 @@ class SimpleLeaseHelper {
           dataSourceName,
         );
         await Future.delayed(Duration(milliseconds: 200 * attempt));
-      } catch (e) {
+      } catch (e, stack) {
         final errorStr = e.toString().toLowerCase();
+        // 记录所有错误详情以便诊断
+        AppLogger.e(
+          '[$operationId] Attempt ${attempt + 1} failed with error: $e',
+          e,
+          stack,
+          dataSourceName,
+        );
+        
         if (errorStr.contains('database_closed') ||
             errorStr.contains('databaseexception') ||
-            errorStr.contains('bad state')) {
+            errorStr.contains('bad state') ||
+            errorStr.contains('timeout') ||
+            errorStr.contains('busy') ||
+            errorStr.contains('locked')) {
           attempt++;
           AppLogger.w(
-            '[$operationId] Database error, retrying ($attempt/$maxRetries): $e',
+            '[$operationId] Retrying ($attempt/$maxRetries) after error: ${e.toString().split('\n').first}',
             dataSourceName,
           );
-          await Future.delayed(Duration(milliseconds: 200 * attempt));
+          await Future.delayed(Duration(milliseconds: 500 * attempt));
         } else {
+          // 未知错误类型，记录后重新抛出
+          AppLogger.e(
+            '[$operationId] Unrecoverable error, giving up',
+            e,
+            stack,
+            dataSourceName,
+          );
           rethrow;
         }
       } finally {

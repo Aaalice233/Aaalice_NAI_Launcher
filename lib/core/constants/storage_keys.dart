@@ -182,13 +182,6 @@ class StorageKeys {
       'enable_cooccurrence_recommendation';
 
   // Danbooru 画师同步设置
-  static const String danbooruSyncArtists = 'danbooru_sync_artists';
-  static const String danbooruArtistsLastUpdate = 'danbooru_artists_last_update';
-  static const String danbooruArtistsSyncFailed = 'danbooru_artists_sync_failed';
-  static const String danbooruArtistsTotal = 'danbooru_artists_total';
-  static const String danbooruArtistsMinPostCount = 'danbooru_artists_min_post_count';
-  static const String danbooruArtistsSyncCheckpoint = 'danbooru_artists_sync_checkpoint';
-
   // 分类阈值配置（V2新增）
   static const String danbooruCategoryThresholds = 'danbooru_category_thresholds';
   
@@ -201,7 +194,6 @@ class StorageKeys {
 
   // 共现数据刷新间隔
   static const String cooccurrenceRefreshInterval = 'cooccurrence_refresh_interval';
-  static const String cooccurrenceLastUpdate = 'cooccurrence_last_update';
 
   // 数据源后台刷新相关
   static const String pendingDataSourceRefresh = 'pending_data_source_refresh';

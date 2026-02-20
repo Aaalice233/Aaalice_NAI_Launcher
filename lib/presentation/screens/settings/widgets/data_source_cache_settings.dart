@@ -423,6 +423,42 @@ class _StatusCard extends StatelessWidget {
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
+                        // 预构建数据库统计
+                        if (isLoaded && 
+                            (state.translationCount > 0 || state.cooccurrenceCount > 0)) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.translate,
+                                size: 14,
+                                color: theme.colorScheme.outline,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${_formatNumber(state.translationCount)} 翻译',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.outline,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Icon(
+                                Icons.auto_awesome,
+                                size: 14,
+                                color: theme.colorScheme.outline,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${_formatNumber(state.cooccurrenceCount)} 共现',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.outline,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),

@@ -123,17 +123,11 @@ class CacheClearService {
       StorageKeys.danbooruMetaThreshold,
       StorageKeys.danbooruCategoryThresholds,
       // 画师同步相关
-      StorageKeys.danbooruSyncArtists,
-      StorageKeys.danbooruArtistsLastUpdate,
-      StorageKeys.danbooruArtistsTotal,
-      StorageKeys.danbooruArtistsSyncFailed,
-      StorageKeys.danbooruArtistsSyncCheckpoint,
-      StorageKeys.danbooruArtistsMinPostCount,
+      StorageKeys.danbooruArtistThreshold,
       // 翻译数据源相关
       StorageKeys.hfTranslationLastUpdate,
       StorageKeys.hfTranslationRefreshInterval,
       // 共现数据相关
-      StorageKeys.cooccurrenceLastUpdate,
       StorageKeys.cooccurrenceRefreshInterval,
       // 数据源后台刷新标记
       StorageKeys.pendingDataSourceRefresh,

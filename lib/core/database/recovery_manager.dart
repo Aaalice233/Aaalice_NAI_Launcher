@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -51,7 +50,7 @@ class RecoveryManager {
   /// 获取单例实例
   static RecoveryManager get instance => _instance;
 
-  static const String _prebuiltDbAsset = 'assets/database/prebuilt_tags.db.gz';
+  // 预打包数据库已移除，所有数据通过 API 或 CSV 导入
   static const String _backupSuffix = '.backup';
   static const String _corruptedSuffix = '.corrupted';
 
@@ -67,8 +66,7 @@ class RecoveryManager {
   ///
   /// 按优先级尝试恢复策略：
   /// 1. 尝试从备份恢复
-  /// 2. 尝试从预构建数据库恢复
-  /// 3. 重建数据库
+  /// 2. 重建数据库（预打包数据库已移除）
   ///
   /// 返回：恢复结果
   Future<RecoveryResult> autoRecover() async {
@@ -85,14 +83,7 @@ class RecoveryManager {
     }
     AppLogger.w('Backup restore failed: ${backupResult.message}', 'RecoveryManager');
 
-    // 2. 尝试从预构建数据库恢复
-    final prebuiltResult = await restoreFromPrebuilt();
-    if (prebuiltResult.success) {
-      return prebuiltResult;
-    }
-    AppLogger.w('Prebuilt restore failed: ${prebuiltResult.message}', 'RecoveryManager');
-
-    // 3. 重建数据库
+    // 2. 重建数据库（预打包数据库已移除，所有数据通过 API/CSV 导入）
     return rebuild();
   }
 
@@ -145,63 +136,6 @@ class RecoveryManager {
 
   /// 从 bundled assets 恢复数据库
   ///
-  /// 从应用资源中复制预构建的数据库
-  ///
-  /// 返回：恢复结果
-  Future<RecoveryResult> restoreFromPrebuilt() async {
-    if (_dbPath == null) {
-      return RecoveryResult.failure('RecoveryManager not initialized');
-    }
-
-    AppLogger.i('Attempting to restore from prebuilt database', 'RecoveryManager');
-
-    try {
-      // 检查 asset 是否存在
-      try {
-        await rootBundle.load(_prebuiltDbAsset);
-      } catch (e) {
-        return RecoveryResult.failure('Prebuilt database asset not found: $_prebuiltDbAsset');
-      }
-
-      final dbFile = File(_dbPath!);
-
-      // 备份损坏的数据库（如果存在）
-      if (await dbFile.exists()) {
-        final corruptedPath = '$_dbPath$_corruptedSuffix.${DateTime.now().millisecondsSinceEpoch}';
-        await dbFile.copy(corruptedPath);
-        await dbFile.delete();
-      }
-
-      // 从 asset 复制（支持 gzip 压缩）
-      final bytes = await rootBundle.load(_prebuiltDbAsset);
-      final data = bytes.buffer.asUint8List();
-
-      // 检查是否需要解压（.gz 结尾）
-      Uint8List dbData;
-      if (_prebuiltDbAsset.endsWith('.gz')) {
-        AppLogger.d('Decompressing gzip database...', 'RecoveryManager');
-        dbData = Uint8List.fromList(gzip.decode(data));
-      } else {
-        dbData = data;
-      }
-
-      await dbFile.writeAsBytes(dbData);
-
-      // 重置连接池（使用新实例）
-      await ConnectionPoolHolder.reset(dbPath: _dbPath!);
-
-      AppLogger.i('Database restored from prebuilt successfully', 'RecoveryManager');
-      return RecoveryResult.success('Database restored from prebuilt', {
-        'dbPath': _dbPath,
-        'method': 'prebuilt',
-        'source': _prebuiltDbAsset,
-      });
-    } catch (e, stack) {
-      AppLogger.e('Failed to restore from prebuilt', e, stack, 'RecoveryManager');
-      return RecoveryResult.failure('Failed to restore from prebuilt: $e');
-    }
-  }
-
   /// 从备份恢复数据库
   ///
   /// 返回：恢复结果

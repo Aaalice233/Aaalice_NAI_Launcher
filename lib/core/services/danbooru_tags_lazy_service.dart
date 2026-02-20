@@ -35,8 +35,8 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   static const String _tagsEndpoint = '/tags.json';
   static const int _pageSize = 1000;
   static const int _maxPages = 200;
-  static const int _concurrentRequests = 4;
-  static const int _requestIntervalMs = 100;
+  static const int _concurrentRequests = 2;  // 降低并发数以减少429错误
+  static const int _requestIntervalMs = 500; // 增加请求间隔到500ms
   static const String _cacheDirName = 'tag_cache';
   static const String _metaFileName = 'danbooru_tags_meta.json';
 
@@ -482,11 +482,9 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   /// - 使用分页和并发控制避免限流
   /// - 分批写入数据库，避免内存溢出
   /// - 进度回调显示当前页数和数量（不显示总数，因为画师标签数量不固定）
-  /// - 支持断点续传：每轮写入后保存断点，崩溃后精确恢复
   Future<void> fetchArtistTags({
     required void Function(int currentPage, int importedCount, String message) onProgress,
     int maxPages = 200, // 画师标签量大，最多拉取20万条
-    bool resume = true, // 是否尝试断点续传
   }) async {
     AppLogger.i(
       'Starting artist tags fetch with threshold >= $_artistThreshold...',
@@ -496,40 +494,14 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     _isRefreshing = true;
     _isCancelled = false;
 
-    // 检查断点续传
     var currentPage = 1;
     var importedCount = 0;
-
-    if (resume) {
-      final prefs = await SharedPreferences.getInstance();
-      // 处理可能的类型不匹配问题（之前版本存的是字符串）
-      int? lastPage;
-
-      // 先获取原始值，避免类型转换错误
-      final rawValue = prefs.get(StorageKeys.danbooruArtistsSyncCheckpoint);
-      if (rawValue is int) {
-        lastPage = rawValue;
-      } else if (rawValue is String) {
-        lastPage = int.tryParse(rawValue);
-        // 清除不兼容的数据，下次会存储为 int
-        await prefs.remove(StorageKeys.danbooruArtistsSyncCheckpoint);
-      }
-      // rawValue 为 null 或其他类型时，lastPage 保持为 null
-
-      if (lastPage != null && lastPage > 0) {
-        currentPage = lastPage + 1;
-        importedCount = await _tagDataSource.getCount(category: 1);
-        AppLogger.i('Resuming artist tags fetch from page $currentPage (last successful: $lastPage)', 'DanbooruTagsLazy');
-        onProgress(currentPage, importedCount, '恢复拉取：从第 $currentPage 页继续，已导入 $importedCount 条');
-      }
-    }
-
-    const batchInsertThreshold = 4000; // 每轮并发写入一次（与 _pageSize * _concurrentRequests 一致）
+    const batchInsertThreshold = 2000; // 每轮并发写入一次
     final records = <LocalTag>[];
 
     try {
       while (currentPage <= maxPages && !_isCancelled) {
-        // 拉取一页画师标签（4页并发）
+        // 拉取画师标签（2页并发）
         const batchSize = _concurrentRequests;
         final remainingPages = maxPages - currentPage + 1;
         final actualBatchSize = batchSize < remainingPages ? batchSize : remainingPages;
@@ -573,12 +545,8 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
           importedCount += records.length;
           records.clear();
 
-          // 保存断点：记录最后成功拉取的页码
+          // 进度回调：显示当前页数和数量
           final lastSuccessfulPage = currentPage + actualBatchSize - 1;
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setInt(StorageKeys.danbooruArtistsSyncCheckpoint, lastSuccessfulPage);
-
-          // 进度回调：显示当前页数和数量（不显示总页数）
           onProgress(
             lastSuccessfulPage,
             importedCount,
@@ -618,16 +586,8 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
         '画师标签导入完成，共 $importedCount 条',
       );
 
-      // 完成后清除断点
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(StorageKeys.danbooruArtistsSyncCheckpoint);
-
-      // 保存更新时间戳
-      await _saveArtistMeta(importedCount);
-
       AppLogger.i('Artist tags fetch completed: $importedCount tags', 'DanbooruTagsLazy');
     } catch (e, stack) {
-      // 异常时断点已保存，无需额外处理
       AppLogger.e('Failed to fetch artist tags', e, stack, 'DanbooruTagsLazy');
       rethrow;
     } finally {
@@ -781,68 +741,91 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     return tags;
   }
 
-  /// 按类别和阈值拉取标签页
+  /// 按类别和阈值拉取标签页（带429错误重试）
   Future<List<LocalTag>?> _fetchTagsPageWithCategory({
     required int page,
     required int category,
     required int minPostCount,
+    int maxRetries = 3,
   }) async {
-    try {
-      final queryParams = <String, dynamic>{
-        'search[order]': 'count',
-        'search[hide_empty]': 'true',
-        'search[category]': category.toString(),
-        'limit': _pageSize,
-        'page': page,
-      };
+    var retries = 0;
+    
+    while (retries <= maxRetries) {
+      try {
+        final queryParams = <String, dynamic>{
+          'search[order]': 'count',
+          'search[hide_empty]': 'true',
+          'search[category]': category.toString(),
+          'limit': _pageSize,
+          'page': page,
+        };
 
-      if (minPostCount > 0) {
-        queryParams['search[post_count]'] = '>=$minPostCount';
-      }
+        if (minPostCount > 0) {
+          queryParams['search[post_count]'] = '>=$minPostCount';
+        }
 
-      final response = await _dio.get(
-        '$_baseUrl$_tagsEndpoint',
-        queryParameters: queryParams,
-        options: Options(
-          receiveTimeout: const Duration(seconds: 30),
-          sendTimeout: const Duration(seconds: 10),
-          headers: {
-            'Accept': 'application/json',
-            'User-Agent': 'NAI-Launcher/1.0',
-          },
-        ),
-      );
+        final response = await _dio.get(
+          '$_baseUrl$_tagsEndpoint',
+          queryParameters: queryParams,
+          options: Options(
+            receiveTimeout: const Duration(seconds: 30),
+            sendTimeout: const Duration(seconds: 10),
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'NAI-Launcher/1.0',
+            },
+          ),
+        );
 
-      if (response.data is List) {
-        final tags = <LocalTag>[];
-        for (final item in response.data as List) {
-          if (item is Map<String, dynamic>) {
-            // 关键修复：使用传入的 category 参数，而不是依赖 API 返回的 category 字段
-            // 因为 API 返回的数据中 category 字段可能为 null 或错误
-            final tag = LocalTag(
-              tag: (item['name'] as String?)?.toLowerCase() ?? '',
-              category: category, // 使用传入的 category，而不是 item['category']
-              count: item['post_count'] as int? ?? 0,
-            );
-            if (tag.tag.isNotEmpty) {
-              tags.add(tag);
+        if (response.data is List) {
+          final tags = <LocalTag>[];
+          for (final item in response.data as List) {
+            if (item is Map<String, dynamic>) {
+              // 关键修复：使用传入的 category 参数，而不是依赖 API 返回的 category 字段
+              // 因为 API 返回的数据中 category 字段可能为 null 或错误
+              final tag = LocalTag(
+                tag: (item['name'] as String?)?.toLowerCase() ?? '',
+                category: category, // 使用传入的 category，而不是 item['category']
+                count: item['post_count'] as int? ?? 0,
+              );
+              if (tag.tag.isNotEmpty) {
+                tags.add(tag);
+              }
             }
           }
+          return tags;
         }
-        return tags;
-      }
 
-      return [];
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 404) {
         return [];
+      } on DioException catch (e) {
+        // 404 表示没有更多数据，直接返回空列表
+        if (e.response?.statusCode == 404) {
+          return [];
+        }
+        
+        // 429 限流错误，使用指数退避重试
+        if (e.response?.statusCode == 429 && retries < maxRetries) {
+          retries++;
+          final delayMs = 1000 * (1 << retries); // 指数退避: 2s, 4s, 8s
+          AppLogger.w(
+            'Rate limited (429) on category $category page $page, '
+            'retry $retries/$maxRetries after ${delayMs}ms',
+            'DanbooruTagsLazy',
+          );
+          await Future.delayed(Duration(milliseconds: delayMs));
+          continue;
+        }
+        
+        // 其他错误或重试耗尽
+        AppLogger.w('Failed to fetch category $category page $page: $e', 'DanbooruTagsLazy');
+        return null;
+      } catch (e) {
+        AppLogger.w('Failed to fetch category $category page $page: $e', 'DanbooruTagsLazy');
+        return null;
       }
-      AppLogger.w('Failed to fetch category $category page $page: $e', 'DanbooruTagsLazy');
-      return null;
-    } catch (e) {
-      AppLogger.w('Failed to fetch category $category page $page: $e', 'DanbooruTagsLazy');
-      return null;
     }
+    
+    return null;
   }
 
   Future<void> _loadMeta() async {
@@ -962,10 +945,8 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     await prefs.remove(StorageKeys.danbooruTagsLastUpdate);
     await prefs.remove(StorageKeys.danbooruTagsRefreshIntervalDays);
 
-    // 清除画师标签元数据（断点续传和上次更新时间）
-    await prefs.remove(StorageKeys.danbooruArtistsSyncCheckpoint);
-    await prefs.remove(StorageKeys.danbooruArtistsLastUpdate);
-    await prefs.remove(StorageKeys.danbooruArtistsTotal);
+    // 清除画师标签相关阈值
+    await prefs.remove(StorageKeys.danbooruArtistThreshold);
 
     // 删除元数据文件（关键：否则重启后会从文件加载旧的 _lastUpdate）
     try {
@@ -1068,82 +1049,14 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     _isCancelled = true;
   }
 
-  /// 检查是否应该拉取画师标签
-  ///
-  /// 返回 true 的情况：
-  /// - 有未完成的断点续传
-  /// - 数据为空
-  /// - 数据已过期（超过7天）
-  Future<bool> shouldFetchArtistTags() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-
-      // 1. 检查是否有未完成的断点续传
-      int? checkpoint;
-      final checkpointRaw = prefs.get(StorageKeys.danbooruArtistsSyncCheckpoint);
-      if (checkpointRaw is int) {
-        checkpoint = checkpointRaw;
-      } else if (checkpointRaw is String) {
-        checkpoint = int.tryParse(checkpointRaw);
-        await prefs.remove(StorageKeys.danbooruArtistsSyncCheckpoint);
-      }
-      if (checkpoint != null && checkpoint > 0) {
-        AppLogger.i('Artist tags has incomplete sync at page $checkpoint, need to resume', 'DanbooruTagsLazy');
-        return true;
-      }
-
-      // 2. 检查数据是否过期
-      int? lastUpdateMillis;
-      final lastUpdateRaw = prefs.get(StorageKeys.danbooruArtistsLastUpdate);
-      if (lastUpdateRaw is int) {
-        lastUpdateMillis = lastUpdateRaw;
-      } else if (lastUpdateRaw is String) {
-        lastUpdateMillis = int.tryParse(lastUpdateRaw);
-        await prefs.remove(StorageKeys.danbooruArtistsLastUpdate);
-      }
-      final existingCount = await _tagDataSource.getCount(category: 1);
-
-      // 数据为空，需要拉取
-      if (existingCount == 0) {
-        AppLogger.i('Artist tags are empty, need to fetch', 'DanbooruTagsLazy');
-        return true;
-      }
-
-      // 超过7天未更新，需要刷新
-      if (lastUpdateMillis != null) {
-        final lastUpdate = DateTime.fromMillisecondsSinceEpoch(lastUpdateMillis);
-        final daysSinceUpdate = DateTime.now().difference(lastUpdate).inDays;
-        if (daysSinceUpdate >= 7) {
-          AppLogger.i('Artist tags expired (${daysSinceUpdate}d ago), need refresh', 'DanbooruTagsLazy');
-          return true;
-        }
-      }
-
-      // 数据已是最新
-      AppLogger.i('Artist tags are up to date ($existingCount records)', 'DanbooruTagsLazy');
-      return false;
-    } catch (e) {
-      AppLogger.w('Failed to check artist tags refresh status: $e', 'DanbooruTagsLazy');
-      return true;
-    }
-  }
-
-  /// 保存画师标签更新时间
-  Future<void> _saveArtistMeta(int totalArtists) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final now = DateTime.now();
-      await prefs.setInt(StorageKeys.danbooruArtistsLastUpdate, now.millisecondsSinceEpoch);
-      await prefs.setInt(StorageKeys.danbooruArtistsTotal, totalArtists);
-      AppLogger.i('Artist tags meta saved: lastUpdate=$now, total=$totalArtists', 'DanbooruTagsLazy');
-    } catch (e) {
-      AppLogger.w('Failed to save artist tags meta: $e', 'DanbooruTagsLazy');
-    }
-  }
-
-  /// 获取当前标签数量
+  /// 获取当前标签数量（所有类别）
   Future<int> getTagCount() async {
     return await _tagDataSource.getCount();
+  }
+
+  /// 获取指定类别的标签数量
+  Future<int> getTagCountByCategory(int category) async {
+    return await _tagDataSource.getCount(category: category);
   }
 
   /// 获取标签分类统计

@@ -1,6 +1,8 @@
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
 import '../../utils/app_logger.dart';
+import '../asset_database_manager.dart';
 import '../data_source.dart';
-import '../lease_extensions.dart';
 import '../utils/lru_cache.dart';
 
 /// 翻译记录
@@ -16,22 +18,6 @@ class TranslationRecord {
     this.source = 'unknown',
     this.lastAccessed,
   });
-
-  Map<String, dynamic> toMap() => {
-        'en_tag': enTag,
-        'zh_translation': zhTranslation,
-        'source': source,
-        'last_accessed': lastAccessed,
-      };
-
-  factory TranslationRecord.fromMap(Map<String, dynamic> map) {
-    return TranslationRecord(
-      enTag: map['en_tag'] as String,
-      zhTranslation: map['zh_translation'] as String,
-      source: map['source'] as String? ?? 'unknown',
-      lastAccessed: map['last_accessed'] as int?,
-    );
-  }
 }
 
 /// 翻译匹配结果
@@ -47,29 +33,41 @@ class TranslationMatch {
   });
 }
 
-/// 翻译数据源
+/// 翻译数据源（V2 - 使用预打包数据库）
 ///
-/// 管理标签翻译数据的查询和缓存。
-/// 使用 LRU 缓存策略，最大缓存 1000 条翻译记录。
-///
-/// 新架构：使用 ConnectionLease 连接生命周期管理
-class TranslationDataSource extends BaseDataSource {
-  static const int _maxCacheSize = 1000;
-  static const String _tableName = 'translations';
-
+/// 从预打包的 SQLite 数据库读取翻译数据，不再支持写入。
+/// 使用 LRU 缓存策略，最大缓存 2000 条翻译记录。
+class TranslationDataSource {
+  static const int _maxCacheSize = 2000;
+  
   final LRUCache<String, String> _cache = LRUCache(maxSize: _maxCacheSize);
+  
+  Database? _db;
+  bool _initialized = false;
 
-  // 租借助手（新架构）
-  final SimpleLeaseHelper _leaseHelper = SimpleLeaseHelper('TranslationDataSource');
-
-  @override
+  /// 数据源名称
   String get name => 'translation';
 
-  @override
-  DataSourceType get type => DataSourceType.translation;
-
-  @override
-  Set<String> get dependencies => {}; // 无依赖
+  /// 初始化数据源
+  ///
+  /// 打开预打包的翻译数据库（只读）
+  Future<void> initialize() async {
+    if (_initialized) return;
+    
+    AppLogger.i('Initializing TranslationDataSource...', 'TranslationDS');
+    
+    try {
+      _db = await AssetDatabaseManager.instance.openTranslationDatabase();
+      _initialized = true;
+      
+      // 验证数据
+      final count = await getCount();
+      AppLogger.i('Translation data source initialized with $count records', 'TranslationDS');
+    } catch (e, stack) {
+      AppLogger.e('Failed to initialize TranslationDataSource', e, stack, 'TranslationDS');
+      rethrow;
+    }
+  }
 
   /// 查询单个翻译
   ///
@@ -78,6 +76,7 @@ class TranslationDataSource extends BaseDataSource {
   /// 3. 写入缓存
   Future<String?> query(String enTag) async {
     if (enTag.isEmpty) return null;
+    if (!_initialized) await initialize();
 
     final normalizedTag = enTag.toLowerCase().trim();
 
@@ -88,7 +87,7 @@ class TranslationDataSource extends BaseDataSource {
       return cached;
     }
 
-    // 2. 查询数据库
+    // 2. 查询数据库（预打包数据库使用 tags + translations 表结构）
     final translation = await _queryFromDb(normalizedTag);
 
     // 3. 写入缓存
@@ -103,6 +102,10 @@ class TranslationDataSource extends BaseDataSource {
   ///
   /// 优先从缓存获取，缓存未命中则查询数据库
   Future<Map<String, String>> queryBatch(List<String> enTags) async {
+    // 空列表直接返回空结果，无需初始化
+    if (enTags.isEmpty) return {};
+    if (!_initialized) await initialize();
+    
     final result = <String, String>{};
     final missingTags = <String>[];
 
@@ -137,228 +140,119 @@ class TranslationDataSource extends BaseDataSource {
   /// [limit] 返回结果数量限制
   /// [matchTag] 是否匹配标签名
   /// [matchTranslation] 是否匹配翻译文本
-  ///
-  /// 使用新架构：ConnectionLease 连接生命周期管理
   Future<List<TranslationMatch>> search(
     String query, {
     int limit = 20,
     bool matchTag = true,
     bool matchTranslation = true,
   }) async {
-    return await _leaseHelper.execute(
-      'search',
-      (db) async {
-        if (query.isEmpty) return <TranslationMatch>[];
+    if (query.isEmpty) return [];
+    if (!_initialized) await initialize();
 
-        final results = <TranslationMatch>[];
-        final lowerQuery = query.toLowerCase();
+    final results = <TranslationMatch>[];
+    final lowerQuery = query.toLowerCase();
 
-        if (matchTag) {
-          final tagResults = await db.rawQuery(
-            'SELECT en_tag, zh_translation FROM $_tableName '
-            'WHERE en_tag LIKE ? ORDER BY en_tag LIMIT ?',
-            ['%$lowerQuery%', limit],
-          );
+    // 从 tags 表和 translations 表联合查询
+    if (matchTag) {
+      final tagResults = await _db!.rawQuery(
+        '''
+        SELECT t.name as tag, tr.translation 
+        FROM tags t 
+        LEFT JOIN translations tr ON t.id = tr.tag_id AND tr.language = 'zh'
+        WHERE t.name LIKE ? 
+        ORDER BY t.count DESC 
+        LIMIT ?
+        ''',
+        ['%$lowerQuery%', limit],
+      );
 
-          for (final row in tagResults) {
-            results.add(TranslationMatch(
-              tag: row['en_tag'] as String,
-              translation: row['zh_translation'] as String,
-              score: _calculateMatchScore(
-                row['en_tag'] as String,
-                lowerQuery,
-                isTagMatch: true,
-              ),
-            ),
-          );
-          }
+      for (final row in tagResults) {
+        results.add(TranslationMatch(
+          tag: row['tag'] as String,
+          translation: (row['translation'] ?? '') as String,
+          score: _calculateMatchScore(row['tag'] as String, lowerQuery, isTagMatch: true),
+        ),);
+      }
+    }
+
+    if (matchTranslation) {
+      final transResults = await _db!.rawQuery(
+        '''
+        SELECT t.name as tag, tr.translation
+        FROM tags t
+        JOIN translations tr ON t.id = tr.tag_id
+        WHERE tr.language = 'zh' AND tr.translation LIKE ?
+        ORDER BY t.count DESC
+        LIMIT ?
+        ''',
+        ['%$query%', limit],
+      );
+
+      for (final row in transResults) {
+        final tag = row['tag'] as String;
+        // 避免重复
+        if (!results.any((r) => r.tag == tag)) {
+          results.add(TranslationMatch(
+            tag: tag,
+            translation: row['translation'] as String,
+            score: _calculateMatchScore(row['translation'] as String, query, isTagMatch: false),
+          ),);
         }
+      }
+    }
 
-        if (matchTranslation) {
-          final transResults = await db.rawQuery(
-            'SELECT en_tag, zh_translation FROM $_tableName '
-            'WHERE zh_translation LIKE ? ORDER BY zh_translation LIMIT ?',
-            ['%$query%', limit],
-          );
+    // 按相关度排序
+    results.sort((a, b) => b.score.compareTo(a.score));
 
-          for (final row in transResults) {
-            final tag = row['en_tag'] as String;
-            // 避免重复
-            if (!results.any((r) => r.tag == tag)) {
-              results.add(TranslationMatch(
-                tag: tag,
-                translation: row['zh_translation'] as String,
-                score: _calculateMatchScore(
-                  row['zh_translation'] as String,
-                  query,
-                  isTagMatch: false,
-                ),
-              ),
-            );
-            }
-          }
-        }
-
-        // 按相关度排序
-        results.sort((a, b) => b.score.compareTo(a.score));
-
-        return results.take(limit).toList();
-      },
-    );
+    return results.take(limit).toList();
   }
 
   /// 获取翻译总数
   Future<int> getCount() async {
-    return await _leaseHelper.execute(
-      'getCount',
-      (db) async {
-        final result = await db.rawQuery(
-          'SELECT COUNT(*) as count FROM $_tableName',
-        );
-        return (result.first['count'] as num?)?.toInt() ?? 0;
-      },
+    if (!_initialized) await initialize();
+    
+    final result = await _db!.rawQuery(
+      'SELECT COUNT(*) as count FROM translations WHERE language = ?',
+      ['zh'],
     );
+    return (result.first['count'] as num?)?.toInt() ?? 0;
   }
 
-  /// 插入或更新翻译记录
-  ///
-  /// 使用新架构：ConnectionLease 连接生命周期管理
-  Future<void> upsert(TranslationRecord record) async {
-    return await _leaseHelper.execute(
-      'upsert',
-      (db) async {
-        // 使用 INSERT OR REPLACE 语法
-        await db.rawInsert(
-          'INSERT OR REPLACE INTO $_tableName (en_tag, zh_translation, source, last_accessed) VALUES (?, ?, ?, ?)',
-          [
-            record.enTag,
-            record.zhTranslation,
-            record.source,
-            DateTime.now().millisecondsSinceEpoch,
-          ],
-        );
-
-        // 更新缓存
-        _cache.put(record.enTag.toLowerCase(), record.zhTranslation);
-      },
-    );
-  }
-
-  /// 批量插入翻译记录
-  ///
-  /// 使用新架构：ConnectionLease 连接生命周期管理
-  Future<void> upsertBatch(List<TranslationRecord> records) async {
-    if (records.isEmpty) return;
-
-    return await _leaseHelper.execute(
-      'upsertBatch',
-      (db) async {
-        // 使用事务保护批量操作
-        await db.transaction((txn) async {
-          final batch = txn.batch();
-
-          for (final record in records) {
-            batch.rawInsert(
-              'INSERT OR REPLACE INTO $_tableName (en_tag, zh_translation, source, last_accessed) VALUES (?, ?, ?, ?)',
-              [
-                record.enTag,
-                record.zhTranslation,
-                record.source,
-                DateTime.now().millisecondsSinceEpoch,
-              ],
-            );
-          }
-
-          await batch.commit(noResult: true);
-        });
-
-        // 更新缓存
-        for (final record in records) {
-          _cache.put(record.enTag.toLowerCase(), record.zhTranslation);
-        }
-
-        AppLogger.i(
-          'Inserted ${records.length} translations',
-          'TranslationDS',
-        );
-      },
-    );
+  /// 获取标签总数
+  Future<int> getTagCount() async {
+    if (!_initialized) await initialize();
+    
+    final result = await _db!.rawQuery('SELECT COUNT(*) as count FROM tags');
+    return (result.first['count'] as num?)?.toInt() ?? 0;
   }
 
   /// 获取缓存统计信息
   Map<String, dynamic> getCacheStatistics() => _cache.statistics;
 
-  @override
-  Future<void> doInitialize() async {
-    // 使用租借助手确保连接池已初始化
-    await _leaseHelper.execute(
-      'initialize',
-      (db) async {
-        // 验证表是否存在
-        final result = await db.rawQuery(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
-          [_tableName],
-        );
-
-        if (result.isEmpty) {
-          // 创建表
-          await db.execute('''
-            CREATE TABLE IF NOT EXISTS $_tableName (
-              en_tag TEXT PRIMARY KEY,
-              zh_translation TEXT NOT NULL,
-              source TEXT DEFAULT 'unknown',
-              last_accessed INTEGER
-            )
-          ''');
-
-          // 创建索引
-          await db.execute('''
-            CREATE INDEX IF NOT EXISTS idx_translations_source
-            ON $_tableName(source)
-          ''');
-
-          AppLogger.i('Created translations table', 'TranslationDS');
-        }
-      },
-    );
-  }
-
-  @override
-  Future<DataSourceHealth> doCheckHealth() async {
+  /// 健康检查
+  Future<DataSourceHealth> checkHealth() async {
     try {
-      return await _leaseHelper.execute(
-        'checkHealth',
-        (db) async {
-          // 检查表是否存在
-          final result = await db.rawQuery(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
-            [_tableName],
-          );
+      if (!_initialized) {
+        return DataSourceHealth(
+          status: HealthStatus.corrupted,
+          message: 'Translation data source not initialized',
+          timestamp: DateTime.now(),
+        );
+      }
 
-          if (result.isEmpty) {
-            return DataSourceHealth(
-              status: HealthStatus.corrupted,
-              message: 'Translations table does not exist',
-              timestamp: DateTime.now(),
-            );
-          }
+      // 尝试查询
+      await _db!.rawQuery('SELECT 1 FROM tags LIMIT 1');
+      final count = await getCount();
 
-          // 尝试查询
-          await db.rawQuery('SELECT 1 FROM $_tableName LIMIT 1');
-
-          final count = await getCount();
-
-          return DataSourceHealth(
-            status: HealthStatus.healthy,
-            message: 'Translation data source is healthy',
-            details: {
-              'recordCount': count,
-              'cacheSize': _cache.size,
-              'cacheHitRate': _cache.hitRate,
-            },
-            timestamp: DateTime.now(),
-          );
+      return DataSourceHealth(
+        status: HealthStatus.healthy,
+        message: 'Translation data source is healthy',
+        details: {
+          'translationCount': count,
+          'cacheSize': _cache.size,
+          'cacheHitRate': _cache.hitRate,
         },
+        timestamp: DateTime.now(),
       );
     } catch (e) {
       return DataSourceHealth(
@@ -370,72 +264,67 @@ class TranslationDataSource extends BaseDataSource {
     }
   }
 
-  @override
-  Future<void> doClear() async {
+  /// 清除缓存
+  Future<void> clear() async {
     _cache.clear();
     AppLogger.i('Translation cache cleared', 'TranslationDS');
   }
 
-  @override
-  Future<void> doRestore() async {
-    // 清除缓存，数据将从预构建数据库重新加载
+  /// 释放资源
+  Future<void> dispose() async {
     _cache.clear();
-
-    // 预构建数据库恢复逻辑由上层处理
-    AppLogger.i('Translation data source ready for restore', 'TranslationDS');
-  }
-
-  @override
-  Future<void> doDispose() async {
-    _cache.clear();
+    if (_db != null) {
+      await _db!.close();
+      _db = null;
+    }
+    _initialized = false;
+    AppLogger.i('Translation data source disposed', 'TranslationDS');
   }
 
   // 私有辅助方法
 
   /// 从数据库查询单个翻译
-  ///
-  /// 使用新架构：ConnectionLease 连接生命周期管理
   Future<String?> _queryFromDb(String normalizedTag) async {
-    return await _leaseHelper.execute(
-      'queryFromDb',
-      (db) async {
-        final result = await db.query(
-          _tableName,
-          columns: ['zh_translation'],
-          where: 'en_tag = ?',
-          whereArgs: [normalizedTag],
-          limit: 1,
-        );
-
-        if (result.isNotEmpty) {
-          return result.first['zh_translation'] as String?;
-        }
-        return null;
-      },
+    final result = await _db!.rawQuery(
+      '''
+      SELECT tr.translation 
+      FROM tags t
+      JOIN translations tr ON t.id = tr.tag_id
+      WHERE t.name = ? AND tr.language = ?
+      LIMIT 1
+      ''',
+      [normalizedTag, 'zh'],
     );
+
+    if (result.isNotEmpty) {
+      return result.first['translation'] as String?;
+    }
+    return null;
   }
 
   /// 从数据库批量查询翻译
-  ///
-  /// 使用新架构：ConnectionLease 连接生命周期管理
   Future<Map<String, String>> _queryBatchFromDb(List<String> tags) async {
     if (tags.isEmpty) return {};
 
-    return await _leaseHelper.execute(
-      'queryBatchFromDb',
-      (db) async {
-        final placeholders = tags.map((_) => '?').join(',');
-        final result = await db.rawQuery(
-          'SELECT en_tag, zh_translation FROM $_tableName WHERE en_tag IN ($placeholders)',
-          tags,
-        );
-
-        return {
-          for (final row in result)
-            row['en_tag'] as String: row['zh_translation'] as String,
-        };
-      },
+    final placeholders = tags.map((_) => '?').join(',');
+    // Use GROUP_CONCAT to get all translations, then take the first one
+    // Or use MIN(tr.id) to get the first translation for each tag
+    final result = await _db!.rawQuery(
+      '''
+      SELECT t.name as tag, tr.translation
+      FROM tags t
+      JOIN translations tr ON t.id = tr.tag_id
+      WHERE t.name IN ($placeholders) AND tr.language = ?
+      GROUP BY t.name
+      ORDER BY MIN(tr.id)
+      ''',
+      [...tags, 'zh'],
     );
+
+    return {
+      for (final row in result)
+        row['tag'] as String: row['translation'] as String,
+    };
   }
 
   int _calculateMatchScore(String text, String query, {required bool isTagMatch}) {
@@ -463,3 +352,5 @@ class TranslationDataSource extends BaseDataSource {
     return score;
   }
 }
+
+

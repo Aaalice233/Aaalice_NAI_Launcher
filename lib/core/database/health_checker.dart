@@ -2,22 +2,10 @@ import 'dart:async';
 
 import '../utils/app_logger.dart';
 import 'connection_pool_holder.dart';
-import 'data_source.dart';
+import 'data_source_types.dart';
 
-/// 健康检查详情
-class HealthCheckResult {
-  final HealthStatus status;
-  final String message;
-  final Map<String, dynamic> details;
-  final DateTime timestamp;
-
-  const HealthCheckResult({
-    required this.status,
-    required this.message,
-    this.details = const {},
-    required this.timestamp,
-  });
-
+/// 扩展 HealthCheckResult 添加便捷属性
+extension HealthCheckResultExtension on HealthCheckResult {
   bool get isHealthy => status == HealthStatus.healthy;
   bool get isCorrupted => status == HealthStatus.corrupted;
 }
@@ -158,7 +146,8 @@ class HealthChecker {
     try {
       // PRAGMA integrity_check - 无超时限制
       final integrityResult = await db.rawQuery('PRAGMA integrity_check');
-      final integrityStatus = integrityResult.first['integrity_check'] as String;
+      final integrityStatus =
+          integrityResult.first['integrity_check'] as String;
 
       if (integrityStatus != 'ok') {
         stopwatch.stop();
@@ -200,7 +189,8 @@ class HealthChecker {
       final indexResult = await db.rawQuery(
         "SELECT name FROM sqlite_master WHERE type='index' AND sql IS NULL",
       );
-      final invalidIndexes = indexResult.map((r) => r['name'] as String).toList();
+      final invalidIndexes =
+          indexResult.map((r) => r['name'] as String).toList();
 
       stopwatch.stop();
       _lastFullCheck = DateTime.now();
@@ -220,7 +210,7 @@ class HealthChecker {
 
         AppLogger.w(
           'Full health check found issues: FK errors=${fkErrors.length}, '
-          'Invalid indexes=${invalidIndexes.length}',
+              'Invalid indexes=${invalidIndexes.length}',
           'HealthChecker',
         );
         return result;
@@ -294,7 +284,8 @@ class HealthChecker {
         sampleStats['sampleImages'] = sample.length;
 
         for (final row in sample) {
-          if (row['file_path'] == null || (row['file_path'] as String).isEmpty) {
+          if (row['file_path'] == null ||
+              (row['file_path'] as String).isEmpty) {
             validationErrors.add('Image ${row['id']} has empty file_path');
           }
         }
@@ -316,7 +307,8 @@ class HealthChecker {
         sampleStats['orphanedMetadata'] = orphanedCount;
 
         if (orphanedCount > 0) {
-          validationErrors.add('Found $orphanedCount orphaned metadata records');
+          validationErrors
+              .add('Found $orphanedCount orphaned metadata records');
         }
       } catch (e) {
         validationErrors.add('Failed to validate metadata: $e');
@@ -336,7 +328,8 @@ class HealthChecker {
         sampleStats['orphanedFavorites'] = orphanedCount;
 
         if (orphanedCount > 0) {
-          validationErrors.add('Found $orphanedCount orphaned favorite records');
+          validationErrors
+              .add('Found $orphanedCount orphaned favorite records');
         }
       } catch (e) {
         validationErrors.add('Failed to validate favorites: $e');
@@ -419,7 +412,10 @@ class HealthChecker {
     // 1. 快速检查
     final quickResult = await quickCheck();
     if (!quickResult.isHealthy) {
-      AppLogger.w('Quick check failed, skipping remaining checks', 'HealthChecker');
+      AppLogger.w(
+        'Quick check failed, skipping remaining checks',
+        'HealthChecker',
+      );
       return quickResult;
     }
 

@@ -109,9 +109,10 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
   /// 上次报告的进度里程碑（用于去重）
   int _lastReportedProgressMilestone = -1;
 
-  /// 下载共现标签数据（支持首次下载和刷新）
+  /// 下载共现标签数据（简化版 - 预打包数据库无需下载）
   ///
-  /// [force] 是否强制下载，忽略刷新间隔检查
+  /// 注意：当前使用预打包数据库，此方法仅初始化服务并返回状态。
+  /// [force] 参数保留用于向后兼容，但不再使用。
   Future<bool> downloadCooccurrenceData({bool force = false}) async {
     final cooccurrenceService =
         await ref.watch(cooccurrenceServiceProvider.future);
@@ -121,67 +122,17 @@ class DownloadProgressNotifier extends _$DownloadProgressNotifier {
       'DownloadProgress',
     );
 
-    // 检查是否需要下载/刷新
-    if (!force) {
-      // 1. 如果已经加载且不需要刷新，跳过
-      if (cooccurrenceService.isLoaded) {
-        final needsRefresh = await cooccurrenceService.shouldRefresh();
-        AppLogger.i(
-          'Cooccurrence isLoaded=true, needsRefresh=$needsRefresh',
-          'DownloadProgress',
-        );
-        if (!needsRefresh) {
-          return true; // 数据新鲜，无需刷新
-        }
-      }
-
-      // 2. 尝试从缓存加载
+    // 预打包数据库，只需初始化即可
+    if (!cooccurrenceService.isLoaded) {
+      final initialized = await cooccurrenceService.initialize();
       AppLogger.i(
-        'Trying to load cooccurrence from cache...',
+        'Cooccurrence service initialized: $initialized',
         'DownloadProgress',
       );
-      final cacheLoaded = await cooccurrenceService.initializeUnified();
-      AppLogger.i(
-        'Cooccurrence cache loaded: $cacheLoaded',
-        'DownloadProgress',
-      );
-      if (cacheLoaded) {
-        // 缓存加载成功，检查是否需要刷新
-        final needsRefresh = await cooccurrenceService.shouldRefresh();
-        if (!needsRefresh) {
-          return true; // 缓存数据新鲜，无需下载
-        }
-        // 缓存存在但需要刷新，继续下载
-      }
+      return initialized;
     }
 
-    // 使用新的后台导入流程替代下载
-    AppLogger.i('Starting cooccurrence import...', 'DownloadProgress');
-    _lastReportedProgressMilestone = -1;
-    _lastReportedMessage = null;
-
-    // 添加导入任务
-    _addTask(
-      'cooccurrence',
-      _context?.l10n.download_cooccurrenceData ?? 'Cooccurrence Data',
-    );
-
-    try {
-      await cooccurrenceService.performBackgroundImport(
-        onProgress: (progress, message) {
-          _updateTaskProgressWithDeduplication(
-            'cooccurrence',
-            progress,
-            message: message,
-          );
-        },
-      );
-      _completeTask('cooccurrence');
-      return true;
-    } catch (e) {
-      _failTask('cooccurrence', e.toString());
-      return false;
-    }
+    return true;
   }
 
   /// 上次报告的消息（用于检测消息变化）

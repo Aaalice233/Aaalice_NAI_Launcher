@@ -166,21 +166,9 @@ class UnifiedTranslationService {
       }
 
       // 批量存入数据库
-      AppLogger.i('[UnifiedTranslation] Saving ${allTranslations.length} translations to database...', 'UnifiedTranslation');
-      final dbStopwatch = Stopwatch()..start();
-
-      if (_translationDataSource != null) {
-        final records = allTranslations.entries.map((e) => new_ds.TranslationRecord(
-          enTag: e.key,
-          zhTranslation: e.value,
-          source: 'merged',
-        ),).toList();
-
-        await _translationDataSource!.upsertBatch(records);
-      }
-
-      dbStopwatch.stop();
-      AppLogger.i('[UnifiedTranslation] Saved to database in ${dbStopwatch.elapsedMilliseconds}ms', 'UnifiedTranslation');
+      // TODO: TranslationDataSource 现在是只读的预构建数据库，不再支持写入操作
+      // 如果需要保存下载的翻译，需要重新设计存储方案
+      AppLogger.i('[UnifiedTranslation] Loaded ${allTranslations.length} translations from CSV (read-only mode, skipping save)', 'UnifiedTranslation');
 
       // 加载热数据
       await _loadHotDataFromDb();
@@ -450,7 +438,7 @@ class UnifiedTranslationService {
     _isInitialized = false;
     try {
       if (_translationDataSource != null) {
-        await _translationDataSource!.doClear();
+        await _translationDataSource!.clear();
       }
     } catch (e) {
       AppLogger.w('[UnifiedTranslation] Error clearing cache: $e', 'UnifiedTranslation');

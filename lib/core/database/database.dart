@@ -58,7 +58,7 @@ export 'data_source.dart'
         DataSourceInfo,
         HealthStatus;
 
-export 'health_checker.dart'
+export 'data_source_types.dart'
     show
         HealthCheckResult;
 

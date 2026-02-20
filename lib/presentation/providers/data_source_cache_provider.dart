@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/storage_keys.dart';
 import '../../core/database/providers/database_state_providers.dart';
 import '../../core/database/services/services.dart';
+import '../../core/database/services/service_providers.dart';
 import '../../core/database/state/database_state.dart';
 import '../../core/services/danbooru_tags_lazy_service.dart';
 import '../../core/utils/app_logger.dart';
@@ -68,6 +69,9 @@ class DanbooruTagsCacheState {
   final DateTime? artistsLastUpdate;
   // 分类阈值配置（V2新增）
   final TagCategoryThresholds categoryThresholds;
+  // 预构建数据库统计
+  final int translationCount; // 翻译数据数量
+  final int cooccurrenceCount; // 共现数据数量
 
   const DanbooruTagsCacheState({
     this.isRefreshing = false,
@@ -86,6 +90,9 @@ class DanbooruTagsCacheState {
     this.artistsLastUpdate,
     // 分类阈值默认配置
     this.categoryThresholds = const TagCategoryThresholds(),
+    // 预构建数据库统计默认值
+    this.translationCount = 0,
+    this.cooccurrenceCount = 0,
   });
 
   /// 获取一般标签的当前阈值（兼容旧API）
@@ -118,6 +125,8 @@ class DanbooruTagsCacheState {
     int? artistsTotal,
     DateTime? artistsLastUpdate,
     TagCategoryThresholds? categoryThresholds,
+    int? translationCount,
+    int? cooccurrenceCount,
   }) {
     return DanbooruTagsCacheState(
       isRefreshing: isRefreshing ?? this.isRefreshing,
@@ -134,6 +143,8 @@ class DanbooruTagsCacheState {
       artistsTotal: artistsTotal ?? this.artistsTotal,
       artistsLastUpdate: artistsLastUpdate ?? this.artistsLastUpdate,
       categoryThresholds: categoryThresholds ?? this.categoryThresholds,
+      translationCount: translationCount ?? this.translationCount,
+      cooccurrenceCount: cooccurrenceCount ?? this.cooccurrenceCount,
     );
   }
 }
@@ -251,6 +262,27 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
       }
     }
     
+    // 获取翻译和共现数据数量（预构建数据库）
+    var translationCount = 0;
+    var cooccurrenceCount = 0;
+    try {
+      final translationService = await ref.read(translationServiceProvider.future);
+      translationCount = await translationService.getCount();
+      
+      final cooccurrenceService = await ref.read(cooccurrenceServiceProvider.future);
+      cooccurrenceCount = await cooccurrenceService.getCount();
+      
+      AppLogger.i(
+        '[ProviderLifecycle] Database stats - translations: $translationCount, cooccurrences: $cooccurrenceCount',
+        'DanbooruTagsCacheNotifier',
+      );
+    } catch (e) {
+      AppLogger.w(
+        '[ProviderLifecycle] Failed to load translation/cooccurrence stats: $e',
+        'DanbooruTagsCacheNotifier',
+      );
+    }
+    
     AppLogger.i(
       '[ProviderLifecycle] DanbooruTagsCacheNotifier.build() END - totalTags=$count',
       'DanbooruTagsCacheNotifier',
@@ -259,17 +291,15 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
     // 读取分类阈值配置
     final categoryThresholds = await _loadCategoryThresholds();
 
-    // 读取画师同步设置
-    final prefs = await SharedPreferences.getInstance();
-    final syncArtists = prefs.getBool(StorageKeys.danbooruSyncArtists) ?? true;
-
     return DanbooruTagsCacheState(
       lastUpdate: _service!.lastUpdate,
       totalTags: count,
       categoryStats: categoryStats,
       refreshInterval: refreshInterval,
       categoryThresholds: categoryThresholds,
-      syncArtists: syncArtists,
+      syncArtists: true, // 画师同步现在是默认行为
+      translationCount: translationCount,
+      cooccurrenceCount: cooccurrenceCount,
     );
   }
 
@@ -379,6 +409,14 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
         );
       }
 
+      // 清除共现数据
+      // TODO: CooccurrenceService.clearAllData() 已移除，现在使用预构建数据库
+      // 如需清除缓存，可使用: await cooccurrenceService._dataSource.clear()
+      AppLogger.i(
+        '[ProviderLifecycle] clearCache() - cooccurrence data is read-only, skipping clear',
+        'DanbooruTagsCacheNotifier',
+      );
+
       // 更新状态为已清除
       state = const AsyncValue.data(
         DanbooruTagsCacheState(
@@ -395,7 +433,7 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
       );
       ref.invalidate(danbooruTagsLazyServiceProvider);
       AppLogger.i(
-        '[ProviderLifecycle] clearCache() - AFTER invalidate danbooruTagsLazyServiceProvider, _service still=${_service?.hashCode}',
+        '[ProviderLifecycle] clearCache() - AFTER invalidate danbooruTagsLazyServiceProvider, _service still=${_service.hashCode}',
         'DanbooruTagsCacheNotifier',
       );
       
@@ -430,17 +468,19 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
     final currentState = await future;
     state = AsyncValue.data(currentState.copyWith(syncArtists: value));
     
-    // 持久化到 SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(StorageKeys.danbooruSyncArtists, value);
-    
+    // 画师同步现在是默认行为，不再持久化设置
     AppLogger.i('Sync artists setting changed to: $value', 'DanbooruTagsCacheNotifier');
   }
 
   /// 同步画师数据
-  /// 
+  /// 同步画师标签（手动触发或自动刷新）
+  ///
   /// [force] 为 true 时强制同步，忽略时间间隔检查
-  Future<void> syncArtists({bool force = false}) async {
+  /// [onExternalProgress] 可选的外部进度回调，用于后台任务通知
+  Future<void> syncArtists({
+    bool force = false,
+    void Function(int currentPage, int importedCount, String message)? onExternalProgress,
+  }) async {
     final currentState = await future;
     
     // 检查是否启用画师同步
@@ -455,11 +495,11 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
       return;
     }
     
-    // 检查是否需要同步（基于时间间隔）
+    // 检查是否需要同步（基于画师标签数量，而不是总数）
     if (!force) {
-      final shouldSync = await _requireService.shouldFetchArtistTags();
-      if (!shouldSync) {
-        AppLogger.i('Artist tags are up to date, skipping sync', 'DanbooruTagsCacheNotifier');
+      final existingCount = await _requireService.getTagCountByCategory(1); // category=1 是画师
+      if (existingCount > 0) {
+        AppLogger.i('Artist tags already exist ($existingCount), skipping sync', 'DanbooruTagsCacheNotifier');
         return;
       }
     }
@@ -479,9 +519,10 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
             artistsProgress: progress,
             artistsTotal: importedCount,
           ),);
+          // 调用外部进度回调（如果有）
+          onExternalProgress?.call(currentPage, importedCount, message);
         },
         maxPages: 200,
-        resume: true,
       );
       
       // 同步完成
@@ -522,13 +563,13 @@ class DanbooruTagsCacheNotifier extends _$DanbooruTagsCacheNotifier {
         return;
       }
 
-      // 检查是否需要同步
-      final shouldSync = await _service!.shouldFetchArtistTags();
-      if (shouldSync) {
+      // 检查是否需要同步（基于画师标签数量，而不是总数）
+      final existingCount = await _service!.getTagCountByCategory(1); // category=1 是画师
+      if (existingCount == 0) {
         AppLogger.i('Auto-syncing artist tags on startup...', 'DanbooruTagsCacheNotifier');
         await syncArtists(force: false);
       } else {
-        AppLogger.i('Artist tags are up to date, no sync needed', 'DanbooruTagsCacheNotifier');
+        AppLogger.i('Artist tags already exist ($existingCount), no sync needed', 'DanbooruTagsCacheNotifier');
       }
     } catch (e, stack) {
       AppLogger.e('Failed to check and sync artists', e, stack, 'DanbooruTagsCacheNotifier');

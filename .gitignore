@@ -207,6 +207,10 @@ nai_web_copy/
 NAI COPY/
 .shared/
 
+# 预构建数据库（通过脚本生成）
+assets/databases/*.db
+!assets/databases/.gitkeep
+
 # 构建和分析报告
 analyze_report.txt
 install-log.txt

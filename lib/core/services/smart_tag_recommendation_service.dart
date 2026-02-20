@@ -95,7 +95,7 @@ class SmartTagRecommendationService {
 
     // 确保共现服务已初始化（按需加载）
     if (!_cooccurrenceService.isLoaded) {
-      await _cooccurrenceService.initializeUnified();
+      await _cooccurrenceService.initialize();
     }
 
     if (!_cooccurrenceService.isLoaded) return [];
