@@ -407,20 +407,14 @@ class _LocalImageCard3DState extends State<LocalImageCard3D>
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 150),
       opacity: _isHovered ? 1.0 : 0.0,
-      child: Material(
-        color: Colors.black.withOpacity(0.6),
-        borderRadius: BorderRadius.circular(20),
-        child: InkWell(
+      child: GestureDetector(
+        // 阻止点击事件冒泡到父级
+        onTap: () {},
+        behavior: HitTestBehavior.opaque,
+        child: _HoverActionButton(
+          icon: icon,
           onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            padding: const EdgeInsets.all(6),
-            child: Icon(
-              icon,
-              size: 16,
-              color: Colors.white,
-            ),
-          ),
+          tooltip: tooltip,
         ),
       ),
     );
@@ -817,6 +811,74 @@ class _GlossPainter extends CustomPainter {
   bool shouldRepaint(_GlossPainter oldDelegate) {
     return oldDelegate.progress != progress ||
         oldDelegate.intensity != intensity;
+  }
+}
+
+/// 悬浮操作按钮
+/// 
+/// 带独立悬浮动效（放大、背景变亮），并阻止点击事件冒泡
+class _HoverActionButton extends StatefulWidget {
+  final IconData icon;
+  final VoidCallback? onTap;
+  final String tooltip;
+
+  const _HoverActionButton({
+    required this.icon,
+    required this.onTap,
+    required this.tooltip,
+  });
+
+  @override
+  State<_HoverActionButton> createState() => _HoverActionButtonState();
+}
+
+class _HoverActionButtonState extends State<_HoverActionButton> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 150),
+        scale: _isHovering ? 1.15 : 1.0,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          decoration: BoxDecoration(
+            color: _isHovering
+                ? Colors.black.withOpacity(0.85)
+                : Colors.black.withOpacity(0.6),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: _isHovering
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.4),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+            child: InkWell(
+              onTap: widget.onTap,
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                child: Icon(
+                  widget.icon,
+                  size: 16,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
