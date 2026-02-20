@@ -229,7 +229,7 @@ class GalleryMetadataRecord {
       seed: map['seed'] as int?,
       sampler: map['sampler'] as String?,
       steps: map['steps'] as int?,
-      scale: (map['scale'] as num?)?.toDouble(),
+      scale: (map['cfg_scale'] as num?)?.toDouble(),
       width: map['width'] as int?,
       height: map['height'] as int?,
       model: map['model'] as String?,

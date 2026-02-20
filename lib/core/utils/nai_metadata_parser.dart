@@ -76,6 +76,7 @@ class NaiMetadataParser {
   static Future<NaiImageMetadata?> _extractFromChunksIsolate(Uint8List bytes) async {
     try {
       final chunks = png_extract.extractChunks(bytes);
+      AppLogger.d('Found ${chunks.length} PNG chunks', 'NaiMetadataParser');
       
       for (final chunk in chunks) {
         final name = chunk['name'] as String?;
@@ -86,12 +87,17 @@ class NaiMetadataParser {
           final data = chunk['data'] as Uint8List?;
           if (data == null) continue;
           
+          AppLogger.d('Parsing $name chunk (${data.length} bytes)', 'NaiMetadataParser');
+          
           // 尝试解析 chunk 数据
           final textData = _parseTextChunk(data, name);
           if (textData != null) {
+            AppLogger.d('Chunk text preview: ${textData.substring(0, textData.length > 200 ? 200 : textData.length)}', 'NaiMetadataParser');
+            
             // 检查是否是 NAI 元数据
             final json = _tryParseNaiJson(textData);
             if (json != null) {
+              AppLogger.d('Found NAI metadata in $name chunk. Keys: ${json.keys}', 'NaiMetadataParser');
               return NaiImageMetadata.fromNaiComment(json, rawJson: textData);
             }
           }
@@ -99,7 +105,8 @@ class NaiMetadataParser {
       }
       
       return null;
-    } catch (e) {
+    } catch (e, stack) {
+      AppLogger.e('Error extracting from chunks', e, stack, 'NaiMetadataParser');
       return null;
     }
   }

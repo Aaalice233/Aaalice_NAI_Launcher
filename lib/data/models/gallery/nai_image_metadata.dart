@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/utils/app_logger.dart';
+
 part 'nai_image_metadata.freezed.dart';
 part 'nai_image_metadata.g.dart';
 
@@ -160,14 +162,17 @@ class NaiImageMetadata with _$NaiImageMetadata {
     // 提取 scale，支持多种可能的键名
     double? extractScale() {
       // 尝试不同的键名（NAI 不同版本可能使用不同键名）
-      final possibleKeys = ['scale', 'cfg_scale', 'cfg', 'guidance', 'prompt_guidance'];
+      final possibleKeys = ['scale', 'cfg_scale', 'cfg', 'guidance', 'prompt_guidance', 'cfgScale'];
+      AppLogger.d('Extracting scale from commentData. Available keys: ${commentData.keys}', 'NaiImageMetadata');
       for (final key in possibleKeys) {
         final value = commentData[key];
         if (value != null) {
+          AppLogger.d('Found scale value for key "$key": $value (${value.runtimeType})', 'NaiImageMetadata');
           if (value is num) return value.toDouble();
           if (value is String) return double.tryParse(value);
         }
       }
+      AppLogger.w('No scale value found in commentData', 'NaiImageMetadata');
       return null;
     }
 

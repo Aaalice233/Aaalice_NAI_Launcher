@@ -173,13 +173,16 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
 
   /// 媒体区域
   Widget _buildMediaSection(ThemeData theme) {
-    return Container(
-      color: Colors.black,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // 根据媒体类型渲染不同组件
-          if (widget.post.isVideo)
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: _close,
+      child: Container(
+        color: Colors.black,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // 根据媒体类型渲染不同组件
+            if (widget.post.isVideo)
             // 视频播放器
             VideoPlayerWidget(
               videoUrl: widget.post.fileUrl ?? widget.post.sampleUrl ?? '',
@@ -245,7 +248,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
           // 关闭按钮
           Positioned(
             top: 8,
-            right: 8,
+            left: 8,
             child: IconButton.filled(
               onPressed: _close,
               icon: const Icon(Icons.close),
@@ -281,7 +284,8 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
             ),
         ],
       ),
-    );
+    ),
+  );
   }
 
   /// 信息面板
