@@ -7,13 +7,14 @@ import '../../../data/models/gallery/local_image_record.dart';
 import '../../themes/theme_extension.dart';
 import '../common/animated_favorite_button.dart';
 
-/// Steam风格图片卡片
+/// Steam风格本地图片卡片
 ///
 /// 实现高级视觉效果：
 /// - 边缘发光效果
 /// - 光泽扫过动画
 /// - 悬停时轻微放大和阴影增强
-class ImageCard3D extends StatefulWidget {
+/// - 复制、发送到主页、收藏按钮
+class LocalImageCard3D extends StatefulWidget {
   final LocalImageRecord record;
   final double width;
   final double? height;
@@ -24,8 +25,10 @@ class ImageCard3D extends StatefulWidget {
   final bool isSelected;
   final bool showFavoriteIndicator;
   final VoidCallback? onFavoriteToggle;
+  final VoidCallback? onCopyImage;
+  final VoidCallback? onSendToHome;
 
-  const ImageCard3D({
+  const LocalImageCard3D({
     super.key,
     required this.record,
     required this.width,
@@ -37,13 +40,15 @@ class ImageCard3D extends StatefulWidget {
     this.isSelected = false,
     this.showFavoriteIndicator = true,
     this.onFavoriteToggle,
+    this.onCopyImage,
+    this.onSendToHome,
   });
 
   @override
-  State<ImageCard3D> createState() => _ImageCard3DState();
+  State<LocalImageCard3D> createState() => _LocalImageCard3DState();
 }
 
-class _ImageCard3DState extends State<ImageCard3D>
+class _LocalImageCard3DState extends State<LocalImageCard3D>
     with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   /// 是否悬停
   bool _isHovered = false;
@@ -228,13 +233,12 @@ class _ImageCard3DState extends State<ImageCard3D>
                       ),
                     ),
 
-                  // 4. 收藏按钮（悬停时显示可点击按钮）
-                  if (widget.showFavoriteIndicator)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: _buildFavoriteButton(),
-                    ),
+                  // 4. 右侧竖向按钮组（复制、发送、收藏）
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: _buildActionButtons(),
+                  ),
 
                   // 5. 选中状态指示器
                   if (widget.isSelected)
@@ -306,6 +310,122 @@ class _ImageCard3DState extends State<ImageCard3D>
             ),
           );
         },
+      ),
+    );
+  }
+
+  /// 构建右侧竖向按钮组
+  Widget _buildActionButtons() {
+    final hasCopy = widget.onCopyImage != null;
+    final hasSend = widget.onSendToHome != null;
+    final hasFavorite = widget.onFavoriteToggle != null;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 复制按钮
+        if (hasCopy)
+          _buildActionButton(
+            icon: Icons.copy,
+            onTap: widget.onCopyImage,
+            tooltip: '复制图片',
+          ),
+        if (hasCopy && (hasSend || hasFavorite))
+          const SizedBox(height: 8),
+        // 发送到主页按钮
+        if (hasSend)
+          Builder(
+            builder: (context) => _buildActionButton(
+              icon: Icons.send,
+              onTap: () => _showSendToHomeMenu(context),
+              tooltip: '发送到主页',
+            ),
+          ),
+        if (hasSend && hasFavorite)
+          const SizedBox(height: 8),
+        // 收藏按钮
+        if (hasFavorite)
+          _buildFavoriteButton(),
+      ],
+    );
+  }
+
+  /// 构建操作按钮
+  Widget _buildActionButton({
+    required IconData icon,
+    required VoidCallback? onTap,
+    required String tooltip,
+  }) {
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 150),
+      opacity: _isHovered ? 1.0 : 0.0,
+      child: Material(
+        color: Colors.black.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.all(6),
+            child: Icon(
+              icon,
+              size: 16,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 显示发送到主页菜单
+  void _showSendToHomeMenu(BuildContext context) {
+    final RenderBox? button = context.findRenderObject() as RenderBox?;
+    if (button == null) return;
+
+    final offset = button.localToGlobal(Offset.zero);
+    final screenSize = MediaQuery.of(context).size;
+
+    // 计算菜单位置（在按钮左侧弹出）
+    const menuWidth = 160.0;
+    double left = offset.dx - menuWidth - 8;
+    double top = offset.dy;
+
+    // 边界检查
+    if (left < 8) left = offset.dx + button.size.width + 8;
+    if (top + 150 > screenSize.height) top = screenSize.height - 150;
+
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.transparent,
+      builder: (context) => _SendToHomeMenu(
+        position: Offset(left, top),
+        onSendToTxt2Img: widget.onSendToHome != null
+            ? () {
+                Navigator.of(context).pop();
+                widget.onSendToHome!();
+              }
+            : null,
+        onSendToImg2Img: () {
+          Navigator.of(context).pop();
+          _showToast(context, '图生图功能制作中');
+        },
+        onUpscale: () {
+          Navigator.of(context).pop();
+          _showToast(context, '放大功能制作中');
+        },
+      ),
+    );
+  }
+
+  /// 显示提示
+  void _showToast(BuildContext context, String message) {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    scaffoldMessenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -649,5 +769,162 @@ class _GlossPainter extends CustomPainter {
   bool shouldRepaint(_GlossPainter oldDelegate) {
     return oldDelegate.progress != progress ||
         oldDelegate.intensity != intensity;
+  }
+}
+
+
+/// 发送到主页菜单
+/// 
+/// 用于选择将图片发送到何处：
+/// - 文生图（参数套用）
+/// - 图生图（制作中）
+/// - 放大（制作中）
+class _SendToHomeMenu extends StatelessWidget {
+  final Offset position;
+  final VoidCallback? onSendToTxt2Img;
+  final VoidCallback? onSendToImg2Img;
+  final VoidCallback? onUpscale;
+
+  const _SendToHomeMenu({
+    required this.position,
+    this.onSendToTxt2Img,
+    this.onSendToImg2Img,
+    this.onUpscale,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      type: MaterialType.transparency,
+      child: Stack(
+        children: [
+          // 点击外部关闭
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              behavior: HitTestBehavior.translucent,
+              child: Container(color: Colors.transparent),
+            ),
+          ),
+          // 菜单
+          Positioned(
+            left: position.dx,
+            top: position.dy,
+            child: Container(
+              width: 160,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.text_fields,
+                    label: '文生图',
+                    subtitle: '套用参数',
+                    onTap: onSendToTxt2Img,
+                  ),
+                  Divider(
+                    height: 1,
+                    color: theme.colorScheme.outlineVariant,
+                  ),
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.image,
+                    label: '图生图',
+                    subtitle: '制作中',
+                    enabled: false,
+                    onTap: onSendToImg2Img,
+                  ),
+                  Divider(
+                    height: 1,
+                    color: theme.colorScheme.outlineVariant,
+                  ),
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.zoom_in,
+                    label: '放大',
+                    subtitle: '制作中',
+                    enabled: false,
+                    onTap: onUpscale,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMenuItem(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String subtitle,
+    required VoidCallback? onTap,
+    bool enabled = true,
+  }) {
+    final theme = Theme.of(context);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 20,
+                color: enabled
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurface.withOpacity(0.38),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: enabled
+                            ? theme.colorScheme.onSurface
+                            : theme.colorScheme.onSurface.withOpacity(0.38),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: enabled
+                            ? theme.colorScheme.onSurfaceVariant
+                            : theme.colorScheme.onSurface.withOpacity(0.38),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

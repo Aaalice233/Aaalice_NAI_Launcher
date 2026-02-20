@@ -8,7 +8,7 @@ import '../../../data/models/gallery/local_image_record.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../widgets/grouped_grid_view.dart';
-import '../../widgets/local_image_card.dart';
+import 'local_image_card_3d.dart';
 import '../common/image_detail/image_detail_data.dart';
 import '../common/image_detail/image_detail_viewer.dart';
 import '../common/shimmer_skeleton.dart';
@@ -166,6 +166,12 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
   /// 3D视图模式下的额外配置
   final Gallery3DViewConfig<T>? view3DConfig;
 
+  /// 复制图片回调（仅 LocalImageRecord 类型支持）
+  final void Function(LocalImageRecord record)? onCopyImage;
+
+  /// 发送到主页回调（仅 LocalImageRecord 类型支持）
+  final void Function(LocalImageRecord record)? onSendToHome;
+
   /// 空状态标题
   final String? emptyTitle;
 
@@ -198,6 +204,8 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
     this.onLoadPage,
     this.groupedGridViewKey,
     this.view3DConfig,
+    this.onCopyImage,
+    this.onSendToHome,
     this.emptyTitle,
     this.emptySubtitle,
     this.emptyIcon,
@@ -306,28 +314,31 @@ class _GenericGalleryContentViewState<T>
           });
         }
 
-        // 使用 LocalImageCard 构建分组视图的卡片
-        return LocalImageCard(
+        // 使用 LocalImageCard3D 构建分组视图的卡片
+        return LocalImageCard3D(
           record: record,
-          itemWidth: widget.itemWidth,
-          aspectRatio: aspectRatio,
-          selectionMode: selectionState.isActive,
+          width: widget.itemWidth,
+          height: widget.itemWidth / aspectRatio,
           isSelected: isSelected,
-          onSelectionToggle: () {
-            widget.onSelectionToggle?.call(record as T);
+          onTap: () {
+            if (selectionState.isActive) {
+              widget.onSelectionToggle?.call(record as T);
+            }
           },
           onLongPress: () {
             if (!selectionState.isActive) {
               widget.onEnterSelection?.call(record as T);
             }
           },
-          onDeleted: () {
-            widget.onRefresh?.call();
-            widget.onDeleted?.call();
-          },
-          onFavoriteToggle: (record) {
+          onFavoriteToggle: () {
             widget.onFavoriteToggle?.call(record as T);
           },
+          onCopyImage: widget.onCopyImage != null
+              ? () => widget.onCopyImage!(record)
+              : null,
+          onSendToHome: widget.onSendToHome != null
+              ? () => widget.onSendToHome!(record)
+              : null,
         );
       },
     );
@@ -463,6 +474,16 @@ class _GenericGalleryContentViewState<T>
       onFavoriteToggle: (record, index) {
         widget.onFavoriteToggle?.call(state.currentImages[index]);
       },
+      onCopyImage: widget.onCopyImage != null
+          ? (record, index) {
+              widget.onCopyImage!(record);
+            }
+          : null,
+      onSendToHome: widget.onSendToHome != null
+          ? (record, index) {
+              widget.onSendToHome!(record);
+            }
+          : null,
     );
   }
 
@@ -601,6 +622,12 @@ class LocalGalleryContentView extends ConsumerWidget {
   /// Callback when context menu is triggered
   final void Function(LocalImageRecord record, Offset position)? onContextMenu;
 
+  /// Callback when copy image is triggered
+  final void Function(LocalImageRecord record)? onCopyImage;
+
+  /// Callback when send to home is triggered
+  final void Function(LocalImageRecord record)? onSendToHome;
+
   /// Callback when image is deleted
   final VoidCallback? onDeleted;
 
@@ -615,6 +642,8 @@ class LocalGalleryContentView extends ConsumerWidget {
     this.onReuseMetadata,
     this.onSendToImg2Img,
     this.onContextMenu,
+    this.onCopyImage,
+    this.onSendToHome,
     this.onDeleted,
     this.groupedGridViewKey,
   });
@@ -705,27 +734,24 @@ class LocalGalleryContentView extends ConsumerWidget {
         return 1.0;
       },
       itemBuilder: (context, record, index, config) {
-        return LocalImageCard(
+        return LocalImageCard3D(
           record: record,
-          itemWidth: config.itemWidth,
-          aspectRatio: config.aspectRatio,
-          selectionMode: config.selectionMode,
+          width: config.itemWidth,
+          height: config.itemWidth / config.aspectRatio,
           isSelected: config.isSelected,
-          onSelectionToggle: config.onSelectionToggle,
+          onTap: config.onSelectionToggle,
           onLongPress: config.onLongPress,
-          onDeleted: () {
-            ref
-                .read(localGalleryNotifierProvider.notifier)
-                .loadPage(state.currentPage);
-            onDeleted?.call();
-          },
-          onReuseMetadata: onReuseMetadata,
-          onSendToImg2Img: onSendToImg2Img,
-          onFavoriteToggle: (record) {
+          onFavoriteToggle: () {
             ref
                 .read(localGalleryNotifierProvider.notifier)
                 .toggleFavorite(record.path);
           },
+          onCopyImage: onCopyImage != null
+              ? () => onCopyImage!(record)
+              : null,
+          onSendToHome: onReuseMetadata != null
+              ? () => onReuseMetadata!(record)
+              : null,
         );
       },
       onSelectionToggle: (record) {
@@ -757,6 +783,7 @@ class LocalGalleryContentView extends ConsumerWidget {
         images: state.currentImages,
         showDetailViewer: showImageDetailViewer,
       ),
+      onSendToHome: onReuseMetadata,
     );
   }
 }
