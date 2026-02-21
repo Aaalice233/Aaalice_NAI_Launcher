@@ -190,15 +190,23 @@ class StreamGenerationNotifier extends _$StreamGenerationNotifier {
 
     // 处理错误
     if (chunk.hasError) {
+      // 验证错误信息
+      final errorMessage = chunk.error;
+      if (errorMessage == null || errorMessage.isEmpty) {
+        AppLogger.w('Received error chunk with null or empty error message', 'StreamGeneration');
+        _handleError('Unknown error occurred during stream generation');
+        return;
+      }
+
       // 检查是否为流式不支持错误，如果是则静默处理，等待 onDone 回退
-      if (_isStreamingNotAllowed(chunk.error!)) {
+      if (_isStreamingNotAllowed(errorMessage)) {
         AppLogger.w(
           'Streaming not allowed, will fallback to non-stream API',
           'StreamGeneration',
         );
         return;
       }
-      _handleError(chunk.error!);
+      _handleError(errorMessage);
       return;
     }
 
@@ -219,11 +227,19 @@ class StreamGenerationNotifier extends _$StreamGenerationNotifier {
 
     // 处理最终图像
     if (chunk.isComplete && chunk.hasFinalImage) {
+      // 验证最终图像数据
+      final finalImage = chunk.finalImage;
+      if (finalImage == null || finalImage.isEmpty) {
+        AppLogger.w('Received complete chunk with invalid final image data', 'StreamGeneration');
+        _handleError('Invalid final image data received from stream');
+        return;
+      }
+
       state = state.copyWith(
         status: StreamGenerationStatus.completing,
         progress: 1.0,
       );
-      _completeGeneration(chunk.finalImage!, state.previewImage);
+      _completeGeneration(finalImage, state.previewImage);
     }
   }
 
@@ -313,6 +329,12 @@ class StreamGenerationNotifier extends _$StreamGenerationNotifier {
         params.copyWith(nSamples: 1),
         onProgress: (_, __) {},
       );
+
+      // 检查取消状态，避免在已取消的情况下更新状态
+      if (_isCancelled) {
+        AppLogger.d('Non-stream fallback cancelled after API call', 'StreamGeneration');
+        return;
+      }
 
       if (imageBytes.isNotEmpty) {
         final width = params.width;

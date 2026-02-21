@@ -88,13 +88,19 @@ class RetryPolicyNotifier extends _$RetryPolicyNotifier {
   }
 
   /// 获取指定重试次数的延迟时间（支持指数退避）
+  ///
+  /// 最大延迟时间限制为 5 分钟（300,000 毫秒），防止指数退避计算溢出
+  static const int _maxDelayMs = 300000;
+
   Duration getRetryDelay(int attempt) {
     if (!state.retryEnabled || attempt >= state.maxRetries) {
       return Duration.zero;
     }
     final delayMs =
         state.retryIntervalMs * state.backoffMultiplier.pow(attempt);
-    return Duration(milliseconds: delayMs.toInt());
+    // 限制最大延迟时间，防止溢出和过长的等待
+    final clampedDelayMs = delayMs.clamp(0, _maxDelayMs).toInt();
+    return Duration(milliseconds: clampedDelayMs);
   }
 
   /// 检查是否应该重试

@@ -248,15 +248,33 @@ class ImageSaveNotifier extends _$ImageSaveNotifier {
     state = state.copyWith(status: ImageSaveStatus.saving, errorMessage: null);
 
     try {
+      // 验证路径安全性：检查路径是否为空或包含潜在的危险字符
+      if (customPath.isEmpty) {
+        throw ArgumentError('Custom path cannot be empty');
+      }
+
+      // 规范化路径，防止目录遍历攻击
+      final normalizedPath = path.normalize(customPath);
+
+      // 检查路径是否包含潜在的目录遍历模式（..）
+      // 注意：在桌面应用中，用户可能合法地选择父目录，所以这里只是记录警告
+      if (normalizedPath.contains('..')) {
+        AppLogger.w(
+          'Path contains parent directory references: $normalizedPath',
+          'ImageSaveNotifier',
+        );
+      }
+
       // 确保目录存在
-      final saveDir = Directory(customPath);
+      final saveDir = Directory(normalizedPath);
       if (!await saveDir.exists()) {
         await saveDir.create(recursive: true);
       }
 
-      // 生成文件名
+      // 生成文件名（确保文件名安全，不包含路径分隔符）
       final fileName = _generateFileName();
-      final filePath = path.join(saveDir.path, fileName);
+      final sanitizedFileName = fileName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+      final filePath = path.join(saveDir.path, sanitizedFileName);
 
       // 写入文件
       final file = File(filePath);

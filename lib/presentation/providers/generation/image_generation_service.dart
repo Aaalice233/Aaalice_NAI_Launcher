@@ -60,6 +60,9 @@ typedef GenerationProgressCallback = void Function(
   Uint8List? previewImage,
 });
 
+/// 批量生成结果（包含图像和 vibe encodings）
+typedef _BatchGenerationResult = ({List<GeneratedImage> images, Map<int, String> vibeEncodings});
+
 /// 图像生成服务
 ///
 /// 封装核心的图像生成逻辑，包括：
@@ -163,7 +166,7 @@ class ImageGenerationService {
       return generateSingle(params, onProgress: onProgress);
     }
 
-    final totalImages = batchCount * batchSize;
+    final totalImages = (batchCount * batchSize).toInt();
     final allImages = <GeneratedImage>[];
     final allVibeEncodings = <int, String>{};
     int generatedCount = 0;
@@ -186,7 +189,7 @@ class ImageGenerationService {
 
       try {
         // 批量生成时，每张图单独请求以支持流式预览
-        final batchImages = await _generateBatchWithStream(
+        final batchResult = await _generateBatchWithStream(
           batchParams,
           currentStart: currentStart,
           totalImages: totalImages,
@@ -197,10 +200,11 @@ class ImageGenerationService {
           break;
         }
 
-        allImages.addAll(batchImages);
-        generatedCount += batchImages.length;
+        allImages.addAll(batchResult.images);
+        allVibeEncodings.addAll(batchResult.vibeEncodings);
+        generatedCount += batchResult.images.length;
 
-        onBatchComplete?.call(batchImages);
+        onBatchComplete?.call(batchResult.images);
       } catch (e) {
         if (_isCancelled || _isCancelledError(e)) {
           break;
@@ -298,13 +302,14 @@ class ImageGenerationService {
   }
 
   /// 批量生成（带流式预览）
-  Future<List<GeneratedImage>> _generateBatchWithStream(
+  Future<_BatchGenerationResult> _generateBatchWithStream(
     ImageParams params, {
     required int currentStart,
     required int totalImages,
     GenerationProgressCallback? onProgress,
   }) async {
     final images = <GeneratedImage>[];
+    final vibeEncodings = <int, String>{};
     final batchSize = params.nSamples;
     bool useNonStreamFallback = false;
 
@@ -439,7 +444,7 @@ class ImageGenerationService {
       }
     }
 
-    return images;
+    return (images: images, vibeEncodings: vibeEncodings);
   }
 
   /// 带重试的非流式生成
