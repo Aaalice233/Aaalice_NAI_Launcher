@@ -1,13 +1,10 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/app_logger.dart';
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/vibe_export_utils.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -55,7 +52,7 @@ class VibeExportHandler {
       if (context.mounted) {
         AppToast.error(
           context,
-          context.l10n.vibeExportFailed(e.toString()),
+          'Export failed: $e',
         );
       }
     }
@@ -67,7 +64,7 @@ class VibeExportHandler {
   Future<void> _exportSingleVibe(VibeReference vibe) async {
     if (!_hasExportableData(vibe)) {
       if (context.mounted) {
-        AppToast.error(context, context.l10n.vibeNoDataToExport);
+        AppToast.error(context, 'No data to export');
       }
       return;
     }
@@ -75,7 +72,7 @@ class VibeExportHandler {
     final result = await VibeExportUtils.exportToNaiv4Vibe(vibe);
 
     if (result != null && context.mounted) {
-      AppToast.success(context, context.l10n.vibeExportSuccess);
+      AppToast.success(context, 'Export successful');
       AppLogger.i('Vibe exported successfully: $result', _tag);
     }
   }
@@ -101,20 +98,20 @@ class VibeExportHandler {
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(context.l10n.vibeExportMultipleTitle(count)),
-        content: Text(context.l10n.vibeExportMultipleMessage),
+        title: Text('Export $count Vibes'),
+        content: const Text('Choose how to export the vibes'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop('bundle'),
-            child: Text(context.l10n.vibeExportAsBundle),
+            child: const Text('As Bundle'),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop('individual'),
-            child: Text(context.l10n.vibeExportIndividually),
+            child: const Text('Individually'),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text(context.l10n.cancel),
+            child: const Text('Cancel'),
           ),
         ],
       ),
@@ -130,7 +127,7 @@ class VibeExportHandler {
 
     if (exportableVibes.isEmpty) {
       if (context.mounted) {
-        AppToast.error(context, context.l10n.vibeNoDataToExport);
+        AppToast.error(context, 'No data to export');
       }
       return;
     }
@@ -138,7 +135,7 @@ class VibeExportHandler {
     if (exportableVibes.length < vibes.length && context.mounted) {
       AppToast.warning(
         context,
-        context.l10n.vibeExportSkippedCount(vibes.length - exportableVibes.length),
+        'Skipped ${vibes.length - exportableVibes.length} vibes without data',
       );
     }
 
@@ -150,7 +147,7 @@ class VibeExportHandler {
     if (result != null && context.mounted) {
       AppToast.success(
         context,
-        context.l10n.vibeBundleExportSuccess(exportableVibes.length),
+        'Bundle exported: ${exportableVibes.length} vibes',
       );
       AppLogger.i('Vibe bundle exported successfully: $result', _tag);
     }
@@ -179,15 +176,15 @@ class VibeExportHandler {
       if (successCount == vibes.length) {
         AppToast.success(
           context,
-          context.l10n.vibeExportAllSuccess(successCount),
+          'Exported $successCount vibes',
         );
       } else if (successCount > 0) {
         AppToast.warning(
           context,
-          context.l10n.vibeExportPartialSuccess(successCount, vibes.length),
+          'Exported $successCount of ${vibes.length} vibes',
         );
       } else {
-        AppToast.error(context, context.l10n.vibeExportFailedMessage);
+        AppToast.error(context, 'Export failed');
       }
     }
 
@@ -210,7 +207,7 @@ class VibeExportHandler {
 
     if (embeddableVibes.isEmpty) {
       if (context.mounted) {
-        AppToast.error(context, context.l10n.vibeNoEmbeddableData);
+        AppToast.error(context, 'No embeddable data');
       }
       return;
     }
@@ -226,7 +223,7 @@ class VibeExportHandler {
 
       if (!_isPng(bytes)) {
         if (context.mounted) {
-          AppToast.error(context, context.l10n.vibePngRequired);
+          AppToast.error(context, 'PNG file required');
         }
         return;
       }
@@ -243,7 +240,7 @@ class VibeExportHandler {
     } catch (e, stackTrace) {
       AppLogger.e('Failed to embed vibes into image', e, stackTrace, _tag);
       if (context.mounted) {
-        AppToast.error(context, context.l10n.vibeEmbedFailed(e.toString()));
+        AppToast.error(context, 'Embed failed: $e');
       }
     }
   }
@@ -271,7 +268,7 @@ class VibeExportHandler {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: Text(context.l10n.vibeSelectToEmbed),
+              title: const Text('Select vibes to embed'),
               content: SizedBox(
                 width: double.maxFinite,
                 child: ListView.builder(
@@ -304,11 +301,11 @@ class VibeExportHandler {
                     selected.clear();
                     Navigator.of(context).pop();
                   },
-                  child: Text(context.l10n.cancel),
+                  child: const Text('Cancel'),
                 ),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: Text(context.l10n.confirm),
+                  child: const Text('Confirm'),
                 ),
               ],
             );
@@ -337,7 +334,7 @@ class VibeExportHandler {
     if (context.mounted) {
       AppToast.success(
         context,
-        context.l10n.vibeEmbedSuccess(vibes.length),
+        'Embedded ${vibes.length} vibes into image',
       );
     }
   }
@@ -375,7 +372,7 @@ class VibeExportHandler {
         size: 18,
         color: theme.colorScheme.primary,
       ),
-      tooltip: context.l10n.vibeExportTooltip,
+      tooltip: 'Export vibes',
       offset: const Offset(0, 32),
       itemBuilder: (context) => [
         PopupMenuItem(
@@ -388,7 +385,7 @@ class VibeExportHandler {
                 color: theme.colorScheme.primary,
               ),
               const SizedBox(width: 8),
-              Text(context.l10n.vibeExportAsFile),
+              const Text('Export as file'),
             ],
           ),
         ),
@@ -402,7 +399,7 @@ class VibeExportHandler {
                 color: theme.colorScheme.secondary,
               ),
               const SizedBox(width: 8),
-              Text(context.l10n.vibeEmbedToImage),
+              const Text('Embed to image'),
             ],
           ),
         ),

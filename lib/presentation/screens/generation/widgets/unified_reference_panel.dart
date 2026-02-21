@@ -10,7 +10,6 @@ import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/constants/storage_keys.dart';
 import '../../../../core/extensions/vibe_library_extensions.dart';
-import '../../../providers/vibe_library_provider.dart';
 import '../../../widgets/common/themed_divider.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
@@ -140,7 +139,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     // 检查是否超过 16 个限制
     if (vibes.length >= 16) {
       if (mounted) {
-        AppToast.warning(context, context.l10n.vibeMaxReached(16));
+        AppToast.warning(context, 'Maximum 16 vibes reached');
       }
       return;
     }
@@ -161,7 +160,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     await storageService.incrementUsedCount(entry.id);
 
     if (mounted) {
-      AppToast.success(context, context.l10n.vibeAdded(entry.displayName));
+      AppToast.success(context, 'Added ${entry.displayName}');
     }
   }
 
@@ -220,7 +219,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     notifier.saveGenerationState();
 
     if (mounted && count > 0) {
-      AppToast.success(context, context.l10n.vibeCleared(count));
+      AppToast.success(context, 'Cleared $count vibes');
     }
   }
 

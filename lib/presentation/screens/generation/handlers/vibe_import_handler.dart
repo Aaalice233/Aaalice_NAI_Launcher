@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui';
 
+import 'package:collection/collection.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,7 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/extensions/vibe_library_extensions.dart';
 import '../../../../core/utils/app_logger.dart';
-import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
@@ -132,7 +131,7 @@ class VibeImportHandler {
       if (context.mounted) {
         AppToast.error(
           context,
-          context.l10n.img2img_selectFailed(e.toString()),
+          'File selection failed: $e',
         );
       }
     }
@@ -152,10 +151,10 @@ class VibeImportHandler {
           builder: (context, setState) {
             // 根据勾选状态动态确定按钮文本
             final confirmButtonText =
-                encodeChecked ? context.l10n.vibeConfirmEncode : context.l10n.vibeAddImageOnly;
+                encodeChecked ? 'Encode' : 'Add image only';
 
             return AlertDialog(
-              title: Text(context.l10n.vibeNoEncodingWarning),
+              title: const Text('No encoding data'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -163,7 +162,7 @@ class VibeImportHandler {
                   Text(fileName),
                   const SizedBox(height: 8),
                   Text(
-                    context.l10n.vibeWillCostAnlas(2),
+                    'Encoding will cost 2 Anlas',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.primary,
                       fontWeight: FontWeight.bold,
@@ -171,7 +170,7 @@ class VibeImportHandler {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    context.l10n.vibeEncodeConfirm,
+                    'Continue and consume Anlas?',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 16),
@@ -203,7 +202,7 @@ class VibeImportHandler {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            context.l10n.vibeEncodeImmediately(2),
+                            'Encode immediately (2 Anlas)',
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         ),
@@ -237,7 +236,7 @@ class VibeImportHandler {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            context.l10n.vibeAutoSaveToLibrary,
+                            'Auto-save to library',
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   color: encodeChecked
                                       ? null
@@ -256,7 +255,7 @@ class VibeImportHandler {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop((false, false, false)),
-                  child: Text(context.l10n.vibeCancel),
+                  child: const Text('Cancel'),
                 ),
                 ElevatedButton(
                   onPressed: () => Navigator.of(context)
@@ -276,16 +275,16 @@ class VibeImportHandler {
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(context.l10n.vibeEncodingFailed),
-        content: Text(context.l10n.vibeEncodingFailedMessage),
+        title: const Text('Encoding failed'),
+        content: const Text('Failed to encode vibe. Continue adding unencoded image?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text(context.l10n.vibeCancel),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text(context.l10n.vibeContinue),
+            child: const Text('Continue'),
           ),
         ],
       ),
@@ -312,12 +311,12 @@ class VibeImportHandler {
         builder: (ctx) {
           dialogContext = ctx;
           dialogCompleter.complete();
-          return AlertDialog(
+          return const AlertDialog(
             content: Row(
               children: [
-                const CircularProgressIndicator(),
-                const SizedBox(width: 16),
-                Text(context.l10n.vibeEncoding),
+                CircularProgressIndicator(),
+                SizedBox(width: 16),
+                Text('Encoding...'),
               ],
             ),
           );
@@ -387,12 +386,12 @@ class VibeImportHandler {
 
       if (allEncoded) {
         if (context.mounted) {
-          AppToast.success(context, context.l10n.vibeEncodingComplete);
+          AppToast.success(context, 'Encoding complete');
         }
         return encodedVibes;
       } else {
         if (context.mounted) {
-          AppToast.warning(context, context.l10n.vibeEncodingPartialFailed);
+          AppToast.warning(context, 'Partial encoding failed');
         }
         return encodedVibes;
       }
@@ -400,7 +399,7 @@ class VibeImportHandler {
       AppLogger.e('Vibe encoding timeout', e, null, _tag);
       closeDialog();
       if (context.mounted) {
-        AppToast.error(context, context.l10n.vibeEncodingTimeout);
+        AppToast.error(context, 'Encoding timeout');
       }
       return null;
     } catch (e, stackTrace) {
@@ -460,11 +459,11 @@ class VibeImportHandler {
       if (context.mounted) {
         String message;
         if (savedCount > 0 && reusedCount > 0) {
-          message = context.l10n.vibeSavedAndReused(savedCount, reusedCount);
+          message = 'Saved $savedCount, reused $reusedCount';
         } else if (savedCount > 0) {
-          message = context.l10n.vibeSavedToLibrary(savedCount);
+          message = 'Saved $savedCount to library';
         } else {
-          message = context.l10n.vibeReusedFromLibrary(reusedCount);
+          message = 'Reused $reusedCount from library';
         }
         AppToast.success(context, message);
         // 通知 Vibe 库刷新
@@ -473,7 +472,7 @@ class VibeImportHandler {
     } catch (e, stackTrace) {
       AppLogger.e('Failed to save encoded vibes to library', e, stackTrace, _tag);
       if (context.mounted) {
-        AppToast.error(context, context.l10n.vibeSaveToLibraryFailed);
+        AppToast.error(context, 'Failed to save to library');
       }
     }
   }
@@ -502,7 +501,7 @@ class VibeImportHandler {
         context: context,
         initialSelectedIds: const {},
         showReplaceOption: true,
-        title: context.l10n.vibeImportFromLibrary,
+        title: 'Import from Library',
       );
 
       if (result == null || result.selectedEntries.isEmpty) return;
@@ -546,13 +545,13 @@ class VibeImportHandler {
       if (context.mounted) {
         AppToast.success(
           context,
-          context.l10n.vibeImportSuccess(totalAdded),
+          'Imported $totalAdded vibes',
         );
       }
     } catch (e, stackTrace) {
       AppLogger.e('Failed to import from library', e, stackTrace, _tag);
       if (context.mounted) {
-        AppToast.error(context, context.l10n.vibeImportFailed(e.toString()));
+        AppToast.error(context, 'Import failed: $e');
       }
     }
   }
@@ -598,13 +597,13 @@ class VibeImportHandler {
         final vibesWithSource = extractedVibes
             .map((vibe) => vibe.copyWith(
                   bundleSource: entry.displayName,
-                ))
+                ),)
             .toList();
         notifier.addVibeReferences(vibesWithSource);
 
         if (showToast && context.mounted) {
           AppToast.success(
-              context, context.l10n.vibeAddedCount(extractedVibes.length));
+              context, 'Added ${extractedVibes.length} vibes',);
         }
       }
 
@@ -631,7 +630,7 @@ class VibeImportHandler {
     if (unencodedVibes.isNotEmpty) {
       AppToast.warning(
         context,
-        context.l10n.vibeNeedEncoding(unencodedVibes.length),
+        '${unencodedVibes.length} vibes need encoding',
       );
       return;
     }
@@ -652,22 +651,22 @@ class VibeImportHandler {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: Text(context.l10n.vibeSaveToLibrary),
+              title: const Text('Save to Library'),
               content: SizedBox(
                 width: 400,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(context.l10n.vibeSaveCount(vibes.length)),
+                    Text('Saving ${vibes.length} vibes'),
                     const SizedBox(height: 16),
                     // 名称输入
                     TextField(
                       controller: nameController,
-                      decoration: InputDecoration(
-                        labelText: context.l10n.vibeNameLabel,
-                        hintText: context.l10n.vibeNameHint,
-                        border: const OutlineInputBorder(),
+                      decoration: const InputDecoration(
+                        labelText: 'Name',
+                        hintText: 'Enter vibe name',
+                        border: OutlineInputBorder(),
                       ),
                       autofocus: true,
                     ),
@@ -675,7 +674,7 @@ class VibeImportHandler {
                     // Reference Strength 滑条
                     _buildDialogSlider(
                       context,
-                      label: context.l10n.vibe_strength,
+                      label: 'Strength',
                       value: strengthValue,
                       onChanged: (value) =>
                           setState(() => strengthValue = value),
@@ -684,7 +683,7 @@ class VibeImportHandler {
                     // Information Extracted 滑条
                     _buildDialogSlider(
                       context,
-                      label: context.l10n.vibe_infoExtracted,
+                      label: 'Info Extracted',
                       value: infoExtractedValue,
                       onChanged: (value) =>
                           setState(() => infoExtractedValue = value),
@@ -695,7 +694,7 @@ class VibeImportHandler {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(null),
-                  child: Text(context.l10n.common_cancel),
+                  child: const Text('Cancel'),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -705,7 +704,7 @@ class VibeImportHandler {
                       );
                     }
                   },
-                  child: Text(context.l10n.common_save),
+                  child: const Text('Save'),
                 ),
               ],
             );
@@ -755,11 +754,11 @@ class VibeImportHandler {
         if (context.mounted) {
           String message;
           if (savedCount > 0 && reusedCount > 0) {
-            message = context.l10n.vibeSavedAndReused(savedCount, reusedCount);
+            message = 'Saved $savedCount, reused $reusedCount';
           } else if (savedCount > 0) {
-            message = context.l10n.vibeSavedToLibrary(savedCount);
+            message = 'Saved $savedCount to library';
           } else {
-            message = context.l10n.vibeReusedFromLibrary(reusedCount);
+            message = 'Reused $reusedCount from library';
           }
           AppToast.success(context, message);
           // 通知 Vibe 库刷新
@@ -768,7 +767,7 @@ class VibeImportHandler {
       } catch (e, stackTrace) {
         AppLogger.e('Failed to save to library', e, stackTrace, _tag);
         if (context.mounted) {
-          AppToast.error(context, context.l10n.vibeSaveFailed);
+          AppToast.error(context, 'Failed to save');
         }
       }
     }
