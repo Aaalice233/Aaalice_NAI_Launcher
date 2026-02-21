@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
@@ -127,12 +128,14 @@ class VibeImageEmbedder {
   }
 
   /// Result of extracting vibes from image (using Isolate to avoid blocking UI)
+  ///
+  /// 使用 compute() 调用 Isolate 方法，避免在 UI 线程执行耗时的 PNG 解析操作
   static Future<({List<VibeReference> vibes, bool isBundle})> extractVibeFromImage(
     Uint8List imageBytes,
   ) async {
     try {
-      // 使用 Isolate 执行提取，避免阻塞 UI
-      final result = await compute(_extractVibeIsolate, imageBytes);
+      // 使用 compute() 在 Isolate 中执行提取，避免阻塞 UI
+      final result = await compute(_extractVibesFromImageIsolate, imageBytes);
 
       if (result == null) {
         throw NoVibeDataException(
@@ -164,30 +167,16 @@ class VibeImageEmbedder {
   ///
   /// 静态方法，用于在 Isolate 中执行 vibe 提取逻辑
   /// 返回序列化的 [_ExtractVibeResult]，确保数据可在 Isolate 间传递
-  static _ExtractVibeResult? _extractVibeIsolate(Uint8List imageBytes) {
+  static _ExtractVibeResult? _extractVibesFromImageIsolate(Uint8List imageBytes) {
     try {
-      final decoder = img.PngDecoder();
-      if (!decoder.isValidFile(imageBytes) ||
-          decoder.startDecode(imageBytes) == null) {
+      // 验证 PNG 格式
+      if (!_hasValidPngSignature(imageBytes)) {
         throw InvalidImageFormatException(
           'Only valid PNG images can contain naiv4vibe metadata',
         );
       }
 
-      // Try tEXt chunk first (legacy format)
-      final textData = decoder.info.textData;
-      final payloadJson = textData[_vibeKeyword];
-      if (payloadJson != null && payloadJson.trim().isNotEmpty) {
-        final payload = _decodeMetadataPayload(payloadJson);
-        final vibe = _payloadToVibeReference(payload);
-        // 在 Isolate 中返回序列化数据，不包含原始图片字节
-        return _ExtractVibeResult(
-          vibesData: [_vibeReferenceToData(vibe)],
-          isBundle: false,
-        );
-      }
-
-      // Try iTXt chunk (NAI official format)
+      // Try iTXt chunk first (NAI official format)
       final naiData = _extractNaiDataFromITxt(imageBytes);
       if (naiData != null) {
         final result = _parseNaiVibeData(naiData);
@@ -198,6 +187,18 @@ class VibeImageEmbedder {
         );
       }
 
+      // Try tEXt chunk (legacy format)
+      final payloadJson = _extractVibeFromTextChunk(imageBytes);
+      if (payloadJson != null && payloadJson.trim().isNotEmpty) {
+        final payload = _decodeMetadataPayload(payloadJson);
+        final vibe = _payloadToVibeReference(payload);
+        // 在 Isolate 中返回序列化数据，不包含原始图片字节
+        return _ExtractVibeResult(
+          vibesData: [_vibeReferenceToData(vibe)],
+          isBundle: false,
+        );
+      }
+
       return null;
     } on InvalidImageFormatException {
       rethrow;
@@ -205,6 +206,44 @@ class VibeImageEmbedder {
       AppLogger.w('[Isolate] Vibe extraction error: $e', 'VibeImageEmbedder');
       return null;
     }
+  }
+
+  /// 从 PNG tEXt chunk 中提取 legacy vibe 元数据
+  static String? _extractVibeFromTextChunk(Uint8List imageBytes) {
+    try {
+      final byteData = ByteData.sublistView(imageBytes);
+      var offset = _pngSignature.length;
+
+      while (offset + _chunkHeaderSize <= imageBytes.length) {
+        final dataLength = byteData.getUint32(offset, Endian.big);
+        final typeStart = offset + 4;
+        final dataStart = typeStart + 4;
+        final dataEnd = dataStart + dataLength;
+        final crcEnd = dataEnd + 4;
+
+        if (crcEnd > imageBytes.length) break;
+
+        final chunkType = ascii.decode(imageBytes.sublist(typeStart, dataStart));
+
+        if (chunkType == _textChunkType) {
+          final chunkData = imageBytes.sublist(dataStart, dataEnd);
+          final separator = chunkData.indexOf(0);
+          if (separator > 0) {
+            final keyword = latin1.decode(chunkData.sublist(0, separator));
+            if (keyword == _vibeKeyword) {
+              final text = latin1.decode(chunkData.sublist(separator + 1));
+              return text;
+            }
+          }
+        }
+
+        if (chunkType == _iendChunkType) break;
+        offset = crcEnd;
+      }
+    } catch (e) {
+      AppLogger.w('Error extracting from tEXt chunk: $e', 'VibeImageEmbedder');
+    }
+    return null;
   }
 
   /// 将 VibeReference 转换为可序列化的 Map
