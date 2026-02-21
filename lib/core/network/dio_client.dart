@@ -90,7 +90,14 @@ class AuthInterceptor extends Interceptor {
     // 检查请求是否已经有 Authorization header（如 validateToken 自己设置的）
     final existingAuth = options.headers['Authorization'];
     if (existingAuth != null && existingAuth.toString().isNotEmpty) {
-      AppLogger.d('Using existing auth header', 'DIO');
+      // 规范化并确保使用 Bearer 前缀
+      final normalizedExisting = _normalizeToken(existingAuth.toString());
+      final authHeader = 'Bearer $normalizedExisting';
+      options.headers['Authorization'] = authHeader;
+      AppLogger.d(
+        'Using existing auth header: normalized_length=${normalizedExisting.length}',
+        'DIO',
+      );
       handler.next(options);
       return;
     }
@@ -107,15 +114,12 @@ class AuthInterceptor extends Interceptor {
         return;
       }
 
-      // Persistent Tokens (pst-xxx) should be used without Bearer prefix
-      // JWT tokens should use Bearer prefix
-      final authHeader = normalizedToken.startsWith('pst-')
-          ? normalizedToken
-          : 'Bearer $normalizedToken';
+      // 所有 token 都使用 Bearer 前缀（与 NAI-Generator-Flutter 保持一致）
+      final authHeader = 'Bearer $normalizedToken';
 
       options.headers['Authorization'] = authHeader;
       AppLogger.d(
-        'Added auth header from storage, token length: ${normalizedToken.length}, format: ${normalizedToken.startsWith("pst-") ? "raw" : "Bearer"}',
+        'Added auth header from storage, token length: ${normalizedToken.length}',
         'DIO',
       );
     } else {
@@ -184,11 +188,8 @@ class AuthInterceptor extends Interceptor {
                 return;
               }
 
-              // 更新请求头
-              err.requestOptions.headers['Authorization'] =
-                  normalizedToken.startsWith('pst-')
-                  ? normalizedToken
-                  : 'Bearer $normalizedToken';
+              // 更新请求头（统一使用 Bearer 前缀）
+              err.requestOptions.headers['Authorization'] = 'Bearer $normalizedToken';
 
               try {
                 // 创建新的 Dio 实例来重试，避免循环
@@ -252,9 +253,19 @@ class AuthInterceptor extends Interceptor {
   String _normalizeToken(String token) {
     final trimmedToken = token.trim();
     final unquotedToken = _stripWrappingQuotes(trimmedToken);
-    return unquotedToken
-        .replaceFirst(_bearerPrefixRegex, '')
-        .replaceAll(_allWhitespaceRegex, '');
+    
+    // 循环移除所有 Bearer 前缀（处理重复添加的情况）
+    var normalizedToken = unquotedToken;
+    var previousToken = '';
+    while (normalizedToken != previousToken) {
+      previousToken = normalizedToken;
+      normalizedToken = normalizedToken
+          .replaceFirst(_bearerPrefixRegex, '')
+          .trim();
+    }
+    
+    // 移除所有空白字符
+    return normalizedToken.replaceAll(_allWhitespaceRegex, '');
   }
 
   String _stripWrappingQuotes(String value) {

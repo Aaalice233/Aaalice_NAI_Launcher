@@ -225,9 +225,19 @@ class SecureStorageService {
   String _normalizeToken(String token) {
     final trimmedToken = token.trim();
     final unquotedToken = _stripWrappingQuotes(trimmedToken);
-    final normalizedToken = unquotedToken
-        .replaceFirst(_bearerPrefixRegex, '')
-        .replaceAll(_allWhitespaceRegex, '');
+    
+    // 循环移除所有 Bearer 前缀（处理重复添加的情况）
+    var normalizedToken = unquotedToken;
+    var previousToken = '';
+    while (normalizedToken != previousToken) {
+      previousToken = normalizedToken;
+      normalizedToken = normalizedToken
+          .replaceFirst(_bearerPrefixRegex, '')
+          .trim();
+    }
+    
+    // 移除所有空白字符
+    normalizedToken = normalizedToken.replaceAll(_allWhitespaceRegex, '');
     
     // 验证 token 格式
     if (normalizedToken.startsWith('pst-') && normalizedToken.length < 14) {

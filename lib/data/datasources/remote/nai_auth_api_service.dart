@@ -23,11 +23,7 @@ class NAIAuthApiService {
 
   /// 验证 API Token 是否有效
   Future<Map<String, dynamic>> validateToken(String token) async {
-    final trimmedToken = token.trim();
-    final unquotedToken = _stripWrappingQuotes(trimmedToken);
-    final normalizedToken = unquotedToken
-        .replaceFirst(_bearerPrefixRegex, '')
-        .replaceAll(_allWhitespaceRegex, '');
+    final normalizedToken = _normalizeToken(token);
 
     if (normalizedToken.isEmpty) {
       throw ArgumentError('Token 为空，无法验证');
@@ -37,9 +33,8 @@ class NAIAuthApiService {
       throw ArgumentError('Token 格式无效');
     }
 
-    final authHeader = normalizedToken.startsWith('pst-')
-        ? normalizedToken
-        : 'Bearer $normalizedToken';
+    // 所有 token 都使用 Bearer 前缀（与 NAI-Generator-Flutter 保持一致）
+    final authHeader = 'Bearer $normalizedToken';
 
     // 详细的日志记录用于诊断登录问题
     final tokenFormat = normalizedToken.startsWith('pst-') ? 'pst' : 'jwt';
@@ -48,6 +43,10 @@ class NAIAuthApiService {
         : normalizedToken.substring(0, normalizedToken.length > 20 ? 20 : normalizedToken.length);
     AppLogger.i(
       'Validating token: format=$tokenFormat, length=${normalizedToken.length}, prefix=$prefix...',
+      'NAIAuth',
+    );
+    AppLogger.d(
+      'Auth header to be sent: length=${authHeader.length}, value="$authHeader"',
       'NAIAuth',
     );
 
@@ -113,6 +112,24 @@ class NAIAuthApiService {
     // 允许字母、数字、下划线和横线
     final validPattern = RegExp(r'^[a-zA-Z0-9_-]+$');
     return validPattern.hasMatch(tokenBody);
+  }
+
+  String _normalizeToken(String token) {
+    final trimmedToken = token.trim();
+    final unquotedToken = _stripWrappingQuotes(trimmedToken);
+    
+    // 循环移除所有 Bearer 前缀（处理重复添加的情况）
+    var normalizedToken = unquotedToken;
+    var previousToken = '';
+    while (normalizedToken != previousToken) {
+      previousToken = normalizedToken;
+      normalizedToken = normalizedToken
+          .replaceFirst(_bearerPrefixRegex, '')
+          .trim();
+    }
+    
+    // 移除所有空白字符
+    return normalizedToken.replaceAll(_allWhitespaceRegex, '');
   }
 
   String _stripWrappingQuotes(String value) {

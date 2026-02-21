@@ -423,7 +423,11 @@ class AuthNotifier extends _$AuthNotifier {
       final apiService = ref.read(naiAuthApiServiceProvider);
       final storage = ref.read(secureStorageServiceProvider);
 
-      // 2. 验证 Token 有效性
+      // 2. 先清除可能已污染的存储 token，确保验证使用干净的 token
+      AppLogger.auth('Clearing old token before validation...');
+      await storage.clearAuth();
+
+      // 3. 验证 Token 有效性
       AppLogger.auth('Validating token...');
       final subscriptionInfo = await apiService.validateToken(token);
       AppLogger.auth('Token validation successful');
