@@ -1013,6 +1013,102 @@ class GalleryDataSource extends EnhancedBaseDataSource {
     });
   }
 
+  /// 批量插入或更新图片记录
+  ///
+  /// [records] 图片记录列表
+  /// [batchSize] 每批处理数量（默认50，建议50-100）
+  ///
+  /// 使用事务批量处理，每批使用 executeTransaction 保证原子性。
+  /// 返回插入/更新后的图片ID列表，顺序与输入列表一致。
+  Future<List<int>> batchUpsertImages(
+    List<GalleryImageRecord> records, {
+    int batchSize = 50,
+  }) async {
+    if (records.isEmpty) return [];
+
+    final results = <int>[];
+    final now = DateTime.now();
+
+    // 分批处理
+    for (var i = 0; i < records.length; i += batchSize) {
+      final end = (i + batchSize < records.length) ? i + batchSize : records.length;
+      final batch = records.sublist(i, end);
+      final batchIndex = i ~/ batchSize;
+
+      final batchResults = await executeTransaction(
+        'batchUpsertImages#batch$batchIndex',
+        (txn) async {
+          final batchIds = <int>[];
+
+          for (final record in batch) {
+            final dateYmd = _formatDateYmd(record.modifiedAt);
+
+            // 首先尝试获取现有记录的ID（如果存在）
+            final existingResult = await txn.rawQuery(
+              'SELECT id FROM $_imagesTable WHERE file_path = ?',
+              [record.filePath],
+            );
+            final existingId = existingResult.isNotEmpty
+                ? (existingResult.first['id'] as num?)?.toInt()
+                : null;
+
+            // 如果存在，清除缓存
+            if (existingId != null) {
+              _imageCache.remove(existingId);
+            }
+
+            final map = {
+              'file_path': record.filePath,
+              'file_name': record.fileName,
+              'file_size': record.fileSize,
+              'file_hash': record.fileHash,
+              'width': record.width,
+              'height': record.height,
+              'aspect_ratio': record.aspectRatio,
+              'created_at': record.createdAt.millisecondsSinceEpoch,
+              'modified_at': record.modifiedAt.millisecondsSinceEpoch,
+              'indexed_at': now.millisecondsSinceEpoch,
+              'date_ymd': dateYmd,
+              'resolution_key': record.resolutionKey,
+              'metadata_status': record.metadataStatus.index,
+              'is_favorite': record.isFavorite ? 1 : 0,
+              'is_deleted': record.isDeleted ? 1 : 0,
+            };
+
+            if (existingId != null) {
+              map['id'] = existingId;
+            }
+
+            final id = await txn.insert(
+              _imagesTable,
+              map,
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+
+            batchIds.add(id);
+          }
+
+          return batchIds;
+        },
+        timeout: const Duration(seconds: 60),
+      );
+
+      results.addAll(batchResults);
+
+      // 批次间让出时间片，避免阻塞主线程
+      if (end < records.length) {
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
+    }
+
+    AppLogger.i(
+      'Batch upserted ${records.length} images in ${(records.length / batchSize).ceil()} batches',
+      'GalleryDS',
+    );
+
+    return results;
+  }
+
   /// 批量标记图片为已删除（软删除）
   ///
   /// 使用事务批量处理
