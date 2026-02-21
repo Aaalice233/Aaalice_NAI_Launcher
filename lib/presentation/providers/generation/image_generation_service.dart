@@ -277,6 +277,9 @@ class ImageGenerationService {
           width: params.width,
           height: params.height,
         );
+        // 注意：Streaming API 的响应中不包含 vibe encodings 数据
+        // 只有非流式 API (generateImage) 会返回 vibe encodings
+        // 这是 NovelAI API 的已知限制，非本实现问题
         return ImageGenerationResult(
           images: [generatedImage],
         );
@@ -446,11 +449,11 @@ class ImageGenerationService {
           width: params.width,
           height: params.height,
         ),);
-        // 合并当前图像的 vibe encodings，使用索引偏移
+        // 合并当前图像的 vibe encodings，使用组合 key 避免冲突
+        // key 格式: currentIndex * 100 + entry.key，确保每张图的 vibe encodings 都有唯一 key
         if (imageVibeEncodings.isNotEmpty) {
           for (final entry in imageVibeEncodings.entries) {
-            // 使用当前图像索引作为 key，确保每个图像的 vibe encodings 不冲突
-            allVibeEncodings[currentIndex] = entry.value;
+            allVibeEncodings[currentIndex * 100 + entry.key] = entry.value;
           }
         }
       }

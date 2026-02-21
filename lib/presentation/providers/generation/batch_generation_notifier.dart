@@ -478,7 +478,7 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
       );
     }
 
-    await Future.wait(futures);
+    await Future.wait(futures, eagerError: false);
 
     if (!_isCancelled) {
       final completed = state.items.where((i) => i.isCompleted).length;

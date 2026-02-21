@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../utils/alias_parser.dart';
 import '../utils/app_logger.dart';
 import '../../data/models/fixed_tag/fixed_tag_entry.dart';
@@ -242,8 +244,8 @@ class ParameterProcessingService {
     if (validEntries.isEmpty) return null;
 
     // 随机选择
-    final random = DateTime.now().microsecondsSinceEpoch % validEntries.length;
-    return validEntries[random].content;
+    final randomIndex = Random().nextInt(validEntries.length);
+    return validEntries[randomIndex].content;
   }
 
   /// 解析带权重的随机引用
@@ -271,8 +273,7 @@ class ParameterProcessingService {
     if (validEntries.isEmpty || totalWeight <= 0) return null;
 
     // 按权重随机选择
-    final randomValue =
-        (DateTime.now().microsecondsSinceEpoch % 10000) / 10000 * totalWeight;
+    final randomValue = Random().nextDouble() * totalWeight;
     double cumulative = 0;
 
     for (final (entry, weight) in validEntries) {
