@@ -9,7 +9,13 @@ class NaiSyntaxController extends TextEditingController {
   bool highlightEnabled;
 
   // 静态正则表达式，编译一次复用多次
-  static final RegExp _weightPattern = RegExp(r'(-?\d+\.?\d*)::([^:]+)::');
+  // 支持三种格式：
+  // 1. weight::content::  - 完整格式 (数字::内容::)
+  // 2. weight::content    - 只有开头权重 (数字::内容)
+  // 3. content::          - 只有结尾 :: (内容::)
+  static final RegExp _weightPatternFull = RegExp(r'(-?\d+\.?\d*)::(.+?)::(?=,|\s|$)');
+  static final RegExp _weightPatternLeading = RegExp(r'(-?\d+\.?\d*)::([a-z0-9_:]+)(?=,|\s|$)');
+  static final RegExp _weightPatternTrailing = RegExp(r'([a-z0-9_:]+)::$');
 
   /// NAI 动态随机语法 ||A|B|C|| 或 ||n$$A|B|C||
   static final RegExp _dynamicRandomPattern =
@@ -96,9 +102,9 @@ class NaiSyntaxController extends TextEditingController {
         .map((m) => m.errorMessage!)
         .toList();
 
-    // 匹配权重语法 数字::内容::
-    // 拆分为: (数字::内容) + (::)
-    for (final match in _weightPattern.allMatches(text)) {
+    // 匹配权重语法，支持三种格式
+    // 格式1: weight::content:: (完整格式)
+    for (final match in _weightPatternFull.allMatches(text)) {
       final weightStr = match.group(1)!;
       final content = match.group(2)!;
       final weight = double.tryParse(weightStr) ?? 1.0;
@@ -123,6 +129,58 @@ class NaiSyntaxController extends TextEditingController {
           text: '::',
           type: _SyntaxType.weightTrailing,
           weight: weight,
+        ),
+      );
+    }
+
+    // 格式2: weight::content (只有开头权重)
+    final leadingMatches = _weightPatternLeading.allMatches(text).toList();
+    for (final match in leadingMatches) {
+      // 跳过已被完整格式匹配的部分
+      if (text.substring(match.end).startsWith('::')) continue;
+      
+      final weightStr = match.group(1)!;
+      final weight = double.tryParse(weightStr) ?? 1.0;
+
+      // 整个部分: 数字::内容
+      matches.add(
+        _SyntaxMatch(
+          start: match.start,
+          end: match.end,
+          text: match.group(0)!,
+          type: _SyntaxType.weightMain,
+          weight: weight,
+        ),
+      );
+    }
+
+    // 格式3: content:: (只有结尾 ::，无开头权重)
+    for (final match in _weightPatternTrailing.allMatches(text)) {
+      // 跳过已被前面规则匹配的部分（检查前面是否有 ::）
+      if (match.start >= 2 && text.substring(match.start - 2, match.start) == '::') {
+        continue;
+      }
+      final content = match.group(1)!;
+
+      // 内容部分（使用权重=1的颜色，即无颜色/透明）
+      matches.add(
+        _SyntaxMatch(
+          start: match.start,
+          end: match.end - 2,
+          text: content,
+          type: _SyntaxType.weightMain,
+          weight: 1.0, // 权重=1表示无增强/减弱
+        ),
+      );
+
+      // 结尾 :: 部分（绿色）
+      matches.add(
+        _SyntaxMatch(
+          start: match.end - 2,
+          end: match.end,
+          text: '::',
+          type: _SyntaxType.weightTrailing,
+          weight: 1.0,
         ),
       );
     }
