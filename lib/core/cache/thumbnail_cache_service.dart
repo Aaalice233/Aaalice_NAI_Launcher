@@ -16,13 +16,47 @@ class ThumbnailInfo {
   final int width;
   final int height;
   final DateTime createdAt;
+  DateTime lastAccessedAt;
+  int accessCount;
 
   ThumbnailInfo({
     required this.path,
     required this.width,
     required this.height,
     required this.createdAt,
-  });
+    DateTime? lastAccessedAt,
+    this.accessCount = 1,
+  }) : lastAccessedAt = lastAccessedAt ?? createdAt;
+
+  /// 记录访问
+  void recordAccess() {
+    accessCount++;
+    lastAccessedAt = DateTime.now();
+  }
+
+  /// 转换为 JSON（用于持久化）
+  Map<String, dynamic> toJson() => {
+        'path': path,
+        'width': width,
+        'height': height,
+        'createdAt': createdAt.toIso8601String(),
+        'lastAccessedAt': lastAccessedAt.toIso8601String(),
+        'accessCount': accessCount,
+      };
+
+  /// 从 JSON 创建
+  factory ThumbnailInfo.fromJson(Map<String, dynamic> json) {
+    return ThumbnailInfo(
+      path: json['path'] as String,
+      width: json['width'] as int,
+      height: json['height'] as int,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      lastAccessedAt: json['lastAccessedAt'] != null
+          ? DateTime.parse(json['lastAccessedAt'] as String)
+          : null,
+      accessCount: json['accessCount'] as int? ?? 1,
+    );
+  }
 }
 
 /// 缩略图缓存服务
@@ -65,10 +99,41 @@ class ThumbnailCacheService {
   int _missCount = 0;
   int _generatedCount = 0;
   int _failedCount = 0;
+  int _evictedCount = 0;
+
+  /// 缓存限制配置
+  static const int defaultMaxCacheSizeMB = 500;
+  static const int defaultMaxFileCount = 10000;
+
+  /// LRU 追踪：缩略图路径 -> 最后访问时间
+  final Map<String, DateTime> _lastAccessTimes = {};
+
+  /// 缓存大小限制（MB）
+  int _maxCacheSizeMB = defaultMaxCacheSizeMB;
+
+  /// 最大文件数限制
+  int _maxFileCount = defaultMaxFileCount;
 
   /// 初始化服务
   Future<void> init() async {
     AppLogger.d('ThumbnailCacheService initialized', 'ThumbnailCache');
+  }
+
+  /// 设置缓存限制
+  ///
+  /// [maxSizeMB] 最大缓存大小（MB）
+  /// [maxFiles] 最大文件数量
+  void setCacheLimits({int? maxSizeMB, int? maxFiles}) {
+    if (maxSizeMB != null && maxSizeMB > 0) {
+      _maxCacheSizeMB = maxSizeMB;
+    }
+    if (maxFiles != null && maxFiles > 0) {
+      _maxFileCount = maxFiles;
+    }
+    AppLogger.d(
+      'Cache limits updated: maxSize=${_maxCacheSizeMB}MB, maxFiles=$_maxFileCount',
+      'ThumbnailCache',
+    );
   }
 
   /// 获取缩略图路径
@@ -83,6 +148,8 @@ class ThumbnailCacheService {
 
     if (file.existsSync()) {
       _hitCount++;
+      // 记录访问时间用于 LRU
+      _lastAccessTimes[thumbnailPath] = DateTime.now();
       AppLogger.d('Thumbnail cache HIT: $thumbnailPath', 'ThumbnailCache');
       return thumbnailPath;
     }
@@ -332,25 +399,37 @@ class ThumbnailCacheService {
   /// 清理整个缩略图缓存
   ///
   /// [rootPath] 画廊根目录路径，用于定位所有 .thumbs 目录
-  Future<int> clearCache(String rootPath) async {
+  /// [options] 清理选项，可选参数：
+  ///   - 'resetStats': bool - 是否重置统计信息（默认 true）
+  ///   - 'preserveAccessTimes': bool - 是否保留访问时间记录（默认 false）
+  /// 返回被删除的目录数量
+  Future<int> clearCache(String rootPath, {Map<String, dynamic>? options}) async {
     try {
       final rootDir = Directory(rootPath);
       if (!await rootDir.exists()) {
+        AppLogger.w('Root directory not found: $rootPath', 'ThumbnailCache');
         return 0;
       }
 
+      final resetStats = options?['resetStats'] as bool? ?? true;
+      final preserveAccessTimes = options?['preserveAccessTimes'] as bool? ?? false;
+
       int deletedCount = 0;
       int totalSize = 0;
+      int fileCount = 0;
+      final List<String> deletedPaths = [];
 
       // 遍历所有子目录，删除 .thumbs 文件夹
       await for (final entity in rootDir.list(recursive: true, followLinks: false)) {
         if (entity is Directory) {
           final dirName = entity.path.split(Platform.pathSeparator).last;
           if (dirName == thumbsDirName) {
-            // 统计大小
+            // 统计大小和文件数
             await for (final file in entity.list(recursive: true)) {
               if (file is File) {
                 totalSize += await file.length();
+                fileCount++;
+                deletedPaths.add(file.path);
               }
             }
 
@@ -360,14 +439,28 @@ class ThumbnailCacheService {
         }
       }
 
-      // 重置统计
-      _hitCount = 0;
-      _missCount = 0;
-      _generatedCount = 0;
-      _failedCount = 0;
+      // 清理访问时间记录
+      if (!preserveAccessTimes) {
+        _lastAccessTimes.clear();
+      } else {
+        // 只删除已不存在的文件的访问记录
+        for (final path in deletedPaths) {
+          _lastAccessTimes.remove(path);
+        }
+      }
+
+      // 重置统计（可选）
+      if (resetStats) {
+        _hitCount = 0;
+        _missCount = 0;
+        _generatedCount = 0;
+        _failedCount = 0;
+        _evictedCount = 0;
+      }
 
       AppLogger.i(
-        'Cache cleared: $deletedCount directories, ${totalSize ~/ 1024 ~/ 1024}MB freed',
+        'Cache cleared: $deletedCount directories, $fileCount files, '
+        '${_formatBytes(totalSize)} freed',
         'ThumbnailCache',
       );
 
@@ -378,19 +471,121 @@ class ThumbnailCacheService {
     }
   }
 
+  /// 清理指定时间之前的缩略图（按创建时间）
+  ///
+  /// [rootPath] 画廊根目录路径
+  /// [before] 清理此时间之前创建的缩略图
+  /// 返回被删除的文件数量
+  Future<int> clearCacheBefore(String rootPath, DateTime before) async {
+    try {
+      final rootDir = Directory(rootPath);
+      if (!await rootDir.exists()) {
+        return 0;
+      }
+
+      int deletedCount = 0;
+      int freedSize = 0;
+
+      await for (final entity in rootDir.list(recursive: true, followLinks: false)) {
+        if (entity is Directory) {
+          final dirName = entity.path.split(Platform.pathSeparator).last;
+          if (dirName == thumbsDirName) {
+            await for (final file in entity.list(recursive: true)) {
+              if (file is File) {
+                try {
+                  final stat = await file.stat();
+                  if (stat.modified.isBefore(before)) {
+                    freedSize += await file.length();
+                    await file.delete();
+                    _lastAccessTimes.remove(file.path);
+                    deletedCount++;
+                  }
+                } catch (_) {
+                  // 忽略无法删除的文件
+                }
+              }
+            }
+          }
+        }
+      }
+
+      AppLogger.i(
+        'Cache cleared before $before: $deletedCount files, ${_formatBytes(freedSize)} freed',
+        'ThumbnailCache',
+      );
+
+      return deletedCount;
+    } catch (e, stack) {
+      AppLogger.e('Failed to clear cache before date: $e', e, stack, 'ThumbnailCache');
+      return 0;
+    }
+  }
+
+  /// 格式化字节数为可读字符串
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / 1024 / 1024).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / 1024 / 1024 / 1024).toStringAsFixed(1)} GB';
+  }
+
   /// 获取缓存统计
+  ///
+  /// 返回包含命中统计、队列状态、限制配置等信息的 Map
   Map<String, dynamic> getStats() {
+    final totalRequests = _hitCount + _missCount;
+    final hitRate = totalRequests > 0
+        ? (_hitCount / totalRequests * 100)
+        : 0.0;
+
     return {
+      // 命中统计
       'hitCount': _hitCount,
       'missCount': _missCount,
       'generatedCount': _generatedCount,
       'failedCount': _failedCount,
-      'hitRate': _hitCount + _missCount > 0
-          ? (_hitCount / (_hitCount + _missCount) * 100).toStringAsFixed(1) + '%'
-          : 'N/A',
+      'evictedCount': _evictedCount,
+      'hitRate': '${hitRate.toStringAsFixed(1)}%',
+      'hitRateValue': hitRate,
+
+      // 队列状态
       'queueLength': _taskQueue.length,
       'activeGenerations': _activeGenerationCount,
+      'maxConcurrentGenerations': maxConcurrentGenerations,
+
+      // 限制配置
+      'maxCacheSizeMB': _maxCacheSizeMB,
+      'maxFileCount': _maxFileCount,
+
+      // LRU 追踪数量
+      'trackedAccessTimes': _lastAccessTimes.length,
     };
+  }
+
+  /// 获取详细的缓存统计（包含磁盘使用情况）
+  ///
+  /// [rootPath] 画廊根目录路径
+  Future<Map<String, dynamic>> getDetailedStats(String rootPath) async {
+    final basicStats = getStats();
+    final cacheSizeInfo = await getCacheSize(rootPath);
+
+    return {
+      ...basicStats,
+      'diskCache': cacheSizeInfo,
+    };
+  }
+
+  /// 重置统计信息
+  void resetStats() {
+    _hitCount = 0;
+    _missCount = 0;
+    _generatedCount = 0;
+    _failedCount = 0;
+    _evictedCount = 0;
+    _lastAccessTimes.clear();
+    AppLogger.d('Statistics reset', 'ThumbnailCache');
   }
 
   /// 获取指定目录的缩略图缓存大小
@@ -435,6 +630,140 @@ class ThumbnailCacheService {
   bool thumbnailExists(String originalPath) {
     final thumbnailPath = _getThumbnailPath(originalPath);
     return File(thumbnailPath).existsSync();
+  }
+
+  /// 执行 LRU 淘汰
+  ///
+  /// [rootPath] 画廊根目录路径
+  /// [targetSizeMB] 目标缓存大小（MB），默认使用 _maxCacheSizeMB 的 80%
+  /// [targetFileCount] 目标文件数，默认使用 _maxFileCount 的 80%
+  /// 返回被淘汰的文件数量
+  Future<int> evictLRU(
+    String rootPath, {
+    int? targetSizeMB,
+    int? targetFileCount,
+  }) async {
+    try {
+      final targetSize = (targetSizeMB ?? (_maxCacheSizeMB * 0.8)).toInt();
+      final targetFiles = targetFileCount ?? (_maxFileCount * 0.8).toInt();
+
+      // 获取所有缩略图文件信息
+      final allThumbnails = await _getAllThumbnails(rootPath);
+
+      if (allThumbnails.isEmpty) {
+        return 0;
+      }
+
+      // 计算当前缓存状态
+      int currentSizeMB = 0;
+      for (final info in allThumbnails) {
+        try {
+          final file = File(info.path);
+          if (await file.exists()) {
+            currentSizeMB += await file.length();
+          }
+        } catch (_) {
+          // 忽略无法访问的文件
+        }
+      }
+      currentSizeMB = currentSizeMB ~/ (1024 * 1024);
+
+      // 检查是否需要淘汰
+      if (currentSizeMB <= targetSize && allThumbnails.length <= targetFiles) {
+        AppLogger.d(
+          'LRU eviction skipped: size=$currentSizeMBMB/${targetSize}MB, '
+          'files=${allThumbnails.length}/$targetFiles',
+          'ThumbnailCache',
+        );
+        return 0;
+      }
+
+      // 按最后访问时间排序（最久未访问的在前）
+      allThumbnails.sort((a, b) {
+        final aTime = _lastAccessTimes[a.path] ?? a.createdAt;
+        final bTime = _lastAccessTimes[b.path] ?? b.createdAt;
+        return aTime.compareTo(bTime);
+      });
+
+      int evictedCount = 0;
+      int evictedSizeMB = 0;
+
+      // 淘汰直到满足限制
+      for (final info in allThumbnails) {
+        if (currentSizeMB - evictedSizeMB <= targetSize &&
+            allThumbnails.length - evictedCount <= targetFiles) {
+          break;
+        }
+
+        try {
+          final file = File(info.path);
+          if (await file.exists()) {
+            final fileSize = await file.length();
+            await file.delete();
+            evictedSizeMB += fileSize ~/ (1024 * 1024);
+            evictedCount++;
+            _lastAccessTimes.remove(info.path);
+          }
+        } catch (e) {
+          AppLogger.w('Failed to evict thumbnail: ${info.path}', 'ThumbnailCache');
+        }
+      }
+
+      _evictedCount += evictedCount;
+
+      AppLogger.i(
+        'LRU eviction completed: $evictedCount files, ${evictedSizeMB}MB freed, '
+        'remaining: ${allThumbnails.length - evictedCount} files, '
+        '${currentSizeMB - evictedSizeMB}MB',
+        'ThumbnailCache',
+      );
+
+      return evictedCount;
+    } catch (e, stack) {
+      AppLogger.e('LRU eviction failed: $e', e, stack, 'ThumbnailCache');
+      return 0;
+    }
+  }
+
+  /// 获取所有缩略图信息
+  Future<List<ThumbnailInfo>> _getAllThumbnails(String rootPath) async {
+    final List<ThumbnailInfo> thumbnails = [];
+
+    try {
+      final rootDir = Directory(rootPath);
+      if (!await rootDir.exists()) {
+        return thumbnails;
+      }
+
+      await for (final entity in rootDir.list(recursive: true, followLinks: false)) {
+        if (entity is Directory) {
+          final dirName = entity.path.split(Platform.pathSeparator).last;
+          if (dirName == thumbsDirName) {
+            await for (final file in entity.list(recursive: true)) {
+              if (file is File && file.path.endsWith(thumbnailExt)) {
+                try {
+                  final stat = await file.stat();
+                  thumbnails.add(ThumbnailInfo(
+                    path: file.path,
+                    width: 0, // 磁盘缓存不保存具体尺寸
+                    height: 0,
+                    createdAt: stat.modified,
+                    lastAccessedAt: _lastAccessTimes[file.path] ?? stat.accessed,
+                    accessCount: 1,
+                  ));
+                } catch (_) {
+                  // 忽略无法访问的文件
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (e, stack) {
+      AppLogger.e('Failed to get all thumbnails: $e', e, stack, 'ThumbnailCache');
+    }
+
+    return thumbnails;
   }
 
   /// 获取缩略图文件路径
