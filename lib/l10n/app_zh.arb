@@ -3189,6 +3189,11 @@
   "vibe_saveToLibrary_strength": "参考强度",
   "vibe_saveToLibrary_infoExtracted": "信息提取",
   "vibe_saveToLibrary_saving": "正在保存 {count} 个 vibes",
+  "@vibe_saveToLibrary_saving": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "vibe_saveToLibrary_saveFailed": "保存到库失败",
   "vibe_saveToLibrary_savingCount": "正在保存 {count} 个 vibes",
   "@vibe_saveToLibrary_savingCount": {
