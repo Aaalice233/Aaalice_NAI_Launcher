@@ -36,6 +36,8 @@ class VibeImageEmbedder {
   }
 
   /// 嵌入多个 Vibes 到图片（bundle 格式）
+  ///
+  /// 使用 Isolate 执行 PNG 解析和 chunk 构建，避免阻塞 UI 线程
   static Future<Uint8List> embedVibesToImage(
     Uint8List imageBytes,
     List<VibeReference> vibeReferences,
@@ -44,32 +46,251 @@ class VibeImageEmbedder {
       throw ArgumentError('At least one vibe reference is required');
     }
 
-    _ensureValidPng(imageBytes);
-    final chunks = _parsePngChunks(imageBytes);
+    try {
+      // 将 VibeReference 转换为可序列化的数据
+      final vibesData = vibeReferences
+          .map((ref) => _vibeReferenceToData(ref))
+          .toList();
 
-    final naiData = _buildNaiVibeBundleData(vibeReferences);
-    final naiDataBase64 = base64.encode(utf8.encode(jsonEncode(naiData)));
-    final vibeChunk = _buildITxtChunk(_naiDataKeyword, naiDataBase64);
+      final params = _EmbedVibesParams(
+        imageBytes: imageBytes,
+        vibeReferencesData: vibesData,
+      );
 
-    final builder = BytesBuilder(copy: false)..add(_pngSignature);
-    var idatFound = false;
+      // 使用 compute() 在 Isolate 中执行嵌入操作
+      return await compute(_embedVibesIsolate, params);
+    } on InvalidImageFormatException {
+      rethrow;
+    } on VibeEmbedException {
+      rethrow;
+    } catch (e, stack) {
+      AppLogger.e('Error embedding vibes to image', e, stack, 'VibeImageEmbedder');
+      throw VibeEmbedException('Failed to embed vibes: $e');
+    }
+  }
 
-    for (final chunk in chunks) {
-      if (chunk.type == _idatChunkType && !idatFound) {
-        builder.add(vibeChunk);
-        idatFound = true;
+  /// Isolate entry point for vibe embedding
+  ///
+  /// 静态方法，用于在 Isolate 中执行 vibe 嵌入逻辑
+  /// 包含 PNG chunk 构建和 iTXt chunk 生成逻辑
+  static Uint8List _embedVibesIsolate(_EmbedVibesParams params) {
+    try {
+      // 验证 PNG 格式
+      if (!_hasValidPngSignature(params.imageBytes)) {
+        throw InvalidImageFormatException(
+          'Only valid PNG images are supported for vibe metadata embedding',
+        );
       }
 
-      if (!_isVibeChunk(chunk)) {
-        builder.add(chunk.rawBytes);
+      // 解析 PNG chunks
+      final chunks = _parsePngChunksForIsolate(params.imageBytes);
+
+      // 将序列化数据转换回 VibeReference 对象
+      final vibeReferences = params.vibeReferencesData
+          .map((data) => _vibeDataToReference(data))
+          .toList();
+
+      // 构建 NAI vibe bundle 数据
+      final naiData = _buildNaiVibeBundleDataForIsolate(vibeReferences);
+      final naiDataBase64 = base64.encode(utf8.encode(jsonEncode(naiData)));
+
+      // 构建 iTXt chunk
+      final vibeChunk = _buildITxtChunkForIsolate(_naiDataKeyword, naiDataBase64);
+
+      // 重新组装 PNG 文件
+      final builder = BytesBuilder(copy: false)..add(_pngSignature);
+      var idatFound = false;
+
+      for (final chunk in chunks) {
+        if (chunk.type == _idatChunkType && !idatFound) {
+          builder.add(vibeChunk);
+          idatFound = true;
+        }
+
+        if (!_isVibeChunkForIsolate(chunk)) {
+          builder.add(chunk.rawBytes);
+        }
       }
+
+      if (!idatFound) {
+        throw VibeEmbedException('PNG image is missing IDAT chunk');
+      }
+
+      return builder.toBytes();
+    } on InvalidImageFormatException {
+      rethrow;
+    } on VibeEmbedException {
+      rethrow;
+    } catch (e) {
+      AppLogger.w('[Isolate] Vibe embedding error: $e', 'VibeImageEmbedder');
+      throw VibeEmbedException('Failed to embed vibes in isolate: $e');
+    }
+  }
+
+  /// Isolate-safe PNG chunk parsing
+  static List<_PngChunk> _parsePngChunksForIsolate(Uint8List bytes) {
+    if (bytes.length < _minPngSize) {
+      throw InvalidImageFormatException('PNG data is too short');
     }
 
-    if (!idatFound) {
-      throw VibeEmbedException('PNG image is missing IDAT chunk');
+    final chunks = <_PngChunk>[];
+    final byteData = ByteData.sublistView(bytes);
+    var offset = _pngSignature.length;
+
+    while (offset + _chunkHeaderSize <= bytes.length) {
+      final dataLength = byteData.getUint32(offset, Endian.big);
+      final typeStart = offset + 4;
+      final dataStart = typeStart + 4;
+      final dataEnd = dataStart + dataLength;
+      final crcEnd = dataEnd + 4;
+
+      if (crcEnd > bytes.length) {
+        throw InvalidImageFormatException('Invalid PNG chunk length');
+      }
+
+      final chunkType = ascii.decode(bytes.sublist(typeStart, dataStart));
+
+      chunks.add(
+        _PngChunk(
+          type: chunkType,
+          data: Uint8List.fromList(bytes.sublist(dataStart, dataEnd)),
+          rawBytes: Uint8List.fromList(bytes.sublist(offset, crcEnd)),
+        ),
+      );
+
+      if (chunkType == _iendChunkType) break;
+      offset = crcEnd;
     }
 
-    return builder.toBytes();
+    if (chunks.isEmpty || chunks.last.type != _iendChunkType) {
+      throw InvalidImageFormatException('PNG is missing IEND chunk');
+    }
+
+    return chunks;
+  }
+
+  /// Isolate-safe vibe chunk check
+  static bool _isVibeChunkForIsolate(_PngChunk chunk) {
+    if (chunk.type == _textChunkType) {
+      return _isVibeTextChunkForIsolate(chunk);
+    }
+    if (chunk.type == _itxtChunkType) {
+      return _extractKeywordFromITxtForIsolate(chunk.data) == _naiDataKeyword;
+    }
+    return false;
+  }
+
+  /// Isolate-safe text chunk vibe check
+  static bool _isVibeTextChunkForIsolate(_PngChunk chunk) {
+    if (chunk.type != _textChunkType) return false;
+
+    final separator = chunk.data.indexOf(0);
+    if (separator <= 0) return false;
+
+    final keyword = latin1.decode(chunk.data.sublist(0, separator));
+    return keyword == _vibeKeyword;
+  }
+
+  /// Isolate-safe keyword extraction from iTXt
+  static String? _extractKeywordFromITxtForIsolate(Uint8List data) {
+    final nullPos = data.indexOf(0);
+    if (nullPos <= 0) return null;
+    return utf8.decode(data.sublist(0, nullPos));
+  }
+
+  /// Isolate-safe NAI vibe bundle data builder
+  static Map<String, dynamic> _buildNaiVibeBundleDataForIsolate(
+    List<VibeReference> references,
+  ) {
+    final now = DateTime.now().toIso8601String();
+    final vibes = references.map((ref) {
+      final thumbnailBase64 = ref.thumbnail != null
+          ? base64.encode(ref.thumbnail!)
+          : null;
+      return {
+        'identifier': 'novelai-vibe-transfer',
+        'version': 1,
+        'type': 'image',
+        'image': thumbnailBase64 ?? '',
+        'id': _generateVibeIdForIsolate(),
+        'encodings': {'vibe': ref.vibeEncoding},
+        'name': ref.displayName,
+        'thumbnail': thumbnailBase64,
+        'createdAt': now,
+        'importInfo': {
+          'source': 'nai_launcher',
+          'importedAt': now,
+        },
+      };
+    }).toList();
+
+    return {
+      'identifier': 'novelai-vibe-transfer-bundle',
+      'version': 1,
+      'vibes': vibes,
+    };
+  }
+
+  /// Isolate-safe vibe ID generator
+  static String _generateVibeIdForIsolate() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join('');
+  }
+
+  /// Isolate-safe iTXt chunk builder
+  ///
+  /// iTXt structure: keyword\0compression_flag\0compression_method\0language\0translated_keyword\0text
+  static Uint8List _buildITxtChunkForIsolate(String keyword, String text) {
+    if (keyword.isEmpty || keyword.length > 79) {
+      throw VibeEmbedException('PNG iTXt keyword must be 1-79 characters');
+    }
+
+    final keywordBytes = utf8.encode(keyword);
+    final textBytes = utf8.encode(text);
+
+    final builder = BytesBuilder(copy: false)
+      ..add(keywordBytes)
+      ..addByte(0) // null separator
+      ..addByte(0) // compression flag (0 = uncompressed)
+      ..addByte(0) // compression method (0 = deflate)
+      ..addByte(0) // language tag (empty)
+      ..addByte(0) // translated keyword (empty)
+      ..add(textBytes);
+
+    final chunkData = builder.toBytes();
+    final chunkTypeBytes = ascii.encode(_itxtChunkType);
+    final crcInput = Uint8List(chunkTypeBytes.length + chunkData.length)
+      ..setRange(0, chunkTypeBytes.length, chunkTypeBytes)
+      ..setRange(chunkTypeBytes.length, chunkTypeBytes.length + chunkData.length, chunkData);
+
+    final out = BytesBuilder(copy: false);
+    final lengthBytes = ByteData(4)..setUint32(0, chunkData.length, Endian.big);
+    out.add(lengthBytes.buffer.asUint8List());
+    out.add(chunkTypeBytes);
+    out.add(chunkData);
+
+    final crcBytes = ByteData(4)..setUint32(0, _crc32ForIsolate(crcInput), Endian.big);
+    out.add(crcBytes.buffer.asUint8List());
+
+    return out.toBytes();
+  }
+
+  /// Isolate-safe CRC32 calculation
+  static int _crc32ForIsolate(List<int> bytes) {
+    var crc = 0xFFFFFFFF;
+
+    for (final byte in bytes) {
+      var current = (crc ^ byte) & 0xFF;
+      for (var bit = 0; bit < 8; bit++) {
+        current = (current & 1) != 0
+            ? 0xEDB88320 ^ (current >> 1)
+            : current >> 1;
+      }
+      crc = ((crc >> 8) ^ current) & 0xFFFFFFFF;
+    }
+
+    return (crc ^ 0xFFFFFFFF) & 0xFFFFFFFF;
   }
 
   /// 构建包含多个 vibes 的 bundle 数据
