@@ -161,7 +161,7 @@ class CharacterPromptConfig with _$CharacterPromptConfig {
     @Default([]) List<CharacterPrompt> characters,
 
     /// 全局AI选择位置（覆盖所有角色的位置设置）
-    @Default(false) bool globalAiChoice,
+    @Default(true) bool globalAiChoice,
   }) = _CharacterPromptConfig;
 
   factory CharacterPromptConfig.fromJson(Map<String, dynamic> json) =>

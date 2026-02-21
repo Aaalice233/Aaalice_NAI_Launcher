@@ -8,6 +8,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/nai_metadata_parser.dart';
+import '../../core/utils/nai_prompt_formatter.dart';
 import '../../data/services/image_metadata_service.dart';
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
@@ -1051,14 +1052,32 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         .read(promptConfigNotifierProvider.notifier)
         .generateRandomPrompt(isV4Model: isV4Model, seed: seed);
 
+    // 格式化生成的提示词（空格转下划线等）
+    final formattedPrompt = NaiPromptFormatter.format(result.mainPrompt);
+
     // 应用主提示词
     ref
         .read(generationParamsNotifierProvider.notifier)
-        .updatePrompt(result.mainPrompt);
+        .updatePrompt(formattedPrompt);
 
-    // 应用角色提示词
+    // 记录格式化信息
+    if (formattedPrompt != result.mainPrompt) {
+      AppLogger.d(
+        'Formatted random prompt: ${result.mainPrompt} → $formattedPrompt',
+        'RandomMode',
+      );
+    }
+
+    // 应用角色提示词（同时进行格式化）
     if (result.hasCharacters && isV4Model) {
-      final characterPrompts = result.toCharacterPrompts();
+      final characterPrompts = result.toCharacterPrompts().map((char) {
+        return char.copyWith(
+          prompt: NaiPromptFormatter.format(char.prompt),
+          negativePrompt: char.negativePrompt.isNotEmpty
+              ? NaiPromptFormatter.format(char.negativePrompt)
+              : char.negativePrompt,
+        );
+      }).toList();
       AppLogger.d(
         'Random result: ${result.characterCount} characters, prompts: ${characterPrompts.length}',
         'RandomMode',
@@ -1083,7 +1102,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       AppLogger.d('No humans scene, cleared characters', 'RandomMode');
     }
 
-    return result.mainPrompt;
+    return formattedPrompt;
   }
 
   // ============================================================

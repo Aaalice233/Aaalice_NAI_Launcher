@@ -21,6 +21,7 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../widgets/character/character_card_grid.dart';
+import '../../../widgets/character/character_edit_dialog.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_data.dart';
@@ -798,19 +799,11 @@ class _DockedCharacterPanel extends ConsumerWidget {
                     globalAiChoice: config.globalAiChoice,
                     padding: EdgeInsets.zero,
                     onCardTap: (character) {
-                      // 停靠模式下点击卡片打开编辑对话框
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: Text(l10n.characterEditor_editCharacter),
-                          content: Text(character.prompt),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: Text(l10n.common_cancel),
-                            ),
-                          ],
-                        ),
+                      // 停靠模式下点击卡片打开完整编辑对话框
+                      CharacterEditDialog.show(
+                        context,
+                        character,
+                        config.globalAiChoice,
                       );
                     },
                     onDelete: (id) {
@@ -861,12 +854,20 @@ class _DockedCharacterPanel extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    ThemedSwitch(
-                      value: config.globalAiChoice,
-                      onChanged: (value) {
-                        ref.read(characterPromptNotifierProvider.notifier).setGlobalAiChoice(value);
+                    // 全局AI选择开关 - 使用 Consumer 确保实时更新
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final globalAiChoice = ref.watch(
+                          characterPromptNotifierProvider.select((c) => c.globalAiChoice),
+                        );
+                        return ThemedSwitch(
+                          value: globalAiChoice,
+                          onChanged: (value) {
+                            ref.read(characterPromptNotifierProvider.notifier).setGlobalAiChoice(value);
+                          },
+                          scale: 0.85,
+                        );
                       },
-                      scale: 0.85,
                     ),
                   ],
                 ),

@@ -1,136 +1,90 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/services/translation/translation_data_source.dart';
-import '../../core/services/translation/translation_providers.dart';
-import '../../core/services/translation/unified_translation_service.dart';
+import '../../core/database/datasources/translation_data_source.dart';
+import '../../core/database/services/service_providers.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/tag_normalizer.dart';
 
 part 'tag_translation_service.g.dart';
 
-/// 标签翻译服务
+/// 标签翻译服务（数据库版）
 ///
-/// 这是 [UnifiedTranslationService] 的包装器，提供向后兼容的 API。
-/// 所有实际翻译功能都委托给 [UnifiedTranslationService]。
+/// 直接查询预构建的翻译数据库
 class TagTranslationService {
-  final UnifiedTranslationService _unifiedService;
+  TranslationDataSource? _dataSource;
 
-  TagTranslationService(this._unifiedService);
-
-  bool get isLoaded => _unifiedService.isInitialized;
-
-  /// 加载翻译数据（现在只是等待统一服务初始化）
-  Future<void> load() async {
-    if (!_unifiedService.isInitialized) {
-      await _unifiedService.initialize();
-    }
+  /// 设置数据源（初始化时调用）
+  void setDataSource(TranslationDataSource dataSource) {
+    _dataSource = dataSource;
   }
-
-  /// 加载翻译数据（别名，保持向后兼容）
-  Future<void> loadNew() async => load();
 
   /// 获取标签翻译
   ///
   /// [tag] 英文标签
-  /// [isCharacter] 是否为角色标签（此参数现在被忽略，统一处理）
   /// 返回中文翻译，如果没有翻译则返回 null
-  Future<String?> translate(String tag, {bool isCharacter = false}) async {
+  Future<String?> translate(String tag) async {
+    if (_dataSource == null) return null;
+    
     final normalizedTag = TagNormalizer.normalize(tag);
-    return _unifiedService.getTranslation(normalizedTag);
-  }
-
-  /// 获取角色翻译
-  Future<String?> translateCharacter(String tag) async {
-    final normalizedTag = TagNormalizer.normalize(tag);
-    return _unifiedService.getTranslation(normalizedTag);
-  }
-
-  /// 获取通用标签翻译
-  Future<String?> translateTag(String tag) async {
-    final normalizedTag = TagNormalizer.normalize(tag);
-    return _unifiedService.getTranslation(normalizedTag);
-  }
-
-  /// 通过中文查找英文标签
-  ///
-  /// [chinese] 中文翻译
-  /// 返回匹配的英文标签列表
-  List<String> findTagsByChinese(String chinese) {
-    // 这是一个同步方法，但底层数据库查询是异步的
-    // 返回空列表，建议使用 searchByChineseTranslation
-    AppLogger.w(
-      'findTagsByChinese is deprecated, use searchByChineseTranslation instead',
-      'TagTranslation',
-    );
-    return [];
-  }
-
-  /// 模糊搜索中文翻译
-  ///
-  /// [query] 搜索词
-  /// [limit] 最大返回数量
-  /// 返回 Map<英文标签, 中文翻译>
-  Map<String, String> searchByChineseTranslation(
-    String query, {
-    int limit = 20,
-  }) {
-    // 同步版本：返回空结果，建议使用异步版本
-    // 由于这是一个同步方法，我们无法直接查询数据库
-    // 触发异步搜索并记录警告
-    AppLogger.w(
-      'searchByChineseTranslation (sync) is deprecated, '
-      'use UnifiedTranslationService.searchTranslations instead',
-      'TagTranslation',
-    );
-
-    // 尝试从热缓存中搜索
-    final results = <String, String>{};
-
-    return results;
-  }
-
-  /// 异步搜索中文翻译（推荐）
-  Future<Map<String, String>> searchByChineseTranslationAsync(
-    String query, {
-    int limit = 20,
-  }) async {
-    final matches = await _unifiedService.searchTranslations(
-      query,
-      limit: limit,
-      matchTag: false,
-      matchTranslation: true,
-    );
-
-    return {for (final match in matches) match.tag: match.translation};
+    try {
+      return await _dataSource!.query(normalizedTag);
+    } catch (e) {
+      AppLogger.w('[TagTranslation] Error querying translation: $e', 'TagTranslation');
+      return null;
+    }
   }
 
   /// 批量翻译标签
   ///
   /// 返回 Map<原始标签, 翻译>（只包含有翻译的标签）
-  Future<Map<String, String>> translateBatch(
-    List<String> tags, {
-    bool isCharacter = false,
-  }) async {
-    return _unifiedService.getTranslations(tags);
+  Future<Map<String, String>> translateBatch(List<String> tags) async {
+    if (_dataSource == null) return {};
+    
+    final normalizedTags = tags.map(TagNormalizer.normalize).toList();
+    try {
+      return await _dataSource!.queryBatch(normalizedTags);
+    } catch (e) {
+      AppLogger.w('[TagTranslation] Error querying batch: $e', 'TagTranslation');
+      return {};
+    }
   }
 
-  /// 获取带翻译的标签显示文本
+  /// 搜索翻译
   ///
-  /// 如果有翻译，返回 "英文 (中文)"
-  /// 如果没有翻译，返回原始标签（下划线替换为空格）
-  Future<String> getDisplayText(String tag, {bool isCharacter = false}) async {
-    final translation = await translate(tag, isCharacter: isCharacter);
-    final displayTag = tag.replaceAll('_', ' ');
-
-    if (translation != null) {
-      return '$displayTag ($translation)';
+  /// [query] 搜索词
+  /// [limit] 最大返回数量
+  Future<List<TranslationMatch>> search(
+    String query, {
+    int limit = 20,
+    bool matchTag = true,
+    bool matchTranslation = true,
+  }) async {
+    if (_dataSource == null) return [];
+    
+    try {
+      return await _dataSource!.search(
+        query,
+        limit: limit,
+        matchTag: matchTag,
+        matchTranslation: matchTranslation,
+      );
+    } catch (e) {
+      AppLogger.w('[TagTranslation] Error searching: $e', 'TagTranslation');
+      return [];
     }
-    return displayTag;
   }
 
   /// 获取翻译数量
-  Future<int> get translationCount async => _unifiedService.getTranslationCount();
+  Future<int> get translationCount async {
+    if (_dataSource == null) return 0;
+    
+    try {
+      return await _dataSource!.getCount();
+    } catch (e) {
+      return 0;
+    }
+  }
 
   /// 检查是否有某个标签的翻译
   Future<bool> hasTranslation(String tag) async {
@@ -138,30 +92,22 @@ class TagTranslationService {
   }
 }
 
+// 全局服务实例
+final _globalTranslationService = TagTranslationService();
+
 /// TagTranslationService Provider
 ///
-/// 现在返回一个包装器，底层使用 UnifiedTranslationService
+/// 返回已初始化的服务实例
 @Riverpod(keepAlive: true)
 TagTranslationService tagTranslationService(Ref ref) {
-  // 获取已初始化的统一翻译服务
-  final unifiedServiceAsync = ref.watch(unifiedTranslationServiceProvider);
-
-  return unifiedServiceAsync.when(
-    data: (unifiedService) => TagTranslationService(unifiedService),
-    loading: () {
-      // 服务还在加载中，返回一个未初始化的服务
-      // 实际调用时会等待初始化
-      AppLogger.d('UnifiedTranslationService not ready yet', 'TagTranslation');
-      return TagTranslationService(
-        UnifiedTranslationService(dataSources: PredefinedDataSources.all),
-      );
-    },
-    error: (error, stack) {
-      AppLogger.e('Failed to get UnifiedTranslationService', error, stack, 'TagTranslation');
-      // 返回一个使用默认配置的服务
-      return TagTranslationService(
-        UnifiedTranslationService(dataSources: PredefinedDataSources.all),
-      );
+  // 监听数据源初始化
+  final dataSourceAsync = ref.watch(translationDataSourceProvider);
+  
+  dataSourceAsync.whenOrNull(
+    data: (dataSource) {
+      _globalTranslationService.setDataSource(dataSource);
     },
   );
+  
+  return _globalTranslationService;
 }

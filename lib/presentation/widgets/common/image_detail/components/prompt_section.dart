@@ -272,10 +272,32 @@ class _TranslatedTagChipState extends ConsumerState<_TranslatedTagChip> {
   Future<void> _loadTranslation() async {
     if (!widget.showTranslation) return;
     final service = ref.read(tagTranslationServiceProvider);
-    final result = await service.translate(widget.tag);
+    // 提取基础标签（去除权重语法）
+    final baseTag = _extractBaseTag(widget.tag);
+    final result = await service.translate(baseTag);
     if (mounted && result != null) {
       setState(() => _translation = result);
     }
+  }
+
+  /// 从带权重的标签中提取基础标签
+  /// 例如: "1.10::jaggy_lines::" -> "jaggy_lines"
+  String _extractBaseTag(String tag) {
+    var text = tag.trim();
+    
+    // 1. 处理 NAI 数值权重语法: weight::text::
+    final weightMatch = RegExp(r'^(-?\d+\.?\d*)::(.+?)(?:::)?$').firstMatch(text);
+    if (weightMatch != null) {
+      text = weightMatch.group(2)!.trim();
+      return text;
+    }
+    
+    // 2. 处理结尾的 ::
+    if (text.endsWith('::')) {
+      text = text.substring(0, text.length - 2).trim();
+    }
+    
+    return text;
   }
 
   String get _displayText {

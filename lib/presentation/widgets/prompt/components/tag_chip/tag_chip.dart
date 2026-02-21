@@ -6,11 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/utils/localization_extension.dart';
+import '../../../../../data/services/tag_translation_service.dart';
 import '../../../../widgets/common/app_toast.dart';
 
 import '../../../../../data/models/prompt/prompt_tag.dart';
 import '../../../../../data/models/prompt/tag_favorite.dart';
-import '../../../../../data/services/tag_translation_service.dart';
 import '../../../../providers/tag_favorite_provider.dart';
 import '../../core/prompt_tag_colors.dart';
 import '../../core/prompt_tag_config.dart';
@@ -146,8 +146,16 @@ class _TagChipState extends ConsumerState<TagChip>
   @override
   void didUpdateWidget(TagChip oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    // 当标签文本或存储的翻译变化时，重新获取翻译
     if (oldWidget.tag.text != widget.tag.text ||
         oldWidget.tag.translation != widget.tag.translation) {
+      _translation = null; // 重置翻译，强制重新获取
+      _fetchTranslation();
+    }
+
+    // 如果是首次加载且没有翻译，也尝试获取
+    if (_translation == null && widget.tag.translation == null) {
       _fetchTranslation();
     }
 
@@ -199,16 +207,21 @@ class _TagChipState extends ConsumerState<TagChip>
   }
 
   Future<void> _fetchTranslation() async {
-    if (widget.tag.translation != null) {
+    // 1. 如果 PromptTag 已有翻译，直接使用
+    if (widget.tag.translation != null && widget.tag.translation!.isNotEmpty) {
       _translation = widget.tag.translation;
       return;
     }
+
+    // 2. 从翻译服务获取
     final translationService = ref.read(tagTranslationServiceProvider);
-    _translation = await translationService.translate(
-      widget.tag.text,
-      isCharacter: widget.tag.category == 4,
-    );
-    if (mounted) setState(() {});
+    final result = await translationService.translate(widget.tag.text);
+    
+    if (mounted) {
+      setState(() {
+        _translation = result;
+      });
+    }
   }
 
   void _onMouseEnter() {

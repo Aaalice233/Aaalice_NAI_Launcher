@@ -14,6 +14,7 @@ import '../../autocomplete/strategies/local_tag_strategy.dart';
 import '../../autocomplete/strategies/alias_strategy.dart';
 import '../../autocomplete/strategies/cooccurrence_strategy.dart';
 import '../../common/app_toast.dart';
+import '../../common/weight_adjust_toolbar.dart';
 import '../comfyui_import_wrapper.dart';
 import '../nai_syntax_controller.dart';
 import 'unified_prompt_config.dart';
@@ -424,9 +425,16 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       contextMenuBuilder: _buildContextMenu,
     );
 
+    // 包装权重调整工具条
+    Widget result = WeightAdjustToolbarWrapper(
+      controller: _effectiveController,
+      focusNode: _effectiveFocusNode,
+      child: baseInput,
+    );
+
     // 如果启用自动补全，使用 AutocompleteWrapper 包装
     if (widget.config.enableAutocomplete) {
-      return AutocompleteWrapper(
+      result = AutocompleteWrapper(
         controller: _effectiveController,
         focusNode: _effectiveFocusNode,
         asyncStrategy: _ensureAutocompleteStrategyFuture(),
@@ -435,11 +443,10 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
         contentPadding: effectiveDecoration.contentPadding,
         maxLines: widget.maxLines,
         expands: widget.expands,
-        child: baseInput,
+        child: result,
       );
     }
 
-    // 不启用自动补全，直接返回基础输入框
-    return baseInput;
+    return result;
   }
 }

@@ -6,21 +6,18 @@ export '../../database/datasources/translation_data_source.dart' show Translatio
 
 import '../../database/datasources/translation_data_source.dart' as new_ds;
 import '../../database/services/service_providers.dart';
-import 'translation_data_source.dart';
 import 'unified_translation_service.dart';
 
 part 'translation_providers.g.dart';
 
 /// 统一翻译服务 Provider
 ///
-/// 应用启动时自动初始化，合并多个数据源的翻译
+/// 应用启动时自动初始化
 @Riverpod(keepAlive: true)
 Future<UnifiedTranslationService> unifiedTranslationService(Ref ref) async {
-  final service = UnifiedTranslationService(
-    dataSources: PredefinedDataSources.all,
-  );
+  final service = UnifiedTranslationService();
 
-  // 注入数据库数据源（关键修复：确保数据能持久化到数据库）
+  // 注入数据库数据源
   final dataSource = await ref.watch(translationDataSourceProvider.future);
   service.setTranslationDataSource(dataSource);
 
@@ -47,13 +44,6 @@ Future<String?> tagTranslation(Ref ref, String tag) async {
 Future<Map<String, String>> tagTranslations(Ref ref, List<String> tags) async {
   final service = await ref.watch(unifiedTranslationServiceProvider.future);
   return service.getTranslations(tags);
-}
-
-/// 数据源统计信息 Provider
-@riverpod
-Future<Map<String, DataSourceStats>> translationDataSourceStats(Ref ref) async {
-  final service = await ref.watch(unifiedTranslationServiceProvider.future);
-  return service.stats;
 }
 
 /// 翻译搜索 Provider

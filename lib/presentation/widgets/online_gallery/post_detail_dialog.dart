@@ -445,7 +445,6 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
               color: TagColors.character,
               translationService: translationService,
               onTagTap: _handleTagTap,
-              isCharacter: true,
             ),
           // 版权标签
           if (widget.post.copyrightTags.isNotEmpty)
@@ -677,7 +676,6 @@ class _TagSection extends StatelessWidget {
   final Color color;
   final TagTranslationService translationService;
   final Function(String) onTagTap;
-  final bool isCharacter;
 
   const _TagSection({
     required this.title,
@@ -685,7 +683,6 @@ class _TagSection extends StatelessWidget {
     required this.color,
     required this.translationService,
     required this.onTagTap,
-    this.isCharacter = false,
   });
 
   @override
@@ -722,10 +719,7 @@ class _TagSection extends StatelessWidget {
             runSpacing: 4,
             children: tags.map((tag) {
               return FutureBuilder<String?>(
-                future: translationService.translate(
-                  tag,
-                  isCharacter: isCharacter,
-                ),
+                future: translationService.translate(tag),
                 builder: (context, snapshot) {
                   return SimpleTagChip(
                     tag: tag,
