@@ -265,7 +265,8 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
     }
 
     try {
-      await Future.wait(futures);
+      // 使用 eagerError: false 确保等待所有任务完成，即使某些任务失败
+      await Future.wait(futures, eagerError: false);
 
       if (_isCancelled) {
         state = state.copyWith(

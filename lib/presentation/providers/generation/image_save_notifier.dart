@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:path/path.dart' as path;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/utils/app_logger.dart';
@@ -170,7 +171,7 @@ class ImageSaveNotifier extends _$ImageSaveNotifier {
 
       // 生成文件名
       final fileName = _generateFileName();
-      final filePath = '${saveDir.path}/$fileName';
+      final filePath = path.join(saveDir.path, fileName);
 
       // 写入文件
       final file = File(filePath);
@@ -255,7 +256,7 @@ class ImageSaveNotifier extends _$ImageSaveNotifier {
 
       // 生成文件名
       final fileName = _generateFileName();
-      final filePath = '${saveDir.path}/$fileName';
+      final filePath = path.join(saveDir.path, fileName);
 
       // 写入文件
       final file = File(filePath);

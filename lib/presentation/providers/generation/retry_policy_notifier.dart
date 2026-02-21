@@ -146,12 +146,19 @@ class _StorageKeys {
 }
 
 /// 扩展方法：计算幂
+///
+/// 使用快速幂算法计算 this^exponent
+/// 注意：对于大指数或特殊值可能会有精度损失
 extension _DoublePowExtension on double {
   double pow(int exponent) {
     if (exponent == 0) return 1.0;
+    if (this == 0.0) return 0.0;
+    if (this == 1.0) return 1.0;
+
     var result = 1.0;
     var base = this;
     var exp = exponent;
+
     while (exp > 0) {
       if (exp % 2 == 1) {
         result *= base;

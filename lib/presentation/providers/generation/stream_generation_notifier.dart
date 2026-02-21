@@ -142,6 +142,8 @@ class StreamGenerationNotifier extends _$StreamGenerationNotifier {
     _streamSubscription = null;
   }
 
+  ImageParams? _lastParams;
+
   /// 开始流式生成
   ///
   /// [params] 生成参数（nSamples 会被强制设为 1）
@@ -153,6 +155,9 @@ class StreamGenerationNotifier extends _$StreamGenerationNotifier {
 
     _isCancelled = false;
     _cleanup();
+
+    // 保存参数用于可能的回退
+    _lastParams = params;
 
     // 强制单张生成
     final singleParams = params.copyWith(nSamples: 1);
@@ -257,10 +262,13 @@ class StreamGenerationNotifier extends _$StreamGenerationNotifier {
 
   /// 完成生成
   void _completeGeneration(Uint8List imageBytes, Uint8List? previewBytes) {
+    // 从保存的参数获取尺寸，如果没有则使用默认值
+    final width = _lastParams?.width ?? 832;
+    final height = _lastParams?.height ?? 1216;
     final generatedImage = GeneratedImage.create(
       imageBytes,
-      width: 832,  // 使用默认值，实际应从参数获取
-      height: 1216,
+      width: width,
+      height: height,
     );
 
     state = state.copyWith(
@@ -285,18 +293,50 @@ class StreamGenerationNotifier extends _$StreamGenerationNotifier {
     );
 
     try {
-      // 这里需要重新获取参数，由于我们已经丢失了原始参数，需要通知用户
-      // 实际实现中，应该保存最后一次使用的参数
-      AppLogger.w(
-        'Non-stream fallback not fully implemented - params lost',
-        'StreamGeneration',
+      // 使用保存的参数进行非流式生成
+      final params = _lastParams;
+      if (params == null) {
+        AppLogger.w(
+          'Non-stream fallback failed - no saved params',
+          'StreamGeneration',
+        );
+        state = state.copyWith(
+          status: StreamGenerationStatus.error,
+          errorMessage: '流式生成不支持且无法自动回退（参数丢失）',
+          endTime: DateTime.now(),
+        );
+        return;
+      }
+
+      final apiService = ref.read(naiImageGenerationApiServiceProvider);
+      final (imageBytes, _) = await apiService.generateImage(
+        params.copyWith(nSamples: 1),
+        onProgress: (_, __) {},
       );
 
-      state = state.copyWith(
-        status: StreamGenerationStatus.error,
-        errorMessage: '流式生成不支持且无法自动回退（参数丢失）',
-        endTime: DateTime.now(),
-      );
+      if (imageBytes.isNotEmpty) {
+        final width = params.width;
+        final height = params.height;
+        final generatedImage = GeneratedImage.create(
+          imageBytes.first,
+          width: width,
+          height: height,
+        );
+
+        state = state.copyWith(
+          status: StreamGenerationStatus.completed,
+          result: generatedImage,
+          endTime: DateTime.now(),
+          progress: 1.0,
+        );
+
+        AppLogger.d(
+          'Non-stream fallback generation completed',
+          'StreamGeneration',
+        );
+      } else {
+        throw Exception('No image data returned from non-stream API');
+      }
     } catch (e) {
       _handleError('回退到非流式生成失败: $e');
     }

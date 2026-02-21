@@ -72,13 +72,13 @@ class ParameterProcessingService {
   /// 处理生成参数
   ///
   /// 依次执行：
-  /// 1. 别名解析（将 <词库名> 展开为实际内容）
-  /// 2. 固定词应用（将启用的固定词添加到提示词前后）
+  /// 1. 别名解析（将 <词库名> 展开为实际内容，包括正向和负向提示词）
+  /// 2. 固定词应用（将启用的固定词添加到正向提示词前后，负向提示词不应用固定词）
   ///
   /// [prompt] 正向提示词
   /// [negativePrompt] 负向提示词
   /// [resolveAliases] 是否解析别名（默认 true）
-  /// [applyFixedTags] 是否应用固定词（默认 true）
+  /// [applyFixedTags] 是否应用固定词（默认 true，仅作用于正向提示词）
   ParameterProcessingResult process({
     required String prompt,
     required String negativePrompt,

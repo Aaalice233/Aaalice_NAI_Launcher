@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 import 'dart:typed_data';
 
 import '../../../core/utils/app_logger.dart';
@@ -167,7 +166,6 @@ class ImageGenerationService {
     final totalImages = batchCount * batchSize;
     final allImages = <GeneratedImage>[];
     final allVibeEncodings = <int, String>{};
-    final random = Random();
     int generatedCount = 0;
 
     for (int batch = 0; batch < batchCount; batch++) {
@@ -193,7 +191,6 @@ class ImageGenerationService {
           currentStart: currentStart,
           totalImages: totalImages,
           onProgress: onProgress,
-          random: random,
         );
 
         if (_isCancelled) {
@@ -306,7 +303,6 @@ class ImageGenerationService {
     required int currentStart,
     required int totalImages,
     GenerationProgressCallback? onProgress,
-    required Random random,
   }) async {
     final images = <GeneratedImage>[];
     final batchSize = params.nSamples;
