@@ -1,5 +1,5 @@
-import '../../../../data/models/vibe/vibe_library_entry.dart';
-import '../../../../data/services/vibe_import_service.dart';
+import '../models/vibe/vibe_library_entry.dart';
+import 'vibe_import_service.dart';
 
 /// VibeLibraryNotifier 的导入仓库适配器
 /// 实现 VibeLibraryImportRepository 接口以适配 VibeImportService

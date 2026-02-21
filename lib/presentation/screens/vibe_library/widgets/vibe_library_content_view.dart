@@ -7,7 +7,9 @@ import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../../core/utils/app_logger.dart';
+import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
+import '../../../../data/models/vibe/vibe_empty_state_info.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
@@ -168,29 +170,32 @@ class _VibeLibraryContentViewState
     VibeLibraryEntry entry,
     Offset position,
   ) {
+    final l10n = context.l10n;
     final items = <ProMenuItem>[
       ProMenuItem(
         id: 'send_to_generation',
-        label: '发送到生成',
+        label: l10n.vibeLibrary_sendToGeneration,
         icon: Icons.send,
         onTap: () async => _sendEntryToGeneration(context, entry),
       ),
       ProMenuItem(
         id: 'export',
-        label: '导出',
+        label: l10n.vibeLibrary_export,
         icon: Icons.download,
         onTap: () => _exportSingleEntry(context, entry),
       ),
       ProMenuItem(
         id: 'edit',
-        label: '编辑',
+        label: l10n.vibeLibrary_edit,
         icon: Icons.edit,
         onTap: () => _showVibeDetail(context, entry),
       ),
       const ProMenuItem.divider(),
       ProMenuItem(
         id: 'toggle_favorite',
-        label: entry.isFavorite ? '取消收藏' : '收藏',
+        label: entry.isFavorite
+            ? l10n.vibeLibrary_removeFromFavorites
+            : l10n.vibeLibrary_addToFavorites,
         icon: entry.isFavorite ? Icons.favorite : Icons.favorite_border,
         onTap: () {
           ref
@@ -200,7 +205,7 @@ class _VibeLibraryContentViewState
       ),
       ProMenuItem(
         id: 'delete',
-        label: '删除',
+        label: l10n.vibeLibrary_delete,
         icon: Icons.delete_outline,
         isDanger: true,
         onTap: () => _deleteSingleEntry(context, entry),
@@ -479,54 +484,25 @@ class _VibeLibraryContentViewState
   }
 
   /// 获取空状态提示信息
-  _EmptyStateInfo _getEmptyStateInfo(VibeLibraryState state) {
+  EmptyStateInfo _getEmptyStateInfo(VibeLibraryState state) {
     // 搜索无结果
     if (state.searchQuery.isNotEmpty) {
-      return const _EmptyStateInfo(
-        title: '未找到匹配的 Vibe',
-        subtitle: '尝试其他关键词',
-        icon: Icons.search_off,
-      );
+      return EmptyStateInfo.searchNoResults();
     }
 
     // 收藏无结果
     if (state.favoritesOnly) {
-      return const _EmptyStateInfo(
-        title: '暂无收藏的 Vibe',
-        subtitle: '点击心形图标收藏 Vibe',
-        icon: Icons.favorite_border,
-      );
+      return EmptyStateInfo.noFavorites();
     }
 
     // 分类无结果
     if (state.selectedCategoryId != null) {
-      return const _EmptyStateInfo(
-        title: '该分类下暂无 Vibe',
-        subtitle: '尝试切换到"全部 Vibe"查看所有内容',
-        icon: Icons.folder_outlined,
-      );
+      return EmptyStateInfo.noItemsInCategory();
     }
 
     // 默认无结果
-    return const _EmptyStateInfo(
-      title: '无匹配结果',
-      subtitle: null,
-      icon: Icons.search_off,
-    );
+    return EmptyStateInfo.defaultEmpty();
   }
-}
-
-/// 空状态信息
-class _EmptyStateInfo {
-  final String title;
-  final String? subtitle;
-  final IconData icon;
-
-  const _EmptyStateInfo({
-    required this.title,
-    this.subtitle,
-    required this.icon,
-  });
 }
 
 /// 自定义上下文菜单路由

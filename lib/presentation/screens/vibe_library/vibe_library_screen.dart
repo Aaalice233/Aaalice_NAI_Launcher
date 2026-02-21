@@ -32,9 +32,9 @@ import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
 import '../../widgets/common/pro_context_menu.dart';
 import '../../widgets/gallery/gallery_state_views.dart';
-import 'intents/vibe_intents.dart';
-import 'models/vibe_import_progress.dart';
-import 'services/vibe_library_import_repository.dart';
+import '../../../core/shortcuts/shortcut_manager.dart';
+import '../../../data/models/vibe/vibe_import_progress.dart';
+import '../../../data/services/vibe_library_import_repository_impl.dart';
 import 'widgets/category/vibe_category_tree_view.dart';
 import 'widgets/menus/vibe_import_menu.dart';
 import 'widgets/vibe_library_content_view.dart';
@@ -1286,7 +1286,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     // 单独处理每张图片，以便支持无 Vibe 数据图片的编码流程
     for (var i = 0; i < imageItems.length; i++) {
       final imageItem = imageItems[i];
-      onProgress(i + 1, totalCount, '导入图片($i/${imageItems.length}): ${imageItem.source}');
+      onProgress(i + 1, totalCount, '导入图片(${i + 1}/${imageItems.length}): ${imageItem.source}');
 
       final result = await _processSingleImageImport(
         imageFile: imageItem,

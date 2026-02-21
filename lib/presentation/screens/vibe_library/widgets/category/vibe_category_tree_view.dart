@@ -86,7 +86,7 @@ class _VibeCategoryTreeViewState extends State<VibeCategoryTreeView> {
           // 全部Vibe
           VibeCategoryItem(
             icon: Icons.auto_awesome_outlined,
-            label: '全部 Vibe',
+            label: context.l10n.vibeLibrary_allVibes,
             count: widget.totalEntryCount,
             isSelected: widget.selectedCategoryId == null,
             onTap: () => widget.onCategorySelected(null),
@@ -97,7 +97,7 @@ class _VibeCategoryTreeViewState extends State<VibeCategoryTreeView> {
                 ? Icons.favorite
                 : Icons.favorite_border,
             iconColor: Colors.red.shade400,
-            label: '收藏',
+            label: context.l10n.vibeLibrary_favorites,
             count: widget.favoriteCount,
             isSelected: widget.selectedCategoryId == 'favorites',
             onTap: () => widget.onCategorySelected('favorites'),
@@ -153,7 +153,7 @@ class _VibeCategoryTreeViewState extends State<VibeCategoryTreeView> {
           ? (isExpanded ? Icons.folder_open : Icons.folder)
           : Icons.folder_outlined,
       label: category.displayName,
-      count: _getCategoryEntryCount(category.id),
+      count: _getCategoryChildCount(category.id),
       isSelected: widget.selectedCategoryId == category.id,
       depth: depth,
       hasChildren: hasChildren,
@@ -349,9 +349,11 @@ class _VibeCategoryTreeViewState extends State<VibeCategoryTreeView> {
     );
   }
 
-  /// 获取分类及其子分类中的条目总数
-  int _getCategoryEntryCount(String categoryId) {
-    // 返回该分类下的直接子分类数量（Vibe库没有entries列表，使用子分类数量）
+  /// 获取分类下的直接子分类数量
+  ///
+  /// 注意：Vibe库使用子分类数量作为显示计数，
+  /// 因为Vibe条目直接存储在文件系统中，没有按分类聚合的计数
+  int _getCategoryChildCount(String categoryId) {
     return widget.categories.getChildren(categoryId).length;
   }
 }

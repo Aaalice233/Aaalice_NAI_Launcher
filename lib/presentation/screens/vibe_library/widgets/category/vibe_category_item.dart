@@ -225,11 +225,11 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
         if (widget.onAddSubCategory != null)
           PopupMenuItem(
             onTap: widget.onAddSubCategory,
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.create_new_folder, size: 18),
-                SizedBox(width: 8),
-                Text('新建子分类'),
+                const Icon(Icons.create_new_folder, size: 18),
+                const SizedBox(width: 8),
+                Text(context.l10n.tagLibrary_newSubCategory),
               ],
             ),
           ),
