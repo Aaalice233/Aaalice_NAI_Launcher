@@ -3,7 +3,8 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../utils/app_logger.dart';
 import '../base_data_source.dart';
-import '../data_source.dart' show DataSourceHealth, DataSourceType, HealthStatus;
+import '../data_source.dart'
+    show DataSourceHealth, DataSourceType, HealthStatus;
 import '../utils/lru_cache.dart';
 
 /// 元数据解析状态
@@ -77,7 +78,9 @@ class GalleryImageRecord {
       id: (map['id'] as num?)?.toInt(),
       filePath: map['file_path'] as String? ?? map['path'] as String? ?? '',
       fileName: map['file_name'] as String? ?? '',
-      fileSize: (map['file_size'] as num?)?.toInt() ?? (map['size'] as num?)?.toInt() ?? 0,
+      fileSize: (map['file_size'] as num?)?.toInt() ??
+          (map['size'] as num?)?.toInt() ??
+          0,
       fileHash: map['file_hash'] as String?,
       width: (map['width'] as num?)?.toInt(),
       height: (map['height'] as num?)?.toInt(),
@@ -93,7 +96,8 @@ class GalleryImageRecord {
       ),
       dateYmd: (map['date_ymd'] as num?)?.toInt() ?? 0,
       resolutionKey: map['resolution_key'] as String?,
-      metadataStatus: MetadataStatus.values[(map['metadata_status'] as num?)?.toInt() ?? 2],
+      metadataStatus:
+          MetadataStatus.values[(map['metadata_status'] as num?)?.toInt() ?? 2],
       isFavorite: (map['is_favorite'] as num?)?.toInt() == 1,
       isDeleted: (map['is_deleted'] as num?)?.toInt() == 1,
     );
@@ -805,7 +809,12 @@ class GalleryDataSource extends EnhancedBaseDataSource {
         maxRetries: 3,
       );
     } catch (e, stack) {
-      AppLogger.e('Failed to get image ID by path: $filePath', e, stack, 'GalleryDS');
+      AppLogger.e(
+        'Failed to get image ID by path: $filePath',
+        e,
+        stack,
+        'GalleryDS',
+      );
       return null;
     }
   }
@@ -853,7 +862,12 @@ class GalleryDataSource extends EnhancedBaseDataSource {
         maxRetries: 3,
       );
     } catch (e, stack) {
-      AppLogger.e('Failed to get image IDs by paths: ${filePaths.length} paths', e, stack, 'GalleryDS');
+      AppLogger.e(
+        'Failed to get image IDs by paths: ${filePaths.length} paths',
+        e,
+        stack,
+        'GalleryDS',
+      );
       return {for (final path in filePaths) path: null};
     }
   }
@@ -1006,7 +1020,8 @@ class GalleryDataSource extends EnhancedBaseDataSource {
           'file_size',
           'id',
         };
-        final safeOrderBy = validColumns.contains(orderBy) ? orderBy : 'modified_at';
+        final safeOrderBy =
+            validColumns.contains(orderBy) ? orderBy : 'modified_at';
         final orderDirection = descending ? 'DESC' : 'ASC';
 
         final results = await db.rawQuery(
@@ -1055,7 +1070,12 @@ class GalleryDataSource extends EnhancedBaseDataSource {
 
         AppLogger.d('Marked as deleted: $filePath', 'GalleryDS');
       } catch (e, stack) {
-        AppLogger.e('Failed to mark as deleted: $filePath', e, stack, 'GalleryDS');
+        AppLogger.e(
+          'Failed to mark as deleted: $filePath',
+          e,
+          stack,
+          'GalleryDS',
+        );
         rethrow;
       }
     });
@@ -1098,7 +1118,10 @@ class GalleryDataSource extends EnhancedBaseDataSource {
           }
         }
 
-        AppLogger.d('Batch marked as deleted: ${filePaths.length} files', 'GalleryDS');
+        AppLogger.d(
+          'Batch marked as deleted: ${filePaths.length} files',
+          'GalleryDS',
+        );
       } catch (e, stack) {
         AppLogger.e('Failed to batch mark as deleted', e, stack, 'GalleryDS');
         rethrow;
@@ -1242,7 +1265,10 @@ class GalleryDataSource extends EnhancedBaseDataSource {
             'prompt_text': promptText,
           });
         } catch (e) {
-          AppLogger.w('Failed to update FTS index for image $imageId: $e', 'GalleryDS');
+          AppLogger.w(
+            'Failed to update FTS index for image $imageId: $e',
+            'GalleryDS',
+          );
           // FTS 更新失败不应影响主流程
         }
       },
@@ -1291,7 +1317,12 @@ class GalleryDataSource extends EnhancedBaseDataSource {
         maxRetries: 3,
       );
     } catch (e, stack) {
-      AppLogger.e('Failed to get metadata by image ID: $imageId', e, stack, 'GalleryDS');
+      AppLogger.e(
+        'Failed to get metadata by image ID: $imageId',
+        e,
+        stack,
+        'GalleryDS',
+      );
       return null;
     }
   }
@@ -1303,7 +1334,9 @@ class GalleryDataSource extends EnhancedBaseDataSource {
   /// 返回一个 Map，键为图片ID，值为对应的元数据记录（如果找不到则为 null）
   /// 优先从缓存获取，缺失的从数据库查询
   /// 使用单个查询批量获取，比多次调用 getMetadataByImageId 更高效
-  Future<Map<int, GalleryMetadataRecord?>> getMetadataByImageIds(List<int> imageIds) async {
+  Future<Map<int, GalleryMetadataRecord?>> getMetadataByImageIds(
+    List<int> imageIds,
+  ) async {
     if (imageIds.isEmpty) return {};
 
     final results = <int, GalleryMetadataRecord?>{};
@@ -1468,7 +1501,10 @@ class GalleryDataSource extends EnhancedBaseDataSource {
         }
 
         _favoritesLoaded = true;
-        AppLogger.i('Loaded ${_favoriteCache.length} favorites into cache', 'GalleryDS');
+        AppLogger.i(
+          'Loaded ${_favoriteCache.length} favorites into cache',
+          'GalleryDS',
+        );
       },
       timeout: const Duration(seconds: 15),
       maxRetries: 2,
@@ -1594,7 +1630,9 @@ class GalleryDataSource extends EnhancedBaseDataSource {
             [searchQuery, limit],
           );
 
-          return results.map((row) => (row['image_id'] as num).toInt()).toList();
+          return results
+              .map((row) => (row['image_id'] as num).toInt())
+              .toList();
         },
         timeout: const Duration(seconds: 10),
         maxRetries: 3,
@@ -1863,11 +1901,8 @@ class GalleryDataSource extends EnhancedBaseDataSource {
   /// 使用事务，先删除现有标签关联，然后批量插入新标签
   /// 每个标签：插入标签表（如不存在），获取ID，创建关联
   Future<void> setImageTags(int imageId, List<String> tags) async {
-    final normalizedTags = tags
-        .map((t) => t.trim())
-        .where((t) => t.isNotEmpty)
-        .toSet()
-        .toList();
+    final normalizedTags =
+        tags.map((t) => t.trim()).where((t) => t.isNotEmpty).toSet().toList();
 
     return await execute('setImageTags', (db) async {
       await db.transaction((txn) async {
@@ -1881,9 +1916,8 @@ class GalleryDataSource extends EnhancedBaseDataSource {
           ''',
           [imageId],
         );
-        final oldTagIds = currentTagsResult
-            .map((row) => row['id'] as String)
-            .toSet();
+        final oldTagIds =
+            currentTagsResult.map((row) => row['id'] as String).toSet();
 
         // 删除该图片的所有标签关联
         await txn.delete(

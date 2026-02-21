@@ -100,7 +100,8 @@ void main() {
         expect(result, isEmpty);
       });
 
-      test('should return map with null values for non-existent paths', () async {
+      test('should return map with null values for non-existent paths',
+          () async {
         final paths = [
           '/non/existent/path1.png',
           '/non/existent/path2.png',
@@ -157,7 +158,7 @@ void main() {
       });
 
       test('should not include deleted images', () async {
-        final id = await dataSource.upsertImage(
+        await dataSource.upsertImage(
           filePath: '/test/deleted.png',
           fileName: 'deleted.png',
           fileSize: 1000,
@@ -168,7 +169,8 @@ void main() {
         // 标记为删除
         await dataSource.markAsDeleted('/test/deleted.png');
 
-        final result = await dataSource.getImageIdsByPaths(['/test/deleted.png']);
+        final result =
+            await dataSource.getImageIdsByPaths(['/test/deleted.png']);
 
         expect(result['/test/deleted.png'], isNull);
       });
@@ -206,8 +208,10 @@ void main() {
         final result = await dataSource.getImagesByIds([id1, id2]);
 
         expect(result.length, equals(2));
-        expect(result.any((img) => img.id == id1 && img.fileName == 'img1.png'), isTrue);
-        expect(result.any((img) => img.id == id2 && img.fileName == 'img2.png'), isTrue);
+        expect(result.any((img) => img.id == id1 && img.fileName == 'img1.png'),
+            isTrue);
+        expect(result.any((img) => img.id == id2 && img.fileName == 'img2.png'),
+            isTrue);
       });
 
       test('should return only existing images and skip deleted', () async {
@@ -327,7 +331,7 @@ void main() {
           modifiedAt: DateTime.now(),
         );
 
-        final metadata = NaiImageMetadata(
+        const metadata = NaiImageMetadata(
           prompt: 'test prompt',
           negativePrompt: 'test negative',
           seed: 12345,
@@ -369,7 +373,7 @@ void main() {
           modifiedAt: DateTime.now(),
         );
 
-        final metadata = NaiImageMetadata(
+        const metadata = NaiImageMetadata(
           prompt: 'prompt for meta1',
           negativePrompt: '',
         );
@@ -393,7 +397,7 @@ void main() {
           modifiedAt: DateTime.now(),
         );
 
-        final metadata = NaiImageMetadata(
+        const metadata = NaiImageMetadata(
           prompt: 'cached prompt',
           negativePrompt: '',
         );
@@ -735,7 +739,7 @@ void main() {
         );
 
         // 2. 添加元数据
-        final metadata = NaiImageMetadata(
+        const metadata = NaiImageMetadata(
           prompt: 'beautiful landscape with mountains',
           negativePrompt: 'blurry, low quality',
           seed: 42,
@@ -760,7 +764,8 @@ void main() {
         expect(isFav, isTrue);
 
         // 5. 批量查询验证所有数据
-        final idsResult = await dataSource.getImageIdsByPaths(['/test/workflow.png']);
+        final idsResult =
+            await dataSource.getImageIdsByPaths(['/test/workflow.png']);
         expect(idsResult['/test/workflow.png'], equals(id));
 
         final imagesResult = await dataSource.getImagesByIds([id]);
@@ -769,7 +774,8 @@ void main() {
 
         final metaResult = await dataSource.getMetadataByImageIds([id]);
         expect(metaResult[id], isNotNull);
-        expect(metaResult[id]!.prompt, equals('beautiful landscape with mountains'));
+        expect(metaResult[id]!.prompt,
+            equals('beautiful landscape with mountains'));
 
         final favsResult = await dataSource.getFavoritesByImageIds([id]);
         expect(favsResult[id], isTrue);

@@ -7,7 +7,8 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/database/database_providers.dart';
-import '../../core/database/datasources/gallery_data_source.dart' hide MetadataStatus;
+import '../../core/database/datasources/gallery_data_source.dart'
+    hide MetadataStatus;
 import '../../core/database/providers/database_state_providers.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/local_image_record.dart';
@@ -42,24 +43,30 @@ class LocalGalleryState with _$LocalGalleryState {
   const factory LocalGalleryState({
     /// 所有文件
     @Default([]) List<File> allFiles,
+
     /// 过滤后的文件
     @Default([]) List<File> filteredFiles,
+
     /// 当前页显示的记录
     @Default([]) List<LocalImageRecord> currentImages,
     @Default(0) int currentPage,
     @Default(50) int pageSize,
     @Default(false) bool isLoading,
-    @Default(false) bool isIndexing,      // 用于兼容旧代码
-    @Default(false) bool isPageLoading,   // 用于兼容旧代码
+    @Default(false) bool isIndexing, // 用于兼容旧代码
+    @Default(false) bool isPageLoading, // 用于兼容旧代码
     /// 搜索关键词
     @Default('') String searchQuery,
+
     /// 日期过滤
     DateTime? dateStart,
     DateTime? dateEnd,
+
     /// 收藏过滤
     @Default(false) bool showFavoritesOnly,
+
     /// 标签过滤
     @Default([]) List<String> selectedTags,
+
     /// 元数据过滤
     String? filterModel,
     String? filterSampler,
@@ -68,33 +75,41 @@ class LocalGalleryState with _$LocalGalleryState {
     double? filterMinCfg,
     double? filterMaxCfg,
     String? filterResolution,
+
     /// 分组视图（兼容旧代码）
     @Default(false) bool isGroupedView,
     @Default([]) List<LocalImageRecord> groupedImages,
     @Default(false) bool isGroupedLoading,
+
     /// 后台扫描进度（0-100，null表示未开始）
     double? backgroundScanProgress,
+
     /// 扫描阶段：'checking' | 'indexing' | 'completed' | null
     String? scanPhase,
+
     /// 当前扫描的文件
     String? scanningFile,
+
     /// 已扫描文件数
     @Default(0) int scannedCount,
+
     /// 总文件数
     @Default(0) int totalScanCount,
+
     /// 是否正在重建索引（全量扫描）
     @Default(false) bool isRebuildingIndex,
+
     /// 错误信息
     String? error,
+
     /// 首次索引提示信息
     String? firstTimeIndexMessage,
   }) = _LocalGalleryState;
 
   const LocalGalleryState._();
 
-  int get totalPages => filteredFiles.isEmpty
-      ? 0
-      : (filteredFiles.length / pageSize).ceil();
+  int get totalPages =>
+      filteredFiles.isEmpty ? 0 : (filteredFiles.length / pageSize).ceil();
 
   /// 兼容旧代码的 getter
   int get filteredCount => filteredFiles.length;
@@ -186,7 +201,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       state = state.copyWith(
         allFiles: files,
         filteredFiles: files,
-        isLoading: false,  // 文件列表已显示，可以交互了
+        isLoading: false, // 文件列表已显示，可以交互了
         firstTimeIndexMessage: firstTimeMessage,
       );
 
@@ -196,7 +211,6 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       // 在后台初始化仓库（扫描索引）
       // 这不会阻塞UI，因为文件已经显示了
       unawaited(_initializeInBackground());
-
     } catch (e) {
       AppLogger.e('Failed to initialize', e, null, 'LocalGalleryNotifier');
       state = state.copyWith(
@@ -221,7 +235,8 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     const supportedExtensions = {'.png', '.jpg', '.jpeg', '.webp'};
 
     try {
-      await for (final entity in rootDir.list(recursive: true, followLinks: false)) {
+      await for (final entity
+          in rootDir.list(recursive: true, followLinks: false)) {
         if (entity is File) {
           final ext = entity.path.split('.').last.toLowerCase();
           if (supportedExtensions.contains('.$ext')) {
@@ -288,7 +303,10 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
               modifiedAt: stat.modified,
             );
           } catch (e) {
-            AppLogger.w('Failed to index file: ${file.path}', 'LocalGalleryNotifier');
+            AppLogger.w(
+              'Failed to index file: ${file.path}',
+              'LocalGalleryNotifier',
+            );
           }
         }
 
@@ -330,7 +348,10 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         }
       });
     } catch (e) {
-      AppLogger.w('Background initialization failed: $e', 'LocalGalleryNotifier');
+      AppLogger.w(
+        'Background initialization failed: $e',
+        'LocalGalleryNotifier',
+      );
       state = state.copyWith(
         isIndexing: false,
         isPageLoading: false,
@@ -403,7 +424,11 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       final records = await _loadRecords(batch);
       state = state.copyWith(currentImages: records, isLoading: false);
     } catch (e) {
-      state = state.copyWith(isLoading: false, isIndexing: false, isPageLoading: false);
+      state = state.copyWith(
+        isLoading: false,
+        isIndexing: false,
+        isPageLoading: false,
+      );
     }
   }
 
@@ -426,7 +451,10 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       try {
         fileStats[file] = await file.stat();
       } catch (e) {
-        AppLogger.w('Failed to stat file: ${file.path}', 'LocalGalleryNotifier');
+        AppLogger.w(
+          'Failed to stat file: ${file.path}',
+          'LocalGalleryNotifier',
+        );
       }
     }
 
@@ -476,12 +504,20 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
           final metadataRecord = metadataMap[imageId];
           if (metadataRecord != null) {
             // 如果有 rawJson，从中重新解析完整的元数据（包含新字段）
-            if (metadataRecord.rawJson != null && metadataRecord.rawJson!.isNotEmpty) {
+            if (metadataRecord.rawJson != null &&
+                metadataRecord.rawJson!.isNotEmpty) {
               try {
-                final json = jsonDecode(metadataRecord.rawJson!) as Map<String, dynamic>;
-                metadata = NaiImageMetadata.fromNaiComment(json, rawJson: metadataRecord.rawJson);
+                final json =
+                    jsonDecode(metadataRecord.rawJson!) as Map<String, dynamic>;
+                metadata = NaiImageMetadata.fromNaiComment(
+                  json,
+                  rawJson: metadataRecord.rawJson,
+                );
               } catch (e) {
-                AppLogger.w('Failed to parse rawJson for $imageId, using basic metadata', 'LocalGalleryNotifier');
+                AppLogger.w(
+                  'Failed to parse rawJson for $imageId, using basic metadata',
+                  'LocalGalleryNotifier',
+                );
                 // 回退到基本元数据
                 metadata = _buildBasicMetadata(metadataRecord);
               }
@@ -489,27 +525,35 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
               // 没有 rawJson，使用基本元数据
               metadata = _buildBasicMetadata(metadataRecord);
             }
-            metadataStatus = metadata.hasData ? MetadataStatus.success : MetadataStatus.none;
+            metadataStatus =
+                metadata.hasData ? MetadataStatus.success : MetadataStatus.none;
           }
         }
 
-        records.add(LocalImageRecord(
-          path: file.path,
-          size: stat.size,
-          modifiedAt: stat.modified,
-          isFavorite: isFavorite,
-          tags: tags,
-          metadata: metadata,
-          metadataStatus: metadataStatus,
-        ),);
+        records.add(
+          LocalImageRecord(
+            path: file.path,
+            size: stat.size,
+            modifiedAt: stat.modified,
+            isFavorite: isFavorite,
+            tags: tags,
+            metadata: metadata,
+            metadataStatus: metadataStatus,
+          ),
+        );
       } catch (e) {
-        AppLogger.w('Failed to load record for ${file.path}', 'LocalGalleryNotifier');
+        AppLogger.w(
+          'Failed to load record for ${file.path}',
+          'LocalGalleryNotifier',
+        );
         // 使用基本信息创建记录
-        records.add(LocalImageRecord(
-          path: file.path,
-          size: 0,
-          modifiedAt: DateTime.now(),
-        ),);
+        records.add(
+          LocalImageRecord(
+            path: file.path,
+            size: 0,
+            modifiedAt: DateTime.now(),
+          ),
+        );
       }
     }
 
@@ -519,7 +563,8 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   /// 批量预加载元数据到缓存（后台执行，不阻塞UI）
   void _preloadMetadataBatch(List<File> files) {
     // 筛选出PNG文件
-    final pngFiles = files.where((f) => f.path.toLowerCase().endsWith('.png')).toList();
+    final pngFiles =
+        files.where((f) => f.path.toLowerCase().endsWith('.png')).toList();
     if (pngFiles.isEmpty) return;
 
     // 后台预加载，不等待结果
@@ -530,7 +575,10 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
             .toList();
         ImageMetadataService().preloadBatch(images);
       } catch (e) {
-        AppLogger.w('Failed to preload metadata batch: $e', 'LocalGalleryNotifier');
+        AppLogger.w(
+          'Failed to preload metadata batch: $e',
+          'LocalGalleryNotifier',
+        );
       }
     });
   }
@@ -590,7 +638,10 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       // 扫描完成后刷新当前页以显示元数据
       await loadPage(state.currentPage, showLoading: false);
     } catch (e) {
-      AppLogger.w('Failed to scan new files for metadata: $e', 'LocalGalleryNotifier');
+      AppLogger.w(
+        'Failed to scan new files for metadata: $e',
+        'LocalGalleryNotifier',
+      );
     }
   }
 
@@ -841,8 +892,13 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       if (state.dateStart != null || state.dateEnd != null) {
         try {
           final modified = file.statSync().modified;
-          if (state.dateStart != null && modified.isBefore(state.dateStart!)) return false;
-          if (state.dateEnd != null && modified.isAfter(state.dateEnd!.add(const Duration(days: 1)))) return false;
+          if (state.dateStart != null && modified.isBefore(state.dateStart!)) {
+            return false;
+          }
+          if (state.dateEnd != null &&
+              modified.isAfter(state.dateEnd!.add(const Duration(days: 1)))) {
+            return false;
+          }
         } catch (_) {
           return false;
         }
@@ -856,16 +912,19 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         final dataSource = await _getDataSource();
         final favoriteImageIds = await dataSource.getFavoriteImageIds();
         // 使用批量查询获取所有收藏图片的路径
-        final favoriteImages = await dataSource.getImagesByIds(favoriteImageIds);
+        final favoriteImages =
+            await dataSource.getImagesByIds(favoriteImageIds);
         final favoritePaths = favoriteImages.map((img) => img.filePath).toSet();
-        filtered = filtered.where((file) => favoritePaths.contains(file.path)).toList();
+        filtered = filtered
+            .where((file) => favoritePaths.contains(file.path))
+            .toList();
       } catch (e) {
         AppLogger.w('Failed to filter favorites: $e', 'LocalGalleryNotifier');
       }
     }
 
     state = state.copyWith(filteredFiles: filtered, currentPage: 0);
-    
+
     // 如果在分组视图下，重新加载分组图片
     if (state.isGroupedView) {
       await _loadGroupedImages();
@@ -895,10 +954,16 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       if (imageId != null) {
         // 使用新数据源切换收藏状态
         await dataSource.toggleFavorite(imageId);
-        AppLogger.d('Toggled favorite for image $imageId via GalleryDataSource', 'LocalGalleryNotifier');
+        AppLogger.d(
+          'Toggled favorite for image $imageId via GalleryDataSource',
+          'LocalGalleryNotifier',
+        );
       } else {
         // 如果图片不在数据库中，先索引它
-        AppLogger.w('Image not found in database, indexing first: $filePath', 'LocalGalleryNotifier');
+        AppLogger.w(
+          'Image not found in database, indexing first: $filePath',
+          'LocalGalleryNotifier',
+        );
         final file = File(filePath);
         if (await file.exists()) {
           final stat = await file.stat();
@@ -924,7 +989,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
 
       // 更新当前页显示
       state = state.copyWith(currentImages: updatedCurrentImages);
-      
+
       // 如果启用了收藏过滤，重新应用过滤以更新列表
       if (state.showFavoritesOnly) {
         await _applyFilters();
@@ -954,7 +1019,10 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     // 检查数据库是否正在恢复
     final stateMachine = ref.read(databaseStateMachineProvider);
     if (stateMachine.isTransitioning) {
-      AppLogger.d('Database is transitioning, returning cached favorite count (0)', 'LocalGalleryNotifier');
+      AppLogger.d(
+        'Database is transitioning, returning cached favorite count (0)',
+        'LocalGalleryNotifier',
+      );
       return 0;
     }
 
@@ -996,10 +1064,16 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       if (imageId != null) {
         // 使用新数据源设置标签
         await dataSource.setImageTags(imageId, tags);
-        AppLogger.d('Set tags for image $imageId via GalleryDataSource', 'LocalGalleryNotifier');
+        AppLogger.d(
+          'Set tags for image $imageId via GalleryDataSource',
+          'LocalGalleryNotifier',
+        );
       } else {
         // 如果图片不在数据库中，先索引它
-        AppLogger.w('Image not found in database, indexing first: $filePath', 'LocalGalleryNotifier');
+        AppLogger.w(
+          'Image not found in database, indexing first: $filePath',
+          'LocalGalleryNotifier',
+        );
         final file = File(filePath);
         if (await file.exists()) {
           final stat = await file.stat();
