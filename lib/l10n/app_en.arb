@@ -3487,6 +3487,8 @@
   "vibeLibrary_addToFavorites": "Add to Favorites",
   "vibeLibrary_removeFromFavorites": "Remove from Favorites",
   "vibeLibrary_newSubCategory": "New Subcategory",
+  "vibeLibrary_maxVibesReached": "Maximum limit reached (16 vibes)",
+  "vibeLibrary_bundleReadFailed": "Failed to read bundle file, using single file mode",
   "vibe_export_title": "Export Vibe",
   "vibe_export_format": "Export Format",
   "vibe_selector_title": "Select Vibe",

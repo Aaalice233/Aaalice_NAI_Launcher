@@ -149,6 +149,7 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
                               setState(() => _isEditing = false);
                             },
                             onTapOutside: (_) {
+                              _editController.text = widget.label;
                               setState(() => _isEditing = false);
                             },
                           )
@@ -174,7 +175,7 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
                       child: Icon(
                         Icons.drag_indicator,
                         size: 14,
-                        color: theme.colorScheme.outline.withOpacity(0.5),
+                        color: theme.colorScheme.outline.withAlpha(128),
                       ),
                     ),
 

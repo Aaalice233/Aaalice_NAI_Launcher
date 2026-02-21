@@ -12977,6 +12977,18 @@ abstract class AppLocalizations {
   /// **'New Subcategory'**
   String get vibeLibrary_newSubCategory;
 
+  /// No description provided for @vibeLibrary_maxVibesReached.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum limit reached (16 vibes)'**
+  String get vibeLibrary_maxVibesReached;
+
+  /// No description provided for @vibeLibrary_bundleReadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to read bundle file, using single file mode'**
+  String get vibeLibrary_bundleReadFailed;
+
   /// No description provided for @vibe_export_title.
   ///
   /// In en, this message translates to:

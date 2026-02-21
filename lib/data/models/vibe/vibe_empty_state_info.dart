@@ -1,8 +1,7 @@
-import 'package:flutter/material.dart';
-
 /// 空状态信息模型
 ///
-/// 用于显示 Vibe 库空状态时的提示信息，包括标题、副标题和图标
+/// 用于显示 Vibe 库空状态时的提示信息，包括标题、副标题和图标名称
+/// 注意：使用 String 图标名称而非 IconData，避免数据层依赖 UI 框架
 class EmptyStateInfo {
   /// 标题文本
   final String title;
@@ -10,13 +9,13 @@ class EmptyStateInfo {
   /// 副标题文本（可选）
   final String? subtitle;
 
-  /// 显示的图标
-  final IconData icon;
+  /// 图标名称（由展示层映射为实际的 IconData）
+  final String iconName;
 
   const EmptyStateInfo({
     required this.title,
     this.subtitle,
-    required this.icon,
+    required this.iconName,
   });
 
   /// 创建搜索无结果的空状态信息
@@ -24,7 +23,7 @@ class EmptyStateInfo {
     return const EmptyStateInfo(
       title: '未找到匹配的 Vibe',
       subtitle: '尝试其他关键词',
-      icon: Icons.search_off,
+      iconName: 'search_off',
     );
   }
 
@@ -33,7 +32,7 @@ class EmptyStateInfo {
     return const EmptyStateInfo(
       title: '暂无收藏的 Vibe',
       subtitle: '点击心形图标收藏 Vibe',
-      icon: Icons.favorite_border,
+      iconName: 'favorite_border',
     );
   }
 
@@ -42,7 +41,7 @@ class EmptyStateInfo {
     return const EmptyStateInfo(
       title: '该分类下暂无 Vibe',
       subtitle: '尝试切换到"全部 Vibe"查看所有内容',
-      icon: Icons.folder_outlined,
+      iconName: 'folder_outlined',
     );
   }
 
@@ -51,25 +50,25 @@ class EmptyStateInfo {
     return const EmptyStateInfo(
       title: '无匹配结果',
       subtitle: null,
-      icon: Icons.search_off,
+      iconName: 'search_off',
     );
   }
 
   EmptyStateInfo copyWith({
     String? title,
     String? subtitle,
-    IconData? icon,
+    String? iconName,
   }) {
     return EmptyStateInfo(
       title: title ?? this.title,
       subtitle: subtitle ?? this.subtitle,
-      icon: icon ?? this.icon,
+      iconName: iconName ?? this.iconName,
     );
   }
 
   @override
   String toString() {
-    return 'EmptyStateInfo(title: $title, subtitle: $subtitle, icon: $icon)';
+    return 'EmptyStateInfo(title: $title, subtitle: $subtitle, iconName: $iconName)';
   }
 
   @override
@@ -78,9 +77,9 @@ class EmptyStateInfo {
     return other is EmptyStateInfo &&
         other.title == title &&
         other.subtitle == subtitle &&
-        other.icon == icon;
+        other.iconName == iconName;
   }
 
   @override
-  int get hashCode => Object.hash(title, subtitle, icon);
+  int get hashCode => Object.hash(title, subtitle, iconName);
 }

@@ -96,7 +96,7 @@ class _VibeCategoryTreeViewState extends State<VibeCategoryTreeView> {
             icon: widget.selectedCategoryId == 'favorites'
                 ? Icons.favorite
                 : Icons.favorite_border,
-            iconColor: Colors.red.shade400,
+            iconColor: theme.colorScheme.error,
             label: context.l10n.vibeLibrary_favorites,
             count: widget.favoriteCount,
             isSelected: widget.selectedCategoryId == 'favorites',

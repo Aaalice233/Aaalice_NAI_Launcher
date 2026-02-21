@@ -6896,6 +6896,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibeLibrary_newSubCategory => 'New Subcategory';
 
   @override
+  String get vibeLibrary_maxVibesReached => 'Maximum limit reached (16 vibes)';
+
+  @override
+  String get vibeLibrary_bundleReadFailed => 'Failed to read bundle file, using single file mode';
+
+  @override
   String get vibe_export_title => 'Export Vibe';
 
   @override

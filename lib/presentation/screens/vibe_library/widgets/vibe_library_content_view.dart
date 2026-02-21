@@ -78,7 +78,7 @@ class _VibeLibraryContentViewState
       return VibeLibraryEmptyView(
         title: emptyInfo.title,
         subtitle: emptyInfo.subtitle ?? '',
-        icon: emptyInfo.icon,
+        iconName: emptyInfo.iconName,
       );
     }
 
@@ -243,7 +243,7 @@ class _VibeLibraryContentViewState
 
     // 检查是否超过16个限制（仅在追加模式下检查）
     if (!isShiftPressed && currentParams.vibeReferencesV4.length >= 16) {
-      AppToast.warning(context, '已达到最大数量 (16张)');
+      AppToast.warning(context, context.l10n.vibeLibrary_maxVibesReached);
       return;
     }
 
@@ -292,6 +292,12 @@ class _VibeLibraryContentViewState
             stackTrace,
             'VibeLibrary',
           );
+          if (context.mounted) {
+            AppToast.warning(
+              context,
+              context.l10n.vibeLibrary_bundleReadFailed,
+            );
+          }
           // 回退到单个 vibe 处理
         }
       }
@@ -330,7 +336,7 @@ class _VibeLibraryContentViewState
 
     // 检查是否超过16个限制（仅在追加模式下检查）
     if (!isShiftPressed && currentParams.vibeReferencesV4.length >= 16) {
-      AppToast.warning(context, '已达到最大数量 (16张)');
+      AppToast.warning(context, context.l10n.vibeLibrary_maxVibesReached);
       return;
     }
 
@@ -376,6 +382,12 @@ class _VibeLibraryContentViewState
             stackTrace,
             'VibeLibrary',
           );
+          if (context.mounted) {
+            AppToast.warning(
+              context,
+              context.l10n.vibeLibrary_bundleReadFailed,
+            );
+          }
           // 回退到单个 vibe 处理
         }
       }

@@ -11,16 +11,27 @@ class VibeLibraryEmptyView extends StatelessWidget {
   /// 副标题文本
   final String subtitle;
 
-  /// Icon to display
-  /// 显示的图标
-  final IconData icon;
+  /// Icon name to display (mapped to actual IconData in build)
+  /// 显示的图标名称（在build中映射为实际IconData）
+  final String iconName;
 
   const VibeLibraryEmptyView({
     super.key,
     this.title = 'Vibe库为空',
     this.subtitle = '从生成页面保存Vibe到库中',
-    this.icon = Icons.auto_awesome_outlined,
+    this.iconName = 'auto_awesome_outlined',
   });
+
+  /// 将图标名称映射为 IconData
+  IconData _getIconData(String name) {
+    return switch (name) {
+      'search_off' => Icons.search_off,
+      'favorite_border' => Icons.favorite_border,
+      'folder_outlined' => Icons.folder_outlined,
+      'auto_awesome_outlined' => Icons.auto_awesome_outlined,
+      _ => Icons.auto_awesome_outlined,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,9 +42,9 @@ class VibeLibraryEmptyView extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            icon,
+            _getIconData(iconName),
             size: 64,
-            color: theme.colorScheme.outline.withOpacity(0.5),
+            color: theme.colorScheme.outline.withAlpha(128),
           ),
           const SizedBox(height: 16),
           Text(
