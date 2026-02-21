@@ -1851,7 +1851,7 @@ class GalleryDataSource extends EnhancedBaseDataSource {
         'GalleryDS',
       );
       // 发生错误时，返回所有图片为空标签列表
-      return {for (final id in imageIds) id: <String>[]},
+      return {for (final id in imageIds) id: <String>[]};
     }
   }
 
