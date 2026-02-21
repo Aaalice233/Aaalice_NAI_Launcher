@@ -86,7 +86,7 @@ class _VibeCategoryTreeViewState extends State<VibeCategoryTreeView> {
           // 全部Vibe
           VibeCategoryItem(
             icon: Icons.auto_awesome_outlined,
-            label: context.l10n.vibeLibrary_allVibes,
+            label: '全部 Vibe',
             count: widget.totalEntryCount,
             isSelected: widget.selectedCategoryId == null,
             onTap: () => widget.onCategorySelected(null),
@@ -97,7 +97,7 @@ class _VibeCategoryTreeViewState extends State<VibeCategoryTreeView> {
                 ? Icons.favorite
                 : Icons.favorite_border,
             iconColor: Colors.red.shade400,
-            label: context.l10n.vibeLibrary_favorites,
+            label: '收藏',
             count: widget.favoriteCount,
             isSelected: widget.selectedCategoryId == 'favorites',
             onTap: () => widget.onCategorySelected('favorites'),

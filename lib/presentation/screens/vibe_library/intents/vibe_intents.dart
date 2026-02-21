@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import '../../../../core/shortcuts/shortcut_manager.dart';
 
 /// Vibe库导入Intent

@@ -8,10 +8,10 @@ import 'package:path/path.dart' as p;
 
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
-import '../../../../data/models/vibe/vibe_library_category.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
-import '../../../../data/models/vibe/vibe_reference.dart';
+import '../../../../data/services/vibe_library_storage_service.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
+import '../../../providers/selection_mode_provider.dart';
 import '../../../providers/vibe_library_category_provider.dart';
 import '../../../providers/vibe_library_provider.dart';
 import '../../../providers/vibe_library_selection_provider.dart';
@@ -220,7 +220,9 @@ class _VibeLibraryContentViewState
 
   /// 发送单个条目到生成页面
   Future<void> _sendEntryToGeneration(
-      BuildContext context, VibeLibraryEntry entry) async {
+    BuildContext context,
+    VibeLibraryEntry entry,
+  ) async {
     final paramsNotifier = ref.read(generationParamsNotifierProvider.notifier);
     final currentParams = ref.read(generationParamsNotifierProvider);
 
@@ -275,8 +277,12 @@ class _VibeLibraryContentViewState
           }
           return;
         } catch (e, stackTrace) {
-          AppLogger.e('读取 Bundle 文件失败: ${entry.filePath}', e, stackTrace,
-              'VibeLibrary');
+          AppLogger.e(
+            '读取 Bundle 文件失败: ${entry.filePath}',
+            e,
+            stackTrace,
+            'VibeLibrary',
+          );
           // 回退到单个 vibe 处理
         }
       }
@@ -355,8 +361,12 @@ class _VibeLibraryContentViewState
           }
           return;
         } catch (e, stackTrace) {
-          AppLogger.e('读取 Bundle 文件失败: ${entry.filePath}', e, stackTrace,
-              'VibeLibrary');
+          AppLogger.e(
+            '读取 Bundle 文件失败: ${entry.filePath}',
+            e,
+            stackTrace,
+            'VibeLibrary',
+          );
           // 回退到单个 vibe 处理
         }
       }
