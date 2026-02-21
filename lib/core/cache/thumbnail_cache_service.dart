@@ -306,10 +306,12 @@ class ThumbnailCacheService {
   /// 将生成任务加入队列
   Future<String?> _queueGeneration(String originalPath) {
     final completer = Completer<String?>();
-    _taskQueue.add(_ThumbnailTask(
-      originalPath: originalPath,
-      completer: completer,
-    ));
+    _taskQueue.add(
+      _ThumbnailTask(
+        originalPath: originalPath,
+        completer: completer,
+      ),
+    );
     return completer.future;
   }
 
@@ -743,14 +745,16 @@ class ThumbnailCacheService {
               if (file is File && file.path.endsWith(thumbnailExt)) {
                 try {
                   final stat = await file.stat();
-                  thumbnails.add(ThumbnailInfo(
-                    path: file.path,
-                    width: 0, // 磁盘缓存不保存具体尺寸
-                    height: 0,
-                    createdAt: stat.modified,
-                    lastAccessedAt: _lastAccessTimes[file.path] ?? stat.accessed,
-                    accessCount: 1,
-                  ));
+                  thumbnails.add(
+                    ThumbnailInfo(
+                      path: file.path,
+                      width: 0, // 磁盘缓存不保存具体尺寸
+                      height: 0,
+                      createdAt: stat.modified,
+                      lastAccessedAt: _lastAccessTimes[file.path] ?? stat.accessed,
+                      accessCount: 1,
+                    ),
+                  );
                 } catch (_) {
                   // 忽略无法访问的文件
                 }
