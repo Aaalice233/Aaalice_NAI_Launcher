@@ -204,16 +204,20 @@ class ProjectManager {
       return;
     }
 
+    // 异步获取所有文件的 stat，然后按修改时间排序
+    final filesWithStats = await Future.wait(
+      files.map((file) async {
+        final stat = await file.stat();
+        return (file: file, stat: stat);
+      }),
+    );
+
     // 按修改时间排序
-    files.sort((a, b) {
-      final aStat = a.statSync();
-      final bStat = b.statSync();
-      return bStat.modified.compareTo(aStat.modified);
-    });
+    filesWithStats.sort((a, b) => b.stat.modified.compareTo(a.stat.modified));
 
     // 删除旧文件
-    for (int i = keepCount; i < files.length; i++) {
-      await files[i].delete();
+    for (int i = keepCount; i < filesWithStats.length; i++) {
+      await filesWithStats[i].file.delete();
     }
   }
 }
