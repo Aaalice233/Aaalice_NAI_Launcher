@@ -810,6 +810,54 @@ class GalleryDataSource extends EnhancedBaseDataSource {
     }
   }
 
+  /// 根据文件路径列表批量获取图片ID
+  ///
+  /// [filePaths] 文件路径列表
+  ///
+  /// 返回一个 Map，键为文件路径，值为对应的图片ID（如果找不到则为 null）
+  /// 使用单个查询批量获取，比多次调用 getImageIdByPath 更高效
+  Future<Map<String, int?>> getImageIdsByPaths(List<String> filePaths) async {
+    if (filePaths.isEmpty) return {};
+
+    try {
+      return await execute(
+        'getImageIdsByPaths',
+        (db) async {
+          // 构建 IN 子句的占位符
+          final placeholders = List.filled(filePaths.length, '?').join(',');
+
+          final result = await db.rawQuery(
+            '''
+            SELECT id, file_path FROM $_imagesTable
+            WHERE file_path IN ($placeholders) AND is_deleted = 0
+            ''',
+            filePaths,
+          );
+
+          // 构建结果映射
+          final pathToId = <String, int?>{};
+          for (final row in result) {
+            final path = row['file_path'] as String;
+            final id = (row['id'] as num?)?.toInt();
+            pathToId[path] = id;
+          }
+
+          // 为未找到的路径填充 null
+          for (final path in filePaths) {
+            pathToId.putIfAbsent(path, () => null);
+          }
+
+          return pathToId;
+        },
+        timeout: const Duration(seconds: 30),
+        maxRetries: 3,
+      );
+    } catch (e, stack) {
+      AppLogger.e('Failed to get image IDs by paths: ${filePaths.length} paths', e, stack, 'GalleryDS');
+      return {for (final path in filePaths) path: null};
+    }
+  }
+
   /// 根据ID获取图片记录
   ///
   /// 使用 LRU 缓存，优先从缓存获取
