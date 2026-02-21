@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 
 import '../../data/models/vibe/vibe_reference.dart';
@@ -125,45 +126,111 @@ class VibeImageEmbedder {
     return utf8.decode(data.sublist(0, nullPos));
   }
 
-  /// Result of extracting vibes from image
+  /// Result of extracting vibes from image (using Isolate to avoid blocking UI)
   static Future<({List<VibeReference> vibes, bool isBundle})> extractVibeFromImage(
     Uint8List imageBytes,
   ) async {
-    final decoder = img.PngDecoder();
-    if (!decoder.isValidFile(imageBytes) ||
-        decoder.startDecode(imageBytes) == null) {
-      throw InvalidImageFormatException(
-        'Only valid PNG images can contain naiv4vibe metadata',
-      );
-    }
+    try {
+      // 使用 Isolate 执行提取，避免阻塞 UI
+      final result = await compute(_extractVibeIsolate, imageBytes);
 
-    // Try tEXt chunk first (legacy format)
-    final textData = decoder.info.textData;
-    final payloadJson = textData[_vibeKeyword];
-    if (payloadJson != null && payloadJson.trim().isNotEmpty) {
-      final payload = _decodeMetadataPayload(payloadJson);
-      final vibe = _payloadToVibeReference(payload);
-      // 如果没有缩略图，使用原始图片
-      final vibeWithThumbnail = vibe.thumbnail == null
-          ? vibe.copyWith(thumbnail: imageBytes)
-          : vibe;
-      return (vibes: [vibeWithThumbnail], isBundle: false);
-    }
+      if (result == null) {
+        throw NoVibeDataException(
+          'No naiv4vibe or naidata metadata found in PNG',
+        );
+      }
 
-    // Try iTXt chunk (NAI official format)
-    final naiData = _extractNaiDataFromITxt(imageBytes);
-    if (naiData != null) {
-      AppLogger.d('Found NAI naidata format', 'VibeImageEmbedder');
-      final result = _parseNaiVibeData(naiData);
-      // 为每个没有缩略图的 vibe 添加原始图片作为缩略图
-      final vibesWithThumbnails = result.vibes.map((vibe) {
-        return vibe.thumbnail == null ? vibe.copyWith(thumbnail: imageBytes) : vibe;
+      // 将序列化的结果转换回 VibeReference 对象
+      final vibes = result.vibesData.map((data) {
+        final vibeRef = _vibeDataToReference(data);
+        // 如果没有缩略图，使用原始图片
+        return vibeRef.thumbnail == null
+            ? vibeRef.copyWith(thumbnail: imageBytes)
+            : vibeRef;
       }).toList();
-      return (vibes: vibesWithThumbnails, isBundle: result.isBundle);
-    }
 
-    throw NoVibeDataException(
-      'No naiv4vibe or naidata metadata found in PNG. Available tEXt keys: ${textData.keys.toList()}',
+      return (vibes: vibes, isBundle: result.isBundle);
+    } on NoVibeDataException {
+      rethrow;
+    } on InvalidImageFormatException {
+      rethrow;
+    } catch (e, stack) {
+      AppLogger.e('Error extracting vibe from image', e, stack, 'VibeImageEmbedder');
+      throw VibeExtractException('Failed to extract vibe: $e');
+    }
+  }
+
+  /// Isolate entry point for vibe extraction
+  ///
+  /// 静态方法，用于在 Isolate 中执行 vibe 提取逻辑
+  /// 返回序列化的 [_ExtractVibeResult]，确保数据可在 Isolate 间传递
+  static _ExtractVibeResult? _extractVibeIsolate(Uint8List imageBytes) {
+    try {
+      final decoder = img.PngDecoder();
+      if (!decoder.isValidFile(imageBytes) ||
+          decoder.startDecode(imageBytes) == null) {
+        throw InvalidImageFormatException(
+          'Only valid PNG images can contain naiv4vibe metadata',
+        );
+      }
+
+      // Try tEXt chunk first (legacy format)
+      final textData = decoder.info.textData;
+      final payloadJson = textData[_vibeKeyword];
+      if (payloadJson != null && payloadJson.trim().isNotEmpty) {
+        final payload = _decodeMetadataPayload(payloadJson);
+        final vibe = _payloadToVibeReference(payload);
+        // 在 Isolate 中返回序列化数据，不包含原始图片字节
+        return _ExtractVibeResult(
+          vibesData: [_vibeReferenceToData(vibe)],
+          isBundle: false,
+        );
+      }
+
+      // Try iTXt chunk (NAI official format)
+      final naiData = _extractNaiDataFromITxt(imageBytes);
+      if (naiData != null) {
+        final result = _parseNaiVibeData(naiData);
+        // 将 VibeReference 转换为序列化数据
+        return _ExtractVibeResult(
+          vibesData: result.vibes.map(_vibeReferenceToData).toList(),
+          isBundle: result.isBundle,
+        );
+      }
+
+      return null;
+    } on InvalidImageFormatException {
+      rethrow;
+    } catch (e) {
+      AppLogger.w('[Isolate] Vibe extraction error: $e', 'VibeImageEmbedder');
+      return null;
+    }
+  }
+
+  /// 将 VibeReference 转换为可序列化的 Map
+  static Map<String, dynamic> _vibeReferenceToData(VibeReference vibe) {
+    return {
+      'displayName': vibe.displayName,
+      'vibeEncoding': vibe.vibeEncoding,
+      'thumbnail': vibe.thumbnail, // Uint8List 可以跨 Isolate 传递
+      'strength': vibe.strength,
+      'infoExtracted': vibe.infoExtracted,
+      'sourceType': vibe.sourceType.name,
+    };
+  }
+
+  /// 将序列化的 Map 转换回 VibeReference
+  static VibeReference _vibeDataToReference(Map<String, dynamic> data) {
+    return VibeReference(
+      displayName: data['displayName'] as String,
+      vibeEncoding: data['vibeEncoding'] as String,
+      thumbnail: data['thumbnail'] as Uint8List?,
+      strength: data['strength'] as double,
+      infoExtracted: data['infoExtracted'] as double,
+      sourceType: VibeSourceType.values.firstWhere(
+        (t) => t.name == data['sourceType'],
+        orElse: () => VibeSourceType.png,
+      ),
     );
   }
 
@@ -570,6 +637,31 @@ class _ExtractVibeParams {
   _ExtractVibeParams({
     required this.imageBytes,
   });
+}
+
+/// Extract vibe result (serializable for Isolate)
+class _ExtractVibeResult {
+  final List<Map<String, dynamic>> vibesData;
+  final bool isBundle;
+
+  _ExtractVibeResult({
+    required this.vibesData,
+    required this.isBundle,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'vibesData': vibesData,
+        'isBundle': isBundle,
+      };
+
+  factory _ExtractVibeResult.fromJson(Map<String, dynamic> json) {
+    return _ExtractVibeResult(
+      vibesData: (json['vibesData'] as List<dynamic>)
+          .map((e) => e as Map<String, dynamic>)
+          .toList(),
+      isBundle: json['isBundle'] as bool,
+    );
+  }
 }
 
 class _PngChunk {
