@@ -1296,6 +1296,82 @@ class GalleryDataSource extends EnhancedBaseDataSource {
     }
   }
 
+  /// 根据图片ID列表批量获取元数据
+  ///
+  /// [imageIds] 图片ID列表
+  ///
+  /// 返回一个 Map，键为图片ID，值为对应的元数据记录（如果找不到则为 null）
+  /// 优先从缓存获取，缺失的从数据库查询
+  /// 使用单个查询批量获取，比多次调用 getMetadataByImageId 更高效
+  Future<Map<int, GalleryMetadataRecord?>> getMetadataByImageIds(List<int> imageIds) async {
+    if (imageIds.isEmpty) return {};
+
+    final results = <int, GalleryMetadataRecord?>{};
+    final missingIds = <int>[];
+
+    // 先从缓存获取
+    for (final id in imageIds) {
+      final cached = _metadataCache.get(id);
+      if (cached != null) {
+        results[id] = cached;
+      } else {
+        missingIds.add(id);
+      }
+    }
+
+    // 从数据库查询缺失的记录
+    if (missingIds.isNotEmpty) {
+      try {
+        await execute(
+          'getMetadataByImageIds',
+          (db) async {
+            // 构建 IN 子句的占位符
+            final placeholders = List.filled(missingIds.length, '?').join(',');
+
+            final dbResults = await db.rawQuery(
+              '''
+              SELECT * FROM $_metadataTable
+              WHERE image_id IN ($placeholders)
+              ''',
+              missingIds,
+            );
+
+            // 先为所有缺失的ID设置 null
+            for (final id in missingIds) {
+              results[id] = null;
+            }
+
+            // 填充查询到的记录
+            for (final row in dbResults) {
+              final record = GalleryMetadataRecord.fromMap(row);
+              final id = record.imageId;
+
+              results[id] = record;
+
+              // 存入缓存
+              _metadataCache.put(id, record);
+            }
+          },
+          timeout: const Duration(seconds: 30),
+          maxRetries: 3,
+        );
+      } catch (e, stack) {
+        AppLogger.e(
+          'Failed to get metadata by image IDs: ${imageIds.length} IDs',
+          e,
+          stack,
+          'GalleryDS',
+        );
+        // 发生错误时，为缺失的ID返回 null
+        for (final id in missingIds) {
+          results.putIfAbsent(id, () => null);
+        }
+      }
+    }
+
+    return results;
+  }
+
   // ============================================================
   // 收藏操作
   // ============================================================
