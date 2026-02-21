@@ -78,19 +78,44 @@ class LocalGalleryRepository {
   Future<List<File>> getAllImageFiles() async {
     final stopwatch = Stopwatch()..start();
     final dir = await _getImageDirectory();
-    if (!dir.existsSync()) return [];
-    final files = dir.listSync(recursive: false)
-      .whereType<File>()
-      .where((f) => f.path.toLowerCase().endsWith('.png'))
-      .toList()
-      // 降序排序（最新优先）- 业务需求
-      ..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
+
+    // 检查目录是否存在
+    if (!await dir.exists()) {
+      return [];
+    }
+
+    // 使用异步操作获取文件列表
+    final files = await dir
+        .list(recursive: false)
+        .where((entity) => entity is File)
+        .cast<File>()
+        .where((f) => f.path.toLowerCase().endsWith('.png'))
+        .toList();
+
+    // 获取所有文件的修改时间（并发执行）
+    final fileStats = await Future.wait(
+      files.map((file) async {
+        try {
+          final stat = await file.stat();
+          return (file: file, modified: stat.modified);
+        } catch (e) {
+          // 如果获取失败，使用最早的时间
+          return (file: file, modified: DateTime(0));
+        }
+      }),
+    );
+
+    // 降序排序（最新优先）- 业务需求
+    fileStats.sort((a, b) => b.modified.compareTo(a.modified));
+
+    final result = fileStats.map((e) => e.file).toList();
+
     stopwatch.stop();
     AppLogger.i(
-      'Indexing completed: ${files.length} files in ${stopwatch.elapsedMilliseconds}ms',
+      'Indexing completed: ${result.length} files in ${stopwatch.elapsedMilliseconds}ms',
       'LocalGalleryRepo',
     );
-    return files;
+    return result;
   }
 
   /// 加载文件记录（批量解析元数据，带缓存）
