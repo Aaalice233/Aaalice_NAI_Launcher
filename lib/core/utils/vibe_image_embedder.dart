@@ -563,6 +563,15 @@ class NoVibeDataException implements Exception {
   String toString() => 'NoVibeDataException: $message';
 }
 
+/// Extract vibe parameters (for Isolate)
+class _ExtractVibeParams {
+  final Uint8List imageBytes;
+
+  _ExtractVibeParams({
+    required this.imageBytes,
+  });
+}
+
 class _PngChunk {
   const _PngChunk({
     required this.type,
