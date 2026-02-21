@@ -408,19 +408,59 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   }
 
   /// 从文件列表加载记录
+  ///
+  /// 使用批量查询方法，将每页的查询次数从 200+ 减少到 ~4 次：
+  /// 1. 批量获取图片ID（通过文件路径）
+  /// 2. 批量获取收藏状态
+  /// 3. 批量获取标签
+  /// 4. 批量获取元数据
   Future<List<LocalImageRecord>> _loadRecords(List<File> files) async {
     final dataSource = await _getDataSource();
-    final records = <LocalImageRecord>[];
 
     // 预加载所有图片的元数据到缓存（后台执行，不阻塞）
     _preloadMetadataBatch(files);
 
+    // 获取文件状态信息
+    final fileStats = <File, FileStat>{};
     for (final file in files) {
       try {
-        final stat = await file.stat();
+        fileStats[file] = await file.stat();
+      } catch (e) {
+        AppLogger.w('Failed to stat file: ${file.path}', 'LocalGalleryNotifier');
+      }
+    }
 
-        // 尝试从数据库获取图片ID和额外信息
-        final imageId = await dataSource.getImageIdByPath(file.path);
+    // 1. 批量获取图片ID（1次查询）
+    final paths = files.map((f) => f.path).toList();
+    final pathToIdMap = await dataSource.getImageIdsByPaths(paths);
+
+    // 收集有效的图片ID
+    final imageIds = <int>[];
+    for (final entry in pathToIdMap.entries) {
+      final id = entry.value;
+      if (id != null) {
+        imageIds.add(id);
+      }
+    }
+
+    // 2. 批量获取收藏状态（1次查询）
+    final favoritesMap = await dataSource.getFavoritesByImageIds(imageIds);
+
+    // 3. 批量获取标签（1次查询）
+    final tagsMap = await dataSource.getTagsByImageIds(imageIds);
+
+    // 4. 批量获取元数据（1次查询）
+    final metadataMap = await dataSource.getMetadataByImageIds(imageIds);
+
+    // 构建记录列表
+    final records = <LocalImageRecord>[];
+
+    for (final file in files) {
+      try {
+        final stat = fileStats[file];
+        if (stat == null) continue;
+
+        final imageId = pathToIdMap[file.path];
 
         bool isFavorite = false;
         List<String> tags = [];
@@ -428,11 +468,12 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         MetadataStatus metadataStatus = MetadataStatus.none;
 
         if (imageId != null) {
-          isFavorite = await dataSource.isFavorite(imageId);
-          tags = await dataSource.getImageTags(imageId);
+          // 从批量查询结果中获取数据
+          isFavorite = favoritesMap[imageId] ?? false;
+          tags = tagsMap[imageId] ?? [];
 
-          // 加载元数据
-          final metadataRecord = await dataSource.getMetadataByImageId(imageId);
+          // 处理元数据
+          final metadataRecord = metadataMap[imageId];
           if (metadataRecord != null) {
             // 如果有 rawJson，从中重新解析完整的元数据（包含新字段）
             if (metadataRecord.rawJson != null && metadataRecord.rawJson!.isNotEmpty) {
