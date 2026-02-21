@@ -6880,6 +6880,39 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibeLibrary_emptyHint => '先去 Vibe 库添加一些条目吧';
 
   @override
+  String get vibeLibrary_allVibes => '全部 Vibe';
+
+  @override
+  String get vibeLibrary_favorites => '收藏';
+
+  @override
+  String get vibeLibrary_sendToGeneration => '发送到生成';
+
+  @override
+  String get vibeLibrary_export => '导出';
+
+  @override
+  String get vibeLibrary_edit => '编辑';
+
+  @override
+  String get vibeLibrary_delete => '删除';
+
+  @override
+  String get vibeLibrary_addToFavorites => '收藏';
+
+  @override
+  String get vibeLibrary_removeFromFavorites => '取消收藏';
+
+  @override
+  String get vibeLibrary_newSubCategory => '新建子分类';
+
+  @override
+  String get vibeLibrary_maxVibesReached => '已达到最大数量 (16张)';
+
+  @override
+  String get vibeLibrary_bundleReadFailed => '读取 Bundle 文件失败，使用单文件模式';
+
+  @override
   String get vibe_export_title => '导出 Vibe';
 
   @override

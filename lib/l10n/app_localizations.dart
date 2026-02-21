@@ -12941,6 +12941,72 @@ abstract class AppLocalizations {
   /// **'Add some entries to Vibe Library first'**
   String get vibeLibrary_emptyHint;
 
+  /// No description provided for @vibeLibrary_allVibes.
+  ///
+  /// In en, this message translates to:
+  /// **'All Vibes'**
+  String get vibeLibrary_allVibes;
+
+  /// No description provided for @vibeLibrary_favorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites'**
+  String get vibeLibrary_favorites;
+
+  /// No description provided for @vibeLibrary_sendToGeneration.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to Generation'**
+  String get vibeLibrary_sendToGeneration;
+
+  /// No description provided for @vibeLibrary_export.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get vibeLibrary_export;
+
+  /// No description provided for @vibeLibrary_edit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get vibeLibrary_edit;
+
+  /// No description provided for @vibeLibrary_delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get vibeLibrary_delete;
+
+  /// No description provided for @vibeLibrary_addToFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to Favorites'**
+  String get vibeLibrary_addToFavorites;
+
+  /// No description provided for @vibeLibrary_removeFromFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from Favorites'**
+  String get vibeLibrary_removeFromFavorites;
+
+  /// No description provided for @vibeLibrary_newSubCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'New Subcategory'**
+  String get vibeLibrary_newSubCategory;
+
+  /// No description provided for @vibeLibrary_maxVibesReached.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum limit reached (16 vibes)'**
+  String get vibeLibrary_maxVibesReached;
+
+  /// No description provided for @vibeLibrary_bundleReadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to read bundle file, using single file mode'**
+  String get vibeLibrary_bundleReadFailed;
+
   /// No description provided for @vibe_export_title.
   ///
   /// In en, this message translates to:

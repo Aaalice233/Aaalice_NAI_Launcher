@@ -6880,6 +6880,39 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibeLibrary_emptyHint => 'Add some entries to Vibe Library first';
 
   @override
+  String get vibeLibrary_allVibes => 'All Vibes';
+
+  @override
+  String get vibeLibrary_favorites => 'Favorites';
+
+  @override
+  String get vibeLibrary_sendToGeneration => 'Send to Generation';
+
+  @override
+  String get vibeLibrary_export => 'Export';
+
+  @override
+  String get vibeLibrary_edit => 'Edit';
+
+  @override
+  String get vibeLibrary_delete => 'Delete';
+
+  @override
+  String get vibeLibrary_addToFavorites => 'Add to Favorites';
+
+  @override
+  String get vibeLibrary_removeFromFavorites => 'Remove from Favorites';
+
+  @override
+  String get vibeLibrary_newSubCategory => 'New Subcategory';
+
+  @override
+  String get vibeLibrary_maxVibesReached => 'Maximum limit reached (16 vibes)';
+
+  @override
+  String get vibeLibrary_bundleReadFailed => 'Failed to read bundle file, using single file mode';
+
+  @override
   String get vibe_export_title => 'Export Vibe';
 
   @override
