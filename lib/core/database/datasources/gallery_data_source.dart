@@ -1721,6 +1721,64 @@ class GalleryDataSource extends EnhancedBaseDataSource {
     });
   }
 
+  /// 批量获取多个图片的标签
+  ///
+  /// [imageIds] 图片ID列表
+  ///
+  /// 返回一个 Map，键为图片ID，值为该图片的标签名称列表
+  /// 使用单个查询批量获取，比多次调用 getImageTags 更高效
+  Future<Map<int, List<String>>> getTagsByImageIds(List<int> imageIds) async {
+    if (imageIds.isEmpty) return {};
+
+    try {
+      return await execute(
+        'getTagsByImageIds',
+        (db) async {
+          // 构建 IN 子句的占位符
+          final placeholders = List.filled(imageIds.length, '?').join(',');
+
+          final results = await db.rawQuery(
+            '''
+            SELECT it.image_id, t.name
+            FROM $_tagsTable t
+            INNER JOIN $_imageTagsTable it ON t.id = it.tag_id
+            WHERE it.image_id IN ($placeholders)
+            ORDER BY t.name ASC
+            ''',
+            imageIds,
+          );
+
+          // 构建结果映射，所有请求的图片默认为空标签列表
+          final tagsMap = <int, List<String>>{
+            for (final id in imageIds) id: <String>[],
+          };
+
+          // 填充每个图片的标签
+          for (final row in results) {
+            final id = (row['image_id'] as num?)?.toInt();
+            final tagName = row['name'] as String?;
+            if (id != null && tagName != null) {
+              tagsMap[id]!.add(tagName);
+            }
+          }
+
+          return tagsMap;
+        },
+        timeout: const Duration(seconds: 30),
+        maxRetries: 3,
+      );
+    } catch (e, stack) {
+      AppLogger.e(
+        'Failed to get tags by image IDs: ${imageIds.length} IDs',
+        e,
+        stack,
+        'GalleryDS',
+      );
+      // 发生错误时，返回所有图片为空标签列表
+      return {for (final id in imageIds) id: <String>[]},
+    }
+  }
+
   /// 设置图片标签（完全替换）
   ///
   /// [imageId] 图片ID
