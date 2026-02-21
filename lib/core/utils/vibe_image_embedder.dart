@@ -5,7 +5,6 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
-import 'package:image/image.dart' as img;
 
 import '../../data/models/vibe/vibe_reference.dart';
 import 'app_logger.dart';
@@ -297,61 +296,6 @@ class VibeImageEmbedder {
     }
 
     return (crc ^ 0xFFFFFFFF) & 0xFFFFFFFF;
-  }
-
-  /// 构建包含多个 vibes 的 bundle 数据
-  static Map<String, dynamic> _buildNaiVibeBundleData(
-    List<VibeReference> references,
-  ) {
-    final now = DateTime.now().toIso8601String();
-    final vibes = references.map((ref) {
-      final thumbnailBase64 = ref.thumbnail != null
-          ? base64.encode(ref.thumbnail!)
-          : null;
-      return {
-        'identifier': 'novelai-vibe-transfer',
-        'version': 1,
-        'type': 'image',
-        'image': thumbnailBase64 ?? '',
-        'id': _generateVibeId(),
-        'encodings': {'vibe': ref.vibeEncoding},
-        'name': ref.displayName,
-        'thumbnail': thumbnailBase64,
-        'createdAt': now,
-        'importInfo': {
-          'source': 'nai_launcher',
-          'importedAt': now,
-        },
-      };
-    }).toList();
-
-    return {
-      'identifier': 'novelai-vibe-transfer-bundle',
-      'version': 1,
-      'vibes': vibes,
-    };
-  }
-
-  static String _generateVibeId() {
-    final random = Random.secure();
-    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
-    return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join('');
-  }
-
-  static bool _isVibeChunk(_PngChunk chunk) {
-    if (chunk.type == _textChunkType) {
-      return _isVibeTextChunk(chunk);
-    }
-    if (chunk.type == _itxtChunkType) {
-      return _extractKeywordFromITxt(chunk.data) == _naiDataKeyword;
-    }
-    return false;
-  }
-
-  static String? _extractKeywordFromITxt(Uint8List data) {
-    final nullPos = data.indexOf(0);
-    if (nullPos <= 0) return null;
-    return utf8.decode(data.sublist(0, nullPos));
   }
 
   /// Result of extracting vibes from image (using Isolate to avoid blocking UI)
@@ -679,71 +623,6 @@ class VibeImageEmbedder {
     return firstHash['encoding'] as String? ?? '';
   }
 
-  static void _ensureValidPng(Uint8List imageBytes) {
-    final decoder = img.PngDecoder();
-    if (!decoder.isValidFile(imageBytes) ||
-        decoder.startDecode(imageBytes) == null) {
-      throw InvalidImageFormatException(
-        'Only valid PNG images are supported for vibe metadata embedding',
-      );
-    }
-  }
-
-  static List<_PngChunk> _parsePngChunks(Uint8List bytes) {
-    if (bytes.length < _minPngSize) {
-      throw InvalidImageFormatException('PNG data is too short');
-    }
-
-    if (!_hasValidPngSignature(bytes)) {
-      throw InvalidImageFormatException('Invalid PNG signature');
-    }
-
-    final chunks = <_PngChunk>[];
-    final byteData = ByteData.sublistView(bytes);
-    var offset = _pngSignature.length;
-
-    while (offset + _chunkHeaderSize <= bytes.length) {
-      final dataLength = byteData.getUint32(offset, Endian.big);
-      final typeStart = offset + 4;
-      final dataStart = typeStart + 4;
-      final dataEnd = dataStart + dataLength;
-      final crcEnd = dataEnd + 4;
-
-      if (crcEnd > bytes.length) {
-        throw InvalidImageFormatException('Invalid PNG chunk length');
-      }
-
-      final chunkType = ascii.decode(bytes.sublist(typeStart, dataStart));
-
-      chunks.add(
-        _PngChunk(
-          type: chunkType,
-          data: Uint8List.fromList(bytes.sublist(dataStart, dataEnd)),
-          rawBytes: Uint8List.fromList(bytes.sublist(offset, crcEnd)),
-        ),
-      );
-
-      if (chunkType == _iendChunkType) break;
-      offset = crcEnd;
-    }
-
-    if (chunks.isEmpty || chunks.last.type != _iendChunkType) {
-      throw InvalidImageFormatException('PNG is missing IEND chunk');
-    }
-
-    return chunks;
-  }
-
-  static bool _isVibeTextChunk(_PngChunk chunk) {
-    if (chunk.type != _textChunkType) return false;
-
-    final separator = chunk.data.indexOf(0);
-    if (separator <= 0) return false;
-
-    final keyword = latin1.decode(chunk.data.sublist(0, separator));
-    return keyword == _vibeKeyword;
-  }
-
   static Map<String, dynamic> _decodeMetadataPayload(String payloadJson) {
     try {
       final dynamic decoded = jsonDecode(payloadJson);
@@ -818,58 +697,6 @@ class VibeImageEmbedder {
         ? VibeSourceType.png
         : VibeSourceType.rawImage;
   }
-
-  /// iTXt structure: keyword\0compression_flag\0compression_method\0language\0translated_keyword\0text
-  static Uint8List _buildITxtChunk(String keyword, String text) {
-    if (keyword.isEmpty || keyword.length > 79) {
-      throw VibeEmbedException('PNG iTXt keyword must be 1-79 characters');
-    }
-
-    final keywordBytes = utf8.encode(keyword);
-    final textBytes = utf8.encode(text);
-
-    final builder = BytesBuilder(copy: false)
-      ..add(keywordBytes)
-      ..addByte(0) // null separator
-      ..addByte(0) // compression flag (0 = uncompressed)
-      ..addByte(0) // compression method (0 = deflate)
-      ..addByte(0) // language tag (empty)
-      ..addByte(0) // translated keyword (empty)
-      ..add(textBytes);
-
-    final chunkData = builder.toBytes();
-    final chunkTypeBytes = ascii.encode(_itxtChunkType);
-    final crcInput = Uint8List(chunkTypeBytes.length + chunkData.length)
-      ..setRange(0, chunkTypeBytes.length, chunkTypeBytes)
-      ..setRange(chunkTypeBytes.length, chunkTypeBytes.length + chunkData.length, chunkData);
-
-    final out = BytesBuilder(copy: false);
-    final lengthBytes = ByteData(4)..setUint32(0, chunkData.length, Endian.big);
-    out.add(lengthBytes.buffer.asUint8List());
-    out.add(chunkTypeBytes);
-    out.add(chunkData);
-
-    final crcBytes = ByteData(4)..setUint32(0, _crc32(crcInput), Endian.big);
-    out.add(crcBytes.buffer.asUint8List());
-
-    return out.toBytes();
-  }
-
-  static int _crc32(List<int> bytes) {
-    var crc = 0xFFFFFFFF;
-
-    for (final byte in bytes) {
-      var current = (crc ^ byte) & 0xFF;
-      for (var bit = 0; bit < 8; bit++) {
-        current = (current & 1) != 0
-            ? 0xEDB88320 ^ (current >> 1)
-            : current >> 1;
-      }
-      crc = ((crc >> 8) ^ current) & 0xFFFFFFFF;
-    }
-
-    return (crc ^ 0xFFFFFFFF) & 0xFFFFFFFF;
-  }
 }
 
 class VibeEmbedException implements Exception {
@@ -914,15 +741,6 @@ class _EmbedVibesParams {
   });
 }
 
-/// Extract vibe parameters (for Isolate)
-class _ExtractVibeParams {
-  final Uint8List imageBytes;
-
-  _ExtractVibeParams({
-    required this.imageBytes,
-  });
-}
-
 /// Extract vibe result (serializable for Isolate)
 class _ExtractVibeResult {
   final List<Map<String, dynamic>> vibesData;
@@ -932,20 +750,6 @@ class _ExtractVibeResult {
     required this.vibesData,
     required this.isBundle,
   });
-
-  Map<String, dynamic> toJson() => {
-        'vibesData': vibesData,
-        'isBundle': isBundle,
-      };
-
-  factory _ExtractVibeResult.fromJson(Map<String, dynamic> json) {
-    return _ExtractVibeResult(
-      vibesData: (json['vibesData'] as List<dynamic>)
-          .map((e) => e as Map<String, dynamic>)
-          .toList(),
-      isBundle: json['isBundle'] as bool,
-    );
-  }
 }
 
 class _PngChunk {
