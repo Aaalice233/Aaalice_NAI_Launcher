@@ -850,18 +850,14 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       return true;
     }).toList();
 
-    // 收藏过滤 - 使用数据库查询获取收藏的图片路径
+    // 收藏过滤 - 使用数据库查询获取收藏的图片路径（使用批量方法）
     if (state.showFavoritesOnly) {
       try {
         final dataSource = await _getDataSource();
         final favoriteImageIds = await dataSource.getFavoriteImageIds();
-        final favoritePaths = <String>{};
-        for (final id in favoriteImageIds) {
-          final image = await dataSource.getImageById(id);
-          if (image != null) {
-            favoritePaths.add(image.filePath);
-          }
-        }
+        // 使用批量查询获取所有收藏图片的路径
+        final favoriteImages = await dataSource.getImagesByIds(favoriteImageIds);
+        final favoritePaths = favoriteImages.map((img) => img.filePath).toSet();
         filtered = filtered.where((file) => favoritePaths.contains(file.path)).toList();
       } catch (e) {
         AppLogger.w('Failed to filter favorites: $e', 'LocalGalleryNotifier');
