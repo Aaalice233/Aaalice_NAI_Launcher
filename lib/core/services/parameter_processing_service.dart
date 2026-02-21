@@ -351,12 +351,3 @@ class FixedTagsStatistics {
   }
 }
 
-/// 扩展方法：固定词列表排序
-extension _FixedTagListExtension on List<FixedTagEntry> {
-  /// 按排序顺序排列
-  List<FixedTagEntry> sortedByOrder() {
-    final sorted = [...this];
-    sorted.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-    return sorted;
-  }
-}
