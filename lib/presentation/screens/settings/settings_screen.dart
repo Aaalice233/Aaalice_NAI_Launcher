@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/cache/thumbnail_cache_service.dart';
 import '../../../core/network/proxy_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/hive_storage_helper.dart';
@@ -239,6 +240,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const _VibeLibraryPathTile(),
           // Hive 数据存储路径设置
           const _HiveStoragePathTile(),
+          // 缩略图缓存管理
+          const _ThumbnailCacheTile(),
           const ThemedDivider(),
 
           // 网络设置
@@ -1320,6 +1323,147 @@ class _VibeLibraryPathTileState extends State<_VibeLibraryPathTile> {
         ],
       ),
       onTap: () => _selectVibeLibraryDirectory(context),
+    );
+  }
+}
+
+/// 缩略图缓存管理 Tile
+class _ThumbnailCacheTile extends ConsumerStatefulWidget {
+  const _ThumbnailCacheTile();
+
+  @override
+  ConsumerState<_ThumbnailCacheTile> createState() => _ThumbnailCacheTileState();
+}
+
+class _ThumbnailCacheTileState extends ConsumerState<_ThumbnailCacheTile> {
+  final _thumbnailCacheService = ThumbnailCacheService();
+  bool _isLoading = false;
+  Map<String, dynamic> _cacheSizeInfo = {'fileCount': 0, 'totalSize': 0, 'totalSizeMB': 0.0};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCacheSize();
+  }
+
+  Future<void> _loadCacheSize() async {
+    final saveSettings = ref.read(imageSaveSettingsNotifierProvider);
+    String? rootPath;
+
+    if (saveSettings.hasCustomPath) {
+      rootPath = saveSettings.customPath;
+    } else {
+      final docDir = await getApplicationDocumentsDirectory();
+      rootPath =
+          '${docDir.path}${Platform.pathSeparator}NAI_Launcher${Platform.pathSeparator}images';
+    }
+
+    if (rootPath != null) {
+      final info = await _thumbnailCacheService.getCacheSize(rootPath);
+      if (mounted) {
+        setState(() {
+          _cacheSizeInfo = info;
+        });
+      }
+    }
+  }
+
+  Future<void> _clearCache(BuildContext context) async {
+    final l10n = context.l10n;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+        title: Text(l10n.common_confirmDelete),
+        content: Text(
+          '确定要清除所有缩略图缓存吗？\n'
+          '这将删除所有生成的缩略图，但不会删除原始图片。\n'
+          '缩略图会在下次浏览时自动重新生成。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: Text(l10n.common_delete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      setState(() => _isLoading = true);
+
+      try {
+        final saveSettings = ref.read(imageSaveSettingsNotifierProvider);
+        String? rootPath;
+
+        if (saveSettings.hasCustomPath) {
+          rootPath = saveSettings.customPath;
+        } else {
+          final docDir = await getApplicationDocumentsDirectory();
+          rootPath =
+              '${docDir.path}${Platform.pathSeparator}NAI_Launcher${Platform.pathSeparator}images';
+        }
+
+        if (rootPath != null) {
+          await _thumbnailCacheService.clearCache(rootPath);
+          await _loadCacheSize();
+
+          if (context.mounted) {
+            AppToast.success(context, '缩略图缓存已清除');
+          }
+        }
+      } catch (e) {
+        if (context.mounted) {
+          AppToast.error(context, '清除缓存失败: $e');
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
+    }
+  }
+
+  String _formatCacheSize() {
+    final fileCount = _cacheSizeInfo['fileCount'] as int? ?? 0;
+    final totalSizeMB = _cacheSizeInfo['totalSizeMB'];
+    String sizeStr;
+    if (totalSizeMB is double) {
+      sizeStr = '${totalSizeMB.toStringAsFixed(2)} MB';
+    } else if (totalSizeMB is String) {
+      sizeStr = '$totalSizeMB MB';
+    } else {
+      sizeStr = '0 MB';
+    }
+    return '$fileCount 个文件, $sizeStr';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: const Icon(Icons.image_outlined),
+      title: const Text('缩略图缓存'),
+      subtitle: _isLoading
+          ? const SizedBox(
+              height: 16,
+              width: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Text(_formatCacheSize()),
+      trailing: _isLoading
+          ? null
+          : FilledButton.tonalIcon(
+              icon: const Icon(Icons.cleaning_services, size: 18),
+              label: const Text('清理'),
+              onPressed: () => _clearCache(context),
+            ),
     );
   }
 }
