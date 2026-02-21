@@ -6893,7 +6893,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibeLibrary_removeFromFavorites => 'Remove from Favorites';
 
   @override
-  String get tagLibrary_newSubCategory => 'New Subcategory';
+  String get vibeLibrary_newSubCategory => 'New Subcategory';
 
   @override
   String get vibe_export_title => 'Export Vibe';

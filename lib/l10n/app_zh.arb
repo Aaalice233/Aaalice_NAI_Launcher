@@ -3139,7 +3139,7 @@
   "vibeLibrary_delete": "删除",
   "vibeLibrary_addToFavorites": "收藏",
   "vibeLibrary_removeFromFavorites": "取消收藏",
-  "tagLibrary_newSubCategory": "新建子分类",
+  "vibeLibrary_newSubCategory": "新建子分类",
   "vibe_export_title": "导出 Vibe",
   "vibe_export_format": "导出格式",
   "vibe_selector_title": "选择 Vibe",

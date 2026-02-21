@@ -21,10 +21,10 @@ import '../../../router/app_router.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/pro_context_menu.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
-import '../../../widgets/gallery/gallery_state_views.dart';
 import 'vibe_card.dart';
 import 'vibe_detail_viewer.dart';
 import 'vibe_export_dialog.dart';
+import 'vibe_library_empty_view.dart';
 
 /// Vibe 库内容视图
 ///
@@ -46,6 +46,9 @@ class VibeLibraryContentView extends ConsumerStatefulWidget {
 
 class _VibeLibraryContentViewState
     extends ConsumerState<VibeLibraryContentView> {
+  /// GridView 的 PageStorageKey，用于保持滚动位置
+  static const String _vibeLibraryGridKey = 'vibe_library_3d_grid';
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(vibeLibraryNotifierProvider);
@@ -62,24 +65,25 @@ class _VibeLibraryContentViewState
   ) {
     final entries = state.currentEntries;
 
-    // 空状态处理
-    if (entries.isEmpty) {
-      final emptyInfo = _getEmptyStateInfo(state);
-      return GalleryErrorView(
-        error: emptyInfo.subtitle ?? emptyInfo.title,
-        onRetry: () {
-          ref.read(vibeLibraryNotifierProvider.notifier).reload();
-        },
+    // 加载中状态
+    if (state.isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
       );
     }
 
-    // 加载中状态
-    if (state.isLoading) {
-      return const GalleryLoadingView();
+    // 空状态处理
+    if (entries.isEmpty) {
+      final emptyInfo = _getEmptyStateInfo(state);
+      return VibeLibraryEmptyView(
+        title: emptyInfo.title,
+        subtitle: emptyInfo.subtitle ?? '',
+        icon: emptyInfo.icon,
+      );
     }
 
     return GridView.builder(
-      key: const PageStorageKey<String>('vibe_library_3d_grid'),
+      key: const PageStorageKey<String>(_vibeLibraryGridKey),
       padding: const EdgeInsets.all(16),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: widget.columns,

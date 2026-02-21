@@ -3486,7 +3486,7 @@
   "vibeLibrary_delete": "Delete",
   "vibeLibrary_addToFavorites": "Add to Favorites",
   "vibeLibrary_removeFromFavorites": "Remove from Favorites",
-  "tagLibrary_newSubCategory": "New Subcategory",
+  "vibeLibrary_newSubCategory": "New Subcategory",
   "vibe_export_title": "Export Vibe",
   "vibe_export_format": "Export Format",
   "vibe_selector_title": "Select Vibe",

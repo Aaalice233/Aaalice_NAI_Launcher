@@ -12971,11 +12971,11 @@ abstract class AppLocalizations {
   /// **'Remove from Favorites'**
   String get vibeLibrary_removeFromFavorites;
 
-  /// No description provided for @tagLibrary_newSubCategory.
+  /// No description provided for @vibeLibrary_newSubCategory.
   ///
   /// In en, this message translates to:
   /// **'New Subcategory'**
-  String get tagLibrary_newSubCategory;
+  String get vibeLibrary_newSubCategory;
 
   /// No description provided for @vibe_export_title.
   ///

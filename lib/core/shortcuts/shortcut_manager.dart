@@ -136,7 +136,7 @@ class AppShortcutManager {
       // 使用符号表示（适合Mac）
       final parts = <String>[];
       if (parsed.modifiers.contains(ShortcutModifier.control)) {
-        parts.add('⌘');
+        parts.add('⌃');
       }
       if (parsed.modifiers.contains(ShortcutModifier.alt)) {
         parts.add('⌥');

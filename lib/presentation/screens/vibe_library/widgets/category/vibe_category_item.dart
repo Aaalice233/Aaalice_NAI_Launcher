@@ -229,7 +229,7 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
               children: [
                 const Icon(Icons.create_new_folder, size: 18),
                 const SizedBox(width: 8),
-                Text(context.l10n.tagLibrary_newSubCategory),
+                Text(context.l10n.vibeLibrary_newSubCategory),
               ],
             ),
           ),

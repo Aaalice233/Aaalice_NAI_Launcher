@@ -6893,7 +6893,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibeLibrary_removeFromFavorites => '取消收藏';
 
   @override
-  String get tagLibrary_newSubCategory => '新建子分类';
+  String get vibeLibrary_newSubCategory => '新建子分类';
 
   @override
   String get vibe_export_title => '导出 Vibe';
