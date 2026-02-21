@@ -266,6 +266,87 @@ class GalleryScanService {
     return result;
   }
 
+  /// 查漏补缺：为数据库中缺少元数据的图片重新解析元数据
+  ///
+  /// 适用于：
+  /// - 从旧数据库迁移的图片没有元数据
+  /// - 之前扫描时元数据解析失败
+  /// - 手动复制到文件夹的图片
+  Future<ScanResult> fillMissingMetadata({
+    ScanProgressCallback? onProgress,
+    int batchSize = 100,
+  }) async {
+    final stopwatch = Stopwatch()..start();
+    final result = ScanResult();
+
+    AppLogger.i('开始查漏补缺：查找缺少元数据的图片', 'GalleryScanService');
+
+    try {
+      // 获取所有非删除状态的图片
+      final allImages = await _dataSource.getAllImages();
+      result.filesScanned = allImages.length;
+
+      // 筛选出 PNG 文件且缺少元数据的
+      final filesNeedMetadata = <File>[];
+      for (final image in allImages) {
+        if (image.isDeleted) continue;
+
+        final ext = p.extension(image.filePath).toLowerCase();
+        if (ext != '.png') continue; // 只处理 PNG（可能有 NAI 元数据）
+
+        // 检查是否已有有效元数据（prompt 为空表示没有解析到元数据）
+        if (image.id == null) continue;
+        final metadata = await _dataSource.getMetadataByImageId(image.id!);
+        if (metadata == null || metadata.prompt.isEmpty) {
+          final file = File(image.filePath);
+          if (await file.exists()) {
+            filesNeedMetadata.add(file);
+          }
+        }
+      }
+
+      AppLogger.i(
+        '发现 ${filesNeedMetadata.length} 张图片需要补充元数据（共 ${allImages.length} 张）',
+        'GalleryScanService',
+      );
+
+      if (filesNeedMetadata.isEmpty) {
+        AppLogger.i('所有图片已有元数据，无需补充', 'GalleryScanService');
+        return result;
+      }
+
+      // 分批处理，避免内存占用过大
+      for (var i = 0; i < filesNeedMetadata.length; i += batchSize) {
+        final batch = filesNeedMetadata.skip(i).take(batchSize).toList();
+        final batchNum = (i ~/ batchSize) + 1;
+        final totalBatches = ((filesNeedMetadata.length - 1) ~/ batchSize) + 1;
+
+        AppLogger.d('处理批次 $batchNum/$totalBatches: ${batch.length} 张图片', 'GalleryScanService');
+        onProgress?.call(
+          processed: i,
+          total: filesNeedMetadata.length,
+          phase: 'filling_metadata_batch_$batchNum',
+        );
+
+        await _processFilesSmart(batch, result, isFullScan: false);
+      }
+
+      AppLogger.i(
+        '查漏补缺完成: ${result.filesAdded} 新增, ${result.filesUpdated} 更新',
+        'GalleryScanService',
+      );
+
+    } catch (e, stack) {
+      AppLogger.e('查漏补缺失败', e, stack, 'GalleryScanService');
+      result.errors.add(e.toString());
+    }
+
+    stopwatch.stop();
+    result.duration = stopwatch.elapsed;
+
+    return result;
+  }
+
   /// 处理指定文件
   Future<void> processFiles(List<File> files) async {
     if (files.isEmpty) return;

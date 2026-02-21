@@ -15,7 +15,6 @@ import 'datasources/cooccurrence_data_source.dart';
 import 'datasources/danbooru_tag_data_source.dart';
 import 'datasources/gallery_data_source.dart';
 import 'datasources/translation_data_source.dart';
-import 'migrations/gallery_data_migration.dart';
 import 'metrics/metrics_reporter.dart' as metrics_reporter;
 
 /// 数据库初始化状态
@@ -459,9 +458,6 @@ class DatabaseManager {
       // 数据源初始化失败不应阻塞整体启动
     }
 
-    // 检查并执行数据迁移
-    await _checkAndMigrateGalleryData(_galleryDataSource!);
-
     // 预热连接池
     await _warmupConnectionPool();
 
@@ -564,32 +560,4 @@ class DatabaseManager {
     }
   }
 
-  /// 检查并执行画廊数据迁移
-  Future<void> _checkAndMigrateGalleryData(GalleryDataSource dataSource) async {
-    try {
-      if (await GalleryDataMigration.needsMigration()) {
-        AppLogger.i(
-          'Gallery data migration needed, starting...',
-          'DatabaseManager',
-        );
-        final result = await GalleryDataMigration.migrate(dataSource);
-        if (result.success) {
-          AppLogger.i(
-            'Gallery migration completed: ${result.imagesMigrated} images migrated',
-            'DatabaseManager',
-          );
-        } else {
-          AppLogger.w(
-            'Gallery migration failed: ${result.error}',
-            'DatabaseManager',
-          );
-        }
-      }
-    } catch (e) {
-      AppLogger.w(
-        'Failed to check/migrate gallery data: $e',
-        'DatabaseManager',
-      );
-    }
-  }
 }

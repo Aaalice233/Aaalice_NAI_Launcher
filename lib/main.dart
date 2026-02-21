@@ -320,13 +320,27 @@ void main() async {
         return;
       }
 
-      AppLogger.i('启动后台元数据全量扫描: $rootPath', 'Main');
+      // 步骤1：增量扫描（检测新文件和修改的文件）
+      AppLogger.i('启动后台元数据扫描: $rootPath', 'Main');
       final scanService = GalleryScanService.instance;
       final result = await scanService.incrementalScan(Directory(rootPath));
       AppLogger.i(
-        '元数据扫描完成: ${result.filesAdded} 新增, ${result.filesUpdated} 更新, ${result.filesSkipped} 跳过',
+        '增量扫描完成: ${result.filesAdded} 新增, ${result.filesUpdated} 更新, ${result.filesSkipped} 跳过',
         'Main',
       );
+
+      // 步骤2：查漏补缺（为缺失元数据的图片重新解析）
+      // 这对从旧数据库迁移的图片特别有用
+      AppLogger.i('开始查漏补缺：检查缺失元数据的图片', 'Main');
+      final fillResult = await scanService.fillMissingMetadata(batchSize: 50);
+      if (fillResult.filesUpdated > 0 || fillResult.filesAdded > 0) {
+        AppLogger.i(
+          '查漏补缺完成: ${fillResult.filesUpdated} 张图片已补充元数据',
+          'Main',
+        );
+      } else {
+        AppLogger.i('所有图片元数据完整，无需补充', 'Main');
+      }
     } catch (e) {
       AppLogger.w('后台元数据扫描失败: $e', 'Main');
     }
