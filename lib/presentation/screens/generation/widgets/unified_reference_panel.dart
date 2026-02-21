@@ -15,6 +15,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/vibe_export_utils.dart';
 import '../../../../core/utils/vibe_image_embedder.dart';
 import '../../../../core/constants/storage_keys.dart';
+import '../../../../core/extensions/vibe_library_extensions.dart';
 import '../../../providers/vibe_library_provider.dart';
 import '../../../widgets/common/themed_divider.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
@@ -28,74 +29,6 @@ import '../../../widgets/common/hover_image_preview.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../vibe_library/widgets/vibe_selector_dialog.dart';
 import '../../../widgets/common/collapsible_image_panel.dart';
-
-extension VibeLibraryEntryMatching on List<VibeLibraryEntry> {
-  List<VibeLibraryEntry> deduplicateByEncodingAndThumbnail({int limit = 5}) {
-    final seenEncodings = <String>{};
-    final seenImageHashes = <String>{};
-    final uniqueEntries = <VibeLibraryEntry>[];
-
-    for (final entry in this) {
-      if (entry.vibeEncoding.isNotEmpty) {
-        if (seenEncodings.contains(entry.vibeEncoding)) {
-          continue;
-        }
-        seenEncodings.add(entry.vibeEncoding);
-        uniqueEntries.add(entry);
-      } else if (entry.hasThumbnail && entry.thumbnail != null) {
-        final hash = _calculateVibeThumbnailHash(entry.thumbnail!);
-        if (seenImageHashes.contains(hash)) {
-          continue;
-        }
-        seenImageHashes.add(hash);
-        uniqueEntries.add(entry);
-      } else {
-        uniqueEntries.add(entry);
-      }
-
-      if (uniqueEntries.length >= limit) {
-        break;
-      }
-    }
-
-    return uniqueEntries;
-  }
-
-  VibeLibraryEntry? findMatchingEntry(VibeReference vibe) {
-    // 优先使用 encoding 匹配（最准确）
-    if (vibe.vibeEncoding.isNotEmpty) {
-      for (final entry in this) {
-        if (entry.vibeEncoding.isNotEmpty &&
-            entry.vibeEncoding == vibe.vibeEncoding) {
-          return entry;
-        }
-      }
-      // encoding 不为空但没有匹配，说明是新 vibe
-      return null;
-    }
-
-    // 其次使用 thumbnail 哈希匹配
-    if (vibe.thumbnail != null) {
-      final vibeHash = _calculateVibeThumbnailHash(vibe.thumbnail!);
-      for (final entry in this) {
-        if (entry.hasThumbnail && entry.thumbnail != null) {
-          final entryHash = _calculateVibeThumbnailHash(entry.thumbnail!);
-          if (entryHash == vibeHash) {
-            return entry;
-          }
-        }
-      }
-    }
-
-    // 不再仅根据名称匹配，避免误判
-    // 只有 encoding 或 thumbnail 完全匹配才认为是同一个 vibe
-    return null;
-  }
-}
-
-String _calculateVibeThumbnailHash(Uint8List data) {
-  return sha256.convert(data).toString().substring(0, 16);
-}
 
 /// Vibe Transfer 参考面板 - V4 Vibe Transfer（最多16张、预编码、编码成本显示）
 ///
