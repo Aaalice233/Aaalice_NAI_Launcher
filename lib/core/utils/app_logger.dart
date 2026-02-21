@@ -6,13 +6,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
 /// 增强版应用日志工具类
-/// 
+///
 /// 功能：
 /// - 支持控制台和文件双输出
 /// - 自动保留最近3个启动的日志文件
 /// - 正式环境：app_YYYYMMDD_HHMMSS.log
 /// - 测试环境：test_YYYYMMDD_HHMMSS.log
-/// - 日志目录：E:\Aaalice_NAI_Launcher\logs (Windows) 或应用目录/logs
+/// - 日志目录：Documents/NAI_Launcher/logs/ (与 images/ 平级)
 class AppLogger {
   static Logger? _logger;
   static FileOutput? _fileOutput;
@@ -70,17 +70,14 @@ class AppLogger {
   }
   
   /// 设置日志目录
+  ///
+  /// 日志目录：Documents/NAI_Launcher/logs/ (与 images/ 平级)
   static Future<void> _setupLogDirectory() async {
     try {
-      // Windows 平台使用固定路径
-      if (Platform.isWindows) {
-        _logDirectory = r'E:\Aaalice_NAI_Launcher\logs';
-      } else {
-        // 其他平台使用应用目录
-        final appDir = await getApplicationSupportDirectory();
-        _logDirectory = path.join(appDir.path, 'logs');
-      }
-      
+      // 使用 Documents/NAI_Launcher/logs/ 路径，与 images/ 平级
+      final appDir = await getApplicationDocumentsDirectory();
+      _logDirectory = path.join(appDir.path, 'NAI_Launcher', 'logs');
+
       // 创建目录
       final dir = Directory(_logDirectory!);
       if (!await dir.exists()) {
@@ -154,6 +151,11 @@ class AppLogger {
   
   /// 获取日志目录路径
   static String? get logDirectory => _logDirectory;
+
+  /// 获取用于显示的日志路径
+  static String getDisplayPath() {
+    return 'Documents/NAI_Launcher/logs/';
+  }
   
   /// 获取当前日志文件路径
   static String? get currentLogFile => _currentLogFile;
