@@ -267,7 +267,9 @@ class _VibeLibraryContentViewState
           if (!isShiftPressed &&
               currentParams.vibeReferencesV4.length + adjustedVibes.length >
                   16) {
-            AppToast.warning(context, context.l10n.vibeLibrary_maxVibesReached);
+            if (context.mounted) {
+              AppToast.warning(context, context.l10n.vibeLibrary_maxVibesReached);
+            }
             return;
           }
 
@@ -308,7 +310,9 @@ class _VibeLibraryContentViewState
 
     // 检查是否超过16个限制（仅在追加模式下检查）
     if (!isShiftPressed && currentParams.vibeReferencesV4.length >= 16) {
-      AppToast.warning(context, context.l10n.vibeLibrary_maxVibesReached);
+      if (context.mounted) {
+        AppToast.warning(context, context.l10n.vibeLibrary_maxVibesReached);
+      }
       return;
     }
 
@@ -374,7 +378,9 @@ class _VibeLibraryContentViewState
           if (!isShiftPressed &&
               currentParams.vibeReferencesV4.length + adjustedVibes.length >
                   16) {
-            AppToast.warning(context, context.l10n.vibeLibrary_maxVibesReached);
+            if (context.mounted) {
+              AppToast.warning(context, context.l10n.vibeLibrary_maxVibesReached);
+            }
             return;
           }
 

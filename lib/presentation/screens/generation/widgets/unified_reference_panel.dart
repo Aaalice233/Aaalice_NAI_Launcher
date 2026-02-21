@@ -261,7 +261,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         decoration: BoxDecoration(
           color: showBackground
-              ? Colors.white.withValues(alpha: 0.2)
+              ? Colors.white.withOpacity(0.2)
               : theme.colorScheme.primaryContainer,
           borderRadius: BorderRadius.circular(12),
         ),

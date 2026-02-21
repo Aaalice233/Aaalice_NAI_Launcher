@@ -8,7 +8,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Import for locale-aware string comparison
-import 'dart:ui' show Locale;
 
 import '../../../../core/extensions/vibe_library_extensions.dart';
 import '../../../../core/utils/app_logger.dart';
@@ -735,8 +734,8 @@ class VibeImportHandler {
           // 检查是否已存在相同名称的 vibe
           final allEntries = await storageService.getAllEntries();
           final existingEntry = allEntries.firstWhereOrNull((entry) {
-            return entry.name.toLowerCase(const Locale('en', 'US')) ==
-                name.toLowerCase(const Locale('en', 'US'));
+            return entry.name.toLowerCase() ==
+                name.toLowerCase();
           });
 
           if (existingEntry != null) {

@@ -47,13 +47,13 @@ class RecentVibesSection extends StatelessWidget {
                 Icon(
                   Icons.history,
                   size: 14,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
                 ),
                 const SizedBox(width: 4),
                 Text(
                   context.l10n.vibe_selector_recent,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -64,7 +64,7 @@ class RecentVibesSection extends StatelessWidget {
                   child: Icon(
                     Icons.chevron_left,
                     size: 16,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                    color: theme.colorScheme.onSurface.withOpacity(0.4),
                   ),
                 ),
               ],
@@ -126,7 +126,7 @@ class RecentVibeItem extends StatelessWidget {
           color: theme.colorScheme.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+            color: theme.colorScheme.outlineVariant.withOpacity(0.5),
           ),
         ),
         child: Column(
@@ -160,7 +160,7 @@ class RecentVibeItem extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.all(2),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.primary.withValues(alpha: 0.9),
+                            color: theme.colorScheme.primary.withOpacity(0.9),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Row(
@@ -206,7 +206,7 @@ class RecentVibeItem extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 2),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                color: theme.colorScheme.primaryContainer.withOpacity(0.3),
                 borderRadius:
                     const BorderRadius.vertical(bottom: Radius.circular(7)),
               ),

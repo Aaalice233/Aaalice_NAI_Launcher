@@ -118,7 +118,7 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
           style: theme.textTheme.bodySmall?.copyWith(
             color: showBackground
                 ? Colors.white70
-                : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                : theme.colorScheme.onSurface.withOpacity(0.6),
           ),
         ),
         const SizedBox(height: 12),
@@ -268,7 +268,7 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
                   )
                 : null,
             color: _isDraggingOver
-                ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+                ? theme.colorScheme.primaryContainer.withOpacity(0.3)
                 : null,
           ),
           child: Column(
@@ -415,8 +415,8 @@ class _EmptyStateCardState extends State<_EmptyStateCard> {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: _isHovered
-                ? theme.colorScheme.primary.withValues(alpha: 0.5)
-                : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                ? theme.colorScheme.primary.withOpacity(0.5)
+                : theme.colorScheme.outlineVariant.withOpacity(0.5),
             width: _isHovered ? 2 : 1,
           ),
         ),
@@ -435,7 +435,7 @@ class _EmptyStateCardState extends State<_EmptyStateCard> {
                     size: 40,
                     color: _isHovered
                         ? theme.colorScheme.primary
-                        : theme.colorScheme.outline.withValues(alpha: 0.6),
+                        : theme.colorScheme.outline.withOpacity(0.6),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -444,7 +444,7 @@ class _EmptyStateCardState extends State<_EmptyStateCard> {
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: _isHovered
                         ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                        : theme.colorScheme.onSurface.withOpacity(0.8),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -452,7 +452,7 @@ class _EmptyStateCardState extends State<_EmptyStateCard> {
                 Text(
                   widget.subtitle,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    color: theme.colorScheme.onSurface.withOpacity(0.5),
                   ),
                   textAlign: TextAlign.center,
                 ),
