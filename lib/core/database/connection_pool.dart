@@ -31,7 +31,7 @@ class ConnectionPool {
 
   ConnectionPool({
     required this.dbPath,
-    this.maxConnections = 3,
+    this.maxConnections = 10,
   });
 
   /// 初始化连接池
