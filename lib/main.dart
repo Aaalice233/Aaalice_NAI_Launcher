@@ -10,6 +10,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'package:timeago/timeago.dart' as timeago;
 
+import 'core/constants/app_version.dart';
 import 'core/constants/storage_keys.dart';
 import 'core/network/proxy_service.dart';
 import 'core/network/system_proxy_http_overrides.dart';
@@ -225,6 +226,10 @@ void main() async {
   // 初始化日志系统（必须在其他操作之前）
   await AppLogger.initialize(isTestEnvironment: false);
   AppLogger.i('应用启动', 'Main');
+
+  // 初始化版本信息（从 pubspec.yaml 读取）
+  await AppVersion.initialize();
+  AppLogger.i('App version: ${AppVersion.fullVersion}', 'Main');
 
   // 增加图片缓存限制，防止本地画廊滚动时图片被回收变白
   PaintingBinding.instance.imageCache.maximumSize = 500; // 最大缓存 500 张图片

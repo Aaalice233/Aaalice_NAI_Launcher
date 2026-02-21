@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/constants/app_version.dart';
 import '../../../core/services/app_warmup_service.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/warmup_provider.dart';
@@ -93,6 +94,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
                 const SizedBox(height: 48),
               ],
+            ),
+          ),
+
+          // 版本号显示在右下角
+          Positioned(
+            right: 16,
+            bottom: 16,
+            child: Text(
+              AppVersion.versionName,
+              style: TextStyle(
+                fontSize: 12,
+                color: theme.colorScheme.onSurface.withOpacity(0.3),
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/constants/app_version.dart';
 import '../widgets/settings_card.dart';
 
 /// 关于设置板块
@@ -27,7 +28,7 @@ class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {
           ListTile(
             leading: const Icon(Icons.info_outline),
             title: Text(context.l10n.app_title),
-            subtitle: Text(context.l10n.settings_version('Beta2.1')),
+            subtitle: Text(context.l10n.settings_version(AppVersion.versionName)),
           ),
           ListTile(
             leading: const Icon(Icons.code),
