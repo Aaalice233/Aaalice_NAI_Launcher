@@ -104,6 +104,9 @@ class GenerationRecord with _$GenerationRecord {
 
     /// 是否有 Vibe 元数据
     @HiveField(11) @Default(false) bool hasVibeMetadata,
+
+    /// 缩略图文件路径
+    @HiveField(12) String? thumbnailPath,
   }) = _GenerationRecord;
 
   factory GenerationRecord.fromJson(Map<String, dynamic> json) =>
