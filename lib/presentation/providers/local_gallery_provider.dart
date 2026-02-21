@@ -161,19 +161,26 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     List<File> dateFiltered = state.allFiles;
     
     if (dateStart != null || dateEnd != null) {
-      dateFiltered = state.allFiles.where((file) {
-        try {
-          final stat = file.statSync();
-          final modifiedAt = stat.modified;
-          
-          if (dateStart != null && modifiedAt.isBefore(dateStart)) return false;
-          if (dateEnd != null && modifiedAt.isAfter(dateEnd.add(const Duration(days: 1)))) return false;
-          
-          return true;
-        } catch (_) {
-          return false;
-        }
-      }).toList();
+      // 使用异步操作并发获取文件状态（避免阻塞主线程）
+      final fileStats = await Future.wait(
+        state.allFiles.map((file) async {
+          try {
+            final stat = await file.stat();
+            return (file: file, modified: stat.modified);
+          } catch (_) {
+            return (file: file, modified: DateTime(0));
+          }
+        }),
+      );
+
+      dateFiltered = fileStats.where((item) {
+        final modifiedAt = item.modified;
+
+        if (dateStart != null && modifiedAt.isBefore(dateStart)) return false;
+        if (dateEnd != null && modifiedAt.isAfter(dateEnd.add(const Duration(days: 1)))) return false;
+
+        return true;
+      }).map((item) => item.file).toList();
     }
     
     // 如果没有搜索关键词，直接使用日期过滤结果
