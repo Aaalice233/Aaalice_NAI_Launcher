@@ -9,6 +9,41 @@ import 'package:flutter/foundation.dart';
 import '../../data/models/vibe/vibe_reference.dart';
 import 'app_logger.dart';
 
+/// Vibe 图片嵌入器
+///
+/// 用于在 PNG 图片中嵌入和提取 Vibe 元数据的工具类。
+///
+/// 支持两种格式：
+/// - NAI 官方 iTXt 格式（naidata 关键字）- 用于 bundle 多 vibe 嵌入
+/// - Legacy tEXt 格式（naiv4vibe 关键字）- 向后兼容
+///
+/// ## Isolate 执行
+///
+/// 所有涉及 PNG 解析和 chunk 操作的方法都使用 Isolate 执行，
+/// 避免在主线程进行耗时的二进制数据处理，防止 UI 卡顿：
+///
+/// - [embedVibesToImage] - 使用 [_embedVibesIsolate] 在 Isolate 中构建 PNG chunks
+/// - [extractVibeFromImage] - 使用 [_extractVibesFromImageIsolate] 在 Isolate 中解析 PNG
+///
+/// Isolate 方法命名约定：
+/// - 以 `ForIsolate` 结尾的辅助方法（如 [_parsePngChunksForIsolate]）
+///   可在 Isolate 中安全调用，不依赖 Flutter 主线程
+/// - 以 `_Isolate` 结尾的入口方法（如 [_embedVibesIsolate]）
+///   作为 compute() 的入口点在 Isolate 中执行
+///
+/// ## 使用示例
+///
+/// ```dart
+/// // 嵌入 vibes 到图片
+/// final result = await VibeImageEmbedder.embedVibesToImage(
+///   imageBytes,
+///   [vibeReference1, vibeReference2],
+/// );
+///
+/// // 从图片提取 vibes
+/// final ({List<VibeReference> vibes, bool isBundle}) = await
+///     VibeImageEmbedder.extractVibeFromImage(imageBytes);
+/// ```
 class VibeImageEmbedder {
   static const List<int> _pngSignature = <int>[
     0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
