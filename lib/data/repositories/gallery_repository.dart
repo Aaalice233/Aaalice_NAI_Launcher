@@ -7,6 +7,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/cache/thumbnail_cache_service.dart';
 import '../../core/constants/storage_keys.dart';
 import '../../core/utils/app_logger.dart';
 import '../models/gallery/generation_record.dart';
@@ -24,6 +25,11 @@ class GalleryRepository {
 
   Box<GenerationRecord>? _box;
   Directory? _imageDir;
+  final ThumbnailCacheService _thumbnailCacheService;
+
+  /// 构造函数
+  GalleryRepository({ThumbnailCacheService? thumbnailCacheService})
+      : _thumbnailCacheService = thumbnailCacheService ?? ThumbnailCacheService();
 
   /// 初始化
   Future<void> init() async {
@@ -112,6 +118,7 @@ class GalleryRepository {
     bool saveToFile = true,
   }) async {
     String? filePath;
+    String? thumbnailPath;
 
     // 保存图像到文件
     if (saveToFile && _imageDir != null) {
@@ -121,6 +128,16 @@ class GalleryRepository {
         await file.writeAsBytes(imageData);
         filePath = file.path;
         AppLogger.d('Image saved to: $filePath', 'Gallery');
+
+        // 异步生成缩略图
+        try {
+          thumbnailPath = await _thumbnailCacheService.generateThumbnail(filePath);
+          if (thumbnailPath != null) {
+            AppLogger.d('Thumbnail generated: $thumbnailPath', 'Gallery');
+          }
+        } catch (e, stack) {
+          AppLogger.w('Failed to generate thumbnail: $e', 'Gallery');
+        }
       } catch (e) {
         AppLogger.w('Failed to save image to file: $e', 'Gallery');
       }
@@ -131,7 +148,7 @@ class GalleryRepository {
       imageData: imageData,
       params: params,
       filePath: filePath,
-    );
+    ).copyWith(thumbnailPath: thumbnailPath);
 
     // 检查是否超出最大数量限制
     if (_box != null && _box!.length >= maxRecords) {
@@ -528,7 +545,8 @@ class GalleryRepository {
 /// GalleryRepository Provider
 @riverpod
 GalleryRepository galleryRepository(Ref ref) {
-  final repo = GalleryRepository();
+  final thumbnailCacheService = ref.watch(thumbnailCacheServiceProvider);
+  final repo = GalleryRepository(thumbnailCacheService: thumbnailCacheService);
   // 初始化在应用启动时进行
   return repo;
 }
