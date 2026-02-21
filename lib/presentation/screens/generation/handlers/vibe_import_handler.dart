@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -612,5 +613,203 @@ class VibeImportHandler {
       AppLogger.e('Failed to extract vibes from bundle', e, stackTrace, _tag);
       return 0;
     }
+  }
+
+  /// 保存 Vibes 到库
+  ///
+  /// 显示保存对话框，允许用户设置名称和参数
+  Future<void> saveToLibrary(List<VibeReference> vibes) async {
+    if (vibes.isEmpty) return;
+
+    // 检查是否有未编码的原始图片
+    final unencodedVibes = vibes
+        .where(
+          (v) => v.sourceType == VibeSourceType.rawImage && v.vibeEncoding.isEmpty,
+        )
+        .toList();
+
+    if (unencodedVibes.isNotEmpty) {
+      AppToast.warning(
+        context,
+        context.l10n.vibeNeedEncoding(unencodedVibes.length),
+      );
+      return;
+    }
+
+    // 使用第一个 vibe 的默认值
+    final firstVibe = vibes.first;
+    final nameController = TextEditingController(
+      text: vibes.length == 1 ? firstVibe.displayName : '',
+    );
+
+    final result = await showDialog<
+        (bool confirmed, double strength, double infoExtracted)?>(
+      context: context,
+      builder: (context) {
+        var strengthValue = firstVibe.strength;
+        var infoExtractedValue = firstVibe.infoExtracted;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(context.l10n.vibeSaveToLibrary),
+              content: SizedBox(
+                width: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(context.l10n.vibeSaveCount(vibes.length)),
+                    const SizedBox(height: 16),
+                    // 名称输入
+                    TextField(
+                      controller: nameController,
+                      decoration: InputDecoration(
+                        labelText: context.l10n.vibeNameLabel,
+                        hintText: context.l10n.vibeNameHint,
+                        border: const OutlineInputBorder(),
+                      ),
+                      autofocus: true,
+                    ),
+                    const SizedBox(height: 24),
+                    // Reference Strength 滑条
+                    _buildDialogSlider(
+                      context,
+                      label: context.l10n.vibe_strength,
+                      value: strengthValue,
+                      onChanged: (value) =>
+                          setState(() => strengthValue = value),
+                    ),
+                    const SizedBox(height: 16),
+                    // Information Extracted 滑条
+                    _buildDialogSlider(
+                      context,
+                      label: context.l10n.vibe_infoExtracted,
+                      value: infoExtractedValue,
+                      onChanged: (value) =>
+                          setState(() => infoExtractedValue = value),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(null),
+                  child: Text(context.l10n.common_cancel),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (nameController.text.trim().isNotEmpty) {
+                      Navigator.of(context).pop(
+                        (true, strengthValue, infoExtractedValue),
+                      );
+                    }
+                  },
+                  child: Text(context.l10n.common_save),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result != null && result.$1 && context.mounted) {
+      final storageService = ref.read(vibeLibraryStorageServiceProvider);
+      final name = nameController.text.trim();
+      final strength = result.$2;
+      final infoExtracted = result.$3;
+
+      try {
+        var savedCount = 0;
+        var reusedCount = 0;
+
+        for (final vibe in vibes) {
+          // 使用用户设置的参数创建新的 vibe
+          final vibeWithParams = vibe.copyWith(
+            strength: strength,
+            infoExtracted: infoExtracted,
+          );
+
+          // 检查是否已存在相同名称的 vibe
+          final allEntries = await storageService.getAllEntries();
+          final existingEntry = allEntries.firstWhereOrNull((entry) {
+            return entry.name.toLowerCase() == name.toLowerCase();
+          });
+
+          if (existingEntry != null) {
+            // 已存在相同名称：删除旧条目
+            await storageService.deleteEntry(existingEntry.id);
+            reusedCount++;
+          }
+
+          // 创建新条目
+          final entry = VibeLibraryEntry.fromVibeReference(
+            name: vibes.length == 1 ? name : '$name - ${vibe.displayName}',
+            vibeData: vibeWithParams,
+          );
+          await storageService.saveEntry(entry);
+          savedCount++;
+        }
+
+        if (context.mounted) {
+          String message;
+          if (savedCount > 0 && reusedCount > 0) {
+            message = context.l10n.vibeSavedAndReused(savedCount, reusedCount);
+          } else if (savedCount > 0) {
+            message = context.l10n.vibeSavedToLibrary(savedCount);
+          } else {
+            message = context.l10n.vibeReusedFromLibrary(reusedCount);
+          }
+          AppToast.success(context, message);
+          // 通知 Vibe 库刷新
+          ref.read(vibeLibraryNotifierProvider.notifier).reload();
+        }
+      } catch (e, stackTrace) {
+        AppLogger.e('Failed to save to library', e, stackTrace, _tag);
+        if (context.mounted) {
+          AppToast.error(context, context.l10n.vibeSaveFailed);
+        }
+      }
+    }
+
+    nameController.dispose();
+  }
+
+  /// 构建对话框中的滑条
+  Widget _buildDialogSlider(
+    BuildContext context, {
+    required String label,
+    required double value,
+    required ValueChanged<double> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+            ),
+            Text(
+              value.toStringAsFixed(2),
+              style: const TextStyle(
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+        Slider(
+          value: value,
+          min: 0.0,
+          max: 1.0,
+          divisions: 100,
+          onChanged: onChanged,
+        ),
+      ],
+    );
   }
 }
