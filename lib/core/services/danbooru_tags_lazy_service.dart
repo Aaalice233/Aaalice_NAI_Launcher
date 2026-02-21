@@ -15,6 +15,7 @@ import '../database/datasources/danbooru_tag_data_source.dart';
 import '../database/datasources/translation_data_source.dart';
 import '../database/services/service_providers.dart';
 import '../utils/app_logger.dart';
+import '../utils/debouncer.dart';
 import '../utils/tag_normalizer.dart';
 import 'lazy_data_source_service.dart';
 
@@ -58,6 +59,18 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   int _metaThreshold = 10000;
   AutoRefreshInterval _refreshInterval = AutoRefreshInterval.days30;
   bool _isCancelled = false;
+
+  // 防抖器 - 用于限制 get() 和 search() 的调用频率
+  final DebouncerWithArg<String> _getDebouncer = DebouncerWithArg(
+    delay: const Duration(milliseconds: 300),
+  );
+  final DebouncerWithArg<String> _searchDebouncer = DebouncerWithArg(
+    delay: const Duration(milliseconds: 300),
+  );
+
+  // 用于防抖的 completer 存储
+  final Map<String, Completer<LocalTag?>> _getCompleters = {};
+  final Map<String, Completer<List<LocalTag>>> _searchCompleters = {};
 
   @override
   DataSourceProgressCallback? get onProgress => _onProgress;
@@ -225,31 +238,54 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     final normalizedKey = TagNormalizer.normalize(key);
     AppLogger.d('[DanbooruTagsLazy] get("$key") -> normalizedKey="$normalizedKey"', 'DanbooruTagsLazy');
 
-    // 尝试精确匹配
+    // 尝试精确匹配（热数据缓存直接返回，不防抖）
     if (_hotDataCache.containsKey(normalizedKey)) {
       final cached = _hotDataCache[normalizedKey];
       AppLogger.d('[DanbooruTagsLazy] cache hit: translation="${cached?.translation}"', 'DanbooruTagsLazy');
       return cached;
     }
 
-    final record = await _tagDataSource.getByName(normalizedKey);
-    AppLogger.d('[DanbooruTagsLazy] DB record: ${record != null ? "found" : "not found"}', 'DanbooruTagsLazy');
-    if (record != null) {
-      // 获取翻译（通过 TranslationDataSource）
-      String? translation;
-      if (_translationDataSource != null) {
-        translation = await _translationDataSource.query(normalizedKey);
-      }
-      AppLogger.d('[DanbooruTagsLazy] DB translation: "$translation"', 'DanbooruTagsLazy');
-      return LocalTag(
-        tag: record.tag,
-        category: record.category,
-        count: record.postCount,
-        translation: translation,
-      );
-    }
+    // 使用防抖处理数据库查询
+    final completer = Completer<LocalTag?>();
+    _getCompleters[normalizedKey] = completer;
 
-    return null;
+    _getDebouncer.run(
+      normalizedKey,
+      (k) async {
+        final pendingCompleter = _getCompleters.remove(k);
+        if (pendingCompleter == null || pendingCompleter.isCompleted) return;
+
+        try {
+          final record = await _tagDataSource.getByName(k);
+          AppLogger.d('[DanbooruTagsLazy] DB record: ${record != null ? "found" : "not found"}', 'DanbooruTagsLazy');
+
+          if (record != null) {
+            // 获取翻译（通过 TranslationDataSource）
+            String? translation;
+            if (_translationDataSource != null) {
+              translation = await _translationDataSource.query(k);
+            }
+            AppLogger.d('[DanbooruTagsLazy] DB translation: "$translation"', 'DanbooruTagsLazy');
+            pendingCompleter.complete(
+              LocalTag(
+                tag: record.tag,
+                category: record.category,
+                count: record.postCount,
+                translation: translation,
+              ),
+            );
+          } else {
+            pendingCompleter.complete(null);
+          }
+        } catch (e) {
+          if (!pendingCompleter.isCompleted) {
+            pendingCompleter.completeError(e);
+          }
+        }
+      },
+    );
+
+    return completer.future;
   }
 
   Future<List<LocalTag>> search(
@@ -257,36 +293,64 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     int? category,
     int limit = 20,
   }) async {
-    // 使用新的数据源搜索标签
-    final records = await _tagDataSource.search(
-      query,
-      limit: limit,
-      category: category,
+    final searchKey = '$query:${category ?? "all"}:$limit';
+
+    // 使用防抖处理搜索查询
+    final completer = Completer<List<LocalTag>>();
+    _searchCompleters[searchKey] = completer;
+
+    _searchDebouncer.run(
+      searchKey,
+      (key) async {
+        final pendingCompleter = _searchCompleters.remove(key);
+        if (pendingCompleter == null || pendingCompleter.isCompleted) return;
+
+        try {
+          final parts = key.split(':');
+          final q = parts[0];
+          final cat = parts[1] == 'all' ? null : int.parse(parts[1]);
+          final lim = int.parse(parts[2]);
+
+          // 使用新的数据源搜索标签
+          final records = await _tagDataSource.search(
+            q,
+            limit: lim,
+            category: cat,
+          );
+
+          if (records.isEmpty) {
+            pendingCompleter.complete([]);
+            return;
+          }
+
+          // 批量获取翻译
+          Map<String, String> translations = {};
+          if (_translationDataSource != null) {
+            final tagNames = records.map((r) => r.tag).toList();
+            translations = await _translationDataSource.queryBatch(tagNames);
+          }
+
+          // 构建带翻译的标签列表
+          final tags = records.map((r) {
+            final translation = translations[r.tag.toLowerCase().trim()];
+            return LocalTag(
+              tag: r.tag,
+              category: r.category,
+              count: r.postCount,
+              translation: translation,
+            );
+          }).toList();
+
+          pendingCompleter.complete(tags);
+        } catch (e) {
+          if (!pendingCompleter.isCompleted) {
+            pendingCompleter.completeError(e);
+          }
+        }
+      },
     );
 
-    if (records.isEmpty) {
-      return [];
-    }
-
-    // 批量获取翻译
-    Map<String, String> translations = {};
-    if (_translationDataSource != null) {
-      final tagNames = records.map((r) => r.tag).toList();
-      translations = await _translationDataSource.queryBatch(tagNames);
-    }
-
-    // 构建带翻译的标签列表
-    final tags = records.map((r) {
-      final translation = translations[r.tag.toLowerCase().trim()];
-      return LocalTag(
-        tag: r.tag,
-        category: r.category,
-        count: r.postCount,
-        translation: translation,
-      );
-    }).toList();
-
-    return tags;
+    return completer.future;
   }
 
   Future<List<LocalTag>> getHotTags({
@@ -984,6 +1048,12 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
     // 清除画师标签相关阈值
     await prefs.remove(StorageKeys.danbooruArtistThreshold);
+
+    // 取消并清理防抖器中的待处理操作
+    _getDebouncer.cancel();
+    _searchDebouncer.cancel();
+    _getCompleters.clear();
+    _searchCompleters.clear();
 
     // 删除元数据文件（关键：否则重启后会从文件加载旧的 _lastUpdate）
     try {
