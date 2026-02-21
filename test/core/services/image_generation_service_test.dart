@@ -424,12 +424,12 @@ void main() {
 
         final result = ImageGenerationResult(
           images: [image],
-          vibeEncodings: {0: 'encoding1'},
+          vibeEncodings: {'0': 'encoding1'},
         );
 
         expect(result.isSuccess, isTrue);
         expect(result.images.length, 1);
-        expect(result.vibeEncodings, {0: 'encoding1'});
+        expect(result.vibeEncodings, {'0': 'encoding1'});
         expect(result.isCancelled, isFalse);
         expect(result.error, isNull);
       });
