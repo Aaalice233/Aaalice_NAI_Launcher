@@ -37,6 +37,11 @@ typedef ScanProgressCallback = void Function({
   required String phase,
 });
 
+/// 扫描优先级
+/// - [high]: UI触发的扫描，需要快速响应
+/// - [low]: 后台扫描操作，主动让出时间片避免阻塞UI
+enum ScanPriority { high, low }
+
 /// 批量解析结果（从 isolate 返回）
 class _ParseResult {
   final List<({String path, NaiImageMetadata? metadata, int? width, int? height})> results;
@@ -102,6 +107,7 @@ class GalleryScanService {
     Directory rootDir, {
     int maxFiles = 100,
     ScanProgressCallback? onProgress,
+    ScanPriority priority = ScanPriority.high,
   }) async {
     final stopwatch = Stopwatch()..start();
     final result = ScanResult();
@@ -146,6 +152,7 @@ class GalleryScanService {
           result,
           isFullScan: false,
           onProgress: onProgress,
+          priority: priority,
         );
       }
 
@@ -165,6 +172,7 @@ class GalleryScanService {
   Future<ScanResult> incrementalScan(
     Directory rootDir, {
     ScanProgressCallback? onProgress,
+    ScanPriority priority = ScanPriority.low,
   }) async {
     final stopwatch = Stopwatch()..start();
     final result = ScanResult();
@@ -208,6 +216,7 @@ class GalleryScanService {
           result,
           isFullScan: false,
           onProgress: onProgress,
+          priority: priority,
         );
       }
 
@@ -236,6 +245,7 @@ class GalleryScanService {
   Future<ScanResult> fullScan(
     Directory rootDir, {
     ScanProgressCallback? onProgress,
+    ScanPriority priority = ScanPriority.low,
   }) async {
     final stopwatch = Stopwatch()..start();
     final result = ScanResult();
@@ -251,6 +261,7 @@ class GalleryScanService {
         result,
         isFullScan: true,
         onProgress: onProgress,
+        priority: priority,
       );
 
     } catch (e, stack) {
@@ -280,6 +291,7 @@ class GalleryScanService {
   Future<ScanResult> fillMissingMetadata({
     ScanProgressCallback? onProgress,
     int batchSize = 100,
+    ScanPriority priority = ScanPriority.low,
   }) async {
     final stopwatch = Stopwatch()..start();
     final result = ScanResult();
@@ -330,6 +342,7 @@ class GalleryScanService {
         result,
         batchSize: batchSize,
         onProgress: onProgress,
+        priority: priority,
       );
 
       AppLogger.i(
@@ -360,6 +373,7 @@ class GalleryScanService {
     ScanResult result, {
     required int batchSize,
     ScanProgressCallback? onProgress,
+    ScanPriority priority = ScanPriority.low,
   }) async {
     int processedCount = 0;
     final totalFiles = files.length;
@@ -424,7 +438,9 @@ class GalleryScanService {
       );
 
       // 让出时间片，避免阻塞 UI，同时释放数据库连接压力
-      await Future.delayed(const Duration(milliseconds: 10));
+      // 后台操作使用更长的延迟以优先处理 UI 操作
+      final delayMs = priority == ScanPriority.low ? 50 : 10;
+      await Future.delayed(Duration(milliseconds: delayMs));
     }
 
     onProgress?.call(
@@ -474,15 +490,28 @@ class GalleryScanService {
     ScanResult result, {
     required bool isFullScan,
     ScanProgressCallback? onProgress,
+    ScanPriority priority = ScanPriority.low,
   }) async {
     // 小批量：主线程直接处理
     if (files.length <= _isolateThreshold) {
       AppLogger.d('Processing ${files.length} files in main thread', 'GalleryScanService');
-      await _processInMainThread(files, result, isFullScan: isFullScan, onProgress: onProgress);
+      await _processInMainThread(
+        files,
+        result,
+        isFullScan: isFullScan,
+        onProgress: onProgress,
+        priority: priority,
+      );
     } else {
       // 大批量：使用 isolate
       AppLogger.d('Processing ${files.length} files with isolate', 'GalleryScanService');
-      await _processWithIsolate(files, result, isFullScan: isFullScan, onProgress: onProgress);
+      await _processWithIsolate(
+        files,
+        result,
+        isFullScan: isFullScan,
+        onProgress: onProgress,
+        priority: priority,
+      );
     }
   }
 
@@ -492,6 +521,7 @@ class GalleryScanService {
     ScanResult result, {
     required bool isFullScan,
     ScanProgressCallback? onProgress,
+    ScanPriority priority = ScanPriority.low,
   }) async {
     int processedCount = 0;
 
@@ -511,9 +541,9 @@ class GalleryScanService {
       );
 
       // 让出时间片，避免阻塞UI
-      // 对于大批量文件，增加延迟以降低CPU占用
-      if (files.length > _isolateThreshold) {
-        await Future.delayed(const Duration(milliseconds: 10));
+      // 后台操作使用更长的延迟以优先处理 UI 操作
+      if (priority == ScanPriority.low) {
+        await Future.delayed(const Duration(milliseconds: 50));
       } else {
         await Future.delayed(Duration.zero);
       }
@@ -526,6 +556,7 @@ class GalleryScanService {
     ScanResult result, {
     required bool isFullScan,
     ScanProgressCallback? onProgress,
+    ScanPriority priority = ScanPriority.low,
   }) async {
     int processedCount = 0;
 
@@ -580,9 +611,9 @@ class GalleryScanService {
       );
 
       // 让出时间片，避免阻塞UI
-      // 对于大批量文件，增加延迟以降低CPU占用
-      if (files.length > _isolateThreshold) {
-        await Future.delayed(const Duration(milliseconds: 10));
+      // 后台操作使用更长的延迟以优先处理 UI 操作
+      if (priority == ScanPriority.low) {
+        await Future.delayed(const Duration(milliseconds: 50));
       } else {
         await Future.delayed(Duration.zero);
       }
