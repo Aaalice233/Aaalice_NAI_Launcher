@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 // Import for VibeSourceTypeExtension (displayLabel)
 import '../../../../data/models/vibe/vibe_reference.dart';
@@ -50,7 +51,7 @@ class RecentVibesSection extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  '最近使用',
+                  context.l10n.vibe_selector_recent,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurface.withOpacity(0.6),
                   ),

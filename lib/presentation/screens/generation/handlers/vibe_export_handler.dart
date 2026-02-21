@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image/image.dart' as img;
 
 import '../../../../core/utils/app_logger.dart';
+import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/vibe_export_utils.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -50,10 +54,7 @@ class VibeExportHandler {
     } catch (e, stackTrace) {
       AppLogger.e('Failed to export vibes', e, stackTrace, _tag);
       if (context.mounted) {
-        AppToast.error(
-          context,
-          'Export failed: $e',
-        );
+        AppToast.error(context, context.l10n.vibe_export_failed);
       }
     }
   }
@@ -62,9 +63,10 @@ class VibeExportHandler {
   ///
   /// 导出为 .naiv4vibe 格式文件
   Future<void> _exportSingleVibe(VibeReference vibe) async {
+    final l10n = context.l10n;
     if (!_hasExportableData(vibe)) {
       if (context.mounted) {
-        AppToast.error(context, 'No data to export');
+        AppToast.error(context, l10n.vibe_export_noData);
       }
       return;
     }
@@ -72,7 +74,7 @@ class VibeExportHandler {
     final result = await VibeExportUtils.exportToNaiv4Vibe(vibe);
 
     if (result != null && context.mounted) {
-      AppToast.success(context, 'Export successful');
+      AppToast.success(context, l10n.vibe_export_success);
       AppLogger.i('Vibe exported successfully: $result', _tag);
     }
   }
@@ -95,23 +97,24 @@ class VibeExportHandler {
 
   /// 显示导出类型选择对话框
   Future<String?> _showExportTypeDialog(int count) async {
+    final l10n = context.l10n;
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Export $count Vibes'),
-        content: const Text('Choose how to export the vibes'),
+        title: Text(l10n.vibe_export_dialogTitle(count)),
+        content: Text(l10n.vibe_export_chooseMethod),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop('bundle'),
-            child: const Text('As Bundle'),
+            child: Text(l10n.vibe_export_asBundle),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop('individual'),
-            child: const Text('Individually'),
+            child: Text(l10n.vibe_export_individually),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(l10n.common_cancel),
           ),
         ],
       ),
@@ -122,12 +125,13 @@ class VibeExportHandler {
   ///
   /// 将所有 vibes 打包到一个 .naiv4vibebundle 文件中
   Future<void> _exportAsBundle(List<VibeReference> vibes) async {
+    final l10n = context.l10n;
     // 过滤掉没有可导出数据的 vibe
     final exportableVibes = vibes.where(_hasExportableData).toList();
 
     if (exportableVibes.isEmpty) {
       if (context.mounted) {
-        AppToast.error(context, 'No data to export');
+        AppToast.error(context, l10n.vibe_export_noData);
       }
       return;
     }
@@ -135,7 +139,7 @@ class VibeExportHandler {
     if (exportableVibes.length < vibes.length && context.mounted) {
       AppToast.warning(
         context,
-        'Skipped ${vibes.length - exportableVibes.length} vibes without data',
+        l10n.vibe_export_skipped(vibes.length - exportableVibes.length),
       );
     }
 
@@ -147,7 +151,7 @@ class VibeExportHandler {
     if (result != null && context.mounted) {
       AppToast.success(
         context,
-        'Bundle exported: ${exportableVibes.length} vibes',
+        l10n.vibe_export_bundleSuccess(exportableVibes.length),
       );
       AppLogger.i('Vibe bundle exported successfully: $result', _tag);
     }
@@ -157,6 +161,7 @@ class VibeExportHandler {
   ///
   /// 为每个 vibe 单独导出为 .naiv4vibe 文件
   Future<void> _exportIndividually(List<VibeReference> vibes) async {
+    final l10n = context.l10n;
     var successCount = 0;
     var skipCount = 0;
 
@@ -176,15 +181,15 @@ class VibeExportHandler {
       if (successCount == vibes.length) {
         AppToast.success(
           context,
-          'Exported $successCount vibes',
+          l10n.vibe_export_bundleSuccess(successCount),
         );
       } else if (successCount > 0) {
         AppToast.warning(
           context,
-          'Exported $successCount of ${vibes.length} vibes',
+          l10n.vibe_export_skipped(vibes.length - successCount),
         );
       } else {
-        AppToast.error(context, 'Export failed');
+        AppToast.error(context, l10n.vibe_export_failed);
       }
     }
 
@@ -200,6 +205,8 @@ class VibeExportHandler {
   Future<void> embedIntoImage(List<VibeReference> vibes) async {
     if (vibes.isEmpty) return;
 
+    final l10n = context.l10n;
+
     // 过滤掉没有编码数据的 vibe
     final embeddableVibes = vibes.where((v) {
       return v.vibeEncoding.isNotEmpty || v.rawImageData != null;
@@ -207,7 +214,7 @@ class VibeExportHandler {
 
     if (embeddableVibes.isEmpty) {
       if (context.mounted) {
-        AppToast.error(context, 'No embeddable data');
+        AppToast.error(context, l10n.vibe_export_noEmbeddableData);
       }
       return;
     }
@@ -223,7 +230,7 @@ class VibeExportHandler {
 
       if (!_isPng(bytes)) {
         if (context.mounted) {
-          AppToast.error(context, 'PNG file required');
+          AppToast.error(context, context.l10n.vibe_export_pngRequired);
         }
         return;
       }
@@ -233,14 +240,14 @@ class VibeExportHandler {
           ? embeddableVibes
           : await _selectVibesToEmbed(embeddableVibes);
 
-      if (selectedVibes == null || selectedVibes.isEmpty) return;
+      if (selectedVibes.isEmpty) return;
 
       // 执行嵌入
       await _performEmbed(targetImagePath, selectedVibes);
     } catch (e, stackTrace) {
       AppLogger.e('Failed to embed vibes into image', e, stackTrace, _tag);
       if (context.mounted) {
-        AppToast.error(context, 'Embed failed: $e');
+        AppToast.error(context, context.l10n.vibe_export_embedFailed);
       }
     }
   }
@@ -257,10 +264,11 @@ class VibeExportHandler {
   }
 
   /// 选择要嵌入的 Vibes
-  Future<List<VibeReference>?> _selectVibesToEmbed(
+  Future<List<VibeReference>> _selectVibesToEmbed(
     List<VibeReference> vibes,
   ) async {
     final selected = <VibeReference>[];
+    final l10n = context.l10n;
 
     await showDialog(
       context: context,
@@ -268,7 +276,7 @@ class VibeExportHandler {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: const Text('Select vibes to embed'),
+              title: Text(l10n.vibe_export_selectToEmbed),
               content: SizedBox(
                 width: double.maxFinite,
                 child: ListView.builder(
@@ -299,13 +307,13 @@ class VibeExportHandler {
                 TextButton(
                   onPressed: () {
                     selected.clear();
-                    Navigator.of(context).pop();
+                    Navigator.of(context).pop(<VibeReference>[]);
                   },
-                  child: const Text('Cancel'),
+                  child: Text(context.l10n.common_cancel),
                 ),
                 TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Confirm'),
+                  onPressed: () => Navigator.of(context).pop(selected),
+                  child: Text(context.l10n.common_confirm),
                 ),
               ],
             );
@@ -314,7 +322,7 @@ class VibeExportHandler {
       },
     );
 
-    return selected.isEmpty ? null : selected;
+    return selected.isEmpty ? <VibeReference>[] : selected;
   }
 
   /// 执行嵌入操作
@@ -334,7 +342,7 @@ class VibeExportHandler {
     if (context.mounted) {
       AppToast.success(
         context,
-        'Embedded ${vibes.length} vibes into image',
+        context.l10n.vibe_export_embedSuccess(vibes.length),
       );
     }
   }
@@ -347,17 +355,12 @@ class VibeExportHandler {
   }
 
   /// 检查是否为 PNG 图片
+  ///
+  /// 使用 image 包的 PngDecoder 进行验证
   bool _isPng(List<int> bytes) {
     if (bytes.length < 8) return false;
-    // PNG 文件签名: 89 50 4E 47 0D 0A 1A 0A
-    return bytes[0] == 0x89 &&
-        bytes[1] == 0x50 &&
-        bytes[2] == 0x4E &&
-        bytes[3] == 0x47 &&
-        bytes[4] == 0x0D &&
-        bytes[5] == 0x0A &&
-        bytes[6] == 0x1A &&
-        bytes[7] == 0x0A;
+    // 使用 img 包的 PngDecoder 验证 PNG 签名
+    return img.PngDecoder().isValidFile(Uint8List.fromList(bytes));
   }
 
   /// 构建导出按钮
@@ -365,6 +368,7 @@ class VibeExportHandler {
   /// 返回一个 PopupMenuButton，提供导出选项
   Widget buildExportButton(List<VibeReference> vibes) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
 
     return PopupMenuButton<String>(
       icon: Icon(
@@ -372,7 +376,7 @@ class VibeExportHandler {
         size: 18,
         color: theme.colorScheme.primary,
       ),
-      tooltip: 'Export vibes',
+      tooltip: l10n.vibe_export_title,
       offset: const Offset(0, 32),
       itemBuilder: (context) => [
         PopupMenuItem(
@@ -385,7 +389,7 @@ class VibeExportHandler {
                 color: theme.colorScheme.primary,
               ),
               const SizedBox(width: 8),
-              const Text('Export as file'),
+              Text(l10n.common_export),
             ],
           ),
         ),
@@ -399,7 +403,7 @@ class VibeExportHandler {
                 color: theme.colorScheme.secondary,
               ),
               const SizedBox(width: 8),
-              const Text('Embed to image'),
+              Text(l10n.vibe_embedToImage),
             ],
           ),
         ),

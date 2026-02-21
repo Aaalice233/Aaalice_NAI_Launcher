@@ -6,6 +6,7 @@
 
   "common_cancel": "Cancel",
   "common_confirm": "Confirm",
+  "common_continue": "Continue",
   "common_selectAll": "Select All",
   "common_deselectAll": "Deselect All",
   "common_expandAll": "Expand All",
@@ -31,6 +32,7 @@
   "common_search": "Search",
   "common_featureInDev": "Feature in development...",
   "common_add": "Add",
+  "common_added": "Added",
   "common_confirmDelete": "Confirm Delete",
   "common_settings": "Settings",
   "common_today": "Today",
@@ -635,6 +637,12 @@
   "vibe_addFromLibrarySubtitle": "Select from Vibe Library",
   "vibe_addReference": "Add Reference",
   "vibe_clearAll": "Clear All",
+  "vibe_cleared": "Cleared {count} vibes",
+  "@vibe_cleared": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
   "vibe_referenceNumber": "Reference #{index}",
   "@vibe_referenceNumber": {
     "placeholders": {
@@ -3495,8 +3503,124 @@
 
   "vibe_export_include_thumbnails": "Include Thumbnails",
   "vibe_export_include_thumbnails_subtitle": "Include thumbnail preview in export file",
+  "vibe_export_dialogTitle": "Export {count} Vibes",
+  "@vibe_export_dialogTitle": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "vibe_export_chooseMethod": "Choose how to export the vibes",
+  "vibe_export_asBundle": "As Bundle",
+  "vibe_export_individually": "Individually",
+  "vibe_export_noData": "No data to export",
+  "vibe_export_success": "Export successful",
+  "vibe_export_failed": "Export failed",
+  "vibe_export_skipped": "Skipped {count} vibes without data",
+  "@vibe_export_skipped": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "vibe_export_bundleSuccess": "Bundle exported: {count} vibes",
+  "@vibe_export_bundleSuccess": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "vibe_export_selectToEmbed": "Select vibes to embed",
+  "vibe_export_pngRequired": "PNG file required",
+  "vibe_export_noEmbeddableData": "No embeddable data",
+  "vibe_export_embedSuccess": "Embedded {count} vibes into image",
+  "@vibe_export_embedSuccess": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "vibe_export_embedFailed": "Embed failed",
+  "vibe_embedToImage": "Embed to Image",
   "vibe_import_skip": "Skip",
   "vibe_import_confirm": "Confirm",
+  "vibe_import_noEncodingData": "No encoding data",
+  "vibe_import_encodingCost": "Encoding will cost 2 Anlas",
+  "vibe_import_confirmCost": "Continue and consume Anlas?",
+  "vibe_import_encodeNow": "Encode immediately (2 Anlas)",
+  "vibe_addImageOnly": "Add image only",
+  "vibe_import_autoSave": "Auto-save to library",
+  "vibe_import_encodingFailed": "Encoding failed",
+  "vibe_import_encodingFailedMessage": "Failed to encode vibe. Continue adding unencoded image?",
+  "vibe_import_encodingInProgress": "Encoding...",
+  "vibe_import_encodingComplete": "Encoding complete",
+  "vibe_import_partialFailed": "Partial encoding failed",
+  "vibe_import_timeout": "Encoding timeout",
+  "vibe_import_title": "Import from Library",
+  "vibe_import_result": "Imported {count} vibes",
+  "@vibe_import_result": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "vibe_import_fileParseFailed": "Failed to parse file",
+  "vibe_import_fileSelectionFailed": "File selection failed",
+  "vibe_import_importFailed": "Import failed",
+  "vibe_saveToLibrary_title": "Save to Library",
+  "vibe_saveToLibrary_strength": "Strength",
+  "vibe_saveToLibrary_infoExtracted": "Info Extracted",
+  "vibe_saveToLibrary_saving": "Saving {count} vibes",
+  "@vibe_saveToLibrary_saving": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "vibe_saveToLibrary_saveFailed": "Failed to save to library",
+  "vibe_saveToLibrary_savingCount": "Saving {count} vibes",
+  "@vibe_saveToLibrary_savingCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "vibe_saveToLibrary_nameLabel": "Name",
+  "vibe_saveToLibrary_nameHint": "Enter vibe name",
+  "vibe_saveToLibrary_mixed": "Saved {saved}, reused {reused}",
+  "@vibe_saveToLibrary_mixed": {
+    "placeholders": {
+      "saved": {"type": "int"},
+      "reused": {"type": "int"}
+    }
+  },
+  "vibe_saveToLibrary_saved": "Saved {count} to library",
+  "@vibe_saveToLibrary_saved": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "vibe_saveToLibrary_reused": "Reused {count} from library",
+  "@vibe_saveToLibrary_reused": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "vibe_maxReached": "Maximum 16 vibes reached",
+  "vibe_addedCount": "Added {count} vibes",
+  "@vibe_addedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "vibe_statusEncoded": "Encoded",
+  "vibe_statusEncoding": "Encoding...",
+  "vibe_statusPendingEncode": "Encode (2 Anlas)",
+  "vibe_encodeDialogTitle": "Confirm Vibe Encoding",
+  "vibe_encodeDialogMessage": "Encode this image for generation?",
+  "vibe_encodeCostWarning": "This will cost 2 Anlas (credits)",
+  "vibe_encodeButton": "Encode",
+  "vibe_encodeSuccess": "Vibe encoded successfully!",
+  "vibe_encodeFailed": "Vibe encoding failed, please retry",
+  "vibe_encodeError": "Encoding failed: {error}",
+  "@vibe_encodeError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
   "bundle_internalVibes": "Internal Vibes",
   "shortcuts_customize": "Customize Shortcuts",
   "gallery_send_to": "Send To",

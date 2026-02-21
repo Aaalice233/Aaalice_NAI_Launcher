@@ -184,15 +184,19 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
     ThemeData theme,
     bool showBackground,
   ) {
+    final isChecked = widget.params.normalizeVibeStrength;
+
+    void toggleNormalize() {
+      ref
+          .read(generationParamsNotifierProvider.notifier)
+          .setNormalizeVibeStrength(!isChecked);
+    }
+
     return Row(
       children: [
         Checkbox(
-          value: widget.params.normalizeVibeStrength,
-          onChanged: (value) {
-            ref
-                .read(generationParamsNotifierProvider.notifier)
-                .setNormalizeVibeStrength(value ?? true);
-          },
+          value: isChecked,
+          onChanged: (_) => toggleNormalize(),
           visualDensity: VisualDensity.compact,
           fillColor: showBackground
               ? WidgetStateProperty.resolveWith((states) {
@@ -207,12 +211,7 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
         ),
         Expanded(
           child: GestureDetector(
-            onTap: () {
-              ref
-                  .read(generationParamsNotifierProvider.notifier)
-                  .setNormalizeVibeStrength(
-                      !widget.params.normalizeVibeStrength,);
-            },
+            onTap: toggleNormalize,
             child: Text(
               context.l10n.vibe_normalize,
               style: theme.textTheme.bodySmall?.copyWith(
@@ -237,7 +236,7 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
       onWillAcceptWithDetails: (details) {
         // 检查是否超过 16 个限制
         if (vibes.length >= 16) {
-          AppToast.warning(context, '已达到最大数量 (16张)');
+          AppToast.warning(context, context.l10n.vibe_maxReached);
           return false;
         }
         setState(() => _isDraggingOver = true);
@@ -246,6 +245,12 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
       onAcceptWithDetails: (details) async {
         HapticFeedback.heavyImpact();
         setState(() => _isDraggingOver = false);
+        // 在回调中重新检查限制，使用最新的 vibes 状态
+        final currentVibes = ref.read(generationParamsNotifierProvider).vibeReferencesV4;
+        if (currentVibes.length >= 16) {
+          AppToast.warning(context, context.l10n.vibe_maxReached);
+          return;
+        }
         widget.onAddLibraryVibe(details.data);
       },
       onLeave: (_) {
@@ -307,6 +312,7 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
     ThemeData theme,
     List<VibeReference> vibes,
   ) {
+    final l10n = context.l10n;
     return Row(
       children: [
         // 保存到库按钮
@@ -314,7 +320,7 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
           child: OutlinedButton.icon(
             onPressed: vibes.isNotEmpty ? widget.onSaveToLibrary : null,
             icon: const Icon(Icons.save_outlined, size: 16),
-            label: const Text('保存到库'),
+            label: Text(l10n.vibeLibrary_save),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 8),
             ),
@@ -326,7 +332,7 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
           child: OutlinedButton.icon(
             onPressed: widget.onImportFromLibrary,
             icon: const Icon(Icons.folder_open_outlined, size: 16),
-            label: const Text('从库导入'),
+            label: Text(l10n.vibeLibrary_import),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 8),
             ),

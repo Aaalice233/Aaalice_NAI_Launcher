@@ -139,15 +139,18 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     // 检查是否超过 16 个限制
     if (vibes.length >= 16) {
       if (mounted) {
-        AppToast.warning(context, 'Maximum 16 vibes reached');
+        AppToast.warning(context, context.l10n.vibe_maxReached);
       }
       return;
     }
 
-    // 如果是 bundle，使用 handler 的特殊处理
+    // 如果是 bundle，直接展开添加（不显示选择对话框）
     if (entry.isBundle) {
       final handler = VibeImportHandler(ref: ref, context: context);
-      await handler.importFromLibrary();
+      final added = await handler.extractAndAddBundleVibes(entry);
+      if (added > 0) {
+        await ref.read(vibeLibraryStorageServiceProvider).incrementUsedCount(entry.id);
+      }
       return;
     }
 
@@ -160,7 +163,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     await storageService.incrementUsedCount(entry.id);
 
     if (mounted) {
-      AppToast.success(context, 'Added ${entry.displayName}');
+      AppToast.success(context, '${entry.displayName} ${context.l10n.common_added}');
     }
   }
 
@@ -219,7 +222,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
     notifier.saveGenerationState();
 
     if (mounted && count > 0) {
-      AppToast.success(context, 'Cleared $count vibes');
+      AppToast.success(context, context.l10n.vibe_cleared(count));
     }
   }
 
@@ -307,23 +310,23 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
       return const SizedBox.shrink();
     }
 
-    if (vibes.length == 1) {
-      final imageData = vibes.first.rawImageData ?? vibes.first.thumbnail;
-      if (imageData != null) {
-        return Image.memory(imageData, fit: BoxFit.cover);
-      }
-    } else {
-      return Row(
-        children: vibes.map((vibe) {
-          final imageData = vibe.rawImageData ?? vibe.thumbnail;
-          return Expanded(
-            child: imageData != null
-                ? Image.memory(imageData, fit: BoxFit.cover)
-                : const SizedBox.shrink(),
-          );
-        }).toList(),
-      );
+    final imageWidgets = vibes
+        .map((vibe) => vibe.rawImageData ?? vibe.thumbnail)
+        .where((data) => data != null)
+        .cast<Uint8List>()
+        .map((data) => Image.memory(data, fit: BoxFit.cover))
+        .toList();
+
+    if (imageWidgets.isEmpty) {
+      return const SizedBox.shrink();
     }
-    return const SizedBox.shrink();
+
+    if (imageWidgets.length == 1) {
+      return imageWidgets.first;
+    }
+
+    return Row(
+      children: imageWidgets.map((img) => Expanded(child: img)).toList(),
+    );
   }
 }

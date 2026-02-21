@@ -19,6 +19,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get common_confirm => '确定';
 
   @override
+  String get common_continue => '继续';
+
+  @override
   String get common_selectAll => '全选';
 
   @override
@@ -92,6 +95,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get common_add => '添加';
+
+  @override
+  String get common_added => '已添加';
 
   @override
   String get common_confirmDelete => '确认删除';
@@ -1342,6 +1348,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get vibe_clearAll => '清除全部';
+
+  @override
+  String vibe_cleared(int count) {
+    return '已清除 $count 个 vibes';
+  }
 
   @override
   String vibe_referenceNumber(Object index) {
@@ -6904,10 +6915,199 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_export_include_thumbnails_subtitle => '导出文件中包含缩略图预览';
 
   @override
+  String vibe_export_dialogTitle(int count) {
+    return '导出 $count 个 Vibes';
+  }
+
+  @override
+  String get vibe_export_chooseMethod => '选择导出方式';
+
+  @override
+  String get vibe_export_asBundle => '打包导出';
+
+  @override
+  String get vibe_export_individually => '逐个导出';
+
+  @override
+  String get vibe_export_noData => '没有可导出的数据';
+
+  @override
+  String get vibe_export_success => '导出成功';
+
+  @override
+  String get vibe_export_failed => '导出失败';
+
+  @override
+  String vibe_export_skipped(int count) {
+    return '跳过了 $count 个无数据 vibes';
+  }
+
+  @override
+  String vibe_export_bundleSuccess(int count) {
+    return '已导出 Bundle: $count 个 vibes';
+  }
+
+  @override
+  String get vibe_export_selectToEmbed => '选择要嵌入的 vibes';
+
+  @override
+  String get vibe_export_pngRequired => '需要 PNG 文件';
+
+  @override
+  String get vibe_export_noEmbeddableData => '没有可嵌入的数据';
+
+  @override
+  String vibe_export_embedSuccess(int count) {
+    return '已嵌入 $count 个 vibes 到图片';
+  }
+
+  @override
+  String get vibe_export_embedFailed => '嵌入失败';
+
+  @override
+  String get vibe_embedToImage => '嵌入到图片';
+
+  @override
   String get vibe_import_skip => '跳过';
 
   @override
   String get vibe_import_confirm => '确认';
+
+  @override
+  String get vibe_import_noEncodingData => '无编码数据';
+
+  @override
+  String get vibe_import_encodingCost => '编码将消耗 2 Anlas';
+
+  @override
+  String get vibe_import_confirmCost => '继续并消耗 Anlas？';
+
+  @override
+  String get vibe_import_encodeNow => '立即编码 (2 Anlas)';
+
+  @override
+  String get vibe_addImageOnly => '仅添加图片';
+
+  @override
+  String get vibe_import_autoSave => '自动保存到库';
+
+  @override
+  String get vibe_import_encodingFailed => '编码失败';
+
+  @override
+  String get vibe_import_encodingFailedMessage => 'Vibe 编码失败，是否继续添加未编码图片？';
+
+  @override
+  String get vibe_import_encodingInProgress => '编码中...';
+
+  @override
+  String get vibe_import_encodingComplete => '编码完成';
+
+  @override
+  String get vibe_import_partialFailed => '部分编码失败';
+
+  @override
+  String get vibe_import_timeout => '编码超时';
+
+  @override
+  String get vibe_import_title => '从库导入';
+
+  @override
+  String vibe_import_result(int count) {
+    return '已导入 $count 个 vibes';
+  }
+
+  @override
+  String get vibe_import_fileParseFailed => '解析文件失败';
+
+  @override
+  String get vibe_import_fileSelectionFailed => '文件选择失败';
+
+  @override
+  String get vibe_import_importFailed => '导入失败';
+
+  @override
+  String get vibe_saveToLibrary_title => '保存到库';
+
+  @override
+  String get vibe_saveToLibrary_strength => '参考强度';
+
+  @override
+  String get vibe_saveToLibrary_infoExtracted => '信息提取';
+
+  @override
+  String vibe_saveToLibrary_saving(int count) {
+    return '正在保存 $count 个 vibes';
+  }
+
+  @override
+  String get vibe_saveToLibrary_saveFailed => '保存到库失败';
+
+  @override
+  String vibe_saveToLibrary_savingCount(int count) {
+    return '正在保存 $count 个 vibes';
+  }
+
+  @override
+  String get vibe_saveToLibrary_nameLabel => '名称';
+
+  @override
+  String get vibe_saveToLibrary_nameHint => '输入 vibe 名称';
+
+  @override
+  String vibe_saveToLibrary_mixed(int saved, int reused) {
+    return '已保存 $saved 个，复用 $reused 个';
+  }
+
+  @override
+  String vibe_saveToLibrary_saved(int count) {
+    return '已保存 $count 个到库';
+  }
+
+  @override
+  String vibe_saveToLibrary_reused(int count) {
+    return '从库复用 $count 个';
+  }
+
+  @override
+  String get vibe_maxReached => '已达到最大数量 (16张)';
+
+  @override
+  String vibe_addedCount(int count) {
+    return '已添加 $count 个 vibes';
+  }
+
+  @override
+  String get vibe_statusEncoded => '已编码';
+
+  @override
+  String get vibe_statusEncoding => '编码中...';
+
+  @override
+  String get vibe_statusPendingEncode => '待编码 (2 Anlas)';
+
+  @override
+  String get vibe_encodeDialogTitle => '确认编码 Vibe';
+
+  @override
+  String get vibe_encodeDialogMessage => '是否编码此图片以供生成使用？';
+
+  @override
+  String get vibe_encodeCostWarning => '此操作将消耗 2 Anlas（点数）';
+
+  @override
+  String get vibe_encodeButton => '编码';
+
+  @override
+  String get vibe_encodeSuccess => 'Vibe 编码成功！';
+
+  @override
+  String get vibe_encodeFailed => 'Vibe 编码失败，请重试';
+
+  @override
+  String vibe_encodeError(String error) {
+    return '编码失败: $error';
+  }
 
   @override
   String get bundle_internalVibes => '内部 Vibes';

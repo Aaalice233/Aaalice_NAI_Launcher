@@ -32,6 +32,17 @@ extension VibeLibraryEntryMatching on List<VibeLibraryEntry> {
         seenImageHashes.add(hash);
         uniqueEntries.add(entry);
       } else {
+        // 既没有 encoding 也没有 thumbnail 的条目
+        // 基于名称进行去重（防止完全重复的条目）
+        final isDuplicate = uniqueEntries.any(
+          (e) =>
+              e.vibeEncoding.isEmpty &&
+              !e.hasThumbnail &&
+              e.name.toLowerCase() == entry.name.toLowerCase(),
+        );
+        if (isDuplicate) {
+          continue;
+        }
         uniqueEntries.add(entry);
       }
 

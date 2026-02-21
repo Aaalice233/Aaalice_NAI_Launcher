@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
@@ -52,7 +53,8 @@ class _VibeCardState extends ConsumerState<VibeCard> {
   bool _isEncoding = false;
 
   // 跟踪已经显示过编码对话框的 vibe（使用缩略图哈希作为 ID）
-  static final Set<String> _shownDialogs = {};
+  // 使用 LinkedHashSet 保持插入顺序，便于实现 LRU 淘汰
+  static final LinkedHashSet<String> _shownDialogs = LinkedHashSet<String>();
 
   @override
   void initState() {
@@ -73,8 +75,12 @@ class _VibeCardState extends ConsumerState<VibeCard> {
       // 生成唯一 ID（基于图片数据哈希）
       final vibeId = _calculateVibeId(vibe);
 
-      // 确保只显示一次
+      // 确保只显示一次（限制 Set 大小防止内存泄漏）
       if (!_shownDialogs.contains(vibeId)) {
+        // LRU 淘汰：如果超过 100 条，移除最旧的
+        if (_shownDialogs.length >= 100) {
+          _shownDialogs.remove(_shownDialogs.first);
+        }
         _shownDialogs.add(vibeId);
         _showEncodingDialog();
       }
@@ -224,41 +230,16 @@ class _VibeCardState extends ConsumerState<VibeCard> {
   Widget _buildEncodingStatusChip(BuildContext context, ThemeData theme) {
     final isEncoded = widget.vibe.vibeEncoding.isNotEmpty;
     final needsEncoding = widget.vibe.sourceType == VibeSourceType.rawImage;
+    final l10n = context.l10n;
 
     if (isEncoded) {
       // 已编码状态
-      return Container(
-        constraints: const BoxConstraints(maxWidth: 80),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(
-          color: Colors.green.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(
-            color: Colors.green.withOpacity(0.3),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.check_circle,
-              size: 12,
-              color: Colors.green,
-            ),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                '已编码',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: Colors.green,
-                  fontWeight: FontWeight.w500,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ),
-          ],
-        ),
+      return _buildStatusChip(
+        theme: theme,
+        icon: Icons.check_circle,
+        text: l10n.vibe_statusEncoded,
+        color: Colors.green,
+        maxWidth: 80,
       );
     } else if (needsEncoding) {
       // 需要编码状态 - 可点击按钮
@@ -267,21 +248,11 @@ class _VibeCardState extends ConsumerState<VibeCard> {
         child: InkWell(
           onTap: _isEncoding ? null : _showEncodingDialog,
           borderRadius: BorderRadius.circular(4),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 100),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.orange.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: Colors.orange.withOpacity(0.3),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_isEncoding)
-                  const SizedBox(
+          child: _buildStatusChip(
+            theme: theme,
+            icon: _isEncoding ? null : Icons.pending,
+            customWidget: _isEncoding
+                ? const SizedBox(
                     width: 12,
                     height: 12,
                     child: CircularProgressIndicator(
@@ -289,65 +260,66 @@ class _VibeCardState extends ConsumerState<VibeCard> {
                       color: Colors.orange,
                     ),
                   )
-                else
-                  const Icon(
-                    Icons.pending,
-                    size: 12,
-                    color: Colors.orange,
-                  ),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    _isEncoding ? '编码中...' : '待编码 (2 Anlas)',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: Colors.orange,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ),
-              ],
-            ),
+                : null,
+            text: _isEncoding
+                ? l10n.vibe_statusEncoding
+                : l10n.vibe_statusPendingEncode,
+            color: Colors.orange,
+            maxWidth: 100,
           ),
         ),
       );
     } else {
       // 预编码文件状态
-      return Container(
-        constraints: const BoxConstraints(maxWidth: 80),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(
-          color: Colors.blue.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(
-            color: Colors.blue.withOpacity(0.3),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.file_present,
-              size: 12,
-              color: Colors.blue,
-            ),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                widget.vibe.sourceType.displayLabel,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: Colors.blue,
-                  fontWeight: FontWeight.w500,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ),
-          ],
-        ),
+      return _buildStatusChip(
+        theme: theme,
+        icon: Icons.file_present,
+        text: widget.vibe.sourceType.displayLabel,
+        color: Colors.blue,
+        maxWidth: 80,
       );
     }
+  }
+
+  /// 构建状态标签
+  Widget _buildStatusChip({
+    required ThemeData theme,
+    IconData? icon,
+    Widget? customWidget,
+    required String text,
+    required Color color,
+    required double maxWidth,
+  }) {
+    return Container(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (customWidget != null)
+            customWidget
+          else if (icon != null)
+            Icon(icon, size: 12, color: color),
+          if (icon != null || customWidget != null) const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              text,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// 显示编码确认对话框
@@ -358,12 +330,12 @@ class _VibeCardState extends ConsumerState<VibeCard> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('确认编码 Vibe'),
+        title: Text(l10n.vibe_encodeDialogTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('是否编码此图片以供生成使用？'),
+            Text(l10n.vibe_encodeDialogMessage),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
@@ -384,7 +356,7 @@ class _VibeCardState extends ConsumerState<VibeCard> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '此操作将消耗 2 Anlas（点数）',
+                      l10n.vibe_encodeCostWarning,
                       style: TextStyle(
                         color: Colors.orange.shade700,
                         fontWeight: FontWeight.w500,
@@ -403,7 +375,7 @@ class _VibeCardState extends ConsumerState<VibeCard> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('编码'),
+            child: Text(l10n.vibe_encodeButton),
           ),
         ],
       ),
@@ -436,13 +408,13 @@ class _VibeCardState extends ConsumerState<VibeCard> {
       if (encoding != null && mounted) {
         // 更新 vibe 编码状态
         widget.onUpdateEncoding!(widget.index, vibeEncoding: encoding);
-        AppToast.success(context, 'Vibe 编码成功！');
+        AppToast.success(context, context.l10n.vibe_encodeSuccess);
       } else if (mounted) {
-        AppToast.error(context, 'Vibe 编码失败，请重试');
+        AppToast.error(context, context.l10n.vibe_encodeFailed);
       }
     } catch (e) {
       if (mounted) {
-        AppToast.error(context, '编码失败: $e');
+        AppToast.error(context, context.l10n.vibe_encodeError(e.toString()));
       }
     } finally {
       if (mounted) {
