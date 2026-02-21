@@ -49,7 +49,7 @@
 
 ## 🚀 项目简介
 
-**NAI Launcher** 是一个专为 [NovelAI](https://novelai.net/) 设计的跨平台第三方客户端，使用 **Flutter** 构建，支持 **Windows** 和 **Android** 平台。
+**NAI Launcher** 是一个专为 [NovelAI](https://novelai.net/) 设计的第三方客户端，使用 **Flutter** 构建，目前支持 **Windows** 平台，**Android** 版本正在计划中。
 
 本项目旨在为 NovelAI 用户提供更加便捷、高效的图像生成体验，同时提供强大的本地画廊管理功能。
 
@@ -80,8 +80,10 @@
 
 ### 平台支持
 
-- ✅ **Windows** - 完整的桌面体验，支持窗口管理、系统托盘
-- ✅ **Android** - 移动端优化，支持触摸手势
+| 平台 | 状态 | 说明 |
+|------|------|------|
+| Windows | ✅ 可用 | 完整的桌面体验，支持窗口管理、系统托盘 |
+| Android | 🚧 计划中 | 移动端适配开发中，敬请期待 |
 
 ### 高级特性
 
@@ -101,7 +103,6 @@
 | 平台 | 最低要求 |
 |------|----------|
 | Windows | Windows 10 版本 1809+ (64位) |
-| Android | Android 8.0 (API 26)+ |
 
 ### 下载安装
 
@@ -111,12 +112,6 @@
 2. 下载最新版本的 `NAI-Launcher-Windows.zip`
 3. 解压到任意目录
 4. 运行 `nai_launcher.exe`
-
-#### Android
-
-1. 下载 `NAI-Launcher-Android.apk`
-2. 允许安装未知来源应用
-3. 安装并打开应用
 
 ### 从源码构建
 
@@ -144,11 +139,6 @@ flutter run
 # 构建发布版本
 # Windows
 flutter build windows --release
-
-# Android
-flutter build apk --release
-# 或构建 App Bundle
-flutter build appbundle --release
 
 ```
 
