@@ -170,14 +170,18 @@ class ProjectManager {
       return null;
     }
 
-    // 按修改时间排序
-    files.sort((a, b) {
-      final aStat = a.statSync();
-      final bStat = b.statSync();
-      return bStat.modified.compareTo(aStat.modified);
-    });
+    // 异步获取所有文件的 stat，然后按修改时间排序
+    final filesWithStats = await Future.wait(
+      files.map((file) async {
+        final stat = await file.stat();
+        return (file: file, stat: stat);
+      }),
+    );
 
-    return files.first.path;
+    // 按修改时间排序
+    filesWithStats.sort((a, b) => b.stat.modified.compareTo(a.stat.modified));
+
+    return filesWithStats.first.file.path;
   }
 
   /// 清理旧的自动保存文件（保留最近N个）
