@@ -129,7 +129,7 @@ class LocalGalleryRepository {
 
     final records = await Future.wait(
       files.map((file) async {
-        if (!file.existsSync()) {
+        if (!await file.exists()) {
           return LocalImageRecord(
             path: file.path,
             size: 0,
@@ -139,7 +139,7 @@ class LocalGalleryRepository {
         }
 
         final filePath = file.path;
-        final fileModified = file.lastModifiedSync();
+        final fileModified = await file.lastModified();
 
         // 尝试从缓存获取
         final cached = _cacheService.get(filePath);
@@ -152,7 +152,7 @@ class LocalGalleryRepository {
             final meta = cached['meta'] as NaiImageMetadata;
             return LocalImageRecord(
               path: filePath,
-              size: file.lengthSync(),
+              size: await file.length(),
               modifiedAt: fileModified,
               metadata: meta,
               metadataStatus:
