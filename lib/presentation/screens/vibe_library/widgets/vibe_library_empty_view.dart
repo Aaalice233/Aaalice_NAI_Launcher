@@ -24,6 +24,13 @@ class VibeLibraryEmptyView extends StatelessWidget {
 
   /// 将图标名称映射为 IconData
   IconData _getIconData(String name) {
+    assert(
+      name == 'search_off' ||
+          name == 'favorite_border' ||
+          name == 'folder_outlined' ||
+          name == 'auto_awesome_outlined',
+      '未知的图标名称: $name。请使用有效的图标名称。',
+    );
     return switch (name) {
       'search_off' => Icons.search_off,
       'favorite_border' => Icons.favorite_border,

@@ -126,7 +126,13 @@ class _VibeLibraryContentViewState
                 .read(vibeLibraryNotifierProvider.notifier)
                 .toggleFavorite(entry.id);
           },
-          onSendToGeneration: () async => _sendEntryToGeneration(context, entry),
+          onSendToGeneration: () async {
+            final physicalKeys = HardwareKeyboard.instance.physicalKeysPressed;
+            final isShiftPressed =
+                physicalKeys.contains(PhysicalKeyboardKey.shiftLeft) ||
+                    physicalKeys.contains(PhysicalKeyboardKey.shiftRight);
+            await _sendEntryToGeneration(context, entry, isShiftPressed);
+          },
           onExport: () => _exportSingleEntry(context, entry),
           onEdit: () => _showVibeDetail(context, entry),
           onDelete: () => _deleteSingleEntry(context, entry),
@@ -230,22 +236,11 @@ class _VibeLibraryContentViewState
   /// 发送单个条目到生成页面
   Future<void> _sendEntryToGeneration(
     BuildContext context,
-    VibeLibraryEntry entry,
-  ) async {
+    VibeLibraryEntry entry, [
+    bool isShiftPressed = false,
+  ]) async {
     final paramsNotifier = ref.read(generationParamsNotifierProvider.notifier);
     final currentParams = ref.read(generationParamsNotifierProvider);
-
-    // 检测是否按住 Shift 键
-    final physicalKeys = HardwareKeyboard.instance.physicalKeysPressed;
-    final isShiftPressed =
-        physicalKeys.contains(PhysicalKeyboardKey.shiftLeft) ||
-            physicalKeys.contains(PhysicalKeyboardKey.shiftRight);
-
-    // 检查是否超过16个限制（仅在追加模式下检查）
-    if (!isShiftPressed && currentParams.vibeReferencesV4.length >= 16) {
-      AppToast.warning(context, context.l10n.vibeLibrary_maxVibesReached);
-      return;
-    }
 
     // 处理 Bundle 条目：从文件读取所有 vibes
     if (entry.isBundle &&
@@ -267,6 +262,14 @@ class _VibeLibraryContentViewState
                 ),
               )
               .toList();
+
+          // 检查是否超过16个限制（仅在追加模式下检查）
+          if (!isShiftPressed &&
+              currentParams.vibeReferencesV4.length + adjustedVibes.length >
+                  16) {
+            AppToast.warning(context, context.l10n.vibeLibrary_maxVibesReached);
+            return;
+          }
 
           if (isShiftPressed) {
             // Shift+点击：替换现有 vibes
@@ -301,6 +304,12 @@ class _VibeLibraryContentViewState
           // 回退到单个 vibe 处理
         }
       }
+    }
+
+    // 检查是否超过16个限制（仅在追加模式下检查）
+    if (!isShiftPressed && currentParams.vibeReferencesV4.length >= 16) {
+      AppToast.warning(context, context.l10n.vibeLibrary_maxVibesReached);
+      return;
     }
 
     // 普通条目或 Bundle 文件不存在时，使用单个 vibe
@@ -360,6 +369,14 @@ class _VibeLibraryContentViewState
                 ),
               )
               .toList();
+
+          // 检查是否超过16个限制（仅在追加模式下检查）
+          if (!isShiftPressed &&
+              currentParams.vibeReferencesV4.length + adjustedVibes.length >
+                  16) {
+            AppToast.warning(context, context.l10n.vibeLibrary_maxVibesReached);
+            return;
+          }
 
           if (isShiftPressed) {
             paramsNotifier.setVibeReferences(adjustedVibes);

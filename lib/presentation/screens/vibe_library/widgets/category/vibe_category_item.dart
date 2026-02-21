@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../../core/utils/localization_extension.dart';
 
@@ -45,11 +46,23 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
   bool _isHovering = false;
   bool _isEditing = false;
   late TextEditingController _editController;
+  late FocusNode _editFocusNode;
 
   @override
   void initState() {
     super.initState();
     _editController = TextEditingController(text: widget.label);
+    _editFocusNode = FocusNode();
+    _editFocusNode.onKeyEvent = _handleEditKeyEvent;
+  }
+
+  KeyEventResult _handleEditKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
+      _editController.text = widget.label;
+      setState(() => _isEditing = false);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
   }
 
   @override
@@ -62,6 +75,7 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
 
   @override
   void dispose() {
+    _editFocusNode.dispose();
     _editController.dispose();
     super.dispose();
   }
@@ -75,7 +89,9 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
       child: GestureDetector(
-        onSecondaryTapUp: widget.onRename != null
+        onSecondaryTapUp: widget.onRename != null ||
+                widget.onAddSubCategory != null ||
+                widget.onDelete != null
             ? (details) => _showContextMenu(context, details.globalPosition)
             : null,
         child: AnimatedContainer(
@@ -135,6 +151,7 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
                     child: _isEditing
                         ? TextField(
                             controller: _editController,
+                            focusNode: _editFocusNode,
                             autofocus: true,
                             style: const TextStyle(fontSize: 13),
                             decoration: const InputDecoration(
@@ -146,11 +163,15 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
                               if (value.trim().isNotEmpty) {
                                 widget.onRename?.call(value.trim());
                               }
-                              setState(() => _isEditing = false);
+                              if (mounted) {
+                                setState(() => _isEditing = false);
+                              }
                             },
                             onTapOutside: (_) {
                               _editController.text = widget.label;
-                              setState(() => _isEditing = false);
+                              if (mounted) {
+                                setState(() => _isEditing = false);
+                              }
                             },
                           )
                         : Text(

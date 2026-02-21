@@ -19,7 +19,7 @@ class ImportProgress {
   bool get isActive => total > 0;
 
   /// 是否已完成
-  bool get isComplete => total > 0 && current >= total;
+  bool get isComplete => total > 0 && current == total;
 
   ImportProgress copyWith({
     int? current,
