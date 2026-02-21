@@ -34,6 +34,14 @@ export 'generation/generation_params_notifier.dart';
 export 'generation/generation_auxiliary_notifiers.dart';
 export 'generation/generation_settings_notifiers.dart';
 
+// Simplified ImageGenerationProvider - new exports
+export 'generation/image_generation_service.dart';
+export 'generation/batch_generation_notifier.dart';
+export 'generation/stream_generation_notifier.dart';
+export 'generation/image_save_notifier.dart';
+export 'generation/metadata_preload_notifier.dart';
+export 'generation/retry_policy_notifier.dart';
+
 part 'image_generation_provider.g.dart';
 
 /// 图像生成状态 Notifier
