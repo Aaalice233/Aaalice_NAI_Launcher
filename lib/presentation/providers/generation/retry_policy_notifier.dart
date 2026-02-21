@@ -77,10 +77,14 @@ class RetryPolicyNotifier extends _$RetryPolicyNotifier {
     _storage
       ..setSetting(_StorageKeys.maxRetries, RetryPolicy.defaultMaxRetries)
       ..setSetting(
-          _StorageKeys.retryIntervalMs, RetryPolicy.defaultRetryIntervalMs)
+        _StorageKeys.retryIntervalMs,
+        RetryPolicy.defaultRetryIntervalMs,
+      )
       ..setSetting(_StorageKeys.retryEnabled, RetryPolicy.defaultRetryEnabled)
       ..setSetting(
-          _StorageKeys.backoffMultiplier, RetryPolicy.defaultBackoffMultiplier);
+        _StorageKeys.backoffMultiplier,
+        RetryPolicy.defaultBackoffMultiplier,
+      );
   }
 
   /// 获取指定重试次数的延迟时间（支持指数退避）

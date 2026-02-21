@@ -103,16 +103,19 @@ class CharacterConversionService {
       String resolvedPrompt = uiChar.prompt;
       String resolvedNegativePrompt = uiChar.negativePrompt;
 
-      if (resolveAliases && _aliasResolver != null) {
-        final promptWithAliases = _aliasResolver!.resolveAliases(uiChar.prompt);
-        final negativeWithAliases =
-            _aliasResolver!.resolveAliases(uiChar.negativePrompt);
+      if (resolveAliases) {
+        final aliasResolver = _aliasResolver;
+        if (aliasResolver != null) {
+          final promptWithAliases = aliasResolver.resolveAliases(uiChar.prompt);
+          final negativeWithAliases =
+              aliasResolver.resolveAliases(uiChar.negativePrompt);
 
-        if (promptWithAliases != uiChar.prompt ||
-            negativeWithAliases != uiChar.negativePrompt) {
-          resolvedPrompt = promptWithAliases;
-          resolvedNegativePrompt = negativeWithAliases;
-          aliasesWereResolved = true;
+          if (promptWithAliases != uiChar.prompt ||
+              negativeWithAliases != uiChar.negativePrompt) {
+            resolvedPrompt = promptWithAliases;
+            resolvedNegativePrompt = negativeWithAliases;
+            aliasesWereResolved = true;
+          }
         }
       }
 

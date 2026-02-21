@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
@@ -251,42 +252,42 @@ class ImageGenerationNotifierNew extends _$ImageGenerationNotifierNew {
 
 /// 当前生成状态便捷访问
 @riverpod
-GenerationStatus generationStatus(GenerationStatusRef ref) {
+GenerationStatus generationStatus(Ref ref) {
   return ref.watch(imageGenerationNotifierNewProvider).status;
 }
 
 /// 当前生成进度便捷访问
 @riverpod
-double generationProgress(GenerationProgressRef ref) {
+double generationProgress(Ref ref) {
   return ref.watch(imageGenerationNotifierNewProvider).progress;
 }
 
 /// 当前生成的图像列表便捷访问
 @riverpod
-List<GeneratedImage> generatedImages(GeneratedImagesRef ref) {
+List<GeneratedImage> generatedImages(Ref ref) {
   return ref.watch(imageGenerationNotifierNewProvider).currentImages;
 }
 
 /// 当前是否有流式预览
 @riverpod
-bool hasStreamPreview(HasStreamPreviewRef ref) {
+bool hasStreamPreview(Ref ref) {
   return ref.watch(imageGenerationNotifierNewProvider).hasStreamPreview;
 }
 
 /// 流式预览图像便捷访问
 @riverpod
-Uint8List? streamPreviewImage(StreamPreviewImageRef ref) {
+Uint8List? streamPreviewImage(Ref ref) {
   return ref.watch(imageGenerationNotifierNewProvider).streamPreview;
 }
 
 /// 是否正在生成中
 @riverpod
-bool isGenerating(IsGeneratingRef ref) {
+bool isGenerating(Ref ref) {
   return ref.watch(imageGenerationNotifierNewProvider).isGenerating;
 }
 
 /// 生成错误信息便捷访问
 @riverpod
-String? generationError(GenerationErrorRef ref) {
+String? generationError(Ref ref) {
   return ref.watch(imageGenerationNotifierNewProvider).errorMessage;
 }

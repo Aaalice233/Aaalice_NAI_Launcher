@@ -285,8 +285,6 @@ class StreamGenerationNotifier extends _$StreamGenerationNotifier {
     );
 
     try {
-      final apiService = ref.read(naiImageGenerationApiServiceProvider);
-
       // 这里需要重新获取参数，由于我们已经丢失了原始参数，需要通知用户
       // 实际实现中，应该保存最后一次使用的参数
       AppLogger.w(

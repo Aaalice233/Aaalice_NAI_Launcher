@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../../data/models/image/image_params.dart';
-import '../../../data/models/image/image_stream_chunk.dart';
 import 'generation_models.dart';
 
 /// 图像生成结果
@@ -440,7 +439,7 @@ class ImageGenerationService {
           image,
           width: params.width,
           height: params.height,
-        ));
+        ),);
       }
     }
 
@@ -461,7 +460,7 @@ class ImageGenerationService {
                   b,
                   width: params.width,
                   height: params.height,
-                ))
+                ),)
             .toList();
 
         return ImageGenerationResult(

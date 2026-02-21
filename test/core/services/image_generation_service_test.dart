@@ -45,7 +45,7 @@ void main() {
         when(() => mockApiService.generateImageStream(any()))
             .thenAnswer((_) => Stream.value(
                   ImageStreamChunk.complete(imageBytes),
-                ));
+                ),);
 
         final result = await service.generateSingle(params);
 
@@ -66,7 +66,7 @@ void main() {
             .thenAnswer((_) => Stream.fromIterable([
                   ImageStreamChunk.progress(progress: 0.5),
                   ImageStreamChunk.complete(imageBytes),
-                ]));
+                ]),);
 
         when(() => mockApiService.cancelGeneration()).thenReturn(null);
 
@@ -102,7 +102,7 @@ void main() {
         when(() => mockApiService.generateImageStream(any()))
             .thenAnswer((_) => Stream.value(
                   ImageStreamChunk.error('API error'),
-                ));
+                ),);
 
         final result = await service.generateSingle(params);
 
@@ -121,7 +121,7 @@ void main() {
         when(() => mockApiService.generateImageStream(any()))
             .thenAnswer((_) => Stream.value(
                   ImageStreamChunk.error('Streaming is not allowed for this'),
-                ));
+                ),);
 
         when(() => mockApiService.generateImage(any(), onProgress: any(named: 'onProgress')))
             .thenAnswer((_) async => ([imageBytes], <int, String>{}));
@@ -152,7 +152,7 @@ void main() {
                     previewImage: previewBytes,
                   ),
                   ImageStreamChunk.complete(finalBytes),
-                ]));
+                ]),);
 
         await service.generateSingle(
           params,
@@ -173,7 +173,7 @@ void main() {
       });
 
       test('should force nSamples to 1 regardless of input', () async {
-        final params = ImageParams(
+        const params = ImageParams(
           prompt: 'test prompt',
           nSamples: 5, // Should be overridden to 1
         );
@@ -182,7 +182,7 @@ void main() {
         when(() => mockApiService.generateImageStream(any()))
             .thenAnswer((_) => Stream.value(
                   ImageStreamChunk.complete(imageBytes),
-                ));
+                ),);
 
         await service.generateSingle(params);
 
@@ -203,7 +203,7 @@ void main() {
         when(() => mockApiService.generateImageStream(any()))
             .thenAnswer((_) => Stream.value(
                   ImageStreamChunk.complete(imageBytes),
-                ));
+                ),);
 
         final result = await service.generateBatch(
           params,
@@ -254,7 +254,7 @@ void main() {
         when(() => mockApiService.generateImageStream(any()))
             .thenAnswer((_) => Stream.value(
                   ImageStreamChunk.complete(imageBytes),
-                ));
+                ),);
 
         await service.generateBatch(
           params,
@@ -373,7 +373,7 @@ void main() {
         when(() => mockApiService.generateImageStream(any()))
             .thenAnswer((_) => Stream.value(
                   ImageStreamChunk.complete(imageBytes),
-                ));
+                ),);
 
         await service.generateBatch(
           params,
@@ -453,7 +453,7 @@ void main() {
       });
 
       test('should be unsuccessful when images list is empty', () {
-        final result = ImageGenerationResult(
+        const result = ImageGenerationResult(
           images: [],
         );
 
@@ -480,7 +480,7 @@ void main() {
           when(() => mockApiService.generateImageStream(any()))
               .thenAnswer((_) => Stream.value(
                     ImageStreamChunk.error(errorMsg),
-                  ));
+                  ),);
 
           when(() => mockApiService.generateImage(any(), onProgress: any(named: 'onProgress')))
               .thenAnswer((_) async => ([imageBytes], <int, String>{}));
@@ -521,7 +521,7 @@ void main() {
                     previewImage: previewBytes,
                   ),
                   ImageStreamChunk.complete(finalBytes),
-                ]));
+                ]),);
 
         await service.generateSingle(
           params,

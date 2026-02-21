@@ -169,7 +169,7 @@ class BatchGenerationState {
             i.image!,
             width: batchWidth ?? 832,
             height: batchHeight ?? 1216,
-          ))
+          ),)
       .toList();
 }
 
@@ -311,7 +311,6 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
   ) async {
     if (_isCancelled) return;
 
-    final itemId = state.items[index].id;
     final startTime = DateTime.now();
 
     // 更新当前索引和开始时间

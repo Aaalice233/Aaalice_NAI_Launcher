@@ -542,7 +542,7 @@ void main() {
           TagLibraryEntry.create(name: 'valid', content: 'content'),
         ];
         final service = ParameterProcessingService(tagLibraryEntries: entries);
-        final ref = AliasReference(
+        const ref = AliasReference(
           type: AliasReferenceType.simple,
           start: 0,
           end: 8,
@@ -555,7 +555,7 @@ void main() {
 
       test('should return false for invalid alias', () {
         final service = ParameterProcessingService();
-        final ref = AliasReference(
+        const ref = AliasReference(
           type: AliasReferenceType.simple,
           start: 0,
           end: 10,

@@ -8,7 +8,6 @@ import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_se
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
 import 'package:nai_launcher/presentation/providers/generation/batch_generation_notifier.dart';
-import 'package:nai_launcher/presentation/providers/generation/generation_models.dart';
 
 class MockNAIImageGenerationApiService extends Mock
     implements NAIImageGenerationApiService {}
@@ -65,7 +64,7 @@ void main() {
         when(() => mockApiService.generateImageStream(any()))
             .thenAnswer((_) => Stream.value(
                   ImageStreamChunk.complete(imageBytes),
-                ));
+                ),);
 
         await notifier.generateBatch(params, count: 1);
 
@@ -135,7 +134,7 @@ void main() {
         when(() => mockApiService.generateImageStream(any()))
             .thenAnswer((_) => Stream.value(
                   ImageStreamChunk.error('API error'),
-                ));
+                ),);
 
         await notifier.generateBatch(params, count: 1);
 
@@ -160,7 +159,7 @@ void main() {
                     previewImage: previewBytes,
                   ),
                   ImageStreamChunk.complete(finalBytes),
-                ]));
+                ]),);
 
         await notifier.generateBatch(params, count: 1);
 
@@ -222,7 +221,7 @@ void main() {
         when(() => mockApiService.generateImageStream(any()))
             .thenAnswer((_) => Stream.value(
                   ImageStreamChunk.complete(imageBytes),
-                ));
+                ),);
 
         await notifier.generateBatch(params, count: 4, concurrency: 2);
 
@@ -238,7 +237,7 @@ void main() {
         when(() => mockApiService.generateImageStream(any()))
             .thenAnswer((_) => Stream.value(
                   ImageStreamChunk.error('API error'),
-                ));
+                ),);
 
         await notifier.generateBatch(params, count: 2);
 
@@ -282,7 +281,7 @@ void main() {
         when(() => mockApiService.generateImageStream(any()))
             .thenAnswer((_) => Stream.value(
                   ImageStreamChunk.complete(imageBytes),
-                ));
+                ),);
 
         await notifier.generateBatch(params, count: 1);
 
@@ -363,7 +362,7 @@ void main() {
         when(() => mockApiService.generateImageStream(any()))
             .thenAnswer((_) => Stream.value(
                   ImageStreamChunk.complete(imageBytes),
-                ));
+                ),);
 
         await notifier.generateBatch(params, count: 1);
         expect(notifier.state.status, BatchGenerationStatus.completed);
@@ -387,7 +386,7 @@ void main() {
         when(() => mockApiService.generateImageStream(any()))
             .thenAnswer((_) => Stream.value(
                   ImageStreamChunk.error('API error'),
-                ));
+                ),);
 
         await notifier.generateBatch(params, count: 1);
         expect(notifier.state.status, BatchGenerationStatus.error);
@@ -445,7 +444,7 @@ void main() {
         when(() => mockApiService.generateImageStream(any()))
             .thenAnswer((_) => Stream.value(
                   ImageStreamChunk.complete(imageBytes),
-                ));
+                ),);
 
         await notifier.generateBatch(params, count: 1);
         expect(notifier.state.status, BatchGenerationStatus.completed);
@@ -470,7 +469,7 @@ void main() {
         when(() => mockApiService.generateImageStream(any()))
             .thenAnswer((_) => Stream.value(
                   ImageStreamChunk.complete(imageBytes),
-                ));
+                ),);
 
         await notifier.generateBatch(params, count: 1);
 
@@ -492,7 +491,7 @@ void main() {
         when(() => mockApiService.generateImageStream(any()))
             .thenAnswer((_) => Stream.value(
                   ImageStreamChunk.complete(imageBytes),
-                ));
+                ),);
 
         await notifier.generateBatch(params, count: 3);
 
@@ -513,7 +512,7 @@ void main() {
         when(() => mockApiService.generateImageStream(any()))
             .thenAnswer((_) => Stream.value(
                   ImageStreamChunk.complete(imageBytes),
-                ));
+                ),);
 
         await notifier.generateBatch(params, count: 2);
 
@@ -584,7 +583,7 @@ void main() {
             isCompleted: true,
             image: imageBytes,
           ),
-          BatchGenerationItem(
+          const BatchGenerationItem(
             id: '2',
             index: 1,
             isCompleted: false,
