@@ -1429,6 +1429,60 @@ class GalleryDataSource extends EnhancedBaseDataSource {
     return _favoriteCache.toList();
   }
 
+  /// 批量查询图片的收藏状态
+  ///
+  /// [imageIds] 图片ID列表
+  ///
+  /// 返回一个 Map，键为图片ID，值为收藏状态（true=已收藏，false=未收藏）
+  /// 使用单个查询批量获取，比多次调用 isFavorite 更高效
+  Future<Map<int, bool>> getFavoritesByImageIds(List<int> imageIds) async {
+    if (imageIds.isEmpty) return {};
+
+    try {
+      return await execute(
+        'getFavoritesByImageIds',
+        (db) async {
+          // 构建 IN 子句的占位符
+          final placeholders = List.filled(imageIds.length, '?').join(',');
+
+          final result = await db.rawQuery(
+            '''
+            SELECT image_id FROM $_favoritesTable
+            WHERE image_id IN ($placeholders)
+            ''',
+            imageIds,
+          );
+
+          // 构建结果映射，所有请求的图片默认为未收藏
+          final favoritesMap = <int, bool>{
+            for (final id in imageIds) id: false,
+          };
+
+          // 标记已收藏的图片
+          for (final row in result) {
+            final id = (row['image_id'] as num?)?.toInt();
+            if (id != null) {
+              favoritesMap[id] = true;
+            }
+          }
+
+          return favoritesMap;
+        },
+        timeout: const Duration(seconds: 30),
+        maxRetries: 3,
+      );
+    } catch (e, stack) {
+      AppLogger.e(
+        'Failed to get favorites by image IDs: ${imageIds.length} IDs',
+        e,
+        stack,
+        'GalleryDS',
+      );
+      // 发生错误时，返回所有图片为未收藏状态
+      return {for (final id in imageIds) id: false};
+    }
+  }
+
   // ============================================================
   // FTS5 全文搜索
   // ============================================================
