@@ -55,6 +55,9 @@ class ParameterProcessingService {
   /// 固定词条目列表
   final List<FixedTagEntry> _fixedTags;
 
+  /// 随机数生成器（复用实例，避免每次创建）
+  static final Random _random = Random();
+
   /// 创建参数处理服务
   ///
   /// [tagLibraryEntries] 词库条目列表，用于别名解析
@@ -243,8 +246,8 @@ class ParameterProcessingService {
 
     if (validEntries.isEmpty) return null;
 
-    // 随机选择
-    final randomIndex = Random().nextInt(validEntries.length);
+    // 随机选择（使用复用的 Random 实例）
+    final randomIndex = _random.nextInt(validEntries.length);
     return validEntries[randomIndex].content;
   }
 
@@ -272,8 +275,8 @@ class ParameterProcessingService {
 
     if (validEntries.isEmpty || totalWeight <= 0) return null;
 
-    // 按权重随机选择
-    final randomValue = Random().nextDouble() * totalWeight;
+    // 按权重随机选择（使用复用的 Random 实例）
+    final randomValue = _random.nextDouble() * totalWeight;
     double cumulative = 0;
 
     for (final (entry, weight) in validEntries) {

@@ -12,7 +12,8 @@ class ImageGenerationResult {
   final List<GeneratedImage> images;
 
   /// Vibe 编码哈希映射 (索引 -> 编码)
-  final Map<int, String> vibeEncodings;
+  /// 注意：key 使用字符串格式 '${imageIndex}_${vibeIndex}' 以避免冲突
+  final Map<String, String> vibeEncodings;
 
   /// 是否被取消
   final bool isCancelled;
@@ -61,7 +62,7 @@ typedef GenerationProgressCallback = void Function(
 });
 
 /// 批量生成结果（包含图像和 vibe encodings）
-typedef _BatchGenerationResult = ({List<GeneratedImage> images, Map<int, String> vibeEncodings});
+typedef _BatchGenerationResult = ({List<GeneratedImage> images, Map<String, String> vibeEncodings});
 
 /// 图像生成服务
 ///
@@ -166,9 +167,14 @@ class ImageGenerationService {
       return generateSingle(params, onProgress: onProgress);
     }
 
+    // 验证参数，防止除以零
+    if (batchCount <= 0 || batchSize <= 0) {
+      return ImageGenerationResult.error('批次数量和批次大小必须大于0');
+    }
+
     final totalImages = (batchCount * batchSize).toInt();
     final allImages = <GeneratedImage>[];
-    final allVibeEncodings = <int, String>{};
+    final allVibeEncodings = <String, String>{};
     int generatedCount = 0;
 
     for (int batch = 0; batch < batchCount; batch++) {
@@ -280,6 +286,14 @@ class ImageGenerationService {
         // 注意：Streaming API 的响应中不包含 vibe encodings 数据
         // 只有非流式 API (generateImage) 会返回 vibe encodings
         // 这是 NovelAI API 的已知限制，非本实现问题
+        //
+        // 如果需要获取 vibe encodings，有以下选择：
+        // 1. 使用非流式生成（禁用流式预览）
+        // 2. 在流式生成成功后，使用相同的参数再调用一次非流式 API
+        //    （但这会增加 API 调用成本，不推荐）
+        //
+        // 由于 vibe encodings 主要用于保存和复用 Vibe Transfer 特征，
+        // 而大多数用户更重视流式预览体验，因此此处优先保证流式功能
         return ImageGenerationResult(
           images: [generatedImage],
         );
@@ -312,7 +326,7 @@ class ImageGenerationService {
     GenerationProgressCallback? onProgress,
   }) async {
     final images = <GeneratedImage>[];
-    final allVibeEncodings = <int, String>{};
+    final allVibeEncodings = <String, String>{};
     final batchSize = params.nSamples;
     bool useNonStreamFallback = false;
 
@@ -335,7 +349,7 @@ class ImageGenerationService {
       );
 
       Uint8List? image;
-      Map<int, String> imageVibeEncodings = {};
+      Map<String, String> imageVibeEncodings = {};
 
       for (int retry = 0; retry <= _maxRetries; retry++) {
         if (_isCancelled) break;
@@ -349,7 +363,12 @@ class ImageGenerationService {
             );
             if (fallbackImages.isNotEmpty) {
               image = fallbackImages.first;
-              imageVibeEncodings = fallbackVibes;
+              // 将 API 返回的 Map<int, String> 转换为 Map<String, String>
+              // key 格式: '${currentIndex}_${vibeIndex}'
+              imageVibeEncodings = {
+                for (final entry in fallbackVibes.entries)
+                  '${currentIndex}_${entry.key}': entry.value,
+              };
               break;
             }
             continue;
@@ -391,7 +410,11 @@ class ImageGenerationService {
             );
             if (fallbackImages.isNotEmpty) {
               image = fallbackImages.first;
-              imageVibeEncodings = fallbackVibes;
+              // 将 API 返回的 Map<int, String> 转换为 Map<String, String>
+              imageVibeEncodings = {
+                for (final entry in fallbackVibes.entries)
+                  '${currentIndex}_${entry.key}': entry.value,
+              };
               break;
             }
             continue;
@@ -408,7 +431,11 @@ class ImageGenerationService {
           );
           if (fallbackImages.isNotEmpty) {
             image = fallbackImages.first;
-            imageVibeEncodings = fallbackVibes;
+            // 将 API 返回的 Map<int, String> 转换为 Map<String, String>
+            imageVibeEncodings = {
+              for (final entry in fallbackVibes.entries)
+                '${currentIndex}_${entry.key}': entry.value,
+            };
             break;
           }
         } catch (e) {
@@ -423,7 +450,11 @@ class ImageGenerationService {
               );
               if (fallbackImages.isNotEmpty) {
                 image = fallbackImages.first;
-                imageVibeEncodings = fallbackVibes;
+                // 将 API 返回的 Map<int, String> 转换为 Map<String, String>
+                imageVibeEncodings = {
+                  for (final entry in fallbackVibes.entries)
+                    '${currentIndex}_${entry.key}': entry.value,
+                };
                 break;
               }
             } catch (fallbackError) {
@@ -449,12 +480,10 @@ class ImageGenerationService {
           width: params.width,
           height: params.height,
         ),);
-        // 合并当前图像的 vibe encodings，使用组合 key 避免冲突
-        // key 格式: currentIndex * 100 + entry.key，确保每张图的 vibe encodings 都有唯一 key
+        // 合并当前图像的 vibe encodings
+        // imageVibeEncodings 的 key 已经是 '${currentIndex}_${vibeIndex}' 格式
         if (imageVibeEncodings.isNotEmpty) {
-          for (final entry in imageVibeEncodings.entries) {
-            allVibeEncodings[currentIndex * 100 + entry.key] = entry.value;
-          }
+          allVibeEncodings.addAll(imageVibeEncodings);
         }
       }
     }
@@ -479,9 +508,15 @@ class ImageGenerationService {
                 ),)
             .toList();
 
+        // 将 API 返回的 Map<int, String> 转换为 Map<String, String>
+        // key 格式: '0_${vibeIndex}'（单张生成使用索引 0）
+        final convertedVibeEncodings = {
+          for (final entry in vibeEncodings.entries) '0_${entry.key}': entry.value,
+        };
+
         return ImageGenerationResult(
           images: images,
-          vibeEncodings: vibeEncodings,
+          vibeEncodings: convertedVibeEncodings,
         );
       } catch (e) {
         if (_isCancelled || _isCancelledError(e)) {

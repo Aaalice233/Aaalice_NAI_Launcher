@@ -317,7 +317,7 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
     // 更新当前索引和开始时间
     _updateItem(
       index,
-      state.items[index].copyWith(
+      (current) => current.copyWith(
         startTime: startTime,
         progress: 0.0,
       ),
@@ -340,7 +340,7 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
           // 更新单个项目的进度
           _updateItem(
             index,
-            state.items[index].copyWith(progress: progress),
+            (current) => current.copyWith(progress: progress),
           );
 
           // 更新总体进度
@@ -357,7 +357,7 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
       if (result.isSuccess && result.images.isNotEmpty) {
         _updateItem(
           index,
-          state.items[index].copyWith(
+          (current) => current.copyWith(
             image: result.images.first.bytes,
             isCompleted: true,
             endTime: DateTime.now(),
@@ -385,7 +385,7 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
 
       _updateItem(
         index,
-        state.items[index].copyWith(
+        (current) => current.copyWith(
           error: e.toString(),
           endTime: DateTime.now(),
         ),
@@ -397,10 +397,17 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
     }
   }
 
-  /// 更新单个项目
-  void _updateItem(int index, BatchGenerationItem updatedItem) {
-    final newItems = List<BatchGenerationItem>.from(state.items);
-    newItems[index] = updatedItem;
+  /// 更新单个项目（使用原子更新模式避免竞态条件）
+  ///
+  /// 注意：此方法使用 Riverpod 的原子更新模式，通过读取最新的 state 来确保
+  /// 并发任务不会覆盖彼此的状态更新。每次更新都会基于当前最新的 state.items
+  /// 进行复制和修改，而不是依赖于调用方传入的旧状态。
+  void _updateItem(int index, BatchGenerationItem Function(BatchGenerationItem current) updater) {
+    final currentItems = state.items;
+    if (index < 0 || index >= currentItems.length) return;
+
+    final newItems = List<BatchGenerationItem>.from(currentItems);
+    newItems[index] = updater(currentItems[index]);
     state = state.copyWith(items: newItems);
   }
 
@@ -454,8 +461,8 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
     for (final index in failedIndices) {
       _updateItem(
         index,
-        BatchGenerationItem(
-          id: state.items[index].id,
+        (current) => BatchGenerationItem(
+          id: current.id,
           index: index,
         ),
       );

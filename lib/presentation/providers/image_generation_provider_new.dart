@@ -25,16 +25,22 @@ class ImageGenerationNotifierNew extends _$ImageGenerationNotifierNew {
 
   @override
   ImageGenerationState build() {
-    // 初始化时创建服务
-    final apiService = ref.read(naiImageGenerationApiServiceProvider);
-    _service = ImageGenerationService(apiService: apiService);
-
-    // 清理时取消生成
+    // 清理时取消生成并释放服务
     ref.onDispose(() {
       _service?.cancel();
+      _service = null;
     });
 
     return const ImageGenerationState();
+  }
+
+  /// 获取或初始化生成服务
+  ImageGenerationService? _getOrCreateService() {
+    if (_service != null) return _service;
+
+    final apiService = ref.read(naiImageGenerationApiServiceProvider);
+    _service = ImageGenerationService(apiService: apiService);
+    return _service;
   }
 
   /// 生成单张图像
@@ -42,10 +48,11 @@ class ImageGenerationNotifierNew extends _$ImageGenerationNotifierNew {
   /// [params] - 图像生成参数
   /// 自动处理流式预览和错误回退
   Future<void> generateSingle(ImageParams params) async {
-    if (_service == null) return;
+    final service = _getOrCreateService();
+    if (service == null) return;
 
     // 重置状态
-    _service!.resetCancellation();
+    service.resetCancellation();
 
     state = state.copyWith(
       status: GenerationStatus.generating,
@@ -56,7 +63,7 @@ class ImageGenerationNotifierNew extends _$ImageGenerationNotifierNew {
     );
 
     try {
-      final result = await _service!.generateSingle(
+      final result = await service.generateSingle(
         params,
         onProgress: (current, total, progress, {previewImage}) {
           state = state.copyWith(
@@ -121,10 +128,11 @@ class ImageGenerationNotifierNew extends _$ImageGenerationNotifierNew {
     required int batchCount,
     required int batchSize,
   }) async {
-    if (_service == null) return;
+    final service = _getOrCreateService();
+    if (service == null) return;
 
     // 重置状态
-    _service!.resetCancellation();
+    service.resetCancellation();
 
     final totalImages = batchCount * batchSize;
 
@@ -139,7 +147,7 @@ class ImageGenerationNotifierNew extends _$ImageGenerationNotifierNew {
     );
 
     try {
-      final result = await _service!.generateBatch(
+      final result = await service.generateBatch(
         params,
         batchCount: batchCount,
         batchSize: batchSize,
