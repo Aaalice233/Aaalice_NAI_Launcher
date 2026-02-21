@@ -225,9 +225,19 @@ class SecureStorageService {
   String _normalizeToken(String token) {
     final trimmedToken = token.trim();
     final unquotedToken = _stripWrappingQuotes(trimmedToken);
-    return unquotedToken
+    final normalizedToken = unquotedToken
         .replaceFirst(_bearerPrefixRegex, '')
         .replaceAll(_allWhitespaceRegex, '');
+    
+    // 验证 token 格式
+    if (normalizedToken.startsWith('pst-') && normalizedToken.length < 14) {
+      AppLogger.w(
+        'Token normalization warning: pst- token too short (${normalizedToken.length} chars)',
+        'SecureStorage',
+      );
+    }
+    
+    return normalizedToken;
   }
 
   String _stripWrappingQuotes(String value) {

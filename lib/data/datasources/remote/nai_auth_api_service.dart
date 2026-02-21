@@ -41,21 +41,49 @@ class NAIAuthApiService {
         ? normalizedToken
         : 'Bearer $normalizedToken';
 
-    AppLogger.d(
-      'Validating API token, length: ${normalizedToken.length}',
+    // 详细的日志记录用于诊断登录问题
+    final tokenFormat = normalizedToken.startsWith('pst-') ? 'pst' : 'jwt';
+    final prefix = normalizedToken.startsWith('pst-') 
+        ? normalizedToken.substring(0, normalizedToken.length > 10 ? 10 : normalizedToken.length)
+        : normalizedToken.substring(0, normalizedToken.length > 20 ? 20 : normalizedToken.length);
+    AppLogger.i(
+      'Validating token: format=$tokenFormat, length=${normalizedToken.length}, prefix=$prefix...',
       'NAIAuth',
     );
 
-    final response = await _dio.get(
-      '${ApiConstants.baseUrl}${ApiConstants.userSubscriptionEndpoint}',
-      options: Options(
-        headers: {'Authorization': authHeader},
-        receiveTimeout: _timeout,
-        sendTimeout: _timeout,
-      ),
-    );
+    try {
+      final response = await _dio.get(
+        '${ApiConstants.baseUrl}${ApiConstants.userSubscriptionEndpoint}',
+        options: Options(
+          headers: {'Authorization': authHeader},
+          receiveTimeout: _timeout,
+          sendTimeout: _timeout,
+        ),
+      );
 
-    return response.data as Map<String, dynamic>;
+      AppLogger.i('Token validation successful', 'NAIAuth');
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 400) {
+        final responseData = e.response?.data;
+        final message = responseData is Map ? responseData['message'] : null;
+        AppLogger.e(
+          'Token validation failed (400): $message, authHeader format=$tokenFormat',
+          'NAIAuth',
+        );
+        // 添加更详细的错误信息
+        if (message?.toString().contains('Invalid Authorization header') ?? false) {
+          throw DioException(
+            requestOptions: e.requestOptions,
+            response: e.response,
+            type: e.type,
+            error: 'Token无效或已过期，请检查Token是否正确。'
+                '如果是Persistent Token，应以pst-开头。',
+          );
+        }
+      }
+      rethrow;
+    }
   }
 
   /// 使用 Access Key 登录
@@ -75,8 +103,16 @@ class NAIAuthApiService {
   }
 
   /// 检查 Token 格式是否有效 (pst-xxxx)
+  /// NovelAI Persistent Token 格式: pst- 前缀 + 64位十六进制字符
   static bool isValidTokenFormat(String token) {
-    return token.startsWith('pst-') && token.length > 10;
+    if (!token.startsWith('pst-')) return false;
+    // pst- 前缀 (4字符) + 至少 10 字符的 token 内容
+    if (token.length < 14) return false;
+    // 检查是否包含非法字符（Persistent Token 应该是十六进制格式）
+    final tokenBody = token.substring(4); // 去掉 'pst-'
+    // 允许字母、数字、下划线和横线
+    final validPattern = RegExp(r'^[a-zA-Z0-9_-]+$');
+    return validPattern.hasMatch(tokenBody);
   }
 
   String _stripWrappingQuotes(String value) {

@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
@@ -18,51 +17,54 @@ class AppLogger {
   static FileOutput? _fileOutput;
   static bool _initialized = false;
   static bool _isTestEnvironment = false;
-  
+
   /// 日志文件最大数量
   static const int _maxLogFiles = 3;
-  
+
   /// 单个日志文件最大大小 (100MB)
   static const int _maxLogFileSize = 100 * 1024 * 1024;
-  
+
   /// 日志目录路径
   static String? _logDirectory;
-  
+
   /// 当前日志文件路径
   static String? _currentLogFile;
 
   /// 初始化日志系统
-  /// 
+  ///
   /// [isTestEnvironment] - 是否为测试环境（影响日志文件名前缀）
   static Future<void> initialize({bool isTestEnvironment = false}) async {
     if (_initialized) return;
-    
+
     _isTestEnvironment = isTestEnvironment;
-    
+
     // 设置日志目录
     await _setupLogDirectory();
-    
+
     // 清理旧日志文件（超大小或超数量）
     await _cleanupOldLogs();
-    
+
     // 创建新的日志文件
     await _createNewLogFile();
-    
-    // 初始化 Logger
+
+    // 初始化 Logger - 同时输出到控制台和文件
     _logger = Logger(
       filter: ProductionFilter(), // Release 模式下也能输出日志
       printer: SimplePrinter(printTime: true),
       level: Level.all,
-      output: _fileOutput,
+      output: MultiOutput([
+        ConsoleOutput(),  // 控制台输出
+        _fileOutput!,     // 文件输出
+      ]),
     );
-    
+
     _initialized = true;
-    
+
     i('日志系统初始化完成', 'AppLogger');
     i('日志文件: $_currentLogFile', 'AppLogger');
     i('运行环境: ${_isTestEnvironment ? "测试" : "正式"}', 'AppLogger');
   }
-  
+
   /// 设置日志目录
   ///
   /// 日志目录：Documents/NAI_Launcher/logs/ (与 images/ 平级)
@@ -82,31 +84,30 @@ class AppLogger {
       _logDirectory = Directory.systemTemp.path;
     }
   }
-  
+
   /// 清理旧日志文件（保留最近3个，单个文件最大100MB）
   static Future<void> _cleanupOldLogs() async {
     if (_logDirectory == null) return;
-    
+
     try {
       final dir = Directory(_logDirectory!);
       if (!await dir.exists()) return;
-      
+
       // 获取所有日志文件
       final files = await dir
           .list()
           .where((entity) => entity is File)
           .map((entity) => entity as File)
           .where((file) {
-            final name = path.basename(file.path);
-            return name.startsWith('app_') || name.startsWith('test_');
-          })
-          .toList();
-      
+        final name = path.basename(file.path);
+        return name.startsWith('app_') || name.startsWith('test_');
+      }).toList();
+
       // 按修改时间排序（最新的在前）
       files.sort((a, b) {
         return b.lastModifiedSync().compareTo(a.lastModifiedSync());
       });
-      
+
       // 删除超大日志文件（超过100MB）
       for (final file in files) {
         try {
@@ -118,22 +119,21 @@ class AppLogger {
           // 忽略删除失败的文件
         }
       }
-      
+
       // 重新获取文件列表（可能已删除部分）
       final remainingFiles = await dir
           .list()
           .where((entity) => entity is File)
           .map((entity) => entity as File)
           .where((file) {
-            final name = path.basename(file.path);
-            return name.startsWith('app_') || name.startsWith('test_');
-          })
-          .toList();
-      
+        final name = path.basename(file.path);
+        return name.startsWith('app_') || name.startsWith('test_');
+      }).toList();
+
       remainingFiles.sort((a, b) {
         return b.lastModifiedSync().compareTo(a.lastModifiedSync());
       });
-      
+
       // 删除超过数量限制的旧日志文件
       if (remainingFiles.length >= _maxLogFiles) {
         final filesToDelete = remainingFiles.sublist(_maxLogFiles - 1);
@@ -149,26 +149,25 @@ class AppLogger {
       // 忽略清理错误
     }
   }
-  
+
   /// 创建新的日志文件
   static Future<void> _createNewLogFile() async {
     if (_logDirectory == null) return;
-    
+
     final now = DateTime.now();
-    final timestamp = 
-        '${now.year}${_pad(now.month)}${_pad(now.day)}_'
+    final timestamp = '${now.year}${_pad(now.month)}${_pad(now.day)}_'
         '${_pad(now.hour)}${_pad(now.minute)}${_pad(now.second)}';
-    
+
     final prefix = _isTestEnvironment ? 'test' : 'app';
     final fileName = '${prefix}_$timestamp.log';
     _currentLogFile = path.join(_logDirectory!, fileName);
-    
+
     _fileOutput = FileOutput(file: File(_currentLogFile!));
     await _fileOutput!.init();
   }
 
   static String _pad(int number) => number.toString().padLeft(2, '0');
-  
+
   /// 获取日志目录路径
   static String? get logDirectory => _logDirectory;
 
@@ -176,27 +175,26 @@ class AppLogger {
   static String getDisplayPath() {
     return 'Documents/NAI_Launcher/logs/';
   }
-  
+
   /// 获取当前日志文件路径
   static String? get currentLogFile => _currentLogFile;
-  
+
   /// 获取所有日志文件列表（按时间倒序）
   static Future<List<File>> getLogFiles() async {
     if (_logDirectory == null) return [];
-    
+
     final dir = Directory(_logDirectory!);
     if (!await dir.exists()) return [];
-    
+
     final files = await dir
         .list()
         .where((entity) => entity is File)
         .map((entity) => entity as File)
         .where((file) {
-          final name = path.basename(file.path);
-          return name.startsWith('app_') || name.startsWith('test_');
-        })
-        .toList();
-    
+      final name = path.basename(file.path);
+      return name.startsWith('app_') || name.startsWith('test_');
+    }).toList();
+
     files.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
     return files;
   }
@@ -204,7 +202,7 @@ class AppLogger {
   /// 检查并轮转日志文件（如果超过100MB则创建新文件）
   static void _checkAndRotateLogFile() {
     if (_currentLogFile == null) return;
-    
+
     try {
       final file = File(_currentLogFile!);
       if (file.existsSync()) {
@@ -213,26 +211,28 @@ class AppLogger {
           // 关闭当前文件输出
           _fileOutput?.destroy();
           _fileOutput = null;
-          
+
           // 创建新的日志文件
           final now = DateTime.now();
-          final timestamp = 
-              '${now.year}${_pad(now.month)}${_pad(now.day)}_'
+          final timestamp = '${now.year}${_pad(now.month)}${_pad(now.day)}_'
               '${_pad(now.hour)}${_pad(now.minute)}${_pad(now.second)}';
-          
+
           final prefix = _isTestEnvironment ? 'test' : 'app';
           final fileName = '${prefix}_$timestamp.log';
           _currentLogFile = path.join(_logDirectory!, fileName);
-          
+
           _fileOutput = FileOutput(file: File(_currentLogFile!));
           _fileOutput!.init();
-          
-          // 更新 logger 的输出
+
+          // 更新 logger 的输出 - 同时输出到控制台和文件
           _logger = Logger(
             filter: ProductionFilter(),
             printer: SimplePrinter(printTime: true),
             level: Level.all,
-            output: _fileOutput,
+            output: MultiOutput([
+              ConsoleOutput(),  // 控制台输出
+              _fileOutput!,     // 文件输出
+            ]),
           );
         }
       }
@@ -385,6 +385,7 @@ class FileOutput extends LogOutput {
   final bool overrideExisting;
   final Encoding encoding;
   IOSink? _sink;
+  bool _isFlushing = false;
 
   FileOutput({
     required this.file,
@@ -402,14 +403,28 @@ class FileOutput extends LogOutput {
 
   @override
   void output(OutputEvent event) {
-    _sink?.writeln(event.lines.join('\n'));
-    _sink?.flush();
+    if (_sink == null) return;
+    
+    try {
+      _sink!.writeln(event.lines.join('\n'));
+      // 避免频繁 flush 导致的竞争条件，只在非 flush 状态下执行
+      if (!_isFlushing) {
+        _isFlushing = true;
+        _sink!.flush().whenComplete(() => _isFlushing = false);
+      }
+    } catch (e) {
+      // 忽略写入错误，避免日志系统本身导致崩溃
+    }
   }
 
   @override
   Future<void> destroy() async {
-    await _sink?.flush();
-    await _sink?.close();
+    try {
+      await _sink?.flush();
+      await _sink?.close();
+    } catch (e) {
+      // 忽略关闭错误
+    }
     _sink = null;
   }
 }
