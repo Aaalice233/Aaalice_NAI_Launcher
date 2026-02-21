@@ -22,6 +22,9 @@ class AppLogger {
   /// 日志文件最大数量
   static const int _maxLogFiles = 3;
   
+  /// 单个日志文件最大大小 (100MB)
+  static const int _maxLogFileSize = 100 * 1024 * 1024;
+  
   /// 日志目录路径
   static String? _logDirectory;
   
@@ -39,7 +42,7 @@ class AppLogger {
     // 设置日志目录
     await _setupLogDirectory();
     
-    // 清理旧日志文件
+    // 清理旧日志文件（超大小或超数量）
     await _cleanupOldLogs();
     
     // 创建新的日志文件
@@ -47,19 +50,10 @@ class AppLogger {
     
     // 初始化 Logger
     _logger = Logger(
-      printer: PrettyPrinter(
-        methodCount: 0,
-        errorMethodCount: 8,
-        lineLength: 120,
-        colors: true,
-        printEmojis: true,
-        dateTimeFormat: DateTimeFormat.dateAndTime,
-      ),
-      level: kDebugMode ? Level.debug : Level.info,
-      output: MultiOutput([
-        ConsoleOutput(),
-        if (_fileOutput != null) _fileOutput!,
-      ]),
+      filter: ProductionFilter(), // Release 模式下也能输出日志
+      printer: SimplePrinter(printTime: true),
+      level: Level.all,
+      output: _fileOutput,
     );
     
     _initialized = true;
@@ -84,13 +78,12 @@ class AppLogger {
         await dir.create(recursive: true);
       }
     } catch (e) {
-      debugPrint('创建日志目录失败: $e');
       // 回退到临时目录
       _logDirectory = Directory.systemTemp.path;
     }
   }
   
-  /// 清理旧日志文件（保留最近3个）
+  /// 清理旧日志文件（保留最近3个，单个文件最大100MB）
   static Future<void> _cleanupOldLogs() async {
     if (_logDirectory == null) return;
     
@@ -114,20 +107,46 @@ class AppLogger {
         return b.lastModifiedSync().compareTo(a.lastModifiedSync());
       });
       
-      // 删除旧的日志文件
-      if (files.length >= _maxLogFiles) {
-        final filesToDelete = files.sublist(_maxLogFiles - 1);
+      // 删除超大日志文件（超过100MB）
+      for (final file in files) {
+        try {
+          final size = await file.length();
+          if (size > _maxLogFileSize) {
+            await file.delete();
+          }
+        } catch (e) {
+          // 忽略删除失败的文件
+        }
+      }
+      
+      // 重新获取文件列表（可能已删除部分）
+      final remainingFiles = await dir
+          .list()
+          .where((entity) => entity is File)
+          .map((entity) => entity as File)
+          .where((file) {
+            final name = path.basename(file.path);
+            return name.startsWith('app_') || name.startsWith('test_');
+          })
+          .toList();
+      
+      remainingFiles.sort((a, b) {
+        return b.lastModifiedSync().compareTo(a.lastModifiedSync());
+      });
+      
+      // 删除超过数量限制的旧日志文件
+      if (remainingFiles.length >= _maxLogFiles) {
+        final filesToDelete = remainingFiles.sublist(_maxLogFiles - 1);
         for (final file in filesToDelete) {
           try {
             await file.delete();
-            debugPrint('删除旧日志文件: ${file.path}');
           } catch (e) {
-            debugPrint('删除日志文件失败: $e');
+            // 忽略删除失败的文件
           }
         }
       }
     } catch (e) {
-      debugPrint('清理旧日志失败: $e');
+      // 忽略清理错误
     }
   }
   
@@ -145,8 +164,9 @@ class AppLogger {
     _currentLogFile = path.join(_logDirectory!, fileName);
     
     _fileOutput = FileOutput(file: File(_currentLogFile!));
+    await _fileOutput!.init();
   }
-  
+
   static String _pad(int number) => number.toString().padLeft(2, '0');
   
   /// 获取日志目录路径
@@ -181,6 +201,46 @@ class AppLogger {
     return files;
   }
 
+  /// 检查并轮转日志文件（如果超过100MB则创建新文件）
+  static void _checkAndRotateLogFile() {
+    if (_currentLogFile == null) return;
+    
+    try {
+      final file = File(_currentLogFile!);
+      if (file.existsSync()) {
+        final size = file.lengthSync();
+        if (size > _maxLogFileSize) {
+          // 关闭当前文件输出
+          _fileOutput?.destroy();
+          _fileOutput = null;
+          
+          // 创建新的日志文件
+          final now = DateTime.now();
+          final timestamp = 
+              '${now.year}${_pad(now.month)}${_pad(now.day)}_'
+              '${_pad(now.hour)}${_pad(now.minute)}${_pad(now.second)}';
+          
+          final prefix = _isTestEnvironment ? 'test' : 'app';
+          final fileName = '${prefix}_$timestamp.log';
+          _currentLogFile = path.join(_logDirectory!, fileName);
+          
+          _fileOutput = FileOutput(file: File(_currentLogFile!));
+          _fileOutput!.init();
+          
+          // 更新 logger 的输出
+          _logger = Logger(
+            filter: ProductionFilter(),
+            printer: SimplePrinter(printTime: true),
+            level: Level.all,
+            output: _fileOutput,
+          );
+        }
+      }
+    } catch (e) {
+      // 忽略轮转错误
+    }
+  }
+
   /// 确保 Logger 已初始化
   static void _ensureInitialized() {
     if (!_initialized) {
@@ -199,6 +259,7 @@ class AppLogger {
 
   /// 调试日志
   static void d(String message, [String? tag]) {
+    _checkAndRotateLogFile();
     _ensureInitialized();
     final tagPrefix = tag != null ? '[$tag] ' : '';
     _logger!.d('$tagPrefix$message');
@@ -206,6 +267,7 @@ class AppLogger {
 
   /// 信息日志
   static void i(String message, [String? tag]) {
+    _checkAndRotateLogFile();
     _ensureInitialized();
     final tagPrefix = tag != null ? '[$tag] ' : '';
     _logger!.i('$tagPrefix$message');
@@ -213,6 +275,7 @@ class AppLogger {
 
   /// 警告日志
   static void w(String message, [String? tag]) {
+    _checkAndRotateLogFile();
     _ensureInitialized();
     final tagPrefix = tag != null ? '[$tag] ' : '';
     _logger!.w('$tagPrefix$message');
@@ -225,6 +288,7 @@ class AppLogger {
     StackTrace? stackTrace,
     String? tag,
   ]) {
+    _checkAndRotateLogFile();
     _ensureInitialized();
     final tagPrefix = tag != null ? '[$tag] ' : '';
     _logger!.e('$tagPrefix$message', error: error, stackTrace: stackTrace);
@@ -339,6 +403,7 @@ class FileOutput extends LogOutput {
   @override
   void output(OutputEvent event) {
     _sink?.writeln(event.lines.join('\n'));
+    _sink?.flush();
   }
 
   @override
