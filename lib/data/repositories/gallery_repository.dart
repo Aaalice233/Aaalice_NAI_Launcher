@@ -176,6 +176,19 @@ class GalleryRepository {
       }
     }
 
+    // 删除缩略图文件
+    if (record.thumbnailPath != null) {
+      try {
+        final thumbnailFile = File(record.thumbnailPath!);
+        if (await thumbnailFile.exists()) {
+          await thumbnailFile.delete();
+          AppLogger.d('Thumbnail deleted: ${record.thumbnailPath}', 'Gallery');
+        }
+      } catch (e) {
+        AppLogger.w('Failed to delete thumbnail: $e', 'Gallery');
+      }
+    }
+
     // 从 Hive Box 删除
     await _box!.delete(record.id);
   }
