@@ -773,12 +773,22 @@ class _GalleryTile extends StatelessWidget {
   }
 
   Widget _buildImage() {
-    if (record.imageData != null) {
-      return Image.memory(
-        record.imageData!,
+    // 优先使用缩略图
+    if (record.thumbnailPath != null) {
+      return Image.file(
+        File(record.thumbnailPath!),
         fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          // 缩略图加载失败时回退到原图
+          return _buildFallbackImage();
+        },
       );
-    } else if (record.filePath != null) {
+    }
+    return _buildFallbackImage();
+  }
+
+  Widget _buildFallbackImage() {
+    if (record.filePath != null) {
       return Image.file(
         File(record.filePath!),
         fit: BoxFit.cover,
@@ -787,6 +797,11 @@ class _GalleryTile extends StatelessWidget {
             child: Icon(Icons.broken_image, size: 48),
           );
         },
+      );
+    } else if (record.imageData != null) {
+      return Image.memory(
+        record.imageData!,
+        fit: BoxFit.cover,
       );
     } else {
       return const Center(
