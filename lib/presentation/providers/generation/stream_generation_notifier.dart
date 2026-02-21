@@ -326,7 +326,7 @@ class StreamGenerationNotifier extends _$StreamGenerationNotifier {
 
   /// 取消生成
   void cancel() {
-    if (!_isGenerating) return;
+    if (!isGenerating) return;
 
     _isCancelled = true;
     _streamSubscription?.cancel();
