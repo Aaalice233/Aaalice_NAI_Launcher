@@ -83,6 +83,10 @@ class ConnectionPool {
       throw StateError('ConnectionPool not initialized');
     }
 
+    final stopwatch = Stopwatch()..start();
+    final availableBefore = _availableConnections.length;
+    final inUseBefore = _inUseConnections.length;
+
     await _lock.acquire();
     try {
       while (_availableConnections.isEmpty && _inUseConnections.length >= maxConnections) {
@@ -93,7 +97,7 @@ class ConnectionPool {
 
       if (_availableConnections.isNotEmpty) {
         var db = _availableConnections.removeFirst();
-        
+
         // 验证连接是否仍然有效
         if (!db.isOpen) {
           AppLogger.d('Connection from pool is closed, creating new one', 'ConnectionPool');
@@ -104,15 +108,70 @@ class ConnectionPool {
           }
           db = await _createConnection();
         }
-        
+
         _inUseConnections.add(db);
+
+        // Log metrics after acquiring connection
+        stopwatch.stop();
+        _logMetrics(
+          availableBefore: availableBefore,
+          inUseBefore: inUseBefore,
+          acquisitionTimeMs: stopwatch.elapsedMilliseconds,
+        );
+
         return db;
       }
 
       // 创建临时连接（超出池大小）
-      return await _createConnection();
+      final db = await _createConnection();
+
+      // Log metrics for temporary connection
+      stopwatch.stop();
+      _logMetrics(
+        availableBefore: availableBefore,
+        inUseBefore: inUseBefore,
+        acquisitionTimeMs: stopwatch.elapsedMilliseconds,
+        isTemporary: true,
+      );
+
+      return db;
     } finally {
       _lock.release();
+    }
+  }
+
+  /// 记录连接池指标日志
+  void _logMetrics({
+    required int availableBefore,
+    required int inUseBefore,
+    required int acquisitionTimeMs,
+    bool isTemporary = false,
+  }) {
+    final availableNow = _availableConnections.length;
+    final inUseNow = _inUseConnections.length;
+
+    // Log warning if available connections is low
+    if (availableNow < 2) {
+      AppLogger.w(
+        'Low available connections: $availableNow (in-use: $inUseNow, acquisition: ${acquisitionTimeMs}ms)',
+        'ConnectionPool',
+      );
+    }
+
+    // Log warning if acquisition time is high
+    if (acquisitionTimeMs > 1000) {
+      AppLogger.w(
+        'Slow connection acquisition: ${acquisitionTimeMs}ms (available: $availableNow, in-use: $inUseNow)',
+        'ConnectionPool',
+      );
+    }
+
+    // Log info for temporary connections
+    if (isTemporary) {
+      AppLogger.i(
+        'Created temporary connection (pool exhausted: $inUseBefore/$maxConnections, acquisition: ${acquisitionTimeMs}ms)',
+        'ConnectionPool',
+      );
     }
   }
 
