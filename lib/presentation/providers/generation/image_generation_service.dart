@@ -309,7 +309,7 @@ class ImageGenerationService {
     GenerationProgressCallback? onProgress,
   }) async {
     final images = <GeneratedImage>[];
-    final vibeEncodings = <int, String>{};
+    final allVibeEncodings = <int, String>{};
     final batchSize = params.nSamples;
     bool useNonStreamFallback = false;
 
@@ -332,6 +332,7 @@ class ImageGenerationService {
       );
 
       Uint8List? image;
+      Map<int, String> imageVibeEncodings = {};
 
       for (int retry = 0; retry <= _maxRetries; retry++) {
         if (_isCancelled) break;
@@ -339,12 +340,13 @@ class ImageGenerationService {
         try {
           // 使用非流式回退
           if (useNonStreamFallback) {
-            final fallback = await _apiService.generateImageCancellable(
+            final (fallbackImages, fallbackVibes) = await _apiService.generateImage(
               singleParams,
               onProgress: (_, __) {},
             );
-            if (fallback.isNotEmpty) {
-              image = fallback.first;
+            if (fallbackImages.isNotEmpty) {
+              image = fallbackImages.first;
+              imageVibeEncodings = fallbackVibes;
               break;
             }
             continue;
@@ -380,12 +382,13 @@ class ImageGenerationService {
 
           // 流式不支持，使用非流式回退
           if (streamingNotAllowed) {
-            final fallback = await _apiService.generateImageCancellable(
+            final (fallbackImages, fallbackVibes) = await _apiService.generateImage(
               singleParams,
               onProgress: (_, __) {},
             );
-            if (fallback.isNotEmpty) {
-              image = fallback.first;
+            if (fallbackImages.isNotEmpty) {
+              image = fallbackImages.first;
+              imageVibeEncodings = fallbackVibes;
               break;
             }
             continue;
@@ -396,12 +399,13 @@ class ImageGenerationService {
           }
 
           // 流式未返回图像，尝试非流式
-          final fallback = await _apiService.generateImageCancellable(
+          final (fallbackImages, fallbackVibes) = await _apiService.generateImage(
             singleParams,
             onProgress: (_, __) {},
           );
-          if (fallback.isNotEmpty) {
-            image = fallback.first;
+          if (fallbackImages.isNotEmpty) {
+            image = fallbackImages.first;
+            imageVibeEncodings = fallbackVibes;
             break;
           }
         } catch (e) {
@@ -410,12 +414,13 @@ class ImageGenerationService {
           if (_isStreamingNotAllowed(e.toString())) {
             useNonStreamFallback = true;
             try {
-              final fallback = await _apiService.generateImageCancellable(
+              final (fallbackImages, fallbackVibes) = await _apiService.generateImage(
                 singleParams,
                 onProgress: (_, __) {},
               );
-              if (fallback.isNotEmpty) {
-                image = fallback.first;
+              if (fallbackImages.isNotEmpty) {
+                image = fallbackImages.first;
+                imageVibeEncodings = fallbackVibes;
                 break;
               }
             } catch (fallbackError) {
@@ -441,10 +446,17 @@ class ImageGenerationService {
           width: params.width,
           height: params.height,
         ),);
+        // 合并当前图像的 vibe encodings，使用索引偏移
+        if (imageVibeEncodings.isNotEmpty) {
+          for (final entry in imageVibeEncodings.entries) {
+            // 使用当前图像索引作为 key，确保每个图像的 vibe encodings 不冲突
+            allVibeEncodings[currentIndex] = entry.value;
+          }
+        }
       }
     }
 
-    return (images: images, vibeEncodings: vibeEncodings);
+    return (images: images, vibeEncodings: allVibeEncodings);
   }
 
   /// 带重试的非流式生成
