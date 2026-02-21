@@ -25,6 +25,8 @@ class VibeImageEmbedder {
 
   static const int _minPngSize = 20; // 8 (signature) + 12 (minimum chunk)
   static const int _chunkHeaderSize = 12; // 4 (length) + 4 (type) + 4 (crc)
+  static const Duration _embedTimeout = Duration(seconds: 10);
+  static const Duration _extractTimeout = Duration(seconds: 10);
 
   /// 嵌入单个 Vibe 到图片（保持向后兼容）
   static Future<Uint8List> embedVibeToImage(
@@ -57,8 +59,12 @@ class VibeImageEmbedder {
         vibeReferencesData: vibesData,
       );
 
-      // 使用 compute() 在 Isolate 中执行嵌入操作
-      return await compute(_embedVibesIsolate, params);
+      // 使用 compute() 在 Isolate 中执行嵌入操作，添加超时保护
+      return await compute(_embedVibesIsolate, params)
+          .timeout(_embedTimeout);
+    } on TimeoutException {
+      AppLogger.w('[VibeImageEmbedder] Vibe embedding timeout', 'VibeImageEmbedder');
+      throw VibeEmbedException('Vibe embedding operation timed out');
     } on InvalidImageFormatException {
       rethrow;
     } on VibeEmbedException {
@@ -355,8 +361,9 @@ class VibeImageEmbedder {
     Uint8List imageBytes,
   ) async {
     try {
-      // 使用 compute() 在 Isolate 中执行提取，避免阻塞 UI
-      final result = await compute(_extractVibesFromImageIsolate, imageBytes);
+      // 使用 compute() 在 Isolate 中执行提取，避免阻塞 UI，添加超时保护
+      final result = await compute(_extractVibesFromImageIsolate, imageBytes)
+          .timeout(_extractTimeout);
 
       if (result == null) {
         throw NoVibeDataException(
@@ -374,6 +381,9 @@ class VibeImageEmbedder {
       }).toList();
 
       return (vibes: vibes, isBundle: result.isBundle);
+    } on TimeoutException {
+      AppLogger.w('[VibeImageEmbedder] Vibe extraction timeout', 'VibeImageEmbedder');
+      throw VibeExtractException('Vibe extraction operation timed out');
     } on NoVibeDataException {
       rethrow;
     } on InvalidImageFormatException {
