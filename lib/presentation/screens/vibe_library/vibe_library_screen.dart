@@ -34,6 +34,8 @@ import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
 import '../../widgets/common/pro_context_menu.dart';
 import '../../widgets/gallery/gallery_state_views.dart';
+import 'intents/vibe_intents.dart';
+import 'models/vibe_import_progress.dart';
 import 'widgets/vibe_card.dart';
 import 'widgets/vibe_bundle_import_dialog.dart' as bundle_import_dialog;
 import 'widgets/vibe_detail_viewer.dart';
@@ -41,36 +43,6 @@ import 'widgets/vibe_export_dialog.dart';
 import 'widgets/vibe_export_dialog_advanced.dart';
 import 'widgets/vibe_image_encode_dialog.dart' as encode_dialog;
 import 'widgets/vibe_import_naming_dialog.dart' as naming_dialog;
-
-class ImportProgress {
-  final int current;
-  final int total;
-  final String message;
-
-  const ImportProgress({
-    this.current = 0,
-    this.total = 0,
-    this.message = '',
-  });
-
-  double? get progress => total > 0 ? current / total : null;
-
-  bool get isActive => total > 0;
-
-  bool get isComplete => total > 0 && current >= total;
-
-  ImportProgress copyWith({
-    int? current,
-    int? total,
-    String? message,
-  }) {
-    return ImportProgress(
-      current: current ?? this.current,
-      total: total ?? this.total,
-      message: message ?? this.message,
-    );
-  }
-}
 
 /// Vibe库屏幕
 /// Vibe Library Screen
@@ -3549,14 +3521,4 @@ class _VibeLibraryNotifierImportRepository
     }
     return saved;
   }
-}
-
-/// Vibe导入Intent
-class VibeImportIntent extends Intent {
-  const VibeImportIntent();
-}
-
-/// Vibe导出Intent
-class VibeExportIntent extends Intent {
-  const VibeExportIntent();
 }
