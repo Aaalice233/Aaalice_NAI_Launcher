@@ -224,9 +224,9 @@ class VibeExportHandler {
       final targetImagePath = await _selectTargetImage();
       if (targetImagePath == null) return;
 
-      // 验证是 PNG 文件
+      // 验证是 PNG 文件（只读取前8字节进行签名验证）
       final file = File(targetImagePath);
-      final bytes = await file.readAsBytes();
+      final bytes = await file.openRead(0, 8).expand((chunk) => chunk).toList();
 
       if (!_isPng(bytes)) {
         if (context.mounted) {
@@ -330,9 +330,10 @@ class VibeExportHandler {
     String targetImagePath,
     List<VibeReference> vibes,
   ) async {
-    // TODO: 实现实际的嵌入逻辑
+    // TODO(已知问题): 实现实际的嵌入逻辑
     // 这需要使用 vibe_image_embedder.dart 中的功能
-    // 目前仅显示占位提示
+    // 目前仅显示占位提示，实际功能将在后续 PR 中实现
+    // 相关 Issue: 嵌入 Vibe 数据到 PNG 图片的 iTXt 元数据
 
     AppLogger.i(
       'Embedding ${vibes.length} vibes into $targetImagePath',
