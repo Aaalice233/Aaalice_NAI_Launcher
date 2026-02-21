@@ -669,6 +669,20 @@ class NoVibeDataException implements Exception {
   String toString() => 'NoVibeDataException: $message';
 }
 
+/// Embed vibes parameters (for Isolate)
+///
+/// 用于在 Isolate 中传递 embedVibesToImage 的参数
+/// 包含 imageBytes 和可序列化的 vibeReferences 数据
+class _EmbedVibesParams {
+  final Uint8List imageBytes;
+  final List<Map<String, dynamic>> vibeReferencesData;
+
+  _EmbedVibesParams({
+    required this.imageBytes,
+    required this.vibeReferencesData,
+  });
+}
+
 /// Extract vibe parameters (for Isolate)
 class _ExtractVibeParams {
   final Uint8List imageBytes;
