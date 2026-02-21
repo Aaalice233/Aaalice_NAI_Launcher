@@ -119,6 +119,12 @@ abstract class AppLocalizations {
   /// **'Confirm'**
   String get common_confirm;
 
+  /// No description provided for @common_continue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get common_continue;
+
   /// No description provided for @common_selectAll.
   ///
   /// In en, this message translates to:
@@ -268,6 +274,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add'**
   String get common_add;
+
+  /// No description provided for @common_added.
+  ///
+  /// In en, this message translates to:
+  /// **'Added'**
+  String get common_added;
 
   /// No description provided for @common_confirmDelete.
   ///
@@ -2620,6 +2632,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Clear All'**
   String get vibe_clearAll;
+
+  /// No description provided for @vibe_cleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleared {count} vibes'**
+  String vibe_cleared(int count);
 
   /// No description provided for @vibe_referenceNumber.
   ///
@@ -12989,6 +13007,96 @@ abstract class AppLocalizations {
   /// **'Include thumbnail preview in export file'**
   String get vibe_export_include_thumbnails_subtitle;
 
+  /// No description provided for @vibe_export_dialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export {count} Vibes'**
+  String vibe_export_dialogTitle(int count);
+
+  /// No description provided for @vibe_export_chooseMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose how to export the vibes'**
+  String get vibe_export_chooseMethod;
+
+  /// No description provided for @vibe_export_asBundle.
+  ///
+  /// In en, this message translates to:
+  /// **'As Bundle'**
+  String get vibe_export_asBundle;
+
+  /// No description provided for @vibe_export_individually.
+  ///
+  /// In en, this message translates to:
+  /// **'Individually'**
+  String get vibe_export_individually;
+
+  /// No description provided for @vibe_export_noData.
+  ///
+  /// In en, this message translates to:
+  /// **'No data to export'**
+  String get vibe_export_noData;
+
+  /// No description provided for @vibe_export_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Export successful'**
+  String get vibe_export_success;
+
+  /// No description provided for @vibe_export_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Export failed'**
+  String get vibe_export_failed;
+
+  /// No description provided for @vibe_export_skipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped {count} vibes without data'**
+  String vibe_export_skipped(int count);
+
+  /// No description provided for @vibe_export_bundleSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Bundle exported: {count} vibes'**
+  String vibe_export_bundleSuccess(int count);
+
+  /// No description provided for @vibe_export_selectToEmbed.
+  ///
+  /// In en, this message translates to:
+  /// **'Select vibes to embed'**
+  String get vibe_export_selectToEmbed;
+
+  /// No description provided for @vibe_export_pngRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'PNG file required'**
+  String get vibe_export_pngRequired;
+
+  /// No description provided for @vibe_export_noEmbeddableData.
+  ///
+  /// In en, this message translates to:
+  /// **'No embeddable data'**
+  String get vibe_export_noEmbeddableData;
+
+  /// No description provided for @vibe_export_embedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Embedded {count} vibes into image'**
+  String vibe_export_embedSuccess(int count);
+
+  /// No description provided for @vibe_export_embedFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Embed failed'**
+  String get vibe_export_embedFailed;
+
+  /// No description provided for @vibe_embedToImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Embed to Image'**
+  String get vibe_embedToImage;
+
   /// No description provided for @vibe_import_skip.
   ///
   /// In en, this message translates to:
@@ -13000,6 +13108,246 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Confirm'**
   String get vibe_import_confirm;
+
+  /// No description provided for @vibe_import_noEncodingData.
+  ///
+  /// In en, this message translates to:
+  /// **'No encoding data'**
+  String get vibe_import_noEncodingData;
+
+  /// No description provided for @vibe_import_encodingCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Encoding will cost 2 Anlas'**
+  String get vibe_import_encodingCost;
+
+  /// No description provided for @vibe_import_confirmCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue and consume Anlas?'**
+  String get vibe_import_confirmCost;
+
+  /// No description provided for @vibe_import_encodeNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Encode immediately (2 Anlas)'**
+  String get vibe_import_encodeNow;
+
+  /// No description provided for @vibe_addImageOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Add image only'**
+  String get vibe_addImageOnly;
+
+  /// No description provided for @vibe_import_autoSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-save to library'**
+  String get vibe_import_autoSave;
+
+  /// No description provided for @vibe_import_encodingFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Encoding failed'**
+  String get vibe_import_encodingFailed;
+
+  /// No description provided for @vibe_import_encodingFailedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to encode vibe. Continue adding unencoded image?'**
+  String get vibe_import_encodingFailedMessage;
+
+  /// No description provided for @vibe_import_encodingInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Encoding...'**
+  String get vibe_import_encodingInProgress;
+
+  /// No description provided for @vibe_import_encodingComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Encoding complete'**
+  String get vibe_import_encodingComplete;
+
+  /// No description provided for @vibe_import_partialFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Partial encoding failed'**
+  String get vibe_import_partialFailed;
+
+  /// No description provided for @vibe_import_timeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Encoding timeout'**
+  String get vibe_import_timeout;
+
+  /// No description provided for @vibe_import_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from Library'**
+  String get vibe_import_title;
+
+  /// No description provided for @vibe_import_result.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {count} vibes'**
+  String vibe_import_result(int count);
+
+  /// No description provided for @vibe_import_fileParseFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to parse file'**
+  String get vibe_import_fileParseFailed;
+
+  /// No description provided for @vibe_import_fileSelectionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'File selection failed'**
+  String get vibe_import_fileSelectionFailed;
+
+  /// No description provided for @vibe_import_importFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Import failed'**
+  String get vibe_import_importFailed;
+
+  /// No description provided for @vibe_saveToLibrary_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to Library'**
+  String get vibe_saveToLibrary_title;
+
+  /// No description provided for @vibe_saveToLibrary_strength.
+  ///
+  /// In en, this message translates to:
+  /// **'Strength'**
+  String get vibe_saveToLibrary_strength;
+
+  /// No description provided for @vibe_saveToLibrary_infoExtracted.
+  ///
+  /// In en, this message translates to:
+  /// **'Info Extracted'**
+  String get vibe_saveToLibrary_infoExtracted;
+
+  /// No description provided for @vibe_saveToLibrary_saving.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving {count} vibes'**
+  String vibe_saveToLibrary_saving(int count);
+
+  /// No description provided for @vibe_saveToLibrary_saveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save to library'**
+  String get vibe_saveToLibrary_saveFailed;
+
+  /// No description provided for @vibe_saveToLibrary_savingCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving {count} vibes'**
+  String vibe_saveToLibrary_savingCount(int count);
+
+  /// No description provided for @vibe_saveToLibrary_nameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get vibe_saveToLibrary_nameLabel;
+
+  /// No description provided for @vibe_saveToLibrary_nameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter vibe name'**
+  String get vibe_saveToLibrary_nameHint;
+
+  /// No description provided for @vibe_saveToLibrary_mixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {saved}, reused {reused}'**
+  String vibe_saveToLibrary_mixed(int saved, int reused);
+
+  /// No description provided for @vibe_saveToLibrary_saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {count} to library'**
+  String vibe_saveToLibrary_saved(int count);
+
+  /// No description provided for @vibe_saveToLibrary_reused.
+  ///
+  /// In en, this message translates to:
+  /// **'Reused {count} from library'**
+  String vibe_saveToLibrary_reused(int count);
+
+  /// No description provided for @vibe_maxReached.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum 16 vibes reached'**
+  String get vibe_maxReached;
+
+  /// No description provided for @vibe_addedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {count} vibes'**
+  String vibe_addedCount(int count);
+
+  /// No description provided for @vibe_statusEncoded.
+  ///
+  /// In en, this message translates to:
+  /// **'Encoded'**
+  String get vibe_statusEncoded;
+
+  /// No description provided for @vibe_statusEncoding.
+  ///
+  /// In en, this message translates to:
+  /// **'Encoding...'**
+  String get vibe_statusEncoding;
+
+  /// No description provided for @vibe_statusPendingEncode.
+  ///
+  /// In en, this message translates to:
+  /// **'Encode (2 Anlas)'**
+  String get vibe_statusPendingEncode;
+
+  /// No description provided for @vibe_encodeDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Vibe Encoding'**
+  String get vibe_encodeDialogTitle;
+
+  /// No description provided for @vibe_encodeDialogMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Encode this image for generation?'**
+  String get vibe_encodeDialogMessage;
+
+  /// No description provided for @vibe_encodeCostWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This will cost 2 Anlas (credits)'**
+  String get vibe_encodeCostWarning;
+
+  /// No description provided for @vibe_encodeButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Encode'**
+  String get vibe_encodeButton;
+
+  /// No description provided for @vibe_encodeSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibe encoded successfully!'**
+  String get vibe_encodeSuccess;
+
+  /// No description provided for @vibe_encodeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibe encoding failed, please retry'**
+  String get vibe_encodeFailed;
+
+  /// No description provided for @vibe_encodeError.
+  ///
+  /// In en, this message translates to:
+  /// **'Encoding failed: {error}'**
+  String vibe_encodeError(String error);
 
   /// No description provided for @bundle_internalVibes.
   ///

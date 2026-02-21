@@ -19,6 +19,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get common_confirm => 'Confirm';
 
   @override
+  String get common_continue => 'Continue';
+
+  @override
   String get common_selectAll => 'Select All';
 
   @override
@@ -92,6 +95,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get common_add => 'Add';
+
+  @override
+  String get common_added => 'Added';
 
   @override
   String get common_confirmDelete => 'Confirm Delete';
@@ -1342,6 +1348,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vibe_clearAll => 'Clear All';
+
+  @override
+  String vibe_cleared(int count) {
+    return 'Cleared $count vibes';
+  }
 
   @override
   String vibe_referenceNumber(Object index) {
@@ -6904,10 +6915,199 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibe_export_include_thumbnails_subtitle => 'Include thumbnail preview in export file';
 
   @override
+  String vibe_export_dialogTitle(int count) {
+    return 'Export $count Vibes';
+  }
+
+  @override
+  String get vibe_export_chooseMethod => 'Choose how to export the vibes';
+
+  @override
+  String get vibe_export_asBundle => 'As Bundle';
+
+  @override
+  String get vibe_export_individually => 'Individually';
+
+  @override
+  String get vibe_export_noData => 'No data to export';
+
+  @override
+  String get vibe_export_success => 'Export successful';
+
+  @override
+  String get vibe_export_failed => 'Export failed';
+
+  @override
+  String vibe_export_skipped(int count) {
+    return 'Skipped $count vibes without data';
+  }
+
+  @override
+  String vibe_export_bundleSuccess(int count) {
+    return 'Bundle exported: $count vibes';
+  }
+
+  @override
+  String get vibe_export_selectToEmbed => 'Select vibes to embed';
+
+  @override
+  String get vibe_export_pngRequired => 'PNG file required';
+
+  @override
+  String get vibe_export_noEmbeddableData => 'No embeddable data';
+
+  @override
+  String vibe_export_embedSuccess(int count) {
+    return 'Embedded $count vibes into image';
+  }
+
+  @override
+  String get vibe_export_embedFailed => 'Embed failed';
+
+  @override
+  String get vibe_embedToImage => 'Embed to Image';
+
+  @override
   String get vibe_import_skip => 'Skip';
 
   @override
   String get vibe_import_confirm => 'Confirm';
+
+  @override
+  String get vibe_import_noEncodingData => 'No encoding data';
+
+  @override
+  String get vibe_import_encodingCost => 'Encoding will cost 2 Anlas';
+
+  @override
+  String get vibe_import_confirmCost => 'Continue and consume Anlas?';
+
+  @override
+  String get vibe_import_encodeNow => 'Encode immediately (2 Anlas)';
+
+  @override
+  String get vibe_addImageOnly => 'Add image only';
+
+  @override
+  String get vibe_import_autoSave => 'Auto-save to library';
+
+  @override
+  String get vibe_import_encodingFailed => 'Encoding failed';
+
+  @override
+  String get vibe_import_encodingFailedMessage => 'Failed to encode vibe. Continue adding unencoded image?';
+
+  @override
+  String get vibe_import_encodingInProgress => 'Encoding...';
+
+  @override
+  String get vibe_import_encodingComplete => 'Encoding complete';
+
+  @override
+  String get vibe_import_partialFailed => 'Partial encoding failed';
+
+  @override
+  String get vibe_import_timeout => 'Encoding timeout';
+
+  @override
+  String get vibe_import_title => 'Import from Library';
+
+  @override
+  String vibe_import_result(int count) {
+    return 'Imported $count vibes';
+  }
+
+  @override
+  String get vibe_import_fileParseFailed => 'Failed to parse file';
+
+  @override
+  String get vibe_import_fileSelectionFailed => 'File selection failed';
+
+  @override
+  String get vibe_import_importFailed => 'Import failed';
+
+  @override
+  String get vibe_saveToLibrary_title => 'Save to Library';
+
+  @override
+  String get vibe_saveToLibrary_strength => 'Strength';
+
+  @override
+  String get vibe_saveToLibrary_infoExtracted => 'Info Extracted';
+
+  @override
+  String vibe_saveToLibrary_saving(int count) {
+    return 'Saving $count vibes';
+  }
+
+  @override
+  String get vibe_saveToLibrary_saveFailed => 'Failed to save to library';
+
+  @override
+  String vibe_saveToLibrary_savingCount(int count) {
+    return 'Saving $count vibes';
+  }
+
+  @override
+  String get vibe_saveToLibrary_nameLabel => 'Name';
+
+  @override
+  String get vibe_saveToLibrary_nameHint => 'Enter vibe name';
+
+  @override
+  String vibe_saveToLibrary_mixed(int saved, int reused) {
+    return 'Saved $saved, reused $reused';
+  }
+
+  @override
+  String vibe_saveToLibrary_saved(int count) {
+    return 'Saved $count to library';
+  }
+
+  @override
+  String vibe_saveToLibrary_reused(int count) {
+    return 'Reused $count from library';
+  }
+
+  @override
+  String get vibe_maxReached => 'Maximum 16 vibes reached';
+
+  @override
+  String vibe_addedCount(int count) {
+    return 'Added $count vibes';
+  }
+
+  @override
+  String get vibe_statusEncoded => 'Encoded';
+
+  @override
+  String get vibe_statusEncoding => 'Encoding...';
+
+  @override
+  String get vibe_statusPendingEncode => 'Encode (2 Anlas)';
+
+  @override
+  String get vibe_encodeDialogTitle => 'Confirm Vibe Encoding';
+
+  @override
+  String get vibe_encodeDialogMessage => 'Encode this image for generation?';
+
+  @override
+  String get vibe_encodeCostWarning => 'This will cost 2 Anlas (credits)';
+
+  @override
+  String get vibe_encodeButton => 'Encode';
+
+  @override
+  String get vibe_encodeSuccess => 'Vibe encoded successfully!';
+
+  @override
+  String get vibe_encodeFailed => 'Vibe encoding failed, please retry';
+
+  @override
+  String vibe_encodeError(String error) {
+    return 'Encoding failed: $error';
+  }
 
   @override
   String get bundle_internalVibes => 'Internal Vibes';
