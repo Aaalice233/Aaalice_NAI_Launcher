@@ -209,19 +209,21 @@ class ThumbnailMigrationService {
         StorageKeys.galleryBox,
       );
 
+      // 构建 Map<filePath, recordId> 用于 O(1) 查找，避免 O(n*m) 复杂度
+      final recordIdMap = <String, String>{};
+      final recordMap = <String, GenerationRecord>{};
+      for (final record in galleryBox.values) {
+        if (record.filePath != null && record.filePath!.isNotEmpty) {
+          recordIdMap[record.filePath!] = record.id;
+          recordMap[record.filePath!] = record;
+        }
+      }
+
       int updatedCount = 0;
       for (final originalPath in originalPaths) {
-        // 查找对应的记录
-        GenerationRecord? targetRecord;
-        String? recordId;
-
-        for (final record in galleryBox.values) {
-          if (record.filePath == originalPath) {
-            targetRecord = record;
-            recordId = record.id;
-            break;
-          }
-        }
+        // 使用 Map 进行 O(1) 查找
+        final recordId = recordIdMap[originalPath];
+        final targetRecord = recordMap[originalPath];
 
         if (targetRecord != null && recordId != null) {
           // 检查缩略图是否已生成

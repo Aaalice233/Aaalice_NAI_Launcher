@@ -372,6 +372,9 @@ class CooccurrenceService {
           ? (await _unifiedDb!.getRecordCounts()).cooccurrences
           : 0;
 
+      // 增量导入：使用计数器代替存储虚拟记录，减少内存使用
+      var skippedCount = 0;
+
       for (var i = 0; i < lines.length; i++) {
         var line = lines[i].trim();
         if (line.isEmpty) continue;
@@ -393,15 +396,8 @@ class CooccurrenceService {
 
           if (tag1.isNotEmpty && tag2.isNotEmpty && count > 0) {
             // 增量导入：跳过前 existingCount 条（CSV 按 count 降序）
-            if (skipExisting && records.length < existingCount) {
-              records.add(
-                CooccurrenceRecord(
-                  tag1: tag1,
-                  tag2: tag2,
-                  count: count,
-                  cooccurrenceScore: 0.0,
-                ),
-              );
+            if (skipExisting && skippedCount < existingCount) {
+              skippedCount++;
               continue;
             }
 
@@ -417,10 +413,8 @@ class CooccurrenceService {
         }
       }
 
-      // 增量导入：只取需要补充的部分
-      final recordsToImport = skipExisting && records.length > existingCount
-          ? records.sublist(existingCount)
-          : records;
+      // 增量导入：records 列表已经只包含需要导入的新记录
+      final recordsToImport = records;
 
       if (recordsToImport.isEmpty) {
         AppLogger.i('No new cooccurrence records to import', 'Cooccurrence');

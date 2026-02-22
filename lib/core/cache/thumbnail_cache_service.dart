@@ -87,6 +87,9 @@ class ThumbnailCacheService {
   /// 正在生成的缩略图路径集合
   final Set<String> _generatingThumbnails = {};
 
+  /// 等待缩略图生成的 Completer Map（路径 -> Completer）
+  final Map<String, Completer<String?>> _generationCompleters = {};
+
   /// 缩略图生成队列
   final List<_ThumbnailTask> _taskQueue = [];
 
@@ -296,6 +299,12 @@ class ThumbnailCacheService {
         'ThumbnailCache',
       );
 
+      // 通知等待的 Completer 生成完成
+      final completer = _generationCompleters.remove(originalPath);
+      if (completer != null && !completer.isCompleted) {
+        completer.complete(thumbnailPath);
+      }
+
       return thumbnailPath;
     } catch (e, stack) {
       _failedCount++;
@@ -305,6 +314,11 @@ class ThumbnailCacheService {
         stack,
         'ThumbnailCache',
       );
+      // 通知等待的 Completer 生成失败
+      final completer = _generationCompleters.remove(originalPath);
+      if (completer != null && !completer.isCompleted) {
+        completer.complete(null);
+      }
       return null;
     } finally {
       _generatingThumbnails.remove(originalPath);
@@ -327,26 +341,30 @@ class ThumbnailCacheService {
 
   /// 等待正在进行的生成任务完成
   Future<String?> _waitForGeneration(String originalPath) async {
-    // 轮询检查生成是否完成
-    for (var i = 0; i < 100; i++) {
-      // 最多等待 10 秒
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      if (!_generatingThumbnails.contains(originalPath)) {
-        // 生成已完成，检查文件是否存在
-        final thumbnailPath = _getThumbnailPath(originalPath);
-        if (await File(thumbnailPath).exists()) {
-          return thumbnailPath;
-        }
-        return null;
-      }
+    // 使用 Completer 机制等待生成完成，避免轮询
+    var completer = _generationCompleters[originalPath];
+    if (completer == null) {
+      completer = Completer<String?>();
+      _generationCompleters[originalPath] = completer;
     }
 
-    AppLogger.w(
-      'Timeout waiting for thumbnail generation: $originalPath',
-      'ThumbnailCache',
-    );
-    return null;
+    try {
+      // 等待生成完成，设置 10 秒超时
+      final result = await completer.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          AppLogger.w(
+            'Timeout waiting for thumbnail generation: $originalPath',
+            'ThumbnailCache',
+          );
+          return null;
+        },
+      );
+      return result;
+    } finally {
+      // 清理 Completer
+      _generationCompleters.remove(originalPath);
+    }
   }
 
   /// 处理队列中的任务
