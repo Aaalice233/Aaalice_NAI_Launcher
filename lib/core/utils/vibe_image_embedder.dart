@@ -520,6 +520,7 @@ class VibeImageEmbedder {
       'strength': vibe.strength,
       'infoExtracted': vibe.infoExtracted,
       'sourceType': vibe.sourceType.name,
+      'bundleSource': vibe.bundleSource,
     };
   }
 
@@ -537,6 +538,7 @@ class VibeImageEmbedder {
     final strength = data['strength'];
     final infoExtracted = data['infoExtracted'];
     final sourceTypeRaw = data['sourceType'];
+    final bundleSource = data['bundleSource'];
 
     // 验证字段类型
     if (displayName != null && displayName is! String) {
@@ -553,6 +555,9 @@ class VibeImageEmbedder {
     }
     if (infoExtracted != null && infoExtracted is! num) {
       throw VibeExtractException('Invalid infoExtracted type: ${infoExtracted.runtimeType}');
+    }
+    if (bundleSource != null && bundleSource is! String) {
+      throw VibeExtractException('Invalid bundleSource type: ${bundleSource.runtimeType}');
     }
 
     // 解析 sourceType
@@ -575,6 +580,7 @@ class VibeImageEmbedder {
       strength: (strength as num?)?.toDouble() ?? 0.6,
       infoExtracted: (infoExtracted as num?)?.toDouble() ?? 1.0,
       sourceType: sourceType,
+      bundleSource: bundleSource as String?,
     );
   }
 
@@ -687,41 +693,27 @@ class VibeImageEmbedder {
     }
 
     try {
-      // 使用流式解码器，边解压边检查大小
-      final inputStream = InputStream(bytes);
-      final decoder = ZLibDecoder();
-      final output = BytesBuilder(copy: false);
-      var totalDecompressed = 0;
+      // 使用 archive 包的 ZLibDecoder 进行解码
+      const decoder = ZLibDecoder();
+      final result = decoder.decodeBytes(bytes);
 
-      // 创建输出流，在写入时检查大小限制
-      final outputStream = OutputStream(
-        onByte: (byte) {
-          if (totalDecompressed >= _maxDecompressedSize) {
-            throw VibeExtractException(
-              'Decompressed data exceeds maximum size of $_maxDecompressedSize bytes '
-              '(possible zip bomb attack)',
-            );
-          }
-          output.addByte(byte);
-          totalDecompressed++;
-        },
-      );
+      // 检查解压后的大小
+      if (result.length > _maxDecompressedSize) {
+        throw VibeExtractException(
+          'Decompressed data exceeds maximum size of $_maxDecompressedSize bytes '
+          '(possible zip bomb attack)',
+        );
+      }
 
-      decoder.decodeStream(inputStream, outputStream);
-      return output.toBytes();
+      return result;
     } on VibeExtractException {
       rethrow;
     } catch (e) {
-      // 如果流式解码失败，回退到普通解码（但仍检查大小）
-      const decoder = ZLibDecoder();
-      final result = decoder.decodeBytes(bytes);
-      if (result.length > _maxDecompressedSize) {
-        throw VibeExtractException(
-          'Decompressed data too large: ${result.length} bytes '
-          '(max: $_maxDecompressedSize)',
-        );
-      }
-      return result;
+      // 解码失败，拒绝数据
+      throw VibeExtractException(
+        'Failed to decompress data: $e. '
+        'Possible corrupted or malicious data.',
+      );
     }
   }
 
@@ -775,6 +767,14 @@ class VibeImageEmbedder {
         AppLogger.d('Found thumbnail field, length: ${thumbnailBase64.length}', 'VibeImageEmbedder');
         final base64Data = _extractBase64FromDataUri(thumbnailBase64);
         if (base64Data != null) {
+          // 检查 base64 编码数据大小，防止内存溢出
+          // base64 解码后大小 ≈ 编码大小 * 3/4
+          if (base64Data.length > _maxBase64DecodedSize * 4 ~/ 3) {
+            throw VibeExtractException(
+              'Base64 thumbnail data too large: ${base64Data.length} bytes '
+              '(max encoded: ${_maxBase64DecodedSize * 4 ~/ 3})',
+            );
+          }
           return base64.decode(base64Data);
         }
       }
@@ -785,6 +785,13 @@ class VibeImageEmbedder {
         AppLogger.d('Found image field, length: ${imageBase64.length}', 'VibeImageEmbedder');
         final base64Data = _extractBase64FromDataUri(imageBase64);
         if (base64Data != null) {
+          // 检查 base64 编码数据大小，防止内存溢出
+          if (base64Data.length > _maxBase64DecodedSize * 4 ~/ 3) {
+            throw VibeExtractException(
+              'Base64 image data too large: ${base64Data.length} bytes '
+              '(max encoded: ${_maxBase64DecodedSize * 4 ~/ 3})',
+            );
+          }
           return base64.decode(base64Data);
         }
       }
@@ -874,6 +881,14 @@ class VibeImageEmbedder {
     try {
       final thumbnailBase64 = dataRaw['thumbnail'] as String?;
       if (thumbnailBase64 != null && thumbnailBase64.isNotEmpty) {
+        // 检查 base64 编码数据大小，防止内存溢出
+        // base64 解码后大小 ≈ 编码大小 * 3/4
+        if (thumbnailBase64.length > _maxBase64DecodedSize * 4 ~/ 3) {
+          throw VibeExtractException(
+            'Base64 thumbnail data too large: ${thumbnailBase64.length} bytes '
+            '(max encoded: ${_maxBase64DecodedSize * 4 ~/ 3})',
+          );
+        }
         return base64.decode(thumbnailBase64);
       }
     } catch (e) {
