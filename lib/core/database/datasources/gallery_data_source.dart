@@ -825,43 +825,52 @@ class GalleryDataSource extends EnhancedBaseDataSource {
   ///
   /// 返回一个 Map，键为文件路径，值为对应的图片ID（如果找不到则为 null）
   /// 使用单个查询批量获取，比多次调用 getImageIdByPath 更高效
+  ///
+  /// 注意：SQLite 有 999 个参数限制，使用分批处理避免超出限制
   Future<Map<String, int?>> getImageIdsByPaths(List<String> filePaths) async {
     if (filePaths.isEmpty) return {};
 
     try {
-      return await execute(
-        'getImageIdsByPaths',
-        (db) async {
-          // 构建 IN 子句的占位符
-          final placeholders = List.filled(filePaths.length, '?').join(',');
+      final result = <String, int?>{};
 
-          final result = await db.rawQuery(
-            '''
-            SELECT id, file_path FROM $_imagesTable
-            WHERE file_path IN ($placeholders) AND is_deleted = 0
-            ''',
-            filePaths,
-          );
+      // SQLite 有 999 个参数限制，每批使用 900 个参数以确保安全
+      const batchSize = 900;
+      final chunks = _chunk(filePaths, batchSize);
 
-          // 构建结果映射
-          final pathToId = <String, int?>{};
-          for (final row in result) {
-            final path = row['file_path'] as String?;
-            if (path == null) continue;
-            final id = (row['id'] as num?)?.toInt();
-            pathToId[path] = id;
-          }
+      for (final chunk in chunks) {
+        await execute(
+          'getImageIdsByPaths',
+          (db) async {
+            // 构建 IN 子句的占位符
+            final placeholders = List.filled(chunk.length, '?').join(',');
 
-          // 为未找到的路径填充 null
-          for (final path in filePaths) {
-            pathToId.putIfAbsent(path, () => null);
-          }
+            final dbResult = await db.rawQuery(
+              '''
+              SELECT id, file_path FROM $_imagesTable
+              WHERE file_path IN ($placeholders) AND is_deleted = 0
+              ''',
+              chunk,
+            );
 
-          return pathToId;
-        },
-        timeout: const Duration(seconds: 30),
-        maxRetries: 3,
-      );
+            // 构建结果映射
+            for (final row in dbResult) {
+              final path = row['file_path'] as String?;
+              if (path == null) continue;
+              final id = (row['id'] as num?)?.toInt();
+              result[path] = id;
+            }
+          },
+          timeout: const Duration(seconds: 30),
+          maxRetries: 3,
+        );
+      }
+
+      // 为未找到的路径填充 null
+      for (final path in filePaths) {
+        result.putIfAbsent(path, () => null);
+      }
+
+      return result;
     } catch (e, stack) {
       AppLogger.e(
         'Failed to get image IDs by paths: ${filePaths.length} paths',
@@ -1109,16 +1118,12 @@ class GalleryDataSource extends EnhancedBaseDataSource {
         });
 
         // 清除相关缓存
-        for (final path in filePaths) {
-          final result = await db.rawQuery(
-            'SELECT id FROM $_imagesTable WHERE file_path = ?',
-            [path],
-          );
-          if (result.isNotEmpty) {
-            final id = (result.first['id'] as num?)?.toInt();
-            if (id != null) {
-              _imageCache.remove(id);
-            }
+        // 使用 getImageIdsByPaths 批量获取 ID，避免对每个文件路径执行额外查询
+        final pathToIdMap = await getImageIdsByPaths(filePaths);
+        for (final entry in pathToIdMap.entries) {
+          final id = entry.value;
+          if (id != null) {
+            _imageCache.remove(id);
           }
         }
 
@@ -1359,39 +1364,45 @@ class GalleryDataSource extends EnhancedBaseDataSource {
     // 从数据库查询缺失的记录
     if (missingIds.isNotEmpty) {
       try {
-        await execute(
-          'getMetadataByImageIds',
-          (db) async {
-            // 构建 IN 子句的占位符
-            final placeholders = List.filled(missingIds.length, '?').join(',');
+        // SQLite 有 999 个参数限制，每批使用 900 个参数以确保安全
+        const batchSize = 900;
+        final chunks = _chunk(missingIds, batchSize);
 
-            final dbResults = await db.rawQuery(
-              '''
-              SELECT * FROM $_metadataTable
-              WHERE image_id IN ($placeholders)
-              ''',
-              missingIds,
-            );
+        for (final chunk in chunks) {
+          await execute(
+            'getMetadataByImageIds',
+            (db) async {
+              // 构建 IN 子句的占位符
+              final placeholders = List.filled(chunk.length, '?').join(',');
 
-            // 先为所有缺失的ID设置 null
-            for (final id in missingIds) {
-              results[id] = null;
-            }
+              final dbResults = await db.rawQuery(
+                '''
+                SELECT * FROM $_metadataTable
+                WHERE image_id IN ($placeholders)
+                ''',
+                chunk,
+              );
 
-            // 填充查询到的记录
-            for (final row in dbResults) {
-              final record = GalleryMetadataRecord.fromMap(row);
-              final id = record.imageId;
+              // 先为所有缺失的ID设置 null
+              for (final id in chunk) {
+                results[id] = null;
+              }
 
-              results[id] = record;
+              // 填充查询到的记录
+              for (final row in dbResults) {
+                final record = GalleryMetadataRecord.fromMap(row);
+                final id = record.imageId;
 
-              // 存入缓存
-              _metadataCache.put(id, record);
-            }
-          },
-          timeout: const Duration(seconds: 30),
-          maxRetries: 3,
-        );
+                results[id] = record;
+
+                // 存入缓存
+                _metadataCache.put(id, record);
+              }
+            },
+            timeout: const Duration(seconds: 30),
+            maxRetries: 3,
+          );
+        }
       } catch (e, stack) {
         AppLogger.e(
           'Failed to get metadata by image IDs: ${imageIds.length} IDs',
@@ -1555,38 +1566,43 @@ class GalleryDataSource extends EnhancedBaseDataSource {
     if (imageIds.isEmpty) return {};
 
     try {
-      return await execute(
-        'getFavoritesByImageIds',
-        (db) async {
-          // 构建 IN 子句的占位符
-          final placeholders = List.filled(imageIds.length, '?').join(',');
+      final favoritesMap = <int, bool>{
+        for (final id in imageIds) id: false,
+      };
 
-          final result = await db.rawQuery(
-            '''
-            SELECT image_id FROM $_favoritesTable
-            WHERE image_id IN ($placeholders)
-            ''',
-            imageIds,
-          );
+      // SQLite 有 999 个参数限制，每批使用 900 个参数以确保安全
+      const batchSize = 900;
+      final chunks = _chunk(imageIds, batchSize);
 
-          // 构建结果映射，所有请求的图片默认为未收藏
-          final favoritesMap = <int, bool>{
-            for (final id in imageIds) id: false,
-          };
+      for (final chunk in chunks) {
+        await execute(
+          'getFavoritesByImageIds',
+          (db) async {
+            // 构建 IN 子句的占位符
+            final placeholders = List.filled(chunk.length, '?').join(',');
 
-          // 标记已收藏的图片
-          for (final row in result) {
-            final id = (row['image_id'] as num?)?.toInt();
-            if (id != null) {
-              favoritesMap[id] = true;
+            final result = await db.rawQuery(
+              '''
+              SELECT image_id FROM $_favoritesTable
+              WHERE image_id IN ($placeholders)
+              ''',
+              chunk,
+            );
+
+            // 标记已收藏的图片
+            for (final row in result) {
+              final id = (row['image_id'] as num?)?.toInt();
+              if (id != null) {
+                favoritesMap[id] = true;
+              }
             }
-          }
+          },
+          timeout: const Duration(seconds: 30),
+          maxRetries: 3,
+        );
+      }
 
-          return favoritesMap;
-        },
-        timeout: const Duration(seconds: 30),
-        maxRetries: 3,
-      );
+      return favoritesMap;
     } catch (e, stack) {
       AppLogger.e(
         'Failed to get favorites by image IDs: ${imageIds.length} IDs',
@@ -1849,42 +1865,47 @@ class GalleryDataSource extends EnhancedBaseDataSource {
     if (imageIds.isEmpty) return {};
 
     try {
-      return await execute(
-        'getTagsByImageIds',
-        (db) async {
-          // 构建 IN 子句的占位符
-          final placeholders = List.filled(imageIds.length, '?').join(',');
+      final tagsMap = <int, List<String>>{
+        for (final id in imageIds) id: const <String>[],
+      };
 
-          final results = await db.rawQuery(
-            '''
-            SELECT it.image_id, t.name
-            FROM $_tagsTable t
-            INNER JOIN $_imageTagsTable it ON t.id = it.tag_id
-            WHERE it.image_id IN ($placeholders)
-            ORDER BY t.name ASC
-            ''',
-            imageIds,
-          );
+      // SQLite 有 999 个参数限制，每批使用 900 个参数以确保安全
+      const batchSize = 900;
+      final chunks = _chunk(imageIds, batchSize);
 
-          // 构建结果映射，所有请求的图片默认为空标签列表
-          final tagsMap = <int, List<String>>{
-            for (final id in imageIds) id: const <String>[],
-          };
+      for (final chunk in chunks) {
+        await execute(
+          'getTagsByImageIds',
+          (db) async {
+            // 构建 IN 子句的占位符
+            final placeholders = List.filled(chunk.length, '?').join(',');
 
-          // 填充每个图片的标签
-          for (final row in results) {
-            final id = (row['image_id'] as num?)?.toInt();
-            final tagName = row['name'] as String?;
-            if (id != null && tagName != null) {
-              tagsMap[id]!.add(tagName);
+            final results = await db.rawQuery(
+              '''
+              SELECT it.image_id, t.name
+              FROM $_tagsTable t
+              INNER JOIN $_imageTagsTable it ON t.id = it.tag_id
+              WHERE it.image_id IN ($placeholders)
+              ORDER BY t.name ASC
+              ''',
+              chunk,
+            );
+
+            // 填充每个图片的标签
+            for (final row in results) {
+              final id = (row['image_id'] as num?)?.toInt();
+              final tagName = row['name'] as String?;
+              if (id != null && tagName != null) {
+                tagsMap[id]!.add(tagName);
+              }
             }
-          }
+          },
+          timeout: const Duration(seconds: 30),
+          maxRetries: 3,
+        );
+      }
 
-          return tagsMap;
-        },
-        timeout: const Duration(seconds: 30),
-        maxRetries: 3,
-      );
+      return tagsMap;
     } catch (e, stack) {
       AppLogger.e(
         'Failed to get tags by image IDs: ${imageIds.length} IDs',

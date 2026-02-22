@@ -472,14 +472,15 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       }
     }
 
-    // 2. 批量获取收藏状态（1次查询）
-    final favoritesMap = await dataSource.getFavoritesByImageIds(imageIds);
-
-    // 3. 批量获取标签（1次查询）
-    final tagsMap = await dataSource.getTagsByImageIds(imageIds);
-
-    // 4. 批量获取元数据（1次查询）
-    final metadataMap = await dataSource.getMetadataByImageIds(imageIds);
+    // 2-4. 批量获取收藏状态、标签和元数据（并行执行，共3次查询）
+    final results = await Future.wait([
+      dataSource.getFavoritesByImageIds(imageIds),
+      dataSource.getTagsByImageIds(imageIds),
+      dataSource.getMetadataByImageIds(imageIds),
+    ]);
+    final favoritesMap = results[0] as Map<int, bool>;
+    final tagsMap = results[1] as Map<int, List<String>>;
+    final metadataMap = results[2] as Map<int, GalleryMetadataRecord?>;
 
     // 构建记录列表
     final records = <LocalImageRecord>[];
