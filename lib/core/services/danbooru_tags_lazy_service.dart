@@ -59,6 +59,10 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   AutoRefreshInterval _refreshInterval = AutoRefreshInterval.days30;
   bool _isCancelled = false;
 
+  /// 元数据加载 Future，用于防止 race condition
+  /// 当多个调用同时需要加载元数据时，共享同一个 Future
+  Future<void>? _metaLoadFuture;
+
   @override
   DataSourceProgressCallback? get onProgress => _onProgress;
 
@@ -866,6 +870,22 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   }
 
   Future<void> _loadMeta() async {
+    // 如果已经有正在进行的加载操作，等待它完成
+    if (_metaLoadFuture != null) {
+      return _metaLoadFuture!;
+    }
+
+    // 创建新的加载 Future 并跟踪它
+    _metaLoadFuture = _doLoadMeta();
+
+    try {
+      await _metaLoadFuture!;
+    } finally {
+      _metaLoadFuture = null;
+    }
+  }
+
+  Future<void> _doLoadMeta() async {
     try {
       final cacheDir = await _getCacheDirectory();
       final metaFile = File('${cacheDir.path}/$_metaFileName');
@@ -880,19 +900,19 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       }
 
       final prefs = await SharedPreferences.getInstance();
-      
+
       // 加载三个类别的独立阈值
       _generalThreshold = prefs.getInt(StorageKeys.danbooruGeneralThreshold) ?? _generalThreshold;
       _artistThreshold = prefs.getInt(StorageKeys.danbooruArtistThreshold) ?? 500;
       _characterThreshold = prefs.getInt(StorageKeys.danbooruCharacterThreshold) ?? 100;
       _copyrightThreshold = prefs.getInt(StorageKeys.danbooruCopyrightThreshold) ?? 500;
       _metaThreshold = prefs.getInt(StorageKeys.danbooruMetaThreshold) ?? 10000;
-      
+
       final days = prefs.getInt(StorageKeys.danbooruTagsRefreshIntervalDays);
       if (days != null) {
         _refreshInterval = AutoRefreshInterval.fromDays(days);
       }
-      
+
       AppLogger.i(
         'Loaded category thresholds: general=$_generalThreshold, '
         'artist=$_artistThreshold, character=$_characterThreshold, '
@@ -1070,8 +1090,15 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
   /// 是否应该后台刷新（不阻塞启动）
   Future<bool> shouldRefreshInBackground() async {
+    // 如果 _lastUpdate 为 null，可能是元数据尚未加载
+    // 使用 _metaLoadFuture 来确保不会并发加载元数据
     if (_lastUpdate == null) {
-      await _loadMeta();
+      // 如果有正在进行的加载，等待它完成
+      if (_metaLoadFuture != null) {
+        await _metaLoadFuture;
+      } else {
+        await _loadMeta();
+      }
     }
     return _refreshInterval.shouldRefresh(_lastUpdate);
   }

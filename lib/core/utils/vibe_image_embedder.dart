@@ -96,21 +96,19 @@ class VibeImageEmbedder {
     }
 
     try {
-      // 使用 Future 包裹整个操作，包括序列化，确保超时覆盖完整流程
-      return await Future(() async {
-        // 将 VibeReference 转换为可序列化的数据
-        final vibesData = vibeReferences
-            .map((ref) => _vibeReferenceToData(ref))
-            .toList();
+      // 将 VibeReference 转换为可序列化的数据
+      final vibesData = vibeReferences
+          .map((ref) => _vibeReferenceToData(ref))
+          .toList();
 
-        final params = _EmbedVibesParams(
-          imageBytes: imageBytes,
-          vibeReferencesData: vibesData,
-        );
+      final params = _EmbedVibesParams(
+        imageBytes: imageBytes,
+        vibeReferencesData: vibesData,
+      );
 
-        // 使用 compute() 在 Isolate 中执行嵌入操作
-        return await compute(_embedVibesIsolate, params);
-      }).timeout(_embedTimeout);
+      // 使用 compute() 在 Isolate 中执行嵌入操作，添加超时保护
+      return await compute(_embedVibesIsolate, params)
+          .timeout(_embedTimeout);
     } on TimeoutException {
       AppLogger.w('[VibeImageEmbedder] Vibe embedding timeout', 'VibeImageEmbedder');
       throw VibeEmbedException('Vibe embedding operation timed out');
@@ -390,24 +388,20 @@ class VibeImageEmbedder {
     }
 
     try {
-      // 使用 Future 包裹整个操作，确保超时覆盖完整流程（包括结果反序列化）
-      final result = await Future(() async {
-        // 使用 compute() 在 Isolate 中执行提取，避免阻塞 UI
-        final isolateResult = await compute(_extractVibesFromImageIsolate, imageBytes);
+      // 使用 compute() 在 Isolate 中执行提取，避免阻塞 UI，添加超时保护
+      final result = await compute(_extractVibesFromImageIsolate, imageBytes)
+          .timeout(_extractTimeout);
 
-        // 将序列化的结果转换回 VibeReference 对象
-        final vibes = isolateResult.vibesData.map((data) {
-          final vibeRef = _vibeDataToReference(data);
-          // 如果没有缩略图，使用原始图片
-          return vibeRef.thumbnail == null
-              ? vibeRef.copyWith(thumbnail: imageBytes)
-              : vibeRef;
-        }).toList();
+      // 将序列化的结果转换回 VibeReference 对象
+      final vibes = result.vibesData.map((data) {
+        final vibeRef = _vibeDataToReference(data);
+        // 如果没有缩略图，使用原始图片
+        return vibeRef.thumbnail == null
+            ? vibeRef.copyWith(thumbnail: imageBytes)
+            : vibeRef;
+      }).toList();
 
-        return (vibes: vibes, isBundle: isolateResult.isBundle);
-      }).timeout(_extractTimeout);
-
-      return result;
+      return (vibes: vibes, isBundle: result.isBundle);
     } on TimeoutException {
       AppLogger.w('[VibeImageEmbedder] Vibe extraction timeout', 'VibeImageEmbedder');
       throw VibeExtractException('Vibe extraction operation timed out');
