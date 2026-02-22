@@ -22,7 +22,6 @@ import '../../providers/selection_mode_provider.dart';
 import '../../widgets/danbooru_login_dialog.dart';
 import '../../widgets/danbooru_post_card.dart';
 import '../../widgets/online_gallery/post_detail_dialog.dart';
-import '../../widgets/virtualized_masonry_grid.dart';
 
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/bulk_action_bar.dart';
@@ -1069,17 +1068,27 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     // 注意：这可能会触发多次 API 调用，理想情况下应该有批量 API
     // 这里为了简化，我们只对未收藏的进行收藏操作
     int count = 0;
+    int failCount = 0;
     for (final idStr in selectedIds) {
       final id = int.tryParse(idStr);
       if (id != null && !galleryState.favoritedPostIds.contains(id)) {
-        await _galleryNotifier.toggleFavorite(id);
-        count++;
+        try {
+          await _galleryNotifier.toggleFavorite(id);
+          count++;
+        } catch (e) {
+          failCount++;
+          debugPrint('Failed to favorite post $id: $e');
+        }
         await Future.delayed(const Duration(milliseconds: 100));
       }
     }
 
     if (mounted) {
-      AppToast.info(context, '已收藏 $count 张图片');
+      if (failCount > 0) {
+        AppToast.info(context, '已收藏 $count 张图片，失败 $failCount 张');
+      } else {
+        AppToast.info(context, '已收藏 $count 张图片');
+      }
       _selectionNotifier.exit();
     }
   }
@@ -1107,28 +1116,37 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     int successCount = 0;
     int failCount = 0;
 
-    // 并行下载
-    await Future.wait(
-      selectedPosts.map(
-        (post) async {
-          try {
-            final url = post.largeFileUrl ?? post.sampleUrl ?? post.previewUrl;
-            if (url.isEmpty) return;
+    // 使用批处理限制并发下载数量，避免网络连接耗尽和内存溢出
+    const concurrencyLimit = 10;
+    for (var i = 0; i < selectedPosts.length; i += concurrencyLimit) {
+      final batch = selectedPosts.sublist(
+        i,
+        i + concurrencyLimit > selectedPosts.length
+            ? selectedPosts.length
+            : i + concurrencyLimit,
+      );
+      await Future.wait(
+        batch.map(
+          (post) async {
+            try {
+              final url = post.largeFileUrl ?? post.sampleUrl ?? post.previewUrl;
+              if (url.isEmpty) return;
 
-            final file =
-                await DanbooruImageCacheManager.instance.getSingleFile(url);
-            final fileName = path.basename(Uri.parse(url).path);
-            final destination = path.join(result, fileName);
+              final file =
+                  await DanbooruImageCacheManager.instance.getSingleFile(url);
+              final fileName = path.basename(Uri.parse(url).path);
+              final destination = path.join(result, fileName);
 
-            await file.copy(destination);
-            successCount++;
-          } catch (e) {
-            failCount++;
-            debugPrint('Download failed for post ${post.id}: $e');
-          }
-        },
-      ),
-    );
+              await file.copy(destination);
+              successCount++;
+            } catch (e) {
+              failCount++;
+              debugPrint('Download failed for post ${post.id}: $e');
+            }
+          },
+        ),
+      );
+    }
 
     if (mounted) {
       AppToast.success(context, '下载完成: 成功 $successCount, 失败 $failCount');

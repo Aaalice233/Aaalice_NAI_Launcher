@@ -234,7 +234,10 @@ class VirtualizedMasonryGridWithHeights extends StatelessWidget {
             // 其次使用宽高比计算
             if (height == null && itemAspectRatioBuilder != null) {
               final aspectRatio = itemAspectRatioBuilder!(index);
-              if (aspectRatio != null && aspectRatio > 0) {
+              // 检查 aspectRatio 是否有效：大于 0.01 避免溢出，小于 100 避免不合理值
+              if (aspectRatio != null &&
+                  aspectRatio > 0.01 &&
+                  aspectRatio < 100) {
                 height = itemWidth / aspectRatio;
               }
             }
