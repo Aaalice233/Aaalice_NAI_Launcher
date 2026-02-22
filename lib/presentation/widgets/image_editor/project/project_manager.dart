@@ -168,13 +168,37 @@ class ProjectManager {
       return null;
     }
 
-    // 异步获取所有文件的 stat，然后按修改时间排序
-    final filesWithStats = await Future.wait(
-      files.map((file) async {
-        final stat = await file.stat();
-        return (file: file, stat: stat);
-      }),
-    );
+    // 批处理获取文件 stat，每批20个，避免无界并发
+    const batchSize = 20;
+    final filesWithStats = <({File file, FileStat stat})>[];
+
+    for (var i = 0; i < files.length; i += batchSize) {
+      final end = (i + batchSize < files.length) ? i + batchSize : files.length;
+      final batch = files.sublist(i, end);
+
+      final batchStats = await Future.wait(
+        batch.map((file) async {
+          try {
+            final stat = await file.stat();
+            return (file: file, stat: stat);
+          } catch (e) {
+            // 如果 stat 失败（文件被删除、权限问题等），返回 epoch 时间
+            return (
+              file: file,
+              stat: FileStat(
+                changed: DateTime(0),
+                modified: DateTime(0),
+                accessed: DateTime(0),
+                type: FileSystemEntityType.notFound,
+                mode: 0,
+                size: 0,
+              )
+            );
+          }
+        }),
+      );
+      filesWithStats.addAll(batchStats);
+    }
 
     // 按修改时间排序
     filesWithStats.sort((a, b) => b.stat.modified.compareTo(a.stat.modified));
@@ -202,20 +226,48 @@ class ProjectManager {
       return;
     }
 
-    // 异步获取所有文件的 stat，然后按修改时间排序
-    final filesWithStats = await Future.wait(
-      files.map((file) async {
-        final stat = await file.stat();
-        return (file: file, stat: stat);
-      }),
-    );
+    // 批处理获取文件 stat，每批20个，避免无界并发
+    const batchSize = 20;
+    final filesWithStats = <({File file, FileStat stat})>[];
+
+    for (var i = 0; i < files.length; i += batchSize) {
+      final end = (i + batchSize < files.length) ? i + batchSize : files.length;
+      final batch = files.sublist(i, end);
+
+      final batchStats = await Future.wait(
+        batch.map((file) async {
+          try {
+            final stat = await file.stat();
+            return (file: file, stat: stat);
+          } catch (e) {
+            // 如果 stat 失败（文件被删除、权限问题等），返回 epoch 时间
+            return (
+              file: file,
+              stat: FileStat(
+                changed: DateTime(0),
+                modified: DateTime(0),
+                accessed: DateTime(0),
+                type: FileSystemEntityType.notFound,
+                mode: 0,
+                size: 0,
+              )
+            );
+          }
+        }),
+      );
+      filesWithStats.addAll(batchStats);
+    }
 
     // 按修改时间排序
     filesWithStats.sort((a, b) => b.stat.modified.compareTo(a.stat.modified));
 
-    // 删除旧文件
+    // 删除旧文件，添加异常处理
     for (int i = keepCount; i < filesWithStats.length; i++) {
-      await filesWithStats[i].file.delete();
+      try {
+        await filesWithStats[i].file.delete();
+      } catch (e) {
+        // 忽略删除失败的文件（可能已被删除或权限问题）
+      }
     }
   }
 }

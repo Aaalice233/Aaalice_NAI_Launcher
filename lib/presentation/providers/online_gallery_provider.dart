@@ -196,7 +196,7 @@ class OnlineGalleryState {
 
   /// 当前可见项目数量
   int get visibleItemCount =>
-      lastVisibleItemIndex - firstVisibleItemIndex + 1;
+      posts.isEmpty ? 0 : lastVisibleItemIndex - firstVisibleItemIndex + 1;
 
   OnlineGalleryState copyWith({
     bool? isLoading,
@@ -312,6 +312,11 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     // 只有当范围发生变化时才更新状态，避免不必要的重建
     if (state.firstVisibleItemIndex == firstIndex &&
         state.lastVisibleItemIndex == lastIndex) {
+      return;
+    }
+
+    // 空列表时直接返回，避免 clamp 抛出 RangeError
+    if (state.posts.isEmpty) {
       return;
     }
 
