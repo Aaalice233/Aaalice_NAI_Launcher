@@ -1013,6 +1013,102 @@ class GalleryDataSource extends EnhancedBaseDataSource {
     });
   }
 
+  /// 批量插入或更新图片记录
+  ///
+  /// [records] 图片记录列表
+  /// [batchSize] 每批处理数量（默认50，建议50-100）
+  ///
+  /// 使用事务批量处理，每批使用 executeTransaction 保证原子性。
+  /// 返回插入/更新后的图片ID列表，顺序与输入列表一致。
+  Future<List<int>> batchUpsertImages(
+    List<GalleryImageRecord> records, {
+    int batchSize = 50,
+  }) async {
+    if (records.isEmpty) return [];
+
+    final results = <int>[];
+    final now = DateTime.now();
+
+    // 分批处理
+    for (var i = 0; i < records.length; i += batchSize) {
+      final end = (i + batchSize < records.length) ? i + batchSize : records.length;
+      final batch = records.sublist(i, end);
+      final batchIndex = i ~/ batchSize;
+
+      final batchResults = await executeTransaction(
+        'batchUpsertImages#batch$batchIndex',
+        (txn) async {
+          final batchIds = <int>[];
+
+          for (final record in batch) {
+            final dateYmd = _formatDateYmd(record.modifiedAt);
+
+            // 首先尝试获取现有记录的ID（如果存在）
+            final existingResult = await txn.rawQuery(
+              'SELECT id FROM $_imagesTable WHERE file_path = ?',
+              [record.filePath],
+            );
+            final existingId = existingResult.isNotEmpty
+                ? (existingResult.first['id'] as num?)?.toInt()
+                : null;
+
+            // 如果存在，清除缓存
+            if (existingId != null) {
+              _imageCache.remove(existingId);
+            }
+
+            final map = {
+              'file_path': record.filePath,
+              'file_name': record.fileName,
+              'file_size': record.fileSize,
+              'file_hash': record.fileHash,
+              'width': record.width,
+              'height': record.height,
+              'aspect_ratio': record.aspectRatio,
+              'created_at': record.createdAt.millisecondsSinceEpoch,
+              'modified_at': record.modifiedAt.millisecondsSinceEpoch,
+              'indexed_at': now.millisecondsSinceEpoch,
+              'date_ymd': dateYmd,
+              'resolution_key': record.resolutionKey,
+              'metadata_status': record.metadataStatus.index,
+              'is_favorite': record.isFavorite ? 1 : 0,
+              'is_deleted': record.isDeleted ? 1 : 0,
+            };
+
+            if (existingId != null) {
+              map['id'] = existingId;
+            }
+
+            final id = await txn.insert(
+              _imagesTable,
+              map,
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+
+            batchIds.add(id);
+          }
+
+          return batchIds;
+        },
+        timeout: const Duration(seconds: 60),
+      );
+
+      results.addAll(batchResults);
+
+      // 批次间让出时间片，避免阻塞主线程
+      if (end < records.length) {
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
+    }
+
+    AppLogger.i(
+      'Batch upserted ${records.length} images in ${(records.length / batchSize).ceil()} batches',
+      'GalleryDS',
+    );
+
+    return results;
+  }
+
   /// 批量标记图片为已删除（软删除）
   ///
   /// 使用事务批量处理
@@ -1201,6 +1297,129 @@ class GalleryDataSource extends EnhancedBaseDataSource {
       timeout: const Duration(seconds: 5),
       maxRetries: 1,
     );
+  }
+
+  /// 批量插入或更新元数据
+  ///
+  /// [metadataList] 元数据映射列表 (imageId -> metadata)
+  /// [batchSize] 每批处理数量（默认50，建议50-100）
+  ///
+  /// 使用事务批量处理，每批使用 executeTransaction 保证原子性。
+  /// 批量更新 FTS5 索引，在批次内统一处理以提高效率。
+  /// 清除受影响图片的元数据缓存。
+  Future<void> batchUpsertMetadata(
+    List<MapEntry<int, NaiImageMetadata>> metadataList, {
+    int batchSize = 50,
+  }) async {
+    if (metadataList.isEmpty) return;
+
+    // 分批处理
+    for (var i = 0; i < metadataList.length; i += batchSize) {
+      final end = (i + batchSize < metadataList.length)
+          ? i + batchSize
+          : metadataList.length;
+      final batch = metadataList.sublist(i, end);
+      final batchIndex = i ~/ batchSize;
+
+      await executeTransaction(
+        'batchUpsertMetadata#batch$batchIndex',
+        (txn) async {
+          final ftsUpdates = <int, String>{};
+
+          for (final entry in batch) {
+            final imageId = entry.key;
+            final metadata = entry.value;
+            final fullPromptText = _buildFullPromptText(metadata);
+
+            // 插入或更新元数据
+            await txn.insert(
+              _metadataTable,
+              {
+                'image_id': imageId,
+                'prompt': metadata.prompt,
+                'negative_prompt': metadata.negativePrompt,
+                'seed': metadata.seed,
+                'sampler': metadata.sampler,
+                'steps': metadata.steps,
+                'cfg_scale': metadata.scale,
+                'width': metadata.width,
+                'height': metadata.height,
+                'model': metadata.model,
+                'smea': metadata.smea == true ? 1 : 0,
+                'smea_dyn': metadata.smeaDyn == true ? 1 : 0,
+                'noise_schedule': metadata.noiseSchedule,
+                'cfg_rescale': metadata.cfgRescale,
+                'uc_preset': metadata.ucPreset,
+                'quality_toggle': metadata.qualityToggle == true ? 1 : 0,
+                'is_img2img': metadata.isImg2Img ? 1 : 0,
+                'strength': metadata.strength,
+                'noise': metadata.noise,
+                'software': metadata.software,
+                'source': metadata.source,
+                'version': metadata.version,
+                'raw_json': metadata.rawJson,
+                'has_metadata': metadata.hasData ? 1 : 0,
+                'full_prompt_text': fullPromptText,
+              },
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+
+            // 收集 FTS 更新
+            ftsUpdates[imageId] = fullPromptText;
+
+            // 清除该图片的元数据缓存
+            _metadataCache.remove(imageId);
+          }
+
+          // 批量更新 FTS5 索引
+          await _batchUpdateFtsIndex(txn, ftsUpdates);
+        },
+        timeout: const Duration(seconds: 60),
+      );
+
+      // 批次间让出时间片，避免阻塞主线程
+      if (end < metadataList.length) {
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
+    }
+
+    AppLogger.i(
+      'Batch upserted ${metadataList.length} metadata in ${(metadataList.length / batchSize).ceil()} batches',
+      'GalleryDS',
+    );
+  }
+
+  /// 批量更新 FTS5 索引（事务内）
+  ///
+  /// [txn] 事务对象
+  /// [updates] 更新映射 (imageId -> promptText)
+  Future<void> _batchUpdateFtsIndex(
+    Transaction txn,
+    Map<int, String> updates,
+  ) async {
+    if (updates.isEmpty) return;
+
+    try {
+      // 批量删除旧索引
+      final placeholders = List.filled(updates.length, '?').join(',');
+      await txn.rawDelete(
+        'DELETE FROM $_ftsIndexTable WHERE image_id IN ($placeholders)',
+        updates.keys.toList(),
+      );
+
+      // 批量插入新索引
+      final batch = txn.batch();
+      for (final entry in updates.entries) {
+        batch.insert(_ftsIndexTable, {
+          'image_id': entry.key,
+          'prompt_text': entry.value,
+        });
+      }
+      await batch.commit(noResult: true);
+    } catch (e) {
+      AppLogger.w('Failed to batch update FTS index: $e', 'GalleryDS');
+      // FTS 更新失败不应影响主流程
+    }
   }
 
   /// 根据图片ID获取元数据
@@ -1397,10 +1616,17 @@ class GalleryDataSource extends EnhancedBaseDataSource {
 
     try {
       // 处理搜索词，添加通配符支持
+      // 转义 FTS5 特殊字符（双引号）以防止查询注入
+      String _escapeFts5(String input) {
+        // 移除或转义 FTS5 特殊字符
+        // 双引号用于标识列名，需要转义
+        return input.replaceAll('"', '""');
+      }
+
       final searchQuery = query
           .split(RegExp(r'\s+'))
           .where((s) => s.isNotEmpty)
-          .map((s) => '"$s"*')
+          .map((s) => '"${_escapeFts5(s)}"*')
           .join(' OR ');
 
       return await execute(

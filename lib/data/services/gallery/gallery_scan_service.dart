@@ -37,6 +37,11 @@ typedef ScanProgressCallback = void Function({
   required String phase,
 });
 
+/// 扫描优先级
+/// - [high]: UI触发的扫描，需要快速响应
+/// - [low]: 后台扫描操作，主动让出时间片避免阻塞UI
+enum ScanPriority { high, low }
+
 /// 批量解析结果（从 isolate 返回）
 class _ParseResult {
   final List<({String path, NaiImageMetadata? metadata, int? width, int? height})> results;
@@ -55,9 +60,14 @@ class GalleryScanService {
 
   static const List<String> _supportedExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
   static const int _batchSize = 50;
-  
+
   /// 使用 isolate 的阈值
   static const int _isolateThreshold = 500;
+
+  /// 高优先级扫描延迟（毫秒）- 用于 UI 触发的扫描
+  static const int _kHighPriorityDelayMs = 10;
+  /// 低优先级扫描延迟（毫秒）- 用于后台扫描，避免阻塞 UI
+  static const int _kLowPriorityDelayMs = 50;
 
   GalleryScanService({required GalleryDataSource dataSource}) : _dataSource = dataSource;
 
@@ -102,6 +112,7 @@ class GalleryScanService {
     Directory rootDir, {
     int maxFiles = 100,
     ScanProgressCallback? onProgress,
+    ScanPriority priority = ScanPriority.high,
   }) async {
     final stopwatch = Stopwatch()..start();
     final result = ScanResult();
@@ -146,6 +157,7 @@ class GalleryScanService {
           result,
           isFullScan: false,
           onProgress: onProgress,
+          priority: priority,
         );
       }
 
@@ -165,6 +177,7 @@ class GalleryScanService {
   Future<ScanResult> incrementalScan(
     Directory rootDir, {
     ScanProgressCallback? onProgress,
+    ScanPriority priority = ScanPriority.low,
   }) async {
     final stopwatch = Stopwatch()..start();
     final result = ScanResult();
@@ -208,6 +221,7 @@ class GalleryScanService {
           result,
           isFullScan: false,
           onProgress: onProgress,
+          priority: priority,
         );
       }
 
@@ -236,6 +250,7 @@ class GalleryScanService {
   Future<ScanResult> fullScan(
     Directory rootDir, {
     ScanProgressCallback? onProgress,
+    ScanPriority priority = ScanPriority.low,
   }) async {
     final stopwatch = Stopwatch()..start();
     final result = ScanResult();
@@ -251,6 +266,7 @@ class GalleryScanService {
         result,
         isFullScan: true,
         onProgress: onProgress,
+        priority: priority,
       );
 
     } catch (e, stack) {
@@ -272,9 +288,15 @@ class GalleryScanService {
   /// - 从旧数据库迁移的图片没有元数据
   /// - 之前扫描时元数据解析失败
   /// - 手动复制到文件夹的图片
+  ///
+  /// 实现特点：
+  /// - 使用后台 isolate 批量解析元数据
+  /// - 批次间 yield 让出时间片，避免阻塞 UI
+  /// - 及时释放数据库连接压力
   Future<ScanResult> fillMissingMetadata({
     ScanProgressCallback? onProgress,
     int batchSize = 100,
+    ScanPriority priority = ScanPriority.low,
   }) async {
     final stopwatch = Stopwatch()..start();
     final result = ScanResult();
@@ -288,6 +310,8 @@ class GalleryScanService {
 
       // 筛选出 PNG 文件且缺少元数据的
       final filesNeedMetadata = <File>[];
+      final imageIdMap = <String, int>{}; // path -> imageId
+
       for (final image in allImages) {
         if (image.isDeleted) continue;
 
@@ -301,6 +325,7 @@ class GalleryScanService {
           final file = File(image.filePath);
           if (await file.exists()) {
             filesNeedMetadata.add(file);
+            imageIdMap[image.filePath] = image.id!;
           }
         }
       }
@@ -315,24 +340,18 @@ class GalleryScanService {
         return result;
       }
 
-      // 分批处理，避免内存占用过大
-      for (var i = 0; i < filesNeedMetadata.length; i += batchSize) {
-        final batch = filesNeedMetadata.skip(i).take(batchSize).toList();
-        final batchNum = (i ~/ batchSize) + 1;
-        final totalBatches = ((filesNeedMetadata.length - 1) ~/ batchSize) + 1;
-
-        AppLogger.d('处理批次 $batchNum/$totalBatches: ${batch.length} 张图片', 'GalleryScanService');
-        onProgress?.call(
-          processed: i,
-          total: filesNeedMetadata.length,
-          phase: 'filling_metadata_batch_$batchNum',
-        );
-
-        await _processFilesSmart(batch, result, isFullScan: false);
-      }
+      // 使用 isolate 批量处理，避免阻塞主线程
+      await _processMetadataBatchesWithIsolate(
+        filesNeedMetadata,
+        imageIdMap,
+        result,
+        batchSize: batchSize,
+        onProgress: onProgress,
+        priority: priority,
+      );
 
       AppLogger.i(
-        '查漏补缺完成: ${result.filesAdded} 新增, ${result.filesUpdated} 更新',
+        '查漏补缺完成: ${result.filesUpdated} 张图片已更新元数据',
         'GalleryScanService',
       );
 
@@ -347,12 +366,102 @@ class GalleryScanService {
     return result;
   }
 
+  /// 使用 Isolate 批量处理元数据补充
+  ///
+  /// 特点：
+  /// - 在 isolate 中解析元数据，避免阻塞 UI
+  /// - 批次间 yield 让出时间片
+  /// - 每批处理完后释放数据库连接压力
+  Future<void> _processMetadataBatchesWithIsolate(
+    List<File> files,
+    Map<String, int> imageIdMap,
+    ScanResult result, {
+    required int batchSize,
+    ScanProgressCallback? onProgress,
+    ScanPriority priority = ScanPriority.low,
+  }) async {
+    int processedCount = 0;
+    final totalFiles = files.length;
+
+    for (var i = 0; i < files.length; i += batchSize) {
+      final batch = files.skip(i).take(batchSize).toList();
+      final batchNum = (i ~/ batchSize) + 1;
+      final totalBatches = ((files.length - 1) ~/ batchSize) + 1;
+
+      AppLogger.d('处理批次 $batchNum/$totalBatches: ${batch.length} 张图片', 'GalleryScanService');
+      onProgress?.call(
+        processed: i,
+        total: totalFiles,
+        phase: 'filling_metadata_batch_$batchNum',
+      );
+
+      // 读取文件字节
+      final paths = <String>[];
+      final bytesList = <Uint8List>[];
+
+      for (final file in batch) {
+        try {
+          final bytes = await file.readAsBytes();
+          paths.add(file.path);
+          bytesList.add(bytes);
+        } catch (e) {
+          result.errors.add('${file.path}: $e');
+        }
+      }
+
+      if (paths.isEmpty) continue;
+
+      // 在 isolate 中批量解析元数据
+      final parseResult = await _parseInIsolate(paths, bytesList);
+
+      // 写入数据库（只更新元数据，不更新图片记录）
+      for (var j = 0; j < parseResult.results.length; j++) {
+        final res = parseResult.results[j];
+        final imageId = imageIdMap[res.path];
+
+        if (imageId != null && res.metadata != null && res.metadata!.hasData) {
+          try {
+            await _dataSource.upsertMetadata(imageId, res.metadata!);
+            result.filesUpdated++;
+
+            // 将解析的元数据填充到 ImageMetadataService 缓存，避免重复解析
+            ImageMetadataService().cacheMetadata(res.path, res.metadata!);
+          } catch (e) {
+            result.errors.add('${res.path}: $e');
+          }
+        }
+      }
+
+      result.errors.addAll(parseResult.errors);
+      processedCount += batch.length;
+
+      onProgress?.call(
+        processed: processedCount,
+        total: totalFiles,
+        currentFile: batch.last.path,
+        phase: 'filling_metadata',
+      );
+
+      // 让出时间片，避免阻塞 UI，同时释放数据库连接压力
+      // 后台操作使用更长的延迟以优先处理 UI 操作
+      final delayMs = priority == ScanPriority.low ? _kLowPriorityDelayMs : _kHighPriorityDelayMs;
+      await Future.delayed(Duration(milliseconds: delayMs));
+    }
+
+    onProgress?.call(
+      processed: totalFiles,
+      total: totalFiles,
+      phase: 'completed',
+    );
+  }
+
   /// 处理指定文件
-  Future<void> processFiles(List<File> files) async {
+  /// [priority] 扫描优先级，默认为 [ScanPriority.low]
+  Future<void> processFiles(List<File> files, {ScanPriority priority = ScanPriority.low}) async {
     if (files.isEmpty) return;
 
     final result = ScanResult();
-    await _processFilesSmart(files, result, isFullScan: false);
+    await _processFilesSmart(files, result, isFullScan: false, priority: priority);
 
     AppLogger.d(
       'Processed ${files.length} files: ${result.filesAdded} added, ${result.filesUpdated} updated',
@@ -387,15 +496,28 @@ class GalleryScanService {
     ScanResult result, {
     required bool isFullScan,
     ScanProgressCallback? onProgress,
+    ScanPriority priority = ScanPriority.low,
   }) async {
     // 小批量：主线程直接处理
     if (files.length <= _isolateThreshold) {
       AppLogger.d('Processing ${files.length} files in main thread', 'GalleryScanService');
-      await _processInMainThread(files, result, isFullScan: isFullScan, onProgress: onProgress);
+      await _processInMainThread(
+        files,
+        result,
+        isFullScan: isFullScan,
+        onProgress: onProgress,
+        priority: priority,
+      );
     } else {
       // 大批量：使用 isolate
       AppLogger.d('Processing ${files.length} files with isolate', 'GalleryScanService');
-      await _processWithIsolate(files, result, isFullScan: isFullScan, onProgress: onProgress);
+      await _processWithIsolate(
+        files,
+        result,
+        isFullScan: isFullScan,
+        onProgress: onProgress,
+        priority: priority,
+      );
     }
   }
 
@@ -405,6 +527,7 @@ class GalleryScanService {
     ScanResult result, {
     required bool isFullScan,
     ScanProgressCallback? onProgress,
+    ScanPriority priority = ScanPriority.low,
   }) async {
     int processedCount = 0;
 
@@ -424,9 +547,9 @@ class GalleryScanService {
       );
 
       // 让出时间片，避免阻塞UI
-      // 对于大批量文件，增加延迟以降低CPU占用
-      if (files.length > _isolateThreshold) {
-        await Future.delayed(const Duration(milliseconds: 10));
+      // 后台操作使用更长的延迟以优先处理 UI 操作
+      if (priority == ScanPriority.low) {
+        await Future.delayed(const Duration(milliseconds: _kLowPriorityDelayMs));
       } else {
         await Future.delayed(Duration.zero);
       }
@@ -439,6 +562,7 @@ class GalleryScanService {
     ScanResult result, {
     required bool isFullScan,
     ScanProgressCallback? onProgress,
+    ScanPriority priority = ScanPriority.low,
   }) async {
     int processedCount = 0;
 
@@ -493,9 +617,9 @@ class GalleryScanService {
       );
 
       // 让出时间片，避免阻塞UI
-      // 对于大批量文件，增加延迟以降低CPU占用
-      if (files.length > _isolateThreshold) {
-        await Future.delayed(const Duration(milliseconds: 10));
+      // 后台操作使用更长的延迟以优先处理 UI 操作
+      if (priority == ScanPriority.low) {
+        await Future.delayed(const Duration(milliseconds: _kLowPriorityDelayMs));
       } else {
         await Future.delayed(Duration.zero);
       }
