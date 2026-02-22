@@ -424,6 +424,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       final records = await _loadRecords(batch);
       state = state.copyWith(currentImages: records, isLoading: false);
     } catch (e) {
+      AppLogger.e('Failed to load page', e, null, 'LocalGalleryNotifier');
       state = state.copyWith(
         isLoading: false,
         isIndexing: false,

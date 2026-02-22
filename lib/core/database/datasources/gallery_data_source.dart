@@ -846,7 +846,8 @@ class GalleryDataSource extends EnhancedBaseDataSource {
           // 构建结果映射
           final pathToId = <String, int?>{};
           for (final row in result) {
-            final path = row['file_path'] as String;
+            final path = row['file_path'] as String?;
+            if (path == null) continue;
             final id = (row['id'] as num?)?.toInt();
             pathToId[path] = id;
           }
@@ -1864,7 +1865,7 @@ class GalleryDataSource extends EnhancedBaseDataSource {
 
           // 构建结果映射，所有请求的图片默认为空标签列表
           final tagsMap = <int, List<String>>{
-            for (final id in imageIds) id: <String>[],
+            for (final id in imageIds) id: const <String>[],
           };
 
           // 填充每个图片的标签
