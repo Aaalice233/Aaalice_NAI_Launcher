@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'dart:collection';
+
+import 'package:collection/collection.dart';
 
 import '../../core/cache/thumbnail_cache_service.dart';
 import '../../core/utils/app_logger.dart';
@@ -123,6 +124,9 @@ class ThumbnailGenerationQueue {
   /// 最大重试次数
   final int maxRetryAttempts;
 
+  /// 最大队列大小（防止无界增长）
+  static const int _maxQueueSize = 10000;
+
   /// 缩略图缓存服务
   ThumbnailCacheService? _thumbnailService;
 
@@ -205,12 +209,34 @@ class ThumbnailGenerationQueue {
       return '';
     }
 
+    // 队列大小限制检查：防止无界增长
+    if (_taskQueue.length >= _maxQueueSize) {
+      AppLogger.w(
+        'Queue size limit reached ($_maxQueueSize), rejecting batch of ${imagePaths.length} tasks',
+        'ThumbnailQueue',
+      );
+      throw Exception('Queue size limit reached: $_maxQueueSize');
+    }
+
+    // 如果添加后超过限制，只添加部分任务
+    final int availableSlots = _maxQueueSize - _taskQueue.length;
+    final tasksToAdd = imagePaths.length <= availableSlots
+        ? imagePaths
+        : imagePaths.sublist(0, availableSlots);
+
+    if (tasksToAdd.length < imagePaths.length) {
+      AppLogger.w(
+        'Queue nearly full, only adding ${tasksToAdd.length}/${imagePaths.length} tasks',
+        'ThumbnailQueue',
+      );
+    }
+
     // 生成批次ID
     final batchId =
         'batch_${DateTime.now().millisecondsSinceEpoch}_${_activeBatches.length}';
 
     // 创建任务列表
-    final tasks = imagePaths.map((path) {
+    final tasks = tasksToAdd.map((path) {
       return ThumbnailQueueTask(
         originalPath: path,
         priority: priority,
@@ -468,7 +494,7 @@ class ThumbnailGenerationQueue {
   ///
   /// 返回取消的任务数量
   int cancelAll() {
-    final cancelledCount = _taskQueue.length;
+    final int cancelledCount = _taskQueue.length;
     _taskQueue.clear();
 
     // 标记所有批次为已取消
@@ -554,7 +580,8 @@ class ThumbnailGenerationQueue {
             'progress': b.progress,
             'isCompleted': b.isCompleted,
             'isCancelled': b.isCancelled,
-          }).toList(),
+          },)
+          .toList(),
     };
   }
 

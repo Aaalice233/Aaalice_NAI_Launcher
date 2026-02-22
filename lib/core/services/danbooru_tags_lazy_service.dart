@@ -760,7 +760,11 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
       if (await metaFile.exists()) {
         final content = await metaFile.readAsString();
         final json = jsonDecode(content) as Map<String, dynamic>;
-        _lastUpdate = DateTime.parse(json['lastUpdate'] as String);
+        // 空指针防护：检查 lastUpdate 是否存在且非空
+        final lastUpdateStr = json['lastUpdate'] as String?;
+        if (lastUpdateStr != null && lastUpdateStr.isNotEmpty) {
+          _lastUpdate = DateTime.tryParse(lastUpdateStr);
+        }
         _currentThreshold = json['hotThreshold'] as int? ?? 1000;
         _totalTags = json['totalTags'] as int? ?? 0;
         AppLogger.d(

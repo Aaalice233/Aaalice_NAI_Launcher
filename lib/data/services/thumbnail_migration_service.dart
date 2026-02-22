@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:hive_flutter/hive_flutter.dart';
@@ -165,8 +166,12 @@ class ThumbnailMigrationService {
   /// 监听批次进度，完成后更新记录
   void _listenToBatchProgress(String batchId, List<String> originalPaths) {
     // 使用进度流监听
-    final subscription = _thumbnailQueue!.progressStream.listen((batch) {
+    StreamSubscription<ThumbnailGenerationBatch>? subscription;
+    bool isCompleted = false;
+
+    subscription = _thumbnailQueue!.progressStream.listen((batch) {
       if (batch.id == batchId && batch.isCompleted) {
+        isCompleted = true;
         AppLogger.i(
           'Migration batch completed: ${batch.completedCount} success, '
           '${batch.failedCount} failed',
@@ -178,12 +183,22 @@ class ThumbnailMigrationService {
 
         // 标记迁移完成
         _markCompleted();
+
+        // 完成后取消订阅
+        subscription?.cancel();
       }
     });
 
     // 30分钟后自动取消监听（防止内存泄漏）
     Future.delayed(const Duration(minutes: 30), () {
-      subscription.cancel();
+      // 超时前检查是否已完成，避免不必要的取消操作
+      if (!isCompleted) {
+        AppLogger.w(
+          'Migration batch $batchId timeout after 30 minutes, cancelling subscription',
+          'ThumbnailMigration',
+        );
+        subscription?.cancel();
+      }
     });
   }
 

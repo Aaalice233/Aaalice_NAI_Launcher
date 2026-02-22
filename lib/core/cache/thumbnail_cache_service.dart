@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
@@ -223,11 +222,13 @@ class ThumbnailCacheService {
     return _doGenerateThumbnail(originalPath);
   }
 
+  /// 最大允许的文件大小 (50MB)
+  static const int _maxFileSizeBytes = 50 * 1024 * 1024;
+
   /// 实际执行缩略图生成
   Future<String?> _doGenerateThumbnail(String originalPath) async {
     final thumbnailPath = _getThumbnailPath(originalPath);
     _generatingThumbnails.add(originalPath);
-    _activeGenerationCount++;
 
     final stopwatch = Stopwatch()..start();
 
@@ -240,6 +241,15 @@ class ThumbnailCacheService {
 
       // 读取并解码原始图片
       final file = File(originalPath);
+
+      // 内存压力防护：检查文件大小
+      final fileSize = await file.length();
+      if (fileSize > _maxFileSizeBytes) {
+        throw Exception(
+          'File too large: ${fileSize ~/ (1024 * 1024)}MB exceeds limit of 50MB',
+        );
+      }
+
       final bytes = await file.readAsBytes();
 
       // 使用 image 包解码
@@ -342,7 +352,10 @@ class ThumbnailCacheService {
   /// 处理队列中的任务
   void _processQueue() {
     if (_taskQueue.isEmpty) return;
+
+    // 原子性检查并递增：确保并发安全
     if (_activeGenerationCount >= maxConcurrentGenerations) return;
+    _activeGenerationCount++;
 
     final task = _taskQueue.removeAt(0);
     _doGenerateThumbnail(task.originalPath).then((path) {
@@ -673,7 +686,7 @@ class ThumbnailCacheService {
       // 检查是否需要淘汰
       if (currentSizeMB <= targetSize && allThumbnails.length <= targetFiles) {
         AppLogger.d(
-          'LRU eviction skipped: size=$currentSizeMBMB/${targetSize}MB, '
+          'LRU eviction skipped: size=$currentSizeMB/${targetSize}MB, '
           'files=${allThumbnails.length}/$targetFiles',
           'ThumbnailCache',
         );
@@ -779,6 +792,10 @@ class ThumbnailCacheService {
 
   /// 获取缩略图目录路径
   String _getThumbnailDir(String originalPath) {
+    // 路径遍历防护：验证路径不包含上级目录引用
+    if (originalPath.contains('..')) {
+      throw ArgumentError('Invalid path: path traversal detected in "$originalPath"');
+    }
     final originalDir = File(originalPath).parent.path;
     return '$originalDir${Platform.pathSeparator}$thumbsDirName';
   }
