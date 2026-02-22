@@ -73,6 +73,9 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   final Map<String, List<Completer<LocalTag?>>> _getCompleters = {};
   final Map<String, List<Completer<List<LocalTag>>>> _searchCompleters = {};
 
+  // 用于保护 completers 集合的锁，防止 clearCache 和 debounce 回调之间的竞态
+  final _completersLock = Mutex();
+
   /// 元数据加载 Future，用于防止 race condition
   /// 当多个调用同时需要加载元数据时，共享同一个 Future
   Future<void>? _metaLoadFuture;
@@ -252,15 +255,26 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
     // 使用防抖处理数据库查询
     // 使用 List 存储所有 pending 的 completers，确保所有调用者都能收到结果
-    final completers = _getCompleters.putIfAbsent(normalizedKey, () => []);
     final completer = Completer<LocalTag?>();
-    completers.add(completer);
+    await _completersLock.acquire();
+    try {
+      final completers = _getCompleters.putIfAbsent(normalizedKey, () => []);
+      completers.add(completer);
+    } finally {
+      _completersLock.release();
+    }
 
     _getDebouncer.run(
       normalizedKey,
       (k) async {
         // 获取并移除所有 pending 的 completers
-        final pendingCompleters = _getCompleters.remove(k);
+        List<Completer<LocalTag?>>? pendingCompleters;
+        await _completersLock.acquire();
+        try {
+          pendingCompleters = _getCompleters.remove(k);
+        } finally {
+          _completersLock.release();
+        }
         if (pendingCompleters == null || pendingCompleters.isEmpty) return;
 
         try {
@@ -312,15 +326,26 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
 
     // 使用防抖处理搜索查询
     // 使用 List 存储所有 pending 的 completers，确保所有调用者都能收到结果
-    final completers = _searchCompleters.putIfAbsent(searchKey, () => []);
     final completer = Completer<List<LocalTag>>();
-    completers.add(completer);
+    await _completersLock.acquire();
+    try {
+      final completers = _searchCompleters.putIfAbsent(searchKey, () => []);
+      completers.add(completer);
+    } finally {
+      _completersLock.release();
+    }
 
     _searchDebouncer.run(
       searchKey,
       (key) async {
         // 获取并移除所有 pending 的 completers
-        final pendingCompleters = _searchCompleters.remove(key);
+        List<Completer<List<LocalTag>>>? pendingCompleters;
+        await _completersLock.acquire();
+        try {
+          pendingCompleters = _searchCompleters.remove(key);
+        } finally {
+          _completersLock.release();
+        }
         if (pendingCompleters == null || pendingCompleters.isEmpty) return;
 
         try {
@@ -1096,23 +1121,29 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     _searchDebouncer.cancel();
 
     // 完成所有 pending 的 completers，避免 orphaned futures（内存泄漏修复）
-    for (final completerList in _getCompleters.values) {
-      for (final completer in completerList) {
-        if (!completer.isCompleted) {
-          completer.complete(null);
+    // 使用锁保护，防止与 debounce 回调的竞态条件
+    await _completersLock.acquire();
+    try {
+      for (final completerList in _getCompleters.values) {
+        for (final completer in completerList) {
+          if (!completer.isCompleted) {
+            completer.complete(null);
+          }
         }
       }
-    }
-    _getCompleters.clear();
+      _getCompleters.clear();
 
-    for (final completerList in _searchCompleters.values) {
-      for (final completer in completerList) {
-        if (!completer.isCompleted) {
-          completer.complete([]);
+      for (final completerList in _searchCompleters.values) {
+        for (final completer in completerList) {
+          if (!completer.isCompleted) {
+            completer.complete([]);
+          }
         }
       }
+      _searchCompleters.clear();
+    } finally {
+      _completersLock.release();
     }
-    _searchCompleters.clear();
 
     // 删除元数据文件（关键：否则重启后会从文件加载旧的 _lastUpdate）
     try {
@@ -1604,4 +1635,32 @@ Future<DanbooruTagsLazyService> danbooruTagsLazyService(Ref ref) async {
     'DanbooruTagsLazy',
   );
   return service;
+}
+
+/// 简单的互斥锁实现
+///
+/// 用于保护共享资源的并发访问
+class Mutex {
+  Completer<void>? _completer;
+
+  Future<void> acquire() async {
+    while (true) {
+      final current = _completer;
+      if (current == null) {
+        // 锁空闲，尝试获取
+        _completer = Completer<void>();
+        return;
+      }
+      // 锁被占用，等待
+      await current.future;
+    }
+  }
+
+  void release() {
+    final current = _completer;
+    if (current != null) {
+      _completer = null;
+      current.complete();
+    }
+  }
 }
