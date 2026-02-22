@@ -22,6 +22,7 @@ import '../../providers/selection_mode_provider.dart';
 import '../../widgets/danbooru_login_dialog.dart';
 import '../../widgets/danbooru_post_card.dart';
 import '../../widgets/online_gallery/post_detail_dialog.dart';
+import '../../widgets/virtualized_masonry_grid.dart';
 
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/bulk_action_bar.dart';

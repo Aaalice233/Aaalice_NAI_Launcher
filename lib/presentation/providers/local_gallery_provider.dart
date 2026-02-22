@@ -797,17 +797,46 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         final name = file.path.split(Platform.pathSeparator).last.toLowerCase();
         if (!name.contains(query)) return false;
       }
-      if (state.dateStart != null || state.dateEnd != null) {
-        try {
-          final modified = file.statSync().modified;
-          if (state.dateStart != null && modified.isBefore(state.dateStart!)) return false;
-          if (state.dateEnd != null && modified.isAfter(state.dateEnd!.add(const Duration(days: 1)))) return false;
-        } catch (_) {
-          return false;
-        }
-      }
       return true;
     }).toList();
+
+    // 日期过滤 - 使用异步操作并发获取文件状态（避免阻塞主线程）
+    if (state.dateStart != null || state.dateEnd != null) {
+      // 限制并发数以避免资源耗尽
+      const concurrencyLimit = 50;
+      final fileStats = <({File file, DateTime modified})>[];
+
+      for (var i = 0; i < filtered.length; i += concurrencyLimit) {
+        final batch = filtered.sublist(
+          i,
+          i + concurrencyLimit > filtered.length ? filtered.length : i + concurrencyLimit,
+        );
+        final batchStats = await Future.wait(
+          batch.map((file) async {
+            try {
+              final stat = await file.stat();
+              return (file: file, modified: stat.modified, success: true);
+            } catch (_) {
+              // stat 失败的文件返回 null，后续会被过滤掉
+              return null;
+            }
+          }),
+        );
+        // 过滤掉 stat 失败的文件（null 值）
+        fileStats.addAll(
+          batchStats.whereType<({File file, DateTime modified, bool success})>().map(
+            (s) => (file: s.file, modified: s.modified),
+          ),
+        );
+      }
+
+      filtered = fileStats.where((item) {
+        final modifiedAt = item.modified;
+        if (state.dateStart != null && modifiedAt.isBefore(state.dateStart!)) return false;
+        if (state.dateEnd != null && modifiedAt.isAfter(state.dateEnd!.add(const Duration(days: 1)))) return false;
+        return true;
+      }).map((item) => item.file).toList();
+    }
 
     // 收藏过滤 - 使用数据库查询获取收藏的图片路径
     if (state.showFavoritesOnly) {
