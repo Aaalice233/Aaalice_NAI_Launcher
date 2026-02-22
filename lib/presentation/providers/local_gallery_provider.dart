@@ -848,6 +848,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       } catch (e) {
         AppLogger.w('Failed to filter favorites: $e', 'LocalGalleryNotifier');
       }
+    }
 
     state = state.copyWith(filteredFiles: filtered, currentPage: 0);
     
