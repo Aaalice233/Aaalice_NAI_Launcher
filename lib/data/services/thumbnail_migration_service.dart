@@ -35,6 +35,10 @@ class ThumbnailMigrationService {
   /// 是否正在处理中
   bool _isProcessing = false;
 
+  /// 活跃的订阅列表（用于批量完成时取消）
+  final Map<String, StreamSubscription<ThumbnailGenerationBatch>>
+      _activeSubscriptions = {};
+
   /// 初始化服务
   ///
   /// [thumbnailService] 缩略图缓存服务实例
@@ -163,14 +167,13 @@ class ThumbnailMigrationService {
     }
   }
 
-  /// 活跃的 Stream 订阅列表（用于防止内存泄漏）
-  final List<StreamSubscription> _activeSubscriptions = [];
-
   /// 监听批次进度，完成后更新记录
   void _listenToBatchProgress(String batchId, List<String> originalPaths) {
+    // 修复: 取消之前的同批次订阅（如果有）
+    _cancelBatchSubscription(batchId);
+
     // 使用进度流监听
-    StreamSubscription? subscription;
-    subscription = _thumbnailQueue!.progressStream.listen((batch) {
+    final subscription = _thumbnailQueue!.progressStream.listen((batch) {
       if (batch.id == batchId && batch.isCompleted) {
         AppLogger.i(
           'Migration batch completed: ${batch.completedCount} success, '
@@ -184,31 +187,35 @@ class ThumbnailMigrationService {
         // 标记迁移完成
         _markCompleted();
 
-        // 立即取消订阅并移除，避免内存泄漏
-        subscription?.cancel();
-        _activeSubscriptions.remove(subscription);
+        // 修复: 批量完成时立即取消订阅，防止内存泄漏
+        _cancelBatchSubscription(batchId);
       }
+    }, onError: (error) {
+      AppLogger.e(
+        'Error in batch progress stream: $error',
+        error,
+        null,
+        'ThumbnailMigration',
+      );
+      _cancelBatchSubscription(batchId);
     });
 
-    // 添加到活跃订阅列表
-    _activeSubscriptions.add(subscription);
+    // 保存订阅引用
+    _activeSubscriptions[batchId] = subscription;
 
-    // 当批次完成或出错时立即清理订阅，而不是等待30分钟
-    // 30分钟兜底清理仅作为备用机制
+    // 30分钟后自动取消监听（防止内存泄漏）
     Future.delayed(const Duration(minutes: 30), () {
-      if (_activeSubscriptions.contains(subscription)) {
-        subscription?.cancel();
-        _activeSubscriptions.remove(subscription);
-      }
+      _cancelBatchSubscription(batchId);
     });
   }
 
-  /// 取消所有活跃的 Stream 订阅
-  void _cancelAllSubscriptions() {
-    for (final sub in _activeSubscriptions) {
-      sub.cancel();
+  /// 取消指定批次的订阅
+  void _cancelBatchSubscription(String batchId) {
+    final subscription = _activeSubscriptions.remove(batchId);
+    if (subscription != null) {
+      subscription.cancel();
+      AppLogger.d('Cancelled subscription for batch: $batchId', 'ThumbnailMigration');
     }
-    _activeSubscriptions.clear();
   }
 
   /// 更新记录的缩略图路径
@@ -362,6 +369,12 @@ class ThumbnailMigrationService {
       final settingsBox = await Hive.openBox(StorageKeys.settingsBox);
       await settingsBox.delete(_migrationCompletedKey);
       await settingsBox.delete(_lastCheckTimeKey);
+
+      // 清理所有活跃的订阅
+      for (final batchId in _activeSubscriptions.keys.toList()) {
+        _cancelBatchSubscription(batchId);
+      }
+
       AppLogger.i('Thumbnail migration status reset', 'ThumbnailMigration');
     } catch (e, stack) {
       AppLogger.e(
@@ -389,6 +402,7 @@ class ThumbnailMigrationService {
             ? DateTime.tryParse(lastCheckStr)?.toIso8601String()
             : null,
         'isProcessing': _isProcessing,
+        'activeSubscriptions': _activeSubscriptions.length,
         'queueStats': queueStats,
       };
     } catch (e) {
@@ -396,6 +410,7 @@ class ThumbnailMigrationService {
         'isCompleted': false,
         'lastCheckTime': null,
         'isProcessing': _isProcessing,
+        'activeSubscriptions': _activeSubscriptions.length,
         'queueStats': null,
       };
     }
@@ -467,5 +482,14 @@ class ThumbnailMigrationService {
       );
       return (false, 0);
     }
+  }
+
+  /// 释放资源
+  void dispose() {
+    // 清理所有活跃的订阅
+    for (final batchId in _activeSubscriptions.keys.toList()) {
+      _cancelBatchSubscription(batchId);
+    }
+    AppLogger.i('ThumbnailMigrationService disposed', 'ThumbnailMigration');
   }
 }
