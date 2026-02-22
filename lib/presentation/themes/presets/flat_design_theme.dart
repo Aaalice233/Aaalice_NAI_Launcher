@@ -60,6 +60,5 @@ class FlatDesignTheme {
   static String get displayName => 'Flat Design';
 
   /// Theme description.
-  static String get description =>
-      '扁平设计风格 - 零阴影、锐角边框、纯色块的极简美学';
+  static String get description => '扁平设计风格 - 零阴影、锐角边框、纯色块的极简美学';
 }

@@ -11,8 +11,7 @@ class TagGroupPresetCache {
 
   /// 获取 tag_group 的预缓存数据
   /// 返回: {'tags': List<Map>, 'count': int, 'originalCount': int}
-  static Map<String, dynamic>? getData(String groupTitle) =>
-      _cache[groupTitle];
+  static Map<String, dynamic>? getData(String groupTitle) => _cache[groupTitle];
 
   /// 获取预缓存的标签数量（筛选后）
   static int? getCount(String groupTitle) =>
@@ -43,16 +42,5 @@ class TagGroupPresetCache {
   /// 2. 点击"立即同步"
   /// 3. 从同步结果提取数据填充到此处
   /// 4. 提交到 git 作为软件内置初始数据
-  static const Map<String, Map<String, dynamic>> _cache = {
-    // TODO: 开发者同步后填充数据
-    // 示例:
-    // 'tag_group:hair_color': {
-    //   'count': 52,
-    //   'originalCount': 128,
-    //   'tags': [
-    //     {'name': 'blonde_hair', 'postCount': 1234567},
-    //     {'name': 'black_hair', 'postCount': 987654},
-    //   ],
-    // },
-  };
+  static const Map<String, Map<String, dynamic>> _cache = {};
 }

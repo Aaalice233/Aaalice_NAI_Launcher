@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../providers/image_generation_provider.dart';
 import '../../../autocomplete/autocomplete.dart';
+import '../../../common/themed_input.dart';
 import '../../core/prompt_tag_config.dart';
+import '../../core/prompt_tag_colors.dart';
 
 /// 标签内联编辑组件
 /// 双击标签时显示，支持直接编辑标签文本
@@ -30,6 +32,9 @@ class TagChipEditMode extends ConsumerStatefulWidget {
   /// 边框色
   final Color? borderColor;
 
+  /// 标签分类（用于渐变背景）
+  final int category;
+
   const TagChipEditMode({
     super.key,
     required this.initialText,
@@ -39,16 +44,22 @@ class TagChipEditMode extends ConsumerStatefulWidget {
     this.compact = false,
     this.backgroundColor,
     this.borderColor,
+    this.category = 0,
   });
 
   @override
   ConsumerState<TagChipEditMode> createState() => _TagChipEditModeState();
 }
 
-class _TagChipEditModeState extends ConsumerState<TagChipEditMode> {
+class _TagChipEditModeState extends ConsumerState<TagChipEditMode>
+    with TickerProviderStateMixin {
   late TextEditingController _controller;
   late FocusNode _focusNode;
   bool _hasChanges = false;
+
+  // Focus glow animation controller
+  late AnimationController _glowController;
+  late Animation<double> _glowAnimation;
 
   @override
   void initState() {
@@ -58,6 +69,15 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode> {
       text: widget.initialText.replaceAll('_', ' '),
     );
     _focusNode = FocusNode();
+
+    // Initialize glow animation
+    _glowController = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    _glowAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _glowController, curve: Curves.easeOut),
+    );
 
     // 自动获取焦点并全选
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -74,6 +94,7 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode> {
 
   @override
   void dispose() {
+    _glowController.dispose();
     _focusNode.removeListener(_onFocusChanged);
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
@@ -86,7 +107,15 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode> {
   }
 
   void _onFocusChanged() {
-    if (!_focusNode.hasFocus) {
+    final reducedMotion = MediaQuery.of(context).disableAnimations;
+    if (_focusNode.hasFocus) {
+      if (!reducedMotion) {
+        _glowController.forward();
+      }
+    } else {
+      if (!reducedMotion) {
+        _glowController.reverse();
+      }
       _commitEdit();
     }
   }
@@ -117,6 +146,14 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode> {
     final compact = widget.compact;
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
 
+    // Get gradient based on category
+    final gradient = CategoryGradient.getThemedGradient(
+      widget.category,
+      isDark: theme.brightness == Brightness.dark,
+    );
+    final gradientColor =
+        CategoryGradient.getGradientStartColor(widget.category);
+
     return KeyboardListener(
       focusNode: FocusNode(),
       onKeyEvent: (event) {
@@ -126,74 +163,113 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode> {
           }
         }
       },
-      child: Container(
-        constraints: const BoxConstraints(
-          minWidth: TagChipSizes.editInputMinWidth,
-          maxWidth: TagChipSizes.editInputMaxWidth,
-        ),
-        child: IntrinsicWidth(
-          child: AutocompleteTextField(
-            controller: _controller,
-            focusNode: _focusNode,
-            enableAutocomplete: enableAutocomplete,
-            config: const AutocompleteConfig(
-              maxSuggestions: 10,
-              showTranslation: true,
-              autoInsertComma: false,
+      child: AnimatedBuilder(
+        animation: _glowAnimation,
+        builder: (context, child) {
+          // Calculate glow opacity based on animation
+          final glowOpacity = _glowAnimation.value * 0.3;
+          final borderWidth = 1.5 + (_glowAnimation.value * 0.5);
+
+          return Container(
+            constraints: const BoxConstraints(
+              minWidth: TagChipSizes.editInputMinWidth,
+              maxWidth: TagChipSizes.editInputMaxWidth,
             ),
-            style: TextStyle(
-              fontSize: compact
-                  ? TagChipSizes.compactFontSize
-                  : TagChipSizes.normalFontSize,
-              fontWeight: FontWeight.w500,
-              height: 1.2,
+            decoration: BoxDecoration(
+              // Gradient background with reduced opacity
+              gradient: LinearGradient(
+                colors: gradient.colors
+                    .map((color) => color.withOpacity(0.08))
+                    .toList(),
+                begin: gradient.begin,
+                end: gradient.end,
+              ),
+              borderRadius: BorderRadius.circular(
+                compact
+                    ? TagChipSizes.compactBorderRadius
+                    : TagChipSizes.normalBorderRadius,
+              ),
+              // Glow effect on focus
+              boxShadow: _focusNode.hasFocus
+                  ? [
+                      BoxShadow(
+                        color: gradientColor.withOpacity(glowOpacity),
+                        blurRadius: 8 + (_glowAnimation.value * 4),
+                        spreadRadius: _glowAnimation.value * 2,
+                      ),
+                    ]
+                  : null,
             ),
-            decoration: InputDecoration(
-              isDense: true,
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: TagChipSizes.editInputPadding,
-                vertical: compact ? 8 : 10,
-              ),
-              filled: true,
-              fillColor: widget.backgroundColor ??
-                  theme.colorScheme.surfaceContainerHighest.withOpacity(0.8),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(
-                  compact
-                      ? TagChipSizes.compactBorderRadius
-                      : TagChipSizes.normalBorderRadius,
+            child: IntrinsicWidth(
+              child: AutocompleteWrapper.localTag(
+                controller: _controller,
+                focusNode: _focusNode,
+                ref: ref,
+                enabled: enableAutocomplete,
+                config: const AutocompleteConfig(
+                  maxSuggestions: 10,
+                  showTranslation: true,
+                  autoInsertComma: false,
                 ),
-                borderSide: BorderSide(
-                  color: widget.borderColor ?? theme.colorScheme.primary,
-                  width: 1.5,
-                ),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(
-                  compact
-                      ? TagChipSizes.compactBorderRadius
-                      : TagChipSizes.normalBorderRadius,
-                ),
-                borderSide: BorderSide(
-                  color: widget.borderColor ?? theme.colorScheme.primary,
-                  width: 1.5,
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(
-                  compact
-                      ? TagChipSizes.compactBorderRadius
-                      : TagChipSizes.normalBorderRadius,
-                ),
-                borderSide: BorderSide(
-                  color: theme.colorScheme.primary,
-                  width: 2,
+                child: ThemedInput(
+                  controller: _controller,
+                  style: TextStyle(
+                    fontSize: compact
+                        ? TagChipSizes.compactFontSize
+                        : TagChipSizes.normalFontSize,
+                    fontWeight: FontWeight.w500,
+                    height: 1.2,
+                  ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: TagChipSizes.editInputPadding,
+                      vertical: compact ? 8 : 10,
+                    ),
+                    filled: false, // Use transparent to show gradient
+                    fillColor: Colors.transparent,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        compact
+                            ? TagChipSizes.compactBorderRadius
+                            : TagChipSizes.normalBorderRadius,
+                      ),
+                      borderSide: BorderSide(
+                        color: widget.borderColor ??
+                            gradientColor.withOpacity(0.3),
+                        width: borderWidth,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        compact
+                            ? TagChipSizes.compactBorderRadius
+                            : TagChipSizes.normalBorderRadius,
+                      ),
+                      borderSide: BorderSide(
+                        color: widget.borderColor ??
+                            gradientColor.withOpacity(0.3),
+                        width: borderWidth,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        compact
+                            ? TagChipSizes.compactBorderRadius
+                            : TagChipSizes.normalBorderRadius,
+                      ),
+                      borderSide: BorderSide(
+                        color: gradientColor,
+                        width: borderWidth,
+                      ),
+                    ),
+                  ),
+                  onSubmitted: (_) => _commitEdit(),
                 ),
               ),
             ),
-            onSubmitted: (_) => _commitEdit(),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

@@ -1,4 +1,4 @@
-#include "flutter_window.h"
+﻿#include "flutter_window.h"
 
 #include <optional>
 #include <set>
@@ -50,6 +50,9 @@ std::vector<std::string> GetSystemFonts() {
 
   return result;
 }
+
+// 自定义消息：唤醒窗口
+constexpr const UINT kWakeUpMessage = WM_USER + 1;
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -133,6 +136,15 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     case WM_FONTCHANGE:
       flutter_controller_->engine()->ReloadSystemFonts();
       break;
+    case kWakeUpMessage: {
+      // 收到唤醒消息，通知 Flutter 侧显示窗口
+      auto channel = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(),
+          "com.nailauncher/window_control",
+          &flutter::StandardMethodCodec::GetInstance());
+      channel->InvokeMethod("wakeUp", nullptr);
+      break;
+    }
   }
 
   return Win32Window::MessageHandler(hwnd, message, wparam, lparam);

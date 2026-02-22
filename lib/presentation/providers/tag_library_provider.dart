@@ -221,7 +221,8 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
 
   /// 设置指定分类的内置词库开关
   Future<void> setBuiltinEnabled(TagSubCategory category, bool enabled) async {
-    final newConfig = state.categoryFilterConfig.setBuiltinEnabled(category, enabled);
+    final newConfig =
+        state.categoryFilterConfig.setBuiltinEnabled(category, enabled);
     await updateCategoryFilterConfig(newConfig);
   }
 
@@ -261,10 +262,13 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
   /// 合并 Pool 标签到当前词库
   ///
   /// 由 PoolMappingProvider 调用
-  Future<void> mergePoolTags(Map<TagSubCategory, List<WeightedTag>> poolTags) async {
+  Future<void> mergePoolTags(
+    Map<TagSubCategory, List<WeightedTag>> poolTags,
+  ) async {
     if (state.library == null || poolTags.isEmpty) return;
 
-    final mergedLibrary = _libraryService.mergePoolTags(state.library!, poolTags);
+    final mergedLibrary =
+        _libraryService.mergePoolTags(state.library!, poolTags);
     await _libraryService.saveLibrary(mergedLibrary);
     state = state.copyWith(library: mergedLibrary);
   }
@@ -272,10 +276,13 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
   /// 合并 TagGroup 标签到当前词库
   ///
   /// 由 TagGroupMappingProvider 调用
-  Future<void> mergeTagGroupTags(Map<TagSubCategory, List<WeightedTag>> tagGroupTags) async {
+  Future<void> mergeTagGroupTags(
+    Map<TagSubCategory, List<WeightedTag>> tagGroupTags,
+  ) async {
     if (state.library == null || tagGroupTags.isEmpty) return;
 
-    final mergedLibrary = _libraryService.mergeTagGroupTags(state.library!, tagGroupTags);
+    final mergedLibrary =
+        _libraryService.mergeTagGroupTags(state.library!, tagGroupTags);
     await _libraryService.saveLibrary(mergedLibrary);
     state = state.copyWith(library: mergedLibrary);
   }

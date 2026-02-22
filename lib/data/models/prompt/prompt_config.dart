@@ -132,7 +132,8 @@ class PromptConfig with _$PromptConfig {
     } else {
       // 嵌套配置
       for (final config in _selectFromConfigs(random, sequentialCounters)) {
-        final result = config.generate(random, sequentialCounters: sequentialCounters);
+        final result =
+            config.generate(random, sequentialCounters: sequentialCounters);
         if (result.isNotEmpty) {
           selectedItems.add(result);
         }
@@ -142,7 +143,8 @@ class PromptConfig with _$PromptConfig {
     // 应用权重括号
     final processedItems = selectedItems.map((item) {
       if (bracketMin == 0 && bracketMax == 0) return item;
-      final bracketCount = bracketMin + random.nextInt(bracketMax - bracketMin + 1);
+      final bracketCount =
+          bracketMin + random.nextInt(bracketMax - bracketMin + 1);
       if (bracketCount == 0) return item;
       final brackets = '{' * bracketCount;
       final closeBrackets = '}' * bracketCount;
@@ -150,8 +152,9 @@ class PromptConfig with _$PromptConfig {
     }).toList();
 
     // 打乱顺序（如果需要）
-    if (shuffle && (selectionMode == SelectionMode.multipleProbability ||
-        selectionMode == SelectionMode.all)) {
+    if (shuffle &&
+        (selectionMode == SelectionMode.multipleProbability ||
+            selectionMode == SelectionMode.all)) {
       processedItems.shuffle(random);
     }
 
@@ -187,9 +190,7 @@ class PromptConfig with _$PromptConfig {
 
       case SelectionMode.multipleProbability:
         final prob = (selectProbability ?? 0.5).clamp(0.0, 1.0);
-        return stringContents
-            .where((_) => random.nextDouble() < prob)
-            .toList();
+        return stringContents.where((_) => random.nextDouble() < prob).toList();
 
       case SelectionMode.all:
         return List<String>.from(stringContents);
@@ -197,7 +198,10 @@ class PromptConfig with _$PromptConfig {
   }
 
   /// 从嵌套配置中选取
-  List<PromptConfig> _selectFromConfigs(Random random, Map<String, int>? counters) {
+  List<PromptConfig> _selectFromConfigs(
+    Random random,
+    Map<String, int>? counters,
+  ) {
     if (nestedConfigs.isEmpty) return [];
 
     switch (selectionMode) {
@@ -220,14 +224,13 @@ class PromptConfig with _$PromptConfig {
 
       case SelectionMode.multipleCount:
         final count = (selectCount ?? 1).clamp(0, nestedConfigs.length);
-        final shuffled = List<PromptConfig>.from(nestedConfigs)..shuffle(random);
+        final shuffled = List<PromptConfig>.from(nestedConfigs)
+          ..shuffle(random);
         return shuffled.take(count).toList();
 
       case SelectionMode.multipleProbability:
         final prob = (selectProbability ?? 0.5).clamp(0.0, 1.0);
-        return nestedConfigs
-            .where((_) => random.nextDouble() < prob)
-            .toList();
+        return nestedConfigs.where((_) => random.nextDouble() < prob).toList();
 
       case SelectionMode.all:
         return List<PromptConfig>.from(nestedConfigs);

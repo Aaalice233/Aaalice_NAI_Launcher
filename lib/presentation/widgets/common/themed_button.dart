@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../themes/theme_extension.dart';
+import '../shortcuts/shortcut_tooltip.dart';
 
 enum ThemedButtonStyle {
   filled,
@@ -15,6 +16,7 @@ class ThemedButton extends StatelessWidget {
   final ThemedButtonStyle style;
   final bool isLoading;
   final String? tooltip;
+  final String? shortcutId;
 
   const ThemedButton({
     super.key,
@@ -24,6 +26,7 @@ class ThemedButton extends StatelessWidget {
     this.style = ThemedButtonStyle.filled,
     this.isLoading = false,
     this.tooltip,
+    this.shortcutId,
   });
 
   @override
@@ -92,6 +95,14 @@ class ThemedButton extends StatelessWidget {
         break;
     }
 
+    if (shortcutId != null) {
+      return ShortcutTooltip(
+        message: tooltip ?? '',
+        shortcutId: shortcutId,
+        child: buttonWidget,
+      );
+    }
+
     if (tooltip != null) {
       return Tooltip(message: tooltip!, child: buttonWidget);
     }
@@ -153,7 +164,7 @@ class _MaterialButton extends StatelessWidget {
 }
 
 /// 物理按键风格 (Cassette Futurism)
-class _PhysicalButton extends StatefulWidget {
+class _PhysicalButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final ThemedButtonStyle style;
   final ThemeData theme;
@@ -167,100 +178,19 @@ class _PhysicalButton extends StatefulWidget {
   });
 
   @override
-  State<_PhysicalButton> createState() => _PhysicalButtonState();
-}
-
-class _PhysicalButtonState extends State<_PhysicalButton> {
-  bool _isPressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    final theme = widget.theme;
-    final enabled = widget.onPressed != null;
-
-    // 颜色配置
-    Color backgroundColor;
-    Color foregroundColor;
-    Color borderColor;
-    Color shadowColor;
-
-    switch (widget.style) {
-      case ThemedButtonStyle.filled:
-        backgroundColor =
-            enabled ? theme.colorScheme.primary : theme.disabledColor;
-        foregroundColor = theme.colorScheme.onPrimary;
-        borderColor = theme.colorScheme.primaryContainer;
-        shadowColor = Color.lerp(backgroundColor, Colors.black, 0.4)!;
-        break;
-      case ThemedButtonStyle.outlined:
-        backgroundColor = theme.colorScheme.surface;
-        foregroundColor =
-            enabled ? theme.colorScheme.primary : theme.disabledColor;
-        borderColor = enabled ? theme.colorScheme.primary : theme.disabledColor;
-        shadowColor = Color.lerp(borderColor, Colors.black, 0.4)!;
-        break;
-      case ThemedButtonStyle.text:
-        // Text button in physical style acts like a flat plate
-        backgroundColor = Colors.transparent;
-        foregroundColor =
-            enabled ? theme.colorScheme.primary : theme.disabledColor;
-        borderColor = Colors.transparent;
-        shadowColor = Colors.transparent;
-        break;
-    }
-
-    final double depth = widget.style == ThemedButtonStyle.text ? 0 : 4.0;
-    final double offset = _isPressed ? depth : 0.0;
-
-    return GestureDetector(
-      onTapDown: enabled ? (_) => setState(() => _isPressed = true) : null,
-      onTapUp: enabled
-          ? (_) {
-              setState(() => _isPressed = false);
-              HapticFeedback.mediumImpact();
-              widget.onPressed!();
-            }
-          : null,
-      onTapCancel: enabled ? () => setState(() => _isPressed = false) : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 50),
-        margin: EdgeInsets.only(top: offset, bottom: depth - offset),
-        decoration: widget.style == ThemedButtonStyle.text
-            ? null
-            : BoxDecoration(
-                color: backgroundColor,
-                borderRadius: BorderRadius.circular(12), // Chunky rounded
-                border: Border.all(color: borderColor, width: 2),
-                boxShadow: _isPressed || widget.style == ThemedButtonStyle.text
-                    ? []
-                    : [
-                        BoxShadow(
-                          color: shadowColor,
-                          offset: Offset(0, depth),
-                          blurRadius: 0, // Hard shadow for physical look
-                        ),
-                      ],
-              ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          child: DefaultTextStyle(
-            style: TextStyle(
-              color: foregroundColor,
-              fontWeight: FontWeight.bold,
-            ),
-            child: IconTheme(
-              data: IconThemeData(color: foregroundColor),
-              child: widget.child,
-            ),
-          ),
-        ),
-      ),
+    return _StyledButton(
+      onPressed: onPressed,
+      style: style,
+      theme: theme,
+      type: _ButtonType.physical,
+      child: child,
     );
   }
 }
 
 /// 数字电子风格 (Motorola)
-class _DigitalButton extends StatefulWidget {
+class _DigitalButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final ThemedButtonStyle style;
   final ThemeData theme;
@@ -274,10 +204,40 @@ class _DigitalButton extends StatefulWidget {
   });
 
   @override
-  State<_DigitalButton> createState() => _DigitalButtonState();
+  Widget build(BuildContext context) {
+    return _StyledButton(
+      onPressed: onPressed,
+      style: style,
+      theme: theme,
+      type: _ButtonType.digital,
+      child: child,
+    );
+  }
 }
 
-class _DigitalButtonState extends State<_DigitalButton> {
+enum _ButtonType { physical, digital }
+
+/// 统一样式按钮基类
+class _StyledButton extends StatefulWidget {
+  final VoidCallback? onPressed;
+  final ThemedButtonStyle style;
+  final ThemeData theme;
+  final Widget child;
+  final _ButtonType type;
+
+  const _StyledButton({
+    required this.onPressed,
+    required this.style,
+    required this.theme,
+    required this.child,
+    required this.type,
+  });
+
+  @override
+  State<_StyledButton> createState() => _StyledButtonState();
+}
+
+class _StyledButtonState extends State<_StyledButton> {
   bool _isPressed = false;
 
   @override
@@ -285,69 +245,161 @@ class _DigitalButtonState extends State<_DigitalButton> {
     final theme = widget.theme;
     final enabled = widget.onPressed != null;
 
-    // 基础颜色
-    Color baseColor = theme.colorScheme.primary;
-    Color onBaseColor = theme.colorScheme.onPrimary;
-
-    if (!enabled) {
-      baseColor = theme.disabledColor;
-      onBaseColor = theme.colorScheme.onSurface.withOpacity(0.38);
-    }
-
-    // 状态颜色计算 (反色逻辑)
-    Color backgroundColor;
-    Color contentColor;
-    BoxBorder? border;
-
-    switch (widget.style) {
-      case ThemedButtonStyle.filled:
-        backgroundColor = _isPressed ? onBaseColor : baseColor;
-        contentColor = _isPressed ? baseColor : onBaseColor;
-        border = Border.all(color: baseColor, width: 2);
-        break;
-      case ThemedButtonStyle.outlined:
-        backgroundColor = _isPressed ? baseColor : Colors.transparent;
-        contentColor = _isPressed ? onBaseColor : baseColor;
-        border = Border.all(color: baseColor, width: 2);
-        break;
-      case ThemedButtonStyle.text:
-        backgroundColor =
-            _isPressed ? baseColor.withOpacity(0.2) : Colors.transparent;
-        contentColor = baseColor;
-        border = null;
-        break;
-    }
+    final colors = _getColors(theme, enabled);
+    final decoration = _getDecoration(colors, enabled);
+    final textStyle = _getTextStyle(colors, theme);
 
     return GestureDetector(
       onTapDown: enabled ? (_) => setState(() => _isPressed = true) : null,
       onTapUp: enabled
           ? (_) {
               setState(() => _isPressed = false);
-              HapticFeedback.selectionClick();
+              _hapticFeedback();
               widget.onPressed!();
             }
           : null,
       onTapCancel: enabled ? () => setState(() => _isPressed = false) : null,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          border: border,
-          borderRadius: BorderRadius.circular(2), // Sharp corners
-        ),
-        child: DefaultTextStyle(
-          style: TextStyle(
-            color: contentColor,
-            fontFamily: theme.textTheme.bodyMedium?.fontFamily,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.5, // Digital spacing
-          ),
-          child: IconTheme(
-            data: IconThemeData(color: contentColor, size: 18),
-            child: widget.child,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 50),
+        margin: decoration.margin,
+        decoration: decoration.boxDecoration,
+        child: Container(
+          padding: decoration.padding,
+          child: DefaultTextStyle(
+            style: textStyle,
+            child: IconTheme(
+              data: IconThemeData(color: colors.foreground, size: 18),
+              child: widget.child,
+            ),
           ),
         ),
       ),
     );
   }
+
+  void _hapticFeedback() {
+    if (widget.type == _ButtonType.physical) {
+      HapticFeedback.mediumImpact();
+    } else {
+      HapticFeedback.selectionClick();
+    }
+  }
+
+  _ButtonColors _getColors(ThemeData theme, bool enabled) {
+    final isPhysical = widget.type == _ButtonType.physical;
+
+    if (isPhysical) {
+      switch (widget.style) {
+        case ThemedButtonStyle.filled:
+          return _ButtonColors(
+            background: enabled ? theme.colorScheme.primary : theme.disabledColor,
+            foreground: theme.colorScheme.onPrimary,
+            border: theme.colorScheme.primaryContainer,
+          );
+        case ThemedButtonStyle.outlined:
+          return _ButtonColors(
+            background: theme.colorScheme.surface,
+            foreground: enabled ? theme.colorScheme.primary : theme.disabledColor,
+            border: enabled ? theme.colorScheme.primary : theme.disabledColor,
+          );
+        case ThemedButtonStyle.text:
+          return _ButtonColors(
+            background: Colors.transparent,
+            foreground: enabled ? theme.colorScheme.primary : theme.disabledColor,
+            border: Colors.transparent,
+          );
+      }
+    } else {
+      final baseColor = enabled ? theme.colorScheme.primary : theme.disabledColor;
+      final onBaseColor =
+          enabled ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface.withOpacity(0.38);
+
+      switch (widget.style) {
+        case ThemedButtonStyle.filled:
+          return _ButtonColors(
+            background: _isPressed ? onBaseColor : baseColor,
+            foreground: _isPressed ? baseColor : onBaseColor,
+            border: baseColor,
+          );
+        case ThemedButtonStyle.outlined:
+          return _ButtonColors(
+            background: _isPressed ? baseColor : Colors.transparent,
+            foreground: _isPressed ? onBaseColor : baseColor,
+            border: baseColor,
+          );
+        case ThemedButtonStyle.text:
+          return _ButtonColors(
+            background: _isPressed ? baseColor.withOpacity(0.2) : Colors.transparent,
+            foreground: baseColor,
+            border: null,
+          );
+      }
+    }
+  }
+
+  _ButtonDecoration _getDecoration(_ButtonColors colors, bool enabled) {
+    final isPhysical = widget.type == _ButtonType.physical;
+
+    if (isPhysical) {
+      final depth = widget.style == ThemedButtonStyle.text ? 0.0 : 4.0;
+      final offset = _isPressed ? depth : 0.0;
+
+      return _ButtonDecoration(
+        margin: EdgeInsets.only(top: offset, bottom: depth - offset),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        boxDecoration: widget.style == ThemedButtonStyle.text
+            ? null
+            : BoxDecoration(
+                color: colors.background,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: colors.border!, width: 2),
+                boxShadow: _isPressed || widget.style == ThemedButtonStyle.text
+                    ? []
+                    : [
+                        BoxShadow(
+                          color: Color.lerp(colors.background, Colors.black, 0.4)!,
+                          offset: Offset(0, depth),
+                          blurRadius: 0,
+                        ),
+                      ],
+              ),
+      );
+    } else {
+      return _ButtonDecoration(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        boxDecoration: BoxDecoration(
+          color: colors.background,
+          border: colors.border != null ? Border.all(color: colors.border!, width: 2) : null,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      );
+    }
+  }
+
+  TextStyle _getTextStyle(_ButtonColors colors, ThemeData theme) {
+    final isPhysical = widget.type == _ButtonType.physical;
+
+    return TextStyle(
+      color: colors.foreground,
+      fontWeight: FontWeight.bold,
+      fontFamily: isPhysical ? null : theme.textTheme.bodyMedium?.fontFamily,
+      letterSpacing: isPhysical ? null : 1.5,
+    );
+  }
+}
+
+class _ButtonColors {
+  final Color background;
+  final Color foreground;
+  final Color? border;
+
+  _ButtonColors({required this.background, required this.foreground, this.border});
+}
+
+class _ButtonDecoration {
+  final EdgeInsetsGeometry? margin;
+  final EdgeInsetsGeometry padding;
+  final BoxDecoration? boxDecoration;
+
+  _ButtonDecoration({this.margin, required this.padding, this.boxDecoration});
 }

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../common/themed_divider.dart';
 
 import '../../../data/models/character/character_prompt.dart';
+import '../../../data/services/alias_resolver_service.dart';
 
 /// 多人角色悬浮提示内容组件
 ///
@@ -11,7 +14,7 @@ import '../../../data/models/character/character_prompt.dart';
 /// - 统计摘要
 ///
 /// Requirements: 5.3
-class CharacterTooltipContent extends StatelessWidget {
+class CharacterTooltipContent extends ConsumerWidget {
   final CharacterPromptConfig config;
 
   const CharacterTooltipContent({
@@ -20,7 +23,7 @@ class CharacterTooltipContent extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
@@ -29,8 +32,12 @@ class CharacterTooltipContent extends StatelessWidget {
       return _EmptyStateContent(l10n: l10n, colorScheme: colorScheme);
     }
 
+    // 获取别名解析器，用于 UI 层动态解析
+    final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
+
     return _DetailedContent(
       config: config,
+      aliasResolver: aliasResolver,
       l10n: l10n,
       theme: theme,
       colorScheme: colorScheme,
@@ -86,12 +93,14 @@ class _EmptyStateContent extends StatelessWidget {
 /// 详细内容
 class _DetailedContent extends StatelessWidget {
   final CharacterPromptConfig config;
+  final AliasResolverService aliasResolver;
   final AppLocalizations l10n;
   final ThemeData theme;
   final ColorScheme colorScheme;
 
   const _DetailedContent({
     required this.config,
+    required this.aliasResolver,
     required this.l10n,
     required this.theme,
     required this.colorScheme,
@@ -130,6 +139,7 @@ class _DetailedContent extends StatelessWidget {
                     _CharacterItem(
                       character: config.characters[i],
                       globalAiChoice: config.globalAiChoice,
+                      aliasResolver: aliasResolver,
                       l10n: l10n,
                       theme: theme,
                       colorScheme: colorScheme,
@@ -142,10 +152,7 @@ class _DetailedContent extends StatelessWidget {
 
           const SizedBox(height: 10),
           // 底部分隔线
-          Divider(
-            height: 1,
-            color: colorScheme.outlineVariant.withOpacity(0.5),
-          ),
+          const ThemedDivider(height: 1),
           const SizedBox(height: 8),
 
           // 统计摘要
@@ -218,6 +225,7 @@ class _GlobalAiStatusRow extends StatelessWidget {
 class _CharacterItem extends StatelessWidget {
   final CharacterPrompt character;
   final bool globalAiChoice;
+  final AliasResolverService aliasResolver;
   final AppLocalizations l10n;
   final ThemeData theme;
   final ColorScheme colorScheme;
@@ -225,14 +233,28 @@ class _CharacterItem extends StatelessWidget {
   const _CharacterItem({
     required this.character,
     required this.globalAiChoice,
+    required this.aliasResolver,
     required this.l10n,
     required this.theme,
     required this.colorScheme,
   });
 
+  /// 根据性别获取颜色
+  Color _getGenderColor() {
+    switch (character.gender) {
+      case CharacterGender.female:
+        return const Color(0xFFEC4899); // 粉色
+      case CharacterGender.male:
+        return const Color(0xFF3B82F6); // 蓝色
+      case CharacterGender.other:
+        return const Color(0xFF8B5CF6); // 紫色
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEnabled = character.enabled;
+    final genderColor = _getGenderColor();
 
     return Container(
       padding: const EdgeInsets.all(10),
@@ -242,7 +264,7 @@ class _CharacterItem extends StatelessWidget {
         border: Border(
           left: BorderSide(
             width: 3,
-            color: isEnabled ? colorScheme.primary : colorScheme.outline,
+            color: isEnabled ? genderColor : colorScheme.outline,
           ),
         ),
       ),
@@ -260,7 +282,7 @@ class _CharacterItem extends StatelessWidget {
                   height: 8,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isEnabled ? colorScheme.primary : colorScheme.outline,
+                    color: isEnabled ? genderColor : colorScheme.outline,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -294,10 +316,11 @@ class _CharacterItem extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 6),
-            // 提示词摘要
+            // 提示词摘要 - 解析别名
             _PromptSummary(
-              prompt: character.prompt,
-              negativePrompt: character.negativePrompt,
+              prompt: aliasResolver.resolveAliases(character.prompt),
+              negativePrompt:
+                  aliasResolver.resolveAliases(character.negativePrompt),
               l10n: l10n,
               colorScheme: colorScheme,
             ),
@@ -463,7 +486,8 @@ class _PromptSummary extends StatelessWidget {
         // 负面提示词
         _PromptLine(
           label: l10n.characterTooltip_negativeLabel,
-          content: negativePrompt.isNotEmpty ? _truncate(negativePrompt, 25) : null,
+          content:
+              negativePrompt.isNotEmpty ? _truncate(negativePrompt, 25) : null,
           notSetText: l10n.characterTooltip_notSet,
           colorScheme: colorScheme,
         ),

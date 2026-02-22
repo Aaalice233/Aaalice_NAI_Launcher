@@ -145,7 +145,8 @@ class SubscriptionState with _$SubscriptionState {
       SubscriptionStateLoaded;
 
   /// 加载失败
-  const factory SubscriptionState.error(String message) = SubscriptionStateError;
+  const factory SubscriptionState.error(String message) =
+      SubscriptionStateError;
 
   /// 获取订阅信息（如果已加载）
   UserSubscription? get subscription => maybeMap(
@@ -164,4 +165,16 @@ class SubscriptionState with _$SubscriptionState {
 
   /// 是否 Opus（如果已加载）
   bool get isOpus => subscription?.isOpus ?? false;
+
+  /// 是否加载出错
+  bool get isError => maybeMap(
+        error: (_) => true,
+        orElse: () => false,
+      );
+
+  /// 是否已加载成功
+  bool get isLoaded => maybeMap(
+        loaded: (_) => true,
+        orElse: () => false,
+      );
 }

@@ -1,49 +1,34 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 
-import '../unified/unified_prompt_config.dart';
 import 'prompt_editor_toolbar_config.dart';
 
 /// 提示词编辑器工具栏组件
 ///
 /// 根据 [PromptEditorToolbarConfig] 配置渲染相应的工具栏按钮。
-/// 支持视图模式切换、随机生成、全屏编辑、清空和设置等操作。
+/// 支持随机生成、全屏编辑、清空和设置等操作。
 ///
 /// 紧凑模式：
 /// 当 [PromptEditorToolbarConfig.compact] 为 true 时，工具栏会：
 /// - 使用更小的按钮尺寸（图标 16px，按钮高度 24px）
-/// - 优先显示必要操作（视图切换、清空），隐藏次要操作（随机、全屏、设置）
+/// - 优先显示必要操作（清空），隐藏次要操作（随机、全屏、设置）
 ///
 /// 使用示例：
 /// ```dart
 /// PromptEditorToolbar(
 ///   config: PromptEditorToolbarConfig.characterEditor,
-///   viewMode: PromptViewMode.text,
-///   onViewModeChanged: (mode) => setState(() => _viewMode = mode),
 ///   onClearPressed: () => _controller.clear(),
 /// )
 /// ```
 class PromptEditorToolbar extends StatelessWidget {
   // 标准模式尺寸
   static const double _standardIconSize = 20.0;
-  static const double _standardSwitchHeight = 28.0;
-  static const double _standardSwitchItemSize = 22.0;
-  static const double _standardSwitchIconSize = 14.0;
 
   // 紧凑模式尺寸
   static const double _compactIconSize = 16.0;
-  static const double _compactSwitchHeight = 22.0;
-  static const double _compactSwitchItemSize = 18.0;
-  static const double _compactSwitchIconSize = 12.0;
 
   /// 工具栏配置
   final PromptEditorToolbarConfig config;
-
-  /// 当前视图模式
-  final PromptViewMode viewMode;
-
-  /// 视图模式变化回调
-  final ValueChanged<PromptViewMode>? onViewModeChanged;
 
   /// 随机按钮点击回调
   final VoidCallback? onRandomPressed;
@@ -69,8 +54,6 @@ class PromptEditorToolbar extends StatelessWidget {
   const PromptEditorToolbar({
     super.key,
     required this.config,
-    required this.viewMode,
-    this.onViewModeChanged,
     this.onRandomPressed,
     this.onRandomLongPressed,
     this.onFullscreenPressed,
@@ -85,16 +68,14 @@ class PromptEditorToolbar extends StatelessWidget {
     final theme = Theme.of(context);
     final isCompact = config.compact;
 
-    // 紧凑模式下，只显示必要操作（视图切换、清空）
-    final showViewModeToggle = config.showViewModeToggle;
+    // 紧凑模式下，只显示必要操作（清空）
     final showRandomButton = config.showRandomButton && !isCompact;
     final showFullscreenButton = config.showFullscreenButton && !isCompact;
     final showClearButton = config.showClearButton;
     final showSettingsButton = config.showSettingsButton && !isCompact;
 
     // 检查是否有任何按钮需要显示
-    final hasAnyButton = showViewModeToggle ||
-        showRandomButton ||
+    final hasAnyButton = showRandomButton ||
         showFullscreenButton ||
         showClearButton ||
         showSettingsButton ||
@@ -110,9 +91,6 @@ class PromptEditorToolbar extends StatelessWidget {
       children: [
         // 前置自定义按钮
         if (leadingActions != null) ...leadingActions!,
-
-        // 视图模式切换（必要操作，紧凑模式保留）
-        if (showViewModeToggle) _buildViewModeSwitch(context, theme, isCompact),
 
         // 随机按钮（次要操作，紧凑模式隐藏）
         if (showRandomButton) _buildRandomButton(context, theme, isCompact),
@@ -131,98 +109,6 @@ class PromptEditorToolbar extends StatelessWidget {
         if (trailingActions != null) ...trailingActions!,
       ],
     );
-  }
-
-  /// 构建视图模式切换开关
-  Widget _buildViewModeSwitch(
-    BuildContext context,
-    ThemeData theme,
-    bool isCompact,
-  ) {
-    final isTagMode = viewMode == PromptViewMode.tags;
-    final l10n = AppLocalizations.of(context)!;
-
-    // 根据紧凑模式选择尺寸
-    final switchHeight =
-        isCompact ? _compactSwitchHeight : _standardSwitchHeight;
-    final itemSize =
-        isCompact ? _compactSwitchItemSize : _standardSwitchItemSize;
-    final iconSize =
-        isCompact ? _compactSwitchIconSize : _standardSwitchIconSize;
-    final padding = isCompact ? 2.0 : 3.0;
-    final spacing = isCompact ? 1.0 : 2.0;
-
-    return Tooltip(
-      message: isTagMode
-          ? l10n.toolbar_switchToTextView
-          : l10n.toolbar_switchToTagView,
-      child: GestureDetector(
-        onTap: onViewModeChanged != null ? _toggleViewMode : null,
-        child: Container(
-          height: switchHeight,
-          padding: EdgeInsets.all(padding),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(switchHeight / 2),
-            border: Border.all(
-              color: theme.colorScheme.outline.withOpacity(0.15),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 文本模式图标
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: itemSize,
-                height: itemSize,
-                decoration: BoxDecoration(
-                  color: !isTagMode
-                      ? theme.colorScheme.primary
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(itemSize / 2),
-                ),
-                child: Icon(
-                  Icons.text_fields_rounded,
-                  size: iconSize,
-                  color: !isTagMode
-                      ? Colors.white
-                      : theme.colorScheme.onSurface.withOpacity(0.5),
-                ),
-              ),
-              SizedBox(width: spacing),
-              // 标签模式图标
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: itemSize,
-                height: itemSize,
-                decoration: BoxDecoration(
-                  color: isTagMode
-                      ? theme.colorScheme.primary
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(itemSize / 2),
-                ),
-                child: Icon(
-                  Icons.auto_awesome_rounded,
-                  size: iconSize,
-                  color: isTagMode
-                      ? Colors.white
-                      : theme.colorScheme.onSurface.withOpacity(0.5),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 切换视图模式
-  void _toggleViewMode() {
-    final newMode = viewMode == PromptViewMode.text
-        ? PromptViewMode.tags
-        : PromptViewMode.text;
-    onViewModeChanged?.call(newMode);
   }
 
   /// 构建随机按钮

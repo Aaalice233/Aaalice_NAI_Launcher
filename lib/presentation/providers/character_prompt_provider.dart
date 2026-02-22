@@ -7,10 +7,10 @@ import '../../data/repositories/character_prompt_repository.dart';
 part 'character_prompt_provider.g.dart';
 
 /// 多角色提示词状态管理 Provider
-/// 
+///
 /// 管理多角色提示词配置，包括添加、删除、更新、重排序等操作。
 /// 数据自动持久化到本地存储。
-/// 
+///
 /// Requirements: 1.4
 @Riverpod(keepAlive: true)
 class CharacterPromptNotifier extends _$CharacterPromptNotifier {
@@ -29,23 +29,32 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
   }
 
   /// 添加新角色
-  /// 
+  ///
+  /// [gender] 角色性别
   /// [name] 角色名称，为空时自动生成
-  /// [gender] 角色性别，默认为女性
-  /// 
+  /// [prompt] 正向提示词，为空时根据性别生成默认值
+  /// [thumbnailPath] 缩略图路径（词库导入时）
+  ///
   /// Requirements: 1.2, 1.3
-  void addCharacter({
+  void addCharacter(
+    CharacterGender gender, {
     String? name,
-    CharacterGender gender = CharacterGender.female,
+    String? prompt,
+    String? thumbnailPath,
   }) {
-    state = state.addCharacter(name: name, gender: gender);
+    state = state.addCharacter(
+      gender: gender,
+      name: name,
+      prompt: prompt,
+      thumbnailPath: thumbnailPath,
+    );
     _saveConfig();
   }
 
   /// 移除角色
-  /// 
+  ///
   /// [id] 要移除的角色ID
-  /// 
+  ///
   /// Requirements: 4.2
   void removeCharacter(String id) {
     state = state.removeCharacter(id);
@@ -53,9 +62,9 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
   }
 
   /// 更新角色
-  /// 
+  ///
   /// [character] 更新后的角色数据
-  /// 
+  ///
   /// Requirements: 2.2, 2.3, 2.4, 2.5
   void updateCharacter(CharacterPrompt character) {
     state = state.updateCharacter(character);
@@ -63,10 +72,10 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
   }
 
   /// 重新排序角色
-  /// 
+  ///
   /// [oldIndex] 原位置索引
   /// [newIndex] 新位置索引
-  /// 
+  ///
   /// Requirements: 4.1, 4.3
   void reorderCharacters(int oldIndex, int newIndex) {
     state = state.reorderCharacters(oldIndex, newIndex);
@@ -74,13 +83,98 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
   }
 
   /// 设置全局AI选择位置
-  /// 
+  ///
   /// [value] 是否启用全局AI选择
-  /// 
+  ///
   /// Requirements: 3.4
   void setGlobalAiChoice(bool value) {
-    state = state.copyWith(globalAiChoice: value);
+    var newState = state.copyWith(globalAiChoice: value);
+
+    // 当关闭全局AI选择时，为未设置位置的角色智能分配位置
+    if (!value) {
+      newState = _autoAssignPositions(newState);
+    }
+
+    state = newState;
     _saveConfig();
+  }
+
+  /// 智能分配角色位置（根据角色数量）
+  ///
+  /// 当关闭全局AI选择位置时自动调用
+  CharacterPromptConfig _autoAssignPositions(CharacterPromptConfig config) {
+    final characters = config.characters;
+    if (characters.isEmpty) return config;
+
+    // 只处理启用的角色
+    final enabledCharacters = characters.where((c) => c.enabled).toList();
+    if (enabledCharacters.isEmpty) return config;
+
+    // 预设位置模板（根据角色数量）
+    final List<CharacterPosition> positions = _getPresetPositions(enabledCharacters.length);
+
+    final updatedCharacters = List<CharacterPrompt>.from(characters);
+
+    for (var i = 0; i < enabledCharacters.length && i < positions.length; i++) {
+      final char = enabledCharacters[i];
+      // 只给未设置自定义位置的角色分配
+      if (char.positionMode != CharacterPositionMode.custom || char.customPosition == null) {
+        final index = updatedCharacters.indexWhere((c) => c.id == char.id);
+        if (index != -1) {
+          updatedCharacters[index] = char.copyWith(
+            positionMode: CharacterPositionMode.custom,
+            customPosition: positions[i],
+          );
+        }
+      }
+    }
+
+    return config.copyWith(characters: updatedCharacters);
+  }
+
+  /// 根据角色数量获取预设位置
+  List<CharacterPosition> _getPresetPositions(int count) {
+    // 5x5 网格位置映射（0.0-1.0）
+    // 列：A=0.0, B=0.25, C=0.5, D=0.75, E=1.0
+    // 行：1=0.0, 2=0.25, 3=0.5, 4=0.75, 5=1.0
+    switch (count) {
+      case 1:
+        // 1人：中心
+        return [const CharacterPosition(row: 0.5, column: 0.5)];
+      case 2:
+        // 2人：左右分布
+        return [
+          const CharacterPosition(row: 0.5, column: 0.25), // 左
+          const CharacterPosition(row: 0.5, column: 0.75), // 右
+        ];
+      case 3:
+        // 3人：左中右或三角形
+        return [
+          const CharacterPosition(row: 0.5, column: 0.2),  // 左
+          const CharacterPosition(row: 0.5, column: 0.5),  // 中
+          const CharacterPosition(row: 0.5, column: 0.8),  // 右
+        ];
+      case 4:
+        // 4人：四角
+        return [
+          const CharacterPosition(row: 0.25, column: 0.25), // 左上
+          const CharacterPosition(row: 0.25, column: 0.75), // 右上
+          const CharacterPosition(row: 0.75, column: 0.25), // 左下
+          const CharacterPosition(row: 0.75, column: 0.75), // 右下
+        ];
+      default:
+        // 5人及以上：均匀分布
+        if (count >= 5) {
+          return [
+            const CharacterPosition(row: 0.2, column: 0.2),  // 左上
+            const CharacterPosition(row: 0.2, column: 0.8),  // 右上
+            const CharacterPosition(row: 0.5, column: 0.5),  // 中
+            const CharacterPosition(row: 0.8, column: 0.2),  // 左下
+            const CharacterPosition(row: 0.8, column: 0.8),  // 右下
+          ];
+        }
+        return [];
+    }
   }
 
   /// 清空所有角色
@@ -106,7 +200,7 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
   }
 
   /// 向上移动角色
-  /// 
+  ///
   /// [index] 当前位置索引
   void moveCharacterUp(int index) {
     if (index > 0) {
@@ -115,7 +209,7 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
   }
 
   /// 向下移动角色
-  /// 
+  ///
   /// [index] 当前位置索引
   void moveCharacterDown(int index) {
     if (index < state.characters.length - 1) {
@@ -124,7 +218,7 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
   }
 
   /// 切换角色启用状态
-  /// 
+  ///
   /// [id] 角色ID
   void toggleCharacterEnabled(String id) {
     final character = state.findCharacterById(id);
@@ -135,9 +229,9 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
 }
 
 /// 当前选中的角色ID Provider
-/// 
+///
 /// 用于跟踪编辑器中当前选中的角色
-/// 
+///
 /// Requirements: 2.1
 @riverpod
 class SelectedCharacterId extends _$SelectedCharacterId {
@@ -181,7 +275,7 @@ int enabledCharacterCount(Ref ref) {
 CharacterPrompt? selectedCharacter(Ref ref) {
   final config = ref.watch(characterPromptNotifierProvider);
   final selectedId = ref.watch(selectedCharacterIdProvider);
-  
+
   if (selectedId == null) return null;
   return config.findCharacterById(selectedId);
 }

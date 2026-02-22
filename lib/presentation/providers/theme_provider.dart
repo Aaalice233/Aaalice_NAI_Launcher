@@ -18,7 +18,7 @@ class ThemeNotifier extends _$ThemeNotifier {
       return AppStyle.values[index];
     }
 
-    return AppStyle.minimalGlass; // 默认风格 - 金黄深青
+    return AppStyle.grungeCollage; // 默认风格 - 拼贴朋克
   }
 
   /// 设置主题

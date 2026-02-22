@@ -198,7 +198,9 @@ class _ActionButtonsSection extends StatelessWidget {
           icon: tag.enabled
               ? Icons.visibility_off_outlined
               : Icons.visibility_outlined,
-          tooltip: tag.enabled ? context.l10n.tooltip_disable : context.l10n.tooltip_enable,
+          tooltip: tag.enabled
+              ? context.l10n.tooltip_disable
+              : context.l10n.tooltip_enable,
           color: theme.colorScheme.onSurface.withOpacity(0.7),
           onTap: () {
             onToggleEnabled?.call();

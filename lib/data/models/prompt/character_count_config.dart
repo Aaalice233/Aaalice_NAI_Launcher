@@ -150,7 +150,9 @@ class CharacterCountConfig with _$CharacterCountConfig {
                 id: 'solo_girl',
                 label: '女性',
                 mainPromptTags: 'solo',
-                slotTags: [CharacterSlotTag(slotIndex: 0, characterTag: 'girl')],
+                slotTags: [
+                  CharacterSlotTag(slotIndex: 0, characterTag: 'girl'),
+                ],
                 weight: 50,
               ),
               CharacterTagOption(

@@ -117,6 +117,7 @@ class NaiPromptParser {
     var syntaxType = WeightSyntaxType.none;
 
     // 1. 先处理 NAI 数值权重语法: weight::text::
+    // 匹配: 数字::内容:: 或 数字::内容
     final naiWeightMatch =
         RegExp(r'^(-?\d+\.?\d*)::(.+?)(?:::)?$').firstMatch(text);
     if (naiWeightMatch != null) {
@@ -125,6 +126,15 @@ class NaiPromptParser {
         weight = weightValue;
         processedText = naiWeightMatch.group(2)!.trim();
         return _WeightResult(processedText, weight, WeightSyntaxType.numeric);
+      }
+    }
+
+    // 2. 处理无数字权重的结尾 :: (NAI格式残留)
+    // 例如: "ucupumar::" -> "ucupumar"
+    if (text.endsWith('::')) {
+      processedText = text.substring(0, text.length - 2).trim();
+      if (processedText.isNotEmpty) {
+        return _WeightResult(processedText, 1.0, WeightSyntaxType.none);
       }
     }
 
@@ -164,16 +174,13 @@ class NaiPromptParser {
     }
 
     // 计算有效的括号层数（取开闭括号的最小值）
-    final effectiveBraces =
-        braceCount < closeBraceCount ? braceCount : closeBraceCount;
-    final effectiveBrackets =
-        bracketCount < closeBracketCount ? bracketCount : closeBracketCount;
+    final effectiveBraces = braceCount < closeBraceCount ? braceCount : closeBraceCount;
+    final effectiveBrackets = bracketCount < closeBracketCount ? bracketCount : closeBracketCount;
 
-    // 计算权重
+    // 计算权重并移除括号
     if (effectiveBraces > 0) {
       weight = 1.0 + (effectiveBraces * weightStep);
       syntaxType = WeightSyntaxType.bracket;
-      // 移除括号
       processedText = processedText.substring(
         effectiveBraces,
         processedText.length - effectiveBraces,
@@ -181,7 +188,6 @@ class NaiPromptParser {
     } else if (effectiveBrackets > 0) {
       weight = 1.0 - (effectiveBrackets * weightStep);
       syntaxType = WeightSyntaxType.bracket;
-      // 移除括号
       processedText = processedText.substring(
         effectiveBrackets,
         processedText.length - effectiveBrackets,

@@ -88,9 +88,8 @@ class _TimeConditionDialogState extends State<TimeConditionDialog> {
             child: const Text('清除'),
           ),
         FilledButton(
-          onPressed: _hasChanges
-              ? () => Navigator.pop(context, _condition)
-              : null,
+          onPressed:
+              _hasChanges ? () => Navigator.pop(context, _condition) : null,
           child: const Text('保存'),
         ),
       ],

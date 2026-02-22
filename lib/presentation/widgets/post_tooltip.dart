@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/utils/app_logger.dart';
 import '../../data/models/online_gallery/danbooru_post.dart';
-import '../../data/services/tag_translation_service.dart';
 
 /// 帖子悬浮提示组件
 ///
@@ -22,10 +22,8 @@ class PostTooltip extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final translationService = ref.watch(tagTranslationServiceProvider);
-
     return Tooltip(
-      richMessage: _buildTooltipContent(context, translationService),
+      richMessage: _buildTooltipContent(post),
       waitDuration: const Duration(milliseconds: 500),
       showDuration: const Duration(seconds: 10),
       preferBelow: false,
@@ -44,10 +42,9 @@ class PostTooltip extends ConsumerWidget {
     );
   }
 
-  TextSpan _buildTooltipContent(
-    BuildContext context,
-    TagTranslationService translationService,
-  ) {
+  /// 构建提示内容（简化版，标签不显示翻译以避免同步查询问题）
+  /// 翻译可以通过点击查看详情获取
+  TextSpan _buildTooltipContent(DanbooruPost post) {
     final List<InlineSpan> spans = [];
 
     // 基本信息
@@ -109,10 +106,12 @@ class PostTooltip extends ConsumerWidget {
             style: const TextStyle(color: Colors.white70, fontSize: 11),
           ),
         );
-      } catch (_) {}
+      } catch (e, st) {
+        AppLogger.e('Failed to parse createdAt date', e, st);
+      }
     }
 
-    // 艺术家
+    // 艺术家（只显示名称，不显示翻译）
     if (post.artistTags.isNotEmpty) {
       spans.add(const TextSpan(text: '\n\n'));
       spans.add(
@@ -125,11 +124,10 @@ class PostTooltip extends ConsumerWidget {
           ),
         ),
       );
-      final artistTexts = post.artistTags.take(3).map((t) {
-        final translation = translationService.translateTag(t);
-        final display = t.replaceAll('_', ' ');
-        return translation != null ? '$display ($translation)' : display;
-      }).join(', ');
+      final artistTexts = post.artistTags
+          .take(3)
+          .map((t) => t.replaceAll('_', ' '))
+          .join(', ');
       spans.add(
         TextSpan(
           text: artistTexts,
@@ -138,7 +136,7 @@ class PostTooltip extends ConsumerWidget {
       );
     }
 
-    // 角色
+    // 角色（只显示名称，不显示翻译）
     if (post.characterTags.isNotEmpty) {
       spans.add(const TextSpan(text: '\n\n'));
       spans.add(
@@ -151,11 +149,11 @@ class PostTooltip extends ConsumerWidget {
           ),
         ),
       );
-      final charTexts = post.characterTags.take(5).map((t) {
-        final translation = translationService.translate(t, isCharacter: true);
-        final display = t.replaceAll('_', ' ');
-        return translation != null ? '$display ($translation)' : display;
-      }).join(', ');
+      final charCount = post.characterTags.length > 5 ? 5 : post.characterTags.length;
+      final charTexts = post.characterTags
+          .take(charCount)
+          .map((t) => t.replaceAll('_', ' '))
+          .join(', ');
       spans.add(
         TextSpan(
           text: charTexts,
@@ -172,7 +170,7 @@ class PostTooltip extends ConsumerWidget {
       }
     }
 
-    // 作品
+    // 作品（只显示名称，不显示翻译）
     if (post.copyrightTags.isNotEmpty) {
       spans.add(const TextSpan(text: '\n\n'));
       spans.add(
@@ -185,11 +183,10 @@ class PostTooltip extends ConsumerWidget {
           ),
         ),
       );
-      final copyrightTexts = post.copyrightTags.take(3).map((t) {
-        final translation = translationService.translateTag(t);
-        final display = t.replaceAll('_', ' ');
-        return translation != null ? '$display ($translation)' : display;
-      }).join(', ');
+      final copyrightTexts = post.copyrightTags
+          .take(3)
+          .map((t) => t.replaceAll('_', ' '))
+          .join(', ');
       spans.add(
         TextSpan(
           text: copyrightTexts,
@@ -198,7 +195,7 @@ class PostTooltip extends ConsumerWidget {
       );
     }
 
-    // 通用标签（只显示前几个重要的）
+    // 通用标签（只显示名称，不显示翻译）
     if (post.generalTags.isNotEmpty) {
       spans.add(const TextSpan(text: '\n\n'));
       spans.add(
@@ -211,11 +208,11 @@ class PostTooltip extends ConsumerWidget {
           ),
         ),
       );
-      final tagTexts = post.generalTags.take(8).map((t) {
-        final translation = translationService.translateTag(t);
-        final display = t.replaceAll('_', ' ');
-        return translation != null ? '$display ($translation)' : display;
-      }).join(', ');
+      final tagCount = post.generalTags.length > 8 ? 8 : post.generalTags.length;
+      final tagTexts = post.generalTags
+          .take(tagCount)
+          .map((t) => t.replaceAll('_', ' '))
+          .join(', ');
       spans.add(
         TextSpan(
           text: tagTexts,

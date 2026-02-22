@@ -2,15 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../core/utils/localization_extension.dart';
 import '../../data/services/danbooru_auth_service.dart';
+import '../../../core/utils/localization_extension.dart';
+
+import 'common/app_toast.dart';
+import 'common/floating_label_input.dart';
 
 /// Danbooru 登录对话框
 class DanbooruLoginDialog extends ConsumerStatefulWidget {
   const DanbooruLoginDialog({super.key});
 
   @override
-  ConsumerState<DanbooruLoginDialog> createState() => _DanbooruLoginDialogState();
+  ConsumerState<DanbooruLoginDialog> createState() =>
+      _DanbooruLoginDialogState();
 }
 
 class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
@@ -33,17 +37,15 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
     setState(() => _isLoading = true);
 
     final success = await ref.read(danbooruAuthProvider.notifier).login(
-      _usernameController.text.trim(),
-      _apiKeyController.text.trim(),
-    );
+          _usernameController.text.trim(),
+          _apiKeyController.text.trim(),
+        );
 
     setState(() => _isLoading = false);
 
     if (success && mounted) {
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.danbooru_loginSuccess)),
-      );
+      AppToast.success(context, context.l10n.danbooru_loginSuccess);
     }
   }
 
@@ -67,7 +69,10 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
                 children: [
                   Icon(Icons.login, color: theme.colorScheme.primary),
                   const SizedBox(width: 12),
-                  Text(context.l10n.danbooru_loginTitle, style: theme.textTheme.titleLarge),
+                  Text(
+                    context.l10n.danbooru_loginTitle,
+                    style: theme.textTheme.titleLarge,
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -80,13 +85,13 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
               const SizedBox(height: 24),
 
               // 用户名输入
-              TextFormField(
+              FloatingLabelInput(
+                label: context.l10n.danbooru_username,
                 controller: _usernameController,
-                decoration: InputDecoration(
-                  labelText: context.l10n.danbooru_username,
-                  hintText: context.l10n.danbooru_usernameHint,
-                  prefixIcon: const Icon(Icons.person),
-                ),
+                hintText: context.l10n.danbooru_usernameHint,
+                prefixIcon: Icons.person_outline,
+                textInputAction: TextInputAction.next,
+                required: true,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return context.l10n.danbooru_usernameRequired;
@@ -97,17 +102,30 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
               const SizedBox(height: 16),
 
               // API Key 输入
-              TextFormField(
+              FloatingLabelInput(
+                label: 'API Key',
                 controller: _apiKeyController,
+                hintText: context.l10n.danbooru_apiKeyHint,
+                prefixIcon: Icons.key_outlined,
                 obscureText: _obscureApiKey,
-                decoration: InputDecoration(
-                  labelText: 'API Key',
-                  hintText: context.l10n.danbooru_apiKeyHint,
-                  prefixIcon: const Icon(Icons.key),
-                  suffixIcon: IconButton(
-                    icon: Icon(_obscureApiKey ? Icons.visibility : Icons.visibility_off),
-                    onPressed: () => setState(() => _obscureApiKey = !_obscureApiKey),
-                  ),
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _login(),
+                required: true,
+                suffix: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        _obscureApiKey
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        size: 20,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscureApiKey = !_obscureApiKey),
+                      splashRadius: 20,
+                    ),
+                  ],
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -141,12 +159,18 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.error, color: theme.colorScheme.error, size: 20),
+                      Icon(
+                        Icons.error,
+                        color: theme.colorScheme.error,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           authState.error!,
-                          style: TextStyle(color: theme.colorScheme.onErrorContainer),
+                          style: TextStyle(
+                            color: theme.colorScheme.onErrorContainer,
+                          ),
                         ),
                       ),
                     ],
@@ -191,4 +215,3 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
     }
   }
 }
-

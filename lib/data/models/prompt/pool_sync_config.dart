@@ -1,7 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:flutter/widgets.dart';
 
-import '../../../core/utils/localization_extension.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'pool_mapping.dart';
 
 part 'pool_sync_config.freezed.dart';
@@ -154,11 +154,14 @@ class PoolSyncProgress {
   String localizedMessage(BuildContext context) {
     return switch (type) {
       PoolSyncProgressType.initial => context.l10n.sync_preparing,
-      PoolSyncProgressType.fetching => context.l10n.sync_fetching(currentPool ?? ''),
-      PoolSyncProgressType.extracting => context.l10n.sync_extracting(currentPool ?? ''),
+      PoolSyncProgressType.fetching =>
+        context.l10n.sync_fetching(currentPool ?? ''),
+      PoolSyncProgressType.extracting =>
+        context.l10n.sync_extracting(currentPool ?? ''),
       PoolSyncProgressType.merging => context.l10n.sync_merging,
       PoolSyncProgressType.saving => context.l10n.sync_saving,
-      PoolSyncProgressType.completed => context.l10n.sync_completed(completedCount),
+      PoolSyncProgressType.completed =>
+        context.l10n.sync_completed(completedCount),
       PoolSyncProgressType.failed => context.l10n.sync_failed(error ?? ''),
     };
   }

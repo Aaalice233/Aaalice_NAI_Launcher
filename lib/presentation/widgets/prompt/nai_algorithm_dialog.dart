@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../widgets/common/themed_divider.dart';
 
 /// NAI随机算法说明弹窗
 ///
@@ -46,11 +47,29 @@ class NaiAlgorithmDialog extends StatelessWidget {
                 title: context.l10n.naiAlgorithm_characterCount,
                 child: Column(
                   children: [
-                    _buildProbabilityBar(context, theme, '1人 (solo)', 70, Colors.blue),
+                    _buildProbabilityBar(
+                      context,
+                      theme,
+                      '1人 (solo)',
+                      70,
+                      Colors.blue,
+                    ),
                     const SizedBox(height: 6),
-                    _buildProbabilityBar(context, theme, '2人 (2girls等)', 20, Colors.green),
+                    _buildProbabilityBar(
+                      context,
+                      theme,
+                      '2人 (2girls等)',
+                      20,
+                      Colors.green,
+                    ),
                     const SizedBox(height: 6),
-                    _buildProbabilityBar(context, theme, '3人 (multiple)', 7, Colors.orange),
+                    _buildProbabilityBar(
+                      context,
+                      theme,
+                      '3人 (multiple)',
+                      7,
+                      Colors.orange,
+                    ),
                     const SizedBox(height: 6),
                     _buildProbabilityBar(context, theme, '无人物', 5, Colors.grey),
                   ],
@@ -67,27 +86,93 @@ class NaiAlgorithmDialog extends StatelessWidget {
                 title: context.l10n.naiAlgorithm_categoryProbability,
                 child: Column(
                   children: [
-                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_background, 90, Colors.teal),
+                    _buildProbabilityBar(
+                      context,
+                      theme,
+                      context.l10n.naiAlgorithm_background,
+                      90,
+                      Colors.teal,
+                    ),
                     const SizedBox(height: 6),
-                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_hairColor, 50, Colors.purple),
+                    _buildProbabilityBar(
+                      context,
+                      theme,
+                      context.l10n.naiAlgorithm_hairColor,
+                      50,
+                      Colors.purple,
+                    ),
                     const SizedBox(height: 6),
-                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_eyeColor, 50, Colors.blue),
+                    _buildProbabilityBar(
+                      context,
+                      theme,
+                      context.l10n.naiAlgorithm_eyeColor,
+                      50,
+                      Colors.blue,
+                    ),
                     const SizedBox(height: 6),
-                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_hairStyle, 50, Colors.pink),
+                    _buildProbabilityBar(
+                      context,
+                      theme,
+                      context.l10n.naiAlgorithm_hairStyle,
+                      50,
+                      Colors.pink,
+                    ),
                     const SizedBox(height: 6),
-                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_expression, 50, Colors.amber),
+                    _buildProbabilityBar(
+                      context,
+                      theme,
+                      context.l10n.naiAlgorithm_expression,
+                      50,
+                      Colors.amber,
+                    ),
                     const SizedBox(height: 6),
-                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_pose, 50, Colors.indigo),
+                    _buildProbabilityBar(
+                      context,
+                      theme,
+                      context.l10n.naiAlgorithm_pose,
+                      50,
+                      Colors.indigo,
+                    ),
                     const SizedBox(height: 6),
-                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_clothing, 50, Colors.orange),
+                    _buildProbabilityBar(
+                      context,
+                      theme,
+                      context.l10n.naiAlgorithm_clothing,
+                      50,
+                      Colors.orange,
+                    ),
                     const SizedBox(height: 6),
-                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_accessory, 50, Colors.brown),
+                    _buildProbabilityBar(
+                      context,
+                      theme,
+                      context.l10n.naiAlgorithm_accessory,
+                      50,
+                      Colors.brown,
+                    ),
                     const SizedBox(height: 6),
-                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_scene, 50, Colors.green),
+                    _buildProbabilityBar(
+                      context,
+                      theme,
+                      context.l10n.naiAlgorithm_scene,
+                      50,
+                      Colors.green,
+                    ),
                     const SizedBox(height: 6),
-                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_style, 30, Colors.cyan),
+                    _buildProbabilityBar(
+                      context,
+                      theme,
+                      context.l10n.naiAlgorithm_style,
+                      30,
+                      Colors.cyan,
+                    ),
                     const SizedBox(height: 6),
-                    _buildProbabilityBar(context, theme, context.l10n.naiAlgorithm_bodyFeature, 30, Colors.grey),
+                    _buildProbabilityBar(
+                      context,
+                      theme,
+                      context.l10n.naiAlgorithm_bodyFeature,
+                      30,
+                      Colors.grey,
+                    ),
                   ],
                 ),
               ),
@@ -151,7 +236,8 @@ class NaiAlgorithmDialog extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+                        color:
+                            theme.colorScheme.primaryContainer.withOpacity(0.3),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Column(
@@ -163,7 +249,7 @@ class NaiAlgorithmDialog extends StatelessWidget {
                             context.l10n.naiAlgorithm_mainPromptTags,
                             theme.colorScheme.primary,
                           ),
-                          const Divider(height: 16),
+                          const ThemedDivider(height: 16),
                           _buildStructureItem(
                             theme,
                             context.l10n.naiAlgorithm_characterPrompt,

@@ -80,11 +80,11 @@ class AnlasCalculator {
       perSample = (r * steps * 6.8e-7) * smeaFactor;
     } else {
       // V1/V2 使用指数公式（简化版）
-      perSample = (15.266497014243718 *
-                  math.exp(r / 1024 / 1024 * 0.6326248927474729) -
-              15.225164493059737) *
-          steps /
-          28;
+      perSample =
+          (15.266497014243718 * math.exp(r / 1024 / 1024 * 0.6326248927474729) -
+                  15.225164493059737) *
+              steps /
+              28;
     }
 
     // 应用 img2img 强度系数

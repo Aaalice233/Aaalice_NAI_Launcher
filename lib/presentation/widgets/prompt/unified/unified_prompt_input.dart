@@ -1,18 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
-import '../../../../core/utils/nai_prompt_parser.dart';
-import '../../../../data/models/prompt/prompt_tag.dart';
-import '../../autocomplete/autocomplete_text_field.dart';
+import '../../../../core/utils/nai_prompt_formatter.dart';
+import '../../../../core/utils/sd_to_nai_converter.dart';
+import '../../../../data/models/character/character_prompt.dart';
+import '../../../../presentation/utils/text_selection_utils.dart';
+import '../../../providers/tag_library_page_provider.dart';
+import '../../../screens/tag_library_page/widgets/entry_add_dialog.dart';
+import '../../autocomplete/autocomplete_wrapper.dart';
+import '../../autocomplete/autocomplete_strategy.dart';
+import '../../autocomplete/strategies/local_tag_strategy.dart';
+import '../../autocomplete/strategies/alias_strategy.dart';
+import '../../autocomplete/strategies/cooccurrence_strategy.dart';
+import '../../common/app_toast.dart';
+import '../../common/weight_adjust_toolbar.dart';
+import '../comfyui_import_wrapper.dart';
 import '../nai_syntax_controller.dart';
-import '../tag_view.dart';
 import 'unified_prompt_config.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 统一提示词输入组件
 ///
-/// 封装文本输入和标签视图的切换逻辑，支持：
-/// - 文本模式：自动补全、语法高亮
-/// - 标签模式：拖拽排序、批量操作、权重调整
+/// 文本输入组件，支持：
+/// - 自动补全
+/// - 语法高亮
+/// - 自动格式化
 ///
 /// 使用示例：
 /// ```dart
@@ -20,7 +33,6 @@ import 'unified_prompt_config.dart';
 ///   config: UnifiedPromptConfig.characterEditor,
 ///   controller: _promptController,
 ///   onChanged: (text) => print('Text changed: $text'),
-///   onTagsChanged: (tags) => print('Tags changed: ${tags.length}'),
 /// )
 /// ```
 class UnifiedPromptInput extends ConsumerStatefulWidget {
@@ -40,23 +52,25 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
   /// 文本变化回调
   final ValueChanged<String>? onChanged;
 
-  /// 标签列表变化回调
-  final ValueChanged<List<PromptTag>>? onTagsChanged;
-
-  /// 视图模式变化回调
-  final ValueChanged<PromptViewMode>? onViewModeChanged;
-
   /// 提交回调（按 Enter 键时触发，不阻止 Shift+Enter 换行）
   final ValueChanged<String>? onSubmitted;
 
-  /// 最大行数（文本模式）
+  /// 最大行数
   final int? maxLines;
 
-  /// 最小行数（文本模式）
+  /// 最小行数
   final int? minLines;
 
   /// 是否扩展填满空间
   final bool expands;
+
+  /// ComfyUI 多角色导入回调
+  ///
+  /// 当用户确认导入 ComfyUI 格式的多角色提示词时触发。
+  /// [globalPrompt] 全局提示词，用于替换主输入框内容
+  /// [characters] 角色列表，用于替换角色配置
+  final void Function(String globalPrompt, List<CharacterPrompt> characters)?
+      onComfyuiImport;
 
   const UnifiedPromptInput({
     super.key,
@@ -65,12 +79,11 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
     this.focusNode,
     this.decoration,
     this.onChanged,
-    this.onTagsChanged,
-    this.onViewModeChanged,
     this.onSubmitted,
     this.maxLines,
     this.minLines,
     this.expands = false,
+    this.onComfyuiImport,
   });
 
   @override
@@ -87,11 +100,8 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   /// 焦点节点
   FocusNode? _internalFocusNode;
 
-  /// 当前视图模式
-  late PromptViewMode _viewMode;
-
-  /// 当前标签列表（标签模式下使用）
-  List<PromptTag> _tags = [];
+  /// 自动补全策略 Future（异步初始化）
+  Future<AutocompleteStrategy>? _autocompleteStrategyFuture;
 
   /// 获取有效的文本控制器
   TextEditingController get _effectiveController {
@@ -109,7 +119,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   @override
   void initState() {
     super.initState();
-    _viewMode = widget.config.initialViewMode;
 
     // 初始化内部控制器（如果需要）
     if (widget.controller == null) {
@@ -133,8 +142,11 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     // 监听外部控制器变化
     widget.controller?.addListener(_syncFromExternalController);
 
-    // 初始化标签列表
-    _updateTagsFromText();
+    // 监听焦点变化（用于失焦格式化）
+    _effectiveFocusNode.addListener(_onFocusChanged);
+
+    // 初始化自动补全策略（延迟到第一次 build 后，因为需要 ref）
+    // 策略将在 _ensureAutocompleteStrategy 中惰性创建
   }
 
   @override
@@ -157,21 +169,100 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     if (widget.config.enableSyntaxHighlight !=
         oldWidget.config.enableSyntaxHighlight) {
       if (widget.config.enableSyntaxHighlight && _syntaxController == null) {
+        // 使用旧的配置获取当前文本，避免在 _syntaxController 为 null 时访问 _effectiveController
+        final currentText = oldWidget.config.enableSyntaxHighlight
+            ? widget.controller?.text ?? _internalController?.text ?? ''
+            : widget.controller?.text ?? _internalController?.text ?? '';
         _syntaxController = NaiSyntaxController(
-          text: _effectiveController.text,
+          text: currentText,
           highlightEnabled: true,
         );
+      } else if (!widget.config.enableSyntaxHighlight &&
+          _syntaxController != null) {
+        // 禁用语法高亮时，释放资源
+        _syntaxController?.dispose();
+        _syntaxController = null;
       }
     }
   }
 
   @override
   void dispose() {
+    _effectiveFocusNode.removeListener(_onFocusChanged);
     widget.controller?.removeListener(_syncFromExternalController);
     _internalController?.dispose();
     _syntaxController?.dispose();
     _internalFocusNode?.dispose();
     super.dispose();
+  }
+
+  /// 焦点变化回调
+  void _onFocusChanged() {
+    if (!_effectiveFocusNode.hasFocus) {
+      _formatOnBlur();
+    }
+  }
+
+  /// 失焦时格式化提示词
+  void _formatOnBlur() {
+    if (!widget.config.enableAutoFormat &&
+        !widget.config.enableSdSyntaxAutoConvert) {
+      return;
+    }
+
+    var text = _effectiveController.text;
+    if (text.isEmpty) return;
+
+    var changed = false;
+    final messages = <String>[];
+
+    // SD 语法自动转换（优先于格式化，因为格式化可能会影响转换结果）
+    if (widget.config.enableSdSyntaxAutoConvert) {
+      final converted = SdToNaiConverter.convert(text);
+      if (converted != text) {
+        text = converted;
+        changed = true;
+        messages.add('SD→NAI');
+      }
+    }
+
+    // 自动格式化
+    if (widget.config.enableAutoFormat) {
+      final formatted = NaiPromptFormatter.format(text);
+      if (formatted != text) {
+        text = formatted;
+        changed = true;
+        if (!messages.contains('SD→NAI')) {
+          messages.add(context.l10n.prompt_formatted);
+        }
+      }
+    }
+
+    if (changed) {
+      _effectiveController.text = text;
+      _handleTextChanged(text);
+      if (mounted && messages.isNotEmpty) {
+        AppToast.info(context, messages.join(' + '));
+      }
+    }
+  }
+
+  /// 确保自动补全策略 Future 已创建
+  Future<AutocompleteStrategy> _ensureAutocompleteStrategyFuture() {
+    _autocompleteStrategyFuture ??= LocalTagStrategy.create(
+      ref,
+      widget.config.autocompleteConfig,
+    ).then((localTagStrategy) {
+      return CompositeStrategy(
+        strategies: [
+          localTagStrategy,
+          AliasStrategy.create(ref),
+          CooccurrenceStrategy.create(ref, widget.config.autocompleteConfig),
+        ],
+        strategySelector: defaultStrategySelector,
+      );
+    });
+    return _autocompleteStrategyFuture!;
   }
 
   /// 同步外部控制器变化到内部状态
@@ -184,48 +275,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     if (_syntaxController != null && _syntaxController!.text != externalText) {
       _syntaxController!.text = externalText;
     }
-
-    // 更新标签列表
-    _updateTagsFromText();
-  }
-
-  /// 从文本更新标签列表
-  void _updateTagsFromText() {
-    final text = widget.controller?.text ??
-        _syntaxController?.text ??
-        _internalController?.text ??
-        '';
-    _tags = NaiPromptParser.parse(text);
-  }
-
-  /// 切换视图模式
-  void _toggleViewMode() {
-    setState(() {
-      if (_viewMode == PromptViewMode.text) {
-        // 文本 -> 标签：解析文本
-        _tags = NaiPromptParser.parse(_effectiveController.text);
-        _viewMode = PromptViewMode.tags;
-      } else {
-        // 标签 -> 文本：序列化标签
-        final text = NaiPromptParser.toPromptString(_tags);
-        _updateControllerText(text);
-        _viewMode = PromptViewMode.text;
-      }
-    });
-    widget.onViewModeChanged?.call(_viewMode);
-  }
-
-  /// 更新控制器文本
-  void _updateControllerText(String text) {
-    if (_syntaxController != null) {
-      _syntaxController!.text = text;
-    }
-    if (_internalController != null) {
-      _internalController!.text = text;
-    }
-    if (widget.controller != null) {
-      widget.controller!.text = text;
-    }
   }
 
   /// 处理文本变化
@@ -235,190 +284,169 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       widget.controller!.text = text;
     }
 
-    // 更新标签列表
-    _tags = NaiPromptParser.parse(text);
-
     // 触发回调
     widget.onChanged?.call(text);
   }
 
-  /// 处理标签变化
-  void _handleTagsChanged(List<PromptTag> tags) {
-    setState(() {
-      _tags = tags;
-    });
+  /// 处理清空操作
+  void _handleClear() {
+    _effectiveController.clear();
+    // 同步到外部控制器
+    if (widget.controller != null) {
+      widget.controller!.clear();
+    }
 
-    // 同步到文本
-    final text = NaiPromptParser.toPromptString(tags);
-    _updateControllerText(text);
+    widget.onChanged?.call('');
+    widget.config.onClearPressed?.call();
+  }
 
-    // 触发回调
-    widget.onTagsChanged?.call(tags);
-    widget.onChanged?.call(text);
+  /// 构建自定义上下文菜单，添加"保存到词库"选项
+  Widget _buildContextMenu(
+    BuildContext context,
+    EditableTextState editableTextState,
+  ) {
+    final selectedText =
+        TextSelectionUtils.getSelectedText(_effectiveController);
+    final hasSelection = selectedText.isNotEmpty;
+
+    // 获取默认的上下文菜单项
+    final List<ContextMenuButtonItem> buttonItems =
+        editableTextState.contextMenuButtonItems;
+
+    // 如果有选中文本，添加"保存到词库"选项
+    if (hasSelection) {
+      buttonItems.insert(
+        0,
+        ContextMenuButtonItem(
+          onPressed: () {
+            editableTextState.hideToolbar();
+            _showSaveToLibraryDialog(context, selectedText);
+          },
+          label: context.l10n.tagLibrary_saveToLibrary,
+        ),
+      );
+    }
+
+    return AdaptiveTextSelectionToolbar.buttonItems(
+      buttonItems: buttonItems,
+      anchors: editableTextState.contextMenuAnchors,
+    );
+  }
+
+  /// 显示保存到词库对话框
+  Future<void> _showSaveToLibraryDialog(
+    BuildContext context,
+    String selectedText,
+  ) async {
+    final categories = ref.read(tagLibraryPageCategoriesProvider);
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) => EntryAddDialog(
+        categories: categories,
+        entry: null,
+        initialContent: selectedText,
+      ),
+    );
+
+    // 注意：EntryAddDialog 会自己处理保存逻辑并显示 toast
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    Widget result = _buildTextField();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // 视图模式切换按钮（如果启用）
-        if (widget.config.enableViewModeToggle && !widget.config.compact)
-          _buildViewModeToggle(theme),
-
-        // 主内容区域
-        Flexible(
-          child: _viewMode == PromptViewMode.text
-              ? _buildTextMode(theme)
-              : _buildTagMode(theme),
-        ),
-      ],
-    );
-  }
-
-  /// 构建视图模式切换按钮
-  Widget _buildViewModeToggle(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          _buildToggleButton(
-            icon: Icons.text_fields,
-            label: 'Text',
-            isSelected: _viewMode == PromptViewMode.text,
-            onTap: () {
-              if (_viewMode != PromptViewMode.text) {
-                _toggleViewMode();
-              }
-            },
-            theme: theme,
-          ),
-          const SizedBox(width: 4),
-          _buildToggleButton(
-            icon: Icons.label_outline,
-            label: 'Tags',
-            isSelected: _viewMode == PromptViewMode.tags,
-            onTap: () {
-              if (_viewMode != PromptViewMode.tags) {
-                _toggleViewMode();
-              }
-            },
-            theme: theme,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildToggleButton({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-    required ThemeData theme,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: widget.config.readOnly ? null : onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? theme.colorScheme.primary.withOpacity(0.15)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: isSelected
-                  ? theme.colorScheme.primary.withOpacity(0.5)
-                  : theme.colorScheme.outline.withOpacity(0.3),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 16,
-                color: isSelected
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface.withOpacity(0.6),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: isSelected
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurface.withOpacity(0.6),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 构建文本模式视图
-  Widget _buildTextMode(ThemeData theme) {
-    final effectiveDecoration = widget.decoration ??
-        InputDecoration(
-          hintText: widget.config.hintText,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        );
-
-    if (widget.config.enableAutocomplete) {
-      return AutocompleteTextField(
+    // 如果启用 ComfyUI 导入，包装 ComfyuiImportWrapper
+    if (widget.config.enableComfyuiImport && widget.onComfyuiImport != null) {
+      result = ComfyuiImportWrapper(
         controller: _effectiveController,
-        focusNode: _effectiveFocusNode,
-        decoration: effectiveDecoration,
-        maxLines: widget.expands ? null : widget.maxLines,
-        minLines: widget.expands ? null : widget.minLines,
-        expands: widget.expands,
-        onChanged: _handleTextChanged,
-        onSubmitted: widget.onSubmitted,
-        config: widget.config.autocompleteConfig,
-        enableAutocomplete: !widget.config.readOnly,
-        enableAutoFormat: widget.config.enableAutoFormat,
-        enableSdSyntaxAutoConvert: widget.config.enableSdSyntaxAutoConvert,
+        enabled: !widget.config.readOnly,
+        onImport: widget.onComfyuiImport,
+        child: result,
       );
     }
 
-    // 不启用自动补全时，使用普通 TextField
-    return TextField(
+    return result;
+  }
+
+  /// 构建文本输入框
+  Widget _buildTextField() {
+    // 合并 decoration：优先使用传入的 decoration，但保留 config 中的 hintText
+    final effectiveDecoration = InputDecoration(
+      hintText: widget.config.hintText,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 10,
+      ),
+    ).copyWith(
+      hintText: widget.config.hintText,
+      contentPadding: widget.decoration?.contentPadding,
+      filled: widget.decoration?.filled,
+      fillColor: widget.decoration?.fillColor,
+      border: widget.decoration?.border,
+      enabledBorder: widget.decoration?.enabledBorder,
+      focusedBorder: widget.decoration?.focusedBorder,
+      errorBorder: widget.decoration?.errorBorder,
+      focusedErrorBorder: widget.decoration?.focusedErrorBorder,
+      prefixIcon: widget.decoration?.prefixIcon,
+      suffixIcon: widget.decoration?.suffixIcon,
+      prefix: widget.decoration?.prefix,
+      suffix: widget.decoration?.suffix,
+      labelText: widget.decoration?.labelText,
+      labelStyle: widget.decoration?.labelStyle,
+      floatingLabelStyle: widget.decoration?.floatingLabelStyle,
+      helperText: widget.decoration?.helperText,
+      helperStyle: widget.decoration?.helperStyle,
+      errorText: widget.decoration?.errorText,
+      errorStyle: widget.decoration?.errorStyle,
+      counterText: widget.decoration?.counterText,
+      counterStyle: widget.decoration?.counterStyle,
+      isDense: widget.decoration?.isDense,
+    );
+
+    // 构建基础 ThemedInput
+    // 注意：focusNode 必须始终传给 ThemedInput，
+    // 否则 TextField 会创建自己的内部 focusNode，
+    // 导致 _onFocusChanged 监听不到失焦事件
+    final baseInput = ThemedInput(
       controller: _effectiveController,
       focusNode: _effectiveFocusNode,
       decoration: effectiveDecoration,
       maxLines: widget.expands ? null : widget.maxLines,
-      minLines: widget.expands ? null : widget.minLines,
+      minLines: widget.expands ? null : (widget.minLines ?? 1),
       expands: widget.expands,
       textAlignVertical: widget.expands ? TextAlignVertical.top : null,
       readOnly: widget.config.readOnly,
-      onChanged: _handleTextChanged,
+      onChanged: widget.config.enableAutocomplete ? null : _handleTextChanged,
       onSubmitted: widget.onSubmitted,
+      showClearButton: widget.config.showClearButton,
+      onClearPressed: widget.config.showClearButton ? _handleClear : null,
+      clearNeedsConfirm: widget.config.clearNeedsConfirm,
+      contextMenuBuilder: _buildContextMenu,
     );
-  }
 
-  /// 构建标签模式视图
-  Widget _buildTagMode(ThemeData theme) {
-    return TagView(
-      tags: _tags,
-      onTagsChanged: _handleTagsChanged,
-      readOnly: widget.config.readOnly,
-      showAddButton: !widget.config.readOnly,
-      compact: widget.config.compact,
-      emptyHint: widget.config.emptyHint,
-      maxHeight: widget.config.maxHeight,
+    // 包装权重调整工具条
+    Widget result = WeightAdjustToolbarWrapper(
+      controller: _effectiveController,
+      focusNode: _effectiveFocusNode,
+      child: baseInput,
     );
+
+    // 如果启用自动补全，使用 AutocompleteWrapper 包装
+    if (widget.config.enableAutocomplete) {
+      result = AutocompleteWrapper(
+        controller: _effectiveController,
+        focusNode: _effectiveFocusNode,
+        asyncStrategy: _ensureAutocompleteStrategyFuture(),
+        enabled: !widget.config.readOnly,
+        onChanged: _handleTextChanged,
+        contentPadding: effectiveDecoration.contentPadding,
+        maxLines: widget.maxLines,
+        expands: widget.expands,
+        child: result,
+      );
+    }
+
+    return result;
   }
 }

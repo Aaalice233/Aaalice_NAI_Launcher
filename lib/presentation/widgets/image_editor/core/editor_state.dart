@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../layers/layer.dart';
 import '../layers/layer_manager.dart';
 import '../tools/tool_base.dart';
 import '../tools/brush_tool.dart';
@@ -51,6 +52,10 @@ class EditorState extends ChangeNotifier {
   /// 画布尺寸通知器（仅画布尺寸相关 UI 监听）
   final ValueNotifier<Size> canvasSizeNotifier =
       ValueNotifier(const Size(1024, 1024));
+
+  /// 光标位置通知器（仅光标绘制器监听）
+  /// 避免光标移动触发整个 UI 重建
+  final ValueNotifier<Offset?> cursorNotifier = ValueNotifier(null);
 
   // ===== 画布状态 =====
 
@@ -183,8 +188,10 @@ class EditorState extends ChangeNotifier {
 
   // ===== 代理方法：颜色 =====
 
-  void setForegroundColor(Color color) => colorManager.setForegroundColor(color);
-  void setBackgroundColor(Color color) => colorManager.setBackgroundColor(color);
+  void setForegroundColor(Color color) =>
+      colorManager.setForegroundColor(color);
+  void setBackgroundColor(Color color) =>
+      colorManager.setBackgroundColor(color);
   void swapColors() => colorManager.swapColors();
 
   // ===== 代理方法：选区 =====
@@ -348,6 +355,20 @@ class EditorState extends ChangeNotifier {
 
     historyManager.execute(
       ClearLayerAction(layerId: layer.id),
+      this,
+    );
+  }
+
+  /// 调整画布大小（支持撤销）
+  void resizeCanvas(Size newSize, CanvasResizeMode mode) {
+    // 如果新尺寸与当前尺寸相同，则不执行操作
+    if (_canvasSize == newSize) return;
+
+    historyManager.execute(
+      ResizeCanvasAction(
+        newSize: newSize,
+        mode: mode,
+      ),
       this,
     );
   }

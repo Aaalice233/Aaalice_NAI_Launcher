@@ -28,6 +28,12 @@ class TagBottomActionSheet extends StatefulWidget {
   /// 复制回调
   final VoidCallback? onCopy;
 
+  /// 切换收藏回调
+  final VoidCallback? onToggleFavorite;
+
+  /// 是否已收藏
+  final bool isFavorite;
+
   const TagBottomActionSheet({
     super.key,
     required this.tag,
@@ -36,6 +42,8 @@ class TagBottomActionSheet extends StatefulWidget {
     this.onEdit,
     this.onDelete,
     this.onCopy,
+    this.onToggleFavorite,
+    this.isFavorite = false,
   });
 
   /// 显示底部面板
@@ -47,6 +55,8 @@ class TagBottomActionSheet extends StatefulWidget {
     VoidCallback? onEdit,
     VoidCallback? onDelete,
     VoidCallback? onCopy,
+    VoidCallback? onToggleFavorite,
+    bool isFavorite = false,
   }) {
     HapticFeedback.mediumImpact();
     return showModalBottomSheet(
@@ -60,6 +70,8 @@ class TagBottomActionSheet extends StatefulWidget {
         onEdit: onEdit,
         onDelete: onDelete,
         onCopy: onCopy,
+        onToggleFavorite: onToggleFavorite,
+        isFavorite: isFavorite,
       ),
     );
   }
@@ -379,13 +391,30 @@ class _TagBottomActionSheetState extends State<TagBottomActionSheet> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
+          // 收藏
+          if (widget.onToggleFavorite != null) ...[
+            Expanded(
+              child: _ActionButton(
+                icon:
+                    widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+                label: widget.isFavorite ? 'Unfavorite' : 'Favorite',
+                onTap: () {
+                  widget.onToggleFavorite?.call();
+                  Navigator.pop(context);
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+          ],
           // 启用/禁用
           Expanded(
             child: _ActionButton(
               icon: widget.tag.enabled
                   ? Icons.visibility_off_outlined
                   : Icons.visibility_outlined,
-              label: widget.tag.enabled ? context.l10n.tag_disable : context.l10n.tag_enable,
+              label: widget.tag.enabled
+                  ? context.l10n.tag_disable
+                  : context.l10n.tag_enable,
               onTap: () {
                 widget.onToggleEnabled?.call();
                 Navigator.pop(context);

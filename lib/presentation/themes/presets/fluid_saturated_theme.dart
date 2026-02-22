@@ -60,6 +60,5 @@ class FluidSaturatedTheme {
   static String get displayName => 'Fluid Saturated';
 
   /// Theme description.
-  static String get description =>
-      '流体饱和风格 - 极大圆角、饱和色彩与毛玻璃效果的未来感设计';
+  static String get description => '流体饱和风格 - 极大圆角、饱和色彩与毛玻璃效果的未来感设计';
 }

@@ -24,6 +24,8 @@ class NeoDarkPalette extends BaseColorModule {
   ColorScheme get darkScheme => const ColorScheme.dark(
         primary: _primary,
         onPrimary: Colors.white,
+        primaryContainer: Color(0xFF2A2855), // Dark indigo for contrast
+        onPrimaryContainer: Color(0xFFE0E0FF), // Light indigo for text/icons
         secondary: _secondary,
         onSecondary: Colors.white,
         tertiary: Color(0xFFF472B6),

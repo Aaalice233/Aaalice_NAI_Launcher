@@ -60,6 +60,5 @@ class MidnightEditorialTheme {
   static String get displayName => 'Midnight Editorial';
 
   /// Theme description.
-  static String get description =>
-      '午夜编辑风格 - 深黑背景配珊瑚色点缀，杂志般的优雅排版';
+  static String get description => '午夜编辑风格 - 深黑背景配珊瑚色点缀，杂志般的优雅排版';
 }

@@ -106,9 +106,8 @@ class ConditionalBranchConfig with _$ConditionalBranchConfig {
     int Function() randomInt,
   ) {
     // 过滤出满足条件且启用的分支
-    final eligibleBranches = branches
-        .where((b) => b.enabled && b.checkCondition(context))
-        .toList();
+    final eligibleBranches =
+        branches.where((b) => b.enabled && b.checkCondition(context)).toList();
 
     if (eligibleBranches.isEmpty) {
       // 返回默认分支
@@ -122,6 +121,14 @@ class ConditionalBranchConfig with _$ConditionalBranchConfig {
     }
 
     // 按概率加权随机选择
+    return _weightedRandomSelect(eligibleBranches, randomInt);
+  }
+
+  /// 加权随机选择分支
+  ConditionalBranch _weightedRandomSelect(
+    List<ConditionalBranch> eligibleBranches,
+    int Function() randomInt,
+  ) {
     final totalProbability =
         eligibleBranches.fold<int>(0, (sum, b) => sum + b.probability);
 
@@ -134,9 +141,7 @@ class ConditionalBranchConfig with _$ConditionalBranchConfig {
 
     for (final branch in eligibleBranches) {
       cumulative += branch.probability;
-      if (target <= cumulative) {
-        return branch;
-      }
+      if (target <= cumulative) return branch;
     }
 
     return eligibleBranches.last;

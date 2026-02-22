@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -127,7 +129,8 @@ class VirtualizedMasonryGrid extends StatelessWidget {
       addAutomaticKeepAlives: addAutomaticKeepAlives,
       addRepaintBoundaries: addRepaintBoundaries,
       addSemanticIndexes: addSemanticIndexes,
-      semanticChildCount: semanticChildCount,
+      // semanticChildCount 应该与 itemCount 一致（包含 footer）
+      semanticChildCount: semanticChildCount > 0 ? semanticChildCount : totalItemCount,
       reverse: reverse,
       scrollDirection: scrollDirection,
       physics: physics ?? const AlwaysScrollableScrollPhysics(),
@@ -307,6 +310,23 @@ class _DebugVirtualizedMasonryGridState
     extends State<DebugVirtualizedMasonryGrid> {
   final Set<int> _renderedIndices = <int>{};
   DateTime? _lastLogTime;
+  Timer? _cleanupTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // 每 30 秒清理一次已渲染索引集合，避免内存无限增长
+    _cleanupTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _renderedIndices.clear();
+    });
+  }
+
+  @override
+  void dispose() {
+    _cleanupTimer?.cancel();
+    _renderedIndices.clear();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

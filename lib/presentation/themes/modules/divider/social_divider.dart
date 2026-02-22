@@ -1,5 +1,5 @@
 /// Social Divider - Flat, no-shadow borders
-/// 
+///
 /// For social app style themes:
 /// - Social / Discord
 library;
@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import '../../core/divider_module.dart';
 
 /// A divider module with flat, Discord-style dividers.
-/// 
+///
 /// Simple solid borders without shadows or effects,
 /// common in social media applications.
 class SocialDividerModule extends BaseDividerModule {

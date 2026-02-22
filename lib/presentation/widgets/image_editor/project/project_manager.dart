@@ -82,8 +82,6 @@ class ProjectManager {
     if (project.activeLayerId != null) {
       state.layerManager.setActiveLayer(project.activeLayerId!);
     }
-
-    // TODO: 恢复选区路径
   }
 
   /// 创建项目数据

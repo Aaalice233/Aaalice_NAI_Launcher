@@ -1,12 +1,48 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/alias_parser.dart';
+
 /// NAI 语法高亮控制器
 /// 继承 TextEditingController，重写 buildTextSpan 实现语法着色
 class NaiSyntaxController extends TextEditingController {
   /// 是否启用高亮
   bool highlightEnabled;
 
+  // 静态正则表达式，编译一次复用多次
+  // 支持三种格式：
+  // 1. weight::content::  - 完整格式 (数字::内容::)
+  // 2. weight::content    - 只有开头权重 (数字::内容)
+  // 3. content::          - 只有结尾 :: (内容::)
+  static final RegExp _weightPatternFull = RegExp(r'(-?\d+\.?\d*)::(.+?)::(?=,|\s|$)');
+  static final RegExp _weightPatternLeading = RegExp(r'(-?\d+\.?\d*)::([a-z0-9_:]+)(?=,|\s|$)');
+  static final RegExp _weightPatternTrailing = RegExp(r'([a-z0-9_:]+)::$');
+
+  /// NAI 动态随机语法 ||A|B|C|| 或 ||n$$A|B|C||
+  static final RegExp _dynamicRandomPattern =
+      RegExp(r'\|\|([^|]+(?:\|[^|]+)*)\|\|');
+
+  // 缓存：避免每次光标移动都重新解析
+  String? _cachedText;
+  bool? _cachedIsDark;
+  List<TextSpan>? _cachedSpans;
+
+  // 语法错误信息（用于 UI 显示）
+  List<String> _syntaxErrors = [];
+
+  /// 获取当前文本的语法错误列表
+  List<String> get syntaxErrors => _syntaxErrors;
+
+  /// 是否存在语法错误
+  bool get hasSyntaxErrors => _syntaxErrors.isNotEmpty;
+
   NaiSyntaxController({super.text, this.highlightEnabled = true});
+
+  /// 清除缓存（当主题变化等情况时调用）
+  void clearCache() {
+    _cachedText = null;
+    _cachedIsDark = null;
+    _cachedSpans = null;
+  }
 
   @override
   TextSpan buildTextSpan({
@@ -23,9 +59,22 @@ class NaiSyntaxController extends TextEditingController {
 
     final theme = Theme.of(context);
     final colors = NaiSyntaxColors.fromTheme(theme);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // 检查缓存是否有效（文本未变化且主题未变化）
+    if (_cachedText == text &&
+        _cachedIsDark == isDark &&
+        _cachedSpans != null) {
+      return TextSpan(style: baseStyle, children: _cachedSpans);
+    }
 
     // 解析并高亮文本
     final spans = _parseAndHighlight(text, baseStyle, colors);
+
+    // 更新缓存
+    _cachedText = text;
+    _cachedIsDark = isDark;
+    _cachedSpans = spans;
 
     return TextSpan(style: baseStyle, children: spans);
   }
@@ -36,47 +85,26 @@ class NaiSyntaxController extends TextEditingController {
     TextStyle baseStyle,
     NaiSyntaxColors colors,
   ) {
-    if (text.isEmpty) return [];
+    if (text.isEmpty) {
+      _syntaxErrors = [];
+      return [];
+    }
 
     final spans = <TextSpan>[];
     final matches = <_SyntaxMatch>[];
 
-    // 匹配多层花括号 {}, {{}}, {{{}}}, ...
-    final bracePattern = RegExp(r'\{+[^{}]+\}+');
-    for (final match in bracePattern.allMatches(text)) {
-      final matchText = match.group(0)!;
-      final depth = _countLeadingChar(matchText, '{').clamp(1, 5);
-      matches.add(
-        _SyntaxMatch(
-          start: match.start,
-          end: match.end,
-          text: matchText,
-          type: _SyntaxType.brace,
-          depth: depth,
-        ),
-      );
-    }
+    // 使用栈算法解析括号（支持嵌套）
+    _parseNestedBrackets(text, matches);
 
-    // 匹配多层方括号 [], [[]], ...
-    final bracketPattern = RegExp(r'\[+[^\[\]]+\]+');
-    for (final match in bracketPattern.allMatches(text)) {
-      final matchText = match.group(0)!;
-      final depth = _countLeadingChar(matchText, '[').clamp(1, 5);
-      matches.add(
-        _SyntaxMatch(
-          start: match.start,
-          end: match.end,
-          text: matchText,
-          type: _SyntaxType.bracket,
-          depth: depth,
-        ),
-      );
-    }
+    // 收集语法错误
+    _syntaxErrors = matches
+        .where((m) => m.type == _SyntaxType.error && m.errorMessage != null)
+        .map((m) => m.errorMessage!)
+        .toList();
 
-    // 匹配权重语法 数字::内容::
-    // 拆分为: (数字::内容) + (::)
-    final weightPattern = RegExp(r'(-?\d+\.?\d*)::([^:]+)::');
-    for (final match in weightPattern.allMatches(text)) {
+    // 匹配权重语法，支持三种格式
+    // 格式1: weight::content:: (完整格式)
+    for (final match in _weightPatternFull.allMatches(text)) {
       final weightStr = match.group(1)!;
       final content = match.group(2)!;
       final weight = double.tryParse(weightStr) ?? 1.0;
@@ -104,6 +132,75 @@ class NaiSyntaxController extends TextEditingController {
         ),
       );
     }
+
+    // 格式2: weight::content (只有开头权重)
+    final leadingMatches = _weightPatternLeading.allMatches(text).toList();
+    for (final match in leadingMatches) {
+      // 跳过已被完整格式匹配的部分
+      if (text.substring(match.end).startsWith('::')) continue;
+      
+      final weightStr = match.group(1)!;
+      final weight = double.tryParse(weightStr) ?? 1.0;
+
+      // 整个部分: 数字::内容
+      matches.add(
+        _SyntaxMatch(
+          start: match.start,
+          end: match.end,
+          text: match.group(0)!,
+          type: _SyntaxType.weightMain,
+          weight: weight,
+        ),
+      );
+    }
+
+    // 格式3: content:: (只有结尾 ::，无开头权重)
+    for (final match in _weightPatternTrailing.allMatches(text)) {
+      // 跳过已被前面规则匹配的部分（检查前面是否有 ::）
+      if (match.start >= 2 && text.substring(match.start - 2, match.start) == '::') {
+        continue;
+      }
+      final content = match.group(1)!;
+
+      // 内容部分（使用权重=1的颜色，即无颜色/透明）
+      matches.add(
+        _SyntaxMatch(
+          start: match.start,
+          end: match.end - 2,
+          text: content,
+          type: _SyntaxType.weightMain,
+          weight: 1.0, // 权重=1表示无增强/减弱
+        ),
+      );
+
+      // 结尾 :: 部分（绿色）
+      matches.add(
+        _SyntaxMatch(
+          start: match.end - 2,
+          end: match.end,
+          text: '::',
+          type: _SyntaxType.weightTrailing,
+          weight: 1.0,
+        ),
+      );
+    }
+
+    // 匹配别名语法 <xxx>
+    final aliasRefs = AliasParser.parse(text);
+    for (final ref in aliasRefs) {
+      matches.add(
+        _SyntaxMatch(
+          start: ref.start,
+          end: ref.end,
+          text: ref.rawText,
+          type: _SyntaxType.alias,
+        ),
+      );
+    }
+
+    // 匹配 NAI 动态随机语法 ||A|B|C|| 的边界符和分隔符
+    // 只着色 || 和 | ，内部内容由其他规则处理（如别名 <xxx>）
+    _parseDynamicRandomSyntax(text, matches);
 
     // 按起始位置排序
     matches.sort((a, b) => a.start.compareTo(b.start));
@@ -160,17 +257,156 @@ class NaiSyntaxController extends TextEditingController {
         : spans;
   }
 
-  /// 统计开头连续字符数量
-  int _countLeadingChar(String text, String char) {
-    int count = 0;
+  /// 使用栈算法解析嵌套括号
+  /// 支持 {a{b}c} 等嵌套结构
+  void _parseNestedBrackets(String text, List<_SyntaxMatch> matches) {
+    final braceStack = <_BracketInfo>[]; // 花括号栈
+    final bracketStack = <_BracketInfo>[]; // 方括号栈
+
     for (int i = 0; i < text.length; i++) {
-      if (text[i] == char) {
-        count++;
-      } else {
-        break;
+      final char = text[i];
+
+      if (char == '{') {
+        // 记录开括号位置和当前深度
+        final depth = braceStack.length + 1;
+        braceStack.add(_BracketInfo(char, i, depth));
+      } else if (char == '}') {
+        if (braceStack.isNotEmpty) {
+          // 找到匹配的开括号
+          final openBracket = braceStack.removeLast();
+          final matchText = text.substring(openBracket.position, i + 1);
+          matches.add(
+            _SyntaxMatch(
+              start: openBracket.position,
+              end: i + 1,
+              text: matchText,
+              type: _SyntaxType.brace,
+              depth: openBracket.depth.clamp(1, 5),
+            ),
+          );
+        } else {
+          // 没有匹配的开括号 - 语法错误
+          matches.add(
+            _SyntaxMatch(
+              start: i,
+              end: i + 1,
+              text: char,
+              type: _SyntaxType.error,
+              errorMessage: '未匹配的闭括号 "}"',
+            ),
+          );
+        }
+      } else if (char == '[') {
+        // 记录开括号位置和当前深度
+        final depth = bracketStack.length + 1;
+        bracketStack.add(_BracketInfo(char, i, depth));
+      } else if (char == ']') {
+        if (bracketStack.isNotEmpty) {
+          // 找到匹配的开括号
+          final openBracket = bracketStack.removeLast();
+          final matchText = text.substring(openBracket.position, i + 1);
+          matches.add(
+            _SyntaxMatch(
+              start: openBracket.position,
+              end: i + 1,
+              text: matchText,
+              type: _SyntaxType.bracket,
+              depth: openBracket.depth.clamp(1, 5),
+            ),
+          );
+        } else {
+          // 没有匹配的开括号 - 语法错误
+          matches.add(
+            _SyntaxMatch(
+              start: i,
+              end: i + 1,
+              text: char,
+              type: _SyntaxType.error,
+              errorMessage: '未匹配的闭括号 "]"',
+            ),
+          );
+        }
       }
     }
-    return count;
+
+    // 处理未闭合的开括号 - 语法错误
+    for (final unclosed in braceStack) {
+      matches.add(
+        _SyntaxMatch(
+          start: unclosed.position,
+          end: unclosed.position + 1,
+          text: '{',
+          type: _SyntaxType.error,
+          errorMessage: '未闭合的括号 "{"',
+        ),
+      );
+    }
+    for (final unclosed in bracketStack) {
+      matches.add(
+        _SyntaxMatch(
+          start: unclosed.position,
+          end: unclosed.position + 1,
+          text: '[',
+          type: _SyntaxType.error,
+          errorMessage: '未闭合的括号 "["',
+        ),
+      );
+    }
+  }
+
+  /// 解析 NAI 动态随机语法 ||A|B|C||
+  /// 只着色边界符 || 和分隔符 |，内部内容由其他规则处理
+  void _parseDynamicRandomSyntax(String text, List<_SyntaxMatch> matches) {
+    for (final match in _dynamicRandomPattern.allMatches(text)) {
+      final content = match.group(1)!;
+      final startPos = match.start;
+
+      // 着色开始的 ||
+      matches.add(
+        _SyntaxMatch(
+          start: startPos,
+          end: startPos + 2,
+          text: '||',
+          type: _SyntaxType.dynamicRandom,
+        ),
+      );
+
+      // 解析内部内容，找出分隔符 |
+      // 注意：需要跳过别名 <xxx> 内部的 |
+      final contentStart = startPos + 2;
+      var angleBracketDepth = 0;
+
+      for (var i = 0; i < content.length; i++) {
+        final char = content[i];
+
+        if (char == '<') {
+          angleBracketDepth++;
+        } else if (char == '>') {
+          angleBracketDepth = (angleBracketDepth - 1).clamp(0, 100);
+        } else if (char == '|' && angleBracketDepth == 0) {
+          // 找到分隔符 |
+          final separatorPos = contentStart + i;
+          matches.add(
+            _SyntaxMatch(
+              start: separatorPos,
+              end: separatorPos + 1,
+              text: '|',
+              type: _SyntaxType.dynamicRandom,
+            ),
+          );
+        }
+      }
+
+      // 着色结束的 ||
+      matches.add(
+        _SyntaxMatch(
+          start: match.end - 2,
+          end: match.end,
+          text: '||',
+          type: _SyntaxType.dynamicRandom,
+        ),
+      );
+    }
   }
 }
 
@@ -180,6 +416,9 @@ enum _SyntaxType {
   bracket, // [] 方括号
   weightMain, // 权重主体 (数字::内容)
   weightTrailing, // 权重结尾 (::)
+  error, // 语法错误（不匹配的括号）
+  alias, // <xxx> 别名引用
+  dynamicRandom, // ||A|B|| 动态随机语法
 }
 
 /// 语法匹配结果
@@ -190,6 +429,7 @@ class _SyntaxMatch {
   final _SyntaxType type;
   final int depth; // 括号深度 (1-5)
   final double weight; // 权重值
+  final String? errorMessage; // 错误信息（仅 error 类型）
 
   _SyntaxMatch({
     required this.start,
@@ -198,7 +438,17 @@ class _SyntaxMatch {
     required this.type,
     this.depth = 1,
     this.weight = 1.0,
+    this.errorMessage,
   });
+}
+
+/// 括号信息（用于栈算法）
+class _BracketInfo {
+  final String char;
+  final int position;
+  final int depth; // 当前嵌套深度
+
+  _BracketInfo(this.char, this.position, this.depth);
 }
 
 /// NAI 语法背景色配置（参考 NovelAI 官网样式）
@@ -295,6 +545,34 @@ class NaiSyntaxColors {
       case _SyntaxType.weightTrailing:
         // 结尾 :: 使用绿色
         return trailingColonBg;
+      case _SyntaxType.error:
+        // 语法错误：红色背景
+        return _getErrorColor();
+      case _SyntaxType.alias:
+        // 别名：青色背景
+        return _getAliasColor();
+      case _SyntaxType.dynamicRandom:
+        // 动态随机：紫色/洋红色背景
+        return _getDynamicRandomColor();
     }
+  }
+
+  /// 别名颜色（青色系 HSL(180, 60%, 35%)）
+  Color _getAliasColor() {
+    final alpha = isDark ? 0.55 : 0.50;
+    return HSLColor.fromAHSL(alpha, 180, 0.60, 0.35).toColor();
+  }
+
+  /// 错误颜色（红色背景）
+  Color _getErrorColor() {
+    final alpha = isDark ? 0.50 : 0.45;
+    // 红色系：HSL(0, 70%, 40%)
+    return HSLColor.fromAHSL(alpha, 0, 0.70, 0.40).toColor();
+  }
+
+  /// 动态随机语法颜色（紫色/洋红色 HSL(280, 60%, 35%)）
+  Color _getDynamicRandomColor() {
+    final alpha = isDark ? 0.55 : 0.50;
+    return HSLColor.fromAHSL(alpha, 280, 0.60, 0.35).toColor();
   }
 }

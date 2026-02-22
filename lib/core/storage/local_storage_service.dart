@@ -23,6 +23,9 @@ class LocalStorageService {
 
   /// 获取设置值
   T? getSetting<T>(String key, {T? defaultValue}) {
+    if (!Hive.isBoxOpen(StorageKeys.settingsBox)) {
+      return defaultValue;
+    }
     return _settingsBox.get(key, defaultValue: defaultValue) as T?;
   }
 
@@ -40,6 +43,7 @@ class LocalStorageService {
 
   /// 获取风格类型索引
   int getThemeIndex() {
+    // 默认值 0 对应 AppStyle.grungeCollage (拼贴朋克风格)
     return getSetting<int>(StorageKeys.themeType, defaultValue: 0) ?? 0;
   }
 
@@ -52,7 +56,8 @@ class LocalStorageService {
 
   /// 获取字体名称
   String getFontFamily() {
-    return getSetting<String>(StorageKeys.fontFamily, defaultValue: 'system') ?? 'system';
+    return getSetting<String>(StorageKeys.fontFamily, defaultValue: 'system') ??
+        'system';
   }
 
   /// 保存字体名称
@@ -76,8 +81,11 @@ class LocalStorageService {
 
   /// 获取默认模型
   String getDefaultModel() {
-    return getSetting<String>(StorageKeys.defaultModel, defaultValue: 'nai-diffusion-3') ??
-        'nai-diffusion-3';
+    return getSetting<String>(
+          StorageKeys.defaultModel,
+          defaultValue: 'nai-diffusion-4-5-full',
+        ) ??
+        'nai-diffusion-4-5-full';
   }
 
   /// 保存默认模型
@@ -87,7 +95,10 @@ class LocalStorageService {
 
   /// 获取默认采样器
   String getDefaultSampler() {
-    return getSetting<String>(StorageKeys.defaultSampler, defaultValue: 'k_euler_ancestral') ??
+    return getSetting<String>(
+          StorageKeys.defaultSampler,
+          defaultValue: 'k_euler_ancestral',
+        ) ??
         'k_euler_ancestral';
   }
 
@@ -108,7 +119,12 @@ class LocalStorageService {
 
   /// 获取默认 Scale
   double getDefaultScale() {
-    return getSetting<double>(StorageKeys.defaultScale, defaultValue: 5.0) ?? 5.0;
+    final value = getSetting(StorageKeys.defaultScale);
+    if (value == null) return 5.0;
+    // 处理可能存储为 int 的情况
+    if (value is int) return value.toDouble();
+    if (value is double) return value;
+    return 5.0;
   }
 
   /// 保存默认 Scale
@@ -128,7 +144,8 @@ class LocalStorageService {
 
   /// 获取默认高度
   int getDefaultHeight() {
-    return getSetting<int>(StorageKeys.defaultHeight, defaultValue: 1216) ?? 1216;
+    return getSetting<int>(StorageKeys.defaultHeight, defaultValue: 1216) ??
+        1216;
   }
 
   /// 保存默认高度
@@ -164,7 +181,8 @@ class LocalStorageService {
 
   /// 获取是否自动保存图片
   bool getAutoSaveImages() {
-    return getSetting<bool>(StorageKeys.autoSaveImages, defaultValue: false) ?? false;
+    return getSetting<bool>(StorageKeys.autoSaveImages, defaultValue: true) ??
+        true;
   }
 
   /// 保存是否自动保存图片
@@ -176,7 +194,8 @@ class LocalStorageService {
 
   /// 获取是否添加质量标签 (默认开启)
   bool getAddQualityTags() {
-    return getSetting<bool>(StorageKeys.addQualityTags, defaultValue: true) ?? true;
+    return getSetting<bool>(StorageKeys.addQualityTags, defaultValue: true) ??
+        true;
   }
 
   /// 保存是否添加质量标签
@@ -196,11 +215,77 @@ class LocalStorageService {
     await setSetting(StorageKeys.ucPresetType, value);
   }
 
+  /// 获取 UC 预设自定义条目 ID
+  String? getUcPresetCustomId() {
+    return getSetting<String>(StorageKeys.ucPresetCustomId);
+  }
+
+  /// 保存 UC 预设自定义条目 ID
+  Future<void> setUcPresetCustomId(String? value) async {
+    if (value != null) {
+      await setSetting(StorageKeys.ucPresetCustomId, value);
+    } else {
+      await deleteSetting(StorageKeys.ucPresetCustomId);
+    }
+  }
+
+  /// 获取 UC 预设自定义条目 ID 列表
+  List<String> getUcPresetCustomIds() {
+    final data = getSetting<List<dynamic>>(StorageKeys.ucPresetCustomIds);
+    return data?.cast<String>() ?? [];
+  }
+
+  /// 保存 UC 预设自定义条目 ID 列表
+  Future<void> setUcPresetCustomIds(List<String> ids) async {
+    await setSetting(StorageKeys.ucPresetCustomIds, ids);
+  }
+
+  // ==================== Quality Preset (新版) ====================
+
+  /// 获取质量词预设模式 (默认 0 = naiDefault)
+  int getQualityPresetMode() {
+    return getSetting<int>(StorageKeys.qualityPresetMode, defaultValue: 0) ?? 0;
+  }
+
+  /// 保存质量词预设模式
+  Future<void> setQualityPresetMode(int value) async {
+    await setSetting(StorageKeys.qualityPresetMode, value);
+  }
+
+  /// 获取质量词预设自定义条目 ID
+  String? getQualityPresetCustomId() {
+    return getSetting<String>(StorageKeys.qualityPresetCustomId);
+  }
+
+  /// 保存质量词预设自定义条目 ID
+  Future<void> setQualityPresetCustomId(String? value) async {
+    if (value != null) {
+      await setSetting(StorageKeys.qualityPresetCustomId, value);
+    } else {
+      await deleteSetting(StorageKeys.qualityPresetCustomId);
+    }
+  }
+
+  /// 获取质量词自定义条目 ID 列表
+  List<String> getQualityPresetCustomIds() {
+    final data = getSetting<List<dynamic>>(StorageKeys.qualityPresetCustomIds);
+    return data?.cast<String>() ?? [];
+  }
+
+  /// 保存质量词自定义条目 ID 列表
+  Future<void> setQualityPresetCustomIds(List<String> ids) async {
+    await setSetting(StorageKeys.qualityPresetCustomIds, ids);
+  }
+
   // ==================== Random Prompt Mode ====================
 
   /// 获取抽卡模式 (默认关闭)
   bool getRandomPromptMode() {
-    return getSetting<bool>(StorageKeys.randomPromptMode, defaultValue: false) ?? false;
+    return getSetting<bool>(
+          StorageKeys.randomPromptMode,
+          defaultValue: false,
+        ) ??
+        false;
   }
 
   /// 保存抽卡模式
@@ -222,7 +307,11 @@ class LocalStorageService {
 
   /// 获取是否启用自动补全 (默认开启)
   bool getEnableAutocomplete() {
-    return getSetting<bool>(StorageKeys.enableAutocomplete, defaultValue: true) ?? true;
+    return getSetting<bool>(
+          StorageKeys.enableAutocomplete,
+          defaultValue: true,
+        ) ??
+        true;
   }
 
   /// 保存是否启用自动补全
@@ -234,7 +323,8 @@ class LocalStorageService {
 
   /// 获取是否启用自动格式化 (默认开启)
   bool getAutoFormatPrompt() {
-    return getSetting<bool>(StorageKeys.autoFormatPrompt, defaultValue: true) ?? true;
+    return getSetting<bool>(StorageKeys.autoFormatPrompt, defaultValue: true) ??
+        true;
   }
 
   /// 保存是否启用自动格式化
@@ -244,7 +334,11 @@ class LocalStorageService {
 
   /// 获取是否启用高亮强调 (默认开启)
   bool getHighlightEmphasis() {
-    return getSetting<bool>(StorageKeys.highlightEmphasis, defaultValue: true) ?? true;
+    return getSetting<bool>(
+          StorageKeys.highlightEmphasis,
+          defaultValue: true,
+        ) ??
+        true;
   }
 
   /// 保存是否启用高亮强调
@@ -256,12 +350,32 @@ class LocalStorageService {
 
   /// 获取是否启用SD语法自动转换 (默认关闭)
   bool getSdSyntaxAutoConvert() {
-    return getSetting<bool>(StorageKeys.sdSyntaxAutoConvert, defaultValue: false) ?? false;
+    return getSetting<bool>(
+          StorageKeys.sdSyntaxAutoConvert,
+          defaultValue: false,
+        ) ??
+        false;
   }
 
   /// 保存是否启用SD语法自动转换
   Future<void> setSdSyntaxAutoConvert(bool value) async {
     await setSetting(StorageKeys.sdSyntaxAutoConvert, value);
+  }
+
+  // ==================== Cooccurrence Recommendation ====================
+
+  /// 获取是否启用共现推荐 (默认开启)
+  bool getEnableCooccurrenceRecommendation() {
+    return getSetting<bool>(
+          StorageKeys.enableCooccurrenceRecommendation,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存是否启用共现推荐
+  Future<void> setEnableCooccurrenceRecommendation(bool value) async {
+    await setSetting(StorageKeys.enableCooccurrenceRecommendation, value);
   }
 
   // ==================== Last Generation Params ====================
@@ -278,7 +392,11 @@ class LocalStorageService {
 
   /// 获取上次的负向提示词
   String getLastNegativePrompt() {
-    return getSetting<String>(StorageKeys.lastNegativePrompt, defaultValue: '') ?? '';
+    return getSetting<String>(
+          StorageKeys.lastNegativePrompt,
+          defaultValue: '',
+        ) ??
+        '';
   }
 
   /// 保存负向提示词
@@ -298,7 +416,8 @@ class LocalStorageService {
 
   /// 获取上次的 SMEA DYN 设置
   bool getLastSmeaDyn() {
-    return getSetting<bool>(StorageKeys.lastSmeaDyn, defaultValue: false) ?? false;
+    return getSetting<bool>(StorageKeys.lastSmeaDyn, defaultValue: false) ??
+        false;
   }
 
   /// 保存 SMEA DYN 设置
@@ -308,7 +427,8 @@ class LocalStorageService {
 
   /// 获取上次的 CFG Rescale 值
   double getLastCfgRescale() {
-    return getSetting<double>(StorageKeys.lastCfgRescale, defaultValue: 0.0) ?? 0.0;
+    return getSetting<double>(StorageKeys.lastCfgRescale, defaultValue: 0.0) ??
+        0.0;
   }
 
   /// 保存 CFG Rescale 值
@@ -318,7 +438,11 @@ class LocalStorageService {
 
   /// 获取上次的噪声计划
   String getLastNoiseSchedule() {
-    return getSetting<String>(StorageKeys.lastNoiseSchedule, defaultValue: 'native') ?? 'native';
+    return getSetting<String>(
+          StorageKeys.lastNoiseSchedule,
+          defaultValue: 'native',
+        ) ??
+        'native';
   }
 
   /// 保存噪声计划
@@ -330,7 +454,8 @@ class LocalStorageService {
 
   /// 获取种子是否锁定 (默认关闭)
   bool getSeedLocked() {
-    return getSetting<bool>(StorageKeys.seedLocked, defaultValue: false) ?? false;
+    return getSetting<bool>(StorageKeys.seedLocked, defaultValue: false) ??
+        false;
   }
 
   /// 保存种子锁定状态
@@ -352,12 +477,184 @@ class LocalStorageService {
     }
   }
 
+  // ==================== UI Layout State ====================
+
+  /// 获取左侧面板展开状态 (默认展开)
+  bool getLeftPanelExpanded() {
+    return getSetting<bool>(
+          StorageKeys.leftPanelExpanded,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存左侧面板展开状态
+  Future<void> setLeftPanelExpanded(bool expanded) async {
+    await setSetting(StorageKeys.leftPanelExpanded, expanded);
+  }
+
+  /// 获取右侧面板展开状态 (默认展开)
+  bool getRightPanelExpanded() {
+    return getSetting<bool>(
+          StorageKeys.rightPanelExpanded,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存右侧面板展开状态
+  Future<void> setRightPanelExpanded(bool expanded) async {
+    await setSetting(StorageKeys.rightPanelExpanded, expanded);
+  }
+
+  /// 获取左侧面板宽度 (默认300)
+  double getLeftPanelWidth() {
+    return getSetting<double>(
+          StorageKeys.leftPanelWidth,
+          defaultValue: 300.0,
+        ) ??
+        300.0;
+  }
+
+  /// 保存左侧面板宽度
+  Future<void> setLeftPanelWidth(double width) async {
+    await setSetting(StorageKeys.leftPanelWidth, width);
+  }
+
+  /// 获取右侧面板宽度 (默认280, 使用 historyPanelWidth key)
+  double getRightPanelWidth() {
+    return getSetting<double>(
+          StorageKeys.historyPanelWidth,
+          defaultValue: 280.0,
+        ) ??
+        280.0;
+  }
+
+  /// 保存右侧面板宽度 (使用 historyPanelWidth key)
+  Future<void> setRightPanelWidth(double width) async {
+    await setSetting(StorageKeys.historyPanelWidth, width);
+  }
+
+  /// 获取提示区域高度 (默认200)
+  double getPromptAreaHeight() {
+    return getSetting<double>(
+          StorageKeys.promptAreaHeight,
+          defaultValue: 200.0,
+        ) ??
+        200.0;
+  }
+
+  /// 保存提示区域高度
+  Future<void> setPromptAreaHeight(double height) async {
+    await setSetting(StorageKeys.promptAreaHeight, height);
+  }
+
+  /// 获取提示区域最大化状态 (默认关闭)
+  bool getPromptMaximized() {
+    return getSetting<bool>(
+          StorageKeys.promptMaximized,
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// 保存提示区域最大化状态
+  Future<void> setPromptMaximized(bool maximized) async {
+    await setSetting(StorageKeys.promptMaximized, maximized);
+  }
+
+  // ==================== Character Panel Dock ====================
+
+  /// 获取角色面板停靠状态 (默认未停靠)
+  bool getCharacterPanelDocked() {
+    return getSetting<bool>(
+          StorageKeys.characterPanelDocked,
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// 保存角色面板停靠状态
+  Future<void> setCharacterPanelDocked(bool docked) async {
+    await setSetting(StorageKeys.characterPanelDocked, docked);
+  }
+
   // ==================== Lifecycle ====================
 
   /// 关闭存储
   Future<void> close() async {
     await _settingsBox.close();
     await _historyBox.close();
+  }
+
+  // ==================== Fixed Tags ====================
+
+  /// 获取固定词列表 JSON
+  String? getFixedTagsJson() {
+    return getSetting<String>(StorageKeys.fixedTagsData);
+  }
+
+  /// 保存固定词列表 JSON
+  Future<void> setFixedTagsJson(String json) async {
+    await setSetting(StorageKeys.fixedTagsData, json);
+  }
+
+  /// 获取固定词分类列表 JSON
+  String? getFixedTagCategoriesJson() {
+    return getSetting<String>(StorageKeys.fixedTagCategoriesData);
+  }
+
+  /// 保存固定词分类列表 JSON
+  Future<void> setFixedTagCategoriesJson(String json) async {
+    await setSetting(StorageKeys.fixedTagCategoriesData, json);
+  }
+
+  // ==================== Tag Library (User) ====================
+
+  /// 获取用户词库条目列表 JSON
+  String? getTagLibraryEntriesJson() {
+    return getSetting<String>(StorageKeys.tagLibraryEntriesData);
+  }
+
+  /// 保存用户词库条目列表 JSON
+  Future<void> setTagLibraryEntriesJson(String json) async {
+    await setSetting(StorageKeys.tagLibraryEntriesData, json);
+  }
+
+  /// 获取用户词库分类列表 JSON
+  String? getTagLibraryCategoriesJson() {
+    return getSetting<String>(StorageKeys.tagLibraryCategoriesData);
+  }
+
+  /// 保存用户词库分类列表 JSON
+  Future<void> setTagLibraryCategoriesJson(String json) async {
+    await setSetting(StorageKeys.tagLibraryCategoriesData, json);
+  }
+
+  /// 获取词库视图模式 (0=card, 1=list)
+  int getTagLibraryViewMode() {
+    return getSetting<int>(StorageKeys.tagLibraryViewMode) ?? 0;
+  }
+
+  /// 保存词库视图模式
+  Future<void> setTagLibraryViewMode(int mode) async {
+    await setSetting(StorageKeys.tagLibraryViewMode, mode);
+  }
+
+  // ==================== Floating Button Background ====================
+
+  /// 获取悬浮球背景图片路径
+  String? getFloatingButtonBackgroundImage() {
+    return getSetting<String>(StorageKeys.floatingButtonBackgroundImage);
+  }
+
+  /// 保存悬浮球背景图片路径
+  Future<void> setFloatingButtonBackgroundImage(String? path) async {
+    if (path != null) {
+      await setSetting(StorageKeys.floatingButtonBackgroundImage, path);
+    } else {
+      await deleteSetting(StorageKeys.floatingButtonBackgroundImage);
+    }
   }
 }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// HSV 颜色选择器
 class HSVColorPicker extends StatefulWidget {
@@ -83,7 +84,7 @@ class _HSVColorPickerState extends State<HSVColorPicker> {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: TextField(
+              child: ThemedInput(
                 controller: _hexController,
                 style: const TextStyle(
                   color: Colors.white,
@@ -163,8 +164,10 @@ class _SVPanel extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         return GestureDetector(
-          onPanStart: (details) => _handleTouch(details.localPosition, constraints),
-          onPanUpdate: (details) => _handleTouch(details.localPosition, constraints),
+          onPanStart: (details) =>
+              _handleTouch(details.localPosition, constraints),
+          onPanUpdate: (details) =>
+              _handleTouch(details.localPosition, constraints),
           child: Stack(
             children: [
               // 背景渐变
@@ -243,8 +246,10 @@ class _HueSlider extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         return GestureDetector(
-          onPanStart: (details) => _handleTouch(details.localPosition, constraints),
-          onPanUpdate: (details) => _handleTouch(details.localPosition, constraints),
+          onPanStart: (details) =>
+              _handleTouch(details.localPosition, constraints),
+          onPanUpdate: (details) =>
+              _handleTouch(details.localPosition, constraints),
           child: Stack(
             children: [
               // 色相渐变

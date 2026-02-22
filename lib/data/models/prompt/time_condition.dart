@@ -89,32 +89,20 @@ class TimeCondition with _$TimeCondition {
     final checkDate = date ?? DateTime.now();
 
     // 检查特定年份
-    if (!recurring && specificYear != null) {
-      if (checkDate.year != specificYear) return false;
+    if (!recurring && specificYear != null && checkDate.year != specificYear) {
+      return false;
     }
 
     final month = checkDate.month;
     final day = checkDate.day;
 
-    // 首版不支持跨年，所以简单比较
-    // 注意：如果 startMonth > endMonth，说明跨年，首版不支持
-    if (startMonth > endMonth) {
-      // 跨年情况：首版不支持，返回 false
-      return false;
-    }
+    // 首版不支持跨年
+    if (startMonth > endMonth) return false;
 
-    // 同年内的日期范围
-    if (month < startMonth || month > endMonth) {
-      return false;
-    }
-
-    if (month == startMonth && day < startDay) {
-      return false;
-    }
-
-    if (month == endMonth && day > endDay) {
-      return false;
-    }
+    // 同年内的日期范围检查
+    if (month < startMonth || month > endMonth) return false;
+    if (month == startMonth && day < startDay) return false;
+    if (month == endMonth && day > endDay) return false;
 
     return true;
   }

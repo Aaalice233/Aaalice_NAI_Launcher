@@ -6,6 +6,8 @@ import '../../../../../core/utils/app_logger.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../core/editor_state.dart';
 import '../../layers/layer.dart';
+import '../../../../widgets/common/themed_divider.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 图层面板
 class LayerPanel extends StatefulWidget {
@@ -129,7 +131,7 @@ class _LayerPanelState extends State<LayerPanel> {
                     : null,
               ),
 
-              const Divider(height: 1),
+              const ThemedDivider(height: 1),
 
               // 图层列表
               // 使用 RepaintBoundary 隔离整个图层列表，防止父组件更新触发重绘
@@ -180,14 +182,15 @@ class _LayerPanelState extends State<LayerPanel> {
                                     state.layerManager.setActiveLayer(layer.id);
                                   },
                                   onVisibilityToggle: () {
-                                    state.layerManager.toggleVisibility(layer.id);
+                                    state.layerManager
+                                        .toggleVisibility(layer.id);
                                   },
                                   onLockToggle: () {
                                     state.layerManager.toggleLock(layer.id);
                                   },
                                   onDelete: layers.length > 1
-                                      ? () =>
-                                          state.layerManager.removeLayer(layer.id)
+                                      ? () => state.layerManager
+                                          .removeLayer(layer.id)
                                       : null,
                                   onDuplicate: () {
                                     state.layerManager.duplicateLayer(layer.id);
@@ -380,7 +383,7 @@ class _LayerTileState extends State<_LayerTile>
                 // 图层名称
                 Expanded(
                   child: _isEditing
-                      ? TextField(
+                      ? ThemedInput(
                           controller: _nameController,
                           autofocus: true,
                           style: theme.textTheme.bodySmall,
@@ -492,9 +495,16 @@ class _LayerTileState extends State<_LayerTile>
           enabled: canDelete,
           child: Row(
             children: [
-              Icon(Icons.delete_outlined, size: 18, color: theme.colorScheme.error),
+              Icon(
+                Icons.delete_outlined,
+                size: 18,
+                color: theme.colorScheme.error,
+              ),
               const SizedBox(width: 12),
-              Text(context.l10n.layer_delete, style: TextStyle(color: theme.colorScheme.error)),
+              Text(
+                context.l10n.layer_delete,
+                style: TextStyle(color: theme.colorScheme.error),
+              ),
             ],
           ),
         ),
@@ -524,7 +534,11 @@ class _LayerTileState extends State<_LayerTile>
                 size: 18,
               ),
               const SizedBox(width: 12),
-              Text(widget.layer.visible ? context.l10n.layer_visibility : context.l10n.layer_visibility),
+              Text(
+                widget.layer.visible
+                    ? context.l10n.layer_visibility
+                    : context.l10n.layer_visibility,
+              ),
             ],
           ),
         ),
@@ -539,7 +553,11 @@ class _LayerTileState extends State<_LayerTile>
                 size: 18,
               ),
               const SizedBox(width: 12),
-              Text(widget.layer.locked ? context.l10n.layer_lock : context.l10n.layer_lock),
+              Text(
+                widget.layer.locked
+                    ? context.l10n.layer_lock
+                    : context.l10n.layer_lock,
+              ),
             ],
           ),
         ),

@@ -76,11 +76,11 @@ class ThemeComposer {
   /// match the fallback scheme to avoid assertion errors.
   ThemeData buildTheme(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
-    
+
     // Get the appropriate color scheme and effective brightness
     ColorScheme colorScheme;
     Brightness effectiveBrightness;
-    
+
     if (isDark && color.supportsDarkMode) {
       colorScheme = color.darkScheme;
       effectiveBrightness = Brightness.dark;
@@ -106,7 +106,14 @@ class ThemeComposer {
       brightness: effectiveBrightness,
       colorScheme: colorScheme,
       textTheme: textTheme,
-      
+
+      // Icon theme - ensures icons have good visibility by default
+      // Uses onSurface for proper contrast on surface backgrounds
+      iconTheme: IconThemeData(
+        color: colorScheme.onSurface,
+        size: 24,
+      ),
+
       // Apply divider module colors to Flutter's built-in divider
       dividerColor: divider.dividerColor,
       dividerTheme: DividerThemeData(
@@ -114,46 +121,103 @@ class ThemeComposer {
         thickness: divider.thickness,
         space: divider.thickness,
       ),
-      
-      // Apply shape module to component themes
+
+      // 深度层叠风格：卡片使用纯色背景 + 无边框 + 边缘阴影
       cardTheme: CardTheme(
-        shape: shape.cardShape,
-        elevation: 0, // We handle shadows manually via BoxShadow
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(shape.largeRadius),
+          side: BorderSide.none,
+        ),
+        elevation: 4,
+        color: effectiveBrightness == Brightness.dark
+            ? const Color(0xFF2A2A2A)
+            : const Color(0xFFFFFFFF),
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.black.withOpacity(0.25),
+        margin: EdgeInsets.zero,
       ),
-      
+
+      // 深度层叠风格：按钮配置
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           shape: shape.buttonShape as OutlinedBorder?,
+          elevation: 2,
+          shadowColor: Colors.black.withOpacity(0.15),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         ),
       ),
-      
+
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          shape: shape.buttonShape as OutlinedBorder?,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        ),
+      ),
+
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           shape: shape.buttonShape as OutlinedBorder?,
+          side: BorderSide(
+            color: colorScheme.outline.withOpacity(0.3),
+            width: 1,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         ),
       ),
-      
+
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           shape: shape.buttonShape as OutlinedBorder?,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         ),
       ),
-      
+
+      // 深度层叠风格：输入框使用纯色背景 + 无边框
       inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: effectiveBrightness == Brightness.dark
+            ? const Color(0xFF1A1A1A)
+            : const Color(0xFFF5F5F5),
+        // 深度层叠：移除边框，使用纯背景色差
         border: OutlineInputBorder(
           borderRadius: _extractBorderRadius(shape.inputShape),
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: _extractBorderRadius(shape.inputShape),
-          borderSide: BorderSide(color: colorScheme.outline),
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: _extractBorderRadius(shape.inputShape),
-          borderSide: BorderSide(color: colorScheme.primary, width: 2),
+          borderSide: BorderSide(
+            color: colorScheme.primary.withOpacity(0.6),
+            width: 1.5,
+          ),
         ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: _extractBorderRadius(shape.inputShape),
+          borderSide: BorderSide(
+            color: colorScheme.error.withOpacity(0.6),
+            width: 1.0,
+          ),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: _extractBorderRadius(shape.inputShape),
+          borderSide: BorderSide(
+            color: colorScheme.error,
+            width: 1.5,
+          ),
+        ),
+        // 显式设置 hintStyle，确保在所有主题下都有足够的对比度
+        hintStyle: TextStyle(
+          color: colorScheme.outline,
+          fontSize: 16,
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       ),
-      
-      // Dropdown and PopupMenu - use shape module's menu radius
+
+      // 深度层叠风格：下拉菜单使用阴影 + 小圆角
       dropdownMenuTheme: DropdownMenuThemeData(
         menuStyle: MenuStyle(
           shape: WidgetStatePropertyAll(
@@ -161,17 +225,24 @@ class ThemeComposer {
               borderRadius: BorderRadius.circular(shape.menuRadius),
             ),
           ),
-          backgroundColor: WidgetStatePropertyAll(colorScheme.surfaceContainerHigh),
+          backgroundColor:
+              WidgetStatePropertyAll(colorScheme.surfaceContainerHigh),
+          elevation: const WidgetStatePropertyAll(0), // 使用自定义阴影
+          shadowColor: WidgetStatePropertyAll(Colors.black.withOpacity(0.15)),
+          surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
         ),
       ),
-      
+
       popupMenuTheme: PopupMenuThemeData(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(shape.menuRadius),
         ),
         color: colorScheme.surfaceContainerHigh,
+        elevation: 8,
+        shadowColor: Colors.black.withOpacity(0.15),
+        surfaceTintColor: Colors.transparent,
       ),
-      
+
       menuTheme: MenuThemeData(
         style: MenuStyle(
           shape: WidgetStatePropertyAll(
@@ -179,20 +250,82 @@ class ThemeComposer {
               borderRadius: BorderRadius.circular(shape.menuRadius),
             ),
           ),
-          backgroundColor: WidgetStatePropertyAll(colorScheme.surfaceContainerHigh),
+          backgroundColor:
+              WidgetStatePropertyAll(colorScheme.surfaceContainerHigh),
+          elevation: const WidgetStatePropertyAll(8),
+          shadowColor: WidgetStatePropertyAll(Colors.black.withOpacity(0.15)),
+          surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
         ),
       ),
-      
+
       menuButtonTheme: MenuButtonThemeData(
         style: ButtonStyle(
           shape: WidgetStatePropertyAll(
             RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(shape.menuRadius),
+              borderRadius: BorderRadius.circular(shape.smallRadius),
             ),
           ),
         ),
       ),
-      
+
+      // 深度层叠风格：对话框配置
+      dialogTheme: DialogTheme(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(shape.mediumRadius),
+        ),
+        backgroundColor: colorScheme.surfaceContainerHigh,
+        elevation: 16,
+        shadowColor: Colors.black.withOpacity(0.2),
+        surfaceTintColor: Colors.transparent,
+      ),
+
+      // 深度层叠风格：底部弹窗配置
+      bottomSheetTheme: BottomSheetThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(shape.mediumRadius),
+          ),
+        ),
+        backgroundColor: colorScheme.surfaceContainerHigh,
+        elevation: 16,
+        shadowColor: Colors.black.withOpacity(0.2),
+        surfaceTintColor: Colors.transparent,
+      ),
+
+      // 深度层叠风格：Chip 配置
+      chipTheme: ChipThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(shape.smallRadius),
+        ),
+        side: BorderSide.none,
+        backgroundColor: colorScheme.surfaceContainerHighest,
+        selectedColor: colorScheme.primaryContainer,
+        surfaceTintColor: Colors.transparent,
+      ),
+
+      // 深度层叠风格：Tooltip 配置
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: effectiveBrightness == Brightness.dark
+              ? colorScheme.surfaceContainerHighest
+              : colorScheme.inverseSurface,
+          borderRadius: BorderRadius.circular(shape.smallRadius),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        textStyle: TextStyle(
+          color: effectiveBrightness == Brightness.dark
+              ? colorScheme.onSurface
+              : colorScheme.onInverseSurface,
+          fontSize: 12,
+        ),
+      ),
+
       // Apply motion to page transitions
       pageTransitionsTheme: PageTransitionsTheme(
         builders: {
@@ -212,7 +345,7 @@ class ThemeComposer {
   /// by standard [ThemeData].
   AppThemeExtension buildExtension(Brightness brightness) {
     final isLight = brightness == Brightness.light;
-    
+
     // Determine container decoration based on shadow module
     final containerDecoration = BoxDecoration(
       borderRadius: BorderRadius.circular(shape.mediumRadius),

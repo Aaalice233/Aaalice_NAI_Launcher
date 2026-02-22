@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../core/utils/localization_extension.dart';
 import '../../core/editor_state.dart';
 import '../tool_base.dart';
+import '../../../../widgets/common/themed_divider.dart';
 
 /// 选区工具基类
 /// 提供所有选区工具的共享功能
@@ -112,7 +114,7 @@ class SelectionSettingsPanel extends StatelessWidget {
             ),
           ),
         ),
-        const Divider(height: 1),
+        const ThemedDivider(height: 1),
 
         // 帮助文本（可选）
         if (helpText != null) ...[
@@ -144,7 +146,7 @@ class SelectionSettingsPanel extends StatelessWidget {
               ),
             ),
           ),
-          const Divider(height: 1),
+          const ThemedDivider(height: 1),
         ],
 
         // 操作按钮
@@ -157,18 +159,20 @@ class SelectionSettingsPanel extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: () => state.clearSelection(),
                 icon: const Icon(Icons.deselect, size: 16),
-                label: const Text('清除选区'),
+                label: Text(context.l10n.selection_clear_selection),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   textStyle: theme.textTheme.bodySmall,
                 ),
               ),
               OutlinedButton.icon(
                 onPressed: () => state.invertSelection(),
                 icon: const Icon(Icons.flip, size: 16),
-                label: const Text('反转选区'),
+                label: Text(context.l10n.selection_invert_selection),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   textStyle: theme.textTheme.bodySmall,
                 ),
               ),

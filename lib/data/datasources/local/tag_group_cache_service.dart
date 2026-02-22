@@ -69,7 +69,12 @@ class TagGroupCacheService {
         'TagGroupCache',
       );
     } catch (e, stack) {
-      AppLogger.e('Failed to save TagGroup: $groupTitle', e, stack, 'TagGroupCache');
+      AppLogger.e(
+        'Failed to save TagGroup: $groupTitle',
+        e,
+        stack,
+        'TagGroupCache',
+      );
       rethrow; // 重新抛出异常让调用方处理
     }
   }
@@ -116,7 +121,12 @@ class TagGroupCacheService {
         return group;
       }
     } catch (e) {
-      AppLogger.e('Failed to load TagGroup: $groupTitle', e, null, 'TagGroupCache');
+      AppLogger.e(
+        'Failed to load TagGroup: $groupTitle',
+        e,
+        null,
+        'TagGroupCache',
+      );
     }
     return null;
   }
@@ -139,7 +149,8 @@ class TagGroupCacheService {
     final result = <String, TagGroup>{};
 
     try {
-      final keys = _box?.keys.where((k) => k.toString().startsWith('group_')) ?? [];
+      final keys =
+          _box?.keys.where((k) => k.toString().startsWith('group_')) ?? [];
       for (final key in keys) {
         final json = _box?.get(key) as String?;
         if (json != null) {

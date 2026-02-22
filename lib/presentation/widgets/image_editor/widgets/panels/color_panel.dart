@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/editor_state.dart';
+import '../../../../../core/utils/app_logger.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 颜色面板
 class ColorPanel extends StatelessWidget {
@@ -62,7 +64,8 @@ class ColorPanel extends StatelessWidget {
                       children: _quickColors.map((color) {
                         return _QuickColorButton(
                           color: color,
-                          isSelected: state.foregroundColor.value == color.value,
+                          isSelected:
+                              state.foregroundColor.value == color.value,
                           onTap: () => state.setForegroundColor(color),
                         );
                       }).toList(),
@@ -262,7 +265,10 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
     super.initState();
     _hsvColor = HSVColor.fromColor(widget.initialColor);
     _hexController = TextEditingController(
-      text: widget.initialColor.value.toRadixString(16).substring(2).toUpperCase(),
+      text: widget.initialColor.value
+          .toRadixString(16)
+          .substring(2)
+          .toUpperCase(),
     );
   }
 
@@ -291,8 +297,14 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
                   // 饱和度-明度选择器
                   Expanded(
                     child: GestureDetector(
-                      onPanDown: (details) => _updateSV(details.localPosition, const Size(200, 200)),
-                      onPanUpdate: (details) => _updateSV(details.localPosition, const Size(200, 200)),
+                      onPanDown: (details) => _updateSV(
+                        details.localPosition,
+                        const Size(200, 200),
+                      ),
+                      onPanUpdate: (details) => _updateSV(
+                        details.localPosition,
+                        const Size(200, 200),
+                      ),
                       child: CustomPaint(
                         painter: _SVPicker(hue: _hsvColor.hue),
                         child: Stack(
@@ -305,7 +317,8 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
                                 height: 16,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 2),
+                                  border:
+                                      Border.all(color: Colors.white, width: 2),
                                   boxShadow: [
                                     BoxShadow(
                                       color: Colors.black.withOpacity(0.3),
@@ -323,8 +336,10 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
                   const SizedBox(width: 16),
                   // 色相条
                   GestureDetector(
-                    onPanDown: (details) => _updateHue(details.localPosition.dy, 200),
-                    onPanUpdate: (details) => _updateHue(details.localPosition.dy, 200),
+                    onPanDown: (details) =>
+                        _updateHue(details.localPosition.dy, 200),
+                    onPanUpdate: (details) =>
+                        _updateHue(details.localPosition.dy, 200),
                     child: SizedBox(
                       width: 20,
                       height: 200,
@@ -339,7 +354,8 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
                               child: Container(
                                 height: 4,
                                 decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.white, width: 1),
+                                  border:
+                                      Border.all(color: Colors.white, width: 1),
                                 ),
                               ),
                             ),
@@ -368,7 +384,7 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: TextField(
+                  child: ThemedInput(
                     controller: _hexController,
                     decoration: const InputDecoration(
                       prefixText: '#',
@@ -401,11 +417,13 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
 
   void _updateSV(Offset position, Size size) {
     setState(() {
-      _hsvColor = _hsvColor.withSaturation(
-        (position.dx / size.width).clamp(0.0, 1.0),
-      ).withValue(
-        (1 - position.dy / size.height).clamp(0.0, 1.0),
-      );
+      _hsvColor = _hsvColor
+          .withSaturation(
+            (position.dx / size.width).clamp(0.0, 1.0),
+          )
+          .withValue(
+            (1 - position.dy / size.height).clamp(0.0, 1.0),
+          );
       _updateHexController();
     });
   }
@@ -420,7 +438,8 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
   }
 
   void _updateHexController() {
-    _hexController.text = _hsvColor.toColor().value.toRadixString(16).substring(2).toUpperCase();
+    _hexController.text =
+        _hsvColor.toColor().value.toRadixString(16).substring(2).toUpperCase();
   }
 
   void _parseHex(String value) {
@@ -432,7 +451,9 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
           _hsvColor = HSVColor.fromColor(color);
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      AppLogger.w('Invalid hex color format: $value', 'ColorPanel');
+    }
   }
 }
 

@@ -1,17 +1,32 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:window_manager/window_manager.dart';
 import 'package:tray_manager/tray_manager.dart';
-import 'dart:io';
+import 'package:video_player_media_kit/video_player_media_kit.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'package:timeago/timeago.dart' as timeago;
 
+import 'core/constants/app_version.dart';
 import 'core/constants/storage_keys.dart';
+import 'core/network/proxy_service.dart';
 import 'core/network/system_proxy_http_overrides.dart';
-import 'core/network/windows_proxy_helper.dart';
+import 'core/shortcuts/shortcut_storage.dart';
+import 'core/database/database_manager.dart';
+import 'core/services/data_migration_service.dart';
+import 'core/services/sqflite_bootstrap_service.dart';
 import 'core/utils/app_logger.dart';
+import 'core/utils/hive_storage_helper.dart';
 import 'data/datasources/local/nai_tags_data_source.dart';
+import 'data/models/gallery/nai_image_metadata.dart';
+import 'data/repositories/gallery_folder_repository.dart';
+import 'data/services/gallery/gallery_scan_service.dart';
+import 'data/services/image_metadata_service.dart';
+import 'data/services/temp_image_service.dart';
+import 'presentation/providers/data_source_cache_provider.dart';
 import 'presentation/screens/splash/app_bootstrap.dart';
 
 /// 窗口状态观察者，用于保存窗口位置和大小
@@ -24,18 +39,22 @@ class WindowStateObserver extends WidgetsBindingObserver {
     }
 
     // 应用暂停或即将退出时保存窗口状态
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
       try {
         final size = await windowManager.getSize();
         final position = await windowManager.getPosition();
         final box = Hive.box(StorageKeys.settingsBox);
-        
+
         await box.put(StorageKeys.windowWidth, size.width);
         await box.put(StorageKeys.windowHeight, size.height);
         await box.put(StorageKeys.windowX, position.dx);
         await box.put(StorageKeys.windowY, position.dy);
-        
-        AppLogger.i('Window state saved: ${size.width}x${size.height} at (${position.dx}, ${position.dy})', 'Main');
+
+        AppLogger.i(
+          'Window state saved: ${size.width}x${size.height} at (${position.dx}, ${position.dy})',
+          'Main',
+        );
       } catch (e) {
         AppLogger.e('Failed to save window state: $e', 'Main');
       }
@@ -73,9 +92,19 @@ class AppTrayListener extends TrayListener {
         AppLogger.d('Window shown via tray menu', 'TrayListener');
       } else if (menuItem.key == 'exit') {
         // 退出应用（真正关闭）
-        // 1. 先销毁托盘图标，避免残留在系统托盘中
+        AppLogger.i('Application exiting, closing database...', 'TrayListener');
+
+        // 1. 关闭数据库连接（避免 Windows 文件锁定）
+        try {
+          await DatabaseManager.instance.dispose();
+          AppLogger.i('Database closed successfully', 'TrayListener');
+        } catch (e) {
+          AppLogger.w('Error closing database: $e', 'TrayListener');
+        }
+
+        // 2. 先销毁托盘图标，避免残留在系统托盘中
         await trayManager.destroy();
-        // 2. 解除 preventClose，再销毁窗口
+        // 3. 解除 preventClose，再销毁窗口
         await windowManager.setPreventClose(false);
         await windowManager.destroy();
         AppLogger.d('Application exited via tray menu', 'TrayListener');
@@ -88,8 +117,10 @@ class AppTrayListener extends TrayListener {
   }
 }
 
-/// 窗口监听器，处理窗口关闭事件
+/// 窗口监听器，处理窗口关闭、大小变化和显示事件
 class AppWindowListener extends WindowListener {
+  DateTime? _lastResizeSave;
+
   @override
   Future<void> onWindowClose() async {
     // 阻止默认关闭行为，改为隐藏到托盘
@@ -102,30 +133,244 @@ class AppWindowListener extends WindowListener {
       AppLogger.e('Failed to hide window to tray: $e', 'WindowListener');
     }
   }
+
+  @override
+  Future<void> onWindowFocus() async {
+    // 窗口获得焦点时的处理
+    AppLogger.d('Window focused', 'WindowListener');
+  }
+
+  @override
+  Future<void> onWindowResize() async {
+    // 窗口大小变化时实时保存（带防抖）
+    final now = DateTime.now();
+    if (_lastResizeSave != null &&
+        now.difference(_lastResizeSave!) < const Duration(milliseconds: 500)) {
+      return;
+    }
+    _lastResizeSave = now;
+
+    try {
+      final size = await windowManager.getSize();
+      final position = await windowManager.getPosition();
+      final box = Hive.box(StorageKeys.settingsBox);
+
+      await box.put(StorageKeys.windowWidth, size.width);
+      await box.put(StorageKeys.windowHeight, size.height);
+      await box.put(StorageKeys.windowX, position.dx);
+      await box.put(StorageKeys.windowY, position.dy);
+
+      AppLogger.d(
+        'Window size/position saved: ${size.width}x${size.height} at (${position.dx}, ${position.dy})',
+        'WindowListener',
+      );
+    } catch (e) {
+      AppLogger.w('Failed to save window state on resize: $e', 'WindowListener');
+    }
+  }
+
+  @override
+  Future<void> onWindowMove() async {
+    // 窗口移动时也保存位置
+    final now = DateTime.now();
+    if (_lastResizeSave != null &&
+        now.difference(_lastResizeSave!) < const Duration(milliseconds: 500)) {
+      return;
+    }
+    _lastResizeSave = now;
+
+    try {
+      final size = await windowManager.getSize();
+      final position = await windowManager.getPosition();
+      final box = Hive.box(StorageKeys.settingsBox);
+
+      await box.put(StorageKeys.windowWidth, size.width);
+      await box.put(StorageKeys.windowHeight, size.height);
+      await box.put(StorageKeys.windowX, position.dx);
+      await box.put(StorageKeys.windowY, position.dy);
+
+      AppLogger.d(
+        'Window position saved: (${position.dx}, ${position.dy})',
+        'WindowListener',
+      );
+    } catch (e) {
+      AppLogger.w('Failed to save window position on move: $e', 'WindowListener');
+    }
+  }
+}
+
+/// 处理来自 Windows 原生层的唤醒消息
+/// 当新实例启动时，已存在的实例会收到此消息
+void setupWindowsWakeUpChannel() {
+  if (!Platform.isWindows) return;
+  
+  const channel = MethodChannel('com.nailauncher/window_control');
+  channel.setMethodCallHandler((call) async {
+    if (call.method == 'wakeUp') {
+      try {
+        // 确保窗口显示并置于前台
+        await windowManager.show();
+        await windowManager.focus();
+        await windowManager.restore();
+        AppLogger.i('Window woken up by new instance', 'Main');
+      } catch (e) {
+        AppLogger.e('Failed to wake up window: $e', 'Main');
+      }
+    }
+  });
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 初始化日志系统
-  await AppLogger.init();
+  // 初始化日志系统（必须在其他操作之前）
+  await AppLogger.initialize(isTestEnvironment: false);
+  AppLogger.i('应用启动', 'Main');
 
-  // 初始化 Hive
-  await Hive.initFlutter();
+  // 初始化版本信息（从 pubspec.yaml 读取）
+  await AppVersion.initialize();
+  AppLogger.i('App version: ${AppVersion.fullVersion}', 'Main');
+
+  // 增加图片缓存限制，防止本地画廊滚动时图片被回收变白
+  PaintingBinding.instance.imageCache.maximumSize = 500; // 最大缓存 500 张图片
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 200 << 20; // 200MB
+
+  // 初始化 Windows 视频播放支持
+  VideoPlayerMediaKit.ensureInitialized(
+    windows: true,
+  );
+
+  // 日志系统已自动初始化，无需显式调用
+
+  // 初始化 SQLite FFI（Windows/Linux 桌面端必需）
+  await SqfliteBootstrapService.instance.ensureInitialized();
+
+  // 初始化 Hive（使用子目录存储，支持迁移旧数据）
+  await HiveStorageHelper.instance.init();
+
+  // 注册 Hive adapters（用于元数据存储）
+  if (!Hive.isAdapterRegistered(24)) {
+    Hive.registerAdapter(NaiImageMetadataAdapter());
+  }
+  if (!Hive.isAdapterRegistered(25)) {
+    Hive.registerAdapter(CharacterPromptInfoAdapter());
+  }
+
+  // 在 Hive 初始化之后执行文件迁移
+  try {
+    final migrationResult = await DataMigrationService.instance.migrateAll();
+    AppLogger.i('Startup migration result: $migrationResult', 'Main');
+  } catch (e) {
+    AppLogger.w('Startup migration failed (will continue): $e', 'Main');
+  }
+
+  // ===== V2 架构：数据库初始化和恢复（在 runApp 之前完成）====
+  AppLogger.i('等待数据库初始化...', 'Main');
+  final container = ProviderContainer();
+  
+  try {
+    // V2 架构：DatabaseManagerV2 自动处理热重启检测
+    final manager = await DatabaseManager.initialize();
+    await manager.initialized;
+    
+    // 检查数据完整性
+    final stats = await manager.getStatistics();
+    final tableStats = stats['tables'] as Map<String, int>? ?? {};
+    final translationCount = tableStats['translations'] ?? 0;
+    final cooccurrenceCount = tableStats['cooccurrences'] ?? 0;
+    
+    AppLogger.i(
+      '数据表状态: translations=$translationCount, cooccurrences=$cooccurrenceCount',
+      'Main',
+    );
+    
+    // 如果需要恢复（首次启动或数据缺失）
+    if (translationCount == 0 || cooccurrenceCount == 0) {
+      AppLogger.w('核心数据缺失，执行恢复..', 'Main');
+      await manager.recover();
+      AppLogger.i('数据恢复完成', 'Main');
+    }
+    
+    AppLogger.i('数据库初始化完成', 'Main');
+  } catch (e, stack) {
+    AppLogger.e('数据库初始化失败', e, stack, 'Main');
+    // 继续启动，应用内会显示错误',
+  }
 
   // 预先打开 Hive boxes (确保 LocalStorageService 可用)
   await Hive.openBox(StorageKeys.settingsBox);
   await Hive.openBox(StorageKeys.historyBox);
   await Hive.openBox(StorageKeys.tagCacheBox);
   await Hive.openBox(StorageKeys.galleryBox);
-  await Hive.openBox(StorageKeys.localMetadataCacheBox);
+  // Local Gallery 新功能所需的 Hive boxes
+  await Hive.openBox(StorageKeys.localFavoritesBox);
+  await Hive.openBox(StorageKeys.tagsBox);
+  await Hive.openBox(StorageKeys.searchIndexBox);
+  // 统计数据缓存 Box
+  await Hive.openBox(StorageKeys.statisticsCacheBox);
+  // 队列相关 Box（预加载以避免首次打开队列管理页面时的延迟）
+  await Hive.openBox<String>(StorageKeys.replicationQueueBox);
+  await Hive.openBox<String>(StorageKeys.queueExecutionStateBox);
+
+  // 初始化图像元数据服务（包含持久化缓存，用于详情页快速加载）
+  await ImageMetadataService().initialize();
+  AppLogger.i('图像元数据服务初始化完成', 'Main');
+
+  // 后台全量扫描元数据（不阻塞启动，用于搜索功能）
+  Future.microtask(() async {
+    try {
+      final rootPath = await GalleryFolderRepository.instance.getRootPath();
+      if (rootPath == null) {
+        AppLogger.w('未设置图库路径，跳过后台扫描', 'Main');
+        return;
+      }
+
+      // 步骤1：增量扫描（检测新文件和修改的文件）
+      AppLogger.i('启动后台元数据扫描: $rootPath', 'Main');
+      final scanService = GalleryScanService.instance;
+      final result = await scanService.incrementalScan(Directory(rootPath));
+      AppLogger.i(
+        '增量扫描完成: ${result.filesAdded} 新增, ${result.filesUpdated} 更新, ${result.filesSkipped} 跳过',
+        'Main',
+      );
+
+      // 步骤2：查漏补缺（为缺失元数据的图片重新解析）
+      // 这对从旧数据库迁移的图片特别有用
+      AppLogger.i('开始查漏补缺：检查缺失元数据的图片', 'Main');
+      final fillResult = await scanService.fillMissingMetadata(batchSize: 50);
+      if (fillResult.filesUpdated > 0 || fillResult.filesAdded > 0) {
+        AppLogger.i(
+          '查漏补缺完成: ${fillResult.filesUpdated} 张图片已补充元数据',
+          'Main',
+        );
+      } else {
+        AppLogger.i('所有图片元数据完整，无需补充', 'Main');
+      }
+    } catch (e) {
+      AppLogger.w('后台元数据扫描失败: $e', 'Main');
+    }
+  });
+
+  // 初始化快捷键存储
+  final shortcutStorage = ShortcutStorage();
+  await shortcutStorage.init();
+  AppLogger.d('Shortcut storage initialized', 'Main');
 
   // Timeago 本地化配置
   timeago.setLocaleMessages('zh', timeago.ZhCnMessages());
   timeago.setLocaleMessages('zh_CN', timeago.ZhCnMessages());
 
+  // 清理过期临时文件（不阻塞启动）
+  Future.microtask(() async {
+    try {
+      await TempImageService().cleanupOldTempFiles();
+    } catch (e) {
+      AppLogger.w('Temp files cleanup failed: $e', 'Main');
+    }
+  });
+
   // 后台预加载 NAI 标签数据（不阻塞启动）
-  final container = ProviderContainer();
+  // 使用已创建的 container
   Future.microtask(() async {
     try {
       await container.read(naiTagsDataSourceProvider).loadData();
@@ -136,21 +381,41 @@ void main() async {
     }
   });
 
+  // 后台自动同步画师标签（不阻塞启动）
+  // 延迟5秒执行，避免与数据库初始化冲突
+  Future.delayed(const Duration(seconds: 5), () async {
+    try {
+      AppLogger.i('Checking artist tags sync...', 'Main');
+      final notifier = container.read(danbooruTagsCacheNotifierProvider.notifier);
+      await notifier.checkAndSyncArtists();
+    } catch (e) {
+      AppLogger.w('Artist tags auto-sync failed: $e', 'Main');
+      // 同步失败不影响应用启动
+    }
+  });
+
   // 桌面端窗口配置
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     await windowManager.ensureInitialized();
+    
+    // 设置 Windows 唤醒消息处理（单实例唤醒）
+    if (Platform.isWindows) {
+      setupWindowsWakeUpChannel();
+    }
 
-    // 从 Hive 读取保存的窗口状态
+    // 从 Hive 读取保存的窗口状态',
     final box = Hive.box(StorageKeys.settingsBox);
-    final savedWidth = box.get(StorageKeys.windowWidth, defaultValue: 1400.0) as double;
-    final savedHeight = box.get(StorageKeys.windowHeight, defaultValue: 900.0) as double;
+    final savedWidth =
+        box.get(StorageKeys.windowWidth, defaultValue: 1600.0) as double;
+    final savedHeight =
+        box.get(StorageKeys.windowHeight, defaultValue: 900.0) as double;
     final savedX = box.get(StorageKeys.windowX) as double?;
     final savedY = box.get(StorageKeys.windowY) as double?;
 
     final windowOptions = WindowOptions(
       size: Size(savedWidth, savedHeight),
       minimumSize: const Size(800, 600),
-      center: savedX == null || savedY == null, // 首次启动居中，之后恢复位置
+      center: savedX == null || savedY == null, // 首次启动居中，之后恢复位置',
       backgroundColor: Colors.transparent,
       skipTaskbar: false,
       titleBarStyle: TitleBarStyle.normal,
@@ -158,14 +423,20 @@ void main() async {
     );
 
     await windowManager.waitUntilReadyToShow(windowOptions, () async {
-      // 如果有保存的位置，恢复窗口位置
+      // 如果有保存的位置，恢复窗口位置',
       if (savedX != null && savedY != null) {
         await windowManager.setPosition(Offset(savedX, savedY));
-        AppLogger.d('Window state restored: ${savedWidth}x$savedHeight at ($savedX, $savedY)', 'Main');
+        AppLogger.d(
+          'Window state restored: ${savedWidth}x$savedHeight at ($savedX, $savedY)',
+          'Main',
+        );
       } else {
-        AppLogger.d('Window initialized with default state: ${savedWidth}x$savedHeight (centered)', 'Main');
+        AppLogger.d(
+          'Window initialized with default state: ${savedWidth}x$savedHeight (centered)',
+          'Main',
+        );
       }
-      
+
       await windowManager.show();
       await windowManager.focus();
     });
@@ -173,11 +444,11 @@ void main() async {
     // 初始化系统托盘（仅 Windows）
     if (Platform.isWindows) {
       try {
-        // 设置托盘图标和提示
+        // 设置托盘图标和提示',
         // tray_manager 使用 Flutter 资源路径格式（相对于 data/flutter_assets/）
         await trayManager.setIcon('assets/icons/app_icon.ico');
         await trayManager.setToolTip('NAI Launcher');
-        
+
         final menu = Menu(
           items: [
             MenuItem(
@@ -192,13 +463,13 @@ void main() async {
           ],
         );
         await trayManager.setContextMenu(menu);
-        
+
         // 设置阻止关闭（关闭时隐藏到托盘）
         await windowManager.setPreventClose(true);
-        
+
         trayManager.addListener(AppTrayListener());
         windowManager.addListener(AppWindowListener());
-        
+
         AppLogger.d('System tray initialized', 'Main');
       } catch (e) {
         AppLogger.e('Failed to initialize system tray: $e', 'Main');
@@ -206,12 +477,46 @@ void main() async {
     }
   }
 
-  // Windows 系统代理配置
-  if (Platform.isWindows) {
-    final proxy = WindowsProxyHelper.getSystemProxy();
-    if (proxy != null && proxy != 'DIRECT') {
-      HttpOverrides.global = SystemProxyHttpOverrides(proxy);
-      AppLogger.i('Applied system proxy: $proxy', 'NETWORK');
+  // 系统代理配置（根据用户设置）
+  if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+    final settingsBox = Hive.box(StorageKeys.settingsBox);
+    final proxyEnabled =
+        settingsBox.get(StorageKeys.proxyEnabled, defaultValue: true) as bool;
+
+    if (proxyEnabled) {
+      final proxyMode = settingsBox.get(
+        StorageKeys.proxyMode,
+        defaultValue: 'auto',
+      ) as String;
+
+      String? proxyAddress;
+
+      if (proxyMode == 'manual') {
+        // 手动模式：从设置读取
+        final host = settingsBox.get(StorageKeys.proxyManualHost) as String?;
+        final port = settingsBox.get(StorageKeys.proxyManualPort) as int?;
+        if (host != null && host.isNotEmpty && port != null && port > 0) {
+          proxyAddress = '$host:$port';
+        }
+      } else {
+        // 自动模式：从系统获取
+        proxyAddress = ProxyService.getSystemProxyAddress();
+      }
+
+      if (proxyAddress != null && proxyAddress.isNotEmpty) {
+        HttpOverrides.global = SystemProxyHttpOverrides('PROXY $proxyAddress');
+        AppLogger.i(
+          'Applied proxy: $proxyAddress (mode: $proxyMode)',
+          'NETWORK',
+        );
+      } else {
+        AppLogger.w(
+          'Proxy enabled but no proxy address available (mode: $proxyMode)',
+          'NETWORK',
+        );
+      }
+    } else {
+      AppLogger.d('Proxy disabled by user settings', 'NETWORK');
     }
   }
 

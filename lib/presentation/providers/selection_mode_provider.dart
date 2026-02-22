@@ -6,19 +6,23 @@ part 'selection_mode_provider.g.dart';
 class SelectionModeState {
   final bool isActive;
   final Set<String> selectedIds;
+  final String? lastSelectedId;
 
   const SelectionModeState({
     this.isActive = false,
     this.selectedIds = const {},
+    this.lastSelectedId,
   });
 
   SelectionModeState copyWith({
     bool? isActive,
     Set<String>? selectedIds,
+    String? lastSelectedId,
   }) {
     return SelectionModeState(
       isActive: isActive ?? this.isActive,
       selectedIds: selectedIds ?? this.selectedIds,
+      lastSelectedId: lastSelectedId ?? this.lastSelectedId,
     );
   }
 
@@ -38,59 +42,39 @@ class OnlineGallerySelectionNotifier extends _$OnlineGallerySelectionNotifier {
   @override
   SelectionModeState build() => const SelectionModeState();
 
-  /// 进入多选模式
-  void enter() {
-    state = state.copyWith(isActive: true);
-  }
+  void enter() => _update(state.copyWith(isActive: true));
+  void exit() => _update(const SelectionModeState());
 
-  /// 退出多选模式
-  void exit() {
-    state = const SelectionModeState();
-  }
-
-  /// 切换指定项的选中状态
   void toggle(String id) {
-    final newIds = Set<String>.from(state.selectedIds);
-    if (newIds.contains(id)) {
-      newIds.remove(id);
-    } else {
-      newIds.add(id);
-    }
-    state = state.copyWith(selectedIds: newIds);
+    final newIds = state.selectedIds.contains(id)
+        ? state.selectedIds.difference({id})
+        : state.selectedIds.union({id});
+    _update(state.copyWith(selectedIds: newIds));
   }
 
-  /// 选中指定项
   void select(String id) {
     if (!state.selectedIds.contains(id)) {
-      final newIds = Set<String>.from(state.selectedIds)..add(id);
-      state = state.copyWith(selectedIds: newIds);
+      _update(state.copyWith(selectedIds: {...state.selectedIds, id}));
     }
   }
 
-  /// 取消选中指定项
   void deselect(String id) {
     if (state.selectedIds.contains(id)) {
-      final newIds = Set<String>.from(state.selectedIds)..remove(id);
-      state = state.copyWith(selectedIds: newIds);
+      _update(state.copyWith(selectedIds: state.selectedIds.difference({id})));
     }
   }
 
-  /// 全选（传入当前页面所有有效 ID）
   void selectAll(List<String> ids) {
-    final newIds = Set<String>.from(state.selectedIds)..addAll(ids);
-    state = state.copyWith(selectedIds: newIds);
+    _update(state.copyWith(selectedIds: {...state.selectedIds, ...ids}));
   }
 
-  /// 清除选择
-  void clearSelection() {
-    state = state.copyWith(selectedIds: {});
-  }
+  void clearSelection() => _update(state.copyWith(selectedIds: {}));
 
-  /// 进入多选模式并选中指定项（用于长按触发）
   void enterAndSelect(String id) {
-    final newIds = Set<String>.from(state.selectedIds)..add(id);
-    state = state.copyWith(isActive: true, selectedIds: newIds);
+    _update(state.copyWith(isActive: true, selectedIds: {...state.selectedIds, id}));
   }
+
+  void _update(SelectionModeState newState) => state = newState;
 }
 
 /// 本地画廊多选状态管理
@@ -99,57 +83,66 @@ class LocalGallerySelectionNotifier extends _$LocalGallerySelectionNotifier {
   @override
   SelectionModeState build() => const SelectionModeState();
 
-  /// 进入多选模式
-  void enter() {
-    state = state.copyWith(isActive: true);
-  }
+  void enter() => _update(state.copyWith(isActive: true));
+  void exit() => _update(const SelectionModeState());
 
-  /// 退出多选模式
-  void exit() {
-    state = const SelectionModeState();
-  }
-
-  /// 切换指定项的选中状态
   void toggle(String id) {
-    final newIds = Set<String>.from(state.selectedIds);
-    if (newIds.contains(id)) {
-      newIds.remove(id);
-    } else {
-      newIds.add(id);
-    }
-    state = state.copyWith(selectedIds: newIds);
+    final newIds = state.selectedIds.contains(id)
+        ? state.selectedIds.difference({id})
+        : state.selectedIds.union({id});
+    _update(state.copyWith(selectedIds: newIds, lastSelectedId: id));
   }
 
-  /// 选中指定项
   void select(String id) {
-    if (!state.selectedIds.contains(id)) {
-      final newIds = Set<String>.from(state.selectedIds)..add(id);
-      state = state.copyWith(selectedIds: newIds);
-    }
+    final newIds = state.selectedIds.contains(id)
+        ? state.selectedIds
+        : {...state.selectedIds, id};
+    _update(state.copyWith(selectedIds: newIds, lastSelectedId: id));
   }
 
-  /// 取消选中指定项
   void deselect(String id) {
     if (state.selectedIds.contains(id)) {
-      final newIds = Set<String>.from(state.selectedIds)..remove(id);
-      state = state.copyWith(selectedIds: newIds);
+      _update(state.copyWith(selectedIds: state.selectedIds.difference({id})));
     }
   }
 
-  /// 全选（传入当前页面所有有效 ID）
   void selectAll(List<String> ids) {
-    final newIds = Set<String>.from(state.selectedIds)..addAll(ids);
-    state = state.copyWith(selectedIds: newIds);
+    _update(state.copyWith(selectedIds: {...state.selectedIds, ...ids}));
   }
 
-  /// 清除选择
-  void clearSelection() {
-    state = state.copyWith(selectedIds: {});
-  }
+  void clearSelection() => _update(state.copyWith(selectedIds: {}, lastSelectedId: null));
 
-  /// 进入多选模式并选中指定项（用于长按触发）
   void enterAndSelect(String id) {
-    final newIds = Set<String>.from(state.selectedIds)..add(id);
-    state = state.copyWith(isActive: true, selectedIds: newIds);
+    _update(state.copyWith(
+      isActive: true,
+      selectedIds: {...state.selectedIds, id},
+      lastSelectedId: id,
+    ),);
   }
+
+  /// 范围选择（Shift+点击）
+  void selectRange(String currentId, List<String> allIds) {
+    final anchorId = state.lastSelectedId;
+
+    // 如果没有锚点或找不到位置，直接选中当前项
+    final anchorIndex = anchorId != null ? allIds.indexOf(anchorId) : -1;
+    final currentIndex = allIds.indexOf(currentId);
+
+    if (anchorIndex == -1 || currentIndex == -1) {
+      select(currentId);
+      return;
+    }
+
+    // 确定范围并选中
+    final start = anchorIndex < currentIndex ? anchorIndex : currentIndex;
+    final end = anchorIndex < currentIndex ? currentIndex : anchorIndex;
+    final rangeIds = allIds.sublist(start, end + 1);
+
+    _update(state.copyWith(
+      selectedIds: {...state.selectedIds, ...rangeIds},
+      lastSelectedId: currentId,
+    ),);
+  }
+
+  void _update(SelectionModeState newState) => state = newState;
 }

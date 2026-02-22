@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/services/auth_error_service.dart';
 import '../../../core/services/avatar_service.dart';
+import '../../../core/services/date_formatting_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/auth/saved_account.dart';
@@ -11,6 +13,7 @@ import '../../widgets/auth/account_avatar.dart';
 import '../../widgets/auth/login_form_container.dart';
 import '../../widgets/auth/network_troubleshooting_dialog.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/themed_divider.dart';
 
 /// 登录页面 - QQ 风格
 class LoginScreen extends ConsumerStatefulWidget {
@@ -23,19 +26,12 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   static const double _wideScreenBreakpoint = 800;
 
-  /// 头像服务实例
   final _avatarService = AvatarService();
+  final _authErrorService = AuthErrorService();
+  final _dateFormattingService = DateFormattingService();
 
-  /// Loading Overlay Entry
   OverlayEntry? _loadingOverlayEntry;
-
-  /// 是否显示网络故障排除按钮
   bool _showTroubleshootingButton = false;
-
-  @override
-  void initState() {
-    super.initState();
-  }
 
   @override
   void dispose() {
@@ -43,33 +39,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  /// 显示加载遮罩
   void _showLoadingOverlay() {
     if (_loadingOverlayEntry != null) return;
 
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
     if (overlay == null) {
-      AppLogger.w('[LoginScreen] Cannot show loading overlay: no overlay found');
+      AppLogger.w(
+        '[LoginScreen] Cannot show loading overlay: no overlay found',
+      );
       return;
     }
 
     _loadingOverlayEntry = OverlayEntry(
-      builder: (context) => _LoadingOverlayWidget(
-        onDismiss: _removeLoadingOverlay,
-      ),
+      builder: (context) => _LoadingOverlay(onDismiss: _removeLoadingOverlay),
     );
 
     overlay.insert(_loadingOverlayEntry!);
     AppLogger.d('[LoginScreen] Loading overlay shown');
   }
 
-  /// 移除加载遮罩
   void _removeLoadingOverlay() {
     if (_loadingOverlayEntry == null) return;
 
     _loadingOverlayEntry?.remove();
     _loadingOverlayEntry = null;
     AppLogger.d('[LoginScreen] Loading overlay removed');
+  }
+
+  void _hideTroubleshootingButton() {
+    if (mounted && _showTroubleshootingButton) {
+      setState(() => _showTroubleshootingButton = false);
+    }
   }
 
   @override
@@ -79,70 +79,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final accounts = accountState.accounts;
     final isLoading = accountState.isLoading;
 
-    // 监听认证状态变化，控制 loading overlay、错误提示等
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
-      // 监听 loading 状态
-      if (next.isLoading && previous?.isLoading != true) {
-        _showLoadingOverlay();
-        // 新登录尝试开始时，隐藏故障排除按钮
-        if (mounted && _showTroubleshootingButton) {
-          setState(() {
-            _showTroubleshootingButton = false;
-          });
-        }
-      } else if (!next.isLoading && previous?.isLoading == true) {
-        _removeLoadingOverlay();
-      }
-
-      // 监听登录成功，隐藏故障排除按钮
-      if (next.isAuthenticated && !previous!.isAuthenticated) {
-        if (mounted && _showTroubleshootingButton) {
-          setState(() {
-            _showTroubleshootingButton = false;
-          });
-        }
-      }
-
-      // 监听登录错误，显示 Toast
-      if (next.hasError && previous?.errorCode != next.errorCode) {
-        AppLogger.d('[LoginScreen] Showing error Toast: ${next.errorCode}', 'LOGIN');
-        final errorText =
-            _getErrorText(context, next.errorCode!, next.httpStatusCode);
-        final recoveryHint = _getErrorRecoveryHint(context, next.errorCode!, next.httpStatusCode);
-
-        // 检查是否为网络错误，显示故障排除按钮
-        final isNetworkError = next.errorCode == AuthErrorCode.networkTimeout ||
-                               next.errorCode == AuthErrorCode.networkError;
-        if (isNetworkError && mounted) {
-          setState(() {
-            _showTroubleshootingButton = true;
-          });
-        }
-
-        // 构建错误消息，包含恢复建议
-        String errorMessage;
-        if (recoveryHint != null) {
-          errorMessage = '$errorText\n\n💡 $recoveryHint';
-        } else {
-          errorMessage = context.l10n.auth_error_loginFailed(errorText);
-        }
-
-        // 使用 Navigator.of 来获取 Overlay
-        final overlayState = Navigator.of(context, rootNavigator: true).overlay;
-        if (overlayState != null) {
-          AppLogger.d('[LoginScreen] overlay exists, showing toast...', 'LOGIN');
-          AppToast.error(context, errorMessage);
-          AppLogger.d('[LoginScreen] toast shown', 'LOGIN');
-        } else {
-          AppLogger.w('[LoginScreen] overlay is null!', 'LOGIN');
-        }
-
-        // 清除错误状态（延迟，让 Toast 有时间显示）
-        ref.read(authNotifierProvider.notifier).clearError(delayMs: 500);
-      } else if (next.hasError && previous?.errorCode == next.errorCode) {
-        AppLogger.d('[LoginScreen] Error already shown, clearing...', 'LOGIN');
-        ref.read(authNotifierProvider.notifier).clearError();
-      }
+      _handleAuthStateChange(previous, next);
     });
 
     return Scaffold(
@@ -156,55 +94,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo / 标题
-                  _buildHeader(context, theme),
+                  _Header(theme: theme),
                   const SizedBox(height: 32),
-
-                  // 根据加载状态和账号情况显示不同界面
-                  if (isLoading)
-                    _buildAccountSwitcherSkeleton(context, theme, isWideScreen)
-                  else if (accounts.isEmpty)
-                    _buildFirstTimeLoginForm(context, theme, isWideScreen)
-                  else
-                    _buildQuickLoginView(
-                      context,
-                      ref,
-                      theme,
-                      isWideScreen,
-                      accounts,
-                    ),
-
-                  const SizedBox(height: 16),
-
-                  // 网络故障排除按钮（仅在网络错误时显示）
-                  if (_showTroubleshootingButton)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          NetworkTroubleshootingDialog.show(context);
-                        },
-                        icon: const Icon(Icons.help_outline, size: 18),
-                        label: Text(context.l10n.auth_viewTroubleshootingTips),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  const SizedBox(height: 24),
-
-                  // 提示信息
-                  Text(
-                    context.l10n.auth_loginTip,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.5),
-                    ),
-                    textAlign: TextAlign.center,
+                  _buildMainContent(
+                    context,
+                    theme,
+                    isWideScreen,
+                    isLoading,
+                    accounts,
                   ),
+                  const SizedBox(height: 16),
+                  if (_showTroubleshootingButton) _TroubleshootingButton(),
+                  const SizedBox(height: 24),
+                  _LoginTip(theme: theme),
                 ],
               ),
             ),
@@ -214,519 +116,146 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  /// 构建顶部 Logo 和标题
-  Widget _buildHeader(BuildContext context, ThemeData theme) {
-    return Column(
-      children: [
-        // App Icon
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Icon(
-            Icons.auto_awesome,
-            size: 40,
-            color: theme.colorScheme.primary,
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        // App Title
-        Text(
-          context.l10n.appTitle,
-          style: theme.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8),
-
-        // App Subtitle
-        Text(
-          context.l10n.appSubtitle,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.6),
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-
-  /// 首次使用 - 显示登录表单（支持邮箱密码和 Token 两种模式）
-  Widget _buildFirstTimeLoginForm(
+  Widget _buildMainContent(
     BuildContext context,
     ThemeData theme,
     bool isWideScreen,
-  ) {
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: isWideScreen ? 550 : 420),
-      child: const LoginFormContainer(),
-    );
-  }
-
-  /// 账号切换器骨架加载屏
-  Widget _buildAccountSwitcherSkeleton(
-    BuildContext context,
-    ThemeData theme,
-    bool isWideScreen,
-  ) {
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: isWideScreen ? 550 : 420),
-      child: Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: theme.colorScheme.outline.withOpacity(0.2),
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: isWideScreen
-              ? _buildWideScreenSkeleton(context, theme)
-              : _buildMobileSkeleton(context, theme),
-        ),
-      ),
-    );
-  }
-
-  /// PC 端骨架布局（水平）
-  Widget _buildWideScreenSkeleton(BuildContext context, ThemeData theme) {
-    return Row(
-      children: [
-        // 左侧：头像骨架
-        _buildShimmerCircleAvatar(100),
-        const SizedBox(width: 24),
-
-        // 右侧：信息骨架
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 账号名骨架
-              _buildShimmerText(
-                width: 150,
-                height: 24,
-                theme: theme,
-              ),
-              const SizedBox(height: 4),
-              _buildShimmerText(
-                width: 80,
-                height: 14,
-                theme: theme,
-              ),
-              const SizedBox(height: 16),
-
-              // 登录按钮骨架
-              _buildShimmerButton(theme),
-              const SizedBox(height: 16),
-
-              // 分割线
-              Divider(color: theme.colorScheme.outline.withOpacity(0.2)),
-              const SizedBox(height: 8),
-
-              // 添加账号按钮骨架
-              _buildShimmerText(
-                width: 100,
-                height: 16,
-                theme: theme,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// 移动端骨架布局（垂直）
-  Widget _buildMobileSkeleton(BuildContext context, ThemeData theme) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // 头像骨架（居中）
-        Center(child: _buildShimmerCircleAvatar(100)),
-        const SizedBox(height: 16),
-
-        // 账号名骨架
-        Center(
-          child: _buildShimmerText(
-            width: 150,
-            height: 24,
-            theme: theme,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Center(
-          child: _buildShimmerText(
-            width: 80,
-            height: 14,
-            theme: theme,
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        // 登录按钮骨架
-        _buildShimmerButton(theme),
-        const SizedBox(height: 16),
-
-        // 分割线
-        Divider(color: theme.colorScheme.outline.withOpacity(0.2)),
-        const SizedBox(height: 8),
-
-        // 添加账号按钮骨架
-        Center(
-          child: _buildShimmerText(
-            width: 100,
-            height: 16,
-            theme: theme,
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// 闪烁圆形头像骨架
-  Widget _buildShimmerCircleAvatar(double size) {
-    return _ShimmerCircleAvatar(size: size);
-  }
-
-  /// 闪烁文本骨架
-  Widget _buildShimmerText({
-    required double width,
-    required double height,
-    required ThemeData theme,
-  }) {
-    return _ShimmerContainer(
-      width: width,
-      height: height,
-      borderRadius: 4,
-      baseColor: theme.colorScheme.surfaceContainerHighest,
-      highlightColor: theme.colorScheme.surface,
-    );
-  }
-
-  /// 闪烁按钮骨架
-  Widget _buildShimmerButton(ThemeData theme) {
-    return _ShimmerContainer(
-      width: double.infinity,
-      height: 48,
-      borderRadius: 12,
-      baseColor: theme.colorScheme.primary.withOpacity(0.3),
-      highlightColor: theme.colorScheme.primary.withOpacity(0.1),
-    );
-  }
-
-  /// 有账号时 - 显示快速登录视图
-  Widget _buildQuickLoginView(
-    BuildContext context,
-    WidgetRef ref,
-    ThemeData theme,
-    bool isWideScreen,
+    bool isLoading,
     List<SavedAccount> accounts,
   ) {
-    // 获取默认账号或第一个账号
-    final defaultAccount = accounts.firstWhere(
-      (a) => a.isDefault,
-      orElse: () => accounts.first,
-    );
+    if (isLoading) {
+      return _AccountSwitcherSkeleton(theme: theme, isWideScreen: isWideScreen);
+    }
 
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: isWideScreen ? 550 : 420),
-      child: Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: theme.colorScheme.outline.withOpacity(0.2),
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: isWideScreen
-              ? _buildWideScreenQuickLogin(
-                  context,
-                  ref,
-                  theme,
-                  defaultAccount,
-                  accounts,
-                )
-              : _buildMobileQuickLogin(
-                  context,
-                  ref,
-                  theme,
-                  defaultAccount,
-                  accounts,
-                ),
-        ),
-      ),
+    if (accounts.isEmpty) {
+      return ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: isWideScreen ? 550 : 420),
+        child: const LoginFormContainer(),
+      );
+    }
+
+    return _QuickLoginView(
+      theme: theme,
+      isWideScreen: isWideScreen,
+      accounts: accounts,
+      onAvatarTap: (account) => _showAvatarOptions(context, ref, account),
+      onAccountSelectorTap: (accounts, current) =>
+          _showAccountSelector(context, ref, accounts, current),
+      onQuickLogin: (account) => _handleQuickLogin(context, ref, account),
+      onAddAccount: () => _showAddAccountDialog(context),
     );
   }
 
-  /// PC 端快速登录布局（水平）
-  Widget _buildWideScreenQuickLogin(
-    BuildContext context,
-    WidgetRef ref,
-    ThemeData theme,
-    SavedAccount currentAccount,
-    List<SavedAccount> accounts,
-  ) {
-    return Row(
-      children: [
-        // 左侧：大头像
-        AccountAvatar(
-          account: currentAccount,
-          size: 100,
-          showEditBadge: true,
-          onTap: () => _showAvatarOptions(context, ref, currentAccount),
-        ),
-        const SizedBox(width: 24),
+  void _handleAuthStateChange(AuthState? previous, AuthState next) {
+    // 监听 loading 状态
+    if (next.isLoading && previous?.isLoading != true) {
+      _showLoadingOverlay();
+      _hideTroubleshootingButton();
+    } else if (!next.isLoading && previous?.isLoading == true) {
+      _removeLoadingOverlay();
+    }
 
-        // 右侧：账号信息和登录按钮
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 账号名（可点击切换）
-              InkWell(
-                onTap: () => _showAccountSelector(
-                  context,
-                  ref,
-                  accounts,
-                  currentAccount,
-                ),
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          currentAccount.displayName,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        Icons.arrow_drop_down,
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Text(
-                context.l10n.auth_switchAccount,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.5),
-                ),
-              ),
-              const SizedBox(height: 16),
+    // 监听登录成功
+    if (next.isAuthenticated && !(previous?.isAuthenticated ?? false)) {
+      _hideTroubleshootingButton();
+    }
 
-              // 一键登录按钮
-              SizedBox(
-                width: double.infinity,
-                child:
-                    _buildQuickLoginButton(context, ref, theme, currentAccount),
-              ),
-              const SizedBox(height: 16),
-
-              // 分割线
-              Divider(color: theme.colorScheme.outline.withOpacity(0.2)),
-              const SizedBox(height: 8),
-
-              // 添加新账号
-              _buildAddAccountButton(context, theme),
-            ],
-          ),
-        ),
-      ],
-    );
+    // 监听登录错误
+    if (next.hasError && previous?.errorCode != next.errorCode) {
+      _handleAuthError(next);
+    }
   }
 
-  /// 移动端快速登录布局（垂直）
-  Widget _buildMobileQuickLogin(
-    BuildContext context,
-    WidgetRef ref,
-    ThemeData theme,
-    SavedAccount currentAccount,
-    List<SavedAccount> accounts,
-  ) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // 大头像（居中）
-        AccountAvatar(
-          account: currentAccount,
-          size: 100,
-          showEditBadge: true,
-          onTap: () => _showAvatarOptions(context, ref, currentAccount),
-        ),
-        const SizedBox(height: 16),
-
-        // 账号名（可点击切换）
-        InkWell(
-          onTap: () =>
-              _showAccountSelector(context, ref, accounts, currentAccount),
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  currentAccount.displayName,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.arrow_drop_down,
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                ),
-              ],
-            ),
-          ),
-        ),
-        Text(
-          context.l10n.auth_switchAccount,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.5),
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        // 一键登录按钮
-        SizedBox(
-          width: double.infinity,
-          child: _buildQuickLoginButton(context, ref, theme, currentAccount),
-        ),
-        const SizedBox(height: 16),
-
-        // 分割线
-        Divider(color: theme.colorScheme.outline.withOpacity(0.2)),
-        const SizedBox(height: 8),
-
-        // 添加新账号
-        _buildAddAccountButton(context, theme),
-      ],
+  void _handleAuthError(AuthState state) {
+    AppLogger.d(
+      '[LoginScreen] Showing error Toast: ${state.errorCode}',
+      'LOGIN',
     );
+
+    final l10n = context.l10n;
+    final errorText = _authErrorService.getErrorText(
+      l10n,
+      state.errorCode!,
+      state.httpStatusCode,
+    );
+    final recoveryHint = _authErrorService.getErrorRecoveryHint(
+      l10n,
+      state.errorCode!,
+      state.httpStatusCode,
+    );
+
+    final isNetworkError = state.errorCode == AuthErrorCode.networkTimeout ||
+        state.errorCode == AuthErrorCode.networkError;
+
+    if (isNetworkError && mounted) {
+      setState(() => _showTroubleshootingButton = true);
+    }
+
+    final errorMessage = (recoveryHint != null && recoveryHint != errorText)
+        ? '$errorText\n💡 $recoveryHint'
+        : errorText;
+
+    AppToast.error(context, errorMessage);
+    ref.read(authNotifierProvider.notifier).clearError(delayMs: 500);
   }
 
-  /// 一键登录按钮
-  Widget _buildQuickLoginButton(
-    BuildContext context,
-    WidgetRef ref,
-    ThemeData theme,
-    SavedAccount account,
-  ) {
-    final authState = ref.watch(authNotifierProvider);
-
-    return FilledButton.icon(
-      onPressed: authState.isLoading
-          ? null
-          : () => _handleQuickLogin(context, ref, account),
-      icon: authState.isLoading
-          ? const SizedBox(
-              height: 18,
-              width: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
-            )
-          : const Icon(Icons.login),
-      label: Text(context.l10n.auth_quickLogin),
-      style: FilledButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-      ),
-    );
-  }
-
-  /// 添加新账号按钮
-  Widget _buildAddAccountButton(BuildContext context, ThemeData theme) {
-    return TextButton.icon(
-      onPressed: () => _showAddAccountDialog(context),
-      icon: const Icon(Icons.add),
-      label: Text(context.l10n.auth_addAccount),
-    );
-  }
-
-  /// 处理快速登录
   Future<void> _handleQuickLogin(
     BuildContext context,
     WidgetRef ref,
     SavedAccount account,
   ) async {
-    // 如果已经认证（可能自动登录已完成），不执行
-    final currentAuth = ref.read(authNotifierProvider);
-    if (currentAuth.isAuthenticated) {
-      return;
-    }
+    final authNotifier = ref.read(authNotifierProvider.notifier);
+    final accountNotifier = ref.read(accountManagerNotifierProvider.notifier);
 
-    // 获取 Token
-    final token = await ref
-        .read(accountManagerNotifierProvider.notifier)
-        .getAccountToken(account.id);
+    // 如果已经认证，不执行
+    if (ref.read(authNotifierProvider).isAuthenticated) return;
 
-    // 检查 widget 是否仍然 mounted
+    final token = await accountNotifier.getAccountToken(account.id);
+
     if (!context.mounted) return;
-
     if (token == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.auth_tokenNotFound)),
-      );
+      AppToast.info(context, context.l10n.auth_tokenNotFound);
       return;
     }
 
-    // 再次检查是否已认证（在异步操作期间可能已自动登录）
-    if (ref.read(authNotifierProvider).isAuthenticated) {
-      return;
-    }
+    // 再次检查是否已认证
+    if (ref.read(authNotifierProvider).isAuthenticated) return;
 
-    // 执行登录 - 根据账号类型选择验证方式
-    AppLogger.d('[LoginScreen] _handleQuickLogin: switching account with type ${account.accountType}...', 'LOGIN');
-    final success = await ref.read(authNotifierProvider.notifier).switchAccount(
-          account.id,
-          token,
-          displayName: account.displayName,
-          accountType: account.accountType,
-        );
+    AppLogger.d(
+      '[LoginScreen] _handleQuickLogin: switching account with type ${account.accountType}...',
+      'LOGIN',
+    );
 
-    // 检查 widget 是否仍然 mounted
+    final success = await authNotifier.switchAccount(
+      account.id,
+      token,
+      displayName: account.displayName,
+      accountType: account.accountType,
+    );
+
     if (!context.mounted) return;
 
-    AppLogger.d('[LoginScreen] _handleQuickLogin: loginWithToken result=$success', 'LOGIN');
-    final authState = ref.read(authNotifierProvider);
-    AppLogger.d('[LoginScreen] _handleQuickLogin: after login, state=${authState.status}, hasError=${authState.hasError}', 'LOGIN');
+    AppLogger.d('[LoginScreen] _handleQuickLogin: result=$success', 'LOGIN');
 
     if (success) {
-      // 登录成功，更新最后使用时间
-      ref
-          .read(accountManagerNotifierProvider.notifier)
-          .updateLastUsed(account.id);
+      accountNotifier.updateLastUsed(account.id);
     }
-    // 注意：登录失败的 Toast 由 ref.listen 统一处理，无需在这里重复显示
   }
 
-  /// 显示账号选择器对话框
   void _showAccountSelector(
     BuildContext context,
     WidgetRef ref,
     List<SavedAccount> accounts,
     SavedAccount currentAccount,
   ) {
+    final sortedAccounts = List<SavedAccount>.from(accounts)
+      ..sort((a, b) {
+        final aTime = a.lastUsedAt ?? a.createdAt;
+        final bTime = b.lastUsedAt ?? b.createdAt;
+        return bTime.compareTo(aTime);
+      });
+    final defaultAccount = sortedAccounts.first;
+
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -747,17 +276,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 账号列表
               ...accounts.map(
-                (account) => _buildAccountListItem(
-                  dialogContext,
-                  ref,
-                  account,
+                (account) => _AccountListItem(
+                  account: account,
                   isSelected: account.id == currentAccount.id,
+                  isDefault: account.id == defaultAccount.id,
+                  createdDate:
+                      _dateFormattingService.formatDate(account.createdAt),
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    _handleQuickLogin(context, ref, account);
+                  },
+                  onDelete: () =>
+                      _showDeleteAccountDialog(context, ref, account),
                 ),
               ),
-              const Divider(),
-              // 添加新账号
+              const ThemedDivider(),
               ListTile(
                 leading: CircleAvatar(
                   backgroundColor:
@@ -780,86 +314,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  /// 构建账号列表项
-  Widget _buildAccountListItem(
-    BuildContext context,
-    WidgetRef ref,
-    SavedAccount account, {
-    bool isSelected = false,
-  }) {
-    final theme = Theme.of(context);
-
-    // 格式化创建时间
-    final createdDate = _formatDate(account.createdAt);
-
-    return ListTile(
-      leading: AccountAvatarSmall(
-        account: account,
-        size: 40,
-        isSelected: isSelected,
-      ),
-      title: Row(
-        children: [
-          Expanded(
-            child: Text(
-              account.displayName,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (account.isDefault)
-            Container(
-              margin: const EdgeInsets.only(left: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                context.l10n.common_default,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-            ),
-          if (isSelected)
-            Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: Icon(
-                Icons.check,
-                color: theme.colorScheme.primary,
-                size: 20,
-              ),
-            ),
-        ],
-      ),
-      subtitle: Text(
-        context.l10n.auth_createdAt(createdDate),
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.onSurface.withOpacity(0.5),
-        ),
-      ),
-      trailing: IconButton(
-        icon: Icon(
-          Icons.delete_outline,
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-        onPressed: () => _showDeleteAccountDialog(context, ref, account),
-      ),
-      onTap: () {
-        Navigator.pop(context);
-        // 切换到选中的账号并登录
-        _handleQuickLogin(context, ref, account);
-      },
-    );
-  }
-
-  /// 格式化日期
-  String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-  }
-
-  /// 显示删除账号确认对话框
   void _showDeleteAccountDialog(
     BuildContext context,
     WidgetRef ref,
@@ -887,7 +341,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   .read(accountManagerNotifierProvider.notifier)
                   .removeAccount(account.id);
               Navigator.pop(dialogContext);
-              // 如果还在账号选择对话框中，也关闭它
               Navigator.pop(context);
             },
             child: Text(context.l10n.common_delete),
@@ -897,7 +350,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  /// 显示添加账号对话框
   void _showAddAccountDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -909,7 +361,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // 标题栏
                 Row(
                   children: [
                     const SizedBox(width: 16),
@@ -924,7 +375,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ],
                 ),
-                // 登录表单（支持邮箱密码和 Token）
                 LoginFormContainer(
                   onLoginSuccess: () => Navigator.pop(dialogContext),
                 ),
@@ -936,7 +386,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  /// 显示头像选项（更换头像）
   void _showAvatarOptions(
     BuildContext context,
     WidgetRef ref,
@@ -961,7 +410,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               title: Text(context.l10n.auth_takePhoto),
               onTap: () {
                 Navigator.pop(sheetContext);
-                // Desktop 平台不支持拍照，使用相同的文件选择逻辑
                 _pickImageFromGallery(context, ref, account);
               },
             ),
@@ -982,8 +430,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
   }
-  
-  /// 从相册/文件选择头像
+
   Future<void> _pickImageFromGallery(
     BuildContext context,
     WidgetRef ref,
@@ -994,16 +441,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (result.isSuccess && result.path != null) {
         final updatedAccount = account.copyWith(avatarPath: result.path);
-        await ref.read(accountManagerNotifierProvider.notifier).updateAccount(updatedAccount);
+        await ref
+            .read(accountManagerNotifierProvider.notifier)
+            .updateAccount(updatedAccount);
 
         if (context.mounted) {
           AppToast.success(context, context.l10n.common_success);
         }
       } else if (result.isFailure && context.mounted) {
-        // 显示错误信息
-        AppToast.error(context, result.errorMessage ?? context.l10n.common_error);
+        AppToast.error(
+          context,
+          result.errorMessage ?? context.l10n.common_error,
+        );
       }
-      // 取消操作不需要提示
     } catch (e) {
       if (context.mounted) {
         AppToast.error(context, context.l10n.common_error);
@@ -1011,7 +461,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  /// 移除头像
   Future<void> _removeAvatar(
     BuildContext context,
     WidgetRef ref,
@@ -1019,10 +468,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   ) async {
     try {
       await _avatarService.removeAvatar(account);
-
-      // 更新账号信息（清除头像路径）
       final updatedAccount = account.copyWith(avatarPath: null);
-      await ref.read(accountManagerNotifierProvider.notifier).updateAccount(updatedAccount);
+      await ref
+          .read(accountManagerNotifierProvider.notifier)
+          .updateAccount(updatedAccount);
 
       if (context.mounted) {
         AppToast.success(context, context.l10n.common_success);
@@ -1033,80 +482,476 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     }
   }
+}
 
-  /// 获取错误码对应的本地化文本
-  String _getErrorText(
-    BuildContext context,
-    AuthErrorCode errorCode,
-    int? httpStatusCode,
-  ) {
-    final l10n = context.l10n;
+/// 页面头部组件
+class _Header extends StatelessWidget {
+  final ThemeData theme;
 
-    // 401 错误，提供更明确的提示
-    if (errorCode == AuthErrorCode.authFailed && httpStatusCode == 401) {
-      return l10n.auth_error_authFailed_tokenExpired;
-    }
+  const _Header({required this.theme});
 
-    switch (errorCode) {
-      case AuthErrorCode.networkTimeout:
-        return l10n.auth_error_networkTimeout;
-      case AuthErrorCode.networkError:
-        return l10n.auth_error_networkError;
-      case AuthErrorCode.authFailed:
-        return l10n.auth_error_authFailed;
-      case AuthErrorCode.tokenInvalid:
-        return l10n.auth_tokenInvalid;
-      case AuthErrorCode.serverError:
-        return l10n.auth_error_serverError;
-      case AuthErrorCode.unknown:
-        return l10n.auth_error_unknown;
-    }
-  }
-
-  /// 获取错误恢复建议
-  String? _getErrorRecoveryHint(
-    BuildContext context,
-    AuthErrorCode errorCode,
-    int? httpStatusCode,
-  ) {
-    final l10n = context.l10n;
-
-    switch (errorCode) {
-      case AuthErrorCode.networkTimeout:
-        return l10n.api_error_timeout_hint;
-      case AuthErrorCode.networkError:
-        return l10n.api_error_network_hint;
-      case AuthErrorCode.authFailed:
-        if (httpStatusCode == 401) {
-          return l10n.api_error_401_hint;
-        }
-        return l10n.api_error_401_hint;
-      case AuthErrorCode.tokenInvalid:
-        return l10n.api_error_401_hint;
-      case AuthErrorCode.serverError:
-        if (httpStatusCode == 503) {
-          return l10n.api_error_503_hint;
-        }
-        return l10n.api_error_500_hint;
-      case AuthErrorCode.unknown:
-        return null;
-    }
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Icon(
+            Icons.auto_awesome,
+            size: 40,
+            color: theme.colorScheme.primary,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          context.l10n.app_title,
+          style: theme.textTheme.headlineMedium
+              ?.copyWith(fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          context.l10n.app_subtitle,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurface.withOpacity(0.6),
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
   }
 }
 
-/// 加载遮罩 Widget
-class _LoadingOverlayWidget extends StatefulWidget {
-  final VoidCallback onDismiss;
+/// 登录提示文本
+class _LoginTip extends StatelessWidget {
+  final ThemeData theme;
 
-  const _LoadingOverlayWidget({
-    required this.onDismiss,
+  const _LoginTip({required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      context.l10n.auth_loginTip,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.onSurface.withOpacity(0.5),
+      ),
+      textAlign: TextAlign.center,
+    );
+  }
+}
+
+/// 网络故障排除按钮
+class _TroubleshootingButton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: OutlinedButton.icon(
+        onPressed: () => NetworkTroubleshootingDialog.show(context),
+        icon: const Icon(Icons.help_outline, size: 18),
+        label: Text(context.l10n.auth_viewTroubleshootingTips),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+      ),
+    );
+  }
+}
+
+/// 账号切换器骨架屏
+class _AccountSwitcherSkeleton extends StatelessWidget {
+  final ThemeData theme;
+  final bool isWideScreen;
+
+  const _AccountSwitcherSkeleton({
+    required this.theme,
+    required this.isWideScreen,
   });
 
   @override
-  State<_LoadingOverlayWidget> createState() => _LoadingOverlayWidgetState();
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: isWideScreen ? 550 : 420),
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: theme.colorScheme.outline.withOpacity(0.2)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: isWideScreen ? _buildWideLayout() : _buildMobileLayout(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWideLayout() {
+    return Row(
+      children: [
+        const _ShimmerCircleAvatar(size: 100),
+        const SizedBox(width: 24),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _ShimmerBox(width: 150, height: 24, theme: theme),
+              const SizedBox(height: 4),
+              _ShimmerBox(width: 80, height: 14, theme: theme),
+              const SizedBox(height: 16),
+              _ShimmerBox(
+                width: double.infinity,
+                height: 48,
+                theme: theme,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(height: 16),
+              const ThemedDivider(),
+              const SizedBox(height: 8),
+              _ShimmerBox(width: 100, height: 16, theme: theme),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileLayout() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Center(child: _ShimmerCircleAvatar(size: 100)),
+        const SizedBox(height: 16),
+        Center(child: _ShimmerBox(width: 150, height: 24, theme: theme)),
+        const SizedBox(height: 4),
+        Center(child: _ShimmerBox(width: 80, height: 14, theme: theme)),
+        const SizedBox(height: 24),
+        _ShimmerBox(
+          width: double.infinity,
+          height: 48,
+          theme: theme,
+          color: theme.colorScheme.primary,
+        ),
+        const SizedBox(height: 16),
+        const ThemedDivider(),
+        const SizedBox(height: 8),
+        Center(child: _ShimmerBox(width: 100, height: 16, theme: theme)),
+      ],
+    );
+  }
 }
 
-class _LoadingOverlayWidgetState extends State<_LoadingOverlayWidget>
+/// 快速登录视图
+class _QuickLoginView extends ConsumerWidget {
+  final ThemeData theme;
+  final bool isWideScreen;
+  final List<SavedAccount> accounts;
+  final void Function(SavedAccount) onAvatarTap;
+  final void Function(List<SavedAccount>, SavedAccount) onAccountSelectorTap;
+  final void Function(SavedAccount) onQuickLogin;
+  final VoidCallback onAddAccount;
+
+  const _QuickLoginView({
+    required this.theme,
+    required this.isWideScreen,
+    required this.accounts,
+    required this.onAvatarTap,
+    required this.onAccountSelectorTap,
+    required this.onQuickLogin,
+    required this.onAddAccount,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sortedAccounts = List<SavedAccount>.from(accounts)
+      ..sort((a, b) {
+        final aTime = a.lastUsedAt ?? a.createdAt;
+        final bTime = b.lastUsedAt ?? b.createdAt;
+        return bTime.compareTo(aTime);
+      });
+    final defaultAccount = sortedAccounts.first;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: isWideScreen ? 550 : 420),
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: theme.colorScheme.outline.withOpacity(0.2)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: isWideScreen
+              ? _buildWideLayout(context, ref, defaultAccount)
+              : _buildMobileLayout(context, ref, defaultAccount),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWideLayout(
+    BuildContext context,
+    WidgetRef ref,
+    SavedAccount account,
+  ) {
+    return Row(
+      children: [
+        AccountAvatar(
+          account: account,
+          size: 100,
+          showEditBadge: true,
+          onTap: () => onAvatarTap(account),
+        ),
+        const SizedBox(width: 24),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _AccountSelectorButton(
+                account: account,
+                accounts: accounts,
+                onTap: () => onAccountSelectorTap(accounts, account),
+              ),
+              Text(
+                context.l10n.auth_switchAccount,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child:
+                    _QuickLoginButton(account: account, onLogin: onQuickLogin),
+              ),
+              const SizedBox(height: 16),
+              const ThemedDivider(),
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: onAddAccount,
+                icon: const Icon(Icons.add),
+                label: Text(context.l10n.auth_addAccount),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileLayout(
+    BuildContext context,
+    WidgetRef ref,
+    SavedAccount account,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AccountAvatar(
+          account: account,
+          size: 100,
+          showEditBadge: true,
+          onTap: () => onAvatarTap(account),
+        ),
+        const SizedBox(height: 16),
+        _AccountSelectorButton(
+          account: account,
+          accounts: accounts,
+          onTap: () => onAccountSelectorTap(accounts, account),
+        ),
+        Text(
+          context.l10n.auth_switchAccount,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withOpacity(0.5),
+          ),
+        ),
+        const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          child: _QuickLoginButton(account: account, onLogin: onQuickLogin),
+        ),
+        const SizedBox(height: 16),
+        const ThemedDivider(),
+        const SizedBox(height: 8),
+        TextButton.icon(
+          onPressed: onAddAccount,
+          icon: const Icon(Icons.add),
+          label: Text(context.l10n.auth_addAccount),
+        ),
+      ],
+    );
+  }
+}
+
+/// 账号选择器按钮
+class _AccountSelectorButton extends StatelessWidget {
+  final SavedAccount account;
+  final List<SavedAccount> accounts;
+  final VoidCallback onTap;
+
+  const _AccountSelectorButton({
+    required this.account,
+    required this.accounts,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                account.displayName,
+                style: theme.textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.arrow_drop_down,
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 一键登录按钮
+class _QuickLoginButton extends ConsumerWidget {
+  final SavedAccount account;
+  final void Function(SavedAccount) onLogin;
+
+  const _QuickLoginButton({
+    required this.account,
+    required this.onLogin,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authNotifierProvider);
+
+    return FilledButton.icon(
+      onPressed: authState.isLoading ? null : () => onLogin(account),
+      icon: authState.isLoading
+          ? const SizedBox(
+              height: 18,
+              width: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            )
+          : const Icon(Icons.login),
+      label: Text(context.l10n.auth_quickLogin),
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+      ),
+    );
+  }
+}
+
+/// 账号列表项
+class _AccountListItem extends StatelessWidget {
+  final SavedAccount account;
+  final bool isSelected;
+  final bool isDefault;
+  final String createdDate;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  const _AccountListItem({
+    required this.account,
+    required this.isSelected,
+    required this.isDefault,
+    required this.createdDate,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return ListTile(
+      leading: AccountAvatarSmall(
+        account: account,
+        size: 40,
+        isSelected: isSelected,
+      ),
+      title: Row(
+        children: [
+          Expanded(
+            child: Text(account.displayName, overflow: TextOverflow.ellipsis),
+          ),
+          if (isDefault)
+            Container(
+              margin: const EdgeInsets.only(left: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                context.l10n.common_default,
+                style:
+                    TextStyle(fontSize: 10, color: theme.colorScheme.primary),
+              ),
+            ),
+          if (isSelected)
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child:
+                  Icon(Icons.check, color: theme.colorScheme.primary, size: 20),
+            ),
+        ],
+      ),
+      subtitle: Text(
+        context.l10n.auth_createdAt(createdDate),
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurface.withOpacity(0.5),
+        ),
+      ),
+      trailing: IconButton(
+        icon: Icon(
+          Icons.delete_outline,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        onPressed: onDelete,
+      ),
+      onTap: onTap,
+    );
+  }
+}
+
+/// 加载遮罩
+class _LoadingOverlay extends StatefulWidget {
+  final VoidCallback onDismiss;
+
+  const _LoadingOverlay({required this.onDismiss});
+
+  @override
+  State<_LoadingOverlay> createState() => _LoadingOverlayState();
+}
+
+class _LoadingOverlayState extends State<_LoadingOverlay>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
@@ -1118,17 +963,9 @@ class _LoadingOverlayWidgetState extends State<_LoadingOverlayWidget>
       vsync: this,
       duration: const Duration(milliseconds: 200),
     );
-
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOut,
-      ),
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
     );
-
     _controller.forward();
   }
 
@@ -1167,9 +1004,8 @@ class _LoadingOverlayWidgetState extends State<_LoadingOverlayWidget>
                     const SizedBox(height: 16),
                     Text(
                       context.l10n.auth_loggingIn,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -1189,30 +1025,28 @@ class _LoadingOverlayWidgetState extends State<_LoadingOverlayWidget>
   }
 }
 
-/// 闪烁容器 - 用于骨架加载动画
-class _ShimmerContainer extends StatefulWidget {
+/// 闪烁骨架盒子
+class _ShimmerBox extends StatefulWidget {
   final double width;
   final double height;
-  final double borderRadius;
-  final Color baseColor;
-  final Color highlightColor;
+  final ThemeData theme;
+  final Color? color;
 
-  const _ShimmerContainer({
+  const _ShimmerBox({
     required this.width,
     required this.height,
-    required this.borderRadius,
-    required this.baseColor,
-    required this.highlightColor,
+    required this.theme,
+    this.color,
   });
 
   @override
-  State<_ShimmerContainer> createState() => _ShimmerContainerState();
+  State<_ShimmerBox> createState() => _ShimmerBoxState();
 }
 
-class _ShimmerContainerState extends State<_ShimmerContainer>
+class _ShimmerBoxState extends State<_ShimmerBox>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _shimmerAnimation;
+  late Animation<double> _animation;
 
   @override
   void initState() {
@@ -1221,15 +1055,8 @@ class _ShimmerContainerState extends State<_ShimmerContainer>
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat();
-
-    _shimmerAnimation = Tween<double>(
-      begin: -2.0,
-      end: 2.0,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeInOutSine,
-      ),
+    _animation = Tween<double>(begin: -2.0, end: 2.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
     );
   }
 
@@ -1241,27 +1068,26 @@ class _ShimmerContainerState extends State<_ShimmerContainer>
 
   @override
   Widget build(BuildContext context) {
+    final baseColor = widget.color?.withOpacity(0.3) ??
+        widget.theme.colorScheme.surfaceContainerHighest;
+    final highlightColor =
+        widget.color?.withOpacity(0.1) ?? widget.theme.colorScheme.surface;
+
     return AnimatedBuilder(
-      animation: _shimmerAnimation,
-      builder: (context, child) {
-        return Container(
-          width: widget.width,
-          height: widget.height,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(widget.borderRadius),
-            gradient: LinearGradient(
-              begin: Alignment(-1.0 + _shimmerAnimation.value, 0.0),
-              end: Alignment(1.0 + _shimmerAnimation.value, 0.0),
-              colors: [
-                widget.baseColor,
-                widget.highlightColor,
-                widget.baseColor,
-              ],
-              stops: const [0.0, 0.5, 1.0],
-            ),
+      animation: _animation,
+      builder: (context, child) => Container(
+        width: widget.width,
+        height: widget.height,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(4),
+          gradient: LinearGradient(
+            begin: Alignment(-1.0 + _animation.value, 0.0),
+            end: Alignment(1.0 + _animation.value, 0.0),
+            colors: [baseColor, highlightColor, baseColor],
+            stops: const [0.0, 0.5, 1.0],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -1270,9 +1096,7 @@ class _ShimmerContainerState extends State<_ShimmerContainer>
 class _ShimmerCircleAvatar extends StatefulWidget {
   final double size;
 
-  const _ShimmerCircleAvatar({
-    required this.size,
-  });
+  const _ShimmerCircleAvatar({required this.size});
 
   @override
   State<_ShimmerCircleAvatar> createState() => _ShimmerCircleAvatarState();
@@ -1281,7 +1105,7 @@ class _ShimmerCircleAvatar extends StatefulWidget {
 class _ShimmerCircleAvatarState extends State<_ShimmerCircleAvatar>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _shimmerAnimation;
+  late Animation<double> _animation;
 
   @override
   void initState() {
@@ -1290,15 +1114,8 @@ class _ShimmerCircleAvatarState extends State<_ShimmerCircleAvatar>
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat();
-
-    _shimmerAnimation = Tween<double>(
-      begin: -2.0,
-      end: 2.0,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeInOutSine,
-      ),
+    _animation = Tween<double>(begin: -2.0, end: 2.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
     );
   }
 
@@ -1315,26 +1132,20 @@ class _ShimmerCircleAvatarState extends State<_ShimmerCircleAvatar>
     final highlightColor = theme.colorScheme.surface;
 
     return AnimatedBuilder(
-      animation: _shimmerAnimation,
-      builder: (context, child) {
-        return Container(
-          width: widget.size,
-          height: widget.size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              begin: Alignment(-1.0 + _shimmerAnimation.value, 0.0),
-              end: Alignment(1.0 + _shimmerAnimation.value, 0.0),
-              colors: [
-                baseColor,
-                highlightColor,
-                baseColor,
-              ],
-              stops: const [0.0, 0.5, 1.0],
-            ),
+      animation: _animation,
+      builder: (context, child) => Container(
+        width: widget.size,
+        height: widget.size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: Alignment(-1.0 + _animation.value, 0.0),
+            end: Alignment(1.0 + _animation.value, 0.0),
+            colors: [baseColor, highlightColor, baseColor],
+            stops: const [0.0, 0.5, 1.0],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

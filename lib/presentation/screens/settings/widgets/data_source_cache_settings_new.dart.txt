@@ -1,0 +1,48 @@
+// 根本解决方案：使用 CacheClearService 统一处理清除逻辑
+// 
+// 在 _clearAllCaches 方法中，替换现有实现为：
+
+Future<void> _clearAllCaches(BuildContext context) async {
+  if (!context.mounted) return;
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => const PopScope(
+      canPop: false,
+      child: Center(child: _ClearingDialog()),
+    ),
+  );
+
+  await Future.delayed(const Duration(milliseconds: 200));
+
+  try {
+    // 使用统一的清除服务
+    final result = await cacheClearService.clearAllCache();
+
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+
+    if (result.success) {
+      AppToast.success(
+        context, 
+        '已清除 ${result.totalRemoved} 条数据，下次启动时将自动恢复'
+      );
+      
+      // 延迟刷新 Provider
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (context.mounted) {
+          ref.invalidate(danbooruTagsCacheNotifierProvider);
+        }
+      });
+    } else {
+      AppToast.warning(context, result.error ?? '清除失败');
+    }
+  } catch (e) {
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+      AppToast.error(context, '清除失败: $e');
+    }
+  }
+}
