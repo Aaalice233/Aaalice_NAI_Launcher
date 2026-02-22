@@ -114,6 +114,9 @@ class AsyncDebouncer<T> with _DebouncerBase {
   @override
   Timer? timer;
 
+  /// 当前待处理的 completer，用于在取消时完成它
+  Completer<T>? _pendingCompleter;
+
   AsyncDebouncer({
     this.delay = const Duration(milliseconds: 300),
   });
@@ -128,17 +131,41 @@ class AsyncDebouncer<T> with _DebouncerBase {
       return await action();
     } else {
       final completer = Completer<T>();
+      _pendingCompleter = completer;
 
       timer = Timer(delay, () async {
+        // 清除 pending completer 引用
+        _pendingCompleter = null;
         try {
           final result = await action();
-          completer.complete(result);
+          if (!completer.isCompleted) {
+            completer.complete(result);
+          }
         } catch (e, stackTrace) {
-          completer.completeError(e, stackTrace);
+          if (!completer.isCompleted) {
+            completer.completeError(e, stackTrace);
+          }
         }
       });
 
       return completer.future;
     }
+  }
+
+  @override
+  void cancel() {
+    // 如果有待处理的 completer，用错误完成它以避免 orphaned future
+    if (_pendingCompleter != null && !_pendingCompleter!.isCompleted) {
+      _pendingCompleter!.completeError(
+        StateError('Debouncer cancelled before action could execute'),
+      );
+      _pendingCompleter = null;
+    }
+    super.cancel();
+  }
+
+  @override
+  void dispose() {
+    cancel();
   }
 }
