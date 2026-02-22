@@ -572,7 +572,7 @@ class VibeImageEmbedder {
     }
 
     return VibeReference(
-      displayName: displayName as String? ?? 'unknown',
+      displayName: (displayName as String?)?.isNotEmpty == true ? displayName : 'unknown',
       vibeEncoding: vibeEncoding as String? ?? '',
       thumbnail: thumbnail as Uint8List?,
       strength: (strength as num?)?.toDouble() ?? 0.6,
@@ -697,21 +697,12 @@ class VibeImageEmbedder {
       // 这可以防止 zip bomb 攻击（小压缩数据解压成极大文件）
       final decoder = ZLibDecoder();
       final inputStream = InputStream(bytes);
-      final outputStream = OutputStream();
+      final outputStream = _LimitedOutputStream(_maxDecompressedSize);
 
       // 使用 startDecodeStream 进行流式解码
       decoder.startDecodeStream(inputStream, outputStream);
 
-      // 检查解压后的大小
-      final result = outputStream.getBytes();
-      if (result.length > _maxDecompressedSize) {
-        throw VibeExtractException(
-          'Decompressed data exceeds maximum size of $_maxDecompressedSize bytes '
-          '(possible zip bomb attack)',
-        );
-      }
-
-      return result;
+      return outputStream.getBytes();
     } on VibeExtractException {
       rethrow;
     } catch (e) {
@@ -985,4 +976,47 @@ class _PngChunk {
   final String type;
   final Uint8List data;
   final Uint8List rawBytes;
+}
+
+/// 带大小限制的 OutputStream，用于防止 zip bomb 攻击
+///
+/// 在写入数据时实时检查大小，如果超过限制立即抛出异常，
+/// 避免恶意压缩数据耗尽内存。
+class _LimitedOutputStream extends OutputStream {
+  _LimitedOutputStream(this._maxSize);
+
+  final int _maxSize;
+  int _currentSize = 0;
+  final List<List<int>> _chunks = [];
+
+  @override
+  void writeByte(int value) {
+    _checkSize(1);
+    super.writeByte(value);
+    _currentSize++;
+  }
+
+  @override
+  void writeBytes(List<int> bytes, [int? len]) {
+    final length = len ?? bytes.length;
+    _checkSize(length);
+    super.writeBytes(bytes, length);
+    _currentSize += length;
+  }
+
+  @override
+  void writeInputStream(InputStreamBase stream) {
+    _checkSize(stream.length);
+    super.writeInputStream(stream);
+    _currentSize += stream.length;
+  }
+
+  void _checkSize(int additionalBytes) {
+    if (_currentSize + additionalBytes > _maxSize) {
+      throw VibeExtractException(
+        'Decompressed data exceeds maximum size of $_maxSize bytes '
+        '(possible zip bomb attack)',
+      );
+    }
+  }
 }
