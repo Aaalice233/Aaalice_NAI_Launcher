@@ -177,7 +177,7 @@ abstract class EnhancedBaseDataSource extends ds.BaseDataSource {
   }) async* {
     if (operations.isEmpty) return;
 
-    final batches = _chunk(operations, batchSize);
+    final batches = chunk(operations, batchSize);
     var batchIndex = 0;
 
     for (final batch in batches) {
@@ -376,7 +376,9 @@ abstract class EnhancedBaseDataSource extends ds.BaseDataSource {
   }
 
   /// 分批辅助方法
-  List<List<T>> _chunk<T>(List<T> list, int chunkSize) {
+  ///
+  /// 将列表分割成指定大小的批次，用于批量操作
+  List<List<T>> chunk<T>(List<T> list, int chunkSize) {
     final chunks = <List<T>>[];
     for (var i = 0; i < list.length; i += chunkSize) {
       chunks.add(

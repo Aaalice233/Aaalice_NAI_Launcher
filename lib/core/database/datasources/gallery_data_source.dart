@@ -835,7 +835,7 @@ class GalleryDataSource extends EnhancedBaseDataSource {
 
       // SQLite 有 999 个参数限制，每批使用 900 个参数以确保安全
       const batchSize = 900;
-      final chunks = _chunk(filePaths, batchSize);
+      final chunks = chunk(filePaths, batchSize);
 
       for (final chunk in chunks) {
         await execute(
@@ -1585,7 +1585,7 @@ class GalleryDataSource extends EnhancedBaseDataSource {
       try {
         // SQLite 有 999 个参数限制，每批使用 900 个参数以确保安全
         const batchSize = 900;
-        final chunks = _chunk(missingIds, batchSize);
+        final chunks = chunk(missingIds, batchSize);
 
         for (final chunk in chunks) {
           await execute(
@@ -1791,7 +1791,7 @@ class GalleryDataSource extends EnhancedBaseDataSource {
 
       // SQLite 有 999 个参数限制，每批使用 900 个参数以确保安全
       const batchSize = 900;
-      final chunks = _chunk(imageIds, batchSize);
+      final chunks = chunk(imageIds, batchSize);
 
       for (final chunk in chunks) {
         await execute(
@@ -1851,7 +1851,7 @@ class GalleryDataSource extends EnhancedBaseDataSource {
     try {
       // 处理搜索词，添加通配符支持
       // 转义 FTS5 特殊字符（双引号）以防止查询注入
-      String _escapeFts5(String input) {
+      String escapeFts5(String input) {
         // 移除或转义 FTS5 特殊字符
         // 双引号用于标识列名，需要转义
         return input.replaceAll('"', '""');
@@ -1860,7 +1860,7 @@ class GalleryDataSource extends EnhancedBaseDataSource {
       final searchQuery = query
           .split(RegExp(r'\s+'))
           .where((s) => s.isNotEmpty)
-          .map((s) => '"${_escapeFts5(s)}"*')
+          .map((s) => '"${escapeFts5(s)}"*')
           .join(' OR ');
 
       return await execute(
@@ -2097,7 +2097,7 @@ class GalleryDataSource extends EnhancedBaseDataSource {
 
       // SQLite 有 999 个参数限制，每批使用 900 个参数以确保安全
       const batchSize = 900;
-      final chunks = _chunk(imageIds, batchSize);
+      final chunks = chunk(imageIds, batchSize);
 
       for (final chunk in chunks) {
         await execute(

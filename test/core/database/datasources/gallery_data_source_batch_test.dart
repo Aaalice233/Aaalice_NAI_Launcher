@@ -209,9 +209,9 @@ void main() {
 
         expect(result.length, equals(2));
         expect(result.any((img) => img.id == id1 && img.fileName == 'img1.png'),
-            isTrue);
+            isTrue,);
         expect(result.any((img) => img.id == id2 && img.fileName == 'img2.png'),
-            isTrue);
+            isTrue,);
       });
 
       test('should return only existing images and skip deleted', () async {
@@ -775,7 +775,7 @@ void main() {
         final metaResult = await dataSource.getMetadataByImageIds([id]);
         expect(metaResult[id], isNotNull);
         expect(metaResult[id]!.prompt,
-            equals('beautiful landscape with mountains'));
+            equals('beautiful landscape with mountains'),);
 
         final favsResult = await dataSource.getFavoritesByImageIds([id]);
         expect(favsResult[id], isTrue);

@@ -771,7 +771,9 @@ class RandomPromptGenerator {
 
       // 性别过滤（仅在指定性别时应用）
       if (characterGender != null &&
-          !category.isApplicableToGender(characterGender)) continue;
+          !category.isApplicableToGender(characterGender)) {
+        continue;
+      }
 
       // 类别概率检查
       if (random.nextDouble() > category.probability) continue;
