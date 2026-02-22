@@ -60,9 +60,14 @@ class GalleryScanService {
 
   static const List<String> _supportedExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
   static const int _batchSize = 50;
-  
+
   /// 使用 isolate 的阈值
   static const int _isolateThreshold = 500;
+
+  /// 高优先级扫描延迟（毫秒）- 用于 UI 触发的扫描
+  static const int _kHighPriorityDelayMs = 10;
+  /// 低优先级扫描延迟（毫秒）- 用于后台扫描，避免阻塞 UI
+  static const int _kLowPriorityDelayMs = 50;
 
   GalleryScanService({required GalleryDataSource dataSource}) : _dataSource = dataSource;
 
@@ -439,7 +444,7 @@ class GalleryScanService {
 
       // 让出时间片，避免阻塞 UI，同时释放数据库连接压力
       // 后台操作使用更长的延迟以优先处理 UI 操作
-      final delayMs = priority == ScanPriority.low ? 50 : 10;
+      final delayMs = priority == ScanPriority.low ? _kLowPriorityDelayMs : _kHighPriorityDelayMs;
       await Future.delayed(Duration(milliseconds: delayMs));
     }
 
@@ -451,11 +456,12 @@ class GalleryScanService {
   }
 
   /// 处理指定文件
-  Future<void> processFiles(List<File> files) async {
+  /// [priority] 扫描优先级，默认为 [ScanPriority.low]
+  Future<void> processFiles(List<File> files, {ScanPriority priority = ScanPriority.low}) async {
     if (files.isEmpty) return;
 
     final result = ScanResult();
-    await _processFilesSmart(files, result, isFullScan: false);
+    await _processFilesSmart(files, result, isFullScan: false, priority: priority);
 
     AppLogger.d(
       'Processed ${files.length} files: ${result.filesAdded} added, ${result.filesUpdated} updated',
@@ -543,7 +549,7 @@ class GalleryScanService {
       // 让出时间片，避免阻塞UI
       // 后台操作使用更长的延迟以优先处理 UI 操作
       if (priority == ScanPriority.low) {
-        await Future.delayed(const Duration(milliseconds: 50));
+        await Future.delayed(const Duration(milliseconds: _kLowPriorityDelayMs));
       } else {
         await Future.delayed(Duration.zero);
       }
@@ -613,7 +619,7 @@ class GalleryScanService {
       // 让出时间片，避免阻塞UI
       // 后台操作使用更长的延迟以优先处理 UI 操作
       if (priority == ScanPriority.low) {
-        await Future.delayed(const Duration(milliseconds: 50));
+        await Future.delayed(const Duration(milliseconds: _kLowPriorityDelayMs));
       } else {
         await Future.delayed(Duration.zero);
       }

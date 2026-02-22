@@ -246,6 +246,14 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     }
 
     // 使用防抖处理数据库查询
+    // 检查是否已有相同 key 的 pending 请求，避免重复创建 completer（race condition 修复）
+    final existingCompleter = _getCompleters[normalizedKey];
+    if (existingCompleter != null && !existingCompleter.isCompleted) {
+      AppLogger.d('[DanbooruTagsLazy] Reusing existing completer for key="$normalizedKey"', 'DanbooruTagsLazy');
+      return existingCompleter.future;
+    }
+
+    // 创建新的 completer，如果已存在旧的则完成它（避免内存泄漏）
     final completer = Completer<LocalTag?>();
     _getCompleters[normalizedKey] = completer;
 
@@ -296,6 +304,14 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     final searchKey = '$query:${category ?? "all"}:$limit';
 
     // 使用防抖处理搜索查询
+    // 检查是否已有相同 key 的 pending 请求，避免重复创建 completer（race condition 修复）
+    final existingCompleter = _searchCompleters[searchKey];
+    if (existingCompleter != null && !existingCompleter.isCompleted) {
+      AppLogger.d('[DanbooruTagsLazy] Reusing existing completer for searchKey="$searchKey"', 'DanbooruTagsLazy');
+      return existingCompleter.future;
+    }
+
+    // 创建新的 completer
     final completer = Completer<List<LocalTag>>();
     _searchCompleters[searchKey] = completer;
 
@@ -1052,7 +1068,20 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     // 取消并清理防抖器中的待处理操作
     _getDebouncer.cancel();
     _searchDebouncer.cancel();
+
+    // 完成所有 pending 的 completer，避免 orphaned futures（内存泄漏修复）
+    for (final completer in _getCompleters.values) {
+      if (!completer.isCompleted) {
+        completer.complete(null);
+      }
+    }
     _getCompleters.clear();
+
+    for (final completer in _searchCompleters.values) {
+      if (!completer.isCompleted) {
+        completer.complete([]);
+      }
+    }
     _searchCompleters.clear();
 
     // 删除元数据文件（关键：否则重启后会从文件加载旧的 _lastUpdate）

@@ -2,17 +2,39 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-/// 防抖器
-/// 用于限制函数调用频率，在指定延迟时间内只执行最后一次调用
-class Debouncer {
+/// 防抖器基础功能 Mixin
+/// 提供防抖的核心逻辑，避免代码重复
+mixin _DebouncerBase {
   /// 防抖延迟
-  final Duration delay;
+  Duration get delay;
 
   /// 防抖计时器
-  Timer? _timer;
+  Timer? get timer;
+  set timer(Timer? value);
 
   /// 是否正在等待执行
-  bool get isWaiting => _timer?.isActive ?? false;
+  bool get isWaiting => timer?.isActive ?? false;
+
+  /// 取消待执行的防抖操作
+  void cancel() {
+    timer?.cancel();
+    timer = null;
+  }
+
+  /// 释放资源
+  void dispose() {
+    cancel();
+  }
+}
+
+/// 防抖器
+/// 用于限制函数调用频率，在指定延迟时间内只执行最后一次调用
+class Debouncer with _DebouncerBase {
+  @override
+  final Duration delay;
+
+  @override
+  Timer? timer;
 
   Debouncer({
     this.delay = const Duration(milliseconds: 300),
@@ -22,52 +44,36 @@ class Debouncer {
   /// [action] 要执行的回调函数
   /// [immediate] 是否立即执行（跳过防抖，默认为 false）
   void run(VoidCallback action, {bool immediate = false}) {
-    _timer?.cancel();
+    cancel();
 
     if (immediate) {
       action();
     } else {
-      _timer = Timer(delay, action);
+      timer = Timer(delay, action);
     }
-  }
-
-  /// 取消待执行的防抖操作
-  void cancel() {
-    _timer?.cancel();
-    _timer = null;
   }
 
   /// 刷新防抖计时器
   /// 重置延迟时间，如果已有待执行操作则重新计时
-  void refresh() {
-    if (_timer?.isActive ?? false) {
-      _timer?.cancel();
-      // 注意：刷新计时器需要重新调用 run 方法传入 action
-      // 此方法主要用于需要延长等待时间的场景
+  /// [action] 要重新执行的回调函数
+  void refresh(VoidCallback action) {
+    if (isWaiting) {
+      run(action);
     }
-  }
-
-  /// 释放资源
-  void dispose() {
-    _timer?.cancel();
-    _timer = null;
   }
 }
 
 /// 带参数的防抖器
 /// 支持传递一个参数的防抖操作
-class DebouncerWithArg<T> {
-  /// 防抖延迟
+class DebouncerWithArg<T> with _DebouncerBase {
+  @override
   final Duration delay;
 
-  /// 防抖计时器
-  Timer? _timer;
+  @override
+  Timer? timer;
 
   /// 待执行的回调
   void Function(T)? _pendingAction;
-
-  /// 是否正在等待执行
-  bool get isWaiting => _timer?.isActive ?? false;
 
   DebouncerWithArg({
     this.delay = const Duration(milliseconds: 300),
@@ -78,44 +84,35 @@ class DebouncerWithArg<T> {
   /// [action] 要执行的回调函数
   /// [immediate] 是否立即执行（跳过防抖，默认为 false）
   void run(T arg, void Function(T) action, {bool immediate = false}) {
-    _timer?.cancel();
+    cancel();
     _pendingAction = action;
 
     if (immediate) {
       action(arg);
       _pendingAction = null;
     } else {
-      _timer = Timer(delay, () {
+      timer = Timer(delay, () {
         _pendingAction?.call(arg);
         _pendingAction = null;
       });
     }
   }
 
-  /// 取消待执行的防抖操作
+  @override
   void cancel() {
-    _timer?.cancel();
-    _timer = null;
+    super.cancel();
     _pendingAction = null;
-  }
-
-  /// 释放资源
-  void dispose() {
-    cancel();
   }
 }
 
 /// 异步防抖器
 /// 支持异步操作的防抖
-class AsyncDebouncer<T> {
-  /// 防抖延迟
+class AsyncDebouncer<T> with _DebouncerBase {
+  @override
   final Duration delay;
 
-  /// 防抖计时器
-  Timer? _timer;
-
-  /// 是否正在等待执行
-  bool get isWaiting => _timer?.isActive ?? false;
+  @override
+  Timer? timer;
 
   AsyncDebouncer({
     this.delay = const Duration(milliseconds: 300),
@@ -125,14 +122,14 @@ class AsyncDebouncer<T> {
   /// [action] 要执行的异步回调函数
   /// [immediate] 是否立即执行（跳过防抖，默认为 false）
   Future<T> run(Future<T> Function() action, {bool immediate = false}) async {
-    _timer?.cancel();
+    cancel();
 
     if (immediate) {
       return await action();
     } else {
       final completer = Completer<T>();
 
-      _timer = Timer(delay, () async {
+      timer = Timer(delay, () async {
         try {
           final result = await action();
           completer.complete(result);
@@ -143,16 +140,5 @@ class AsyncDebouncer<T> {
 
       return completer.future;
     }
-  }
-
-  /// 取消待执行的防抖操作
-  void cancel() {
-    _timer?.cancel();
-    _timer = null;
-  }
-
-  /// 释放资源
-  void dispose() {
-    cancel();
   }
 }
