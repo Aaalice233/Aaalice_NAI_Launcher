@@ -989,7 +989,10 @@ class GalleryDataSource extends EnhancedBaseDataSource {
         'SELECT file_path, file_hash FROM $_imagesTable WHERE is_deleted = 0',
         [],
       )) {
-        result[row['file_path'] as String] = row['file_hash'] as String?;
+        final filePath = row['file_path'] as String?;
+        if (filePath != null) {
+          result[filePath] = row['file_hash'] as String?;
+        }
       }
       return result;
     } catch (e, stack) {
