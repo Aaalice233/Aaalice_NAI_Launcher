@@ -380,7 +380,18 @@ class VibeFileParser {
 
     for (var i = 0; i < vibesList.length; i++) {
       try {
-        final vibeJson = vibesList[i] as Map<String, dynamic>;
+        final vibeItem = vibesList[i];
+        // 验证元素类型，跳过非 Map 类型的元素
+        if (vibeItem is! Map<String, dynamic>) {
+          if (kDebugMode) {
+            AppLogger.d(
+              'Skipping invalid vibe entry $i in bundle: expected Map but got ${vibeItem.runtimeType}',
+              'VibeParser',
+            );
+          }
+          continue;
+        }
+        final vibeJson = vibeItem;
         final name = vibeJson['name'] as String? ?? '$fileName#$i';
         final strength = _extractStrength(
           vibeJson['importInfo'] as Map<String, dynamic>?,

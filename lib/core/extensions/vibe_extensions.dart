@@ -88,8 +88,9 @@ extension VibeLibraryEntryMatching on List<VibeLibraryEntry> {
 
 /// 计算 Vibe 缩略图的哈希值
 ///
-/// 使用 SHA-256 计算数据哈希，取前 16 个字符作为唯一标识
+/// 使用 SHA-256 计算数据哈希，取前 32 个字符（128 位）作为唯一标识
 /// 用于快速比较两个缩略图是否相同
+/// 使用 32 个字符提供足够的碰撞抵抗（2^128 种组合）
 String _calculateVibeThumbnailHash(Uint8List data) {
-  return sha256.convert(data).toString().substring(0, 16);
+  return sha256.convert(data).toString().substring(0, 32);
 }

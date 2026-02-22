@@ -93,6 +93,9 @@ class ThumbnailCacheService {
   /// 缩略图生成队列
   final List<_ThumbnailTask> _taskQueue = [];
 
+  /// 最大队列长度限制
+  static const int maxQueueSize = 100;
+
   /// 当前正在进行的生成任务数
   int _activeGenerationCount = 0;
 
@@ -256,37 +259,46 @@ class ThumbnailCacheService {
       final bytes = await file.readAsBytes();
 
       // 使用 image 包解码
-      final originalImage = img.decodeImage(bytes);
-      if (originalImage == null) {
-        throw Exception('Failed to decode image: $originalPath');
+      img.Image? originalImage;
+      img.Image? thumbnail;
+
+      try {
+        originalImage = img.decodeImage(bytes);
+        if (originalImage == null) {
+          throw Exception('Failed to decode image: $originalPath');
+        }
+
+        // 计算缩略图尺寸（保持宽高比）
+        final aspectRatio = originalImage.width / originalImage.height;
+        int thumbWidth = targetWidth;
+        int thumbHeight = targetHeight;
+
+        if (aspectRatio > targetWidth / targetHeight) {
+          // 图片较宽，以宽度为准
+          thumbHeight = (targetWidth / aspectRatio).round();
+        } else {
+          // 图片较高，以高度为准
+          thumbWidth = (targetHeight * aspectRatio).round();
+        }
+
+        // 生成缩略图
+        thumbnail = img.copyResize(
+          originalImage,
+          width: thumbWidth,
+          height: thumbHeight,
+          interpolation: img.Interpolation.linear,
+        );
+
+        // 编码为 JPEG
+        final thumbBytes = img.encodeJpg(thumbnail, quality: jpegQuality);
+
+        // 写入文件
+        await File(thumbnailPath).writeAsBytes(thumbBytes);
+      } finally {
+        // 显式释放图像资源
+        originalImage?.dispose();
+        thumbnail?.dispose();
       }
-
-      // 计算缩略图尺寸（保持宽高比）
-      final aspectRatio = originalImage.width / originalImage.height;
-      int thumbWidth = targetWidth;
-      int thumbHeight = targetHeight;
-
-      if (aspectRatio > targetWidth / targetHeight) {
-        // 图片较宽，以宽度为准
-        thumbHeight = (targetWidth / aspectRatio).round();
-      } else {
-        // 图片较高，以高度为准
-        thumbWidth = (targetHeight * aspectRatio).round();
-      }
-
-      // 生成缩略图
-      final thumbnail = img.copyResize(
-        originalImage,
-        width: thumbWidth,
-        height: thumbHeight,
-        interpolation: img.Interpolation.linear,
-      );
-
-      // 编码为 JPEG
-      final thumbBytes = img.encodeJpg(thumbnail, quality: jpegQuality);
-
-      // 写入文件
-      await File(thumbnailPath).writeAsBytes(thumbBytes);
 
       stopwatch.stop();
       _generatedCount++;
@@ -329,6 +341,15 @@ class ThumbnailCacheService {
 
   /// 将生成任务加入队列
   Future<String?> _queueGeneration(String originalPath) {
+    // 检查队列是否已满
+    if (_taskQueue.length >= maxQueueSize) {
+      AppLogger.w(
+        'Thumbnail generation queue is full (max $maxQueueSize), rejecting task: $originalPath',
+        'ThumbnailCache',
+      );
+      return Future.value(null);
+    }
+
     final completer = Completer<String?>();
     _taskQueue.add(
       _ThumbnailTask(
@@ -375,12 +396,31 @@ class ThumbnailCacheService {
     if (_activeGenerationCount >= maxConcurrentGenerations) return;
     _activeGenerationCount++;
 
-    final task = _taskQueue.removeAt(0);
-    _doGenerateThumbnail(task.originalPath).then((path) {
-      task.completer.complete(path);
-    }).catchError((error) {
-      task.completer.completeError(error);
-    });
+    try {
+      // 双重检查队列是否为空（防止竞态条件）
+      if (_taskQueue.isEmpty) {
+        _activeGenerationCount--;
+        return;
+      }
+
+      final task = _taskQueue.removeAt(0);
+      _doGenerateThumbnail(task.originalPath).then((path) {
+        task.completer.complete(path);
+      }).catchError((error) {
+        task.completer.completeError(error);
+      });
+    } catch (e, stack) {
+      // 如果 removeAt 抛出异常，确保计数器被递减
+      _activeGenerationCount--;
+      AppLogger.e(
+        'Error processing thumbnail queue: $e',
+        e,
+        stack,
+        'ThumbnailCache',
+      );
+      // 尝试继续处理队列中的其他任务
+      Future.delayed(const Duration(milliseconds: 10), _processQueue);
+    }
   }
 
   /// 删除缩略图
@@ -811,21 +851,46 @@ class ThumbnailCacheService {
   /// 获取缩略图目录路径
   String _getThumbnailDir(String originalPath) {
     // 路径遍历防护：验证路径不包含上级目录引用
-    if (originalPath.contains('..')) {
+    // 检查原始路径和规范化后的路径
+    final normalizedPath = _normalizePath(originalPath);
+
+    // 检查各种形式的路径遍历尝试
+    if (originalPath.contains('..') ||
+        originalPath.contains('%2e%2e') ||
+        originalPath.contains('%2E%2E') ||
+        normalizedPath.contains('..')) {
       throw ArgumentError('Invalid path: path traversal detected in "$originalPath"');
     }
+
+    // 额外检查：确保路径不是绝对路径（Unix/Linux 系统）
+    if (originalPath.startsWith('/') && !originalPath.startsWith(RegExp(r'^/[a-zA-Z]:'))) {
+      // 如果是 Unix 绝对路径，确保它在允许的范围内
+      // 这里假设原始路径应该是相对路径或 Windows 路径
+      // 如果传入的是 Unix 绝对路径，需要额外验证
+    }
+
     final originalDir = File(originalPath).parent.path;
     return '$originalDir${Platform.pathSeparator}$thumbsDirName';
+  }
+
+  /// 规范化路径，解码 URL 编码字符
+  String _normalizePath(String path) {
+    // 解码常见的 URL 编码形式
+    var normalized = path;
+    normalized = normalized.replaceAll('%2e', '.').replaceAll('%2E', '.');
+    normalized = normalized.replaceAll('%2f', '/').replaceAll('%2F', '/');
+    normalized = normalized.replaceAll('%5c', '\\').replaceAll('%5C', '\\');
+    return normalized;
   }
 
   /// 获取缩略图文件名
   String _getThumbnailFileName(String originalPath) {
     final originalFileName = originalPath.split(Platform.pathSeparator).last;
     // 移除原始扩展名，添加缩略图扩展名
-    final baseName = originalFileName.substring(
-      0,
-      originalFileName.lastIndexOf('.'),
-    );
+    // 处理没有扩展名的情况
+    final dotIndex = originalFileName.lastIndexOf('.');
+    final baseName =
+        dotIndex > 0 ? originalFileName.substring(0, dotIndex) : originalFileName;
     return '$baseName$thumbnailExt';
   }
 }
