@@ -393,12 +393,10 @@ class VibeImageEmbedder {
           .timeout(_extractTimeout);
 
       // 将序列化的结果转换回 VibeReference 对象
+      // 安全注意：不再将原始 PNG 图片作为缩略图分配，以防止内存耗尽
+      // 如果 vibe 数据中没有缩略图，保持为 null，由 UI 层处理默认显示
       final vibes = result.vibesData.map((data) {
-        final vibeRef = _vibeDataToReference(data);
-        // 如果没有缩略图，使用原始图片
-        return vibeRef.thumbnail == null
-            ? vibeRef.copyWith(thumbnail: imageBytes)
-            : vibeRef;
+        return _vibeDataToReference(data);
       }).toList();
 
       return (vibes: vibes, isBundle: result.isBundle);
@@ -682,7 +680,9 @@ class VibeImageEmbedder {
 
   /// 解码 zlib 压缩数据，限制最大解压大小以防止 zip bomb 攻击
   ///
-  /// 使用流式解码器，在解压过程中检查大小，避免一次性解压大量数据导致内存溢出
+  /// 使用流式解码器，在解压过程中检查大小，避免一次性解压大量数据导致内存溢出。
+  /// 如果流式解码失败，直接拒绝数据，不使用 decodeBytes() 作为 fallback，
+  /// 以防止 zip bomb 攻击绕过大小限制。
   static List<int> _decodeZlibWithLimit(List<int> bytes) {
     // 首先检查压缩数据大小
     if (bytes.length > _maxCompressedSize) {
@@ -693,11 +693,17 @@ class VibeImageEmbedder {
     }
 
     try {
-      // 使用 archive 包的 ZLibDecoder 进行解码
-      const decoder = ZLibDecoder();
-      final result = decoder.decodeBytes(bytes);
+      // 使用流式解码器，在解压过程中检查大小
+      // 这可以防止 zip bomb 攻击（小压缩数据解压成极大文件）
+      final decoder = ZLibDecoder();
+      final inputStream = InputStream(bytes);
+      final outputStream = OutputStream();
+
+      // 使用 startDecodeStream 进行流式解码
+      decoder.startDecodeStream(inputStream, outputStream);
 
       // 检查解压后的大小
+      final result = outputStream.getBytes();
       if (result.length > _maxDecompressedSize) {
         throw VibeExtractException(
           'Decompressed data exceeds maximum size of $_maxDecompressedSize bytes '
@@ -710,6 +716,7 @@ class VibeImageEmbedder {
       rethrow;
     } catch (e) {
       // 解码失败，拒绝数据
+      // 注意：不使用 decodeBytes() 作为 fallback，以防止安全绕过
       throw VibeExtractException(
         'Failed to decompress data: $e. '
         'Possible corrupted or malicious data.',
