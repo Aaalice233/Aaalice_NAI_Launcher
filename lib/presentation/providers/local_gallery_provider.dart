@@ -815,13 +815,19 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
           batch.map((file) async {
             try {
               final stat = await file.stat();
-              return (file: file, modified: stat.modified);
+              return (file: file, modified: stat.modified, success: true);
             } catch (_) {
-              return (file: file, modified: DateTime(0));
+              // stat 失败的文件返回 null，后续会被过滤掉
+              return null;
             }
           }),
         );
-        fileStats.addAll(batchStats);
+        // 过滤掉 stat 失败的文件（null 值）
+        fileStats.addAll(
+          batchStats.whereType<({File file, DateTime modified, bool success})>().map(
+            (s) => (file: s.file, modified: s.modified),
+          ),
+        );
       }
 
       filtered = fileStats.where((item) {

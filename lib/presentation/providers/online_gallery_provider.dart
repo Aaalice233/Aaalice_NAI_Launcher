@@ -61,23 +61,11 @@ class ModeCache {
   final bool hasMore;
   final double scrollOffset;
 
-  /// 虚拟化相关：当前可见项目的起始索引
-  final int firstVisibleItemIndex;
-
-  /// 虚拟化相关：当前可见项目的结束索引
-  final int lastVisibleItemIndex;
-
-  /// 虚拟化相关：预渲染范围（像素）
-  final double cacheExtent;
-
   const ModeCache({
     this.posts = const [],
     this.page = 1,
     this.hasMore = true,
     this.scrollOffset = 0,
-    this.firstVisibleItemIndex = 0,
-    this.lastVisibleItemIndex = 0,
-    this.cacheExtent = 200.0,
   });
 
   ModeCache copyWith({
@@ -85,18 +73,12 @@ class ModeCache {
     int? page,
     bool? hasMore,
     double? scrollOffset,
-    int? firstVisibleItemIndex,
-    int? lastVisibleItemIndex,
-    double? cacheExtent,
   }) {
     return ModeCache(
       posts: posts ?? this.posts,
       page: page ?? this.page,
       hasMore: hasMore ?? this.hasMore,
       scrollOffset: scrollOffset ?? this.scrollOffset,
-      firstVisibleItemIndex: firstVisibleItemIndex ?? this.firstVisibleItemIndex,
-      lastVisibleItemIndex: lastVisibleItemIndex ?? this.lastVisibleItemIndex,
-      cacheExtent: cacheExtent ?? this.cacheExtent,
     );
   }
 }
@@ -135,12 +117,6 @@ class OnlineGalleryState {
   final DateTime? dateRangeStart;
   final DateTime? dateRangeEnd;
 
-  /// 虚拟化相关：是否启用虚拟化
-  final bool enableVirtualization;
-
-  /// 虚拟化相关：最大内存中保持的项目数（用于内存管理）
-  final int maxCachedItems;
-
   const OnlineGalleryState({
     this.isLoading = false,
     this.error,
@@ -157,8 +133,6 @@ class OnlineGalleryState {
     this.favoriteLoadingPostIds = const {},
     this.dateRangeStart,
     this.dateRangeEnd,
-    this.enableVirtualization = true,
-    this.maxCachedItems = 500,
   });
 
   /// 获取当前模式的缓存
@@ -185,19 +159,6 @@ class OnlineGalleryState {
   /// 当前模式的滚动位置
   double get scrollOffset => currentCache.scrollOffset;
 
-  /// 当前模式第一个可见项目索引（虚拟化）
-  int get firstVisibleItemIndex => currentCache.firstVisibleItemIndex;
-
-  /// 当前模式最后一个可见项目索引（虚拟化）
-  int get lastVisibleItemIndex => currentCache.lastVisibleItemIndex;
-
-  /// 当前模式的预渲染范围（虚拟化）
-  double get cacheExtent => currentCache.cacheExtent;
-
-  /// 当前可见项目数量
-  int get visibleItemCount =>
-      posts.isEmpty ? 0 : lastVisibleItemIndex - firstVisibleItemIndex + 1;
-
   OnlineGalleryState copyWith({
     bool? isLoading,
     String? error,
@@ -214,8 +175,6 @@ class OnlineGalleryState {
     Set<int>? favoriteLoadingPostIds,
     DateTime? dateRangeStart,
     DateTime? dateRangeEnd,
-    bool? enableVirtualization,
-    int? maxCachedItems,
     bool clearError = false,
     bool clearPopularDate = false,
     bool clearDateRange = false,
@@ -238,8 +197,6 @@ class OnlineGalleryState {
       dateRangeStart:
           clearDateRange ? null : (dateRangeStart ?? this.dateRangeStart),
       dateRangeEnd: clearDateRange ? null : (dateRangeEnd ?? this.dateRangeEnd),
-      enableVirtualization: enableVirtualization ?? this.enableVirtualization,
-      maxCachedItems: maxCachedItems ?? this.maxCachedItems,
     );
   }
 
@@ -300,82 +257,6 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   void saveScrollOffset(double offset) {
     final newCache = state.currentCache.copyWith(scrollOffset: offset);
     state = state.updateCurrentCache(newCache);
-  }
-
-  // ==================== 虚拟化状态管理 ====================
-
-  /// 更新当前可见项目范围（虚拟化）
-  ///
-  /// [firstIndex] - 第一个可见项目的索引
-  /// [lastIndex] - 最后一个可见项目的索引
-  void updateVisibleRange(int firstIndex, int lastIndex) {
-    // 只有当范围发生变化时才更新状态，避免不必要的重建
-    if (state.firstVisibleItemIndex == firstIndex &&
-        state.lastVisibleItemIndex == lastIndex) {
-      return;
-    }
-
-    // 空列表时直接返回，避免 clamp 抛出 RangeError
-    if (state.posts.isEmpty) {
-      return;
-    }
-
-    final newCache = state.currentCache.copyWith(
-      firstVisibleItemIndex: firstIndex.clamp(0, state.posts.length - 1),
-      lastVisibleItemIndex: lastIndex.clamp(0, state.posts.length - 1),
-    );
-    state = state.updateCurrentCache(newCache);
-  }
-
-  /// 设置预渲染范围（虚拟化）
-  ///
-  /// [extent] - 预渲染范围（像素），值越大预渲染的项目越多
-  void setCacheExtent(double extent) {
-    if (state.cacheExtent == extent) return;
-
-    final newCache = state.currentCache.copyWith(cacheExtent: extent);
-    state = state.updateCurrentCache(newCache);
-  }
-
-  /// 启用/禁用虚拟化
-  void setVirtualizationEnabled(bool enabled) {
-    if (state.enableVirtualization == enabled) return;
-    state = state.copyWith(enableVirtualization: enabled);
-  }
-
-  /// 设置最大缓存项目数（内存管理）
-  void setMaxCachedItems(int count) {
-    if (state.maxCachedItems == count) return;
-    state = state.copyWith(maxCachedItems: count);
-  }
-
-  /// 获取指定索引的项目是否应该在当前可见范围内渲染
-  ///
-  /// 用于 [VirtualizedMasonryGrid] 的优化决策
-  bool shouldRenderItem(int index) {
-    if (!state.enableVirtualization) return true;
-    if (state.posts.isEmpty) return false;
-
-    return index >= state.firstVisibleItemIndex &&
-        index <= state.lastVisibleItemIndex;
-  }
-
-  /// 获取指定索引的项目是否在预渲染范围内
-  bool isInCacheExtent(int index) {
-    if (!state.enableVirtualization) return true;
-    if (state.posts.isEmpty) return false;
-
-    // 估算每个项目的高度来扩展缓存范围
-    final estimatedItemsInCache =
-        (state.cacheExtent / 200).ceil(); // 假设平均高度200
-    final cacheStart =
-        (state.firstVisibleItemIndex - estimatedItemsInCache)
-            .clamp(0, state.posts.length - 1);
-    final cacheEnd =
-        (state.lastVisibleItemIndex + estimatedItemsInCache)
-            .clamp(0, state.posts.length - 1);
-
-    return index >= cacheStart && index <= cacheEnd;
   }
 
   /// 切换到搜索模式（保留缓存数据）
