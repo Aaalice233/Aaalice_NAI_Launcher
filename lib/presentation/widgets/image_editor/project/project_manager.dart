@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -27,22 +28,20 @@ class _FileStatInfo {
   });
 
   /// 从FileStat创建
-  factory _FileStatInfo.fromStat(File file, FileStat stat) {
-    return _FileStatInfo(
-      file: file,
-      modified: stat.modified,
-      type: stat.type,
-    );
-  }
+  factory _FileStatInfo.fromStat(File file, FileStat stat) => _FileStatInfo(
+        file: file,
+        modified: stat.modified,
+        type: stat.type,
+      );
 
   /// 表示不存在的文件
-  factory _FileStatInfo.notFound(File file) {
-    return _FileStatInfo(
-      file: file,
-      modified: DateTime(0),
-      type: FileSystemEntityType.notFound,
-    );
-  }
+  factory _FileStatInfo.notFound(File file) => _FileStatInfo(
+        file: file,
+        modified: DateTime(0),
+        type: FileSystemEntityType.notFound,
+      );
+
+  bool get exists => type != FileSystemEntityType.notFound;
 }
 
 /// 项目管理器
@@ -201,39 +200,12 @@ class ProjectManager {
       return null;
     }
 
-    // 批处理获取文件 stat，每批20个，避免无界并发
-    const batchSize = 20;
-    final filesWithStats = <_FileStatInfo>[];
-
-    for (var i = 0; i < files.length; i += batchSize) {
-      final end = (i + batchSize < files.length) ? i + batchSize : files.length;
-      final batch = files.sublist(i, end);
-
-      final batchStats = await Future.wait(
-        batch.map((file) async {
-          try {
-            final stat = await file.stat();
-            return _FileStatInfo.fromStat(file, stat);
-          } catch (e) {
-            // 如果 stat 失败（文件被删除、权限问题等），返回 notFound 类型
-            return _FileStatInfo.notFound(file);
-          }
-        }),
-      );
-      filesWithStats.addAll(batchStats);
-    }
-
-    // 过滤掉不存在的文件，然后按修改时间排序
-    final validFiles = filesWithStats
-        .where((item) => item.type != FileSystemEntityType.notFound)
-        .toList();
-
+    final validFiles = await _getFilesWithStats(files);
     if (validFiles.isEmpty) {
       return null;
     }
 
     validFiles.sort((a, b) => b.modified.compareTo(a.modified));
-
     return validFiles.first.file.path;
   }
 
@@ -257,46 +229,40 @@ class ProjectManager {
       return;
     }
 
-    // 批处理获取文件 stat，每批20个，避免无界并发
-    const batchSize = 20;
-    final filesWithStats = <_FileStatInfo>[];
-
-    for (var i = 0; i < files.length; i += batchSize) {
-      final end = (i + batchSize < files.length) ? i + batchSize : files.length;
-      final batch = files.sublist(i, end);
-
-      final batchStats = await Future.wait(
-        batch.map((file) async {
-          try {
-            final stat = await file.stat();
-            return _FileStatInfo.fromStat(file, stat);
-          } catch (e) {
-            // 如果 stat 失败（文件被删除、权限问题等），返回 notFound 类型
-            return _FileStatInfo.notFound(file);
-          }
-        }),
-      );
-      filesWithStats.addAll(batchStats);
-    }
-
-    // 过滤掉不存在的文件，然后按修改时间排序
-    final validFiles = filesWithStats
-        .where((item) => item.type != FileSystemEntityType.notFound)
-        .toList();
-
+    final validFiles = await _getFilesWithStats(files);
     if (validFiles.length <= keepCount) {
       return;
     }
 
     validFiles.sort((a, b) => b.modified.compareTo(a.modified));
 
-    // 删除旧文件，添加异常处理
-    for (int i = keepCount; i < validFiles.length; i++) {
+    // 删除旧文件，忽略删除失败的文件
+    for (final fileInfo in validFiles.skip(keepCount)) {
       try {
-        await validFiles[i].file.delete();
-      } catch (e) {
-        // 忽略删除失败的文件（可能已被删除或权限问题）
-      }
+        await fileInfo.file.delete();
+      } catch (_) {}
     }
+  }
+
+  /// 批量获取文件状态（每批20个，避免无界并发）
+  static Future<List<_FileStatInfo>> _getFilesWithStats(List<File> files) async {
+    const batchSize = 20;
+    final result = <_FileStatInfo>[];
+
+    for (var i = 0; i < files.length; i += batchSize) {
+      final batch = files.sublist(i, min(i + batchSize, files.length));
+      final batchStats = await Future.wait(
+        batch.map((file) async {
+          try {
+            return _FileStatInfo.fromStat(file, await file.stat());
+          } catch (_) {
+            return _FileStatInfo.notFound(file);
+          }
+        }),
+      );
+      result.addAll(batchStats);
+    }
+
+    return result.where((info) => info.exists).toList();
   }
 }

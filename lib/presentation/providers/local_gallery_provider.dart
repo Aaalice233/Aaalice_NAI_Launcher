@@ -896,43 +896,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
 
     // 日期过滤 - 使用异步操作并发获取文件状态（避免阻塞主线程）
     if (state.dateStart != null || state.dateEnd != null) {
-      // 限制并发数以避免资源耗尽
-      const concurrencyLimit = 50;
-      final fileStats = <({File file, DateTime modified})>[];
-
-      // 预计算结束日期，避免在循环中重复创建DateTime对象
-      final effectiveEndDate = state.dateEnd?.add(const Duration(days: 1));
-
-      for (var i = 0; i < filtered.length; i += concurrencyLimit) {
-        final batch = filtered.sublist(
-          i,
-          i + concurrencyLimit > filtered.length ? filtered.length : i + concurrencyLimit,
-        );
-        final batchStats = await Future.wait(
-          batch.map((file) async {
-            try {
-              final stat = await file.stat();
-              return (file: file, modified: stat.modified, success: true);
-            } catch (_) {
-              // stat 失败的文件返回 null，后续会被过滤掉
-              return null;
-            }
-          }),
-        );
-        // 过滤掉 stat 失败的文件（null 值）
-        fileStats.addAll(
-          batchStats.whereType<({File file, DateTime modified, bool success})>().map(
-            (s) => (file: s.file, modified: s.modified),
-          ),
-        );
-      }
-
-      filtered = fileStats.where((item) {
-        final modifiedAt = item.modified;
-        if (state.dateStart != null && modifiedAt.isBefore(state.dateStart!)) return false;
-        if (effectiveEndDate != null && modifiedAt.isAfter(effectiveEndDate)) return false;
-        return true;
-      }).map((item) => item.file).toList();
+      filtered = await _filterByDateRange(filtered);
     }
     // 收藏过滤 - 使用数据库查询获取收藏的图片路径（使用批量方法）
     if (state.showFavoritesOnly) {
@@ -961,14 +925,49 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     }
   }
 
+  /// 按日期范围过滤文件
+  Future<List<File>> _filterByDateRange(List<File> files) async {
+    const batchSize = 50;
+    final effectiveEndDate = state.dateEnd?.add(const Duration(days: 1));
+    final result = <File>[];
+
+    for (var i = 0; i < files.length; i += batchSize) {
+      final batch = files.sublist(i, min(i + batchSize, files.length));
+      final batchStats = await Future.wait(
+        batch.map((file) async {
+          try {
+            return (file: file, modified: (await file.stat()).modified);
+          } catch (_) {
+            return null;
+          }
+        }),
+      );
+
+      for (final stat in batchStats.whereType<({File file, DateTime modified})>()) {
+        final modifiedAt = stat.modified;
+        if (state.dateStart != null && modifiedAt.isBefore(state.dateStart!)) {
+          continue;
+        }
+        if (effectiveEndDate != null && modifiedAt.isAfter(effectiveEndDate)) {
+          continue;
+        }
+        result.add(stat.file);
+      }
+    }
+
+    return result;
+  }
+
   bool get _hasMetadataFilters =>
-      state.filterModel != null ||
-      state.filterSampler != null ||
-      state.filterMinSteps != null ||
-      state.filterMaxSteps != null ||
-      state.filterMinCfg != null ||
-      state.filterMaxCfg != null ||
-      state.filterResolution != null;
+      [
+        state.filterModel,
+        state.filterSampler,
+        state.filterResolution,
+        state.filterMinSteps,
+        state.filterMaxSteps,
+        state.filterMinCfg,
+        state.filterMaxCfg,
+      ].any((f) => f != null);
 
   // ============================================================
   // 收藏（使用新数据源）

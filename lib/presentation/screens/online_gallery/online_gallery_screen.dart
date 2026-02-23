@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:file_picker/file_picker.dart';
@@ -811,22 +812,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   }
 
   Widget _buildContent(ThemeData theme, OnlineGalleryState state) {
-    // 加载中状态
-    if (state.isLoading && state.posts.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    // 错误状态
-    if (state.error != null && state.posts.isEmpty) {
-      return _buildErrorState(theme, state);
-    }
-
-    // 空状态
-    if (state.posts.isEmpty) {
-      return _buildEmptyState(theme, state);
-    }
-
-    return _buildImageGrid(theme, state);
+    return _buildPageContent(theme, state);
   }
 
   /// 构建错误状态
@@ -861,25 +847,22 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   /// 构建空状态
   Widget _buildEmptyState(ThemeData theme, OnlineGalleryState state) {
     final isFavorites = state.viewMode == GalleryViewMode.favorites;
+    final icon = isFavorites ? Icons.favorite_border : Icons.image_not_supported_outlined;
+    final message = isFavorites
+        ? context.l10n.onlineGallery_favoritesEmpty
+        : context.l10n.onlineGallery_noResults;
 
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            isFavorites
-                ? Icons.favorite_border
-                : Icons.image_not_supported_outlined,
+            icon,
             size: 48,
             color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
           ),
           const SizedBox(height: 12),
-          Text(
-            isFavorites
-                ? context.l10n.onlineGallery_favoritesEmpty
-                : context.l10n.onlineGallery_noResults,
-            style: theme.textTheme.titleMedium,
-          ),
+          Text(message, style: theme.textTheme.titleMedium),
         ],
       ),
     );
@@ -964,6 +947,20 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         child: CircularProgressIndicator(),
       ),
     );
+  }
+
+  /// 构建页面显示内容（加载中、错误、空状态、网格）
+  Widget _buildPageContent(ThemeData theme, OnlineGalleryState state) {
+    if (state.isLoading && state.posts.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (state.error != null && state.posts.isEmpty) {
+      return _buildErrorState(theme, state);
+    }
+    if (state.posts.isEmpty) {
+      return _buildEmptyState(theme, state);
+    }
+    return _buildImageGrid(theme, state);
   }
 
   /// 智能预加载图片
@@ -1097,7 +1094,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
     if (selectedPosts.isEmpty) return;
 
-    // 选择保存目录
     final result = await FilePicker.platform.getDirectoryPath();
     if (result == null) return;
 
@@ -1106,43 +1102,43 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       _selectionNotifier.exit();
     }
 
-    int successCount = 0;
-    int failCount = 0;
-
-    // 分批下载，每批最多10个并发，避免网络连接耗尽
-    const batchSize = 10;
-    for (int i = 0; i < selectedPosts.length; i += batchSize) {
-      final end = (i + batchSize < selectedPosts.length)
-          ? i + batchSize
-          : selectedPosts.length;
-      final batch = selectedPosts.sublist(i, end);
-
-      await Future.wait(
-        batch.map(
-          (post) async {
-            try {
-              final url = post.largeFileUrl ?? post.sampleUrl ?? post.previewUrl;
-              if (url.isEmpty) return;
-
-              final file =
-                  await DanbooruImageCacheManager.instance.getSingleFile(url);
-              final fileName = path.basename(Uri.parse(url).path);
-              final destination = path.join(result, fileName);
-
-              await file.copy(destination);
-              successCount++;
-            } catch (e) {
-              failCount++;
-              debugPrint('Download failed for post ${post.id}: $e');
-            }
-          },
-        ),
-      );
-    }
+    final (successCount, failCount) = await _downloadPosts(selectedPosts, result);
 
     if (mounted) {
       AppToast.success(context, '下载完成: 成功 $successCount, 失败 $failCount');
     }
+  }
+
+  /// 下载帖子列表到指定目录
+  Future<(int success, int fail)> _downloadPosts(
+    List<DanbooruPost> posts,
+    String destinationDir,
+  ) async {
+    var successCount = 0;
+    var failCount = 0;
+    const batchSize = 10;
+
+    for (var i = 0; i < posts.length; i += batchSize) {
+      final batch = posts.sublist(i, min(i + batchSize, posts.length));
+      await Future.wait(
+        batch.map((post) async {
+          try {
+            final url = post.largeFileUrl ?? post.sampleUrl ?? post.previewUrl;
+            if (url.isEmpty) return;
+
+            final file = await DanbooruImageCacheManager.instance.getSingleFile(url);
+            final destination = path.join(destinationDir, path.basename(Uri.parse(url).path));
+            await file.copy(destination);
+            successCount++;
+          } catch (e) {
+            failCount++;
+            debugPrint('Download failed for post ${post.id}: $e');
+          }
+        }),
+      );
+    }
+
+    return (successCount, failCount);
   }
 }
 
