@@ -672,6 +672,9 @@ class VibeImageEmbedder {
       final jsonData = jsonDecode(utf8.decode(decoded)) as Map<String, dynamic>;
 
       return {'keyword': keyword, 'data': jsonData};
+    } on VibeExtractException {
+      // 重新抛出安全相关的异常，不要将其转换为 null
+      rethrow;
     } catch (e) {
       AppLogger.w('Failed to parse iTXt chunk: $e', 'VibeImageEmbedder');
       return null;
@@ -758,48 +761,44 @@ class VibeImageEmbedder {
 
   /// 从 vibe 数据中提取缩略图
   static Uint8List? _extractThumbnailFromVibe(Map<String, dynamic> vibe) {
-    try {
-      // 记录 vibe 中的可用字段，用于调试
-      AppLogger.d('Vibe fields: ${vibe.keys.toList()}', 'VibeImageEmbedder');
+    // 记录 vibe 中的可用字段，用于调试
+    AppLogger.d('Vibe fields: ${vibe.keys.toList()}', 'VibeImageEmbedder');
 
-      final thumbnailBase64 = vibe['thumbnail'] as String?;
-      if (thumbnailBase64 != null && thumbnailBase64.isNotEmpty) {
-        AppLogger.d('Found thumbnail field, length: ${thumbnailBase64.length}', 'VibeImageEmbedder');
-        final base64Data = _extractBase64FromDataUri(thumbnailBase64);
-        if (base64Data != null) {
-          // 检查 base64 编码数据大小，防止内存溢出
-          // base64 解码后大小 ≈ 编码大小 * 3/4
-          if (base64Data.length > _maxBase64DecodedSize * 4 ~/ 3) {
-            throw VibeExtractException(
-              'Base64 thumbnail data too large: ${base64Data.length} bytes '
-              '(max encoded: ${_maxBase64DecodedSize * 4 ~/ 3})',
-            );
-          }
-          return base64.decode(base64Data);
+    final thumbnailBase64 = vibe['thumbnail'] as String?;
+    if (thumbnailBase64 != null && thumbnailBase64.isNotEmpty) {
+      AppLogger.d('Found thumbnail field, length: ${thumbnailBase64.length}', 'VibeImageEmbedder');
+      final base64Data = _extractBase64FromDataUri(thumbnailBase64);
+      if (base64Data != null) {
+        // 检查 base64 编码数据大小，防止内存溢出
+        // base64 解码后大小 ≈ 编码大小 * 3/4
+        if (base64Data.length > _maxBase64DecodedSize * 4 ~/ 3) {
+          throw VibeExtractException(
+            'Base64 thumbnail data too large: ${base64Data.length} bytes '
+            '(max encoded: ${_maxBase64DecodedSize * 4 ~/ 3})',
+          );
         }
+        return base64.decode(base64Data);
       }
-
-      // 如果没有 thumbnail 字段，尝试从 image 字段提取
-      final imageBase64 = vibe['image'] as String?;
-      if (imageBase64 != null && imageBase64.isNotEmpty) {
-        AppLogger.d('Found image field, length: ${imageBase64.length}', 'VibeImageEmbedder');
-        final base64Data = _extractBase64FromDataUri(imageBase64);
-        if (base64Data != null) {
-          // 检查 base64 编码数据大小，防止内存溢出
-          if (base64Data.length > _maxBase64DecodedSize * 4 ~/ 3) {
-            throw VibeExtractException(
-              'Base64 image data too large: ${base64Data.length} bytes '
-              '(max encoded: ${_maxBase64DecodedSize * 4 ~/ 3})',
-            );
-          }
-          return base64.decode(base64Data);
-        }
-      }
-
-      AppLogger.w('No thumbnail or image field found in vibe data', 'VibeImageEmbedder');
-    } catch (e) {
-      AppLogger.w('Failed to extract thumbnail from vibe: $e', 'VibeImageEmbedder');
     }
+
+    // 如果没有 thumbnail 字段，尝试从 image 字段提取
+    final imageBase64 = vibe['image'] as String?;
+    if (imageBase64 != null && imageBase64.isNotEmpty) {
+      AppLogger.d('Found image field, length: ${imageBase64.length}', 'VibeImageEmbedder');
+      final base64Data = _extractBase64FromDataUri(imageBase64);
+      if (base64Data != null) {
+        // 检查 base64 编码数据大小，防止内存溢出
+        if (base64Data.length > _maxBase64DecodedSize * 4 ~/ 3) {
+          throw VibeExtractException(
+            'Base64 image data too large: ${base64Data.length} bytes '
+            '(max encoded: ${_maxBase64DecodedSize * 4 ~/ 3})',
+          );
+        }
+        return base64.decode(base64Data);
+      }
+    }
+
+    AppLogger.w('No thumbnail or image field found in vibe data', 'VibeImageEmbedder');
     return null;
   }
 
@@ -883,21 +882,17 @@ class VibeImageEmbedder {
 
   /// 从 legacy payload 数据中提取缩略图
   static Uint8List? _extractThumbnailFromPayload(Map<String, dynamic> dataRaw) {
-    try {
-      final thumbnailBase64 = dataRaw['thumbnail'] as String?;
-      if (thumbnailBase64 != null && thumbnailBase64.isNotEmpty) {
-        // 检查 base64 编码数据大小，防止内存溢出
-        // base64 解码后大小 ≈ 编码大小 * 3/4
-        if (thumbnailBase64.length > _maxBase64DecodedSize * 4 ~/ 3) {
-          throw VibeExtractException(
-            'Base64 thumbnail data too large: ${thumbnailBase64.length} bytes '
-            '(max encoded: ${_maxBase64DecodedSize * 4 ~/ 3})',
-          );
-        }
-        return base64.decode(thumbnailBase64);
+    final thumbnailBase64 = dataRaw['thumbnail'] as String?;
+    if (thumbnailBase64 != null && thumbnailBase64.isNotEmpty) {
+      // 检查 base64 编码数据大小，防止内存溢出
+      // base64 解码后大小 ≈ 编码大小 * 3/4
+      if (thumbnailBase64.length > _maxBase64DecodedSize * 4 ~/ 3) {
+        throw VibeExtractException(
+          'Base64 thumbnail data too large: ${thumbnailBase64.length} bytes '
+          '(max encoded: ${_maxBase64DecodedSize * 4 ~/ 3})',
+        );
       }
-    } catch (e) {
-      AppLogger.w('Failed to extract thumbnail from payload: $e', 'VibeImageEmbedder');
+      return base64.decode(thumbnailBase64);
     }
     return null;
   }
@@ -994,7 +989,6 @@ class _LimitedOutputStream extends OutputStream {
 
   final int _maxSize;
   int _currentSize = 0;
-  final List<List<int>> _chunks = [];
 
   @override
   void writeByte(int value) {
