@@ -54,6 +54,9 @@ class StorageKeys {
   static const String preciseRefExpanded = 'precise_ref_expanded';
   static const String characterPanelExpanded = 'character_panel_expanded';
 
+  // Character Panel Dock State (多角色面板停靠状态)
+  static const String characterPanelDocked = 'character_panel_docked';
+
   // Panel Width Keys (面板宽度)
   static const String historyPanelWidth = 'history_panel_width';
   static const String defaultModel = 'default_model';
@@ -189,15 +192,18 @@ class StorageKeys {
       'enable_cooccurrence_recommendation';
 
   // Danbooru 画师同步设置
-  static const String danbooruSyncArtists = 'danbooru_sync_artists';
-  static const String danbooruArtistsLastUpdate = 'danbooru_artists_last_update';
-  static const String danbooruArtistsSyncFailed = 'danbooru_artists_sync_failed';
-  static const String danbooruArtistsTotal = 'danbooru_artists_total';
-  static const String danbooruArtistsMinPostCount = 'danbooru_artists_min_post_count';
+  // 分类阈值配置（V2新增）
+  static const String danbooruCategoryThresholds = 'danbooru_category_thresholds';
+  
+  // 五个类别的独立热度阈值
+  static const String danbooruGeneralThreshold = 'danbooru_general_threshold';
+  static const String danbooruArtistThreshold = 'danbooru_artist_threshold';
+  static const String danbooruCharacterThreshold = 'danbooru_character_threshold';
+  static const String danbooruCopyrightThreshold = 'danbooru_copyright_threshold';
+  static const String danbooruMetaThreshold = 'danbooru_meta_threshold';
 
   // 共现数据刷新间隔
   static const String cooccurrenceRefreshInterval = 'cooccurrence_refresh_interval';
-  static const String cooccurrenceLastUpdate = 'cooccurrence_last_update';
 
   // 数据源后台刷新相关
   static const String pendingDataSourceRefresh = 'pending_data_source_refresh';

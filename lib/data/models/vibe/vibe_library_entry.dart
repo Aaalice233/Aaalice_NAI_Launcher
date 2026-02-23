@@ -78,6 +78,9 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
 
     /// bundle 内部 vibe 缩略图缓存（前几个用于 UI 预览）
     @HiveField(19) List<Uint8List>? bundledVibePreviews,
+
+    /// bundle 内部 vibe 编码数据列表（用于重新保存 bundle 文件）
+    @HiveField(20) List<String>? bundledVibeEncodings,
   }) = _VibeLibraryEntry;
 
   /// 从 VibeReference 创建库条目
@@ -157,9 +160,6 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
 
   /// 数据来源类型
   VibeSourceType get sourceType => VibeSourceType.values[sourceTypeIndex];
-
-  /// 是否为预编码数据 (不需要服务端编码)
-  bool get isPreEncoded => sourceType.isPreEncoded;
 
   /// 显示名称 (如果名称为空则使用 vibeDisplayName)
   String get displayName {
@@ -329,12 +329,5 @@ extension VibeLibraryEntryListExtension on List<VibeLibraryEntry> {
     }
     return tags;
   }
-
-  /// 获取预编码的 vibe 条目 (无需额外消耗 Anlas)
-  List<VibeLibraryEntry> get preEncoded =>
-      where((e) => e.isPreEncoded).toList();
-
-  /// 获取需要服务端编码的 vibe 条目 (消耗 2 Anlas/张)
-  List<VibeLibraryEntry> get rawImageEntries =>
-      where((e) => e.sourceType == VibeSourceType.rawImage).toList();
 }
+

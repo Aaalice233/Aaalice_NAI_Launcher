@@ -1,4 +1,3 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -11,10 +10,12 @@ import 'package:go_router/go_router.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/nai_metadata_parser.dart';
+import '../../../data/services/image_metadata_service.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/queue/replication_task.dart';
-import '../../../data/repositories/local_gallery_repository.dart';
+import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../../data/services/alias_resolver_service.dart';
+import '../../providers/character_panel_dock_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/layout_state_provider.dart';
@@ -25,8 +26,10 @@ import '../../providers/replication_queue_provider.dart';
 import '../../router/app_router.dart';
 import '../../widgets/anlas/anlas_balance_chip.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../widgets/common/image_detail/image_detail_data.dart';
 import '../../widgets/common/image_detail/image_detail_viewer.dart';
+import '../../utils/image_detail_opener.dart';
 import '../../widgets/generation/auto_save_toggle_chip.dart';
 import '../../widgets/common/draggable_number_input.dart';
 import '../../widgets/common/themed_button.dart';
@@ -38,6 +41,7 @@ import 'widgets/prompt_input.dart';
 import 'widgets/image_preview.dart';
 import 'widgets/history_panel.dart';
 import 'widgets/upscale_dialog.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 /// 桌面端三栏布局
@@ -65,7 +69,18 @@ class _DesktopGenerationLayoutState
 
   /// 切换提示词区域最大化状态
   void _togglePromptMaximize() {
-    ref.read(promptMaximizeNotifierProvider.notifier).toggle();
+    final newValue = !ref.read(promptMaximizeNotifierProvider);
+
+    // 如果即将最大化，自动退出停靠模式（两者互斥）
+    if (newValue) {
+      final isDocked = ref.read(characterPanelDockProvider);
+      if (isDocked) {
+        ref.read(characterPanelDockProvider.notifier).undock();
+        AppLogger.d('Auto-undocked character panel on maximize', 'DesktopLayout');
+      }
+    }
+
+    ref.read(promptMaximizeNotifierProvider.notifier).setMaximized(newValue);
     AppLogger.d('Prompt area maximize toggled', 'DesktopLayout');
   }
 
@@ -350,12 +365,17 @@ class _DesktopGenerationLayoutState
     return MouseRegion(
       cursor: SystemMouseCursors.resizeColumn,
       child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
         onHorizontalDragStart:
             onDragStart != null ? (_) => onDragStart() : null,
         onHorizontalDragEnd: onDragEnd != null ? (_) => onDragEnd() : null,
-        onHorizontalDragUpdate: (details) => onDrag(details.delta.dx),
+        onHorizontalDragUpdate: (details) {
+          final delta = details.primaryDelta ?? details.delta.dx;
+          if (delta == 0) return;
+          onDrag(delta);
+        },
         child: Container(
-          width: 6,
+          width: 8,
           color: Colors.transparent,
           child: Center(
             child: Container(
@@ -376,15 +396,26 @@ class _DesktopGenerationLayoutState
     return MouseRegion(
       cursor: SystemMouseCursors.resizeRow,
       child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onVerticalDragStart: (_) {
+          // 开始拖拽时标记，避免其他组件干扰
+        },
         onVerticalDragUpdate: (details) {
-          final newHeight = (layoutState.promptAreaHeight + details.delta.dy)
+          // 使用 primaryDelta 提高精度，直接更新避免延迟
+          final delta = details.primaryDelta ?? details.delta.dy;
+          if (delta == 0) return;
+          
+          final currentHeight = ref.read(layoutStateNotifierProvider).promptAreaHeight;
+          final newHeight = (currentHeight + delta)
               .clamp(_promptAreaMinHeight, _promptAreaMaxHeight);
+          
+          // 使用 notifier 直接设置，避免重复读取 state
           ref
               .read(layoutStateNotifierProvider.notifier)
               .setPromptAreaHeight(newHeight);
         },
         child: Container(
-          height: 6,
+          height: 8,
           color: Colors.transparent,
           child: Center(
             child: Container(
@@ -399,6 +430,87 @@ class _DesktopGenerationLayoutState
         ),
       ),
     );
+  }
+
+  /// 显示全屏预览（静态方法，可被其他类访问）
+  ///
+  /// 简化逻辑：统一使用 FileImageDetailData 从 PNG 文件解析元数据
+  /// - 如果图像已保存（有 filePath），直接使用
+  /// - 如果图像未保存，先保存到磁盘再使用
+  /// - 元数据异步加载，详情页先显示，解析中显示转圈
+  static void _showFullscreenPreview(
+    BuildContext context,
+    WidgetRef ref,
+    List<GeneratedImage> images,
+  ) {
+    // 立即构建基础数据（使用 FileImageDetailData 从文件解析）
+    final allImages = images.map((img) {
+      // 如果图像已保存，直接使用 filePath
+      // 如果未保存，使用临时字节（这种情况在 auto-save 开启时应该很少）
+      if (img.filePath != null && img.filePath!.isNotEmpty) {
+        // 加入预加载队列（如果尚未解析）
+        ImageMetadataService().enqueuePreload(
+          taskId: img.id,
+          filePath: img.filePath,
+        );
+        return FileImageDetailData(
+          filePath: img.filePath!,
+          cachedBytes: img.bytes,
+          id: img.id,
+        );
+      }
+
+      // 未保存的图像：使用 GeneratedImageDetailData 作为 fallback
+      // 这种情况只应在 auto-save 关闭且用户未手动保存时发生
+      return GeneratedImageDetailData(
+        imageBytes: img.bytes,
+        id: img.id,
+      );
+    }).toList();
+
+    // 使用 ImageDetailOpener 打开详情页（带防重复点击）
+    // 使用 'generation_desktop' key 避免与本地图库的 'default' key 冲突
+    ImageDetailOpener.showMultipleImmediate(
+      context,
+      images: allImages,
+      initialIndex: 0,
+      showMetadataPanel: true,
+      showThumbnails: allImages.length > 1,
+      callbacks: ImageDetailCallbacks(
+        onSave: (image) => _saveImageFromDetail(context, ref, image),
+      ),
+    );
+  }
+
+  /// 从详情页保存图像（静态方法，可被其他类访问）
+  static Future<void> _saveImageFromDetail(
+    BuildContext context,
+    WidgetRef ref,
+    ImageDetailData image,
+  ) async {
+    try {
+      final imageBytes = await image.getImageBytes();
+      final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
+      if (saveDirPath == null) return;
+      final saveDir = Directory(saveDirPath);
+      if (!await saveDir.exists()) {
+        await saveDir.create(recursive: true);
+      }
+
+      final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File('$saveDirPath/$fileName');
+      await file.writeAsBytes(imageBytes);
+
+      ref.read(localGalleryNotifierProvider.notifier).refresh();
+
+      if (context.mounted) {
+        AppToast.success(context, context.l10n.image_imageSaved(saveDirPath));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
+      }
+    }
   }
 }
 
@@ -517,8 +629,10 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
       ShortcutIds.upscaleImage: () {
         final generationState = ref.read(imageGenerationNotifierProvider);
         if (generationState.displayImages.isNotEmpty) {
-          UpscaleDialog.show(context,
-              image: generationState.displayImages.first.bytes,);
+          UpscaleDialog.show(
+            context,
+            image: generationState.displayImages.first.bytes,
+          );
         }
       },
       // 复制图像（复制到剪贴板）
@@ -526,14 +640,21 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
         final generationState = ref.read(imageGenerationNotifierProvider);
         if (generationState.displayImages.isNotEmpty) {
           _copyImageToClipboard(
-              context, ref, generationState.displayImages.first.bytes,);
+            context,
+            ref,
+            generationState.displayImages.first.bytes,
+          );
         }
       },
       // 全屏预览
       ShortcutIds.fullscreenPreview: () {
         final generationState = ref.read(imageGenerationNotifierProvider);
         if (generationState.displayImages.isNotEmpty) {
-          _showFullscreenPreview(context, ref, generationState.displayImages);
+          _DesktopGenerationLayoutState._showFullscreenPreview(
+            context,
+            ref,
+            generationState.displayImages,
+          );
         }
       },
       // 打开参数面板
@@ -748,7 +869,9 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     GeneratedImage image,
   ) async {
     try {
-      final saveDir = await LocalGalleryRepository.instance.getImageDirectory();
+      final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
+      if (saveDirPath == null) return;
+      final saveDir = Directory(saveDirPath);
       if (!await saveDir.exists()) {
         await saveDir.create(recursive: true);
       }
@@ -766,7 +889,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
       int actualSeed = params.seed;
       if (actualSeed == -1) {
         final extractedMeta =
-            await NaiMetadataParser.extractFromBytes(image.bytes);
+            await ImageMetadataService().getMetadataFromBytes(image.bytes);
         if (extractedMeta != null &&
             extractedMeta.seed != null &&
             extractedMeta.seed! > 0) {
@@ -845,13 +968,13 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
       );
 
       final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File('${saveDir.path}/$fileName');
+      final file = File('$saveDirPath/$fileName');
       await file.writeAsBytes(embeddedBytes);
 
       ref.read(localGalleryNotifierProvider.notifier).refresh();
 
       if (context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
+        AppToast.success(context, context.l10n.image_imageSaved(saveDirPath));
       }
     } catch (e) {
       if (context.mounted) {
@@ -894,102 +1017,6 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     }
   }
 
-  /// 显示全屏预览
-  void _showFullscreenPreview(
-    BuildContext context,
-    WidgetRef ref,
-    List<GeneratedImage> images,
-  ) async {
-    final params = ref.read(generationParamsNotifierProvider);
-    final characterConfig = ref.read(characterPromptNotifierProvider);
-
-    // 将所有图像转换为 GeneratedImageDetailData
-    final allImages = <GeneratedImageDetailData>[];
-    for (final img in images) {
-      // 尝试从图片中提取实际的 seed
-      int actualSeed = params.seed;
-      if (params.seed == -1) {
-        final extractedMeta =
-            await NaiMetadataParser.extractFromBytes(img.bytes);
-        if (extractedMeta != null &&
-            extractedMeta.seed != null &&
-            extractedMeta.seed! > 0) {
-          actualSeed = extractedMeta.seed!;
-        }
-      }
-
-      allImages.add(
-        GeneratedImageDetailData.fromParams(
-          imageBytes: img.bytes,
-          prompt: params.prompt,
-          negativePrompt: params.negativePrompt,
-          seed: actualSeed,
-          steps: params.steps,
-          scale: params.scale,
-          width: params.width,
-          height: params.height,
-          model: params.model,
-          sampler: params.sampler,
-          smea: params.smea,
-          smeaDyn: params.smeaDyn,
-          noiseSchedule: params.noiseSchedule,
-          cfgRescale: params.cfgRescale,
-          characterPrompts: characterConfig.characters
-              .where((c) => c.enabled && c.prompt.isNotEmpty)
-              .map((c) => c.prompt)
-              .toList(),
-          characterNegativePrompts: characterConfig.characters
-              .where((c) => c.enabled)
-              .map((c) => c.negativePrompt)
-              .toList(),
-          id: img.id,
-        ),
-      );
-    }
-
-    if (!context.mounted) return;
-
-    ImageDetailViewer.show(
-      context,
-      images: allImages,
-      initialIndex: 0,
-      showMetadataPanel: true,
-      showThumbnails: allImages.length > 1,
-      callbacks: ImageDetailCallbacks(
-        onSave: (image) => _saveImageFromDetail(context, ref, image),
-      ),
-    );
-  }
-
-  /// 从详情页保存图像
-  Future<void> _saveImageFromDetail(
-    BuildContext context,
-    WidgetRef ref,
-    ImageDetailData image,
-  ) async {
-    try {
-      final imageBytes = await image.getImageBytes();
-      final saveDir = await LocalGalleryRepository.instance.getImageDirectory();
-      if (!await saveDir.exists()) {
-        await saveDir.create(recursive: true);
-      }
-
-      final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File('${saveDir.path}/$fileName');
-      await file.writeAsBytes(imageBytes);
-
-      ref.read(localGalleryNotifierProvider.notifier).refresh();
-
-      if (context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
-      }
-    }
-  }
-
   /// 从历史图像复用参数
   void _reuseParamsFromImage(
     BuildContext context,
@@ -999,7 +1026,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     try {
       // 从图像元数据中提取参数
       final extractedMeta =
-          await NaiMetadataParser.extractFromBytes(image.bytes);
+          await ImageMetadataService().getMetadataFromBytes(image.bytes);
       if (extractedMeta != null) {
         // 更新提示词
         if (extractedMeta.prompt.isNotEmpty) {

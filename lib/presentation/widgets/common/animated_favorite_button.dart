@@ -322,6 +322,7 @@ class _BaseFavoriteButtonState extends State<_BaseFavoriteButton>
           : SystemMouseCursors.basic,
       child: GestureDetector(
         onTap: _handleTap,
+        behavior: HitTestBehavior.opaque,
         child: Tooltip(
           message: widget.isFavorite ? '取消收藏' : '收藏',
           child: AnimatedContainer(

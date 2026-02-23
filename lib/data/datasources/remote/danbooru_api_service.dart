@@ -9,6 +9,7 @@ import '../../models/danbooru/danbooru_user.dart';
 import '../../models/online_gallery/danbooru_post.dart';
 import '../../models/tag/danbooru_tag.dart';
 import '../../models/tag/tag_suggestion.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../services/danbooru_auth_service.dart';
 
 part 'danbooru_api_service.g.dart';
@@ -550,7 +551,9 @@ class DanbooruApiService {
             }
           }
         }
-      } catch (_) {}
+      } catch (e) {
+        AppLogger.w('Failed to load tag batch', 'DanbooruApi');
+      }
 
       if (i + batchSize < tagNames.length) {
         await Future.delayed(const Duration(milliseconds: 200));
@@ -575,8 +578,7 @@ DanbooruApiService danbooruApiService(Ref ref) {
   final service = DanbooruApiService(dio);
 
   // 监听认证状态变化并更新 auth header
-  // ignore: unused_local_variable
-  final authState = ref.watch(danbooruAuthProvider);
+  ref.watch(danbooruAuthProvider);
   service.setAuthHeader(ref.read(danbooruAuthProvider.notifier).getAuthHeader());
 
   return service;

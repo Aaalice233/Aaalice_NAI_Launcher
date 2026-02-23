@@ -1,4 +1,3 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -7,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/utils/localization_extension.dart';
 import '../../providers/image_save_settings_provider.dart';
 import '../../themes/theme_extension.dart';
 import 'pro_context_menu.dart';
@@ -117,6 +117,9 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
   // 生成中状态的发光动画
   AnimationController? _glowController;
   Animation<double>? _glowAnimation;
+
+  // 防止重复点击打开多个详情页
+  bool _isTapping = false;
 
   @override
   void initState() {
@@ -460,7 +463,23 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       onExit: (_) => _onHoverExit(),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: widget.onTap ?? widget.onFullscreen,
+        onTap: () {
+          // 防止重复点击
+          if (_isTapping) return;
+          _isTapping = true;
+
+          final callback = widget.onTap ?? widget.onFullscreen;
+          if (callback != null) {
+            callback();
+          }
+
+          // 延迟重置标志，防止快速连续点击
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              setState(() => _isTapping = false);
+            }
+          });
+        },
         onSecondaryTapDown: widget.enableContextMenu
             ? (details) => _showContextMenu(context, details.globalPosition)
             : null,
@@ -773,7 +792,8 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       if (result.exitCode != 0) {
         final errorOutput = result.stderr.toString();
         throw Exception(
-            'PowerShell 命令失败 (exitCode: ${result.exitCode}): $errorOutput',);
+          'PowerShell 命令失败 (exitCode: ${result.exitCode}): $errorOutput',
+        );
       }
 
       // 延迟删除临时文件，确保 PowerShell 完成读取

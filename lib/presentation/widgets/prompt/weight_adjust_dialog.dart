@@ -1,6 +1,6 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../data/models/prompt/prompt_tag.dart';
 import '../common/themed_switch.dart';

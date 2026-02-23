@@ -6,6 +6,7 @@
 
   "common_cancel": "取消",
   "common_confirm": "确定",
+  "common_continue": "继续",
   "common_selectAll": "全选",
   "common_deselectAll": "全不选",
   "common_expandAll": "展开全部",
@@ -31,6 +32,7 @@
   "common_search": "搜索",
   "common_featureInDev": "功能开发中...",
   "common_add": "添加",
+  "common_added": "已添加",
   "common_confirmDelete": "确认删除",
   "common_settings": "设置",
   "common_today": "今天",
@@ -508,6 +510,7 @@
   "vibe_addFromLibrarySubtitle": "从 Vibe 库中选择",
   "vibe_addReference": "添加参考图",
   "vibe_clearAll": "清除全部",
+  "vibe_cleared": "已清除 {count} 个 vibes",
   "vibe_referenceNumber": "参考图 #{index}",
   "vibe_referenceStrength": "参考强度",
   "vibe_infoExtraction": "信息提取",
@@ -533,6 +536,7 @@
   "vibe_name": "名称",
   "vibe_strength": "强度",
   "vibe_infoExtracted": "信息提取",
+  "vibe_shiftReplaceHint": "Shift+点击 替换",
 
   "characterRef_title": "角色参考",
   "characterRef_hint": "上传角色参考图来保持角色一致性（仅 V4+ 模型支持）",
@@ -592,6 +596,8 @@
   "gallery_metaFileSize": "文件大小",
   "gallery_positivePrompt": "正向提示词",
   "gallery_negativePrompt": "负向提示词",
+  "gallery_promptCopied": "已复制提示词",
+  "gallery_seedCopied": "已复制 Seed",
 
   "preset_noPresets": "暂无预设",
   "preset_restoreDefault": "恢复默认",
@@ -1048,6 +1054,8 @@
 
   "drop_dialogTitle": "如何使用这张图片？",
   "drop_hint": "拖拽图片到这里",
+  "drop_processing": "正在解析图片...",
+  "drop_processingSubtitle": "请稍候",
   "drop_img2img": "图生图",
   "drop_vibeTransfer": "风格迁移",
   "drop_characterReference": "精准参考",
@@ -1095,9 +1103,13 @@
   "preciseRef_typeCharacter": "角色",
   "preciseRef_typeStyle": "风格",
   "preciseRef_typeCharacterAndStyle": "角色+风格",
+  "preciseRef_costHint": "使用精准参考会消耗额外点数",
 
   "characterEditor_title": "多人角色提示词",
   "characterEditor_close": "关闭",
+  "characterEditor_dock": "停靠",
+  "characterEditor_undock": "取消停靠",
+  "characterEditor_dockedHint": "角色面板已停靠到图像区域",
   "characterEditor_confirm": "确定",
   "characterEditor_clearAll": "清空所有",
   "characterEditor_clearAllTitle": "清空所有角色",
@@ -3167,6 +3179,17 @@
   "vibeLibrary_searchHint": "搜索名称、标签...",
   "vibeLibrary_empty": "Vibe 库为空",
   "vibeLibrary_emptyHint": "先去 Vibe 库添加一些条目吧",
+  "vibeLibrary_allVibes": "全部 Vibe",
+  "vibeLibrary_favorites": "收藏",
+  "vibeLibrary_sendToGeneration": "发送到生成",
+  "vibeLibrary_export": "导出",
+  "vibeLibrary_edit": "编辑",
+  "vibeLibrary_delete": "删除",
+  "vibeLibrary_addToFavorites": "收藏",
+  "vibeLibrary_removeFromFavorites": "取消收藏",
+  "vibeLibrary_newSubCategory": "新建子分类",
+  "vibeLibrary_maxVibesReached": "已达到最大数量 (16张)",
+  "vibeLibrary_bundleReadFailed": "读取 Bundle 文件失败，使用单文件模式",
   "vibe_export_title": "导出 Vibe",
   "vibe_export_format": "导出格式",
   "vibe_selector_title": "选择 Vibe",
@@ -3184,8 +3207,99 @@
 
   "vibe_export_include_thumbnails": "包含缩略图",
   "vibe_export_include_thumbnails_subtitle": "导出文件中包含缩略图预览",
+  "vibe_export_dialogTitle": "导出 {count} 个 Vibes",
+  "vibe_export_chooseMethod": "选择导出方式",
+  "vibe_export_asBundle": "打包导出",
+  "vibe_export_individually": "逐个导出",
+  "vibe_export_noData": "没有可导出的数据",
+  "vibe_export_success": "导出成功",
+  "vibe_export_failed": "导出失败",
+  "vibe_export_skipped": "跳过了 {count} 个无数据 vibes",
+  "vibe_export_bundleSuccess": "已导出 Bundle: {count} 个 vibes",
+  "vibe_export_selectToEmbed": "选择要嵌入的 vibes",
+  "vibe_export_pngRequired": "需要 PNG 文件",
+  "vibe_export_noEmbeddableData": "没有可嵌入的数据",
+  "vibe_export_embedSuccess": "已嵌入 {count} 个 vibes 到图片",
+  "vibe_export_embedFailed": "嵌入失败",
+  "vibe_embedToImage": "嵌入到图片",
   "vibe_import_skip": "跳过",
   "vibe_import_confirm": "确认",
+  "vibe_import_noEncodingData": "无编码数据",
+  "vibe_import_encodingCost": "编码将消耗 2 Anlas",
+  "vibe_import_confirmCost": "继续并消耗 Anlas？",
+  "vibe_import_encodeNow": "立即编码 (2 Anlas)",
+  "vibe_addImageOnly": "仅添加图片",
+  "vibe_import_autoSave": "自动保存到库",
+  "vibe_import_encodingFailed": "编码失败",
+  "vibe_import_encodingFailedMessage": "Vibe 编码失败，是否继续添加未编码图片？",
+  "vibe_import_encodingInProgress": "编码中...",
+  "vibe_import_encodingComplete": "编码完成",
+  "vibe_import_partialFailed": "部分编码失败",
+  "vibe_import_timeout": "编码超时",
+  "vibe_import_title": "从库导入",
+  "vibe_import_result": "已导入 {count} 个 vibes",
+  "vibe_import_fileParseFailed": "解析文件失败",
+  "vibe_import_fileSelectionFailed": "文件选择失败",
+  "vibe_import_importFailed": "导入失败",
+  "vibe_saveToLibrary_title": "保存到库",
+  "vibe_saveToLibrary_strength": "参考强度",
+  "vibe_saveToLibrary_infoExtracted": "信息提取",
+  "vibe_saveToLibrary_saving": "正在保存 {count} 个 vibes",
+  "@vibe_saveToLibrary_saving": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "vibe_saveToLibrary_saveFailed": "保存到库失败",
+  "vibe_saveToLibrary_savingCount": "正在保存 {count} 个 vibes",
+  "@vibe_saveToLibrary_savingCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "vibe_saveToLibrary_nameLabel": "名称",
+  "vibe_saveToLibrary_nameHint": "输入 vibe 名称",
+  "vibe_saveToLibrary_mixed": "已保存 {saved} 个，复用 {reused} 个",
+  "@vibe_saveToLibrary_mixed": {
+    "placeholders": {
+      "saved": {"type": "int"},
+      "reused": {"type": "int"}
+    }
+  },
+  "vibe_saveToLibrary_saved": "已保存 {count} 个到库",
+  "@vibe_saveToLibrary_saved": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "vibe_saveToLibrary_reused": "从库复用 {count} 个",
+  "@vibe_saveToLibrary_reused": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "vibe_maxReached": "已达到最大数量 (16张)",
+  "vibe_addedCount": "已添加 {count} 个 vibes",
+  "@vibe_addedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "vibe_statusEncoded": "已编码",
+  "vibe_statusEncoding": "编码中...",
+  "vibe_statusPendingEncode": "待编码 (2 Anlas)",
+  "vibe_encodeDialogTitle": "确认编码 Vibe",
+  "vibe_encodeDialogMessage": "是否编码此图片以供生成使用？",
+  "vibe_encodeCostWarning": "此操作将消耗 2 Anlas（点数）",
+  "vibe_encodeButton": "编码",
+  "vibe_encodeSuccess": "Vibe 编码成功！",
+  "vibe_encodeFailed": "Vibe 编码失败，请重试",
+  "vibe_encodeError": "编码失败: {error}",
+  "@vibe_encodeError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
   "bundle_internalVibes": "内部 Vibes",
   "shortcuts_customize": "自定义快捷键",
   "gallery_send_to": "发送到",

@@ -1,4 +1,3 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -8,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../../../../core/enums/precise_ref_type.dart';
 import '../../../../../core/extensions/precise_ref_type_extensions.dart';
+import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_api_utils.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
@@ -34,7 +34,6 @@ class PreciseReferencePanel extends ConsumerStatefulWidget {
 
 class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
   bool _isExpanded = false;
-  PreciseRefType _selectedType = PreciseRefType.character;
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +87,50 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
           ),
         ),
       ),
+      // 当有参考图时显示点数消耗提示（显眼样式）
+      trailing: hasReferences
+          ? Tooltip(
+              message: context.l10n.preciseRef_costHint,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: showBackground
+                      ? Colors.orange.withOpacity(0.9)
+                      : Colors.orange.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: showBackground
+                        ? Colors.orange.shade300
+                        : Colors.orange.shade400,
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      size: 12,
+                      color: showBackground
+                          ? Colors.white
+                          : Colors.orange.shade700,
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      '消耗点数',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: showBackground
+                            ? Colors.white
+                            : Colors.orange.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : null,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         child: Column(
@@ -134,9 +177,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
             ),
             const SizedBox(height: 12),
 
-            // 参考类型选择（SegmentedButton）
-            _buildTypeSelector(context, theme),
-            const SizedBox(height: 12),
+
 
             // 参考列表
             if (hasReferences) ...[
@@ -180,62 +221,11 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
     );
   }
 
-  /// 构建类型选择器（DropdownButton）
-  Widget _buildTypeSelector(BuildContext context, ThemeData theme) {
-    final params = ref.watch(generationParamsNotifierProvider);
-    final isV4Model = params.isV4Model;
-
-    return DropdownButtonFormField<PreciseRefType>(
-      value: _selectedType,
-      isDense: true,
-      isExpanded: true,
-      decoration: InputDecoration(
-        labelText: context.l10n.preciseRef_referenceType,
-        prefixIcon: const Icon(Icons.category, size: 20),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 12,
-        ),
-      ),
-      items: PreciseRefType.values.map((type) {
-        return DropdownMenuItem<PreciseRefType>(
-          value: type,
-          child: Row(
-            children: [
-              Icon(
-                type.icon,
-                size: 18,
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                type.getDisplayName(
-                  character: context.l10n.preciseRef_typeCharacter,
-                  style: context.l10n.preciseRef_typeStyle,
-                  characterAndStyle:
-                      context.l10n.preciseRef_typeCharacterAndStyle,
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-      onChanged: isV4Model
-          ? (value) {
-              if (value != null) {
-                setState(() {
-                  _selectedType = value;
-                });
-              }
-            }
-          : null,
-    );
-  }
-
   Future<void> _addReference() async {
+    // 先选择类型
+    final selectedType = await _showTypeSelectorDialog();
+    if (selectedType == null) return; // 用户取消了类型选择
+
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.image,
@@ -256,12 +246,12 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
           // 转换为 PNG 格式
           final pngBytes = NAIApiUtils.ensurePngFormat(bytes);
 
-          // 添加 Precise Reference，使用当前选中的类型
+          // 添加 Precise Reference，使用用户选择的类型
           ref
               .read(generationParamsNotifierProvider.notifier)
               .addPreciseReference(
                 pngBytes,
-                type: _selectedType,
+                type: selectedType,
                 strength: 0.8,
                 fidelity: 1.0,
               );
@@ -275,6 +265,41 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
         );
       }
     }
+  }
+
+  /// 显示类型选择对话框
+  Future<PreciseRefType?> _showTypeSelectorDialog() async {
+    return showDialog<PreciseRefType>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(context.l10n.preciseRef_referenceType),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: PreciseRefType.values.map((type) {
+              return ListTile(
+                leading: Icon(type.icon),
+                title: Text(
+                  type.getDisplayName(
+                    character: context.l10n.preciseRef_typeCharacter,
+                    style: context.l10n.preciseRef_typeStyle,
+                    characterAndStyle:
+                        context.l10n.preciseRef_typeCharacterAndStyle,
+                  ),
+                ),
+                onTap: () => Navigator.of(context).pop(type),
+              );
+            }).toList(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(context.l10n.common_cancel),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _removeReference(int index) {

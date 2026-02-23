@@ -136,7 +136,7 @@ class AppShortcutManager {
       // 使用符号表示（适合Mac）
       final parts = <String>[];
       if (parsed.modifiers.contains(ShortcutModifier.control)) {
-        parts.add('⌘');
+        parts.add('⌃');
       }
       if (parsed.modifiers.contains(ShortcutModifier.alt)) {
         parts.add('⌥');
@@ -373,4 +373,16 @@ class ShortcutCallbackAction extends Action<ShortcutCallbackIntent> {
   void invoke(ShortcutCallbackIntent intent) {
     intent.callback();
   }
+}
+
+/// Vibe库导入Intent
+/// 触发Vibe导入对话框或流程
+class VibeImportIntent extends AppShortcutIntent {
+  const VibeImportIntent();
+}
+
+/// Vibe库导出Intent
+/// 触发Vibe导出对话框或流程
+class VibeExportIntent extends AppShortcutIntent {
+  const VibeExportIntent();
 }

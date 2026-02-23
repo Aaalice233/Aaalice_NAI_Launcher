@@ -1,4 +1,3 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -8,18 +7,23 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/zip_utils.dart';
 import '../../../../data/services/alias_resolver_service.dart';
 import '../../../providers/layout_state_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../../core/utils/nai_metadata_parser.dart';
-import '../../../../data/repositories/local_gallery_repository.dart';
+import '../../../../data/services/image_metadata_service.dart';
+
+import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/local_gallery_provider.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_viewer.dart';
 import '../../../widgets/common/selectable_image_card.dart';
+import '../../../utils/image_detail_opener.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../widgets/common/themed_divider.dart';
 import '../../tag_library_page/widgets/entry_add_dialog.dart';
@@ -289,7 +293,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                   }
                 });
               },
-              onFullscreen: () => _showFullscreen(context, historyImage.bytes),
+              onFullscreen: () => _showFullscreen(context, historyImage),
               enableContextMenu: true,
               enableHoverScale: true,
               onOpenInExplorer: () =>
@@ -346,7 +350,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
             }
           });
         },
-        onFullscreen: () => _showFullscreen(context, imageBytes),
+        onFullscreen: () => _showFullscreen(context, image),
         enableContextMenu: true,
         enableHoverScale: true,
         onOpenInExplorer: () => _saveAndOpenInExplorer(context, imageBytes),
@@ -407,7 +411,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     if (_selectedIds.isEmpty) return;
 
     try {
-      final saveDir = await LocalGalleryRepository.instance.getImageDirectory();
+      final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
+      if (saveDirPath == null) return;
+      final saveDir = Directory(saveDirPath);
       if (!await saveDir.exists()) {
         await saveDir.create(recursive: true);
       }
@@ -421,14 +427,14 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
 
       for (int i = 0; i < selectedImages.length; i++) {
         final fileName = 'NAI_${timestamp}_${i + 1}.png';
-        final file = File('${saveDir.path}/$fileName');
+        final file = File('$saveDirPath/$fileName');
         await file.writeAsBytes(selectedImages[i].bytes);
       }
 
       ref.read(localGalleryNotifierProvider.notifier).refresh();
 
       if (context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
+        AppToast.success(context, context.l10n.image_imageSaved(saveDirPath));
         setState(() {
           _selectedIds.clear();
         });
@@ -514,14 +520,16 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     Uint8List imageBytes,
   ) async {
     try {
-      final saveDir = await LocalGalleryRepository.instance.getImageDirectory();
+      final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
+      if (saveDirPath == null) return;
+      final saveDir = Directory(saveDirPath);
       if (!await saveDir.exists()) {
         await saveDir.create(recursive: true);
       }
 
       // 保存图片
       final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File('${saveDir.path}/$fileName');
+      final file = File('$saveDirPath/$fileName');
       await file.writeAsBytes(imageBytes);
 
       ref.read(localGalleryNotifierProvider.notifier).refresh();
@@ -530,7 +538,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       await Process.start('explorer', ['/select,${file.path}']);
 
       if (context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
+        AppToast.success(context, context.l10n.image_imageSaved(saveDirPath));
       }
     } catch (e) {
       if (context.mounted) {
@@ -539,37 +547,42 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     }
   }
 
-  void _showFullscreen(BuildContext context, Uint8List imageBytes) async {
-    // 从图像中提取元数据
-    final metadata = await NaiMetadataParser.extractFromBytes(imageBytes);
+  void _showFullscreen(BuildContext context, GeneratedImage image) {
+    final currentContext = context;
 
-    final imageData = GeneratedImageDetailData.fromParams(
-      imageBytes: imageBytes,
-      prompt: metadata?.prompt ?? '',
-      negativePrompt: metadata?.negativePrompt ?? '',
-      seed: metadata?.seed ?? 0,
-      steps: metadata?.steps ?? 28,
-      scale: metadata?.scale ?? 5.0,
-      width: metadata?.width ?? 832,
-      height: metadata?.height ?? 1216,
-      model: metadata?.source ?? 'nai-diffusion-4-full',
-      sampler: metadata?.sampler ?? 'k_euler_ancestral',
-      smea: metadata?.smea ?? true,
-      smeaDyn: metadata?.smeaDyn ?? false,
-      noiseSchedule: metadata?.noiseSchedule ?? 'native',
-      cfgRescale: metadata?.cfgRescale ?? 0.0,
-      characterPrompts: metadata?.characterPrompts ?? [],
-      characterNegativePrompts: metadata?.characterNegativePrompts ?? [],
-    );
+    // 简化逻辑：统一使用 FileImageDetailData 从 PNG 文件解析元数据
+    // - 如果图像已保存（有 filePath），直接使用
+    // - 如果图像未保存，使用 GeneratedImageDetailData 作为 fallback
+    final ImageDetailData imageData;
+    if (image.filePath != null && image.filePath!.isNotEmpty) {
+      // 已保存的图像：使用 FileImageDetailData（异步解析元数据）
+      // 加入预加载队列（如果尚未解析）
+      ImageMetadataService().enqueuePreload(
+        taskId: image.id,
+        filePath: image.filePath,
+      );
+      imageData = FileImageDetailData(
+        filePath: image.filePath!,
+        cachedBytes: image.bytes,
+        id: image.id,
+      );
+    } else {
+      // 未保存的图像：使用 GeneratedImageDetailData（显示"无元数据"）
+      imageData = GeneratedImageDetailData(
+        imageBytes: image.bytes,
+        id: image.id,
+      );
+    }
 
-    if (!context.mounted) return;
+    if (!currentContext.mounted) return;
 
-    ImageDetailViewer.showSingle(
-      context,
+    // 使用 ImageDetailOpener 打开详情页（带防重复点击）
+    ImageDetailOpener.showSingleImmediate(
+      currentContext,
       image: imageData,
       showMetadataPanel: true,
       callbacks: ImageDetailCallbacks(
-        onSave: (image) => _saveImageFromDetail(context, image),
+        onSave: (img) => _saveImageFromDetail(currentContext, img),
       ),
     );
   }
@@ -581,13 +594,15 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   ) async {
     try {
       final imageBytes = await image.getImageBytes();
-      final saveDir = await LocalGalleryRepository.instance.getImageDirectory();
+      final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
+      if (saveDirPath == null) return;
+      final saveDir = Directory(saveDirPath);
       if (!await saveDir.exists()) {
         await saveDir.create(recursive: true);
       }
 
       // 从图像中提取元数据以获取正确的参数
-      final metadata = await NaiMetadataParser.extractFromBytes(imageBytes);
+      final metadata = await ImageMetadataService().getMetadataFromBytes(imageBytes);
 
       final commentJson = <String, dynamic>{
         'prompt': metadata?.prompt ?? '',
@@ -659,13 +674,13 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       );
 
       final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File('${saveDir.path}/$fileName');
+      final file = File('$saveDirPath/$fileName');
       await file.writeAsBytes(embeddedBytes);
 
       ref.read(localGalleryNotifierProvider.notifier).refresh();
 
       if (context.mounted) {
-        AppToast.success(context, context.l10n.image_imageSaved(saveDir.path));
+        AppToast.success(context, context.l10n.image_imageSaved(saveDirPath));
       }
     } catch (e) {
       if (context.mounted) {
@@ -683,7 +698,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     String prompt = '';
 
     try {
-      final extractedMeta = await NaiMetadataParser.extractFromBytes(bytes);
+      final extractedMeta = await ImageMetadataService().getMetadataFromBytes(bytes);
       if (extractedMeta != null && extractedMeta.prompt.isNotEmpty) {
         prompt = extractedMeta.prompt;
       }

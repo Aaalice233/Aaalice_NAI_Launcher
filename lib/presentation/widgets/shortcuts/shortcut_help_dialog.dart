@@ -1,7 +1,7 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/shortcuts/shortcut_config.dart';
 import '../../../core/shortcuts/shortcut_manager.dart';

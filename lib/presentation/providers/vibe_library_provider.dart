@@ -9,6 +9,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/vibe/vibe_library_category.dart';
 import '../../data/models/vibe/vibe_library_entry.dart';
+import '../../data/models/vibe/vibe_reference.dart';
+import '../../data/services/vibe_file_storage_service.dart';
 import '../../data/services/vibe_library_storage_service.dart';
 
 part 'vibe_library_provider.freezed.dart';
@@ -140,7 +142,44 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
 
   /// 重新加载数据
   Future<void> reload() async {
+    // 先同步文件系统，确保文件增删反映在 Hive 中
+    await syncWithFileSystem();
     await _loadData(isInitializing: false);
+  }
+
+  /// 仅从缓存加载数据（不扫描文件系统）- 用于快速显示
+  Future<void> loadFromCache() async {
+    await _loadData(isInitializing: false);
+  }
+
+  /// 与文件系统同步
+  /// 扫描 vibes 文件夹，添加新文件到库，删除已不存在的文件条目
+  /// 同步完成后自动刷新 UI
+  Future<VibeFolderSyncResult> syncWithFileSystem() async {
+    try {
+      final result = await _storage.syncWithFileSystem(removeMissingEntries: true);
+      AppLogger.i(
+        'Vibe library synced: scanned=${result.scannedCount}, '
+        'upserted=${result.upsertedCount}, deleted=${result.deletedCount}',
+        'VibeLibrary',
+      );
+      
+      // 同步完成后刷新数据
+      if (result.upsertedCount > 0 || result.deletedCount > 0) {
+        await _loadData(isInitializing: false);
+      }
+      
+      return result;
+    } catch (e, stackTrace) {
+      AppLogger.e('Failed to sync with file system', e, stackTrace, 'VibeLibrary');
+      return VibeFolderSyncResult(
+        scannedCount: 0,
+        upsertedCount: 0,
+        deletedCount: 0,
+        failedCount: 1,
+        errors: [e.toString()],
+      );
+    }
   }
 
   Future<void> _loadData({required bool isInitializing}) async {
@@ -330,6 +369,32 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
       return saved;
     } catch (e, stackTrace) {
       AppLogger.e('Failed to save entry', e, stackTrace, 'VibeLibrary');
+      state = state.copyWith(error: e.toString());
+      return null;
+    }
+  }
+
+  /// 保存 Bundle 条目
+  Future<VibeLibraryEntry?> saveBundleEntry(
+    List<VibeReference> vibes, {
+    required String name,
+    String? categoryId,
+    List<String>? tags,
+  }) async {
+    try {
+      final saved = await _storage.saveBundleEntry(
+        vibes,
+        name: name,
+        categoryId: categoryId,
+        tags: tags,
+      );
+      final entries = [...state.entries, saved];
+      state = state.copyWith(entries: entries);
+      await _applyFilters();
+      AppLogger.d('Bundle entry saved: ${saved.displayName}', 'VibeLibrary');
+      return saved;
+    } catch (e, stackTrace) {
+      AppLogger.e('Failed to save bundle entry', e, stackTrace, 'VibeLibrary');
       state = state.copyWith(error: e.toString());
       return null;
     }

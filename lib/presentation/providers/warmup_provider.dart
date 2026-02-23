@@ -5,19 +5,19 @@ import 'package:flutter/painting.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/cache/danbooru_image_cache_manager.dart';
 import '../../core/network/proxy_service.dart';
 import '../../core/enums/warmup_phase.dart';
 import '../../core/services/app_warmup_service.dart';
-import '../../core/services/cooccurrence_service.dart';
+import '../../core/database/database.dart';
+import '../../core/database/datasources/gallery_data_source.dart';
 import '../../core/services/danbooru_tags_lazy_service.dart';
 import '../../core/services/data_migration_service.dart';
 import '../../core/services/translation/translation_providers.dart';
-import '../../core/services/unified_tag_database.dart';
 import '../../core/services/warmup_task_scheduler.dart';
-import 'background_task_provider.dart';
+
+import 'data_source_cache_provider.dart';
 import '../../core/utils/app_logger.dart';
-import '../../data/repositories/local_gallery_repository.dart';
+import '../../data/repositories/gallery_folder_repository.dart';
 import 'auth_provider.dart';
 import 'font_provider.dart';
 import 'prompt_config_provider.dart';
@@ -131,8 +131,6 @@ class WarmupNotifier extends _$WarmupNotifier {
   Future<void> _configureImageCache() async {
     PaintingBinding.instance.imageCache.maximumSize = 500;
     PaintingBinding.instance.imageCache.maximumSizeBytes = 100 * 1024 * 1024;
-    // ignore: unused_local_variable
-    final cacheManager = DanbooruImageCacheManager.instance;
     AppLogger.i('Image cache configured: max=500, maxBytes=100MB', 'Warmup');
   }
 
@@ -176,15 +174,15 @@ class WarmupNotifier extends _$WarmupNotifier {
     _startWarmup();
   }
 
-  /// 检查网络环境（带超时）
-  Future<void> _checkNetworkEnvironmentWithTimeout() async {
-    const timeout = Duration(seconds: 30);
+  /// 检查网络环境（循环等待直到连接成功）
+  Future<void> _checkNetworkEnvironment() async {
     const checkInterval = Duration(seconds: 2);
-    const maxAttempts = 15; // 30秒 / 2秒 = 15次
 
-    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+    var attempt = 0;
+    while (true) {
+      attempt++;
       state = state.copyWith(
-        subTaskMessage: '正在检测网络连接... (尝试 ${attempt + 1}/$maxAttempts)',
+        subTaskMessage: '正在检测网络连接... (尝试 $attempt)',
       );
 
       final result = await ProxyService.testNovelAIConnection();
@@ -198,22 +196,13 @@ class WarmupNotifier extends _$WarmupNotifier {
       }
 
       AppLogger.w(
-        'Network check attempt ${attempt + 1} failed: ${result.errorMessage}',
+        'Network check attempt $attempt failed: ${result.errorMessage}',
         'Warmup',
       );
 
-      if (attempt < maxAttempts - 1) {
-        await Future.delayed(checkInterval);
-      }
+      // 等待后重试
+      await Future.delayed(checkInterval);
     }
-
-    // 超时后记录日志但不阻塞
-    AppLogger.w(
-      'Network check timeout after ${timeout.inSeconds}s, continuing offline',
-      'Warmup',
-    );
-    state = state.copyWith(subTaskMessage: '网络检测超时，继续离线启动');
-    await Future.delayed(const Duration(seconds: 1));
   }
 
   // ===========================================================================
@@ -280,42 +269,140 @@ class WarmupNotifier extends _$WarmupNotifier {
   }
 
   void _registerQuickPhaseTasks() {
-    final quickTasks = [
-      ('warmup_unifiedDbInit', '初始化数据库', 2, const Duration(seconds: 60), _initUnifiedDatabaseLightweight),
-      ('warmup_danbooruTagsInit', '加载标签数据', 3, const Duration(seconds: 120), _initDanbooruTags),
-      ('warmup_cooccurrenceInit', '初始化共现数据', 2, const Duration(seconds: 120), _initCooccurrenceData),
-      ('warmup_networkCheck', '检测网络', 1, const Duration(seconds: 30), _checkNetworkEnvironmentWithTimeout),
-      ('warmup_loadingPromptConfig', '加载提示词配置', 1, const Duration(seconds: 10), _loadPromptConfig),
-      ('warmup_galleryFileCount', '扫描画廊', 1, const Duration(seconds: 3), _countGalleryFiles),
-      ('warmup_subscription', '加载订阅信息', 1, const Duration(seconds: 3), _loadSubscriptionCached),
-    ];
+    // 1. 数据库初始化
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_unifiedDbInit',
+        displayName: '初始化数据库',
+        phase: WarmupPhase.quick,
+        weight: 2,
+        task: _initUnifiedDatabaseLightweight,
+      ),
+    );
 
-    for (final (name, displayName, weight, timeout, task) in quickTasks) {
-      _scheduler.registerTask(
-        PhasedWarmupTask(
-          name: name,
-          displayName: displayName,
-          phase: WarmupPhase.quick,
-          weight: weight,
-          timeout: timeout,
-          task: task,
-        ),
-      );
-    }
+    // 2. 翻译数据初始化（在预热阶段完成，不显示后台进度）
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_translationInit',
+        displayName: '初始化翻译数据',
+        phase: WarmupPhase.quick,
+        weight: 1,
+        timeout: const Duration(seconds: 35),
+        task: _preloadTranslationInBackground,
+      ),
+    );
+
+    // 3. 共现数据初始化（轻量级检查，依赖数据库）
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_cooccurrenceInit',
+        displayName: '初始化共现数据',
+        phase: WarmupPhase.quick,
+        weight: 1,
+        task: () async {
+          // 只执行轻量级检查，实际导入在 background 阶段
+          await _initCooccurrenceData();
+        },
+      ),
+    );
+
+    // 4. 网络检测
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_networkCheck',
+        displayName: '检测网络',
+        phase: WarmupPhase.quick,
+        weight: 1,
+        task: _checkNetworkEnvironment,
+      ),
+    );
+
+    // 5. 提示词配置
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_loadingPromptConfig',
+        displayName: '加载提示词配置',
+        phase: WarmupPhase.quick,
+        weight: 1,
+        task: _loadPromptConfig,
+      ),
+    );
+
+    // 6. 画廊数据源初始化
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_galleryDataSource',
+        displayName: '初始化画廊索引',
+        phase: WarmupPhase.quick,
+        weight: 3,
+        timeout: const Duration(seconds: 30),
+        task: _initGalleryDataSource,
+      ),
+    );
+
+    // 7. 画廊计数
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_galleryFileCount',
+        displayName: '扫描画廊',
+        phase: WarmupPhase.quick,
+        weight: 1,
+        task: _countGalleryFiles,
+      ),
+    );
+
+    // 7. 订阅信息（仅缓存，不强制网络）
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_subscription',
+        displayName: '加载订阅信息',
+        phase: WarmupPhase.quick,
+        weight: 1,
+        task: _loadSubscriptionCached,
+      ),
+    );
+
+    // 8. 一般标签和角色标签数据拉取（在预热阶段完成，进入主页后不再显示后台进度）
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_generalTagsFetch',
+        displayName: '加载标签数据',
+        phase: WarmupPhase.quick,
+        weight: 2,
+        timeout: const Duration(seconds: 90),
+        task: _fetchGeneralAndCharacterTags,
+      ),
+    );
+
+    // 9. 画师标签拉取（改为预热阶段执行，不再在后台执行）
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_artistTagsFetch',
+        displayName: '加载画师标签',
+        phase: WarmupPhase.quick,
+        weight: 2,
+        timeout: const Duration(seconds: 60),
+        task: _fetchArtistTagsInWarmup,
+      ),
+    );
+
+    // 注意：共现数据导入在 Background 阶段，避免阻塞主界面
+
+    // 9. 检查并恢复数据（处理清除缓存后的数据缺失）
+    _scheduler.registerTask(
+      PhasedWarmupTask(
+        name: 'warmup_checkAndRecoverData',
+        displayName: '检查数据完整性',
+        phase: WarmupPhase.quick,
+        weight: 1,
+        task: _checkAndRecoverData,
+      ),
+    );
   }
 
   void _registerBackgroundPhaseTasks() {
-    final notifier = ref.read(backgroundTaskNotifierProvider.notifier);
-    final tasks = [
-      ('cooccurrence_check', '检查共现数据更新', _checkAndImportCooccurrence),
-      ('translation_preload', '翻译数据', _preloadTranslationInBackground),
-      ('danbooru_tags_refresh', '标签数据刷新', _refreshDanbooruTagsInBackground),
-      ('artist_tags_sync', '画师标签同步', _syncArtistTagsInBackground),
-    ];
-
-    for (final (id, name, task) in tasks) {
-      notifier.registerTask(id, name, task);
-    }
+    // 注意：共现数据是预打包的数据库，在 _initCooccurrenceData() 中已完成初始化
+    // 不需要额外的后台导入任务
   }
 
   /// 开始预热流程
@@ -347,11 +434,7 @@ class WarmupNotifier extends _$WarmupNotifier {
       state = WarmupState.complete();
       _completer.complete();
 
-      // 延迟1秒后启动后台任务，确保UI稳定和任务注册完成
-      await Future.delayed(const Duration(seconds: 1));
-      Future.microtask(() {
-        ref.read(backgroundTaskNotifierProvider.notifier).startAll();
-      });
+      // 后台任务已移除（共现数据是预打包的数据库）
     } catch (e, stack) {
       AppLogger.e('Warmup failed', e, stack, 'Warmup');
       state = state.copyWith(
@@ -362,18 +445,14 @@ class WarmupNotifier extends _$WarmupNotifier {
     }
   }
 
-  /// 轻量级初始化统一数据库（带进度反馈和错误处理）
+  /// 轻量级初始化统一数据库（带进度反馈、错误处理和损坏检测）
   Future<void> _initUnifiedDatabaseLightweight() async {
-    AppLogger.i('Initializing unified tag database (lightweight)...', 'Warmup');
+    AppLogger.i('等待数据库准备就绪...', 'Warmup');
 
     try {
-      // 更新进度状态
-      state = state.copyWith(subTaskMessage: '正在准备数据库文件...');
-
-      final db = ref.read(unifiedTagDatabaseProvider);
-
-      // 使用较长的超时，但允许用户看到进度
-      await db.initialize().timeout(
+      // 数据库已在 main() 中初始化和恢复，这里只需等待就绪
+      final manager = await ref.watch(databaseManagerProvider.future);
+      await manager.initialized.timeout(
         const Duration(seconds: 60),
         onTimeout: () {
           AppLogger.w('Database initialization timeout', 'Warmup');
@@ -381,7 +460,7 @@ class WarmupNotifier extends _$WarmupNotifier {
         },
       );
 
-      AppLogger.i('Unified tag database initialized', 'Warmup');
+      AppLogger.i('数据库已就绪', 'Warmup');
     } on TimeoutException {
       rethrow;
     } catch (e, stack) {
@@ -397,11 +476,29 @@ class WarmupNotifier extends _$WarmupNotifier {
     await notifier.whenLoaded.timeout(const Duration(seconds: 8));
   }
 
+  /// 初始化画廊数据源
+  Future<void> _initGalleryDataSource() async {
+    try {
+      // 获取 DatabaseManager 并等待初始化
+      final dbManager = await ref.read(databaseManagerProvider.future);
+
+      // 获取 GalleryDataSource
+      final galleryDs = dbManager.getDataSource<GalleryDataSource>('gallery');
+      if (galleryDs != null) {
+        // 数据源已初始化（DatabaseManager 中已完成）
+        AppLogger.i('GalleryDataSource initialized in warmup phase', 'Warmup');
+      }
+    } catch (e) {
+      AppLogger.w('GalleryDataSource warmup failed: $e', 'Warmup');
+      // 不抛出异常，避免阻塞启动
+    }
+  }
+
   /// 统计画廊文件数
   Future<void> _countGalleryFiles() async {
     try {
-      final files = await LocalGalleryRepository.instance.getAllImageFiles();
-      AppLogger.i('Gallery file count: ${files.length}', 'Warmup');
+      final count = await GalleryFolderRepository.instance.getTotalImageCount();
+      AppLogger.i('Gallery file count: $count', 'Warmup');
     } catch (e) {
       AppLogger.w('Gallery file count failed: $e', 'Warmup');
     }
@@ -434,233 +531,420 @@ class WarmupNotifier extends _$WarmupNotifier {
 
   // ==== 后台任务方法 ====
 
-  /// 预热阶段：初始化 Danbooru 标签数据（仅普通标签，不包含画师）
-  Future<void> _initDanbooruTags() async {
-    AppLogger.i('[Warmup._initDanbooruTags] Starting Danbooru tags initialization (general tags only)', 'Warmup');
-
-    try {
-      final service = ref.read(danbooruTagsLazyServiceProvider);
-      AppLogger.d('[Warmup._initDanbooruTags] DanbooruTagsLazyService retrieved from provider', 'Warmup');
-
-      // 先显示初始进度
-      state = state.copyWith(subTaskMessage: '正在检查标签数据...');
-      AppLogger.d('[Warmup._initDanbooruTags] Set initial subTaskMessage: checking tag data', 'Warmup');
-
-      // 设置进度回调
-      service.onProgress = (progress, message) {
-        AppLogger.d('[Warmup._initDanbooruTags] Progress update: progress=$progress, message=$message', 'Warmup');
-        state = state.copyWith(subTaskMessage: message);
-      };
-
-      // 检查数据库中是否已有数据
-      AppLogger.d('[Warmup._initDanbooruTags] Calling service.getTagCount()...', 'Warmup');
-      final tagCount = await service.getTagCount();
-      AppLogger.i('[Warmup._initDanbooruTags] Tag count retrieved: $tagCount', 'Warmup');
-
-      final isPrebuiltDatabase = tagCount >= 30000;
-      AppLogger.d('[Warmup._initDanbooruTags] isPrebuiltDatabase check: tagCount=$tagCount >= 30000 = $isPrebuiltDatabase', 'Warmup');
-
-      if (isPrebuiltDatabase) {
-        // 预构建数据库：只需加载热数据
-        AppLogger.i('[Warmup._initDanbooruTags] Prebuilt database detected (tagCount=$tagCount >= 30000), skipping download', 'Warmup');
-        await service.initialize().timeout(
-          const Duration(seconds: 30),
-          onTimeout: () {
-            AppLogger.w('[Warmup._initDanbooruTags] Prebuilt database initialization timeout', 'Warmup');
-            throw TimeoutException('标签数据加载超时');
-          },
-        );
-        AppLogger.i('[Warmup._initDanbooruTags] Prebuilt database initialization completed', 'Warmup');
-      } else {
-        // 需要下载：只下载普通标签，画师标签留给后台任务
-        AppLogger.i('[Warmup._initDanbooruTags] Database empty or insufficient (tagCount=$tagCount < 30000), starting general tags download...', 'Warmup');
-        await service.refreshGeneralOnly().timeout(
-          const Duration(seconds: 120),
-          onTimeout: () {
-            AppLogger.w('[Warmup._initDanbooruTags] Danbooru general tags download timeout', 'Warmup');
-            throw TimeoutException('标签数据下载超时');
-          },
-        );
-        AppLogger.i('[Warmup._initDanbooruTags] General tags download completed', 'Warmup');
-      }
-
-      service.onProgress = null;
-      state = state.copyWith(subTaskMessage: null);
-
-      AppLogger.i('[Warmup._initDanbooruTags] Danbooru general tags initialization completed successfully', 'Warmup');
-    } on TimeoutException catch (e) {
-      AppLogger.w('[Warmup._initDanbooruTags] TimeoutException caught: $e', 'Warmup');
-      rethrow;
-    } catch (e, stack) {
-      AppLogger.e('[Warmup._initDanbooruTags] Danbooru tags initialization failed', e, stack, 'Warmup');
-      // 标签初始化失败不应阻塞启动
-    }
-  }
-
-  /// 预热阶段：初始化共现数据（优先数据库，没有则导入CSV）
   Future<void> _initCooccurrenceData() async {
     AppLogger.i('开始初始化共现数据...', 'Warmup');
 
-    state = state.copyWith(subTaskMessage: '检查共现数据...');
-
-    final service = ref.read(cooccurrenceServiceProvider);
-    final unifiedDb = ref.read(unifiedTagDatabaseProvider);
-
     try {
-      // 设置数据库连接
-      service.setUnifiedDatabase(unifiedDb);
-
-      // 1. 先检查数据库状态
-      final isReady = await service.initializeUnified().timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          AppLogger.w('共现数据检查超时', 'Warmup');
-          return false;
-        },
-      );
+      final cooccurrenceService = await ref.watch(cooccurrenceServiceProvider.future);
+      
+      // 初始化共现服务
+      final isReady = await cooccurrenceService.initialize();
 
       if (isReady) {
-        // 数据库有数据且最新，直接使用
-        AppLogger.i('共现数据已就绪（SQLite）', 'Warmup');
-        return;
-      }
-
-      // 2. 需要导入（首次或需要更新）
-      // 检查是否已有部分数据（预构建数据库）
-      final currentCount = (await unifiedDb.getRecordCounts()).cooccurrences;
-      final isIncremental = currentCount > 0;
-
-      if (isIncremental) {
-        AppLogger.i('共现数据部分存在（$currentCount 条），开始增量导入...', 'Warmup');
+        final count = await cooccurrenceService.getCount();
+        AppLogger.i('共现数据已就绪（$count 条记录）', 'Warmup');
       } else {
-        AppLogger.i('共现数据需要导入，开始从CSV导入...', 'Warmup');
+        final count = await cooccurrenceService.getCount();
+        if (count > 0) {
+          AppLogger.w('共现数据不完整（$count 条记录），将在后台继续导入', 'Warmup');
+        } else {
+          AppLogger.i('共现数据为空，将在后台导入', 'Warmup');
+        }
       }
-
-      // 使用进度回调更新UI
-      final imported = await service.importCsvToSQLite(
-        onProgress: (progress, message) {
-          state = state.copyWith(subTaskMessage: message);
-        },
-        skipExisting: isIncremental, // 增量导入模式
-      ).timeout(
-        const Duration(seconds: 180),
-        onTimeout: () {
-          AppLogger.w('共现数据导入超时', 'Warmup');
-          throw TimeoutException('共现数据导入超时');
-        },
-      );
-
-      if (imported > 0) {
-        // 更新版本信息
-        await unifiedDb.updateDataSourceVersion('cooccurrences', 1);
-        AppLogger.i('共现数据导入完成，共 $imported 条记录', 'Warmup');
-      } else {
-        AppLogger.w('共现数据导入失败，将在后台重试', 'Warmup');
-      }
-
-      state = state.copyWith(subTaskMessage: null);
-    } on TimeoutException {
-      rethrow;
+    } on StateError catch (e) {
+      // 数据库正在恢复中，不阻塞启动
+      AppLogger.w('共现数据初始化时数据库正在恢复，将在后台重试: $e', 'Warmup');
     } catch (e, stack) {
       AppLogger.e('共现数据初始化失败', e, stack, 'Warmup');
-      // 共现数据失败不应阻塞启动
-    }
-  }
-
-  /// 后台任务：检查共现数据是否需要更新（预热阶段已完成导入）
-  Future<void> _checkAndImportCooccurrence() async {
-    final service = ref.read(cooccurrenceServiceProvider);
-    final unifiedDb = ref.read(unifiedTagDatabaseProvider);
-
-    try {
-      // 设置数据库连接
-      service.setUnifiedDatabase(unifiedDb);
-
-      // 检查数据库状态
-      final isReady = await service.initializeUnified();
-
-      if (isReady) {
-        // 数据已最新（包括预构建数据库），无需操作
-        AppLogger.i('共现数据已就绪，后台任务跳过', 'Warmup');
-        return;
-      }
-
-      // 需要更新（预构建不完整或CSV有变化）
-      AppLogger.i('共现数据需要更新，开始后台增量导入...', 'Warmup');
-      await service.performBackgroundImport(
-        onProgress: (progress, message) {
-          ref.read(backgroundTaskNotifierProvider.notifier).updateProgress(
-            'cooccurrence_check',
-            progress,
-            message: message,
-          );
-        },
-        incremental: true, // 使用增量导入
-      );
-    } catch (e, stack) {
-      AppLogger.e('后台共现数据检查失败', e, stack, 'Warmup');
     }
   }
 
   Future<void> _preloadTranslationInBackground() async {
     // 统一翻译服务在读取 provider 时自动初始化
-    await ref.read(unifiedTranslationServiceProvider.future);
+    // 增加超时时间，CSV加载可能需要较长时间
+    try {
+      await ref.read(unifiedTranslationServiceProvider.future).timeout(
+        const Duration(seconds: 30),
+      );
+    } on TimeoutException {
+      AppLogger.w('Translation initialization timeout, will retry later', 'Warmup');
+    }
   }
 
-  /// 后台任务：检查并刷新 Danbooru 标签数据（预热阶段已完成初始化）
-  Future<void> _refreshDanbooruTagsInBackground() async {
-    await _runBackgroundTagTask(
-      taskId: 'danbooru_tags_refresh',
-      shouldRun: (service) async {
-        final shouldRefresh = await service.shouldRefreshInBackground();
-        final tagCount = await service.getTagCount();
-        return tagCount == 0 || shouldRefresh;
-      },
-      task: (service) => service.refreshGeneralOnly(),
-    );
-  }
+  /// 拉取一般标签和角色标签
+  Future<void> _fetchGeneralAndCharacterTags() async {
+    AppLogger.i('[_fetchGeneralAndCharacterTags] 开始检查并拉取标签...', 'Warmup');
 
-  /// 后台任务：同步画师标签（避免预热阶段超时）
-  Future<void> _syncArtistTagsInBackground() async {
-    await _runBackgroundTagTask(
-      taskId: 'artist_tags_sync',
-      logName: '画师标签',
-      shouldRun: (_) async => true,
-      task: (service) => service.refreshArtistsOnly(),
-    );
-  }
+    final service = await ref.read(danbooruTagsLazyServiceProvider.future);
 
-  /// 通用后台标签任务执行器
-  Future<void> _runBackgroundTagTask({
-    required String taskId,
-    String? logName,
-    required Future<bool> Function(DanbooruTagsLazyService) shouldRun,
-    required Future<void> Function(DanbooruTagsLazyService) task,
-  }) async {
-    final service = ref.read(danbooruTagsLazyServiceProvider);
+    // 直接检查各分类数量，不依赖 shouldRefresh() 的时间判断
+    var needsGeneralFetch = false;
+    var needsCharacterFetch = false;
+    var needsCopyrightFetch = false;
+    var needsMetaFetch = false;
 
+    try {
+      // 获取各分类数量
+      final stats = await service.getCategoryStats();
+      final generalCount = stats['general'] ?? 0;
+      final characterCount = stats['character'] ?? 0;
+      final copyrightCount = stats['copyright'] ?? 0;
+      final metaCount = stats['meta'] ?? 0;
+      final totalCount = stats['total'] ?? 0;
+
+      AppLogger.i(
+        '[_fetchGeneralAndCharacterTags] 当前分类统计: '
+        'total=$totalCount, general=$generalCount, character=$characterCount, '
+        'copyright=$copyrightCount, meta=$metaCount',
+        'Warmup',
+      );
+
+      // 如果总数为0或任何主要分类为0，需要拉取
+      needsGeneralFetch = totalCount == 0 || generalCount == 0;
+      needsCharacterFetch = totalCount == 0 || characterCount == 0;
+      needsCopyrightFetch = totalCount == 0 || copyrightCount == 0;
+      needsMetaFetch = totalCount == 0 || metaCount == 0;
+
+      // 额外检查：也调用 shouldRefresh() 来考虑时间因素
+      // 但如果分类为空，强制拉取
+      try {
+        final needsTimeRefresh = await service.shouldRefresh();
+        if (needsTimeRefresh) {
+          AppLogger.i(
+            '[_fetchGeneralAndCharacterTags] shouldRefresh() 返回 true，需要刷新',
+            'Warmup',
+          );
+          needsGeneralFetch = true;
+          needsCharacterFetch = true;
+          needsCopyrightFetch = true;
+          needsMetaFetch = true;
+        }
+      } catch (e) {
+        AppLogger.w(
+          '[_fetchGeneralAndCharacterTags] shouldRefresh() 失败，基于数量判断: $e',
+          'Warmup',
+        );
+      }
+
+      if (!needsGeneralFetch &&
+          !needsCharacterFetch &&
+          !needsCopyrightFetch &&
+          !needsMetaFetch) {
+        AppLogger.i(
+          '[_fetchGeneralAndCharacterTags] 所有分类都有数据，跳过拉取',
+          'Warmup',
+        );
+        return;
+      }
+
+      AppLogger.i(
+        '[_fetchGeneralAndCharacterTags] 需要拉取: '
+        'general=$needsGeneralFetch, character=$needsCharacterFetch, '
+        'copyright=$needsCopyrightFetch, meta=$needsMetaFetch',
+        'Warmup',
+      );
+    } catch (e) {
+      AppLogger.w(
+        '[_fetchGeneralAndCharacterTags] 获取分类统计失败，将尝试拉取所有: $e',
+        'Warmup',
+      );
+      needsGeneralFetch = true;
+      needsCharacterFetch = true;
+      needsCopyrightFetch = true;
+      needsMetaFetch = true;
+    }
+
+    // 设置进度回调（不显示百分比，只显示数量和状态）
     service.onProgress = (progress, message) {
-      ref.read(backgroundTaskNotifierProvider.notifier).updateProgress(
-        taskId,
-        progress,
-        message: message,
+      state = state.copyWith(
+        subTaskMessage: '拉取标签: $message',
       );
     };
 
     try {
-      if (await shouldRun(service)) {
-        if (logName != null) {
-          AppLogger.i('开始后台同步$logName...', 'Warmup');
-        }
-        await task(service);
-        if (logName != null) {
-          AppLogger.i('$logName同步完成', 'Warmup');
-        }
+      // 1. 拉取一般标签（category = 0）
+      if (needsGeneralFetch) {
+        await service.fetchGeneralTags(
+          threshold: 1000, // 热度阈值
+          maxPages: 50,    // 最多50页
+        ).timeout(
+          const Duration(seconds: 60),
+          onTimeout: () {
+            AppLogger.w('General tags fetch timeout', 'Warmup');
+            // 超时不阻塞，继续拉取角色标签
+          },
+        );
+        AppLogger.i('General tags fetched successfully', 'Warmup');
+      } else {
+        AppLogger.i('Skipping general tags fetch (already has data)', 'Warmup');
       }
-    } catch (e, stack) {
-      AppLogger.e('${logName ?? taskId}同步失败', e, stack, 'Warmup');
+
+      // 2. 拉取角色标签（category = 4）
+      if (needsCharacterFetch) {
+        state = state.copyWith(subTaskMessage: '拉取角色标签...');
+        await service.fetchCharacterTags(
+          threshold: 100,  // 角色标签阈值较低
+          maxPages: 50,    // 最多50页
+        ).timeout(
+          const Duration(seconds: 60),
+          onTimeout: () {
+            AppLogger.w('Character tags fetch timeout', 'Warmup');
+            // 超时不阻塞
+          },
+        );
+        AppLogger.i('Character tags fetched successfully', 'Warmup');
+      } else {
+        AppLogger.i('Skipping character tags fetch (already has data)', 'Warmup');
+      }
+
+      // 3. 拉取版权标签（category = 3）
+      if (needsCopyrightFetch) {
+        state = state.copyWith(subTaskMessage: '拉取版权标签...');
+        await service.fetchCopyrightTags(
+          threshold: 500,  // 版权标签阈值中等
+          maxPages: 50,    // 最多50页
+        ).timeout(
+          const Duration(seconds: 60),
+          onTimeout: () {
+            AppLogger.w('Copyright tags fetch timeout', 'Warmup');
+            // 超时不阻塞
+          },
+        );
+        AppLogger.i('Copyright tags fetched successfully', 'Warmup');
+      } else {
+        AppLogger.i('Skipping copyright tags fetch (already has data)', 'Warmup');
+      }
+
+      // 4. 拉取元标签（category = 5）
+      if (needsMetaFetch) {
+        state = state.copyWith(subTaskMessage: '拉取元标签...');
+        await service.fetchMetaTags(
+          threshold: 10000,  // 元标签阈值较高
+          maxPages: 50,      // 最多50页
+        ).timeout(
+          const Duration(seconds: 60),
+          onTimeout: () {
+            AppLogger.w('Meta tags fetch timeout', 'Warmup');
+            // 超时不阻塞
+          },
+        );
+        AppLogger.i('Meta tags fetched successfully', 'Warmup');
+      } else {
+        AppLogger.i('Skipping meta tags fetch (already has data)', 'Warmup');
+      }
+
+      // 验证拉取后的数据
+      try {
+        final newCount = await service.getTagCount();
+        AppLogger.i('After fetch: danbooru tag count = $newCount', 'Warmup');
+        if (newCount == 0) {
+          AppLogger.w('Tag count is still 0 after fetch, may need retry', 'Warmup');
+        }
+      } catch (e) {
+        AppLogger.w('Failed to verify tag count after fetch: $e', 'Warmup');
+      }
+
+      // 🔴 关键：所有分类拉取完成后，保存元数据（统一设置 _lastUpdate）
+      try {
+        await service.saveMetaAfterFetch();
+        AppLogger.i('Tags meta saved after all categories fetched', 'Warmup');
+      } catch (e) {
+        AppLogger.w('Failed to save tags meta: $e', 'Warmup');
+      }
+
+      // 🔴 关键：数据拉取完成后刷新 Provider，让 UI 更新
+      // 关键修复：同时失效服务和数据源 Provider，确保下次获取时使用新连接
+      AppLogger.i(
+        'Invalidating providers after tags fetch: '
+        'danbooruTagsLazyServiceProvider, danbooruTagsCacheNotifierProvider',
+        'Warmup',
+      );
+      ref.invalidate(danbooruTagsLazyServiceProvider);
+      ref.invalidate(danbooruTagsCacheNotifierProvider);
+
+      // 验证最终数据
+      try {
+        final finalStats = await service.getCategoryStats();
+        AppLogger.i(
+          '[_fetchGeneralAndCharacterTags] 最终分类统计: '
+          'total=${finalStats['total']}, general=${finalStats['general']}, '
+          'character=${finalStats['character']}, copyright=${finalStats['copyright']}, '
+          'meta=${finalStats['meta']}',
+          'Warmup',
+        );
+      } catch (e) {
+        AppLogger.w('Failed to get final category stats: $e', 'Warmup');
+      }
+    } on StateError catch (e) {
+      // 数据库正在恢复中，不阻塞启动
+      AppLogger.w('Cannot fetch tags, database recovering: $e', 'Warmup');
+    } catch (e) {
+      AppLogger.w('Failed to fetch tags: $e', 'Warmup');
+      // 失败不阻塞，进入主页后后台会重试
     } finally {
       service.onProgress = null;
+    }
+  }
+
+  /// 拉取画师标签（预热阶段同步执行）
+  ///
+  /// 使用 Provider 的 syncArtists 方法，在预热阶段同步完成
+  /// 由于有热度限制，数据量不大，不会阻塞太久
+  Future<void> _fetchArtistTagsInWarmup() async {
+    AppLogger.i('Starting artist tags fetch in warmup phase...', 'Warmup');
+
+    try {
+      // 使用 Provider 的 syncArtists 方法，确保完成后状态更新
+      // 这会正确处理重复拉取的检查，并在完成后更新 Provider 状态
+      await ref.read(danbooruTagsCacheNotifierProvider.notifier).syncArtists(
+        force: false, // 如果有数据则跳过
+      );
+
+      AppLogger.i('Artist tags fetch completed in warmup phase', 'Warmup');
+    } catch (e, stack) {
+      AppLogger.e('Artist tags fetch error in warmup phase: $e', e, stack, 'Warmup');
+      // 预热阶段失败不阻塞，进入主页后可能重试
+    }
+  }
+
+  /// 检查并恢复数据（处理清除缓存后的数据缺失）
+  Future<void> _checkAndRecoverData() async {
+    AppLogger.i('检查数据完整性...', 'Warmup');
+
+    try {
+      // 使用新的 DatabaseManager 获取统计信息
+      final manager = await ref.watch(databaseManagerProvider.future);
+
+      // 等待初始化完成
+      await manager.initialized;
+
+      final stats = await manager.getStatistics();
+      final tableStats = stats['tables'] as Map<String, int>? ?? {};
+
+      // 获取各表记录数
+      final translationCount = tableStats['translations'] ?? 0;
+      final cooccurrenceCount = tableStats['cooccurrences'] ?? 0;
+      final danbooruCount = tableStats['danbooru_tags'] ?? 0;
+
+      AppLogger.i(
+        '数据表状态: translations=$translationCount, cooccurrences=$cooccurrenceCount, danbooru_tags=$danbooruCount',
+        'Warmup',
+      );
+
+      // 1. 检查 translations 和 cooccurrences
+      // 注意：核心数据恢复已在 main() 中完成，这里只检查状态
+      if (translationCount == 0 || cooccurrenceCount == 0) {
+        AppLogger.w(
+          '核心数据为空，将在后台通过API拉取补充',
+          'Warmup',
+        );
+        // 不再调用 recover()，避免重复恢复导致 ConnectionPool 被替换
+      }
+
+      // 2. 恢复 danbooru_tags（从API）
+      // 不仅检查总数，还检查各分类数量
+      final service = await ref.read(danbooruTagsLazyServiceProvider.future);
+      final categoryStats = await service.getCategoryStats();
+
+      final generalCount = categoryStats['general'] ?? 0;
+      final characterCount = categoryStats['character'] ?? 0;
+      final copyrightCount = categoryStats['copyright'] ?? 0;
+      final metaCount = categoryStats['meta'] ?? 0;
+
+      AppLogger.i(
+        'Danbooru标签分类统计: general=$generalCount, character=$characterCount, '
+        'copyright=$copyrightCount, meta=$metaCount',
+        'Warmup',
+      );
+
+      // 判断哪些分类需要拉取
+      final needsGeneralFetch = generalCount == 0;
+      final needsCharacterFetch = characterCount == 0;
+      final needsCopyrightFetch = copyrightCount == 0;
+      final needsMetaFetch = metaCount == 0;
+
+      if (needsGeneralFetch || needsCharacterFetch || needsCopyrightFetch || needsMetaFetch) {
+        AppLogger.w(
+          '部分标签分类为空，触发补充拉取: '
+          'general=$needsGeneralFetch, character=$needsCharacterFetch, '
+          'copyright=$needsCopyrightFetch, meta=$needsMetaFetch',
+          'Warmup',
+        );
+        state = state.copyWith(
+          subTaskMessage: '正在从服务器拉取标签数据...',
+        );
+
+        // 拉取一般标签
+        if (needsGeneralFetch) {
+          await service.fetchGeneralTags(
+            threshold: 1000,
+            maxPages: 50,
+          ).timeout(
+            const Duration(seconds: 60),
+            onTimeout: () {
+              AppLogger.w('一般标签拉取超时，将在后台继续', 'Warmup');
+            },
+          );
+        }
+
+        // 拉取角色标签
+        if (needsCharacterFetch) {
+          state = state.copyWith(
+            subTaskMessage: '正在拉取角色标签...',
+          );
+          await service.fetchCharacterTags(
+            threshold: 100,
+            maxPages: 50,
+          ).timeout(
+            const Duration(seconds: 60),
+            onTimeout: () {
+              AppLogger.w('角色标签拉取超时，将在后台继续', 'Warmup');
+            },
+          );
+        }
+
+        // 拉取版权标签
+        if (needsCopyrightFetch) {
+          state = state.copyWith(
+            subTaskMessage: '正在拉取版权标签...',
+          );
+          await service.fetchCopyrightTags(
+            threshold: 500,
+            maxPages: 50,
+          ).timeout(
+            const Duration(seconds: 60),
+            onTimeout: () {
+              AppLogger.w('版权标签拉取超时，将在后台继续', 'Warmup');
+            },
+          );
+        }
+
+        // 拉取元标签
+        if (needsMetaFetch) {
+          state = state.copyWith(
+            subTaskMessage: '正在拉取元标签...',
+          );
+          await service.fetchMetaTags(
+            threshold: 10000,
+            maxPages: 50,
+          ).timeout(
+            const Duration(seconds: 60),
+            onTimeout: () {
+              AppLogger.w('元标签拉取超时，将在后台继续', 'Warmup');
+            },
+          );
+        }
+
+        AppLogger.i('标签数据拉取完成', 'Warmup');
+      } else {
+        AppLogger.i('所有标签分类数据已存在，跳过拉取', 'Warmup');
+      }
+    } on StateError catch (e) {
+      // 数据库正在恢复中，不阻塞启动
+      AppLogger.w('检查数据完整性时数据库正在恢复，将在后台重试: $e', 'Warmup');
+    } catch (e) {
+      AppLogger.w('检查数据完整性失败: $e', 'Warmup');
+      // 非致命错误，继续启动
     }
   }
 }

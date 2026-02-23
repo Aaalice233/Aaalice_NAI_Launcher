@@ -1,6 +1,6 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../data/models/prompt/prompt_preset_mode.dart';

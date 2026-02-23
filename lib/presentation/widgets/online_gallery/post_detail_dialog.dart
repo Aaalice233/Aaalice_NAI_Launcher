@@ -1,9 +1,9 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../router/app_router.dart';
@@ -173,13 +173,16 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
 
   /// 媒体区域
   Widget _buildMediaSection(ThemeData theme) {
-    return Container(
-      color: Colors.black,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // 根据媒体类型渲染不同组件
-          if (widget.post.isVideo)
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: _close,
+      child: Container(
+        color: Colors.black,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // 根据媒体类型渲染不同组件
+            if (widget.post.isVideo)
             // 视频播放器
             VideoPlayerWidget(
               videoUrl: widget.post.fileUrl ?? widget.post.sampleUrl ?? '',
@@ -245,7 +248,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
           // 关闭按钮
           Positioned(
             top: 8,
-            right: 8,
+            left: 8,
             child: IconButton.filled(
               onPressed: _close,
               icon: const Icon(Icons.close),
@@ -281,7 +284,8 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
             ),
         ],
       ),
-    );
+    ),
+  );
   }
 
   /// 信息面板
@@ -441,7 +445,6 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
               color: TagColors.character,
               translationService: translationService,
               onTagTap: _handleTagTap,
-              isCharacter: true,
             ),
           // 版权标签
           if (widget.post.copyrightTags.isNotEmpty)
@@ -673,7 +676,6 @@ class _TagSection extends StatelessWidget {
   final Color color;
   final TagTranslationService translationService;
   final Function(String) onTagTap;
-  final bool isCharacter;
 
   const _TagSection({
     required this.title,
@@ -681,7 +683,6 @@ class _TagSection extends StatelessWidget {
     required this.color,
     required this.translationService,
     required this.onTagTap,
-    this.isCharacter = false,
   });
 
   @override
@@ -718,10 +719,7 @@ class _TagSection extends StatelessWidget {
             runSpacing: 4,
             children: tags.map((tag) {
               return FutureBuilder<String?>(
-                future: translationService.translate(
-                  tag,
-                  isCharacter: isCharacter,
-                ),
+                future: translationService.translate(tag),
                 builder: (context, snapshot) {
                   return SimpleTagChip(
                     tag: tag,

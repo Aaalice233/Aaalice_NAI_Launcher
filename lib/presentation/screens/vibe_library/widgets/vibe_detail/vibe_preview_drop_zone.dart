@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -97,20 +98,30 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
       // 尝试读取图片格式（SimpleFileFormat 需用 getFile 而非 getValue）
       for (final format in [Formats.png, Formats.jpeg]) {
         if (reader.canProvide(format)) {
-          reader.getFile(format, (file) async {
-            try {
-              final bytes = await file.readAll();
-              if (!mounted) return;
-              final resized = await _resizeImage(bytes);
-              widget.onThumbnailChanged?.call(resized);
-            } catch (e) {
+          final progress = reader.getFile(
+            format,
+            (file) async {
+              try {
+                final bytes = await file.readAll();
+                if (!mounted) return;
+                final resized = await _resizeImage(bytes);
+                widget.onThumbnailChanged?.call(resized);
+              } catch (e) {
+                AppLogger.w(
+                  'Failed to read dropped image: $e',
+                  'VibePreviewDropZone',
+                );
+              }
+            },
+            onError: (e) {
               AppLogger.w(
-                'Failed to read dropped image: $e',
+                'Failed to get dropped file: $e',
                 'VibePreviewDropZone',
               );
-            }
-          });
-          return;
+            },
+          );
+          // 关键检查：如果返回 null，说明格式不可用
+          if (progress != null) return;
         }
       }
     }
@@ -149,8 +160,7 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
 
       final picture = recorder.endRecording();
       final resized = await picture.toImage(dstW, dstH);
-      final byteData =
-          await resized.toByteData(format: ui.ImageByteFormat.png);
+      final byteData = await resized.toByteData(format: ui.ImageByteFormat.png);
 
       image.dispose();
       resized.dispose();
@@ -178,7 +188,11 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
       onDropLeave: (_) {
         if (_isDragging) setState(() => _isDragging = false);
       },
-      onPerformDrop: _handleDrop,
+      onPerformDrop: (event) async {
+        // 重要：不要等待 _handleDrop 完成，让拖放回调立即返回
+        unawaited(_handleDrop(event));
+        return;
+      },
       child: Stack(
         children: [
           // 图片预览
@@ -203,14 +217,12 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
           // 拖拽覆盖层
           if (_isDragging) _buildDragOverlay(),
 
-          // 关闭按钮
+          // 关闭按钮（左上角圆形按钮）
           Positioned(
             top: DesignTokens.spacingMd,
-            right: DesignTokens.spacingMd,
-            child: _buildIconButton(
-              icon: Icons.close,
+            left: DesignTokens.spacingMd,
+            child: _buildCircularCloseButton(
               onPressed: widget.onClose ?? () => Navigator.of(context).pop(),
-              tooltip: '关闭 (Esc)',
             ),
           ),
 
@@ -289,7 +301,8 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.file_download_outlined, size: 48, color: Colors.white70),
+              Icon(Icons.file_download_outlined,
+                  size: 48, color: Colors.white70,),
               SizedBox(height: DesignTokens.spacingSm),
               Text(
                 '释放以设置预览图',
@@ -322,6 +335,27 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
           child: Padding(
             padding: const EdgeInsets.all(10),
             child: Icon(icon, color: Colors.white, size: 20),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 构建左上角圆形关闭按钮
+  Widget _buildCircularCloseButton({
+    required VoidCallback onPressed,
+  }) {
+    return Tooltip(
+      message: '关闭 (Esc)',
+      child: Material(
+        color: Colors.black.withOpacity(0.5),
+        shape: const CircleBorder(),
+        child: InkWell(
+          onTap: onPressed,
+          customBorder: const CircleBorder(),
+          child: const Padding(
+            padding: EdgeInsets.all(12),
+            child: Icon(Icons.close, color: Colors.white, size: 24),
           ),
         ),
       ),

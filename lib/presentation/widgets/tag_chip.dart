@@ -53,11 +53,7 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
 
   Future<void> _fetchTranslation() async {
     final translationService = ref.read(tagTranslationServiceProvider);
-    final isCharacter = widget.category == 4;
-    _autoTranslation = await translationService.translate(
-      widget.tag,
-      isCharacter: isCharacter,
-    );
+    _autoTranslation = await translationService.translate(widget.tag);
     if (mounted) {
       setState(() {});
     }
@@ -93,21 +89,29 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                displayText,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: chipColor,
-                  fontWeight: FontWeight.w500,
+              Flexible(
+                child: Text(
+                  displayText,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: chipColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
                 ),
               ),
               if (translationText != null) ...[
                 const SizedBox(width: 4),
-                Text(
-                  translationText,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: theme.colorScheme.onSurfaceVariant,
+                Flexible(
+                  child: Text(
+                    translationText,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: false,
                   ),
                 ),
               ],

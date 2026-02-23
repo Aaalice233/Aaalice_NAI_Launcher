@@ -59,7 +59,7 @@ class AnlasCostCard extends ConsumerWidget {
                       label: l10n.statistics_avgDailyCost,
                       value: _formatAnlas(
                         dailyStats.isNotEmpty
-                            ? totalCost ~/ dailyStats.length
+                            ? totalCost ~/ dailyStats.where((s) => s.cost > 0).length.clamp(1, 999)
                             : 0,
                       ),
                       isDark: isDark,

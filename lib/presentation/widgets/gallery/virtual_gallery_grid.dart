@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../data/models/gallery/local_image_record.dart';
-import 'image_card_3d.dart';
+import 'local_image_card_3d.dart';
 
 /// 响应式布局工具
 class ResponsiveLayout {
@@ -63,6 +63,7 @@ class VirtualGalleryGrid extends StatefulWidget {
     TapDownDetails details,
   )? onSecondaryTapDown;
   final void Function(LocalImageRecord record, int index)? onFavoriteToggle;
+  final void Function(LocalImageRecord record, int index)? onSendToHome;
   final Set<int>? selectedIndices;
 
   const VirtualGalleryGrid({
@@ -76,6 +77,7 @@ class VirtualGalleryGrid extends StatefulWidget {
     this.onLongPress,
     this.onSecondaryTapDown,
     this.onFavoriteToggle,
+    this.onSendToHome,
     this.selectedIndices,
   });
 
@@ -107,20 +109,16 @@ class _VirtualGalleryGridState extends State<VirtualGalleryGrid> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // 计算列数（基于固定卡片宽度）
-        final screenWidth = constraints.maxWidth;
-        final columns = ResponsiveLayout.calculateColumns(
-          screenWidth,
-          spacing: widget.spacing,
-          padding: widget.padding.horizontal / 2,
-        );
+        // 使用传入的列数，确保与父级计算一致
+        final columns = widget.columns;
 
         // 计算网格实际宽度（用于居中）
         final gridWidth = ResponsiveLayout.calculateGridWidth(
           columns,
           spacing: widget.spacing,
         );
-        final horizontalPadding = (screenWidth - gridWidth) / 2;
+        final horizontalPadding =
+            (constraints.maxWidth - gridWidth) / 2;
 
         return GridView.builder(
           // 使用 PrimaryScrollController，让 PageStorage 自动管理滚动位置
@@ -154,7 +152,7 @@ class _VirtualGalleryGridState extends State<VirtualGalleryGrid> {
             final isSelected = widget.selectedIndices?.contains(index) ?? false;
 
             return RepaintBoundary(
-              child: ImageCard3D(
+              child: LocalImageCard3D(
                 key: ValueKey(record.path),
                 record: record,
                 width: itemWidth,
@@ -175,6 +173,9 @@ class _VirtualGalleryGridState extends State<VirtualGalleryGrid> {
                     : null,
                 onFavoriteToggle: widget.onFavoriteToggle != null
                     ? () => widget.onFavoriteToggle!(record, index)
+                    : null,
+                onSendToHome: widget.onSendToHome != null
+                    ? () => widget.onSendToHome!(record, index)
                     : null,
               ),
             );

@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,6 +7,7 @@ import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../../data/services/vibe_file_storage_service.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
 import '../../../../presentation/providers/vibe_library_provider.dart';
+import 'vibe_card.dart';
 
 /// Vibe 选择结果
 class VibeSelectionResult {
@@ -71,7 +70,6 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
   List<VibeLibraryEntry> _recentEntries = [];
   List<VibeLibraryEntry> _filteredEntries = [];
   Set<String> _selectedIds = {};
-  final Set<String> _expandedBundleIds = {};
 
   bool _isLoading = true;
   bool _isReplaceMode = false;
@@ -109,12 +107,9 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
         _allEntries = allEntries;
         _recentEntries = recentEntries;
         _filteredEntries = allEntries;
-        _isLoading = false;
       });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -200,11 +195,7 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
 
   void _toggleTag(String tag) {
     setState(() {
-      if (_selectedTags.contains(tag)) {
-        _selectedTags.remove(tag);
-      } else {
-        _selectedTags.add(tag);
-      }
+      _selectedTags.contains(tag) ? _selectedTags.remove(tag) : _selectedTags.add(tag);
     });
     _applyFilters();
   }
@@ -224,48 +215,18 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
 
   void _toggleSelection(String id) {
     setState(() {
-      if (_selectedIds.contains(id)) {
-        _selectedIds.remove(id);
-      } else {
-        _selectedIds.add(id);
-      }
-    });
-  }
-
-  void _toggleBundleExpanded(String bundleId) {
-    setState(() {
-      if (_expandedBundleIds.contains(bundleId)) {
-        _expandedBundleIds.remove(bundleId);
-      } else {
-        _expandedBundleIds.add(bundleId);
-      }
+      _selectedIds.contains(id) ? _selectedIds.remove(id) : _selectedIds.add(id);
     });
   }
 
   void _toggleBundleSelection(VibeLibraryEntry bundleEntry) {
     setState(() {
-      if (_selectedIds.contains(bundleEntry.id)) {
-        _selectedIds.remove(bundleEntry.id);
-      } else {
-        _selectedIds.add(bundleEntry.id);
-      }
+      _selectedIds.contains(bundleEntry.id)
+          ? _selectedIds.remove(bundleEntry.id)
+          : _selectedIds.add(bundleEntry.id);
     });
   }
 
-  void _toggleBundledVibeSelection(String bundleId, int index) {
-    final bundledVibeId = '$bundleId#vibe#$index';
-    setState(() {
-      if (_selectedIds.contains(bundledVibeId)) {
-        _selectedIds.remove(bundledVibeId);
-      } else {
-        _selectedIds.add(bundledVibeId);
-      }
-    });
-  }
-
-  bool _isBundledVibeSelected(String bundleId, int index) {
-    return _selectedIds.contains('$bundleId#vibe#$index');
-  }
 
   void _selectAll() {
     setState(() {
@@ -647,7 +608,8 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
         // 减小卡片宽度，增加列数：每列最小 140px，计算可容纳的列数
         const double itemWidth = 140;
         const double spacing = 12;
-        final crossAxisCount = ((availableWidth + spacing) / (itemWidth + spacing)).floor();
+        final crossAxisCount =
+            ((availableWidth + spacing) / (itemWidth + spacing)).floor();
         final columnCount = crossAxisCount.clamp(3, 6); // 最少3列，最多6列
 
         return CustomScrollView(
@@ -712,13 +674,6 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
     // 所有条目（包括 Bundle）放在同一个网格中
     slivers.add(_buildSliverGrid(entries, columnCount));
 
-    // Bundle 展开内容单独添加
-    for (final entry in entries) {
-      if (entry.isBundle && _expandedBundleIds.contains(entry.id)) {
-        slivers.add(_buildBundleExpandedContentSliver(entry));
-      }
-    }
-
     return slivers;
   }
 
@@ -736,8 +691,7 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
         final isSelected = _selectedIds.contains(entry.id);
 
         if (entry.isBundle) {
-          final isExpanded = _expandedBundleIds.contains(entry.id);
-          return _buildBundleCardCompact(entry, isSelected, isExpanded);
+          return _buildBundleCardCompact(entry, isSelected);
         } else {
           return _buildCompactVibeCard(entry, isSelected);
         }
@@ -745,97 +699,6 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
     );
   }
 
-  // Bundle 展开内容作为 Sliver (Step 5)
-  Widget _buildBundleExpandedContentSliver(VibeLibraryEntry entry) {
-    final theme = Theme.of(context);
-    final previews = entry.bundledVibePreviews ?? [];
-    final count = entry.bundledVibeCount;
-
-    return SliverToBoxAdapter(
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: theme.colorScheme.outline.withOpacity(0.1),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.grid_view,
-                  size: 16,
-                  color: theme.colorScheme.outline,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  context.l10n.bundle_internalVibes,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.outline,
-                  ),
-                ),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      for (var i = 0; i < count; i++) {
-                        _selectedIds.add('${entry.id}#vibe#$i');
-                      }
-                      _selectedIds.remove(entry.id);
-                    });
-                  },
-                  icon: const Icon(Icons.select_all, size: 16),
-                  label: Text(context.l10n.selectAll),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                childAspectRatio: 0.75,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-              ),
-              itemCount: count,
-              itemBuilder: (context, index) {
-                final isSelected = _isBundledVibeSelected(entry.id, index);
-                final thumbnail =
-                    index < previews.length ? previews[index] : null;
-                final vibeNames = entry.bundledVibeNames ?? [];
-                final name = index < vibeNames.length
-                    ? vibeNames[index]
-                    : 'Vibe ${index + 1}';
-
-                return _buildBundledVibeCard(
-                  theme,
-                  entry.id,
-                  index,
-                  name,
-                  thumbnail,
-                  isSelected,
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildSectionTitle(ThemeData theme, String title) {
     return Row(
@@ -908,10 +771,14 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
                   color: theme.colorScheme.outline,
                 ),
               const SizedBox(width: 8),
-              Text(
-                entry.displayName,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              Flexible(
+                child: Text(
+                  entry.displayName,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
               ),
               if (isSelected) ...[
@@ -929,184 +796,33 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
     );
   }
 
-  // 紧凑全图卡片 (Step 4) - Bento Grids 风格 + 悬浮动效
+  // 紧凑全图卡片 - 复用 VibeCard
   Widget _buildCompactVibeCard(VibeLibraryEntry entry, bool isSelected) {
-    return _SelectableVibeCard(
+    return VibeCard(
       entry: entry,
+      width: 140,
+      height: 175, // 0.8 aspect ratio
       isSelected: isSelected,
-      onToggleSelection: () => _toggleSelection(entry.id),
+      showFavoriteIndicator: false, // 选择器中不显示收藏按钮
+      onTap: () => _toggleSelection(entry.id),
     );
   }
 
-  // Bundle 紧凑卡片 (Step 5) - Bento Grids 风格 + 悬浮动效
+  // Bundle 紧凑卡片 - 复用 VibeCard
   Widget _buildBundleCardCompact(
     VibeLibraryEntry entry,
     bool isSelected,
-    bool isExpanded,
   ) {
-    return _SelectableBundleCard(
+    return VibeCard(
       entry: entry,
+      width: 140,
+      height: 175,
       isSelected: isSelected,
-      isExpanded: isExpanded,
-      onToggleSelection: () => _toggleBundleSelection(entry),
-      onToggleExpand: () => _toggleBundleExpanded(entry.id),
+      showFavoriteIndicator: false,
+      onTap: () => _toggleBundleSelection(entry),
     );
   }
 
-// Bundle 内部的 vibe 卡片
-  Widget _buildBundledVibeCard(
-    ThemeData theme,
-    String bundleId,
-    int index,
-    String name,
-    Uint8List? thumbnail,
-    bool isSelected,
-  ) {
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(10),
-      clipBehavior: Clip.none,
-      child: InkWell(
-        onTap: () => _toggleBundledVibeSelection(bundleId, index),
-        borderRadius: BorderRadius.circular(10),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? theme.colorScheme.primaryContainer.withOpacity(0.3)
-                : theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: isSelected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outlineVariant.withOpacity(0.5),
-              width: isSelected ? 2.5 : 1,
-            ),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: theme.colorScheme.primary.withOpacity(0.25),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ]
-                : [
-                    BoxShadow(
-                      color: theme.colorScheme.shadow.withOpacity(0.08),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 缩略图区域
-              Expanded(
-                child: Container(
-                  margin: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: theme.colorScheme.outlineVariant.withOpacity(0.2),
-                    ),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      // 缩略图
-                      thumbnail != null
-                          ? Image.memory(
-                              thumbnail,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  _buildBundledPlaceholder(theme),
-                            )
-                          : _buildBundledPlaceholder(theme),
-                      // 选中遮罩
-                      if (isSelected)
-                        Container(
-                          color: theme.colorScheme.primary.withOpacity(0.1),
-                        ),
-                      // 选中标记
-                      if (isSelected)
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: Container(
-                            padding: const EdgeInsets.all(3),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: theme.colorScheme.shadow
-                                      .withOpacity(0.3),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              Icons.check,
-                              size: 12,
-                              color: theme.colorScheme.onPrimary,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              // 名称区域
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        name,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontSize: 11,
-                          fontWeight:
-                              isSelected ? FontWeight.w600 : FontWeight.w500,
-                          color: isSelected
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurface,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (isSelected)
-                      Icon(
-                        Icons.check_circle,
-                        size: 14,
-                        color: theme.colorScheme.primary,
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBundledPlaceholder(ThemeData theme) {
-    return Container(
-      color: theme.colorScheme.surfaceContainerHigh,
-      child: Center(
-        child: Icon(
-          Icons.image_outlined,
-          size: 24,
-          color: theme.colorScheme.outline,
-        ),
-      ),
-    );
-  }
 
   Widget _buildEmptyState(ThemeData theme) {
     return Expanded(
@@ -1215,616 +931,6 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
           ],
         ),
       ],
-    );
-  }
-}
-
-/// 可选择的 Vibe 卡片组件（带悬浮动效）
-class _SelectableVibeCard extends StatefulWidget {
-  final VibeLibraryEntry entry;
-  final bool isSelected;
-  final VoidCallback onToggleSelection;
-
-  const _SelectableVibeCard({
-    required this.entry,
-    required this.isSelected,
-    required this.onToggleSelection,
-  });
-
-  @override
-  State<_SelectableVibeCard> createState() => _SelectableVibeCardState();
-}
-
-class _SelectableVibeCardState extends State<_SelectableVibeCard> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final thumbnail = widget.entry.thumbnail ?? widget.entry.vibeThumbnail;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        transform: Matrix4.identity()
-          ..scale(widget.isSelected ? 1.02 : (_isHovered ? 1.035 : 1.0)),
-        transformAlignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: theme.colorScheme.surface,
-          // 悬浮或选中时的多层阴影效果
-          boxShadow: _buildShadows(theme),
-          // 悬浮时添加边框高亮
-          border: _buildBorder(theme),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: widget.onToggleSelection,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // 缩略图或占位
-                  thumbnail != null
-                      ? Image.memory(
-                          thumbnail,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _buildPlaceholder(theme),
-                        )
-                      : _buildPlaceholder(theme),
-
-                  // 底部渐变遮罩 + 信息
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.fromLTRB(10, 28, 10, 10),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withOpacity(0.6),
-                            Colors.black.withOpacity(0.8),
-                          ],
-                          stops: const [0.0, 0.5, 1.0],
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.entry.displayName,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                              letterSpacing: -0.2,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 6),
-                          _buildMiniProgressBars(
-                            widget.entry.strength,
-                            widget.entry.infoExtracted,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // 来源类型徽章
-                  _buildSourceTypeBadge(widget.entry.sourceType),
-
-                  // 选中指示器
-                  if (widget.isSelected)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primary,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: theme.colorScheme.shadow.withOpacity(0.4),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.check,
-                          size: 14,
-                          color: theme.colorScheme.onPrimary,
-                        ),
-                      ),
-                    ),
-
-                  // 收藏心形
-                  if (widget.entry.isFavorite)
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.4),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.favorite,
-                          size: 14,
-                          color: Colors.red,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  List<BoxShadow> _buildShadows(ThemeData theme) {
-    if (widget.isSelected) {
-      return [
-        BoxShadow(
-          color: theme.colorScheme.primary.withOpacity(0.25),
-          blurRadius: 20,
-          spreadRadius: -4,
-          offset: const Offset(0, 8),
-        ),
-        BoxShadow(
-          color: theme.colorScheme.primary.withOpacity(0.1),
-          blurRadius: 40,
-          spreadRadius: -8,
-          offset: const Offset(0, 12),
-        ),
-      ];
-    }
-
-    if (_isHovered) {
-      return [
-        // 悬浮时更强的阴影
-        BoxShadow(
-          color: theme.colorScheme.primary.withOpacity(0.2),
-          blurRadius: 24,
-          spreadRadius: -2,
-          offset: const Offset(0, 10),
-        ),
-        BoxShadow(
-          color: Colors.black.withOpacity(0.2),
-          blurRadius: 32,
-          spreadRadius: -4,
-          offset: const Offset(0, 14),
-        ),
-      ];
-    }
-
-    // 默认状态：微妙的双层阴影
-    return [
-      BoxShadow(
-        color: theme.colorScheme.shadow.withOpacity(0.08),
-        blurRadius: 12,
-        spreadRadius: -2,
-        offset: const Offset(0, 4),
-      ),
-      BoxShadow(
-        color: theme.colorScheme.shadow.withOpacity(0.04),
-        blurRadius: 24,
-        spreadRadius: -4,
-        offset: const Offset(0, 8),
-      ),
-    ];
-  }
-
-  Border? _buildBorder(ThemeData theme) {
-    if (widget.isSelected) {
-      return Border.all(
-        color: theme.colorScheme.primary,
-        width: 3,
-      );
-    }
-    if (_isHovered) {
-      return Border.all(
-        color: theme.colorScheme.primary.withOpacity(0.4),
-        width: 2,
-      );
-    }
-    return null;
-  }
-
-  Widget _buildPlaceholder(ThemeData theme) {
-    return Container(
-      color: theme.colorScheme.surfaceContainerHigh,
-      child: Center(
-        child: Icon(
-          Icons.image_outlined,
-          size: 48,
-          color: theme.colorScheme.outline.withOpacity(0.5),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMiniProgressBars(double strength, double info) {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            height: 3,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(2),
-            ),
-            child: FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: strength,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.blue,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 4),
-        Expanded(
-          child: Container(
-            height: 3,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(2),
-            ),
-            child: FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: info,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSourceTypeBadge(VibeSourceType type) {
-    final colorMap = {
-      VibeSourceType.png: Colors.teal,
-      VibeSourceType.naiv4vibe: Colors.blue,
-      VibeSourceType.naiv4vibebundle: Colors.orange,
-      VibeSourceType.rawImage: Colors.purple,
-    };
-
-    final color = colorMap[type] ?? Colors.grey;
-
-    return Positioned(
-      top: 8,
-      left: 8,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Text(
-          type.displayLabel,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 9,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 可选择的 Bundle 卡片组件（带悬浮动效）
-class _SelectableBundleCard extends StatefulWidget {
-  final VibeLibraryEntry entry;
-  final bool isSelected;
-  final bool isExpanded;
-  final VoidCallback onToggleSelection;
-  final VoidCallback onToggleExpand;
-
-  const _SelectableBundleCard({
-    required this.entry,
-    required this.isSelected,
-    required this.isExpanded,
-    required this.onToggleSelection,
-    required this.onToggleExpand,
-  });
-
-  @override
-  State<_SelectableBundleCard> createState() => _SelectableBundleCardState();
-}
-
-class _SelectableBundleCardState extends State<_SelectableBundleCard> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final thumbnail = widget.entry.bundledVibePreviews?.isNotEmpty == true
-        ? widget.entry.bundledVibePreviews!.first
-        : null;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        transform: Matrix4.identity()
-          ..scale(widget.isSelected ? 1.02 : (_isHovered ? 1.035 : 1.0)),
-        transformAlignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: theme.colorScheme.surface,
-          boxShadow: _buildShadows(theme),
-          border: _buildBorder(theme),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: widget.onToggleSelection,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // 封面缩略图
-                  thumbnail != null
-                      ? Image.memory(
-                          thumbnail,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _buildPlaceholder(theme),
-                        )
-                      : _buildPlaceholder(theme),
-
-                  // 底部渐变 + 信息
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.fromLTRB(8, 20, 8, 8),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withOpacity(0.7),
-                          ],
-                        ),
-                      ),
-                      child: Text(
-                        widget.entry.displayName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-
-                  // Bundle 徽章
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.orange,
-                        borderRadius: BorderRadius.circular(6),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.layers, size: 10, color: Colors.white),
-                          const SizedBox(width: 4),
-                          Text(
-                            '×${widget.entry.bundledVibeCount}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // 选中指示器
-                  if (widget.isSelected)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primary,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: theme.colorScheme.shadow.withOpacity(0.4),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.check,
-                          size: 14,
-                          color: theme.colorScheme.onPrimary,
-                        ),
-                      ),
-                    ),
-
-                  // 展开/收起按钮
-                  Positioned(
-                    bottom: 4,
-                    right: 4,
-                    child: Material(
-                      type: MaterialType.transparency,
-                      child: InkWell(
-                        onTap: widget.onToggleExpand,
-                        borderRadius: BorderRadius.circular(16),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.6),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.3),
-                              width: 1,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.3),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: AnimatedRotation(
-                            turns: widget.isExpanded ? 0.5 : 0,
-                            duration: const Duration(milliseconds: 300),
-                            child: const Icon(
-                              Icons.expand_more,
-                              size: 20,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  List<BoxShadow> _buildShadows(ThemeData theme) {
-    if (widget.isSelected) {
-      return [
-        BoxShadow(
-          color: theme.colorScheme.primary.withOpacity(0.25),
-          blurRadius: 20,
-          spreadRadius: -4,
-          offset: const Offset(0, 8),
-        ),
-        BoxShadow(
-          color: theme.colorScheme.primary.withOpacity(0.1),
-          blurRadius: 40,
-          spreadRadius: -8,
-          offset: const Offset(0, 12),
-        ),
-      ];
-    }
-
-    if (_isHovered) {
-      return [
-        // 悬浮时使用橙色调阴影，与 Bundle 主题一致
-        BoxShadow(
-          color: Colors.orange.withOpacity(0.25),
-          blurRadius: 24,
-          spreadRadius: -2,
-          offset: const Offset(0, 10),
-        ),
-        BoxShadow(
-          color: Colors.black.withOpacity(0.2),
-          blurRadius: 32,
-          spreadRadius: -4,
-          offset: const Offset(0, 14),
-        ),
-      ];
-    }
-
-    // 默认状态：橙色微弱阴影
-    return [
-      BoxShadow(
-        color: Colors.orange.withOpacity(0.12),
-        blurRadius: 12,
-        spreadRadius: -2,
-        offset: const Offset(0, 4),
-      ),
-      BoxShadow(
-        color: Colors.orange.withOpacity(0.06),
-        blurRadius: 24,
-        spreadRadius: -4,
-        offset: const Offset(0, 8),
-      ),
-    ];
-  }
-
-  Border? _buildBorder(ThemeData theme) {
-    if (widget.isSelected) {
-      return Border.all(
-        color: theme.colorScheme.primary,
-        width: 3,
-      );
-    }
-    if (_isHovered) {
-      return Border.all(
-        color: Colors.orange.withOpacity(0.5),
-        width: 2,
-      );
-    }
-    return null;
-  }
-
-  Widget _buildPlaceholder(ThemeData theme) {
-    return Container(
-      color: theme.colorScheme.surfaceContainerHigh,
-      child: Center(
-        child: Icon(
-          Icons.image_outlined,
-          size: 48,
-          color: theme.colorScheme.outline.withOpacity(0.5),
-        ),
-      ),
     );
   }
 }

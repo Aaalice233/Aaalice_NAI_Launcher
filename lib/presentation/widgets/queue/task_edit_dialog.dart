@@ -1,12 +1,13 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../data/models/queue/replication_task.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../autocomplete/autocomplete_controller.dart';
+import '../common/app_toast.dart';
 import '../autocomplete/autocomplete_wrapper.dart';
 import '../autocomplete/autocomplete_strategy.dart';
 import '../autocomplete/strategies/local_tag_strategy.dart';
@@ -33,8 +34,8 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
   late FocusNode _promptFocusNode;
   bool _showParameters = false;
 
-  /// 自动补全策略（在 initState 中创建，避免每次 build 重新创建）
-  CompositeStrategy? _autocompleteStrategy;
+  /// 自动补全策略 Future（异步初始化）
+  Future<AutocompleteStrategy>? _autocompleteStrategyFuture;
 
   @override
   void initState() {
@@ -47,28 +48,29 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
   void dispose() {
     _promptController.dispose();
     _promptFocusNode.dispose();
-    _autocompleteStrategy?.dispose();
     super.dispose();
   }
 
-  /// 确保自动补全策略已创建
-  CompositeStrategy _ensureAutocompleteStrategy() {
-    _autocompleteStrategy ??= CompositeStrategy(
-      strategies: [
-        LocalTagStrategy.create(
-          ref,
-          const AutocompleteConfig(
-            maxSuggestions: 15,
-            showTranslation: true,
-            showCategory: true,
-            autoInsertComma: true,
-          ),
-        ),
-        AliasStrategy.create(ref),
-      ],
-      strategySelector: defaultStrategySelector,
-    );
-    return _autocompleteStrategy!;
+  /// 确保自动补全策略 Future 已创建
+  Future<AutocompleteStrategy> _ensureAutocompleteStrategyFuture() {
+    _autocompleteStrategyFuture ??= LocalTagStrategy.create(
+      ref,
+      const AutocompleteConfig(
+        maxSuggestions: 15,
+        showTranslation: true,
+        showCategory: true,
+        autoInsertComma: true,
+      ),
+    ).then((localTagStrategy) {
+      return CompositeStrategy(
+        strategies: [
+          localTagStrategy,
+          AliasStrategy.create(ref),
+        ],
+        strategySelector: defaultStrategySelector,
+      );
+    });
+    return _autocompleteStrategyFuture!;
   }
 
   @override
@@ -211,7 +213,7 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
             child: AutocompleteWrapper(
               controller: _promptController,
               focusNode: _promptFocusNode,
-              strategy: _ensureAutocompleteStrategy(),
+              asyncStrategy: _ensureAutocompleteStrategyFuture(),
               maxLines: 6,
               expands: false,
               contentPadding: const EdgeInsets.all(12),
@@ -350,13 +352,9 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
 
     if (mounted) {
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.queue_taskDuplicated)),
-        );
+        AppToast.success(context, l10n.queue_taskDuplicated);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.queue_queueFull)),
-        );
+        AppToast.warning(context, l10n.queue_queueFull);
       }
     }
   }

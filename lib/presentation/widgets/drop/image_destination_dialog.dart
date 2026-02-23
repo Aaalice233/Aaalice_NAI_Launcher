@@ -1,8 +1,8 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../data/models/vibe/vibe_reference.dart';
 import '../../providers/queue_execution_provider.dart';
@@ -22,6 +22,9 @@ enum ImageDestination {
 
   /// Vibe Transfer - 作为原始图片（需要编码）
   vibeTransferRaw,
+
+  /// 保存预编码 Vibe 到库
+  saveToVibeLibrary,
 
   /// 角色参考
   characterReference,
@@ -49,12 +52,16 @@ class ImageDestinationDialog extends ConsumerWidget {
   /// 检测到的 Vibe 元数据（如果有）
   final VibeReference? detectedVibe;
 
+  /// 是否为 Bundle（包含多个 Vibe）
+  final bool isBundle;
+
   const ImageDestinationDialog({
     super.key,
     required this.imageBytes,
     required this.fileName,
     this.showExtractMetadata = true,
     this.detectedVibe,
+    this.isBundle = false,
   });
 
   /// 显示对话框
@@ -64,6 +71,7 @@ class ImageDestinationDialog extends ConsumerWidget {
     required String fileName,
     bool showExtractMetadata = true,
     VibeReference? detectedVibe,
+    bool isBundle = false,
   }) {
     return showDialog<ImageDestination>(
       context: context,
@@ -73,6 +81,7 @@ class ImageDestinationDialog extends ConsumerWidget {
         fileName: fileName,
         showExtractMetadata: showExtractMetadata,
         detectedVibe: detectedVibe,
+        isBundle: isBundle,
       ),
     );
   }
@@ -94,8 +103,11 @@ class ImageDestinationDialog extends ConsumerWidget {
         borderRadius: BorderRadius.circular(6),
       ),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 400),
-        child: Padding(
+        constraints: const BoxConstraints(
+          maxWidth: 400,
+          maxHeight: 600,
+        ),
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -327,14 +339,16 @@ class ImageDestinationDialog extends ConsumerWidget {
                         const SizedBox(height: 4),
                         Text(
                           context.l10n.drop_vibeStrength(
-                              (vibe.strength * 100).toStringAsFixed(0),),
+                            (vibe.strength * 100).toStringAsFixed(0),
+                          ),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
                         Text(
                           context.l10n.drop_vibeInfoExtracted(
-                              (vibe.infoExtracted * 100).toStringAsFixed(0),),
+                            (vibe.infoExtracted * 100).toStringAsFixed(0),
+                          ),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
@@ -369,6 +383,17 @@ class ImageDestinationDialog extends ConsumerWidget {
                   subtitle: context.l10n.drop_useAsRawImageSubtitle,
                   onTap: () => Navigator.of(context)
                       .pop(ImageDestination.vibeTransferRaw),
+                ),
+                const SizedBox(height: 8),
+                // 保存到库按钮（仅当 Vibe 已编码时显示）
+                _DestinationButton(
+                  icon: Icons.save_outlined,
+                  label: isBundle ? '保存 Vibe Bundle' : '保存到 Vibe 库',
+                  subtitle: isBundle 
+                      ? '将 ${detectedVibe?.displayName ?? ""} 等保存到库中'
+                      : '将预编码 Vibe 数据保存到库中',
+                  onTap: () => Navigator.of(context)
+                      .pop(ImageDestination.saveToVibeLibrary),
                 ),
               ],
             ),

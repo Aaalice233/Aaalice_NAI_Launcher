@@ -1,7 +1,7 @@
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import '../database/database_manager.dart';
 import '../utils/app_logger.dart';
-import 'tag_database_connection.dart';
 
 /// 数据源验证结果
 class DataSourceStatus {
@@ -34,14 +34,12 @@ class DataSourceValidator {
     ('cooccurrences', 1000),
   ];
 
-  final TagDatabaseConnection _connection;
-
-  DataSourceValidator(this._connection);
-
   /// 验证所有数据源
   Future<DataSourceStatus> validateAll() async {
-    if (!_connection.isConnected) {
-      AppLogger.w('Database not connected, cannot validate', 'DataSourceValidator');
+    final manager = DatabaseManager.instance;
+
+    if (!manager.isInitialized) {
+      AppLogger.w('Database not initialized, cannot validate', 'DataSourceValidator');
       return const DataSourceStatus(
         danbooruTags: false,
         translations: false,
@@ -49,12 +47,17 @@ class DataSourceValidator {
       );
     }
 
-    final db = _connection.db!;
+    Database? db;
+    try {
+      db = await manager.acquireDatabase();
     final results = await Future.wait([
       _validateTable(db, _configs[0]),
       _validateTable(db, _configs[1]),
       _validateTable(db, _configs[2]),
     ]);
+
+    // 释放数据库连接
+    await manager.releaseDatabase(db);
 
     return DataSourceStatus(
       danbooruTags: results[0].$1,
@@ -64,6 +67,17 @@ class DataSourceValidator {
       translationCount: results[1].$2,
       cooccurrenceCount: results[2].$2,
     );
+    } catch (e) {
+      AppLogger.e('Failed to validate data sources', e, null, 'DataSourceValidator');
+      if (db != null) {
+        await manager.releaseDatabase(db);
+      }
+      return const DataSourceStatus(
+        danbooruTags: false,
+        translations: false,
+        cooccurrences: false,
+      );
+    }
   }
 
   Future<(bool, int)> _validateTable(Database db, (String, int) config) async {

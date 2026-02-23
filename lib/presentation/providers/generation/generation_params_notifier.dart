@@ -591,6 +591,14 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     _scheduleGenerationStateSave(immediate: true);
   }
 
+  /// 设置 vibe references（替换现有）
+  void setVibeReferences(List<VibeReference> vibes) {
+    // 限制最多 16 个
+    final limitedVibes = vibes.take(16).toList();
+    state = state.copyWith(vibeReferencesV4: limitedVibes);
+    _scheduleGenerationStateSave(immediate: true);
+  }
+
   /// 设置 Vibe 强度标准化开关
   void setNormalizeVibeStrength(bool value) {
     state = state.copyWith(normalizeVibeStrength: value);
@@ -811,6 +819,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
           'strength': vibe.strength,
           'infoExtracted': vibe.infoExtracted,
           'sourceType': vibe.sourceType.name,
+          'bundleSource': vibe.bundleSource,
           'thumbnailBase64':
               previewBytes != null ? base64Encode(previewBytes) : null,
           'rawImageDataBase64': vibe.rawImageData != null
@@ -890,6 +899,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
               infoExtracted:
                   (refData['infoExtracted'] as num?)?.toDouble() ?? 0.7,
               sourceType: sourceType,
+              bundleSource: refData['bundleSource'] as String?,
             ),
           );
         }

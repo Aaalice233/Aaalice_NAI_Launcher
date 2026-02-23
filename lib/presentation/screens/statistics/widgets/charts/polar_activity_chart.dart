@@ -315,26 +315,30 @@ class _PeakTimeIndicatorState extends State<PeakTimeIndicator>
     Color primaryColor;
     Color secondaryColor;
 
-    if (widget.peakHour >= 6 && widget.peakHour < 12) {
+    if (widget.peakHour >= 5 && widget.peakHour < 12) {
+      // 早晨：温暖的橙黄色（日出）
       timeLabel = widget.morningLabel ?? 'Morning';
-      timeIcon = Icons.wb_sunny_rounded;
-      primaryColor = const Color(0xFFF59E0B); // Amber
-      secondaryColor = const Color(0xFFFBBF24);
-    } else if (widget.peakHour >= 12 && widget.peakHour < 18) {
+      timeIcon = Icons.wb_twilight_rounded;
+      primaryColor = const Color(0xFFF97316); // 橙红色
+      secondaryColor = const Color(0xFFFBBF24); // 金黄色
+    } else if (widget.peakHour >= 12 && widget.peakHour < 17) {
+      // 下午：明亮的天蓝色（正午阳光）
       timeLabel = widget.afternoonLabel ?? 'Afternoon';
-      timeIcon = Icons.wb_sunny_outlined;
-      primaryColor = const Color(0xFFEF6C00); // Deep Orange
-      secondaryColor = const Color(0xFFFF9800);
-    } else if (widget.peakHour >= 18 && widget.peakHour < 22) {
+      timeIcon = Icons.wb_sunny_rounded;
+      primaryColor = const Color(0xFF0EA5E9); // 天蓝色
+      secondaryColor = const Color(0xFF38BDF8); // 浅天蓝
+    } else if (widget.peakHour >= 17 && widget.peakHour < 21) {
+      // 晚上：紫红色/夕阳色（黄昏）
       timeLabel = widget.eveningLabel ?? 'Evening';
-      timeIcon = Icons.nightlight_round;
-      primaryColor = const Color(0xFF3B82F6); // Blue (twilight sky)
-      secondaryColor = const Color(0xFF60A5FA);
+      timeIcon = Icons.wb_twilight_rounded;
+      primaryColor = const Color(0xFF9333EA); // 紫色
+      secondaryColor = const Color(0xFFEC4899); // 粉红色（夕阳）
     } else {
+      // 深夜：深蓝紫色（夜空）
       timeLabel = widget.nightLabel ?? 'Night';
-      timeIcon = Icons.dark_mode_rounded;
-      primaryColor = const Color(0xFFFBBF24); // Moon yellow
-      secondaryColor = const Color(0xFFF59E0B);
+      timeIcon = Icons.nights_stay_rounded;
+      primaryColor = const Color(0xFF4F46E5); // 靛蓝色
+      secondaryColor = const Color(0xFF7C3AED); // 紫罗兰
     }
 
     return MouseRegion(

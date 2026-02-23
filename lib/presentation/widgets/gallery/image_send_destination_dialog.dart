@@ -1,5 +1,5 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../data/models/gallery/local_image_record.dart';
 

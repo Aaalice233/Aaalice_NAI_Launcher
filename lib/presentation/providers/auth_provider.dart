@@ -100,6 +100,14 @@ class AuthState {
         if (statusCode == 401) {
           return (AuthErrorCode.authFailed, statusCode);
         }
+        if (statusCode == 400) {
+          // 检查是否是 Authorization header 相关的错误
+          final responseData = e.response?.data;
+          final message = responseData is Map ? responseData['message'] : null;
+          if (message?.toString().contains('Authorization') ?? false) {
+            return (AuthErrorCode.tokenInvalid, statusCode);
+          }
+        }
         if (statusCode >= 500) {
           return (AuthErrorCode.serverError, statusCode);
         }
@@ -403,13 +411,23 @@ class AuthNotifier extends _$AuthNotifier {
     try {
       // 1. 验证 Token 格式
       if (!NAIAuthApiService.isValidTokenFormat(token)) {
-        throw Exception('Token 格式无效，应以 pst- 开头');
+        final prefix = token.length > 10 ? token.substring(0, 10) : token;
+        AppLogger.w(
+          'Invalid token format: length=${token.length}, prefix="$prefix"',
+          'Auth',
+        );
+        throw Exception('Token 格式无效。Persistent Token 应以 pst- 开头，'
+            '后跟至少10位字符。请检查输入的 Token 是否正确。');
       }
 
       final apiService = ref.read(naiAuthApiServiceProvider);
       final storage = ref.read(secureStorageServiceProvider);
 
-      // 2. 验证 Token 有效性
+      // 2. 先清除可能已污染的存储 token，确保验证使用干净的 token
+      AppLogger.auth('Clearing old token before validation...');
+      await storage.clearAuth();
+
+      // 3. 验证 Token 有效性
       AppLogger.auth('Validating token...');
       final subscriptionInfo = await apiService.validateToken(token);
       AppLogger.auth('Token validation successful');

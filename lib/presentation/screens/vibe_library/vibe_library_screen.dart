@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:flutter/services.dart';
@@ -11,10 +12,13 @@ import 'package:go_router/go_router.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/vibe_image_embedder.dart';
+import '../../../core/utils/vibe_library_path_helper.dart';
 import '../../../data/models/vibe/vibe_library_category.dart';
 import '../../../data/models/vibe/vibe_library_entry.dart';
+import '../../../data/models/vibe/vibe_reference.dart';
 import '../../../data/services/vibe_import_service.dart';
-import '../../../data/services/vibe_library_storage_service.dart';
+import '../../providers/generation/generation_params_notifier.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../providers/vibe_library_category_provider.dart';
@@ -28,42 +32,17 @@ import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
 import '../../widgets/common/pro_context_menu.dart';
 import '../../widgets/gallery/gallery_state_views.dart';
-import 'widgets/vibe_card_3d.dart';
+import '../../../core/shortcuts/shortcut_manager.dart';
+import '../../../data/models/vibe/vibe_import_progress.dart';
+import '../../../data/services/vibe_library_import_repository_impl.dart';
+import 'widgets/category/vibe_category_tree_view.dart';
+import 'widgets/menus/vibe_import_menu.dart';
+import 'widgets/vibe_library_content_view.dart';
+import 'widgets/vibe_library_empty_view.dart';
 import 'widgets/vibe_bundle_import_dialog.dart' as bundle_import_dialog;
-import 'widgets/vibe_detail_viewer.dart';
-import 'widgets/vibe_export_dialog.dart';
 import 'widgets/vibe_export_dialog_advanced.dart';
+import 'widgets/vibe_image_encode_dialog.dart' as encode_dialog;
 import 'widgets/vibe_import_naming_dialog.dart' as naming_dialog;
-
-class ImportProgress {
-  final int current;
-  final int total;
-  final String message;
-
-  const ImportProgress({
-    this.current = 0,
-    this.total = 0,
-    this.message = '',
-  });
-
-  double? get progress => total > 0 ? current / total : null;
-
-  bool get isActive => total > 0;
-
-  bool get isComplete => total > 0 && current >= total;
-
-  ImportProgress copyWith({
-    int? current,
-    int? total,
-    String? message,
-  }) {
-    return ImportProgress(
-      current: current ?? this.current,
-      total: total ?? this.total,
-      message: message ?? this.message,
-    );
-  }
-}
 
 /// Vibe库屏幕
 /// Vibe Library Screen
@@ -100,6 +79,47 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(vibeLibraryNotifierProvider.notifier).initialize();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 页面重新可见时刷新（同步文件系统）- 在后台执行
+    _refreshIfNeededInBackground();
+  }
+
+  DateTime? _lastRefreshTime;
+  bool _isRefreshingInBackground = false;
+
+  /// 在后台刷新，不阻塞 UI
+  void _refreshIfNeededInBackground() {
+    final now = DateTime.now();
+    // 如果超过5秒没有刷新，则执行刷新
+    if (_lastRefreshTime == null ||
+        now.difference(_lastRefreshTime!) > const Duration(seconds: 5)) {
+      _lastRefreshTime = now;
+      
+      // 避免重复刷新
+      if (_isRefreshingInBackground) return;
+      _isRefreshingInBackground = true;
+      
+      // 使用延迟避免在初始化时重复刷新，并在后台执行
+      Future.delayed(const Duration(milliseconds: 300), () async {
+        if (mounted) {
+          try {
+            // 先执行轻量级的数据加载（从 Hive）
+            await ref.read(vibeLibraryNotifierProvider.notifier).loadFromCache();
+            
+            // 然后在后台同步文件系统（扫描文件夹）
+            await ref.read(vibeLibraryNotifierProvider.notifier).syncWithFileSystem();
+          } finally {
+            _isRefreshingInBackground = false;
+          }
+        } else {
+          _isRefreshingInBackground = false;
+        }
+      });
+    }
   }
 
   @override
@@ -175,7 +195,9 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
             },
             onPerformDrop: (event) async {
               setState(() => _isDragging = false);
-              await _handleDrop(event);
+              // 重要：不要等待 _handleDrop 完成，让拖放回调立即返回
+              unawaited(_handleDrop(event));
+              return;
             },
             child: Stack(
               children: [
@@ -246,7 +268,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
                             ),
                             // 分类树
                             Expanded(
-                              child: _VibeCategoryTreeView(
+                              child: VibeCategoryTreeView(
                                 categories: categoryState.categories,
                                 totalEntryCount: state.entries.length,
                                 favoriteCount: state.favoriteCount,
@@ -505,6 +527,14 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
                 label: '导出',
                 tooltip: '导出Vibe到文件',
                 onPressed: state.entries.isEmpty ? null : () => _exportVibes(),
+              ),
+              const SizedBox(width: 6),
+              // 打开文件夹按钮
+              CompactIconButton(
+                icon: Icons.folder_open_outlined,
+                label: '文件夹',
+                tooltip: '打开 Vibe 库文件夹',
+                onPressed: () => _openVibeLibraryFolder(),
               ),
               const SizedBox(width: 6),
               // 刷新按钮
@@ -825,10 +855,10 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     }
 
     if (state.entries.isEmpty) {
-      return const _VibeLibraryEmptyView();
+      return const VibeLibraryEmptyView();
     }
 
-    return _VibeLibraryContentView(
+    return VibeLibraryContentView(
       columns: columns,
       itemWidth: itemWidth,
     );
@@ -931,9 +961,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
     if (categories.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('没有可用的分类')),
-        );
+        AppToast.warning(context, '没有可用的分类');
       }
       return;
     }
@@ -988,9 +1016,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
     ref.read(vibeLibrarySelectionNotifierProvider.notifier).exit();
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('已移动 $movedCount 个Vibe')),
-    );
+    AppToast.success(context, '已移动 $movedCount 个Vibe');
   }
 
   /// 批量切换收藏
@@ -1003,9 +1029,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     }
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('收藏状态已更新')),
-      );
+      AppToast.success(context, '收藏状态已更新');
       ref.read(vibeLibrarySelectionNotifierProvider.notifier).exit();
     }
   }
@@ -1134,9 +1158,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
       await ref.read(vibeLibraryNotifierProvider.notifier).deleteEntries(ids);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已删除 ${ids.length} 个Vibe')),
-        );
+        AppToast.success(context, '已删除 ${ids.length} 个Vibe');
         ref.read(vibeLibrarySelectionNotifierProvider.notifier).exit();
       }
     }
@@ -1145,7 +1167,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
   /// 显示导入右键菜单
   void _showImportMenu(Offset position) {
     Navigator.of(context).push(
-      _ImportMenuRoute(
+      ImportMenu(
         position: position,
         items: [
           ProMenuItem(
@@ -1170,6 +1192,33 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         onSelect: (_) {},
       ),
     );
+  }
+
+  /// 打开 Vibe 库文件夹（存放 .naiv4vibe 文件的地方）
+  Future<void> _openVibeLibraryFolder() async {
+    try {
+      // 获取 vibe 文件存储路径
+      final vibePath = await VibeLibraryPathHelper.instance.getPath();
+      final dir = Directory(vibePath);
+
+      // 确保目录存在
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+
+      if (Platform.isWindows) {
+        // 使用 Process.start 避免等待进程完成导致的延迟
+        await Process.start('explorer', [vibePath]);
+      } else if (Platform.isMacOS) {
+        await Process.start('open', [vibePath]);
+      } else if (Platform.isLinux) {
+        await Process.start('xdg-open', [vibePath]);
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, '打开文件夹失败: $e');
+      }
+    }
   }
 
   /// 导入 Vibe 文件
@@ -1249,7 +1298,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     required ImportProgressCallback onProgress,
   }) async {
     final notifier = ref.read(vibeLibraryNotifierProvider.notifier);
-    final repository = _VibeLibraryNotifierImportRepository(
+    final repository = VibeLibraryNotifierImportRepository(
       onGetAllEntries: () async =>
           ref.read(vibeLibraryNotifierProvider).entries,
       onSaveEntry: notifier.saveEntry,
@@ -1260,21 +1309,23 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     var totalFail = 0;
     final totalCount = imageItems.length + vibeFiles.length;
 
-    if (imageItems.isNotEmpty) {
-      try {
-        final result = await importService.importFromImage(
-          images: imageItems,
-          categoryId: targetCategoryId,
-          onProgress: (current, _, message) {
-            onProgress(current, totalCount, message);
-          },
-        );
-        totalSuccess += result.successCount;
-        totalFail += result.failCount + result.errors.length;
-      } catch (e, stackTrace) {
-        AppLogger.e('导入图片 Vibe 失败', e, stackTrace, 'VibeLibrary');
-        totalFail += imageItems.length;
+    // 单独处理每张图片，以便支持无 Vibe 数据图片的编码流程
+    for (var i = 0; i < imageItems.length; i++) {
+      final imageItem = imageItems[i];
+      onProgress(i + 1, totalCount, '导入图片(${i + 1}/${imageItems.length}): ${imageItem.source}');
+
+      final result = await _processSingleImageImport(
+        imageFile: imageItem,
+        importService: importService,
+        targetCategoryId: targetCategoryId,
+      );
+
+      if (result == true) {
+        totalSuccess++;
+      } else if (result == false) {
+        totalFail++;
       }
+      // result == null 表示用户取消，不计入成功或失败
     }
 
     if (vibeFiles.isNotEmpty) {
@@ -1350,7 +1401,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
           },
         );
         totalSuccess += result.successCount;
-        totalFail += result.failCount + result.errors.length;
+        totalFail += result.failCount;
       } catch (e, stackTrace) {
         AppLogger.e('导入 Vibe 文件失败', e, stackTrace, 'VibeLibrary');
         totalFail += vibeFiles.length;
@@ -1361,6 +1412,11 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
   }
 
   Future<void> _handleImportResult(int totalSuccess, int totalFail) async {
+    // 用户全部取消，不显示任何提示
+    if (totalSuccess == 0 && totalFail == 0) {
+      return;
+    }
+
     if (totalSuccess > 0) {
       await ref.read(vibeLibraryNotifierProvider.notifier).reload();
     }
@@ -1435,6 +1491,42 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     return vibeFiles;
   }
 
+  /// 在 Isolate 中分类文件
+  static Future<Map<String, List<String>>> _classifyPathsIsolate(
+    List<String> paths,
+  ) async {
+    final folderPaths = <String>[];
+    final imagePaths = <String>[];
+    final vibeFilePaths = <String>[];
+
+    for (final path in paths) {
+      try {
+        final entity = await FileSystemEntity.type(path, followLinks: false);
+
+        if (entity == FileSystemEntityType.directory) {
+          folderPaths.add(path);
+        } else if (entity == FileSystemEntityType.file) {
+          final fileName = p.basename(path);
+          final ext = p.extension(fileName).toLowerCase();
+
+          if (ext == '.png') {
+            imagePaths.add(path);
+          } else if (ext == '.naiv4vibe' || ext == '.naiv4vibebundle') {
+            vibeFilePaths.add(path);
+          }
+        }
+      } catch (e) {
+        // 忽略无法访问的路径
+      }
+    }
+
+    return {
+      'folders': folderPaths,
+      'images': imagePaths,
+      'vibeFiles': vibeFilePaths,
+    };
+  }
+
   /// 处理拖拽文件
   /// 支持 .naiv4vibe, .naiv4vibebundle, .png 格式，以及文件夹
   Future<void> _handleDrop(PerformDropEvent event) async {
@@ -1447,10 +1539,27 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
       if (reader.canProvide(Formats.fileUri)) {
         final completer = Completer<Uri?>();
-        reader.getValue<Uri>(Formats.fileUri, (uri) {
-          completer.complete(uri);
-        });
-        final uri = await completer.future;
+        final progress = reader.getValue<Uri>(
+          Formats.fileUri,
+          (uri) {
+            if (!completer.isCompleted) {
+              completer.complete(uri);
+            }
+          },
+          onError: (e) {
+            if (!completer.isCompleted) {
+              completer.complete(null);
+            }
+          },
+        );
+
+        // 关键检查：如果返回 null，说明格式不可用
+        if (progress == null) continue;
+
+        final uri = await completer.future.timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => null,
+        );
         if (uri != null) {
           allPaths.add(uri.toFilePath());
         }
@@ -1459,28 +1568,11 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
     if (allPaths.isEmpty) return;
 
-    // 分类文件和文件夹
-    final folderPaths = <String>[];
-    final imagePaths = <String>[];
-    final vibeFilePaths = <String>[];
-
-    for (final path in allPaths) {
-      final entity = FileSystemEntity.typeSync(path, followLinks: false);
-
-      if (entity == FileSystemEntityType.directory) {
-        folderPaths.add(path);
-      } else if (entity == FileSystemEntityType.file) {
-        final fileName = p.basename(path);
-        final ext = p.extension(fileName).toLowerCase();
-
-        if (ext == '.png') {
-          imagePaths.add(path);
-        } else if (ext == '.naiv4vibe' || ext == '.naiv4vibebundle') {
-          vibeFilePaths.add(path);
-        }
-      }
-      // 其他类型静默跳过
-    }
+    // 使用 Isolate 分类文件和文件夹，避免阻塞 UI
+    final classified = await compute(_classifyPathsIsolate, allPaths);
+    final folderPaths = classified['folders'] ?? <String>[];
+    final imagePaths = classified['images'] ?? <String>[];
+    final vibeFilePaths = classified['vibeFiles'] ?? <String>[];
 
     // 递归扫描文件夹
     if (folderPaths.isNotEmpty) {
@@ -1509,22 +1601,26 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
             ? currentCategoryId
             : null;
 
+    // 并行读取图片文件，避免顺序阻塞
     final imageItems = <VibeImageImportItem>[];
     var preProcessFail = 0;
-    for (final path in imagePaths) {
-      try {
-        final bytes = await File(path).readAsBytes();
-        imageItems.add(
-          VibeImageImportItem(
-            source: p.basename(path),
-            bytes: bytes,
-          ),
-        );
-      } catch (e, stackTrace) {
-        AppLogger.e('读取拖拽图片失败: $path', e, stackTrace, 'VibeLibrary');
-        preProcessFail++;
-      }
-    }
+
+    await Future.wait(
+      imagePaths.map((path) async {
+        try {
+          final bytes = await File(path).readAsBytes();
+          imageItems.add(
+            VibeImageImportItem(
+              source: p.basename(path),
+              bytes: bytes,
+            ),
+          );
+        } catch (e, stackTrace) {
+          AppLogger.e('读取拖拽图片失败: $path', e, stackTrace, 'VibeLibrary');
+          preProcessFail++;
+        }
+      }),
+    );
 
     final vibeFiles = vibeFilePaths
         .map(
@@ -1561,6 +1657,11 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
       _isImporting = false;
       _importProgress = const ImportProgress();
     });
+
+    // 用户全部取消，不显示任何提示
+    if (totalSuccess == 0 && totalFail == 0) {
+      return;
+    }
 
     // 重新加载数据以确保UI显示导入的条目
     if (totalSuccess > 0) {
@@ -1730,7 +1831,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
     // 创建导入服务和仓库
     final notifier = ref.read(vibeLibraryNotifierProvider.notifier);
-    final repository = _VibeLibraryNotifierImportRepository(
+    final repository = VibeLibraryNotifierImportRepository(
       onGetAllEntries: () async =>
           ref.read(vibeLibraryNotifierProvider).entries,
       onSaveEntry: notifier.saveEntry,
@@ -1756,24 +1857,28 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     var totalSuccess = 0;
     var totalFail = 0;
 
-    if (imageFiles.isNotEmpty) {
-      try {
-        final importResult = await importService.importFromImage(
-          images: imageFiles,
-          categoryId: targetCategoryId,
-          onProgress: (current, total, message) {
-            AppLogger.d(message, 'VibeLibrary');
-          },
-        );
-        totalSuccess += importResult.successCount;
-        totalFail += importResult.failCount + importResult.errors.length;
-      } catch (e, stackTrace) {
-        AppLogger.e('导入图片 Vibe 失败', e, stackTrace, 'VibeLibrary');
-        totalFail += imageFiles.length;
+    // 处理每张图片
+    for (final imageFile in imageFiles) {
+      final result = await _processSingleImageImport(
+        imageFile: imageFile,
+        importService: importService,
+        targetCategoryId: targetCategoryId,
+      );
+
+      if (result == true) {
+        totalSuccess++;
+      } else if (result == false) {
+        totalFail++;
       }
+      // result == null 表示用户取消，不计入统计
     }
 
     setState(() => _isImporting = false);
+
+    // 用户全部取消，不显示任何提示
+    if (totalSuccess == 0 && totalFail == 0) {
+      return;
+    }
 
     // 重新加载数据
     if (totalSuccess > 0) {
@@ -1789,6 +1894,327 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
           '导入完成: $totalSuccess 成功, $totalFail 失败',
         );
       }
+    }
+  }
+
+  /// 处理单张图片导入
+  ///
+  /// 返回:
+  /// - true: 成功导入
+  /// - false: 导入失败
+  /// - null: 用户取消
+  Future<bool?> _processSingleImageImport({
+    required VibeImageImportItem imageFile,
+    required VibeImportService importService,
+    String? targetCategoryId,
+  }) async {
+    // 首先尝试提取 Vibe 数据
+    try {
+      final result = await VibeImageEmbedder.extractVibeFromImage(imageFile.bytes);
+
+      // 如果是 bundle（多个 vibes），让用户选择处理方式
+      if (result.isBundle && result.vibes.length > 1) {
+        return await _handleBundleImport(
+          imageFile: imageFile,
+          vibes: result.vibes,
+          targetCategoryId: targetCategoryId,
+        );
+      }
+
+      // 单个 vibe，直接保存
+      return await _saveVibeReference(
+        reference: result.vibes.first,
+        categoryId: targetCategoryId,
+      );
+    } on NoVibeDataException {
+      return await _handleImageEncoding(
+        imageFile: imageFile,
+        targetCategoryId: targetCategoryId,
+      );
+    } catch (e) {
+      if (_isNoVibeDataError(e)) {
+        return await _handleImageEncoding(
+          imageFile: imageFile,
+          targetCategoryId: targetCategoryId,
+        );
+      }
+      AppLogger.e('处理图片失败: ${imageFile.source}', e, null, 'VibeLibrary');
+      return false;
+    }
+  }
+
+  /// 保存 VibeReference 到库
+  Future<bool> _saveVibeReference({
+    required VibeReference reference,
+    String? categoryId,
+  }) async {
+    try {
+      final notifier = ref.read(vibeLibraryNotifierProvider.notifier);
+
+      // 生成唯一名称（处理重名）
+      final baseName = reference.displayName.trim().isEmpty
+          ? 'vibe_${DateTime.now().millisecondsSinceEpoch}'
+          : reference.displayName.trim();
+      final uniqueName = _generateUniqueName(baseName);
+
+      // 创建条目
+      final entry = VibeLibraryEntry.fromVibeReference(
+        name: uniqueName,
+        vibeData: reference,
+        categoryId: categoryId,
+      );
+
+      await notifier.saveEntry(entry);
+      return true;
+    } catch (e, stackTrace) {
+      AppLogger.e('保存 Vibe 到库失败', e, stackTrace, 'VibeLibrary');
+      return false;
+    }
+  }
+
+  /// 生成唯一名称（避免重名）
+  String _generateUniqueName(String baseName) {
+    // 通过 provider 读取当前所有条目
+    final existingEntries = ref.read(vibeLibraryNotifierProvider).entries;
+    final existingNames = existingEntries.map((e) => e.name.toLowerCase()).toSet();
+
+    if (!existingNames.contains(baseName.toLowerCase())) {
+      return baseName;
+    }
+
+    // 名称冲突，添加序号
+    var index = 2;
+    var candidateName = '$baseName ($index)';
+    while (existingNames.contains(candidateName.toLowerCase())) {
+      index++;
+      candidateName = '$baseName ($index)';
+    }
+    return candidateName;
+  }
+
+  /// 处理 Bundle 导入
+  Future<bool?> _handleBundleImport({
+    required VibeImageImportItem imageFile,
+    required List<VibeReference> vibes,
+    String? targetCategoryId,
+  }) async {
+    if (!mounted) return null;
+
+    // 显示 Bundle 导入选项对话框
+    final result = await showDialog<bundle_import_dialog.BundleImportResult>(
+      context: context,
+      builder: (context) => bundle_import_dialog.VibeBundleImportDialog(
+        bundleName: imageFile.source,
+        vibeNames: vibes.map((v) => v.displayName).toList(),
+      ),
+    );
+
+    if (result == null) return null; // 用户取消
+
+    final selectedVibes = _getSelectedVibesForBundle(result, vibes);
+    if (selectedVibes == null) return null;
+
+    // 保持为 Bundle - 保存整个 bundle 为一个条目
+    if (result.option == bundle_import_dialog.BundleImportOption.keepAsBundle) {
+      return await _saveAsBundle(
+        vibes: selectedVibes,
+        bundleName: imageFile.source,
+        categoryId: targetCategoryId,
+      );
+    }
+
+    // 拆分导入或选择性导入 - 保存所有选中的 vibes
+    return await _saveMultipleVibes(selectedVibes, targetCategoryId);
+  }
+
+  List<VibeReference>? _getSelectedVibesForBundle(
+    bundle_import_dialog.BundleImportResult result,
+    List<VibeReference> vibes,
+  ) {
+    switch (result.option) {
+      case bundle_import_dialog.BundleImportOption.keepAsBundle:
+      case bundle_import_dialog.BundleImportOption.split:
+        return vibes;
+      case bundle_import_dialog.BundleImportOption.importSelected:
+        final indices = result.selectedIndices;
+        if (indices == null || indices.isEmpty) return null;
+        return indices
+            .where((index) => index >= 0 && index < vibes.length)
+            .map((index) => vibes[index])
+            .toList();
+    }
+  }
+
+  Future<bool> _saveMultipleVibes(
+    List<VibeReference> vibes,
+    String? categoryId,
+  ) async {
+    var successCount = 0;
+    for (final vibe in vibes) {
+      final saved = await _saveVibeReference(
+        reference: vibe,
+        categoryId: categoryId,
+      );
+      if (saved) successCount++;
+    }
+    return successCount > 0;
+  }
+
+  /// 保存为 Bundle 条目
+  Future<bool> _saveAsBundle({
+    required List<VibeReference> vibes,
+    required String bundleName,
+    String? categoryId,
+  }) async {
+    try {
+      final notifier = ref.read(vibeLibraryNotifierProvider.notifier);
+
+      // 生成唯一名称（处理重名）
+      final baseName = bundleName.trim().isEmpty
+          ? 'vibe-bundle_${DateTime.now().millisecondsSinceEpoch}'
+          : bundleName.trim();
+      final uniqueName = _generateUniqueName(baseName);
+
+      // 使用 saveBundleEntry 保存整个 bundle
+      final saved = await notifier.saveBundleEntry(
+        vibes,
+        name: uniqueName,
+        categoryId: categoryId,
+      );
+
+      return saved != null;
+    } catch (e, stackTrace) {
+      AppLogger.e('保存 Bundle 到库失败', e, stackTrace, 'VibeLibrary');
+      return false;
+    }
+  }
+
+  /// 处理图片编码流程
+  bool _isNoVibeDataError(Object e) {
+    return e is NoVibeDataException ||
+        e.toString().contains('No naiv4vibe metadata');
+  }
+
+  Future<bool?> _handleImageEncoding({
+    required VibeImageImportItem imageFile,
+    String? targetCategoryId,
+  }) async {
+    if (!mounted) return null;
+
+    // 显示编码配置对话框
+    final config = await encode_dialog.VibeImageEncodeDialog.show(
+      context: context,
+      imageBytes: imageFile.bytes,
+      fileName: imageFile.source,
+    );
+
+    if (config == null) return null; // 用户取消
+
+    // 编码重试循环
+    while (mounted) {
+      // 显示编码中对话框
+      if (!mounted) break;
+      encode_dialog.VibeImageEncodingDialog.show(context);
+
+      String? encoding;
+      String? errorMessage;
+
+      try {
+        final notifier = ref.read(generationParamsNotifierProvider.notifier);
+        final params = ref.read(generationParamsNotifierProvider);
+        final model = params.model;
+
+        encoding = await notifier
+            .encodeVibeWithCache(
+          imageFile.bytes,
+          model: model,
+          informationExtracted: config.infoExtracted,
+          vibeName: config.name,
+        )
+            .timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {
+            errorMessage = '编码超时，请检查网络连接';
+            return null;
+          },
+        );
+      } catch (e) {
+        errorMessage = e.toString();
+        AppLogger.e('Vibe 编码失败: ${imageFile.source}', e, null, 'VibeLibrary');
+      } finally {
+        // 关闭编码中对话框
+        if (mounted) {
+          encode_dialog.VibeImageEncodingDialog.hide(context);
+        }
+      }
+
+      if (encoding != null && mounted) {
+        // 编码成功，保存到 Vibe 库
+        return await _saveEncodedVibe(
+          name: config.name,
+          encoding: encoding,
+          imageBytes: imageFile.bytes,
+          strength: config.strength,
+          infoExtracted: config.infoExtracted,
+          categoryId: targetCategoryId,
+        );
+      }
+
+      // 编码失败，显示错误对话框
+      if (!mounted) return null;
+
+      final action = await encode_dialog.VibeImageEncodeErrorDialog.show(
+        context: context,
+        fileName: imageFile.source,
+        errorMessage: errorMessage ?? '未知错误',
+      );
+
+      if (action == encode_dialog.VibeEncodeErrorAction.skip) {
+        return false; // 标记为失败，继续下一张
+      } else if (action == null) {
+        return null; // 用户关闭对话框，视为取消
+      }
+      // 否则重试
+    }
+
+    return null;
+  }
+
+  /// 保存编码后的 Vibe 到库
+  Future<bool> _saveEncodedVibe({
+    required String name,
+    required String encoding,
+    required Uint8List imageBytes,
+    required double strength,
+    required double infoExtracted,
+    String? categoryId,
+  }) async {
+    try {
+      final notifier = ref.read(vibeLibraryNotifierProvider.notifier);
+
+      // 创建 VibeReference
+      final reference = VibeReference(
+        displayName: name,
+        vibeEncoding: encoding,
+        strength: strength,
+        infoExtracted: infoExtracted,
+        sourceType: VibeSourceType.naiv4vibe,
+        thumbnail: imageBytes,
+        rawImageData: imageBytes,
+      );
+
+      // 创建并保存条目
+      final entry = VibeLibraryEntry.fromVibeReference(
+        name: name,
+        vibeData: reference,
+        categoryId: categoryId,
+      );
+
+      await notifier.saveEntry(entry);
+      return true;
+    } catch (e, stackTrace) {
+      AppLogger.e('保存编码 Vibe 失败', e, stackTrace, 'VibeLibrary');
+      return false;
     }
   }
 
@@ -1816,7 +2242,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
     // 创建导入服务和仓库
     final notifier = ref.read(vibeLibraryNotifierProvider.notifier);
-    final repository = _VibeLibraryNotifierImportRepository(
+    final repository = VibeLibraryNotifierImportRepository(
       onGetAllEntries: () async =>
           ref.read(vibeLibraryNotifierProvider).entries,
       onSaveEntry: notifier.saveEntry,
@@ -1840,13 +2266,18 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         },
       );
       totalSuccess += result.successCount;
-      totalFail += result.failCount + result.errors.length;
+      totalFail += result.failCount;
     } catch (e, stackTrace) {
       AppLogger.e('从剪贴板导入 Vibe 失败', e, stackTrace, 'VibeLibrary');
       totalFail++;
     }
 
     setState(() => _isImporting = false);
+
+    // 用户全部取消，不显示任何提示
+    if (totalSuccess == 0 && totalFail == 0) {
+      return;
+    }
 
     // 重新加载数据
     if (totalSuccess > 0) {
@@ -1864,1152 +2295,4 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
       }
     }
   }
-}
-
-/// 导入菜单路由
-class _ImportMenuRoute extends PopupRoute {
-  final Offset position;
-  final List<ProMenuItem> items;
-  final void Function(ProMenuItem) onSelect;
-
-  _ImportMenuRoute({
-    required this.position,
-    required this.items,
-    required this.onSelect,
-  });
-
-  @override
-  Color? get barrierColor => null;
-
-  @override
-  bool get barrierDismissible => true;
-
-  @override
-  String? get barrierLabel => null;
-
-  @override
-  Widget buildPage(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-  ) {
-    return MediaQuery.removePadding(
-      context: context,
-      removeTop: true,
-      removeLeft: true,
-      removeRight: true,
-      removeBottom: true,
-      child: Builder(
-        builder: (context) {
-          // 计算菜单位置，确保不超出屏幕
-          final screenSize = MediaQuery.of(context).size;
-          const menuWidth = 180.0;
-          final menuHeight = items.where((i) => !i.isDivider).length * 36.0 +
-              items.where((i) => i.isDivider).length * 1.0;
-
-          double left = position.dx;
-          double top = position.dy;
-
-          // 调整水平位置
-          if (left + menuWidth > screenSize.width) {
-            left = screenSize.width - menuWidth - 16;
-          }
-
-          // 调整垂直位置
-          if (top + menuHeight > screenSize.height) {
-            top = screenSize.height - menuHeight - 16;
-          }
-
-          return GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTap: () => Navigator.of(context).pop(),
-            child: Stack(
-              children: [
-                ProContextMenu(
-                  position: Offset(left, top),
-                  items: items,
-                  onSelect: (item) {
-                    onSelect(item);
-                    Navigator.of(context).pop();
-                  },
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  @override
-  Duration get transitionDuration => const Duration(milliseconds: 200);
-
-  @override
-  Widget buildTransitions(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-    Widget child,
-  ) {
-    return FadeTransition(
-      opacity: animation,
-      child: ScaleTransition(
-        scale: CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutBack,
-        ),
-        child: child,
-      ),
-    );
-  }
-}
-
-/// Vibe库空视图
-class _VibeLibraryEmptyView extends StatelessWidget {
-  const _VibeLibraryEmptyView();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.auto_awesome_outlined,
-            size: 64,
-            color: theme.colorScheme.outline.withOpacity(0.5),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Vibe库为空',
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '从生成页面保存Vibe到库中',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.outline,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Vibe库分类树视图
-class _VibeCategoryTreeView extends StatefulWidget {
-  final List<VibeLibraryCategory> categories;
-  final int totalEntryCount;
-  final int favoriteCount;
-  final String? selectedCategoryId;
-  final ValueChanged<String?> onCategorySelected;
-  final void Function(String id, String newName)? onCategoryRename;
-  final ValueChanged<String>? onCategoryDelete;
-  final ValueChanged<String?>? onAddSubCategory;
-  final void Function(String categoryId, String? newParentId)? onCategoryMove;
-
-  const _VibeCategoryTreeView({
-    required this.categories,
-    required this.totalEntryCount,
-    required this.favoriteCount,
-    this.selectedCategoryId,
-    required this.onCategorySelected,
-    this.onCategoryRename,
-    this.onCategoryDelete,
-    this.onAddSubCategory,
-    this.onCategoryMove,
-  });
-
-  @override
-  State<_VibeCategoryTreeView> createState() => _VibeCategoryTreeViewState();
-}
-
-class _VibeCategoryTreeViewState extends State<_VibeCategoryTreeView> {
-  final Set<String> _expandedIds = <String>{};
-  String? _hoveredCategoryId;
-  Timer? _autoExpandTimer;
-
-  @override
-  void dispose() {
-    _autoExpandTimer?.cancel();
-    super.dispose();
-  }
-
-  void _startAutoExpandTimer(String categoryId) {
-    _autoExpandTimer?.cancel();
-    _autoExpandTimer = Timer(const Duration(milliseconds: 800), () {
-      if (_hoveredCategoryId == categoryId && mounted) {
-        setState(() {
-          _expandedIds.add(categoryId);
-        });
-      }
-    });
-  }
-
-  void _cancelAutoExpandTimer() {
-    _autoExpandTimer?.cancel();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      children: [
-        // 全部Vibe
-        _CategoryItem(
-          icon: Icons.auto_awesome_outlined,
-          label: '全部Vibe',
-          count: widget.totalEntryCount,
-          isSelected: widget.selectedCategoryId == null,
-          onTap: () => widget.onCategorySelected(null),
-        ),
-        // 收藏
-        _CategoryItem(
-          icon: widget.selectedCategoryId == 'favorites'
-              ? Icons.favorite
-              : Icons.favorite_border,
-          iconColor: Colors.red.shade400,
-          label: '收藏',
-          count: widget.favoriteCount,
-          isSelected: widget.selectedCategoryId == 'favorites',
-          onTap: () => widget.onCategorySelected('favorites'),
-        ),
-        if (widget.categories.isNotEmpty)
-          const Divider(height: 16, indent: 12, endIndent: 12),
-        // 分类树
-        ...widget.categories.rootCategories.sortedByOrder().map(
-              (category) => _buildCategoryNode(theme, category, 0),
-            ),
-      ],
-    );
-  }
-
-  Widget _buildCategoryNode(
-    ThemeData theme,
-    VibeLibraryCategory category,
-    int depth,
-  ) {
-    final children = widget.categories.getChildren(category.id).sortedByOrder();
-    final hasChildren = children.isNotEmpty;
-    final isExpanded = _expandedIds.contains(category.id);
-
-    // 构建基础分类项
-    Widget categoryItem = _CategoryItem(
-      icon: hasChildren
-          ? (isExpanded ? Icons.folder_open : Icons.folder)
-          : Icons.folder_outlined,
-      label: category.displayName,
-      count: widget.categories.getChildren(category.id).length,
-      isSelected: widget.selectedCategoryId == category.id,
-      depth: depth,
-      hasChildren: hasChildren,
-      isExpanded: isExpanded,
-      onTap: () => widget.onCategorySelected(category.id),
-      onExpand: hasChildren
-          ? () {
-              setState(() {
-                if (isExpanded) {
-                  _expandedIds.remove(category.id);
-                } else {
-                  _expandedIds.add(category.id);
-                }
-              });
-            }
-          : null,
-      onRename: widget.onCategoryRename != null
-          ? (newName) => widget.onCategoryRename!(category.id, newName)
-          : null,
-      onDelete: widget.onCategoryDelete != null
-          ? () => widget.onCategoryDelete!(category.id)
-          : null,
-      onAddSubCategory: widget.onAddSubCategory != null
-          ? () => widget.onAddSubCategory!(category.id)
-          : null,
-    );
-
-    // 包装为可拖拽组件
-    categoryItem = _wrapWithDraggable(theme, category, categoryItem);
-
-    // 包装为拖放目标
-    categoryItem = _wrapWithDragTarget(theme, category, categoryItem);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        categoryItem,
-        if (hasChildren && isExpanded)
-          ...children
-              .map((child) => _buildCategoryNode(theme, child, depth + 1)),
-      ],
-    );
-  }
-
-  /// 包装为可拖拽组件
-  Widget _wrapWithDraggable(
-    ThemeData theme,
-    VibeLibraryCategory category,
-    Widget child,
-  ) {
-    return Draggable<VibeLibraryCategory>(
-      data: category,
-      feedback: Material(
-        elevation: 8,
-        borderRadius: BorderRadius.circular(8),
-        color: theme.colorScheme.surfaceContainerHigh,
-        child: Container(
-          width: 180,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: theme.colorScheme.primary.withOpacity(0.5),
-              width: 1.5,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.folder, size: 18, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  category.displayName,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      childWhenDragging: Opacity(opacity: 0.4, child: child),
-      onDragStarted: () => HapticFeedback.mediumImpact(),
-      onDragEnd: (_) {
-        _cancelAutoExpandTimer();
-        setState(() => _hoveredCategoryId = null);
-      },
-      child: child,
-    );
-  }
-
-  /// 包装为拖放目标
-  Widget _wrapWithDragTarget(
-    ThemeData theme,
-    VibeLibraryCategory targetCategory,
-    Widget child,
-  ) {
-    return DragTarget<VibeLibraryCategory>(
-      onWillAcceptWithDetails: (details) {
-        final draggedCategory = details.data;
-        // 不能拖到自己
-        if (draggedCategory.id == targetCategory.id) return false;
-        // 检查循环引用
-        if (widget.categories.wouldCreateCycle(
-          draggedCategory.id,
-          targetCategory.id,
-        )) {
-          return false;
-        }
-        // 已经是子分类则不接受
-        if (draggedCategory.parentId == targetCategory.id) return false;
-        return true;
-      },
-      onAcceptWithDetails: (details) {
-        HapticFeedback.heavyImpact();
-        widget.onCategoryMove?.call(details.data.id, targetCategory.id);
-        setState(() {
-          _expandedIds.add(targetCategory.id);
-          _hoveredCategoryId = null;
-        });
-        _cancelAutoExpandTimer();
-      },
-      onMove: (details) {
-        if (_hoveredCategoryId != targetCategory.id) {
-          setState(() => _hoveredCategoryId = targetCategory.id);
-          final hasChildren =
-              widget.categories.getChildren(targetCategory.id).isNotEmpty;
-          if (hasChildren && !_expandedIds.contains(targetCategory.id)) {
-            _startAutoExpandTimer(targetCategory.id);
-          }
-        }
-      },
-      onLeave: (_) {
-        if (_hoveredCategoryId == targetCategory.id) {
-          setState(() => _hoveredCategoryId = null);
-          _cancelAutoExpandTimer();
-        }
-      },
-      builder: (context, candidateData, rejectedData) {
-        final isAccepting = candidateData.isNotEmpty;
-        final isRejected = rejectedData.isNotEmpty;
-
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: isAccepting
-                ? Border.all(
-                    color: theme.colorScheme.primary,
-                    width: 2,
-                  )
-                : isRejected
-                    ? Border.all(
-                        color: theme.colorScheme.error,
-                        width: 2,
-                      )
-                    : null,
-          ),
-          child: child,
-        );
-      },
-    );
-  }
-}
-
-/// 分类项组件
-class _CategoryItem extends StatefulWidget {
-  final IconData icon;
-  final Color? iconColor;
-  final String label;
-  final int count;
-  final bool isSelected;
-  final int depth;
-  final bool hasChildren;
-  final bool isExpanded;
-  final VoidCallback onTap;
-  final VoidCallback? onExpand;
-  final void Function(String)? onRename;
-  final VoidCallback? onDelete;
-  final VoidCallback? onAddSubCategory;
-
-  const _CategoryItem({
-    required this.icon,
-    this.iconColor,
-    required this.label,
-    required this.count,
-    required this.isSelected,
-    this.depth = 0,
-    this.hasChildren = false,
-    this.isExpanded = false,
-    required this.onTap,
-    this.onExpand,
-    this.onRename,
-    this.onDelete,
-    this.onAddSubCategory,
-  });
-
-  @override
-  State<_CategoryItem> createState() => _CategoryItemState();
-}
-
-class _CategoryItemState extends State<_CategoryItem> {
-  bool _isHovering = false;
-  bool _isEditing = false;
-  late TextEditingController _editController;
-
-  @override
-  void initState() {
-    super.initState();
-    _editController = TextEditingController(text: widget.label);
-  }
-
-  @override
-  void didUpdateWidget(covariant _CategoryItem oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.label != widget.label && !_isEditing) {
-      _editController.text = widget.label;
-    }
-  }
-
-  @override
-  void dispose() {
-    _editController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final indent = 12.0 + widget.depth * 16.0;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
-      child: GestureDetector(
-        onSecondaryTapUp: widget.onRename != null
-            ? (details) => _showContextMenu(context, details.globalPosition)
-            : null,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-          decoration: BoxDecoration(
-            color: widget.isSelected
-                ? theme.colorScheme.primaryContainer
-                : (_isHovering
-                    ? theme.colorScheme.surfaceContainerHighest
-                    : Colors.transparent),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: InkWell(
-            onTap: widget.onTap,
-            borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: indent,
-                right: 8,
-                top: 8,
-                bottom: 8,
-              ),
-              child: Row(
-                children: [
-                  if (widget.hasChildren)
-                    GestureDetector(
-                      onTap: widget.onExpand,
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 4),
-                        child: Icon(
-                          widget.isExpanded
-                              ? Icons.expand_more
-                              : Icons.chevron_right,
-                          size: 16,
-                          color: theme.colorScheme.outline,
-                        ),
-                      ),
-                    )
-                  else
-                    const SizedBox(width: 20),
-                  Icon(
-                    widget.icon,
-                    size: 18,
-                    color: widget.iconColor ??
-                        (widget.isSelected
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.onSurfaceVariant),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _isEditing
-                        ? TextField(
-                            controller: _editController,
-                            autofocus: true,
-                            style: const TextStyle(fontSize: 13),
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                            onSubmitted: (value) {
-                              if (value.trim().isNotEmpty) {
-                                widget.onRename?.call(value.trim());
-                              }
-                              setState(() => _isEditing = false);
-                            },
-                            onTapOutside: (_) {
-                              setState(() => _isEditing = false);
-                            },
-                          )
-                        : Text(
-                            widget.label,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: widget.isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.w500,
-                              color: widget.isSelected
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.onSurface,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                  ),
-                  Text(
-                    widget.count.toString(),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: theme.colorScheme.outline,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showContextMenu(BuildContext context, Offset position) {
-    showMenu(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx + 1,
-        position.dy + 1,
-      ),
-      items: [
-        if (widget.onRename != null)
-          PopupMenuItem(
-            onTap: () {
-              Future.delayed(const Duration(milliseconds: 100), () {
-                if (mounted) {
-                  setState(() => _isEditing = true);
-                }
-              });
-            },
-            child: const Row(
-              children: [
-                Icon(Icons.edit, size: 18),
-                SizedBox(width: 8),
-                Text('重命名'),
-              ],
-            ),
-          ),
-        if (widget.onAddSubCategory != null)
-          PopupMenuItem(
-            onTap: widget.onAddSubCategory,
-            child: const Row(
-              children: [
-                Icon(Icons.create_new_folder, size: 18),
-                SizedBox(width: 8),
-                Text('新建子分类'),
-              ],
-            ),
-          ),
-        if (widget.onDelete != null)
-          PopupMenuItem(
-            onTap: widget.onDelete,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.delete,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.error,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '删除',
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-/// Vibe库内容视图
-class _VibeLibraryContentView extends ConsumerStatefulWidget {
-  final int columns;
-  final double itemWidth;
-
-  const _VibeLibraryContentView({
-    required this.columns,
-    required this.itemWidth,
-  });
-
-  @override
-  ConsumerState<_VibeLibraryContentView> createState() {
-    return _VibeLibraryContentViewState();
-  }
-}
-
-class _VibeLibraryContentViewState
-    extends ConsumerState<_VibeLibraryContentView> {
-  @override
-  Widget build(BuildContext context) {
-    final state = ref.watch(vibeLibraryNotifierProvider);
-    final selectionState = ref.watch(vibeLibrarySelectionNotifierProvider);
-
-    // 使用 3D 卡片视图模式
-    return _build3DCardView(state, selectionState);
-  }
-
-  /// 构建 3D 卡片视图
-  Widget _build3DCardView(
-    VibeLibraryState state,
-    SelectionModeState selectionState,
-  ) {
-    final entries = state.currentEntries;
-
-    // 空状态处理
-    if (entries.isEmpty) {
-      final emptyInfo = _getEmptyStateInfo(state);
-      return GalleryErrorView(
-        error: emptyInfo.subtitle ?? emptyInfo.title,
-        onRetry: () {
-          ref.read(vibeLibraryNotifierProvider.notifier).reload();
-        },
-      );
-    }
-
-    // 加载中状态
-    if (state.isLoading) {
-      return const GalleryLoadingView();
-    }
-
-    return GridView.builder(
-      key: const PageStorageKey<String>('vibe_library_3d_grid'),
-      padding: const EdgeInsets.all(16),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: widget.columns,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        childAspectRatio: 1.0,
-      ),
-      itemCount: entries.length,
-      itemBuilder: (context, index) {
-        final entry = entries[index];
-        final isSelected = selectionState.selectedIds.contains(entry.id);
-
-        return VibeCard3D(
-          entry: entry,
-          width: widget.itemWidth,
-          height: widget.itemWidth,
-          isSelected: isSelected,
-          showFavoriteIndicator: true,
-          onTap: () {
-            if (selectionState.isActive) {
-              ref
-                  .read(vibeLibrarySelectionNotifierProvider.notifier)
-                  .toggle(entry.id);
-            } else {
-              _showVibeDetail(context, entry);
-            }
-          },
-          onLongPress: () {
-            if (!selectionState.isActive) {
-              ref
-                  .read(vibeLibrarySelectionNotifierProvider.notifier)
-                  .enterAndSelect(entry.id);
-            }
-          },
-          onSecondaryTapDown: (details) {
-            _showContextMenu(context, entry, details.globalPosition);
-          },
-          onFavoriteToggle: () {
-            ref
-                .read(vibeLibraryNotifierProvider.notifier)
-                .toggleFavorite(entry.id);
-          },
-          onSendToGeneration: () => _sendEntryToGeneration(context, entry),
-          onExport: () => _exportSingleEntry(context, entry),
-          onEdit: () => _showVibeDetail(context, entry),
-          onDelete: () => _deleteSingleEntry(context, entry),
-        );
-      },
-    );
-  }
-
-  /// 显示 Vibe 详情
-  void _showVibeDetail(BuildContext context, VibeLibraryEntry entry) {
-    VibeDetailViewer.show(
-      context,
-      entry: entry,
-      heroTag: 'vibe_${entry.id}',
-      callbacks: VibeDetailCallbacks(
-        onSendToGeneration: (entry, strength, infoExtracted) {
-          _sendEntryToGenerationWithParams(
-            context,
-            entry,
-            strength,
-            infoExtracted,
-          );
-        },
-        onExport: (entry) {
-          _exportSingleEntry(context, entry);
-        },
-        onDelete: (entry) {
-          _deleteSingleEntry(context, entry);
-        },
-        onRename: (entry, newName) {
-          return _renameSingleEntry(context, entry, newName);
-        },
-        onParamsChanged: (entry, strength, infoExtracted) {
-          _updateEntryParams(context, entry, strength, infoExtracted);
-        },
-      ),
-    );
-  }
-
-  /// 显示上下文菜单
-  void _showContextMenu(
-    BuildContext context,
-    VibeLibraryEntry entry,
-    Offset position,
-  ) {
-    final items = <ProMenuItem>[
-      ProMenuItem(
-        id: 'send_to_generation',
-        label: '发送到生成',
-        icon: Icons.send,
-        onTap: () => _sendEntryToGeneration(context, entry),
-      ),
-      ProMenuItem(
-        id: 'export',
-        label: '导出',
-        icon: Icons.download,
-        onTap: () => _exportSingleEntry(context, entry),
-      ),
-      ProMenuItem(
-        id: 'edit',
-        label: '编辑',
-        icon: Icons.edit,
-        onTap: () => _showVibeDetail(context, entry),
-      ),
-      const ProMenuItem.divider(),
-      ProMenuItem(
-        id: 'toggle_favorite',
-        label: entry.isFavorite ? '取消收藏' : '收藏',
-        icon: entry.isFavorite ? Icons.favorite : Icons.favorite_border,
-        onTap: () {
-          ref
-              .read(vibeLibraryNotifierProvider.notifier)
-              .toggleFavorite(entry.id);
-        },
-      ),
-      ProMenuItem(
-        id: 'delete',
-        label: '删除',
-        icon: Icons.delete_outline,
-        isDanger: true,
-        onTap: () => _deleteSingleEntry(context, entry),
-      ),
-    ];
-
-    Navigator.of(context).push(
-      _ContextMenuRoute(
-        position: position,
-        items: items,
-        onSelect: (item) {
-          // Item onTap is already called
-        },
-      ),
-    );
-  }
-
-  /// 发送单个条目到生成页面
-  void _sendEntryToGeneration(BuildContext context, VibeLibraryEntry entry) {
-    final paramsNotifier = ref.read(generationParamsNotifierProvider.notifier);
-    final currentParams = ref.read(generationParamsNotifierProvider);
-
-    // 检查是否超过16个限制
-    if (currentParams.vibeReferencesV4.length >= 16) {
-      AppToast.warning(context, '已达到最大数量 (16张)');
-      return;
-    }
-
-    paramsNotifier.addVibeReferences([entry.toVibeReference()]);
-    ref.read(vibeLibraryNotifierProvider.notifier).recordUsage(entry.id);
-    AppToast.success(context, '已发送到生成页面: ${entry.displayName}');
-    context.go(AppRoutes.home);
-  }
-
-  /// 发送单个条目到生成页面（带参数）
-  void _sendEntryToGenerationWithParams(
-    BuildContext context,
-    VibeLibraryEntry entry,
-    double strength,
-    double infoExtracted,
-  ) {
-    final paramsNotifier = ref.read(generationParamsNotifierProvider.notifier);
-    final currentParams = ref.read(generationParamsNotifierProvider);
-
-    // 检查是否超过16个限制
-    if (currentParams.vibeReferencesV4.length >= 16) {
-      AppToast.warning(context, '已达到最大数量 (16张)');
-      return;
-    }
-
-    final vibeRef = entry.toVibeReference().copyWith(
-          strength: strength,
-          infoExtracted: infoExtracted,
-        );
-
-    paramsNotifier.addVibeReferences([vibeRef]);
-    ref.read(vibeLibraryNotifierProvider.notifier).recordUsage(entry.id);
-    AppToast.success(context, '已发送到生成页面: ${entry.displayName}');
-    context.go(AppRoutes.home);
-  }
-
-  /// 导出单个条目
-  void _exportSingleEntry(BuildContext context, VibeLibraryEntry entry) {
-    final categories = ref.read(vibeLibraryCategoryNotifierProvider).categories;
-
-    showDialog<void>(
-      context: context,
-      builder: (context) => VibeExportDialog(
-        entries: [entry],
-        categories: categories,
-      ),
-    );
-  }
-
-  /// 删除单个条目
-  Future<void> _deleteSingleEntry(
-    BuildContext context,
-    VibeLibraryEntry entry,
-  ) async {
-    final confirmed = await ThemedConfirmDialog.show(
-      context: context,
-      title: '确认删除',
-      content: '确定要删除 "${entry.displayName}" 吗？此操作无法撤销。',
-      confirmText: '删除',
-      cancelText: '取消',
-      type: ThemedConfirmDialogType.danger,
-      icon: Icons.delete_forever_outlined,
-    );
-
-    if (confirmed) {
-      await ref
-          .read(vibeLibraryNotifierProvider.notifier)
-          .deleteEntries([entry.id]);
-      if (context.mounted) {
-        AppToast.success(context, '已删除: ${entry.displayName}');
-      }
-    }
-  }
-
-  /// 重命名单个条目
-  Future<String?> _renameSingleEntry(
-    BuildContext context,
-    VibeLibraryEntry entry,
-    String newName,
-  ) async {
-    final trimmedName = newName.trim();
-    if (trimmedName.isEmpty) {
-      return '名称不能为空';
-    }
-
-    final result = await ref
-        .read(vibeLibraryNotifierProvider.notifier)
-        .renameEntry(entry.id, trimmedName);
-    if (result.isSuccess) {
-      return null;
-    }
-
-    switch (result.error) {
-      case VibeEntryRenameError.invalidName:
-        return '名称不能为空';
-      case VibeEntryRenameError.nameConflict:
-        return '名称已存在，请使用其他名称';
-      case VibeEntryRenameError.entryNotFound:
-        return '条目不存在，可能已被删除';
-      case VibeEntryRenameError.filePathMissing:
-        return '该条目缺少文件路径，无法重命名';
-      case VibeEntryRenameError.fileRenameFailed:
-        return '重命名文件失败，请稍后重试';
-      case null:
-        return '重命名失败，请稍后重试';
-    }
-  }
-
-  /// 更新条目参数
-  void _updateEntryParams(
-    BuildContext context,
-    VibeLibraryEntry entry,
-    double strength,
-    double infoExtracted,
-  ) {
-    final updatedEntry =
-        entry.updateStrength(strength).updateInfoExtracted(infoExtracted);
-
-    ref.read(vibeLibraryNotifierProvider.notifier).saveEntry(updatedEntry);
-  }
-
-  /// 获取空状态提示信息
-  _EmptyStateInfo _getEmptyStateInfo(VibeLibraryState state) {
-    // 搜索无结果
-    if (state.searchQuery.isNotEmpty) {
-      return const _EmptyStateInfo(
-        title: '未找到匹配的 Vibe',
-        subtitle: '尝试其他关键词',
-        icon: Icons.search_off,
-      );
-    }
-
-    // 收藏无结果
-    if (state.favoritesOnly) {
-      return const _EmptyStateInfo(
-        title: '暂无收藏的 Vibe',
-        subtitle: '点击心形图标收藏 Vibe',
-        icon: Icons.favorite_border,
-      );
-    }
-
-    // 分类无结果
-    if (state.selectedCategoryId != null) {
-      return const _EmptyStateInfo(
-        title: '该分类下暂无 Vibe',
-        subtitle: '尝试切换到"全部 Vibe"查看所有内容',
-        icon: Icons.folder_outlined,
-      );
-    }
-
-    // 默认无结果
-    return const _EmptyStateInfo(
-      title: '无匹配结果',
-      subtitle: null,
-      icon: Icons.search_off,
-    );
-  }
-}
-
-/// 空状态信息
-class _EmptyStateInfo {
-  final String title;
-  final String? subtitle;
-  final IconData icon;
-
-  const _EmptyStateInfo({
-    required this.title,
-    this.subtitle,
-    required this.icon,
-  });
-}
-
-/// 自定义上下文菜单路由
-class _ContextMenuRoute extends PopupRoute {
-  final Offset position;
-  final List<ProMenuItem> items;
-  final void Function(ProMenuItem) onSelect;
-
-  _ContextMenuRoute({
-    required this.position,
-    required this.items,
-    required this.onSelect,
-  });
-
-  @override
-  Color? get barrierColor => null;
-
-  @override
-  bool get barrierDismissible => true;
-
-  @override
-  String? get barrierLabel => null;
-
-  @override
-  Widget buildPage(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-  ) {
-    return MediaQuery.removePadding(
-      context: context,
-      removeTop: true,
-      removeLeft: true,
-      removeRight: true,
-      removeBottom: true,
-      child: Builder(
-        builder: (context) {
-          // 计算调整后的位置以保持菜单在屏幕边界内
-          final screenSize = MediaQuery.of(context).size;
-          const menuWidth = 180.0;
-          final menuHeight = items.where((i) => !i.isDivider).length * 36.0 +
-              items.where((i) => i.isDivider).length * 1.0;
-
-          double left = position.dx;
-          double top = position.dy;
-
-          // 调整水平位置，如果菜单超出屏幕
-          if (left + menuWidth > screenSize.width) {
-            left = screenSize.width - menuWidth - 16;
-          }
-
-          // 调整垂直位置，如果菜单超出屏幕
-          if (top + menuHeight > screenSize.height) {
-            top = screenSize.height - menuHeight - 16;
-          }
-
-          return GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTap: () => Navigator.of(context).pop(),
-            child: Stack(
-              children: [
-                ProContextMenu(
-                  position: Offset(left, top),
-                  items: items,
-                  onSelect: (item) {
-                    onSelect(item);
-                    Navigator.of(context).pop();
-                  },
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  @override
-  Duration get transitionDuration => const Duration(milliseconds: 200);
-
-  @override
-  Widget buildTransitions(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-    Widget child,
-  ) {
-    return FadeTransition(
-      opacity: animation,
-      child: ScaleTransition(
-        scale: CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutBack,
-        ),
-        child: child,
-      ),
-    );
-  }
-}
-
-/// VibeLibraryNotifier 的导入仓库适配器
-/// 实现 VibeLibraryImportRepository 接口以适配 VibeImportService
-class _VibeLibraryNotifierImportRepository
-    implements VibeLibraryImportRepository {
-  _VibeLibraryNotifierImportRepository({
-    required this.onGetAllEntries,
-    required this.onSaveEntry,
-  });
-
-  final Future<List<VibeLibraryEntry>> Function() onGetAllEntries;
-  final Future<VibeLibraryEntry?> Function(VibeLibraryEntry) onSaveEntry;
-
-  @override
-  Future<List<VibeLibraryEntry>> getAllEntries() async {
-    return onGetAllEntries();
-  }
-
-  @override
-  Future<VibeLibraryEntry> saveEntry(VibeLibraryEntry entry) async {
-    final saved = await onSaveEntry(entry);
-    if (saved == null) {
-      throw StateError('Failed to save entry: ${entry.name}');
-    }
-    return saved;
-  }
-}
-
-/// Vibe导入Intent
-class VibeImportIntent extends Intent {
-  const VibeImportIntent();
-}
-
-/// Vibe导出Intent
-class VibeExportIntent extends Intent {
-  const VibeExportIntent();
 }

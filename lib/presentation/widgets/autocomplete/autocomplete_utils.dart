@@ -53,20 +53,32 @@ class AutocompleteUtils {
   }
 
   /// 查找标签的起始和结束位置
-  /// 返回 (tagStart, tagEnd)
-  static (int, int) findTagRange(String text, int cursorPosition) {
+  /// 返回 (tagStart, tagEnd, weightPrefix)
+  /// weightPrefix 是权重语法前缀 (如 "1.10::")
+  static (int, int, String) findTagRange(String text, int cursorPosition) {
     if (cursorPosition < 0 || cursorPosition > text.length) {
-      return (-1, -1);
+      return (-1, -1, '');
     }
 
     final textBeforeCursor = text.substring(0, cursorPosition);
     final tagStart = _findLastSeparator(textBeforeCursor) + 1;
     final tagEnd = _findNextSeparator(text, cursorPosition);
 
-    return (tagStart, tagEnd);
+    // 提取当前标签文本（包含权重前缀）
+    final tagText = text.substring(tagStart, tagEnd).trim();
+
+    // 检测并提取权重前缀
+    String weightPrefix = '';
+    final weightMatch = RegExp(r'^(-?\d+\.?\d*)::').firstMatch(tagText);
+    if (weightMatch != null) {
+      weightPrefix = weightMatch.group(0)!; // 包含 "::"
+    }
+
+    return (tagStart, tagEnd, weightPrefix);
   }
 
   /// 查找下一个分隔符位置（从光标位置开始）
+  /// 如果没有找到，返回文本长度
   static int _findNextSeparator(String text, int start) {
     for (var i = start; i < text.length; i++) {
       final char = text[i];
@@ -77,7 +89,7 @@ class AutocompleteUtils {
         return i;
       }
     }
-    return start;
+    return text.length;
   }
 
   /// 应用建议到文本
@@ -88,7 +100,7 @@ class AutocompleteUtils {
     required LocalTag suggestion,
     required AutocompleteConfig config,
   }) {
-    final (tagStart, tagEnd) = findTagRange(text, cursorPosition);
+    final (tagStart, tagEnd, weightPrefix) = findTagRange(text, cursorPosition);
 
     if (tagStart < 0 || tagEnd > text.length || tagStart > tagEnd) {
       // 无法确定标签范围，尝试使用当前标签
@@ -100,6 +112,7 @@ class AutocompleteUtils {
             text: text,
             tagStart: tagStartFromCurrent,
             tagEnd: cursorPosition,
+            weightPrefix: weightPrefix,
             suggestion: suggestion,
             config: config,
           );
@@ -113,6 +126,7 @@ class AutocompleteUtils {
       text: text,
       tagStart: tagStart,
       tagEnd: tagEnd,
+      weightPrefix: weightPrefix,
       suggestion: suggestion,
       config: config,
     );
@@ -123,6 +137,7 @@ class AutocompleteUtils {
     required String text,
     required int tagStart,
     required int tagEnd,
+    required String weightPrefix,
     required LocalTag suggestion,
     required AutocompleteConfig config,
   }) {
@@ -131,6 +146,11 @@ class AutocompleteUtils {
 
     // NAI 语法：保留下划线，不替换为空格
     final tagName = suggestion.tag;
+
+    // 如果有权重前缀，保留权重前缀并添加结尾的 "::"
+    final weightedTagName = weightPrefix.isNotEmpty
+        ? '$weightPrefix$tagName::'
+        : tagName;
 
     // 添加前导空格（如果前面有内容）
     final needsLeadingSpace = prefix.isNotEmpty && !prefix.endsWith(' ');
@@ -142,10 +162,10 @@ class AutocompleteUtils {
         ? ', '
         : '';
 
-    final newText = '$prefix$leadingSpace$tagName$trailingComma$suffix';
+    final newText = '$prefix$leadingSpace$weightedTagName$trailingComma$suffix';
     final newCursorPosition = prefix.length +
         leadingSpace.length +
-        tagName.length +
+        weightedTagName.length +
         trailingComma.length;
 
     return (newText, newCursorPosition);

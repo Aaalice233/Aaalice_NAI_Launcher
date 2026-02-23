@@ -15,24 +15,13 @@
 /// ```
 library;
 
-export 'translation_data_source.dart'
-    show
-        TranslationDataSourceConfig,
-        CsvFormatConfig,
-        PredefinedDataSources,
-        PredefinedCooccurrenceSources,
-        CooccurrenceDataSourceConfig;
+export '../../database/datasources/translation_data_source.dart' show TranslationMatch;
 
-export '../unified_tag_database.dart' show TranslationMatch;
-
-export 'unified_translation_service.dart'
-    show UnifiedTranslationService, DataSourceStats;
+export 'unified_translation_service.dart' show UnifiedTranslationService;
 
 export 'translation_providers.dart'
     show
         unifiedTranslationServiceProvider,
         tagTranslationProvider,
         tagTranslationsProvider,
-        translationInitProgressProvider,
-        translationDataSourceStatsProvider,
         searchTranslationsProvider;

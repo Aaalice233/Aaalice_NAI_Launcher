@@ -30,6 +30,7 @@ class LocalImageRecord with _$LocalImageRecord {
     @HiveField(6) @Default([]) List<String> tags, // 标签列表
     @HiveField(7) VibeReference? vibeData, // Vibe 参考数据
     @HiveField(8) @Default(false) bool hasVibeMetadata, // 是否有 Vibe 元数据
+    @HiveField(9) int? anlasCost, // Anlas 点数消耗（生成时记录）
   }) = _LocalImageRecord;
 
   const LocalImageRecord._();

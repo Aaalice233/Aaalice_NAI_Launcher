@@ -3,7 +3,9 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/character/character_prompt.dart';
+import '../../providers/character_panel_dock_provider.dart';
 import '../../providers/character_prompt_provider.dart';
+import '../common/app_toast.dart';
 import 'character_editor_dialog.dart';
 import 'character_tooltip_content.dart';
 
@@ -23,6 +25,7 @@ class CharacterPromptButton extends ConsumerWidget {
     final hasCharacters = characterCount > 0;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDocked = ref.watch(characterPanelDockProvider);
 
     return _CharacterTooltipWrapper(
       config: config,
@@ -32,7 +35,18 @@ class CharacterPromptButton extends ConsumerWidget {
           Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: () => CharacterEditorDialog.show(context),
+              onTap: () {
+                if (isDocked) {
+                  // 停靠模式下提示用户面板已显示在图像区域
+                  AppToast.info(
+                    context,
+                    AppLocalizations.of(context)!
+                        .characterEditor_dockedHint,
+                  );
+                } else {
+                  CharacterEditorDialog.show(context);
+                }
+              },
               borderRadius: BorderRadius.circular(8),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../../themes/theme_extension.dart';
+import '../common/app_toast.dart';
 import '../common/themed_switch.dart';
 import 'add_to_library_dialog.dart';
 
@@ -288,15 +289,10 @@ class _CharacterCardState extends ConsumerState<CharacterCard>
                               content: widget.character.prompt,
                             );
                             if (result == true && context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    AppLocalizations.of(context)!
-                                        .tagLibrary_addedToFixed,
-                                  ),
-                                  behavior: SnackBarBehavior.floating,
-                                  duration: const Duration(seconds: 2),
-                                ),
+                              AppToast.success(
+                                context,
+                                AppLocalizations.of(context)!
+                                    .tagLibrary_addedToFixed,
                               );
                             }
                           },

@@ -1,0 +1,940 @@
+00:00 +0: loading E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/app_logger_test.dart
+00:00 +0: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/app_logger_test.dart: AppLogger 初始化日志系统
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:44.091778 [AppLogger] 日志系统初始化完成
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:44.097734 [AppLogger] 日志文件: C:\Users\ADMINI~1\AppData\Local\Temp\test_20260221_172944.log
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:44.098732 [AppLogger] 运行环境: 测试
+00:00 +1: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/app_logger_test.dart: AppLogger 日志文件使用test_前缀
+00:00 +2: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/app_logger_test.dart: AppLogger 日志写入文件
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:44.114730 [Test] 测试消息
+00:00 +3: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/app_test.dart: Widget Tests MaterialApp 创建
+00:00 +4: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/app_test.dart: Widget Tests MaterialApp 创建
+00:00 +5: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/app_test.dart: Widget Tests MaterialApp 创建
+00:00 +6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/app_test.dart: Widget Tests MaterialApp 创建
+00:00 +7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/app_test.dart: Widget Tests MaterialApp 创建
+00:00 +8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/app_test.dart: Widget Tests MaterialApp 创建
+00:00 +9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/app_test.dart: Widget Tests MaterialApp 创建
+00:00 +10: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/app_test.dart: Widget Tests 按钮点击
+00:00 +11: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/network/request_builders/nai_image_request_builder_test.dart: NAIImageRequestBuilder.build should keep provided sampler and stream mode difference
+00:00 +12: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/network/request_builders/nai_image_request_builder_test.dart: NAIImageRequestBuilder.build should throw ArgumentError when sampler is empty
+00:00 +13: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/network/request_builders/nai_image_request_builder_test.dart: NAIImageRequestBuilder.build should return vibeEncodingMap only in non-stream mode
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ImgGen] V4 Vibe: Encoding rawImage at index 0 (2 Anlas)...
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ImgGen] V4 Vibe: Encoded raw image at index 0 successfully, hash length: 12
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ImgGen] V4 Vibe: Using pre-encoded vibe at index 1
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ImgGen] V4 Vibe Transfer: 2 vibes with encodings
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ImgGen] V4 Vibe (Stream): Encoding 1 raw images (2 Anlas each)...
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ImgGen] V4 Vibe (Stream): Encoded raw image successfully
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ImgGen] V4 Vibe Transfer (Stream): 1 encoded + 1 raw = 2 total vibes
+└───────────────────────────────────────────────────────────────────────────────
+00:00 +14: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/network/request_builders/nai_image_request_builder_test.dart: NAIImageRequestBuilder.build should ignore precise references for non-v4 model
+00:01 +15: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: (setUpAll)
+00:01 +15: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateSingle should return successful result with generated image
+00:01 +16: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateSingle should return cancelled result when cancelled
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ImageGenerationService] Image generation cancelled
+└───────────────────────────────────────────────────────────────────────────────
+00:01 +17: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateSingle should return error result when stream throws error
+[38;5;196m┌───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;196m│ ImageGenerationService[0m
+[38;5;196m├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[0m
+[38;5;196m│ #0   AppLogger.e (package:nai_launcher/core/utils/app_logger.dart:294:14)[0m
+[38;5;196m│ #1   ImageGenerationService.generateSingle (package:nai_launcher/presentation/providers/generation/image_generation_service.dart:139:17)[0m
+[38;5;196m│ #2   <asynchronous suspension>[0m
+[38;5;196m│ #3   main.<anonymous closure>.<anonymous closure>.<anonymous closure> (file:///E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart:92:24)[0m
+[38;5;196m│ #4   <asynchronous suspension>[0m
+[38;5;196m├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[0m
+[38;5;196m│ ⛔ Single generation failed: Exception: Stream error[0m
+[38;5;196m└───────────────────────────────────────────────────────────────────────────────[0m
+00:01 +18: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateSingle should return error result when stream emits error chunk
+00:01 +19: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateSingle should fallback to non-stream when streaming not allowed
+[38;5;208m┌───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;208m│ ⚠️ [ImageGenerationService] Streaming not allowed, falling back to non-stream API[0m
+[38;5;208m└───────────────────────────────────────────────────────────────────────────────[0m
+00:01 +20: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateSingle should call progress callback with preview images
+00:01 +21: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateSingle should force nSamples to 1 regardless of input
+00:01 +22: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should delegate to generateSingle when batchCount=1 and batchSize=1
+00:01 +23: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should generate multiple images in batch
+00:01 +24: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should call onBatchStart and onBatchComplete callbacks
+00:01 +25: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should handle batch cancellation
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ImageGenerationService] Image generation cancelled
+└───────────────────────────────────────────────────────────────────────────────
+00:01 +26: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+[38;5;208m┌───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;208m│ ⚠️ Generation failed, retrying in 1000ms (1/3): Exception: Batch error[0m
+[38;5;208m└───────────────────────────────────────────────────────────────────────────────[0m
+00:01 +27: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +28: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +29: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +30: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +31: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +32: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +33: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +33: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/parameter_processing_service_test.dart: ParameterProcessingService process - alias resolution should resolve simple alias in prompt
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ParameterProcessingService] Resolved aliases in prompts
+└───────────────────────────────────────────────────────────────────────────────
+00:01 +34: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +34: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/parameter_processing_service_test.dart: ParameterProcessingService process - alias resolution should resolve alias in negative prompt
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ParameterProcessingService] Resolved aliases in prompts
+└───────────────────────────────────────────────────────────────────────────────
+00:01 +35: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +35: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/parameter_processing_service_test.dart: ParameterProcessingService process - alias resolution should resolve multiple aliases
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ParameterProcessingService] Resolved aliases in prompts
+└───────────────────────────────────────────────────────────────────────────────
+00:01 +36: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +36: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/parameter_processing_service_test.dart: ParameterProcessingService process - alias resolution should resolve aliases with case insensitive matching
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ParameterProcessingService] Resolved aliases in prompts
+└───────────────────────────────────────────────────────────────────────────────
+00:01 +37: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +37: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/parameter_processing_service_test.dart: ParameterProcessingService process - alias resolution should not resolve unknown aliases
+[38;5;208m┌───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;208m│ ⚠️ [ParameterProcessingService] 别名未找到: <unknown>，请检查词库中是否存在该条目[0m
+[38;5;208m└───────────────────────────────────────────────────────────────────────────────[0m
+00:01 +38: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +39: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +39: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/parameter_processing_service_test.dart: ParameterProcessingService process - alias resolution should resolve random alias
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ParameterProcessingService] Resolved aliases in prompts
+└───────────────────────────────────────────────────────────────────────────────
+00:01 +40: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +40: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/parameter_processing_service_test.dart: ParameterProcessingService process - alias resolution should resolve weighted alias
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ParameterProcessingService] Resolved aliases in prompts
+└───────────────────────────────────────────────────────────────────────────────
+00:01 +41: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +41: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/parameter_processing_service_test.dart: ParameterProcessingService process - fixed tags should apply enabled prefix fixed tags
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ParameterProcessingService] Applied 1 fixed tags
+└───────────────────────────────────────────────────────────────────────────────
+00:01 +42: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +42: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/parameter_processing_service_test.dart: ParameterProcessingService process - fixed tags should apply enabled suffix fixed tags
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ParameterProcessingService] Applied 1 fixed tags
+└───────────────────────────────────────────────────────────────────────────────
+00:01 +43: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +43: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/parameter_processing_service_test.dart: ParameterProcessingService process - fixed tags should apply both prefix and suffix fixed tags
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ParameterProcessingService] Applied 2 fixed tags
+└───────────────────────────────────────────────────────────────────────────────
+00:01 +44: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +45: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +45: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/parameter_processing_service_test.dart: ParameterProcessingService process - fixed tags should apply fixed tags in sort order
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ParameterProcessingService] Applied 3 fixed tags
+└───────────────────────────────────────────────────────────────────────────────
+00:01 +46: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +46: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/parameter_processing_service_test.dart: ParameterProcessingService process - fixed tags should apply weight to fixed tags
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ParameterProcessingService] Applied 1 fixed tags
+└───────────────────────────────────────────────────────────────────────────────
+00:01 +47: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +48: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +48: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/parameter_processing_service_test.dart: ParameterProcessingService process - fixed tags should not modify result when user prompt is empty
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ParameterProcessingService] Applied 2 fixed tags
+└───────────────────────────────────────────────────────────────────────────────
+00:01 +49: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +49: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/parameter_processing_service_test.dart: ParameterProcessingService process - combined operations should resolve aliases then apply fixed tags
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ParameterProcessingService] Resolved aliases in prompts
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ParameterProcessingService] Applied 1 fixed tags
+└───────────────────────────────────────────────────────────────────────────────
+00:01 +50: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +50: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/parameter_processing_service_test.dart: ParameterProcessingService process - combined operations should handle complex scenario with multiple features
+[38;5;208m┌───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;208m│ ⚠️ [ParameterProcessingService] 别名未找到: <bad>，请检查词库中是否存在该条目[0m
+[38;5;208m└───────────────────────────────────────────────────────────────────────────────[0m
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ParameterProcessingService] Resolved aliases in prompts
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ParameterProcessingService] Applied 2 fixed tags
+└───────────────────────────────────────────────────────────────────────────────
+00:01 +51: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +52: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +53: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +54: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +55: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +56: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +57: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +58: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +59: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +60: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +61: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +62: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +63: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +64: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +65: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +66: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +67: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +68: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +69: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +70: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +71: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +72: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +73: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:01 +74: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:02 +74 -1: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:02 +74 -1: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_cleanup_test.dart: 日志文件轮换和清理 日志文件按修改时间正确排序 [E]
+  Expected: contains 'app_3.log'
+    Actual: 'C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\app_logger_cleanup_test_3dd60333\\app_1.log'
+     Which: does not contain 'app_3.log'
+  
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 480:18  expect
+  test\core\utils\app_logger_cleanup_test.dart 120:7  main.<fn>.<fn>
+  
+00:02 +75 -1: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:02 +76 -1: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:02 +76 -2: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:02 +76 -2: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_cleanup_test.dart: 日志文件轮换和清理 同时存在app_和test_日志文件 [E]
+  Expected: <2>
+    Actual: <3>
+  
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 480:18  expect
+  test\core\utils\app_logger_cleanup_test.dart 185:7  main.<fn>.<fn>
+  
+00:02 +76 -2: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 正式环境日志文件名格式正确
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:46.300676 [AppLogger] 日志系统初始化完成
+00:02 +77 -2: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:02 +77 -2: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 正式环境日志文件名格式正确
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:46.306675 [AppLogger] 日志文件: C:\Users\ADMINI~1\AppData\Local\Temp\app_20260221_172946.log
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:46.307677 [AppLogger] 运行环境: 正式
+00:02 +78 -2: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:02 +79 -2: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:02 +80 -2: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:02 +80 -3: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:02 +80 -3: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 测试环境日志文件名格式正确 [E]
+  Expected: a string starting with 'test_'
+    Actual: 'app_20260221_172946.log'
+  
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 480:18  expect
+  test\core\utils\app_logger_test.dart 56:7           main.<fn>.<fn>
+  
+00:02 +80 -3: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 日志内容正确写入文件
+[D] TIME: 2026-02-21T17:29:46.355900 [TestTag] 调试信息
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:46.355900 [TestTag] 普通信息
+[38;5;208m[W][0m TIME: 2026-02-21T17:29:46.355900 [TestTag] 警告信息
+[38;5;196m[E][0m TIME: 2026-02-21T17:29:46.356909 [TestTag] 错误信息  ERROR: Exception: 测试异常
+00:02 +80 -4: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService generateBatch should continue on batch error
+00:02 +80 -4: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 日志内容正确写入文件 [E]
+  Expected: contains '普通信息'
+    Actual: '\x1B[38;5;12m[I]\x1B[0m TIME: 2026-02-21T17:29:46.300676 [AppLogger] 日志系统初始化完成\n'
+              '[D] TIME: 2026-02-21T17:29:46.355900 [TestTag] 调试信息\n'
+              ''
+     Which: does not contain '普通信息'
+  
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 480:18  expect
+  test\core\utils\app_logger_test.dart 82:7           main.<fn>.<fn>
+  
+00:02 +80 -4: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 网络日志格式正确
+[D] TIME: 2026-02-21T17:29:46.470838 [HTTP] GET https://api.example.com/test
+Data: {key: value}
+00:02 +81 -4: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 网络日志格式正确
+00:02 +82 -4: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 网络日志格式正确
+00:02 +83 -4: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 网络日志格式正确
+00:02 +83 -4: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService cancel and resetCancellation should set isCancelled to true when cancel is called
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ImageGenerationService] Image generation cancelled
+└───────────────────────────────────────────────────────────────────────────────
+00:02 +84 -4: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 网络日志格式正确
+00:02 +84 -4: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService cancel and resetCancellation should reset cancellation state
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ImageGenerationService] Image generation cancelled
+└───────────────────────────────────────────────────────────────────────────────
+00:02 +85 -4: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 网络日志格式正确
+00:02 +85 -4: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/vibe_image_embedder_test.dart: VibeImageEmbedder embedVibeToImage should produce extractable vibe metadata
+┌───────────────────────────────────────────────────────────────────────────────
+00:02 +86 -4: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 网络日志格式正确
+00:02 +86 -4: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/vibe_image_embedder_test.dart: VibeImageEmbedder embedVibeToImage should produce extractable vibe metadata
+│ 🐛 [VibeImageEmbedder] Found NAI naidata format
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [VibeImageEmbedder] Vibe fields: [identifier, version, type, image, id, encodings, name, thumbnail, createdAt, importInfo]
+└───────────────────────────────────────────────────────────────────────────────
+00:02 +87 -4: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 网络日志格式正确
+00:02 +87 -4: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/vibe_image_embedder_test.dart: VibeImageEmbedder embedVibeToImage should produce extractable vibe metadata
+[38;5;208m┌───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;208m│ ⚠️ [VibeImageEmbedder] No thumbnail or image field found in vibe data[0m
+[38;5;208m└───────────────────────────────────────────────────────────────────────────────[0m
+00:02 +87 -5: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 网络日志格式正确
+00:02 +87 -5: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/vibe_image_embedder_test.dart: VibeImageEmbedder embedVibeToImage should produce extractable vibe metadata [E]
+  Expected: _$VibeReferenceImpl:<VibeReference(displayName: Test Vibe, vibeEncoding: YmFzZTY0X2VuY29kaW5n, thumbnail: null, rawImageData: null, strength: 0.75, infoExtracted: 0.85, sourceType: VibeSourceType.naiv4vibe, bundleSource: null)>
+    Actual: ({bool isBundle, List<VibeReference> vibes}):<(isBundle: true, vibes: [VibeReference(displayName: Test Vibe, vibeEncoding: , thumbnail: [137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 4, 0, 0, 0, 181, 28, 12, 2, 0, 0, 2, 16, 105, 84, 88, 116, 110, 97, 105, 100, 97, 116, 97, 0, 0, 0, 0, 0, 101, 121, 74, 112, 90, 71, 86, 117, 100, 71, 108, 109, 97, 87, 86, 121, 73, 106, 111, 105, 98, 109, 57, 50, 90, 87, 120, 104, 97, 83, 49, 50, 97, 87, 74, 108, 76, 88, 82, 121, 89, 87, 53, 122, 90, 109, 86, 121, 76, 87, 74, 49, 98, 109, 82, 115, 90, 83, 73, 115, 73, 110, 90, 108, 99, 110, 78, 112, 98, 50, 52, 105, 79, 106, 69, 115, 73, 110, 90, 112, 89, 109, 86, 122, 73, 106, 112, 98, 101, 121, 74, 112, 90, 71, 86, 117, 100, 71, 108, 109, 97, 87, 86, 121, 73, 106, 111, 105, 98, 109, 57, 50, 90, 87, 120, 104, 97, 83, 49, 50, 97, 87, 74, 108, 76, 88, 82, 121, 89, 87, 53, 122, 90, 109, 86, 121, 73, 105, 119, 105, 100, 109, 86, 121, 99, 50, 108, 118, 98, 105, 73, 54, 77, 83, 119, 105, 100, 72, 108, 119, 90, 83, 73, 54, 73, 109, 108, 116, 89, 87, 100, 108, 73, 105, 119, 105, 97, 87, 49, 104, 90, 50, 85, 105, 79, 105, 73, 105, 76, 67, 74, 112, 90, 67, 73, 54, 73, 106, 77, 53, 78, 122, 65, 48, 90, 87, 77, 52, 89, 84, 78, 107, 89, 84, 81, 119, 78, 106, 104, 104, 89, 122, 78, 107, 79, 84, 65, 120, 79, 71, 70, 105, 79, 84, 73, 51, 90, 71, 69, 122, 73, 105, 119, 105, 90, 87, 53, 106, 98, 50, 82, 112, 98, 109, 100, 122, 73, 106, 112, 55, 73, 110, 90, 112, 89, 109, 85, 105, 79, 105, 74, 90, 98, 85, 90, 54, 87, 108, 82, 90, 77, 70, 103, 121, 86, 110, 86, 90, 77, 106, 108, 114, 89, 86, 99, 49, 98, 105, 74, 57, 76, 67, 74, 117, 89, 87, 49, 108, 73, 106, 111, 105, 86, 71, 86, 122, 100, 67, 66, 87, 97, 87, 74, 108, 73, 105, 119, 105, 100, 71, 104, 49, 98, 87, 74, 117, 89, 87, 108, 115, 73, 106, 112, 117, 100, 87, 120, 115, 76, 67, 74, 106, 99, 109, 86, 104, 100, 71, 86, 107, 81, 88, 81, 105, 79, 105, 73, 121, 77, 68, 73, 50, 76, 84, 65, 121, 76, 84, 73, 120, 86, 68, 69, 51, 79, 106, 73, 53, 79, 106, 81, 50, 76, 106, 85, 119, 78, 106, 77, 50, 78, 105, 73, 115, 73, 109, 108, 116, 99, 71, 57, 121, 100, 69, 108, 117, 90, 109, 56, 105, 79, 110, 115, 105, 99, 50, 57, 49, 99, 109, 78, 108, 73, 106, 111, 105, 98, 109, 70, 112, 88, 50, 120, 104, 100, 87, 53, 106, 97, 71, 86, 121, 73, 105, 119, 105, 97, 87, 49, 119, 98, 51, 74, 48, 90, 87, 82, 66, 100, 67, 73, 54, 73, 106, 73, 119, 77, 106, 89, 116, 77, 68, 73, 116, 77, 106, 70, 85, 77, 84, 99, 54, 77, 106, 107, 54, 78, 68, 89, 117, 78, 84, 65, 50, 77, 122, 89, 50, 73, 110, 49, 57, 88, 88, 48, 61, 98, 125, 165, 235, 0, 0, 0, 11, 73, 68, 65, 84, 120, 218, 99, 252, 255, 31, 0, 3, 3, 2, 0, 238, 170, 191, 70, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130], rawImageData: null, strength: 0.6, infoExtracted: 1.0, sourceType: VibeSourceType.png, bundleSource: null)])>
+  
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 480:18  expect
+  test\core\utils\vibe_image_embedder_test.dart 30:7  main.<fn>.<fn>
+  
+00:02 +88 -5: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 网络日志格式正确
+00:02 +89 -5: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 网络日志格式正确
+00:02 +90 -5: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/vibe_image_embedder_test.dart: VibeImageEmbedder embedVibeToImage and extractVibeFromImage should keep data unchanged in round trip
+┌───────────────────────────────────────────────────────────────────────────────
+00:02 +90 -5: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService streaming fallback scenarios should handle streaming not allowed error in various formats
+[38;5;208m┌───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;208m│ ⚠️ [ImageGenerationService] Streaming not allowed, falling back to non-stream API[0m
+00:02 +90 -5: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/vibe_image_embedder_test.dart: VibeImageEmbedder embedVibeToImage and extractVibeFromImage should keep data unchanged in round trip
+│ 🐛 [VibeImageEmbedder] Found NAI naidata format
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+00:02 +90 -5: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService streaming fallback scenarios should handle streaming not allowed error in various formats
+[38;5;208m└───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;208m┌───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;208m│ ⚠️ [ImageGenerationService] Streaming not allowed, falling back to non-stream API[0m
+00:02 +90 -5: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/vibe_image_embedder_test.dart: VibeImageEmbedder embedVibeToImage and extractVibeFromImage should keep data unchanged in round trip
+│ 🐛 [VibeImageEmbedder] Vibe fields: [identifier, version, type, image, id, encodings, name, thumbnail, createdAt, importInfo]
+└───────────────────────────────────────────────────────────────────────────────
+00:02 +90 -5: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService streaming fallback scenarios should handle streaming not allowed error in various formats
+[38;5;208m└───────────────────────────────────────────────────────────────────────────────[0m
+00:02 +90 -5: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/vibe_image_embedder_test.dart: VibeImageEmbedder embedVibeToImage and extractVibeFromImage should keep data unchanged in round trip
+[38;5;208m┌───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;208m│ ⚠️ [VibeImageEmbedder] No thumbnail or image field found in vibe data[0m
+[38;5;208m└───────────────────────────────────────────────────────────────────────────────[0m
+00:02 +90 -5: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService streaming fallback scenarios should handle streaming not allowed error in various formats
+[38;5;208m┌───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;208m│ ⚠️ [ImageGenerationService] Streaming not allowed, falling back to non-stream API[0m
+00:02 +90 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService streaming fallback scenarios should handle streaming not allowed error in various formats
+[38;5;208m└───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;208m┌───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;208m│ ⚠️ [ImageGenerationService] Streaming not allowed, falling back to non-stream API[0m
+[38;5;208m└───────────────────────────────────────────────────────────────────────────────[0m
+00:02 +91 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 认证日志脱敏处理正确
+00:02 +91 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/vibe_image_embedder_test.dart: VibeImageEmbedder embedVibeToImage and extractVibeFromImage should keep data unchanged in round trip [E]
+  Expected: _$VibeReferenceImpl:<VibeReference(displayName: Round Trip Vibe, vibeEncoding: cm91bmRfdHJpcF9lbmNvZGluZw==, thumbnail: null, rawImageData: null, strength: 0.61, infoExtracted: 0.92, sourceType: VibeSourceType.png, bundleSource: null)>
+    Actual: ({bool isBundle, List<VibeReference> vibes}):<(isBundle: true, vibes: [VibeReference(displayName: Round Trip Vibe, vibeEncoding: , thumbnail: [137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 4, 0, 0, 0, 181, 28, 12, 2, 0, 0, 2, 36, 105, 84, 88, 116, 110, 97, 105, 100, 97, 116, 97, 0, 0, 0, 0, 0, 101, 121, 74, 112, 90, 71, 86, 117, 100, 71, 108, 109, 97, 87, 86, 121, 73, 106, 111, 105, 98, 109, 57, 50, 90, 87, 120, 104, 97, 83, 49, 50, 97, 87, 74, 108, 76, 88, 82, 121, 89, 87, 53, 122, 90, 109, 86, 121, 76, 87, 74, 49, 98, 109, 82, 115, 90, 83, 73, 115, 73, 110, 90, 108, 99, 110, 78, 112, 98, 50, 52, 105, 79, 106, 69, 115, 73, 110, 90, 112, 89, 109, 86, 122, 73, 106, 112, 98, 101, 121, 74, 112, 90, 71, 86, 117, 100, 71, 108, 109, 97, 87, 86, 121, 73, 106, 111, 105, 98, 109, 57, 50, 90, 87, 120, 104, 97, 83, 49, 50, 97, 87, 74, 108, 76, 88, 82, 121, 89, 87, 53, 122, 90, 109, 86, 121, 73, 105, 119, 105, 100, 109, 86, 121, 99, 50, 108, 118, 98, 105, 73, 54, 77, 83, 119, 105, 100, 72, 108, 119, 90, 83, 73, 54, 73, 109, 108, 116, 89, 87, 100, 108, 73, 105, 119, 105, 97, 87, 49, 104, 90, 50, 85, 105, 79, 105, 73, 105, 76, 67, 74, 112, 90, 67, 73, 54, 73, 106, 77, 51, 78, 71, 85, 52, 90, 84, 73, 52, 78, 84, 108, 106, 89, 50, 77, 49, 78, 68, 85, 53, 78, 87, 81, 50, 77, 109, 77, 48, 90, 106, 82, 109, 77, 106, 70, 104, 78, 106, 70, 109, 73, 105, 119, 105, 90, 87, 53, 106, 98, 50, 82, 112, 98, 109, 100, 122, 73, 106, 112, 55, 73, 110, 90, 112, 89, 109, 85, 105, 79, 105, 74, 106, 98, 84, 107, 120, 89, 109, 49, 83, 90, 109, 82, 73, 83, 110, 66, 106, 82, 106, 108, 115, 89, 109, 49, 79, 100, 108, 112, 72, 98, 72, 86, 97, 100, 122, 48, 57, 73, 110, 48, 115, 73, 109, 53, 104, 98, 87, 85, 105, 79, 105, 74, 83, 98, 51, 86, 117, 90, 67, 66, 85, 99, 109, 108, 119, 73, 70, 90, 112, 89, 109, 85, 105, 76, 67, 74, 48, 97, 72, 86, 116, 89, 109, 53, 104, 97, 87, 119, 105, 79, 109, 53, 49, 98, 71, 119, 115, 73, 109, 78, 121, 90, 87, 70, 48, 90, 87, 82, 66, 100, 67, 73, 54, 73, 106, 73, 119, 77, 106, 89, 116, 77, 68, 73, 116, 77, 106, 70, 85, 77, 84, 99, 54, 77, 106, 107, 54, 78, 68, 89, 117, 78, 84, 89, 49, 79, 68, 81, 51, 73, 105, 119, 105, 97, 87, 49, 119, 98, 51, 74, 48, 83, 87, 53, 109, 98, 121, 73, 54, 101, 121, 74, 122, 98, 51, 86, 121, 89, 50, 85, 105, 79, 105, 74, 117, 89, 87, 108, 102, 98, 71, 70, 49, 98, 109, 78, 111, 90, 88, 73, 105, 76, 67, 74, 112, 98, 88, 66, 118, 99, 110, 82, 108, 90, 69, 70, 48, 73, 106, 111, 105, 77, 106, 65, 121, 78, 105, 48, 119, 77, 105, 48, 121, 77, 86, 81, 120, 78, 122, 111, 121, 79, 84, 111, 48, 78, 105, 52, 49, 78, 106, 85, 52, 78, 68, 99, 105, 102, 88, 49, 100, 102, 81, 61, 61, 68, 183, 205, 200, 0, 0, 0, 11, 73, 68, 65, 84, 120, 218, 99, 252, 255, 31, 0, 3, 3, 2, 0, 238, 170, 191, 70, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130], rawImageData: null, strength: 0.6, infoExtracted: 1.0, sourceType: VibeSourceType.png, bundleSource: null)])>
+  
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 480:18  expect
+  test\core\utils\vibe_image_embedder_test.dart 53:9  main.<fn>.<fn>
+  
+00:02 +91 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 认证日志脱敏处理正确
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:46.581121 [Auth] 用户登录 | email: te***@example.com | success: true
+00:02 +91 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService streaming fallback scenarios should handle stream errors gracefully
+[38;5;196m┌───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;196m│ ImageGenerationService[0m
+[38;5;196m├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[0m
+[38;5;196m│ #0   AppLogger.e (package:nai_launcher/core/utils/app_logger.dart:294:14)[0m
+[38;5;196m│ #1   ImageGenerationService.generateSingle (package:nai_launcher/presentation/providers/generation/image_generation_service.dart:139:17)[0m
+[38;5;196m│ #2   <asynchronous suspension>[0m
+[38;5;196m│ #3   main.<anonymous closure>.<anonymous closure>.<anonymous closure> (file:///E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart:501:24)[0m
+00:02 +92 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 认证日志脱敏处理正确
+00:02 +92 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/services/image_generation_service_test.dart: ImageGenerationService streaming fallback scenarios should handle stream errors gracefully
+[38;5;196m│ #4   <asynchronous suspension>[0m
+[38;5;196m├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[0m
+[38;5;196m│ ⛔ Single generation failed: Exception: Temporary error[0m
+[38;5;196m└───────────────────────────────────────────────────────────────────────────────[0m
+00:02 +93 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 认证日志脱敏处理正确
+00:02 +94 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 认证日志脱敏处理正确
+00:02 +95 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 认证日志脱敏处理正确
+00:02 +96 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 认证日志脱敏处理正确
+00:02 +97 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 加密日志脱敏处理正确
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:46.688589 [Crypto] 生成密钥 | email: us***@example.com | keyLength: 256 | success: true
+00:02 +98 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 自动轮换保留最近3个日志文件
+00:02 +99 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 自动轮换保留最近3个日志文件
+00:02 +100 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 自动轮换保留最近3个日志文件
+00:02 +101 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 自动轮换保留最近3个日志文件
+00:02 +102 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 自动轮换保留最近3个日志文件
+00:02 +103 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 自动轮换保留最近3个日志文件
+00:02 +104 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 自动轮换保留最近3个日志文件
+00:02 +105 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 自动轮换保留最近3个日志文件
+00:02 +106 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 自动轮换保留最近3个日志文件
+00:02 +107 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/data/models/character/character_reference_test.dart: PreciseReference should support all PreciseRefType values
+00:02 +108 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:02 +109 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:02 +110 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +111 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +112 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +113 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +114 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +115 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +116 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +117 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +118 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +119 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +120 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +121 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +122 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +122 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/data_sources_initialization_test.dart: 三个数据源初始化验证 (setUpAll)
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.472572 [AppLogger] 日志系统初始化完成
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.478923 [AppLogger] 日志文件: C:\Users\ADMINI~1\AppData\Local\Temp\test_20260221_172947.log
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.478923 [AppLogger] 运行环境: 测试
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.479452 [DataSourceTest] === 首次启动数据源初始化验证开始 ===
+00:03 +122 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +122 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/data_sources_initialization_test.dart: 三个数据源初始化验证 数据源 1: 翻译数据服务初始化流程
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.497252 [DataSourceTest] ┌─────────────────────────────────────┐
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.497784 [DataSourceTest] │ 验证翻译数据服务 (Translation)       │
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.497784 [DataSourceTest] └─────────────────────────────────────┘
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.497784 [DataSourceTest]   [1/4] 服务已注册到 BackgroundTaskProvider
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.498319 [DataSourceTest]         - 任务ID: translation_preload
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.498319 [DataSourceTest]         - 触发时机: 后台任务阶段
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.498319 [DataSourceTest]   [2/4] 存储位置验证
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.498319 [DataSourceTest]         - 数据库: unified_tag_database.db
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.498319 [DataSourceTest]         - 表: translations
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.498319 [DataSourceTest]   [3/4] 懒加载机制验证
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.498834 [DataSourceTest]         - 首次访问时自动初始化
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.498834 [DataSourceTest]         - 使用 FutureProvider 延迟加载
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.498834 [DataSourceTest]   [4/4] 数据来源验证
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.498834 [DataSourceTest]         - 来源: HuggingFace NLP模型
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.498834 [DataSourceTest]         - 格式: 标签-翻译映射表
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.502058 [DataSourceTest] ✅ 翻译数据服务验证完成
+00:03 +123 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +123 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/data_sources_initialization_test.dart: 三个数据源初始化验证 数据源 2: Danbooru标签数据初始化流程
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.509859 [DataSourceTest] ┌─────────────────────────────────────┐
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.509859 [DataSourceTest] │ 验证Danbooru标签数据服务             │
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.509859 [DataSourceTest] └─────────────────────────────────────┘
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.509859 [DataSourceTest]   [1/6] 服务已注册到 BackgroundTaskProvider
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.509859 [DataSourceTest]         - 任务ID: danbooru_tags_preload
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.509859 [DataSourceTest]         - 触发时机: 后台任务阶段
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.510859 [DataSourceTest]   [2/6] 轻量级初始化 (Critical阶段)
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.510859 [DataSourceTest]         - 检查数据库状态
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.510859 [DataSourceTest]         - 获取标签数量统计
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.510859 [DataSourceTest]         - 不触发网络请求
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.510859 [DataSourceTest]   [3/6] 自动刷新检测
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.510859 [DataSourceTest]         - 检查最后更新时间
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.510859 [DataSourceTest]         - 对比自动刷新间隔设置
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.510859 [DataSourceTest]         - 条件满足时触发 refresh()
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.510859 [DataSourceTest]   [4/6] 数据拉取 (首次启动)
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.511858 [DataSourceTest]         - 调用 Danbooru API
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.511858 [DataSourceTest]         - 解析标签列表
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.511858 [DataSourceTest]         - 分批存储到 SQLite
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.511858 [DataSourceTest]   [5/6] 热数据缓存
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.511858 [DataSourceTest]         - 预加载热门标签到内存
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.511858 [DataSourceTest]         - 提高标签补全响应速度
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.511858 [DataSourceTest]   [6/6] 画师同步选项
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.511858 [DataSourceTest]         - 设置项: syncArtists (默认 true)
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.511858 [DataSourceTest]         - 首次启动时同步画师标签
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.511858 [DataSourceTest] ✅ Danbooru标签数据服务验证完成
+00:03 +124 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +124 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/data_sources_initialization_test.dart: 三个数据源初始化验证 数据源 3: 共现标签数据初始化流程
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.519366 [DataSourceTest] ┌─────────────────────────────────────┐
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.520365 [DataSourceTest] │ 验证共现标签数据服务                 │
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.520365 [DataSourceTest] └─────────────────────────────────────┘
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.520365 [DataSourceTest]   [1/5] 服务已注册到 BackgroundTaskProvider
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.520365 [DataSourceTest]         - 任务ID: cooccurrence_import
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.520365 [DataSourceTest]         - 触发时机: 后台任务阶段
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.520365 [DataSourceTest]   [2/5] Quick阶段初始化
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.520365 [DataSourceTest]         - 检查数据库连接
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.520365 [DataSourceTest]         - 验证表结构
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.520365 [DataSourceTest]         - 超时: 10秒
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.521365 [DataSourceTest]   [3/5] 后台数据导入
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.521365 [DataSourceTest]         - 检查共现数据文件
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.521365 [DataSourceTest]         - 导入到 SQLite
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.521365 [DataSourceTest]         - 大文件分批处理
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.521365 [DataSourceTest]   [4/5] 懒加载机制
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.521365 [DataSourceTest]         - 标签建议时才查询数据库
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.521365 [DataSourceTest]         - 不占用启动时间
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.521365 [DataSourceTest]   [5/5] 数据来源
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.522366 [DataSourceTest]         - 来源: HuggingFace
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.522366 [DataSourceTest]         - 格式: 标签共现矩阵
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.522366 [DataSourceTest]         - 用途: 智能标签推荐
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.522366 [DataSourceTest] ✅ 共现标签数据服务验证完成
+00:03 +125 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +125 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/data_sources_initialization_test.dart: 三个数据源初始化验证 验证三个数据源初始化流程图
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.529883 [DataSourceTest] 
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.530439 [DataSourceTest] ╔════════════════════════════════════════════════════════╗
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.530439 [DataSourceTest] ║           首次启动三个数据源初始化流程图                 ║
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.530439 [DataSourceTest] ╚════════════════════════════════════════════════════════╝
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.530439 [DataSourceTest] 
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.531071 [DataSourceTest]   ┌─────────────┐
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.531071 [DataSourceTest]   │   应用启动   │
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.531071 [DataSourceTest]   └──────┬──────┘
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.531071 [DataSourceTest]          │
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.531071 [DataSourceTest]          ▼
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.531071 [DataSourceTest]   ┌─────────────┐
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.531071 [DataSourceTest]   │ Warmup阶段  │
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.531630 [DataSourceTest]   │  (5-10秒)   │
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.531630 [DataSourceTest]   └──────┬──────┘
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.531630 [DataSourceTest]          │
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.531630 [DataSourceTest]     ┌────┴────┐
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.531630 [DataSourceTest]     │         │
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.532206 [DataSourceTest]     ▼         ▼
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.532206 [DataSourceTest] ┌───────┐  ┌─────────┐
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.532206 [DataSourceTest] │Critical│  │  Quick  │
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.532206 [DataSourceTest] │ 阶段   │  │  阶段   │
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.532206 [DataSourceTest] └───┬───┘  └────┬────┘
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.532206 [DataSourceTest]     │           │
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.532206 [DataSourceTest]     │     ┌─────┴─────┐
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.532825 [DataSourceTest]     │     │           │
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.532825 [DataSourceTest]     │     ▼           ▼
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.532825 [DataSourceTest]     │  ┌─────────┐  ┌─────────────┐
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.532825 [DataSourceTest]     │  │共现数据  │  │ Danbooru   │
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.532825 [DataSourceTest]     │  │初始化检查│  │ 轻量级初始化│
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.532825 [DataSourceTest]     │  └─────────┘  └─────────────┘
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.532825 [DataSourceTest]     │
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.533467 [DataSourceTest]     ▼
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.533467 [DataSourceTest] ┌─────────────┐
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.533467 [DataSourceTest] │  主界面显示  │
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.533467 [DataSourceTest] └──────┬──────┘
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.533467 [DataSourceTest]        │
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.533467 [DataSourceTest]        ▼
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.533467 [DataSourceTest] ┌─────────────┐
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.533467 [DataSourceTest] │ 后台任务启动 │
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.534095 [DataSourceTest] └──────┬──────┘
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.534095 [DataSourceTest]        │
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.534095 [DataSourceTest]   ┌────┼────┐
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.534095 [DataSourceTest]   │    │    │
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.534095 [DataSourceTest]   ▼    ▼    ▼
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.534095 [DataSourceTest] ┌───┐┌───┐┌───┐
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.534095 [DataSourceTest] │翻译││标签││共现│
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.534720 [DataSourceTest] │数据││数据││数据│
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.534720 [DataSourceTest] │加载││拉取││导入│
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.534720 [DataSourceTest] └───┘└───┘└───┘
+00:03 +126 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +126 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/data_source_test.dart: 日志功能测试 不同级别的日志
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.739641 [AppLogger] 日志系统初始化完成
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.744705 [AppLogger] 日志文件: C:\Users\ADMINI~1\AppData\Local\Temp\test_20260221_172947.log
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.745707 [AppLogger] 运行环境: 测试
+[D] TIME: 2026-02-21T17:29:47.745707 调试日志
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.746705 信息日志
+[38;5;208m[W][0m TIME: 2026-02-21T17:29:47.746705 警告日志
+[38;5;196m[E][0m TIME: 2026-02-21T17:29:47.747707 错误日志
+00:03 +127 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +127 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/data_source_test.dart: 日志功能测试 网络日志格式
+[D] TIME: 2026-02-21T17:29:47.759806 [HTTP] GET https://api.example.com/test
+Data: null
+00:03 +128 -6: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +128 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:03 +128 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/data_sources_initialization_test.dart: 三个数据源初始化验证 验证日志文件记录 [E]
+  Expected: contains '翻译数据服务'
+    Actual: '\x1B[38;5;12m[I]\x1B[0m TIME: 2026-02-21T17:29:47.472572 [AppLogger] 日志系统初始化完成\n'
+              '\x1B[38;5;12m[I]\x1B[0m TIME: 2026-02-21T17:29:47.497252 [DataSourceTest] ┌─────────────────────────────────────┐\n'
+              '\x1B[38;5;12m[I]\x1B[0m TIME: 2026-02-21T17:29:47.509859 [DataSourceTest] ┌─────────────────────────────────────┐\n'
+              '\x1B[38;5;12m[I]\x1B[0m TIME: 2026-02-21T17:29:47.519366 [DataSourceTest] ┌─────────────────────────────────────┐\n'
+              '\x1B[38;5;12m[I]\x1B[0m TIME: 2026-02-21T17:29:47.529883 [DataSourceTest] \n'
+              ''
+     Which: does not contain '翻译数据服务'
+  
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 480:18  expect
+  test\data_sources_initialization_test.dart 197:7    main.<fn>.<fn>
+  
+00:03 +128 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/data_sources_initialization_test.dart: 三个数据源初始化验证 (tearDownAll)
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:47.782124 [DataSourceTest] === 首次启动数据源初始化验证结束 ===
+00:03 +128 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:04 +128 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/first_launch_test.dart: 首次启动流程验证 (setUpAll)
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:48.030453 [AppLogger] 日志系统初始化完成
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:48.037456 [AppLogger] 日志文件: C:\Users\ADMINI~1\AppData\Local\Temp\test_20260221_172948.log
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:48.037456 [AppLogger] 运行环境: 测试
+00:04 +128 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:04 +128 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/first_launch_test.dart: 首次启动流程验证 1. 日志系统成功初始化
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:48.051650 [FirstLaunch] ✅ 日志系统初始化验证通过
+00:04 +129 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:04 +129 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/first_launch_test.dart: 首次启动流程验证 2. 日志文件使用正确前缀
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:48.056656 [FirstLaunch] ✅ 日志文件前缀验证通过: test_20260221_172948.log
+00:04 +130 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:04 +130 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/first_launch_test.dart: 首次启动流程验证 3. 日志目录结构正确
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:48.060343 [FirstLaunch] ✅ 日志目录验证通过: C:\Users\ADMINI~1\AppData\Local\Temp
+00:04 +131 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:04 +131 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/first_launch_test.dart: 首次启动流程验证 4. 日志内容正确写入
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:48.063344 [FirstLaunch] 首次启动测试日志
+[D] TIME: 2026-02-21T17:29:48.064344 调试信息
+[38;5;208m[W][0m TIME: 2026-02-21T17:29:48.064344 警告信息
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:48.170052 [FirstLaunch] ✅ 日志内容写入验证通过
+00:04 +132 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:04 +132 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/first_launch_test.dart: 首次启动流程验证 5. 获取日志文件列表
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:48.186576 [FirstLaunch] ✅ 日志文件列表获取成功: 3 个文件
+00:04 +133 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 getLogFiles返回按时间倒序排列
+00:04 +133 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/first_launch_test.dart: 首次启动流程验证 6. 验证首次启动关键日志
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:48.190579 [Main] 应用启动
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:48.190579 [AppLogger] 日志系统初始化完成
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:48.191687 [Warmup] 初始化数据库
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:48.191687 [Warmup] 初始化共现数据
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:48.191687 [Warmup] Danbooru标签数据加载
+00:04 +134 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/first_launch_test.dart: 首次启动流程验证 6. 验证首次启动关键日志
+00:04 +135 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/first_launch_test.dart: 首次启动流程验证 6. 验证首次启动关键日志
+00:04 +135 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/core/utils/app_logger_test.dart: 日志系统测试 长文本自动截断
+[38;5;12m[I][0m TIME: 2026-02-21T17:29:48.204205 [HTTP] GET https://api.example.com/data
+Response: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx... (truncated)
+00:04 +136 -7: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/first_launch_test.dart: 首次启动流程验证 6. 验证首次启动关键日志
+00:04 +136 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/first_launch_test.dart: 首次启动流程验证 6. 验证首次启动关键日志 [E]
+  Expected: contains '[Warmup]'
+    Actual: '\x1B[38;5;12m[I]\x1B[0m TIME: 2026-02-21T17:29:48.030453 [AppLogger] 日志系统初始化完成\n'
+              '\x1B[38;5;12m[I]\x1B[0m TIME: 2026-02-21T17:29:48.051650 [FirstLaunch] ✅ 日志系统初始化验证通过\n'
+              '\x1B[38;5;12m[I]\x1B[0m TIME: 2026-02-21T17:29:48.056656 [FirstLaunch] ✅ 日志文件前缀验证通过: test_20260221_172948.log\n'
+              '\x1B[38;5;12m[I]\x1B[0m TIME: 2026-02-21T17:29:48.060343 [FirstLaunch] ✅ 日志目录验证通过: C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\n'
+              '\x1B[38;5;12m[I]\x1B[0m TIME: 2026-02-21T17:29:48.063344 [FirstLaunch] 首次启动测试日志\n'
+              '\x1B[38;5;12m[I]\x1B[0m TIME: 2026-02-21T17:29:48.170052 [FirstLaunch] ✅ 日志内容写入验证通过\n'
+              '\x1B[38;5;12m[I]\x1B[0m TIME: 2026-02-21T17:29:48.186576 [FirstLaunch] ✅ 日志文件列表获取成功: 3 个文件\n'
+              '\x1B[38;5;12m[I]\x1B[0m TIME: 2026-02-21T17:29:48.190579 [Main] 应用启动\n'
+              ''
+     Which: does not contain '[Warmup]'
+  
+  package:matcher                                     expect
+  package:flutter_test/src/widget_tester.dart 480:18  expect
+  test\first_launch_test.dart 104:7                   main.<fn>.<fn>
+  
+00:04 +136 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: (setUpAll)
+00:04 +136 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier build should return initial state
+00:04 +137 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier generateBatch should generate single image successfully
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Starting batch generation: count=1, concurrency=1
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 1/1 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Batch generation completed: completed=1, failed=0
+└───────────────────────────────────────────────────────────────────────────────
+00:04 +138 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier generateBatch should generate multiple images
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Starting batch generation: count=2, concurrency=1
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 1/2 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 2/2 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Batch generation completed: completed=2, failed=0
+└───────────────────────────────────────────────────────────────────────────────
+00:04 +139 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier generateBatch should set error status when count is 0 or negative
+00:04 +140 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier generateBatch should handle generation errors
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Starting batch generation: count=1, concurrency=1
+└───────────────────────────────────────────────────────────────────────────────
+[38;5;196m┌───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;196m│ ImageGenerationService[0m
+[38;5;196m├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[0m
+[38;5;196m│ #0   AppLogger.e (package:nai_launcher/core/utils/app_logger.dart:294:14)[0m
+[38;5;196m│ #1   ImageGenerationService.generateSingle (package:nai_launcher/presentation/providers/generation/image_generation_service.dart:139:17)[0m
+[38;5;196m│ #2   <asynchronous suspension>[0m
+[38;5;196m│ #3   BatchGenerationNotifier._generateSingle (package:nai_launcher/presentation/providers/generation/batch_generation_notifier.dart:335:22)[0m
+[38;5;196m│ #4   <asynchronous suspension>[0m
+[38;5;196m├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[0m
+[38;5;196m│ ⛔ Single generation failed: Exception: Generation failed[0m
+[38;5;196m└───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;196m┌───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;196m│ BatchGeneration[0m
+[38;5;196m├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[0m
+[38;5;196m│ #0   AppLogger.e (package:nai_launcher/core/utils/app_logger.dart:294:14)[0m
+[38;5;196m│ #1   BatchGenerationNotifier._generateSingle (package:nai_launcher/presentation/providers/generation/batch_generation_notifier.dart:384:17)[0m
+[38;5;196m│ #2   <asynchronous suspension>[0m
+[38;5;196m│ #3   _Semaphore.acquire (package:nai_launcher/presentation/providers/generation/batch_generation_notifier.dart:546:14)[0m
+[38;5;196m│ #4   <asynchronous suspension>[0m
+[38;5;196m├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[0m
+[38;5;196m│ ⛔ Failed to generate image 0: Exception: Exception: Generation failed[0m
+[38;5;196m└───────────────────────────────────────────────────────────────────────────────[0m
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Batch generation completed: completed=0, failed=1
+└───────────────────────────────────────────────────────────────────────────────
+00:04 +141 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier generateBatch should handle error chunks from stream
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Starting batch generation: count=1, concurrency=1
+└───────────────────────────────────────────────────────────────────────────────
+[38;5;196m┌───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;196m│ BatchGeneration[0m
+[38;5;196m├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[0m
+[38;5;196m│ #0   AppLogger.e (package:nai_launcher/core/utils/app_logger.dart:294:14)[0m
+[38;5;196m│ #1   BatchGenerationNotifier._generateSingle (package:nai_launcher/presentation/providers/generation/batch_generation_notifier.dart:384:17)[0m
+[38;5;196m│ #2   <asynchronous suspension>[0m
+[38;5;196m│ #3   _Semaphore.acquire (package:nai_launcher/presentation/providers/generation/batch_generation_notifier.dart:546:14)[0m
+[38;5;196m│ #4   <asynchronous suspension>[0m
+[38;5;196m├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[0m
+[38;5;196m│ ⛔ Failed to generate image 0: Exception: API error[0m
+[38;5;196m└───────────────────────────────────────────────────────────────────────────────[0m
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Batch generation completed: completed=0, failed=1
+└───────────────────────────────────────────────────────────────────────────────
+00:04 +142 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier generateBatch should update progress during generation
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Starting batch generation: count=1, concurrency=1
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 1/1 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Batch generation completed: completed=1, failed=0
+└───────────────────────────────────────────────────────────────────────────────
+00:04 +143 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier generateBatch should use different seeds for each image when seed is specified
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Starting batch generation: count=3, concurrency=1
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 1/3 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 2/3 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 3/3 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Batch generation completed: completed=3, failed=0
+└───────────────────────────────────────────────────────────────────────────────
+00:04 +144 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier generateBatch should keep seed as -1 for all images when random seed is used
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Starting batch generation: count=3, concurrency=1
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 1/3 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 2/3 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 3/3 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Batch generation completed: completed=3, failed=0
+└───────────────────────────────────────────────────────────────────────────────
+00:04 +145 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier generateBatch should handle concurrent generation
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Starting batch generation: count=4, concurrency=2
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 1/4 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 2/4 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 3/4 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 4/4 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Batch generation completed: completed=4, failed=0
+└───────────────────────────────────────────────────────────────────────────────
+00:04 +146 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier generateBatch should set error status when all generations fail
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Starting batch generation: count=2, concurrency=1
+└───────────────────────────────────────────────────────────────────────────────
+[38;5;196m┌───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;196m│ BatchGeneration[0m
+[38;5;196m├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[0m
+[38;5;196m│ #0   AppLogger.e (package:nai_launcher/core/utils/app_logger.dart:294:14)[0m
+[38;5;196m│ #1   BatchGenerationNotifier._generateSingle (package:nai_launcher/presentation/providers/generation/batch_generation_notifier.dart:384:17)[0m
+[38;5;196m│ #2   <asynchronous suspension>[0m
+[38;5;196m│ #3   _Semaphore.acquire (package:nai_launcher/presentation/providers/generation/batch_generation_notifier.dart:546:14)[0m
+[38;5;196m│ #4   <asynchronous suspension>[0m
+[38;5;196m├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[0m
+[38;5;196m│ ⛔ Failed to generate image 0: Exception: API error[0m
+[38;5;196m└───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;196m┌───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;196m│ BatchGeneration[0m
+[38;5;196m├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[0m
+[38;5;196m│ #0   AppLogger.e (package:nai_launcher/core/utils/app_logger.dart:294:14)[0m
+[38;5;196m│ #1   BatchGenerationNotifier._generateSingle (package:nai_launcher/presentation/providers/generation/batch_generation_notifier.dart:384:17)[0m
+[38;5;196m│ #2   <asynchronous suspension>[0m
+[38;5;196m│ #3   _Semaphore.acquire (package:nai_launcher/presentation/providers/generation/batch_generation_notifier.dart:546:14)[0m
+[38;5;196m│ #4   <asynchronous suspension>[0m
+[38;5;196m├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[0m
+[38;5;196m│ ⛔ Failed to generate image 1: Exception: API error[0m
+[38;5;196m└───────────────────────────────────────────────────────────────────────────────[0m
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Batch generation completed: completed=0, failed=2
+└───────────────────────────────────────────────────────────────────────────────
+00:04 +147 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier generateBatch should complete successfully when some generations fail
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Starting batch generation: count=2, concurrency=1
+└───────────────────────────────────────────────────────────────────────────────
+[38;5;196m┌───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;196m│ BatchGeneration[0m
+[38;5;196m├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[0m
+[38;5;196m│ #0   AppLogger.e (package:nai_launcher/core/utils/app_logger.dart:294:14)[0m
+[38;5;196m│ #1   BatchGenerationNotifier._generateSingle (package:nai_launcher/presentation/providers/generation/batch_generation_notifier.dart:384:17)[0m
+[38;5;196m│ #2   <asynchronous suspension>[0m
+[38;5;196m│ #3   _Semaphore.acquire (package:nai_launcher/presentation/providers/generation/batch_generation_notifier.dart:546:14)[0m
+[38;5;196m│ #4   <asynchronous suspension>[0m
+[38;5;196m├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[0m
+[38;5;196m│ ⛔ Failed to generate image 0: Exception: API error[0m
+[38;5;196m└───────────────────────────────────────────────────────────────────────────────[0m
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 2/2 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Batch generation completed: completed=1, failed=1
+└───────────────────────────────────────────────────────────────────────────────
+00:04 +148 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier generateBatch should store batch width and height from params
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Starting batch generation: count=1, concurrency=1
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 1/1 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Batch generation completed: completed=1, failed=0
+└───────────────────────────────────────────────────────────────────────────────
+00:04 +149 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier cancel should cancel batch generation
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Starting batch generation: count=1, concurrency=1
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ImageGenerationService] Image generation cancelled
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Batch generation cancelled
+└───────────────────────────────────────────────────────────────────────────────
+00:04 +150 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier cancel should clear stream preview on cancel
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Starting batch generation: count=1, concurrency=1
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [ImageGenerationService] Image generation cancelled
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Batch generation cancelled
+└───────────────────────────────────────────────────────────────────────────────
+00:04 +151 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier reset should reset state to initial
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Starting batch generation: count=1, concurrency=1
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 1/1 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Batch generation completed: completed=1, failed=0
+└───────────────────────────────────────────────────────────────────────────────
+00:04 +152 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier clearError should clear error status
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Starting batch generation: count=1, concurrency=1
+└───────────────────────────────────────────────────────────────────────────────
+[38;5;196m┌───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;196m│ BatchGeneration[0m
+[38;5;196m├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[0m
+[38;5;196m│ #0   AppLogger.e (package:nai_launcher/core/utils/app_logger.dart:294:14)[0m
+[38;5;196m│ #1   BatchGenerationNotifier._generateSingle (package:nai_launcher/presentation/providers/generation/batch_generation_notifier.dart:384:17)[0m
+[38;5;196m│ #2   <asynchronous suspension>[0m
+[38;5;196m│ #3   _Semaphore.acquire (package:nai_launcher/presentation/providers/generation/batch_generation_notifier.dart:546:14)[0m
+[38;5;196m│ #4   <asynchronous suspension>[0m
+[38;5;196m├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[0m
+[38;5;196m│ ⛔ Failed to generate image 0: Exception: API error[0m
+[38;5;196m└───────────────────────────────────────────────────────────────────────────────[0m
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Batch generation completed: completed=0, failed=1
+└───────────────────────────────────────────────────────────────────────────────
+00:04 +153 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier clearError should not change status when not in error state
+00:04 +154 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier retryFailed should retry failed items
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Starting batch generation: count=1, concurrency=1
+└───────────────────────────────────────────────────────────────────────────────
+[38;5;196m┌───────────────────────────────────────────────────────────────────────────────[0m
+[38;5;196m│ BatchGeneration[0m
+[38;5;196m├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[0m
+[38;5;196m│ #0   AppLogger.e (package:nai_launcher/core/utils/app_logger.dart:294:14)[0m
+[38;5;196m│ #1   BatchGenerationNotifier._generateSingle (package:nai_launcher/presentation/providers/generation/batch_generation_notifier.dart:384:17)[0m
+[38;5;196m│ #2   <asynchronous suspension>[0m
+[38;5;196m│ #3   _Semaphore.acquire (package:nai_launcher/presentation/providers/generation/batch_generation_notifier.dart:546:14)[0m
+[38;5;196m│ #4   <asynchronous suspension>[0m
+[38;5;196m├┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄[0m
+[38;5;196m│ ⛔ Failed to generate image 0: Exception: API error[0m
+[38;5;196m└───────────────────────────────────────────────────────────────────────────────[0m
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Batch generation completed: completed=0, failed=1
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Retrying 1 failed items
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 1/1 completed
+└───────────────────────────────────────────────────────────────────────────────
+00:04 +155 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier retryFailed should do nothing when no failed items
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Starting batch generation: count=1, concurrency=1
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 1/1 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Batch generation completed: completed=1, failed=0
+└───────────────────────────────────────────────────────────────────────────────
+00:04 +156 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier getSuccessfulImages should return successful generated images
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Starting batch generation: count=1, concurrency=1
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 1/1 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Batch generation completed: completed=1, failed=0
+└───────────────────────────────────────────────────────────────────────────────
+00:04 +157 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier getStatistics should return correct statistics
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Starting batch generation: count=3, concurrency=1
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 1/3 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 2/3 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 3/3 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Batch generation completed: completed=3, failed=0
+└───────────────────────────────────────────────────────────────────────────────
+00:04 +158 -8: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier getStatistics should calculate average duration
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Starting batch generation: count=2, concurrency=1
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 1/2 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Generated image 2/2 completed
+└───────────────────────────────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────────────────
+│ 🐛 [BatchGeneration] Batch generation completed: completed=2, failed=0
+└───────────────────────────────────────────────────────────────────────────────
+00:04 +158 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationNotifier getStatistics should calculate average duration [E]
+  Expected: a value greater than <0>
+    Actual: <0>
+     Which: is not a value greater than <0>
+  
+  package:matcher                                                                   expect
+  package:flutter_test/src/widget_tester.dart 480:18                                expect
+  test\presentation\providers\generation\batch_generation_notifier_test.dart 523:9  main.<fn>.<fn>.<fn>
+  
+00:04 +158 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationState should create default state
+00:04 +159 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationState should correctly identify isGenerating
+00:04 +160 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationState should correctly identify isIdle
+00:04 +161 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationState should correctly identify isAllCompleted
+00:04 +162 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationState should return successful images
+00:04 +163 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationState should convert items to GeneratedImage list
+00:04 +164 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationState should use default dimensions when batch dimensions are null
+00:04 +165 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationState should clear stream preview when clearStreamPreview is true
+00:04 +166 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationItem should create default item
+00:04 +167 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationItem should create completed item
+00:04 +168 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationItem should correctly identify isGenerating
+00:04 +169 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationItem should correctly identify isFailed
+00:04 +170 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationItem should calculate duration
+00:04 +171 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationItem should return null duration when startTime is null
+00:04 +172 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationItem should use current time for ongoing generation duration
+00:04 +173 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationItem should copy with new values
+00:04 +174 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchStatistics should create statistics correctly
+00:04 +175 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchStatistics should calculate success rate correctly
+00:04 +176 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchStatistics should return 0.0 for rates when total is 0
+00:04 +177 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchStatistics should identify all successful
+00:04 +178 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchStatistics should identify all done
+00:04 +179 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: BatchGenerationStatus should have all expected statuses
+00:04 +180 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/providers/generation/batch_generation_notifier_test.dart: (tearDownAll)
+00:04 +180 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/widgets/common/anlas_cost_badge_test.dart: AnlasCostBadge hides when generating
+00:05 +181 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/widgets/common/anlas_cost_badge_test.dart: AnlasCostBadge hides when free
+00:05 +182 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/widgets/common/anlas_cost_badge_test.dart: AnlasCostBadge shows cost when not generating and not free
+00:05 +183 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/widgets/common/anlas_cost_badge_test.dart: AnlasCostBadge shows error color when balance insufficient
+00:05 +184 -9: E:/Aaalice_NAI_Launcher/.auto-claude/worktrees/tasks/003-provider-imagegenerationprovider-1032-63/test/presentation/widgets/common/anlas_cost_badge_test.dart: AnlasCostBadge shows primary container color when balance sufficient
+00:05 +185 -9: Some tests failed.

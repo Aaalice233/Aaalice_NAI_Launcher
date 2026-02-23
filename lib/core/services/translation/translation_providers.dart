@@ -1,20 +1,25 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../unified_tag_database.dart';
-import 'translation_data_source.dart';
+// 从新的数据源导出 TranslationMatch
+export '../../database/datasources/translation_data_source.dart' show TranslationMatch;
+
+import '../../database/datasources/translation_data_source.dart' as new_ds;
+import '../../database/services/service_providers.dart';
 import 'unified_translation_service.dart';
 
 part 'translation_providers.g.dart';
 
 /// 统一翻译服务 Provider
 ///
-/// 应用启动时自动初始化，合并多个数据源的翻译
+/// 应用启动时自动初始化
 @Riverpod(keepAlive: true)
 Future<UnifiedTranslationService> unifiedTranslationService(Ref ref) async {
-  final service = UnifiedTranslationService(
-    dataSources: PredefinedDataSources.all,
-  );
+  final service = UnifiedTranslationService();
+
+  // 注入数据库数据源
+  final dataSource = await ref.watch(translationDataSourceProvider.future);
+  service.setTranslationDataSource(dataSource);
 
   // 等待初始化完成
   await service.initialize();
@@ -41,23 +46,9 @@ Future<Map<String, String>> tagTranslations(Ref ref, List<String> tags) async {
   return service.getTranslations(tags);
 }
 
-/// 翻译服务初始化状态 Provider
-@Riverpod(keepAlive: true)
-Stream<double> translationInitProgress(Ref ref) async* {
-  // TODO: 实现进度报告
-  yield 1.0;
-}
-
-/// 数据源统计信息 Provider
-@riverpod
-Future<Map<String, DataSourceStats>> translationDataSourceStats(Ref ref) async {
-  final service = await ref.watch(unifiedTranslationServiceProvider.future);
-  return service.stats;
-}
-
 /// 翻译搜索 Provider
 @riverpod
-Future<List<TranslationMatch>> searchTranslations(
+Future<List<new_ds.TranslationMatch>> searchTranslations(
   Ref ref, {
   required String query,
   int limit = 20,

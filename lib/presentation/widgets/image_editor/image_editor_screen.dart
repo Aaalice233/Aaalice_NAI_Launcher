@@ -1,4 +1,3 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
@@ -8,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/localization_extension.dart';
 import '../../widgets/common/app_toast.dart';
 import 'core/editor_state.dart';
 import 'layers/layer.dart';

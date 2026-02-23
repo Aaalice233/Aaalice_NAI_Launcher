@@ -1,4 +1,3 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -6,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -18,7 +18,7 @@ import '../../../core/utils/zip_utils.dart';
 import '../../../data/models/character/character_prompt.dart' as char;
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/image/image_params.dart';
-import '../../../data/models/metadata/metadata_import_options.dart';
+import '../../widgets/metadata/metadata_import_dialog.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../providers/bulk_operation_provider.dart';
 import '../../providers/character_prompt_provider.dart';
@@ -85,13 +85,37 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     ShortcutIds.openFolder: _openGalleryFolder,
   };
 
+  /// 应用生命周期状态监听
+  AppLifecycleListener? _lifecycleListener;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _checkPermissionsAndScan();
       await _showFirstTimeTip();
+      // 页面加载完成后自动执行增量扫描
+      await _autoRefresh();
     });
+
+    // 监听应用生命周期，当应用从后台恢复时自动刷新
+    _lifecycleListener = AppLifecycleListener(
+      onResume: () {
+        // 延迟执行，等待应用完全恢复
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _autoRefresh();
+          }
+        });
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener?.dispose();
+    _shortcutsFocusNode.dispose();
+    super.dispose();
   }
 
   void _goToPreviousPage() {
@@ -130,12 +154,6 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
   void _clearFilters() {
     ref.read(localGalleryNotifierProvider.notifier).clearAllFilters();
-  }
-
-  @override
-  void dispose() {
-    _shortcutsFocusNode.dispose();
-    super.dispose();
   }
 
   @override
@@ -223,13 +241,16 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
             color: theme.colorScheme.outlineVariant.withOpacity(0.3),
           ),
           Expanded(
-            child: GalleryCategoryTreeView(
-              categories: categoryState.categories,
-              totalImageCount: state.allFiles.length,
-              favoriteCount: ref
+            child: FutureBuilder<int>(
+              future: ref
                   .read(localGalleryNotifierProvider.notifier)
                   .getTotalFavoriteCount(),
-              selectedCategoryId: categoryState.selectedCategoryId,
+              builder: (context, snapshot) {
+                return GalleryCategoryTreeView(
+                  categories: categoryState.categories,
+                  totalImageCount: state.allFiles.length,
+                  favoriteCount: snapshot.data ?? 0,
+                  selectedCategoryId: categoryState.selectedCategoryId,
               onCategorySelected: _handleCategorySelected,
               onCategoryRename: (id, newName) => ref
                   .read(galleryCategoryNotifierProvider.notifier)
@@ -245,6 +266,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
               onImageDrop: (imagePath, categoryId) =>
                   _handleImageDrop(imagePath, categoryId!),
               onSyncWithFileSystem: _handleSyncWithFileSystem,
+            );
+              },
             ),
           ),
         ],
@@ -360,49 +383,11 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     }
   }
 
-  /// 处理重建索引
-  Future<void> _handleRebuildIndex() async {
+  /// 后台自动刷新（增量扫描）
+  /// 在页面获得焦点时自动触发
+  Future<void> _autoRefresh() async {
     final notifier = ref.read(localGalleryNotifierProvider.notifier);
-    final state = ref.read(localGalleryNotifierProvider);
-
-    // 如果已经在更新中，则取消
-    if (state.isRebuildingIndex) {
-      await notifier.performFullScan(); // 这会触发取消
-      if (mounted) {
-        AppToast.info(context, '已取消索引更新');
-      }
-      return;
-    }
-
-    // 开始更新
-    final result = await notifier.performFullScan();
-
-    if (!mounted) return;
-
-    if (result == null) {
-      // 可能是取消或失败
-      final currentState = ref.read(localGalleryNotifierProvider);
-      if (!currentState.isRebuildingIndex) {
-        // 确实已经停止了，可能是取消
-        AppToast.info(context, '索引更新已停止');
-      }
-      return;
-    }
-
-    if (result.filesAdded == 0 &&
-        result.filesUpdated == 0 &&
-        result.filesDeleted == 0) {
-      // 没有变化
-      AppToast.info(context, '索引已是最新，无需更新');
-    } else {
-      // 有更新
-      final parts = <String>[];
-      if (result.filesAdded > 0) parts.add('新增 ${result.filesAdded} 张');
-      if (result.filesUpdated > 0) parts.add('更新 ${result.filesUpdated} 张');
-      if (result.filesDeleted > 0) parts.add('删除 ${result.filesDeleted} 张');
-
-      AppToast.success(context, '索引更新完成：${parts.join('，')}');
-    }
+    await notifier.refresh();
   }
 
   /// 构建工具栏或选择栏
@@ -415,7 +400,6 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       use3DCardView: _use3DCardView,
       onRefresh: () =>
           ref.read(localGalleryNotifierProvider.notifier).refresh(),
-      onRebuildIndex: () => _handleRebuildIndex(),
       onEnterSelectionMode: () =>
           ref.read(localGallerySelectionNotifierProvider.notifier).enter(),
       canUndo: bulkOpState.canUndo,
@@ -512,7 +496,21 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     }
 
     if (mounted) {
-      ref.read(localGalleryNotifierProvider.notifier).initialize();
+      await ref.read(localGalleryNotifierProvider.notifier).initialize();
+      _showFirstTimeIndexTipIfNeeded();
+    }
+  }
+
+  /// 显示首次大量索引提示
+  void _showFirstTimeIndexTipIfNeeded() {
+    final state = ref.read(localGalleryNotifierProvider);
+    if (state.firstTimeIndexMessage != null && mounted) {
+      // 延迟显示，让用户先看到页面
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          AppToast.info(context, state.firstTimeIndexMessage!);
+        }
+      });
     }
   }
 
@@ -850,9 +848,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     if (metadata == null || !metadata.hasData) return;
 
     // 显示参数选择对话框
-    final options = await showDialog<MetadataImportOptions>(
-      context: context,
-      builder: (context) => _buildImportOptionsDialog(metadata),
+    final options = await MetadataImportDialog.show(
+      context,
+      metadata: metadata,
     );
 
     if (options == null || !mounted) return; // 用户取消
@@ -890,24 +888,51 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     // 应用单个参数
     _applyParam(options.importSeed, metadata.seed, paramsNotifier.updateSeed);
     _applyParam(
-        options.importSteps, metadata.steps, paramsNotifier.updateSteps,);
+      options.importSteps,
+      metadata.steps,
+      paramsNotifier.updateSteps,
+    );
     _applyParam(
-        options.importScale, metadata.scale, paramsNotifier.updateScale,);
+      options.importScale,
+      metadata.scale,
+      paramsNotifier.updateScale,
+    );
     _applyParam(
-        options.importSampler, metadata.sampler, paramsNotifier.updateSampler,);
+      options.importSampler,
+      metadata.sampler,
+      paramsNotifier.updateSampler,
+    );
     _applyParam(
-        options.importModel, metadata.model, paramsNotifier.updateModel,);
+      options.importModel,
+      metadata.model,
+      paramsNotifier.updateModel,
+    );
     _applyParam(options.importSmea, metadata.smea, paramsNotifier.updateSmea);
     _applyParam(
-        options.importSmeaDyn, metadata.smeaDyn, paramsNotifier.updateSmeaDyn,);
-    _applyParam(options.importNoiseSchedule, metadata.noiseSchedule,
-        paramsNotifier.updateNoiseSchedule,);
-    _applyParam(options.importCfgRescale, metadata.cfgRescale,
-        paramsNotifier.updateCfgRescale,);
-    _applyParam(options.importQualityToggle, metadata.qualityToggle,
-        paramsNotifier.updateQualityToggle,);
-    _applyParam(options.importUcPreset, metadata.ucPreset,
-        paramsNotifier.updateUcPreset,);
+      options.importSmeaDyn,
+      metadata.smeaDyn,
+      paramsNotifier.updateSmeaDyn,
+    );
+    _applyParam(
+      options.importNoiseSchedule,
+      metadata.noiseSchedule,
+      paramsNotifier.updateNoiseSchedule,
+    );
+    _applyParam(
+      options.importCfgRescale,
+      metadata.cfgRescale,
+      paramsNotifier.updateCfgRescale,
+    );
+    _applyParam(
+      options.importQualityToggle,
+      metadata.qualityToggle,
+      paramsNotifier.updateQualityToggle,
+    );
+    _applyParam(
+      options.importUcPreset,
+      metadata.ucPreset,
+      paramsNotifier.updateUcPreset,
+    );
 
     if (options.importSize &&
         metadata.width != null &&
@@ -920,80 +945,12 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
     if (appliedCount > 0) {
       AppToast.info(
-          context, context.l10n.metadataImport_appliedToMain(appliedCount),);
+        context,
+        context.l10n.metadataImport_appliedToMain(appliedCount),
+      );
     } else {
       AppToast.warning(context, context.l10n.metadataImport_noParamsSelected);
     }
-  }
-
-  /// 构建导入选项对话框（简化版，用于画廊）
-  Widget _buildImportOptionsDialog(dynamic metadata) {
-    final l10n = context.l10n;
-    final theme = Theme.of(context);
-
-    return AlertDialog(
-      title: Text(l10n.metadataImport_title),
-      content: SizedBox(
-        width: 400,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 快速预设按钮
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ActionChip(
-                    label: Text(l10n.metadataImport_selectAll),
-                    avatar: const Icon(Icons.select_all, size: 18),
-                    onPressed: () => Navigator.of(context).pop(
-                      MetadataImportOptions.all(),
-                    ),
-                    backgroundColor: theme.colorScheme.primaryContainer,
-                    side: BorderSide.none,
-                  ),
-                  ActionChip(
-                    label: Text(l10n.metadataImport_promptsOnly),
-                    avatar: const Icon(Icons.text_fields, size: 18),
-                    onPressed: () => Navigator.of(context).pop(
-                      MetadataImportOptions.promptsOnly(),
-                    ),
-                  ),
-                  ActionChip(
-                    label: Text(l10n.metadataImport_generationOnly),
-                    avatar: const Icon(Icons.tune, size: 18),
-                    onPressed: () => Navigator.of(context).pop(
-                      MetadataImportOptions.generationOnly(),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                l10n.metadataImport_quickSelectHint,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.common_cancel),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(
-            MetadataImportOptions.all(),
-          ),
-          child: Text(l10n.common_confirm),
-        ),
-      ],
-    );
   }
 
   /// 格式化提示词（SD→NAI + 格式化）

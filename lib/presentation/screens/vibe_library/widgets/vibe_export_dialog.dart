@@ -1,4 +1,3 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -6,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/app_logger.dart';
+import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/vibe_export_utils.dart';
 import '../../../../data/models/vibe/vibe_library_category.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
@@ -184,7 +184,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
                 CheckboxListTile(
                   title: Text(context.l10n.vibe_export_include_thumbnails),
                   subtitle: Text(
-                      context.l10n.vibe_export_include_thumbnails_subtitle,),
+                    context.l10n.vibe_export_include_thumbnails_subtitle,
+                  ),
                   value: _includeThumbnails,
                   onChanged: (value) {
                     setState(() => _includeThumbnails = value ?? true);

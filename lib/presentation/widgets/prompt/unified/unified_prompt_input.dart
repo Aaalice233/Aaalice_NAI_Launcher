@@ -1,6 +1,6 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../core/utils/nai_prompt_formatter.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
@@ -14,6 +14,7 @@ import '../../autocomplete/strategies/local_tag_strategy.dart';
 import '../../autocomplete/strategies/alias_strategy.dart';
 import '../../autocomplete/strategies/cooccurrence_strategy.dart';
 import '../../common/app_toast.dart';
+import '../../common/weight_adjust_toolbar.dart';
 import '../comfyui_import_wrapper.dart';
 import '../nai_syntax_controller.dart';
 import 'unified_prompt_config.dart';
@@ -99,8 +100,8 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   /// 焦点节点
   FocusNode? _internalFocusNode;
 
-  /// 自动补全策略（在 initState 中创建，避免每次 build 重新创建）
-  CompositeStrategy? _autocompleteStrategy;
+  /// 自动补全策略 Future（异步初始化）
+  Future<AutocompleteStrategy>? _autocompleteStrategyFuture;
 
   /// 获取有效的文本控制器
   TextEditingController get _effectiveController {
@@ -192,7 +193,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     _internalController?.dispose();
     _syntaxController?.dispose();
     _internalFocusNode?.dispose();
-    _autocompleteStrategy?.dispose();
     super.dispose();
   }
 
@@ -247,17 +247,22 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     }
   }
 
-  /// 确保自动补全策略已创建
-  CompositeStrategy _ensureAutocompleteStrategy() {
-    _autocompleteStrategy ??= CompositeStrategy(
-      strategies: [
-        LocalTagStrategy.create(ref, widget.config.autocompleteConfig),
-        AliasStrategy.create(ref),
-        CooccurrenceStrategy.create(ref, widget.config.autocompleteConfig),
-      ],
-      strategySelector: defaultStrategySelector,
-    );
-    return _autocompleteStrategy!;
+  /// 确保自动补全策略 Future 已创建
+  Future<AutocompleteStrategy> _ensureAutocompleteStrategyFuture() {
+    _autocompleteStrategyFuture ??= LocalTagStrategy.create(
+      ref,
+      widget.config.autocompleteConfig,
+    ).then((localTagStrategy) {
+      return CompositeStrategy(
+        strategies: [
+          localTagStrategy,
+          AliasStrategy.create(ref),
+          CooccurrenceStrategy.create(ref, widget.config.autocompleteConfig),
+        ],
+        strategySelector: defaultStrategySelector,
+      );
+    });
+    return _autocompleteStrategyFuture!;
   }
 
   /// 同步外部控制器变化到内部状态
@@ -330,7 +335,9 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
   /// 显示保存到词库对话框
   Future<void> _showSaveToLibraryDialog(
-      BuildContext context, String selectedText,) async {
+    BuildContext context,
+    String selectedText,
+  ) async {
     final categories = ref.read(tagLibraryPageCategoriesProvider);
 
     await showDialog<void>(
@@ -418,22 +425,28 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       contextMenuBuilder: _buildContextMenu,
     );
 
+    // 包装权重调整工具条
+    Widget result = WeightAdjustToolbarWrapper(
+      controller: _effectiveController,
+      focusNode: _effectiveFocusNode,
+      child: baseInput,
+    );
+
     // 如果启用自动补全，使用 AutocompleteWrapper 包装
     if (widget.config.enableAutocomplete) {
-      return AutocompleteWrapper(
+      result = AutocompleteWrapper(
         controller: _effectiveController,
         focusNode: _effectiveFocusNode,
-        strategy: _ensureAutocompleteStrategy(),
+        asyncStrategy: _ensureAutocompleteStrategyFuture(),
         enabled: !widget.config.readOnly,
         onChanged: _handleTextChanged,
         contentPadding: effectiveDecoration.contentPadding,
         maxLines: widget.maxLines,
         expands: widget.expands,
-        child: baseInput,
+        child: result,
       );
     }
 
-    // 不启用自动补全，直接返回基础输入框
-    return baseInput;
+    return result;
   }
 }

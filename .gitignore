@@ -207,6 +207,8 @@ nai_web_copy/
 NAI COPY/
 .shared/
 
+# 预构建数据库使用 Git LFS 管理
+
 # 构建和分析报告
 analyze_report.txt
 install-log.txt
@@ -227,6 +229,9 @@ WINDOWS_*.md
 ROOT_CAUSE_*.md
 SUBTASK_*.md
 VERIFICATION_*.md
-mask_upload_*.mdflutter/
+mask_upload_*.md
+flutter/
 flutter_windows.zip
 .claude_settings.json
+docs/plans
+.worktrees/

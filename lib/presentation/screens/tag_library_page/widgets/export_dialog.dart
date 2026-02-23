@@ -1,8 +1,8 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../../data/services/tag_library_io_service.dart';

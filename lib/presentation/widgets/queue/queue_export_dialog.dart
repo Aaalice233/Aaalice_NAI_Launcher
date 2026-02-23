@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../utils/queue_export_utils.dart';
 import '../../providers/replication_queue_provider.dart';
+import '../common/app_toast.dart';
 
 /// 队列导出/导入对话框
 class QueueExportDialog extends ConsumerStatefulWidget {
@@ -312,9 +313,7 @@ class _QueueExportDialogState extends ConsumerState<QueueExportDialog>
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('导出成功')),
-        );
+        AppToast.success(context, '导出成功');
       }
     } catch (e) {
       setState(() => _error = '导出失败: $e');
@@ -373,9 +372,7 @@ class _QueueExportDialogState extends ConsumerState<QueueExportDialog>
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('成功导入 $added 个任务')),
-        );
+        AppToast.success(context, '成功导入 $added 个任务');
       }
     } catch (e) {
       setState(() => _error = '导入失败: $e');

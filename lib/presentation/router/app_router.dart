@@ -1,15 +1,13 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/utils/localization_extension.dart';
 import '../../core/shortcuts/default_shortcuts.dart';
-import '../../core/utils/app_logger.dart';
 import '../providers/auth_provider.dart' show authNotifierProvider, AuthStatus;
 import '../screens/auth/login_screen.dart';
 import '../screens/generation/generation_screen.dart';
-import '../screens/gallery/gallery_screen.dart';
 import '../screens/local_gallery/local_gallery_screen.dart';
 import '../screens/online_gallery/online_gallery_screen.dart';
 import '../screens/prompt_config/prompt_config_screen.dart';
@@ -19,11 +17,11 @@ import '../screens/image_comparison_screen.dart';
 import '../screens/statistics/statistics_screen.dart';
 import '../screens/tag_library_page/tag_library_page_screen.dart';
 import '../screens/vibe_library/vibe_library_screen.dart';
-import '../widgets/background/background_task_indicator.dart';
 import '../widgets/drop/global_drop_handler.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 import '../widgets/queue/floating_queue_button.dart';
 import '../widgets/queue/queue_management_page.dart';
+
 import '../widgets/shortcuts/shortcut_aware_widget.dart';
 import '../widgets/shortcuts/shortcut_help_dialog.dart';
 
@@ -39,10 +37,7 @@ final queueManagementVisibleProvider = StateProvider<bool>((ref) => false);
 final floatingButtonClosedProvider = StateProvider<bool>((ref) => false);
 
 /// Navigator Keys for StatefulShellRoute branches
-// ignore: unused_element
-final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final _homeKey = GlobalKey<NavigatorState>(debugLabel: 'home');
-final _galleryKey = GlobalKey<NavigatorState>(debugLabel: 'gallery');
 final _localGalleryKey = GlobalKey<NavigatorState>(debugLabel: 'localGallery');
 final _onlineGalleryKey =
     GlobalKey<NavigatorState>(debugLabel: 'onlineGallery');
@@ -60,7 +55,6 @@ class AppRoutes {
   static const String login = '/login';
   static const String home = '/';
   static const String generation = '/generation';
-  static const String gallery = '/gallery';
   static const String localGallery = '/local-gallery';
   static const String onlineGallery = '/online-gallery';
   static const String settings = '/settings';
@@ -176,19 +170,7 @@ GoRouter appRouter(Ref ref) {
             ],
           ),
 
-          // Branch 1: 图库页（本地生成历史）- 不保活
-          StatefulShellBranch(
-            navigatorKey: _galleryKey,
-            routes: [
-              GoRoute(
-                path: AppRoutes.gallery,
-                name: 'gallery',
-                builder: (context, state) => const GalleryScreen(),
-              ),
-            ],
-          ),
-
-          // Branch 2: 本地画廊 - 保活
+          // Branch 1: 本地画廊 - 保活
           StatefulShellBranch(
             navigatorKey: _localGalleryKey,
             routes: [
@@ -235,7 +217,7 @@ GoRouter appRouter(Ref ref) {
             ],
           ),
 
-          // Branch 3: 在线画廊 - 保活
+          // Branch 2: 在线画廊 - 保活
           StatefulShellBranch(
             navigatorKey: _onlineGalleryKey,
             routes: [
@@ -247,7 +229,7 @@ GoRouter appRouter(Ref ref) {
             ],
           ),
 
-          // Branch 4: 设置页 - 不保活
+          // Branch 3: 设置页 - 不保活
           StatefulShellBranch(
             navigatorKey: _settingsKey,
             routes: [
@@ -259,7 +241,7 @@ GoRouter appRouter(Ref ref) {
             ],
           ),
 
-          // Branch 5: 随机提示词配置页 - 不保活
+          // Branch 4: 随机提示词配置页 - 不保活
           StatefulShellBranch(
             navigatorKey: _promptConfigKey,
             routes: [
@@ -271,7 +253,7 @@ GoRouter appRouter(Ref ref) {
             ],
           ),
 
-          // Branch 6: 统计页 - 不保活
+          // Branch 5: 统计页 - 不保活
           StatefulShellBranch(
             navigatorKey: _statisticsKey,
             routes: [
@@ -283,7 +265,7 @@ GoRouter appRouter(Ref ref) {
             ],
           ),
 
-          // Branch 7: 词库页 - 保活
+          // Branch 6: 词库页 - 保活
           StatefulShellBranch(
             navigatorKey: _tagLibraryPageKey,
             routes: [
@@ -295,7 +277,7 @@ GoRouter appRouter(Ref ref) {
             ],
           ),
 
-          // Branch 8: Vibe库页 - 保活
+          // Branch 7: Vibe库页 - 保活
           StatefulShellBranch(
             navigatorKey: _vibeLibraryKey,
             routes: [
@@ -322,7 +304,8 @@ GoRouter appRouter(Ref ref) {
 /// 主布局 Shell - 包含导航 (StatefulShellRoute 版本)
 ///
 /// 使用混合保活策略：
-/// - 画廊页面（索引 2, 3）使用 Offstage 保活
+/// - 画廊页面（索引 1, 2）使用 Offstage 保活
+/// - Vibe库页面（索引 7）使用 Offstage 保活
 /// - 其他页面不保活
 class MainShell extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -339,23 +322,18 @@ class MainShell extends ConsumerStatefulWidget {
 }
 
 class _MainShellState extends ConsumerState<MainShell> {
-  bool _initialized = false;
+  int? _previousIndex;
 
   @override
-  void initState() {
-    super.initState();
-    // 在 Overlay 可用后初始化下载服务
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeDownloadServices();
-    });
-  }
+  void didUpdateWidget(MainShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final currentIndex = widget.navigationShell.currentIndex;
 
-  void _initializeDownloadServices() async {
-    if (_initialized) return;
-    _initialized = true;
-
-    // 所有数据加载已在预热阶段完成，这里无需额外操作
-    AppLogger.i('Download services initialization skipped - all data loaded in warmup', 'AppRouter');
+    // 页面切换检测（已移除互锁逻辑，不再需要重置标志）
+    if (_previousIndex != null && _previousIndex != currentIndex) {
+      // 不同页面间的图像详情页不再互锁
+    }
+    _previousIndex = currentIndex;
   }
 
   @override
@@ -363,7 +341,8 @@ class _MainShellState extends ConsumerState<MainShell> {
     final currentIndex = widget.navigationShell.currentIndex;
 
     // 构建混合保活内容栈
-    // - 索引 2 (localGallery) 和 3 (onlineGallery) 使用 Offstage 保活
+    // - 索引 1 (localGallery) 和 2 (onlineGallery) 使用 Offstage 保活
+    // - 索引 7 (vibeLibrary) 使用 Offstage 保活
     // - 其他索引不保活，切换时销毁重建
     final contentStack = IndexedStack(
       index: currentIndex,
@@ -372,9 +351,9 @@ class _MainShellState extends ConsumerState<MainShell> {
         final child = entry.value;
         final isActive = index == currentIndex;
 
-        // 画廊索引（2: localGallery, 3: onlineGallery）始终保持在树中
-        // 通过 TickerMode 控制动画
-        if (index == 2 || index == 3) {
+        // 保活页面：画廊（1, 2）和 Vibe 库（7）
+        // 始终保持在树中，通过 TickerMode 控制动画
+        if (index == 1 || index == 2 || index == 7) {
           return TickerMode(
             enabled: isActive,
             child: child,
@@ -500,8 +479,6 @@ class DesktopShell extends ConsumerWidget {
                       maxWidth: 650,
                       heightFactor: 0.85,
                     ),
-                    // 后台任务进度指示器
-                    const DesktopBackgroundTaskIndicator(),
                   ],
                 );
               },
@@ -549,8 +526,6 @@ class MobileShell extends ConsumerWidget {
                 maxWidth: double.infinity,
                 heightFactor: 0.85,
               ),
-              // 后台任务进度指示器
-              const MobileBackgroundTaskIndicator(),
             ],
           );
         },

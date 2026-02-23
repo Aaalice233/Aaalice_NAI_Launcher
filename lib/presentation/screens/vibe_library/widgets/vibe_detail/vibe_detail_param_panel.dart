@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../../data/models/vibe/vibe_reference.dart';
+import '../../../../../l10n/app_localizations.dart';
 import '../../../../themes/design_tokens.dart';
 import '../../../../widgets/common/animated_favorite_button.dart';
 
@@ -75,24 +76,19 @@ class VibeDetailParamPanel extends StatelessWidget {
                     children: [
                       _buildSliderSection(
                         context,
-                        label: 'Reference Strength',
+                        labelKey: 'strength',
                         value: strength,
                         onChanged: onStrengthChanged,
                         description: '控制 Vibe 对生成结果的影响强度',
                       ),
                       const SizedBox(height: DesignTokens.spacingLg),
-                      if (!entry.isPreEncoded) ...[
-                        _buildSliderSection(
-                          context,
-                          label: 'Information Extracted',
-                          value: infoExtracted,
-                          onChanged: onInfoExtractedChanged,
-                          description: '控制从原始图片提取的信息量（消耗 2 Anlas）',
-                        ),
-                        const SizedBox(height: DesignTokens.spacingLg),
-                      ],
-                      // 标签编辑区
-                      _buildTagsSection(context),
+                      _buildSliderSection(
+                        context,
+                        labelKey: 'infoExtracted',
+                        value: infoExtracted,
+                        onChanged: onInfoExtractedChanged,
+                        description: '控制从原始图片提取的信息量（消耗 2 Anlas）',
+                      ),
                       const SizedBox(height: DesignTokens.spacingLg),
                       // 统计信息
                       _buildStatsSection(theme),
@@ -152,8 +148,7 @@ class VibeDetailParamPanel extends StatelessWidget {
 
   /// 来源类型标签
   Widget _buildSourceTypeChip(ThemeData theme) {
-    final isPreEncoded = entry.isPreEncoded;
-    final color = isPreEncoded ? Colors.green : Colors.orange;
+    final color = theme.colorScheme.primary;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -166,7 +161,7 @@ class VibeDetailParamPanel extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            isPreEncoded ? Icons.check_circle_outline : Icons.warning_amber,
+            Icons.label_outline,
             size: 12,
             color: color,
           ),
@@ -178,16 +173,6 @@ class VibeDetailParamPanel extends StatelessWidget {
               fontWeight: FontWeight.w500,
             ),
           ),
-          if (!isPreEncoded) ...[
-            const SizedBox(width: 4),
-            Text(
-              '(2 Anlas)',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: Colors.orange.withOpacity(0.8),
-                fontSize: 10,
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -196,12 +181,18 @@ class VibeDetailParamPanel extends StatelessWidget {
   /// 滑块区域
   Widget _buildSliderSection(
     BuildContext context, {
-    required String label,
+    required String labelKey,
     required double value,
     required ValueChanged<double> onChanged,
     required String description,
   }) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    final labelText = switch (labelKey) {
+      'strength' => l10n.vibe_strength,
+      'infoExtracted' => l10n.vibe_infoExtracted,
+      _ => labelKey,
+    };
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,7 +201,7 @@ class VibeDetailParamPanel extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                label,
+                labelText,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -273,95 +264,6 @@ class VibeDetailParamPanel extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  /// 标签编辑区
-  Widget _buildTagsSection(BuildContext context) {
-    final theme = Theme.of(context);
-    final tags = entry.tags;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '标签',
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: DesignTokens.spacingXs),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            ...tags.map(
-              (tag) => Chip(
-                label: Text(tag),
-                deleteIcon: const Icon(Icons.close, size: 14),
-                onDeleted: onTagsChanged != null
-                    ? () {
-                        final newTags = tags.where((t) => t != tag).toList();
-                        onTagsChanged!(newTags);
-                      }
-                    : null,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: VisualDensity.compact,
-              ),
-            ),
-            ActionChip(
-              avatar: const Icon(Icons.add, size: 16),
-              label: const Text('添加'),
-              onPressed: onTagsChanged != null
-                  ? () => _showAddTagDialog(context)
-                  : null,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              visualDensity: VisualDensity.compact,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  /// 添加标签对话框
-  Future<void> _showAddTagDialog(BuildContext context) async {
-    final controller = TextEditingController();
-    final newTag = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('添加标签'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: '输入标签名称'),
-          onSubmitted: (value) {
-            final trimmed = value.trim();
-            if (trimmed.isNotEmpty) {
-              Navigator.of(context).pop(trimmed);
-            }
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final trimmed = controller.text.trim();
-              if (trimmed.isNotEmpty) {
-                Navigator.of(context).pop(trimmed);
-              }
-            },
-            child: const Text('添加'),
-          ),
-        ],
-      ),
-    );
-
-    if (newTag != null && !entry.tags.contains(newTag)) {
-      onTagsChanged?.call([...entry.tags, newTag]);
-    }
   }
 
   /// 统计信息

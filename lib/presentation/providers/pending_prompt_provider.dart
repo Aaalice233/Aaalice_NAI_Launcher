@@ -20,6 +20,9 @@ enum SendTargetType {
 
   /// 智能分解（竖线格式：主提示词+角色）
   smartDecompose,
+
+  /// 发送到固定词
+  fixedTag,
 }
 
 /// 待填充提示词状态

@@ -7,6 +7,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/nai_user_info_api_service.dart';
 import '../../data/models/user/user_subscription.dart';
+import '../../data/services/anlas_statistics_service.dart';
 import 'auth_provider.dart';
 
 part 'subscription_provider.g.dart';
@@ -290,6 +291,39 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
 int? anlasBalance(Ref ref) {
   final subscriptionState = ref.watch(subscriptionNotifierProvider);
   return subscriptionState.balance;
+}
+
+/// 余额变化监听器 - 自动记录点数消耗
+/// 监听余额减少，自动记录到统计数据
+@Riverpod(keepAlive: true)
+class AnlasBalanceWatcher extends _$AnlasBalanceWatcher {
+  int? _lastBalance;
+
+  @override
+  void build() {
+    final currentBalance = ref.watch(anlasBalanceProvider);
+    
+    // 检测余额减少
+    if (_lastBalance != null && currentBalance != null) {
+      final cost = _lastBalance! - currentBalance;
+      if (cost > 0) {
+        // 延迟一点记录，避免刷新时的瞬时状态
+        Future.microtask(() => _recordCost(cost));
+      }
+    }
+    
+    _lastBalance = currentBalance;
+  }
+
+  Future<void> _recordCost(int cost) async {
+    try {
+      final anlasService = await ref.read(anlasStatisticsServiceProvider.future);
+      await anlasService.recordCost(cost);
+      AppLogger.i('Auto-recorded Anlas cost: $cost', 'AnlasBalanceWatcher');
+    } catch (e) {
+      AppLogger.e('Failed to auto-record Anlas cost: $e', 'AnlasBalanceWatcher');
+    }
+  }
 }
 
 /// 便捷的 Opus 状态 Provider

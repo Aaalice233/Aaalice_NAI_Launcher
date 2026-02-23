@@ -291,33 +291,58 @@ class VibeFileStorageService {
     final currentPathSet = <String>{};
     final files = await listVibeFiles();
 
-    for (final entity in files) {
-      if (entity is! File) continue;
-
-      scannedCount++;
-      final filePath = entity.path;
-      final normalizedPath = _normalizePath(filePath);
-      currentPathSet.add(normalizedPath);
-
-      try {
-        final existingEntry = existingPathMap[normalizedPath];
-        final discovered = await _buildEntryFromFile(filePath, existingEntry);
-
-        if (discovered == null) {
+    // 分批并行处理文件，避免同时打开太多文件句柄
+    const batchSize = 4;
+    final fileList = files.whereType<File>().toList();
+    
+    for (var i = 0; i < fileList.length; i += batchSize) {
+      final batch = fileList.sublist(
+        i,
+        i + batchSize > fileList.length ? fileList.length : i + batchSize,
+      );
+      
+      // 并行处理当前批次
+      final batchResults = await Future.wait(
+        batch.map((entity) async {
+          final filePath = entity.path;
+          final normalizedPath = _normalizePath(filePath);
+          
+          try {
+            final existingEntry = existingPathMap[normalizedPath];
+            final discovered = await _buildEntryFromFile(filePath, existingEntry);
+            
+            return (
+              path: normalizedPath,
+              entry: discovered,
+              error: discovered == null ? '解析失败: $filePath' : null,
+            );
+          } catch (e, stackTrace) {
+            AppLogger.e('同步文件到 Hive 条目失败: $filePath', e, stackTrace, _tag);
+            return (
+              path: normalizedPath,
+              entry: null,
+              error: '同步失败: $filePath, error: $e',
+            );
+          }
+        }),
+      );
+      
+      // 处理批次结果
+      for (final result in batchResults) {
+        scannedCount++;
+        currentPathSet.add(result.path);
+        
+        if (result.error != null) {
           failedCount++;
-          errors.add('解析失败: $filePath');
-          continue;
+          errors.add(result.error!);
+        } else if (result.entry != null) {
+          await onUpsertEntry(result.entry!);
+          upsertedCount++;
         }
-
-        await onUpsertEntry(discovered);
-        upsertedCount++;
-      } catch (e, stackTrace) {
-        failedCount++;
-        errors.add('同步失败: $filePath, error: $e');
-        AppLogger.e('同步文件到 Hive 条目失败: $filePath', e, stackTrace, _tag);
       }
     }
 
+    // 删除已不存在的条目
     if (onDeleteEntry != null) {
       for (final entry in existingEntries) {
         final filePath = entry.filePath;
@@ -386,6 +411,8 @@ class VibeFileStorageService {
     final names = vibes.map((item) => item.displayName).toList(growable: false);
     final generatedEntry = _buildBundleEntry(filePath, fallbackName, vibes);
 
+    final encodings = vibes.map((v) => v.vibeEncoding).toList(growable: false);
+
     return _mergeWithExistingEntry(
       generatedEntry: generatedEntry,
       existingEntry: existingEntry,
@@ -394,6 +421,7 @@ class VibeFileStorageService {
       bundleId: existingEntry?.bundleId ?? p.basenameWithoutExtension(filePath),
       bundledVibeNames: names,
       bundledVibePreviews: previews.isEmpty ? existingEntry?.bundledVibePreviews : previews,
+      bundledVibeEncodings: encodings,
     );
   }
 
@@ -436,9 +464,9 @@ class VibeFileStorageService {
       return generatedEntry.copyWith(filePath: filePath);
     }
 
+    // 保留用户设置的元数据，但 name 保持与文件名一致（用户可以通过重命名文件来重命名条目）
     return generatedEntry.copyWith(
       id: existingEntry.id,
-      name: existingEntry.name,
       categoryId: existingEntry.categoryId,
       tags: existingEntry.tags,
       isFavorite: existingEntry.isFavorite,
@@ -450,6 +478,7 @@ class VibeFileStorageService {
       bundleId: existingEntry.bundleId,
       bundledVibeNames: existingEntry.bundledVibeNames,
       bundledVibePreviews: existingEntry.bundledVibePreviews,
+      bundledVibeEncodings: existingEntry.bundledVibeEncodings,
     );
   }
 

@@ -1,8 +1,8 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
 import '../../../../core/utils/nai_prompt_formatter.dart';

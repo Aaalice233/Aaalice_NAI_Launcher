@@ -1,10 +1,10 @@
-import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
@@ -439,7 +439,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
         AutocompleteWrapper(
           controller: _tagsController,
           focusNode: _tagsFocusNode,
-          strategy: LocalTagStrategy.create(
+          asyncStrategy: LocalTagStrategy.create(
             ref,
             const AutocompleteConfig(
               maxSuggestions: 10,

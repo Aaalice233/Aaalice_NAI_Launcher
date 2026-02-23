@@ -7,7 +7,6 @@ import '../../enums/precise_ref_type.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/nai_api_utils.dart';
 import '../../../data/models/image/image_params.dart';
-import '../../../data/models/vibe/vibe_reference.dart';
 
 typedef EncodeVibeFn = Future<String> Function(
   Uint8List image, {
@@ -192,14 +191,13 @@ class NAIImageRequestBuilder {
       for (int i = 0; i < params.vibeReferencesV4.length; i++) {
         final vibe = params.vibeReferencesV4[i];
 
-        if (vibe.sourceType.isPreEncoded && vibe.vibeEncoding.isNotEmpty) {
+        if (vibe.vibeEncoding.isNotEmpty) {
           allEncodings.add(vibe.vibeEncoding);
           allStrengths.add(vibe.strength);
           allInfoExtracted.add(vibe.infoExtracted);
           vibeEncodingMap[i] = vibe.vibeEncoding;
           AppLogger.d('V4 Vibe: Using pre-encoded vibe at index $i', 'ImgGen');
-        } else if (vibe.sourceType == VibeSourceType.rawImage &&
-            vibe.rawImageData != null) {
+        } else if (vibe.rawImageData != null) {
           AppLogger.d(
             'V4 Vibe: Encoding rawImage at index $i (2 Anlas)...',
             'ImgGen',
@@ -249,12 +247,12 @@ class NAIImageRequestBuilder {
       return vibeEncodingMap;
     }
 
-    final preEncodedVibes = params.vibeReferencesV4
-        .where((v) => v.sourceType.isPreEncoded && v.vibeEncoding.isNotEmpty)
+    final encodedVibes = params.vibeReferencesV4
+        .where((v) => v.vibeEncoding.isNotEmpty)
         .toList();
     final rawImageVibes = params.vibeReferencesV4
         .where(
-          (v) => v.sourceType == VibeSourceType.rawImage && v.rawImageData != null,
+          (v) => v.vibeEncoding.isEmpty && v.rawImageData != null,
         )
         .toList();
 
@@ -262,7 +260,7 @@ class NAIImageRequestBuilder {
     final allStrengths = <double>[];
     final allInfoExtracted = <double>[];
 
-    for (final vibe in preEncodedVibes) {
+    for (final vibe in encodedVibes) {
       allEncodings.add(vibe.vibeEncoding);
       allStrengths.add(vibe.strength);
       allInfoExtracted.add(vibe.infoExtracted);
@@ -310,7 +308,7 @@ class NAIImageRequestBuilder {
           allInfoExtracted;
 
       AppLogger.d(
-        'V4 Vibe Transfer (Stream): ${preEncodedVibes.length} pre-encoded + ${rawImageVibes.length} encoded = ${allEncodings.length} total vibes',
+        'V4 Vibe Transfer (Stream): ${encodedVibes.length} encoded + ${rawImageVibes.length} raw = ${allEncodings.length} total vibes',
         'ImgGen',
       );
     }
