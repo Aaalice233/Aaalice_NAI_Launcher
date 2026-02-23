@@ -33,6 +33,7 @@ export 'generation/generation_models.dart';
 export 'generation/generation_params_notifier.dart';
 export 'generation/generation_auxiliary_notifiers.dart';
 export 'generation/generation_settings_notifiers.dart';
+export 'generation/reference_panel_notifier.dart';
 
 // Simplified ImageGenerationProvider - new exports
 export 'generation/image_generation_service.dart';

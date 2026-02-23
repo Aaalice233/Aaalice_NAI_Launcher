@@ -177,6 +177,10 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
   bool get isBundle =>
       bundledVibeNames != null && bundledVibeNames!.isNotEmpty;
 
+  /// 是否为预编码条目（不需要服务端编码）
+  bool get isPreEncoded =>
+      sourceType != VibeSourceType.rawImage;
+
   /// bundle 内部 vibe 数量
   int get bundledVibeCount => bundledVibeNames?.length ?? 0;
 

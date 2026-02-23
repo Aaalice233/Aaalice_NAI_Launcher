@@ -199,6 +199,13 @@ class ImageParams with _$ImageParams {
     @Default([])
     @JsonKey(includeFromJson: false, includeToJson: false)
     List<CharacterPrompt> characters,
+
+    // ========== UI 状态 ==========
+
+    /// 高级选项面板展开状态
+    @Default(true)
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    bool advancedOptionsExpanded,
   }) = _ImageParams;
 
   factory ImageParams.fromJson(Map<String, dynamic> json) =>

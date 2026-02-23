@@ -117,6 +117,87 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get common_undo => 'Undo';
+
+  @override
+  String get common_redo => 'Redo';
+
+  @override
+  String get common_refresh => 'Refresh';
+
+  @override
+  String get common_download => 'Download';
+
+  @override
+  String get common_upload => 'Upload';
+
+  @override
+  String get common_apply => 'Apply';
+
+  @override
+  String get common_preview => 'Preview';
+
+  @override
+  String get common_done => 'Done';
+
+  @override
+  String get common_view => 'View';
+
+  @override
+  String get common_info => 'Info';
+
+  @override
+  String get common_warning => 'Warning';
+
+  @override
+  String get common_show => 'Show';
+
+  @override
+  String get common_hide => 'Hide';
+
+  @override
+  String get common_move => 'Move';
+
+  @override
+  String get common_duplicate => 'Duplicate';
+
+  @override
+  String get common_favorite => 'Favorite';
+
+  @override
+  String get common_unfavorite => 'Unfavorite';
+
+  @override
+  String get common_share => 'Share';
+
+  @override
+  String get common_open => 'Open';
+
+  @override
+  String get common_ok => 'OK';
+
+  @override
+  String get common_submit => 'Submit';
+
+  @override
+  String get common_discard => 'Discard';
+
+  @override
+  String get common_keep => 'Keep';
+
+  @override
+  String get common_replace => 'Replace';
+
+  @override
+  String get common_skip => 'Skip';
+
+  @override
+  String get common_yes => 'Yes';
+
+  @override
+  String get common_no => 'No';
+
+  @override
   String get nav_canvas => 'Canvas';
 
   @override
@@ -469,6 +550,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_selectFolder => 'Select Save Folder';
+
+  @override
+  String get settings_vibeLibraryPath => 'Vibe Library Path';
+
+  @override
+  String get settings_hiveStoragePath => 'Data Storage Path';
+
+  @override
+  String get settings_selectVibeLibraryFolder => 'Select Vibe Library Folder';
+
+  @override
+  String get settings_selectHiveFolder => 'Select Data Storage Folder';
+
+  @override
+  String get settings_restartRequired => 'Restart Required';
+
+  @override
+  String get settings_restartRequiredContent => 'The app needs to restart to apply the new storage path. Please restart the app manually.';
+
+  @override
+  String get settings_pathSavedRestartRequired => 'Path updated, restart to apply changes';
 
   @override
   String get settings_accountProfile => 'Account Profile';
@@ -6244,6 +6346,39 @@ class AppLocalizationsEn extends AppLocalizations {
   String get queue_settings => 'Queue Settings';
 
   @override
+  String get settings_queueRetryCount => 'Retry Count';
+
+  @override
+  String get settings_queueRetryInterval => 'Retry Interval';
+
+  @override
+  String get settings_queueRetryCountSubtitle => 'Maximum retry attempts for failed tasks';
+
+  @override
+  String get settings_queueRetryIntervalSubtitle => 'Time to wait between retries';
+
+  @override
+  String get unit_times => 'times';
+
+  @override
+  String get unit_seconds => 'seconds';
+
+  @override
+  String get settings_floatingButtonBackground => 'Floating Button Background';
+
+  @override
+  String get settings_floatingButtonBackgroundCustom => 'Custom background set';
+
+  @override
+  String get settings_floatingButtonBackgroundDefault => 'Default style';
+
+  @override
+  String get settings_clearBackground => 'Clear background';
+
+  @override
+  String get settings_selectImage => 'Select Image';
+
+  @override
   String queue_currentQueueInfo(Object count) {
     return 'Current queue contains $count tasks';
   }
@@ -7239,4 +7374,59 @@ class AppLocalizationsEn extends AppLocalizations {
   String vibeSelectorItemsCount(int count) {
     return '$count items';
   }
+
+  @override
+  String get tray_show => 'Show Window';
+
+  @override
+  String get tray_exit => 'Exit';
+
+  @override
+  String get settings_shortcutsSubtitle => 'Customize keyboard shortcuts';
+
+  @override
+  String get settings_openFolder => 'Open folder';
+
+  @override
+  String get settings_openFolderFailed => 'Failed to open folder';
+
+  @override
+  String get settings_dataSourceCacheTitle => 'Data source cache management';
+
+  @override
+  String get settings_pleaseLoginFirst => 'Please login first';
+
+  @override
+  String get settings_accountNotFound => 'Account information not found';
+
+  @override
+  String get settings_goToLoginPage => 'Go to login page';
+
+  @override
+  String settings_retryCountDisplay(int count) {
+    return 'Max $count times';
+  }
+
+  @override
+  String settings_retryIntervalDisplay(String interval) {
+    return '$interval seconds';
+  }
+
+  @override
+  String get settings_vibePathSaved => 'Vibe library path saved';
+
+  @override
+  String get settings_selectFolderFailed => 'Failed to select folder';
+
+  @override
+  String get settings_hivePathSaved => 'Data storage path saved, effective after restart';
+
+  @override
+  String get settings_restartRequiredTitle => 'Restart Required';
+
+  @override
+  String get settings_changePathConfirm => 'After changing the data storage path, the app needs to restart to take effect.\\n\\nThe new path will take effect on the next startup. Continue?';
+
+  @override
+  String get settings_resetPathConfirm => 'After resetting the data storage path, the app needs to restart to take effect.\\n\\nThe default path will take effect on the next startup. Continue?';
 }

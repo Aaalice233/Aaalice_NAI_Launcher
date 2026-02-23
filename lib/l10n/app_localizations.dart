@@ -311,6 +311,168 @@ abstract class AppLocalizations {
   /// **'{days} days ago'**
   String common_daysAgo(Object days);
 
+  /// No description provided for @common_undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get common_undo;
+
+  /// No description provided for @common_redo.
+  ///
+  /// In en, this message translates to:
+  /// **'Redo'**
+  String get common_redo;
+
+  /// No description provided for @common_refresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get common_refresh;
+
+  /// No description provided for @common_download.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get common_download;
+
+  /// No description provided for @common_upload.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload'**
+  String get common_upload;
+
+  /// No description provided for @common_apply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get common_apply;
+
+  /// No description provided for @common_preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get common_preview;
+
+  /// No description provided for @common_done.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get common_done;
+
+  /// No description provided for @common_view.
+  ///
+  /// In en, this message translates to:
+  /// **'View'**
+  String get common_view;
+
+  /// No description provided for @common_info.
+  ///
+  /// In en, this message translates to:
+  /// **'Info'**
+  String get common_info;
+
+  /// No description provided for @common_warning.
+  ///
+  /// In en, this message translates to:
+  /// **'Warning'**
+  String get common_warning;
+
+  /// No description provided for @common_show.
+  ///
+  /// In en, this message translates to:
+  /// **'Show'**
+  String get common_show;
+
+  /// No description provided for @common_hide.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide'**
+  String get common_hide;
+
+  /// No description provided for @common_move.
+  ///
+  /// In en, this message translates to:
+  /// **'Move'**
+  String get common_move;
+
+  /// No description provided for @common_duplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate'**
+  String get common_duplicate;
+
+  /// No description provided for @common_favorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite'**
+  String get common_favorite;
+
+  /// No description provided for @common_unfavorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Unfavorite'**
+  String get common_unfavorite;
+
+  /// No description provided for @common_share.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get common_share;
+
+  /// No description provided for @common_open.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get common_open;
+
+  /// No description provided for @common_ok.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get common_ok;
+
+  /// No description provided for @common_submit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit'**
+  String get common_submit;
+
+  /// No description provided for @common_discard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get common_discard;
+
+  /// No description provided for @common_keep.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep'**
+  String get common_keep;
+
+  /// No description provided for @common_replace.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace'**
+  String get common_replace;
+
+  /// No description provided for @common_skip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get common_skip;
+
+  /// No description provided for @common_yes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get common_yes;
+
+  /// No description provided for @common_no.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get common_no;
+
   /// No description provided for @nav_canvas.
   ///
   /// In en, this message translates to:
@@ -994,6 +1156,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select Save Folder'**
   String get settings_selectFolder;
+
+  /// No description provided for @settings_vibeLibraryPath.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibe Library Path'**
+  String get settings_vibeLibraryPath;
+
+  /// No description provided for @settings_hiveStoragePath.
+  ///
+  /// In en, this message translates to:
+  /// **'Data Storage Path'**
+  String get settings_hiveStoragePath;
+
+  /// No description provided for @settings_selectVibeLibraryFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Vibe Library Folder'**
+  String get settings_selectVibeLibraryFolder;
+
+  /// No description provided for @settings_selectHiveFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Data Storage Folder'**
+  String get settings_selectHiveFolder;
+
+  /// No description provided for @settings_restartRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart Required'**
+  String get settings_restartRequired;
+
+  /// No description provided for @settings_restartRequiredContent.
+  ///
+  /// In en, this message translates to:
+  /// **'The app needs to restart to apply the new storage path. Please restart the app manually.'**
+  String get settings_restartRequiredContent;
+
+  /// No description provided for @settings_pathSavedRestartRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Path updated, restart to apply changes'**
+  String get settings_pathSavedRestartRequired;
 
   /// No description provided for @settings_accountProfile.
   ///
@@ -11729,6 +11933,72 @@ abstract class AppLocalizations {
   /// **'Queue Settings'**
   String get queue_settings;
 
+  /// No description provided for @settings_queueRetryCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry Count'**
+  String get settings_queueRetryCount;
+
+  /// No description provided for @settings_queueRetryInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry Interval'**
+  String get settings_queueRetryInterval;
+
+  /// No description provided for @settings_queueRetryCountSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum retry attempts for failed tasks'**
+  String get settings_queueRetryCountSubtitle;
+
+  /// No description provided for @settings_queueRetryIntervalSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Time to wait between retries'**
+  String get settings_queueRetryIntervalSubtitle;
+
+  /// No description provided for @unit_times.
+  ///
+  /// In en, this message translates to:
+  /// **'times'**
+  String get unit_times;
+
+  /// No description provided for @unit_seconds.
+  ///
+  /// In en, this message translates to:
+  /// **'seconds'**
+  String get unit_seconds;
+
+  /// No description provided for @settings_floatingButtonBackground.
+  ///
+  /// In en, this message translates to:
+  /// **'Floating Button Background'**
+  String get settings_floatingButtonBackground;
+
+  /// No description provided for @settings_floatingButtonBackgroundCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom background set'**
+  String get settings_floatingButtonBackgroundCustom;
+
+  /// No description provided for @settings_floatingButtonBackgroundDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default style'**
+  String get settings_floatingButtonBackgroundDefault;
+
+  /// No description provided for @settings_clearBackground.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear background'**
+  String get settings_clearBackground;
+
+  /// No description provided for @settings_selectImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Image'**
+  String get settings_selectImage;
+
   /// No description provided for @queue_currentQueueInfo.
   ///
   /// In en, this message translates to:
@@ -13606,6 +13876,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} items'**
   String vibeSelectorItemsCount(int count);
+
+  /// No description provided for @tray_show.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Window'**
+  String get tray_show;
+
+  /// No description provided for @tray_exit.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit'**
+  String get tray_exit;
+
+  /// No description provided for @settings_shortcutsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Customize keyboard shortcuts'**
+  String get settings_shortcutsSubtitle;
+
+  /// No description provided for @settings_openFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Open folder'**
+  String get settings_openFolder;
+
+  /// No description provided for @settings_openFolderFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to open folder'**
+  String get settings_openFolderFailed;
+
+  /// No description provided for @settings_dataSourceCacheTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Data source cache management'**
+  String get settings_dataSourceCacheTitle;
+
+  /// No description provided for @settings_pleaseLoginFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Please login first'**
+  String get settings_pleaseLoginFirst;
+
+  /// No description provided for @settings_accountNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Account information not found'**
+  String get settings_accountNotFound;
+
+  /// No description provided for @settings_goToLoginPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to login page'**
+  String get settings_goToLoginPage;
+
+  /// No description provided for @settings_retryCountDisplay.
+  ///
+  /// In en, this message translates to:
+  /// **'Max {count} times'**
+  String settings_retryCountDisplay(int count);
+
+  /// No description provided for @settings_retryIntervalDisplay.
+  ///
+  /// In en, this message translates to:
+  /// **'{interval} seconds'**
+  String settings_retryIntervalDisplay(String interval);
+
+  /// No description provided for @settings_vibePathSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Vibe library path saved'**
+  String get settings_vibePathSaved;
+
+  /// No description provided for @settings_selectFolderFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to select folder'**
+  String get settings_selectFolderFailed;
+
+  /// No description provided for @settings_hivePathSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Data storage path saved, effective after restart'**
+  String get settings_hivePathSaved;
+
+  /// No description provided for @settings_restartRequiredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart Required'**
+  String get settings_restartRequiredTitle;
+
+  /// No description provided for @settings_changePathConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'After changing the data storage path, the app needs to restart to take effect.\\n\\nThe new path will take effect on the next startup. Continue?'**
+  String get settings_changePathConfirm;
+
+  /// No description provided for @settings_resetPathConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'After resetting the data storage path, the app needs to restart to take effect.\\n\\nThe default path will take effect on the next startup. Continue?'**
+  String get settings_resetPathConfirm;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

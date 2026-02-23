@@ -47,6 +47,13 @@ class StorageKeys {
   static const String promptAreaHeight = 'prompt_area_height';
   static const String promptMaximized = 'prompt_maximized';
 
+  // Panel Expansion State Keys (面板展开状态)
+  static const String advancedOptionsExpanded = 'advanced_options_expanded';
+  static const String img2imgExpanded = 'img2img_expanded';
+  static const String vibeTransferExpanded = 'vibe_transfer_expanded';
+  static const String preciseRefExpanded = 'precise_ref_expanded';
+  static const String characterPanelExpanded = 'character_panel_expanded';
+
   // Character Panel Dock State (多角色面板停靠状态)
   static const String characterPanelDocked = 'character_panel_docked';
 

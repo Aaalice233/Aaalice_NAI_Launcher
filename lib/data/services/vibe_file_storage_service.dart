@@ -214,11 +214,20 @@ class VibeFileStorageService {
 
       final jsonString = await file.readAsString();
       final data = jsonDecode(jsonString) as Map<String, dynamic>;
-      final vibes = data['vibes'] as List<dynamic>? ?? const [];
+      final vibesRaw = data['vibes'];
+      // 类型验证：确保 vibes 是列表
+      if (vibesRaw is! List<dynamic>) {
+        AppLogger.w('Bundle 文件格式错误: vibes 不是列表', _tag);
+        return const [];
+      }
       final previews = <Uint8List>[];
 
-      for (final item in vibes.take(maxCount)) {
-        if (item is! Map<String, dynamic>) continue;
+      for (final item in vibesRaw.take(maxCount)) {
+        // 类型验证：确保每个元素是 Map
+        if (item is! Map<String, dynamic>) {
+          AppLogger.w('Bundle 文件格式错误: vibe 条目不是对象', _tag);
+          continue;
+        }
 
         final thumbnail = _decodeBase64Image(item['thumbnail']) ??
             _decodeBase64Image(item['image']);
