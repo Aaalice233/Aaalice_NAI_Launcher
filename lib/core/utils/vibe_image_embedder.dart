@@ -9,40 +9,13 @@ import 'package:flutter/foundation.dart';
 import '../../data/models/vibe/vibe_reference.dart';
 import 'app_logger.dart';
 
-/// Vibe 图片嵌入器
+/// Vibe 图片嵌入器 - 在 PNG 中嵌入和提取 Vibe 元数据
 ///
-/// 用于在 PNG 图片中嵌入和提取 Vibe 元数据的工具类。
-///
-/// 支持两种格式：
-/// - NAI 官方 iTXt 格式（naidata 关键字）- 用于 bundle 多 vibe 嵌入
+/// 支持格式：
+/// - NAI 官方 iTXt 格式（naidata 关键字）- bundle 多 vibe 嵌入
 /// - Legacy tEXt 格式（naiv4vibe 关键字）- 向后兼容
 ///
-/// ## Isolate 执行
-///
-/// 所有涉及 PNG 解析和 chunk 操作的方法都使用 Isolate 执行，
-/// 避免在主线程进行耗时的二进制数据处理，防止 UI 卡顿：
-///
-/// - [embedVibesToImage] - 使用 [_embedVibesIsolate] 在 Isolate 中构建 PNG chunks
-/// - [extractVibeFromImage] - 使用 [_extractVibesFromImageIsolate] 在 Isolate 中解析 PNG
-///
-/// Isolate 方法命名约定：
-/// - 以 `_Isolate` 结尾的方法表示作为 compute() 的入口点
-///   在 Isolate 中执行（如 [_embedVibesIsolate]）
-/// - 普通命名的辅助方法也可以在 Isolate 中安全调用
-///
-/// ## 使用示例
-///
-/// ```dart
-/// // 嵌入 vibes 到图片
-/// final result = await VibeImageEmbedder.embedVibesToImage(
-///   imageBytes,
-///   [vibeReference1, vibeReference2],
-/// );
-///
-/// // 从图片提取 vibes
-/// final ({List<VibeReference> vibes, bool isBundle}) = await
-///     VibeImageEmbedder.extractVibeFromImage(imageBytes);
-/// ```
+/// 所有涉及 PNG 解析的方法都在 Isolate 中执行，避免阻塞 UI。
 class VibeImageEmbedder {
   static const List<int> _pngSignature = <int>[
     0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
@@ -82,8 +55,6 @@ class VibeImageEmbedder {
   }
 
   /// 嵌入多个 Vibes 到图片（bundle 格式）
-  ///
-  /// 使用 Isolate 执行 PNG 解析和 chunk 构建，避免阻塞 UI 线程
   static Future<Uint8List> embedVibesToImage(
     Uint8List imageBytes,
     List<VibeReference> vibeReferences,
@@ -92,28 +63,15 @@ class VibeImageEmbedder {
       throw ArgumentError('At least one vibe reference is required');
     }
 
-    // 验证文件大小
-    if (imageBytes.length > _maxPngFileSize) {
-      throw InvalidImageFormatException(
-        'PNG file size (${(imageBytes.length / 1024 / 1024).toStringAsFixed(1)}MB) '
-        'exceeds maximum allowed size (${(_maxPngFileSize / 1024 / 1024).toStringAsFixed(0)}MB)',
-      );
-    }
+    _validateFileSize(imageBytes.length, _maxPngFileSize, 'PNG');
 
     try {
-      // 将 VibeReference 转换为可序列化的数据
-      final vibesData = vibeReferences
-          .map((ref) => _vibeReferenceToData(ref))
-          .toList();
-
       final params = _EmbedVibesParams(
         imageBytes: imageBytes,
-        vibeReferencesData: vibesData,
+        vibeReferencesData: vibeReferences.map(_vibeReferenceToData).toList(),
       );
 
-      // 使用 compute() 在 Isolate 中执行嵌入操作，添加超时保护
-      return await compute(_embedVibesIsolate, params)
-          .timeout(_embedTimeout);
+      return await compute(_embedVibesIsolate, params).timeout(_embedTimeout);
     } on TimeoutException {
       AppLogger.w('[VibeImageEmbedder] Vibe embedding timeout', 'VibeImageEmbedder');
       throw VibeEmbedException('Vibe embedding operation timed out');
@@ -128,37 +86,17 @@ class VibeImageEmbedder {
   }
 
   /// Isolate entry point for vibe embedding
-  ///
-  /// 静态方法，用于在 Isolate 中执行 vibe 嵌入逻辑
-  /// 包含 PNG chunk 构建和 iTXt chunk 生成逻辑
   static Uint8List _embedVibesIsolate(_EmbedVibesParams params) {
     try {
-      // 验证 PNG 格式
-      if (!_hasValidPngSignature(params.imageBytes)) {
-        throw InvalidImageFormatException(
-          'Only valid PNG images are supported for vibe metadata embedding',
-        );
-      }
-
-      // 验证 PNG 尺寸
+      _validatePngSignature(params.imageBytes);
       _validatePngDimensions(params.imageBytes);
 
-      // 解析 PNG chunks
       final chunks = _parsePngChunks(params.imageBytes);
-
-      // 将序列化数据转换回 VibeReference 对象
-      final vibeReferences = params.vibeReferencesData
-          .map((data) => _vibeDataToReference(data))
-          .toList();
-
-      // 构建 NAI vibe bundle 数据
+      final vibeReferences = params.vibeReferencesData.map(_vibeDataToReference).toList();
       final naiData = _buildNaiVibeBundleData(vibeReferences);
       final naiDataBase64 = base64.encode(utf8.encode(jsonEncode(naiData)));
-
-      // 构建 iTXt chunk
       final vibeChunk = _buildITxtChunk(_naiDataKeyword, naiDataBase64);
 
-      // 重新组装 PNG 文件
       final builder = BytesBuilder(copy: false)..add(_pngSignature);
       var idatFound = false;
 
@@ -167,7 +105,6 @@ class VibeImageEmbedder {
           builder.add(vibeChunk);
           idatFound = true;
         }
-
         if (!_isVibeChunk(chunk)) {
           builder.add(chunk.rawBytes);
         }
@@ -200,8 +137,7 @@ class VibeImageEmbedder {
 
     while (offset + _chunkHeaderSize <= bytes.length) {
       final dataLength = byteData.getUint32(offset, Endian.big);
-      final typeStart = offset + 4;
-      final dataStart = typeStart + 4;
+      final dataStart = offset + 8;
       final dataEnd = dataStart + dataLength;
       final crcEnd = dataEnd + 4;
 
@@ -209,16 +145,7 @@ class VibeImageEmbedder {
         throw InvalidImageFormatException('Invalid PNG chunk length');
       }
 
-      // 验证 chunk type 长度 (必须是 4 字节)
-      final typeLength = dataStart - typeStart;
-      if (typeLength != 4) {
-        throw InvalidImageFormatException(
-          'Invalid PNG chunk type length: $typeLength (expected 4)',
-        );
-      }
-
-      final chunkType = ascii.decode(bytes.sublist(typeStart, dataStart));
-
+      final chunkType = ascii.decode(bytes.sublist(offset + 4, dataStart));
       chunks.add(
         _PngChunk(
           type: chunkType,
@@ -389,40 +316,18 @@ class VibeImageEmbedder {
     return crc ^ 0xffffffff;
   }
 
-  /// Result of extracting vibes from image (using Isolate to avoid blocking UI)
-  ///
-  /// 使用 compute() 调用 Isolate 方法，避免在 UI 线程执行耗时的 PNG 解析操作
+  /// 从图片提取 Vibes（使用 Isolate 避免阻塞 UI）
   static Future<({List<VibeReference> vibes, bool isBundle})> extractVibeFromImage(
     Uint8List imageBytes,
   ) async {
-    // 验证输入文件大小 (20MB 限制)
-    if (imageBytes.length > _maxFileSize) {
-      throw InvalidImageFormatException(
-        'Input file size (${(imageBytes.length / 1024 / 1024).toStringAsFixed(1)}MB) '
-        'exceeds maximum allowed size (${(_maxFileSize / 1024 / 1024).toStringAsFixed(0)}MB)',
-      );
-    }
-
-    // 验证 PNG 文件大小 (50MB 限制)
-    if (imageBytes.length > _maxPngFileSize) {
-      throw InvalidImageFormatException(
-        'PNG file size (${(imageBytes.length / 1024 / 1024).toStringAsFixed(1)}MB) '
-        'exceeds maximum allowed size (${(_maxPngFileSize / 1024 / 1024).toStringAsFixed(0)}MB)',
-      );
-    }
+    _validateFileSize(imageBytes.length, _maxFileSize, 'Input file');
+    _validateFileSize(imageBytes.length, _maxPngFileSize, 'PNG file');
 
     try {
-      // 使用 compute() 在 Isolate 中执行提取，避免阻塞 UI，添加超时保护
       final result = await compute(_extractVibesFromImageIsolate, imageBytes)
           .timeout(_extractTimeout);
 
-      // 将序列化的结果转换回 VibeReference 对象
-      // 安全注意：不再将原始 PNG 图片作为缩略图分配，以防止内存耗尽
-      // 如果 vibe 数据中没有缩略图，保持为 null，由 UI 层处理默认显示
-      final vibes = result.vibesData.map((data) {
-        return _vibeDataToReference(data);
-      }).toList();
-
+      final vibes = result.vibesData.map(_vibeDataToReference).toList();
       return (vibes: vibes, isBundle: result.isBundle);
     } on TimeoutException {
       AppLogger.w('[VibeImageEmbedder] Vibe extraction timeout', 'VibeImageEmbedder');
@@ -440,26 +345,15 @@ class VibeImageEmbedder {
   }
 
   /// Isolate entry point for vibe extraction
-  ///
-  /// 静态方法，用于在 Isolate 中执行 vibe 提取逻辑
-  /// 返回序列化的 [_ExtractVibeResult]，确保数据可在 Isolate 间传递
   static _ExtractVibeResult _extractVibesFromImageIsolate(Uint8List imageBytes) {
     try {
-      // 验证 PNG 格式
-      if (!_hasValidPngSignature(imageBytes)) {
-        throw InvalidImageFormatException(
-          'Only valid PNG images can contain naiv4vibe metadata',
-        );
-      }
-
-      // 验证 PNG 尺寸
+      _validatePngSignature(imageBytes);
       _validatePngDimensions(imageBytes);
 
       // Try iTXt chunk first (NAI official format)
       final naiData = _extractNaiDataFromITxt(imageBytes);
       if (naiData != null) {
         final result = _parseNaiVibeData(naiData);
-        // 将 VibeReference 转换为序列化数据
         return _ExtractVibeResult(
           vibesData: result.vibes.map(_vibeReferenceToData).toList(),
           isBundle: result.isBundle,
@@ -471,16 +365,13 @@ class VibeImageEmbedder {
       if (payloadJson != null && payloadJson.trim().isNotEmpty) {
         final payload = _decodeMetadataPayload(payloadJson);
         final vibe = _payloadToVibeReference(payload);
-        // 在 Isolate 中返回序列化数据，不包含原始图片字节
         return _ExtractVibeResult(
           vibesData: [_vibeReferenceToData(vibe)],
           isBundle: false,
         );
       }
 
-      throw NoVibeDataException(
-        'No naiv4vibe or naidata metadata found in PNG',
-      );
+      throw NoVibeDataException('No naiv4vibe or naidata metadata found in PNG');
     } on InvalidImageFormatException {
       rethrow;
     } on NoVibeDataException {
@@ -488,7 +379,6 @@ class VibeImageEmbedder {
     } on VibeExtractException {
       rethrow;
     } catch (e) {
-      // 将未知异常包装为 VibeExtractException，保留原始错误信息
       AppLogger.w('[Isolate] Vibe extraction error: $e', 'VibeImageEmbedder');
       throw VibeExtractException('Failed to extract vibe: $e');
     }
@@ -497,51 +387,21 @@ class VibeImageEmbedder {
   /// 从 PNG tEXt chunk 中提取 legacy vibe 元数据
   static String? _extractVibeFromTextChunk(Uint8List imageBytes) {
     try {
-      final byteData = ByteData.sublistView(imageBytes);
-      var offset = _pngSignature.length;
-
-      while (offset + _chunkHeaderSize <= imageBytes.length) {
-        final dataLength = byteData.getUint32(offset, Endian.big);
-        final typeStart = offset + 4;
-        final dataStart = typeStart + 4;
-        final dataEnd = dataStart + dataLength;
-        final crcEnd = dataEnd + 4;
-
-        if (crcEnd > imageBytes.length) {
-          throw InvalidImageFormatException('Invalid PNG chunk length in tEXt');
+      final result = _findChunkData(imageBytes, _textChunkType, (chunkData) {
+        final separator = chunkData.indexOf(0);
+        if (separator <= 0) return null;
+        final keyword = latin1.decode(chunkData.sublist(0, separator));
+        if (keyword == _vibeKeyword) {
+          return latin1.decode(chunkData.sublist(separator + 1));
         }
-
-        // 验证 chunk type 长度 (必须是 4 字节)
-        final typeLength = dataStart - typeStart;
-        if (typeLength != 4) {
-          throw InvalidImageFormatException(
-            'Invalid PNG chunk type length in tEXt: $typeLength (expected 4)',
-          );
-        }
-
-        final chunkType = ascii.decode(imageBytes.sublist(typeStart, dataStart));
-
-        if (chunkType == _textChunkType) {
-          final chunkData = imageBytes.sublist(dataStart, dataEnd);
-          final separator = chunkData.indexOf(0);
-          if (separator > 0) {
-            final keyword = latin1.decode(chunkData.sublist(0, separator));
-            if (keyword == _vibeKeyword) {
-              final text = latin1.decode(chunkData.sublist(separator + 1));
-              return text;
-            }
-          }
-        }
-
-        if (chunkType == _iendChunkType) break;
-        offset = crcEnd;
-      }
+        return null;
+      });
+      return result;
     } catch (e) {
       if (e is InvalidImageFormatException) rethrow;
       AppLogger.w('Error extracting from tEXt chunk: $e', 'VibeImageEmbedder');
       throw VibeExtractException('Failed to extract vibe from tEXt chunk: $e');
     }
-    return null;
   }
 
   /// 将 VibeReference 转换为可序列化的 Map
@@ -559,122 +419,70 @@ class VibeImageEmbedder {
 
   /// 将序列化的 Map 转换回 VibeReference
   static VibeReference _vibeDataToReference(Map<String, dynamic> data) {
-    // 空值检查：确保 data 不为 null 且是 Map 类型
     if (data.isEmpty) {
       throw VibeExtractException('Vibe data is empty');
     }
 
-    // 安全提取字段，处理可能的 null 值
-    final displayName = data['displayName'];
-    final vibeEncoding = data['vibeEncoding'];
-    final thumbnail = data['thumbnail'];
-    final strength = data['strength'];
-    final infoExtracted = data['infoExtracted'];
+    _validateFieldType<String>(data['displayName'], 'displayName');
+    _validateFieldType<String>(data['vibeEncoding'], 'vibeEncoding');
+    _validateFieldType<Uint8List>(data['thumbnail'], 'thumbnail');
+    _validateFieldType<num>(data['strength'], 'strength');
+    _validateFieldType<num>(data['infoExtracted'], 'infoExtracted');
+    _validateFieldType<String>(data['bundleSource'], 'bundleSource');
+
+    final displayName = data['displayName'] as String?;
     final sourceTypeRaw = data['sourceType'];
-    final bundleSource = data['bundleSource'];
-
-    // 验证字段类型
-    if (displayName != null && displayName is! String) {
-      throw VibeExtractException('Invalid displayName type: ${displayName.runtimeType}');
-    }
-    if (vibeEncoding != null && vibeEncoding is! String) {
-      throw VibeExtractException('Invalid vibeEncoding type: ${vibeEncoding.runtimeType}');
-    }
-    if (thumbnail != null && thumbnail is! Uint8List) {
-      throw VibeExtractException('Invalid thumbnail type: ${thumbnail.runtimeType}');
-    }
-    if (strength != null && strength is! num) {
-      throw VibeExtractException('Invalid strength type: ${strength.runtimeType}');
-    }
-    if (infoExtracted != null && infoExtracted is! num) {
-      throw VibeExtractException('Invalid infoExtracted type: ${infoExtracted.runtimeType}');
-    }
-    if (bundleSource != null && bundleSource is! String) {
-      throw VibeExtractException('Invalid bundleSource type: ${bundleSource.runtimeType}');
-    }
-
-    // 解析 sourceType
-    VibeSourceType sourceType;
-    if (sourceTypeRaw == null) {
-      sourceType = VibeSourceType.png;
-    } else if (sourceTypeRaw is String) {
-      sourceType = VibeSourceType.values.firstWhere(
-        (t) => t.name == sourceTypeRaw,
-        orElse: () => VibeSourceType.png,
-      );
-    } else {
-      sourceType = VibeSourceType.png;
-    }
-
-    // 确保 displayName 不为 null 且不为空字符串
-    final effectiveDisplayName = (displayName as String?)?.isNotEmpty == true
-        ? displayName!
-        : 'unknown';
 
     return VibeReference(
-      displayName: effectiveDisplayName,
-      vibeEncoding: vibeEncoding as String? ?? '',
-      thumbnail: thumbnail as Uint8List?,
-      strength: (strength as num?)?.toDouble() ?? 0.6,
-      infoExtracted: (infoExtracted as num?)?.toDouble() ?? 1.0,
-      sourceType: sourceType,
-      bundleSource: bundleSource as String?,
+      displayName: (displayName?.isNotEmpty == true) ? displayName! : 'unknown',
+      vibeEncoding: data['vibeEncoding'] as String? ?? '',
+      thumbnail: data['thumbnail'] as Uint8List?,
+      strength: (data['strength'] as num?)?.toDouble() ?? 0.6,
+      infoExtracted: (data['infoExtracted'] as num?)?.toDouble() ?? 1.0,
+      sourceType: _parseVibeSourceType(sourceTypeRaw),
+      bundleSource: data['bundleSource'] as String?,
     );
   }
 
+  /// 验证字段类型
+  static void _validateFieldType<T>(Object? value, String fieldName) {
+    if (value != null && value is! T) {
+      throw VibeExtractException('Invalid $fieldName type: ${value.runtimeType}');
+    }
+  }
+
+  /// 解析 VibeSourceType
+  static VibeSourceType _parseVibeSourceType(Object? raw) {
+    if (raw is String) {
+      return VibeSourceType.values.firstWhere(
+        (t) => t.name == raw,
+        orElse: () => VibeSourceType.png,
+      );
+    }
+    return VibeSourceType.png;
+  }
+
   static Map<String, dynamic>? _extractNaiDataFromITxt(Uint8List imageBytes) {
-    if (!_hasValidPngSignature(imageBytes)) return null;
-
-    final byteData = ByteData.sublistView(imageBytes);
-    var offset = _pngSignature.length;
-
-    while (offset + _chunkHeaderSize <= imageBytes.length) {
-      final dataLength = byteData.getUint32(offset, Endian.big);
-      final typeStart = offset + 4;
-      final dataStart = typeStart + 4;
-      final dataEnd = dataStart + dataLength;
-      final crcEnd = dataEnd + 4;
-
-      if (crcEnd > imageBytes.length) {
-        throw InvalidImageFormatException('Invalid PNG chunk length in iTXt');
+    return _findChunkData(imageBytes, _itxtChunkType, (chunkData) {
+      final result = _parseITxtChunk(chunkData);
+      if (result != null && result['keyword'] == _naiDataKeyword) {
+        return result['data'] as Map<String, dynamic>?;
       }
-
-      // 验证 chunk type 长度 (必须是 4 字节)
-      final typeLength = dataStart - typeStart;
-      if (typeLength != 4) {
-        throw InvalidImageFormatException(
-          'Invalid PNG chunk type length in iTXt: $typeLength (expected 4)',
-        );
-      }
-
-      final chunkType = ascii.decode(imageBytes.sublist(typeStart, dataStart));
-
-      if (chunkType == _itxtChunkType) {
-        final chunkData = imageBytes.sublist(dataStart, dataEnd);
-        final result = _parseITxtChunk(chunkData);
-        if (result != null && result['keyword'] == _naiDataKeyword) {
-          return result['data'] as Map<String, dynamic>?;
-        }
-      }
-
-      if (chunkType == _iendChunkType) break;
-      offset = crcEnd;
-    }
-
-    return null;
+      return null;
+    });
   }
 
-  static bool _hasValidPngSignature(Uint8List bytes) {
-    if (bytes.length < _pngSignature.length) return false;
+  static void _validatePngSignature(Uint8List bytes) {
+    if (bytes.length < _pngSignature.length) {
+      throw InvalidImageFormatException('Invalid PNG: file too short');
+    }
     for (var i = 0; i < _pngSignature.length; i++) {
-      if (bytes[i] != _pngSignature[i]) return false;
+      if (bytes[i] != _pngSignature[i]) {
+        throw InvalidImageFormatException('Invalid PNG signature');
+      }
     }
-    return true;
   }
 
-  /// 验证 PNG 尺寸是否在允许范围内
-  ///
-  /// 读取 IHDR chunk 中的宽高信息并验证
   static void _validatePngDimensions(Uint8List bytes) {
     // IHDR chunk 必须在签名后立即出现
     // 偏移量: 8 (签名) + 4 (长度) + 4 (类型 "IHDR") = 16
@@ -712,7 +520,6 @@ class VibeImageEmbedder {
     }
   }
 
-  /// iTXt structure: keyword\0compression_flag\0compression_method\0language\0translated_keyword\0text
   static Map<String, dynamic>? _parseITxtChunk(Uint8List data) {
     try {
       final keywordEnd = data.indexOf(0);
@@ -738,31 +545,13 @@ class VibeImageEmbedder {
           ? utf8.decode(_decodeZlibWithLimit(textBytes))
           : utf8.decode(textBytes);
 
-      // 验证 base64 编码文本长度 (解码后大约增长 33%)
-      // base64 每 4 个字符表示 3 个字节，所以解码后大小 = 编码长度 * 3 / 4
-      final estimatedDecodedSize = (text.length * 3 / 4).ceil();
-      if (estimatedDecodedSize > _maxBase64DecodedSize) {
-        throw VibeExtractException(
-          'Base64 encoded data too large: estimated decoded size '
-          '$estimatedDecodedSize bytes (max: $_maxBase64DecodedSize)',
-        );
-      }
-
+      _validateBase64Size(text.length);
       final decoded = base64.decode(text);
-
-      // 再次验证实际解码后的大小
-      if (decoded.length > _maxBase64DecodedSize) {
-        throw VibeExtractException(
-          'Base64 decoded data too large: ${decoded.length} bytes '
-          '(max: $_maxBase64DecodedSize)',
-        );
-      }
+      _validateDecodedSize(decoded.length);
 
       final jsonData = jsonDecode(utf8.decode(decoded)) as Map<String, dynamic>;
-
       return {'keyword': keyword, 'data': jsonData};
     } on VibeExtractException {
-      // 重新抛出安全相关的异常，不要将其转换为 null
       rethrow;
     } catch (e) {
       AppLogger.w('Failed to parse iTXt chunk: $e', 'VibeImageEmbedder');
@@ -771,10 +560,6 @@ class VibeImageEmbedder {
   }
 
   /// 解码 zlib 压缩数据，限制最大解压大小以防止 zip bomb 攻击
-  ///
-  /// 首先检查压缩数据大小，然后解压，最后验证解压后数据大小。
-  /// 注意：archive 包 3.6.1 版本不支持流式解压，因此采用解压后检查的方式。
-  /// 对于生产环境，考虑升级到支持流式解压的 archive 版本。
   static List<int> _decodeZlibWithLimit(List<int> bytes) {
     // 首先检查压缩数据大小
     if (bytes.length > _maxCompressedSize) {
@@ -848,73 +633,57 @@ class VibeImageEmbedder {
 
   /// 从 vibe 数据中提取缩略图
   static Uint8List? _extractThumbnailFromVibe(Map<String, dynamic> vibe) {
-    // 记录 vibe 中的可用字段，用于调试
     AppLogger.d('Vibe fields: ${vibe.keys.toList()}', 'VibeImageEmbedder');
 
+    // 尝试从 thumbnail 字段提取
     final thumbnailBase64 = vibe['thumbnail'] as String?;
     if (thumbnailBase64 != null && thumbnailBase64.isNotEmpty) {
       AppLogger.d('Found thumbnail field, length: ${thumbnailBase64.length}', 'VibeImageEmbedder');
-      final base64Data = _extractBase64FromDataUri(thumbnailBase64);
-      if (base64Data != null) {
-        // 检查 base64 编码数据大小，防止内存溢出
-        // base64 解码后大小 ≈ 编码大小 * 3/4
-        if (base64Data.length > _maxBase64DecodedSize * 4 ~/ 3) {
-          throw VibeExtractException(
-            'Base64 thumbnail data too large: ${base64Data.length} bytes '
-            '(max encoded: ${_maxBase64DecodedSize * 4 ~/ 3})',
-          );
-        }
-        final decoded = base64.decode(base64Data);
-        // 解码后再次验证大小（双重验证防御深度）
-        if (decoded.length > _maxBase64DecodedSize) {
-          throw VibeExtractException(
-            'Decoded thumbnail too large: ${decoded.length} bytes '
-            '(max: $_maxBase64DecodedSize)',
-          );
-        }
-        return decoded;
-      }
+      final decoded = _decodeBase64WithLimit(thumbnailBase64, 'thumbnail');
+      if (decoded != null) return decoded;
     }
 
-    // 如果没有 thumbnail 字段，尝试从 image 字段提取
+    // 尝试从 image 字段提取
     final imageBase64 = vibe['image'] as String?;
     if (imageBase64 != null && imageBase64.isNotEmpty) {
       AppLogger.d('Found image field, length: ${imageBase64.length}', 'VibeImageEmbedder');
-      final base64Data = _extractBase64FromDataUri(imageBase64);
-      if (base64Data != null) {
-        // 检查 base64 编码数据大小，防止内存溢出
-        if (base64Data.length > _maxBase64DecodedSize * 4 ~/ 3) {
-          throw VibeExtractException(
-            'Base64 image data too large: ${base64Data.length} bytes '
-            '(max encoded: ${_maxBase64DecodedSize * 4 ~/ 3})',
-          );
-        }
-        final decoded = base64.decode(base64Data);
-        // 解码后再次验证大小（双重验证防御深度）
-        if (decoded.length > _maxBase64DecodedSize) {
-          throw VibeExtractException(
-            'Decoded image too large: ${decoded.length} bytes '
-            '(max: $_maxBase64DecodedSize)',
-          );
-        }
-        return decoded;
-      }
+      final decoded = _decodeBase64WithLimit(imageBase64, 'image');
+      if (decoded != null) return decoded;
     }
 
     AppLogger.w('No thumbnail or image field found in vibe data', 'VibeImageEmbedder');
     return null;
   }
 
+  /// 从 Data URI 中提取 base64 数据并解码，带大小限制
+  static Uint8List? _decodeBase64WithLimit(String dataUri, String fieldName) {
+    final base64Data = _extractBase64FromDataUri(dataUri);
+    if (base64Data == null) return null;
+
+    if (base64Data.length > _maxBase64DecodedSize * 4 ~/ 3) {
+      throw VibeExtractException(
+        'Base64 $fieldName data too large: ${base64Data.length} bytes',
+      );
+    }
+
+    final decoded = base64.decode(base64Data);
+    if (decoded.length > _maxBase64DecodedSize) {
+      throw VibeExtractException(
+        'Decoded $fieldName too large: ${decoded.length} bytes',
+      );
+    }
+    return decoded;
+  }
+
   /// 从 Data URI 中提取 base64 数据
-  /// 格式: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...
   static String? _extractBase64FromDataUri(String dataUri) {
     if (dataUri.startsWith('data:')) {
       final commaIndex = dataUri.indexOf(',');
       if (commaIndex != -1 && commaIndex < dataUri.length - 1) {
         return dataUri.substring(commaIndex + 1);
       }
+      return null;
     }
-    // 如果不是 Data URI 格式，假设是纯 base64
     return dataUri;
   }
 
@@ -987,23 +756,7 @@ class VibeImageEmbedder {
   static Uint8List? _extractThumbnailFromPayload(Map<String, dynamic> dataRaw) {
     final thumbnailBase64 = dataRaw['thumbnail'] as String?;
     if (thumbnailBase64 != null && thumbnailBase64.isNotEmpty) {
-      // 检查 base64 编码数据大小，防止内存溢出
-      // base64 解码后大小 ≈ 编码大小 * 3/4
-      if (thumbnailBase64.length > _maxBase64DecodedSize * 4 ~/ 3) {
-        throw VibeExtractException(
-          'Base64 thumbnail data too large: ${thumbnailBase64.length} bytes '
-          '(max encoded: ${_maxBase64DecodedSize * 4 ~/ 3})',
-        );
-      }
-      final decoded = base64.decode(thumbnailBase64);
-      // 解码后再次验证大小（双重验证防御深度）
-      if (decoded.length > _maxBase64DecodedSize) {
-        throw VibeExtractException(
-          'Decoded thumbnail too large: ${decoded.length} bytes '
-          '(max: $_maxBase64DecodedSize)',
-        );
-      }
-      return decoded;
+      return _decodeBase64WithLimit(thumbnailBase64, 'thumbnail');
     }
     return null;
   }
@@ -1023,6 +776,71 @@ class VibeImageEmbedder {
     return vibeEncoding.isNotEmpty
         ? VibeSourceType.png
         : VibeSourceType.rawImage;
+  }
+
+  /// 验证文件大小是否在限制内
+  static void _validateFileSize(int size, int maxSize, String name) {
+    if (size > maxSize) {
+      throw InvalidImageFormatException(
+        '$name size (${(size / 1024 / 1024).toStringAsFixed(1)}MB) '
+        'exceeds maximum allowed size (${(maxSize / 1024 / 1024).toStringAsFixed(0)}MB)',
+      );
+    }
+  }
+
+  /// 验证 base64 编码数据大小（解码前）
+  static void _validateBase64Size(int encodedLength) {
+    final estimatedSize = (encodedLength * 3 / 4).ceil();
+    if (estimatedSize > _maxBase64DecodedSize) {
+      throw VibeExtractException(
+        'Base64 data too large: estimated $estimatedSize bytes '
+        '(max: $_maxBase64DecodedSize)',
+      );
+    }
+  }
+
+  /// 验证解码后数据大小
+  static void _validateDecodedSize(int decodedLength) {
+    if (decodedLength > _maxBase64DecodedSize) {
+      throw VibeExtractException(
+        'Decoded data too large: $decodedLength bytes '
+        '(max: $_maxBase64DecodedSize)',
+      );
+    }
+  }
+
+  /// 通用 PNG chunk 查找和提取
+  static T? _findChunkData<T>(
+    Uint8List imageBytes,
+    String targetChunkType,
+    T? Function(Uint8List chunkData) extractor,
+  ) {
+    final byteData = ByteData.sublistView(imageBytes);
+    var offset = _pngSignature.length;
+
+    while (offset + _chunkHeaderSize <= imageBytes.length) {
+      final dataLength = byteData.getUint32(offset, Endian.big);
+      final dataStart = offset + 8;
+      final dataEnd = dataStart + dataLength;
+      final crcEnd = dataEnd + 4;
+
+      if (crcEnd > imageBytes.length) {
+        throw InvalidImageFormatException('Invalid PNG chunk length');
+      }
+
+      final chunkType = ascii.decode(imageBytes.sublist(offset + 4, dataStart));
+
+      if (chunkType == targetChunkType) {
+        final chunkData = imageBytes.sublist(dataStart, dataEnd);
+        final result = extractor(chunkData);
+        if (result != null) return result;
+      }
+
+      if (chunkType == _iendChunkType) break;
+      offset = crcEnd;
+    }
+
+    return null;
   }
 }
 
