@@ -12,6 +12,39 @@ import 'project_data.dart';
 /// 项目文件扩展名
 const String projectExtension = '.naiedit';
 
+/// 文件状态信息包装类
+///
+/// 用于包装FileStat或表示一个不存在的文件
+class _FileStatInfo {
+  final File file;
+  final DateTime modified;
+  final FileSystemEntityType type;
+
+  const _FileStatInfo({
+    required this.file,
+    required this.modified,
+    required this.type,
+  });
+
+  /// 从FileStat创建
+  factory _FileStatInfo.fromStat(File file, FileStat stat) {
+    return _FileStatInfo(
+      file: file,
+      modified: stat.modified,
+      type: stat.type,
+    );
+  }
+
+  /// 表示不存在的文件
+  factory _FileStatInfo.notFound(File file) {
+    return _FileStatInfo(
+      file: file,
+      modified: DateTime(0),
+      type: FileSystemEntityType.notFound,
+    );
+  }
+}
+
 /// 项目管理器
 class ProjectManager {
   /// 保存项目到文件
@@ -168,14 +201,40 @@ class ProjectManager {
       return null;
     }
 
-    // 按修改时间排序
-    files.sort((a, b) {
-      final aStat = a.statSync();
-      final bStat = b.statSync();
-      return bStat.modified.compareTo(aStat.modified);
-    });
+    // 批处理获取文件 stat，每批20个，避免无界并发
+    const batchSize = 20;
+    final filesWithStats = <_FileStatInfo>[];
 
-    return files.first.path;
+    for (var i = 0; i < files.length; i += batchSize) {
+      final end = (i + batchSize < files.length) ? i + batchSize : files.length;
+      final batch = files.sublist(i, end);
+
+      final batchStats = await Future.wait(
+        batch.map((file) async {
+          try {
+            final stat = await file.stat();
+            return _FileStatInfo.fromStat(file, stat);
+          } catch (e) {
+            // 如果 stat 失败（文件被删除、权限问题等），返回 notFound 类型
+            return _FileStatInfo.notFound(file);
+          }
+        }),
+      );
+      filesWithStats.addAll(batchStats);
+    }
+
+    // 过滤掉不存在的文件，然后按修改时间排序
+    final validFiles = filesWithStats
+        .where((item) => item.type != FileSystemEntityType.notFound)
+        .toList();
+
+    if (validFiles.isEmpty) {
+      return null;
+    }
+
+    validFiles.sort((a, b) => b.modified.compareTo(a.modified));
+
+    return validFiles.first.file.path;
   }
 
   /// 清理旧的自动保存文件（保留最近N个）
@@ -198,16 +257,46 @@ class ProjectManager {
       return;
     }
 
-    // 按修改时间排序
-    files.sort((a, b) {
-      final aStat = a.statSync();
-      final bStat = b.statSync();
-      return bStat.modified.compareTo(aStat.modified);
-    });
+    // 批处理获取文件 stat，每批20个，避免无界并发
+    const batchSize = 20;
+    final filesWithStats = <_FileStatInfo>[];
 
-    // 删除旧文件
-    for (int i = keepCount; i < files.length; i++) {
-      await files[i].delete();
+    for (var i = 0; i < files.length; i += batchSize) {
+      final end = (i + batchSize < files.length) ? i + batchSize : files.length;
+      final batch = files.sublist(i, end);
+
+      final batchStats = await Future.wait(
+        batch.map((file) async {
+          try {
+            final stat = await file.stat();
+            return _FileStatInfo.fromStat(file, stat);
+          } catch (e) {
+            // 如果 stat 失败（文件被删除、权限问题等），返回 notFound 类型
+            return _FileStatInfo.notFound(file);
+          }
+        }),
+      );
+      filesWithStats.addAll(batchStats);
+    }
+
+    // 过滤掉不存在的文件，然后按修改时间排序
+    final validFiles = filesWithStats
+        .where((item) => item.type != FileSystemEntityType.notFound)
+        .toList();
+
+    if (validFiles.length <= keepCount) {
+      return;
+    }
+
+    validFiles.sort((a, b) => b.modified.compareTo(a.modified));
+
+    // 删除旧文件，添加异常处理
+    for (int i = keepCount; i < validFiles.length; i++) {
+      try {
+        await validFiles[i].file.delete();
+      } catch (e) {
+        // 忽略删除失败的文件（可能已被删除或权限问题）
+      }
     }
   }
 }

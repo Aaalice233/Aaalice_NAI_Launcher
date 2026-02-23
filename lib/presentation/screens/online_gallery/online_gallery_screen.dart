@@ -1069,6 +1069,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     // 这里为了简化，我们只对未收藏的进行收藏操作
     int count = 0;
     for (final idStr in selectedIds) {
+      // 检查widget是否仍然挂载，避免在widget disposed后继续操作
+      if (!mounted) return;
+
       final id = int.tryParse(idStr);
       if (id != null && !galleryState.favoritedPostIds.contains(id)) {
         await _galleryNotifier.toggleFavorite(id);
