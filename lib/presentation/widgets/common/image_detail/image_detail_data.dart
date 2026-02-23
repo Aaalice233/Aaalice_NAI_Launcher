@@ -172,8 +172,7 @@ class GeneratedImageDetailData implements ImageDetailData {
     if (_metadata != null) return _metadata;
 
     // 2. 从内存字节直接解析（内存操作，无需排队）
-    // 使用相同的cacheKey确保与后续保存后的元数据共享
-    return ImageMetadataService().getMetadataFromBytes(imageBytes, cacheKey: _id);
+    return ImageMetadataService().getMetadataFromBytes(imageBytes);
   }
 
   @override

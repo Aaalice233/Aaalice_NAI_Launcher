@@ -209,7 +209,7 @@ class MetadataPreloadNotifier extends _$MetadataPreloadNotifier {
     }
 
     try {
-      return await _metadataService!.getMetadata(path, forceFullParse: forceFullParse);
+      return await _metadataService!.getMetadata(path);
     } catch (e, stack) {
       AppLogger.e('Failed to get metadata: $path', e, stack, 'MetadataPreload');
       return null;
@@ -217,17 +217,14 @@ class MetadataPreloadNotifier extends _$MetadataPreloadNotifier {
   }
 
   /// 从字节数组获取元数据
-  Future<NaiImageMetadata?> getMetadataFromBytes(
-    Uint8List bytes, {
-    String? cacheKey,
-  }) async {
+  Future<NaiImageMetadata?> getMetadataFromBytes(Uint8List bytes) async {
     if (_metadataService == null) {
       AppLogger.w('Metadata service not initialized', 'MetadataPreload');
       return null;
     }
 
     try {
-      return await _metadataService!.getMetadataFromBytes(bytes, cacheKey: cacheKey);
+      return await _metadataService!.getMetadataFromBytes(bytes);
     } catch (e, stack) {
       AppLogger.e('Failed to get metadata from bytes', e, stack, 'MetadataPreload');
       return null;

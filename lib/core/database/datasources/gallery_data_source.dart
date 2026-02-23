@@ -382,6 +382,10 @@ class ScanLogRecord {
 ///
 /// 管理本地图片画廊的数据存储和查询，支持图片元数据、标签、收藏和全文搜索。
 class GalleryDataSource extends EnhancedBaseDataSource {
+  static final GalleryDataSource _instance = GalleryDataSource._internal();
+  factory GalleryDataSource() => _instance;
+  GalleryDataSource._internal();
+
   static const int _maxImageCacheSize = 500;
 
   static const String _imagesTable = 'gallery_images';

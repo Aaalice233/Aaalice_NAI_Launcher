@@ -458,7 +458,7 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
   /// Build date range button
   /// 构建日期范围按钮
   Widget _buildDateRangeButton(ThemeData theme, LocalGalleryState state) {
-    final hasDateRange = state.dateStart != null || state.dateEnd != null;
+    final hasDateRange = state.filterCriteria.dateStart != null || state.filterCriteria.dateEnd != null;
 
     return OutlinedButton.icon(
       onPressed: () => _selectDateRange(context, state),
@@ -469,7 +469,7 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
       ),
       label: Text(
         hasDateRange
-            ? _formatDateRange(state.dateStart, state.dateEnd)
+            ? _formatDateRange(state.filterCriteria.dateStart, state.filterCriteria.dateEnd)
             : '日期过滤',
         style: TextStyle(
           fontSize: 12,
@@ -510,8 +510,8 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
       context: context,
       firstDate: DateTime(2020),
       lastDate: now,
-      initialDateRange: state.dateStart != null && state.dateEnd != null
-          ? DateTimeRange(start: state.dateStart!, end: state.dateEnd!)
+      initialDateRange: state.filterCriteria.dateStart != null && state.filterCriteria.dateEnd != null
+          ? DateTimeRange(start: state.filterCriteria.dateStart!, end: state.filterCriteria.dateEnd!)
           : DateTimeRange(
               start: now.subtract(const Duration(days: 30)),
               end: now,

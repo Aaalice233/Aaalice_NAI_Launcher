@@ -14,29 +14,13 @@ import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/local_image_record.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/repositories/gallery_folder_repository.dart';
+import '../../data/services/gallery/gallery_filter_service.dart';
 import '../../data/services/gallery/gallery_scan_service.dart';
 import '../../data/services/image_metadata_service.dart';
 import 'gallery_scan_progress_provider.dart';
 
 part 'local_gallery_provider.freezed.dart';
 part 'local_gallery_provider.g.dart';
-
-/// 扫描结果
-class ScanResult {
-  final int totalFiles;
-  final int newFiles;
-  final int updatedFiles;
-  final int failedFiles;
-  final Duration duration;
-
-  const ScanResult({
-    required this.totalFiles,
-    required this.newFiles,
-    required this.updatedFiles,
-    required this.failedFiles,
-    required this.duration,
-  });
-}
 
 /// 本地画廊状态
 @freezed
@@ -55,27 +39,8 @@ class LocalGalleryState with _$LocalGalleryState {
     @Default(false) bool isLoading,
     @Default(false) bool isIndexing, // 用于兼容旧代码
     @Default(false) bool isPageLoading, // 用于兼容旧代码
-    /// 搜索关键词
-    @Default('') String searchQuery,
-
-    /// 日期过滤
-    DateTime? dateStart,
-    DateTime? dateEnd,
-
-    /// 收藏过滤
-    @Default(false) bool showFavoritesOnly,
-
-    /// 标签过滤
-    @Default([]) List<String> selectedTags,
-
-    /// 元数据过滤
-    String? filterModel,
-    String? filterSampler,
-    int? filterMinSteps,
-    int? filterMaxSteps,
-    double? filterMinCfg,
-    double? filterMaxCfg,
-    String? filterResolution,
+    /// 过滤条件
+    @Default(FilterCriteria()) FilterCriteria filterCriteria,
 
     /// 分组视图（兼容旧代码）
     @Default(false) bool isGroupedView,
@@ -116,19 +81,7 @@ class LocalGalleryState with _$LocalGalleryState {
   int get filteredCount => filteredFiles.length;
   int get totalCount => allFiles.length;
 
-  bool get hasFilters =>
-      searchQuery.isNotEmpty ||
-      dateStart != null ||
-      dateEnd != null ||
-      showFavoritesOnly ||
-      selectedTags.isNotEmpty ||
-      filterModel != null ||
-      filterSampler != null ||
-      filterMinSteps != null ||
-      filterMaxSteps != null ||
-      filterMinCfg != null ||
-      filterMaxCfg != null ||
-      filterResolution != null;
+  bool get hasFilters => filterCriteria.hasFilters;
 }
 
 /// GalleryDataSource Provider
@@ -152,12 +105,16 @@ class GalleryDataSourceNotifier extends _$GalleryDataSourceNotifier {
 /// 依赖关系：
 /// - GalleryDataSource: 新的数据源（收藏、标签操作）
 /// - GalleryFolderRepository: 文件系统操作
+/// - GalleryFilterService: 过滤逻辑
 /// - SQLite (via Repository): 唯一数据源
 /// - FileWatcherService (via Repository): 自动增量更新
 @Riverpod(keepAlive: true)
 class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   /// 缓存的状态，用于在 Provider 重新评估时恢复状态
   LocalGalleryState? _cachedState;
+
+  /// 过滤服务（懒加载）
+  GalleryFilterService? _filterService;
 
   @override
   LocalGalleryState build() {
@@ -179,6 +136,15 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   /// 每次都从 provider 获取，确保连接有效
   Future<GalleryDataSource> _getDataSource() async {
     return await ref.read(galleryDataSourceNotifierProvider.future);
+  }
+
+  /// 获取过滤服务
+  Future<GalleryFilterService> _getFilterService() async {
+    if (_filterService == null) {
+      final dataSource = await _getDataSource();
+      _filterService = GalleryFilterService(dataSource);
+    }
+    return _filterService!;
   }
 
   // ============================================================
@@ -809,24 +775,36 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   }
 
   // ============================================================
-  // 搜索和过滤
+  // 搜索和过滤（使用 GalleryFilterService）
   // ============================================================
 
   Future<void> setSearchQuery(String query) async {
-    if (state.searchQuery == query) return;
-    _setState(state.copyWith(searchQuery: query));
+    final criteria = state.filterCriteria;
+    if (criteria.searchQuery == query) return;
+    _setState(state.copyWith(
+      filterCriteria: criteria.copyWith(searchQuery: query),
+    ),);
     await _applyFilters();
   }
 
   Future<void> setDateRange(DateTime? start, DateTime? end) async {
-    if (state.dateStart == start && state.dateEnd == end) return;
-    _setState(state.copyWith(dateStart: start, dateEnd: end));
+    final criteria = state.filterCriteria;
+    if (criteria.dateStart == start && criteria.dateEnd == end) return;
+    _setState(state.copyWith(
+      filterCriteria: criteria.copyWith(
+        dateStart: start,
+        dateEnd: end,
+      ),
+    ),);
     await _applyFilters();
   }
 
   Future<void> setShowFavoritesOnly(bool value) async {
-    if (state.showFavoritesOnly == value) return;
-    _setState(state.copyWith(showFavoritesOnly: value));
+    final criteria = state.filterCriteria;
+    if (criteria.showFavoritesOnly == value) return;
+    _setState(state.copyWith(
+      filterCriteria: criteria.copyWith(showFavoritesOnly: value),
+    ),);
     await _applyFilters();
   }
 
@@ -837,27 +815,56 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   }
 
   Future<void> setFilterModel(String? model) async {
-    _setState(state.copyWith(filterModel: model));
+    _setState(state.copyWith(
+      filterCriteria: state.filterCriteria.copyWith(
+        filterModel: model,
+        clearFilterModel: model == null,
+      ),
+    ),);
     await _applyFilters();
   }
 
   Future<void> setFilterSampler(String? sampler) async {
-    _setState(state.copyWith(filterSampler: sampler));
+    _setState(state.copyWith(
+      filterCriteria: state.filterCriteria.copyWith(
+        filterSampler: sampler,
+        clearFilterSampler: sampler == null,
+      ),
+    ),);
     await _applyFilters();
   }
 
   Future<void> setFilterSteps(int? min, int? max) async {
-    _setState(state.copyWith(filterMinSteps: min, filterMaxSteps: max));
+    _setState(state.copyWith(
+      filterCriteria: state.filterCriteria.copyWith(
+        filterMinSteps: min,
+        filterMaxSteps: max,
+        clearFilterMinSteps: min == null,
+        clearFilterMaxSteps: max == null,
+      ),
+    ),);
     await _applyFilters();
   }
 
   Future<void> setFilterCfg(double? min, double? max) async {
-    _setState(state.copyWith(filterMinCfg: min, filterMaxCfg: max));
+    _setState(state.copyWith(
+      filterCriteria: state.filterCriteria.copyWith(
+        filterMinCfg: min,
+        filterMaxCfg: max,
+        clearFilterMinCfg: min == null,
+        clearFilterMaxCfg: max == null,
+      ),
+    ),);
     await _applyFilters();
   }
 
   Future<void> setFilterResolution(String? resolution) async {
-    _setState(state.copyWith(filterResolution: resolution));
+    _setState(state.copyWith(
+      filterCriteria: state.filterCriteria.copyWith(
+        filterResolution: resolution,
+        clearFilterResolution: resolution == null,
+      ),
+    ),);
     await _applyFilters();
   }
 
@@ -867,7 +874,6 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     if (value) {
       await _loadGroupedImages();
     } else {
-      // 退出分组视图时，重新应用过滤以确保视图正确刷新
       await _applyFilters();
     }
   }
@@ -883,90 +889,27 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   }
 
   Future<void> clearAllFilters() async {
-    _setState(state.copyWith(
-      searchQuery: '',
-      dateStart: null,
-      dateEnd: null,
-      showFavoritesOnly: false,
-      selectedTags: [],
-      filterModel: null,
-      filterSampler: null,
-      filterMinSteps: null,
-      filterMaxSteps: null,
-      filterMinCfg: null,
-      filterMaxCfg: null,
-      filterResolution: null,
-    ),);
+    _setState(state.copyWith(filterCriteria: const FilterCriteria()));
     await _applyFilters();
   }
 
-  /// 应用过滤
+  /// 应用过滤（使用 GalleryFilterService）
   Future<void> _applyFilters() async {
-    final query = state.searchQuery.toLowerCase().trim();
+    final criteria = state.filterCriteria;
 
     // 无过滤
-    if (query.isEmpty &&
-        state.dateStart == null &&
-        state.dateEnd == null &&
-        !state.showFavoritesOnly &&
-        state.selectedTags.isEmpty &&
-        !_hasMetadataFilters) {
+    if (!criteria.hasFilters) {
       _setState(state.copyWith(filteredFiles: state.allFiles, currentPage: 0));
       await loadPage(0);
       return;
     }
 
-    // 有搜索关键词：使用数据库搜索
-    if (query.isNotEmpty) {
-      try {
-        final dataSource = await _getDataSource();
-        final imageIds = await dataSource.advancedSearch(
-          textQuery: query,
-          favoritesOnly: state.showFavoritesOnly,
-          dateStart: state.dateStart,
-          dateEnd: state.dateEnd,
-          limit: 10000,
-        );
-        // 获取图片记录并转换为文件列表
-        final images = await dataSource.getImagesByIds(imageIds);
-        final files = images.map((img) => File(img.filePath)).toList();
-        _setState(state.copyWith(filteredFiles: files, currentPage: 0));
-        await loadPage(0);
-        return;
-      } catch (e) {
-        AppLogger.w('Search failed: $e', 'LocalGalleryNotifier');
-      }
-    }
-
-    // 回退到本地过滤
-    var filtered = state.allFiles.where((file) {
-      if (query.isNotEmpty) {
-        final name = file.path.split(Platform.pathSeparator).last.toLowerCase();
-        if (!name.contains(query)) return false;
-      }
-      return true;
-    }).toList();
-
-    // 日期过滤 - 使用异步操作并发获取文件状态（避免阻塞主线程）
-    if (state.dateStart != null || state.dateEnd != null) {
-      filtered = await _filterByDateRange(filtered);
-    }
-    // 收藏过滤 - 使用数据库查询获取收藏的图片路径（使用批量方法）
-    if (state.showFavoritesOnly) {
-      try {
-        final dataSource = await _getDataSource();
-        final favoriteImageIds = await dataSource.getFavoriteImageIds();
-        // 使用批量查询获取所有收藏图片的路径
-        final favoriteImages =
-            await dataSource.getImagesByIds(favoriteImageIds);
-        final favoritePaths = favoriteImages.map((img) => img.filePath).toSet();
-        filtered = filtered
-            .where((file) => favoritePaths.contains(file.path))
-            .toList();
-      } catch (e) {
-        AppLogger.w('Failed to filter favorites: $e', 'LocalGalleryNotifier');
-      }
-    }
+    // 使用过滤服务
+    final filterService = await _getFilterService();
+    final filtered = await filterService.applyFilters(
+      state.allFiles,
+      criteria,
+    );
 
     _setState(state.copyWith(filteredFiles: filtered, currentPage: 0));
 
@@ -977,50 +920,6 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       await loadPage(0);
     }
   }
-
-  /// 按日期范围过滤文件
-  Future<List<File>> _filterByDateRange(List<File> files) async {
-    const batchSize = 50;
-    final effectiveEndDate = state.dateEnd?.add(const Duration(days: 1));
-    final result = <File>[];
-
-    for (var i = 0; i < files.length; i += batchSize) {
-      final batch = files.sublist(i, min(i + batchSize, files.length));
-      final batchStats = await Future.wait(
-        batch.map((file) async {
-          try {
-            return (file: file, modified: (await file.stat()).modified);
-          } catch (_) {
-            return null;
-          }
-        }),
-      );
-
-      for (final stat in batchStats.whereType<({File file, DateTime modified})>()) {
-        final modifiedAt = stat.modified;
-        if (state.dateStart != null && modifiedAt.isBefore(state.dateStart!)) {
-          continue;
-        }
-        if (effectiveEndDate != null && modifiedAt.isAfter(effectiveEndDate)) {
-          continue;
-        }
-        result.add(stat.file);
-      }
-    }
-
-    return result;
-  }
-
-  bool get _hasMetadataFilters =>
-      [
-        state.filterModel,
-        state.filterSampler,
-        state.filterResolution,
-        state.filterMinSteps,
-        state.filterMaxSteps,
-        state.filterMinCfg,
-        state.filterMaxCfg,
-      ].any((f) => f != null);
 
   // ============================================================
   // 收藏（使用新数据源）
@@ -1071,7 +970,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       _setState(state.copyWith(currentImages: updatedCurrentImages));
 
       // 如果启用了收藏过滤，重新应用过滤以更新列表
-      if (state.showFavoritesOnly) {
+      if (state.filterCriteria.showFavoritesOnly) {
         await _applyFilters();
       }
     } catch (e) {

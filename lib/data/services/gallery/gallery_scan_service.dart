@@ -14,7 +14,96 @@ import '../../models/gallery/nai_image_metadata.dart';
 import '../image_metadata_batch_service.dart';
 import '../image_metadata_service.dart';
 
+/// 扫描结果
+///
+/// 支持可变和不可变两种使用方式：
+/// - 扫描过程中使用可变字段累积统计
+/// - 返回最终结果时使用 const 构造创建不可变实例
 class ScanResult {
+  /// 扫描的文件总数（仅在可变模式下可修改）
+  final int filesScanned;
+
+  /// 新增的文件数
+  final int filesAdded;
+
+  /// 更新的文件数
+  final int filesUpdated;
+
+  /// 删除的文件数
+  final int filesDeleted;
+
+  /// 跳过的文件数
+  final int filesSkipped;
+
+  /// 扫描耗时
+  final Duration duration;
+
+  /// 错误信息列表
+  final List<String> errors;
+
+  /// 总文件数（用于结果展示）
+  int get totalFiles => filesScanned;
+
+  /// 失败的文件数（别名为 errors.length）
+  int get failedFiles => errors.length;
+
+  factory ScanResult({
+    int filesScanned = 0,
+    int filesAdded = 0,
+    int filesUpdated = 0,
+    int filesDeleted = 0,
+    int filesSkipped = 0,
+    Duration duration = Duration.zero,
+    List<String> errors = const [],
+    // 兼容旧版本的命名参数
+    int? totalFiles,
+    int? newFiles,
+    int? updatedFiles,
+    int? failedFiles,
+  }) {
+    // 优先使用旧版参数名（如果提供），否则使用新版
+    final effectiveScanned = totalFiles ?? filesScanned;
+    final effectiveAdded = newFiles ?? filesAdded;
+    final effectiveUpdated = updatedFiles ?? filesUpdated;
+    final effectiveErrors = failedFiles != null && failedFiles > 0
+        ? List<String>.filled(failedFiles, '')
+        : (errors.isEmpty ? const <String>[] : errors);
+
+    return ScanResult._internal(
+      filesScanned: effectiveScanned,
+      filesAdded: effectiveAdded,
+      filesUpdated: effectiveUpdated,
+      filesDeleted: filesDeleted,
+      filesSkipped: filesSkipped,
+      duration: duration,
+      errors: effectiveErrors,
+    );
+  }
+
+  const ScanResult._internal({
+    this.filesScanned = 0,
+    this.filesAdded = 0,
+    this.filesUpdated = 0,
+    this.filesDeleted = 0,
+    this.filesSkipped = 0,
+    this.duration = Duration.zero,
+    this.errors = const [],
+  });
+
+  /// 创建可变构建器（用于扫描过程中）
+  ScanResultBuilder toBuilder() => ScanResultBuilder(this);
+
+  @override
+  String toString() =>
+      'ScanResult(scanned: $filesScanned, added: $filesAdded, updated: $filesUpdated, '
+      'skipped: $filesSkipped, deleted: $filesDeleted, duration: $duration, '
+      'errors: ${errors.length})';
+}
+
+/// 扫描结果构建器（可变）
+///
+/// 用于扫描过程中累积统计信息
+class ScanResultBuilder {
   int filesScanned = 0;
   int filesAdded = 0;
   int filesUpdated = 0;
@@ -23,10 +112,28 @@ class ScanResult {
   Duration duration = Duration.zero;
   List<String> errors = [];
 
-  @override
-  String toString() =>
-      'ScanResult(scanned: $filesScanned, added: $filesAdded, updated: $filesUpdated, '
-      'skipped: $filesSkipped, deleted: $filesDeleted, duration: $duration)';
+  ScanResultBuilder([ScanResult? initial]) {
+    if (initial != null) {
+      filesScanned = initial.filesScanned;
+      filesAdded = initial.filesAdded;
+      filesUpdated = initial.filesUpdated;
+      filesDeleted = initial.filesDeleted;
+      filesSkipped = initial.filesSkipped;
+      duration = initial.duration;
+      errors = List.from(initial.errors);
+    }
+  }
+
+  /// 构建最终的不可变 ScanResult
+  ScanResult build() => ScanResult(
+        filesScanned: filesScanned,
+        filesAdded: filesAdded,
+        filesUpdated: filesUpdated,
+        filesDeleted: filesDeleted,
+        filesSkipped: filesSkipped,
+        duration: duration,
+        errors: List.unmodifiable(errors),
+      );
 }
 
 typedef ScanProgressCallback = void Function({
@@ -265,7 +372,7 @@ class GalleryScanService {
     ScanPriority priority = ScanPriority.high,
   }) async {
     final stopwatch = Stopwatch()..start();
-    final result = ScanResult();
+    final result = ScanResultBuilder();
 
     AppLogger.i('Quick startup scan started (max $maxFiles files)', 'GalleryScanService');
 
@@ -321,7 +428,7 @@ class GalleryScanService {
     result.duration = stopwatch.elapsed;
 
     AppLogger.i('Quick startup scan completed: $result', 'GalleryScanService');
-    return result;
+    return result.build();
   }
 
   /// 批量获取已更改的文件列表
@@ -380,7 +487,7 @@ class GalleryScanService {
     ScanPriority priority = ScanPriority.low,
   }) async {
     final stopwatch = Stopwatch()..start();
-    final result = ScanResult();
+    final result = ScanResultBuilder();
 
     AppLogger.i('Incremental scan started', 'GalleryScanService');
 
@@ -444,7 +551,7 @@ class GalleryScanService {
 
     onProgress?.call(processed: result.filesScanned, total: result.filesScanned, phase: 'completed');
     AppLogger.i('Incremental scan completed: $result', 'GalleryScanService');
-    return result;
+    return result.build();
   }
 
   /// 全量扫描
@@ -454,7 +561,7 @@ class GalleryScanService {
     ScanPriority priority = ScanPriority.low,
   }) async {
     final stopwatch = Stopwatch()..start();
-    final result = ScanResult();
+    final result = ScanResultBuilder();
 
     AppLogger.i('Full scan started', 'GalleryScanService');
 
@@ -479,7 +586,7 @@ class GalleryScanService {
 
     onProgress?.call(processed: result.filesScanned, total: result.filesScanned, phase: 'completed');
     AppLogger.i('Full scan completed: $result', 'GalleryScanService');
-    return result;
+    return result.build();
   }
 
   /// 查漏补缺：为缺少元数据的图片重新解析
@@ -489,7 +596,7 @@ class GalleryScanService {
     ScanPriority priority = ScanPriority.low,
   }) async {
     final stopwatch = Stopwatch()..start();
-    final result = ScanResult();
+    final result = ScanResultBuilder();
 
     AppLogger.i('开始查漏补缺：查找缺少元数据的图片', 'GalleryScanService');
 
@@ -522,7 +629,7 @@ class GalleryScanService {
 
       if (filesNeedMetadata.isEmpty) {
         AppLogger.i('所有图片已有元数据，无需补充', 'GalleryScanService');
-        return result;
+        return result.build();
       }
 
       await _processMetadataBatchesWithIsolate(
@@ -546,13 +653,13 @@ class GalleryScanService {
     stopwatch.stop();
     result.duration = stopwatch.elapsed;
 
-    return result;
+    return result.build();
   }
 
   Future<void> _processMetadataBatchesWithIsolate(
     List<File> files,
     Map<String, int> imageIdMap,
-    ScanResult result, {
+    ScanResultBuilder result, {
     required int batchSize,
     ScanProgressCallback? onProgress,
     ScanPriority priority = ScanPriority.low,
@@ -628,7 +735,7 @@ class GalleryScanService {
   }) async {
     if (files.isEmpty) return;
 
-    final result = ScanResult();
+    final result = ScanResultBuilder();
     await _processFilesSmart(
       files,
       result,
@@ -669,7 +776,7 @@ class GalleryScanService {
 
   Future<void> _processFilesSmart(
     List<File> files,
-    ScanResult result, {
+    ScanResultBuilder result, {
     required bool isFullScan,
     ScanProgressCallback? onProgress,
     ScanPriority priority = ScanPriority.low,
@@ -688,7 +795,7 @@ class GalleryScanService {
 
   Future<void> _processWithIsolate(
     List<File> files,
-    ScanResult result, {
+    ScanResultBuilder result, {
     required bool isFullScan,
     ScanProgressCallback? onProgress,
     ScanPriority priority = ScanPriority.low,
@@ -903,7 +1010,7 @@ class GalleryScanService {
   /// 批量写入数据库（优化：使用内存缓存减少数据库查询次数）
   Future<void> _writeBatchToDatabase(
     List<_ParseItem> items,
-    ScanResult result, {
+    ScanResultBuilder result, {
     required bool isFullScan,
   }) async {
     final stopwatch = Stopwatch()..start();
@@ -1139,7 +1246,7 @@ class GalleryScanService {
     String newPath,
     String newFileName,
     FileStat stat,
-    ScanResult result,
+    ScanResultBuilder result,
   ) async {
     try {
       await _dataSource.updateFilePath(imageId, newPath, newFileName: newFileName);

@@ -85,13 +85,13 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
 
     // Initialize with current filter values
     final state = ref.read(localGalleryNotifierProvider);
-    _modelController.text = state.filterModel ?? '';
-    _samplerController.text = state.filterSampler ?? '';
-    _minStepsController.text = state.filterMinSteps?.toString() ?? '';
-    _maxStepsController.text = state.filterMaxSteps?.toString() ?? '';
-    _minCfgController.text = state.filterMinCfg?.toString() ?? '';
-    _maxCfgController.text = state.filterMaxCfg?.toString() ?? '';
-    _resolutionController.text = state.filterResolution ?? '';
+    _modelController.text = state.filterCriteria.filterModel ?? '';
+    _samplerController.text = state.filterCriteria.filterSampler ?? '';
+    _minStepsController.text = state.filterCriteria.filterMinSteps?.toString() ?? '';
+    _maxStepsController.text = state.filterCriteria.filterMaxSteps?.toString() ?? '';
+    _minCfgController.text = state.filterCriteria.filterMinCfg?.toString() ?? '';
+    _maxCfgController.text = state.filterCriteria.filterMaxCfg?.toString() ?? '';
+    _resolutionController.text = state.filterCriteria.filterResolution ?? '';
   }
 
   @override
