@@ -6,7 +6,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/cache/thumbnail_cache_service.dart';
 import '../../core/constants/storage_keys.dart';
 import '../../core/utils/app_logger.dart';
-import '../models/gallery/generation_record.dart';
+import '../models/gallery/local_image_record.dart';
 import 'thumbnail_generation_queue.dart';
 
 /// 缩略图迁移服务
@@ -75,7 +75,7 @@ class ThumbnailMigrationService {
 
     try {
       // 1. 打开画廊 Box
-      final galleryBox = await Hive.openBox<GenerationRecord>(
+      final galleryBox = await Hive.openBox<LocalImageRecord>(
         StorageKeys.galleryBox,
       );
 
@@ -94,24 +94,16 @@ class ThumbnailMigrationService {
       for (final record in galleryBox.values) {
         totalRecords++;
 
-        // 跳过没有文件路径的记录
-        if (record.filePath == null || record.filePath!.isEmpty) {
+        // 使用 path 字段作为文件路径
+        if (record.path.isEmpty) {
           continue;
         }
         recordsWithFilePath++;
 
-        // 检查缩略图是否存在
-        final hasThumbnail = record.thumbnailPath != null &&
-            record.thumbnailPath!.isNotEmpty;
-
+        // 检查缩略图文件是否实际存在
+        final hasThumbnail = _thumbnailService?.thumbnailExists(record.path) ?? false;
         if (!hasThumbnail) {
-          // 再检查缩略图文件是否实际存在
-          final thumbnailPath = _thumbnailService?.thumbnailExists(
-            record.filePath!,
-          );
-          if (thumbnailPath != true) {
-            missingThumbnailPaths.add(record.filePath!);
-          }
+          missingThumbnailPaths.add(record.path);
         }
       }
 
@@ -205,38 +197,31 @@ class ThumbnailMigrationService {
   /// 更新记录的缩略图路径
   Future<void> _updateRecordsWithThumbnails(List<String> originalPaths) async {
     try {
-      final galleryBox = await Hive.openBox<GenerationRecord>(
+      final galleryBox = await Hive.openBox<LocalImageRecord>(
         StorageKeys.galleryBox,
       );
 
-      // 构建 Map<filePath, recordId> 用于 O(1) 查找，避免 O(n*m) 复杂度
-      final recordIdMap = <String, String>{};
-      final recordMap = <String, GenerationRecord>{};
+      // 构建 Map<path, record> 用于 O(1) 查找，避免 O(n*m) 复杂度
+      final recordMap = <String, LocalImageRecord>{};
       for (final record in galleryBox.values) {
-        if (record.filePath != null && record.filePath!.isNotEmpty) {
-          recordIdMap[record.filePath!] = record.id;
-          recordMap[record.filePath!] = record;
+        if (record.path.isNotEmpty) {
+          recordMap[record.path] = record;
         }
       }
 
       int updatedCount = 0;
       for (final originalPath in originalPaths) {
         // 使用 Map 进行 O(1) 查找
-        final recordId = recordIdMap[originalPath];
         final targetRecord = recordMap[originalPath];
 
-        if (targetRecord != null && recordId != null) {
+        if (targetRecord != null) {
           // 检查缩略图是否已生成
           final thumbnailPath = _thumbnailService?.getThumbnailPath(
             originalPath,
           );
 
           if (thumbnailPath != null) {
-            // 更新记录的缩略图路径
-            final updatedRecord = targetRecord.copyWith(
-              thumbnailPath: thumbnailPath,
-            );
-            await galleryBox.put(recordId, updatedRecord);
+            // LocalImageRecord 不需要存储缩略图路径，缩略图服务会自动管理
             updatedCount++;
           }
         }
@@ -271,7 +256,7 @@ class ThumbnailMigrationService {
       }
 
       // 检查画廊是否有记录
-      final galleryBox = await Hive.openBox<GenerationRecord>(
+      final galleryBox = await Hive.openBox<LocalImageRecord>(
         StorageKeys.galleryBox,
       );
 
@@ -288,11 +273,12 @@ class ThumbnailMigrationService {
       for (final record in galleryBox.values) {
         if (checkedCount >= 10) break;
 
-        if (record.filePath != null && record.filePath!.isNotEmpty) {
+        if (record.path.isNotEmpty) {
           checkedCount++;
 
-          // 检查记录中是否已有缩略图路径
-          if (record.thumbnailPath == null || record.thumbnailPath!.isEmpty) {
+          // 检查缩略图是否存在
+          final hasThumbnail = _thumbnailService?.thumbnailExists(record.path) ?? false;
+          if (!hasThumbnail) {
             missingCount++;
           }
         }
@@ -404,7 +390,7 @@ class ThumbnailMigrationService {
 
     try {
       // 打开画廊 Box
-      final galleryBox = await Hive.openBox<GenerationRecord>(
+      final galleryBox = await Hive.openBox<LocalImageRecord>(
         StorageKeys.galleryBox,
       );
 
@@ -416,19 +402,20 @@ class ThumbnailMigrationService {
       // 收集所有有文件路径的图片
       final allPaths = <String>[];
       for (final record in galleryBox.values) {
-        if (record.filePath != null && record.filePath!.isNotEmpty) {
-          allPaths.add(record.filePath!);
+        if (record.path.isNotEmpty) {
+          allPaths.add(record.path);
 
           // 删除现有缩略图
-          if (record.thumbnailPath != null) {
-            try {
-              final thumbFile = File(record.thumbnailPath!);
+          try {
+            final thumbPath = _thumbnailService?.getThumbnailPath(record.path);
+            if (thumbPath != null) {
+              final thumbFile = File(thumbPath);
               if (await thumbFile.exists()) {
                 await thumbFile.delete();
               }
-            } catch (e) {
-              // 忽略删除错误
             }
+          } catch (e) {
+            // 忽略删除错误
           }
         }
       }

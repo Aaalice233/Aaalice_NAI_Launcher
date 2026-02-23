@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/storage_keys.dart';
+import '../../../core/extensions/vibe_library_extensions.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/vibe_file_parser.dart';
 import '../../../data/models/vibe/vibe_library_entry.dart';
@@ -456,75 +456,3 @@ class SaveToLibraryResult {
   bool get hasSaved => savedCount > 0 || reusedCount > 0;
 }
 
-/// VibeLibraryEntry 列表扩展方法
-extension VibeLibraryEntryListExtension on List<VibeLibraryEntry> {
-  /// 按编码和缩略图去重
-  List<VibeLibraryEntry> deduplicateByEncodingAndThumbnail({int limit = 5}) {
-    final seenEncodings = <String>{};
-    final seenImageHashes = <String>{};
-    final uniqueEntries = <VibeLibraryEntry>[];
-
-    for (final entry in this) {
-      if (entry.vibeEncoding.isNotEmpty) {
-        if (seenEncodings.contains(entry.vibeEncoding)) {
-          continue;
-        }
-        seenEncodings.add(entry.vibeEncoding);
-        uniqueEntries.add(entry);
-      } else if (entry.hasThumbnail && entry.thumbnail != null) {
-        final hash = _calculateVibeThumbnailHash(entry.thumbnail!);
-        if (seenImageHashes.contains(hash)) {
-          continue;
-        }
-        seenImageHashes.add(hash);
-        uniqueEntries.add(entry);
-      } else {
-        uniqueEntries.add(entry);
-      }
-
-      if (uniqueEntries.length >= limit) {
-        break;
-      }
-    }
-
-    return uniqueEntries;
-  }
-
-  /// 查找匹配的条目
-  VibeLibraryEntry? findMatchingEntry(VibeReference vibe) {
-    if (vibe.vibeEncoding.isNotEmpty) {
-      for (final entry in this) {
-        if (entry.vibeEncoding.isNotEmpty &&
-            entry.vibeEncoding == vibe.vibeEncoding) {
-          return entry;
-        }
-      }
-      return null;
-    }
-
-    if (vibe.thumbnail != null) {
-      final vibeHash = _calculateVibeThumbnailHash(vibe.thumbnail!);
-      for (final entry in this) {
-        if (entry.hasThumbnail && entry.thumbnail != null) {
-          final entryHash = _calculateVibeThumbnailHash(entry.thumbnail!);
-          if (entryHash == vibeHash) {
-            return entry;
-          }
-        }
-      }
-      return null;
-    }
-
-    for (final entry in this) {
-      if (entry.vibeDisplayName == vibe.displayName) {
-        return entry;
-      }
-    }
-
-    return null;
-  }
-}
-
-String _calculateVibeThumbnailHash(Uint8List data) {
-  return sha256.convert(data).toString().substring(0, 16);
-}

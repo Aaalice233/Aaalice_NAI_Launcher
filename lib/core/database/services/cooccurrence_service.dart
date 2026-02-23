@@ -46,6 +46,13 @@ class CooccurrenceService {
   /// 是否有数据
   bool get hasData => _hasData;
 
+  /// 异步检查是否有数据（查询实际记录数）
+  Future<bool> hasDataAsync() async {
+    if (!_isLoaded) return false;
+    final count = await _dataSource.getCount();
+    return count > 0;
+  }
+
   /// 初始化服务
   ///
   /// 验证数据源可用性，在预热阶段调用

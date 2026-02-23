@@ -640,7 +640,7 @@ class VibeImageEmbedder {
     final byteData = ByteData.sublistView(bytes);
 
     // 验证 IHDR chunk 类型
-    final chunkTypeOffset = 12; // 8 (签名) + 4 (长度)
+    const chunkTypeOffset = 12; // 8 (签名) + 4 (长度)
     final chunkTypeBytes = bytes.sublist(chunkTypeOffset, chunkTypeOffset + 4);
     final chunkType = ascii.decode(chunkTypeBytes);
     if (chunkType != 'IHDR') {

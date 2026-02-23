@@ -82,17 +82,14 @@ class DragTargetWrapper extends ConsumerWidget {
               if (hasVibes) ...[
                 ...List.generate(vibes.length, (index) {
                   final vibe = vibes[index];
-                  final bundleSource = panelState.vibeBundleSources[vibe.displayName];
                   return VibeCard(
                     index: index,
                     vibe: vibe,
-                    bundleSource: bundleSource,
                     onRemove: () => _removeVibe(context, ref, index),
                     onStrengthChanged: (value) =>
                         _updateVibeStrength(ref, index, value),
                     onInfoExtractedChanged: (value) =>
                         _updateVibeInfoExtracted(ref, index, value),
-                    showBackground: showBackground,
                   );
                 }),
                 const SizedBox(height: 12),
