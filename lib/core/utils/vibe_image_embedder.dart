@@ -740,7 +740,9 @@ class VibeImageEmbedder {
   }
 
   static VibeReference _parseNaiSingleVibe(Map<String, dynamic> vibe) {
-    final name = vibe['name'] as String? ?? 'vibe';
+    // 验证并处理 name 字段，空字符串视为无效
+    final rawName = vibe['name'] as String?;
+    final name = (rawName != null && rawName.isNotEmpty) ? rawName : 'vibe';
     final encoding = _extractEncodingFromVibe(vibe);
     final thumbnail = _extractThumbnailFromVibe(vibe);
 
@@ -853,8 +855,13 @@ class VibeImageEmbedder {
       throw VibeExtractException('Vibe metadata is missing data section');
     }
 
+    // 验证并处理 displayName 字段，空字符串视为无效
+    final rawDisplayName =
+        (dataRaw['displayName'] ?? dataRaw['name']) as String?;
     final displayName =
-        (dataRaw['displayName'] ?? dataRaw['name']) as String? ?? 'vibe';
+        (rawDisplayName != null && rawDisplayName.isNotEmpty)
+            ? rawDisplayName
+            : 'unknown';
     final vibeEncoding =
         (dataRaw['vibeEncoding'] ?? dataRaw['encoding']) as String? ?? '';
     final strength =
