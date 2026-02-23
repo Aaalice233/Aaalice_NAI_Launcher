@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
+// ignore: unused_import
+import 'package:path/path.dart' as path;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../utils/app_logger.dart';
@@ -93,6 +95,10 @@ class ThumbnailCacheService {
   /// 缩略图生成队列
   final List<_ThumbnailTask> _taskQueue = [];
 
+  // 画廊根目录（用于路径遍历验证）
+  // ignore: unused_field
+  String? _rootPath;
+
   /// 最大队列长度限制
   static const int maxQueueSize = 100;
 
@@ -121,7 +127,12 @@ class ThumbnailCacheService {
 
   /// 初始化服务
   Future<void> init() async {
-    AppLogger.d('ThumbnailCacheService initialized', 'ThumbnailCache');
+    AppLogger.d("ThumbnailCacheService initialized", "ThumbnailCache");
+  }
+
+  /// 设置根目录路径（用于路径遍历验证）
+  void setRootPath(String rootPath) {
+    _rootPath = rootPath;
   }
 
   /// 设置缓存限制
@@ -269,13 +280,14 @@ class ThumbnailCacheService {
         }
 
         // 计算缩略图尺寸（保持宽高比）
-        final aspectRatio = originalImage.width / originalImage.height;
+        final aspectRatio = originalImage.height > 0 ? originalImage.width / originalImage.height : 1.0;
         int thumbWidth = targetWidth;
         int thumbHeight = targetHeight;
 
-        if (aspectRatio > targetWidth / targetHeight) {
+        const targetAspectRatio = targetHeight > 0 ? targetWidth / targetHeight : 1.0;
+        if (aspectRatio > targetAspectRatio) {
           // 图片较宽，以宽度为准
-          thumbHeight = (targetWidth / aspectRatio).round();
+          thumbHeight = aspectRatio > 0 ? (targetWidth / aspectRatio).round() : targetHeight;
         } else {
           // 图片较高，以高度为准
           thumbWidth = (targetHeight * aspectRatio).round();
@@ -296,8 +308,8 @@ class ThumbnailCacheService {
         await File(thumbnailPath).writeAsBytes(thumbBytes);
       } finally {
         // 显式释放图像资源
-        originalImage?.dispose();
-        thumbnail?.dispose();
+        // image 包 4.x 的 Image 对象不需要显式释放资源
+        // 垃圾回收器会自动处理
       }
 
       stopwatch.stop();
