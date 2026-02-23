@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 // ignore: unused_import
-import 'package:path/path.dart' as path;
+import 'package:path/path.dart' as p;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../utils/app_logger.dart';
@@ -874,11 +874,14 @@ class ThumbnailCacheService {
       throw ArgumentError('Invalid path: path traversal detected in "$originalPath"');
     }
 
-    // 额外检查：确保路径不是绝对路径（Unix/Linux 系统）
-    if (originalPath.startsWith('/') && !originalPath.startsWith(RegExp(r'^/[a-zA-Z]:'))) {
-      // 如果是 Unix 绝对路径，确保它在允许的范围内
-      // 这里假设原始路径应该是相对路径或 Windows 路径
-      // 如果传入的是 Unix 绝对路径，需要额外验证
+    // 额外验证：如果设置了根目录，确保路径在根目录内
+    final rootPath = _rootPath;
+    if (rootPath != null && rootPath.isNotEmpty) {
+      if (!p.isWithin(rootPath, originalPath)) {
+        throw ArgumentError(
+          'Invalid path: "$originalPath" is outside of root directory "$rootPath"',
+        );
+      }
     }
 
     final originalDir = File(originalPath).parent.path;
@@ -897,7 +900,23 @@ class ThumbnailCacheService {
 
   /// 获取缩略图文件名
   String _getThumbnailFileName(String originalPath) {
-    final originalFileName = originalPath.split(Platform.pathSeparator).last;
+    // 空路径检查
+    if (originalPath.isEmpty) {
+      throw ArgumentError('Invalid path: originalPath cannot be empty');
+    }
+
+    final parts = originalPath.split(Platform.pathSeparator);
+    // 检查路径是否只包含分隔符
+    if (parts.isEmpty) {
+      throw ArgumentError('Invalid path: unable to extract filename from "$originalPath"');
+    }
+
+    final originalFileName = parts.last;
+    // 检查文件名是否为空
+    if (originalFileName.isEmpty) {
+      throw ArgumentError('Invalid path: filename cannot be empty');
+    }
+
     // 移除原始扩展名，添加缩略图扩展名
     // 处理没有扩展名的情况
     final dotIndex = originalFileName.lastIndexOf('.');
