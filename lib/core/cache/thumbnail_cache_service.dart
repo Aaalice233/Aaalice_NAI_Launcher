@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
-// ignore: unused_import
 import 'package:path/path.dart' as p;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -95,8 +94,7 @@ class ThumbnailCacheService {
   /// 缩略图生成队列
   final List<_ThumbnailTask> _taskQueue = [];
 
-  // 画廊根目录（用于路径遍历验证）
-  // ignore: unused_field
+  /// 画廊根目录（用于路径遍历验证）
   String? _rootPath;
 
   /// 最大队列长度限制
@@ -269,56 +267,44 @@ class ThumbnailCacheService {
 
       final bytes = await file.readAsBytes();
 
-      // 使用 image 包解码
-      img.Image? originalImage;
-      img.Image? thumbnail;
-
-      try {
-        originalImage = img.decodeImage(bytes);
-        if (originalImage == null) {
-          throw Exception('Failed to decode image: $originalPath');
-        }
-
-        // 计算缩略图尺寸（保持宽高比）
-        final aspectRatio = originalImage.height > 0 ? originalImage.width / originalImage.height : 1.0;
-        int thumbWidth = targetWidth;
-        int thumbHeight = targetHeight;
-
-        const targetAspectRatio = targetHeight > 0 ? targetWidth / targetHeight : 1.0;
-        if (aspectRatio > targetAspectRatio) {
-          // 图片较宽，以宽度为准
-          thumbHeight = aspectRatio > 0 ? (targetWidth / aspectRatio).round() : targetHeight;
-        } else {
-          // 图片较高，以高度为准
-          thumbWidth = (targetHeight * aspectRatio).round();
-        }
-
-        // 生成缩略图
-        thumbnail = img.copyResize(
-          originalImage,
-          width: thumbWidth,
-          height: thumbHeight,
-          interpolation: img.Interpolation.linear,
-        );
-
-        // 编码为 JPEG
-        final thumbBytes = img.encodeJpg(thumbnail, quality: jpegQuality);
-
-        // 写入文件
-        await File(thumbnailPath).writeAsBytes(thumbBytes);
-      } finally {
-        // 显式释放图像资源
-        // image 包 4.x 的 Image 对象不需要显式释放资源
-        // 垃圾回收器会自动处理
+      // 解码原始图片
+      final originalImage = img.decodeImage(bytes);
+      if (originalImage == null) {
+        throw Exception('Failed to decode image: $originalPath');
       }
+
+      // 计算缩略图尺寸（保持宽高比）
+      final aspectRatio = originalImage.height > 0 ? originalImage.width / originalImage.height : 1.0;
+      int thumbWidth = targetWidth;
+      int thumbHeight = targetHeight;
+
+      const targetAspectRatio = targetHeight > 0 ? targetWidth / targetHeight : 1.0;
+      if (aspectRatio > targetAspectRatio) {
+        // 图片较宽，以宽度为准
+        thumbHeight = aspectRatio > 0 ? (targetWidth / aspectRatio).round() : targetHeight;
+      } else {
+        // 图片较高，以高度为准
+        thumbWidth = (targetHeight * aspectRatio).round();
+      }
+
+      // 生成缩略图
+      final thumbnail = img.copyResize(
+        originalImage,
+        width: thumbWidth,
+        height: thumbHeight,
+        interpolation: img.Interpolation.linear,
+      );
+
+      // 编码为 JPEG 并写入文件
+      final thumbBytes = img.encodeJpg(thumbnail, quality: jpegQuality);
+      await File(thumbnailPath).writeAsBytes(thumbBytes);
 
       stopwatch.stop();
       _generatedCount++;
 
       AppLogger.i(
         'Thumbnail generated: ${originalPath.split('/').last} '
-        '(${originalImage.width}x${originalImage.height} -> '
-        '${thumbnail.width}x${thumbnail.height}) '
+        '(${originalImage.width}x${originalImage.height} -> ${thumbnail.width}x${thumbnail.height}) '
         'in ${stopwatch.elapsedMilliseconds}ms',
         'ThumbnailCache',
       );
@@ -374,16 +360,13 @@ class ThumbnailCacheService {
 
   /// 等待正在进行的生成任务完成
   Future<String?> _waitForGeneration(String originalPath) async {
-    // 使用 Completer 机制等待生成完成，避免轮询
-    var completer = _generationCompleters[originalPath];
-    if (completer == null) {
-      completer = Completer<String?>();
-      _generationCompleters[originalPath] = completer;
-    }
+    final completer = _generationCompleters.putIfAbsent(
+      originalPath,
+      () => Completer<String?>(),
+    );
 
     try {
-      // 等待生成完成，设置 10 秒超时
-      final result = await completer.future.timeout(
+      return await completer.future.timeout(
         const Duration(seconds: 10),
         onTimeout: () {
           AppLogger.w(
@@ -393,46 +376,25 @@ class ThumbnailCacheService {
           return null;
         },
       );
-      return result;
     } finally {
-      // 清理 Completer
       _generationCompleters.remove(originalPath);
     }
   }
 
   /// 处理队列中的任务
   void _processQueue() {
-    if (_taskQueue.isEmpty) return;
+    if (_taskQueue.isEmpty || _activeGenerationCount >= maxConcurrentGenerations) {
+      return;
+    }
 
-    // 原子性检查并递增：确保并发安全
-    if (_activeGenerationCount >= maxConcurrentGenerations) return;
     _activeGenerationCount++;
 
-    try {
-      // 双重检查队列是否为空（防止竞态条件）
-      if (_taskQueue.isEmpty) {
-        _activeGenerationCount--;
-        return;
-      }
-
-      final task = _taskQueue.removeAt(0);
-      _doGenerateThumbnail(task.originalPath).then((path) {
-        task.completer.complete(path);
-      }).catchError((error) {
-        task.completer.completeError(error);
-      });
-    } catch (e, stack) {
-      // 如果 removeAt 抛出异常，确保计数器被递减
-      _activeGenerationCount--;
-      AppLogger.e(
-        'Error processing thumbnail queue: $e',
-        e,
-        stack,
-        'ThumbnailCache',
-      );
-      // 尝试继续处理队列中的其他任务
-      Future.delayed(const Duration(milliseconds: 10), _processQueue);
-    }
+    final task = _taskQueue.removeAt(0);
+    _doGenerateThumbnail(task.originalPath).then((path) {
+      task.completer.complete(path);
+    }).catchError((error) {
+      task.completer.completeError(error);
+    });
   }
 
   /// 删除缩略图
@@ -863,10 +825,8 @@ class ThumbnailCacheService {
   /// 获取缩略图目录路径
   String _getThumbnailDir(String originalPath) {
     // 路径遍历防护：验证路径不包含上级目录引用
-    // 检查原始路径和规范化后的路径
     final normalizedPath = _normalizePath(originalPath);
 
-    // 检查各种形式的路径遍历尝试
     if (originalPath.contains('..') ||
         originalPath.contains('%2e%2e') ||
         originalPath.contains('%2E%2E') ||
@@ -876,12 +836,10 @@ class ThumbnailCacheService {
 
     // 额外验证：如果设置了根目录，确保路径在根目录内
     final rootPath = _rootPath;
-    if (rootPath != null && rootPath.isNotEmpty) {
-      if (!p.isWithin(rootPath, originalPath)) {
-        throw ArgumentError(
-          'Invalid path: "$originalPath" is outside of root directory "$rootPath"',
-        );
-      }
+    if (rootPath != null && rootPath.isNotEmpty && !p.isWithin(rootPath, originalPath)) {
+      throw ArgumentError(
+        'Invalid path: "$originalPath" is outside of root directory "$rootPath"',
+      );
     }
 
     final originalDir = File(originalPath).parent.path;
@@ -890,38 +848,36 @@ class ThumbnailCacheService {
 
   /// 规范化路径，解码 URL 编码字符
   String _normalizePath(String path) {
-    // 解码常见的 URL 编码形式
-    var normalized = path;
-    normalized = normalized.replaceAll('%2e', '.').replaceAll('%2E', '.');
-    normalized = normalized.replaceAll('%2f', '/').replaceAll('%2F', '/');
-    normalized = normalized.replaceAll('%5c', '\\').replaceAll('%5C', '\\');
-    return normalized;
+    return path
+        .replaceAll('%2e', '.')
+        .replaceAll('%2E', '.')
+        .replaceAll('%2f', '/')
+        .replaceAll('%2F', '/')
+        .replaceAll('%5c', '\\')
+        .replaceAll('%5C', '\\');
   }
 
   /// 获取缩略图文件名
   String _getThumbnailFileName(String originalPath) {
-    // 空路径检查
     if (originalPath.isEmpty) {
       throw ArgumentError('Invalid path: originalPath cannot be empty');
     }
 
     final parts = originalPath.split(Platform.pathSeparator);
-    // 检查路径是否只包含分隔符
     if (parts.isEmpty) {
       throw ArgumentError('Invalid path: unable to extract filename from "$originalPath"');
     }
 
     final originalFileName = parts.last;
-    // 检查文件名是否为空
     if (originalFileName.isEmpty) {
       throw ArgumentError('Invalid path: filename cannot be empty');
     }
 
     // 移除原始扩展名，添加缩略图扩展名
-    // 处理没有扩展名的情况
     final dotIndex = originalFileName.lastIndexOf('.');
-    final baseName =
-        dotIndex > 0 ? originalFileName.substring(0, dotIndex) : originalFileName;
+    final baseName = dotIndex > 0
+        ? originalFileName.substring(0, dotIndex)
+        : originalFileName;
     return '$baseName$thumbnailExt';
   }
 }
