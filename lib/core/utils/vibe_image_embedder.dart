@@ -777,7 +777,15 @@ class VibeImageEmbedder {
             '(max encoded: ${_maxBase64DecodedSize * 4 ~/ 3})',
           );
         }
-        return base64.decode(base64Data);
+        final decoded = base64.decode(base64Data);
+        // 解码后再次验证大小（双重验证防御深度）
+        if (decoded.length > _maxBase64DecodedSize) {
+          throw VibeExtractException(
+            'Decoded thumbnail too large: ${decoded.length} bytes '
+            '(max: $_maxBase64DecodedSize)',
+          );
+        }
+        return decoded;
       }
     }
 
@@ -794,7 +802,15 @@ class VibeImageEmbedder {
             '(max encoded: ${_maxBase64DecodedSize * 4 ~/ 3})',
           );
         }
-        return base64.decode(base64Data);
+        final decoded = base64.decode(base64Data);
+        // 解码后再次验证大小（双重验证防御深度）
+        if (decoded.length > _maxBase64DecodedSize) {
+          throw VibeExtractException(
+            'Decoded image too large: ${decoded.length} bytes '
+            '(max: $_maxBase64DecodedSize)',
+          );
+        }
+        return decoded;
       }
     }
 
@@ -1010,6 +1026,34 @@ class _LimitedOutputStream extends OutputStream {
     _checkSize(stream.length);
     super.writeInputStream(stream);
     _currentSize += stream.length;
+  }
+
+  @override
+  void writeUint16(int value) {
+    _checkSize(2);
+    super.writeUint16(value);
+    _currentSize += 2;
+  }
+
+  @override
+  void writeUint24(int value) {
+    _checkSize(3);
+    super.writeUint24(value);
+    _currentSize += 3;
+  }
+
+  @override
+  void writeUint32(int value) {
+    _checkSize(4);
+    super.writeUint32(value);
+    _currentSize += 4;
+  }
+
+  @override
+  void writeUint64(int value) {
+    _checkSize(8);
+    super.writeUint64(value);
+    _currentSize += 8;
   }
 
   void _checkSize(int additionalBytes) {
