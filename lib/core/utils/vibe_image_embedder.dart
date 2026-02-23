@@ -606,8 +606,13 @@ class VibeImageEmbedder {
       sourceType = VibeSourceType.png;
     }
 
+    // 确保 displayName 不为 null 且不为空字符串
+    final effectiveDisplayName = (displayName as String?)?.isNotEmpty == true
+        ? displayName!
+        : 'unknown';
+
     return VibeReference(
-      displayName: (displayName as String?)?.isNotEmpty == true ? displayName : 'unknown',
+      displayName: effectiveDisplayName,
       vibeEncoding: vibeEncoding as String? ?? '',
       thumbnail: thumbnail as Uint8List?,
       strength: (strength as num?)?.toDouble() ?? 0.6,
@@ -684,7 +689,7 @@ class VibeImageEmbedder {
     final byteData = ByteData.sublistView(bytes);
 
     // 验证 IHDR chunk 类型
-    final chunkTypeOffset = 12; // 8 (签名) + 4 (长度)
+    const chunkTypeOffset = 12; // 8 (签名) + 4 (长度)
     final chunkTypeBytes = bytes.sublist(chunkTypeOffset, chunkTypeOffset + 4);
     final chunkType = ascii.decode(chunkTypeBytes);
     if (chunkType != 'IHDR') {
@@ -767,9 +772,9 @@ class VibeImageEmbedder {
 
   /// 解码 zlib 压缩数据，限制最大解压大小以防止 zip bomb 攻击
   ///
-  /// 使用流式解码器，在解压过程中检查大小，避免一次性解压大量数据导致内存溢出。
-  /// 如果流式解码失败，直接拒绝数据，不使用 decodeBytes() 作为 fallback，
-  /// 以防止 zip bomb 攻击绕过大小限制。
+  /// 首先检查压缩数据大小，然后解压，最后验证解压后数据大小。
+  /// 注意：archive 包 3.6.1 版本不支持流式解压，因此采用解压后检查的方式。
+  /// 对于生产环境，考虑升级到支持流式解压的 archive 版本。
   static List<int> _decodeZlibWithLimit(List<int> bytes) {
     // 首先检查压缩数据大小
     if (bytes.length > _maxCompressedSize) {
@@ -780,21 +785,19 @@ class VibeImageEmbedder {
     }
 
     try {
-      // 使用流式解码器，在解压过程中检查大小
-      // 这可以防止 zip bomb 攻击（小压缩数据解压成极大文件）
-      final decoder = ZLibDecoder();
-      final inputStream = InputStream(bytes);
-      final outputStream = _LimitedOutputStream(_maxDecompressedSize);
-
-      // 使用 startDecodeStream 进行流式解码
-      decoder.startDecodeStream(inputStream, outputStream);
-
-      return outputStream.getBytes();
+      const decoder = ZLibDecoder();
+      final result = decoder.decodeBytes(bytes);
+      if (result.length > _maxDecompressedSize) {
+        throw VibeExtractException(
+          'Decompressed data too large: ${result.length} bytes '
+          '(max: $_maxDecompressedSize)',
+        );
+      }
+      return result;
     } on VibeExtractException {
       rethrow;
     } catch (e) {
       // 解码失败，拒绝数据
-      // 注意：不使用 decodeBytes() 作为 fallback，以防止安全绕过
       throw VibeExtractException(
         'Failed to decompress data: $e. '
         'Possible corrupted or malicious data.',
@@ -992,7 +995,15 @@ class VibeImageEmbedder {
           '(max encoded: ${_maxBase64DecodedSize * 4 ~/ 3})',
         );
       }
-      return base64.decode(thumbnailBase64);
+      final decoded = base64.decode(thumbnailBase64);
+      // 解码后再次验证大小（双重验证防御深度）
+      if (decoded.length > _maxBase64DecodedSize) {
+        throw VibeExtractException(
+          'Decoded thumbnail too large: ${decoded.length} bytes '
+          '(max: $_maxBase64DecodedSize)',
+        );
+      }
+      return decoded;
     }
     return null;
   }
@@ -1078,74 +1089,4 @@ class _PngChunk {
   final String type;
   final Uint8List data;
   final Uint8List rawBytes;
-}
-
-/// 带大小限制的 OutputStream，用于防止 zip bomb 攻击
-///
-/// 在写入数据时实时检查大小，如果超过限制立即抛出异常，
-/// 避免恶意压缩数据耗尽内存。
-class _LimitedOutputStream extends OutputStream {
-  _LimitedOutputStream(this._maxSize);
-
-  final int _maxSize;
-  int _currentSize = 0;
-
-  @override
-  void writeByte(int value) {
-    _checkSize(1);
-    super.writeByte(value);
-    _currentSize++;
-  }
-
-  @override
-  void writeBytes(List<int> bytes, [int? len]) {
-    final length = len ?? bytes.length;
-    _checkSize(length);
-    super.writeBytes(bytes, length);
-    _currentSize += length;
-  }
-
-  @override
-  void writeInputStream(InputStreamBase stream) {
-    _checkSize(stream.length);
-    super.writeInputStream(stream);
-    _currentSize += stream.length;
-  }
-
-  @override
-  void writeUint16(int value) {
-    _checkSize(2);
-    super.writeUint16(value);
-    _currentSize += 2;
-  }
-
-  @override
-  void writeUint24(int value) {
-    _checkSize(3);
-    super.writeUint24(value);
-    _currentSize += 3;
-  }
-
-  @override
-  void writeUint32(int value) {
-    _checkSize(4);
-    super.writeUint32(value);
-    _currentSize += 4;
-  }
-
-  @override
-  void writeUint64(int value) {
-    _checkSize(8);
-    super.writeUint64(value);
-    _currentSize += 8;
-  }
-
-  void _checkSize(int additionalBytes) {
-    if (_currentSize + additionalBytes > _maxSize) {
-      throw VibeExtractException(
-        'Decompressed data exceeds maximum size of $_maxSize bytes '
-        '(possible zip bomb attack)',
-      );
-    }
-  }
 }
