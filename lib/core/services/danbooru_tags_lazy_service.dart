@@ -15,6 +15,7 @@ import '../database/datasources/danbooru_tag_data_source.dart';
 import '../database/datasources/translation_data_source.dart';
 import '../database/services/service_providers.dart';
 import '../utils/app_logger.dart';
+import '../utils/debouncer.dart';
 import '../utils/tag_normalizer.dart';
 import 'lazy_data_source_service.dart';
 
@@ -58,6 +59,22 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
   int _metaThreshold = 10000;
   AutoRefreshInterval _refreshInterval = AutoRefreshInterval.days30;
   bool _isCancelled = false;
+
+  // 防抖器 - 用于限制 get() 和 search() 的调用频率
+  final DebouncerWithArg<String> _getDebouncer = DebouncerWithArg(
+    delay: const Duration(milliseconds: 300),
+  );
+  final DebouncerWithArg<String> _searchDebouncer = DebouncerWithArg(
+    delay: const Duration(milliseconds: 300),
+  );
+
+  // 用于防抖的 completer 存储
+  // 使用 List 存储所有 pending 的 completers，避免竞态条件导致 futures 挂起
+  final Map<String, List<Completer<LocalTag?>>> _getCompleters = {};
+  final Map<String, List<Completer<List<LocalTag>>>> _searchCompleters = {};
+
+  // 用于保护 completers 集合的锁，防止 clearCache 和 debounce 回调之间的竞态
+  final _completersLock = Mutex();
 
   /// 元数据加载 Future，用于防止 race condition
   /// 当多个调用同时需要加载元数据时，共享同一个 Future
@@ -229,31 +246,75 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     final normalizedKey = TagNormalizer.normalize(key);
     AppLogger.d('[DanbooruTagsLazy] get("$key") -> normalizedKey="$normalizedKey"', 'DanbooruTagsLazy');
 
-    // 尝试精确匹配
+    // 尝试精确匹配（热数据缓存直接返回，不防抖）
     if (_hotDataCache.containsKey(normalizedKey)) {
       final cached = _hotDataCache[normalizedKey];
       AppLogger.d('[DanbooruTagsLazy] cache hit: translation="${cached?.translation}"', 'DanbooruTagsLazy');
       return cached;
     }
 
-    final record = await _tagDataSource.getByName(normalizedKey);
-    AppLogger.d('[DanbooruTagsLazy] DB record: ${record != null ? "found" : "not found"}', 'DanbooruTagsLazy');
-    if (record != null) {
-      // 获取翻译（通过 TranslationDataSource）
-      String? translation;
-      if (_translationDataSource != null) {
-        translation = await _translationDataSource.query(normalizedKey);
-      }
-      AppLogger.d('[DanbooruTagsLazy] DB translation: "$translation"', 'DanbooruTagsLazy');
-      return LocalTag(
-        tag: record.tag,
-        category: record.category,
-        count: record.postCount,
-        translation: translation,
-      );
+    // 使用防抖处理数据库查询
+    // 使用 List 存储所有 pending 的 completers，确保所有调用者都能收到结果
+    final completer = Completer<LocalTag?>();
+    await _completersLock.acquire();
+    try {
+      final completers = _getCompleters.putIfAbsent(normalizedKey, () => []);
+      completers.add(completer);
+    } finally {
+      _completersLock.release();
     }
 
-    return null;
+    _getDebouncer.run(
+      normalizedKey,
+      (k) async {
+        // 获取并移除所有 pending 的 completers
+        List<Completer<LocalTag?>>? pendingCompleters;
+        await _completersLock.acquire();
+        try {
+          pendingCompleters = _getCompleters.remove(k);
+        } finally {
+          _completersLock.release();
+        }
+        if (pendingCompleters == null || pendingCompleters.isEmpty) return;
+
+        try {
+          final record = await _tagDataSource.getByName(k);
+          AppLogger.d('[DanbooruTagsLazy] DB record: ${record != null ? "found" : "not found"}', 'DanbooruTagsLazy');
+
+          LocalTag? result;
+          if (record != null) {
+            // 获取翻译（通过 TranslationDataSource）
+            String? translation;
+            if (_translationDataSource != null) {
+              translation = await _translationDataSource.query(k);
+            }
+            AppLogger.d('[DanbooruTagsLazy] DB translation: "$translation"', 'DanbooruTagsLazy');
+            result = LocalTag(
+              tag: record.tag,
+              category: record.category,
+              count: record.postCount,
+              translation: translation,
+            );
+          }
+
+          // 完成所有 pending 的 completers
+          for (final c in pendingCompleters) {
+            if (!c.isCompleted) {
+              c.complete(result);
+            }
+          }
+        } catch (e) {
+          // 发生错误时，所有 completers 都收到错误
+          for (final c in pendingCompleters) {
+            if (!c.isCompleted) {
+              c.completeError(e);
+            }
+          }
+        }
+      },
+    );
+
+    return completer.future;
   }
 
   Future<List<LocalTag>> search(
@@ -261,36 +322,86 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     int? category,
     int limit = 20,
   }) async {
-    // 使用新的数据源搜索标签
-    final records = await _tagDataSource.search(
-      query,
-      limit: limit,
-      category: category,
+    final searchKey = '$query:${category ?? "all"}:$limit';
+
+    // 使用防抖处理搜索查询
+    // 使用 List 存储所有 pending 的 completers，确保所有调用者都能收到结果
+    final completer = Completer<List<LocalTag>>();
+    await _completersLock.acquire();
+    try {
+      final completers = _searchCompleters.putIfAbsent(searchKey, () => []);
+      completers.add(completer);
+    } finally {
+      _completersLock.release();
+    }
+
+    _searchDebouncer.run(
+      searchKey,
+      (key) async {
+        // 获取并移除所有 pending 的 completers
+        List<Completer<List<LocalTag>>>? pendingCompleters;
+        await _completersLock.acquire();
+        try {
+          pendingCompleters = _searchCompleters.remove(key);
+        } finally {
+          _completersLock.release();
+        }
+        if (pendingCompleters == null || pendingCompleters.isEmpty) return;
+
+        try {
+          final parts = key.split(':');
+          final q = parts[0];
+          final cat = parts[1] == 'all' ? null : int.parse(parts[1]);
+          final lim = int.parse(parts[2]);
+
+          // 使用新的数据源搜索标签
+          final records = await _tagDataSource.search(
+            q,
+            limit: lim,
+            category: cat,
+          );
+
+          List<LocalTag> result;
+          if (records.isEmpty) {
+            result = [];
+          } else {
+            // 批量获取翻译
+            Map<String, String> translations = {};
+            if (_translationDataSource != null) {
+              final tagNames = records.map((r) => r.tag).toList();
+              translations = await _translationDataSource.queryBatch(tagNames);
+            }
+
+            // 构建带翻译的标签列表
+            result = records.map((r) {
+              final translation = translations[r.tag.toLowerCase().trim()];
+              return LocalTag(
+                tag: r.tag,
+                category: r.category,
+                count: r.postCount,
+                translation: translation,
+              );
+            }).toList();
+          }
+
+          // 完成所有 pending 的 completers
+          for (final c in pendingCompleters) {
+            if (!c.isCompleted) {
+              c.complete(result);
+            }
+          }
+        } catch (e) {
+          // 发生错误时，所有 completers 都收到错误
+          for (final c in pendingCompleters) {
+            if (!c.isCompleted) {
+              c.completeError(e);
+            }
+          }
+        }
+      },
     );
 
-    if (records.isEmpty) {
-      return [];
-    }
-
-    // 批量获取翻译
-    Map<String, String> translations = {};
-    if (_translationDataSource != null) {
-      final tagNames = records.map((r) => r.tag).toList();
-      translations = await _translationDataSource.queryBatch(tagNames);
-    }
-
-    // 构建带翻译的标签列表
-    final tags = records.map((r) {
-      final translation = translations[r.tag.toLowerCase().trim()];
-      return LocalTag(
-        tag: r.tag,
-        category: r.category,
-        count: r.postCount,
-        translation: translation,
-      );
-    }).toList();
-
-    return tags;
+    return completer.future;
   }
 
   Future<List<LocalTag>> getHotTags({
@@ -1005,6 +1116,35 @@ class DanbooruTagsLazyService implements LazyDataSourceService<LocalTag> {
     // 清除画师标签相关阈值
     await prefs.remove(StorageKeys.danbooruArtistThreshold);
 
+    // 取消并清理防抖器中的待处理操作
+    _getDebouncer.cancel();
+    _searchDebouncer.cancel();
+
+    // 完成所有 pending 的 completers，避免 orphaned futures（内存泄漏修复）
+    // 使用锁保护，防止与 debounce 回调的竞态条件
+    await _completersLock.acquire();
+    try {
+      for (final completerList in _getCompleters.values) {
+        for (final completer in completerList) {
+          if (!completer.isCompleted) {
+            completer.complete(null);
+          }
+        }
+      }
+      _getCompleters.clear();
+
+      for (final completerList in _searchCompleters.values) {
+        for (final completer in completerList) {
+          if (!completer.isCompleted) {
+            completer.complete([]);
+          }
+        }
+      }
+      _searchCompleters.clear();
+    } finally {
+      _completersLock.release();
+    }
+
     // 删除元数据文件（关键：否则重启后会从文件加载旧的 _lastUpdate）
     try {
       final cacheDir = await _getCacheDirectory();
@@ -1495,4 +1635,32 @@ Future<DanbooruTagsLazyService> danbooruTagsLazyService(Ref ref) async {
     'DanbooruTagsLazy',
   );
   return service;
+}
+
+/// 简单的互斥锁实现
+///
+/// 用于保护共享资源的并发访问
+class Mutex {
+  Completer<void>? _completer;
+
+  Future<void> acquire() async {
+    while (true) {
+      final current = _completer;
+      if (current == null) {
+        // 锁空闲，尝试获取
+        _completer = Completer<void>();
+        return;
+      }
+      // 锁被占用，等待
+      await current.future;
+    }
+  }
+
+  void release() {
+    final current = _completer;
+    if (current != null) {
+      _completer = null;
+      current.complete();
+    }
+  }
 }

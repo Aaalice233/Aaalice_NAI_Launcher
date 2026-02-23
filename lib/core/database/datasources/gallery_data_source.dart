@@ -3,7 +3,8 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../utils/app_logger.dart';
 import '../base_data_source.dart';
-import '../data_source.dart' show DataSourceHealth, DataSourceType, HealthStatus;
+import '../data_source.dart'
+    show DataSourceHealth, DataSourceType, HealthStatus;
 import '../utils/lru_cache.dart';
 
 /// 元数据解析状态
@@ -77,7 +78,9 @@ class GalleryImageRecord {
       id: (map['id'] as num?)?.toInt(),
       filePath: map['file_path'] as String? ?? map['path'] as String? ?? '',
       fileName: map['file_name'] as String? ?? '',
-      fileSize: (map['file_size'] as num?)?.toInt() ?? (map['size'] as num?)?.toInt() ?? 0,
+      fileSize: (map['file_size'] as num?)?.toInt() ??
+          (map['size'] as num?)?.toInt() ??
+          0,
       fileHash: map['file_hash'] as String?,
       width: (map['width'] as num?)?.toInt(),
       height: (map['height'] as num?)?.toInt(),
@@ -93,7 +96,8 @@ class GalleryImageRecord {
       ),
       dateYmd: (map['date_ymd'] as num?)?.toInt() ?? 0,
       resolutionKey: map['resolution_key'] as String?,
-      metadataStatus: MetadataStatus.values[(map['metadata_status'] as num?)?.toInt() ?? 2],
+      metadataStatus:
+          MetadataStatus.values[(map['metadata_status'] as num?)?.toInt() ?? 2],
       isFavorite: (map['is_favorite'] as num?)?.toInt() == 1,
       isDeleted: (map['is_deleted'] as num?)?.toInt() == 1,
     );
@@ -805,8 +809,76 @@ class GalleryDataSource extends EnhancedBaseDataSource {
         maxRetries: 3,
       );
     } catch (e, stack) {
-      AppLogger.e('Failed to get image ID by path: $filePath', e, stack, 'GalleryDS');
+      AppLogger.e(
+        'Failed to get image ID by path: $filePath',
+        e,
+        stack,
+        'GalleryDS',
+      );
       return null;
+    }
+  }
+
+  /// 根据文件路径列表批量获取图片ID
+  ///
+  /// [filePaths] 文件路径列表
+  ///
+  /// 返回一个 Map，键为文件路径，值为对应的图片ID（如果找不到则为 null）
+  /// 使用单个查询批量获取，比多次调用 getImageIdByPath 更高效
+  ///
+  /// 注意：SQLite 有 999 个参数限制，使用分批处理避免超出限制
+  Future<Map<String, int?>> getImageIdsByPaths(List<String> filePaths) async {
+    if (filePaths.isEmpty) return {};
+
+    try {
+      final result = <String, int?>{};
+
+      // SQLite 有 999 个参数限制，每批使用 900 个参数以确保安全
+      const batchSize = 900;
+      final chunks = chunk(filePaths, batchSize);
+
+      for (final chunk in chunks) {
+        await execute(
+          'getImageIdsByPaths',
+          (db) async {
+            // 构建 IN 子句的占位符
+            final placeholders = List.filled(chunk.length, '?').join(',');
+
+            final dbResult = await db.rawQuery(
+              '''
+              SELECT id, file_path FROM $_imagesTable
+              WHERE file_path IN ($placeholders) AND is_deleted = 0
+              ''',
+              chunk,
+            );
+
+            // 构建结果映射
+            for (final row in dbResult) {
+              final path = row['file_path'] as String?;
+              if (path == null) continue;
+              final id = (row['id'] as num?)?.toInt();
+              result[path] = id;
+            }
+          },
+          timeout: const Duration(seconds: 30),
+          maxRetries: 3,
+        );
+      }
+
+      // 为未找到的路径填充 null
+      for (final path in filePaths) {
+        result.putIfAbsent(path, () => null);
+      }
+
+      return result;
+    } catch (e, stack) {
+      AppLogger.e(
+        'Failed to get image IDs by paths: ${filePaths.length} paths',
+        e,
+        stack,
+        'GalleryDS',
+      );
+      return {for (final path in filePaths) path: null};
     }
   }
 
@@ -926,7 +998,10 @@ class GalleryDataSource extends EnhancedBaseDataSource {
         'SELECT file_path, file_hash FROM $_imagesTable WHERE is_deleted = 0',
         [],
       )) {
-        result[row['file_path'] as String] = row['file_hash'] as String?;
+        final filePath = row['file_path'] as String?;
+        if (filePath != null) {
+          result[filePath] = row['file_hash'] as String?;
+        }
       }
       return result;
     } catch (e, stack) {
@@ -958,7 +1033,8 @@ class GalleryDataSource extends EnhancedBaseDataSource {
           'file_size',
           'id',
         };
-        final safeOrderBy = validColumns.contains(orderBy) ? orderBy : 'modified_at';
+        final safeOrderBy =
+            validColumns.contains(orderBy) ? orderBy : 'modified_at';
         final orderDirection = descending ? 'DESC' : 'ASC';
 
         final results = await db.rawQuery(
@@ -1007,10 +1083,111 @@ class GalleryDataSource extends EnhancedBaseDataSource {
 
         AppLogger.d('Marked as deleted: $filePath', 'GalleryDS');
       } catch (e, stack) {
-        AppLogger.e('Failed to mark as deleted: $filePath', e, stack, 'GalleryDS');
+        AppLogger.e(
+          'Failed to mark as deleted: $filePath',
+          e,
+          stack,
+          'GalleryDS',
+        );
         rethrow;
       }
     });
+  }
+
+  /// 批量插入或更新图片记录
+  ///
+  /// [records] 图片记录列表
+  /// [batchSize] 每批处理数量（默认50，建议50-100）
+  ///
+  /// 使用事务批量处理，每批使用 executeTransaction 保证原子性。
+  /// 返回插入/更新后的图片ID列表，顺序与输入列表一致。
+  Future<List<int>> batchUpsertImages(
+    List<GalleryImageRecord> records, {
+    int batchSize = 50,
+  }) async {
+    if (records.isEmpty) return [];
+
+    final results = <int>[];
+    final now = DateTime.now();
+
+    // 分批处理
+    for (var i = 0; i < records.length; i += batchSize) {
+      final end = (i + batchSize < records.length) ? i + batchSize : records.length;
+      final batch = records.sublist(i, end);
+      final batchIndex = i ~/ batchSize;
+
+      final batchResults = await executeTransaction(
+        'batchUpsertImages#batch$batchIndex',
+        (txn) async {
+          final batchIds = <int>[];
+
+          for (final record in batch) {
+            final dateYmd = _formatDateYmd(record.modifiedAt);
+
+            // 首先尝试获取现有记录的ID（如果存在）
+            final existingResult = await txn.rawQuery(
+              'SELECT id FROM $_imagesTable WHERE file_path = ?',
+              [record.filePath],
+            );
+            final existingId = existingResult.isNotEmpty
+                ? (existingResult.first['id'] as num?)?.toInt()
+                : null;
+
+            // 如果存在，清除缓存
+            if (existingId != null) {
+              _imageCache.remove(existingId);
+            }
+
+            final map = {
+              'file_path': record.filePath,
+              'file_name': record.fileName,
+              'file_size': record.fileSize,
+              'file_hash': record.fileHash,
+              'width': record.width,
+              'height': record.height,
+              'aspect_ratio': record.aspectRatio,
+              'created_at': record.createdAt.millisecondsSinceEpoch,
+              'modified_at': record.modifiedAt.millisecondsSinceEpoch,
+              'indexed_at': now.millisecondsSinceEpoch,
+              'date_ymd': dateYmd,
+              'resolution_key': record.resolutionKey,
+              'metadata_status': record.metadataStatus.index,
+              'is_favorite': record.isFavorite ? 1 : 0,
+              'is_deleted': record.isDeleted ? 1 : 0,
+            };
+
+            if (existingId != null) {
+              map['id'] = existingId;
+            }
+
+            final id = await txn.insert(
+              _imagesTable,
+              map,
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+
+            batchIds.add(id);
+          }
+
+          return batchIds;
+        },
+        timeout: const Duration(seconds: 60),
+      );
+
+      results.addAll(batchResults);
+
+      // 批次间让出时间片，避免阻塞主线程
+      if (end < records.length) {
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
+    }
+
+    AppLogger.i(
+      'Batch upserted ${records.length} images in ${(records.length / batchSize).ceil()} batches',
+      'GalleryDS',
+    );
+
+    return results;
   }
 
   /// 批量标记图片为已删除（软删除）
@@ -1037,20 +1214,19 @@ class GalleryDataSource extends EnhancedBaseDataSource {
         });
 
         // 清除相关缓存
-        for (final path in filePaths) {
-          final result = await db.rawQuery(
-            'SELECT id FROM $_imagesTable WHERE file_path = ?',
-            [path],
-          );
-          if (result.isNotEmpty) {
-            final id = (result.first['id'] as num?)?.toInt();
-            if (id != null) {
-              _imageCache.remove(id);
-            }
+        // 使用 getImageIdsByPaths 批量获取 ID，避免对每个文件路径执行额外查询
+        final pathToIdMap = await getImageIdsByPaths(filePaths);
+        for (final entry in pathToIdMap.entries) {
+          final id = entry.value;
+          if (id != null) {
+            _imageCache.remove(id);
           }
         }
 
-        AppLogger.d('Batch marked as deleted: ${filePaths.length} files', 'GalleryDS');
+        AppLogger.d(
+          'Batch marked as deleted: ${filePaths.length} files',
+          'GalleryDS',
+        );
       } catch (e, stack) {
         AppLogger.e('Failed to batch mark as deleted', e, stack, 'GalleryDS');
         rethrow;
@@ -1194,13 +1370,139 @@ class GalleryDataSource extends EnhancedBaseDataSource {
             'prompt_text': promptText,
           });
         } catch (e) {
-          AppLogger.w('Failed to update FTS index for image $imageId: $e', 'GalleryDS');
+          AppLogger.w(
+            'Failed to update FTS index for image $imageId: $e',
+            'GalleryDS',
+          );
           // FTS 更新失败不应影响主流程
         }
       },
       timeout: const Duration(seconds: 5),
       maxRetries: 1,
     );
+  }
+
+  /// 批量插入或更新元数据
+  ///
+  /// [metadataList] 元数据映射列表 (imageId -> metadata)
+  /// [batchSize] 每批处理数量（默认50，建议50-100）
+  ///
+  /// 使用事务批量处理，每批使用 executeTransaction 保证原子性。
+  /// 批量更新 FTS5 索引，在批次内统一处理以提高效率。
+  /// 清除受影响图片的元数据缓存。
+  Future<void> batchUpsertMetadata(
+    List<MapEntry<int, NaiImageMetadata>> metadataList, {
+    int batchSize = 50,
+  }) async {
+    if (metadataList.isEmpty) return;
+
+    // 分批处理
+    for (var i = 0; i < metadataList.length; i += batchSize) {
+      final end = (i + batchSize < metadataList.length)
+          ? i + batchSize
+          : metadataList.length;
+      final batch = metadataList.sublist(i, end);
+      final batchIndex = i ~/ batchSize;
+
+      await executeTransaction(
+        'batchUpsertMetadata#batch$batchIndex',
+        (txn) async {
+          final ftsUpdates = <int, String>{};
+
+          for (final entry in batch) {
+            final imageId = entry.key;
+            final metadata = entry.value;
+            final fullPromptText = _buildFullPromptText(metadata);
+
+            // 插入或更新元数据
+            await txn.insert(
+              _metadataTable,
+              {
+                'image_id': imageId,
+                'prompt': metadata.prompt,
+                'negative_prompt': metadata.negativePrompt,
+                'seed': metadata.seed,
+                'sampler': metadata.sampler,
+                'steps': metadata.steps,
+                'cfg_scale': metadata.scale,
+                'width': metadata.width,
+                'height': metadata.height,
+                'model': metadata.model,
+                'smea': metadata.smea == true ? 1 : 0,
+                'smea_dyn': metadata.smeaDyn == true ? 1 : 0,
+                'noise_schedule': metadata.noiseSchedule,
+                'cfg_rescale': metadata.cfgRescale,
+                'uc_preset': metadata.ucPreset,
+                'quality_toggle': metadata.qualityToggle == true ? 1 : 0,
+                'is_img2img': metadata.isImg2Img ? 1 : 0,
+                'strength': metadata.strength,
+                'noise': metadata.noise,
+                'software': metadata.software,
+                'source': metadata.source,
+                'version': metadata.version,
+                'raw_json': metadata.rawJson,
+                'has_metadata': metadata.hasData ? 1 : 0,
+                'full_prompt_text': fullPromptText,
+              },
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+
+            // 收集 FTS 更新
+            ftsUpdates[imageId] = fullPromptText;
+
+            // 清除该图片的元数据缓存
+            _metadataCache.remove(imageId);
+          }
+
+          // 批量更新 FTS5 索引
+          await _batchUpdateFtsIndex(txn, ftsUpdates);
+        },
+        timeout: const Duration(seconds: 60),
+      );
+
+      // 批次间让出时间片，避免阻塞主线程
+      if (end < metadataList.length) {
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
+    }
+
+    AppLogger.i(
+      'Batch upserted ${metadataList.length} metadata in ${(metadataList.length / batchSize).ceil()} batches',
+      'GalleryDS',
+    );
+  }
+
+  /// 批量更新 FTS5 索引（事务内）
+  ///
+  /// [txn] 事务对象
+  /// [updates] 更新映射 (imageId -> promptText)
+  Future<void> _batchUpdateFtsIndex(
+    Transaction txn,
+    Map<int, String> updates,
+  ) async {
+    if (updates.isEmpty) return;
+
+    try {
+      // 批量删除旧索引
+      final placeholders = List.filled(updates.length, '?').join(',');
+      await txn.rawDelete(
+        'DELETE FROM $_ftsIndexTable WHERE image_id IN ($placeholders)',
+        updates.keys.toList(),
+      );
+
+      // 批量插入新索引
+      final batch = txn.batch();
+      for (final entry in updates.entries) {
+        batch.insert(_ftsIndexTable, {
+          'image_id': entry.key,
+          'prompt_text': entry.value,
+        });
+      }
+      await batch.commit(noResult: true);
+    } catch (e) {
+      AppLogger.w('Failed to batch update FTS index: $e', 'GalleryDS');
+      // FTS 更新失败不应影响主流程
+    }
   }
 
   /// 根据图片ID获取元数据
@@ -1243,9 +1545,98 @@ class GalleryDataSource extends EnhancedBaseDataSource {
         maxRetries: 3,
       );
     } catch (e, stack) {
-      AppLogger.e('Failed to get metadata by image ID: $imageId', e, stack, 'GalleryDS');
+      AppLogger.e(
+        'Failed to get metadata by image ID: $imageId',
+        e,
+        stack,
+        'GalleryDS',
+      );
       return null;
     }
+  }
+
+  /// 根据图片ID列表批量获取元数据
+  ///
+  /// [imageIds] 图片ID列表
+  ///
+  /// 返回一个 Map，键为图片ID，值为对应的元数据记录（如果找不到则为 null）
+  /// 优先从缓存获取，缺失的从数据库查询
+  /// 使用单个查询批量获取，比多次调用 getMetadataByImageId 更高效
+  Future<Map<int, GalleryMetadataRecord?>> getMetadataByImageIds(
+    List<int> imageIds,
+  ) async {
+    if (imageIds.isEmpty) return {};
+
+    final results = <int, GalleryMetadataRecord?>{};
+    final missingIds = <int>[];
+
+    // 先从缓存获取
+    for (final id in imageIds) {
+      final cached = _metadataCache.get(id);
+      if (cached != null) {
+        results[id] = cached;
+      } else {
+        missingIds.add(id);
+      }
+    }
+
+    // 从数据库查询缺失的记录
+    if (missingIds.isNotEmpty) {
+      try {
+        // SQLite 有 999 个参数限制，每批使用 900 个参数以确保安全
+        const batchSize = 900;
+        final chunks = chunk(missingIds, batchSize);
+
+        for (final chunk in chunks) {
+          await execute(
+            'getMetadataByImageIds',
+            (db) async {
+              // 构建 IN 子句的占位符
+              final placeholders = List.filled(chunk.length, '?').join(',');
+
+              final dbResults = await db.rawQuery(
+                '''
+                SELECT * FROM $_metadataTable
+                WHERE image_id IN ($placeholders)
+                ''',
+                chunk,
+              );
+
+              // 先为所有缺失的ID设置 null
+              for (final id in chunk) {
+                results[id] = null;
+              }
+
+              // 填充查询到的记录
+              for (final row in dbResults) {
+                final record = GalleryMetadataRecord.fromMap(row);
+                final id = record.imageId;
+
+                results[id] = record;
+
+                // 存入缓存
+                _metadataCache.put(id, record);
+              }
+            },
+            timeout: const Duration(seconds: 30),
+            maxRetries: 3,
+          );
+        }
+      } catch (e, stack) {
+        AppLogger.e(
+          'Failed to get metadata by image IDs: ${imageIds.length} IDs',
+          e,
+          stack,
+          'GalleryDS',
+        );
+        // 发生错误时，为缺失的ID返回 null
+        for (final id in missingIds) {
+          results.putIfAbsent(id, () => null);
+        }
+      }
+    }
+
+    return results;
   }
 
   // ============================================================
@@ -1344,7 +1735,10 @@ class GalleryDataSource extends EnhancedBaseDataSource {
         }
 
         _favoritesLoaded = true;
-        AppLogger.i('Loaded ${_favoriteCache.length} favorites into cache', 'GalleryDS');
+        AppLogger.i(
+          'Loaded ${_favoriteCache.length} favorites into cache',
+          'GalleryDS',
+        );
       },
       timeout: const Duration(seconds: 15),
       maxRetries: 2,
@@ -1381,6 +1775,65 @@ class GalleryDataSource extends EnhancedBaseDataSource {
     return _favoriteCache.toList();
   }
 
+  /// 批量查询图片的收藏状态
+  ///
+  /// [imageIds] 图片ID列表
+  ///
+  /// 返回一个 Map，键为图片ID，值为收藏状态（true=已收藏，false=未收藏）
+  /// 使用单个查询批量获取，比多次调用 isFavorite 更高效
+  Future<Map<int, bool>> getFavoritesByImageIds(List<int> imageIds) async {
+    if (imageIds.isEmpty) return {};
+
+    try {
+      final favoritesMap = <int, bool>{
+        for (final id in imageIds) id: false,
+      };
+
+      // SQLite 有 999 个参数限制，每批使用 900 个参数以确保安全
+      const batchSize = 900;
+      final chunks = chunk(imageIds, batchSize);
+
+      for (final chunk in chunks) {
+        await execute(
+          'getFavoritesByImageIds',
+          (db) async {
+            // 构建 IN 子句的占位符
+            final placeholders = List.filled(chunk.length, '?').join(',');
+
+            final result = await db.rawQuery(
+              '''
+              SELECT image_id FROM $_favoritesTable
+              WHERE image_id IN ($placeholders)
+              ''',
+              chunk,
+            );
+
+            // 标记已收藏的图片
+            for (final row in result) {
+              final id = (row['image_id'] as num?)?.toInt();
+              if (id != null) {
+                favoritesMap[id] = true;
+              }
+            }
+          },
+          timeout: const Duration(seconds: 30),
+          maxRetries: 3,
+        );
+      }
+
+      return favoritesMap;
+    } catch (e, stack) {
+      AppLogger.e(
+        'Failed to get favorites by image IDs: ${imageIds.length} IDs',
+        e,
+        stack,
+        'GalleryDS',
+      );
+      // 发生错误时，返回所有图片为未收藏状态
+      return {for (final id in imageIds) id: false};
+    }
+  }
+
   // ============================================================
   // FTS5 全文搜索
   // ============================================================
@@ -1397,10 +1850,17 @@ class GalleryDataSource extends EnhancedBaseDataSource {
 
     try {
       // 处理搜索词，添加通配符支持
+      // 转义 FTS5 特殊字符（双引号）以防止查询注入
+      String escapeFts5(String input) {
+        // 移除或转义 FTS5 特殊字符
+        // 双引号用于标识列名，需要转义
+        return input.replaceAll('"', '""');
+      }
+
       final searchQuery = query
           .split(RegExp(r'\s+'))
           .where((s) => s.isNotEmpty)
-          .map((s) => '"$s"*')
+          .map((s) => '"${escapeFts5(s)}"*')
           .join(' OR ');
 
       return await execute(
@@ -1416,7 +1876,9 @@ class GalleryDataSource extends EnhancedBaseDataSource {
             [searchQuery, limit],
           );
 
-          return results.map((row) => (row['image_id'] as num).toInt()).toList();
+          return results
+              .map((row) => (row['image_id'] as num).toInt())
+              .toList();
         },
         timeout: const Duration(seconds: 10),
         maxRetries: 3,
@@ -1619,6 +2081,69 @@ class GalleryDataSource extends EnhancedBaseDataSource {
     });
   }
 
+  /// 批量获取多个图片的标签
+  ///
+  /// [imageIds] 图片ID列表
+  ///
+  /// 返回一个 Map，键为图片ID，值为该图片的标签名称列表
+  /// 使用单个查询批量获取，比多次调用 getImageTags 更高效
+  Future<Map<int, List<String>>> getTagsByImageIds(List<int> imageIds) async {
+    if (imageIds.isEmpty) return {};
+
+    try {
+      final tagsMap = <int, List<String>>{
+        for (final id in imageIds) id: const <String>[],
+      };
+
+      // SQLite 有 999 个参数限制，每批使用 900 个参数以确保安全
+      const batchSize = 900;
+      final chunks = chunk(imageIds, batchSize);
+
+      for (final chunk in chunks) {
+        await execute(
+          'getTagsByImageIds',
+          (db) async {
+            // 构建 IN 子句的占位符
+            final placeholders = List.filled(chunk.length, '?').join(',');
+
+            final results = await db.rawQuery(
+              '''
+              SELECT it.image_id, t.name
+              FROM $_tagsTable t
+              INNER JOIN $_imageTagsTable it ON t.id = it.tag_id
+              WHERE it.image_id IN ($placeholders)
+              ORDER BY t.name ASC
+              ''',
+              chunk,
+            );
+
+            // 填充每个图片的标签
+            for (final row in results) {
+              final id = (row['image_id'] as num?)?.toInt();
+              final tagName = row['name'] as String?;
+              if (id != null && tagName != null) {
+                tagsMap[id]!.add(tagName);
+              }
+            }
+          },
+          timeout: const Duration(seconds: 30),
+          maxRetries: 3,
+        );
+      }
+
+      return tagsMap;
+    } catch (e, stack) {
+      AppLogger.e(
+        'Failed to get tags by image IDs: ${imageIds.length} IDs',
+        e,
+        stack,
+        'GalleryDS',
+      );
+      // 发生错误时，返回所有图片为空标签列表
+      return {for (final id in imageIds) id: <String>[]};
+    }
+  }
+
   /// 设置图片标签（完全替换）
   ///
   /// [imageId] 图片ID
@@ -1627,11 +2152,8 @@ class GalleryDataSource extends EnhancedBaseDataSource {
   /// 使用事务，先删除现有标签关联，然后批量插入新标签
   /// 每个标签：插入标签表（如不存在），获取ID，创建关联
   Future<void> setImageTags(int imageId, List<String> tags) async {
-    final normalizedTags = tags
-        .map((t) => t.trim())
-        .where((t) => t.isNotEmpty)
-        .toSet()
-        .toList();
+    final normalizedTags =
+        tags.map((t) => t.trim()).where((t) => t.isNotEmpty).toSet().toList();
 
     return await execute('setImageTags', (db) async {
       await db.transaction((txn) async {
@@ -1645,9 +2167,8 @@ class GalleryDataSource extends EnhancedBaseDataSource {
           ''',
           [imageId],
         );
-        final oldTagIds = currentTagsResult
-            .map((row) => row['id'] as String)
-            .toSet();
+        final oldTagIds =
+            currentTagsResult.map((row) => row['id'] as String).toSet();
 
         // 删除该图片的所有标签关联
         await txn.delete(

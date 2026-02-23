@@ -284,8 +284,8 @@ class HealthChecker {
         sampleStats['sampleImages'] = sample.length;
 
         for (final row in sample) {
-          if (row['file_path'] == null ||
-              (row['file_path'] as String).isEmpty) {
+          final filePath = row['file_path'] as String?;
+          if (filePath == null || filePath.isEmpty) {
             validationErrors.add('Image ${row['id']} has empty file_path');
           }
         }

@@ -6,11 +6,13 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../utils/app_logger.dart';
 
 /// 数据库连接池
-/// 
+///
 /// 关键改进：
 /// 1. 不再是单例，支持创建新实例替换旧实例
 /// 2. 提供全局实例持有者，支持热重启时替换
 /// 3. 彻底关闭所有连接后才释放文件
+/// 4. 使用条件变量通知机制替代忙等待
+/// 5. dispose 时添加强制关闭超时机制
 class ConnectionPool {
   final String dbPath;
   final int maxConnections;
@@ -18,7 +20,15 @@ class ConnectionPool {
   final Queue<Database> _availableConnections = Queue<Database>();
   final Set<Database> _inUseConnections = <Database>{};
   final Set<Database> _evictingConnections = <Database>{}; // 即将失效的连接
+  final Map<Database, DateTime> _evictingStartTimes = {}; // 记录连接被标记为 evicting 的时间
   final _lock = Mutex();
+
+  // 条件变量通知机制 - 当连接被释放时通知等待者
+  final List<Completer<void>> _waiters = [];
+
+  // dispose 超时配置
+  static const Duration _evictionTimeout = Duration(seconds: 30);
+  Timer? _evictionTimer;
 
   bool _initialized = false;
   bool _disposed = false;
@@ -31,7 +41,7 @@ class ConnectionPool {
 
   ConnectionPool({
     required this.dbPath,
-    this.maxConnections = 3,
+    this.maxConnections = 10,
   });
 
   /// 初始化连接池
@@ -83,17 +93,36 @@ class ConnectionPool {
       throw StateError('ConnectionPool not initialized');
     }
 
+    final stopwatch = Stopwatch()..start();
+    final availableBefore = _availableConnections.length;
+    final inUseBefore = _inUseConnections.length;
+
     await _lock.acquire();
     try {
+      // 使用条件变量通知机制替代忙等待
       while (_availableConnections.isEmpty && _inUseConnections.length >= maxConnections) {
+        // 创建一个 completer 来等待连接可用通知
+        final completer = Completer<void>();
+        _waiters.add(completer);
         _lock.release();
-        await Future.delayed(const Duration(milliseconds: 10));
-        await _lock.acquire();
+
+        try {
+          // 等待通知或超时（避免永久阻塞）
+          await completer.future.timeout(
+            const Duration(milliseconds: 100),
+            onTimeout: () {
+              // 超时后重新检查条件
+            },
+          );
+        } finally {
+          _waiters.remove(completer);
+          await _lock.acquire();
+        }
       }
 
       if (_availableConnections.isNotEmpty) {
         var db = _availableConnections.removeFirst();
-        
+
         // 验证连接是否仍然有效
         if (!db.isOpen) {
           AppLogger.d('Connection from pool is closed, creating new one', 'ConnectionPool');
@@ -104,15 +133,70 @@ class ConnectionPool {
           }
           db = await _createConnection();
         }
-        
+
         _inUseConnections.add(db);
+
+        // Log metrics after acquiring connection
+        stopwatch.stop();
+        _logMetrics(
+          availableBefore: availableBefore,
+          inUseBefore: inUseBefore,
+          acquisitionTimeMs: stopwatch.elapsedMilliseconds,
+        );
+
         return db;
       }
 
       // 创建临时连接（超出池大小）
-      return await _createConnection();
+      final db = await _createConnection();
+
+      // Log metrics for temporary connection
+      stopwatch.stop();
+      _logMetrics(
+        availableBefore: availableBefore,
+        inUseBefore: inUseBefore,
+        acquisitionTimeMs: stopwatch.elapsedMilliseconds,
+        isTemporary: true,
+      );
+
+      return db;
     } finally {
       _lock.release();
+    }
+  }
+
+  /// 记录连接池指标日志
+  void _logMetrics({
+    required int availableBefore,
+    required int inUseBefore,
+    required int acquisitionTimeMs,
+    bool isTemporary = false,
+  }) {
+    final availableNow = _availableConnections.length;
+    final inUseNow = _inUseConnections.length;
+
+    // Log warning if available connections is low
+    if (availableNow < 2) {
+      AppLogger.w(
+        'Low available connections: $availableNow (in-use: $inUseNow, acquisition: ${acquisitionTimeMs}ms)',
+        'ConnectionPool',
+      );
+    }
+
+    // Log warning if acquisition time is high
+    if (acquisitionTimeMs > 1000) {
+      AppLogger.w(
+        'Slow connection acquisition: ${acquisitionTimeMs}ms (available: $availableNow, in-use: $inUseNow)',
+        'ConnectionPool',
+      );
+    }
+
+    // Log info for temporary connections
+    if (isTemporary) {
+      AppLogger.i(
+        'Created temporary connection (pool exhausted: $inUseBefore/$maxConnections, acquisition: ${acquisitionTimeMs}ms)',
+        'ConnectionPool',
+      );
     }
   }
 
@@ -126,6 +210,7 @@ class ConnectionPool {
       // 检查是否是即将失效的连接（来自正在关闭的连接池）
       if (_evictingConnections.contains(db)) {
         _evictingConnections.remove(db);
+        _evictingStartTimes.remove(db);
         _inUseConnections.remove(db);
         if (db.isOpen) {
           await db.close();
@@ -133,7 +218,7 @@ class ConnectionPool {
         }
         return;
       }
-      
+
       // 如果连接池已完全 disposed，直接关闭连接
       if (_disposed) {
         _inUseConnections.remove(db);
@@ -161,19 +246,35 @@ class ConnectionPool {
           await db.close();
         }
       }
+
+      // 通知等待的获取者连接已可用
+      _notifyWaiters();
     } finally {
       _lock.release();
     }
   }
 
+  /// 通知等待的获取者有连接可用
+  void _notifyWaiters() {
+    // 唤醒所有等待者，让它们重新检查条件
+    for (final completer in _waiters.toList()) {
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+    }
+    _waiters.clear();
+  }
+
   /// 优雅关闭连接池
   ///
-  /// 关键改进：不再强制关闭正在使用的连接，而是标记它们为"即将失效"。
-  /// 这样正在进行的操作可以继续完成，但在释放连接时会关闭而不是放回池中。
+  /// 关键改进：
+  /// 1. 不再强制关闭正在使用的连接，而是标记它们为"即将失效"
+  /// 2. 添加超时机制，强制关闭长时间未释放的连接
+  /// 3. 通知所有等待的获取者连接池已关闭
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
-    
+
     await _lock.acquire();
     try {
       // 关闭所有可用连接
@@ -186,22 +287,85 @@ class ConnectionPool {
 
       // 将使用中的连接标记为即将失效，而不是强制关闭
       // 这样正在进行的操作可以继续，但在 release 时会关闭这些连接
+      final now = DateTime.now();
       for (final db in _inUseConnections) {
         _evictingConnections.add(db);
+        _evictingStartTimes[db] = now;
       }
-      
+
       final evictingCount = _evictingConnections.length;
       if (evictingCount > 0) {
         AppLogger.w(
-          'ConnectionPool graceful shutdown: $evictingCount connections still in use, marked for eviction',
+          'ConnectionPool graceful shutdown: $evictingCount connections still in use, marked for eviction (timeout: ${_evictionTimeout.inSeconds}s)',
           'ConnectionPool',
         );
+
+        // 启动定时器检查超时连接
+        _startEvictionTimer();
       }
+
+      // 通知所有等待者连接池已关闭
+      _notifyWaitersWithError(StateError('ConnectionPool has been disposed'));
 
       AppLogger.i('ConnectionPool disposed (graceful)', 'ConnectionPool');
     } finally {
       _lock.release();
     }
+  }
+
+  /// 启动驱逐定时器，强制关闭超时连接
+  void _startEvictionTimer() {
+    _evictionTimer?.cancel();
+    _evictionTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      if (_evictingConnections.isEmpty) {
+        timer.cancel();
+        return;
+      }
+
+      await _lock.acquire();
+      try {
+        final now = DateTime.now();
+        final toForceClose = <Database>[];
+
+        for (final db in _evictingConnections) {
+          final startTime = _evictingStartTimes[db];
+          if (startTime != null && now.difference(startTime) > _evictionTimeout) {
+            toForceClose.add(db);
+          }
+        }
+
+        for (final db in toForceClose) {
+          _evictingConnections.remove(db);
+          _evictingStartTimes.remove(db);
+          _inUseConnections.remove(db);
+
+          if (db.isOpen) {
+            try {
+              await db.close();
+              AppLogger.w('Force-closed connection after timeout', 'ConnectionPool');
+            } catch (e) {
+              AppLogger.w('Error force-closing connection: $e', 'ConnectionPool');
+            }
+          }
+        }
+
+        if (_evictingConnections.isEmpty) {
+          timer.cancel();
+        }
+      } finally {
+        _lock.release();
+      }
+    });
+  }
+
+  /// 通知所有等待者连接池已关闭
+  void _notifyWaitersWithError(Error error) {
+    for (final completer in _waiters.toList()) {
+      if (!completer.isCompleted) {
+        completer.completeError(error);
+      }
+    }
+    _waiters.clear();
   }
 
   /// 获取可用连接数
