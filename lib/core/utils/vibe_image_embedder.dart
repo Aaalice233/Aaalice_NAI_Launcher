@@ -62,10 +62,15 @@ class VibeImageEmbedder {
   static const Duration _extractTimeout = Duration(seconds: 10);
 
   // 文件大小限制常量
-  static const int _maxPngFileSize = 50 * 1024 * 1024; // 50MB
+  static const int _maxFileSize = 20 * 1024 * 1024; // 20MB - 输入文件大小限制
+  static const int _maxPngFileSize = 50 * 1024 * 1024; // 50MB - PNG文件大小限制
   static const int _maxCompressedSize = 5 * 1024 * 1024; // 5MB compressed limit
   static const int _maxDecompressedSize = 10 * 1024 * 1024; // 10MB for zlib
   static const int _maxBase64DecodedSize = 50 * 1024 * 1024; // 50MB decoded
+
+  // PNG 尺寸限制常量
+  static const int _maxPngWidth = 16384; // 最大宽度
+  static const int _maxPngHeight = 16384; // 最大高度
 
   /// 嵌入单个 Vibe 到图片（保持向后兼容）
   static Future<Uint8List> embedVibeToImage(
@@ -135,6 +140,9 @@ class VibeImageEmbedder {
         );
       }
 
+      // 验证 PNG 尺寸
+      _validatePngDimensions(params.imageBytes);
+
       // 解析 PNG chunks
       final chunks = _parsePngChunks(params.imageBytes);
 
@@ -199,6 +207,14 @@ class VibeImageEmbedder {
 
       if (crcEnd > bytes.length) {
         throw InvalidImageFormatException('Invalid PNG chunk length');
+      }
+
+      // 验证 chunk type 长度 (必须是 4 字节)
+      final typeLength = dataStart - typeStart;
+      if (typeLength != 4) {
+        throw InvalidImageFormatException(
+          'Invalid PNG chunk type length: $typeLength (expected 4)',
+        );
       }
 
       final chunkType = ascii.decode(bytes.sublist(typeStart, dataStart));
@@ -379,7 +395,15 @@ class VibeImageEmbedder {
   static Future<({List<VibeReference> vibes, bool isBundle})> extractVibeFromImage(
     Uint8List imageBytes,
   ) async {
-    // 验证文件大小
+    // 验证输入文件大小 (20MB 限制)
+    if (imageBytes.length > _maxFileSize) {
+      throw InvalidImageFormatException(
+        'Input file size (${(imageBytes.length / 1024 / 1024).toStringAsFixed(1)}MB) '
+        'exceeds maximum allowed size (${(_maxFileSize / 1024 / 1024).toStringAsFixed(0)}MB)',
+      );
+    }
+
+    // 验证 PNG 文件大小 (50MB 限制)
     if (imageBytes.length > _maxPngFileSize) {
       throw InvalidImageFormatException(
         'PNG file size (${(imageBytes.length / 1024 / 1024).toStringAsFixed(1)}MB) '
@@ -427,6 +451,9 @@ class VibeImageEmbedder {
           'Only valid PNG images can contain naiv4vibe metadata',
         );
       }
+
+      // 验证 PNG 尺寸
+      _validatePngDimensions(imageBytes);
 
       // Try iTXt chunk first (NAI official format)
       final naiData = _extractNaiDataFromITxt(imageBytes);
@@ -482,6 +509,14 @@ class VibeImageEmbedder {
 
         if (crcEnd > imageBytes.length) {
           throw InvalidImageFormatException('Invalid PNG chunk length in tEXt');
+        }
+
+        // 验证 chunk type 长度 (必须是 4 字节)
+        final typeLength = dataStart - typeStart;
+        if (typeLength != 4) {
+          throw InvalidImageFormatException(
+            'Invalid PNG chunk type length in tEXt: $typeLength (expected 4)',
+          );
         }
 
         final chunkType = ascii.decode(imageBytes.sublist(typeStart, dataStart));
@@ -599,6 +634,14 @@ class VibeImageEmbedder {
         throw InvalidImageFormatException('Invalid PNG chunk length in iTXt');
       }
 
+      // 验证 chunk type 长度 (必须是 4 字节)
+      final typeLength = dataStart - typeStart;
+      if (typeLength != 4) {
+        throw InvalidImageFormatException(
+          'Invalid PNG chunk type length in iTXt: $typeLength (expected 4)',
+        );
+      }
+
       final chunkType = ascii.decode(imageBytes.sublist(typeStart, dataStart));
 
       if (chunkType == _itxtChunkType) {
@@ -622,6 +665,46 @@ class VibeImageEmbedder {
       if (bytes[i] != _pngSignature[i]) return false;
     }
     return true;
+  }
+
+  /// 验证 PNG 尺寸是否在允许范围内
+  ///
+  /// 读取 IHDR chunk 中的宽高信息并验证
+  static void _validatePngDimensions(Uint8List bytes) {
+    // IHDR chunk 必须在签名后立即出现
+    // 偏移量: 8 (签名) + 4 (长度) + 4 (类型 "IHDR") = 16
+    const ihdrDataOffset = 16;
+    const ihdrDataLength = 8; // 4 bytes width + 4 bytes height
+    const minimumLength = ihdrDataOffset + ihdrDataLength + 4; // +4 for CRC
+
+    if (bytes.length < minimumLength) {
+      throw InvalidImageFormatException('PNG data too short for IHDR chunk');
+    }
+
+    final byteData = ByteData.sublistView(bytes);
+
+    // 验证 IHDR chunk 类型
+    final chunkTypeOffset = 12; // 8 (签名) + 4 (长度)
+    final chunkTypeBytes = bytes.sublist(chunkTypeOffset, chunkTypeOffset + 4);
+    final chunkType = ascii.decode(chunkTypeBytes);
+    if (chunkType != 'IHDR') {
+      throw InvalidImageFormatException('PNG missing IHDR chunk');
+    }
+
+    // 读取宽高 (大端序)
+    final width = byteData.getUint32(ihdrDataOffset, Endian.big);
+    final height = byteData.getUint32(ihdrDataOffset + 4, Endian.big);
+
+    if (width == 0 || height == 0) {
+      throw InvalidImageFormatException('PNG dimensions cannot be zero');
+    }
+
+    if (width > _maxPngWidth || height > _maxPngHeight) {
+      throw InvalidImageFormatException(
+        'PNG dimensions (${width}x$height) exceed maximum allowed '
+        '(${_maxPngWidth}x$_maxPngHeight)',
+      );
+    }
   }
 
   /// iTXt structure: keyword\0compression_flag\0compression_method\0language\0translated_keyword\0text
@@ -650,18 +733,19 @@ class VibeImageEmbedder {
           ? utf8.decode(_decodeZlibWithLimit(textBytes))
           : utf8.decode(textBytes);
 
-      // 在解码前验证 base64 编码数据的大小，防止内存溢出
-      // base64 解码后大小 ≈ 编码大小 * 3/4
-      if (text.length > _maxBase64DecodedSize * 4 ~/ 3) {
+      // 验证 base64 编码文本长度 (解码后大约增长 33%)
+      // base64 每 4 个字符表示 3 个字节，所以解码后大小 = 编码长度 * 3 / 4
+      final estimatedDecodedSize = (text.length * 3 / 4).ceil();
+      if (estimatedDecodedSize > _maxBase64DecodedSize) {
         throw VibeExtractException(
-          'Base64 encoded data too large: ${text.length} bytes '
-          '(max encoded: ${_maxBase64DecodedSize * 4 ~/ 3})',
+          'Base64 encoded data too large: estimated decoded size '
+          '$estimatedDecodedSize bytes (max: $_maxBase64DecodedSize)',
         );
       }
 
       final decoded = base64.decode(text);
 
-      // 双重验证：解码后再检查实际大小
+      // 再次验证实际解码后的大小
       if (decoded.length > _maxBase64DecodedSize) {
         throw VibeExtractException(
           'Base64 decoded data too large: ${decoded.length} bytes '

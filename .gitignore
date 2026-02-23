@@ -231,3 +231,4 @@ SUBTASK_*.md
 VERIFICATION_*.md
 mask_upload_*.md
 docs/plans
+.worktrees/
