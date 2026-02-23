@@ -1106,28 +1106,36 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     int successCount = 0;
     int failCount = 0;
 
-    // 并行下载
-    await Future.wait(
-      selectedPosts.map(
-        (post) async {
-          try {
-            final url = post.largeFileUrl ?? post.sampleUrl ?? post.previewUrl;
-            if (url.isEmpty) return;
+    // 分批下载，每批最多10个并发，避免网络连接耗尽
+    const batchSize = 10;
+    for (int i = 0; i < selectedPosts.length; i += batchSize) {
+      final end = (i + batchSize < selectedPosts.length)
+          ? i + batchSize
+          : selectedPosts.length;
+      final batch = selectedPosts.sublist(i, end);
 
-            final file =
-                await DanbooruImageCacheManager.instance.getSingleFile(url);
-            final fileName = path.basename(Uri.parse(url).path);
-            final destination = path.join(result, fileName);
+      await Future.wait(
+        batch.map(
+          (post) async {
+            try {
+              final url = post.largeFileUrl ?? post.sampleUrl ?? post.previewUrl;
+              if (url.isEmpty) return;
 
-            await file.copy(destination);
-            successCount++;
-          } catch (e) {
-            failCount++;
-            debugPrint('Download failed for post ${post.id}: $e');
-          }
-        },
-      ),
-    );
+              final file =
+                  await DanbooruImageCacheManager.instance.getSingleFile(url);
+              final fileName = path.basename(Uri.parse(url).path);
+              final destination = path.join(result, fileName);
+
+              await file.copy(destination);
+              successCount++;
+            } catch (e) {
+              failCount++;
+              debugPrint('Download failed for post ${post.id}: $e');
+            }
+          },
+        ),
+      );
+    }
 
     if (mounted) {
       AppToast.success(context, '下载完成: 成功 $successCount, 失败 $failCount');
