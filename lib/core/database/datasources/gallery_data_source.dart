@@ -27,6 +27,7 @@ class GalleryImageRecord {
   final DateTime modifiedAt;
   final DateTime createdAt;
   final DateTime indexedAt;
+  final DateTime? lastScannedAt;
   final int dateYmd;
   final String? resolutionKey;
   final MetadataStatus metadataStatus;
@@ -44,6 +45,7 @@ class GalleryImageRecord {
     required this.modifiedAt,
     required this.createdAt,
     required this.indexedAt,
+    this.lastScannedAt,
     required this.dateYmd,
     this.resolutionKey,
     this.metadataStatus = MetadataStatus.none,
@@ -62,6 +64,7 @@ class GalleryImageRecord {
         'modified_at': modifiedAt.millisecondsSinceEpoch,
         'created_at': createdAt.millisecondsSinceEpoch,
         'indexed_at': indexedAt.millisecondsSinceEpoch,
+        'last_scanned_at': lastScannedAt?.millisecondsSinceEpoch,
         'date_ymd': dateYmd,
         'resolution_key': resolutionKey,
         'metadata_status': metadataStatus.index,
@@ -89,6 +92,9 @@ class GalleryImageRecord {
       indexedAt: DateTime.fromMillisecondsSinceEpoch(
         (map['indexed_at'] as num?)?.toInt() ?? 0,
       ),
+      lastScannedAt: map['last_scanned_at'] != null
+          ? DateTime.fromMillisecondsSinceEpoch((map['last_scanned_at'] as num).toInt())
+          : null,
       dateYmd: (map['date_ymd'] as num?)?.toInt() ?? 0,
       resolutionKey: map['resolution_key'] as String?,
       metadataStatus:
@@ -109,6 +115,7 @@ class GalleryImageRecord {
     DateTime? modifiedAt,
     DateTime? createdAt,
     DateTime? indexedAt,
+    DateTime? lastScannedAt,
     int? dateYmd,
     String? resolutionKey,
     MetadataStatus? metadataStatus,
@@ -126,12 +133,20 @@ class GalleryImageRecord {
       modifiedAt: modifiedAt ?? this.modifiedAt,
       createdAt: createdAt ?? this.createdAt,
       indexedAt: indexedAt ?? this.indexedAt,
+      lastScannedAt: lastScannedAt ?? this.lastScannedAt,
       dateYmd: dateYmd ?? this.dateYmd,
       resolutionKey: resolutionKey ?? this.resolutionKey,
       metadataStatus: metadataStatus ?? this.metadataStatus,
       isFavorite: isFavorite ?? this.isFavorite,
       isDeleted: isDeleted ?? this.isDeleted,
     );
+  }
+
+  @override
+  String toString() {
+    return 'GalleryImageRecord(id: $id, path: $filePath, name: $fileName, '
+        'size: $fileSize, modifiedAt: $modifiedAt, metadataStatus: $metadataStatus, '
+        'lastScannedAt: $lastScannedAt)';
   }
 }
 
@@ -546,6 +561,7 @@ class GalleryDataSource extends EnhancedBaseDataSource {
         modified_at INTEGER NOT NULL,
         created_at INTEGER NOT NULL,
         indexed_at INTEGER NOT NULL,
+        last_scanned_at INTEGER,
         date_ymd INTEGER NOT NULL DEFAULT 0,
         resolution_key TEXT,
         metadata_status INTEGER NOT NULL DEFAULT 2,
@@ -861,6 +877,7 @@ class GalleryDataSource extends EnhancedBaseDataSource {
     String? resolutionKey,
     MetadataStatus? metadataStatus,
     bool? isFavorite,
+    DateTime? lastScannedAt,
   }) async {
     return execute(
       'upsertImage',
@@ -890,6 +907,7 @@ class GalleryDataSource extends EnhancedBaseDataSource {
           'created_at': createdAt.millisecondsSinceEpoch,
           'modified_at': modifiedAt.millisecondsSinceEpoch,
           'indexed_at': now.millisecondsSinceEpoch,
+          'last_scanned_at': lastScannedAt?.millisecondsSinceEpoch,
           'date_ymd': dateYmd,
           'resolution_key': resolutionKey,
           'metadata_status': (metadataStatus ?? MetadataStatus.none).index,

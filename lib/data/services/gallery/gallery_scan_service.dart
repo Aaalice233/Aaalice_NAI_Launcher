@@ -14,6 +14,7 @@ import '../image_metadata_batch_service.dart';
 import '../image_metadata_service.dart';
 import 'scan_config.dart' show ScanType, ScanPhase;
 import 'scan_state_manager.dart';
+import '../../models/gallery/local_image_record.dart' show MetadataStatus;
 
 /// 扫描结果
 ///
@@ -1125,7 +1126,7 @@ class GalleryScanService {
       onProgress?.call(processed: 0, total: 0, phase: 'initializing');
       AppLogger.d('[SCAN] Phase: initializing', 'GalleryScanService');
 
-      // 预加载现有文件记录（使用 path -> (size, mtime, id) 映射）
+      // 预加载现有文件记录（使用 path -> (size, mtime, id, metadataStatus, lastScannedAt) 映射）
       final existingRecords = await _dataSource.getAllImages();
       final existingMap = {
         for (var img in existingRecords)
@@ -1134,6 +1135,8 @@ class GalleryScanService {
               img.fileSize,
               img.modifiedAt.millisecondsSinceEpoch,
               img.id!,
+              img.metadataStatus,
+              img.lastScannedAt,
             ),
       };
       AppLogger.d(
@@ -1141,22 +1144,38 @@ class GalleryScanService {
         'GalleryScanService',
       );
 
-      // 扫描目录收集文件
+      // 扫描目录收集文件并计算需要处理的文件数
       final files = <File>[];
+      var filesNeedProcessing = 0;
       await for (final file in _scanDirectory(rootDir)) {
         files.add(file);
+        
+        // 快速检查是否需要处理
+        final path = file.path;
+        final existing = existingMap[path];
+        if (existing == null) {
+          filesNeedProcessing++;
+        } else {
+          final (existingSize, existingMtime, _, metadataStatus, lastScannedAt) = existing;
+          final stat = await file.stat();
+          if (stat.size != existingSize ||
+              stat.modified.millisecondsSinceEpoch != existingMtime ||
+              metadataStatus == MetadataStatus.none ||
+              lastScannedAt == null) {
+            filesNeedProcessing++;
+          }
+        }
       }
       result.filesScanned = files.length;
       AppLogger.i(
-        '[SCAN] Found ${files.length} files in directory',
+        '[SCAN] Found ${files.length} files, $filesNeedProcessing need processing',
         'GalleryScanService',
       );
-
       // 启动 ScanStateManager 扫描
       final stateManagerStarted = _stateManager.startScan(
         type: ScanType.incremental,
         rootPath: rootDir.path,
-        total: files.length,
+        total: filesNeedProcessing,
       );
       if (!stateManagerStarted) {
         AppLogger.w(
@@ -1171,7 +1190,7 @@ class GalleryScanService {
         'GalleryScanService',
       );
 
-      onProgress?.call(processed: 0, total: files.length, phase: 'scanning');
+      onProgress?.call(processed: 0, total: filesNeedProcessing, phase: 'scanning');
 
       // 检查点计时器
       var lastCheckpoint = DateTime.now();
@@ -1202,22 +1221,30 @@ class GalleryScanService {
           final stat = await file.stat();
           final existing = existingMap[path];
 
-          // 检查文件是否需要处理（使用 mtime + size）
+          // 检查文件是否需要处理（使用 mtime + size + metadataStatus + lastScannedAt）
           final bool needsUpdate;
           if (existing == null) {
             // 新文件
             needsUpdate = true;
           } else {
-            final (existingSize, existingMtime, _) = existing;
-            if (stat.size == existingSize &&
-                stat.modified.millisecondsSinceEpoch == existingMtime) {
-              // 文件未变化
+            final (existingSize, existingMtime, _, metadataStatus, lastScannedAt) = existing;
+            if (stat.size != existingSize ||
+                stat.modified.millisecondsSinceEpoch != existingMtime) {
+              // 文件已变化
+              needsUpdate = true;
+            } else if (metadataStatus == MetadataStatus.none) {
+              // 文件未变化，但缺少元数据
+              needsUpdate = true;
+              AppLogger.d('[SCAN] File unchanged but missing metadata: $path', 'GalleryScanService');
+            } else if (lastScannedAt == null) {
+              // 文件从未被扫描过
+              needsUpdate = true;
+              AppLogger.d('[SCAN] File never scanned: $path', 'GalleryScanService');
+            } else {
+              // 文件未变化、有元数据、且已扫描过
               needsUpdate = false;
               result.filesSkipped++;
               confirmedCount++;
-            } else {
-              // 文件已变化
-              needsUpdate = true;
             }
           }
 
@@ -1243,7 +1270,7 @@ class GalleryScanService {
           // 更新进度（包含 confirmed 计数）
           onProgress?.call(
             processed: processedCount,
-            total: files.length,
+            total: filesNeedProcessing,
             currentFile: path,
             phase: 'processing',
             filesSkipped: result.filesSkipped,
@@ -1253,7 +1280,7 @@ class GalleryScanService {
           // 更新 ScanStateManager 状态（供 UI 监听）
           _stateManager.updateProgress(
             processed: processedCount,
-            total: files.length,
+            total: filesNeedProcessing,
             currentFile: p.basename(path),
             phase: ScanPhase.indexing,
           );
@@ -1261,7 +1288,7 @@ class GalleryScanService {
           // 每10秒保存检查点
           if (DateTime.now().difference(lastCheckpoint).inSeconds >= 10) {
             AppLogger.i(
-              '[SCAN] Checkpoint: $processedCount/${files.length} processed, '
+            '[SCAN] Checkpoint: $processedCount/$filesNeedProcessing processed, '
                   '$updateCount updated, $confirmedCount confirmed',
               'GalleryScanService',
             );
@@ -1356,6 +1383,7 @@ class GalleryScanService {
         modifiedAt: stat.modified,
         resolutionKey:
             width != null && height != null ? '${width}x$height' : null,
+        lastScannedAt: DateTime.now(),
       );
 
       if (metadata != null && metadata.hasData) {
