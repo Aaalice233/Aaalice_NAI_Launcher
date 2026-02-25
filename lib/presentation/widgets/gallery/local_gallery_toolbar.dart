@@ -8,7 +8,6 @@ import 'package:intl/intl.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/selection_mode_provider.dart';
-import '../../providers/gallery_scan_progress_provider.dart';
 import '../bulk_action_bar.dart';
 import '../common/compact_icon_button.dart';
 import '../gallery_filter_panel.dart';
@@ -360,10 +359,13 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
                     onPressed: widget.onOpenFolder,
                   ),
                   const SizedBox(width: 6),
-                  // Refresh button (shows loading state when refreshing)
-                  _RefreshButton(
-                    isRefreshing: state.isLoading,
-                    onRefresh: widget.onRefresh,
+                  // Refresh button
+                  CompactIconButton(
+                    icon: Icons.refresh,
+                    label: '刷新',
+                    tooltip: '刷新画廊\n\n自动检测新增/修改的图片并更新索引',
+                    shortcutId: ShortcutIds.refreshGallery,
+                    onPressed: widget.onRefresh,
                   ),
                 ],
               ),
@@ -612,114 +614,4 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
   }
 }
 
-/// 刷新按钮（带加载状态和扫描进度）
-///
-/// 改进：扫描进度显示更直观，让用户了解实际处理状态
-class _RefreshButton extends ConsumerWidget {
-  final bool isRefreshing;
-  final VoidCallback? onRefresh;
 
-  const _RefreshButton({
-    required this.isRefreshing,
-    this.onRefresh,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final scanState = ref.watch(galleryScanProgressProvider);
-
-    // 扫描进度显示：优先于普通刷新状态
-    if (scanState.isScanning) {
-      final effectiveProcessed = scanState.processed + scanState.filesSkipped;
-      final total = scanState.total;
-
-      final effectiveProgress = total > 0 ? effectiveProcessed / total : null;
-      return Container(
-        height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.primaryContainer.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: theme.colorScheme.primary.withOpacity(0.2),
-            width: 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                value: effectiveProgress,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  theme.colorScheme.primary,
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              '$effectiveProcessed/$total',
-              style: theme.textTheme.labelMedium?.copyWith(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // 普通刷新状态（非元数据扫描）
-    if (isRefreshing) {
-      return Container(
-        height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: theme.colorScheme.outline.withOpacity(0.2),
-            width: 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  theme.colorScheme.primary,
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              '刷新中...',
-              style: theme.textTheme.labelMedium?.copyWith(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return CompactIconButton(
-      icon: Icons.refresh,
-      label: '刷新',
-      tooltip: '刷新画廊\n\n自动检测新增/修改的图片并更新索引',
-      shortcutId: ShortcutIds.refreshGallery,
-      onPressed: onRefresh,
-    );
-  }
-}

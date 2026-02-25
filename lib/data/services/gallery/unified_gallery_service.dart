@@ -15,6 +15,7 @@ import '../../repositories/gallery_folder_repository.dart';
 import '../image_metadata_service.dart';
 import 'gallery_filter_service.dart';
 import 'gallery_scan_service.dart';
+import 'gallery_stream_scanner.dart';
 import 'scan_state_manager.dart';
 import 'scan_config.dart' show ScanPhase, ScanConfig, ScanType;
 
@@ -370,27 +371,26 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
       return;
     }
 
-    final scanService = GalleryScanService(dataSource: _dataSource);
     final dir = Directory(rootPath);
-
-    AppLogger.i('[UGS] 开始执行 incrementalScanPipeline', 'LocalGalleryService');
     
-    // 使用新的流式流水线方法，逐文件处理并实时更新进度
-    final result = await scanService.incrementalScanPipeline(
+    AppLogger.i('[UGS] 开始执行流式扫描', 'LocalGalleryService');
+    
+    // 使用新的流式扫描器：真正的单文件流水线
+    final scanner = GalleryStreamScanner(dataSource: _dataSource);
+    
+    await scanner.startScanning(
       dir,
-      onProgress: ({required processed, required total, currentFile, required phase, filesSkipped, confirmed}) {
-        AppLogger.d('[UGS] onProgress: $processed/$total, file: ${currentFile ?? "null"}, phase: $phase', 'LocalGalleryService');
-        // 更新扫描状态管理器的进度
-        ScanStateManager.instance.updateProgress(
-          processed: processed,
-          total: total,
-          currentFile: currentFile,
-          phase: _convertToScanPhase(phase),
+      onFileProcessed: (result, stats) {
+        // 每处理一个文件就更新状态
+        AppLogger.d(
+          '[UGS] File processed: ${result.path.split(Platform.pathSeparator).last}, '
+          'stage: ${result.stage}, total: ${stats.totalDiscovered}',
+          'LocalGalleryService',
         );
       },
     );
     
-    AppLogger.i('[UGS] incrementalScanPipeline 完成: added=${result.filesAdded}, updated=${result.filesUpdated}, skipped=${result.filesSkipped}', 'LocalGalleryService');
+    AppLogger.i('[UGS] 流式扫描完成', 'LocalGalleryService');
   }
 
   /// 执行完整扫描
@@ -401,12 +401,17 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
     // 使用文件系统实际文件数作为总数（反映实际处理进度）
     final actualFileCount = filesToScan.length;
     
+    // 获取数据库统计信息
+    final existingCount = await _dataSource.countImages();
+    
     // 启动扫描状态管理，设置总数量为实际文件数
     final scanManager = ScanStateManager.instance;
     final started = scanManager.startScan(
       type: ScanType.full,
       rootPath: (await GalleryFolderRepository.instance.getRootPath()) ?? '',
       total: actualFileCount,
+      existingInDatabase: existingCount,
+      metadataCacheCount: 0,
     );
     if (!started) {
       AppLogger.w('全量扫描已在进行中，跳过此次请求', 'LocalGalleryService');
@@ -418,24 +423,43 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
       phase: ScanPhase.scanning,
     );
 
-    await scanService.processFiles(
-      filesToScan,
-onProgress: (
-    {required processed, required total, currentFile, required phase, filesSkipped, confirmed,}) {
-        // 更新扫描状态管理器的进度
-        scanManager.updateProgress(
-          processed: processed,
-          total: actualFileCount,
-          currentFile: currentFile,
-          phase: _convertToScanPhase(phase),
-        );
-        
-        // 每处理100个文件更新一次日志
-        if (processed % 100 == 0) {
-          AppLogger.d('Full scan progress: $processed/$actualFileCount ($phase)', 'LocalGalleryService');
-        }
-      },
-    );
+    // 启动定时器定期更新元数据统计（每2秒）
+    Timer? metadataUpdateTimer;
+    metadataUpdateTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      final statusCounts = await _dataSource.countImagesByMetadataStatus();
+      final successCount = statusCounts['success'] ?? 0;
+      AppLogger.d('[FullScan] Metadata status: $statusCounts', 'LocalGalleryService');
+      scanManager.setMetadataCacheCount(successCount);
+    });
+
+    try {
+      await scanService.processFiles(
+        filesToScan,
+        onProgress: (
+          {required processed, required total, currentFile, required phase, filesSkipped, confirmed,}
+        ) {
+          // 更新扫描状态管理器的进度
+          scanManager.updateProgress(
+            processed: processed,
+            total: actualFileCount,
+            currentFile: currentFile,
+            phase: _convertToScanPhase(phase),
+          );
+          
+          // 每处理100个文件更新一次日志
+          if (processed % 100 == 0) {
+            AppLogger.d('Full scan progress: $processed/$actualFileCount ($phase)', 'LocalGalleryService');
+          }
+        },
+      );
+    } finally {
+      // 停止定时器
+      metadataUpdateTimer.cancel();
+    }
+
+    // 最后更新一次元数据统计
+    final finalStatusCounts = await _dataSource.countImagesByMetadataStatus();
+    scanManager.setMetadataCacheCount(finalStatusCounts['success'] ?? 0);
 
     scanManager.completeScan();
     AppLogger.i('Full scan complete: $actualFileCount files', 'LocalGalleryService');

@@ -384,6 +384,10 @@ class ScanStateManager {
   bool _shouldCancel = false;
   bool _isScanning = false;
   ScanType? _currentScanType;
+  
+  // 数据库统计（用于显示已有数据）
+  int _existingInDatabase = 0;
+  int _metadataCacheCount = 0;
 
   // 流订阅
   Stream<ScanStatus> get statusStream => _statusController.stream;
@@ -399,6 +403,20 @@ class ScanStateManager {
   bool get shouldPause => _shouldPause;
   bool get shouldCancel => _shouldCancel;
   bool get isScanning => _isScanning;
+  int get existingInDatabase => _existingInDatabase;
+  int get metadataCacheCount => _metadataCacheCount;
+  
+  /// 增加元数据缓存计数
+  void incrementMetadataCacheCount() {
+    _metadataCacheCount++;
+  }
+  
+  /// 设置元数据缓存计数
+  void setMetadataCacheCount(int count) {
+    _metadataCacheCount = count;
+    // 触发进度流更新，让UI刷新元数据计数
+    _progressController.add(_progress);
+  }
 
   ScanStateManager._();
 
@@ -423,7 +441,15 @@ class ScanStateManager {
   /// 开始扫描
   /// 
   /// [total] 预估的总文件数，用于进度显示
-  bool startScan({ScanType? type, String? rootPath, int total = 0}) {
+  /// [existingInDatabase] 数据库中已有的图片数量
+  /// [metadataCacheCount] 元数据缓存数量
+  bool startScan({
+    ScanType? type,
+    String? rootPath,
+    int total = 0,
+    int existingInDatabase = 0,
+    int metadataCacheCount = 0,
+  }) {
     // 防止并发扫描
     if (_isScanning) {
       logWarning('扫描已在进行中，忽略新的扫描请求');
@@ -432,6 +458,8 @@ class ScanStateManager {
 
     _isScanning = true;
     _currentScanType = type;
+    _existingInDatabase = existingInDatabase;
+    _metadataCacheCount = metadataCacheCount;
     _status = ScanStatus.scanning;
     _progress = ScanProgressInfo(total: total);
     _statistics = ScanStatistics(startTime: DateTime.now());
@@ -442,7 +470,7 @@ class ScanStateManager {
     _progressController.add(_progress);
     _statisticsController.add(_statistics);
 
-    logInfo('扫描开始', details: '类型: ${type?.name ?? "unknown"}, 路径: $rootPath, 总数: $total');
+    logInfo('扫描开始', details: '类型: ${type?.name ?? "unknown"}, 路径: $rootPath, 总数: $total, 已有: $existingInDatabase, 有元数据: $_metadataCacheCount');
     return true;
   }
 

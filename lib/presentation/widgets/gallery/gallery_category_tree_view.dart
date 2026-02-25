@@ -7,6 +7,7 @@ import '../../../data/models/gallery/gallery_category.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../common/themed_divider.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
+import 'gallery_scan_progress_panel.dart';
 
 /// Gallery category tree view with drag-drop support
 class GalleryCategoryTreeView extends StatefulWidget {
@@ -73,34 +74,43 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
           ? (details) => _showEmptyAreaContextMenu(context, details.globalPosition)
           : null,
       behavior: HitTestBehavior.translucent,
-      child: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
         children: [
-          _buildImageDropTarget(
-            categoryId: null,
-            child: _CategoryItem(
-              icon: Icons.photo_library_outlined,
-              label: '全部图片',
-              count: widget.totalImageCount,
-              isSelected: widget.selectedCategoryId == null,
-              onTap: () => widget.onCategorySelected(null),
+          // 分类树列表
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              children: [
+                _buildImageDropTarget(
+                  categoryId: null,
+                  child: _CategoryItem(
+                    icon: Icons.photo_library_outlined,
+                    label: '全部图片',
+                    count: widget.totalImageCount,
+                    isSelected: widget.selectedCategoryId == null,
+                    onTap: () => widget.onCategorySelected(null),
+                  ),
+                ),
+                _CategoryItem(
+                  icon: widget.selectedCategoryId == 'favorites'
+                      ? Icons.favorite
+                      : Icons.favorite_border,
+                  iconColor: Colors.red.shade400,
+                  label: '收藏',
+                  count: widget.favoriteCount,
+                  isSelected: widget.selectedCategoryId == 'favorites',
+                  onTap: () => widget.onCategorySelected('favorites'),
+                ),
+                if (widget.categories.isNotEmpty)
+                  const ThemedDivider(height: 16, indent: 12, endIndent: 12),
+                ...widget.categories.rootCategories.sortedByOrder().map(
+                      (category) => _buildCategoryNode(theme, category, 0),
+                    ),
+              ],
             ),
           ),
-          _CategoryItem(
-            icon: widget.selectedCategoryId == 'favorites'
-                ? Icons.favorite
-                : Icons.favorite_border,
-            iconColor: Colors.red.shade400,
-            label: '收藏',
-            count: widget.favoriteCount,
-            isSelected: widget.selectedCategoryId == 'favorites',
-            onTap: () => widget.onCategorySelected('favorites'),
-          ),
-          if (widget.categories.isNotEmpty)
-            const ThemedDivider(height: 16, indent: 12, endIndent: 12),
-          ...widget.categories.rootCategories.sortedByOrder().map(
-                (category) => _buildCategoryNode(theme, category, 0),
-              ),
+          // 扫描进度面板（底部）
+          const GalleryScanProgressPanel(),
         ],
       ),
     );

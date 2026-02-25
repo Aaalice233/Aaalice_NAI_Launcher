@@ -1458,6 +1458,51 @@ class GalleryDataSource extends EnhancedBaseDataSource {
     });
   }
 
+  /// 按元数据状态统计图片数量
+  /// 
+  /// 返回一个 Map: {statusName: count}
+  /// statusName: 'success', 'failed', 'none'
+  Future<Map<String, int>> countImagesByMetadataStatus() async {
+    return await execute('countImagesByMetadataStatus', (db) async {
+      try {
+        const sql = '''
+          SELECT metadata_status, COUNT(*) as count 
+          FROM $_imagesTable 
+          WHERE is_deleted = 0 
+          GROUP BY metadata_status
+        ''';
+        AppLogger.d('[GalleryDS] Executing SQL: $sql', 'GalleryDS');
+        final result = await db.rawQuery(sql);
+        AppLogger.d('[GalleryDS] Query result: $result', 'GalleryDS');
+        
+        final counts = <String, int>{
+          'success': 0,
+          'failed': 0,
+          'none': 0,
+        };
+        
+        for (final row in result) {
+          final statusIndex = row['metadata_status'] as int? ?? 2; // 2 = none
+          final count = (row['count'] as num?)?.toInt() ?? 0;
+          
+          final statusName = switch (statusIndex) {
+            0 => 'success',
+            1 => 'failed',
+            _ => 'none',
+          };
+          counts[statusName] = count;
+          AppLogger.d('[GalleryDS] Status $statusIndex ($statusName): $count', 'GalleryDS');
+        }
+        
+        AppLogger.i('[GalleryDS] Final counts: $counts', 'GalleryDS');
+        return counts;
+      } catch (e, stack) {
+        AppLogger.e('Failed to count images by metadata status', e, stack, 'GalleryDS');
+        return {'success': 0, 'failed': 0, 'none': 0};
+      }
+    });
+  }
+
   int _formatDateYmd(DateTime date) {
     return date.year * 10000 + date.month * 100 + date.day;
   }

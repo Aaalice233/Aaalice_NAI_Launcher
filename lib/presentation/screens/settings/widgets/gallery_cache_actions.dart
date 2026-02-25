@@ -7,6 +7,7 @@ import '../../../../core/cache/gallery_cache_manager.dart';
 import '../../../../core/database/datasources/gallery_data_source.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../data/repositories/gallery_folder_repository.dart';
+import '../../../../data/services/gallery/gallery_stream_scanner.dart';
 import '../../../../data/services/gallery/index.dart';
 import '../../../providers/local_gallery_provider.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -230,55 +231,40 @@ class _GalleryCacheActionsState extends ConsumerState<GalleryCacheActions>
         return;
       }
 
-      final files = <File>[];
-      const supportedExtensions = {'.png', '.jpg', '.jpeg', '.webp'};
-      await for (final entity in dir.list(recursive: true, followLinks: false)) {
-        if (entity is File) {
-          if (entity.path.contains('${Platform.pathSeparator}.thumbs${Platform.pathSeparator}') ||
-              entity.path.contains('.thumb.')) {
-            continue;
-          }
-          final ext = entity.path.split('.').last.toLowerCase();
-          if (supportedExtensions.contains('.$ext')) {
-            files.add(entity);
-          }
-        }
-      }
-
-      if (!mounted) return;
-
-      if (files.isEmpty) {
-        AppToast.warning(context, '未找到任何图片文件');
-        return;
-      }
-
-      setState(() {
-        _totalCount = files.length;
-        _rebuildPhase = '准备处理...';
+      // 步骤3：使用流式扫描器处理文件（边扫描边处理，实时更新）
+      setState(() => _rebuildPhase = '开始流式扫描...');
+      
+      final scanner = GalleryStreamScanner(dataSource: dataSource);
+      var processedFiles = 0;
+      var addedFiles = 0;
+      
+      // 订阅统计流以实时更新UI
+      final statsSubscription = scanner.statsStream.listen((stats) {
+        if (!mounted) return;
+        setState(() {
+          _totalCount = stats.totalDiscovered;
+          _processedCount = stats.processed + stats.skipped;
+          _rebuildProgress = stats.progress;
+          _rebuildPhase = '正在重建 ${stats.processed + stats.skipped}/${stats.totalDiscovered}...';
+        });
       });
 
-      AppLogger.i('Found ${files.length} files to rebuild', 'RebuildIndex');
-
-      // 步骤3：处理所有文件（索引 + 元数据提取一体化）
-      final scanService = GalleryScanService(dataSource: GalleryDataSource());
-      final result = await scanService.processFiles(
-        files,
-        onProgress: ({
-          required int processed,
-          required int total,
-          String? currentFile,
-          required String phase,
-          int? filesSkipped,
-          int? confirmed,
-        }) {
-          if (!mounted) return;
-          setState(() {
-            _processedCount = processed;
-            _rebuildProgress = total > 0 ? processed / total : null;
-            _rebuildPhase = '正在重建 $processed/$total...';
-          });
+      await scanner.startScanning(
+        dir,
+        onFileProcessed: (result, stats) {
+          if (result.stage == FileProcessingStage.completed) {
+            processedFiles++;
+            if (result.isNewFile) addedFiles++;
+          }
+          AppLogger.d(
+            '[Rebuild] Processed: ${result.path.split(Platform.pathSeparator).last}, '
+            'stage: ${result.stage}',
+            'RebuildIndex',
+          );
         },
       );
+
+      await statsSubscription.cancel();
 
       if (!mounted) return;
 
@@ -288,11 +274,11 @@ class _GalleryCacheActionsState extends ConsumerState<GalleryCacheActions>
 
       AppToast.success(
         context,
-        '重建完成！已处理 ${result.filesAdded} 张图片',
+        '重建完成！已处理 $processedFiles 张图片',
       );
 
       AppLogger.i(
-        'Rebuild completed: ${result.filesAdded} files processed',
+        'Rebuild completed: $processedFiles files processed, $addedFiles added',
         'RebuildIndex',
       );
     } catch (e, stack) {
