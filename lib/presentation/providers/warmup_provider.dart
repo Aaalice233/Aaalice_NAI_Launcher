@@ -451,14 +451,25 @@ class WarmupNotifier extends _$WarmupNotifier {
     // 使用 Future.microtask 延迟到当前帧完成后执行，避免阻塞 UI
     Future.microtask(() async {
       try {
-        // 读取 provider 会触发 GalleryService 的创建和初始化
-        final service = ref.read(galleryServiceProvider);
+        // 【修复】读取 provider 会触发 GalleryService 的创建和初始化
+        // 但需要等待真正的初始化完成，扫描才会开始
+        var attempts = 0;
+        const maxAttempts = 100; // 最多等待10秒
         
-        if (service.isInitialized) {
-          AppLogger.i('[Warmup] 画廊服务已初始化，扫描将在后台自动进行', 'Warmup');
-        } else {
-          AppLogger.i('[Warmup] 画廊服务正在初始化中...', 'Warmup');
+        while (attempts < maxAttempts) {
+          final service = ref.read(galleryServiceProvider);
+          
+          if (service.isInitialized) {
+            AppLogger.i('[Warmup] 画廊服务已就绪，后台扫描进行中', 'Warmup');
+            return;
+          }
+          
+          // 服务还在初始化中，等待
+          await Future.delayed(const Duration(milliseconds: 100));
+          attempts++;
         }
+        
+        AppLogger.w('[Warmup] 等待画廊服务初始化超时', 'Warmup');
       } catch (e) {
         // 画廊扫描失败不应影响主流程
         AppLogger.w('[Warmup] 画廊扫描启动失败（非关键）: $e', 'Warmup');

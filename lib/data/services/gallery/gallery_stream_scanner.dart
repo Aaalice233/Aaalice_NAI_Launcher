@@ -462,12 +462,22 @@ class GalleryStreamScanner {
   }
 
   /// 更新当前阶段
+  /// 
+  /// 【重要】同时更新 _statsController 和 ScanStateManager，
+  /// 确保 UI 能实时看到阶段变化
   void _updateStage(StreamScanStats stats, FileProcessingStage stage, String fileName) {
+    // 更新本地 stats controller（供内部使用）
     _statsController.add(
       stats.copyWith(
         currentStage: stage,
         currentFile: fileName,
       ),
+    );
+    
+    // 【修复】同步更新 ScanStateManager，让 UI 能看到阶段变化
+    _stateManager.updateProgress(
+      currentFile: fileName,
+      phase: _stageToPhase(stage),
     );
   }
 
