@@ -364,14 +364,15 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
     
     await scanner.startScanning(
       dir,
-      onFileProcessed: (result, stats) {
-        // 每处理一个文件就更新状态
-        AppLogger.d(
-          '[UGS] File processed: ${result.path.split(Platform.pathSeparator).last}, '
-          'stage: ${result.stage}, total: ${stats.totalDiscovered}',
-          'LocalGalleryService',
-        );
-      },
+      // 【扫描时日志太频繁，禁用】
+      // onFileProcessed: (result, stats) {
+      //   // 每处理一个文件就更新状态
+      //   AppLogger.d(
+      //     '[UGS] File processed: ${result.path.split(Platform.pathSeparator).last}, '
+      //     'stage: ${result.stage}, total: ${stats.totalDiscovered}',
+      //     'LocalGalleryService',
+      //   );
+      // },
     );
     
     AppLogger.i('[UGS] 流式扫描完成', 'LocalGalleryService');
@@ -403,14 +404,15 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
     
     await scanner.startScanning(
       dir,
-      onFileProcessed: (result, stats) {
-        // 每处理一个文件就更新状态
-        AppLogger.d(
-          '[UGS] File processed: ${result.path.split(Platform.pathSeparator).last}, '
-          'stage: ${result.stage}, total: ${stats.totalDiscovered}',
-          'LocalGalleryService',
-        );
-      },
+      // 【扫描时日志太频繁，禁用】
+      // onFileProcessed: (result, stats) {
+      //   // 每处理一个文件就更新状态
+      //   AppLogger.d(
+      //     '[UGS] File processed: ${result.path.split(Platform.pathSeparator).last}, '
+      //     'stage: ${result.stage}, total: ${stats.totalDiscovered}',
+      //     'LocalGalleryService',
+      //   );
+      // },
     );
     
     AppLogger.i('[UGS] 全量流式扫描完成', 'LocalGalleryService');

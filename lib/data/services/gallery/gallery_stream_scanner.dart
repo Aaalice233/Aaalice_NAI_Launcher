@@ -426,18 +426,19 @@ class GalleryStreamScanner {
         await _dataSource.upsertMetadata(imageId, metadata);
         _metadataService.cacheMetadata(path, metadata);
         
-        // 更新本地缓存
-        _existingMap[path] = (
-          stat.size,
-          stat.modified.millisecondsSinceEpoch,
-          imageId,
-          MetadataStatus.success,
-          DateTime.now(),
-        );
-        
         // 更新 ScanStateManager 的元数据计数
         _stateManager.incrementMetadataCacheCount();
       }
+      
+      // 【修复】无论是否有元数据，都更新本地缓存，确保 lastScannedAt 被设置
+      // 这样下次扫描时可以正确跳过已处理的文件
+      _existingMap[path] = (
+        stat.size,
+        stat.modified.millisecondsSinceEpoch,
+        imageId,
+        metadata != null && metadata.hasData ? MetadataStatus.success : MetadataStatus.none,
+        DateTime.now(), // 关键：确保 lastScannedAt 被设置
+      );
       
       // 更新路径映射
       _pathToId[path] = imageId;

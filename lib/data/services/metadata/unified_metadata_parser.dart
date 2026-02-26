@@ -315,10 +315,11 @@ class UnifiedMetadataParser {
         final error = bytes.length < 1024 * 1024 // 小于1MB认为是部分读取
             ? 'Failed to decode PNG (incomplete data?)'
             : 'Failed to decode PNG';
-        AppLogger.w(
-          'PngDecoder.startDecode returned null, ${fileInfo}bytes length=${bytes.length}. $error',
-          _tag,
-        );
+        // 【扫描时日志太频繁，禁用】
+        // AppLogger.w(
+        //   'PngDecoder.startDecode returned null, ${fileInfo}bytes length=${bytes.length}. $error',
+        //   _tag,
+        // );
         return MetadataParseResult.failed(
           triedParsers,
           error,
