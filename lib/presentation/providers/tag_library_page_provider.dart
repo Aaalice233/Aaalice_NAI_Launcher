@@ -284,13 +284,34 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
   /// 
   /// 用于从固定词反向同步时，避免循环同步
   Future<void> updateEntryWithoutSync(TagLibraryEntry updatedEntry) async {
+    AppLogger.d(
+      'updateEntryWithoutSync called: id=${updatedEntry.id}, name=${updatedEntry.name}',
+      'TagLibraryPageProvider',
+    );
+
     final index = state.entries.indexWhere((e) => e.id == updatedEntry.id);
-    if (index == -1) return;
+    if (index == -1) {
+      AppLogger.w(
+        'Entry not found for update: id=${updatedEntry.id}',
+        'TagLibraryPageProvider',
+      );
+      return;
+    }
+
+    AppLogger.d(
+      'Updating entry at index $index: ${state.entries[index].name} -> ${updatedEntry.name}',
+      'TagLibraryPageProvider',
+    );
 
     final newEntries = [...state.entries];
     newEntries[index] = updatedEntry;
     state = state.copyWith(entries: newEntries);
     await _saveEntries();
+
+    AppLogger.d(
+      'Entry updated successfully: ${updatedEntry.id}',
+      'TagLibraryPageProvider',
+    );
   }
   
   /// 【新增】同步更新关联的固定词

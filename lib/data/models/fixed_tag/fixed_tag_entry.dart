@@ -166,6 +166,7 @@ class FixedTagEntry with _$FixedTagEntry {
     FixedTagPosition? position,
     bool? enabled,
     String? categoryId,
+    String? sourceEntryId,
     int? sortOrder,
   }) {
     return copyWith(
@@ -175,6 +176,7 @@ class FixedTagEntry with _$FixedTagEntry {
       position: position ?? this.position,
       enabled: enabled ?? this.enabled,
       categoryId: categoryId ?? this.categoryId,
+      sourceEntryId: sourceEntryId ?? this.sourceEntryId,
       sortOrder: sortOrder ?? this.sortOrder,
       updatedAt: DateTime.now(),
     );

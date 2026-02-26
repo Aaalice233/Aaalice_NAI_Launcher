@@ -182,10 +182,15 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
   }
 
   /// 更新固定词
-  /// 
+  ///
   /// 【新增】如果此固定词有关联的词库条目（sourceEntryId != null），
   /// 则反向同步更新词库条目（双向同步）
   Future<void> updateEntry(FixedTagEntry updatedEntry) async {
+    AppLogger.d(
+      'updateEntry called: id=${updatedEntry.id}, name=${updatedEntry.name}, sourceEntryId=${updatedEntry.sourceEntryId}',
+      'FixedTagsProvider',
+    );
+
     final index = state.entries.indexWhere((e) => e.id == updatedEntry.id);
     if (index == -1) {
       AppLogger.w(
@@ -201,13 +206,22 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
     await _saveEntries();
 
     AppLogger.d(
-      'Updated fixed tag: ${updatedEntry.displayName}',
+      'Updated fixed tag: ${updatedEntry.displayName}, checking for sync...',
       'FixedTagsProvider',
     );
-    
+
     // 【新增】如果有关联的词库条目，反向同步更新
     if (updatedEntry.sourceEntryId != null) {
+      AppLogger.d(
+        'sourceEntryId is ${updatedEntry.sourceEntryId}, calling _syncToTagLibrary',
+        'FixedTagsProvider',
+      );
       await _syncToTagLibrary(updatedEntry);
+    } else {
+      AppLogger.d(
+        'sourceEntryId is null, skipping sync to tag library',
+        'FixedTagsProvider',
+      );
     }
   }
   
@@ -247,11 +261,41 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
   /// 
   /// 当固定词更新时，同步更新关联的词库条目
   Future<void> _syncToTagLibrary(FixedTagEntry fixedTag) async {
-    if (fixedTag.sourceEntryId == null) return;
+    AppLogger.d(
+      '_syncToTagLibrary called: fixedTag=${fixedTag.name}, sourceEntryId=${fixedTag.sourceEntryId}',
+      'FixedTagsProvider',
+    );
+
+    if (fixedTag.sourceEntryId == null) {
+      AppLogger.d(
+        'Skipping sync: no sourceEntryId for fixed tag ${fixedTag.name}',
+        'FixedTagsProvider',
+      );
+      return;
+    }
     
     try {
       final tagLibraryNotifier = ref.read(tagLibraryPageNotifierProvider.notifier);
       final tagLibraryState = ref.read(tagLibraryPageNotifierProvider);
+      
+      AppLogger.d(
+        'Tag library state: ${tagLibraryState.entries.length} entries loaded',
+        'FixedTagsProvider',
+      );
+      
+      AppLogger.d(
+        'Looking for tag library entry with id: ${fixedTag.sourceEntryId}',
+        'FixedTagsProvider',
+      );
+      
+      // 如果词库未加载（条目为空），尝试刷新
+      if (tagLibraryState.entries.isEmpty) {
+        AppLogger.w(
+          'Tag library appears to be empty, attempting to refresh...',
+          'FixedTagsProvider',
+        );
+        tagLibraryNotifier.refresh();
+      }
       
       // 查找关联的词库条目
       final tagEntry = tagLibraryState.entries
@@ -269,6 +313,11 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
         return;
       }
       
+      AppLogger.d(
+        'Found tag library entry: ${tagEntry.name}, updating...',
+        'FixedTagsProvider',
+      );
+      
       // 更新词库条目（只更新名称和内容）
       final updatedTagEntry = tagEntry.copyWith(
         name: fixedTag.name,
@@ -283,8 +332,8 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
         'Synced fixed tag to tag library: ${fixedTag.name}',
         'FixedTagsProvider',
       );
-    } catch (e) {
-      AppLogger.w('Failed to sync to tag library: $e', 'FixedTagsProvider');
+    } catch (e, stack) {
+      AppLogger.e('Failed to sync to tag library: $e', e, stack, 'FixedTagsProvider');
     }
   }
 

@@ -395,6 +395,7 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
           weight: 1.0,
           position: FixedTagPosition.prefix,
           enabled: true,
+          sourceEntryId: entry.id,  // 【修复】传递词库条目ID，启用双向同步
         );
   }
 
