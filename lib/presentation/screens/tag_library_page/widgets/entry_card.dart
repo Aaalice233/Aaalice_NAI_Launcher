@@ -203,14 +203,11 @@ class _EntryCardState extends State<EntryCard>
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      // 边框层（放在Stack底层防止缝隙）
+                      // 背景层（统一背景色，防止白边）
                       Container(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: borderColor,
-                            width: widget.isSelected ? 2.5 : 2,
-                          ),
+                          color: Colors.grey.shade800,
                         ),
                       ),
                       // 内容层（带ClipRRect）
@@ -222,8 +219,9 @@ class _EntryCardState extends State<EntryCard>
                             // 1. 背景图片
                             _buildBackgroundImage(entry),
 
-                            // 2. 轻微暗化遮罩（保证文字可读）
-                            _buildDarkenOverlay(),
+                            // 2. 轻微暗化遮罩（仅当有缩略图时显示）
+                            if (entry.hasThumbnail)
+                              _buildDarkenOverlay(),
 
                             // 3. 内容区域（名称或按钮，互斥显示）
                             if (!widget.isSelectionMode)
@@ -250,6 +248,16 @@ class _EntryCardState extends State<EntryCard>
                                 ),
                               ),
                           ],
+                        ),
+                      ),
+                      // 边框层（放在最上层）
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: borderColor,
+                            width: widget.isSelected ? 2.5 : 2,
+                          ),
                         ),
                       ),
                     ],
