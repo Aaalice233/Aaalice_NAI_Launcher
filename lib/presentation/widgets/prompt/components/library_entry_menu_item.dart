@@ -1,8 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../../../../data/models/tag_library/tag_library_entry.dart';
+import '../../common/thumbnail_display.dart';
 
 /// 词库条目菜单项组件
 ///
@@ -54,20 +53,18 @@ class _LibraryEntryMenuItemState extends State<LibraryEntryMenuItem> {
               const SizedBox(width: 8),
 
               // 缩略图
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: SizedBox(
+              if (widget.entry.hasThumbnail && widget.entry.thumbnail != null)
+                ThumbnailDisplay(
+                  imagePath: widget.entry.thumbnail!,
+                  offsetX: widget.entry.thumbnailOffsetX,
+                  offsetY: widget.entry.thumbnailOffsetY,
+                  scale: widget.entry.thumbnailScale,
                   width: 40,
                   height: 40,
-                  child: widget.entry.hasThumbnail
-                      ? Image.file(
-                          File(widget.entry.thumbnail!),
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _buildPlaceholder(theme),
-                        )
-                      : _buildPlaceholder(theme),
-                ),
-              ),
+                  borderRadius: BorderRadius.circular(6),
+                )
+              else
+                _buildPlaceholder(theme),
               const SizedBox(width: 12),
 
               // 名称和内容
