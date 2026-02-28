@@ -4,7 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../data/models/prompt/prompt_config.dart';
-import '../../../../presentation/providers/prompt_config_provider.dart' show promptConfigNotifierProvider;
+import '../../../../presentation/providers/prompt_config_provider.dart'
+    show promptConfigNotifierProvider;
 import 'app_toast.dart';
 
 /// 保存为预设对话框
@@ -70,10 +71,12 @@ class _SaveAsPresetDialogState extends ConsumerState<SaveAsPresetDialog> {
     _includeSeed = widget.metadata.seed != null;
     _includeSteps = widget.metadata.steps != null;
     _includeScale = widget.metadata.scale != null;
-    _includeSize = widget.metadata.width != null && widget.metadata.height != null;
+    _includeSize =
+        widget.metadata.width != null && widget.metadata.height != null;
     _includeSampler = widget.metadata.sampler != null;
     _includeModel = widget.metadata.model != null;
-    _includeSmea = widget.metadata.smea == true || widget.metadata.smeaDyn == true;
+    _includeSmea =
+        widget.metadata.smea == true || widget.metadata.smeaDyn == true;
     _includeVibe = widget.metadata.vibeReferences.isNotEmpty;
   }
 
@@ -231,10 +234,12 @@ class _SaveAsPresetDialogState extends ConsumerState<SaveAsPresetDialog> {
       _includeSeed = widget.metadata.seed != null;
       _includeSteps = widget.metadata.steps != null;
       _includeScale = widget.metadata.scale != null;
-      _includeSize = widget.metadata.width != null && widget.metadata.height != null;
+      _includeSize =
+          widget.metadata.width != null && widget.metadata.height != null;
       _includeSampler = widget.metadata.sampler != null;
       _includeModel = widget.metadata.model != null;
-      _includeSmea = widget.metadata.smea == true || widget.metadata.smeaDyn == true;
+      _includeSmea =
+          widget.metadata.smea == true || widget.metadata.smeaDyn == true;
       _includeVibe = widget.metadata.vibeReferences.isNotEmpty;
     });
   }
@@ -334,14 +339,16 @@ class _SaveAsPresetDialogState extends ConsumerState<SaveAsPresetDialog> {
                         label: '质量词',
                         value: _includeQualityTags,
                         hasData: widget.metadata.qualityTags.isNotEmpty,
-                        onChanged: (v) => setState(() => _includeQualityTags = v),
+                        onChanged: (v) =>
+                            setState(() => _includeQualityTags = v),
                       ),
                     ],
                     _buildCheckbox(
                       label: '负向提示词',
                       value: _includeNegativePrompt,
                       hasData: widget.metadata.negativePrompt.isNotEmpty,
-                      onChanged: (v) => setState(() => _includeNegativePrompt = v),
+                      onChanged: (v) =>
+                          setState(() => _includeNegativePrompt = v),
                     ),
 
                     const SizedBox(height: 16),
@@ -376,7 +383,8 @@ class _SaveAsPresetDialogState extends ConsumerState<SaveAsPresetDialog> {
                         _buildCompactCheckbox(
                           label: '尺寸',
                           value: _includeSize,
-                          hasData: widget.metadata.width != null && widget.metadata.height != null,
+                          hasData: widget.metadata.width != null &&
+                              widget.metadata.height != null,
                           onChanged: (v) => setState(() => _includeSize = v),
                         ),
                         _buildCompactCheckbox(
@@ -394,7 +402,8 @@ class _SaveAsPresetDialogState extends ConsumerState<SaveAsPresetDialog> {
                         _buildCompactCheckbox(
                           label: 'SMEA',
                           value: _includeSmea,
-                          hasData: widget.metadata.smea == true || widget.metadata.smeaDyn == true,
+                          hasData: widget.metadata.smea == true ||
+                              widget.metadata.smeaDyn == true,
                           onChanged: (v) => setState(() => _includeSmea = v),
                         ),
                       ],
@@ -405,7 +414,8 @@ class _SaveAsPresetDialogState extends ConsumerState<SaveAsPresetDialog> {
                       Divider(color: colorScheme.outlineVariant),
                       const SizedBox(height: 8),
                       _buildCheckbox(
-                        label: 'Vibe数据 (${widget.metadata.vibeReferences.length}个)',
+                        label:
+                            'Vibe数据 (${widget.metadata.vibeReferences.length}个)',
                         value: _includeVibe,
                         hasData: true,
                         onChanged: (v) => setState(() => _includeVibe = v),

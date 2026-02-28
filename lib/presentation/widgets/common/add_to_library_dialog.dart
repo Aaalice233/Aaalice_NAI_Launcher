@@ -63,7 +63,8 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
   void initState() {
     super.initState();
     // 生成默认名称（使用内容前几个词）
-    final defaultName = widget.defaultName ?? _generateDefaultName(widget.content);
+    final defaultName =
+        widget.defaultName ?? _generateDefaultName(widget.content);
     _nameController = TextEditingController(text: defaultName);
     _contentController = TextEditingController(text: widget.content);
     _tagController = TextEditingController();
@@ -190,14 +191,15 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
 
       // 合并新旧标签
       final updatedTags = [...currentTags, ...newTags];
-      final updatedLibrary = currentLibrary.setCategory(targetCategory, updatedTags);
+      final updatedLibrary =
+          currentLibrary.setCategory(targetCategory, updatedTags);
 
       // 保存词库
       await notifier.saveLibrary(updatedLibrary);
 
       AppLogger.i(
         'Added $addedCount tags to library (category: ${targetCategory.name}, '
-        'duplicates skipped: $duplicateCount)',
+            'duplicates skipped: $duplicateCount)',
         'AddToLibraryDialog',
       );
 
@@ -260,7 +262,8 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
                 decoration: BoxDecoration(
                   color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: colorScheme.outline.withOpacity(0.2)),
+                  border:
+                      Border.all(color: colorScheme.outline.withOpacity(0.2)),
                 ),
                 child: Text(
                   widget.content,
@@ -310,7 +313,8 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
                       ...categories.map((category) {
                         return DropdownMenuItem(
                           value: category.name,
-                          child: Text(TagSubCategoryHelper.getDisplayName(category)),
+                          child: Text(
+                              TagSubCategoryHelper.getDisplayName(category)),
                         );
                       }),
                     ],
@@ -343,13 +347,18 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
-                  children: _tags.map((tag) => Chip(
-                    label: Text(tag, style: theme.textTheme.bodySmall),
-                    deleteIcon: const Icon(Icons.clear, size: 16),
-                    onDeleted: () => _removeTag(tag),
-                    visualDensity: VisualDensity.compact,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),).toList(),
+                  children: _tags
+                      .map(
+                        (tag) => Chip(
+                          label: Text(tag, style: theme.textTheme.bodySmall),
+                          deleteIcon: const Icon(Icons.clear, size: 16),
+                          onDeleted: () => _removeTag(tag),
+                          visualDensity: VisualDensity.compact,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      )
+                      .toList(),
                 ),
               ],
             ],

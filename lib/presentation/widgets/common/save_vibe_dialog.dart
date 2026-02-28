@@ -108,9 +108,8 @@ class _SaveVibeDialogState extends ConsumerState<SaveVibeDialog> {
 
     try {
       final notifier = ref.read(vibeLibraryNotifierProvider.notifier);
-      final isBundle = widget.vibes != null &&
-          widget.vibes!.length > 1 &&
-          _saveAsBundle;
+      final isBundle =
+          widget.vibes != null && widget.vibes!.length > 1 && _saveAsBundle;
 
       if (isBundle) {
         // 保存为组合

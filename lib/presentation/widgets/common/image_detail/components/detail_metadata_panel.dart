@@ -81,48 +81,64 @@ class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
   void _startMetadataLoading() {
     final image = widget.currentImage;
     if (image == null) {
-      AppLogger.w('[MetadataFlow] _startMetadataLoading: image is null', 'DetailMetadataPanel');
+      AppLogger.w('[MetadataFlow] _startMetadataLoading: image is null',
+          'DetailMetadataPanel');
       return;
     }
 
-    AppLogger.i('[MetadataFlow] _startMetadataLoading: identifier=${image.identifier}, type=${image.runtimeType}', 'DetailMetadataPanel');
+    AppLogger.i(
+        '[MetadataFlow] _startMetadataLoading: identifier=${image.identifier}, type=${image.runtimeType}',
+        'DetailMetadataPanel');
 
     // 1. 先检查同步可用的元数据
     final syncMetadata = image.metadata;
-    AppLogger.d('[MetadataFlow] syncMetadata check: hasData=${syncMetadata?.hasData}, has prompt="${syncMetadata?.fullPrompt.isNotEmpty == true}"', 'DetailMetadataPanel');
+    AppLogger.d(
+        '[MetadataFlow] syncMetadata check: hasData=${syncMetadata?.hasData}, has prompt="${syncMetadata?.fullPrompt.isNotEmpty == true}"',
+        'DetailMetadataPanel');
 
     if (syncMetadata != null && syncMetadata.hasData) {
-      AppLogger.i('[MetadataFlow] Using sync metadata (cache hit)', 'DetailMetadataPanel');
+      AppLogger.i('[MetadataFlow] Using sync metadata (cache hit)',
+          'DetailMetadataPanel');
       _loadedMetadata = syncMetadata;
       _metadataFuture = null;
       return;
     }
 
     // 2. 异步加载元数据（支持所有数据源）
-    AppLogger.i('[MetadataFlow] Cache miss, starting async load...', 'DetailMetadataPanel');
+    AppLogger.i('[MetadataFlow] Cache miss, starting async load...',
+        'DetailMetadataPanel');
     Future<NaiImageMetadata?>? future;
     if (image is FileImageDetailData) {
-      AppLogger.d('[MetadataFlow] Using FileImageDetailData.getMetadataAsync()', 'DetailMetadataPanel');
+      AppLogger.d('[MetadataFlow] Using FileImageDetailData.getMetadataAsync()',
+          'DetailMetadataPanel');
       future = image.getMetadataAsync();
     } else if (image is GeneratedImageDetailData) {
-      AppLogger.d('[MetadataFlow] Using GeneratedImageDetailData.getMetadataAsync()', 'DetailMetadataPanel');
+      AppLogger.d(
+          '[MetadataFlow] Using GeneratedImageDetailData.getMetadataAsync()',
+          'DetailMetadataPanel');
       future = image.getMetadataAsync();
     } else if (image is LocalImageDetailData) {
-      AppLogger.d('[MetadataFlow] Using LocalImageDetailData.getMetadataAsync()', 'DetailMetadataPanel');
+      AppLogger.d(
+          '[MetadataFlow] Using LocalImageDetailData.getMetadataAsync()',
+          'DetailMetadataPanel');
       future = image.getMetadataAsync();
     } else {
-      AppLogger.w('[MetadataFlow] Unknown image type: ${image.runtimeType}', 'DetailMetadataPanel');
+      AppLogger.w('[MetadataFlow] Unknown image type: ${image.runtimeType}',
+          'DetailMetadataPanel');
     }
 
     if (future != null) {
       _metadataFuture = future.then((metadata) {
-        AppLogger.i('[MetadataFlow] Async load completed: hasData=${metadata?.hasData}, prompt length=${metadata?.fullPrompt.length ?? 0}', 'DetailMetadataPanel');
+        AppLogger.i(
+            '[MetadataFlow] Async load completed: hasData=${metadata?.hasData}, prompt length=${metadata?.fullPrompt.length ?? 0}',
+            'DetailMetadataPanel');
         if (mounted) {
           setState(() => _loadedMetadata = metadata);
         }
         return metadata;
       }).catchError((e, stack) {
-        AppLogger.e('[MetadataFlow] Async load failed', e, stack, 'DetailMetadataPanel');
+        AppLogger.e('[MetadataFlow] Async load failed', e, stack,
+            'DetailMetadataPanel');
         throw e;
       });
     } else {
@@ -136,7 +152,8 @@ class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
   }
 
   /// 获取当前可用的元数据（同步或已加载的异步）
-  NaiImageMetadata? get _currentMetadata => _loadedMetadata ?? widget.currentImage?.metadata;
+  NaiImageMetadata? get _currentMetadata =>
+      _loadedMetadata ?? widget.currentImage?.metadata;
 
   @override
   Widget build(BuildContext context) {
@@ -398,17 +415,29 @@ class _MetadataContent extends StatelessWidget {
           icon: Icons.tune,
           children: [
             if (metadata.model != null)
-              _InfoRow(label: context.l10n.gallery_metaModel, value: metadata.model!),
+              _InfoRow(
+                  label: context.l10n.gallery_metaModel,
+                  value: metadata.model!),
             if (metadata.seed != null)
-              _InfoRow(label: context.l10n.gallery_metaSeed, value: metadata.seed.toString()),
+              _InfoRow(
+                  label: context.l10n.gallery_metaSeed,
+                  value: metadata.seed.toString()),
             if (metadata.steps != null)
-              _InfoRow(label: context.l10n.gallery_metaSteps, value: metadata.steps.toString()),
+              _InfoRow(
+                  label: context.l10n.gallery_metaSteps,
+                  value: metadata.steps.toString()),
             if (metadata.scale != null)
-              _InfoRow(label: context.l10n.gallery_metaCfgScale, value: metadata.scale.toString()),
+              _InfoRow(
+                  label: context.l10n.gallery_metaCfgScale,
+                  value: metadata.scale.toString()),
             if (metadata.sampler != null)
-              _InfoRow(label: context.l10n.gallery_metaSampler, value: metadata.displaySampler),
+              _InfoRow(
+                  label: context.l10n.gallery_metaSampler,
+                  value: metadata.displaySampler),
             if (metadata.sizeString.isNotEmpty)
-              _InfoRow(label: context.l10n.gallery_metaResolution, value: metadata.sizeString),
+              _InfoRow(
+                  label: context.l10n.gallery_metaResolution,
+                  value: metadata.sizeString),
             if (metadata.smea == true || metadata.smeaDyn == true)
               _InfoRow(
                 label: context.l10n.gallery_metaSmea,
@@ -463,7 +492,8 @@ class _MetadataContent extends StatelessWidget {
             tags: mainPromptTags,
             initiallyExpanded: true,
             showAddToLibrary: mainPromptWithChars.isNotEmpty,
-            onAddToLibrary: () => _showAddToLibraryDialog(context, mainPromptWithChars),
+            onAddToLibrary: () =>
+                _showAddToLibraryDialog(context, mainPromptWithChars),
           ),
           // 固定词（前缀+后缀合并）
           if (fixedTags.isNotEmpty) ...[
@@ -486,7 +516,8 @@ class _MetadataContent extends StatelessWidget {
               tags: metadata.qualityTags,
               initiallyExpanded: false,
               showAddToLibrary: true,
-              onAddToLibrary: () => _showAddToLibraryDialog(context, metadata.qualityTags.join(', ')),
+              onAddToLibrary: () => _showAddToLibraryDialog(
+                  context, metadata.qualityTags.join(', ')),
             ),
           ],
           // 角色提示词详细卡片
@@ -512,7 +543,8 @@ class _MetadataContent extends StatelessWidget {
               content: metadata.negativePrompt,
               tags: negativeTags,
               initiallyExpanded: false,
-              contentColor: Theme.of(context).colorScheme.error.withOpacity(0.8),
+              contentColor:
+                  Theme.of(context).colorScheme.error.withOpacity(0.8),
               borderColor: Theme.of(context).colorScheme.error,
             ),
           ],
@@ -535,7 +567,8 @@ class _MetadataContent extends StatelessWidget {
           tags: mainPromptTags,
           initiallyExpanded: true,
           showAddToLibrary: metadata.fullPrompt.isNotEmpty,
-          onAddToLibrary: () => _showAddToLibraryDialog(context, metadata.fullPrompt),
+          onAddToLibrary: () =>
+              _showAddToLibraryDialog(context, metadata.fullPrompt),
         ),
         // 负向提示词（使用标签形式）
         if (metadata.negativePrompt.isNotEmpty) ...[
@@ -612,7 +645,8 @@ class _MetadataContent extends StatelessWidget {
   }
 
   /// 显示添加到词库对话框
-  Future<void> _showAddToLibraryDialog(BuildContext context, String content) async {
+  Future<void> _showAddToLibraryDialog(
+      BuildContext context, String content) async {
     await AddToLibraryDialog.show(
       context,
       content: content,
@@ -621,7 +655,8 @@ class _MetadataContent extends StatelessWidget {
   }
 
   /// 显示保存 Vibe 对话框
-  Future<void> _showSaveVibeDialog(BuildContext context, VibeReference vibe) async {
+  Future<void> _showSaveVibeDialog(
+      BuildContext context, VibeReference vibe) async {
     await SaveVibeDialog.show(
       context,
       vibe: vibe,
@@ -775,7 +810,8 @@ class _ActionButtons extends StatelessWidget {
                   label: context.l10n.prompt_positivePrompt,
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: metadata.fullPrompt));
-                    AppToast.success(context, context.l10n.gallery_promptCopied);
+                    AppToast.success(
+                        context, context.l10n.gallery_promptCopied);
                   },
                 ),
               ),
@@ -789,7 +825,8 @@ class _ActionButtons extends StatelessWidget {
                       Clipboard.setData(
                         ClipboardData(text: metadata.seed.toString()),
                       );
-                      AppToast.success(context, context.l10n.gallery_seedCopied);
+                      AppToast.success(
+                          context, context.l10n.gallery_seedCopied);
                     },
                   ),
                 ),
@@ -803,7 +840,8 @@ class _ActionButtons extends StatelessWidget {
                 child: _ActionButton(
                   icon: Icons.bookmark_add,
                   label: '保存预设',
-                  onPressed: () => SaveAsPresetDialog.show(context, metadata: metadata),
+                  onPressed: () =>
+                      SaveAsPresetDialog.show(context, metadata: metadata),
                 ),
               ),
             ],
