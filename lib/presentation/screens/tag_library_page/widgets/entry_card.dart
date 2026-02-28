@@ -277,9 +277,12 @@ class _EntryCardState extends State<EntryCard>
             // 悬浮按钮层（在GestureDetector外面，独立响应事件）
             if (!widget.isSelectionMode && _isHovering)
               Positioned.fill(
-                child: Container(
-                  color: Colors.black.withOpacity(0.5),
-                  child: _buildFloatingButtons(theme, entry),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    color: Colors.black.withOpacity(0.5),
+                    child: _buildFloatingButtons(theme, entry),
+                  ),
                 ),
               ),
           ],
