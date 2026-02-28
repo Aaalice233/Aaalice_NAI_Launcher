@@ -297,13 +297,25 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.1),
+          width: 1,
+        ),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<TagLibrarySortBy>(
           value: state.sortBy,
-          icon: const Icon(Icons.arrow_drop_down, size: 18),
+          icon: Icon(
+            Icons.arrow_drop_down,
+            size: 18,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
           borderRadius: BorderRadius.circular(8),
-          style: theme.textTheme.bodyMedium?.copyWith(fontSize: 13),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontSize: 13,
+            color: theme.colorScheme.onSurface,
+          ),
+          dropdownColor: theme.colorScheme.surfaceContainerHigh,
           items: [
             DropdownMenuItem(
               value: TagLibrarySortBy.order,
