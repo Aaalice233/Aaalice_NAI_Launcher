@@ -362,6 +362,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       }
 
       int savedCount = 0;
+      final savedFilePaths = <String>[];
+      
       for (final image in images) {
         try {
           // 从图片元数据中提取实际的 seed
@@ -459,6 +461,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           final file = File('$saveDirPath/$fileName');
           await file.writeAsBytes(embeddedBytes);
           savedCount++;
+          savedFilePaths.add(file.path);
 
           // 更新 filePath 到 GeneratedImage
           final updatedImage = image.copyWithFilePath(file.path);
@@ -472,8 +475,17 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       }
 
       if (savedCount > 0) {
-        // 刷新本地图库
-        ref.read(localGalleryNotifierProvider.notifier).refresh();
+        // 【优化】使用即时添加新图像，避免全量扫描延迟
+        final galleryNotifier = ref.read(localGalleryNotifierProvider.notifier);
+        final addedCount = await galleryNotifier.addNewlySavedImages(savedFilePaths);
+        
+        // 如果即时添加失败或数量不匹配，回退到传统刷新方式
+        if (addedCount < savedCount) {
+          AppLogger.w('[AutoSave] Immediate add returned $addedCount, expected $savedCount. Falling back to refresh.', 'AutoSave');
+          await galleryNotifier.refresh();
+        } else {
+          AppLogger.i('[AutoSave] Added $addedCount new images immediately without full scan', 'AutoSave');
+        }
 
         // 增量更新统计缓存，避免下次启动时完全重新计算
         try {

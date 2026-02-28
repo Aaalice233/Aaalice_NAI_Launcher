@@ -374,6 +374,52 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     }
   }
 
+  /// 添加新生成的图像到画廊（即时显示优化）
+  ///
+  /// 用于图像生成后即时显示新保存的图像，不触发全量扫描
+  /// 
+  /// [filePaths] 新图像的文件路径列表
+  /// 
+  /// 返回成功添加的图像数量
+  Future<int> addNewlySavedImages(List<String> filePaths) async {
+    if (!state.isInitialized || filePaths.isEmpty) {
+      return 0;
+    }
+
+    var addedCount = 0;
+    
+    try {
+      final service = await _getService();
+      
+      for (final filePath in filePaths) {
+        // 尝试即时添加新图像（不等待扫描）
+        final success = await service.addNewImageImmediately(filePath);
+        if (success) {
+          addedCount++;
+        }
+      }
+      
+      if (addedCount > 0) {
+        AppLogger.i('[AddNewImages] Added $addedCount new images immediately', 'LocalGalleryNotifier');
+        
+        // 更新状态计数
+        _setState(state.copyWith(
+          totalCount: service.totalCount,
+          filteredCount: service.filteredCount,
+        ),);
+        
+        // 如果在第一页，刷新显示以包含新图像
+        if (state.currentPage == 0) {
+          await loadPage(0, showLoading: false);
+        }
+      }
+    } catch (e) {
+      AppLogger.e('[AddNewImages] Failed to add new images', e, null, 'LocalGalleryNotifier');
+    }
+    
+    return addedCount;
+  }
+
   // ============================================================
   // 过滤和搜索
   // ============================================================
@@ -696,12 +742,12 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     try {
       final rootPath = await GalleryFolderRepository.instance.getRootPath();
       if (rootPath == null) {
-        throw GalleryScanException(message: '未设置画廊目录');
+        throw const GalleryScanException(message: '未设置画廊目录');
       }
 
       final dir = Directory(rootPath);
       if (!dir.existsSync()) {
-        throw GalleryScanException(message: '画廊目录不存在');
+        throw const GalleryScanException(message: '画廊目录不存在');
       }
 
       // 使用统一的流式扫描器

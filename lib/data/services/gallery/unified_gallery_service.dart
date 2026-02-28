@@ -99,6 +99,16 @@ abstract class LocalGalleryService {
   /// 可能抛出：
   /// - [GalleryScanException] 扫描失败
   Future<void> refresh();
+  
+  /// 立即添加新图像到画廊（不触发全量扫描）
+  ///
+  /// 用于图像生成后即时显示新保存的图像，避免等待全量扫描
+  ///
+  /// [filePath] 新图像的文件路径
+  /// [metadata] 可选的图像元数据
+  ///
+  /// 返回是否成功添加
+  Future<bool> addNewImageImmediately(String filePath, {NaiImageMetadata? metadata});
 
   /// 获取当前过滤后的文件总数
   int get filteredCount;
@@ -719,6 +729,87 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
   }
 
   // ============================================================
+  // 添加新图像（即时显示优化）
+  // ============================================================
+  
+  /// 立即添加新图像到画廊（不触发全量扫描）
+  /// 
+  /// 用于图像生成后即时显示新保存的图像，避免等待全量扫描
+  /// 
+  /// [filePath] 新图像的文件路径
+  /// [metadata] 可选的图像元数据
+  /// 
+  /// 返回是否成功添加
+  @override
+  Future<bool> addNewImageImmediately(String filePath, {NaiImageMetadata? metadata}) async {
+    _ensureInitialized();
+    
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) {
+        AppLogger.w('[AddNewImage] File does not exist: $filePath', 'LocalGalleryService');
+        return false;
+      }
+      
+      // 检查是否已存在
+      final existingIndex = _allFiles.indexWhere((f) => f.path == filePath);
+      if (existingIndex != -1) {
+        AppLogger.d('[AddNewImage] File already exists in gallery: $filePath', 'LocalGalleryService');
+        return false;
+      }
+      
+      final stat = await file.stat();
+      final fileName = filePath.split(Platform.pathSeparator).last;
+      
+      // 1. 插入/更新数据库（使用 upsert）
+      final metadataStatus = metadata != null && metadata.hasData
+          ? MetadataStatus.success
+          : MetadataStatus.none;
+      
+      final imageId = await _dataSource.upsertImage(
+        filePath: filePath,
+        fileName: fileName,
+        fileSize: stat.size,
+        width: metadata?.width,
+        height: metadata?.height,
+        aspectRatio: _calculateAspectRatio(metadata?.width, metadata?.height),
+        createdAt: stat.modified,
+        modifiedAt: stat.modified,
+        resolutionKey: metadata?.width != null && metadata?.height != null
+            ? '${metadata!.width}x${metadata.height}'
+            : null,
+        lastScannedAt: DateTime.now(),
+        metadataStatus: metadataStatus,
+      );
+      
+      // 2. 如果有元数据，保存到数据库
+      if (metadata != null && metadata.hasData) {
+        await _dataSource.upsertMetadata(imageId, metadata);
+        ImageMetadataService().cacheMetadata(filePath, metadata);
+      }
+      
+      // 3. 添加到 _allFiles 列表开头（因为是新文件，修改时间最新）
+      _allFiles.insert(0, file);
+      
+      // 4. 更新数据库计数
+      _dbImageCount = await _dataSource.countImages();
+      
+      // 5. 重新应用过滤（如果有过滤条件）
+      if (_currentFilter.hasFilters) {
+        await applyFilter(_currentFilter);
+      } else {
+        _filteredFiles = _allFiles;
+      }
+      
+      AppLogger.i('[AddNewImage] Added new image immediately: $fileName (ID: $imageId)', 'LocalGalleryService');
+      return true;
+    } catch (e, stack) {
+      AppLogger.e('[AddNewImage] Failed to add new image: $filePath', e, stack, 'LocalGalleryService');
+      return false;
+    }
+  }
+
+  // ============================================================
   // 刷新和重建
   // ============================================================
 
@@ -769,6 +860,14 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
   // ============================================================
   // 工具方法
   // ============================================================
+  
+  /// 计算宽高比
+  double? _calculateAspectRatio(int? width, int? height) {
+    if (width != null && height != null && height > 0) {
+      return width / height;
+    }
+    return null;
+  }
 
   void _ensureInitialized() {
     if (!_isInitialized) {
@@ -907,6 +1006,9 @@ class ErrorGalleryService implements LocalGalleryService {
   Future<void> refresh() => _throwError();
 
   @override
+  Future<bool> addNewImageImmediately(String filePath, {NaiImageMetadata? metadata}) => _throwError();
+
+  @override
   Future<void> setSearchQuery(String query) => _throwError();
 
   @override
@@ -969,6 +1071,9 @@ class _PlaceholderGalleryService implements LocalGalleryService {
 
   @override
   Future<void> refresh() => _throwNotInitialized();
+
+  @override
+  Future<bool> addNewImageImmediately(String filePath, {NaiImageMetadata? metadata}) => _throwNotInitialized();
 
   @override
   Future<void> setSearchQuery(String query) => _throwNotInitialized();

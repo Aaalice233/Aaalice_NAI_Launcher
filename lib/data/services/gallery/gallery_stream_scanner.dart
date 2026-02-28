@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:synchronized/synchronized.dart';
 
 import '../../../core/database/datasources/gallery_data_source.dart';
 import '../../../core/utils/app_logger.dart';
@@ -95,7 +96,41 @@ class StreamScanStats {
 /// 
 /// 真正的流式处理：发现文件 → 立即处理 → 实时更新
 /// 每处理一张图就更新UI，而不是先收集所有文件
+/// 
+/// 【单例模式】使用 [instance] 获取全局唯一实例，防止并发扫描
 class GalleryStreamScanner {
+  // 单例实例
+  static GalleryStreamScanner? _instance;
+  
+  /// 获取全局唯一实例
+  /// 
+  /// [dataSource] 数据源，仅在首次创建实例时需要
+  static GalleryStreamScanner instance({GalleryDataSource? dataSource}) {
+    if (_instance == null) {
+      if (dataSource == null) {
+        throw StateError('首次创建 GalleryStreamScanner 需要提供 dataSource');
+      }
+      _instance = GalleryStreamScanner._internal(dataSource: dataSource);
+    }
+    return _instance!;
+  }
+  
+  /// 重置单例（用于测试）
+  static void resetInstance() {
+    _instance?._cleanup();
+    _instance = null;
+  }
+  
+  /// 清理资源
+  void _cleanup() {
+    if (!_statsController.isClosed) {
+      _statsController.close();
+    }
+    if (!_resultController.isClosed) {
+      _resultController.close();
+    }
+  }
+  
   final GalleryDataSource _dataSource;
   final ScanStateManager _stateManager = ScanStateManager.instance;
   final _metadataService = ImageMetadataService();
@@ -103,6 +138,9 @@ class GalleryStreamScanner {
   // 状态
   bool _isRunning = false;
   bool _shouldCancel = false;
+  
+  // 互斥锁，防止并发扫描
+  final _scanLock = Lock();
   
   // 统计
   final _statsController = StreamController<StreamScanStats>.broadcast();
@@ -114,29 +152,44 @@ class GalleryStreamScanner {
   Stream<StreamScanStats> get statsStream => _statsController.stream;
   Stream<FileProcessingResult> get resultStream => _resultController.stream;
 
-  GalleryStreamScanner({required GalleryDataSource dataSource})
+  /// 私有构造函数
+  GalleryStreamScanner._internal({required GalleryDataSource dataSource})
       : _dataSource = dataSource;
+  
+  /// @deprecated 使用 [instance] 代替
+  /// 
+  /// 公共构造函数（向后兼容）
+  /// 
+  /// ⚠️ 警告：直接创建实例可能导致并发扫描问题。
+  /// 请优先使用 [GalleryStreamScanner.instance(dataSource: dataSource)]
+  factory GalleryStreamScanner({required GalleryDataSource dataSource}) {
+    return instance(dataSource: dataSource);
+  }
 
   /// 开始流式扫描
   /// 
   /// [onFileProcessed] - 每个文件处理完成时的回调
   /// [checkConsistency] - 是否在扫描前检查数据一致性（删除不存在的文件记录）
+  /// 
+  /// 使用互斥锁保证同一时间只有一个扫描任务在运行
   Future<void> startScanning(
     Directory rootDir, {
     void Function(FileProcessingResult result, StreamScanStats stats)? onFileProcessed,
     bool checkConsistency = true,
   }) async {
-    if (_isRunning) {
-      AppLogger.w('[StreamScan] Scanner already running', 'GalleryStreamScanner');
-      return;
-    }
+    // 使用互斥锁防止并发扫描
+    await _scanLock.synchronized(() async {
+      if (_isRunning) {
+        AppLogger.w('[StreamScan] Scanner already running', 'GalleryStreamScanner');
+        return;
+      }
 
-    _isRunning = true;
-    _shouldCancel = false;
-    
-    AppLogger.i('[StreamScan] Starting stream scan: ${rootDir.path}', 'GalleryStreamScanner');
+      _isRunning = true;
+      _shouldCancel = false;
+      
+      AppLogger.i('[StreamScan] Starting stream scan: ${rootDir.path}', 'GalleryStreamScanner');
 
-    try {
+      try {
       // 1. 预加载数据库记录（只加载一次），获取已有元数据数量
       final existingMetadataCount = await _preloadExistingRecords();
       
@@ -151,13 +204,19 @@ class GalleryStreamScanner {
       AppLogger.i('[StreamScan] Total files to scan: $totalFiles', 'GalleryStreamScanner');
       
       // 4. 启动扫描状态管理器（使用固定的总文件数）
-      _stateManager.startScan(
+      // 使用异步版本确保与 ScanStateManager 的状态同步
+      final scanStarted = await _stateManager.startScanAsync(
         type: ScanType.incremental,
         rootPath: rootDir.path,
         total: totalFiles, // 【修复】使用固定的总数
         existingInDatabase: _existingMap.length,
         metadataCacheCount: existingMetadataCount,
       );
+      
+      if (!scanStarted) {
+        AppLogger.w('[StreamScan] Scan start was rejected by ScanStateManager', 'GalleryStreamScanner');
+        return;
+      }
 
       // 5. 流式处理：发现文件 → 立即处理
       // 【修复】使用预统计的总数，让进度显示更直观（如 0/8751 → 8751/8751）
@@ -231,14 +290,32 @@ class GalleryStreamScanner {
         'GalleryStreamScanner',
       );
 
-    } catch (e, stack) {
-      AppLogger.e('[StreamScan] Scan failed', e, stack, 'GalleryStreamScanner');
-      _stateManager.errorScan(e.toString());
-    } finally {
+      } catch (e, stack) {
+        AppLogger.e('[StreamScan] Scan failed', e, stack, 'GalleryStreamScanner');
+        _stateManager.errorScan(e.toString());
+      } finally {
+        _isRunning = false;
+        // 注意：不要在这里关闭 StreamController，因为它们是广播流
+        // 在单例模式下需要保持开放以支持多次扫描
+      }
+    });
+  }
+  
+  /// 关闭扫描器并释放资源
+  /// 
+  /// ⚠️ 警告：只有在确定不再使用扫描器时才调用此方法
+  /// 单例模式下通常不需要手动关闭
+  Future<void> dispose() async {
+    await _scanLock.synchronized(() async {
+      _shouldCancel = true;
       _isRunning = false;
-      await _statsController.close();
-      await _resultController.close();
-    }
+      if (!_statsController.isClosed) {
+        await _statsController.close();
+      }
+      if (!_resultController.isClosed) {
+        await _resultController.close();
+      }
+    });
   }
 
   /// 取消扫描

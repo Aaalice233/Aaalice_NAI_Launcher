@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:hive/hive.dart';
+import 'package:synchronized/synchronized.dart';
 
 import '../../../core/utils/app_logger.dart';
 import 'scan_config.dart';
@@ -385,6 +386,9 @@ class ScanStateManager {
   bool _isScanning = false;
   ScanType? _currentScanType;
   
+  // 互斥锁，防止并发扫描
+  final _scanLock = Lock();
+  
   // 数据库统计（用于显示已有数据）
   int _existingInDatabase = 0;
   int _metadataCacheCount = 0;
@@ -475,6 +479,50 @@ class ScanStateManager {
   /// [total] 预估的总文件数，用于进度显示
   /// [existingInDatabase] 数据库中已有的图片数量
   /// [metadataCacheCount] 元数据缓存数量
+  /// 
+  /// 使用互斥锁保证原子性，防止并发扫描
+  Future<bool> startScanAsync({
+    ScanType? type,
+    String? rootPath,
+    int total = 0,
+    int existingInDatabase = 0,
+    int metadataCacheCount = 0,
+  }) async {
+    return _scanLock.synchronized(() async {
+      // 防止并发扫描
+      if (_isScanning) {
+        logWarning('扫描已在进行中，忽略新的扫描请求');
+        return false;
+      }
+
+      _isScanning = true;
+      _currentScanType = type;
+      _existingInDatabase = existingInDatabase;
+      _metadataCacheCount = metadataCacheCount;
+      _skippedCount = 0; // 重置跳过计数
+      _failedCount = 0; // 重置失败计数
+      _status = ScanStatus.scanning;
+      _progress = ScanProgressInfo(total: total);
+      _statistics = ScanStatistics(startTime: DateTime.now());
+      _shouldPause = false;
+      _shouldCancel = false;
+
+      _statusController.add(_status);
+      _progressController.add(_progress);
+      _statisticsController.add(_statistics);
+
+      logInfo('扫描开始', details: '类型: ${type?.name ?? "unknown"}, 路径: $rootPath, 总数: $total, 已有: $existingInDatabase, 有元数据: $_metadataCacheCount');
+      return true;
+    });
+  }
+  
+  /// 同步版本的 startScan（用于需要同步调用的场景）
+  /// 
+  /// ⚠️ 警告：此方法不保证原子性，仅用于向后兼容。
+  /// 新代码应该使用 [startScanAsync]
+  /// 
+  /// @deprecated 使用 [startScanAsync] 代替
+  @Deprecated('使用 startScanAsync 代替，此方法存在竞态条件风险')
   bool startScan({
     ScanType? type,
     String? rootPath,

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -62,6 +63,15 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   final bool _use3DCardView = true;
   bool _showCategoryPanel = true;
   AppLifecycleListener? _lifecycleListener;
+  
+  // 防抖计时器，防止频繁触发刷新
+  Timer? _refreshDebounceTimer;
+  
+  // 上次刷新时间，用于限制刷新频率
+  DateTime? _lastRefreshTime;
+  
+  // 最小刷新间隔（毫秒）
+  static const int _minRefreshIntervalMs = 5000; // 5秒
 
   late final Map<String, VoidCallback> _shortcuts = {
     ShortcutIds.previousPage: _goToPreviousPage,
@@ -101,6 +111,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
   @override
   void dispose() {
+    _refreshDebounceTimer?.cancel();
     _lifecycleListener?.dispose();
     _shortcutsFocusNode.dispose();
     super.dispose();
@@ -365,13 +376,44 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   }
 
   Future<void> _autoRefresh() async {
-    final scanState = ref.read(galleryScanProgressProvider);
-    if (scanState.isScanning) {
-      return;
-    }
+    // 取消之前的防抖计时器
+    _refreshDebounceTimer?.cancel();
+    
+    // 设置防抖延迟，避免频繁触发
+    _refreshDebounceTimer = Timer(const Duration(milliseconds: 500), () async {
+      if (!mounted) return;
+      
+      // 检查当前是否仍在本地画廊页面
+      final router = GoRouter.of(context);
+      final currentPath = router.routeInformationProvider.value.uri.path;
+      if (currentPath != '/local-gallery') {
+        AppLogger.d('[AutoRefresh] Skipped: not on local gallery page (current: $currentPath)', 'LocalGalleryScreen');
+        return;
+      }
+      
+      // 检查刷新频率限制
+      final now = DateTime.now();
+      if (_lastRefreshTime != null) {
+        final elapsed = now.difference(_lastRefreshTime!).inMilliseconds;
+        if (elapsed < _minRefreshIntervalMs) {
+          AppLogger.d('[AutoRefresh] Skipped: too frequent (${elapsed}ms < ${_minRefreshIntervalMs}ms)', 'LocalGalleryScreen');
+          return;
+        }
+      }
+      
+      // 检查是否有扫描正在进行
+      final scanState = ref.read(galleryScanProgressProvider);
+      if (scanState.isScanning) {
+        AppLogger.d('[AutoRefresh] Skipped: scan in progress', 'LocalGalleryScreen');
+        return;
+      }
+      
+      AppLogger.i('[AutoRefresh] Executing auto refresh', 'LocalGalleryScreen');
+      _lastRefreshTime = now;
 
-    await ref.read(localGalleryNotifierProvider.notifier).refresh();
-    await ref.read(galleryCategoryNotifierProvider.notifier).syncWithFileSystem();
+      await ref.read(localGalleryNotifierProvider.notifier).refresh();
+      await ref.read(galleryCategoryNotifierProvider.notifier).syncWithFileSystem();
+    });
   }
 
   // 元数据在扫描新文件时已自动提取，如需手动补全旧文件元数据，请使用设置页面的"补全元数据"功能

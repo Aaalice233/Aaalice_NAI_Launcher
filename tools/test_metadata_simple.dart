@@ -4,7 +4,6 @@
 
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 // 简化版的PNG元数据提取器
 // 只检查 tEXt 和 zTXt chunk 中的常见元数据字段
@@ -95,8 +94,9 @@ SimpleMetadataResult extractMetadata(String filePath) {
     final hasNai = textData.containsKey('nai') || textData.containsKey('novelai');
 
     String? source;
-    if (hasComment) source = 'Comment';
-    else if (hasParameters) source = 'parameters';
+    if (hasComment) {
+      source = 'Comment';
+    } else if (hasParameters) source = 'parameters';
     else if (hasNai) source = 'nai/novelai';
 
     // 尝试提取prompt
@@ -107,7 +107,7 @@ SimpleMetadataResult extractMetadata(String filePath) {
         prompt = json['prompt'] as String?;
       } catch (_) {
         prompt = textData['Comment']!.length > 50 
-            ? textData['Comment']!.substring(0, 50) + '...'
+            ? '${textData['Comment']!.substring(0, 50)}...'
             : textData['Comment'];
       }
     } else if (hasParameters) {
@@ -115,7 +115,7 @@ SimpleMetadataResult extractMetadata(String filePath) {
       final lines = params.split('\n');
       if (lines.isNotEmpty) {
         prompt = lines[0].length > 50 
-            ? lines[0].substring(0, 50) + '...'
+            ? '${lines[0].substring(0, 50)}...'
             : lines[0];
       }
     }
@@ -127,7 +127,7 @@ SimpleMetadataResult extractMetadata(String filePath) {
       source: source,
       textData: textData.keys.toList().join(', ').isEmpty ? null : 
                 Map.fromEntries(textData.entries.map((e) => MapEntry(e.key, 
-                    e.value.length > 30 ? e.value.substring(0, 30) + '...' : e.value))),
+                    e.value.length > 30 ? '${e.value.substring(0, 30)}...' : e.value,),),),
       prompt: prompt,
       fileName: file.path.split(Platform.pathSeparator).last,
     );
@@ -142,7 +142,7 @@ SimpleMetadataResult extractMetadata(String filePath) {
 }
 
 void main(List<String> args) async {
-  final testDir = r'C:\Users\Administrator\Documents\nai_launcher\images\test_batch';
+  const testDir = r'C:\Users\Administrator\Documents\nai_launcher\images\test_batch';
   
   print('========================================');
   print('PNG 元数据检测脚本');
