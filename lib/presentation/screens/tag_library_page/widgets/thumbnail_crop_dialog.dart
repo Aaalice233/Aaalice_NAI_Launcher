@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -317,40 +318,54 @@ class _ThumbnailCropDialogState extends State<ThumbnailCropDialog> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // 背景图像
-            Image.file(
-              File(widget.imagePath),
-              fit: BoxFit.contain,
-              width: _displayedImageSize.width,
-              height: _displayedImageSize.height,
-              errorBuilder: (_, __, ___) => Container(
-                color: Colors.grey.shade800,
-                child: const Center(
-                  child: Icon(Icons.broken_image, size: 48, color: Colors.white38),
+        child: Listener(
+          onPointerSignal: (PointerSignalEvent event) {
+            if (event is PointerScrollEvent) {
+              // 滚轮缩放：向上滚动放大，向下滚动缩小
+              final delta = event.scrollDelta.dy;
+              final scaleDelta = delta > 0 ? -0.1 : 0.1;
+              final newScale = (_cropScale + scaleDelta).clamp(1.0, 3.0);
+              if (newScale != _cropScale) {
+                setState(() {
+                  _cropScale = newScale;
+                });
+              }
+            }
+          },
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // 背景图像
+              Image.file(
+                File(widget.imagePath),
+                fit: BoxFit.contain,
+                width: _displayedImageSize.width,
+                height: _displayedImageSize.height,
+                errorBuilder: (_, __, ___) => Container(
+                  color: Colors.grey.shade800,
+                  child: const Center(
+                    child: Icon(Icons.broken_image, size: 48, color: Colors.white38),
+                  ),
                 ),
               ),
-            ),
 
-            // 遮罩层（裁剪框外的暗色区域）
-            CustomPaint(
-              size: Size(_displayedImageSize.width, _displayedImageSize.height),
-              painter: _CropOverlayPainter(
-                cropBoxSize: _cropBoxSize,
-                offsetX: _cropX,
-                offsetY: _cropY,
+              // 遮罩层（裁剪框外的暗色区域）
+              CustomPaint(
+                size: Size(_displayedImageSize.width, _displayedImageSize.height),
+                painter: _CropOverlayPainter(
+                  cropBoxSize: _cropBoxSize,
+                  offsetX: _cropX,
+                  offsetY: _cropY,
+                ),
               ),
-            ),
 
-            // 可拖拽的裁剪框
-            Positioned(
-              left: (_displayWidth - _cropBoxSize.width) / 2 + _cropX * (_displayedImageSize.width - _cropBoxSize.width) / 2,
-              top: (_displayHeight - _cropBoxSize.height) / 2 + _cropY * (_displayedImageSize.height - _cropBoxSize.height) / 2,
-              child: GestureDetector(
-                onPanUpdate: _onPanUpdate,
-                child: Container(
+              // 可拖拽的裁剪框
+              Positioned(
+                left: (_displayWidth - _cropBoxSize.width) / 2 + _cropX * (_displayedImageSize.width - _cropBoxSize.width) / 2,
+                top: (_displayHeight - _cropBoxSize.height) / 2 + _cropY * (_displayedImageSize.height - _cropBoxSize.height) / 2,
+                child: GestureDetector(
+                  onPanUpdate: _onPanUpdate,
+                  child: Container(
                   width: _cropBoxSize.width,
                   height: _cropBoxSize.height,
                   decoration: BoxDecoration(
@@ -378,10 +393,11 @@ class _ThumbnailCropDialogState extends State<ThumbnailCropDialog> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  /// 构建实时预览
+/// 构建实时预览
   Widget _buildLivePreview(ThemeData theme, AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -461,8 +477,8 @@ class _ThumbnailCropDialogState extends State<ThumbnailCropDialog> {
     final maxOffsetX = (displayedSize.width - cropSize.width).clamp(0, double.infinity);
     final maxOffsetY = (displayedSize.height - cropSize.height).clamp(0, double.infinity);
 
-    final offsetX = _cropX * maxOffsetX;
-    final offsetY = _cropY * maxOffsetY;
+    final offsetX = _cropX * maxOffsetX / 2;
+    final offsetY = _cropY * maxOffsetY / 2;
 
     // 将显示坐标转换为图像坐标
     final imageScaleX = _imageSize!.width / displayedSize.width;
