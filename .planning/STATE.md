@@ -29,20 +29,20 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: 稳定版
 status: active
-last_updated: "2026-02-28T23:55:00Z"
+last_updated: "2026-02-28T15:41:18Z"
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 19
-  completed_plans: 11
+  completed_plans: 12
 ---
 
 # Project State
 
 ## Current
 - Phase: 4 — 词库条目编辑界面添加预览图显示范围调整功能
-- Active Work: PLAN-01 已完成
-- Last Action: 完成数据模型扩展与代码生成
+- Active Work: PLAN-02 已完成
+- Last Action: 完成 ThumbnailCropDialog 组件实现
 
 ## Phase Status
 | Phase | Status | Verifier |
@@ -102,7 +102,7 @@ progress:
 | Plan | Wave | Description | Status |
 |------|------|-------------|--------|
 | PLAN-01 | 1 | 数据模型扩展 - TagLibraryEntry 添加 offset/scale 字段 | ✅ 完成 |
-| PLAN-02 | 2 | 调整对话框实现 - 使用 InteractiveViewer 实现调整界面 | Ready |
+| PLAN-02 | 2 | 调整对话框实现 - 使用 InteractiveViewer 实现调整界面 | ✅ 完成 |
 | PLAN-03 | 3 | 编辑对话框集成 - 添加调整入口和实时预览 | Ready |
 | PLAN-04 | 4 | EntryCard 和悬浮预览集成 - 应用显示范围设置 | Ready |
 | PLAN-05 | 5 | 本地化与测试验证 - 添加本地化字符串，运行分析验证 | Ready |

@@ -19,6 +19,7 @@ import '../../../widgets/common/safe_dropdown.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
 import '../../../widgets/prompt/prompt_formatter_wrapper.dart';
+import 'thumbnail_crop_dialog.dart';
 
 /// 添加/编辑词库条目对话框
 class EntryAddDialog extends ConsumerStatefulWidget {
@@ -83,6 +84,11 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
   String? _selectedCategoryId;
   String? _thumbnailPath;
 
+  // 预览图显示范围调整参数
+  double _thumbnailOffsetX = 0.0;
+  double _thumbnailOffsetY = 0.0;
+  double _thumbnailScale = 1.0;
+
   bool get _isEditing => widget.entry != null;
 
   @override
@@ -98,6 +104,13 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     _tagsController = TextEditingController(text: entry?.tags.join(', ') ?? '');
     _selectedCategoryId = entry?.categoryId ?? widget.initialCategoryId;
     _thumbnailPath = entry?.thumbnail;
+
+    // 如果是编辑模式，加载已保存的显示范围设置
+    if (widget.entry != null) {
+      _thumbnailOffsetX = widget.entry!.thumbnailOffsetX;
+      _thumbnailOffsetY = widget.entry!.thumbnailOffsetY;
+      _thumbnailScale = widget.entry!.thumbnailScale;
+    }
 
     // 监听内容变化，更新保存按钮状态
     _contentController.addListener(_onContentChanged);
@@ -288,7 +301,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
         ),
         const SizedBox(height: 8),
         GestureDetector(
-          onTap: _selectThumbnail,
+          onTap: _thumbnailPath != null ? _showThumbnailOptions : _selectThumbnail,
           child: Container(
             width: 160,
             height: 160,
@@ -306,10 +319,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(11),
-                        child: Image.file(
-                          File(_thumbnailPath!),
-                          fit: BoxFit.cover,
-                        ),
+                        child: _buildThumbnailImage(),
                       ),
                       Positioned(
                         top: 4,
@@ -458,6 +468,83 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     );
   }
 
+  /// 构建带变换效果的预览图
+  Widget _buildThumbnailImage() {
+    if (_thumbnailPath == null) {
+      return Container(
+        color: Colors.grey.shade800,
+        child: const Center(
+          child: Icon(Icons.image_not_supported, color: Colors.white38),
+        ),
+      );
+    }
+
+    // 应用 offset 和 scale 变换
+    return Transform(
+      alignment: Alignment.center,
+      transform: Matrix4.identity()
+        ..translate(
+          _thumbnailOffsetX * 80 * (_thumbnailScale - 1.0),
+          _thumbnailOffsetY * 80 * (_thumbnailScale - 1.0),
+        )
+        ..scale(_thumbnailScale),
+      child: Image.file(
+        File(_thumbnailPath!),
+        fit: BoxFit.cover,
+        width: 160,
+        height: 160,
+      ),
+    );
+  }
+
+  /// 显示预览图选项菜单
+  void _showThumbnailOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.image),
+              title: const Text('选择新图片'),
+              onTap: () {
+                Navigator.pop(context);
+                _selectThumbnail();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.crop_free),
+              title: const Text('调整显示范围'),
+              onTap: () {
+                Navigator.pop(context);
+                _openCropDialog();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 打开缩略图裁剪调整对话框
+  Future<void> _openCropDialog() async {
+    await showThumbnailCropDialog(
+      context: context,
+      imagePath: _thumbnailPath!,
+      initialOffsetX: _thumbnailOffsetX,
+      initialOffsetY: _thumbnailOffsetY,
+      initialScale: _thumbnailScale,
+      onConfirm: (result) {
+        setState(() {
+          _thumbnailOffsetX = result.offsetX;
+          _thumbnailOffsetY = result.offsetY;
+          _thumbnailScale = result.scale;
+        });
+      },
+    );
+  }
+
   Future<void> _selectThumbnail() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.image,
@@ -573,6 +660,9 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
         name: name,
         content: content,
         thumbnail: savedThumbnailPath,
+        thumbnailOffsetX: _thumbnailOffsetX,
+        thumbnailOffsetY: _thumbnailOffsetY,
+        thumbnailScale: _thumbnailScale,
         tags: tags,
         categoryId: _selectedCategoryId,
         updatedAt: DateTime.now(),
@@ -584,6 +674,9 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
         name: name,
         content: content,
         thumbnail: savedThumbnailPath,
+        thumbnailOffsetX: _thumbnailOffsetX,
+        thumbnailOffsetY: _thumbnailOffsetY,
+        thumbnailScale: _thumbnailScale,
         tags: tags,
         categoryId: _selectedCategoryId,
       );
