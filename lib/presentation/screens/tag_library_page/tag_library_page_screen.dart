@@ -26,6 +26,7 @@ import 'widgets/tag_library_toolbar.dart';
 import 'widgets/bulk_move_category_dialog.dart';
 import 'widgets/export_dialog.dart';
 import 'widgets/import_dialog.dart';
+import 'widgets/grouped_view/grouped_entries_view.dart';
 
 
 /// 词库页面
@@ -312,10 +313,17 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
       return _buildEmptyState(theme, state);
     }
 
-    if (state.viewMode == TagLibraryViewMode.card) {
-      return _buildCardGrid(theme, entries);
-    } else {
-      return _buildListView(theme, entries);
+    switch (state.viewMode) {
+      case TagLibraryViewMode.card:
+        return _buildCardGrid(theme, entries);
+      case TagLibraryViewMode.list:
+        return _buildListView(theme, entries);
+      case TagLibraryViewMode.grouped:
+        return GroupedEntriesView(
+          onEdit: _showEditDialog,
+          onDelete: _showDeleteEntryConfirmation,
+          onSend: _showEntryDetail,
+        );
     }
   }
 
