@@ -2,8 +2,8 @@
 
 ## Current
 - Phase: 1 — 词库分组视图
-- Active Work: Plan 01 已完成
-- Last Action: 执行 Plan 01 - 枚举和状态修改
+- Active Work: Plan 02 已完成
+- Last Action: 执行 Plan 02 - Toolbar 改造
 
 ## Phase Status
 | Phase | Status | Verifier |
@@ -16,7 +16,7 @@
 | Plan | Wave | Description | Status |
 |------|------|-------------|--------|
 | PLAN-01 | 1 | 枚举和状态修改 - 添加 grouped 值，设为默认 | ✅ 完成 |
-| PLAN-02 | 1 | Toolbar 改造 - 3按钮视图切换，排序下拉菜单 | pending |
+| PLAN-02 | 1 | Toolbar 改造 - 3按钮视图切换，排序下拉菜单 | ✅ 完成 |
 | PLAN-03 | 2 | 分组视图实现 - 吸顶标题，EntryCard 布局 | pending |
 | PLAN-04 | 3 | UI 优化和验证 - 样式调整，代码分析 | pending |
 
@@ -29,4 +29,4 @@
 - 图像解析稳定性需要诊断后确定具体修复方案
 
 ## Next
-执行 Plan 02 - Toolbar 改造。
+执行 Plan 03 - 分组视图实现。
