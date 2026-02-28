@@ -3,20 +3,20 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: 稳定版
 status: active
-last_updated: "2026-02-28T14:00:00Z"
+last_updated: "2026-02-28T14:30:00Z"
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 5
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
 
 ## Current
 - Phase: 2 — desktop_layout.dart 拆分
-- Active Work: PLAN-03 已完成
-- Last Action: 提取 ResizeHandle 和 CollapsedPanel 组件
+- Active Work: PLAN-04 已完成
+- Last Action: 提取 LeftPanel、RightPanel、MainWorkspace 组件，desktop_layout.dart 从 356 行简化为 191 行
 
 ## Phase Status
 | Phase | Status | Verifier |
@@ -39,7 +39,7 @@ progress:
 | PLAN-01 | 1 | 提取服务方法到 GenerationSaveService | ✅ 完成 |
 | PLAN-02 | 1 | 提取 GenerationControls 及其内嵌组件 | ✅ 完成 |
 | PLAN-03 | 2 | 提取布局辅助组件（ResizeHandle, CollapsedPanel） | ✅ 完成 |
-| PLAN-04 | 3 | 提取面板组件并简化 desktop_layout.dart | 🟡 Ready |
+| PLAN-04 | 3 | 提取面板组件并简化 desktop_layout.dart | ✅ 完成 |
 | PLAN-05 | 4 | 清理、验证和最终优化 | 🟡 Ready |
 
 ## Decisions
@@ -61,4 +61,4 @@ progress:
 - Phase 2 added: desktop_layout.dart 拆分评估
 
 ## Next
-运行 `/gsd:execute-phase 2` 继续执行 PLAN-04。
+运行 `/gsd:execute-phase 2` 继续执行 PLAN-05。

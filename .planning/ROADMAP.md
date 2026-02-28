@@ -21,9 +21,11 @@
 - [x] 分组视图设为默认
 - [x] 界面美观，交互流畅
 
-### Phase 2: desktop_layout.dart 拆分
+---
 
-**Goal:** 将 desktop_layout.dart (1486行) 拆分为更小、更可维护的组件，目标行数控制在500行以内。
+## Phase 2: desktop_layout.dart 拆分
+
+**Goal:** 将 desktop_layout.dart (356行) 拆分为更小、更可维护的组件，目标行数控制在500行以内。
 
 **Requirements**:
 - desktop_layout.dart 行数控制在 500 行以内
@@ -33,21 +35,19 @@
 
 **Depends on:** Phase 1
 
-**Plans:** 3/5 plans executed
+**Status:** 4/5 plans completed
 
-| Plan | Wave | Description |
-|------|------|-------------|
-| PLAN-01 | 1 | 提取服务方法到 GenerationSaveService |
-| PLAN-02 | 1 | 提取 GenerationControls 及其内嵌组件 |
-| PLAN-03 | 2 | 3/5 | In Progress|  | 3 | 提取面板组件并简化 desktop_layout.dart |
-| PLAN-05 | 4 | 清理、验证和最终优化 |
+| Plan | Wave | Description | Status |
+|------|------|-------------|--------|
+| PLAN-01 | 1 | 提取服务方法到 GenerationSaveService | ✅ 完成 |
+| PLAN-02 | 1 | 提取 GenerationControls 及其内嵌组件 | ✅ 完成 |
+| PLAN-03 | 2 | 提取布局辅助组件（ResizeHandle, CollapsedPanel） | ✅ 完成 |
+| PLAN-04 | 3 | 提取面板组件并简化 desktop_layout.dart | ✅ 完成 |
+| PLAN-05 | 4 | 清理、验证和最终优化 | 🟡 Ready |
 
-Plans:
-- [ ] PLAN-01: 提取服务方法
-- [ ] PLAN-02: 提取控制组件
-- [ ] PLAN-03: 提取布局辅助组件
-- [ ] PLAN-04: 提取面板组件
-- [ ] PLAN-05: 清理和验证
+**Progress:**
+- desktop_layout.dart: 356 行 → 191 行（减少 46%）
+- 新组件: LeftPanel, RightPanel, MainWorkspace
+- 导出文件: widgets/index.dart
 
 ---
-
