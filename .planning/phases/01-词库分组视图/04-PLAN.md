@@ -1,10 +1,4 @@
-# Plan 04: UI 优化和验证
-
 ---
-
-## Frontmatter
-
-```yaml
 wave: 4
 depends_on: [PLAN-01, PLAN-02, PLAN-03]
 files_modified:
@@ -12,9 +6,9 @@ files_modified:
   - lib/presentation/screens/tag_library_page/widgets/grouped_view/category_header.dart
   - lib/presentation/screens/tag_library_page/widgets/tag_library_toolbar.dart
 autonomous: true
-```
-
 ---
+
+# Plan 04: UI 优化和验证
 
 ## Goal
 

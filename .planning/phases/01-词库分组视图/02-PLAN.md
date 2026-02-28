@@ -1,18 +1,12 @@
-# Plan 02: Toolbar 改造
-
 ---
-
-## Frontmatter
-
-```yaml
 wave: 2
 depends_on: [PLAN-01]
 files_modified:
   - lib/presentation/screens/tag_library_page/widgets/tag_library_toolbar.dart
 autonomous: true
-```
-
 ---
+
+# Plan 02: Toolbar 改造
 
 ## Goal
 

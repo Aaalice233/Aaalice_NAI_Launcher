@@ -1,10 +1,4 @@
-# Plan 03: 分组视图实现
-
 ---
-
-## Frontmatter
-
-```yaml
 wave: 3
 depends_on: [PLAN-01, PLAN-02]
 files_modified:
@@ -12,9 +6,9 @@ files_modified:
   - lib/presentation/screens/tag_library_page/widgets/grouped_view/category_header.dart
   - lib/presentation/screens/tag_library_page/tag_library_page_screen.dart
 autonomous: true
-```
-
 ---
+
+# Plan 03: 分组视图实现
 
 ## Goal
 
