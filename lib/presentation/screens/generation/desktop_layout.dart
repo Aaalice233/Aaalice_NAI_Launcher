@@ -14,15 +14,12 @@ import '../../providers/replication_queue_provider.dart';
 import '../../router/app_router.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/shortcuts/shortcut_aware_widget.dart';
-import 'widgets/parameter_panel.dart';
-import 'widgets/prompt_input.dart';
-import 'widgets/image_preview.dart';
-import 'widgets/history_panel.dart';
 import 'widgets/upscale_dialog.dart';
 import 'widgets/resize_handle.dart';
-import 'widgets/collapsed_panel.dart';
 import 'services/generation_save_service.dart';
-import 'widgets/generation_controls/index.dart';
+import 'widgets/left_panel.dart';
+import 'widgets/main_workspace.dart';
+import 'widgets/right_panel.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 /// 桌面端三栏布局
@@ -41,8 +38,6 @@ class _DesktopGenerationLayoutState
   static const double _leftPanelMaxWidth = 450;
   static const double _rightPanelMinWidth = 200;
   static const double _rightPanelMaxWidth = 400;
-  static const double _promptAreaMinHeight = 100;
-  static const double _promptAreaMaxHeight = 500;
 
   // 拖拽状态（拖拽时禁用动画以避免粘滞感）
   bool _isResizingLeft = false;
@@ -67,11 +62,8 @@ class _DesktopGenerationLayoutState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     // 从 Provider 读取布局状态
     final layoutState = ref.watch(layoutStateNotifierProvider);
-    // 从 Provider 读取最大化状态（确保主题切换时状态不丢失）
-    final isPromptMaximized = ref.watch(promptMaximizeNotifierProvider);
     // 从 Provider 读取生成状态和参数（用于快捷键回调）
     final generationState = ref.watch(imageGenerationNotifierProvider);
     final params = ref.watch(generationParamsNotifierProvider);
@@ -143,7 +135,7 @@ class _DesktopGenerationLayoutState
     return Row(
       children: [
         // 左侧栏 - 参数面板
-        _buildLeftPanel(theme, layoutState),
+        LeftPanel(isResizing: _isResizingLeft),
 
         // 左侧拖拽分隔条
         if (layoutState.leftPanelExpanded)
@@ -168,70 +160,8 @@ class _DesktopGenerationLayoutState
             contextType: ShortcutContext.generation,
             shortcuts: shortcuts,
             autofocus: true,
-            child: Column(
-              children: [
-                // 顶部 Prompt 输入区（最大化时占满空间）
-                isPromptMaximized
-                    ? Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surface.withOpacity(0.5),
-                          ),
-                          child: PromptInputWidget(
-                            onToggleMaximize: _togglePromptMaximize,
-                            isMaximized: isPromptMaximized,
-                          ),
-                        ),
-                      )
-                    : SizedBox(
-                        height: layoutState.promptAreaHeight,
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surface.withOpacity(0.5),
-                          ),
-                          child: PromptInputWidget(
-                            onToggleMaximize: _togglePromptMaximize,
-                            isMaximized: isPromptMaximized,
-                          ),
-                        ),
-                      ),
-
-                // 提示词区域拖拽分隔条（最大化时隐藏）
-                if (!isPromptMaximized)
-                  VerticalResizeHandle(
-                    onDrag: (dy) {
-                      final currentHeight = ref.read(layoutStateNotifierProvider).promptAreaHeight;
-                      final newHeight = (currentHeight + dy)
-                          .clamp(_promptAreaMinHeight, _promptAreaMaxHeight);
-                      ref
-                          .read(layoutStateNotifierProvider.notifier)
-                          .setPromptAreaHeight(newHeight);
-                    },
-                  ),
-
-                // 中间图像预览区（最大化时隐藏）
-                if (!isPromptMaximized)
-                  const Expanded(
-                    child: ImagePreviewWidget(),
-                  ),
-
-                // 底部生成控制区
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface.withOpacity(0.5),
-                    border: Border(
-                      top: BorderSide(
-                        color: theme.dividerColor,
-                        width: 1,
-                      ),
-                    ),
-                  ),
-                  child: const GenerationControls(),
-                ),
-              ],
+            child: MainWorkspace(
+              onToggleMaximize: _togglePromptMaximize,
             ),
           ),
         ),
@@ -254,103 +184,8 @@ class _DesktopGenerationLayoutState
           ),
 
         // 右侧栏 - 历史面板
-        _buildRightPanel(theme, layoutState),
+        RightPanel(isResizing: _isResizingRight),
       ],
     );
   }
-
-  Widget _buildLeftPanel(ThemeData theme, LayoutState layoutState) {
-    final width =
-        layoutState.leftPanelExpanded ? layoutState.leftPanelWidth : 40.0;
-    final decoration = BoxDecoration(
-      color: theme.colorScheme.surface,
-      border: Border(
-        right: BorderSide(
-          color: theme.dividerColor,
-          width: 1,
-        ),
-      ),
-    );
-    final child = layoutState.leftPanelExpanded
-        ? Stack(
-            children: [
-              const ParameterPanel(),
-              // 折叠按钮
-              Positioned(
-                top: 8,
-                right: 8,
-                child: CollapseButton(
-                  icon: Icons.chevron_left,
-                  onTap: () => ref
-                      .read(layoutStateNotifierProvider.notifier)
-                      .setLeftPanelExpanded(false),
-                ),
-              ),
-            ],
-          )
-        : CollapsedPanel(
-            icon: Icons.tune,
-            label: context.l10n.generation_params,
-            onTap: () => ref
-                .read(layoutStateNotifierProvider.notifier)
-                .setLeftPanelExpanded(true),
-          );
-
-    // 拖拽时不使用动画，避免粘滞感
-    if (_isResizingLeft) {
-      return Container(
-        width: width,
-        decoration: decoration,
-        child: child,
-      );
-    }
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      width: width,
-      decoration: decoration,
-      child: child,
-    );
-  }
-
-  Widget _buildRightPanel(ThemeData theme, LayoutState layoutState) {
-    final width =
-        layoutState.rightPanelExpanded ? layoutState.rightPanelWidth : 40.0;
-    final decoration = BoxDecoration(
-      color: theme.colorScheme.surface,
-      border: Border(
-        left: BorderSide(
-          color: theme.dividerColor,
-          width: 1,
-        ),
-      ),
-    );
-    final child = layoutState.rightPanelExpanded
-        ? const HistoryPanel()
-        : CollapsedPanel(
-            icon: Icons.history,
-            label: context.l10n.generation_history,
-            onTap: () => ref
-                .read(layoutStateNotifierProvider.notifier)
-                .setRightPanelExpanded(true),
-          );
-
-    // 拖拽时不使用动画，避免粘滞感
-    if (_isResizingRight) {
-      return Container(
-        width: width,
-        decoration: decoration,
-        child: child,
-      );
-    }
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      width: width,
-      decoration: decoration,
-      child: child,
-    );
-  }
-
 }
-
