@@ -1,11 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
+import '../../../widgets/common/thumbnail_display.dart';
 
 /// 条目选择对话框
 ///
@@ -334,19 +333,14 @@ class _EntryListTile extends StatelessWidget {
               ),
       ),
       child: hasThumbnail
-          ? ClipRRect(
+          ? ThumbnailDisplay(
+              imagePath: entry.thumbnail!,
+              offsetX: entry.thumbnailOffsetX,
+              offsetY: entry.thumbnailOffsetY,
+              scale: entry.thumbnailScale,
+              width: 48,
+              height: 48,
               borderRadius: BorderRadius.circular(6),
-              child: Image.file(
-                File(entry.thumbnail!),
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Icon(
-                    Icons.broken_image_outlined,
-                    size: 24,
-                    color: theme.colorScheme.outline,
-                  );
-                },
-              ),
             )
           : Icon(
               Icons.image_not_supported_outlined,
