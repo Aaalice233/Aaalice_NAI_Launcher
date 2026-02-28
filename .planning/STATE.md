@@ -1,9 +1,9 @@
 # Project State
 
 ## Current
-- Phase: Ready to start Phase 1
-- Active Work: None
-- Last Action: Project initialization complete
+- Phase: 1 — 词库分组视图
+- Active Work: Context gathered, ready for planning
+- Last Action: discuss-phase complete
 
 ## Phase Status
 | Phase | Status | Verifier |
