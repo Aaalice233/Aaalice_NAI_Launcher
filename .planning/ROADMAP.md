@@ -103,13 +103,13 @@
 
 **Depends on:** Phase 3
 
-**Status:** 2/5 plans completed
+**Status:** 3/5 plans completed
 
 | Plan | Wave | Description | Status |
 |------|------|-------------|--------|
 | PLAN-01 | 1 | 数据模型扩展 - TagLibraryEntry 添加 offset/scale 字段 | ✅ 完成 |
 | PLAN-02 | 2 | 调整对话框实现 - 使用 InteractiveViewer 实现调整界面 | ✅ 完成 |
-| PLAN-03 | 3 | 编辑对话框集成 - 添加调整入口和实时预览 | Ready |
+| PLAN-03 | 3 | 编辑对话框集成 - 添加调整入口和实时预览 | ✅ 完成 |
 | PLAN-04 | 4 | EntryCard 和悬浮预览集成 - 应用显示范围设置 | Ready |
 | PLAN-05 | 5 | 本地化与测试验证 - 添加本地化字符串，运行分析验证 | Ready |
 
