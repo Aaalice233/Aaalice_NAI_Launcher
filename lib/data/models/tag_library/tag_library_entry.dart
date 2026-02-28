@@ -26,6 +26,15 @@ class TagLibraryEntry with _$TagLibraryEntry {
     /// 预览图路径 (可选)
     String? thumbnail,
 
+    /// 预览图水平偏移 (-1.0 ~ 1.0)
+    @Default(0.0) double thumbnailOffsetX,
+
+    /// 预览图垂直偏移 (-1.0 ~ 1.0)
+    @Default(0.0) double thumbnailOffsetY,
+
+    /// 预览图缩放比例 (1.0 ~ 3.0)
+    @Default(1.0) double thumbnailScale,
+
     /// 标签列表 (用于筛选)
     @Default([]) List<String> tags,
 
@@ -59,6 +68,9 @@ class TagLibraryEntry with _$TagLibraryEntry {
     required String name,
     required String content,
     String? thumbnail,
+    double thumbnailOffsetX = 0.0,
+    double thumbnailOffsetY = 0.0,
+    double thumbnailScale = 1.0,
     List<String>? tags,
     String? categoryId,
     int sortOrder = 0,
@@ -70,6 +82,9 @@ class TagLibraryEntry with _$TagLibraryEntry {
       name: name.trim(),
       content: content.trim(),
       thumbnail: thumbnail,
+      thumbnailOffsetX: thumbnailOffsetX,
+      thumbnailOffsetY: thumbnailOffsetY,
+      thumbnailScale: thumbnailScale,
       tags: tags ?? [],
       categoryId: categoryId,
       sortOrder: sortOrder,
@@ -180,6 +195,9 @@ class TagLibraryEntry with _$TagLibraryEntry {
     String? name,
     String? content,
     String? thumbnail,
+    double? thumbnailOffsetX,
+    double? thumbnailOffsetY,
+    double? thumbnailScale,
     List<String>? tags,
     String? categoryId,
     int? sortOrder,
@@ -189,6 +207,9 @@ class TagLibraryEntry with _$TagLibraryEntry {
       name: name?.trim() ?? this.name,
       content: content?.trim() ?? this.content,
       thumbnail: thumbnail ?? this.thumbnail,
+      thumbnailOffsetX: thumbnailOffsetX ?? this.thumbnailOffsetX,
+      thumbnailOffsetY: thumbnailOffsetY ?? this.thumbnailOffsetY,
+      thumbnailScale: thumbnailScale ?? this.thumbnailScale,
       tags: tags ?? this.tags,
       categoryId: categoryId ?? this.categoryId,
       sortOrder: sortOrder ?? this.sortOrder,
