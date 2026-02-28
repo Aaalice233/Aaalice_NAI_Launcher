@@ -93,6 +93,73 @@ class _DesktopGenerationLayoutState
     final layoutState = ref.watch(layoutStateNotifierProvider);
     // 从 Provider 读取最大化状态（确保主题切换时状态不丢失）
     final isPromptMaximized = ref.watch(promptMaximizeNotifierProvider);
+    // 从 Provider 读取生成状态和参数（用于快捷键回调）
+    final generationState = ref.watch(imageGenerationNotifierProvider);
+    final params = ref.watch(generationParamsNotifierProvider);
+    final isGenerating = generationState.isGenerating;
+
+    // 定义快捷键动作映射（使用 ShortcutIds 常量）
+    final shortcuts = <String, VoidCallback>{
+      // 生成图像
+      ShortcutIds.generateImage: () {
+        if (!isGenerating && params.prompt.isNotEmpty) {
+          ref.read(imageGenerationNotifierProvider.notifier).generate(params);
+        }
+      },
+      // 取消生成
+      ShortcutIds.cancelGeneration: () {
+        if (isGenerating) {
+          ref.read(imageGenerationNotifierProvider.notifier).cancel();
+        }
+      },
+      // 加入队列
+      ShortcutIds.addToQueue: () {
+        if (params.prompt.isNotEmpty) {
+          final task = ReplicationTask.create(prompt: params.prompt);
+          ref.read(replicationQueueNotifierProvider.notifier).add(task);
+          AppToast.success(context, context.l10n.queue_taskAdded);
+        }
+      },
+      // 随机提示词
+      ShortcutIds.randomPrompt: () {
+        ref.read(randomPromptModeProvider.notifier).toggle();
+      },
+      // 清空提示词
+      ShortcutIds.clearPrompt: () {
+        ref.read(generationParamsNotifierProvider.notifier).updatePrompt('');
+        ref
+            .read(generationParamsNotifierProvider.notifier)
+            .updateNegativePrompt('');
+        ref.read(characterPromptNotifierProvider.notifier).clearAll();
+      },
+      // 切换正/负面模式
+      ShortcutIds.togglePromptMode: () {
+        ref.read(promptMaximizeNotifierProvider.notifier).toggle();
+      },
+      // 打开词库
+      ShortcutIds.openTagLibrary: () {
+        context.go(AppRoutes.tagLibraryPage);
+      },
+      // 放大图像
+      ShortcutIds.upscaleImage: () {
+        if (generationState.displayImages.isNotEmpty) {
+          UpscaleDialog.show(
+            context,
+            image: generationState.displayImages.first.bytes,
+          );
+        }
+      },
+      // 全屏预览
+      ShortcutIds.fullscreenPreview: () {
+        if (generationState.displayImages.isNotEmpty) {
+          _showFullscreenPreview(
+            context,
+            ref,
+            generationState.displayImages,
+          );
+        }
+      },
+    };
 
     return Row(
       children: [
@@ -117,63 +184,68 @@ class _DesktopGenerationLayoutState
             },
           ),
 
-        // 中间 - 主工作区
+        // 中间 - 主工作区（包裹在 ShortcutAwareWidget 中，确保整个区域都支持快捷键）
         Expanded(
-          child: Column(
-            children: [
-              // 顶部 Prompt 输入区（最大化时占满空间）
-              isPromptMaximized
-                  ? Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surface.withOpacity(0.5),
+          child: ShortcutAwareWidget(
+            contextType: ShortcutContext.generation,
+            shortcuts: shortcuts,
+            autofocus: true,
+            child: Column(
+              children: [
+                // 顶部 Prompt 输入区（最大化时占满空间）
+                isPromptMaximized
+                    ? Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface.withOpacity(0.5),
+                          ),
+                          child: PromptInputWidget(
+                            onToggleMaximize: _togglePromptMaximize,
+                            isMaximized: isPromptMaximized,
+                          ),
                         ),
-                        child: PromptInputWidget(
-                          onToggleMaximize: _togglePromptMaximize,
-                          isMaximized: isPromptMaximized,
+                      )
+                    : SizedBox(
+                        height: layoutState.promptAreaHeight,
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface.withOpacity(0.5),
+                          ),
+                          child: PromptInputWidget(
+                            onToggleMaximize: _togglePromptMaximize,
+                            isMaximized: isPromptMaximized,
+                          ),
                         ),
                       ),
-                    )
-                  : SizedBox(
-                      height: layoutState.promptAreaHeight,
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surface.withOpacity(0.5),
-                        ),
-                        child: PromptInputWidget(
-                          onToggleMaximize: _togglePromptMaximize,
-                          isMaximized: isPromptMaximized,
-                        ),
+
+                // 提示词区域拖拽分隔条（最大化时隐藏）
+                if (!isPromptMaximized)
+                  _buildVerticalResizeHandle(theme, layoutState),
+
+                // 中间图像预览区（最大化时隐藏）
+                if (!isPromptMaximized)
+                  const Expanded(
+                    child: ImagePreviewWidget(),
+                  ),
+
+                // 底部生成控制区
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface.withOpacity(0.5),
+                    border: Border(
+                      top: BorderSide(
+                        color: theme.dividerColor,
+                        width: 1,
                       ),
-                    ),
-
-              // 提示词区域拖拽分隔条（最大化时隐藏）
-              if (!isPromptMaximized)
-                _buildVerticalResizeHandle(theme, layoutState),
-
-              // 中间图像预览区（最大化时隐藏）
-              if (!isPromptMaximized)
-                const Expanded(
-                  child: ImagePreviewWidget(),
-                ),
-
-              // 底部生成控制区
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface.withOpacity(0.5),
-                  border: Border(
-                    top: BorderSide(
-                      color: theme.dividerColor,
-                      width: 1,
                     ),
                   ),
+                  child: const GenerationControls(),
                 ),
-                child: const GenerationControls(),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
 
@@ -632,109 +704,9 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
       },
     );
 
-    // 定义快捷键动作映射（使用 ShortcutIds 常量）
-    final shortcuts = <String, VoidCallback>{
-      // 生成图像
-      ShortcutIds.generateImage: () {
-        if (!isGenerating && params.prompt.isNotEmpty) {
-          _handleGenerate(context, ref, params, randomMode);
-        }
-      },
-      // 取消生成
-      ShortcutIds.cancelGeneration: () {
-        if (isGenerating) {
-          ref.read(imageGenerationNotifierProvider.notifier).cancel();
-        }
-      },
-      // 加入队列
-      ShortcutIds.addToQueue: () {
-        if (params.prompt.isNotEmpty) {
-          _handleAddToQueue(context, ref, params);
-        }
-      },
-      // 随机提示词
-      ShortcutIds.randomPrompt: () {
-        // 通过切换随机模式来触发随机提示词
-        ref.read(randomPromptModeProvider.notifier).toggle();
-      },
-      // 清空提示词
-      ShortcutIds.clearPrompt: () {
-        ref.read(generationParamsNotifierProvider.notifier).updatePrompt('');
-        ref
-            .read(generationParamsNotifierProvider.notifier)
-            .updateNegativePrompt('');
-        ref.read(characterPromptNotifierProvider.notifier).clearAll();
-      },
-      // 切换正/负面模式（通过触发最大化来切换）
-      ShortcutIds.togglePromptMode: () {
-        ref.read(promptMaximizeNotifierProvider.notifier).toggle();
-      },
-      // 打开词库
-      ShortcutIds.openTagLibrary: () {
-        context.go(AppRoutes.tagLibraryPage);
-      },
-      // 保存图像（保存最后生成的图像）
-      ShortcutIds.saveImage: () {
-        final generationState = ref.read(imageGenerationNotifierProvider);
-        if (generationState.displayImages.isNotEmpty) {
-          // 触发保存逻辑 - 使用第一个显示的图像
-          _showSaveDialog(context, ref, generationState.displayImages.first);
-        }
-      },
-      // 放大图像
-      ShortcutIds.upscaleImage: () {
-        final generationState = ref.read(imageGenerationNotifierProvider);
-        if (generationState.displayImages.isNotEmpty) {
-          UpscaleDialog.show(
-            context,
-            image: generationState.displayImages.first.bytes,
-          );
-        }
-      },
-      // 复制图像（复制到剪贴板）
-      ShortcutIds.copyImage: () {
-        final generationState = ref.read(imageGenerationNotifierProvider);
-        if (generationState.displayImages.isNotEmpty) {
-          _copyImageToClipboard(
-            context,
-            ref,
-            generationState.displayImages.first.bytes,
-          );
-        }
-      },
-      // 全屏预览
-      ShortcutIds.fullscreenPreview: () {
-        final generationState = ref.read(imageGenerationNotifierProvider);
-        if (generationState.displayImages.isNotEmpty) {
-          _DesktopGenerationLayoutState._showFullscreenPreview(
-            context,
-            ref,
-            generationState.displayImages,
-          );
-        }
-      },
-      // 打开参数面板
-      ShortcutIds.openParamsPanel: () {
-        ref.read(layoutStateNotifierProvider.notifier).toggleLeftPanel();
-      },
-      // 打开历史面板
-      ShortcutIds.openHistoryPanel: () {
-        ref.read(layoutStateNotifierProvider.notifier).toggleRightPanel();
-      },
-      // 复用参数（从历史记录中复用最后一次生成的参数）
-      ShortcutIds.reuseParams: () {
-        final generationState = ref.read(imageGenerationNotifierProvider);
-        if (generationState.history.isNotEmpty) {
-          _reuseParamsFromImage(context, ref, generationState.history.first);
-        }
-      },
-    };
-
-    return ShortcutAwareWidget(
-      contextType: ShortcutContext.generation,
-      shortcuts: shortcuts,
-      autofocus: true,
-      child: LayoutBuilder(
+    // 快捷键已由父级 DesktopGenerationLayout 统一处理
+    // 这里只负责布局
+    return LayoutBuilder(
         builder: (context, constraints) {
           final isNarrow = constraints.maxWidth < 500;
 
@@ -821,8 +793,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
             ],
           );
         },
-      ),
-    );
+      );
   }
 
   /// 构建带有hover显示"加入队列"功能的生成按钮
@@ -896,7 +867,6 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     // 创建任务并添加到队列
     final task = ReplicationTask.create(
       prompt: params.prompt,
-      // 不需要 negativePrompt，执行时会使用主界面设置
     );
 
     ref.read(replicationQueueNotifierProvider.notifier).add(task);

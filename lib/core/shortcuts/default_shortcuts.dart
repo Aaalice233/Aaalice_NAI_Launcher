@@ -181,13 +181,8 @@ class DefaultShortcuts {
         ShortcutIds.clearPrompt: 'ctrl+l',
         ShortcutIds.togglePromptMode: 'ctrl+m',
         ShortcutIds.openTagLibrary: 'ctrl+t',
-        ShortcutIds.saveImage: 'ctrl+s',
         ShortcutIds.upscaleImage: 'ctrl+u',
-        ShortcutIds.copyImage: 'ctrl+shift+c',
         ShortcutIds.fullscreenPreview: 'space',
-        ShortcutIds.openParamsPanel: 'ctrl+p',
-        ShortcutIds.openHistoryPanel: 'ctrl+h',
-        ShortcutIds.reuseParams: 'ctrl+e',
 
         // 画廊查看器
         ShortcutIds.previousImage: 'arrowleft',
@@ -284,13 +279,8 @@ class DefaultShortcuts {
       case ShortcutIds.clearPrompt:
       case ShortcutIds.togglePromptMode:
       case ShortcutIds.openTagLibrary:
-      case ShortcutIds.saveImage:
       case ShortcutIds.upscaleImage:
-      case ShortcutIds.copyImage:
       case ShortcutIds.fullscreenPreview:
-      case ShortcutIds.openParamsPanel:
-      case ShortcutIds.openHistoryPanel:
-      case ShortcutIds.reuseParams:
         return ShortcutContext.generation;
 
       // 画廊查看器
