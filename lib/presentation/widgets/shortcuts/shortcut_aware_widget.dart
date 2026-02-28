@@ -142,9 +142,26 @@ class _ShortcutAwareWidgetState extends ConsumerState<ShortcutAwareWidget> {
 
     // 使用 Shortcuts + Actions + Focus 确保快捷键在整个子树中都能工作
     // 即使子组件（如 TextField）获得焦点，快捷键也能正常触发
+    // 使用 ValueKey 基于实际快捷键内容，确保配置变化时 Shortcuts widget 会重建
+    // 收集所有生效的快捷键字符串作为 key 的一部分
+    final activeShortcuts = <String>[];
+    for (final entry in widget.shortcuts.entries) {
+      final binding = config.bindings[entry.key];
+      if (binding != null && binding.enabled) {
+        final shortcut = binding.effectiveShortcut;
+        if (shortcut != null && shortcut.isNotEmpty) {
+          activeShortcuts.add('${entry.key}:$shortcut');
+        }
+      }
+    }
+    activeShortcuts.sort(); // 确保顺序一致
+    final configKey = activeShortcuts.join('|');
+
     return Shortcuts(
+      key: ValueKey('shortcuts_${config.enableShortcuts}_$configKey'),
       shortcuts: shortcutsMap,
       child: Actions(
+        key: ValueKey('actions_${config.enableShortcuts}_$configKey'),
         actions: actionsMap,
         child: Focus(
           autofocus: widget.autofocus,
@@ -219,9 +236,16 @@ class _ShortcutAwareWidgetState extends ConsumerState<ShortcutAwareWidget> {
     };
 
     // 使用 Shortcuts + Actions + Focus 确保快捷键在整个子树中都能工作
+    // 使用 ValueKey 基于默认快捷键哈希值
+    final defaultHash = Object.hash(
+      'default',
+      shortcutsMap.hashCode,
+    );
     return Shortcuts(
+      key: ValueKey('shortcuts_default_$defaultHash'),
       shortcuts: shortcutsMap,
       child: Actions(
+        key: ValueKey('actions_default_$defaultHash'),
         actions: actionsMap,
         child: Focus(
           autofocus: widget.autofocus,
