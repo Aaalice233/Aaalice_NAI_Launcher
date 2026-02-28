@@ -456,11 +456,12 @@ class _EntryCardState extends State<EntryCard>
             fit: StackFit.expand,
             children: [
               // 背景图
-              if (entry.hasThumbnail)
-                Image.file(
-                  File(entry.thumbnail!),
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _buildPlaceholder(),
+              if (entry.hasThumbnail && entry.thumbnail != null)
+                ThumbnailDisplay(
+                  imagePath: entry.thumbnail!,
+                  offsetX: entry.thumbnailOffsetX,
+                  offsetY: entry.thumbnailOffsetY,
+                  scale: entry.thumbnailScale,
                 )
               else
                 _buildPlaceholder(),
