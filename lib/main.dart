@@ -188,7 +188,9 @@ class AppWindowListener extends WindowListener {
       );
     } catch (e) {
       AppLogger.w(
-          'Failed to save window state on resize: $e', 'WindowListener',);
+        'Failed to save window state on resize: $e',
+        'WindowListener',
+      );
     }
   }
 
@@ -218,7 +220,9 @@ class AppWindowListener extends WindowListener {
       );
     } catch (e) {
       AppLogger.w(
-          'Failed to save window position on move: $e', 'WindowListener',);
+        'Failed to save window position on move: $e',
+        'WindowListener',
+      );
     }
   }
 }
@@ -465,7 +469,7 @@ void main() async {
       size: Size(savedWidth, savedHeight),
       minimumSize: const Size(800, 600),
       center: savedX == null || savedY == null, // 首次启动居中，之后恢复位置',
-      backgroundColor: Colors.transparent,
+      backgroundColor: const Color(0xFF121212), // 深色背景，避免窗口透明
       skipTaskbar: false,
       titleBarStyle: TitleBarStyle.normal,
       title: 'NAI Launcher',
