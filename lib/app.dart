@@ -7,6 +7,7 @@ import 'core/shortcuts/default_shortcuts.dart';
 import 'presentation/router/app_router.dart';
 import 'presentation/providers/theme_provider.dart';
 import 'presentation/providers/font_provider.dart';
+import 'presentation/providers/font_scale_provider.dart';
 import 'presentation/providers/locale_provider.dart';
 import 'presentation/providers/background_refresh_provider.dart';
 import 'presentation/providers/queue_execution_provider.dart';
@@ -24,6 +25,7 @@ class NAILauncherApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeType = ref.watch(themeNotifierProvider);
     final fontType = ref.watch(fontNotifierProvider);
+    final fontScale = ref.watch(fontScaleNotifierProvider);
     final locale = ref.watch(localeNotifierProvider);
     final router = ref.watch(appRouterProvider);
 
@@ -114,6 +116,16 @@ class NAILauncherApp extends ConsumerWidget {
 
         // 路由
         routerConfig: router,
+
+        // 字体缩放全局应用
+        builder: (context, child) {
+          return MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: TextScaler.linear(fontScale),
+            ),
+            child: child!,
+          );
+        },
       ),
     );
   }
