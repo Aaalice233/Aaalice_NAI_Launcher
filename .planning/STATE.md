@@ -15,9 +15,9 @@ progress:
 
 ## Current
 - Phase: 5 — 设置字体大小控制
-- Active Work: PLAN-03 已完成
-- Last Action: 在 App 层级集成字体缩放
-- Status: Wave 2 完成，准备进入 Wave 3
+- Active Work: PLAN-04 已完成
+- Last Action: 添加外观设置 UI - 滑块和预览
+- Status: Wave 3 完成，准备进入 Wave 4
 
 ## Phase Status
 | Phase | Status | Verifier |
@@ -34,7 +34,7 @@ progress:
 | PLAN-01 | 1 | 创建 FontScaleNotifier Provider - 状态管理 | ✅ 完成 |
 | PLAN-02 | 1 | 扩展 LocalStorageService 和 StorageKeys - 存储支持 | ✅ 完成 |
 | PLAN-03 | 2 | 修改 app.dart 集成字体缩放 - 全局应用 | ✅ 完成 |
-| PLAN-04 | 3 | 添加外观设置 UI - 滑块和预览 | Ready |
+| PLAN-04 | 3 | 添加外观设置 UI - 滑块和预览 | ✅ 完成 |
 | PLAN-05 | 4 | 添加本地化字符串 - 中英文支持 | Ready |
 | PLAN-06 | 5 | 验证和测试 - 功能验证和代码分析 | Ready |
 
@@ -46,4 +46,4 @@ progress:
 - 预览文本: "落霞与孤鹜齐飞，秋水共长天一色"（展示中文显示效果）
 
 ## Next
-**下一步**: 执行 PLAN-04 - 添加外观设置 UI
+**下一步**: 执行 PLAN-05 - 添加本地化字符串
