@@ -32,6 +32,7 @@ class StorageKeys {
   // Settings Keys
   static const String themeType = 'theme_type';
   static const String fontFamily = 'font_family';
+  static const String fontScale = 'font_scale';
   static const String locale = 'locale';
 
   // Window State Keys (窗口状态)
