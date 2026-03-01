@@ -65,6 +65,7 @@ progress:
 | 2 | ✅ Completed | - |
 | 3 | ✅ Completed | - |
 | 4 | ✅ Completed | - |
+| 5 | 📝 Planned | - |
 
 ## Phase 3 Plans
 | Plan | Wave | Description | Status |
@@ -111,6 +112,7 @@ progress:
 - Phase 2 added: desktop_layout.dart 拆分评估
 - Phase 3 added: 清理待办功能实现（6个TODO：TagLibrary接入、Vibe保存、Prompt预设、Vibe PNG嵌入）
 - Phase 4 added: 词库条目编辑界面添加预览图显示范围调整功能
+- Phase 5 added: 给设置-外观里添加字体大小控制功能
 
 ## Phase 4 Plans
 | Plan | Wave | Description | Status |
@@ -121,31 +123,34 @@ progress:
 | PLAN-04 | 4 | EntryCard 和悬浮预览集成 - 应用显示范围设置 | ✅ 完成 |
 | PLAN-05 | 5 | 本地化与测试验证 - 添加本地化字符串，运行分析验证 | ✅ 完成 |
 
+## Phase 5 Plans
+| Plan | Wave | Description | Status |
+|------|------|-------------|--------|
+| PLAN-01 | 1 | 创建 FontScaleNotifier Provider - 状态管理 | Ready |
+| PLAN-02 | 1 | 扩展 LocalStorageService 和 StorageKeys - 存储支持 | Ready |
+| PLAN-03 | 2 | 修改 app.dart 集成字体缩放 - 全局应用 | Ready |
+| PLAN-04 | 3 | 添加外观设置 UI - 滑块和预览 | Ready |
+| PLAN-05 | 4 | 添加本地化字符串 - 中英文支持 | Ready |
+| PLAN-06 | 5 | 验证和测试 - 功能验证和代码分析 | Ready |
+
+## Phase 5 实现决策
+- 控件类型: Slider 滑块（与队列优先级等数字选择保持一致）
+- 范围与粒度: 80%-150%，步长 10%，默认值 100%
+- 应用方式: MediaQuery.textScaler 全局应用
+- 实时预览: 滑块拖动时字体大小实时变化
+- 预览文本: "落霞与孤鹜齐飞，秋水共长天一色"（展示中文显示效果）
+
 ## Next
-**Phase 4 已完成**
+**Phase 5 已规划完成**
 
-所有 5 个计划已完成：
-- ✅ PLAN-01: 数据模型扩展
-- ✅ PLAN-02: 调整对话框实现
-- ✅ PLAN-03: 编辑对话框集成
-- ✅ PLAN-04: EntryCard 和悬浮预览集成
-- ✅ PLAN-05: 本地化与测试验证
+共 6 个计划，按 Wave 分层执行：
+- Wave 1 (并行): PLAN-01 + PLAN-02 - 状态管理和存储层
+- Wave 2: PLAN-03 - App 层级集成
+- Wave 3: PLAN-04 - UI 实现
+- Wave 4: PLAN-05 - 本地化
+- Wave 5: PLAN-06 - 验证测试
 
-**核心决策**：
-- 调整方式：拖拽平移 + 缩放（使用 Flutter 原生 InteractiveViewer）
-- 数据存储：扩展 TagLibraryEntry 模型（thumbnailOffsetX/Y, thumbnailScale）
-- 交互方式：点击预览图显示选项菜单，选择"调整显示范围"
-- 应用范围：EntryCard 背景图、悬浮预览、编辑对话框预览区域
-- 默认值：offset(0,0) 居中，scale 1.0（向后兼容）
-
-**待人工验证**：
-- 新建条目测试
-- 编辑条目测试
-- 重置/取消功能测试
-- 边界测试
-- 旧数据兼容性测试
-
-**下一步**: 运行应用进行功能验证，或开始 Phase 5（如有）
+**下一步**: 执行 `/gsd:execute-phase 5` 开始实现
 
 ### Quick Tasks Completed
 

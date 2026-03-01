@@ -100,4 +100,35 @@
 - 应用范围: EntryCard 背景图、悬浮预览、编辑对话框预览区域
 - 默认值: offset(0,0) 居中，scale 1.0（向后兼容）
 
+### Phase 5: 给设置-外观里添加字体大小控制功能
+
+**Goal:** 在设置-外观区域添加字体大小调整功能，允许用户通过滑块控制应用全局字体缩放比例
+
+**Requirements**:
+- 使用 Slider 滑块控件，范围 80%-150%，步长 10%
+- 实时预览三种字号文本效果
+- 设置即时生效并持久化存储
+- 提供重置按钮恢复默认值
+- flutter analyze 无错误
+
+**Depends on:** Phase 4
+
+**Status:** 0/6 plans completed
+
+| Plan | Wave | Description | Status |
+|------|------|-------------|--------|
+| PLAN-01 | 1 | 创建 FontScaleNotifier Provider - 状态管理 | Ready |
+| PLAN-02 | 1 | 扩展 LocalStorageService 和 StorageKeys - 存储支持 | Ready |
+| PLAN-03 | 2 | 修改 app.dart 集成字体缩放 - 全局应用 | Ready |
+| PLAN-04 | 3 | 添加外观设置 UI - 滑块和预览 | Ready |
+| PLAN-05 | 4 | 添加本地化字符串 - 中英文支持 | Ready |
+| PLAN-06 | 5 | 验证和测试 - 功能验证和代码分析 | Ready |
+
+**实现决策**:
+- 控件类型: Slider 滑块（与队列优先级等数字选择保持一致）
+- 范围与粒度: 80%-150%，步长 10%，默认值 100%
+- 应用方式: MediaQuery.textScaler 全局应用
+- 实时预览: 滑块拖动时字体大小实时变化
+- 预览文本: "落霞与孤鹜齐飞，秋水共长天一色"（展示中文显示效果）
+
 ---
