@@ -113,7 +113,7 @@
 
 **Depends on:** Phase 4
 
-**Status:** 4/6 plans completed
+**Status:** 5/6 plans completed
 
 | Plan | Wave | Description | Status |
 |------|------|-------------|--------|
@@ -121,8 +121,8 @@
 | PLAN-02 | 1 | 扩展 LocalStorageService 和 StorageKeys - 存储支持 | ✅ 完成 |
 | PLAN-03 | 2 | 修改 app.dart 集成字体缩放 - 全局应用 | ✅ 完成 |
 | PLAN-04 | 3 | 添加外观设置 UI - 滑块和预览 | ✅ 完成 |
-| PLAN-05 | 4 | 添加本地化字符串 - 中英文支持 | Ready |
-| PLAN-06 | 5 | 验证和测试 - 功能验证和代码分析 | Ready |
+| PLAN-05 | 4 | 添加本地化字符串 - 中英文支持 | ✅ 完成 |
+| PLAN-06 | 5 | 验证和测试 - 功能验证和代码分析 | 🔄 验证中 |
 
 **实现决策**:
 - 控件类型: Slider 滑块（与队列优先级等数字选择保持一致）
