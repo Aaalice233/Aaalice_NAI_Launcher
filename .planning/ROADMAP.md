@@ -113,12 +113,12 @@
 
 **Depends on:** Phase 4
 
-**Status:** 0/6 plans completed
+**Status:** 1/6 plans completed
 
 | Plan | Wave | Description | Status |
 |------|------|-------------|--------|
 | PLAN-01 | 1 | 创建 FontScaleNotifier Provider - 状态管理 | Ready |
-| PLAN-02 | 1 | 扩展 LocalStorageService 和 StorageKeys - 存储支持 | Ready |
+| PLAN-02 | 1 | 扩展 LocalStorageService 和 StorageKeys - 存储支持 | ✅ 完成 |
 | PLAN-03 | 2 | 修改 app.dart 集成字体缩放 - 全局应用 | Ready |
 | PLAN-04 | 3 | 添加外观设置 UI - 滑块和预览 | Ready |
 | PLAN-05 | 4 | 添加本地化字符串 - 中英文支持 | Ready |

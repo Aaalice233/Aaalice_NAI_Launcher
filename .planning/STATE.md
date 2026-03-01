@@ -53,10 +53,10 @@ progress:
 # Project State
 
 ## Current
-- Phase: 4 — 词库条目编辑界面添加预览图显示范围调整功能
-- Active Work: PLAN-05 已完成
-- Last Action: 添加本地化字符串，运行代码分析验证
-- Status: Phase 4 全部完成
+- Phase: 5 — 设置字体大小控制
+- Active Work: PLAN-02 已完成
+- Last Action: 扩展存储层支持字体缩放
+- Status: Wave 1 进行中 (PLAN-01 + PLAN-02)
 
 ## Phase Status
 | Phase | Status | Verifier |
@@ -65,7 +65,7 @@ progress:
 | 2 | ✅ Completed | - |
 | 3 | ✅ Completed | - |
 | 4 | ✅ Completed | - |
-| 5 | 📝 Planned | - |
+| 5 | 🔄 In Progress | - |
 
 ## Phase 3 Plans
 | Plan | Wave | Description | Status |
@@ -127,7 +127,7 @@ progress:
 | Plan | Wave | Description | Status |
 |------|------|-------------|--------|
 | PLAN-01 | 1 | 创建 FontScaleNotifier Provider - 状态管理 | Ready |
-| PLAN-02 | 1 | 扩展 LocalStorageService 和 StorageKeys - 存储支持 | Ready |
+| PLAN-02 | 1 | 扩展 LocalStorageService 和 StorageKeys - 存储支持 | ✅ 完成 |
 | PLAN-03 | 2 | 修改 app.dart 集成字体缩放 - 全局应用 | Ready |
 | PLAN-04 | 3 | 添加外观设置 UI - 滑块和预览 | Ready |
 | PLAN-05 | 4 | 添加本地化字符串 - 中英文支持 | Ready |
