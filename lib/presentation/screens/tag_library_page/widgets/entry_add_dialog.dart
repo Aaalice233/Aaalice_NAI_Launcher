@@ -16,6 +16,7 @@ import '../../../providers/tag_library_page_provider.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/safe_dropdown.dart';
+import '../../../widgets/common/thumbnail_display.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/prompt/nai_syntax_controller.dart';
 import '../../../widgets/prompt/prompt_formatter_wrapper.dart';
@@ -303,8 +304,8 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
         GestureDetector(
           onTap: _thumbnailPath != null ? _showThumbnailOptions : _selectThumbnail,
           child: Container(
-            width: 160,
-            height: 160,
+            width: 200,
+            height: 80,
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
@@ -469,6 +470,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
   }
 
   /// 构建带变换效果的预览图
+  /// 使用 ThumbnailDisplay 组件确保与 EntryCard 显示一致
   Widget _buildThumbnailImage() {
     if (_thumbnailPath == null) {
       return Container(
@@ -479,21 +481,17 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
       );
     }
 
-    // 应用 offset 和 scale 变换
-    return Transform(
-      alignment: Alignment.center,
-      transform: Matrix4.identity()
-        ..translate(
-          _thumbnailOffsetX * 80 * (_thumbnailScale - 1.0),
-          _thumbnailOffsetY * 80 * (_thumbnailScale - 1.0),
-        )
-        ..scale(_thumbnailScale),
-      child: Image.file(
-        File(_thumbnailPath!),
-        fit: BoxFit.cover,
-        width: 160,
-        height: 160,
-      ),
+    // 调试用
+    debugPrint('EntryAddDialog: offset=($_thumbnailOffsetX, $_thumbnailOffsetY), scale=$_thumbnailScale');
+    
+    // 使用 ThumbnailDisplay 组件确保与 EntryCard 显示一致
+    return ThumbnailDisplay(
+      imagePath: _thumbnailPath!,
+      offsetX: _thumbnailOffsetX,
+      offsetY: _thumbnailOffsetY,
+      scale: _thumbnailScale,
+      width: 200,
+      height: 80,
     );
   }
 

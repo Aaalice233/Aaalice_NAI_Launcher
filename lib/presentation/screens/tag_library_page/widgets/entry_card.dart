@@ -320,6 +320,7 @@ class _EntryCardState extends State<EntryCard>
   }
 
   /// 构建背景图片
+  /// 使用固定尺寸 200x80，与裁剪对话框的比例一致
   Widget _buildBackgroundImage(TagLibraryEntry entry) {
     if (entry.hasThumbnail && entry.thumbnail != null) {
       return ThumbnailDisplay(
@@ -327,8 +328,8 @@ class _EntryCardState extends State<EntryCard>
         offsetX: entry.thumbnailOffsetX,
         offsetY: entry.thumbnailOffsetY,
         scale: entry.thumbnailScale,
-        width: double.infinity,
-        height: double.infinity,
+        width: 200,
+        height: 80,
         borderRadius: BorderRadius.circular(12),
       );
     }
@@ -409,7 +410,9 @@ class _EntryCardState extends State<EntryCard>
           if (widget.onEdit != null) const SizedBox(width: 8),
           _ActionIcon(
             icon: entry.isFavorite ? Icons.favorite : Icons.favorite_border,
-            tooltip: entry.isFavorite ? l10n.common_unfavorite : l10n.common_favorite,
+            tooltip: entry.isFavorite
+                ? l10n.common_unfavorite
+                : l10n.common_favorite,
             onTap: widget.onToggleFavorite,
             color: entry.isFavorite ? Colors.redAccent : null,
           ),
@@ -460,6 +463,8 @@ class _EntryCardState extends State<EntryCard>
                   offsetX: entry.thumbnailOffsetX,
                   offsetY: entry.thumbnailOffsetY,
                   scale: entry.thumbnailScale,
+                  width: 200,
+                  height: 80,
                 )
               else
                 _buildPlaceholder(),

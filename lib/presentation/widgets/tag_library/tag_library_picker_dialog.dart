@@ -307,12 +307,21 @@ class _EntrySelectCardState extends State<_EntrySelectCard> {
       fit: StackFit.expand,
       children: [
         if (entry.hasThumbnail && entry.thumbnail != null)
-          ThumbnailDisplay(
-            imagePath: entry.thumbnail!,
-            offsetX: entry.thumbnailOffsetX,
-            offsetY: entry.thumbnailOffsetY,
-            scale: entry.thumbnailScale,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // 使用 LayoutBuilder 获取实际尺寸
+              // 参考尺寸保持 200x80 以确保与裁剪对话框一致
+              return ThumbnailDisplay(
+                imagePath: entry.thumbnail!,
+                offsetX: entry.thumbnailOffsetX,
+                offsetY: entry.thumbnailOffsetY,
+                scale: entry.thumbnailScale,
+                width: constraints.maxWidth,
+                height: constraints.maxHeight,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(11)),
+              );
+            },
           )
         else
           _buildPlaceholder(theme),
