@@ -123,7 +123,7 @@ class ThemeComposer {
       ),
 
       // 深度层叠风格：卡片使用纯色背景 + 无边框 + 边缘阴影
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(shape.largeRadius),
           side: BorderSide.none,
@@ -269,7 +269,7 @@ class ThemeComposer {
       ),
 
       // 深度层叠风格：对话框配置
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(shape.mediumRadius),
         ),
