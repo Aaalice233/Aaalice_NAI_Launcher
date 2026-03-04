@@ -1,0 +1,63 @@
+name: Flutter CI/CD
+
+# 触发条件：当推送到 main 分支时触发 (如果你用的是 master 分支，请改成 master)
+on:
+  push:
+    branches:
+      - main
+
+# 赋予 GITHUB_TOKEN 写入权限，以便能够推送到 gh-pages 分支
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 检出代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. 设置 Java 环境 (打包 Android APK 必需)
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17' # 较新的 Flutter (AGP 8.0+) 推荐使用 Java 17
+
+      # 3. 设置 Flutter 环境
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable' # 使用稳定版 Flutter
+          # flutter-version: '3.27.0' # 你也可以在这里指定具体的 Flutter 版本
+
+      # 4. 下载依赖
+      - name: Install dependencies
+        run: flutter pub get
+
+      # 5. 打包 Android APK
+      - name: Build APK
+        run: flutter build apk --release
+
+      # 6. 上传 APK 以供下载
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      # 7. 编译 Web 版本
+      # 【重要】：必须将 /YOUR_REPO_NAME/ 替换成你的 GitHub 仓库名称！
+      # 例如：如果你的仓库地址是 https://github.com/John/my_app，这里就写 --base-href /my_app/
+      - name: Build Web
+        run: flutter build web --release --base-href /Aaalice_NAI_Launcher/
+
+      # 8. 部署到 GitHub Pages
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build/web
+          # keep_files: false # 默认 false，每次部署会清空旧文件并上传新文件
