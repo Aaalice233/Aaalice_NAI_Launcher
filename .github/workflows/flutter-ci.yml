@@ -36,7 +36,10 @@ jobs:
       # 4. 下载依赖
       - name: Install dependencies
         run: flutter pub get
-
+        
+      - name: Run build_runner
+        run: dart run build_runner build --delete-conflicting-outputs
+        
       # 5. 打包 Android APK
       - name: Build APK
         run: flutter build apk --release
