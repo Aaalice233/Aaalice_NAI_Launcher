@@ -70,13 +70,13 @@ class ImageDragData {
 ///
 /// [theme] - 当前主题
 /// [dragData] - 拖拽数据
-/// [width] - 预览宽度，默认 240
+/// [width] - 预览宽度，默认 100
 /// [hintText] - 操作提示文字，如 "拖拽到分类" 或 "拖拽以分享"
 /// [showHint] - 是否显示操作提示，默认 true
 Widget buildImageDragFeedback(
   ThemeData theme,
   ImageDragData dragData, {
-  double width = 240,
+  double width = 100,
   String? hintText,
   bool showHint = true,
 }) {
@@ -95,89 +95,88 @@ Widget buildImageDragFeedback(
           width: 2,
         ),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // 缩略图
-          _buildThumbnail(theme, dragData),
-          const SizedBox(width: 8),
-          // 信息
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+          // 缩略图（上方大图）
+          _buildThumbnailLarge(theme, dragData),
+          const SizedBox(height: 8),
+          // 信息（下方）
+          Text(
+            dragData.fileName,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              fontSize: 11,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.image_outlined,
+                size: 10,
+                color: theme.colorScheme.outline,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                _formatFileSize(dragData.record.size),
+                style: TextStyle(
+                  fontSize: 9,
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ],
+          ),
+          // 操作提示
+          if (showHint) ...[
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                Icon(
+                  Icons.drive_file_move_outline,
+                  size: 10,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 4),
                 Text(
-                  dragData.fileName,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+                  hintText ?? '拖拽以分享',
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w500,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.image_outlined,
-                      size: 12,
-                      color: theme.colorScheme.outline,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _formatFileSize(dragData.record.size),
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                  ],
-                ),
-                // 操作提示
-                if (showHint) ...[
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.drive_file_move_outline,
-                        size: 12,
-                        color: theme.colorScheme.primary,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        hintText ?? '拖拽以分享',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
               ],
             ),
-          ),
+          ],
         ],
       ),
     ),
   );
 }
 
-/// 构建缩略图
+/// 构建大尺寸缩略图（用于拖拽预览）
 ///
 /// 优先使用预览字节数据，其次尝试从文件路径加载缩略图
-Widget _buildThumbnail(ThemeData theme, ImageDragData dragData) {
+Widget _buildThumbnailLarge(ThemeData theme, ImageDragData dragData) {
+  const double imageSize = 80;
+
   // 如果有预览字节数据，使用内存图像
   if (dragData.previewBytes != null) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(8),
       child: Image.memory(
         dragData.previewBytes!,
-        width: 40,
-        height: 40,
+        width: imageSize,
+        height: imageSize,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
-          return _buildPlaceholder(theme);
+          return _buildPlaceholderLarge(theme);
         },
       ),
     );
@@ -188,14 +187,14 @@ Widget _buildThumbnail(ThemeData theme, ImageDragData dragData) {
     final file = File(dragData.path);
     if (file.existsSync()) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(8),
         child: Image.file(
           file,
-          width: 40,
-          height: 40,
+          width: imageSize,
+          height: imageSize,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
-            return _buildFileTypeIcon(theme, dragData);
+            return _buildFileTypeIconLarge(theme, dragData);
           },
         ),
       );
@@ -203,39 +202,39 @@ Widget _buildThumbnail(ThemeData theme, ImageDragData dragData) {
   }
 
   // 使用文件类型图标作为占位符
-  return _buildFileTypeIcon(theme, dragData);
+  return _buildFileTypeIconLarge(theme, dragData);
 }
 
-/// 构建文件类型图标占位符
-Widget _buildFileTypeIcon(ThemeData theme, ImageDragData dragData) {
+/// 构建大尺寸占位符
+Widget _buildPlaceholderLarge(ThemeData theme) {
   return Container(
-    width: 40,
-    height: 40,
+    width: 80,
+    height: 80,
     decoration: BoxDecoration(
       color: theme.colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(8),
     ),
     child: Icon(
-      dragData.isPng ? Icons.image : Icons.insert_drive_file,
-      size: 20,
-      color: theme.colorScheme.primary,
+      Icons.broken_image,
+      size: 32,
+      color: theme.colorScheme.outline,
     ),
   );
 }
 
-/// 构建占位符
-Widget _buildPlaceholder(ThemeData theme) {
+/// 构建大尺寸文件类型图标
+Widget _buildFileTypeIconLarge(ThemeData theme, ImageDragData dragData) {
   return Container(
-    width: 40,
-    height: 40,
+    width: 80,
+    height: 80,
     decoration: BoxDecoration(
       color: theme.colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(8),
     ),
     child: Icon(
-      Icons.broken_image,
-      size: 20,
-      color: theme.colorScheme.outline,
+      dragData.isPng ? Icons.image : Icons.insert_drive_file,
+      size: 32,
+      color: theme.colorScheme.primary,
     ),
   );
 }
