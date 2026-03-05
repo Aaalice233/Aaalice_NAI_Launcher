@@ -163,8 +163,11 @@ class _DraggableImageCardState extends State<DraggableImageCard> {
     final fileName = dragData.fileName;
     final filePath = dragData.path;
 
-    // 创建拖拽项，建议文件名
-    final item = DragItem(suggestedName: fileName);
+    // 创建拖拽项，建议文件名，并添加 localData 标识为内部拖拽
+    final item = DragItem(
+      suggestedName: fileName,
+      localData: {'source': 'gallery_internal', 'path': filePath},
+    );
 
     // 添加 PNG 格式数据（如果文件是 PNG）
     if (dragData.isPng) {
@@ -221,8 +224,11 @@ class _DragWrapperState extends State<_DragWrapper> {
     final fileName = widget.dragData.fileName;
     final filePath = widget.dragData.path;
 
-    // 创建拖拽项，建议文件名
-    final item = DragItem(suggestedName: fileName);
+    // 创建拖拽项，建议文件名，并添加 localData 标识为内部拖拽
+    final item = DragItem(
+      suggestedName: fileName,
+      localData: {'source': 'gallery_internal', 'path': filePath},
+    );
 
     // 添加 PNG 格式数据（如果文件是 PNG）
     if (widget.dragData.isPng) {
