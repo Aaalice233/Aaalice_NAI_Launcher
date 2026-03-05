@@ -70,13 +70,13 @@ class ImageDragData {
 ///
 /// [theme] - 当前主题
 /// [dragData] - 拖拽数据
-/// [width] - 预览宽度，默认 280
+/// [width] - 预览宽度，默认 240
 /// [hintText] - 操作提示文字，如 "拖拽到分类" 或 "拖拽以分享"
 /// [showHint] - 是否显示操作提示，默认 true
 Widget buildImageDragFeedback(
   ThemeData theme,
   ImageDragData dragData, {
-  double width = 280,
+  double width = 240,
   String? hintText,
   bool showHint = true,
 }) {
@@ -87,7 +87,7 @@ Widget buildImageDragFeedback(
     shadowColor: Colors.black54,
     child: Container(
       width: width,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
@@ -99,7 +99,7 @@ Widget buildImageDragFeedback(
         children: [
           // 缩略图
           _buildThumbnail(theme, dragData),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           // 信息
           Expanded(
             child: Column(
@@ -173,8 +173,8 @@ Widget _buildThumbnail(ThemeData theme, ImageDragData dragData) {
       borderRadius: BorderRadius.circular(6),
       child: Image.memory(
         dragData.previewBytes!,
-        width: 48,
-        height: 48,
+        width: 40,
+        height: 40,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return _buildPlaceholder(theme);
@@ -191,8 +191,8 @@ Widget _buildThumbnail(ThemeData theme, ImageDragData dragData) {
         borderRadius: BorderRadius.circular(6),
         child: Image.file(
           file,
-          width: 48,
-          height: 48,
+          width: 40,
+          height: 40,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
             return _buildFileTypeIcon(theme, dragData);
@@ -209,15 +209,15 @@ Widget _buildThumbnail(ThemeData theme, ImageDragData dragData) {
 /// 构建文件类型图标占位符
 Widget _buildFileTypeIcon(ThemeData theme, ImageDragData dragData) {
   return Container(
-    width: 48,
-    height: 48,
+    width: 40,
+    height: 40,
     decoration: BoxDecoration(
       color: theme.colorScheme.surfaceContainerHighest,
       borderRadius: BorderRadius.circular(6),
     ),
     child: Icon(
       dragData.isPng ? Icons.image : Icons.insert_drive_file,
-      size: 24,
+      size: 20,
       color: theme.colorScheme.primary,
     ),
   );
@@ -226,15 +226,15 @@ Widget _buildFileTypeIcon(ThemeData theme, ImageDragData dragData) {
 /// 构建占位符
 Widget _buildPlaceholder(ThemeData theme) {
   return Container(
-    width: 48,
-    height: 48,
+    width: 40,
+    height: 40,
     decoration: BoxDecoration(
       color: theme.colorScheme.surfaceContainerHighest,
       borderRadius: BorderRadius.circular(6),
     ),
     child: Icon(
       Icons.broken_image,
-      size: 24,
+      size: 20,
       color: theme.colorScheme.outline,
     ),
   );
