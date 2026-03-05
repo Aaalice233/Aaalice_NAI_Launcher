@@ -67,6 +67,17 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       formats: Formats.standardFormats,
       hitTestBehavior: HitTestBehavior.opaque,
       onDropOver: (event) {
+        // 检查是否是应用内部拖拽（本地画廊拖拽图片）
+        // 内部拖拽包含 localData，外部拖拽没有
+        final isInternalDrag = event.session.items.any((item) =>
+          item.localData != null,
+        );
+
+        // 如果是内部拖拽，不显示全局覆盖层
+        if (isInternalDrag) {
+          return DropOperation.none;
+        }
+
         // 检查是否包含文件
         if (event.session.allowedOperations.contains(DropOperation.copy)) {
           if (!_isDragging) {
@@ -107,6 +118,45 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       child: IgnorePointer(
         child: Container(
           color: theme.colorScheme.primary.withOpacity(0.1),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 32,
+                vertical: 24,
+              ),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: theme.colorScheme.primary,
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 16,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.add_photo_alternate_outlined,
+                    size: 48,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    context.l10n.drop_hint,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
