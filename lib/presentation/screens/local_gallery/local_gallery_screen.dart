@@ -612,6 +612,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
   Future<void> _deleteSelectedImages() async {
     final selectionState = ref.read(localGallerySelectionNotifierProvider);
+    // 保存 context 相关数据（必须在任何 await 之前）
+    final l10n = context.l10n;
 
     // 从数据库获取所有选中项的完整记录（支持跨页）
     final service = await ref.read(localGalleryNotifierProvider.notifier).getService();
@@ -622,12 +624,12 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     if (selectedImages.isEmpty) return;
 
     final confirmed = await ThemedConfirmDialog.show(
+      // ignore: use_build_context_synchronously
       context: context,
-      title: context.l10n.localGallery_confirmBulkDelete,
-      content: context.l10n
-          .localGallery_confirmBulkDeleteContent(selectedImages.length),
-      confirmText: context.l10n.common_delete,
-      cancelText: context.l10n.common_cancel,
+      title: l10n.localGallery_confirmBulkDelete,
+      content: l10n.localGallery_confirmBulkDeleteContent(selectedImages.length),
+      confirmText: l10n.common_delete,
+      cancelText: l10n.common_cancel,
       type: ThemedConfirmDialogType.danger,
       icon: Icons.delete_forever_outlined,
     );
@@ -706,6 +708,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   Future<void> _moveSelectedToFolder() async {
     final selectionState = ref.read(localGallerySelectionNotifierProvider);
     final folderState = ref.read(galleryFolderNotifierProvider);
+    // 保存 context 相关数据（必须在任何 await 之前）
+    final l10n = context.l10n;
 
     // 从数据库获取所有选中项的完整记录（支持跨页）
     final service = await ref.read(localGalleryNotifierProvider.notifier).getService();
@@ -716,15 +720,18 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     if (selectedImages.isEmpty) return;
 
     final folders = folderState.folders;
+    
     if (folders.isEmpty) {
-      if (mounted) AppToast.info(context, context.l10n.localGallery_noFoldersAvailable);
+      // ignore: use_build_context_synchronously
+      if (mounted) AppToast.info(context, l10n.localGallery_noFoldersAvailable);
       return;
     }
 
     final selectedFolder = await showDialog<String>(
+      // ignore: use_build_context_synchronously
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(context.l10n.localGallery_moveToFolder),
+        title: Text(l10n.localGallery_moveToFolder),
         content: SizedBox(
           width: 300,
           child: ListView.builder(
@@ -736,7 +743,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
                 leading: const Icon(Icons.folder),
                 title: Text(folder.name),
                 subtitle: Text(
-                  context.l10n.localGallery_imageCount(folder.imageCount),
+                  l10n.localGallery_imageCount(folder.imageCount),
                 ),
                 onTap: () => Navigator.of(context).pop(folder.path),
               );

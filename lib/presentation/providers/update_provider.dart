@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/services/update_check_service.dart';
@@ -195,7 +196,7 @@ final updateStateProvider = updateStateNotifierProvider;
 ///
 /// 派生状态：根据当前状态判断是否有新版本
 @riverpod
-bool hasNewVersion(HasNewVersionRef ref) {
+bool hasNewVersion(Ref ref) {
   final state = ref.watch(updateStateNotifierProvider);
   return state.hasUpdate;
 }
@@ -204,7 +205,7 @@ bool hasNewVersion(HasNewVersionRef ref) {
 ///
 /// 派生状态：获取当前检测到的版本信息
 @riverpod
-VersionInfo? latestVersionInfo(LatestVersionInfoRef ref) {
+VersionInfo? latestVersionInfo(Ref ref) {
   final state = ref.watch(updateStateNotifierProvider);
   return state.versionInfo;
 }
@@ -213,7 +214,7 @@ VersionInfo? latestVersionInfo(LatestVersionInfoRef ref) {
 ///
 /// 异步 Provider：决定是否在应用启动时检查更新
 @riverpod
-Future<bool> checkUpdateOnStartup(CheckUpdateOnStartupRef ref) async {
+Future<bool> checkUpdateOnStartup(Ref ref) async {
   final service = ref.watch(updateCheckServiceProvider);
   return service.shouldCheckForUpdates();
 }
