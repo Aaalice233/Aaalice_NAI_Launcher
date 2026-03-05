@@ -11,7 +11,7 @@ import '../../../data/models/gallery/local_image_record.dart';
 ///
 /// 基于 super_drag_and_drop 实现，支持将本地图像拖拽到其他应用
 /// 支持 PNG 图像数据和文件 URI 格式
-class DraggableImageCard extends StatelessWidget {
+class DraggableImageCard extends StatefulWidget {
   /// 图像记录数据
   final LocalImageRecord record;
 
@@ -33,6 +33,12 @@ class DraggableImageCard extends StatelessWidget {
   /// 拖拽提示文字
   final String? feedbackHint;
 
+  /// 拖拽时原位置组件的透明度
+  /// 设置为 0.0 可完全隐藏原位置组件
+  /// 设置为 0.3-0.5 可显示半透明占位符
+  /// 设置为 1.0 则保持原样（默认行为）
+  final double dragOpacity;
+
   const DraggableImageCard({
     super.key,
     required this.record,
@@ -42,39 +48,11 @@ class DraggableImageCard extends StatelessWidget {
     this.enableFeedback = true,
     this.feedbackWidth = 280,
     this.feedbackHint,
+    this.dragOpacity = 0.3,
   });
 
   @override
-  Widget build(BuildContext context) {
-    // 如果禁用拖拽，直接返回子组件
-    if (!enabled) {
-      return child;
-    }
-
-    final theme = Theme.of(context);
-    final dragData = ImageDragData.fromRecord(
-      record,
-      previewBytes: previewBytes,
-    );
-
-    // 构建拖拽反馈 Widget
-    final feedbackWidget = buildImageDragFeedback(
-      theme,
-      dragData,
-      width: feedbackWidth,
-      hintText: feedbackHint ?? '拖拽以分享',
-    );
-
-    return DragItemWidget(
-      allowedOperations: () => [DropOperation.copy],
-      dragItemProvider: (request) => _createDragItem(dragData),
-      liftBuilder: enableFeedback ? (context, child) => feedbackWidget : null,
-      dragBuilder: enableFeedback ? (context, child) => feedbackWidget : null,
-      child: DraggableWidget(
-        child: child,
-      ),
-    );
-  }
+  State<DraggableImageCard> createState() => _DraggableImageCardState();
 
   /// 创建拖拽包装器函数
   ///
@@ -97,6 +75,7 @@ class DraggableImageCard extends StatelessWidget {
     bool enableFeedback = true,
     double feedbackWidth = 280,
     String? feedbackHint,
+    double dragOpacity = 0.3,
   }) {
     final theme = Theme.of(context);
     final dragData = ImageDragData.fromRecord(
@@ -113,45 +92,68 @@ class DraggableImageCard extends StatelessWidget {
     );
 
     return (Widget child) {
-      return DragItemWidget(
-        allowedOperations: () => [DropOperation.copy],
-        dragItemProvider: (request) async {
-          final fileName = dragData.fileName;
-          final filePath = dragData.path;
-
-          // 创建拖拽项，建议文件名
-          final item = DragItem(suggestedName: fileName);
-
-          // 添加 PNG 格式数据（如果文件是 PNG）
-          if (dragData.isPng) {
-            try {
-              final file = File(filePath);
-              if (await file.exists()) {
-                final bytes = await file.readAsBytes();
-                item.add(Formats.png(bytes));
-              }
-            } catch (e) {
-              debugPrint('Failed to read PNG file for drag: $e');
-            }
-          }
-
-          // 添加文件 URI 格式（所有文件类型都支持）
-          try {
-            final uri = Uri.file(filePath);
-            item.add(Formats.fileUri(uri));
-          } catch (e) {
-            debugPrint('Failed to create file URI for drag: $e');
-          }
-
-          return item;
-        },
-        liftBuilder: enableFeedback ? (context, child) => feedbackWidget : null,
-        dragBuilder: enableFeedback ? (context, child) => feedbackWidget : null,
-        child: DraggableWidget(
-          child: child,
-        ),
+      return _DragWrapper(
+        dragData: dragData,
+        feedbackWidget: feedbackWidget,
+        enableFeedback: enableFeedback,
+        dragOpacity: dragOpacity,
+        child: child,
       );
     };
+  }
+}
+
+class _DraggableImageCardState extends State<DraggableImageCard> {
+  bool _isDragging = false;
+
+  @override
+  Widget build(BuildContext context) {
+    // 如果禁用拖拽，直接返回子组件
+    if (!widget.enabled) {
+      return widget.child;
+    }
+
+    final theme = Theme.of(context);
+    final dragData = ImageDragData.fromRecord(
+      widget.record,
+      previewBytes: widget.previewBytes,
+    );
+
+    // 构建拖拽反馈 Widget
+    final feedbackWidget = buildImageDragFeedback(
+      theme,
+      dragData,
+      width: widget.feedbackWidth,
+      hintText: widget.feedbackHint ?? '拖拽以分享',
+    );
+
+    return Listener(
+      onPointerDown: (_) {
+        setState(() => _isDragging = true);
+      },
+      onPointerUp: (_) {
+        setState(() => _isDragging = false);
+      },
+      onPointerCancel: (_) {
+        setState(() => _isDragging = false);
+      },
+      child: DragItemWidget(
+        allowedOperations: () => [DropOperation.copy],
+        dragItemProvider: (request) => _createDragItem(dragData),
+        liftBuilder: widget.enableFeedback
+            ? (context, child) => feedbackWidget
+            : null,
+        dragBuilder: widget.enableFeedback
+            ? (context, child) => feedbackWidget
+            : null,
+        child: DraggableWidget(
+          child: Opacity(
+            opacity: _isDragging ? widget.dragOpacity : 1.0,
+            child: widget.child,
+          ),
+        ),
+      ),
+    );
   }
 
   /// 创建拖拽项
@@ -187,6 +189,94 @@ class DraggableImageCard extends StatelessWidget {
     }
 
     return item;
+  }
+}
+
+/// 内部拖拽包装组件
+///
+/// 用于 createDragWrapper 方法，提供拖拽状态管理和视觉反馈
+class _DragWrapper extends StatefulWidget {
+  final ImageDragData dragData;
+  final Widget feedbackWidget;
+  final bool enableFeedback;
+  final double dragOpacity;
+  final Widget child;
+
+  const _DragWrapper({
+    required this.dragData,
+    required this.feedbackWidget,
+    required this.enableFeedback,
+    required this.dragOpacity,
+    required this.child,
+  });
+
+  @override
+  State<_DragWrapper> createState() => _DragWrapperState();
+}
+
+class _DragWrapperState extends State<_DragWrapper> {
+  bool _isDragging = false;
+
+  Future<DragItem> _createDragItem() async {
+    final fileName = widget.dragData.fileName;
+    final filePath = widget.dragData.path;
+
+    // 创建拖拽项，建议文件名
+    final item = DragItem(suggestedName: fileName);
+
+    // 添加 PNG 格式数据（如果文件是 PNG）
+    if (widget.dragData.isPng) {
+      try {
+        final file = File(filePath);
+        if (await file.exists()) {
+          final bytes = await file.readAsBytes();
+          item.add(Formats.png(bytes));
+        }
+      } catch (e) {
+        debugPrint('Failed to read PNG file for drag: $e');
+      }
+    }
+
+    // 添加文件 URI 格式（所有文件类型都支持）
+    try {
+      final uri = Uri.file(filePath);
+      item.add(Formats.fileUri(uri));
+    } catch (e) {
+      debugPrint('Failed to create file URI for drag: $e');
+    }
+
+    return item;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerDown: (_) {
+        setState(() => _isDragging = true);
+      },
+      onPointerUp: (_) {
+        setState(() => _isDragging = false);
+      },
+      onPointerCancel: (_) {
+        setState(() => _isDragging = false);
+      },
+      child: DragItemWidget(
+        allowedOperations: () => [DropOperation.copy],
+        dragItemProvider: (request) => _createDragItem(),
+        liftBuilder: widget.enableFeedback
+            ? (context, child) => widget.feedbackWidget
+            : null,
+        dragBuilder: widget.enableFeedback
+            ? (context, child) => widget.feedbackWidget
+            : null,
+        child: DraggableWidget(
+          child: Opacity(
+            opacity: _isDragging ? widget.dragOpacity : 1.0,
+            child: widget.child,
+          ),
+        ),
+      ),
+    );
   }
 }
 
