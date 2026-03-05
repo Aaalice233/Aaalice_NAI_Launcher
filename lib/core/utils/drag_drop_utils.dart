@@ -174,7 +174,7 @@ Widget buildImageDragFeedback(
               ),
             ),
             
-            // 提示区域（固定在底部）
+            // 提示区域（固定在底部，不透明背景）
             if (showHint)
               Positioned(
                 left: 0,
@@ -184,23 +184,26 @@ Widget buildImageDragFeedback(
                   height: 20,
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   decoration: BoxDecoration(
-                    color: colorScheme.primary.withOpacity(0.15),
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(11),
+                    ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
                         Icons.touch_app_rounded,
-                        size: 8,
-                        color: colorScheme.primary,
+                        size: 9,
+                        color: colorScheme.onSurfaceVariant,
                       ),
-                      const SizedBox(width: 2),
+                      const SizedBox(width: 3),
                       Text(
-                        hintText ?? '拖拽',
+                        hintText ?? '拖拽以分享',
                         style: TextStyle(
-                          fontSize: 7,
-                          color: colorScheme.primary,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 8,
+                          color: colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
                           height: 1.0,
                         ),
                       ),
