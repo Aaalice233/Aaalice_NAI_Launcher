@@ -235,16 +235,36 @@ Widget buildImageDragFeedback(
 
 /// 构建图片区域
 ///
-/// 图片占满整个空间
+/// 图片占满整个空间，优先使用 previewBytes，否则从文件路径加载
 Widget _buildImageSection(ThemeData theme, ImageDragData dragData) {
-  final colorScheme = theme.colorScheme;
-  
-  // 如果有预览数据，显示图片
+  // 如果有预览数据，使用内存图片
   if (dragData.previewBytes != null) {
-    return _buildImageContent(dragData);
+    return Image.memory(
+      dragData.previewBytes!,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => _buildPlaceholder(theme, dragData),
+    );
   }
   
-  // 占位符样式
+  // 否则直接从文件路径加载（异步加载，无需等待）
+  if (dragData.path.isNotEmpty) {
+    final file = File(dragData.path);
+    if (file.existsSync()) {
+      return Image.file(
+        file,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildPlaceholder(theme, dragData),
+      );
+    }
+  }
+  
+  // 回退到占位符
+  return _buildPlaceholder(theme, dragData);
+}
+
+/// 构建占位符
+Widget _buildPlaceholder(ThemeData theme, ImageDragData dragData) {
+  final colorScheme = theme.colorScheme;
   return Container(
     width: double.infinity,
     height: double.infinity,
@@ -272,33 +292,6 @@ Widget _buildImageSection(ThemeData theme, ImageDragData dragData) {
           color: colorScheme.primary.withOpacity(0.6),
         ),
       ),
-    ),
-  );
-}
-
-/// 构建图片内容
-///
-/// 使用 previewBytes 同步显示，确保首次拖拽时立即显示
-Widget _buildImageContent(ImageDragData dragData) {
-  if (dragData.previewBytes != null) {
-    return Image.memory(
-      dragData.previewBytes!,
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => _buildErrorPlaceholder(),
-    );
-  }
-  
-  // 如果没有预览数据，显示占位符
-  return _buildErrorPlaceholder();
-}
-
-/// 错误占位符
-Widget _buildErrorPlaceholder() {
-  return Center(
-    child: Icon(
-      Icons.broken_image_rounded,
-      size: 24,
-      color: Colors.grey[400],
     ),
   );
 }
