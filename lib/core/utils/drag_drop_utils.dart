@@ -34,13 +34,28 @@ class ImageDragData {
   });
 
   /// 从 LocalImageRecord 创建拖拽数据
+  ///
+  /// 自动读取图片文件字节数据到 previewBytes，确保预览图立即显示
   factory ImageDragData.fromRecord(
     LocalImageRecord record, {
     Uint8List? previewBytes,
   }) {
+    // 如果没有提供预览数据，尝试读取文件
+    Uint8List? bytes = previewBytes;
+    if (bytes == null && record.path.isNotEmpty) {
+      try {
+        final file = File(record.path);
+        if (file.existsSync()) {
+          bytes = file.readAsBytesSync();
+        }
+      } catch (e) {
+        // 读取失败时忽略，使用占位符
+      }
+    }
+    
     return ImageDragData(
       record: record,
-      previewBytes: previewBytes,
+      previewBytes: bytes,
     );
   }
 
@@ -224,9 +239,8 @@ Widget buildImageDragFeedback(
 Widget _buildImageSection(ThemeData theme, ImageDragData dragData) {
   final colorScheme = theme.colorScheme;
   
-  // 如果有预览数据或文件存在，显示图片
-  if (dragData.previewBytes != null || 
-      (dragData.path.isNotEmpty && File(dragData.path).existsSync())) {
+  // 如果有预览数据，显示图片
+  if (dragData.previewBytes != null) {
     return _buildImageContent(dragData);
   }
   
@@ -263,6 +277,8 @@ Widget _buildImageSection(ThemeData theme, ImageDragData dragData) {
 }
 
 /// 构建图片内容
+///
+/// 使用 previewBytes 同步显示，确保首次拖拽时立即显示
 Widget _buildImageContent(ImageDragData dragData) {
   if (dragData.previewBytes != null) {
     return Image.memory(
@@ -272,11 +288,8 @@ Widget _buildImageContent(ImageDragData dragData) {
     );
   }
   
-  return Image.file(
-    File(dragData.path),
-    fit: BoxFit.cover,
-    errorBuilder: (_, __, ___) => _buildErrorPlaceholder(),
-  );
+  // 如果没有预览数据，显示占位符
+  return _buildErrorPlaceholder();
 }
 
 /// 错误占位符
