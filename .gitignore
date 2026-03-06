@@ -170,6 +170,7 @@ logs/security/
 .playwright-mcp/
 .spec-workflow/
 .qoder/
+.codex/
 .kiro
 .claude/
 .gemini/

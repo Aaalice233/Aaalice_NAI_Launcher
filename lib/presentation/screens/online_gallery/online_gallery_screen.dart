@@ -539,8 +539,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         ],
         // 评级筛选
         _RatingDropdown(
-          selected: state.rating,
-          onChanged: _galleryNotifier.setRating,
+          selectedRatings: state.selectedRatings,
+          onToggle: _galleryNotifier.toggleRating,
         ),
         // 日期范围筛选（仅搜索模式）
         if (state.viewMode == GalleryViewMode.search) ...[
@@ -1304,10 +1304,13 @@ class _SourceDropdown extends StatelessWidget {
 
 /// 评级下拉
 class _RatingDropdown extends StatelessWidget {
-  final String selected;
-  final Function(String) onChanged;
+  final Set<String> selectedRatings;
+  final ValueChanged<String> onToggle;
 
-  const _RatingDropdown({required this.selected, required this.onChanged});
+  const _RatingDropdown({
+    required this.selectedRatings,
+    required this.onToggle,
+  });
 
   List<(String, String, Color?)> _getRatings(BuildContext context) => [
         ('all', context.l10n.onlineGallery_all, null),
@@ -1317,19 +1320,93 @@ class _RatingDropdown extends StatelessWidget {
         ('e', context.l10n.onlineGallery_ratingExplicit, Colors.red),
       ];
 
+  Color _ratingColor(String ratingCode) {
+    switch (ratingCode) {
+      case 'g':
+        return Colors.green;
+      case 's':
+        return Colors.amber;
+      case 'q':
+        return Colors.orange;
+      case 'e':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Widget _buildRatingIndicator(ThemeData theme, List<String> selectedCodes) {
+    if (selectedCodes.isEmpty) return const SizedBox.shrink();
+
+    final visibleCount = min(3, selectedCodes.length);
+    final hasMore = selectedCodes.length > visibleCount;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ...List.generate(visibleCount, (index) {
+          final code = selectedCodes[index];
+          return Padding(
+            padding: EdgeInsets.only(right: index == visibleCount - 1 ? 0 : 4),
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: _ratingColor(code),
+                shape: BoxShape.circle,
+              ),
+            ),
+          );
+        }),
+        if (hasMore) ...[
+          const SizedBox(width: 4),
+          Text(
+            '+${selectedCodes.length - visibleCount}',
+            style: TextStyle(
+              fontSize: 10,
+              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final ratings = _getRatings(context);
-    final current =
-        ratings.firstWhere((r) => r.$1 == selected, orElse: () => ratings[0]);
+    final isAllSelected =
+        selectedRatings.length == kAllRatings.length &&
+        selectedRatings.containsAll(kAllRatings);
+    final selectedCodesInOrder = ['g', 's', 'q', 'e']
+        .where(selectedRatings.contains)
+        .toList();
+    final selectedSpecific = ratings
+        .where((r) => r.$1 != 'all' && selectedRatings.contains(r.$1))
+        .toList();
+    final current = isAllSelected
+        ? ratings.first
+        : (selectedSpecific.isNotEmpty ? selectedSpecific.first : ratings.first);
+
+    String buttonText() {
+      if (isAllSelected) return current.$2;
+      if (selectedSpecific.length == 1) return selectedSpecific.first.$2;
+      if (selectedSpecific.length > 1) {
+        return '${selectedSpecific.first.$2} +${selectedSpecific.length - 1}';
+      }
+      return current.$2;
+    }
 
     return PopupMenuButton<String>(
-      onSelected: onChanged,
+      onSelected: onToggle,
       offset: const Offset(0, 36),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       itemBuilder: (menuContext) => ratings.map((r) {
-        final isSelected = selected == r.$1;
+        final isSelected = r.$1 == 'all'
+            ? isAllSelected
+            : selectedRatings.contains(r.$1);
         return PopupMenuItem<String>(
           value: r.$1,
           child: Row(
@@ -1367,16 +1444,11 @@ class _RatingDropdown extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (current.$3 != null) ...[
-              Container(
-                width: 8,
-                height: 8,
-                decoration:
-                    BoxDecoration(color: current.$3, shape: BoxShape.circle),
-              ),
+              _buildRatingIndicator(theme, selectedCodesInOrder),
               const SizedBox(width: 6),
             ],
             Text(
-              current.$2,
+              buttonText(),
               style: TextStyle(
                 fontSize: 12,
                 color: theme.colorScheme.onSurfaceVariant,

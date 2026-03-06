@@ -9,6 +9,8 @@ import '../../data/services/danbooru_auth_service.dart';
 
 part 'online_gallery_provider.g.dart';
 
+const Set<String> kAllRatings = {'g', 's', 'q', 'e'};
+
 /// 顶级函数：在 Isolate 中解析帖子数据 (用于 compute)
 ///
 /// 避免主线程阻塞，提升 UI 流畅度
@@ -91,7 +93,7 @@ class OnlineGalleryState {
   final String? error;
   final String searchQuery;
   final String source;
-  final String rating;
+  final Set<String> selectedRatings;
 
   /// 视图模式
   final GalleryViewMode viewMode;
@@ -122,7 +124,7 @@ class OnlineGalleryState {
     this.error,
     this.searchQuery = '',
     this.source = 'danbooru',
-    this.rating = 'all',
+    this.selectedRatings = kAllRatings,
     this.viewMode = GalleryViewMode.search,
     this.searchCache = const ModeCache(),
     this.popularCache = const ModeCache(),
@@ -164,7 +166,7 @@ class OnlineGalleryState {
     String? error,
     String? searchQuery,
     String? source,
-    String? rating,
+    Set<String>? selectedRatings,
     GalleryViewMode? viewMode,
     ModeCache? searchCache,
     ModeCache? popularCache,
@@ -184,7 +186,7 @@ class OnlineGalleryState {
       error: clearError ? null : (error ?? this.error),
       searchQuery: searchQuery ?? this.searchQuery,
       source: source ?? this.source,
-      rating: rating ?? this.rating,
+      selectedRatings: Set.unmodifiable(selectedRatings ?? this.selectedRatings),
       viewMode: viewMode ?? this.viewMode,
       searchCache: searchCache ?? this.searchCache,
       popularCache: popularCache ?? this.popularCache,
@@ -348,7 +350,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       );
 
       // 过滤评级
-      final filteredPosts = _filterByRating(posts);
+      final filteredPosts = _filterByRatings(posts, state.selectedRatings);
 
       // 更新缓存
       final newCache = ModeCache(
@@ -413,7 +415,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       final (posts, rawCount) = await _fetchPosts(
         source: state.source,
         query: 'ordfav:${authState.user!.name}',
-        rating: state.rating,
+        selectedRatings: state.selectedRatings,
         page: apiPage,
       );
 
@@ -587,7 +589,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       final (posts, rawCount) = await _fetchPosts(
         source: state.source,
         query: state.searchQuery,
-        rating: state.rating,
+        selectedRatings: state.selectedRatings,
         page: apiPage,
       );
 
@@ -709,13 +711,31 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     await loadPosts(refresh: true);
   }
 
-  /// 设置评级筛选
-  Future<void> setRating(String rating) async {
-    if (state.rating == rating) return;
-    // 立即取消当前请求，确保快速响应
+  /// 设置评级筛选（多选）
+  Future<void> setRatings(Set<String> selectedRatings) async {
+    final normalized = _normalizeRatings(selectedRatings);
+    if (_setEquals(state.selectedRatings, normalized)) return;
     _cancelCurrentRequest();
-    state = state.copyWith(rating: rating);
+    state = state.copyWith(selectedRatings: normalized);
     await loadPosts(refresh: true);
+  }
+
+  /// 切换单个评级（含“全部”逻辑）
+  Future<void> toggleRating(String rating) async {
+    if (rating == 'all') {
+      await setRatings(kAllRatings);
+      return;
+    }
+
+    if (!kAllRatings.contains(rating)) return;
+    final next = {...state.selectedRatings};
+    if (next.contains(rating)) {
+      if (next.length == 1) return;
+      next.remove(rating);
+    } else {
+      next.add(rating);
+    }
+    await setRatings(next);
   }
 
   /// 设置日期范围筛选（搜索模式）
@@ -745,10 +765,14 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     await loadPosts(refresh: true);
   }
 
-  /// 根据评级过滤帖子
-  List<DanbooruPost> _filterByRating(List<DanbooruPost> posts) {
-    if (state.rating == 'all') return posts;
-    return posts.where((p) => p.rating == state.rating).toList();
+  /// 根据评级集合过滤帖子
+  List<DanbooruPost> _filterByRatings(
+    List<DanbooruPost> posts,
+    Set<String> selectedRatings,
+  ) {
+    final normalized = _normalizeRatings(selectedRatings);
+    if (normalized.length == kAllRatings.length) return posts;
+    return posts.where((p) => normalized.contains(p.rating)).toList();
   }
 
   /// 将网络错误转换为用户友好的提示信息
@@ -783,7 +807,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   Future<(List<DanbooruPost>, int)> _fetchPosts({
     required String source,
     required String query,
-    required String rating,
+    required Set<String> selectedRatings,
     required dynamic page,
   }) async {
     final baseUrl = _getBaseUrl(source);
@@ -791,8 +815,12 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
     // 构建标签查询
     String tags = query;
-    if (rating != 'all') {
-      tags = tags.isEmpty ? 'rating:$rating' : '$tags rating:$rating';
+    final normalizedRatings = _normalizeRatings(selectedRatings);
+    if (normalizedRatings.length < kAllRatings.length) {
+      final ratingExpr = normalizedRatings.length == 1
+          ? 'rating:${normalizedRatings.first}'
+          : normalizedRatings.map((r) => '~rating:$r').join(' ');
+      tags = tags.isEmpty ? ratingExpr : '$tags $ratingExpr';
     }
 
     // 添加日期范围筛选（Danbooru 语法：date:start..end）
@@ -840,12 +868,13 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         parsePostsInIsolate,
         {'rawList': rawList, 'source': source},
       );
+      final filteredPosts = _filterByRatings(posts, normalizedRatings);
 
       AppLogger.d(
-        'Fetched ${rawList.length} raw posts, ${posts.length} after filter',
+        'Fetched ${rawList.length} raw posts, ${filteredPosts.length} after filter',
         'OnlineGallery',
       );
-      return (posts, rawList.length);
+      return (filteredPosts, rawList.length);
     }
 
     return (<DanbooruPost>[], 0);
@@ -854,6 +883,17 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   /// 格式化日期为 Danbooru 查询格式 (yyyy-MM-dd)
   String _formatDateForQuery(DateTime date) {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  Set<String> _normalizeRatings(Set<String> ratings) {
+    final normalized = ratings.where(kAllRatings.contains).toSet();
+    return Set.unmodifiable(normalized.isEmpty ? {...kAllRatings} : normalized);
+  }
+
+  bool _setEquals(Set<String> a, Set<String> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    return a.containsAll(b);
   }
 
   /// 获取基础 URL
