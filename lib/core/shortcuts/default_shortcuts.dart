@@ -182,7 +182,6 @@ class DefaultShortcuts {
         ShortcutIds.togglePromptMode: 'ctrl+m',
         ShortcutIds.openTagLibrary: 'ctrl+t',
         ShortcutIds.upscaleImage: 'ctrl+u',
-        ShortcutIds.fullscreenPreview: 'space',
 
         // 画廊查看器
         ShortcutIds.previousImage: 'arrowleft',

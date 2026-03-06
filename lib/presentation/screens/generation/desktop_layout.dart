@@ -16,7 +16,6 @@ import '../../widgets/common/app_toast.dart';
 import '../../widgets/shortcuts/shortcut_aware_widget.dart';
 import 'widgets/upscale_dialog.dart';
 import 'widgets/resize_handle.dart';
-import 'services/generation_save_service.dart';
 import 'widgets/left_panel.dart';
 import 'widgets/main_workspace.dart';
 import 'widgets/right_panel.dart';
@@ -121,16 +120,7 @@ class _DesktopGenerationLayoutState
           );
         }
       },
-      // 全屏预览
-      ShortcutIds.fullscreenPreview: () {
-        if (generationState.displayImages.isNotEmpty) {
-          GenerationSaveService.showFullscreenPreview(
-            context,
-            ref,
-            generationState.displayImages,
-          );
-        }
-      },
+      // 已移除 Space 全屏预览快捷键，避免在提示词输入时误触发预览
     };
 
     return Row(
