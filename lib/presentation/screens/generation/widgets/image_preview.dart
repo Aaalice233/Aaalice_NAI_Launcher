@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
@@ -9,8 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../../../../core/utils/app_logger.dart';
+import '../../../../core/utils/image_save_utils.dart';
 import '../../../../core/utils/localization_extension.dart';
-import '../../../../data/services/metadata/unified_metadata_parser.dart';
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../../data/services/alias_resolver_service.dart';
@@ -578,7 +577,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       final saveDir = await _getSaveDirectory();
       if (saveDir == null) return;
       final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File('${saveDir.path}/$fileName');
+      final filePath = '${saveDir.path}/$fileName';
 
       final params = ref.read(generationParamsNotifierProvider);
       final characterConfig = ref.read(characterPromptNotifierProvider);
@@ -623,59 +622,23 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         });
       }
 
-      final commentJson = <String, dynamic>{
-        'prompt': resolvedPrompt,
-        'uc': resolvedNegative,
-        'seed': actualSeed,
-        'steps': params.steps,
-        'width': params.width,
-        'height': params.height,
-        'scale': params.scale,
-        'uncond_scale': 0.0,
-        'cfg_rescale': params.cfgRescale,
-        'n_samples': 1,
-        'noise_schedule': params.noiseSchedule,
-        'sampler': params.sampler,
-        'sm': params.smea,
-        'sm_dyn': params.smeaDyn,
-      };
-
-      if (charCaptions.isNotEmpty) {
-        commentJson['v4_prompt'] = {
-          'caption': {
-            'base_caption': resolvedPrompt,
-            'char_captions': charCaptions,
-          },
-          'use_coords': !characterConfig.globalAiChoice,
-          'use_order': true,
-        };
-        commentJson['v4_negative_prompt'] = {
-          'caption': {
-            'base_caption': resolvedNegative,
-            'char_captions': charNegCaptions,
-          },
-          'use_coords': false,
-          'use_order': false,
-        };
-      }
-
-      final metadata = {
-        'Description': resolvedPrompt,
-        'Software': 'NovelAI',
-        'Source': _getModelSourceName(params.model),
-        'Comment': jsonEncode(commentJson),
-      };
-
-      final embeddedBytes = await UnifiedMetadataParser.embedMetadata(
-        imageBytes,
-        jsonEncode(metadata),
+      final paramsForSave = params.copyWith(
+        prompt: resolvedPrompt,
+        negativePrompt: resolvedNegative,
       );
-
-      await file.writeAsBytes(embeddedBytes);
+      await ImageSaveUtils.saveImageWithMetadata(
+        imageBytes: imageBytes,
+        filePath: filePath,
+        params: paramsForSave,
+        actualSeed: actualSeed,
+        charCaptions: charCaptions,
+        charNegCaptions: charNegCaptions,
+        useCoords: !characterConfig.globalAiChoice,
+      );
 
       // 立即解析并缓存刚保存图像的元数据
       unawaited(
-        ImageMetadataService().getMetadata(file.path).then((metadata) {
+        ImageMetadataService().getMetadata(filePath).then((metadata) {
           AppLogger.d(
             '生成图像元数据已缓存: ${metadata?.prompt.substring(0, metadata.prompt.length > 30 ? 30 : metadata.prompt.length)}...',
             'ImagePreview',
@@ -689,7 +652,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       final currentState = ref.read(imageGenerationNotifierProvider);
       final updatedImages = currentState.displayImages.map((img) {
         if (img.id == image.identifier) {
-          return img.copyWithFilePath(file.path);
+          return img.copyWithFilePath(filePath);
         }
         return img;
       }).toList();
@@ -710,17 +673,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         AppToast.error(context, context.l10n.image_saveFailed(e.toString()));
       }
     }
-  }
-
-  String _getModelSourceName(String model) {
-    if (model.contains('diffusion-4-5')) {
-      return 'NovelAI Diffusion V4.5';
-    } else if (model.contains('diffusion-4')) {
-      return 'NovelAI Diffusion V4';
-    } else if (model.contains('diffusion-3')) {
-      return 'NovelAI Diffusion V3';
-    }
-    return 'NovelAI Diffusion';
   }
 }
 

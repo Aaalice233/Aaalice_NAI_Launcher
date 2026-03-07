@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/utils/localization_extension.dart';
-import '../../providers/image_save_settings_provider.dart';
+import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../themes/theme_extension.dart';
 import 'pro_context_menu.dart';
 import 'app_toast.dart';
@@ -738,21 +738,17 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
 
   Future<void> _saveImage(BuildContext context) async {
     try {
-      // 优先使用设置中的自定义路径
-      final saveSettings = ref.read(imageSaveSettingsNotifierProvider);
-      Directory saveDir;
+      final rootPath = await GalleryFolderRepository.instance.getRootPath();
+      if (rootPath == null || rootPath.isEmpty) {
+        if (context.mounted) {
+          AppToast.error(context, '未设置保存目录');
+        }
+        return;
+      }
 
-      if (saveSettings.hasCustomPath) {
-        saveDir = Directory(saveSettings.customPath!);
-        if (!await saveDir.exists()) {
-          await saveDir.create(recursive: true);
-        }
-      } else {
-        final docDir = await getApplicationDocumentsDirectory();
-        saveDir = Directory('${docDir.path}/NAI_Launcher');
-        if (!await saveDir.exists()) {
-          await saveDir.create(recursive: true);
-        }
+      final saveDir = Directory(rootPath);
+      if (!await saveDir.exists()) {
+        await saveDir.create(recursive: true);
       }
 
       final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';

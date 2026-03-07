@@ -1,14 +1,12 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/constants/api_constants.dart';
 import '../../core/utils/app_logger.dart';
-import '../../data/services/metadata/unified_metadata_parser.dart';
+import '../../core/utils/image_save_utils.dart';
 import '../../core/utils/nai_prompt_formatter.dart';
 import '../../data/services/image_metadata_service.dart';
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
@@ -364,7 +362,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
       int savedCount = 0;
       final savedFilePaths = <String>[];
-      
+
       for (final image in images) {
         try {
           // 从图片元数据中提取实际的 seed
@@ -381,99 +379,30 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             }
           }
 
-          // 计算有效的负面提示词（应用 UC 预设）
-          final effectiveNegativePrompt = UcPresets.applyPresetWithNsfwCheck(
-            params.negativePrompt,
-            params.prompt,
-            params.model,
-            params.ucPreset,
-          );
-
-          final commentJson = <String, dynamic>{
-            'prompt': params.prompt,
-            'uc': effectiveNegativePrompt,
-            'seed': actualSeed,
-            'steps': params.steps,
-            'width': params.width,
-            'height': params.height,
-            'scale': params.scale,
-            'uncond_scale': 0.0,
-            'cfg_rescale': params.cfgRescale,
-            'n_samples': 1,
-            'noise_schedule': params.noiseSchedule,
-            'sampler': params.sampler,
-            'sm': params.smea,
-            'sm_dyn': params.smeaDyn,
-            // NAI官方格式字段
-            'version': params.isV4Model ? 'v4' : 'v3',
-            'legacy_v3_extend': false,
-            // 保存固定词信息（应用专属）
-            'fixed_prefix': fixedPrefixTags,
-            'fixed_suffix': fixedSuffixTags,
-          };
-
           AppLogger.i(
             '[ImageGeneration] Saving image with fixed_prefix=$fixedPrefixTags, fixed_suffix=$fixedSuffixTags',
             'ImageGeneration',
           );
 
-          if (charCaptions.isNotEmpty) {
-            commentJson['v4_prompt'] = {
-              'caption': {
-                'base_caption': params.prompt,  // 改为 base_caption（NAI官方格式）
-                'char_captions': charCaptions,
-              },
-              'use_coords': !characterConfig.globalAiChoice,
-              'use_order': true,
-            };
-            commentJson['v4_negative_prompt'] = {
-              'caption': {
-                'base_caption': effectiveNegativePrompt,  // 改为 base_caption（NAI官方格式）
-                'char_captions': charNegCaptions,
-              },
-              'use_coords': false,
-              'use_order': false,
-            };
-          }
-
-          final metadata = {
-            'Description': params.prompt,
-            'Software': 'NovelAI',
-            'Source': _getModelSourceName(params.model),
-            'Comment': jsonEncode(commentJson),
-          };
-
-          AppLogger.i(
-            '[ImageGeneration] Embedding metadata: ${jsonEncode(metadata).substring(0, jsonEncode(metadata).length.clamp(0, 200))}...',
-            'ImageGeneration',
-          );
-
-          // 使用快速路径嵌入元数据（不重新编码PNG，性能提升50-100倍）
-          final embeddedBytes = await UnifiedMetadataParser.embedMetadata(
-            image.bytes,
-            jsonEncode(metadata),
-            useStealth: false, // 默认关闭stealth以提升性能，tEXt chunk足够兼容
-          );
-
-          // 验证嵌入的元数据
-          final verifyResult = UnifiedMetadataParser.parseFromPng(embeddedBytes);
-          final verifyMeta = verifyResult.metadata;
-          AppLogger.i(
-            '[ImageGeneration] Verify embedded metadata: hasSeparatedFields=${verifyMeta?.hasSeparatedFields}, '
-            'fixedPrefix=${verifyMeta?.fixedPrefixTags.length}, fixedSuffix=${verifyMeta?.fixedSuffixTags.length}',
-            'ImageGeneration',
-          );
-
           final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-          final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
-          if (saveDirPath == null) continue;
-          final file = File('$saveDirPath/$fileName');
-          await file.writeAsBytes(embeddedBytes);
+          final filePath = '$saveDirPath/$fileName';
+          await ImageSaveUtils.saveImageWithMetadata(
+            imageBytes: image.bytes,
+            filePath: filePath,
+            params: params,
+            actualSeed: actualSeed,
+            fixedPrefixTags: fixedPrefixTags,
+            fixedSuffixTags: fixedSuffixTags,
+            charCaptions: charCaptions,
+            charNegCaptions: charNegCaptions,
+            useCoords: !characterConfig.globalAiChoice,
+            useStealth: false,
+          );
           savedCount++;
-          savedFilePaths.add(file.path);
+          savedFilePaths.add(filePath);
 
           // 更新 filePath 到 GeneratedImage
-          final updatedImage = image.copyWithFilePath(file.path);
+          final updatedImage = image.copyWithFilePath(filePath);
           _updateImageInState(image.id, updatedImage);
 
           // 避免文件名冲突
@@ -486,14 +415,21 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       if (savedCount > 0) {
         // 【优化】使用即时添加新图像，避免全量扫描延迟
         final galleryNotifier = ref.read(localGalleryNotifierProvider.notifier);
-        final addedCount = await galleryNotifier.addNewlySavedImages(savedFilePaths);
-        
+        final addedCount =
+            await galleryNotifier.addNewlySavedImages(savedFilePaths);
+
         // 如果即时添加失败或数量不匹配，回退到传统刷新方式
         if (addedCount < savedCount) {
-          AppLogger.w('[AutoSave] Immediate add returned $addedCount, expected $savedCount. Falling back to refresh.', 'AutoSave');
+          AppLogger.w(
+            '[AutoSave] Immediate add returned $addedCount, expected $savedCount. Falling back to refresh.',
+            'AutoSave',
+          );
           await galleryNotifier.refresh();
         } else {
-          AppLogger.i('[AutoSave] Added $addedCount new images immediately without full scan', 'AutoSave');
+          AppLogger.i(
+            '[AutoSave] Added $addedCount new images immediately without full scan',
+            'AutoSave',
+          );
         }
 
         // 增量更新统计缓存，避免下次启动时完全重新计算
@@ -505,7 +441,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         }
 
         // 获取已保存的图像（有 filePath 的）并预加载元数据
-        final savedImages = images.where((img) => img.filePath != null).toList();
+        final savedImages =
+            images.where((img) => img.filePath != null).toList();
         if (savedImages.isNotEmpty) {
           _preloadMetadataInBackground(savedImages);
         }
@@ -515,18 +452,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     } catch (e) {
       AppLogger.e('自动保存失败: $e');
     }
-  }
-
-  /// 获取模型源名称
-  String _getModelSourceName(String model) {
-    if (model.contains('diffusion-4-5')) {
-      return 'NovelAI Diffusion V4.5';
-    } else if (model.contains('diffusion-4')) {
-      return 'NovelAI Diffusion V4';
-    } else if (model.contains('diffusion-3')) {
-      return 'NovelAI Diffusion V3';
-    }
-    return 'NovelAI Diffusion';
   }
 
   /// 检查错误是否为取消操作
@@ -543,7 +468,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   }
 
   /// 带重试的生成
-  Future<(List<Uint8List>, Map<int, String>)> _generateWithRetry(ImageParams params) async {
+  Future<(List<Uint8List>, Map<int, String>)> _generateWithRetry(
+    ImageParams params,
+  ) async {
     final apiService = ref.read(naiImageGenerationApiServiceProvider);
 
     for (int retry = 0; retry <= _maxRetries; retry++) {
@@ -642,7 +569,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
           // 尝试流式生成
           var streamingNotAllowed = false;
-          await for (final chunk in apiService.generateImageStream(singleParams)) {
+          await for (final chunk
+              in apiService.generateImageStream(singleParams)) {
             if (_isCancelled) return images;
 
             if (chunk.hasError) {
@@ -911,7 +839,13 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         try {
           final (imageBytes, vibeEncodings) = await _generateWithRetry(params);
           final generatedList = imageBytes
-              .map((b) => GeneratedImage.create(b, width: params.width, height: params.height))
+              .map(
+                (b) => GeneratedImage.create(
+                  b,
+                  width: params.width,
+                  height: params.height,
+                ),
+              )
               .toList();
           state = state.copyWith(
             status: GenerationStatus.completed,
@@ -1028,7 +962,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       displayImages: updatedDisplayImages,
     );
 
-    AppLogger.d('Updated filePath for image $imageId: ${updatedImage.filePath}', 'AutoSave');
+    AppLogger.d(
+      'Updated filePath for image $imageId: ${updatedImage.filePath}',
+      'AutoSave',
+    );
   }
 
   /// 将 UI 层的角色提示词配置转换为 API 层的格式
@@ -1172,7 +1109,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final status = service.getPreloadQueueStatus();
     AppLogger.d(
       'Preload queue status: length=${status['queueLength']}, '
-      'processing=${status['processingCount']}, isProcessing=${status['isProcessing']}',
+          'processing=${status['processingCount']}, isProcessing=${status['isProcessing']}',
       'MetadataPreload',
     );
   }
