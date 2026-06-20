@@ -50,6 +50,15 @@ void main() {
       container.dispose();
     });
 
+    test('plain PNG has no importable dropped-image metadata', () async {
+      final metadata = await detectImportableDroppedImageMetadata(
+        'clipboard_image.png',
+        Uint8List.fromList(_transparentPngBytes),
+      );
+
+      expect(metadata, isNull);
+    });
+
     test('dropped character reference appends to existing precise references',
         () async {
       final notifier =

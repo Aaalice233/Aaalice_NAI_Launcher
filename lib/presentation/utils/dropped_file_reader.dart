@@ -49,6 +49,7 @@ class DroppedFileReader {
   static Future<DroppedFileData?> read(
     DataReader reader, {
     bool allowVibeFiles = false,
+    bool allowRemoteImages = true,
     String logTag = 'DroppedFileReader',
   }) async {
     _logAvailableFormats(reader, logTag);
@@ -67,9 +68,11 @@ class DroppedFileReader {
       return directImage;
     }
 
-    final remoteUri = await _readRemoteImageUri(reader, logTag: logTag);
-    if (remoteUri != null) {
-      return _downloadRemoteImage(remoteUri, logTag: logTag);
+    if (allowRemoteImages) {
+      final remoteUri = await _readRemoteImageUri(reader, logTag: logTag);
+      if (remoteUri != null) {
+        return _downloadRemoteImage(remoteUri, logTag: logTag);
+      }
     }
 
     return null;
