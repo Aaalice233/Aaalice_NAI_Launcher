@@ -10930,11 +10930,22 @@ class AppLocalizationsEn extends AppLocalizations {
       'Export as .naiv4vibe or .naiv4vibebundle files';
 
   @override
+  String get vibe_export_exportAsZip => 'Export as ZIP';
+
+  @override
+  String get vibe_export_exportAsZipDescription =>
+      'Pack the selected Vibe library entries into a .zip as separate files';
+
+  @override
   String get vibe_export_compressData => 'Compress data';
 
   @override
   String get vibe_export_compressDataDescription =>
       'Use compression to reduce file size (recommended for batch export)';
+
+  @override
+  String get vibe_export_zipCompressDescription =>
+      'Compress files inside the ZIP to reduce size';
 
   @override
   String get vibe_export_exportAsPng => 'Export as PNG';
@@ -10999,7 +11010,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibe_export_preparingExport => 'Preparing export...';
 
   @override
+  String vibe_export_preparingVibeProgress(int current, int total) {
+    return 'Reading Vibe $current/$total...';
+  }
+
+  @override
   String get vibe_export_exportingBundle => 'Exporting Bundle...';
+
+  @override
+  String get vibe_export_exportingZip => 'Exporting ZIP...';
 
   @override
   String get vibe_export_embeddingImage => 'Embedding image...';
@@ -11011,6 +11030,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String vibe_export_exportFailedWithError(String error) {
     return 'Export failed: $error';
   }
+
+  @override
+  String get vibe_export_noExportableEntries => 'No exportable Vibe entries';
 
   @override
   String get vibe_export_bundleFilePathEmpty => 'Bundle file path is empty';

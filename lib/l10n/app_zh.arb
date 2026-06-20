@@ -5043,8 +5043,11 @@
   "vibe_export_exportAsFiles": "导出为文件",
   "vibe_export_exportBundleDescription": "导出为 .naiv4vibebundle 文件",
   "vibe_export_exportAsFilesDescription": "导出为 .naiv4vibe 或 .naiv4vibebundle 文件",
+  "vibe_export_exportAsZip": "导出为 ZIP",
+  "vibe_export_exportAsZipDescription": "将选中的 Vibe 库条目作为独立文件打包为 .zip",
   "vibe_export_compressData": "压缩数据",
   "vibe_export_compressDataDescription": "使用压缩以减小文件大小 (推荐用于批量导出)",
+  "vibe_export_zipCompressDescription": "压缩 ZIP 内的文件以减小体积",
   "vibe_export_exportAsPng": "导出为 PNG",
   "vibe_export_pngInternalBundleUnsupported": "导出单个 Bundle 内部 Vibe 时不支持嵌入图片",
   "vibe_export_embedVibeDataIntoPng": "将 Vibe 数据写入 PNG 元数据",
@@ -5062,10 +5065,19 @@
   "vibe_export_selectVibeExportFolder": "选择 Vibe 导出文件夹",
   "vibe_export_saveEncodingFile": "保存编码文件",
   "vibe_export_preparingExport": "正在准备导出...",
+  "vibe_export_preparingVibeProgress": "正在读取 Vibe {current}/{total}...",
+  "@vibe_export_preparingVibeProgress": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
   "vibe_export_exportingBundle": "正在导出 Bundle...",
+  "vibe_export_exportingZip": "正在导出 ZIP...",
   "vibe_export_embeddingImage": "正在嵌入图片...",
   "vibe_export_exportingEncoding": "正在导出编码...",
   "vibe_export_exportFailedWithError": "导出失败: {error}",
+  "vibe_export_noExportableEntries": "没有可导出的 Vibe 条目",
   "vibe_export_bundleFilePathEmpty": "Bundle 文件路径为空",
   "vibe_export_invalidImageFormatWithError": "无效的图片格式: {error}",
   "vibe_export_embedFailedWithError": "嵌入失败: {error}",

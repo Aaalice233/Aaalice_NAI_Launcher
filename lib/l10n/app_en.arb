@@ -5462,8 +5462,11 @@
   "vibe_export_exportAsFiles": "Export as Files",
   "vibe_export_exportBundleDescription": "Export as a .naiv4vibebundle file",
   "vibe_export_exportAsFilesDescription": "Export as .naiv4vibe or .naiv4vibebundle files",
+  "vibe_export_exportAsZip": "Export as ZIP",
+  "vibe_export_exportAsZipDescription": "Pack the selected Vibe library entries into a .zip as separate files",
   "vibe_export_compressData": "Compress data",
   "vibe_export_compressDataDescription": "Use compression to reduce file size (recommended for batch export)",
+  "vibe_export_zipCompressDescription": "Compress files inside the ZIP to reduce size",
   "vibe_export_exportAsPng": "Export as PNG",
   "vibe_export_pngInternalBundleUnsupported": "Embedding into an image is not supported when exporting a single internal bundle vibe",
   "vibe_export_embedVibeDataIntoPng": "Embed Vibe data into PNG metadata",
@@ -5481,10 +5484,19 @@
   "vibe_export_selectVibeExportFolder": "Select Vibe export folder",
   "vibe_export_saveEncodingFile": "Save encoding file",
   "vibe_export_preparingExport": "Preparing export...",
+  "vibe_export_preparingVibeProgress": "Reading Vibe {current}/{total}...",
+  "@vibe_export_preparingVibeProgress": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
   "vibe_export_exportingBundle": "Exporting Bundle...",
+  "vibe_export_exportingZip": "Exporting ZIP...",
   "vibe_export_embeddingImage": "Embedding image...",
   "vibe_export_exportingEncoding": "Exporting encoding...",
   "vibe_export_exportFailedWithError": "Export failed: {error}",
+  "vibe_export_noExportableEntries": "No exportable Vibe entries",
   "@vibe_export_exportFailedWithError": {
     "placeholders": {
       "error": {"type": "String"}

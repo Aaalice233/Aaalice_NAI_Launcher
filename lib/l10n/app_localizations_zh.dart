@@ -10575,10 +10575,20 @@ class AppLocalizationsZh extends AppLocalizations {
       '导出为 .naiv4vibe 或 .naiv4vibebundle 文件';
 
   @override
+  String get vibe_export_exportAsZip => '导出为 ZIP';
+
+  @override
+  String get vibe_export_exportAsZipDescription =>
+      '将选中的 Vibe 库条目作为独立文件打包为 .zip';
+
+  @override
   String get vibe_export_compressData => '压缩数据';
 
   @override
   String get vibe_export_compressDataDescription => '使用压缩以减小文件大小 (推荐用于批量导出)';
+
+  @override
+  String get vibe_export_zipCompressDescription => '压缩 ZIP 内的文件以减小体积';
 
   @override
   String get vibe_export_exportAsPng => '导出为 PNG';
@@ -10636,7 +10646,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_export_preparingExport => '正在准备导出...';
 
   @override
+  String vibe_export_preparingVibeProgress(int current, int total) {
+    return '正在读取 Vibe $current/$total...';
+  }
+
+  @override
   String get vibe_export_exportingBundle => '正在导出 Bundle...';
+
+  @override
+  String get vibe_export_exportingZip => '正在导出 ZIP...';
 
   @override
   String get vibe_export_embeddingImage => '正在嵌入图片...';
@@ -10648,6 +10666,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String vibe_export_exportFailedWithError(String error) {
     return '导出失败: $error';
   }
+
+  @override
+  String get vibe_export_noExportableEntries => '没有可导出的 Vibe 条目';
 
   @override
   String get vibe_export_bundleFilePathEmpty => 'Bundle 文件路径为空';

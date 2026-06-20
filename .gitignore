@@ -242,6 +242,7 @@ test/core/utils/*
 !test/core/utils/compute_gate_test.dart
 !test/core/utils/file_name_sanitizer_test.dart
 !test/core/utils/dropped_file_reader_test.dart
+!test/core/utils/vibe_export_utils_zip_test.dart
 !test/core/services/
 test/core/services/*
 !test/core/services/isolate_metadata_service_test.dart

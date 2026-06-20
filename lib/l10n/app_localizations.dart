@@ -19520,6 +19520,18 @@ abstract class AppLocalizations {
   /// **'Export as .naiv4vibe or .naiv4vibebundle files'**
   String get vibe_export_exportAsFilesDescription;
 
+  /// No description provided for @vibe_export_exportAsZip.
+  ///
+  /// In en, this message translates to:
+  /// **'Export as ZIP'**
+  String get vibe_export_exportAsZip;
+
+  /// No description provided for @vibe_export_exportAsZipDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Pack the selected Vibe library entries into a .zip as separate files'**
+  String get vibe_export_exportAsZipDescription;
+
   /// No description provided for @vibe_export_compressData.
   ///
   /// In en, this message translates to:
@@ -19531,6 +19543,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Use compression to reduce file size (recommended for batch export)'**
   String get vibe_export_compressDataDescription;
+
+  /// No description provided for @vibe_export_zipCompressDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Compress files inside the ZIP to reduce size'**
+  String get vibe_export_zipCompressDescription;
 
   /// No description provided for @vibe_export_exportAsPng.
   ///
@@ -19634,11 +19652,23 @@ abstract class AppLocalizations {
   /// **'Preparing export...'**
   String get vibe_export_preparingExport;
 
+  /// No description provided for @vibe_export_preparingVibeProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading Vibe {current}/{total}...'**
+  String vibe_export_preparingVibeProgress(int current, int total);
+
   /// No description provided for @vibe_export_exportingBundle.
   ///
   /// In en, this message translates to:
   /// **'Exporting Bundle...'**
   String get vibe_export_exportingBundle;
+
+  /// No description provided for @vibe_export_exportingZip.
+  ///
+  /// In en, this message translates to:
+  /// **'Exporting ZIP...'**
+  String get vibe_export_exportingZip;
 
   /// No description provided for @vibe_export_embeddingImage.
   ///
@@ -19657,6 +19687,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Export failed: {error}'**
   String vibe_export_exportFailedWithError(String error);
+
+  /// No description provided for @vibe_export_noExportableEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'No exportable Vibe entries'**
+  String get vibe_export_noExportableEntries;
 
   /// No description provided for @vibe_export_bundleFilePathEmpty.
   ///

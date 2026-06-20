@@ -165,8 +165,9 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
             hitTestBehavior: HitTestBehavior.opaque,
             onDropOver: (event) {
               // 检查是否包含文件
-              if (event.session.allowedOperations
-                  .contains(DropOperation.copy)) {
+              if (event.session.allowedOperations.contains(
+                DropOperation.copy,
+              )) {
                 if (!_isDragging) {
                   setState(() => _isDragging = true);
                 }
@@ -223,10 +224,10 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
                                   Expanded(
                                     child: Text(
                                       context.l10n.vibeLibrary_categories,
-                                      style:
-                                          theme.textTheme.titleSmall?.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                      style: theme.textTheme.titleSmall
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -300,16 +301,18 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
                                 onCategoryDelete: (id) async {
                                   final confirmed =
                                       await ThemedConfirmDialog.show(
-                                    context: context,
-                                    title: context
-                                        .l10n.vibeLibrary_deleteCategoryTitle,
-                                    content: context
-                                        .l10n.vibeLibrary_deleteCategoryContent,
-                                    confirmText: context.l10n.common_delete,
-                                    cancelText: context.l10n.common_cancel,
-                                    type: ThemedConfirmDialogType.danger,
-                                    icon: Icons.delete_outline,
-                                  );
+                                        context: context,
+                                        title: context
+                                            .l10n
+                                            .vibeLibrary_deleteCategoryTitle,
+                                        content: context
+                                            .l10n
+                                            .vibeLibrary_deleteCategoryContent,
+                                        confirmText: context.l10n.common_delete,
+                                        cancelText: context.l10n.common_cancel,
+                                        type: ThemedConfirmDialogType.danger,
+                                        icon: Icons.delete_outline,
+                                      );
                                   if (confirmed) {
                                     await ref
                                         .read(
@@ -326,14 +329,18 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
                                   final name = await ThemedInputDialog.show(
                                     context: context,
                                     title: parentId == null
-                                        ? context.l10n
-                                            .vibeLibrary_createCategoryTitle
-                                        : context.l10n
-                                            .vibeLibrary_createSubCategoryTitle,
+                                        ? context
+                                              .l10n
+                                              .vibeLibrary_createCategoryTitle
+                                        : context
+                                              .l10n
+                                              .vibeLibrary_createSubCategoryTitle,
                                     hintText: context
-                                        .l10n.vibeLibrary_categoryNameHint,
+                                        .l10n
+                                        .vibeLibrary_categoryNameHint,
                                     confirmText: context
-                                        .l10n.vibeLibrary_createCategoryConfirm,
+                                        .l10n
+                                        .vibeLibrary_createCategoryConfirm,
                                     cancelText: context.l10n.common_cancel,
                                   );
                                   if (name != null && name.isNotEmpty) {
@@ -350,13 +357,16 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
                                 },
                                 onCategoryMove:
                                     (categoryId, newParentId) async {
-                                  await ref
-                                      .read(
-                                        vibeLibraryCategoryNotifierProvider
-                                            .notifier,
-                                      )
-                                      .moveCategory(categoryId, newParentId);
-                                },
+                                      await ref
+                                          .read(
+                                            vibeLibraryCategoryNotifierProvider
+                                                .notifier,
+                                          )
+                                          .moveCategory(
+                                            categoryId,
+                                            newParentId,
+                                          );
+                                    },
                               ),
                             ),
                           ],
@@ -448,10 +458,12 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: theme.brightness == Brightness.dark
-                        ? theme.colorScheme.primaryContainer
-                            .withValues(alpha: 0.4)
-                        : theme.colorScheme.primaryContainer
-                            .withValues(alpha: 0.3),
+                        ? theme.colorScheme.primaryContainer.withValues(
+                            alpha: 0.4,
+                          )
+                        : theme.colorScheme.primaryContainer.withValues(
+                            alpha: 0.3,
+                          ),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -468,9 +480,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
                 ),
               const SizedBox(width: 12),
               // 搜索框
-              Expanded(
-                child: _buildSearchField(theme, state),
-              ),
+              Expanded(child: _buildSearchField(theme, state)),
               const SizedBox(width: 8),
               // 排序按钮
               _buildSortButton(theme, state),
@@ -574,8 +584,9 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
                   icon: Icon(
                     Icons.close,
                     size: 16,
-                    color: theme.colorScheme.onSurfaceVariant
-                        .withValues(alpha: 0.6),
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.6,
+                    ),
                   ),
                   onPressed: () {
                     _searchDebounceTimer?.cancel();
@@ -636,8 +647,9 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         height: 36,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color:
-              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.4,
+          ),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -698,11 +710,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
       value: order,
       child: Row(
         children: [
-          Icon(
-            icon,
-            size: 18,
-            color: isSelected ? Colors.blue : null,
-          ),
+          Icon(icon, size: 18, color: isSelected ? Colors.blue : null),
           const SizedBox(width: 8),
           Text(
             label,
@@ -731,8 +739,9 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         height: 36,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color:
-              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.5,
+          ),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: theme.colorScheme.outline.withValues(alpha: 0.2),
@@ -785,7 +794,8 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     ThemeData theme,
   ) {
     final currentIds = state.currentEntries.map((e) => e.id).toList();
-    final isAllSelected = currentIds.isNotEmpty &&
+    final isAllSelected =
+        currentIds.isNotEmpty &&
         currentIds.every((id) => selectionState.selectedIds.contains(id));
 
     return BulkActionBar(
@@ -868,10 +878,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
       return const VibeLibraryEmptyView();
     }
 
-    return VibeLibraryContentView(
-      columns: columns,
-      itemWidth: itemWidth,
-    );
+    return VibeLibraryContentView(columns: columns, itemWidth: itemWidth);
   }
 
   /// 构建分页条
@@ -931,10 +938,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
             value: state.pageSize,
             underline: const SizedBox(),
             items: [20, 50, 100].map((size) {
-              return DropdownMenuItem(
-                value: size,
-                child: Text('$size'),
-              );
+              return DropdownMenuItem(value: size, child: Text('$size'));
             }).toList(),
             onChanged: (value) {
               if (value != null) {
@@ -946,9 +950,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
           ),
           const Spacer(),
           Text(
-            context.l10n.vibeLibrary_totalCount(
-              state.filteredCount.toString(),
-            ),
+            context.l10n.vibeLibrary_totalCount(state.filteredCount.toString()),
             style: theme.textTheme.bodySmall,
           ),
         ],
@@ -1134,9 +1136,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     if (mounted) {
       AppToast.success(
         context,
-        context.l10n.vibeLibrary_sentToGenerationCount(
-          selectedEntries.length,
-        ),
+        context.l10n.vibeLibrary_sentToGenerationCount(selectedEntries.length),
       );
     }
 
@@ -1156,7 +1156,12 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
     if (ids.isEmpty) return;
 
-    final selectedEntries = await _resolveEntriesByIds(ids);
+    final state = ref.read(vibeLibraryNotifierProvider);
+    final entriesById = {for (final entry in state.entries) entry.id: entry};
+    final selectedEntries = [
+      for (final id in ids)
+        if (entriesById[id] != null) entriesById[id]!,
+    ];
 
     if (selectedEntries.isEmpty) return;
 
@@ -1272,12 +1277,13 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
     try {
       final (imageFiles, regularFiles) = await _categorizeFiles(files);
-      final currentCategoryId =
-          ref.read(vibeLibraryNotifierProvider).selectedCategoryId;
+      final currentCategoryId = ref
+          .read(vibeLibraryNotifierProvider)
+          .selectedCategoryId;
       final targetCategoryId =
           (currentCategoryId != null && currentCategoryId != 'favorites')
-              ? currentCategoryId
-              : null;
+          ? currentCategoryId
+          : null;
       final result = await _processImportSources(
         imageItems: imageFiles,
         vibeFiles: regularFiles,
@@ -1345,12 +1351,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
       if (_vibeImportImageExtensions.contains(ext)) {
         try {
           final bytes = await _readPlatformFileBytes(file);
-          imageFiles.add(
-            VibeImageImportItem(
-              source: file.name,
-              bytes: bytes,
-            ),
-          );
+          imageFiles.add(VibeImageImportItem(source: file.name, bytes: bytes));
         } catch (e) {
           AppLogger.e('读取图片文件失败: ${file.name}', e, null, 'VibeLibrary');
         }
@@ -1411,41 +1412,42 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
           onProgress: (current, _, message) {
             onProgress(imageItems.length + current, totalCount, message);
           },
-          onNaming: (
-            suggestedName, {
-            required bool isBatch,
-            Uint8List? thumbnail,
-          }) async {
-            if (!mounted) {
-              return null;
-            }
+          onNaming:
+              (
+                suggestedName, {
+                required bool isBatch,
+                Uint8List? thumbnail,
+              }) async {
+                if (!mounted) {
+                  return null;
+                }
 
-            if (isBatch && applyNamingToAll && batchNamingBase != null) {
-              return batchNamingBase;
-            }
+                if (isBatch && applyNamingToAll && batchNamingBase != null) {
+                  return batchNamingBase;
+                }
 
-            final namingResult =
-                await naming_dialog.VibeImportNamingDialog.show(
-              context: context,
-              suggestedName: suggestedName,
-              thumbnail: thumbnail,
-              isBatchImport: isBatch,
-            );
-            if (namingResult == null) {
-              return null;
-            }
+                final namingResult =
+                    await naming_dialog.VibeImportNamingDialog.show(
+                      context: context,
+                      suggestedName: suggestedName,
+                      thumbnail: thumbnail,
+                      isBatchImport: isBatch,
+                    );
+                if (namingResult == null) {
+                  return null;
+                }
 
-            final customName = namingResult.name.trim();
-            if (customName.isEmpty) {
-              return null;
-            }
+                final customName = namingResult.name.trim();
+                if (customName.isEmpty) {
+                  return null;
+                }
 
-            if (isBatch && namingResult.applyToAll) {
-              applyNamingToAll = true;
-              batchNamingBase = customName;
-            }
-            return customName;
-          },
+                if (isBatch && namingResult.applyToAll) {
+                  applyNamingToAll = true;
+                  batchNamingBase = customName;
+                }
+                return customName;
+              },
           onBundleOption: (bundleName, vibes) async {
             if (!mounted) {
               return null;
@@ -1453,11 +1455,11 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
             final bundleResult =
                 await bundle_import_dialog.VibeBundleImportDialog.show(
-              context: context,
-              bundleName: bundleName,
-              vibeNames: vibes.map((vibe) => vibe.displayName).toList(),
-              vibeReferences: vibes,
-            );
+                  context: context,
+                  bundleName: bundleName,
+                  vibeNames: vibes.map((vibe) => vibe.displayName).toList(),
+                  vibeReferences: vibes,
+                );
             if (bundleResult == null) {
               return null;
             }
@@ -1539,16 +1541,16 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
   /// 导出 Vibe (使用 V2 对话框)
   Future<void> _exportVibes({List<VibeLibraryEntry>? specificEntries}) async {
     final state = ref.read(vibeLibraryNotifierProvider);
-    final entriesToExport =
-        await _resolveEntriesForAction(specificEntries ?? state.entries);
+    final sourceEntries = specificEntries ?? state.entries;
+    final entriesToExport = sourceEntries.length == 1
+        ? await _resolveEntriesForAction(sourceEntries)
+        : sourceEntries;
 
     if (entriesToExport.isEmpty || !mounted) return;
 
     await showDialog<void>(
       context: context,
-      builder: (context) => VibeExportDialogAdvanced(
-        entries: entriesToExport,
-      ),
+      builder: (context) => VibeExportDialogAdvanced(entries: entriesToExport),
     );
   }
 
@@ -1556,9 +1558,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     if (ids.isEmpty) return const [];
 
     final state = ref.read(vibeLibraryNotifierProvider);
-    final entriesById = {
-      for (final entry in state.entries) entry.id: entry,
-    };
+    final entriesById = {for (final entry in state.entries) entry.id: entry};
     final entries = <VibeLibraryEntry>[];
     for (final id in ids) {
       final entry = entriesById[id];
@@ -1594,15 +1594,14 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     final dir = Directory(folderPath);
 
     if (!await dir.exists()) {
-      return {
-        'images': imageFiles,
-        'vibeFiles': vibeFiles,
-      };
+      return {'images': imageFiles, 'vibeFiles': vibeFiles};
     }
 
     try {
-      await for (final entity
-          in dir.list(recursive: true, followLinks: false)) {
+      await for (final entity in dir.list(
+        recursive: true,
+        followLinks: false,
+      )) {
         if (entity is File) {
           final fileName = p.basename(entity.path);
           final ext = p.extension(fileName).toLowerCase();
@@ -1617,10 +1616,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
       AppLogger.e('扫描文件夹失败: $folderPath', e, stackTrace, 'VibeLibrary');
     }
 
-    return {
-      'images': imageFiles,
-      'vibeFiles': vibeFiles,
-    };
+    return {'images': imageFiles, 'vibeFiles': vibeFiles};
   }
 
   /// 在 Isolate 中分类文件
@@ -1729,12 +1725,13 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         });
       }
 
-      final currentCategoryId =
-          ref.read(vibeLibraryNotifierProvider).selectedCategoryId;
+      final currentCategoryId = ref
+          .read(vibeLibraryNotifierProvider)
+          .selectedCategoryId;
       final targetCategoryId =
           (currentCategoryId != null && currentCategoryId != 'favorites')
-              ? currentCategoryId
-              : null;
+          ? currentCategoryId
+          : null;
 
       final imageItems = <VibeImageImportItem>[];
       var preProcessFail = 0;
@@ -1744,10 +1741,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
           try {
             final bytes = await File(path).readAsBytes();
             imageItems.add(
-              VibeImageImportItem(
-                source: p.basename(path),
-                bytes: bytes,
-              ),
+              VibeImageImportItem(source: p.basename(path), bytes: bytes),
             );
           } catch (e, stackTrace) {
             AppLogger.e('读取拖拽图片失败: $path', e, stackTrace, 'VibeLibrary');
@@ -1758,11 +1752,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
       final vibeFiles = vibeFilePaths
           .map(
-            (path) => PlatformFile(
-              name: p.basename(path),
-              size: 0,
-              path: path,
-            ),
+            (path) => PlatformFile(name: p.basename(path), size: 0, path: path),
           )
           .toList();
 
@@ -1835,17 +1825,11 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
           color: theme.colorScheme.primary.withValues(alpha: 0.1),
           child: Center(
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 32,
-                vertical: 24,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: theme.colorScheme.primary,
-                  width: 2,
-                ),
+                border: Border.all(color: theme.colorScheme.primary, width: 2),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.2),
@@ -1888,10 +1872,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         child: Center(
           child: Container(
             width: 320,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 32,
-              vertical: 24,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
@@ -1985,24 +1966,20 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     setState(() => _isImporting = true);
 
     // 获取当前选中的分类
-    final currentCategoryId =
-        ref.read(vibeLibraryNotifierProvider).selectedCategoryId;
+    final currentCategoryId = ref
+        .read(vibeLibraryNotifierProvider)
+        .selectedCategoryId;
     final targetCategoryId =
         (currentCategoryId != null && currentCategoryId != 'favorites')
-            ? currentCategoryId
-            : null;
+        ? currentCategoryId
+        : null;
 
     // 收集图片文件
     final imageFiles = <VibeImageImportItem>[];
     for (final file in result.files) {
       try {
         final bytes = await _readPlatformFileBytes(file);
-        imageFiles.add(
-          VibeImageImportItem(
-            source: file.name,
-            bytes: bytes,
-          ),
-        );
+        imageFiles.add(VibeImageImportItem(source: file.name, bytes: bytes));
       } catch (e) {
         AppLogger.e('读取图片文件失败: ${file.name}', e, null, 'VibeLibrary');
       }
@@ -2079,7 +2056,8 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         imageFile.source,
         imageFile.bytes,
       );
-      final shouldEncodeAsRawImage = references.isNotEmpty &&
+      final shouldEncodeAsRawImage =
+          references.isNotEmpty &&
           references.every(
             (reference) =>
                 reference.sourceType == VibeSourceType.rawImage &&
@@ -2171,7 +2149,8 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
   /// 生成唯一名称（避免重名）
   String _generateUniqueName(String baseName) {
-    final existingNames = _reservedImportNames ??
+    final existingNames =
+        _reservedImportNames ??
         ref
             .read(vibeLibraryNotifierProvider)
             .entries
@@ -2234,7 +2213,8 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     bundle_import_dialog.BundleImportResult result,
     List<VibeReference> vibes,
   ) {
-    final configuredVibes = result.configuredVibes != null &&
+    final configuredVibes =
+        result.configuredVibes != null &&
             result.configuredVibes!.length == vibes.length
         ? result.configuredVibes!
         : vibes;
@@ -2358,18 +2338,18 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
         encoding = await notifier
             .encodeVibeWithCache(
-          imageFile.bytes,
-          model: model,
-          informationExtracted: config.infoExtracted,
-          vibeName: config.name,
-        )
+              imageFile.bytes,
+              model: model,
+              informationExtracted: config.infoExtracted,
+              vibeName: config.name,
+            )
             .timeout(
-          const Duration(seconds: 30),
-          onTimeout: () {
-            errorMessage = l10n.vibeLibrary_encodeTimeout;
-            return null;
-          },
-        );
+              const Duration(seconds: 30),
+              onTimeout: () {
+                errorMessage = l10n.vibeLibrary_encodeTimeout;
+                return null;
+              },
+            );
       } catch (e) {
         errorMessage = e.toString();
         AppLogger.e('Vibe 编码失败: ${imageFile.source}', e, null, 'VibeLibrary');
@@ -2468,12 +2448,13 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     setState(() => _isImporting = true);
 
     // 获取当前选中的分类
-    final currentCategoryId =
-        ref.read(vibeLibraryNotifierProvider).selectedCategoryId;
+    final currentCategoryId = ref
+        .read(vibeLibraryNotifierProvider)
+        .selectedCategoryId;
     final targetCategoryId =
         (currentCategoryId != null && currentCategoryId != 'favorites')
-            ? currentCategoryId
-            : null;
+        ? currentCategoryId
+        : null;
 
     // 创建导入服务和仓库
     final storage = ref.read(vibeLibraryStorageServiceProvider);
@@ -2486,12 +2467,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     try {
       try {
         final result = await importService.importFromEncoding(
-          items: [
-            VibeEncodingImportItem(
-              source: '剪贴板',
-              encoding: text,
-            ),
-          ],
+          items: [VibeEncodingImportItem(source: '剪贴板', encoding: text)],
           categoryId: targetCategoryId,
           onProgress: (current, total, message) {
             AppLogger.d(message, 'VibeLibrary');
