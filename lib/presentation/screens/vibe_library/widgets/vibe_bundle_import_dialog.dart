@@ -6,11 +6,7 @@ import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 
-enum BundleImportOption {
-  keepAsBundle,
-  split,
-  importSelected,
-}
+enum BundleImportOption { keepAsBundle, split, importSelected }
 
 class BundleImportResult {
   final BundleImportOption option;
@@ -218,7 +214,7 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
         const SizedBox(width: 12),
         Expanded(
           child: Text(
-            'Import Vibe Bundle',
+            context.l10n.vibe_import_bundleTitle,
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -239,8 +235,9 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
       decoration: BoxDecoration(
         color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
-        border:
-            Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.2)),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.2),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -271,7 +268,7 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
               _buildInfoChip(
                 theme,
                 icon: Icons.waves,
-                label: '${widget.vibeCount} Vibes',
+                label: context.l10n.vibeLibrary_totalCount(widget.vibeCount),
               ),
               const SizedBox(width: 12),
               if (widget.createdAt != null)
@@ -301,11 +298,7 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 14,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
+          Icon(icon, size: 14, color: theme.colorScheme.onSurfaceVariant),
           const SizedBox(width: 6),
           Text(
             label,
@@ -335,7 +328,7 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Choose import method',
+            context.l10n.vibe_import_bundleChooseMethod,
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -345,25 +338,24 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
             theme,
             option: BundleImportOption.keepAsBundle,
             icon: Icons.folder_zip,
-            title: 'Import as whole',
-            subtitle:
-                'Keep the bundle structure and import it as one library entry',
+            title: context.l10n.vibe_import_bundleAsWhole,
+            subtitle: context.l10n.vibe_import_bundleAsWholeDescription,
           ),
           const SizedBox(height: 8),
           _buildOptionTile(
             theme,
             option: BundleImportOption.split,
             icon: Icons.splitscreen,
-            title: 'Split into separate entries',
-            subtitle: 'Import each vibe as a separate library entry',
+            title: context.l10n.vibe_import_bundleSplitEntries,
+            subtitle: context.l10n.vibe_import_bundleSplitEntriesDescription,
           ),
           const SizedBox(height: 8),
           _buildOptionTile(
             theme,
             option: BundleImportOption.importSelected,
             icon: Icons.checklist,
-            title: 'Select vibes to import',
-            subtitle: 'Import only the selected vibes',
+            title: context.l10n.vibe_import_bundleSelectVibes,
+            subtitle: context.l10n.vibe_import_bundleSelectVibesDescription,
           ),
         ],
       ),
@@ -393,14 +385,13 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
           borderRadius: BorderRadius.circular(12),
           color: isSelected
               ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
-              : theme.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.3),
+              : theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.3,
+                ),
         ),
         child: Row(
           children: [
-            Radio<BundleImportOption>(
-              value: option,
-            ),
+            Radio<BundleImportOption>(value: option),
             const SizedBox(width: 8),
             Icon(
               icon,
@@ -445,7 +436,7 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
     return Row(
       children: [
         Text(
-          'Select Vibes to import',
+          context.l10n.vibe_import_bundleSelectVibes,
           style: theme.textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.w600,
           ),
@@ -473,8 +464,8 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
         Expanded(
           child: Text(
             isSelectable
-                ? 'Select and configure each Vibe\'s parameters'
-                : 'Configure each Vibe\'s parameters',
+                ? context.l10n.vibe_import_bundleSelectAndConfigureEachVibe
+                : context.l10n.vibe_import_bundleConfigureEachVibe,
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -502,7 +493,8 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final vibeName = widget.vibeNames[index];
-        final thumbnail = widget.vibeThumbnails != null &&
+        final thumbnail =
+            widget.vibeThumbnails != null &&
                 index < widget.vibeThumbnails!.length
             ? widget.vibeThumbnails![index]
             : _vibeAt(index)?.thumbnail;
@@ -693,8 +685,9 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
     return LayoutBuilder(
       builder: (context, constraints) {
         const double minItemWidth = 100;
-        final crossAxisCount =
-            (constraints.maxWidth / minItemWidth).floor().clamp(2, 4);
+        final crossAxisCount = (constraints.maxWidth / minItemWidth)
+            .floor()
+            .clamp(2, 4);
 
         return GridView.builder(
           shrinkWrap: true,
@@ -708,7 +701,8 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
           itemCount: widget.vibeCount,
           itemBuilder: (context, index) {
             final vibeName = widget.vibeNames[index];
-            final thumbnail = widget.vibeThumbnails != null &&
+            final thumbnail =
+                widget.vibeThumbnails != null &&
                     index < widget.vibeThumbnails!.length
                 ? widget.vibeThumbnails![index]
                 : null;
@@ -779,8 +773,9 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
                     borderRadius: BorderRadius.circular(8),
                     color: theme.colorScheme.surfaceContainerHighest,
                     border: Border.all(
-                      color: theme.colorScheme.outlineVariant
-                          .withValues(alpha: 0.3),
+                      color: theme.colorScheme.outlineVariant.withValues(
+                        alpha: 0.3,
+                      ),
                     ),
                   ),
                   clipBehavior: Clip.antiAlias,
@@ -810,8 +805,9 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
                             ),
                       if (isSelected)
                         Container(
-                          color:
-                              theme.colorScheme.primary.withValues(alpha: 0.15),
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: 0.15,
+                          ),
                         ),
                       if (isSelected)
                         Positioned(
@@ -824,8 +820,9 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: theme.colorScheme.shadow
-                                      .withValues(alpha: 0.3),
+                                  color: theme.colorScheme.shadow.withValues(
+                                    alpha: 0.3,
+                                  ),
                                   blurRadius: 4,
                                   offset: const Offset(0, 2),
                                 ),
@@ -851,8 +848,9 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
                     Text(
                       name,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.w500,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
                         color: isSelected
                             ? theme.colorScheme.primary
                             : theme.colorScheme.onSurface,
@@ -866,8 +864,9 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
                     Text(
                       '#${index + 1}',
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant
-                            .withValues(alpha: 0.7),
+                        color: theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.7,
+                        ),
                         fontSize: 10,
                         height: 1.2,
                       ),
@@ -883,7 +882,8 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
   }
 
   Widget _buildFooter(ThemeData theme) {
-    final canConfirm = _selectedOption != BundleImportOption.importSelected ||
+    final canConfirm =
+        _selectedOption != BundleImportOption.importSelected ||
         _selectedIndices.isNotEmpty;
 
     return Row(
@@ -891,7 +891,10 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
       children: [
         if (_selectedOption == BundleImportOption.importSelected) ...[
           Text(
-            '${_selectedIndices.length}/${widget.vibeCount} selected',
+            context.l10n.vibe_import_bundleSelectedCount(
+              _selectedIndices.length,
+              widget.vibeCount,
+            ),
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.outline,
             ),

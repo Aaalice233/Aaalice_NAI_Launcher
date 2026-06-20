@@ -32,11 +32,12 @@ class VibeCard extends ConsumerStatefulWidget {
     Uint8List imageData, {
     required double informationExtracted,
     required String vibeName,
-  })? onEncode;
+  })?
+  onEncode;
 
   /// 更新 Vibe 编码的回调
   final void Function(int index, {required String vibeEncoding})?
-      onUpdateEncoding;
+  onUpdateEncoding;
 
   const VibeCard({
     super.key,
@@ -199,9 +200,19 @@ class _VibeCardState extends ConsumerState<VibeCard> {
           color: theme.colorScheme.surfaceContainerHighest,
           child: thumbnailBytes != null
               ? (previewBytes != null
-                  ? HoverImagePreview(
-                      imageBytes: previewBytes,
-                      child: DecodedMemoryImage(
+                    ? HoverImagePreview(
+                        imageBytes: previewBytes,
+                        child: DecodedMemoryImage(
+                          bytes: thumbnailBytes,
+                          fit: BoxFit.cover,
+                          maxLogicalWidth: 100,
+                          maxLogicalHeight: 100,
+                          errorBuilder: (context, error, stackTrace) {
+                            return _buildPlaceholder(theme);
+                          },
+                        ),
+                      )
+                    : DecodedMemoryImage(
                         bytes: thumbnailBytes,
                         fit: BoxFit.cover,
                         maxLogicalWidth: 100,
@@ -209,17 +220,7 @@ class _VibeCardState extends ConsumerState<VibeCard> {
                         errorBuilder: (context, error, stackTrace) {
                           return _buildPlaceholder(theme);
                         },
-                      ),
-                    )
-                  : DecodedMemoryImage(
-                      bytes: thumbnailBytes,
-                      fit: BoxFit.cover,
-                      maxLogicalWidth: 100,
-                      maxLogicalHeight: 100,
-                      errorBuilder: (context, error, stackTrace) {
-                        return _buildPlaceholder(theme);
-                      },
-                    ))
+                      ))
               : _buildPlaceholder(theme),
         ),
       ),
@@ -284,7 +285,7 @@ class _VibeCardState extends ConsumerState<VibeCard> {
       return _buildStatusChip(
         theme: theme,
         icon: Icons.file_present,
-        text: widget.vibe.sourceType.displayLabel,
+        text: context.vibeSourceTypeLabel(widget.vibe.sourceType),
         color: Colors.blue,
         maxWidth: 80,
       );
@@ -352,9 +353,7 @@ class _VibeCardState extends ConsumerState<VibeCard> {
               decoration: BoxDecoration(
                 color: Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Colors.orange.withValues(alpha: 0.3),
-                ),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [

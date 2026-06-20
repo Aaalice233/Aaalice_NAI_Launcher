@@ -5112,6 +5112,23 @@
       "error": {"type": "String"}
     }
   },
+  "vibe_import_bundleTitle": "导入 Vibe Bundle",
+  "vibe_import_bundleChooseMethod": "选择导入方式",
+  "vibe_import_bundleAsWhole": "作为整体导入",
+  "vibe_import_bundleAsWholeDescription": "保留 Bundle 结构，并作为一个库条目导入",
+  "vibe_import_bundleSplitEntries": "拆分为独立条目",
+  "vibe_import_bundleSplitEntriesDescription": "将每个 Vibe 作为独立库条目导入",
+  "vibe_import_bundleSelectVibes": "选择要导入的 Vibe",
+  "vibe_import_bundleSelectVibesDescription": "仅导入选中的 Vibe",
+  "vibe_import_bundleConfigureEachVibe": "配置每个 Vibe 的参数",
+  "vibe_import_bundleSelectAndConfigureEachVibe": "选择并配置每个 Vibe 的参数",
+  "vibe_import_bundleSelectedCount": "已选择 {selected}/{total}",
+  "@vibe_import_bundleSelectedCount": {
+    "placeholders": {
+      "selected": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
   "vibe_saveToLibrary_title": "保存到库",
   "vibe_saveToLibrary_strength": "参考强度",
   "vibe_saveToLibrary_infoExtracted": "信息提取",
@@ -5149,6 +5166,14 @@
       "count": {"type": "int"}
     }
   },
+  "vibe_saveToLibrary_saveAsBundle": "保存为 Bundle",
+  "vibe_saveToLibrary_saveAsBundleDescription": "将 {count} 个 Vibe 保存为一个 Bundle",
+  "@vibe_saveToLibrary_saveAsBundleDescription": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "vibe_saveToLibrary_tagHint": "输入标签后点击添加",
   "vibe_maxReached": "已达到最大数量 (16张)",
   "vibe_maxReachedRemoveSome": "已达到最大数量 (16张)，请先移除一些 Vibe",
   "vibe_addedNamed": "已添加 Vibe: {name}",

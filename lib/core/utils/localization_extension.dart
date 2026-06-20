@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 /// BuildContext 扩展，简化多语言调用
@@ -10,4 +11,18 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 extension LocalizationExtension on BuildContext {
   /// 获取当前语言环境的 AppLocalizations 实例
   AppLocalizations get l10n => AppLocalizations.of(this)!;
+
+  /// 获取 Vibe 来源类型的本地化展示名称
+  String vibeSourceTypeLabel(VibeSourceType sourceType) {
+    switch (sourceType) {
+      case VibeSourceType.png:
+        return l10n.vibe_sourceType_png;
+      case VibeSourceType.naiv4vibe:
+        return l10n.vibe_sourceType_v4vibe;
+      case VibeSourceType.naiv4vibebundle:
+        return l10n.vibe_sourceType_bundle;
+      case VibeSourceType.rawImage:
+        return l10n.vibe_sourceType_image;
+    }
+  }
 }

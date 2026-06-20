@@ -11159,6 +11159,46 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get vibe_import_bundleTitle => 'Import Vibe Bundle';
+
+  @override
+  String get vibe_import_bundleChooseMethod => 'Choose import method';
+
+  @override
+  String get vibe_import_bundleAsWhole => 'Import as whole';
+
+  @override
+  String get vibe_import_bundleAsWholeDescription =>
+      'Keep the bundle structure and import it as one library entry';
+
+  @override
+  String get vibe_import_bundleSplitEntries => 'Split into separate entries';
+
+  @override
+  String get vibe_import_bundleSplitEntriesDescription =>
+      'Import each vibe as a separate library entry';
+
+  @override
+  String get vibe_import_bundleSelectVibes => 'Select vibes to import';
+
+  @override
+  String get vibe_import_bundleSelectVibesDescription =>
+      'Import only the selected vibes';
+
+  @override
+  String get vibe_import_bundleConfigureEachVibe =>
+      'Configure each Vibe\'s parameters';
+
+  @override
+  String get vibe_import_bundleSelectAndConfigureEachVibe =>
+      'Select and configure each Vibe\'s parameters';
+
+  @override
+  String vibe_import_bundleSelectedCount(int selected, int total) {
+    return '$selected/$total selected';
+  }
+
+  @override
   String get vibe_saveToLibrary_title => 'Save to Library';
 
   @override
@@ -11200,6 +11240,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String vibe_saveToLibrary_reused(int count) {
     return 'Reused $count from library';
   }
+
+  @override
+  String get vibe_saveToLibrary_saveAsBundle => 'Save as bundle';
+
+  @override
+  String vibe_saveToLibrary_saveAsBundleDescription(int count) {
+    return 'Save $count Vibes as one bundle';
+  }
+
+  @override
+  String get vibe_saveToLibrary_tagHint => 'Enter a tag, then press Add';
 
   @override
   String get vibe_maxReached => 'Maximum 16 vibes reached';

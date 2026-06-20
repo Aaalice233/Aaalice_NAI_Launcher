@@ -10795,6 +10795,41 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get vibe_import_bundleTitle => '导入 Vibe Bundle';
+
+  @override
+  String get vibe_import_bundleChooseMethod => '选择导入方式';
+
+  @override
+  String get vibe_import_bundleAsWhole => '作为整体导入';
+
+  @override
+  String get vibe_import_bundleAsWholeDescription => '保留 Bundle 结构，并作为一个库条目导入';
+
+  @override
+  String get vibe_import_bundleSplitEntries => '拆分为独立条目';
+
+  @override
+  String get vibe_import_bundleSplitEntriesDescription => '将每个 Vibe 作为独立库条目导入';
+
+  @override
+  String get vibe_import_bundleSelectVibes => '选择要导入的 Vibe';
+
+  @override
+  String get vibe_import_bundleSelectVibesDescription => '仅导入选中的 Vibe';
+
+  @override
+  String get vibe_import_bundleConfigureEachVibe => '配置每个 Vibe 的参数';
+
+  @override
+  String get vibe_import_bundleSelectAndConfigureEachVibe => '选择并配置每个 Vibe 的参数';
+
+  @override
+  String vibe_import_bundleSelectedCount(int selected, int total) {
+    return '已选择 $selected/$total';
+  }
+
+  @override
   String get vibe_saveToLibrary_title => '保存到库';
 
   @override
@@ -10836,6 +10871,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String vibe_saveToLibrary_reused(int count) {
     return '从库复用 $count 个';
   }
+
+  @override
+  String get vibe_saveToLibrary_saveAsBundle => '保存为 Bundle';
+
+  @override
+  String vibe_saveToLibrary_saveAsBundleDescription(int count) {
+    return '将 $count 个 Vibe 保存为一个 Bundle';
+  }
+
+  @override
+  String get vibe_saveToLibrary_tagHint => '输入标签后点击添加';
 
   @override
   String get vibe_maxReached => '已达到最大数量 (16张)';

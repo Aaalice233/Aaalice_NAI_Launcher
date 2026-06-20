@@ -19904,6 +19904,72 @@ abstract class AppLocalizations {
   /// **'Import failed: {error}'**
   String vibe_import_failedWithError(String error);
 
+  /// No description provided for @vibe_import_bundleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Vibe Bundle'**
+  String get vibe_import_bundleTitle;
+
+  /// No description provided for @vibe_import_bundleChooseMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose import method'**
+  String get vibe_import_bundleChooseMethod;
+
+  /// No description provided for @vibe_import_bundleAsWhole.
+  ///
+  /// In en, this message translates to:
+  /// **'Import as whole'**
+  String get vibe_import_bundleAsWhole;
+
+  /// No description provided for @vibe_import_bundleAsWholeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the bundle structure and import it as one library entry'**
+  String get vibe_import_bundleAsWholeDescription;
+
+  /// No description provided for @vibe_import_bundleSplitEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'Split into separate entries'**
+  String get vibe_import_bundleSplitEntries;
+
+  /// No description provided for @vibe_import_bundleSplitEntriesDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Import each vibe as a separate library entry'**
+  String get vibe_import_bundleSplitEntriesDescription;
+
+  /// No description provided for @vibe_import_bundleSelectVibes.
+  ///
+  /// In en, this message translates to:
+  /// **'Select vibes to import'**
+  String get vibe_import_bundleSelectVibes;
+
+  /// No description provided for @vibe_import_bundleSelectVibesDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Import only the selected vibes'**
+  String get vibe_import_bundleSelectVibesDescription;
+
+  /// No description provided for @vibe_import_bundleConfigureEachVibe.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure each Vibe\'s parameters'**
+  String get vibe_import_bundleConfigureEachVibe;
+
+  /// No description provided for @vibe_import_bundleSelectAndConfigureEachVibe.
+  ///
+  /// In en, this message translates to:
+  /// **'Select and configure each Vibe\'s parameters'**
+  String get vibe_import_bundleSelectAndConfigureEachVibe;
+
+  /// No description provided for @vibe_import_bundleSelectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{selected}/{total} selected'**
+  String vibe_import_bundleSelectedCount(int selected, int total);
+
   /// No description provided for @vibe_saveToLibrary_title.
   ///
   /// In en, this message translates to:
@@ -19969,6 +20035,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reused {count} from library'**
   String vibe_saveToLibrary_reused(int count);
+
+  /// No description provided for @vibe_saveToLibrary_saveAsBundle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as bundle'**
+  String get vibe_saveToLibrary_saveAsBundle;
+
+  /// No description provided for @vibe_saveToLibrary_saveAsBundleDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Save {count} Vibes as one bundle'**
+  String vibe_saveToLibrary_saveAsBundleDescription(int count);
+
+  /// No description provided for @vibe_saveToLibrary_tagHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a tag, then press Add'**
+  String get vibe_saveToLibrary_tagHint;
 
   /// No description provided for @vibe_maxReached.
   ///

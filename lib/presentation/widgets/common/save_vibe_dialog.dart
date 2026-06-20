@@ -36,11 +36,8 @@ class SaveVibeDialog extends ConsumerStatefulWidget {
   }) async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => SaveVibeDialog(
-        vibe: vibe,
-        vibes: vibes,
-        defaultName: defaultName,
-      ),
+      builder: (context) =>
+          SaveVibeDialog(vibe: vibe, vibes: vibes, defaultName: defaultName),
     );
     return result ?? false;
   }
@@ -169,10 +166,7 @@ class _SaveVibeDialogState extends ConsumerState<SaveVibeDialog> {
     return AlertDialog(
       title: Row(
         children: [
-          Icon(
-            Icons.style_outlined,
-            color: colorScheme.primary,
-          ),
+          Icon(Icons.style_outlined, color: colorScheme.primary),
           const SizedBox(width: 8),
           Text(l10n.vibe_saveToLibrary_title),
         ],
@@ -229,9 +223,12 @@ class _SaveVibeDialogState extends ConsumerState<SaveVibeDialog> {
               // 保存为组合选项（仅当有多个 vibes 时显示）
               if (hasMultipleVibes)
                 CheckboxListTile(
-                  title: const Text('Save as bundle'),
-                  subtitle:
-                      Text('Save ${widget.vibes!.length} Vibes as one bundle'),
+                  title: Text(l10n.vibe_saveToLibrary_saveAsBundle),
+                  subtitle: Text(
+                    l10n.vibe_saveToLibrary_saveAsBundleDescription(
+                      widget.vibes!.length,
+                    ),
+                  ),
                   value: _saveAsBundle,
                   onChanged: _isSaving
                       ? null
@@ -253,7 +250,7 @@ class _SaveVibeDialogState extends ConsumerState<SaveVibeDialog> {
                       controller: _tagController,
                       decoration: InputDecoration(
                         labelText: l10n.tagLibrary_tags,
-                        hintText: 'Enter a tag, then press Add',
+                        hintText: l10n.vibe_saveToLibrary_tagHint,
                         prefixIcon: const Icon(Icons.tag),
                       ),
                       enabled: !_isSaving,
@@ -290,8 +287,9 @@ class _SaveVibeDialogState extends ConsumerState<SaveVibeDialog> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.5),
+                  color: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: colorScheme.outline.withValues(alpha: 0.2),
@@ -315,20 +313,22 @@ class _SaveVibeDialogState extends ConsumerState<SaveVibeDialog> {
                     ),
                     _buildInfoRow(
                       context,
-                      label: 'Strength',
+                      label: l10n.vibe_saveToLibrary_strength,
                       value:
                           '${(widget.vibe.strength * 100).toStringAsFixed(0)}%',
                     ),
                     _buildInfoRow(
                       context,
-                      label: 'Info',
+                      label: l10n.vibe_saveToLibrary_infoExtracted,
                       value:
                           '${(widget.vibe.infoExtracted * 100).toStringAsFixed(0)}%',
                     ),
                     _buildInfoRow(
                       context,
                       label: l10n.vibe_sourceType,
-                      value: widget.vibe.sourceType.displayLabel,
+                      value: context.vibeSourceTypeLabel(
+                        widget.vibe.sourceType,
+                      ),
                     ),
                   ],
                 ),

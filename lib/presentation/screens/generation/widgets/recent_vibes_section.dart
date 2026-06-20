@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
-// Import for VibeSourceTypeExtension (displayLabel)
-import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
 
 /// 最近使用的 Vibes 区域组件
@@ -108,11 +106,7 @@ class RecentVibeItem extends StatelessWidget {
   final VibeLibraryEntry entry;
   final VoidCallback onTap;
 
-  const RecentVibeItem({
-    super.key,
-    required this.entry,
-    required this.onTap,
-  });
+  const RecentVibeItem({super.key, required this.entry, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -135,8 +129,9 @@ class RecentVibeItem extends StatelessWidget {
             // 缩略图
             Expanded(
               child: ClipRRect(
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(7)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(7),
+                ),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -162,8 +157,9 @@ class RecentVibeItem extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.all(2),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.primary
-                                .withValues(alpha: 0.9),
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.9,
+                            ),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Row(
@@ -198,9 +194,7 @@ class RecentVibeItem extends StatelessWidget {
                 entry.displayName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  fontSize: 10,
-                ),
+                style: theme.textTheme.labelSmall?.copyWith(fontSize: 10),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -209,10 +203,12 @@ class RecentVibeItem extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 2),
               decoration: BoxDecoration(
-                color:
-                    theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
-                borderRadius:
-                    const BorderRadius.vertical(bottom: Radius.circular(7)),
+                color: theme.colorScheme.primaryContainer.withValues(
+                  alpha: 0.3,
+                ),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(7),
+                ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -224,7 +220,7 @@ class RecentVibeItem extends StatelessWidget {
                   ),
                   const SizedBox(width: 2),
                   Text(
-                    entry.sourceType.displayLabel,
+                    context.vibeSourceTypeLabel(entry.sourceType),
                     style: TextStyle(
                       fontSize: 8,
                       color: theme.colorScheme.primary,

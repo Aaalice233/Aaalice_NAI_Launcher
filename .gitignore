@@ -272,6 +272,11 @@ test/presentation/screens/generation/widgets/*
 !test/presentation/screens/prompt_config/
 test/presentation/screens/prompt_config/*
 !test/presentation/screens/prompt_config/random_config_screen_test.dart
+!test/presentation/screens/vibe_library/
+test/presentation/screens/vibe_library/*
+!test/presentation/screens/vibe_library/widgets/
+test/presentation/screens/vibe_library/widgets/*
+!test/presentation/screens/vibe_library/widgets/vibe_bundle_import_dialog_test.dart
 !test/presentation/widgets/
 test/presentation/widgets/*
 !test/presentation/widgets/drop/
@@ -282,6 +287,7 @@ test/presentation/widgets/drop/*
 test/presentation/widgets/common/*
 !test/presentation/widgets/common/image_detail_data_test.dart
 !test/presentation/widgets/common/selectable_image_card_test.dart
+!test/presentation/widgets/common/save_vibe_dialog_test.dart
 !test/presentation/widgets/common/thumbnail_display_test.dart
 !test/presentation/widgets/prompt/
 test/presentation/widgets/prompt/*
