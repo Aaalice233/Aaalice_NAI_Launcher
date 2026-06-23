@@ -557,6 +557,119 @@ void main() {
     });
   });
 
+  group('Real PNG metadata drag flow', () {
+    test('official PNG with Source=4BDE2A90 should resolve to full model', () {
+      // 这是实际官网图片，解析时必须从 Source 读出模型
+      final metadata = NaiImageMetadata(
+        source: 'NovelAI Diffusion V4.5 4BDE2A90',
+        model: null, // 官网图没有 Comment.model
+        prompt: 'test',
+        seed: 3451713783,
+        steps: 28,
+        scale: 5,
+      );
+
+      // sourceModel 应该从 Source 推导出 full
+      expect(metadata.sourceModel, ImageModels.animeDiffusionV45Full);
+      expect(metadata.effectiveModel, ImageModels.animeDiffusionV45Full);
+
+      // resolveImportableModel 应该返回可应用的模型 ID
+      final importable = MetadataImportApplier.resolveImportableModel(metadata);
+      expect(importable, isNotNull);
+      expect(importable, ImageModels.animeDiffusionV45Full);
+      expect(ImageModels.allModels.contains(importable), true,
+          reason: 'Model must be in allModels for UI to accept it');
+    });
+
+    test('real PNG file drag-in should preserve source field', () {
+      // 模拟拖入时传的 PNG 字节，模拟 UnifiedMetadataParser 的解析
+      // 官网 PNG 的 Source 字段应该被正确提取
+      final result = NaiImageMetadata.fromNaiComment(
+        {
+          'Comment': jsonEncode({
+            'prompt': 'masterpiece, best quality',
+            'uc': 'bad anatomy',
+            'seed': 3451713783,
+            'steps': 28,
+            'scale': 5,
+            'sampler': 'k_dpmpp_2m',
+            'width': 512,
+            'height': 1920,
+          }),
+          'Software': 'NovelAI',
+          'Source': 'NovelAI Diffusion V4.5 4BDE2A90',
+        },
+        rawJson: jsonEncode({
+          'prompt': 'masterpiece, best quality',
+          'uc': 'bad anatomy',
+        }),
+      );
+
+      // PNG 应该被解析出 source
+      expect(result.source, isNotNull,
+          reason: 'PNG source field must be extracted during parsing');
+      expect(result.source, contains('V4.5'),
+          reason: 'Source should contain model family info');
+      expect(result.source, contains('4BDE2A90'),
+          reason: 'Source should contain Full fingerprint');
+
+      // sourceModel 应该从 source 推导出具体模型
+      expect(result.sourceModel, ImageModels.animeDiffusionV45Full,
+          reason: 'sourceModel must be resolved from source with 4BDE2A90');
+      expect(result.effectiveModel, ImageModels.animeDiffusionV45Full,
+          reason: 'effectiveModel must be full when source has fingerprint');
+
+      // 应用层应该能读到可用模型
+      final importable = MetadataImportApplier.resolveImportableModel(result);
+      expect(importable, ImageModels.animeDiffusionV45Full,
+          reason: 'Must resolve to nai-diffusion-4-5-full for drag-in');
+      expect(ImageModels.allModels.contains(importable), true,
+          reason: 'Resolved model must be in allModels');
+    });
+
+    test('metadata apply should call updateModel for source-only PNG', () {
+      final metadata = NaiImageMetadata(
+        source: 'NovelAI Diffusion V4.5 4BDE2A90',
+        model: null,
+        prompt: 'test prompt',
+        seed: 3451713783,
+      );
+
+      String? appliedModel;
+      final options = MetadataImportOptions(importModel: true);
+      final target = MetadataImportTarget(
+        updatePrompt: (_) {},
+        updateNegativePrompt: (_) {},
+        updateSeed: (_) {},
+        updateSteps: (_) {},
+        updateScale: (_) {},
+        updateSize: (_, __) {},
+        updateSampler: (_) {},
+        updateModel: (model) {
+          appliedModel = model;
+        },
+        updateSmea: (_) {},
+        updateSmeaDyn: (_) {},
+        updateVarietyPlus: (_) {},
+        updateNoiseSchedule: (_) {},
+        updateCfgRescale: (_) {},
+        updateQualityToggle: (_) {},
+        updateUcPreset: (_) {},
+      );
+
+      MetadataImportApplier.applyPromptAndGenerationParams(
+        metadata: metadata,
+        options: options,
+        currentModel: ImageModels.animeDiffusionV45Full,
+        target: target,
+      );
+
+      expect(appliedModel, isNotNull, reason: 'updateModel must be called');
+      expect(appliedModel, ImageModels.animeDiffusionV45Full,
+          reason: 'Applied model must be the one resolved from Source');
+    });
+  });
+
   group('DanbooruPost', () {
     test('bestQualityUrl prefers the original file over sample and preview',
         () {

@@ -454,12 +454,16 @@ class NaiImageMetadata with _$NaiImageMetadata {
       try {
         final data =
             jsonDecode(json['Comment'] as String) as Map<String, dynamic>;
-        return (data, json['Software'] as String?, json['Source'] as String?);
+        final source = json['Source'] as String?;
+        return (data, json['Software'] as String?, source);
       } catch (_) {
         return (json, null, null);
       }
     }
-    return (json, json['Software'] as String?, null);
+    // ⚠️ IMPORTANT: When Comment is not a String (already decoded), Source may be
+    // lost if not explicitly passed. This is a common bug for drag-in scenarios.
+    final source = json['Source'] as String?;
+    return (json, json['Software'] as String?, source);
   }
 
   static bool _rawJsonMayContainUpgradableFields(String raw) {
