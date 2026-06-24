@@ -84,10 +84,7 @@ class _PasteImageIntent extends Intent {
 class GlobalDropHandler extends ConsumerStatefulWidget {
   final Widget child;
 
-  const GlobalDropHandler({
-    super.key,
-    required this.child,
-  });
+  const GlobalDropHandler({super.key, required this.child});
 
   @override
   ConsumerState<GlobalDropHandler> createState() => _GlobalDropHandlerState();
@@ -251,17 +248,11 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
           color: theme.colorScheme.primary.withValues(alpha: 0.1),
           child: Center(
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 32,
-                vertical: 24,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: theme.colorScheme.primary,
-                  width: 2,
-                ),
+                border: Border.all(color: theme.colorScheme.primary, width: 2),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.2),
@@ -302,10 +293,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         color: Colors.black.withValues(alpha: 0.5),
         child: Center(
           child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 32,
-              vertical: 24,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
@@ -391,8 +379,9 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     }
 
     // 检测当前是否为词库页面
-    final currentPath =
-        GoRouter.of(context).routeInformationProvider.value.uri.path;
+    final currentPath = GoRouter.of(
+      context,
+    ).routeInformationProvider.value.uri.path;
     final isTagLibraryPage = currentPath == AppRoutes.tagLibraryPage;
 
     // 如果是词库页面，使用词库专属拖拽处理
@@ -505,7 +494,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
   ) async {
     switch (destination) {
       case ImageDestination.img2img:
-        _handleImg2Img(bytes, l10n);
+        await _handleImg2Img(bytes, l10n);
         break;
 
       case ImageDestination.reversePrompt:
@@ -552,13 +541,10 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     }
   }
 
-  void _handleImg2Img(
-    Uint8List bytes,
-    AppLocalizations l10n,
-  ) {
-    ref
+  Future<void> _handleImg2Img(Uint8List bytes, AppLocalizations l10n) async {
+    await ref
         .read(imageWorkflowControllerProvider.notifier)
-        .replaceSourceImage(bytes);
+        .replaceSourceImageAsync(bytes);
 
     if (mounted) {
       AppToast.success(context, l10n.drop_addedToImg2Img);
@@ -570,10 +556,9 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     Uint8List bytes,
     AppLocalizations l10n,
   ) async {
-    await ref.read(reversePromptProvider.notifier).addImage(
-          bytes,
-          name: fileName,
-        );
+    await ref
+        .read(reversePromptProvider.notifier)
+        .addImage(bytes, name: fileName);
 
     if (mounted) {
       AppToast.success(context, l10n.drop_addedToReversePrompt);
@@ -686,8 +671,9 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     }
 
     final isBundle = vibes.length > 1;
-    final defaultName =
-        isBundle ? vibes.first.displayName : vibes.first.displayName;
+    final defaultName = isBundle
+        ? vibes.first.displayName
+        : vibes.first.displayName;
 
     // 显示保存对话框
     final nameController = TextEditingController(text: defaultName);
@@ -780,10 +766,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     GenerationParamsNotifier notifier,
     AppLocalizations l10n,
   ) async {
-    await appendDroppedCharacterReference(
-      notifier: notifier,
-      image: bytes,
-    );
+    await appendDroppedCharacterReference(notifier: notifier, image: bytes);
 
     if (mounted) {
       AppToast.success(context, l10n.drop_addedToCharacterRef);
@@ -809,12 +792,17 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       }
 
       if (!mounted) return;
-      final options =
-          await MetadataImportDialog.show(context, metadata: metadata);
+      final options = await MetadataImportDialog.show(
+        context,
+        metadata: metadata,
+      );
       if (options == null || !mounted) return;
 
-      final appliedCount =
-          await _applyMetadataWithOptions(metadata, options, notifier);
+      final appliedCount = await _applyMetadataWithOptions(
+        metadata,
+        options,
+        notifier,
+      );
 
       if (!mounted) return;
 
@@ -1199,19 +1187,19 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         options.importSeed && metadata.seed != null,
         l10n.metadataImport_seed,
         metadata.seed?.toString(),
-        1
+        1,
       ),
       (
         options.importSteps && metadata.steps != null,
         l10n.metadataImport_steps,
         metadata.steps?.toString(),
-        1
+        1,
       ),
       (
         options.importScale && metadata.scale != null,
         l10n.metadataImport_scale,
         metadata.scale?.toString(),
-        1
+        1,
       ),
       (
         options.importSize && metadata.width != null && metadata.height != null,
@@ -1235,13 +1223,13 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         options.importSmea && metadata.smea != null,
         l10n.metadataImport_smea,
         metadata.smea?.toString(),
-        1
+        1,
       ),
       (
         options.importSmeaDyn && metadata.smeaDyn != null,
         l10n.metadataImport_smeaDyn,
         metadata.smeaDyn?.toString(),
-        1
+        1,
       ),
       (
         options.importVarietyPlus && metadata.varietyPlus != null,

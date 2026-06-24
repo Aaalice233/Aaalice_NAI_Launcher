@@ -31,43 +31,49 @@ void main() {
       expect(streamResult.requestParameters['stream'], 'msgpack');
     });
 
-    test('should send effective prompt while forwarding native preset flags',
-        () async {
-      final params = ImageParams(
-        prompt: '1girl, sunset',
-        negativePrompt: 'bad hands',
-        model: ImageModels.animeDiffusionV45Full,
-        qualityToggle: true,
-        ucPreset: UcPresets.toApiValue(UcPresetType.heavy),
-      );
-      final builder = NAIImageRequestBuilder(
-        params: params,
-        encodeVibe: _fakeEncodeVibe,
-      );
+    test(
+      'should send effective prompt while forwarding native preset flags',
+      () async {
+        final params = ImageParams(
+          prompt: '1girl, sunset',
+          negativePrompt: 'bad hands',
+          model: ImageModels.animeDiffusionV45Full,
+          qualityToggle: true,
+          ucPreset: UcPresets.toApiValue(UcPresetType.heavy),
+        );
+        final builder = NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        );
 
-      final result = await builder.build(sampler: 'k_euler');
-      final parameters = result.requestParameters;
-      final preset = UcPresets.getPresetContent(
-        ImageModels.animeDiffusionV45Full,
-        UcPresetType.heavy,
-      );
+        final result = await builder.build(sampler: 'k_euler');
+        final parameters = result.requestParameters;
+        final preset = UcPresets.getPresetContent(
+          ImageModels.animeDiffusionV45Full,
+          UcPresetType.heavy,
+        );
 
-      expect(
-        result.requestData['input'],
-        equals('1girl, sunset, location, very aesthetic, masterpiece, no text'),
-      );
-      expect(parameters['negative_prompt'], equals('$preset, bad hands'));
-      expect(parameters['qualityToggle'], isTrue);
-      expect(parameters['ucPreset'], equals(0));
-      expect(
-        parameters['v4_prompt']['caption']['base_caption'],
-        equals('1girl, sunset, location, very aesthetic, masterpiece, no text'),
-      );
-      expect(
-        parameters['v4_negative_prompt']['caption']['base_caption'],
-        equals('$preset, bad hands'),
-      );
-    });
+        expect(
+          result.requestData['input'],
+          equals(
+            '1girl, sunset, location, very aesthetic, masterpiece, no text',
+          ),
+        );
+        expect(parameters['negative_prompt'], equals('$preset, bad hands'));
+        expect(parameters['qualityToggle'], isTrue);
+        expect(parameters['ucPreset'], equals(0));
+        expect(
+          parameters['v4_prompt']['caption']['base_caption'],
+          equals(
+            '1girl, sunset, location, very aesthetic, masterpiece, no text',
+          ),
+        );
+        expect(
+          parameters['v4_negative_prompt']['caption']['base_caption'],
+          equals('$preset, bad hands'),
+        );
+      },
+    );
 
     test('should throw ArgumentError when sampler is empty', () async {
       const params = ImageParams();
@@ -76,50 +82,49 @@ void main() {
         encodeVibe: _fakeEncodeVibe,
       );
 
-      expect(
-        () => builder.build(sampler: ''),
-        throwsA(isA<ArgumentError>()),
-      );
+      expect(() => builder.build(sampler: ''), throwsA(isA<ArgumentError>()));
     });
 
-    test('should apply native quality and UC presets only at request boundary',
-        () async {
-      final params = ImageParams(
-        prompt: 'fixed positive, user positive',
-        negativePrompt: 'fixed negative, user negative',
-        model: ImageModels.animeDiffusionV45Full,
-        qualityToggle: true,
-        ucPreset: UcPresets.toApiValue(UcPresetType.heavy),
-      );
-      final builder = NAIImageRequestBuilder(
-        params: params,
-        encodeVibe: _fakeEncodeVibe,
-      );
+    test(
+      'should apply native quality and UC presets only at request boundary',
+      () async {
+        final params = ImageParams(
+          prompt: 'fixed positive, user positive',
+          negativePrompt: 'fixed negative, user negative',
+          model: ImageModels.animeDiffusionV45Full,
+          qualityToggle: true,
+          ucPreset: UcPresets.toApiValue(UcPresetType.heavy),
+        );
+        final builder = NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        );
 
-      final result = await builder.build(sampler: 'k_euler');
-      final preset = UcPresets.getPresetContent(
-        ImageModels.animeDiffusionV45Full,
-        UcPresetType.heavy,
-      );
+        final result = await builder.build(sampler: 'k_euler');
+        final preset = UcPresets.getPresetContent(
+          ImageModels.animeDiffusionV45Full,
+          UcPresetType.heavy,
+        );
 
-      expect(
-        result.effectivePrompt,
-        equals(
-          'fixed positive, user positive, location, very aesthetic, masterpiece, no text',
-        ),
-      );
-      expect(
-        result.effectiveNegativePrompt,
-        equals('$preset, fixed negative, user negative'),
-      );
-      expect(result.requestData['input'], equals(result.effectivePrompt));
-      expect(
-        result.requestParameters['negative_prompt'],
-        equals(result.effectiveNegativePrompt),
-      );
-      expect(result.requestParameters['ucPreset'], equals(0));
-      expect(result.effectiveNegativePrompt, isNot(contains('nsfw')));
-    });
+        expect(
+          result.effectivePrompt,
+          equals(
+            'fixed positive, user positive, location, very aesthetic, masterpiece, no text',
+          ),
+        );
+        expect(
+          result.effectiveNegativePrompt,
+          equals('$preset, fixed negative, user negative'),
+        );
+        expect(result.requestData['input'], equals(result.effectivePrompt));
+        expect(
+          result.requestParameters['negative_prompt'],
+          equals(result.effectiveNegativePrompt),
+        );
+        expect(result.requestParameters['ucPreset'], equals(0));
+        expect(result.effectiveNegativePrompt, isNot(contains('nsfw')));
+      },
+    );
 
     test('should return vibeEncodingMap only in non-stream mode', () async {
       final params = ImageParams(
@@ -144,8 +149,9 @@ void main() {
         encodeVibe: _fakeEncodeVibe,
       );
 
-      final nonStreamResult =
-          await builder.build(sampler: 'sampler_non_stream');
+      final nonStreamResult = await builder.build(
+        sampler: 'sampler_non_stream',
+      );
       expect(nonStreamResult.vibeEncodingMap, {
         0: 'encoded-vibe',
         1: 'pre-encoded',
@@ -204,71 +210,111 @@ void main() {
       );
     });
 
-    test('should reuse normalized precise reference image without reprocessing',
-        () async {
-      final normalizedBytes =
-          NAIApiUtils.markNormalizedPreciseReferencePng(_validPngBytes());
-      final params = ImageParams(
-        model: 'nai-diffusion-4-5-full',
-        preciseReferences: [
-          PreciseReference(
-            image: normalizedBytes,
-            type: PreciseRefType.character,
-          ),
-        ],
-      );
+    test(
+      'should reuse normalized precise reference image without reprocessing',
+      () async {
+        final normalizedBytes = NAIApiUtils.markNormalizedPreciseReferencePng(
+          _validPngBytes(),
+        );
+        final params = ImageParams(
+          model: 'nai-diffusion-4-5-full',
+          preciseReferences: [
+            PreciseReference(
+              image: normalizedBytes,
+              type: PreciseRefType.character,
+            ),
+          ],
+        );
 
-      final builder = NAIImageRequestBuilder(
-        params: params,
-        encodeVibe: _fakeEncodeVibe,
-      );
+        final builder = NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        );
 
-      final result = await builder.build(sampler: 'k_euler');
-      final encodedImages =
-          result.requestParameters['director_reference_images'] as List;
+        final result = await builder.build(sampler: 'k_euler');
+        final encodedImages =
+            result.requestParameters['director_reference_images'] as List;
 
-      expect(base64Decode(encodedImages.single as String), normalizedBytes);
-    });
+        expect(base64Decode(encodedImages.single as String), normalizedBytes);
+      },
+    );
 
-    test('should normalize precise reference images off the caller isolate',
-        () async {
-      final normalizedBytes = await NAIApiUtils.ensurePngFormatAsync(
-        _validPngBytes(width: 8, height: 4),
-      );
-      final decoded = img.decodeImage(normalizedBytes);
+    test(
+      'should normalize precise reference images off the caller isolate',
+      () async {
+        final normalizedBytes = await NAIApiUtils.ensurePngFormatAsync(
+          _validPngBytes(width: 8, height: 4),
+        );
+        final decoded = img.decodeImage(normalizedBytes);
 
-      expect(decoded, isNotNull);
-      expect('${decoded!.width}x${decoded.height}', '1024x1536');
-      expect(
-        NAIApiUtils.isKnownNormalizedPreciseReferencePng(normalizedBytes),
-        isTrue,
-      );
-    });
+        expect(decoded, isNotNull);
+        expect('${decoded!.width}x${decoded.height}', '1024x1536');
+        expect(
+          NAIApiUtils.isKnownNormalizedPreciseReferencePng(normalizedBytes),
+          isTrue,
+        );
+      },
+    );
 
-    test('should forward infill strength and noise to request parameters',
-        () async {
-      final params = ImageParams(
-        action: ImageGenerationAction.infill,
-        model: 'nai-diffusion-4-full',
-        sourceImage: Uint8List.fromList([1, 2, 3]),
-        maskImage: Uint8List.fromList([4, 5, 6]),
-        strength: 0.42,
-        noise: 0.13,
-        inpaintStrength: 0.55,
-      );
+    test(
+      'should normalize img2img source image to request dimensions',
+      () async {
+        final params = ImageParams(
+          action: ImageGenerationAction.img2img,
+          model: ImageModels.animeDiffusionV45Curated,
+          width: 1472,
+          height: 896,
+          sourceImage: _validPngBytes(width: 1500, height: 900),
+        );
 
-      final builder = NAIImageRequestBuilder(
-        params: params,
-        encodeVibe: _fakeEncodeVibe,
-      );
+        final builder = NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        );
 
-      final result = await builder.build(sampler: 'k_euler');
+        final result = await builder.build(sampler: 'k_euler');
+        final sourceBytes = base64Decode(
+          result.requestParameters['image'] as String,
+        );
+        final decodedSource = img.decodeImage(sourceBytes);
 
-      expect(result.requestParameters['strength'], equals(0.42));
-      expect(result.requestParameters['noise'], equals(0.13));
-      expect(result.requestParameters['inpaintImg2ImgStrength'], equals(0.55));
-      expect(result.requestParameters['mask'], isNotNull);
-    });
+        expect(decodedSource, isNotNull);
+        expect('${decodedSource!.width}x${decodedSource.height}', '1472x896');
+        expect(result.requestParameters['width'], equals(1472));
+        expect(result.requestParameters['height'], equals(896));
+        expect(result.requestData['action'], equals('img2img'));
+      },
+    );
+
+    test(
+      'should forward infill strength and noise to request parameters',
+      () async {
+        final params = ImageParams(
+          action: ImageGenerationAction.infill,
+          model: 'nai-diffusion-4-full',
+          sourceImage: Uint8List.fromList([1, 2, 3]),
+          maskImage: Uint8List.fromList([4, 5, 6]),
+          strength: 0.42,
+          noise: 0.13,
+          inpaintStrength: 0.55,
+        );
+
+        final builder = NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        );
+
+        final result = await builder.build(sampler: 'k_euler');
+
+        expect(result.requestParameters['strength'], equals(0.42));
+        expect(result.requestParameters['noise'], equals(0.13));
+        expect(
+          result.requestParameters['inpaintImg2ImgStrength'],
+          equals(0.55),
+        );
+        expect(result.requestParameters['mask'], isNotNull);
+      },
+    );
 
     test('should omit vibe transfer payload for infill requests', () async {
       final params = ImageParams(
@@ -292,8 +338,9 @@ void main() {
 
       final nonStreamResult = await builder.build(sampler: 'k_euler');
       expect(
-        nonStreamResult.requestParameters
-            .containsKey('reference_image_multiple'),
+        nonStreamResult.requestParameters.containsKey(
+          'reference_image_multiple',
+        ),
         isFalse,
       );
       expect(nonStreamResult.vibeEncodingMap, isEmpty);
@@ -310,181 +357,227 @@ void main() {
     });
 
     test(
-        'should send official full-size infill mask and disable server original image overlay',
-        () async {
-      final noisyMask = img.Image(width: 128, height: 128);
-      img.fill(noisyMask, color: img.ColorRgba8(0, 0, 0, 255));
-      for (var y = 80; y <= 111; y++) {
-        for (var x = 80; x <= 111; x++) {
-          noisyMask.setPixelRgba(x, y, 90, 160, 255, 120);
+      'should send official full-size infill mask and disable server original image overlay',
+      () async {
+        final noisyMask = img.Image(width: 128, height: 128);
+        img.fill(noisyMask, color: img.ColorRgba8(0, 0, 0, 255));
+        for (var y = 80; y <= 111; y++) {
+          for (var x = 80; x <= 111; x++) {
+            noisyMask.setPixelRgba(x, y, 90, 160, 255, 120);
+          }
         }
-      }
 
-      final params = ImageParams(
-        action: ImageGenerationAction.infill,
-        model: 'nai-diffusion-4-5-full',
-        width: 128,
-        height: 128,
-        sourceImage: _validPngBytes(width: 128, height: 128),
-        maskImage: Uint8List.fromList(img.encodePng(noisyMask)),
-        addOriginalImage: true,
-      );
+        final params = ImageParams(
+          action: ImageGenerationAction.infill,
+          model: 'nai-diffusion-4-5-full',
+          width: 128,
+          height: 128,
+          sourceImage: _validPngBytes(width: 128, height: 128),
+          maskImage: Uint8List.fromList(img.encodePng(noisyMask)),
+          addOriginalImage: true,
+        );
 
-      final builder = NAIImageRequestBuilder(
-        params: params,
-        encodeVibe: _fakeEncodeVibe,
-      );
+        final builder = NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        );
 
-      final result = await builder.build(sampler: 'k_euler');
-      final maskBytes =
-          base64Decode(result.requestParameters['mask'] as String);
-      final decodedMask = img.decodeImage(maskBytes)!;
+        final result = await builder.build(sampler: 'k_euler');
+        final maskBytes = base64Decode(
+          result.requestParameters['mask'] as String,
+        );
+        final decodedMask = img.decodeImage(maskBytes)!;
 
-      expect(result.requestParameters['add_original_image'], isFalse);
-      expect('${decodedMask.width}x${decodedMask.height}', '128x128');
-      expect(decodedMask.getPixel(0, 0).r.toInt(), equals(0));
-      expect(decodedMask.getPixel(0, 0).a.toInt(), equals(255));
-      expect(decodedMask.getPixel(80, 80).r.toInt(), equals(255));
-      expect(decodedMask.getPixel(111, 111).r.toInt(), equals(255));
-      expect(decodedMask.getPixel(80, 80).a.toInt(), equals(255));
-      expect(decodedMask.getPixel(79, 79).r.toInt(), equals(0));
-    });
+        expect(result.requestParameters['add_original_image'], isFalse);
+        expect('${decodedMask.width}x${decodedMask.height}', '128x128');
+        expect(decodedMask.getPixel(0, 0).r.toInt(), equals(0));
+        expect(decodedMask.getPixel(0, 0).a.toInt(), equals(255));
+        expect(decodedMask.getPixel(80, 80).r.toInt(), equals(255));
+        expect(decodedMask.getPixel(111, 111).r.toInt(), equals(255));
+        expect(decodedMask.getPixel(80, 80).a.toInt(), equals(255));
+        expect(decodedMask.getPixel(79, 79).r.toInt(), equals(0));
+      },
+    );
 
-    test('should send expanded infill source and full-size mask for outpaint',
-        () async {
-      final expandedSource = _validPngBytes(width: 1472, height: 1664);
-      final expandedMask = img.Image(width: 1472, height: 1664);
-      img.fill(expandedMask, color: img.ColorRgba8(0, 0, 0, 255));
-      for (var y = 0; y < 64; y++) {
-        for (var x = 0; x < expandedMask.width; x++) {
-          expandedMask.setPixelRgba(x, y, 255, 255, 255, 255);
+    test(
+      'should normalize infill source image to request dimensions',
+      () async {
+        final params = ImageParams(
+          action: ImageGenerationAction.infill,
+          model: 'nai-diffusion-4-5-full',
+          width: 128,
+          height: 128,
+          sourceImage: _validPngBytes(width: 256, height: 128),
+          maskImage: _validPngBytes(width: 128, height: 128),
+        );
+
+        final builder = NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        );
+
+        final result = await builder.build(sampler: 'k_euler');
+        final sourceBytes = base64Decode(
+          result.requestParameters['image'] as String,
+        );
+        final maskBytes = base64Decode(
+          result.requestParameters['mask'] as String,
+        );
+        final decodedSource = img.decodeImage(sourceBytes);
+        final decodedMask = img.decodeImage(maskBytes);
+
+        expect(decodedSource, isNotNull);
+        expect(decodedMask, isNotNull);
+        expect('${decodedSource!.width}x${decodedSource.height}', '128x128');
+        expect('${decodedMask!.width}x${decodedMask.height}', '128x128');
+        expect(result.requestData['action'], equals('infill'));
+      },
+    );
+
+    test(
+      'should send expanded infill source and full-size mask for outpaint',
+      () async {
+        final expandedSource = _validPngBytes(width: 1472, height: 1664);
+        final expandedMask = img.Image(width: 1472, height: 1664);
+        img.fill(expandedMask, color: img.ColorRgba8(0, 0, 0, 255));
+        for (var y = 0; y < 64; y++) {
+          for (var x = 0; x < expandedMask.width; x++) {
+            expandedMask.setPixelRgba(x, y, 255, 255, 255, 255);
+          }
         }
-      }
 
-      final params = ImageParams(
-        action: ImageGenerationAction.infill,
-        model: 'nai-diffusion-4-5-full',
-        width: 1472,
-        height: 1664,
-        sourceImage: expandedSource,
-        maskImage: Uint8List.fromList(img.encodePng(expandedMask)),
-        strength: 0.42,
-        noise: 0.13,
-        addOriginalImage: true,
-        vibeReferencesV4: const [
-          VibeReference(
-            displayName: 'pre',
-            vibeEncoding: 'pre-encoded',
-            sourceType: VibeSourceType.png,
-          ),
-        ],
-      );
+        final params = ImageParams(
+          action: ImageGenerationAction.infill,
+          model: 'nai-diffusion-4-5-full',
+          width: 1472,
+          height: 1664,
+          sourceImage: expandedSource,
+          maskImage: Uint8List.fromList(img.encodePng(expandedMask)),
+          strength: 0.42,
+          noise: 0.13,
+          addOriginalImage: true,
+          vibeReferencesV4: const [
+            VibeReference(
+              displayName: 'pre',
+              vibeEncoding: 'pre-encoded',
+              sourceType: VibeSourceType.png,
+            ),
+          ],
+        );
 
-      final builder = NAIImageRequestBuilder(
-        params: params,
-        encodeVibe: _fakeEncodeVibe,
-      );
+        final builder = NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        );
 
-      final result = await builder.build(sampler: 'k_euler');
-      final parameters = result.requestParameters;
-      final decodedSource =
-          img.decodeImage(base64Decode(parameters['image'] as String));
-      final decodedMask =
-          img.decodeImage(base64Decode(parameters['mask'] as String));
+        final result = await builder.build(sampler: 'k_euler');
+        final parameters = result.requestParameters;
+        final decodedSource = img.decodeImage(
+          base64Decode(parameters['image'] as String),
+        );
+        final decodedMask = img.decodeImage(
+          base64Decode(parameters['mask'] as String),
+        );
 
-      expect(parameters['width'], equals(1472));
-      expect(parameters['height'], equals(1664));
-      expect(
-        base64Decode(parameters['image'] as String),
-        equals(expandedSource),
-      );
-      expect(decodedSource, isNotNull);
-      expect(decodedMask, isNotNull);
-      expect('${decodedSource!.width}x${decodedSource.height}', '1472x1664');
-      expect('${decodedMask!.width}x${decodedMask.height}', '1472x1664');
-      expect(decodedMask.getPixel(0, 0).r.toInt(), equals(255));
-      expect(decodedMask.getPixel(0, 63).r.toInt(), equals(255));
-      expect(decodedMask.getPixel(0, 64).r.toInt(), equals(0));
-      expect(parameters['strength'], equals(0.42));
-      expect(parameters['noise'], equals(0.13));
-      expect(parameters['add_original_image'], isFalse);
-      expect(parameters.containsKey('reference_image_multiple'), isFalse);
-      expect(result.vibeEncodingMap, isEmpty);
-      expect(result.requestData['action'], equals('infill'));
-    });
+        expect(parameters['width'], equals(1472));
+        expect(parameters['height'], equals(1664));
+        expect(
+          base64Decode(parameters['image'] as String),
+          equals(expandedSource),
+        );
+        expect(decodedSource, isNotNull);
+        expect(decodedMask, isNotNull);
+        expect('${decodedSource!.width}x${decodedSource.height}', '1472x1664');
+        expect('${decodedMask!.width}x${decodedMask.height}', '1472x1664');
+        expect(decodedMask.getPixel(0, 0).r.toInt(), equals(255));
+        expect(decodedMask.getPixel(0, 63).r.toInt(), equals(255));
+        expect(decodedMask.getPixel(0, 64).r.toInt(), equals(0));
+        expect(parameters['strength'], equals(0.42));
+        expect(parameters['noise'], equals(0.13));
+        expect(parameters['add_original_image'], isFalse);
+        expect(parameters.containsKey('reference_image_multiple'), isFalse);
+        expect(result.vibeEncodingMap, isEmpty);
+        expect(result.requestData['action'], equals('infill'));
+      },
+    );
 
-    test('should allow focused inpaint masks to skip extra post expansion',
-        () async {
-      final singlePixelMask = img.Image(width: 128, height: 128);
-      img.fill(singlePixelMask, color: img.ColorRgba8(0, 0, 0, 255));
-      for (var y = 64; y <= 71; y++) {
-        for (var x = 64; x <= 71; x++) {
-          singlePixelMask.setPixelRgba(x, y, 255, 255, 255, 255);
+    test(
+      'should allow focused inpaint masks to skip extra post expansion',
+      () async {
+        final singlePixelMask = img.Image(width: 128, height: 128);
+        img.fill(singlePixelMask, color: img.ColorRgba8(0, 0, 0, 255));
+        for (var y = 64; y <= 71; y++) {
+          for (var x = 64; x <= 71; x++) {
+            singlePixelMask.setPixelRgba(x, y, 255, 255, 255, 255);
+          }
         }
-      }
 
-      final params = ImageParams(
-        action: ImageGenerationAction.infill,
-        model: 'nai-diffusion-4-5-full',
-        width: 128,
-        height: 128,
-        sourceImage: _validPngBytes(width: 128, height: 128),
-        maskImage: Uint8List.fromList(img.encodePng(singlePixelMask)),
-        inpaintMaskClosingIterations: 0,
-        inpaintMaskExpansionIterations: 0,
-      );
+        final params = ImageParams(
+          action: ImageGenerationAction.infill,
+          model: 'nai-diffusion-4-5-full',
+          width: 128,
+          height: 128,
+          sourceImage: _validPngBytes(width: 128, height: 128),
+          maskImage: Uint8List.fromList(img.encodePng(singlePixelMask)),
+          inpaintMaskClosingIterations: 0,
+          inpaintMaskExpansionIterations: 0,
+        );
 
-      final builder = NAIImageRequestBuilder(
-        params: params,
-        encodeVibe: _fakeEncodeVibe,
-      );
+        final builder = NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        );
 
-      final result = await builder.build(sampler: 'k_euler');
-      final maskBytes =
-          base64Decode(result.requestParameters['mask'] as String);
-      final decodedMask = img.decodeImage(maskBytes)!;
+        final result = await builder.build(sampler: 'k_euler');
+        final maskBytes = base64Decode(
+          result.requestParameters['mask'] as String,
+        );
+        final decodedMask = img.decodeImage(maskBytes)!;
 
-      expect('${decodedMask.width}x${decodedMask.height}', '128x128');
-      expect(decodedMask.getPixel(64, 64).r.toInt(), equals(255));
-      expect(decodedMask.getPixel(63, 64).r.toInt(), equals(0));
-      expect(decodedMask.getPixel(64, 63).r.toInt(), equals(0));
-    });
+        expect('${decodedMask.width}x${decodedMask.height}', '128x128');
+        expect(decodedMask.getPixel(64, 64).r.toInt(), equals(255));
+        expect(decodedMask.getPixel(63, 64).r.toInt(), equals(0));
+        expect(decodedMask.getPixel(64, 63).r.toInt(), equals(0));
+      },
+    );
 
-    test('should prefer precise reference over vibe transfer on v4.5 requests',
-        () async {
-      final params = ImageParams(
-        model: 'nai-diffusion-4-5-full',
-        preciseReferences: [
-          PreciseReference(
-            image: _validPngBytes(),
-            type: PreciseRefType.character,
-          ),
-        ],
-        vibeReferencesV4: const [
-          VibeReference(
-            displayName: 'pre',
-            vibeEncoding: 'pre-encoded',
-            sourceType: VibeSourceType.png,
-          ),
-        ],
-      );
+    test(
+      'should prefer precise reference over vibe transfer on v4.5 requests',
+      () async {
+        final params = ImageParams(
+          model: 'nai-diffusion-4-5-full',
+          preciseReferences: [
+            PreciseReference(
+              image: _validPngBytes(),
+              type: PreciseRefType.character,
+            ),
+          ],
+          vibeReferencesV4: const [
+            VibeReference(
+              displayName: 'pre',
+              vibeEncoding: 'pre-encoded',
+              sourceType: VibeSourceType.png,
+            ),
+          ],
+        );
 
-      final builder = NAIImageRequestBuilder(
-        params: params,
-        encodeVibe: _fakeEncodeVibe,
-      );
+        final builder = NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        );
 
-      final result = await builder.build(sampler: 'k_euler');
-      expect(
-        result.requestParameters.containsKey('director_reference_images'),
-        isTrue,
-      );
-      expect(
-        result.requestParameters.containsKey('reference_image_multiple'),
-        isFalse,
-      );
-      expect(result.vibeEncodingMap, isEmpty);
-    });
+        final result = await builder.build(sampler: 'k_euler');
+        expect(
+          result.requestParameters.containsKey('director_reference_images'),
+          isTrue,
+        );
+        expect(
+          result.requestParameters.containsKey('reference_image_multiple'),
+          isFalse,
+        );
+        expect(result.vibeEncodingMap, isEmpty);
+      },
+    );
   });
 }
 
@@ -496,10 +589,5 @@ Future<String> _fakeEncodeVibe(
   return 'encoded-vibe';
 }
 
-Uint8List _validPngBytes({
-  int width = 2,
-  int height = 2,
-}) =>
-    Uint8List.fromList(
-      img.encodePng(img.Image(width: width, height: height)),
-    );
+Uint8List _validPngBytes({int width = 2, int height = 2}) =>
+    Uint8List.fromList(img.encodePng(img.Image(width: width, height: height)));

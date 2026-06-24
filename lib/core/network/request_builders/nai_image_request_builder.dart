@@ -5,15 +5,17 @@ import 'dart:typed_data';
 import '../../enums/precise_ref_type.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/inpaint_mask_utils.dart';
+import '../../utils/nai_resolution_adapter.dart';
 import '../../utils/nai_api_utils.dart';
 import '../../utils/prompt_semantics_utils.dart';
 import '../../../data/models/image/image_params.dart';
 
-typedef EncodeVibeFn = Future<String> Function(
-  Uint8List image, {
-  required String model,
-  double informationExtracted,
-});
+typedef EncodeVibeFn =
+    Future<String> Function(
+      Uint8List image, {
+      required String model,
+      double informationExtracted,
+    });
 
 class NAIImageRequestBuildResult {
   NAIImageRequestBuildResult({
@@ -38,10 +40,11 @@ class NAIImageRequestBuilder {
     required this.params,
     required this.encodeVibe,
     List<PreciseReference>? preciseReferences,
-  }) : _preciseReferences = preciseReferences ??
-            (params.isV45Model
-                ? params.preciseReferences
-                : <PreciseReference>[]);
+  }) : _preciseReferences =
+           preciseReferences ??
+           (params.isV45Model
+               ? params.preciseReferences
+               : <PreciseReference>[]);
 
   final ImageParams params;
   final EncodeVibeFn encodeVibe;
@@ -75,8 +78,9 @@ class NAIImageRequestBuilder {
           ? (params.noiseSchedule == 'native' ? 'karras' : params.noiseSchedule)
           : params.noiseSchedule,
       'normalize_reference_strength_multiple': true,
-      'inpaintImg2ImgStrength':
-          NAIApiUtils.toJsonNumber(params.inpaintStrength),
+      'inpaintImg2ImgStrength': NAIApiUtils.toJsonNumber(
+        params.inpaintStrength,
+      ),
       'seed': seed,
       'negative_prompt': effectiveNegativePrompt,
       'deliberate_euler_ancestral_bug': false,
@@ -93,10 +97,12 @@ class NAIImageRequestBuilder {
       final autoSmea = resolution > 1024 * 1024;
 
       final isDdim = params.sampler.contains('ddim');
-      final effectiveSmea =
-          isDdim ? false : (params.smeaAuto ? autoSmea : params.smea);
-      final effectiveSmeaDyn =
-          isDdim ? false : (params.smeaAuto ? false : params.smeaDyn);
+      final effectiveSmea = isDdim
+          ? false
+          : (params.smeaAuto ? autoSmea : params.smea);
+      final effectiveSmeaDyn = isDdim
+          ? false
+          : (params.smeaAuto ? false : params.smeaDyn);
 
       requestParameters['sm'] = effectiveSmea;
       requestParameters['sm_dyn'] = effectiveSmeaDyn;
@@ -266,9 +272,7 @@ class NAIImageRequestBuilder {
         .where((v) => v.vibeEncoding.isNotEmpty)
         .toList();
     final rawImageVibes = params.vibeReferencesV4
-        .where(
-          (v) => v.vibeEncoding.isEmpty && v.rawImageData != null,
-        )
+        .where((v) => v.vibeEncoding.isEmpty && v.rawImageData != null)
         .toList();
 
     final allEncodings = <String>[];
@@ -340,9 +344,8 @@ class NAIImageRequestBuilder {
 
     final referenceImages = <String>[];
     for (final reference in _preciseReferences) {
-      final imageBytes = NAIApiUtils.isKnownNormalizedPreciseReferencePng(
-        reference.image,
-      )
+      final imageBytes =
+          NAIApiUtils.isKnownNormalizedPreciseReferencePng(reference.image)
           ? reference.image
           : await NAIApiUtils.ensurePngFormatAsync(reference.image);
       referenceImages.add(base64Encode(imageBytes));
@@ -363,10 +366,20 @@ class NAIImageRequestBuilder {
         .toList();
     requestParameters['director_reference_information_extracted'] =
         _preciseReferences.map((_) => 1).toList();
-    requestParameters['director_reference_strength_values'] =
-        _preciseReferences.map((r) => r.strength).toList();
+    requestParameters['director_reference_strength_values'] = _preciseReferences
+        .map((r) => r.strength)
+        .toList();
     requestParameters['director_reference_secondary_strength_values'] =
         _preciseReferences.map((r) => 1.0 - r.fidelity).toList();
+  }
+
+  Future<Uint8List> _normalizeRequestSourceImage(Uint8List sourceImage) async {
+    return await NaiResolutionAdapter.normalizeImageForRequestAsync(
+          sourceImage,
+          targetWidth: params.width,
+          targetHeight: params.height,
+        ) ??
+        sourceImage;
   }
 
   Future<NAIImageRequestBuildResult> build({
@@ -406,7 +419,10 @@ class NAIImageRequestBuilder {
 
     if (params.action == ImageGenerationAction.img2img &&
         params.sourceImage != null) {
-      requestParameters['image'] = base64Encode(params.sourceImage!);
+      final normalizedSource = await _normalizeRequestSourceImage(
+        params.sourceImage!,
+      );
+      requestParameters['image'] = base64Encode(normalizedSource);
       requestParameters['strength'] = params.strength;
       requestParameters['noise'] = params.noise;
     }
@@ -421,7 +437,10 @@ class NAIImageRequestBuilder {
         closingIterations: params.inpaintMaskClosingIterations,
         expansionIterations: params.inpaintMaskExpansionIterations,
       );
-      requestParameters['image'] = base64Encode(params.sourceImage!);
+      final normalizedSource = await _normalizeRequestSourceImage(
+        params.sourceImage!,
+      );
+      requestParameters['image'] = base64Encode(normalizedSource);
       requestParameters['mask'] = base64Encode(normalizedMask);
       requestParameters['strength'] = NAIApiUtils.toJsonNumber(params.strength);
       requestParameters['noise'] = NAIApiUtils.toJsonNumber(params.noise);
