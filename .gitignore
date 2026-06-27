@@ -273,6 +273,11 @@ test/presentation/screens/generation/widgets/*
 !test/presentation/screens/prompt_config/
 test/presentation/screens/prompt_config/*
 !test/presentation/screens/prompt_config/random_config_screen_test.dart
+!test/presentation/screens/settings/
+test/presentation/screens/settings/*
+!test/presentation/screens/settings/sections/
+test/presentation/screens/settings/sections/*
+!test/presentation/screens/settings/sections/storage_settings_section_test.dart
 !test/presentation/screens/vibe_library/
 test/presentation/screens/vibe_library/*
 !test/presentation/screens/vibe_library/widgets/
