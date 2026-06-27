@@ -298,6 +298,7 @@ test/presentation/widgets/gallery/*
 !test/presentation/widgets/gallery/image_send_destination_dialog_test.dart
 !test/presentation/widgets/image_editor/
 test/presentation/widgets/image_editor/*
+!test/presentation/widgets/image_editor/image_editor_screen_drop_test.dart
 !test/presentation/widgets/image_editor/image_editor_screen_inpaint_brush_test.dart
 !test/presentation/widgets/image_editor/image_editor_screen_outpaint_commit_test.dart
 !test/presentation/widgets/image_editor/canvas/
