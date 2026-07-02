@@ -141,7 +141,7 @@ void main() {
     );
 
     test(
-      'replaceSourceImage should resize ordinary imports to the official web bucket',
+      'replaceSourceImage should keep import bytes while applying the official web bucket',
       () {
         final controller = container.read(
           imageWorkflowControllerProvider.notifier,
@@ -156,9 +156,9 @@ void main() {
         );
         paramsNotifier.updateSize(832, 1216, persist: false);
 
-        controller.replaceSourceImage(
-          _validImageBytes(width: 1500, height: 900),
-        );
+        final original = _validImageBytes(width: 1500, height: 900);
+
+        controller.replaceSourceImage(original);
 
         final workflow = container.read(imageWorkflowControllerProvider);
         final params = container.read(generationParamsNotifierProvider);
@@ -168,14 +168,15 @@ void main() {
         expect(workflow.sourceHeight, equals(896));
         expect(params.width, equals(1472));
         expect(params.height, equals(896));
-        expect(source!.width, equals(1472));
-        expect(source.height, equals(896));
+        expect(params.sourceImage, same(original));
+        expect(source!.width, equals(1500));
+        expect(source.height, equals(900));
         expect(params.action, ImageGenerationAction.img2img);
       },
     );
 
     test(
-      'replaceSourceImageAsync should resize imports off the caller isolate',
+      'replaceSourceImageAsync should keep import bytes while applying the official web bucket',
       () async {
         final controller = container.read(
           imageWorkflowControllerProvider.notifier,
@@ -190,9 +191,9 @@ void main() {
         );
         paramsNotifier.updateSize(832, 1216, persist: false);
 
-        await controller.replaceSourceImageAsync(
-          _validImageBytes(width: 1500, height: 900),
-        );
+        final original = _validImageBytes(width: 1500, height: 900);
+
+        await controller.replaceSourceImageAsync(original);
 
         final workflow = container.read(imageWorkflowControllerProvider);
         final params = container.read(generationParamsNotifierProvider);
@@ -202,8 +203,9 @@ void main() {
         expect(workflow.sourceHeight, equals(896));
         expect(params.width, equals(1472));
         expect(params.height, equals(896));
-        expect(source!.width, equals(1472));
-        expect(source.height, equals(896));
+        expect(params.sourceImage, same(original));
+        expect(source!.width, equals(1500));
+        expect(source.height, equals(900));
         expect(params.action, ImageGenerationAction.img2img);
       },
     );

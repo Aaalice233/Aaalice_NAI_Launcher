@@ -251,6 +251,37 @@ class NaiResolutionAdapter {
     );
   }
 
+  /// 只解析图生图导入后的目标尺寸，不在导入阶段重采样或重编码图片字节。
+  ///
+  /// NovelAI Web 会在导入时更新请求尺寸；实际 source image bytes 会在请求
+  /// 发送前按当前 width/height 归一化。
+  static NaiImportImageInfo? describeImageForImport(
+    Uint8List imageBytes, {
+    int? currentWidth,
+    int? currentHeight,
+    bool isStableDiffusionFamily = false,
+  }) {
+    final decoded = img.decodeImage(imageBytes);
+    if (decoded == null) return null;
+
+    final srcW = decoded.width;
+    final srcH = decoded.height;
+    final target = findOfficialImportResolution(
+      srcW,
+      srcH,
+      currentWidth: currentWidth,
+      currentHeight: currentHeight,
+      isStableDiffusionFamily: isStableDiffusionFamily,
+    );
+
+    return NaiImportImageInfo(
+      width: target.width,
+      height: target.height,
+      originalWidth: srcW,
+      originalHeight: srcH,
+    );
+  }
+
   /// 将源图归一化到当前请求尺寸。
   ///
   /// NovelAI Web 在发送 img2img/infill 请求前会确保 image 字节宽高等于
@@ -292,6 +323,23 @@ class NaiResolutionAdapter {
   }) {
     return ComputeGate().runIsolate(
       () => adaptImageForImport(
+        imageBytes,
+        currentWidth: currentWidth,
+        currentHeight: currentHeight,
+        isStableDiffusionFamily: isStableDiffusionFamily,
+      ),
+    );
+  }
+
+  /// 异步解析导入尺寸，避免大图解码阻塞 UI isolate。
+  static Future<NaiImportImageInfo?> describeImageForImportAsync(
+    Uint8List imageBytes, {
+    int? currentWidth,
+    int? currentHeight,
+    bool isStableDiffusionFamily = false,
+  }) {
+    return ComputeGate().runIsolate(
+      () => describeImageForImport(
         imageBytes,
         currentWidth: currentWidth,
         currentHeight: currentHeight,
@@ -492,6 +540,32 @@ class NaiAdaptedImage {
 
   String get resizeDescription {
     if (!wasResized) return '无需调整';
+    return '$originalWidth×$originalHeight → $width×$height';
+  }
+}
+
+/// 图生图导入后应使用的请求尺寸信息。
+class NaiImportImageInfo {
+  final int width;
+  final int height;
+
+  /// 原始宽度
+  final int originalWidth;
+
+  /// 原始高度
+  final int originalHeight;
+
+  const NaiImportImageInfo({
+    required this.width,
+    required this.height,
+    required this.originalWidth,
+    required this.originalHeight,
+  });
+
+  bool get sizeChanged => originalWidth != width || originalHeight != height;
+
+  String get resizeDescription {
+    if (!sizeChanged) return '无需调整';
     return '$originalWidth×$originalHeight → $width×$height';
   }
 }

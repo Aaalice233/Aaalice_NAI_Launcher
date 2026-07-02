@@ -701,10 +701,10 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     );
   }
 
-  /// 设置源图像，自动适配到 NovelAI Web 的 Image2Image 导入分辨率
+  /// 设置源图像，自动同步到 NovelAI Web 的 Image2Image 导入分辨率
   ///
   /// 官网会按当前参数尺寸、模型族和图片宽高比选择 64-grid 分辨率，
-  /// 并在发送请求前把源图 resize 到同一尺寸。
+  /// 并在发送请求前把源图 resize 到同一尺寸；导入阶段保留原始图片字节。
   void replaceSourceImage(
     Uint8List imageBytes, {
     int? sourceWidth,
@@ -713,13 +713,12 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
   }) {
     _sourceImageRequestId++;
 
-    var effectiveBytes = imageBytes;
     int? effectiveWidth = sourceWidth;
     int? effectiveHeight = sourceHeight;
-    NaiAdaptedImage? adapted;
+    NaiImportImageInfo? importInfo;
 
     if (autoAdapt) {
-      adapted = NaiResolutionAdapter.adaptImageForImport(
+      importInfo = NaiResolutionAdapter.describeImageForImport(
         imageBytes,
         currentWidth: sourceWidth ?? _params.width,
         currentHeight: sourceHeight ?? _params.height,
@@ -727,24 +726,23 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
           _params.model,
         ),
       );
-      if (adapted != null) {
-        effectiveBytes = adapted.bytes;
-        effectiveWidth = adapted.width;
-        effectiveHeight = adapted.height;
+      if (importInfo != null) {
+        effectiveWidth = importInfo.width;
+        effectiveHeight = importInfo.height;
       }
     }
 
     _commitSourceImage(
-      effectiveBytes,
+      imageBytes,
       effectiveWidth: effectiveWidth,
       effectiveHeight: effectiveHeight,
-      adapted: adapted,
+      importInfo: importInfo,
     );
   }
 
   /// 异步设置源图像，用于拖入/文件选择等用户交互入口。
   ///
-  /// 大图的解码和 Lanczos3 重采样会在后台 isolate 中执行，避免阻塞 UI。
+  /// 大图的尺寸解析会在后台 isolate 中执行；Lanczos3 重采样延迟到请求阶段。
   Future<void> replaceSourceImageAsync(
     Uint8List imageBytes, {
     int? sourceWidth,
@@ -763,7 +761,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
 
     final requestId = ++_sourceImageRequestId;
     final params = _params;
-    final adapted = await NaiResolutionAdapter.adaptImageAsync(
+    final importInfo = await NaiResolutionAdapter.describeImageForImportAsync(
       imageBytes,
       currentWidth: sourceWidth ?? params.width,
       currentHeight: sourceHeight ?? params.height,
@@ -773,10 +771,10 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     if (_isDisposed || requestId != _sourceImageRequestId) return;
 
     _commitSourceImage(
-      adapted?.bytes ?? imageBytes,
-      effectiveWidth: adapted?.width ?? sourceWidth,
-      effectiveHeight: adapted?.height ?? sourceHeight,
-      adapted: adapted,
+      imageBytes,
+      effectiveWidth: importInfo?.width ?? sourceWidth,
+      effectiveHeight: importInfo?.height ?? sourceHeight,
+      importInfo: importInfo,
     );
   }
 
@@ -784,11 +782,11 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     Uint8List effectiveBytes, {
     int? effectiveWidth,
     int? effectiveHeight,
-    NaiAdaptedImage? adapted,
+    NaiImportImageInfo? importInfo,
   }) {
-    if (adapted != null && adapted.wasResized) {
+    if (importInfo != null && importInfo.sizeChanged) {
       AppLogger.i(
-        'Image auto-adapted: ${adapted.resizeDescription}',
+        'Image import size adapted: ${importInfo.resizeDescription}',
         'ImageWorkflow',
       );
     }

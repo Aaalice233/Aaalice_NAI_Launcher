@@ -88,6 +88,25 @@ void main() {
     );
 
     test(
+      'describes import dimensions without resizing imported source bytes',
+      () {
+        final source = _png(width: 1500, height: 900);
+        final info = NaiResolutionAdapter.describeImageForImport(
+          source,
+          currentWidth: 832,
+          currentHeight: 1216,
+        );
+        final decoded = img.decodeImage(source);
+
+        expect(info, isNotNull);
+        expect((info!.width, info.height), equals((1472, 896)));
+        expect((info.originalWidth, info.originalHeight), equals((1500, 900)));
+        expect((decoded!.width, decoded.height), equals((1500, 900)));
+        expect(info.sizeChanged, isTrue);
+      },
+    );
+
+    test(
       'normalizes request source bytes to the active request dimensions',
       () {
         final normalized = NaiResolutionAdapter.normalizeImageForRequest(
