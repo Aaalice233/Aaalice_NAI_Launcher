@@ -2,6 +2,19 @@
 chcp 65001
 cls
 
+set "ROOT=%~dp0.."
+for %%I in ("%ROOT%") do set "ROOT=%%~fI"
+cd /d "%ROOT%"
+
+if not defined DART_CMD (
+    for /f "delims=" %%D in ('where dart 2^>nul') do if not defined DART_CMD set "DART_CMD=%%D"
+)
+if not defined DART_CMD (
+    echo [ERROR] Dart command not found. Add Dart to PATH or set DART_CMD.
+    pause
+    exit /b 1
+)
+
 echo ==========================================
 echo    NAI Launcher Database Build Tool
 echo ==========================================
@@ -23,7 +36,7 @@ echo [INFO] Starting database build...
 echo [INFO] This may take 1-2 minutes depending on your system.
 echo.
 
-E:\flutter\bin\dart.bat run tool\database\build_databases.dart
+call "%DART_CMD%" run tool\database\build_databases.dart
 
 if %ERRORLEVEL% NEQ 0 (
     echo.

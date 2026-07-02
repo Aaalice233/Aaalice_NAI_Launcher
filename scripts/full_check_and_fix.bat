@@ -6,21 +6,26 @@ echo     NAI Launcher - 完整代码检查和修复
 echo ==========================================
 echo.
 
-REM 使用 E 盘的 Flutter
-set FLUTTER=E:\flutter\bin\flutter.bat
-set DART=E:\flutter\bin\dart.bat
-
-REM 检查 Flutter 是否存在
-if not exist %FLUTTER% (
-    echo [错误] 未找到 Flutter: %FLUTTER%
-    echo 请修改此脚本设置正确的 Flutter 路径
+if not defined FLUTTER_CMD (
+    for /f "delims=" %%F in ('where flutter 2^>nul') do if not defined FLUTTER_CMD set "FLUTTER_CMD=%%F"
+)
+if not defined DART_CMD (
+    for /f "delims=" %%D in ('where dart 2^>nul') do if not defined DART_CMD set "DART_CMD=%%D"
+)
+if not defined FLUTTER_CMD (
+    echo [错误] 未找到 Flutter。请将 Flutter 加入 PATH，或设置 FLUTTER_CMD。
+    pause
+    exit /b 1
+)
+if not defined DART_CMD (
+    echo [错误] 未找到 Dart。请将 Dart 加入 PATH，或设置 DART_CMD。
     pause
     exit /b 1
 )
 
 echo [1/5] 安装依赖 (flutter pub get)...
 echo ------------------------------------------
-call %FLUTTER% pub get
+call "%FLUTTER_CMD%" pub get
 if %errorlevel% neq 0 (
     echo.
     echo [错误] 依赖安装失败
@@ -32,7 +37,7 @@ echo.
 
 echo [2/5] 生成国际化代码 (flutter gen-l10n)...
 echo ------------------------------------------
-call %FLUTTER% gen-l10n
+call "%FLUTTER_CMD%" gen-l10n
 if %errorlevel% neq 0 (
     echo.
     echo [错误] 国际化代码生成失败
@@ -44,7 +49,7 @@ echo.
 
 echo [3/5] 运行 Build Runner 生成代码...
 echo ------------------------------------------
-call %DART% run build_runner build --delete-conflicting-outputs
+call "%DART_CMD%" run build_runner build --delete-conflicting-outputs
 if %errorlevel% neq 0 (
     echo.
     echo [错误] 代码生成失败
@@ -56,7 +61,7 @@ echo.
 
 echo [4/5] 运行代码分析 (flutter analyze)...
 echo ------------------------------------------
-call %FLUTTER% analyze
+call "%FLUTTER_CMD%" analyze
 if %errorlevel% neq 0 (
     echo.
     echo [警告] 分析发现问题，继续执行修复...
@@ -68,7 +73,7 @@ echo.
 
 echo [5/5] 自动修复代码问题 (dart fix --apply)...
 echo ------------------------------------------
-call %DART% fix --apply
+call "%DART_CMD%" fix --apply
 echo.
 echo [完成] 自动修复已应用
 echo.

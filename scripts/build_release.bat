@@ -1,7 +1,9 @@
 @echo off
 setlocal enabledelayedexpansion
 
-cd /d E:\Aaalice_NAI_Launcher
+set "ROOT=%~dp0.."
+for %%I in ("%ROOT%") do set "ROOT=%%~fI"
+cd /d "%ROOT%"
 
 echo ========================================
 echo   NAI Launcher Release Build
@@ -9,15 +11,32 @@ echo ========================================
 echo.
 
 :: 配置
-set "EXE_PATH=E:\Aaalice_NAI_Launcher\build\windows\x64\runner\Release\nai_launcher.exe"
-set "PFX_PATH=E:\Aaalice_NAI_Launcher\scripts\nai_launcher.pfx"
+set "EXE_PATH=%ROOT%\build\windows\x64\runner\Release\nai_launcher.exe"
+set "PFX_PATH=%ROOT%\scripts\nai_launcher.pfx"
 set "PFX_PASSWORD=NaiLauncher2024"
 set "TIMESTAMP_URL=http://timestamp.digicert.com"
+
+if not defined FLUTTER_CMD (
+    for /f "delims=" %%F in ('where flutter 2^>nul') do if not defined FLUTTER_CMD set "FLUTTER_CMD=%%F"
+)
+if not defined DART_CMD (
+    for /f "delims=" %%D in ('where dart 2^>nul') do if not defined DART_CMD set "DART_CMD=%%D"
+)
+if not defined FLUTTER_CMD (
+    echo [ERROR] Flutter command not found. Add Flutter to PATH or set FLUTTER_CMD.
+    pause
+    exit /b 1
+)
+if not defined DART_CMD (
+    echo [ERROR] Dart command not found. Add Dart to PATH or set DART_CMD.
+    pause
+    exit /b 1
+)
 
 echo [0/4] Building prebuilt database...
 echo.
 
-call E:\flutter\bin\dart.bat scripts\build_prebuilt_database.dart
+call "%DART_CMD%" scripts\build_prebuilt_database.dart
 if %ERRORLEVEL% neq 0 (
     echo.
     echo [WARNING] Prebuilt database generation failed, continuing with build...
@@ -26,7 +45,7 @@ if %ERRORLEVEL% neq 0 (
 echo.
 echo [1/4] Building release version...
 echo.
-call E:\flutter\bin\flutter.bat build windows --release
+call "%FLUTTER_CMD%" build windows --release
 
 if %ERRORLEVEL% neq 0 (
     echo.

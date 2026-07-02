@@ -1,10 +1,20 @@
+import 'dart:io';
+
+import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() async {
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 
-  const dbPath = r'E:\Aaalice_NAI_Launcher\assets\databases\translation.db';
+  final scriptDir = File(Platform.script.toFilePath()).parent;
+  final projectRoot = scriptDir.parent.parent;
+  final dbPath = p.join(
+    projectRoot.path,
+    'assets',
+    'databases',
+    'translation.db',
+  );
 
   print('Opening database: $dbPath');
   final db = await databaseFactoryFfi.openDatabase(
@@ -14,8 +24,9 @@ void main() async {
 
   // Check total count
   print('\n=== Total Records ===');
-  final countResult =
-      await db.rawQuery('SELECT COUNT(*) as cnt FROM translations');
+  final countResult = await db.rawQuery(
+    'SELECT COUNT(*) as cnt FROM translations',
+  );
   print('Total translations: ${countResult.first['cnt']}');
 
   // Check specific tags
@@ -35,10 +46,9 @@ void main() async {
   print('\n=== Checking specific tags ===');
   for (final tag in tagsToCheck) {
     // Get tag_id
-    final tagResult = await db.rawQuery(
-      'SELECT id FROM tags WHERE name = ?',
-      [tag],
-    );
+    final tagResult = await db.rawQuery('SELECT id FROM tags WHERE name = ?', [
+      tag,
+    ]);
     if (tagResult.isNotEmpty) {
       final tagId = tagResult.first['id'];
       final translations = await db.rawQuery(

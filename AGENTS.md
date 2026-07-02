@@ -1,36 +1,40 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
+## 项目结构与模块组织
 
-This is a Flutter desktop client for NovelAI. Main application code lives in `lib/`, with feature areas under `presentation/`, `data/`, and `core/`. Generated localization files are controlled by `l10n.yaml` and source ARB files in `lib/l10n/`. Static assets live in `assets/`, fonts in `fonts/`, Windows runner code in `windows/`, and Krita bridge/plugin code in `krita_plugin/`. Tests mirror the app layout under `test/`. Developer and diagnostic scripts are in `tool/` and `scripts/`.
+这是 NovelAI 的 Flutter 桌面客户端。主应用代码位于 `lib/`，主要按 `core/`、`data/`、`presentation/` 分层。国际化配置在 `l10n.yaml`，源 ARB 文件位于 `lib/l10n/`。静态资源放在 `assets/`，字体放在 `fonts/`，Windows、macOS、Android 平台工程分别在 `windows/`、`macos/`、`android/`。Krita 桥接和插件代码位于 `krita_plugin/`。测试代码放在 `test/`，开发和诊断脚本放在 `tool/` 与 `scripts/`。
 
-## Build, Test, and Development Commands
+## 构建、测试与开发命令
 
-Use Flutter `>=3.35.0` and Dart `>=3.10.7`; the current local target is `E:/flutter`.
+项目使用 Flutter `>=3.35.0` 和 Dart `>=3.10.7`。请确保本地 `flutter` 和 `dart` 命令可用，并与版本要求兼容。
 
 ```powershell
 flutter pub get
 dart run build_runner build --delete-conflicting-outputs
 flutter run -d windows
-flutter build windows --release
 flutter test
 flutter analyze
+flutter build windows --release
 ```
 
-Run `build_runner` after pulling changes that add or modify Riverpod providers, Freezed models, Hive adapters, JSON models, or routes. `flutter run -d windows` supports hot reload with `r` and hot restart with `R`.
+依赖变更后运行 `flutter pub get`。新增或修改 Riverpod providers、Freezed models、JSON models、Hive adapters 或生成路由后运行 `build_runner`。Windows 桌面调试使用 `flutter run -d windows`。
 
-## Coding Style & Naming Conventions
+## 代码风格与命名约定
 
-Follow the repository's Dart style and `analysis_options.yaml`. Use two-space indentation, `lowerCamelCase` for variables and methods, `UpperCamelCase` for types, and descriptive provider names ending in `Provider` or `NotifierProvider`. Prefer existing services, providers, and UI components over adding new abstractions. Keep comments focused on why a non-obvious decision exists.
+遵循 `analysis_options.yaml` 和 Dart 默认格式化规则，使用两个空格缩进。变量和方法使用 `lowerCamelCase`，类型使用 `UpperCamelCase`。Riverpod provider 命名应以 `Provider` 或 `NotifierProvider` 结尾。新增功能优先复用现有 service、provider、widget 和 utility，保持 `core`、`data`、`presentation` 的职责边界清晰。
 
-## Testing Guidelines
+## 测试规范
 
-Use `flutter_test` with `mocktail` for unit and widget tests. Place tests beside the relevant domain path, for example `test/presentation/providers/...` or `test/core/utils/...`. Name test files with `_test.dart`. For generated-code changes, run `build_runner` before testing. For UI behavior changes, add widget tests where practical and at least one provider/service regression test for stateful logic.
+测试使用 `flutter_test`，需要 mock 时使用 `mocktail`。测试文件以 `_test.dart` 结尾，并放在对应功能路径下，例如 `test/core/utils/`、`test/data/services/`、`test/presentation/providers/`。UI 行为变更尽量补 widget test；状态管理、请求构造、文件处理等逻辑变更应补 provider 或 service 回归测试。
 
-## Commit & Pull Request Guidelines
+## 资源、生成文件与发布注意事项
 
-Recent history uses Conventional Commits such as `fix(generation): ...`, `feat(prompt): ...`, and `chore(toolchain): ...`. Keep commits scoped and written in the form `type(scope): concise description`. Pull requests should explain the user-facing change, list validation commands run, mention generated files or assets affected, and include screenshots for visible UI changes.
+`assets/databases/*.db` 通过 Git LFS 管理，发布前应确认本地文件是真实 SQLite 数据库而不是 LFS pointer。`assets/translations/`、`assets/data/` 和 `assets/images/` 会随 Flutter assets 打包，移动或重命名后需要同步检查 `pubspec.yaml`。发布前确认 `CHANGELOG.md`、`dist/release_notes_<tag>.md`、`pubspec.yaml` 版本号和 Windows release build。
 
-## Security & Configuration Tips
+## 提交与 Pull Request 规范
 
-Do not commit API tokens, passwords, local account data, generated logs, or personal workflow artifacts. Prefer Persistent API Token login for NovelAI testing. Avoid printing full bearer tokens or credentials in logs; redact values and log only token type, length, or prefix when needed.
+Git 历史使用 Conventional Commits，例如 `fix(generation): cancel stale results`、`feat(prompt): add random mode`。提交应保持范围清晰、标题简洁。Pull Request 需要说明用户可见变化，列出已运行的验证命令，标注生成文件、LFS 资源或 assets 变更；涉及界面变化时附截图。
+
+## 安全与配置
+
+不要提交 NovelAI API token、账号数据、本地日志、构建产物或个人工作流文件。调试认证逻辑时避免打印完整 bearer token；如需日志，只记录 token 类型、长度或脱敏前缀。

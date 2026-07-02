@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
+import 'package:path/path.dart' as p;
 
 /// Vibe 文件分析工具
 /// 支持解析 PNG、.naiv4vibe、.naiv4vibebundle 文件
@@ -279,7 +280,9 @@ String _detectDataFormat(String data) {
 
 Future<void> saveDebugFile(String fileName, Uint8List bytes) async {
   try {
-    final tempDir = Directory(r'E:\Aaalice_NAI_Launcher\tool\debug_output');
+    final scriptDir = File(Platform.script.toFilePath()).parent;
+    final projectRoot = scriptDir.parent.parent;
+    final tempDir = Directory(p.join(projectRoot.path, 'tool', 'debug_output'));
     if (!await tempDir.exists()) {
       await tempDir.create(recursive: true);
     }
@@ -305,7 +308,8 @@ List<Map<String, dynamic>> parsePngChunks(Uint8List bytes) {
   var offset = pngSignature.length;
 
   while (offset + 12 <= bytes.length) {
-    final dataLength = (bytes[offset] << 24) |
+    final dataLength =
+        (bytes[offset] << 24) |
         (bytes[offset + 1] << 16) |
         (bytes[offset + 2] << 8) |
         bytes[offset + 3];
@@ -315,11 +319,7 @@ List<Map<String, dynamic>> parsePngChunks(Uint8List bytes) {
 
     final data = bytes.sublist(offset + 8, offset + 8 + dataLength);
 
-    chunks.add({
-      'type': type,
-      'data': data,
-      'length': dataLength,
-    });
+    chunks.add({'type': type, 'data': data, 'length': dataLength});
 
     if (type == 'IEND') break;
     offset += 12 + dataLength;

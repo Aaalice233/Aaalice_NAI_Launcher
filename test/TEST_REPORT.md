@@ -111,7 +111,7 @@
 
 ```
 日志系统初始化完成
-日志文件: E:\Aaalice_NAI_Launcher\logs\app_20260216_000111.log
+日志文件: logs/app_20260216_000111.log
 运行环境: 正式
 
 🐛 [TestTag] 调试信息
@@ -152,14 +152,14 @@ await AppLogger.initialize(isTestEnvironment: true);
 
 ### 查看日志
 
-日志目录：`E:\Aaalice_NAI_Launcher\logs`
+日志目录：`logs/`
 
 ```bash
 # 查看最新日志
-tail -f E:\Aaalice_NAI_Launcher\logs\app_*.log
+tail -f logs/app_*.log
 
 # 查看测试日志
-tail -f E:\Aaalice_NAI_Launcher\logs\test_*.log
+tail -f logs/test_*.log
 ```
 
 ## 文件自动清理
