@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -15,46 +17,51 @@ import '../utils/app_logger.dart';
 class AssetDatabaseManager {
   static final AssetDatabaseManager _instance = AssetDatabaseManager._();
   static AssetDatabaseManager get instance => _instance;
-  
+
   AssetDatabaseManager._();
-  
+
   // 数据库文件名
   static const String translationDb = 'translation.db';
   static const String cooccurrenceDb = 'cooccurrence.db';
-  
+  static const String _assetDatabaseVersion = 'asset-db-v1';
+
   // 数据库路径
   String? _translationDbPath;
   String? _cooccurrenceDbPath;
-  
+
   /// 获取翻译数据库路径
   String get translationDbPath {
     if (_translationDbPath == null) {
-      throw StateError('AssetDatabaseManager not initialized. Call initialize() first.');
+      throw StateError(
+        'AssetDatabaseManager not initialized. Call initialize() first.',
+      );
     }
     return _translationDbPath!;
   }
-  
+
   /// 获取共现数据库路径
   String get cooccurrenceDbPath {
     if (_cooccurrenceDbPath == null) {
-      throw StateError('AssetDatabaseManager not initialized. Call initialize() first.');
+      throw StateError(
+        'AssetDatabaseManager not initialized. Call initialize() first.',
+      );
     }
     return _cooccurrenceDbPath!;
   }
-  
+
   /// 初始化资产数据库
   ///
   /// 将预打包的数据库从 assets 复制到应用支持目录
   static Future<void> initialize() async {
     AppLogger.i('Initializing asset databases...', 'AssetDatabaseManager');
-    
+
     final appDir = await getApplicationSupportDirectory();
     final assetDbDir = Directory(p.join(appDir.path, 'asset_databases'));
-    
+
     if (!await assetDbDir.exists()) {
       await assetDbDir.create(recursive: true);
     }
-    
+
     // 复制翻译数据库
     await _copyAssetDatabase(
       assetPath: 'assets/databases/$translationDb',
@@ -62,7 +69,7 @@ class AssetDatabaseManager {
       name: 'translation',
     );
     _instance._translationDbPath = p.join(assetDbDir.path, translationDb);
-    
+
     // 复制共现数据库
     await _copyAssetDatabase(
       assetPath: 'assets/databases/$cooccurrenceDb',
@@ -70,10 +77,10 @@ class AssetDatabaseManager {
       name: 'cooccurrence',
     );
     _instance._cooccurrenceDbPath = p.join(assetDbDir.path, cooccurrenceDb);
-    
+
     AppLogger.i('Asset databases initialized', 'AssetDatabaseManager');
   }
-  
+
   /// 从 assets 复制数据库文件
   static Future<void> _copyAssetDatabase({
     required String assetPath,
@@ -81,45 +88,80 @@ class AssetDatabaseManager {
     required String name,
   }) async {
     final targetFile = File(targetPath);
-    
-    // 检查是否需要复制
+
     if (await targetFile.exists()) {
-      // 文件已存在且 assets 中无更新，跳过
-      if (!await _assetExists(assetPath)) {
+      final existingLength = await targetFile.length();
+      final versionFile = _versionFileFor(targetPath);
+      final version = await _readVersion(versionFile);
+      if (existingLength > 0 &&
+          (version == _assetDatabaseVersion || version == null)) {
+        if (version == null) {
+          await _writeVersion(versionFile);
+        }
         AppLogger.i('$name database up to date', 'AssetDatabaseManager');
         return;
       }
-      AppLogger.i('$name database updating from assets...', 'AssetDatabaseManager');
+      AppLogger.i(
+        '$name database updating from assets...',
+        'AssetDatabaseManager',
+      );
     } else {
-      AppLogger.i('$name database not found, copying from assets...', 'AssetDatabaseManager');
+      AppLogger.i(
+        '$name database not found, copying from assets...',
+        'AssetDatabaseManager',
+      );
     }
-    
+
     try {
       final bytes = await _loadAssetBytes(assetPath);
-      await targetFile.writeAsBytes(bytes);
-      
+      await targetFile.writeAsBytes(bytes, flush: true);
+      await _writeVersion(_versionFileFor(targetPath));
+
       final size = await targetFile.length();
-      AppLogger.i('$name database copied: ${_formatSize(size)}', 'AssetDatabaseManager');
+      AppLogger.i(
+        '$name database copied: ${_formatSize(size)}',
+        'AssetDatabaseManager',
+      );
     } catch (e) {
-      AppLogger.e('Failed to copy $name database', e, null, 'AssetDatabaseManager');
+      AppLogger.e(
+        'Failed to copy $name database',
+        e,
+        null,
+        'AssetDatabaseManager',
+      );
       if (!await targetFile.exists()) rethrow;
     }
   }
 
-  /// 检查 asset 是否存在
-  static Future<bool> _assetExists(String path) async {
+  static File _versionFileFor(String targetPath) => File('$targetPath.version');
+
+  static Future<String?> _readVersion(File versionFile) async {
     try {
-      await rootBundle.load(path);
-      return true;
+      if (!await versionFile.exists()) {
+        return null;
+      }
+      final version = await versionFile.readAsString(encoding: utf8);
+      return version.trim().isEmpty ? null : version.trim();
     } catch (_) {
-      return false;
+      return null;
     }
+  }
+
+  static Future<void> _writeVersion(File versionFile) async {
+    await versionFile.writeAsString(
+      _assetDatabaseVersion,
+      encoding: utf8,
+      flush: true,
+    );
   }
 
   /// 加载 asset 字节数据
   static Future<List<int>> _loadAssetBytes(String path) async {
     final byteData = await rootBundle.load(path);
-    return byteData.buffer.asUint8List();
+    return byteData.buffer.asUint8List(
+      byteData.offsetInBytes,
+      byteData.lengthInBytes,
+    );
   }
 
   /// 格式化文件大小
@@ -129,43 +171,43 @@ class AssetDatabaseManager {
     }
     return '${(bytes / 1024 / 1024).toStringAsFixed(2)} MB';
   }
-  
+
   /// 打开翻译数据库（只读）
   Future<Database> openTranslationDatabase() async {
     return _openReadOnlyDatabase(translationDbPath, 'translation');
   }
-  
+
   /// 打开共现数据库（只读）
   Future<Database> openCooccurrenceDatabase() async {
     return _openReadOnlyDatabase(cooccurrenceDbPath, 'cooccurrence');
   }
-  
+
   /// 打开只读数据库
   Future<Database> _openReadOnlyDatabase(String path, String name) async {
-    AppLogger.d('Opening $name database (read-only): $path', 'AssetDatabaseManager');
-    
+    AppLogger.d(
+      'Opening $name database (read-only): $path',
+      'AssetDatabaseManager',
+    );
+
     return await databaseFactoryFfi.openDatabase(
       path,
-      options: OpenDatabaseOptions(
-        readOnly: true,
-        singleInstance: false,
-      ),
+      options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
     );
   }
-  
+
   /// 检查数据库是否存在
   Future<bool> checkDatabasesExist() async {
     final transExists = await File(translationDbPath).exists();
     final coocExists = await File(cooccurrenceDbPath).exists();
-    
+
     AppLogger.i(
       'Database check - translation: $transExists, cooccurrence: $coocExists',
       'AssetDatabaseManager',
     );
-    
+
     return transExists && coocExists;
   }
-  
+
   /// 获取数据库文件大小信息
   Future<Map<String, dynamic>> getDatabaseInfo() async {
     Future<Map<String, dynamic>> getFileInfo(String path) async {
