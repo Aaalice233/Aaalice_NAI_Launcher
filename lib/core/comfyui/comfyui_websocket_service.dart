@@ -17,6 +17,7 @@ class ComfyUIWebSocketService {
 
   final String baseUrl;
   final String clientId;
+  final ComfyUIBinaryFrameDecoder _binaryFrameDecoder;
 
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
@@ -37,17 +38,16 @@ class ComfyUIWebSocketService {
   ComfyUIWebSocketService({
     required String baseUrl,
     required this.clientId,
-  }) : baseUrl = normalizeComfyUIBaseUrl(baseUrl);
+    ComfyUIBinaryFrameDecoder? binaryFrameDecoder,
+  }) : baseUrl = normalizeComfyUIBaseUrl(baseUrl),
+       _binaryFrameDecoder = binaryFrameDecoder ?? ComfyUIBinaryFrameDecoder();
 
   /// 连接到 ComfyUI WebSocket
   Future<void> connect() async {
     if (_disposed) return;
     await disconnect();
 
-    final uri = buildComfyUIWebSocketUri(
-      baseUrl: baseUrl,
-      clientId: clientId,
-    );
+    final uri = buildComfyUIWebSocketUri(baseUrl: baseUrl, clientId: clientId);
 
     AppLogger.i('Connecting to $uri', _tag);
 
@@ -95,6 +95,8 @@ class ComfyUIWebSocketService {
   void _onMessage(dynamic message) {
     if (message is String) {
       _handleJsonMessage(message);
+    } else if (message is Uint8List) {
+      _handleBinaryMessage(message);
     } else if (message is List<int>) {
       _handleBinaryMessage(Uint8List.fromList(message));
     }
@@ -174,7 +176,8 @@ class ComfyUIWebSocketService {
               ComfyUIProgress(
                 promptId: promptId,
                 status: ComfyUITaskStatus.failed,
-                errorMessage: errData?['exception_message'] as String? ??
+                errorMessage:
+                    errData?['exception_message'] as String? ??
                     errData?['exception_type'] as String? ??
                     '执行出错',
               ),
@@ -196,25 +199,62 @@ class ComfyUIWebSocketService {
   ///   byte[4..7] = image format (uint32 BE)，1=JPEG, 2=PNG
   ///   byte[8..] = image data
   void _handleBinaryMessage(Uint8List data) {
-    if (data.length < 8) return;
+    final frame = _binaryFrameDecoder.decode(data);
+    if (frame == null) return;
+
+    _imageController.add(frame);
+
+    AppLogger.d(
+      'Received ${frame.isPreview ? "preview" : "final"} image: ${frame.data.length} bytes',
+      _tag,
+    );
+  }
+}
+
+class ComfyUIBinaryFrameDecoder {
+  ComfyUIBinaryFrameDecoder({
+    this.previewMinInterval = const Duration(milliseconds: 250),
+    DateTime Function()? now,
+  }) : _now = now ?? DateTime.now;
+
+  final Duration previewMinInterval;
+  final DateTime Function() _now;
+
+  DateTime? _lastPreviewEmittedAt;
+
+  ComfyUIImageFrame? decode(Uint8List data) {
+    if (data.length < 8) return null;
 
     final bd = ByteData.sublistView(data, 0, 8);
     final eventType = bd.getUint32(0, Endian.big);
-    final imageData = data.sublist(8);
-    if (imageData.isEmpty) return;
+    if (eventType != 1 && eventType != 2) {
+      return null;
+    }
+
+    final imageData = Uint8List.sublistView(data, 8);
+    if (imageData.isEmpty) return null;
 
     final isPreview = eventType == 1;
-    _imageController.add(
-      ComfyUIImageFrame(
-        data: imageData,
-        isPreview: isPreview,
-      ),
-    );
+    if (isPreview && !_shouldEmitPreview()) {
+      return null;
+    }
 
-    AppLogger.d(
-      'Received ${isPreview ? "preview" : "final"} image: ${imageData.length} bytes',
-      _tag,
-    );
+    return ComfyUIImageFrame(data: imageData, isPreview: isPreview);
+  }
+
+  bool _shouldEmitPreview() {
+    if (previewMinInterval <= Duration.zero) {
+      return true;
+    }
+
+    final current = _now();
+    final last = _lastPreviewEmittedAt;
+    if (last != null && current.difference(last) < previewMinInterval) {
+      return false;
+    }
+
+    _lastPreviewEmittedAt = current;
+    return true;
   }
 }
 
@@ -223,8 +263,5 @@ class ComfyUIImageFrame {
   final Uint8List data;
   final bool isPreview;
 
-  const ComfyUIImageFrame({
-    required this.data,
-    this.isPreview = false,
-  });
+  const ComfyUIImageFrame({required this.data, this.isPreview = false});
 }
