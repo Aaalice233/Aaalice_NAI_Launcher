@@ -26,7 +26,7 @@ class DroppedFileData {
 class DroppedFileReader {
   DroppedFileReader._();
 
-  static const int maxRemoteImageBytes = 64 * 1024 * 1024;
+  static const int maxRemoteRawImageBytes = 256 * 1024 * 1024;
   static const Duration readTimeout = Duration(seconds: 10);
   static const Duration remoteTimeout = Duration(seconds: 30);
   static const Set<String> _imageExtensions = {
@@ -93,10 +93,7 @@ class DroppedFileReader {
       }
     }
 
-    final urlPattern = RegExp(
-      r'''https?://[^\s"'<>]+''',
-      caseSensitive: false,
-    );
+    final urlPattern = RegExp(r'''https?://[^\s"'<>]+''', caseSensitive: false);
     for (final match in urlPattern.allMatches(normalized)) {
       final uri = _parseHttpUri(match.group(0));
       if (uri != null) {
@@ -112,8 +109,9 @@ class DroppedFileReader {
     String? contentType,
     String? contentDisposition,
   }) {
-    final dispositionFileName =
-        _extractContentDispositionFileName(contentDisposition);
+    final dispositionFileName = _extractContentDispositionFileName(
+      contentDisposition,
+    );
     final uriFileName = uri.pathSegments.isNotEmpty
         ? Uri.decodeComponent(uri.pathSegments.last)
         : null;
@@ -121,13 +119,14 @@ class DroppedFileReader {
       dispositionFileName?.trim().isNotEmpty == true
           ? dispositionFileName!
           : (uriFileName?.trim().isNotEmpty == true
-              ? uriFileName!
-              : 'dropped_image'),
+                ? uriFileName!
+                : 'dropped_image'),
     );
 
     final extension = _extensionOf(fileName);
     if (!_imageExtensions.contains(extension)) {
-      final inferredExtension = _extensionFromContentType(contentType) ??
+      final inferredExtension =
+          _extensionFromContentType(contentType) ??
           _extensionFromUriQuery(uri) ??
           'png';
       fileName = '$fileName.$inferredExtension';
@@ -174,8 +173,9 @@ class DroppedFileReader {
 
     try {
       final filePath = uri.toFilePath();
-      final fileName =
-          _sanitizeFileName(filePath.split(Platform.pathSeparator).last);
+      final fileName = _sanitizeFileName(
+        filePath.split(Platform.pathSeparator).last,
+      );
       if (!_isAllowedLocalFile(fileName, allowVibeFiles: allowVibeFiles)) {
         AppLogger.w('Unsupported dropped local file: $fileName', logTag);
         return null;
@@ -339,8 +339,10 @@ class DroppedFileReader {
       var totalBytes = 0;
       await for (final chunk in response.timeout(remoteTimeout)) {
         totalBytes += chunk.length;
-        if (totalBytes > maxRemoteImageBytes) {
-          throw StateError('远程图片超过 ${maxRemoteImageBytes ~/ (1024 * 1024)}MB');
+        if (totalBytes > maxRemoteRawImageBytes) {
+          throw StateError(
+            '远程图片原始下载超过 ${maxRemoteRawImageBytes ~/ (1024 * 1024)}MB',
+          );
         }
         builder.add(chunk);
       }
@@ -380,8 +382,9 @@ class DroppedFileReader {
     final fileNameFromUri = uri.pathSegments.isNotEmpty
         ? Uri.decodeComponent(uri.pathSegments.last)
         : '';
-    final fileNameFromDisposition =
-        _extractContentDispositionFileName(contentDisposition);
+    final fileNameFromDisposition = _extractContentDispositionFileName(
+      contentDisposition,
+    );
     return _imageExtensions.contains(_extensionOf(fileNameFromUri)) ||
         (fileNameFromDisposition != null &&
             _imageExtensions.contains(_extensionOf(fileNameFromDisposition))) ||
@@ -517,10 +520,7 @@ class DroppedFileReader {
   }
 
   static String _sanitizeFileName(String fileName) {
-    return FileNameSanitizer.sanitize(
-      fileName,
-      fallback: 'dropped_image',
-    );
+    return FileNameSanitizer.sanitize(fileName, fallback: 'dropped_image');
   }
 
   static String _extensionOf(String fileName) {
@@ -550,7 +550,8 @@ class DroppedFileReader {
   }
 
   static String? _extensionFromUriQuery(Uri uri) {
-    final format = uri.queryParameters['format'] ??
+    final format =
+        uri.queryParameters['format'] ??
         uri.queryParameters['fm'] ??
         uri.queryParameters['ext'];
     if (format == null) {
@@ -608,20 +609,14 @@ Future<_LocalFileReadResult?> _readLocalFileInIsolate(
 }
 
 class _LocalFileReadRequest {
-  const _LocalFileReadRequest({
-    required this.filePath,
-    required this.fileName,
-  });
+  const _LocalFileReadRequest({required this.filePath, required this.fileName});
 
   final String filePath;
   final String fileName;
 }
 
 class _LocalFileReadResult {
-  const _LocalFileReadResult({
-    required this.fileName,
-    required this.bytes,
-  });
+  const _LocalFileReadResult({required this.fileName, required this.bytes});
 
   final String fileName;
   final Uint8List bytes;

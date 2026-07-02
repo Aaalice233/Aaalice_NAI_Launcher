@@ -223,6 +223,7 @@ test/data/services/*
 !test/data/services/random_preset_merger_test.dart
 !test/data/services/random_prompt_legacy_adapter_test.dart
 !test/data/services/random_prompt_generator_preset_test.dart
+!test/data/services/local_onnx_tagger_service_test.dart
 !test/data/datasources/
 test/data/datasources/*
 !test/data/datasources/remote/
@@ -258,6 +259,7 @@ test/presentation/providers/*
 !test/presentation/providers/layout_state_provider_test.dart
 !test/presentation/providers/prompt_config_random_mode_test.dart
 !test/presentation/providers/random_mode_provider_test.dart
+!test/presentation/providers/reverse_prompt_image_normalizer_test.dart
 !test/presentation/providers/generation/
 test/presentation/providers/generation/*
 !test/presentation/providers/generation/image_generation_cancel_test.dart

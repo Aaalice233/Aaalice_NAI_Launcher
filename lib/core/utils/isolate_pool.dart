@@ -12,11 +12,16 @@ class ComputeGate {
   static final ComputeGate _instance = ComputeGate._internal(
     maxConcurrentTasks: defaultMaxConcurrentTasks(),
   );
+  static final ComputeGate _singleTask = ComputeGate._internal(
+    maxConcurrentTasks: 1,
+  );
 
   factory ComputeGate() => _instance;
 
+  factory ComputeGate.singleTask() => _singleTask;
+
   ComputeGate._internal({required int maxConcurrentTasks})
-      : _semaphore = _Semaphore(math.max(1, maxConcurrentTasks));
+    : _semaphore = _Semaphore(math.max(1, maxConcurrentTasks));
 
   @foundation.visibleForTesting
   factory ComputeGate.forTesting({required int maxConcurrentTasks}) {
@@ -28,8 +33,10 @@ class ComputeGate {
   int get maxConcurrentTasks => _semaphore.maxCount;
 
   static int defaultMaxConcurrentTasks({int? processorCount}) {
-    final processors =
-        math.max(1, processorCount ?? Platform.numberOfProcessors);
+    final processors = math.max(
+      1,
+      processorCount ?? Platform.numberOfProcessors,
+    );
     return math.min(3, math.max(1, processors - 1));
   }
 
