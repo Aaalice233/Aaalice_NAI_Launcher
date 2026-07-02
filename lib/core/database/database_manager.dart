@@ -18,12 +18,7 @@ import 'datasources/translation_data_source.dart';
 import 'metrics/metrics_reporter.dart' as metrics_reporter;
 
 /// 数据库初始化状态
-enum DatabaseInitState {
-  uninitialized,
-  initializing,
-  initialized,
-  error,
-}
+enum DatabaseInitState { uninitialized, initializing, initialized, error }
 
 /// 数据库管理器
 class DatabaseManager {
@@ -42,15 +37,13 @@ class DatabaseManager {
   }
 
   /// 初始化数据库管理器
-  static Future<DatabaseManager> initialize({
-    int maxConnections = 20,
-  }) async {
+  static Future<DatabaseManager> initialize({int maxConnections = 20}) async {
     if (_instance != null) {
       // 检查是否可用
       try {
         final pool = ConnectionPoolHolder.getInstanceOrNull();
         if (pool != null && !pool.isDisposed) {
-          AppLogger.w('DatabaseManager already initialized', 'DatabaseManager');
+          AppLogger.d('DatabaseManager already initialized', 'DatabaseManager');
           return _instance!;
         }
 
@@ -261,6 +254,16 @@ class DatabaseManager {
     }
   }
 
+  Future<Map<String, int>> getCoreAssetStatistics() async {
+    final translationCount = await translationDataSource.getCount();
+    final cooccurrenceCount = await cooccurrenceDataSource.getCount();
+
+    return {
+      'translations': translationCount,
+      'cooccurrences': cooccurrenceCount,
+    };
+  }
+
   Future<void> recover() async {
     try {
       await ConnectionPoolHolder.reset(
@@ -278,8 +281,8 @@ class DatabaseManager {
   Future<HealthCheckResult> quickHealthCheck() async {
     try {
       // 检查资产数据库
-      final assetHealth =
-          await AssetDatabaseManager.instance.checkDatabasesExist();
+      final assetHealth = await AssetDatabaseManager.instance
+          .checkDatabasesExist();
       if (!assetHealth) {
         return HealthCheckResult(
           status: HealthStatus.corrupted,
@@ -466,10 +469,13 @@ class DatabaseManager {
     try {
       _metricsReporter = metrics_reporter.MetricsReporter();
 
-      const isProduction =
-          bool.fromEnvironment('dart.vm.product', defaultValue: false);
-      const reportInterval =
-          isProduction ? Duration(minutes: 5) : Duration(minutes: 10);
+      const isProduction = bool.fromEnvironment(
+        'dart.vm.product',
+        defaultValue: false,
+      );
+      const reportInterval = isProduction
+          ? Duration(minutes: 5)
+          : Duration(minutes: 10);
 
       _metricsReporter!.startReporting(interval: reportInterval);
     } catch (e, stack) {

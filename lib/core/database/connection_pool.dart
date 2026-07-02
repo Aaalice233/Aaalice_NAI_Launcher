@@ -20,7 +20,8 @@ class ConnectionPool {
   final Queue<Database> _availableConnections = Queue<Database>();
   final Set<Database> _inUseConnections = <Database>{};
   final Set<Database> _evictingConnections = <Database>{}; // 即将失效的连接
-  final Map<Database, DateTime> _evictingStartTimes = {}; // 记录连接被标记为 evicting 的时间
+  final Map<Database, DateTime> _evictingStartTimes =
+      {}; // 记录连接被标记为 evicting 的时间
   final _lock = Mutex();
 
   // 条件变量通知机制 - 当连接被释放时通知等待者
@@ -39,10 +40,7 @@ class ConnectionPool {
   /// 是否已释放
   bool get isDisposed => _disposed;
 
-  ConnectionPool({
-    required this.dbPath,
-    this.maxConnections = 10,
-  });
+  ConnectionPool({required this.dbPath, this.maxConnections = 10});
 
   /// 初始化连接池
   Future<void> initialize() async {
@@ -72,7 +70,7 @@ class ConnectionPool {
       dbPath,
       options: OpenDatabaseOptions(
         version: 1,
-        singleInstance: false,  // 重要：每个连接独立
+        singleInstance: false, // 重要：每个连接独立
         onConfigure: (db) async {
           // 启用外键和 WAL 模式
           await db.execute('PRAGMA foreign_keys = ON');
@@ -100,7 +98,8 @@ class ConnectionPool {
     await _lock.acquire();
     try {
       // 使用条件变量通知机制替代忙等待
-      while (_availableConnections.isEmpty && _inUseConnections.length >= maxConnections) {
+      while (_availableConnections.isEmpty &&
+          _inUseConnections.length >= maxConnections) {
         // 创建一个 completer 来等待连接可用通知
         final completer = Completer<void>();
         _waiters.add(completer);
@@ -125,7 +124,10 @@ class ConnectionPool {
 
         // 验证连接是否仍然有效
         if (!db.isOpen) {
-          AppLogger.d('Connection from pool is closed, creating new one', 'ConnectionPool');
+          AppLogger.d(
+            'Connection from pool is closed, creating new one',
+            'ConnectionPool',
+          );
           try {
             await db.close();
           } catch (_) {
@@ -175,12 +177,16 @@ class ConnectionPool {
     final availableNow = _availableConnections.length;
     final inUseNow = _inUseConnections.length;
 
-    // Log warning if available connections is low
+    // Low availability without wait time is normal during startup bursts; keep
+    // the warning level for cases that actually delay acquisition.
     if (availableNow < 2) {
-      AppLogger.w(
-        'Low available connections: $availableNow (in-use: $inUseNow, acquisition: ${acquisitionTimeMs}ms)',
-        'ConnectionPool',
-      );
+      final message =
+          'Low available connections: $availableNow (in-use: $inUseNow, acquisition: ${acquisitionTimeMs}ms)';
+      if (acquisitionTimeMs > 100) {
+        AppLogger.w(message, 'ConnectionPool');
+      } else {
+        AppLogger.d(message, 'ConnectionPool');
+      }
     }
 
     // Log warning if acquisition time is high
@@ -214,7 +220,10 @@ class ConnectionPool {
         _inUseConnections.remove(db);
         if (db.isOpen) {
           await db.close();
-          AppLogger.d('Evicted connection closed during release', 'ConnectionPool');
+          AppLogger.d(
+            'Evicted connection closed during release',
+            'ConnectionPool',
+          );
         }
         return;
       }
@@ -329,7 +338,8 @@ class ConnectionPool {
 
         for (final db in _evictingConnections) {
           final startTime = _evictingStartTimes[db];
-          if (startTime != null && now.difference(startTime) > _evictionTimeout) {
+          if (startTime != null &&
+              now.difference(startTime) > _evictionTimeout) {
             toForceClose.add(db);
           }
         }
@@ -342,9 +352,15 @@ class ConnectionPool {
           if (db.isOpen) {
             try {
               await db.close();
-              AppLogger.w('Force-closed connection after timeout', 'ConnectionPool');
+              AppLogger.w(
+                'Force-closed connection after timeout',
+                'ConnectionPool',
+              );
             } catch (e) {
-              AppLogger.w('Error force-closing connection: $e', 'ConnectionPool');
+              AppLogger.w(
+                'Error force-closing connection: $e',
+                'ConnectionPool',
+              );
             }
           }
         }

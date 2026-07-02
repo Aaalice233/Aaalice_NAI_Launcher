@@ -270,17 +270,17 @@ void setupWindowsWakeUpChannel() {
 }
 
 void main() {
-  final bootstrap = runZonedGuarded<Future<void>>(
-    _bootstrapApplication,
-    (error, stackTrace) {
-      AppErrorReporter.reportError(
-        error,
-        stackTrace,
-        source: 'runZonedGuarded',
-        fatal: true,
-      );
-    },
-  );
+  final bootstrap = runZonedGuarded<Future<void>>(_bootstrapApplication, (
+    error,
+    stackTrace,
+  ) {
+    AppErrorReporter.reportError(
+      error,
+      stackTrace,
+      source: 'runZonedGuarded',
+      fatal: true,
+    );
+  });
   if (bootstrap != null) {
     unawaited(bootstrap);
   }
@@ -334,7 +334,7 @@ Future<void> _bootstrapApplication() async {
   final settingsBox = Hive.box(StorageKeys.settingsBox);
   final fileLoggingEnabled =
       settingsBox.get(StorageKeys.fileLoggingEnabled, defaultValue: false) ==
-          true;
+      true;
   await AppLogger.setFileLoggingEnabled(fileLoggingEnabled);
 
   // 在 Hive 初始化之后执行文件迁移
@@ -354,22 +354,19 @@ Future<void> _bootstrapApplication() async {
     final manager = await DatabaseManager.initialize();
     await manager.initialized;
 
-    // 检查数据完整性
-    final stats = await manager.getStatistics();
-    final tableStats = stats['tables'] as Map<String, int>? ?? {};
-    final translationCount = tableStats['translations'] ?? 0;
-    final cooccurrenceCount = tableStats['cooccurrences'] ?? 0;
+    // 检查核心资产库完整性。翻译和共现数据已迁移到独立资产数据库，
+    // 不应再从 danbooru.db 的运行时表统计里判断。
+    final coreAssetStats = await manager.getCoreAssetStatistics();
+    final translationCount = coreAssetStats['translations'] ?? 0;
+    final cooccurrenceCount = coreAssetStats['cooccurrences'] ?? 0;
 
     AppLogger.i(
-      '数据表状态: translations=$translationCount, cooccurrences=$cooccurrenceCount',
+      '核心资产数据库状态: translations=$translationCount, cooccurrences=$cooccurrenceCount',
       'Main',
     );
 
-    // 如果需要恢复（首次启动或数据缺失）
     if (translationCount == 0 || cooccurrenceCount == 0) {
-      AppLogger.w('核心数据缺失，执行恢复..', 'Main');
-      await manager.recover();
-      AppLogger.i('数据恢复完成', 'Main');
+      AppLogger.w('核心资产数据为空，请检查打包数据库', 'Main');
     }
 
     AppLogger.i('数据库初始化完成', 'Main');
@@ -440,8 +437,9 @@ Future<void> _bootstrapApplication() async {
     try {
       final rootPath = await GalleryFolderRepository.instance.getRootPath();
       if (rootPath != null) {
-        final cleanedCount =
-            await thumbnailService.cleanupNestedThumbs(rootPath);
+        final cleanedCount = await thumbnailService.cleanupNestedThumbs(
+          rootPath,
+        );
         if (cleanedCount > 0) {
           AppLogger.i('启动清理完成: 删除了 $cleanedCount 个嵌套缩略图目录', 'Main');
         }
@@ -488,8 +486,9 @@ Future<void> _bootstrapApplication() async {
   Future.delayed(const Duration(seconds: 5), () async {
     try {
       AppLogger.i('Checking artist tags sync...', 'Main');
-      final notifier =
-          container.read(danbooruTagsCacheNotifierProvider.notifier);
+      final notifier = container.read(
+        danbooruTagsCacheNotifierProvider.notifier,
+      );
       await notifier.checkAndSyncArtists();
     } catch (e) {
       AppLogger.w('Artist tags auto-sync failed: $e', 'Main');
@@ -539,12 +538,18 @@ Future<void> _bootstrapApplication() async {
         // macOS：启动时自适应屏幕，铺满可用工作区（紧贴屏幕，保留菜单栏/Dock）
         effWidth = work.width;
         effHeight = work.height;
-        fillBounds =
-            Rect.fromLTWH(workPos.dx, workPos.dy, work.width, work.height);
+        fillBounds = Rect.fromLTWH(
+          workPos.dx,
+          workPos.dy,
+          work.width,
+          work.height,
+        );
       } else {
         // 其它情况：clamp 到工作区，避免窗口超出屏幕
         final maxW = (work.width - 40).clamp(800.0, double.infinity).toDouble();
-        final maxH = (work.height - 40).clamp(600.0, double.infinity).toDouble();
+        final maxH = (work.height - 40)
+            .clamp(600.0, double.infinity)
+            .toDouble();
         effWidth = savedWidth.clamp(800.0, maxW).toDouble();
         effHeight = savedHeight.clamp(600.0, maxH).toDouble();
       }
@@ -600,15 +605,9 @@ Future<void> _bootstrapApplication() async {
 
         final menu = Menu(
           items: [
-            MenuItem(
-              key: 'show',
-              label: l10n.tray_show,
-            ),
+            MenuItem(key: 'show', label: l10n.tray_show),
             MenuItem.separator(),
-            MenuItem(
-              key: 'exit',
-              label: l10n.tray_exit,
-            ),
+            MenuItem(key: 'exit', label: l10n.tray_exit),
           ],
         );
         await trayManager.setContextMenu(menu);
@@ -633,10 +632,9 @@ Future<void> _bootstrapApplication() async {
         settingsBox.get(StorageKeys.proxyEnabled, defaultValue: true) as bool;
 
     if (proxyEnabled) {
-      final proxyMode = settingsBox.get(
-        StorageKeys.proxyMode,
-        defaultValue: 'auto',
-      ) as String;
+      final proxyMode =
+          settingsBox.get(StorageKeys.proxyMode, defaultValue: 'auto')
+              as String;
 
       String? proxyAddress;
 
