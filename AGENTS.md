@@ -9,6 +9,7 @@
 项目使用 Flutter `>=3.35.0` 和 Dart `>=3.10.7`。请确保本地 `flutter` 和 `dart` 命令可用，并与版本要求兼容。
 
 ```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/dev_hot_reload.ps1
 flutter pub get
 dart run build_runner build --delete-conflicting-outputs
 flutter run -d windows
@@ -17,7 +18,7 @@ flutter analyze
 flutter build windows --release
 ```
 
-依赖变更后运行 `flutter pub get`。新增或修改 Riverpod providers、Freezed models、JSON models、Hive adapters 或生成路由后运行 `build_runner`。Windows 桌面调试使用 `flutter run -d windows`。
+Windows 桌面热重载优先使用 `scripts/dev_hot_reload.ps1`，它会先运行 `build_runner`，再进入 `flutter run -d windows`，之后可在终端按 `r` 热重载、`R` 热重启、`q` 退出。依赖变更后运行 `flutter pub get`。新增或修改 Riverpod providers、Freezed models、JSON models、Hive adapters 或生成路由后运行 `build_runner`。
 
 ## 代码风格与命名约定
 
