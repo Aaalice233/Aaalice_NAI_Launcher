@@ -41,10 +41,12 @@ class NAIImageRequestBuilder {
     required this.encodeVibe,
     List<PreciseReference>? preciseReferences,
   }) : _preciseReferences =
-           preciseReferences ??
-           (params.isV45Model
-               ? params.preciseReferences
-               : <PreciseReference>[]);
+           (preciseReferences ??
+                   (params.isV45Model
+                       ? params.preciseReferences
+                       : <PreciseReference>[]))
+               .where((reference) => reference.enabled)
+               .toList(growable: false);
 
   final ImageParams params;
   final EncodeVibeFn encodeVibe;
@@ -197,7 +199,7 @@ class NAIImageRequestBuilder {
       // Vibe Transfer payload 会触发服务端 500，因此局部重绘时跳过。
       return vibeEncodingMap;
     }
-    if (params.vibeReferencesV4.isEmpty) {
+    if (!params.hasVibeReferencesV4) {
       return vibeEncodingMap;
     }
 
@@ -211,6 +213,9 @@ class NAIImageRequestBuilder {
 
       for (int i = 0; i < params.vibeReferencesV4.length; i++) {
         final vibe = params.vibeReferencesV4[i];
+        if (!vibe.enabled) {
+          continue;
+        }
 
         if (vibe.vibeEncoding.isNotEmpty) {
           allEncodings.add(vibe.vibeEncoding);
@@ -269,9 +274,11 @@ class NAIImageRequestBuilder {
     }
 
     final encodedVibes = params.vibeReferencesV4
+        .where((v) => v.enabled)
         .where((v) => v.vibeEncoding.isNotEmpty)
         .toList();
     final rawImageVibes = params.vibeReferencesV4
+        .where((v) => v.enabled)
         .where((v) => v.vibeEncoding.isEmpty && v.rawImageData != null)
         .toList();
 

@@ -1159,6 +1159,9 @@
   "vibe_infoExtraction": "Information Extracted",
   "vibe_adjustParams": "Adjust Parameters",
   "vibe_remove": "Remove",
+  "reference_enabled": "Enabled",
+  "reference_enable": "Enable reference",
+  "reference_disable": "Disable reference",
   "vibe_sliderHint": "Reference Strength: Higher mimics visual cues\nInformation Extracted: Lower reduces texture, preserves composition",
   "vibe_strengthInfo": "Reference Strength: {value} | Information Extracted: {infoValue}",
   "@vibe_strengthInfo": {

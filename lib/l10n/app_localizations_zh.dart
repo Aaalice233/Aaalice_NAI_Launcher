@@ -2430,6 +2430,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_remove => '移除';
 
   @override
+  String get reference_enabled => '启用';
+
+  @override
+  String get reference_enable => '启用参考';
+
+  @override
+  String get reference_disable => '禁用参考';
+
+  @override
   String get vibe_sliderHint => '强度: 越高越模仿视觉线索\n信息提取: 降低会减少纹理、保留构图';
 
   @override

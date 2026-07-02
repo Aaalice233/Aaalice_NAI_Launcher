@@ -282,6 +282,7 @@ test/presentation/screens/generation/*
 !test/presentation/screens/generation/widgets/
 test/presentation/screens/generation/widgets/*
 !test/presentation/screens/generation/widgets/fixed_tags_sidebar_test.dart
+!test/presentation/screens/generation/widgets/vibe_card_test.dart
 !test/presentation/screens/prompt_config/
 test/presentation/screens/prompt_config/*
 !test/presentation/screens/prompt_config/random_config_screen_test.dart

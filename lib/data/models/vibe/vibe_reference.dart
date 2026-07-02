@@ -82,6 +82,9 @@ class VibeReference with _$VibeReference {
     /// 数据来源类型
     @Default(VibeSourceType.rawImage) VibeSourceType sourceType,
 
+    /// 是否参与下一次生成请求。
+    @Default(true) bool enabled,
+
     /// Bundle 来源名称 (如果从 bundle 中提取)
     /// 用于 UI 显示该 vibe 来自哪个 bundle 文件
     String? bundleSource,

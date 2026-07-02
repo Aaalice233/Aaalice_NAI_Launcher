@@ -33,7 +33,7 @@ class AnlasCalculator {
     if (!params.model.contains('diffusion-4-5')) {
       return 0;
     }
-    return params.preciseReferences.length * 5;
+    return params.preciseReferenceCount * 5;
   }
 
   /// 计算预估 Anlas 消耗
@@ -163,21 +163,22 @@ class AnlasCalculator {
       // V1/V2 使用指数公式（简化版）
       perSample =
           (15.266497014243718 * math.exp(r / 1024 / 1024 * 0.6326248927474729) -
-                  15.225164493059737) *
-              steps /
-              28;
+              15.225164493059737) *
+          steps /
+          28;
     }
 
     // 应用 img2img 强度系数
     final int cost = math.max((perSample * strength).ceil(), 2);
 
     // Opus 免费条件检查
-    final opusDiscount = _isOpusFree(
-      isOpus: isOpus || subscriptionTier == opusTier,
-      steps: steps,
-      resolution: r,
-      version: version,
-    )
+    final opusDiscount =
+        _isOpusFree(
+          isOpus: isOpus || subscriptionTier == opusTier,
+          steps: steps,
+          resolution: r,
+          version: version,
+        )
         ? 1
         : 0;
 

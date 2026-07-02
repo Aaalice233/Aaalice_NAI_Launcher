@@ -4600,6 +4600,24 @@ abstract class AppLocalizations {
   /// **'Remove'**
   String get vibe_remove;
 
+  /// No description provided for @reference_enabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get reference_enabled;
+
+  /// No description provided for @reference_enable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable reference'**
+  String get reference_enable;
+
+  /// No description provided for @reference_disable.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable reference'**
+  String get reference_disable;
+
   /// No description provided for @vibe_sliderHint.
   ///
   /// In en, this message translates to:

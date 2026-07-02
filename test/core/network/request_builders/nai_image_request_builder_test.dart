@@ -164,6 +164,146 @@ void main() {
       expect(streamResult.vibeEncodingMap, isEmpty);
     });
 
+    test(
+      'should omit disabled vibe transfer references from request payload',
+      () async {
+        const params = ImageParams(
+          model: 'nai-diffusion-4-full',
+          vibeReferencesV4: [
+            VibeReference(
+              displayName: 'disabled',
+              vibeEncoding: 'disabled-encoded',
+              sourceType: VibeSourceType.png,
+              strength: 0.9,
+              infoExtracted: 0.8,
+              enabled: false,
+            ),
+            VibeReference(
+              displayName: 'enabled',
+              vibeEncoding: 'enabled-encoded',
+              sourceType: VibeSourceType.png,
+              strength: 0.4,
+              infoExtracted: 0.3,
+            ),
+          ],
+        );
+
+        final builder = NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        );
+
+        final result = await builder.build(sampler: 'k_euler');
+
+        expect(
+          result.requestParameters['reference_image_multiple'],
+          equals(['enabled-encoded']),
+        );
+        expect(
+          result.requestParameters['reference_strength_multiple'],
+          equals([0.4]),
+        );
+        expect(
+          result.requestParameters['reference_information_extracted_multiple'],
+          equals([0.3]),
+        );
+        expect(result.vibeEncodingMap, equals({1: 'enabled-encoded'}));
+      },
+    );
+
+    test(
+      'should not let disabled precise references block enabled vibe transfer',
+      () async {
+        final params = ImageParams(
+          model: 'nai-diffusion-4-5-full',
+          preciseReferences: [
+            PreciseReference(
+              image: _validPngBytes(),
+              type: PreciseRefType.character,
+              enabled: false,
+            ),
+          ],
+          vibeReferencesV4: const [
+            VibeReference(
+              displayName: 'enabled',
+              vibeEncoding: 'enabled-vibe',
+              sourceType: VibeSourceType.png,
+            ),
+          ],
+        );
+
+        final builder = NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        );
+
+        final result = await builder.build(sampler: 'k_euler');
+
+        expect(
+          result.requestParameters.containsKey('director_reference_images'),
+          isFalse,
+        );
+        expect(
+          result.requestParameters['reference_image_multiple'],
+          equals(['enabled-vibe']),
+        );
+      },
+    );
+
+    test(
+      'should omit disabled precise references from request payload',
+      () async {
+        final params = ImageParams(
+          model: 'nai-diffusion-4-5-full',
+          preciseReferences: [
+            PreciseReference(
+              image: _validPngBytes(width: 2, height: 2),
+              type: PreciseRefType.character,
+              strength: 0.9,
+              fidelity: 0.8,
+              enabled: false,
+            ),
+            PreciseReference(
+              image: _validPngBytes(width: 3, height: 3),
+              type: PreciseRefType.style,
+              strength: 0.4,
+              fidelity: 0.25,
+            ),
+          ],
+        );
+
+        final builder = NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        );
+
+        final result = await builder.build(sampler: 'k_euler');
+
+        expect(
+          result.requestParameters['director_reference_images'],
+          hasLength(1),
+        );
+        expect(
+          result.requestParameters['director_reference_strength_values'],
+          equals([0.4]),
+        );
+        expect(
+          result
+              .requestParameters['director_reference_secondary_strength_values'],
+          equals([0.75]),
+        );
+        expect(
+          result.requestParameters['director_reference_descriptions'],
+          equals([
+            {
+              'caption': {'base_caption': 'style', 'char_captions': <Object>[]},
+              'legacy_uc': false,
+            },
+          ]),
+        );
+      },
+    );
+
     test('should ignore precise references for non-v4.5 model', () async {
       final params = ImageParams(
         model: 'nai-diffusion-4-full',

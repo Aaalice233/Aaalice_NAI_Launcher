@@ -2460,6 +2460,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get vibe_remove => '削除';
 
   @override
+  String get reference_enabled => 'Enabled';
+
+  @override
+  String get reference_enable => 'Enable reference';
+
+  @override
+  String get reference_disable => 'Disable reference';
+
+  @override
   String get vibe_sliderHint =>
       '参照強度: 高いほど視覚的な特徴をまねします\n抽出情報: 低くするとテクスチャが減少し、構成が維持されます。';
 

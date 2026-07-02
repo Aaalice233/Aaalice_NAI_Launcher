@@ -9,11 +9,7 @@ part 'image_params.freezed.dart';
 part 'image_params.g.dart';
 
 /// 图像生成动作类型
-enum ImageGenerationAction {
-  generate,
-  img2img,
-  infill,
-}
+enum ImageGenerationAction { generate, img2img, infill }
 
 extension ImageGenerationActionExtension on ImageGenerationAction {
   String get value {
@@ -44,6 +40,9 @@ class PreciseReference with _$PreciseReference {
 
     /// 保真度 (0-1)，越高越忠实于原图
     @Default(1.0) double fidelity,
+
+    /// 是否参与下一次生成请求。
+    @Default(true) bool enabled,
   }) = _PreciseReference;
 }
 
@@ -71,13 +70,13 @@ class CharacterPrompt with _$CharacterPrompt {
 
   /// 转换为 API 请求格式
   Map<String, dynamic> toApiJson() => {
-        'prompt': prompt,
-        if (negativePrompt.isNotEmpty) 'uc': negativePrompt,
-        if (position != null) 'position': position,
-        // 如果使用旧版坐标格式
-        if (position == null && positionX != null && positionY != null)
-          'position': {'x': positionX, 'y': positionY},
-      };
+    'prompt': prompt,
+    if (negativePrompt.isNotEmpty) 'uc': negativePrompt,
+    if (position != null) 'position': position,
+    // 如果使用旧版坐标格式
+    if (position == null && positionX != null && positionY != null)
+      'position': {'x': positionX, 'y': positionY},
+  };
 }
 
 /// 图像生成参数模型
@@ -250,19 +249,27 @@ extension ImageParamsExtension on ImageParams {
   bool get hasCharacters => characters.isNotEmpty;
 
   /// 检查是否启用了 V4 Vibe Transfer
-  bool get hasVibeReferencesV4 => vibeReferencesV4.isNotEmpty;
+  bool get hasVibeReferencesV4 => enabledVibeReferencesV4.isNotEmpty;
 
   /// 检查是否有任何 Vibe 参考
-  bool get hasAnyVibeReferences => vibeReferencesV4.isNotEmpty;
+  bool get hasAnyVibeReferences => enabledVibeReferencesV4.isNotEmpty;
 
   /// 检查是否启用了 Precise Reference
-  bool get hasPreciseReferences => preciseReferences.isNotEmpty;
+  bool get hasPreciseReferences => enabledPreciseReferences.isNotEmpty;
 
   /// 计算 Precise Reference 数量 (消耗 Anlas)
-  int get preciseReferenceCount => preciseReferences.length;
+  int get preciseReferenceCount => enabledPreciseReferences.length;
 
   /// 计算 Precise Reference 成本 (每张 5 Anlas)
   int get preciseReferenceCost => preciseReferenceCount * 5;
+
+  /// 启用的 V4 Vibe Transfer 参考。
+  List<VibeReference> get enabledVibeReferencesV4 =>
+      vibeReferencesV4.where((reference) => reference.enabled).toList();
+
+  /// 启用的 Precise Reference 参考。
+  List<PreciseReference> get enabledPreciseReferences =>
+      preciseReferences.where((reference) => reference.enabled).toList();
 
   /// 检查是否为 img2img 模式
   bool get isImg2Img =>

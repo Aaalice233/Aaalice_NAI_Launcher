@@ -69,9 +69,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
   /// 加载最近使用的 Vibes
   Future<void> loadRecentVibes() async {
-    final span = VibePerformanceDiagnostics.start(
-      'generation.loadRecentVibes',
-    );
+    final span = VibePerformanceDiagnostics.start('generation.loadRecentVibes');
     var entryCount = 0;
     try {
       final storageService = ref.read(vibeLibraryStorageServiceProvider);
@@ -83,11 +81,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     } catch (e, stackTrace) {
       AppLogger.e('Failed to load recent vibes', e, stackTrace);
     } finally {
-      span.finish(
-        details: {
-          'entries': entryCount,
-        },
-      );
+      span.finish(details: {'entries': entryCount});
     }
   }
 
@@ -180,8 +174,9 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     if (newLocked) {
       // 锁定：保存当前种子值（如果是-1则生成新种子）
       final currentSeed = state.seed;
-      final seedToLock =
-          currentSeed == -1 ? Random().nextInt(4294967295) : currentSeed;
+      final seedToLock = currentSeed == -1
+          ? Random().nextInt(4294967295)
+          : currentSeed;
       _storage.setLockedSeedValue(seedToLock);
       _storage.setSeedLocked(true);
       state = state.copyWith(seed: seedToLock);
@@ -390,10 +385,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       if (_vibeEncodingCache.containsKey(cacheKey)) {
         // 缓存命中 - 使用缓存的编码
         final cachedEncoding = _vibeEncodingCache[cacheKey]!;
-        AppLogger.i(
-          'Vibe 编码缓存命中: ${vibe.displayName}',
-          'VibeCache',
-        );
+        AppLogger.i('Vibe 编码缓存命中: ${vibe.displayName}', 'VibeCache');
 
         // 更新 vibe 使用缓存的编码
         vibeToAdd = vibe.withEncodedVibe(cachedEncoding);
@@ -423,8 +415,9 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     required double informationExtracted,
   }) {
     final imageHash = _calculateImageHash(imageData);
-    final sanitizedInfoExtracted =
-        VibeReference.sanitizeInfoExtracted(informationExtracted);
+    final sanitizedInfoExtracted = VibeReference.sanitizeInfoExtracted(
+      informationExtracted,
+    );
     return '$imageHash|$model|$sanitizedInfoExtracted';
   }
 
@@ -441,10 +434,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     return _vibeEncodingCache[cacheKey];
   }
 
-  void _primeVibeEncodingCache(
-    VibeReference vibe, {
-    String? model,
-  }) {
+  void _primeVibeEncodingCache(VibeReference vibe, {String? model}) {
     final rawImageData = vibe.rawImageData;
     if (rawImageData == null ||
         rawImageData.isEmpty ||
@@ -474,10 +464,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
         left.bundleSource == right.bundleSource;
   }
 
-  bool _isSameVibeList(
-    List<VibeReference> left,
-    List<VibeReference> right,
-  ) {
+  bool _isSameVibeList(List<VibeReference> left, List<VibeReference> right) {
     if (identical(left, right)) {
       return true;
     }
@@ -495,10 +482,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   /// 显示缓存命中通知
   void _showCacheHitNotification(String vibeName) {
     // 使用 AppLogger 记录，UI 层可以监听并显示 Toast
-    AppLogger.i(
-      'Vibe 编码已从缓存加载: $vibeName',
-      'VibeCache',
-    );
+    AppLogger.i('Vibe 编码已从缓存加载: $vibeName', 'VibeCache');
   }
 
   /// 编码 Vibe 参考图（带缓存）
@@ -523,10 +507,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
     // 检查缓存
     if (_vibeEncodingCache.containsKey(cacheKey)) {
-      AppLogger.i(
-        'Vibe 编码缓存命中: ${vibeName ?? 'unknown'}',
-        'VibeCache',
-      );
+      AppLogger.i('Vibe 编码缓存命中: ${vibeName ?? 'unknown'}', 'VibeCache');
       _showCacheHitNotification(vibeName ?? 'unknown');
       return _vibeEncodingCache[cacheKey];
     }
@@ -542,19 +523,11 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
       // 存入缓存
       _vibeEncodingCache[cacheKey] = encoding;
-      AppLogger.i(
-        'Vibe 编码已缓存: ${vibeName ?? 'unknown'}',
-        'VibeCache',
-      );
+      AppLogger.i('Vibe 编码已缓存: ${vibeName ?? 'unknown'}', 'VibeCache');
 
       return encoding;
     } catch (e, stack) {
-      AppLogger.e(
-        'Vibe 编码失败: ${vibeName ?? 'unknown'}',
-        e,
-        stack,
-        'VibeCache',
-      );
+      AppLogger.e('Vibe 编码失败: ${vibeName ?? 'unknown'}', e, stack, 'VibeCache');
       return null;
     }
   }
@@ -658,14 +631,16 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   }) async {
     final resolvedModel = model ?? state.model;
     final nextStrength = VibeReference.sanitizeStrength(strength);
-    final nextInfoExtracted =
-        VibeReference.sanitizeInfoExtracted(infoExtracted);
+    final nextInfoExtracted = VibeReference.sanitizeInfoExtracted(
+      infoExtracted,
+    );
     final nextVibe = vibe.copyWith(
       strength: nextStrength,
       infoExtracted: nextInfoExtracted,
     );
 
-    final shouldEncode = nextVibe.canReencodeFromRawSource &&
+    final shouldEncode =
+        nextVibe.canReencodeFromRawSource &&
         (nextVibe.vibeEncoding.isEmpty ||
             nextInfoExtracted != vibe.infoExtracted);
     if (!shouldEncode) {
@@ -682,7 +657,8 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       model: resolvedModel,
       informationExtracted: nextInfoExtracted,
     );
-    final encoding = cachedEncoding ??
+    final encoding =
+        cachedEncoding ??
         await encodeVibeWithCache(
           rawImageData,
           model: resolvedModel,
@@ -704,10 +680,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
   /// 批量添加 V4 Vibe 参考
   /// 如果 vibe 已存在，会移除旧的并添加新的（调整顺序）
-  void addVibeReferences(
-    List<VibeReference> vibes, {
-    bool recordUsage = true,
-  }) {
+  void addVibeReferences(List<VibeReference> vibes, {bool recordUsage = true}) {
     final span = VibePerformanceDiagnostics.start(
       'generation.addVibeReferences',
       details: {
@@ -832,6 +805,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     double? strength,
     double? infoExtracted,
     String? vibeEncoding, // 新增：编码哈希
+    bool? enabled,
   }) {
     if (index < 0 || index >= state.vibeReferencesV4.length) return;
     final newList = [...state.vibeReferencesV4];
@@ -862,6 +836,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       strength: nextStrength,
       infoExtracted: nextInfoExtracted,
       vibeEncoding: nextEncoding,
+      enabled: enabled ?? current.enabled,
     );
     if (nextEncoding.isNotEmpty) {
       nextVibe = nextVibe.normalizedForLibraryStorage();
@@ -1107,9 +1082,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
     final newList = [...state.preciseReferences];
     NAIApiUtils.markNormalizedPreciseReferencePng(normalizedImage);
-    newList[index] = current.copyWith(
-      image: normalizedImage,
-    );
+    newList[index] = current.copyWith(image: normalizedImage);
     state = state.copyWith(preciseReferences: newList);
     _scheduleGenerationStateSave(immediate: true);
   }
@@ -1129,15 +1102,16 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     PreciseRefType? type,
     double? strength,
     double? fidelity,
+    bool? enabled,
   }) {
     if (index < 0 || index >= state.preciseReferences.length) return;
     final newList = [...state.preciseReferences];
     final current = newList[index];
-    newList[index] = PreciseReference(
-      image: current.image,
+    newList[index] = current.copyWith(
       type: type ?? current.type,
       strength: strength ?? current.strength,
       fidelity: fidelity ?? current.fidelity,
+      enabled: enabled ?? current.enabled,
     );
     state = state.copyWith(preciseReferences: newList);
     _scheduleGenerationStateSave();
@@ -1148,12 +1122,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     if (index < 0 || index >= state.preciseReferences.length) return;
     final newList = [...state.preciseReferences];
     final current = newList[index];
-    newList[index] = PreciseReference(
-      image: current.image,
-      type: type,
-      strength: current.strength,
-      fidelity: current.fidelity,
-    );
+    newList[index] = current.copyWith(type: type);
     state = state.copyWith(preciseReferences: newList);
     _scheduleGenerationStateSave(immediate: true);
   }
@@ -1253,11 +1222,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     } catch (e, stackTrace) {
       AppLogger.e('Failed to save generation state', e, stackTrace);
     } finally {
-      span.finish(
-        details: {
-          'jsonChars': jsonChars,
-        },
-      );
+      span.finish(details: {'jsonChars': jsonChars});
     }
   }
 
@@ -1267,9 +1232,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       return;
     }
 
-    final span = VibePerformanceDiagnostics.start(
-      'generation.restoreState',
-    );
+    final span = VibePerformanceDiagnostics.start('generation.restoreState');
     _isRestoringGenerationState = true;
     var shouldRewriteGenerationState = false;
     var jsonChars = 0;
@@ -1318,6 +1281,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
             infoExtracted:
                 (refData['infoExtracted'] as num?)?.toDouble() ?? 0.7,
             sourceType: sourceType,
+            enabled: refData['enabled'] as bool? ?? true,
             bundleSource: refData['bundleSource'] as String?,
           ),
         );
@@ -1337,7 +1301,8 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
           continue;
         }
 
-        final typeStr = refData['type'] as String? ??
+        final typeStr =
+            refData['type'] as String? ??
             PreciseRefType.character.toApiString();
         final type = PreciseRefType.values.firstWhere(
           (item) => item.toApiString() == typeStr,
@@ -1355,6 +1320,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
             type: type,
             strength: (refData['strength'] as num?)?.toDouble() ?? 1.0,
             fidelity: (refData['fidelity'] as num?)?.toDouble() ?? 1.0,
+            enabled: refData['enabled'] as bool? ?? true,
           ),
         );
       }
@@ -1403,9 +1369,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   /// 添加角色
   void addCharacter(CharacterPrompt character) {
     if (state.characters.length >= 6) return; // 最多6个角色
-    state = state.copyWith(
-      characters: [...state.characters, character],
-    );
+    state = state.copyWith(characters: [...state.characters, character]);
   }
 
   /// 移除角色
@@ -1481,8 +1445,9 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   Future<void> loadPanelStates() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final advancedExpanded =
-          prefs.getBool('generation_advanced_options_expanded');
+      final advancedExpanded = prefs.getBool(
+        'generation_advanced_options_expanded',
+      );
       if (advancedExpanded != null) {
         state = state.copyWith(advancedOptionsExpanded: advancedExpanded);
       }
@@ -1524,28 +1489,35 @@ Map<String, Object?> _buildGenerationStateSaveInput({
   required bool normalizeVibeStrength,
 }) {
   return {
-    'vibeReferences': vibeReferences.map((vibe) {
-      return <String, Object?>{
-        'displayName': vibe.displayName,
-        'vibeEncoding': vibe.vibeEncoding,
-        'strength': vibe.strength,
-        'infoExtracted': vibe.infoExtracted,
-        'sourceType': vibe.sourceType.name,
-        'bundleSource': vibe.bundleSource,
-        'thumbnail': vibe.thumbnail,
-        'rawImageData': vibe.rawImageData,
-      };
-    }).toList(growable: false),
-    'preciseReferences': preciseReferences.map((reference) {
-      return <String, Object?>{
-        'type': reference.type.toApiString(),
-        'strength': reference.strength,
-        'fidelity': reference.fidelity,
-        'image': reference.image,
-        'isNormalizedPng':
-            NAIApiUtils.isKnownNormalizedPreciseReferencePng(reference.image),
-      };
-    }).toList(growable: false),
+    'vibeReferences': vibeReferences
+        .map((vibe) {
+          return <String, Object?>{
+            'displayName': vibe.displayName,
+            'vibeEncoding': vibe.vibeEncoding,
+            'strength': vibe.strength,
+            'infoExtracted': vibe.infoExtracted,
+            'sourceType': vibe.sourceType.name,
+            'enabled': vibe.enabled,
+            'bundleSource': vibe.bundleSource,
+            'thumbnail': vibe.thumbnail,
+            'rawImageData': vibe.rawImageData,
+          };
+        })
+        .toList(growable: false),
+    'preciseReferences': preciseReferences
+        .map((reference) {
+          return <String, Object?>{
+            'type': reference.type.toApiString(),
+            'strength': reference.strength,
+            'fidelity': reference.fidelity,
+            'enabled': reference.enabled,
+            'image': reference.image,
+            'isNormalizedPng': NAIApiUtils.isKnownNormalizedPreciseReferencePng(
+              reference.image,
+            ),
+          };
+        })
+        .toList(growable: false),
     'normalizeVibeStrength': normalizeVibeStrength,
     'savedAt': DateTime.now().toIso8601String(),
   };
@@ -1553,40 +1525,50 @@ Map<String, Object?> _buildGenerationStateSaveInput({
 
 String _encodeGenerationStateJson(Map<String, Object?> input) {
   final rawVibes = input['vibeReferences'] as List? ?? const [];
-  final vibeReferences = rawVibes.whereType<Map>().map((raw) {
-    final thumbnail = raw['thumbnail'] as Uint8List?;
-    final rawImageData = raw['rawImageData'] as Uint8List?;
-    final previewBytes = thumbnail ?? rawImageData;
-    final previewDuplicatesRaw = previewBytes != null &&
-        rawImageData != null &&
-        _bytesEqualForGenerationState(previewBytes, rawImageData);
+  final vibeReferences = rawVibes
+      .whereType<Map>()
+      .map((raw) {
+        final thumbnail = raw['thumbnail'] as Uint8List?;
+        final rawImageData = raw['rawImageData'] as Uint8List?;
+        final previewBytes = thumbnail ?? rawImageData;
+        final previewDuplicatesRaw =
+            previewBytes != null &&
+            rawImageData != null &&
+            _bytesEqualForGenerationState(previewBytes, rawImageData);
 
-    return <String, Object?>{
-      'displayName': raw['displayName'],
-      'vibeEncoding': raw['vibeEncoding'],
-      'strength': raw['strength'],
-      'infoExtracted': raw['infoExtracted'],
-      'sourceType': raw['sourceType'],
-      'bundleSource': raw['bundleSource'],
-      'thumbnailBase64': previewBytes != null && !previewDuplicatesRaw
-          ? base64Encode(previewBytes)
-          : null,
-      'rawImageDataBase64':
-          rawImageData != null ? base64Encode(rawImageData) : null,
-    };
-  }).toList(growable: false);
+        return <String, Object?>{
+          'displayName': raw['displayName'],
+          'vibeEncoding': raw['vibeEncoding'],
+          'strength': raw['strength'],
+          'infoExtracted': raw['infoExtracted'],
+          'sourceType': raw['sourceType'],
+          'enabled': raw['enabled'] as bool? ?? true,
+          'bundleSource': raw['bundleSource'],
+          'thumbnailBase64': previewBytes != null && !previewDuplicatesRaw
+              ? base64Encode(previewBytes)
+              : null,
+          'rawImageDataBase64': rawImageData != null
+              ? base64Encode(rawImageData)
+              : null,
+        };
+      })
+      .toList(growable: false);
 
   final rawPreciseRefs = input['preciseReferences'] as List? ?? const [];
-  final preciseReferences = rawPreciseRefs.whereType<Map>().map((raw) {
-    final image = raw['image'] as Uint8List?;
-    return <String, Object?>{
-      'type': raw['type'],
-      'strength': raw['strength'],
-      'fidelity': raw['fidelity'],
-      'imageBase64': image != null ? base64Encode(image) : null,
-      'isNormalizedPng': raw['isNormalizedPng'] as bool? ?? false,
-    };
-  }).toList(growable: false);
+  final preciseReferences = rawPreciseRefs
+      .whereType<Map>()
+      .map((raw) {
+        final image = raw['image'] as Uint8List?;
+        return <String, Object?>{
+          'type': raw['type'],
+          'strength': raw['strength'],
+          'fidelity': raw['fidelity'],
+          'enabled': raw['enabled'] as bool? ?? true,
+          'imageBase64': image != null ? base64Encode(image) : null,
+          'isNormalizedPng': raw['isNormalizedPng'] as bool? ?? false,
+        };
+      })
+      .toList(growable: false);
 
   return jsonEncode({
     'vibeReferences': vibeReferences,
@@ -1609,30 +1591,29 @@ Map<String, Object?> _decodeGenerationStateJson(String jsonString) {
       }
 
       final refData = Map<String, dynamic>.from(raw);
-      final thumbnailBytes =
-          _decodeGenerationStateBase64(refData['thumbnailBase64'] as String?);
+      final thumbnailBytes = _decodeGenerationStateBase64(
+        refData['thumbnailBase64'] as String?,
+      );
       final rawImageBytes = _decodeGenerationStateBase64(
         refData['rawImageDataBase64'] as String?,
       );
 
-      restoredVibes.add(
-        <String, Object?>{
-          'displayName': refData['displayName'] as String? ?? 'Vibe ${i + 1}',
-          'vibeEncoding': refData['vibeEncoding'] as String? ?? '',
-          'thumbnail': thumbnailBytes ?? rawImageBytes,
-          'rawImageData': rawImageBytes,
-          'strength': (refData['strength'] as num?)?.toDouble() ?? 0.6,
-          'infoExtracted':
-              (refData['infoExtracted'] as num?)?.toDouble() ?? 0.7,
-          'sourceType': refData['sourceType'] as String?,
-          'bundleSource': refData['bundleSource'] as String?,
-        },
-      );
+      restoredVibes.add(<String, Object?>{
+        'displayName': refData['displayName'] as String? ?? 'Vibe ${i + 1}',
+        'vibeEncoding': refData['vibeEncoding'] as String? ?? '',
+        'thumbnail': thumbnailBytes ?? rawImageBytes,
+        'rawImageData': rawImageBytes,
+        'strength': (refData['strength'] as num?)?.toDouble() ?? 0.6,
+        'infoExtracted': (refData['infoExtracted'] as num?)?.toDouble() ?? 0.7,
+        'sourceType': refData['sourceType'] as String?,
+        'enabled': refData['enabled'] as bool? ?? true,
+        'bundleSource': refData['bundleSource'] as String?,
+      });
     }
   } else {
     final legacyVibeEncodings =
         (rawStateData['vibeEntryIds'] as List?)?.whereType<String>().toList() ??
-            const <String>[];
+        const <String>[];
 
     for (var i = 0; i < legacyVibeEncodings.length; i++) {
       final encoding = legacyVibeEncodings[i];
@@ -1640,13 +1621,12 @@ Map<String, Object?> _decodeGenerationStateJson(String jsonString) {
         continue;
       }
 
-      restoredVibes.add(
-        <String, Object?>{
-          'displayName': 'Vibe ${i + 1}',
-          'vibeEncoding': encoding,
-          'sourceType': VibeSourceType.naiv4vibe.name,
-        },
-      );
+      restoredVibes.add(<String, Object?>{
+        'displayName': 'Vibe ${i + 1}',
+        'vibeEncoding': encoding,
+        'sourceType': VibeSourceType.naiv4vibe.name,
+        'enabled': true,
+      });
     }
   }
 
@@ -1659,24 +1639,25 @@ Map<String, Object?> _decodeGenerationStateJson(String jsonString) {
       }
 
       final refData = Map<String, dynamic>.from(raw);
-      final imageBytes =
-          _decodeGenerationStateBase64(refData['imageBase64'] as String?);
+      final imageBytes = _decodeGenerationStateBase64(
+        refData['imageBase64'] as String?,
+      );
       if (imageBytes == null || imageBytes.isEmpty) {
         continue;
       }
 
-      restoredPreciseRefs.add(
-        <String, Object?>{
-          'type': refData['type'] as String? ??
-              PreciseRefType.character.toApiString(),
-          'strength': (refData['strength'] as num?)?.toDouble() ?? 1.0,
-          'fidelity': (refData['fidelity'] as num?)?.toDouble() ?? 1.0,
-          'image': (refData['isNormalizedPng'] as bool? ?? false)
-              ? NAIApiUtils.markNormalizedPreciseReferencePng(imageBytes)
-              : imageBytes,
-          'isNormalizedPng': refData['isNormalizedPng'] as bool? ?? false,
-        },
-      );
+      restoredPreciseRefs.add(<String, Object?>{
+        'type':
+            refData['type'] as String? ??
+            PreciseRefType.character.toApiString(),
+        'strength': (refData['strength'] as num?)?.toDouble() ?? 1.0,
+        'fidelity': (refData['fidelity'] as num?)?.toDouble() ?? 1.0,
+        'enabled': refData['enabled'] as bool? ?? true,
+        'image': (refData['isNormalizedPng'] as bool? ?? false)
+            ? NAIApiUtils.markNormalizedPreciseReferencePng(imageBytes)
+            : imageBytes,
+        'isNormalizedPng': refData['isNormalizedPng'] as bool? ?? false,
+      });
     }
   }
 

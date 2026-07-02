@@ -122,11 +122,7 @@ void main() {
             supportedLocales: AppLocalizations.supportedLocales,
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             home: Scaffold(
-              body: SizedBox(
-                width: 960,
-                height: 1200,
-                child: ParameterPanel(),
-              ),
+              body: SizedBox(width: 960, height: 1200, child: ParameterPanel()),
             ),
           ),
         ),
@@ -149,8 +145,9 @@ void main() {
   });
 
   group('VibeTransferContent', () {
-    testWidgets('exposes a local file drop region for add-from-file',
-        (tester) async {
+    testWidgets('exposes a local file drop region for add-from-file', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
@@ -169,6 +166,7 @@ void main() {
                   onRemoveVibe: (_) {},
                   onUpdateStrength: (_, __) {},
                   onUpdateInfoExtracted: (_, __) {},
+                  onUpdateEnabled: (_, __) {},
                   onClearAll: () {},
                   onImportDroppedFile: (_, __) async => 0,
                   recentEntries: const [],
@@ -189,8 +187,9 @@ void main() {
   });
 
   group('PreciseReferencePanel', () {
-    testWidgets('imports every image selected for precise reference',
-        (tester) async {
+    testWidgets('imports every image selected for precise reference', (
+      tester,
+    ) async {
       FilePicker? originalFilePicker;
       try {
         originalFilePicker = FilePicker.platform;
@@ -199,20 +198,18 @@ void main() {
       }
 
       final filePicker = _FakeFilePicker(
-        FilePickerResult(
-          [
-            PlatformFile(
-              name: 'first.png',
-              size: 1,
-              bytes: _validPngBytes(width: 4, height: 4),
-            ),
-            PlatformFile(
-              name: 'second.png',
-              size: 1,
-              bytes: _validPngBytes(width: 5, height: 3),
-            ),
-          ],
-        ),
+        FilePickerResult([
+          PlatformFile(
+            name: 'first.png',
+            size: 1,
+            bytes: _validPngBytes(width: 4, height: 4),
+          ),
+          PlatformFile(
+            name: 'second.png',
+            size: 1,
+            bytes: _validPngBytes(width: 5, height: 3),
+          ),
+        ]),
       );
       FilePicker.platform = filePicker;
       addTearDown(() {
@@ -240,10 +237,7 @@ void main() {
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             home: Scaffold(
               body: SingleChildScrollView(
-                child: SizedBox(
-                  width: 720,
-                  child: PreciseReferencePanel(),
-                ),
+                child: SizedBox(width: 720, child: PreciseReferencePanel()),
               ),
             ),
           ),
@@ -262,8 +256,9 @@ void main() {
       final container = ProviderScope.containerOf(
         tester.element(find.byType(PreciseReferencePanel)),
       );
-      final references =
-          container.read(generationParamsNotifierProvider).preciseReferences;
+      final references = container
+          .read(generationParamsNotifierProvider)
+          .preciseReferences;
 
       expect(filePicker.lastType, FileType.image);
       expect(filePicker.lastAllowMultiple, isTrue);
@@ -272,13 +267,8 @@ void main() {
   });
 }
 
-Uint8List _validPngBytes({
-  required int width,
-  required int height,
-}) =>
-    Uint8List.fromList(
-      img.encodePng(img.Image(width: width, height: height)),
-    );
+Uint8List _validPngBytes({required int width, required int height}) =>
+    Uint8List.fromList(img.encodePng(img.Image(width: width, height: height)));
 
 class _FakeFilePicker extends FilePicker {
   _FakeFilePicker(this.result);

@@ -48,10 +48,7 @@ class NAIImageGenerationApiService {
     if (sampler == Samplers.ddim || sampler == Samplers.ddimV3) {
       // V3 模型需要使用 ddim_v3
       if (model.contains('diffusion-3')) {
-        AppLogger.i(
-          'Mapping DDIM to DDIM v3 for model: $model',
-          'ImgGen',
-        );
+        AppLogger.i('Mapping DDIM to DDIM v3 for model: $model', 'ImgGen');
         return Samplers.ddimV3;
       }
 
@@ -99,8 +96,8 @@ class NAIImageGenerationApiService {
 
     // NovelAI 官方说明 Precise Reference 与 Vibe Transfer 不兼容。
     // 当前策略是保留 Precise Reference，并在请求构建阶段跳过 Vibe Transfer。
-    final hasVibes = effectiveParams.vibeReferencesV4.isNotEmpty;
-    if (hasVibes && effectiveParams.preciseReferences.isNotEmpty) {
+    final hasVibes = effectiveParams.hasVibeReferencesV4;
+    if (hasVibes && effectiveParams.hasPreciseReferences) {
       AppLogger.d(
         'Both Vibe Transfer and Precise Reference are enabled; skipping vibe payload in favor of Precise Reference',
         'ImgGen',
@@ -109,7 +106,7 @@ class NAIImageGenerationApiService {
 
     // Precise Reference 仅 V4.5 模型支持，其他模型时忽略数据。
     final effectivePreciseRefs = effectiveParams.isV45Model
-        ? effectiveParams.preciseReferences
+        ? effectiveParams.enabledPreciseReferences
         : <PreciseReference>[];
 
     final cancelToken = CancelToken();
@@ -117,16 +114,16 @@ class NAIImageGenerationApiService {
 
     try {
       // 0. 采样器版本映射
-      final effectiveSampler =
-          _mapSamplerForModel(effectiveParams.sampler, effectiveParams.model);
+      final effectiveSampler = _mapSamplerForModel(
+        effectiveParams.sampler,
+        effectiveParams.model,
+      );
 
       final requestBuildResult = await NAIImageRequestBuilder(
         params: effectiveParams,
         encodeVibe: _enhancementService.encodeVibe,
         preciseReferences: effectivePreciseRefs,
-      ).build(
-        sampler: effectiveSampler,
-      );
+      ).build(sampler: effectiveSampler);
 
       final vibeEncodingMap = requestBuildResult.vibeEncodingMap;
       final effectiveNegativePrompt =
@@ -268,9 +265,7 @@ class NAIImageGenerationApiService {
         onReceiveProgress: onProgress,
         options: Options(
           responseType: ResponseType.bytes,
-          headers: {
-            'Accept': 'application/x-zip-compressed',
-          },
+          headers: {'Accept': 'application/x-zip-compressed'},
         ),
       );
 
@@ -375,8 +370,8 @@ class NAIImageGenerationApiService {
 
     // NovelAI 官方说明 Precise Reference 与 Vibe Transfer 不兼容。
     // 当前策略是保留 Precise Reference，并在请求构建阶段跳过 Vibe Transfer。
-    final hasVibes = effectiveParams.vibeReferencesV4.isNotEmpty;
-    if (hasVibes && effectiveParams.preciseReferences.isNotEmpty) {
+    final hasVibes = effectiveParams.hasVibeReferencesV4;
+    if (hasVibes && effectiveParams.hasPreciseReferences) {
       AppLogger.d(
         'Both Vibe Transfer and Precise Reference are enabled (stream); skipping vibe payload in favor of Precise Reference',
         'ImgGen',
@@ -385,7 +380,7 @@ class NAIImageGenerationApiService {
 
     // Precise Reference 仅 V4.5 模型支持，其他模型时忽略数据。
     final effectivePreciseRefs = effectiveParams.isV45Model
-        ? effectiveParams.preciseReferences
+        ? effectiveParams.enabledPreciseReferences
         : <PreciseReference>[];
 
     try {
@@ -398,10 +393,7 @@ class NAIImageGenerationApiService {
         params: effectiveParams,
         encodeVibe: _enhancementService.encodeVibe,
         preciseReferences: effectivePreciseRefs,
-      ).build(
-        sampler: effectiveParams.sampler,
-        isStream: true,
-      );
+      ).build(sampler: effectiveParams.sampler, isStream: true);
 
       final seed = requestBuildResult.seed;
       final effectivePrompt = requestBuildResult.effectivePrompt;
@@ -518,9 +510,7 @@ class NAIImageGenerationApiService {
         cancelToken: cancelToken,
         options: Options(
           responseType: ResponseType.stream,
-          headers: {
-            'Accept': 'application/x-msgpack',
-          },
+          headers: {'Accept': 'application/x-msgpack'},
         ),
       );
 
@@ -531,8 +521,9 @@ class NAIImageGenerationApiService {
       int messageCount = 0;
       final latestPreviews = <int, Uint8List>{};
       final completedSamples = <int>{};
-      final expectedSamples =
-          effectiveParams.nSamples <= 0 ? 1 : effectiveParams.nSamples;
+      final expectedSamples = effectiveParams.nSamples <= 0
+          ? 1
+          : effectiveParams.nSamples;
       final int totalSteps = effectiveParams.steps;
 
       await for (final chunk in responseStream) {
@@ -546,7 +537,8 @@ class NAIImageGenerationApiService {
         // 尝试解析完整的消息（带长度前缀）
         while (buffer.length >= 4) {
           // 读取 4 字节长度前缀 (big-endian)
-          final msgLength = (buffer[0] << 24) |
+          final msgLength =
+              (buffer[0] << 24) |
               (buffer[1] << 16) |
               (buffer[2] << 8) |
               buffer[3];
@@ -580,7 +572,8 @@ class NAIImageGenerationApiService {
               final imageData = msg['image'];
 
               if (eventType == 'error' || msg.containsKey('error')) {
-                final errorMessage = msg['message'] ??
+                final errorMessage =
+                    msg['message'] ??
                     msg['error'] ??
                     'Stream generation failed';
                 AppLogger.e('Stream error: $errorMessage', 'Stream');
@@ -627,8 +620,10 @@ class NAIImageGenerationApiService {
                 if (eventType == null ||
                     eventType.isEmpty ||
                     eventType == 'intermediate') {
-                  final compositedImage =
-                      _compositeFocusedImage(imageBytes, focusedRequest);
+                  final compositedImage = _compositeFocusedImage(
+                    imageBytes,
+                    focusedRequest,
+                  );
                   latestPreviews[sampleIndex] = compositedImage;
                   final currentStep = (stepIx ?? messageCount) + 1;
                   final progress = currentStep / totalSteps;
@@ -683,7 +678,8 @@ class NAIImageGenerationApiService {
 
           // 尝试作为带长度前缀的 MessagePack 解析
           if (bytes.length >= 4) {
-            final msgLength = (bytes[0] << 24) |
+            final msgLength =
+                (bytes[0] << 24) |
                 (bytes[1] << 16) |
                 (bytes[2] << 8) |
                 bytes[3];
@@ -842,11 +838,8 @@ class NAIImageGenerationApiService {
   ) {
     return images
         .map(
-          (imageBytes) => _compositeInpaintImage(
-            imageBytes,
-            params,
-            focusedRequest,
-          ),
+          (imageBytes) =>
+              _compositeInpaintImage(imageBytes, params, focusedRequest),
         )
         .toList(growable: false);
   }
@@ -870,12 +863,12 @@ class NAIImageGenerationApiService {
 
     final compositeMask =
         InpaintMaskUtils.prepareGeneratedImageCompositeMaskBytes(
-      params.maskImage!,
-      targetWidth: params.width,
-      targetHeight: params.height,
-      closingIterations: params.inpaintMaskClosingIterations,
-      expansionIterations: params.inpaintMaskExpansionIterations,
-    );
+          params.maskImage!,
+          targetWidth: params.width,
+          targetHeight: params.height,
+          closingIterations: params.inpaintMaskClosingIterations,
+          expansionIterations: params.inpaintMaskExpansionIterations,
+        );
     return InpaintMaskUtils.compositeGeneratedImage(
       sourceImage: params.sourceImage!,
       maskImage: compositeMask,
@@ -911,9 +904,5 @@ NAIImageGenerationApiService naiImageGenerationApiService(Ref ref) {
   final dio = ref.watch(imageGenerationDioClientProvider);
   final enhancementService = ref.watch(naiImageEnhancementApiServiceProvider);
   final endpointService = ref.watch(naiApiEndpointServiceProvider);
-  return NAIImageGenerationApiService(
-    dio,
-    enhancementService,
-    endpointService,
-  );
+  return NAIImageGenerationApiService(dio, enhancementService, endpointService);
 }

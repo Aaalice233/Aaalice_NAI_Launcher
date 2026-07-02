@@ -47,8 +47,10 @@ class DragTargetWrapper extends ConsumerWidget {
     return DragTarget<VibeLibraryEntry>(
       onWillAcceptWithDetails: (details) {
         // 检查是否超过 16 个限制
-        final currentCount =
-            ref.read(generationParamsNotifierProvider).vibeReferencesV4.length;
+        final currentCount = ref
+            .read(generationParamsNotifierProvider)
+            .vibeReferencesV4
+            .length;
         if (currentCount >= 16) {
           AppToast.warning(context, context.l10n.vibe_maxReached);
           return false;
@@ -70,10 +72,7 @@ class DragTargetWrapper extends ConsumerWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: panelState.isDraggingOver
-                ? Border.all(
-                    color: theme.colorScheme.primary,
-                    width: 2,
-                  )
+                ? Border.all(color: theme.colorScheme.primary, width: 2)
                 : null,
             color: panelState.isDraggingOver
                 ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
@@ -93,6 +92,8 @@ class DragTargetWrapper extends ConsumerWidget {
                         _updateVibeStrength(ref, index, value),
                     onInfoExtractedChanged: (value) =>
                         _updateVibeInfoExtracted(ref, index, value),
+                    onEnabledChanged: (value) =>
+                        _updateVibeEnabled(ref, index, value),
                   );
                 }),
                 const SizedBox(height: 12),
@@ -149,8 +150,9 @@ class DragTargetWrapper extends ConsumerWidget {
   void _removeVibe(BuildContext context, WidgetRef ref, int index) {
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
     final panelNotifier = ref.read(referencePanelNotifierProvider.notifier);
-    final currentVibes =
-        ref.read(generationParamsNotifierProvider).vibeReferencesV4;
+    final currentVibes = ref
+        .read(generationParamsNotifierProvider)
+        .vibeReferencesV4;
 
     // 清理 bundle 来源记录
     if (index < currentVibes.length) {
@@ -172,6 +174,12 @@ class DragTargetWrapper extends ConsumerWidget {
     ref
         .read(generationParamsNotifierProvider.notifier)
         .updateVibeReference(index, infoExtracted: value);
+  }
+
+  void _updateVibeEnabled(WidgetRef ref, int index, bool value) {
+    ref
+        .read(generationParamsNotifierProvider.notifier)
+        .updateVibeReference(index, enabled: value);
   }
 
   /// 从文件添加 Vibe（供外部调用）
@@ -227,13 +235,15 @@ class DragTargetWrapper extends ConsumerWidget {
               var encodeNow = false;
               var autoSaveToLibrary = false;
               if (needsEncoding && context.mounted) {
-                final dialogResult = await showDialog<
-                    (bool confirmed, bool encode, bool autoSave)?>(
-                  context: context,
-                  // ignore: use_build_context_synchronously
-                  builder: (context) =>
-                      _buildEncodingDialogStatic(context, fileName),
-                );
+                final dialogResult =
+                    await showDialog<
+                      (bool confirmed, bool encode, bool autoSave)?
+                    >(
+                      context: context,
+                      // ignore: use_build_context_synchronously
+                      builder: (context) =>
+                          _buildEncodingDialogStatic(context, fileName),
+                    );
 
                 if (dialogResult == null || dialogResult.$1 != true) {
                   continue;
@@ -328,8 +338,9 @@ class DragTargetWrapper extends ConsumerWidget {
 
     return StatefulBuilder(
       builder: (context, setState) {
-        final confirmButtonText =
-            encodeChecked ? l10n.vibeConfirmEncode : l10n.vibe_addImageOnly;
+        final confirmButtonText = encodeChecked
+            ? l10n.vibeConfirmEncode
+            : l10n.vibe_addImageOnly;
 
         return AlertDialog(
           title: Text(l10n.vibeNoEncodingWarning),
@@ -347,10 +358,7 @@ class DragTargetWrapper extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                l10n.vibeEncodeConfirm,
-                style: theme.textTheme.bodySmall,
-              ),
+              Text(l10n.vibeEncodeConfirm, style: theme.textTheme.bodySmall),
               const SizedBox(height: 16),
               InkWell(
                 onTap: () {
@@ -433,8 +441,9 @@ class DragTargetWrapper extends ConsumerWidget {
               child: Text(l10n.vibeCancel),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.of(context)
-                  .pop((true, encodeChecked, autoSaveChecked)),
+              onPressed: () => Navigator.of(
+                context,
+              ).pop((true, encodeChecked, autoSaveChecked)),
               child: Text(confirmButtonText),
             ),
           ],
@@ -450,8 +459,10 @@ class DragTargetWrapper extends ConsumerWidget {
     String baseName,
   ) async {
     final panelNotifier = ref.read(referencePanelNotifierProvider.notifier);
-    final result =
-        await panelNotifier.saveEncodedVibesToLibrary(vibes, baseName);
+    final result = await panelNotifier.saveEncodedVibesToLibrary(
+      vibes,
+      baseName,
+    );
 
     if (context.mounted) {
       String message;
@@ -509,8 +520,10 @@ class DragTargetWrapper extends ConsumerWidget {
       }
 
       for (final entry in result.selectedEntries) {
-        final currentCount =
-            ref.read(generationParamsNotifierProvider).vibeReferencesV4.length;
+        final currentCount = ref
+            .read(generationParamsNotifierProvider)
+            .vibeReferencesV4
+            .length;
         if (currentCount >= 16) break;
 
         if (entry.isBundle) {
@@ -568,10 +581,7 @@ class DragTargetWrapper extends ConsumerWidget {
   ) async {
     final span = VibePerformanceDiagnostics.start(
       'dragTarget.addLibraryVibe',
-      details: {
-        'entryId': entry.id,
-        'isBundle': entry.isBundle,
-      },
+      details: {'entryId': entry.id, 'isBundle': entry.isBundle},
     );
     var success = false;
     final panelNotifier = ref.read(referencePanelNotifierProvider.notifier);
@@ -590,11 +600,7 @@ class DragTargetWrapper extends ConsumerWidget {
         }
       }
     } finally {
-      span.finish(
-        details: {
-          'success': success,
-        },
-      );
+      span.finish(details: {'success': success});
     }
   }
 }
