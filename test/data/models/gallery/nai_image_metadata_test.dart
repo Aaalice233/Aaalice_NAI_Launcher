@@ -560,7 +560,7 @@ void main() {
   group('Real PNG metadata drag flow', () {
     test('official PNG with Source=4BDE2A90 should resolve to full model', () {
       // 这是实际官网图片，解析时必须从 Source 读出模型
-      final metadata = NaiImageMetadata(
+      const metadata = NaiImageMetadata(
         source: 'NovelAI Diffusion V4.5 4BDE2A90',
         model: null, // 官网图没有 Comment.model
         prompt: 'test',
@@ -628,7 +628,7 @@ void main() {
     });
 
     test('metadata apply should call updateModel for source-only PNG', () {
-      final metadata = NaiImageMetadata(
+      const metadata = NaiImageMetadata(
         source: 'NovelAI Diffusion V4.5 4BDE2A90',
         model: null,
         prompt: 'test prompt',
@@ -636,7 +636,7 @@ void main() {
       );
 
       String? appliedModel;
-      final options = MetadataImportOptions(importModel: true);
+      const options = MetadataImportOptions(importModel: true);
       final target = MetadataImportTarget(
         updatePrompt: (_) {},
         updateNegativePrompt: (_) {},
