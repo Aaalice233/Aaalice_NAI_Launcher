@@ -577,6 +577,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_languageEnglish => 'English';
 
   @override
+  String get settings_languageJapanese => '日本語';
+
+  @override
   String get settings_shortcuts => '快捷键';
 
   @override

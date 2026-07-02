@@ -12,6 +12,18 @@ extension LocalizationExtension on BuildContext {
   /// 获取当前语言环境的 AppLocalizations 实例
   AppLocalizations get l10n => AppLocalizations.of(this)!;
 
+  /// 获取 timeago 使用的本地化代码
+  String get timeagoLocaleCode {
+    switch (Localizations.localeOf(this).languageCode) {
+      case 'zh':
+        return 'zh';
+      case 'ja':
+        return 'ja';
+      default:
+        return 'en';
+    }
+  }
+
   /// 获取 Vibe 来源类型的本地化展示名称
   String vibeSourceTypeLabel(VibeSourceType sourceType) {
     switch (sourceType) {

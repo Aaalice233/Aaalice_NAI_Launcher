@@ -17,6 +17,7 @@ import 'core/constants/app_version.dart';
 import 'core/constants/storage_keys.dart';
 import 'l10n/app_localizations.dart';
 import 'l10n/app_localizations_en.dart';
+import 'l10n/app_localizations_ja.dart';
 import 'l10n/app_localizations_zh.dart';
 import 'core/network/proxy_service.dart';
 import 'core/network/system_proxy_http_overrides.dart';
@@ -51,10 +52,14 @@ import 'presentation/screens/splash/app_bootstrap.dart';
 AppLocalizations _getLocalizedStrings() {
   final box = Hive.box(StorageKeys.settingsBox);
   final localeCode = box.get(StorageKeys.locale, defaultValue: 'zh') as String;
-  if (localeCode == 'en') {
-    return AppLocalizationsEn();
+  switch (localeCode) {
+    case 'en':
+      return AppLocalizationsEn();
+    case 'ja':
+      return AppLocalizationsJa();
+    default:
+      return AppLocalizationsZh();
   }
-  return AppLocalizationsZh();
 }
 
 Future<void> _openHiveBoxIfNeeded<E>(String name, {String? hivePath}) async {
@@ -473,6 +478,7 @@ Future<void> _bootstrapApplication() async {
   // Timeago 本地化配置
   timeago.setLocaleMessages('zh', timeago.ZhCnMessages());
   timeago.setLocaleMessages('zh_CN', timeago.ZhCnMessages());
+  timeago.setLocaleMessages('ja', timeago.JaMessages());
 
   // 清理过期临时文件（不阻塞启动）
   Future.microtask(() async {

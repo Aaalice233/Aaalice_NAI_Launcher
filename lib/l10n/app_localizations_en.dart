@@ -589,6 +589,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_languageEnglish => 'English';
 
   @override
+  String get settings_languageJapanese => '日本語';
+
+  @override
   String get settings_shortcuts => 'Shortcuts';
 
   @override
@@ -948,22 +951,22 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get prompt_positive => 'Positive';
+  String get prompt_positive => 'Prompt';
 
   @override
-  String get prompt_negative => 'Negative';
+  String get prompt_negative => 'Undesired Content';
 
   @override
-  String get prompt_positivePrompt => 'Positive Prompt';
+  String get prompt_positivePrompt => 'Prompt';
 
   @override
-  String get prompt_negativePrompt => 'Negative Prompt';
+  String get prompt_negativePrompt => 'Undesired Content';
 
   @override
-  String get prompt_mainPositive => 'Main Prompt (Positive)';
+  String get prompt_mainPositive => 'Main Prompt';
 
   @override
-  String get prompt_mainNegative => 'Main Prompt (Negative)';
+  String get prompt_mainNegative => 'Main Prompt (Undesired Content)';
 
   @override
   String get prompt_characterPrompts => 'Multi-Character Prompts';
@@ -977,7 +980,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get prompt_finalPrompt => 'Final Effective Prompt';
 
   @override
-  String get prompt_finalNegative => 'Final Effective Negative';
+  String get prompt_finalNegative => 'Final Effective Undesired Content';
 
   @override
   String prompt_tags(Object count) {
@@ -1012,7 +1015,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get prompt_inputPrompt => 'Enter prompt...';
 
   @override
-  String get prompt_inputNegativePrompt => 'Enter negative prompt...';
+  String get prompt_inputNegativePrompt => 'Enter Undesired Content...';
 
   @override
   String get prompt_describeImage =>
@@ -1059,10 +1062,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'Krita Bridge is generating. Wait for the current task to finish.';
 
   @override
-  String get prompt_negativeFixedTagPrefix => 'Negative Fixed Tag Prefix';
+  String get prompt_negativeFixedTagPrefix =>
+      'Undesired Content Fixed Tag Prefix';
 
   @override
-  String get prompt_negativeFixedTagSuffix => 'Negative Fixed Tag Suffix';
+  String get prompt_negativeFixedTagSuffix =>
+      'Undesired Content Fixed Tag Suffix';
 
   @override
   String get prompt_unwantedContent =>
@@ -1390,7 +1395,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get config_moreActions => 'More actions';
 
   @override
-  String get img2img_title => 'Img2Img';
+  String get img2img_title => 'Image2Image';
 
   @override
   String get img2img_enabled => 'Enabled';
@@ -1418,7 +1423,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get img2img_noiseHint => 'Add extra noise for more variation';
 
   @override
-  String get img2img_clearSettings => 'Clear Img2Img Settings';
+  String get img2img_clearSettings => 'Clear Image2Image Settings';
 
   @override
   String get img2img_changeImage => 'Change Image';
@@ -1717,7 +1722,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get img2img_upscalePanelOpened =>
-      'Opened the image-to-image upscale panel';
+      'Opened the Image2Image Upscale panel';
 
   @override
   String get editor_title => 'Image Editor';
@@ -2494,7 +2499,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibe_referenceStrength => 'Ref Strength';
 
   @override
-  String get vibe_infoExtraction => 'Info Extraction';
+  String get vibe_infoExtraction => 'Information Extracted';
 
   @override
   String get vibe_adjustParams => 'Adjust Parameters';
@@ -2504,11 +2509,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vibe_sliderHint =>
-      'Strength: Higher mimics visual cues\nInfo Extraction: Lower reduces texture, preserves composition';
+      'Reference Strength: Higher mimics visual cues\nInformation Extracted: Lower reduces texture, preserves composition';
 
   @override
   String vibe_strengthInfo(Object value, Object infoValue) {
-    return 'Strength: $value | Info Extraction: $infoValue';
+    return 'Reference Strength: $value | Information Extracted: $infoValue';
   }
 
   @override
@@ -2550,7 +2555,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibe_strength => 'Strength';
 
   @override
-  String get vibe_infoExtracted => 'Info Extracted';
+  String get vibe_infoExtracted => 'Information Extracted';
 
   @override
   String get vibe_shiftReplaceHint => 'Shift+Click to Replace';
@@ -2646,7 +2651,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Describe this character\'s features...';
 
   @override
-  String get character_negativeOptional => 'Negative Prompt (Optional)';
+  String get character_negativeOptional => 'Undesired Content (Optional)';
 
   @override
   String get character_negativeHint =>
@@ -2736,10 +2741,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gallery_metaFileSize => 'File Size';
 
   @override
-  String get gallery_positivePrompt => 'Positive Prompt';
+  String get gallery_positivePrompt => 'Prompt';
 
   @override
-  String get gallery_negativePrompt => 'Negative Prompt';
+  String get gallery_negativePrompt => 'Undesired Content';
 
   @override
   String get gallery_promptCopied => 'Prompt copied';
@@ -2748,7 +2753,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gallery_seedCopied => 'Seed copied';
 
   @override
-  String get gallery_sendToImg2Img => 'Image to Image';
+  String get gallery_sendToImg2Img => 'Image2Image';
 
   @override
   String get gallery_useImageForGeneration =>
@@ -2780,7 +2785,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gallery_upscalePanelLoaded =>
-      'Loaded the image-to-image upscale panel';
+      'Loaded the Image2Image Upscale panel';
 
   @override
   String gallery_readImageFailed(Object error) {
@@ -2817,7 +2822,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gallery_superResolutionUpscale => 'Super-resolution upscale';
 
   @override
-  String get gallery_sentToImg2Img => 'Image sent to image-to-image';
+  String get gallery_sentToImg2Img => 'Image sent to Image2Image';
 
   @override
   String get gallery_sentToReversePrompt =>
@@ -3390,7 +3395,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tooltip_resetWeight => 'Click to reset to 100%';
 
   @override
-  String get upscale_title => 'Image Upscale';
+  String get upscale_title => 'Upscale';
 
   @override
   String get upscale_close => 'Close';
@@ -3830,10 +3835,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get qualityTags_label => 'Quality';
 
   @override
-  String get qualityTags_positive => 'Quality (Positive)';
+  String get qualityTags_positive => 'Quality (Prompt)';
 
   @override
-  String get qualityTags_negative => 'Quality (Negative)';
+  String get qualityTags_negative => 'Quality (Undesired Content)';
 
   @override
   String get qualityTags_disabled => 'Quality tags disabled\nClick to enable';
@@ -3854,7 +3859,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get qualityTags_selectFromLibrary => 'Select Quality Tag Entry';
 
   @override
-  String get ucPreset_label => 'UC Preset';
+  String get ucPreset_label => 'Undesired Content Preset';
 
   @override
   String get ucPreset_heavy => 'Heavy';
@@ -3878,11 +3883,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ucPreset_disabled => 'Undesired content preset disabled';
 
   @override
-  String get ucPreset_addToNegative => 'Add to negative prompt:';
+  String get ucPreset_addToNegative => 'Add to Undesired Content:';
 
   @override
   String get ucPreset_nsfwHint =>
-      '💡 To generate adult content, add nsfw to your positive prompt. The nsfw tag will be auto-removed from negative prompt';
+      '💡 To generate adult content, add nsfw to your prompt. The nsfw tag will be auto-removed from Undesired Content';
 
   @override
   String get ucPreset_addFromLibrary => 'Add from Library';
@@ -4321,7 +4326,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get drop_processingSubtitle => 'Please wait';
 
   @override
-  String get drop_img2img => 'Image to Image';
+  String get drop_img2img => 'Image2Image';
 
   @override
   String get drop_reversePrompt => 'Reverse Prompt';
@@ -4336,7 +4341,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get drop_unsupportedFormat => 'Unsupported file format';
 
   @override
-  String get drop_addedToImg2Img => 'Added to Image to Image';
+  String get drop_addedToImg2Img => 'Added to Image2Image';
 
   @override
   String get drop_addedToReversePrompt => 'Added to Reverse Prompt';
@@ -4425,12 +4430,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get characterEditor_enabled => 'Enabled';
 
   @override
-  String get characterEditor_promptHint =>
-      'Enter positive prompt for this character...';
+  String get characterEditor_promptHint => 'Enter prompt for this character...';
 
   @override
   String get characterEditor_negativePromptHint =>
-      'Enter negative prompt for this character...';
+      'Enter Undesired Content for this character...';
 
   @override
   String get characterEditor_position => 'Position';
@@ -4554,7 +4558,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get characterTooltip_promptLabel => 'Prompt';
 
   @override
-  String get characterTooltip_negativeLabel => 'Negative';
+  String get characterTooltip_negativeLabel => 'Undesired Content';
 
   @override
   String get characterTooltip_notSet => 'Not set';
@@ -7184,7 +7188,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localGallery_imageFileMissing => 'Image file does not exist';
 
   @override
-  String get localGallery_sentToImageToImage => 'Image sent to image-to-image';
+  String get localGallery_sentToImageToImage => 'Image sent to Image2Image';
 
   @override
   String localGallery_sendFailed(Object error) {
@@ -8165,10 +8169,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fixedTags_scope => 'Scope';
 
   @override
-  String get fixedTags_positive => 'Positive';
+  String get fixedTags_positive => 'Prompt';
 
   @override
-  String get fixedTags_negative => 'Negative';
+  String get fixedTags_negative => 'Undesired Content';
 
   @override
   String get fixedTags_resetWeight => 'Reset to 1.0';
@@ -8223,16 +8227,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fixedTags_switchListView => 'Switch to List View';
 
   @override
-  String get fixedTags_addPositive => 'Add Positive Fixed Tag';
+  String get fixedTags_addPositive => 'Add Prompt Fixed Tag';
 
   @override
-  String get fixedTags_addNegative => 'Add Negative Fixed Tag';
+  String get fixedTags_addNegative => 'Add Undesired Content Fixed Tag';
 
   @override
-  String get fixedTags_addPositiveFromLibrary => 'Add Positive from Library';
+  String get fixedTags_addPositiveFromLibrary => 'Add Prompt from Library';
 
   @override
-  String get fixedTags_addNegativeFromLibrary => 'Add Negative from Library';
+  String get fixedTags_addNegativeFromLibrary =>
+      'Add Undesired Content from Library';
 
   @override
   String get fixedTags_searchNameOrContent => 'Search name or content';
@@ -8241,22 +8246,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fixedTags_clearSearch => 'Clear Search';
 
   @override
-  String get fixedTags_enabledPositive => 'Enabled Positive';
+  String get fixedTags_enabledPositive => 'Enabled Prompt';
 
   @override
-  String get fixedTags_emptyEnabledPositive => 'No enabled positive fixed tags';
+  String get fixedTags_emptyEnabledPositive => 'No enabled prompt fixed tags';
 
   @override
   String get fixedTags_noMatchingEnabled => 'No matching enabled fixed tags';
 
   @override
-  String get fixedTags_negativeTitle => 'Negative Fixed Tags';
+  String get fixedTags_negativeTitle => 'Undesired Content Fixed Tags';
 
   @override
-  String get fixedTags_emptyNegative => 'No negative fixed tags';
+  String get fixedTags_emptyNegative => 'No Undesired Content fixed tags';
 
   @override
-  String get fixedTags_noMatchingNegative => 'No matching negative fixed tags';
+  String get fixedTags_noMatchingNegative =>
+      'No matching Undesired Content fixed tags';
 
   @override
   String get fixedTags_addedToSidebar => 'Added to fixed tags sidebar';
@@ -8284,10 +8290,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get fixedTags_expandNegative => 'Expand Negative';
+  String get fixedTags_expandNegative => 'Expand Undesired Content';
 
   @override
-  String get fixedTags_collapseNegative => 'Collapse Negative';
+  String get fixedTags_collapseNegative => 'Collapse Undesired Content';
 
   @override
   String get fixedTags_undoTooltip => 'Undo fixed tag operation';
@@ -8296,7 +8302,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fixedTags_redoTooltip => 'Redo fixed tag operation';
 
   @override
-  String get fixedTags_positiveTitle => 'Positive Fixed Tags';
+  String get fixedTags_positiveTitle => 'Prompt Fixed Tags';
 
   @override
   String fixedTags_columnCount(Object enabled, Object total) {
@@ -8357,7 +8363,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fixedTags_linkInstruction =>
-      'Drag the link icon from a positive fixed tag to a negative fixed tag to create a link';
+      'Drag the link icon from a prompt fixed tag to an Undesired Content fixed tag to create a link';
 
   @override
   String get fixedTags_manageLinks => 'Manage Links';
@@ -8372,11 +8378,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Create or add from the library at the top of each column';
 
   @override
-  String get fixedTags_newPositive => 'New Positive';
+  String get fixedTags_newPositive => 'New Prompt';
 
   @override
-  String get fixedTags_addPositiveFromLibraryShort =>
-      'Add Positive from Library';
+  String get fixedTags_addPositiveFromLibraryShort => 'Add Prompt from Library';
 
   @override
   String get fixedTags_libraryEmpty => 'Library is empty. Add entries first';
@@ -8435,7 +8440,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reversePrompt_replacementEmptyHint =>
-      'No replacement target character selected. Choose a character from the tag library here; it will not be injected into the positive prompt.';
+      'No replacement target character selected. Choose a character from the tag library here; it will not be injected into the prompt.';
 
   @override
   String get reversePrompt_selectReplacementCharacter =>
@@ -8814,16 +8819,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get promptToken_character => 'Character';
 
   @override
-  String get promptToken_negativePrompt => 'Negative Prompt';
+  String get promptToken_negativePrompt => 'Undesired Content';
 
   @override
-  String get promptToken_negativeFixedTags => 'Negative Fixed Tags';
+  String get promptToken_negativeFixedTags => 'Undesired Content Fixed Tags';
 
   @override
-  String get promptToken_negativePreset => 'Negative Preset';
+  String get promptToken_negativePreset => 'Undesired Content Preset';
 
   @override
-  String get promptToken_characterNegative => 'Character Negative';
+  String get promptToken_characterNegative => 'Character Undesired Content';
 
   @override
   String get common_rename => 'Rename';
@@ -9517,10 +9522,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get queue_queueFull => 'Queue is full, cannot duplicate';
 
   @override
-  String get queue_positivePrompt => 'Positive Prompt';
+  String get queue_positivePrompt => 'Prompt';
 
   @override
-  String get queue_enterPositivePrompt => 'Enter positive prompt...';
+  String get queue_enterPositivePrompt => 'Enter prompt...';
 
   @override
   String get queue_parametersPreview => 'Parameters Preview';
@@ -9551,7 +9556,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get queue_negativePromptFromMain =>
-      'Negative prompt will use main page settings';
+      'Undesired Content will use main page settings';
 
   @override
   String get queue_pinToTop => 'Pin to Top';
@@ -9987,7 +9992,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get metadataImport_clear => 'Clear';
 
   @override
-  String get metadataImport_prompt => 'Positive Prompt';
+  String get metadataImport_prompt => 'Prompt';
 
   @override
   String get metadataImport_mainPrompt => 'Main Prompt';
@@ -10007,12 +10012,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String metadataImport_negativeFixedPrefix(Object text) {
-    return 'Negative Prefix: $text';
+    return 'Undesired Content Prefix: $text';
   }
 
   @override
   String metadataImport_negativeFixedSuffix(Object text) {
-    return 'Negative Suffix: $text';
+    return 'Undesired Content Suffix: $text';
   }
 
   @override
@@ -10021,7 +10026,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get metadataImport_negativePrompt => 'Negative Prompt';
+  String get metadataImport_negativePrompt => 'Undesired Content';
 
   @override
   String get metadataImport_characterPrompts => 'Character Prompts';
@@ -10051,7 +10056,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String metadataImport_vibeDetail(Object name, Object strength, Object info) {
-    return '$name (strength $strength%, info extraction $info%)';
+    return '$name (Reference Strength $strength%, Information Extracted $info%)';
   }
 
   @override
@@ -10098,7 +10103,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get metadataImport_qualityToggle => 'Quality Toggle';
 
   @override
-  String get metadataImport_ucPreset => 'UC Preset';
+  String get metadataImport_ucPreset => 'Undesired Content Preset';
 
   @override
   String get metadataImport_noData => '(no data)';
@@ -10437,7 +10442,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get drop_addToQueueSubtitle =>
-      'Extract positive prompt and add to generation queue';
+      'Extract prompt and add to generation queue';
 
   @override
   String get drop_vibeDetected => 'Pre-encoded Vibe detected (saves 2 Anlas)';
@@ -10449,7 +10454,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String drop_vibeInfoExtracted(Object value) {
-    return 'Info Extracted: $value%';
+    return 'Information Extracted: $value%';
   }
 
   @override
@@ -10466,7 +10471,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get drop_dragToImg2ImgOrOther =>
-      'Drag to image-to-image or another target';
+      'Drag to Image2Image or another target';
 
   @override
   String get preciseRef_title => 'Precise Reference';
@@ -10507,10 +10512,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get preciseRef_costHint =>
-      'Using precise reference consumes extra points';
+      'Using Precise Reference consumes extra Anlas';
 
   @override
-  String get preciseRef_costBadge => 'Uses points';
+  String get preciseRef_costBadge => 'Uses Anlas';
 
   @override
   String get preciseRef_dropToAdd => 'Release to add precise reference';
@@ -11227,7 +11232,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibe_saveToLibrary_strength => 'Strength';
 
   @override
-  String get vibe_saveToLibrary_infoExtracted => 'Info Extracted';
+  String get vibe_saveToLibrary_infoExtracted => 'Information Extracted';
 
   @override
   String vibe_saveToLibrary_saving(int count) {
@@ -11869,7 +11874,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_comfyUiCategoryEnhance => 'Enhance/Upscale';
 
   @override
-  String get settings_comfyUiCategoryImg2Img => 'Image-to-Image';
+  String get settings_comfyUiCategoryImg2Img => 'Image2Image';
 
   @override
   String get settings_comfyUiCategoryInpaint => 'Inpaint';
@@ -12313,7 +12318,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String toast_styleReferenceLimit(Object max) {
-    return 'Style references reached the limit ($max images)';
+    return 'Style References reached the limit ($max images)';
   }
 
   @override
@@ -12537,16 +12542,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String toast_appendedStyleReferences(Object count) {
-    return 'Appended $count style references';
+    return 'Appended $count Style References';
   }
 
   @override
   String get toast_appendedPreencodedVibe =>
-      'Appended 1 style reference (reused pre-encoded Vibe)';
+      'Appended 1 Style Reference (reused pre-encoded Vibe)';
 
   @override
   String get toast_addedPreencodedVibe =>
-      'Added style reference (reused pre-encoded Vibe, saved 2 Anlas)';
+      'Added Style Reference (reused pre-encoded Vibe, saved 2 Anlas)';
 
   @override
   String toast_vibesMissingEncoding(Object count) {
@@ -12709,7 +12714,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibe_encodeSkipImage => 'Skip this image';
 
   @override
-  String get detail_sendToImg2Img => 'Send to Image-to-Image';
+  String get detail_sendToImg2Img => 'Send to Image2Image';
 
   @override
   String get detail_sendToReversePrompt => 'Send to Reverse Prompt';

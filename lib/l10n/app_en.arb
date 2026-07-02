@@ -227,6 +227,7 @@
   "settings_language": "Language",
   "settings_languageChinese": "中文",
   "settings_languageEnglish": "English",
+  "settings_languageJapanese": "日本語",
   "settings_shortcuts": "Shortcuts",
   "settings_dataSource": "Data Source",
   "settings_queue": "Queue",
@@ -419,12 +420,12 @@
     }
   },
 
-  "prompt_positive": "Positive",
-  "prompt_negative": "Negative",
-  "prompt_positivePrompt": "Positive Prompt",
-  "prompt_negativePrompt": "Negative Prompt",
-  "prompt_mainPositive": "Main Prompt (Positive)",
-  "prompt_mainNegative": "Main Prompt (Negative)",
+  "prompt_positive": "Prompt",
+  "prompt_negative": "Undesired Content",
+  "prompt_positivePrompt": "Prompt",
+  "prompt_negativePrompt": "Undesired Content",
+  "prompt_mainPositive": "Main Prompt",
+  "prompt_mainNegative": "Main Prompt (Undesired Content)",
   "prompt_characterPrompts": "Multi-Character Prompts",
   "prompt_characterPromptItem": "{name}: {content}",
   "@prompt_characterPromptItem": {
@@ -434,7 +435,7 @@
     }
   },
   "prompt_finalPrompt": "Final Effective Prompt",
-  "prompt_finalNegative": "Final Effective Negative",
+  "prompt_finalNegative": "Final Effective Undesired Content",
   "prompt_tags": "{count} tags",
   "@prompt_tags": {
     "placeholders": {
@@ -465,7 +466,7 @@
   "prompt_appliedToMainPrompt": "Applied to main prompt",
   "prompt_editPrompt": "Edit Prompt",
   "prompt_inputPrompt": "Enter prompt...",
-  "prompt_inputNegativePrompt": "Enter negative prompt...",
+  "prompt_inputNegativePrompt": "Enter Undesired Content...",
   "prompt_describeImage": "Describe the image you want to generate...",
   "prompt_describeImageWithHint": "Enter prompt to describe image, type < to reference library, supports tag autocomplete",
   "prompt_searchHint": "Search prompt",
@@ -489,8 +490,8 @@
   "promptAssistant_enableAssistant": "Enable Prompt Assistant",
   "promptAssistant_desktopOverlay": "Desktop bottom-right overlay",
   "kritaBridge_busyGenerating": "Krita Bridge is generating. Wait for the current task to finish.",
-  "prompt_negativeFixedTagPrefix": "Negative Fixed Tag Prefix",
-  "prompt_negativeFixedTagSuffix": "Negative Fixed Tag Suffix",
+  "prompt_negativeFixedTagPrefix": "Undesired Content Fixed Tag Prefix",
+  "prompt_negativeFixedTagSuffix": "Undesired Content Fixed Tag Suffix",
   "prompt_unwantedContent": "Content you don't want in the image...",
   "prompt_addTagsHint": "Add tags to describe your desired image",
   "prompt_addUnwantedHint": "Add unwanted elements",
@@ -656,7 +657,7 @@
   "config_probability": "Probability",
   "config_moreActions": "More actions",
 
-  "img2img_title": "Img2Img",
+  "img2img_title": "Image2Image",
   "img2img_enabled": "Enabled",
   "img2img_sourceImage": "Source Image",
   "img2img_selectImage": "Select Image",
@@ -665,7 +666,7 @@
   "img2img_strengthHint": "Higher values create greater difference from original",
   "img2img_noise": "Noise",
   "img2img_noiseHint": "Add extra noise for more variation",
-  "img2img_clearSettings": "Clear Img2Img Settings",
+  "img2img_clearSettings": "Clear Image2Image Settings",
   "img2img_changeImage": "Change Image",
   "img2img_removeImage": "Remove Image",
   "img2img_selectFailed": "Failed to select image: {error}",
@@ -788,7 +789,7 @@
       "name": {}
     }
   },
-  "img2img_upscalePanelOpened": "Opened the image-to-image upscale panel",
+  "img2img_upscalePanelOpened": "Opened the Image2Image Upscale panel",
 
   "editor_title": "Image Editor",
   "editor_done": "Done",
@@ -1155,11 +1156,11 @@
     }
   },
   "vibe_referenceStrength": "Ref Strength",
-  "vibe_infoExtraction": "Info Extraction",
+  "vibe_infoExtraction": "Information Extracted",
   "vibe_adjustParams": "Adjust Parameters",
   "vibe_remove": "Remove",
-  "vibe_sliderHint": "Strength: Higher mimics visual cues\nInfo Extraction: Lower reduces texture, preserves composition",
-  "vibe_strengthInfo": "Strength: {value} | Info Extraction: {infoValue}",
+  "vibe_sliderHint": "Reference Strength: Higher mimics visual cues\nInformation Extracted: Lower reduces texture, preserves composition",
+  "vibe_strengthInfo": "Reference Strength: {value} | Information Extracted: {infoValue}",
   "@vibe_strengthInfo": {
     "placeholders": {
       "value": {},
@@ -1183,7 +1184,7 @@
   "vibe_info": "Vibe Info",
   "vibe_name": "Name",
   "vibe_strength": "Strength",
-  "vibe_infoExtracted": "Info Extracted",
+  "vibe_infoExtracted": "Information Extracted",
   "vibe_shiftReplaceHint": "Shift+Click to Replace",
 
   "characterRef_title": "Character Reference",
@@ -1224,7 +1225,7 @@
   "character_removeCharacter": "Remove Character",
   "character_description": "Character Description",
   "character_descriptionHint": "Describe this character's features...",
-  "character_negativeOptional": "Negative Prompt (Optional)",
+  "character_negativeOptional": "Undesired Content (Optional)",
   "character_negativeHint": "Features you don't want on this character...",
   "character_positionOptional": "Character Position (Optional)",
   "character_positionHint": "Position (0-1), specifies approximate position in image",
@@ -1268,11 +1269,11 @@
   "gallery_metaSmeaOff": "Off",
   "gallery_metaGenerationTime": "Generation Time",
   "gallery_metaFileSize": "File Size",
-  "gallery_positivePrompt": "Positive Prompt",
-  "gallery_negativePrompt": "Negative Prompt",
+  "gallery_positivePrompt": "Prompt",
+  "gallery_negativePrompt": "Undesired Content",
   "gallery_promptCopied": "Prompt copied",
   "gallery_seedCopied": "Seed copied",
-  "gallery_sendToImg2Img": "Image to Image",
+  "gallery_sendToImg2Img": "Image2Image",
   "gallery_useImageForGeneration": "Use this image for image generation",
   "gallery_sendToReversePromptTitle": "Reverse Prompt",
   "gallery_addToReversePromptModule": "Add to the canvas reverse-prompt module",
@@ -1281,7 +1282,7 @@
   "gallery_sendToKrita": "Krita",
   "gallery_sendToKritaAction": "Send to Krita",
   "gallery_sendToConnectedKrita": "Send to the connected Krita plugin",
-  "gallery_upscalePanelLoaded": "Loaded the image-to-image upscale panel",
+  "gallery_upscalePanelLoaded": "Loaded the Image2Image Upscale panel",
   "gallery_readImageFailed": "Failed to read image: {error}",
   "@gallery_readImageFailed": {
     "placeholders": {
@@ -1302,7 +1303,7 @@
   "gallery_loadSourceImage": "Load source image",
   "gallery_upscale": "Upscale",
   "gallery_superResolutionUpscale": "Super-resolution upscale",
-  "gallery_sentToImg2Img": "Image sent to image-to-image",
+  "gallery_sentToImg2Img": "Image sent to Image2Image",
   "gallery_sentToReversePrompt": "Image sent to reverse-prompt module",
   "gallery_sendFailed": "Send failed: {error}",
   "@gallery_sendFailed": {
@@ -1579,7 +1580,7 @@
   "tooltip_disable": "Disable",
   "tooltip_resetWeight": "Click to reset to 100%",
 
-  "upscale_title": "Image Upscale",
+  "upscale_title": "Upscale",
   "upscale_close": "Close",
   "upscale_start": "Start Upscale",
   "upscale_sourceImage": "Source Image",
@@ -1796,8 +1797,8 @@
   },
 
   "qualityTags_label": "Quality",
-  "qualityTags_positive": "Quality (Positive)",
-  "qualityTags_negative": "Quality (Negative)",
+  "qualityTags_positive": "Quality (Prompt)",
+  "qualityTags_negative": "Quality (Undesired Content)",
   "qualityTags_disabled": "Quality tags disabled\nClick to enable",
   "qualityTags_addToEnd": "Add to prompt end:",
   "qualityTags_naiDefault": "NAI Default",
@@ -1805,7 +1806,7 @@
   "qualityTags_addFromLibrary": "Add from Library",
   "qualityTags_selectFromLibrary": "Select Quality Tag Entry",
 
-  "ucPreset_label": "UC Preset",
+  "ucPreset_label": "Undesired Content Preset",
   "ucPreset_heavy": "Heavy",
   "ucPreset_light": "Light",
   "ucPreset_furryFocus": "Furry",
@@ -1813,8 +1814,8 @@
   "ucPreset_none": "None",
   "ucPreset_custom": "Custom",
   "ucPreset_disabled": "Undesired content preset disabled",
-  "ucPreset_addToNegative": "Add to negative prompt:",
-  "ucPreset_nsfwHint": "💡 To generate adult content, add nsfw to your positive prompt. The nsfw tag will be auto-removed from negative prompt",
+  "ucPreset_addToNegative": "Add to Undesired Content:",
+  "ucPreset_nsfwHint": "💡 To generate adult content, add nsfw to your prompt. The nsfw tag will be auto-removed from Undesired Content",
   "ucPreset_addFromLibrary": "Add from Library",
   "ucPreset_selectFromLibrary": "Select UC Entry",
 
@@ -2050,8 +2051,8 @@
   "characterEditor_name": "Name",
   "characterEditor_nameHint": "Enter character name",
   "characterEditor_enabled": "Enabled",
-  "characterEditor_promptHint": "Enter positive prompt for this character...",
-  "characterEditor_negativePromptHint": "Enter negative prompt for this character...",
+  "characterEditor_promptHint": "Enter prompt for this character...",
+  "characterEditor_negativePromptHint": "Enter Undesired Content for this character...",
   "characterEditor_position": "Position",
   "characterEditor_genderFemale": "Female",
   "characterEditor_genderMale": "Male",
@@ -2106,7 +2107,7 @@
   "characterTooltip_positionAi": "AI",
   "characterTooltip_disabledLabel": "Disabled",
   "characterTooltip_promptLabel": "Prompt",
-  "characterTooltip_negativeLabel": "Negative",
+  "characterTooltip_negativeLabel": "Undesired Content",
   "characterTooltip_notSet": "Not set",
   "characterTooltip_summary": "{total} characters ({enabled} enabled)",
   "@characterTooltip_summary": {
@@ -3504,7 +3505,7 @@
   "localGallery_packFailed": "Failed to pack images",
   "localGallery_noMetadata": "This image has no metadata",
   "localGallery_imageFileMissing": "Image file does not exist",
-  "localGallery_sentToImageToImage": "Image sent to image-to-image",
+  "localGallery_sentToImageToImage": "Image sent to Image2Image",
   "localGallery_sendFailed": "Send failed: {error}",
   "@localGallery_sendFailed": {
     "placeholders": {
@@ -3992,8 +3993,8 @@
   "fixedTags_syntaxHelp": "Supports NAI syntax for weight enhancement/reduction and tag alternation",
   "fixedTags_linkedFromLibrary": "Linked from library (two-way sync)",
   "fixedTags_scope": "Scope",
-  "fixedTags_positive": "Positive",
-  "fixedTags_negative": "Negative",
+  "fixedTags_positive": "Prompt",
+  "fixedTags_negative": "Undesired Content",
   "fixedTags_resetWeight": "Reset to 1.0",
   "fixedTags_weightPreview": "Weight preview:",
   "fixedTags_deleteTitle": "Delete Fixed Tag",
@@ -4025,18 +4026,18 @@
   "fixedTags_sidebarTitle": "Fixed Tags Sidebar",
   "fixedTags_switchGridView": "Switch to Grid View",
   "fixedTags_switchListView": "Switch to List View",
-  "fixedTags_addPositive": "Add Positive Fixed Tag",
-  "fixedTags_addNegative": "Add Negative Fixed Tag",
-  "fixedTags_addPositiveFromLibrary": "Add Positive from Library",
-  "fixedTags_addNegativeFromLibrary": "Add Negative from Library",
+  "fixedTags_addPositive": "Add Prompt Fixed Tag",
+  "fixedTags_addNegative": "Add Undesired Content Fixed Tag",
+  "fixedTags_addPositiveFromLibrary": "Add Prompt from Library",
+  "fixedTags_addNegativeFromLibrary": "Add Undesired Content from Library",
   "fixedTags_searchNameOrContent": "Search name or content",
   "fixedTags_clearSearch": "Clear Search",
-  "fixedTags_enabledPositive": "Enabled Positive",
-  "fixedTags_emptyEnabledPositive": "No enabled positive fixed tags",
+  "fixedTags_enabledPositive": "Enabled Prompt",
+  "fixedTags_emptyEnabledPositive": "No enabled prompt fixed tags",
   "fixedTags_noMatchingEnabled": "No matching enabled fixed tags",
-  "fixedTags_negativeTitle": "Negative Fixed Tags",
-  "fixedTags_emptyNegative": "No negative fixed tags",
-  "fixedTags_noMatchingNegative": "No matching negative fixed tags",
+  "fixedTags_negativeTitle": "Undesired Content Fixed Tags",
+  "fixedTags_emptyNegative": "No Undesired Content fixed tags",
+  "fixedTags_noMatchingNegative": "No matching Undesired Content fixed tags",
   "fixedTags_addedToSidebar": "Added to fixed tags sidebar",
   "fixedTags_unknownCategory": "Unknown Category",
   "fixedTags_uncategorized": "Uncategorized",
@@ -4049,11 +4050,11 @@
       "count": {}
     }
   },
-  "fixedTags_expandNegative": "Expand Negative",
-  "fixedTags_collapseNegative": "Collapse Negative",
+  "fixedTags_expandNegative": "Expand Undesired Content",
+  "fixedTags_collapseNegative": "Collapse Undesired Content",
   "fixedTags_undoTooltip": "Undo fixed tag operation",
   "fixedTags_redoTooltip": "Redo fixed tag operation",
-  "fixedTags_positiveTitle": "Positive Fixed Tags",
+  "fixedTags_positiveTitle": "Prompt Fixed Tags",
   "fixedTags_columnCount": "{enabled}/{total}",
   "@fixedTags_columnCount": {
     "placeholders": {
@@ -4105,7 +4106,7 @@
       "names": {}
     }
   },
-  "fixedTags_linkInstruction": "Drag the link icon from a positive fixed tag to a negative fixed tag to create a link",
+  "fixedTags_linkInstruction": "Drag the link icon from a prompt fixed tag to an Undesired Content fixed tag to create a link",
   "fixedTags_manageLinks": "Manage Links",
   "fixedTags_removeLink": "Remove link: {name}",
   "@fixedTags_removeLink": {
@@ -4114,8 +4115,8 @@
     }
   },
   "fixedTags_footerExpandedHint": "Create or add from the library at the top of each column",
-  "fixedTags_newPositive": "New Positive",
-  "fixedTags_addPositiveFromLibraryShort": "Add Positive from Library",
+  "fixedTags_newPositive": "New Prompt",
+  "fixedTags_addPositiveFromLibraryShort": "Add Prompt from Library",
   "fixedTags_libraryEmpty": "Library is empty. Add entries first",
   "fixedTags_addFromLibrary": "Add from Library",
   "fixedTags_searchLibraryEntries": "Search library entries...",
@@ -4139,7 +4140,7 @@
   "reversePrompt_generalThreshold": "General tag threshold",
   "reversePrompt_characterThreshold": "Character tag threshold",
   "reversePrompt_taggerFilterHint": "Only General / Character tags are output. Rating, Artist, Copyright, Meta, and other categories are filtered.",
-  "reversePrompt_replacementEmptyHint": "No replacement target character selected. Choose a character from the tag library here; it will not be injected into the positive prompt.",
+  "reversePrompt_replacementEmptyHint": "No replacement target character selected. Choose a character from the tag library here; it will not be injected into the prompt.",
   "reversePrompt_selectReplacementCharacter": "Choose replacement target character from library",
   "reversePrompt_selectReplacementTargetTitle": "Choose Replacement Target Character",
   "reversePrompt_change": "Change",
@@ -4289,10 +4290,10 @@
   "promptToken_fixedTags": "Fixed Tags",
   "promptToken_qualityPreset": "Quality Preset",
   "promptToken_character": "Character",
-  "promptToken_negativePrompt": "Negative Prompt",
-  "promptToken_negativeFixedTags": "Negative Fixed Tags",
-  "promptToken_negativePreset": "Negative Preset",
-  "promptToken_characterNegative": "Character Negative",
+  "promptToken_negativePrompt": "Undesired Content",
+  "promptToken_negativeFixedTags": "Undesired Content Fixed Tags",
+  "promptToken_negativePreset": "Undesired Content Preset",
+  "promptToken_characterNegative": "Character Undesired Content",
 
   "common_rename": "Rename",
   "common_create": "Create",
@@ -4677,8 +4678,8 @@
   "queue_duplicateTask": "Duplicate Task",
   "queue_taskDuplicated": "Task duplicated",
   "queue_queueFull": "Queue is full, cannot duplicate",
-  "queue_positivePrompt": "Positive Prompt",
-  "queue_enterPositivePrompt": "Enter positive prompt...",
+  "queue_positivePrompt": "Prompt",
+  "queue_enterPositivePrompt": "Enter prompt...",
   "queue_parametersPreview": "Parameters Preview",
   "queue_model": "Model",
   "queue_seed": "Seed",
@@ -4688,7 +4689,7 @@
   "queue_size": "Size",
   "queue_addToQueue": "Add to Queue",
   "queue_taskAdded": "Added to queue",
-  "queue_negativePromptFromMain": "Negative prompt will use main page settings",
+  "queue_negativePromptFromMain": "Undesired Content will use main page settings",
 
   "queue_pinToTop": "Pin to Top",
   "queue_delete": "Delete",
@@ -4925,7 +4926,7 @@
   "metadataImport_promptsOnly": "Prompts Only",
   "metadataImport_generationOnly": "Parameters Only",
   "metadataImport_clear": "Clear",
-  "metadataImport_prompt": "Positive Prompt",
+  "metadataImport_prompt": "Prompt",
   "metadataImport_mainPrompt": "Main Prompt",
   "metadataImport_fixedTags": "Fixed Tags",
   "metadataImport_fixedPrefix": "Prefix: {text}",
@@ -4940,13 +4941,13 @@
       "text": {}
     }
   },
-  "metadataImport_negativeFixedPrefix": "Negative Prefix: {text}",
+  "metadataImport_negativeFixedPrefix": "Undesired Content Prefix: {text}",
   "@metadataImport_negativeFixedPrefix": {
     "placeholders": {
       "text": {}
     }
   },
-  "metadataImport_negativeFixedSuffix": "Negative Suffix: {text}",
+  "metadataImport_negativeFixedSuffix": "Undesired Content Suffix: {text}",
   "@metadataImport_negativeFixedSuffix": {
     "placeholders": {
       "text": {}
@@ -4958,7 +4959,7 @@
       "count": {"type": "int"}
     }
   },
-  "metadataImport_negativePrompt": "Negative Prompt",
+  "metadataImport_negativePrompt": "Undesired Content",
   "metadataImport_characterPrompts": "Character Prompts",
   "metadataImport_characterPromptsCount": "Character Prompts ({count})",
   "@metadataImport_characterPromptsCount": {
@@ -4986,7 +4987,7 @@
       "count": {"type": "int"}
     }
   },
-  "metadataImport_vibeDetail": "{name} (strength {strength}%, info extraction {info}%)",
+  "metadataImport_vibeDetail": "{name} (Reference Strength {strength}%, Information Extracted {info}%)",
   "@metadataImport_vibeDetail": {
     "placeholders": {
       "name": {},
@@ -5014,7 +5015,7 @@
   "metadataImport_noiseSchedule": "Noise Schedule",
   "metadataImport_cfgRescale": "CFG Rescale",
   "metadataImport_qualityToggle": "Quality Toggle",
-  "metadataImport_ucPreset": "UC Preset",
+  "metadataImport_ucPreset": "Undesired Content Preset",
   "metadataImport_noData": "(no data)",
   "metadataImport_selectedCount": "{count} selected",
   "@metadataImport_selectedCount": {
@@ -5154,12 +5155,12 @@
 
   "drop_dialogTitle": "How to use this image?",
   "drop_hint": "Drop image here",
-  "drop_img2img": "Image to Image",
+  "drop_img2img": "Image2Image",
   "drop_reversePrompt": "Reverse Prompt",
   "drop_vibeTransfer": "Vibe Transfer",
   "drop_characterReference": "Precise Reference",
   "drop_unsupportedFormat": "Unsupported file format",
-  "drop_addedToImg2Img": "Added to Image to Image",
+  "drop_addedToImg2Img": "Added to Image2Image",
   "drop_addedToReversePrompt": "Added to Reverse Prompt",
   "drop_addedToVibe": "Added to Vibe Transfer",
   "drop_addedMultipleToVibe": "Added {count} vibe references",
@@ -5172,7 +5173,7 @@
   "drop_extractMetadata": "Extract Metadata",
   "drop_extractMetadataSubtitle": "Read Prompt, Seed and other parameters from image",
   "drop_addToQueue": "Add to Queue",
-  "drop_addToQueueSubtitle": "Extract positive prompt and add to generation queue",
+  "drop_addToQueueSubtitle": "Extract prompt and add to generation queue",
   "drop_vibeDetected": "Pre-encoded Vibe detected (saves 2 Anlas)",
   "drop_vibeStrength": "Strength: {value}%",
   "@drop_vibeStrength": {
@@ -5180,7 +5181,7 @@
       "value": {}
     }
   },
-  "drop_vibeInfoExtracted": "Info Extracted: {value}%",
+  "drop_vibeInfoExtracted": "Information Extracted: {value}%",
   "@drop_vibeInfoExtracted": {
     "placeholders": {
       "value": {}
@@ -5190,7 +5191,7 @@
   "drop_reuseVibeSubtitle": "Use pre-encoded data directly (free)",
   "drop_useAsRawImage": "Use as Raw Image",
   "drop_useAsRawImageSubtitle": "Re-encode (costs 2 Anlas)",
-  "drop_dragToImg2ImgOrOther": "Drag to image-to-image or another target",
+  "drop_dragToImg2ImgOrOther": "Drag to Image2Image or another target",
 
   "preciseRef_title": "Precise Reference",
   "preciseRef_description": "Add reference images and set type and parameters. Multiple references can be used simultaneously.",
@@ -5204,8 +5205,8 @@
   "preciseRef_typeCharacter": "Character",
   "preciseRef_typeStyle": "Style",
   "preciseRef_typeCharacterAndStyle": "Character + Style",
-  "preciseRef_costHint": "Using precise reference consumes extra points",
-  "preciseRef_costBadge": "Uses points",
+  "preciseRef_costHint": "Using Precise Reference consumes extra Anlas",
+  "preciseRef_costBadge": "Uses Anlas",
   "preciseRef_dropToAdd": "Release to add precise reference",
   "preciseRef_dropNoReadableImage": "The drop source did not provide a readable image file or image link",
   "preciseRef_addedCount": "Added {count} precise references",
@@ -5618,7 +5619,7 @@
   },
   "vibe_saveToLibrary_title": "Save to Library",
   "vibe_saveToLibrary_strength": "Strength",
-  "vibe_saveToLibrary_infoExtracted": "Info Extracted",
+  "vibe_saveToLibrary_infoExtracted": "Information Extracted",
   "vibe_saveToLibrary_saving": "Saving {count} vibes",
   "@vibe_saveToLibrary_saving": {
     "placeholders": {
@@ -5953,7 +5954,7 @@
   "settings_comfyUiStatusConnected": "Connected",
   "settings_comfyUiStatusError": "Connection error",
   "settings_comfyUiCategoryEnhance": "Enhance/Upscale",
-  "settings_comfyUiCategoryImg2Img": "Image-to-Image",
+  "settings_comfyUiCategoryImg2Img": "Image2Image",
   "settings_comfyUiCategoryInpaint": "Inpaint",
   "settings_comfyUiCategoryTxt2Img": "Text-to-Image",
   "settings_comfyUiCategoryCustom": "Custom",
@@ -6180,7 +6181,7 @@
   "performanceReport_clearAction": "Clear",
 
   "toast_previewUpdated": "Preview image updated",
-  "toast_styleReferenceLimit": "Style references reached the limit ({max} images)",
+  "toast_styleReferenceLimit": "Style References reached the limit ({max} images)",
   "@toast_styleReferenceLimit": {
     "placeholders": {
       "max": {}
@@ -6328,14 +6329,14 @@
     }
   },
   "toast_unreadableDroppedImageSource": "The drop source did not provide a readable image file or image URL",
-  "toast_appendedStyleReferences": "Appended {count} style references",
+  "toast_appendedStyleReferences": "Appended {count} Style References",
   "@toast_appendedStyleReferences": {
     "placeholders": {
       "count": {}
     }
   },
-  "toast_appendedPreencodedVibe": "Appended 1 style reference (reused pre-encoded Vibe)",
-  "toast_addedPreencodedVibe": "Added style reference (reused pre-encoded Vibe, saved 2 Anlas)",
+  "toast_appendedPreencodedVibe": "Appended 1 Style Reference (reused pre-encoded Vibe)",
+  "toast_addedPreencodedVibe": "Added Style Reference (reused pre-encoded Vibe, saved 2 Anlas)",
   "toast_vibesMissingEncoding": "{count} Vibes are missing encoded data and cannot be saved",
   "@toast_vibesMissingEncoding": {
     "placeholders": {
@@ -6429,7 +6430,7 @@
   },
   "vibe_encodeSkipImage": "Skip this image",
 
-  "detail_sendToImg2Img": "Send to Image-to-Image",
+  "detail_sendToImg2Img": "Send to Image2Image",
   "detail_sendToReversePrompt": "Send to Reverse Prompt",
   "detail_loadingImage": "Loading image...",
   "detail_imageLoadFailed": "Failed to load image",
