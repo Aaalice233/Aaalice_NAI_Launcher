@@ -26,6 +26,7 @@ import 'core/services/data_migration_service.dart';
 import 'core/services/sqflite_bootstrap_service.dart';
 import 'core/utils/app_error_reporter.dart';
 import 'core/utils/app_logger.dart';
+import 'core/utils/hive_startup_box_opener.dart';
 import 'core/utils/hive_storage_helper.dart';
 import 'core/utils/window_focus_tracker.dart';
 import 'data/datasources/local/nai_tags_data_source.dart';
@@ -56,9 +57,9 @@ AppLocalizations _getLocalizedStrings() {
   return AppLocalizationsZh();
 }
 
-Future<void> _openHiveBoxIfNeeded<E>(String name) async {
+Future<void> _openHiveBoxIfNeeded<E>(String name, {String? hivePath}) async {
   if (!Hive.isBoxOpen(name)) {
-    await Hive.openBox<E>(name);
+    await HiveStartupBoxOpener.openBox<E>(name, hivePath: hivePath);
   }
 }
 
@@ -321,6 +322,7 @@ Future<void> _bootstrapApplication() async {
 
   // 初始化 Hive（使用子目录存储，支持迁移旧数据）
   await HiveStorageHelper.instance.init();
+  final hivePath = await HiveStorageHelper.instance.getPath();
 
   // 注册 Hive adapters（用于元数据存储）
   if (!Hive.isAdapterRegistered(24)) {
@@ -330,7 +332,10 @@ Future<void> _bootstrapApplication() async {
     Hive.registerAdapter(CharacterPromptInfoAdapter());
   }
 
-  await _openHiveBoxIfNeeded(StorageKeys.settingsBox);
+  // 先迁移 Hive 文件，再打开 box，避免 Windows 文件锁阻止旧数据覆盖占位文件。
+  await HiveStorageHelper.instance.migrateFromOldLocation(hivePath);
+
+  await _openHiveBoxIfNeeded(StorageKeys.settingsBox, hivePath: hivePath);
   final settingsBox = Hive.box(StorageKeys.settingsBox);
   final fileLoggingEnabled =
       settingsBox.get(StorageKeys.fileLoggingEnabled, defaultValue: false) ==
@@ -376,21 +381,30 @@ Future<void> _bootstrapApplication() async {
   }
 
   // 预先打开 Hive boxes (确保 LocalStorageService 可用)
-  await _openHiveBoxIfNeeded(StorageKeys.settingsBox);
-  await _openHiveBoxIfNeeded(StorageKeys.historyBox);
-  await _openHiveBoxIfNeeded(StorageKeys.tagCacheBox);
-  await _openHiveBoxIfNeeded(StorageKeys.galleryBox);
+  await _openHiveBoxIfNeeded(StorageKeys.settingsBox, hivePath: hivePath);
+  await _openHiveBoxIfNeeded(StorageKeys.historyBox, hivePath: hivePath);
+  await _openHiveBoxIfNeeded(StorageKeys.tagCacheBox, hivePath: hivePath);
+  await _openHiveBoxIfNeeded(StorageKeys.galleryBox, hivePath: hivePath);
   // Local Gallery 新功能所需的 Hive boxes
-  await _openHiveBoxIfNeeded(StorageKeys.localFavoritesBox);
-  await _openHiveBoxIfNeeded(StorageKeys.tagsBox);
-  await _openHiveBoxIfNeeded(StorageKeys.searchIndexBox);
+  await _openHiveBoxIfNeeded(StorageKeys.localFavoritesBox, hivePath: hivePath);
+  await _openHiveBoxIfNeeded(StorageKeys.tagsBox, hivePath: hivePath);
+  await _openHiveBoxIfNeeded(StorageKeys.searchIndexBox, hivePath: hivePath);
   // 统计数据缓存 Box
-  await _openHiveBoxIfNeeded(StorageKeys.statisticsCacheBox);
+  await _openHiveBoxIfNeeded(
+    StorageKeys.statisticsCacheBox,
+    hivePath: hivePath,
+  );
   // 收藏集合 Box
-  await _openHiveBoxIfNeeded(StorageKeys.collectionsBox);
+  await _openHiveBoxIfNeeded(StorageKeys.collectionsBox, hivePath: hivePath);
   // 队列相关 Box（预加载以避免首次打开队列管理页面时的延迟）
-  await _openHiveBoxIfNeeded<String>(StorageKeys.replicationQueueBox);
-  await _openHiveBoxIfNeeded<String>(StorageKeys.queueExecutionStateBox);
+  await _openHiveBoxIfNeeded<String>(
+    StorageKeys.replicationQueueBox,
+    hivePath: hivePath,
+  );
+  await _openHiveBoxIfNeeded<String>(
+    StorageKeys.queueExecutionStateBox,
+    hivePath: hivePath,
+  );
 
   // 初始化图像元数据服务（包含持久化缓存，用于详情页快速加载）
   await ImageMetadataService().initialize();
