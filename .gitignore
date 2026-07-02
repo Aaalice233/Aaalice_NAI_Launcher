@@ -253,6 +253,7 @@ test/presentation/*
 !test/presentation/providers/
 test/presentation/providers/*
 !test/presentation/providers/fixed_tags_provider_test.dart
+!test/presentation/providers/auth_mode_provider_test.dart
 !test/presentation/providers/image_generation_provider_test.dart
 !test/presentation/providers/layout_state_provider_test.dart
 !test/presentation/providers/prompt_config_random_mode_test.dart

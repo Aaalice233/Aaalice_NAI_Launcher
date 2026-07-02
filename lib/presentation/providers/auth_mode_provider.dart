@@ -25,7 +25,7 @@ class AuthModeState {
   const AuthModeState({
     this.currentMode = AuthMode.credentials,
     this.obscurePassword = true,
-    this.autoLogin = false,
+    this.autoLogin = true,
   });
 
   AuthModeState copyWith({
@@ -54,7 +54,7 @@ class AuthModeNotifier extends _$AuthModeNotifier {
 
   Future<void> _loadAutoLoginState() async {
     final prefs = await SharedPreferences.getInstance();
-    final autoLogin = prefs.getBool(_kAutoLoginKey) ?? false;
+    final autoLogin = prefs.getBool(_kAutoLoginKey) ?? true;
     state = state.copyWith(autoLogin: autoLogin);
   }
 
@@ -70,11 +70,13 @@ class AuthModeNotifier extends _$AuthModeNotifier {
 
   /// 切换自动登录状态
   Future<void> toggleAutoLogin() async {
-    final newValue = !state.autoLogin;
-    state = state.copyWith(autoLogin: newValue);
+    await setAutoLogin(!state.autoLogin);
+  }
 
+  Future<void> setAutoLogin(bool enabled) async {
+    state = state.copyWith(autoLogin: enabled);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_kAutoLoginKey, newValue);
+    await prefs.setBool(_kAutoLoginKey, enabled);
   }
 
   /// 重置状态
