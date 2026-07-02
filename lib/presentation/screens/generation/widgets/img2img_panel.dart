@@ -811,7 +811,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                         (m) => DropdownMenuItem(
                           value: m,
                           child: Text(
-                            _friendlyModelName(context, m),
+                            _friendlyModelName(m),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -1136,21 +1136,24 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           onChanged: controller.updateSeedvr2VaeTileSize,
           hint: context.l10n.img2img_seedvr2VaeTileHint,
         ),
-        SwitchListTile.adaptive(
-          contentPadding: EdgeInsets.zero,
-          title: Text(
-            context.l10n.img2img_seedvr2UseTiledUpscale,
-            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
-          ),
-          subtitle: Text(
-            context.l10n.img2img_seedvr2UseTiledUpscaleHint,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.white70,
-              height: 1.35,
+        Material(
+          type: MaterialType.transparency,
+          child: SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              context.l10n.img2img_seedvr2UseTiledUpscale,
+              style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
             ),
+            subtitle: Text(
+              context.l10n.img2img_seedvr2UseTiledUpscaleHint,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white70,
+                height: 1.35,
+              ),
+            ),
+            value: upscale.seedvr2Tiled,
+            onChanged: controller.updateSeedvr2Tiled,
           ),
-          value: upscale.seedvr2Tiled,
-          onChanged: controller.updateSeedvr2Tiled,
         ),
         if (upscale.seedvr2Tiled)
           _buildIntegerSliderSection(
@@ -1227,15 +1230,12 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
     );
   }
 
-  static String _friendlyModelName(BuildContext context, String filename) {
-    final base = filename
+  static String _friendlyModelName(String filename) {
+    return filename
         .replaceAll('.safetensors', '')
         .replaceAll('.ckpt', '')
         .replaceAll('.pth', '')
         .replaceAll('.pt', '');
-    return isComfySeedvr2UpscaleModel(filename)
-        ? 'SeedVR2 · $base'
-        : context.l10n.img2img_regularModelDescription(base);
   }
 
   static String _sourceLogSummary(ImageParams params, Uint8List src) {
