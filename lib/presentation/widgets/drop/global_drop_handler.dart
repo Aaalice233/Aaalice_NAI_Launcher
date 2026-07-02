@@ -44,12 +44,17 @@ Future<void> appendDroppedCharacterReference({
   required GenerationParamsNotifier notifier,
   required Uint8List image,
 }) {
-  return notifier.addPreciseReferenceFromImage(
-    image,
-    type: PreciseRefType.character,
-    strength: 1.0,
-    fidelity: 1.0,
+  // addPreciseReferenceFromImage stages the original bytes before its first
+  // await, then replaces them after Director Reference normalization finishes.
+  unawaited(
+    notifier.addPreciseReferenceFromImage(
+      image,
+      type: PreciseRefType.characterAndStyle,
+      strength: 1.0,
+      fidelity: 1.0,
+    ),
   );
+  return Future<void>.value();
 }
 
 Future<NaiImageMetadata?> detectImportableDroppedImageMetadata(

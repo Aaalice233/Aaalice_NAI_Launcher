@@ -318,7 +318,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
             notifier.addPreciseReferenceFromImage(
               bytes,
               type: selectedType,
-              strength: 0.8,
+              strength: 1.0,
               fidelity: 1.0,
             ),
           );
@@ -378,7 +378,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
         (file) => notifier.addPreciseReferenceFromImage(
           file.bytes,
           type: selectedType,
-          strength: 0.8,
+          strength: 1.0,
           fidelity: 1.0,
         ),
       );

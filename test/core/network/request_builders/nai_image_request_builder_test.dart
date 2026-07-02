@@ -240,7 +240,7 @@ void main() {
     );
 
     test(
-      'should normalize precise reference images off the caller isolate',
+      'should normalize landscape precise references to official aspect target',
       () async {
         final normalizedBytes = await NAIApiUtils.ensurePngFormatAsync(
           _validPngBytes(width: 8, height: 4),
@@ -248,11 +248,41 @@ void main() {
         final decoded = img.decodeImage(normalizedBytes);
 
         expect(decoded, isNotNull);
-        expect('${decoded!.width}x${decoded.height}', '1024x1536');
+        expect('${decoded!.width}x${decoded.height}', '1536x1024');
         expect(
           NAIApiUtils.isKnownNormalizedPreciseReferencePng(normalizedBytes),
           isTrue,
         );
+      },
+    );
+
+    test(
+      'should normalize square precise references to official square target',
+      () {
+        final normalizedBytes = NAIApiUtils.ensurePngFormat(
+          _validPngBytes(width: 8, height: 8),
+        );
+        final decoded = img.decodeImage(normalizedBytes);
+
+        expect(decoded, isNotNull);
+        expect('${decoded!.width}x${decoded.height}', '1472x1472');
+      },
+    );
+
+    test(
+      'should round official fitted precise reference size before centering',
+      () {
+        final normalizedBytes = NAIApiUtils.ensurePngFormat(
+          _solidPngBytes(width: 5, height: 3),
+        );
+        final decoded = img.decodeImage(normalizedBytes);
+
+        expect(decoded, isNotNull);
+        expect('${decoded!.width}x${decoded.height}', '1536x1024');
+        expect(decoded.getPixel(768, 50).r.toInt(), 0);
+        expect(decoded.getPixel(768, 51).r.toInt(), 255);
+        expect(decoded.getPixel(768, 972).r.toInt(), 255);
+        expect(decoded.getPixel(768, 973).r.toInt(), 0);
       },
     );
 
@@ -591,3 +621,13 @@ Future<String> _fakeEncodeVibe(
 
 Uint8List _validPngBytes({int width = 2, int height = 2}) =>
     Uint8List.fromList(img.encodePng(img.Image(width: width, height: height)));
+
+Uint8List _solidPngBytes({required int width, required int height}) {
+  final image = img.Image(width: width, height: height, numChannels: 3);
+  for (var y = 0; y < height; y++) {
+    for (var x = 0; x < width; x++) {
+      image.setPixelRgb(x, y, 255, 255, 255);
+    }
+  }
+  return Uint8List.fromList(img.encodePng(image));
+}

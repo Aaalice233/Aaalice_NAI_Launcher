@@ -59,35 +59,57 @@ void main() {
       expect(metadata, isNull);
     });
 
-    test('dropped character reference appends to existing precise references',
-        () async {
-      final notifier =
-          container.read(generationParamsNotifierProvider.notifier);
+    test(
+      'dropped character reference appends to existing precise references',
+      () async {
+        final notifier = container.read(
+          generationParamsNotifierProvider.notifier,
+        );
 
-      await notifier.addPreciseReferenceFromImage(
-        Uint8List.fromList(_transparentPngBytes),
-        type: PreciseRefType.character,
-        strength: 0.8,
-        fidelity: 0.9,
-      );
-      final existingReference = container
-          .read(generationParamsNotifierProvider)
-          .preciseReferences
-          .single;
+        await notifier.addPreciseReferenceFromImage(
+          Uint8List.fromList(_transparentPngBytes),
+          type: PreciseRefType.character,
+          strength: 0.8,
+          fidelity: 0.9,
+        );
+        final existingReference = container
+            .read(generationParamsNotifierProvider)
+            .preciseReferences
+            .single;
 
-      await appendDroppedCharacterReference(
-        notifier: notifier,
-        image: Uint8List.fromList(_transparentPngBytes),
-      );
+        await appendDroppedCharacterReference(
+          notifier: notifier,
+          image: Uint8List.fromList(_transparentPngBytes),
+        );
 
-      final references =
-          container.read(generationParamsNotifierProvider).preciseReferences;
-      expect(references, hasLength(2));
-      expect(references.first, same(existingReference));
-      expect(references.last.type, PreciseRefType.character);
-      expect(references.last.strength, 1.0);
-      expect(references.last.fidelity, 1.0);
-    });
+        final references = container
+            .read(generationParamsNotifierProvider)
+            .preciseReferences;
+        expect(references, hasLength(2));
+        expect(references.first, same(existingReference));
+        expect(references.last.type, PreciseRefType.characterAndStyle);
+        expect(references.last.strength, 1.0);
+        expect(references.last.fidelity, 1.0);
+      },
+    );
+
+    test(
+      'dropped character reference returns after staging original image',
+      () async {
+        final notifier = container.read(
+          generationParamsNotifierProvider.notifier,
+        );
+        final image = Uint8List.fromList(_transparentPngBytes);
+
+        await appendDroppedCharacterReference(notifier: notifier, image: image);
+
+        final references = container
+            .read(generationParamsNotifierProvider)
+            .preciseReferences;
+        expect(references, hasLength(1));
+        expect(identical(references.single.image, image), isTrue);
+      },
+    );
   });
 }
 
