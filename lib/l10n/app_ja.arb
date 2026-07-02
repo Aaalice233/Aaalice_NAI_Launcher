@@ -983,6 +983,14 @@
   "editor_focusSelection": "選択",
   "editor_focusBrush": "ブラシ",
   "editor_focusContextHint": "外側の長方形は Focused インペイントに送信される領域です。内側の長方形が主な再描画領域です。その間の帯が最小コンテキスト領域です。",
+  "editor_focusAnlasWarning": "実際に送信する範囲は {width}×{height} です。現在の生成設定では {cost} Anlas を消費します。",
+  "@editor_focusAnlasWarning": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"},
+      "cost": {"type": "int"}
+    }
+  },
   "editor_unsupportedImageFormat": "サポートされていないファイル形式: .{extension}\n画像ファイル(PNG、JPG、WEBPなど)を選択してください。",
   "@editor_unsupportedImageFormat": {
     "placeholders": {

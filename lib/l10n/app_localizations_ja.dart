@@ -2187,6 +2187,11 @@ class AppLocalizationsJa extends AppLocalizations {
       '外側の長方形は Focused インペイントに送信される領域です。内側の長方形が主な再描画領域です。その間の帯が最小コンテキスト領域です。';
 
   @override
+  String editor_focusAnlasWarning(int width, int height, int cost) {
+    return '実際に送信する範囲は $width×$height です。現在の生成設定では $cost Anlas を消費します。';
+  }
+
+  @override
   String editor_unsupportedImageFormat(Object extension) {
     return 'サポートされていないファイル形式: .$extension\n画像ファイル(PNG、JPG、WEBPなど)を選択してください。';
   }

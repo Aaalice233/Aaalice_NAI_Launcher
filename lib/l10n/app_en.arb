@@ -1000,6 +1000,14 @@
   "editor_focusSelection": "Selection",
   "editor_focusBrush": "Brush",
   "editor_focusContextHint": "The outer rectangle is the area sent to Focused Inpaint. The inner rectangle is the main repaint area. The band between them is the Minimum Context Area.",
+  "editor_focusAnlasWarning": "Actual send area: {width}×{height}. Current generation settings will cost {cost} Anlas.",
+  "@editor_focusAnlasWarning": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"},
+      "cost": {"type": "int"}
+    }
+  },
   "editor_unsupportedImageFormat": "Unsupported file format: .{extension}\nPlease choose an image file (PNG, JPG, WEBP, etc.)",
   "@editor_unsupportedImageFormat": {
     "placeholders": {

@@ -849,6 +849,14 @@
   "editor_focusSelection": "选区",
   "editor_focusBrush": "画笔",
   "editor_focusContextHint": "外框是实际送去 Focused Inpaint 的区域，内框是主要重绘区域；两框之间的带宽就是 Minimum Context Area。",
+  "editor_focusAnlasWarning": "实际送出范围 {width}×{height}，按当前生成设置预计消耗 {cost} Anlas。",
+  "@editor_focusAnlasWarning": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"},
+      "cost": {"type": "int"}
+    }
+  },
   "editor_unsupportedImageFormat": "不支持的文件格式: .{extension}\n请选择图像文件（PNG、JPG、WEBP 等）",
   "@editor_unsupportedImageFormat": {
     "placeholders": {

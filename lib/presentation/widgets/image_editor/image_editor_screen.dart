@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
+import '../../../core/services/anlas_calculator.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/focused_inpaint_utils.dart';
 import '../../../core/utils/inpaint_mask_utils.dart';
@@ -35,6 +36,56 @@ import 'export/image_exporter_new.dart';
 import '../../widgets/common/themed_divider.dart';
 
 enum ImageEditorMode { edit, inpaint }
+
+class ImageEditorFocusedInpaintCostConfig {
+  const ImageEditorFocusedInpaintCostConfig({
+    required this.model,
+    required this.steps,
+    required this.batchCount,
+    required this.batchSize,
+    required this.smea,
+    required this.smeaDyn,
+    required this.subscriptionTier,
+    this.extraPerSampleCost = 0,
+  });
+
+  final String model;
+  final int steps;
+  final int batchCount;
+  final int batchSize;
+  final bool smea;
+  final bool smeaDyn;
+  final int subscriptionTier;
+  final int extraPerSampleCost;
+
+  int estimate({required int width, required int height}) {
+    return AnlasCalculator.calculateRequestCost(
+      width: width,
+      height: height,
+      steps: steps,
+      batchCount: batchCount,
+      batchSize: batchSize,
+      smea: smea,
+      smeaDyn: smeaDyn,
+      model: model,
+      subscriptionTier: subscriptionTier,
+      strength: 1.0,
+      extraPerSampleCost: extraPerSampleCost,
+    );
+  }
+}
+
+class _FocusedInpaintCostEstimate {
+  const _FocusedInpaintCostEstimate({
+    required this.width,
+    required this.height,
+    required this.cost,
+  });
+
+  final int width;
+  final int height;
+  final int cost;
+}
 
 /// 图像编辑器返回结果
 class ImageEditorResult {
@@ -106,6 +157,9 @@ class ImageEditorScreen extends StatefulWidget {
   /// 是否启用 Focused Inpaint
   final bool initialFocusedInpaintEnabled;
 
+  /// Focused Inpaint 当前生成设置的点数估算配置
+  final ImageEditorFocusedInpaintCostConfig? focusedInpaintCostConfig;
+
   /// 是否显示蒙版导出选项
   final bool showMaskExport;
 
@@ -138,6 +192,7 @@ class ImageEditorScreen extends StatefulWidget {
     this.existingFocusRect,
     this.initialMinimumContextMegaPixels = 88.0,
     this.initialFocusedInpaintEnabled = false,
+    this.focusedInpaintCostConfig,
     this.showMaskExport = true,
     this.mode = ImageEditorMode.edit,
     this.title = '',
@@ -157,6 +212,7 @@ class ImageEditorScreen extends StatefulWidget {
     Rect? existingFocusRect,
     double initialMinimumContextMegaPixels = 88.0,
     bool initialFocusedInpaintEnabled = false,
+    ImageEditorFocusedInpaintCostConfig? focusedInpaintCostConfig,
     bool showMaskExport = true,
     ImageEditorMode mode = ImageEditorMode.edit,
     String? title,
@@ -171,6 +227,7 @@ class ImageEditorScreen extends StatefulWidget {
           existingFocusRect: existingFocusRect,
           initialMinimumContextMegaPixels: initialMinimumContextMegaPixels,
           initialFocusedInpaintEnabled: initialFocusedInpaintEnabled,
+          focusedInpaintCostConfig: focusedInpaintCostConfig,
           showMaskExport: showMaskExport,
           mode: mode,
           title: title ?? context.l10n.editor_defaultTitle,
@@ -2942,10 +2999,46 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     );
   }
 
+  _FocusedInpaintCostEstimate? _resolveFocusedInpaintCostEstimate() {
+    final config = widget.focusedInpaintCostConfig;
+    if (!_isInpaintMode || !_focusedInpaintEnabled || config == null) {
+      return null;
+    }
+
+    final focusAreaRect = _focusedSelectionState.resolveActiveRect(
+      previewPath: _state.previewPath,
+    );
+    if (focusAreaRect == null) {
+      return null;
+    }
+
+    final requestSize = FocusedInpaintUtils.resolveRequestSizeForSelection(
+      sourceWidth: _state.canvasSize.width.round(),
+      sourceHeight: _state.canvasSize.height.round(),
+      selectionRect: focusAreaRect,
+      minContextMegaPixels: _minimumContextMegaPixels,
+    );
+    if (requestSize == null) {
+      return null;
+    }
+
+    final cost = config.estimate(width: requestSize.$1, height: requestSize.$2);
+    if (cost <= 0) {
+      return null;
+    }
+
+    return _FocusedInpaintCostEstimate(
+      width: requestSize.$1,
+      height: requestSize.$2,
+      cost: cost,
+    );
+  }
+
   Widget _buildFocusedSelectionCard() {
     final theme = Theme.of(context);
     final hasFocusArea =
         _focusedInpaintEnabled && _focusedSelectionState.hasCommittedRect;
+    final costEstimate = _resolveFocusedInpaintCostEstimate();
 
     return Container(
       width: 220,
@@ -3056,11 +3149,55 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
                 });
               },
             ),
+            if (costEstimate != null) ...[
+              const SizedBox(height: 8),
+              _buildFocusedAnlasWarning(costEstimate),
+              const SizedBox(height: 8),
+            ],
             Text(
               context.l10n.editor_focusContextHint,
               style: theme.textTheme.bodySmall,
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFocusedAnlasWarning(_FocusedInpaintCostEstimate estimate) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: colorScheme.errorContainer.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: colorScheme.error.withValues(alpha: 0.38)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.warning_amber_rounded,
+            size: 17,
+            color: colorScheme.onErrorContainer,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              context.l10n.editor_focusAnlasWarning(
+                estimate.width,
+                estimate.height,
+                estimate.cost,
+              ),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onErrorContainer,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
         ],
       ),
     );

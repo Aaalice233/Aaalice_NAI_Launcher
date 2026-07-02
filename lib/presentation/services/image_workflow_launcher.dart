@@ -7,11 +7,13 @@ import '../../core/utils/app_logger.dart';
 import '../../core/utils/inpaint_mask_utils.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
+import '../../data/models/image/image_params.dart';
 import '../../data/models/metadata/metadata_import_options.dart';
 import '../../data/services/image_metadata_service.dart';
 import '../providers/generation/image_workflow_controller.dart';
 import '../providers/image_generation_provider.dart';
 import '../providers/krita/krita_bridge_notifier.dart';
+import '../providers/subscription_provider.dart';
 import '../screens/director_tools/director_tools_screen.dart';
 import '../utils/metadata_import_applier.dart';
 import '../utils/prompt_preset_import_utils.dart';
@@ -21,10 +23,7 @@ import '../widgets/image_editor/image_editor_screen.dart';
 class ImageWorkflowLauncher {
   const ImageWorkflowLauncher._();
 
-  static void openImageToImage(
-    WidgetRef ref,
-    Uint8List imageBytes,
-  ) {
+  static void openImageToImage(WidgetRef ref, Uint8List imageBytes) {
     final workflowNotifier = ref.read(imageWorkflowControllerProvider.notifier);
     workflowNotifier.replaceSourceImage(imageBytes);
     workflowNotifier.enterBaseMode(clearMask: true);
@@ -60,6 +59,20 @@ class ImageWorkflowLauncher {
       initialFocusedInpaintEnabled: mode == ImageEditorMode.inpaint
           ? workflow.focusedInpaintEnabled
           : false,
+      focusedInpaintCostConfig: mode == ImageEditorMode.inpaint
+          ? ImageEditorFocusedInpaintCostConfig(
+              model: params.model,
+              steps: params.steps,
+              batchCount: params.nSamples,
+              batchSize: ref.read(imagesPerRequestProvider),
+              smea: params.smea,
+              smeaDyn: params.smeaDyn,
+              subscriptionTier:
+                  ref.read(subscriptionNotifierProvider).subscription?.tier ??
+                  0,
+              extraPerSampleCost: _resolvePreciseReferenceExtraCost(params),
+            )
+          : null,
       showMaskExport: mode == ImageEditorMode.inpaint,
       mode: mode,
       title: mode == ImageEditorMode.edit
@@ -95,17 +108,21 @@ class ImageWorkflowLauncher {
       return;
     }
 
-    final effectiveMask = result.maskImage != null &&
+    final effectiveMask =
+        result.maskImage != null &&
             InpaintMaskUtils.hasMaskedPixels(result.maskImage!)
         ? result.maskImage
         : null;
     workflowNotifier.applyInpaintEditorResult(
-      sourceImage:
-          result.hasOutpaintChanges ? result.outpaintSourceImage : null,
-      sourceWidth:
-          result.hasOutpaintChanges ? result.outpaintSourceWidth : null,
-      sourceHeight:
-          result.hasOutpaintChanges ? result.outpaintSourceHeight : null,
+      sourceImage: result.hasOutpaintChanges
+          ? result.outpaintSourceImage
+          : null,
+      sourceWidth: result.hasOutpaintChanges
+          ? result.outpaintSourceWidth
+          : null,
+      sourceHeight: result.hasOutpaintChanges
+          ? result.outpaintSourceHeight
+          : null,
       maskImage: effectiveMask,
       focusedInpaintEnabled: result.focusedInpaintEnabled,
       focusedSelectionRect: result.focusAreaRect,
@@ -119,10 +136,7 @@ class ImageWorkflowLauncher {
     }
   }
 
-  static void openEnhance(
-    WidgetRef ref,
-    Uint8List imageBytes,
-  ) {
+  static void openEnhance(WidgetRef ref, Uint8List imageBytes) {
     final workflowNotifier = ref.read(imageWorkflowControllerProvider.notifier);
     workflowNotifier.replaceSourceImage(imageBytes);
     workflowNotifier.enterEnhanceMode();
@@ -137,12 +151,7 @@ class ImageWorkflowLauncher {
     final workflowNotifier = ref.read(imageWorkflowControllerProvider.notifier);
     workflowNotifier.replaceSourceImage(imageBytes);
     workflowNotifier.setPanelExpanded(true);
-    await openEditor(
-      context,
-      ref,
-      imageBytes,
-      mode: ImageEditorMode.inpaint,
-    );
+    await openEditor(context, ref, imageBytes, mode: ImageEditorMode.inpaint);
   }
 
   /// 打开图生图「超分」子面板（内嵌，非弹窗）
@@ -163,8 +172,9 @@ class ImageWorkflowLauncher {
       sourceImage: imageBytes,
     );
     if (result != null && context.mounted) {
-      final workflowNotifier =
-          ref.read(imageWorkflowControllerProvider.notifier);
+      final workflowNotifier = ref.read(
+        imageWorkflowControllerProvider.notifier,
+      );
       workflowNotifier.replaceSourceImage(result);
       workflowNotifier.setPanelExpanded(true);
       AppToast.success(context, context.l10n.img2img_directorApplied);
@@ -183,8 +193,9 @@ class ImageWorkflowLauncher {
     workflowNotifier.enterBaseMode(clearMask: true);
     workflowNotifier.setPanelExpanded(true);
 
-    final metadata =
-        await ImageMetadataService().getMetadataFromBytes(imageBytes);
+    final metadata = await ImageMetadataService().getMetadataFromBytes(
+      imageBytes,
+    );
     if (!context.mounted) {
       return;
     }
@@ -211,6 +222,13 @@ class ImageWorkflowLauncher {
 
     final currentParams = ref.read(generationParamsNotifierProvider);
     ref.read(imageGenerationNotifierProvider.notifier).generate(currentParams);
+  }
+
+  static int _resolvePreciseReferenceExtraCost(ImageParams params) {
+    if (!params.model.contains('diffusion-4-5')) {
+      return 0;
+    }
+    return params.preciseReferenceCount * 5;
   }
 
   static void _applyVariationMetadata(

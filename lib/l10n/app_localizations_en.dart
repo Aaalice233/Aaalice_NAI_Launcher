@@ -2231,6 +2231,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'The outer rectangle is the area sent to Focused Inpaint. The inner rectangle is the main repaint area. The band between them is the Minimum Context Area.';
 
   @override
+  String editor_focusAnlasWarning(int width, int height, int cost) {
+    return 'Actual send area: $width×$height. Current generation settings will cost $cost Anlas.';
+  }
+
+  @override
   String editor_unsupportedImageFormat(Object extension) {
     return 'Unsupported file format: .$extension\nPlease choose an image file (PNG, JPG, WEBP, etc.)';
   }

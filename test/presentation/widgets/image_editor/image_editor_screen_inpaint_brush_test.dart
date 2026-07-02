@@ -25,11 +25,7 @@ void main() {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: ImageEditorScreen(
-          initialImage: _buildSolidPng(
-            128,
-            96,
-            const Color(0xFF224466),
-          ),
+          initialImage: _buildSolidPng(128, 96, const Color(0xFF224466)),
           mode: ImageEditorMode.inpaint,
           title: 'Inpaint brush test',
           initialShowLayerPanel: false,
@@ -52,11 +48,14 @@ void main() {
     final editorCanvas = find.byType(EditorCanvas);
     expect(editorCanvas, findsOneWidget);
     final canvasTopLeft = tester.getTopLeft(editorCanvas);
-    final start = canvasTopLeft +
+    final start =
+        canvasTopLeft +
         (state.debugCanvasToScreen(const Offset(32, 32)) as Offset);
-    final middle = canvasTopLeft +
+    final middle =
+        canvasTopLeft +
         (state.debugCanvasToScreen(const Offset(56, 48)) as Offset);
-    final end = canvasTopLeft +
+    final end =
+        canvasTopLeft +
         (state.debugCanvasToScreen(const Offset(80, 64)) as Offset);
 
     final gesture = await tester.startGesture(start);
@@ -76,6 +75,50 @@ void main() {
     await tester.pump();
   });
 
+  testWidgets('focused inpaint card warns when the request costs Anlas', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: ImageEditorScreen(
+          initialImage: _buildSolidPng(1600, 1600, const Color(0xFF224466)),
+          existingFocusRect: const Rect.fromLTWH(100, 100, 1200, 1200),
+          initialMinimumContextMegaPixels: 0,
+          focusedInpaintCostConfig: const ImageEditorFocusedInpaintCostConfig(
+            model: 'nai-diffusion-4-full',
+            steps: 28,
+            batchCount: 1,
+            batchSize: 1,
+            smea: false,
+            smeaDyn: false,
+            subscriptionTier: 3,
+          ),
+          mode: ImageEditorMode.inpaint,
+          title: 'Focused inpaint cost warning test',
+          initialShowLayerPanel: false,
+        ),
+      ),
+    );
+    await _pumpForAsyncEditorWork(tester);
+    await _pumpUntil(tester, () {
+      final state = tester.state(find.byType(ImageEditorScreen)) as dynamic;
+      return state.debugFocusedInpaintEnabled &&
+          find.textContaining('实际送出范围').evaluate().isNotEmpty;
+    });
+
+    expect(find.textContaining('1216×1216'), findsOneWidget);
+    expect(find.textContaining('预计消耗 29 Anlas'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
   testWidgets('outpaint edge resize does not paint brush strokes', (
     tester,
   ) async {
@@ -88,11 +131,7 @@ void main() {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: ImageEditorScreen(
-          initialImage: _buildSolidPng(
-            128,
-            128,
-            const Color(0xFF224466),
-          ),
+          initialImage: _buildSolidPng(128, 128, const Color(0xFF224466)),
           mode: ImageEditorMode.inpaint,
           title: 'Inpaint edge resize test',
           initialShowLayerPanel: false,
@@ -118,7 +157,7 @@ void main() {
     final start = edgeRect.center;
     final inwardBy64 =
         (state.debugCanvasToScreen(const Offset(64, 64)) as Offset) -
-            (state.debugCanvasToScreen(const Offset(128, 64)) as Offset);
+        (state.debugCanvasToScreen(const Offset(128, 64)) as Offset);
 
     final gesture = await tester.startGesture(
       start,
@@ -159,11 +198,7 @@ void main() {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: ImageEditorScreen(
-          initialImage: _buildSolidPng(
-            128,
-            128,
-            const Color(0xFF224466),
-          ),
+          initialImage: _buildSolidPng(128, 128, const Color(0xFF224466)),
           mode: ImageEditorMode.inpaint,
           title: 'Inpaint test',
           initialShowLayerPanel: false,
@@ -202,11 +237,14 @@ void main() {
     final editorCanvas = find.byType(EditorCanvas);
     expect(editorCanvas, findsOneWidget);
     final canvasTopLeft = tester.getTopLeft(editorCanvas);
-    final start = canvasTopLeft +
+    final start =
+        canvasTopLeft +
         (state.debugCanvasToScreen(const Offset(82, 40)) as Offset);
-    final middle = canvasTopLeft +
+    final middle =
+        canvasTopLeft +
         (state.debugCanvasToScreen(const Offset(104, 58)) as Offset);
-    final end = canvasTopLeft +
+    final end =
+        canvasTopLeft +
         (state.debugCanvasToScreen(const Offset(126, 76)) as Offset);
 
     final gesture = await tester.startGesture(start);
@@ -238,11 +276,7 @@ void main() {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: ImageEditorScreen(
-          initialImage: _buildSolidPng(
-            128,
-            128,
-            const Color(0xFF224466),
-          ),
+          initialImage: _buildSolidPng(128, 128, const Color(0xFF224466)),
           mode: ImageEditorMode.inpaint,
           title: 'Inpaint near-edge resize test',
           initialShowLayerPanel: false,
@@ -260,12 +294,13 @@ void main() {
     final state = tester.state(find.byType(ImageEditorScreen)) as dynamic;
     final editorCanvas = find.byType(EditorCanvas);
     final canvasTopLeft = tester.getTopLeft(editorCanvas);
-    final rightEdge = canvasTopLeft +
+    final rightEdge =
+        canvasTopLeft +
         (state.debugCanvasToScreen(const Offset(128, 64)) as Offset);
     final start = rightEdge - const Offset(16, 0);
     final inwardBy64 =
         (state.debugCanvasToScreen(const Offset(64, 64)) as Offset) -
-            (state.debugCanvasToScreen(const Offset(128, 64)) as Offset);
+        (state.debugCanvasToScreen(const Offset(128, 64)) as Offset);
 
     final gesture = await tester.startGesture(
       start,
@@ -304,10 +339,7 @@ Future<void> _pumpForAsyncEditorWork(WidgetTester tester) async {
   }
 }
 
-Future<void> _pumpUntil(
-  WidgetTester tester,
-  bool Function() condition,
-) async {
+Future<void> _pumpUntil(WidgetTester tester, bool Function() condition) async {
   for (var i = 0; i < 10; i++) {
     if (condition()) {
       return;

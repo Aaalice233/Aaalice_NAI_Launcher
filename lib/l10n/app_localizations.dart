@@ -4120,6 +4120,12 @@ abstract class AppLocalizations {
   /// **'The outer rectangle is the area sent to Focused Inpaint. The inner rectangle is the main repaint area. The band between them is the Minimum Context Area.'**
   String get editor_focusContextHint;
 
+  /// No description provided for @editor_focusAnlasWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Actual send area: {width}×{height}. Current generation settings will cost {cost} Anlas.'**
+  String editor_focusAnlasWarning(int width, int height, int cost);
+
   /// No description provided for @editor_unsupportedImageFormat.
   ///
   /// In en, this message translates to:

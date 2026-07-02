@@ -2160,6 +2160,11 @@ class AppLocalizationsZh extends AppLocalizations {
       '外框是实际送去 Focused Inpaint 的区域，内框是主要重绘区域；两框之间的带宽就是 Minimum Context Area。';
 
   @override
+  String editor_focusAnlasWarning(int width, int height, int cost) {
+    return '实际送出范围 $width×$height，按当前生成设置预计消耗 $cost Anlas。';
+  }
+
+  @override
   String editor_unsupportedImageFormat(Object extension) {
     return '不支持的文件格式: .$extension\n请选择图像文件（PNG、JPG、WEBP 等）';
   }
