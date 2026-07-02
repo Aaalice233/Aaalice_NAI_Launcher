@@ -38,6 +38,7 @@ import '../../../core/shortcuts/shortcut_manager.dart';
 import '../../../data/models/vibe/vibe_import_progress.dart';
 import '../../../data/services/vibe_library_import_repository_impl.dart';
 import '../../../data/services/vibe_library_storage_service.dart';
+import 'vibe_drop_import_preprocessor.dart';
 import 'widgets/category/vibe_category_tree_view.dart';
 import 'widgets/menus/vibe_import_menu.dart';
 import 'widgets/vibe_library_content_view.dart';
@@ -1733,22 +1734,13 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
           ? currentCategoryId
           : null;
 
-      final imageItems = <VibeImageImportItem>[];
-      var preProcessFail = 0;
-
-      await Future.wait(
-        imagePaths.map((path) async {
-          try {
-            final bytes = await File(path).readAsBytes();
-            imageItems.add(
-              VibeImageImportItem(source: p.basename(path), bytes: bytes),
-            );
-          } catch (e, stackTrace) {
-            AppLogger.e('读取拖拽图片失败: $path', e, stackTrace, 'VibeLibrary');
-            preProcessFail++;
-          }
-        }),
-      );
+      final imagePreprocessResult =
+          await VibeDropImportPreprocessor.collectImageItems(imagePaths);
+      final imageItems = imagePreprocessResult.items;
+      final preProcessFail =
+          imagePreprocessResult.failedCount +
+          imagePreprocessResult.skippedOversizedCount +
+          imagePreprocessResult.skippedTotalLimitCount;
 
       final vibeFiles = vibeFilePaths
           .map(

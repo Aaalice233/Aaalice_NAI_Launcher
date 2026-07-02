@@ -286,6 +286,7 @@ test/presentation/screens/settings/sections/*
 !test/presentation/screens/settings/sections/storage_settings_section_test.dart
 !test/presentation/screens/vibe_library/
 test/presentation/screens/vibe_library/*
+!test/presentation/screens/vibe_library/vibe_drop_import_preprocessor_test.dart
 !test/presentation/screens/vibe_library/widgets/
 test/presentation/screens/vibe_library/widgets/*
 !test/presentation/screens/vibe_library/widgets/vibe_bundle_import_dialog_test.dart
