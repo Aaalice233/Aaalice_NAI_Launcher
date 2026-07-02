@@ -361,6 +361,7 @@ NAI COPY/
 # 构建和分析报告
 analyze_report.txt
 install-log.txt
+CRASH_AUDIT_REPORT.md
 
 
 # ===========================================================================

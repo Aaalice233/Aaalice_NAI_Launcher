@@ -83,9 +83,9 @@ class _ClearingDialog extends StatelessWidget {
           const SizedBox(height: 20),
           Text(
             context.l10n.dataSource_clearingData,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -211,9 +211,7 @@ class _DataSourceCacheSettingsState
                 ),
                 const SizedBox(height: 24),
                 // 4. 危险操作区域
-                _DangerZoneCard(
-                  onClearAll: () => _showClearAllDialog(context),
-                ),
+                _DangerZoneCard(onClearAll: () => _showClearAllDialog(context)),
               ],
             ),
           ),
@@ -228,9 +226,7 @@ class _DataSourceCacheSettingsState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         icon: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
@@ -381,8 +377,7 @@ class _StatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isLoaded = state.totalTags > 0;
-    final locale =
-        Localizations.localeOf(context).languageCode == 'zh' ? 'zh' : 'en';
+    final locale = context.timeagoLocaleCode;
 
     return Container(
       decoration: BoxDecoration(
@@ -392,14 +387,17 @@ class _StatusCard extends StatelessWidget {
           colors: isLoaded
               ? [
                   theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
-                  theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.5),
+                  theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
                 ]
               : [
-                  theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.5),
-                  theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.3),
+                  theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
+                  theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.3,
+                  ),
                 ],
         ),
         borderRadius: BorderRadius.circular(16),
@@ -573,9 +571,9 @@ class _StatusCard extends StatelessWidget {
 
   String _formatNumber(int number) {
     return number.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]},',
-        );
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    );
   }
 }
 
@@ -599,10 +597,7 @@ class _CategoryChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: color.withValues(alpha: 0.3),
-          width: 1,
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -610,10 +605,7 @@ class _CategoryChip extends StatelessWidget {
           Container(
             width: 8,
             height: 8,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 6),
           Text(
@@ -630,9 +622,9 @@ class _CategoryChip extends StatelessWidget {
 
   String _formatNumber(int number) {
     return number.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]},',
-        );
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    );
   }
 }
 
@@ -640,15 +632,15 @@ class _CategoryChip extends StatelessWidget {
 class _SyncSettingsCard extends StatelessWidget {
   final DanbooruTagsCacheState state;
   final void Function(TagHotPreset preset, int? customThreshold)
-      onGeneralThresholdChanged;
+  onGeneralThresholdChanged;
   final void Function(TagHotPreset preset, int? customThreshold)
-      onArtistThresholdChanged;
+  onArtistThresholdChanged;
   final void Function(TagHotPreset preset, int? customThreshold)
-      onCharacterThresholdChanged;
+  onCharacterThresholdChanged;
   final void Function(TagHotPreset preset, int? customThreshold)
-      onCopyrightThresholdChanged;
+  onCopyrightThresholdChanged;
   final void Function(TagHotPreset preset, int? customThreshold)
-      onMetaThresholdChanged;
+  onMetaThresholdChanged;
   final ValueChanged<AutoRefreshInterval> onRefreshIntervalChanged;
 
   const _SyncSettingsCard({
@@ -776,9 +768,7 @@ class _SyncSettingsCard extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             // 占位保持对齐
-            Expanded(
-              child: Container(),
-            ),
+            Expanded(child: Container()),
           ],
         ),
       ],
@@ -928,8 +918,9 @@ class _CategoryThresholdBox extends StatelessWidget {
                       thumbColor: iconColor,
                       overlayColor: iconColor.withValues(alpha: 0.1),
                       trackHeight: 3,
-                      thumbShape:
-                          const RoundSliderThumbShape(enabledThumbRadius: 6),
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 6,
+                      ),
                     ),
                     child: Slider(
                       value: customThreshold.toDouble(),
@@ -1033,8 +1024,9 @@ class _SmallChoiceChip extends StatelessWidget {
             label,
             style: theme.textTheme.bodySmall?.copyWith(
               fontSize: 11,
-              color:
-                  isSelected ? accentColor : theme.colorScheme.onSurfaceVariant,
+              color: isSelected
+                  ? accentColor
+                  : theme.colorScheme.onSurfaceVariant,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
@@ -1215,11 +1207,7 @@ class _ErrorMessageCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 20,
-            color: theme.colorScheme.error,
-          ),
+          Icon(Icons.error_outline, size: 20, color: theme.colorScheme.error),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -1257,11 +1245,7 @@ class _ErrorStateCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 28,
-            color: theme.colorScheme.error,
-          ),
+          Icon(Icons.error_outline, size: 28, color: theme.colorScheme.error),
           const SizedBox(width: 16),
           Expanded(
             child: Text(
