@@ -14,13 +14,14 @@ class ConnectionLeaseException implements Exception {
   ConnectionLeaseException(this.message, {this.operationId});
 
   @override
-  String toString() => 'ConnectionLeaseException: $message${operationId != null ? ' (operation: $operationId)' : ''}';
+  String toString() =>
+      'ConnectionLeaseException: $message${operationId != null ? ' (operation: $operationId)' : ''}';
 }
 
 /// 连接已失效异常
 class ConnectionInvalidException extends ConnectionLeaseException {
   ConnectionInvalidException({String? operationId})
-      : super('Connection is no longer valid', operationId: operationId);
+    : super('Connection is no longer valid', operationId: operationId);
 }
 
 /// 连接版本不匹配异常
@@ -33,13 +34,13 @@ class ConnectionVersionMismatchException extends ConnectionLeaseException {
     required this.actualVersion,
     String? operationId,
   }) : super(
-          'Connection version mismatch: expected $expectedVersion, got $actualVersion',
-          operationId: operationId,
-        );
+         'Connection version mismatch: expected $expectedVersion, got $actualVersion',
+         operationId: operationId,
+       );
 }
 
 /// 连接租借令牌
-/// 
+///
 /// 封装数据库连接及其生命周期管理，确保：
 /// 1. 连接在有效期内使用
 /// 2. 连接版本与连接池一致
@@ -51,6 +52,7 @@ class ConnectionLease {
   final String? operationId;
   final DateTime issuedAt;
   final Stopwatch _usageTimer;
+  final Future<void> Function(Database db) _releaseConnection;
   final void Function(ConnectionLease)? onExpired;
   final void Function(ConnectionLease, Duration)? onLongUsage;
 
@@ -71,10 +73,14 @@ class ConnectionLease {
     required this.connection,
     required this.poolVersion,
     this.operationId,
+    Future<void> Function(Database db)? releaseConnection,
     this.onExpired,
     this.onLongUsage,
-  })  : issuedAt = DateTime.now(),
-        _usageTimer = Stopwatch()..start();
+  }) : issuedAt = DateTime.now(),
+       _usageTimer = Stopwatch()..start(),
+       _releaseConnection =
+           releaseConnection ??
+           ((db) => ConnectionPoolHolder.instance.release(db));
 
   /// 检查租借是否有效
   bool get isValid => _isValid && !_isDisposed;
@@ -89,7 +95,7 @@ class ConnectionLease {
   Duration get age => DateTime.now().difference(issuedAt);
 
   /// 验证连接是否仍然有效
-  /// 
+  ///
   /// 执行以下检查：
   /// 1. 租借状态检查
   /// 2. 年龄检查
@@ -135,10 +141,7 @@ class ConnectionLease {
       try {
         await connection.rawQuery('SELECT 1');
       } catch (e) {
-        AppLogger.w(
-          'Connection health check failed: $e',
-          'ConnectionLease',
-        );
+        AppLogger.w('Connection health check failed: $e', 'ConnectionLease');
         _isValid = false;
         return false;
       }
@@ -162,7 +165,7 @@ class ConnectionLease {
   }
 
   /// 使用连接执行操作
-  /// 
+  ///
   /// [operation] 数据库操作
   /// [validateBefore] 操作前是否验证连接
   /// [autoRetry] 连接失效时是否自动重试一次
@@ -211,7 +214,7 @@ class ConnectionLease {
   }
 
   /// 强制释放连接
-  /// 
+  ///
   /// 释放连接回连接池，并触发回调
   Future<void> dispose() async {
     if (_isDisposed) return;
@@ -234,7 +237,7 @@ class ConnectionLease {
 
     // 释放连接回连接池
     try {
-      await ConnectionPoolHolder.instance.release(connection);
+      await _releaseConnection(connection);
     } catch (e) {
       // 如果连接池已被重置，释放可能会失败，这是正常的
       final errorStr = e.toString().toLowerCase();
@@ -252,15 +255,15 @@ class ConnectionLease {
 
   /// 获取诊断信息
   Map<String, dynamic> get diagnostics => {
-        'operationId': operationId,
-        'poolVersion': poolVersion,
-        'currentVersion': ConnectionPoolHolder.version,
-        'isValid': _isValid,
-        'isDisposed': _isDisposed,
-        'ageMs': age.inMilliseconds,
-        'usageTimeMs': usageTime.inMilliseconds,
-        'validationCount': _validationCount,
-      };
+    'operationId': operationId,
+    'poolVersion': poolVersion,
+    'currentVersion': ConnectionPoolHolder.version,
+    'isValid': _isValid,
+    'isDisposed': _isDisposed,
+    'ageMs': age.inMilliseconds,
+    'usageTimeMs': usageTime.inMilliseconds,
+    'validationCount': _validationCount,
+  };
 
   @override
   String toString() =>
@@ -268,7 +271,7 @@ class ConnectionLease {
 }
 
 /// 连接租借管理器
-/// 
+///
 /// 管理多个连接租借的生命周期
 class ConnectionLeaseManager {
   final Set<ConnectionLease> _activeLeases = {};
@@ -337,7 +340,7 @@ class ConnectionLeaseManager {
 }
 
 /// 便捷函数：获取连接租借
-/// 
+///
 /// [operationId] 操作标识，用于诊断
 /// [timeout] 获取连接的超时时间
 Future<ConnectionLease> acquireLease({
@@ -356,7 +359,8 @@ Future<ConnectionLease> acquireLease({
       }
 
       final poolVersion = ConnectionPoolHolder.version;
-      final connection = await ConnectionPoolHolder.instance.acquire();
+      final pool = ConnectionPoolHolder.instance;
+      final connection = await pool.acquire();
 
       // 验证连接
       try {
@@ -364,25 +368,32 @@ Future<ConnectionLease> acquireLease({
       } catch (e) {
         // 连接无效，释放并继续
         try {
-          await ConnectionPoolHolder.instance.release(connection);
+          await pool.release(connection);
         } catch (e) {
-          AppLogger.w('Failed to release connection during retry', 'ConnectionLease');
+          AppLogger.w(
+            'Failed to release connection during retry',
+            'ConnectionLease',
+          );
         }
         await Future.delayed(const Duration(milliseconds: 100));
         continue;
       }
 
       // 记录连接获取
-      MetricsCollector().recordConnectionAcquired(stopwatch.elapsed, dataSource);
+      MetricsCollector().recordConnectionAcquired(
+        stopwatch.elapsed,
+        dataSource,
+      );
 
       return ConnectionLease(
         connection: connection,
         poolVersion: poolVersion,
         operationId: operationId,
+        releaseConnection: pool.release,
         onLongUsage: (lease, duration) {
           AppLogger.w(
             'Long connection usage detected: ${duration.inSeconds}s '
-            'for operation ${lease.operationId}',
+                'for operation ${lease.operationId}',
             'ConnectionLease',
           );
         },
@@ -405,7 +416,7 @@ Future<ConnectionLease> acquireLease({
 }
 
 /// 便捷函数：使用连接租借执行操作
-/// 
+///
 /// [operation] 数据库操作
 /// [operationId] 操作标识
 /// [timeout] 操作超时时间
