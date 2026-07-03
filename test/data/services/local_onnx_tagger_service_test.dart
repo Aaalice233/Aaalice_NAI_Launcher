@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/utils/isolate_pool.dart';
 import 'package:nai_launcher/data/services/local_onnx_model_service.dart';
@@ -39,18 +41,31 @@ void main() {
       );
     });
 
-    test('keeps external-data models on external-data file sessions', () {
-      const descriptor = LocalOnnxModelDescriptor(
-        name: 'cl_tagger_v2',
-        path: r'G:\models\cl_tagger_v2\model.onnx',
-        kind: LocalOnnxModelKind.clTaggerV2,
-        externalDataPath: r'G:\models\cl_tagger_v2\model.onnx.data',
+    test('keeps external-data models on external-data file sessions', () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'nai_launcher_onnx_external_data_test_',
       );
+      try {
+        final modelPath =
+            '${directory.path}${Platform.pathSeparator}model.onnx';
+        await File(modelPath).writeAsBytes(const []);
+        await File('$modelPath.data').writeAsBytes(const []);
 
-      expect(
-        LocalOnnxTaggerService.debugSessionLoadModeForTesting(descriptor),
-        OnnxSessionLoadMode.externalDataFile,
-      );
+        final descriptor = LocalOnnxModelDescriptor(
+          name: 'cl_tagger_v2',
+          path: modelPath,
+          kind: LocalOnnxModelKind.clTagger,
+          labelsPath:
+              '${directory.path}${Platform.pathSeparator}model_vocabulary.json',
+        );
+
+        expect(
+          LocalOnnxTaggerService.debugSessionLoadModeForTesting(descriptor),
+          OnnxSessionLoadMode.externalDataFile,
+        );
+      } finally {
+        await directory.delete(recursive: true);
+      }
     });
   });
 

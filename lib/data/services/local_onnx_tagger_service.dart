@@ -413,9 +413,7 @@ class LocalOnnxTaggerService {
   static OnnxSessionLoadMode _resolveSessionLoadMode(
     LocalOnnxModelDescriptor model,
   ) {
-    final hasExternalData =
-        model.externalDataPath?.isNotEmpty == true ||
-        File('${model.path}.data').existsSync();
+    final hasExternalData = File('${model.path}.data').existsSync();
     return hasExternalData
         ? OnnxSessionLoadMode.externalDataFile
         : OnnxSessionLoadMode.patchedSingleFile;
@@ -457,10 +455,12 @@ class LocalOnnxTaggerService {
 
   bool _isClTaggerV2(LocalOnnxModelDescriptor model) {
     final lowerName = model.name.toLowerCase();
+    final lowerPath = model.path.toLowerCase();
     final lowerLabels = model.labelsPath?.toLowerCase() ?? '';
-    return model.kind == LocalOnnxModelKind.clTaggerV2 ||
-        lowerName.contains('cl_tagger_v2') ||
+    return lowerName.contains('cl_tagger_v2') ||
         lowerName.contains('cl-tagger-v2') ||
+        lowerPath.contains('cl_tagger_v2') ||
+        lowerPath.contains('cl-tagger-v2') ||
         lowerLabels.endsWith('model_vocabulary.json');
   }
 
