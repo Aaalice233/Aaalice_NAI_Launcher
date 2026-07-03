@@ -30,6 +30,7 @@ import 'core/utils/app_logger.dart';
 import 'core/utils/hive_startup_box_opener.dart';
 import 'core/utils/hive_storage_helper.dart';
 import 'core/utils/window_focus_tracker.dart';
+import 'core/utils/window_state_coercion.dart';
 import 'data/datasources/local/nai_tags_data_source.dart';
 import 'data/models/gallery/nai_image_metadata.dart';
 import 'data/repositories/collection_repository.dart';
@@ -65,6 +66,17 @@ AppLocalizations _getLocalizedStrings() {
 Future<void> _openHiveBoxIfNeeded<E>(String name, {String? hivePath}) async {
   if (!Hive.isBoxOpen(name)) {
     await HiveStartupBoxOpener.openBox<E>(name, hivePath: hivePath);
+  }
+}
+
+Future<void> _runNonFatalStartupStep(
+  String name,
+  Future<void> Function() action,
+) async {
+  try {
+    await action();
+  } catch (e, stackTrace) {
+    AppLogger.e('$name failed; continuing startup', e, stackTrace, 'Main');
   }
 }
 
@@ -307,18 +319,29 @@ Future<void> _bootstrapApplication() async {
   AppLogger.i('Application starting', 'Main');
 
   // 初始化版本信息（从 pubspec.yaml 读取）
-  await AppVersion.initialize();
-  AppLogger.i('App version: ${AppVersion.fullVersion}', 'Main');
+  await _runNonFatalStartupStep('App version initialization', () async {
+    await AppVersion.initialize();
+    AppLogger.i('App version: ${AppVersion.fullVersion}', 'Main');
+  });
 
   // 增加图片缓存限制，防止本地画廊滚动时图片被回收变白
   PaintingBinding.instance.imageCache.maximumSize = 500; // 最大缓存 500 张图片
   PaintingBinding.instance.imageCache.maximumSizeBytes = 200 << 20; // 200MB
 
-  // 初始化桌面端视频播放支持 (media_kit: Windows + macOS)
-  VideoPlayerMediaKit.ensureInitialized(
-    windows: Platform.isWindows,
-    macOS: Platform.isMacOS,
-  );
+  try {
+    // 初始化桌面端视频播放支持 (media_kit: Windows + macOS)
+    VideoPlayerMediaKit.ensureInitialized(
+      windows: Platform.isWindows,
+      macOS: Platform.isMacOS,
+    );
+  } catch (e, stackTrace) {
+    AppLogger.e(
+      'Video player initialization failed; continuing startup',
+      e,
+      stackTrace,
+      'Main',
+    );
+  }
 
   // 日志系统已自动初始化，无需显式调用
 
@@ -412,8 +435,13 @@ Future<void> _bootstrapApplication() async {
   );
 
   // 初始化图像元数据服务（包含持久化缓存，用于详情页快速加载）
-  await ImageMetadataService().initialize();
-  AppLogger.i('图像元数据服务初始化完成', 'Main');
+  await _runNonFatalStartupStep(
+    'Image metadata service initialization',
+    () async {
+      await ImageMetadataService().initialize();
+      AppLogger.i('图像元数据服务初始化完成', 'Main');
+    },
+  );
 
   // 后台执行 L2 Hive 缓存清理（不阻塞启动）
   Future.microtask(() async {
@@ -426,30 +454,51 @@ Future<void> _bootstrapApplication() async {
 
   // 初始化统一缩略图服务
   final thumbnailService = ThumbnailService.instance;
-  await thumbnailService.initialize();
-  AppLogger.i('缩略图服务初始化完成', 'Main');
+  await _runNonFatalStartupStep('Thumbnail service initialization', () async {
+    await thumbnailService.initialize();
+    AppLogger.i('缩略图服务初始化完成', 'Main');
+  });
 
   // 【修复】初始化收藏集合仓库
-  await CollectionRepository.instance.initialize();
-  AppLogger.i('收藏集合仓库初始化完成', 'Main');
+  await _runNonFatalStartupStep(
+    'Collection repository initialization',
+    () async {
+      await CollectionRepository.instance.initialize();
+      AppLogger.i('收藏集合仓库初始化完成', 'Main');
+    },
+  );
 
   // 【修复】初始化扫描状态管理器（确保检查点功能正常工作）
-  await ScanStateManager.instance.initialize();
-  AppLogger.i('扫描状态管理器初始化完成', 'Main');
+  await _runNonFatalStartupStep('Scan state manager initialization', () async {
+    await ScanStateManager.instance.initialize();
+    AppLogger.i('扫描状态管理器初始化完成', 'Main');
+  });
 
   // 【修复】初始化 Isolate 元数据服务（详情页快速解析）
-  await IsolateMetadataService.instance.initialize();
-  AppLogger.i('Isolate 元数据服务初始化完成', 'Main');
+  await _runNonFatalStartupStep(
+    'Isolate metadata service initialization',
+    () async {
+      await IsolateMetadataService.instance.initialize();
+      AppLogger.i('Isolate 元数据服务初始化完成', 'Main');
+    },
+  );
 
   // 【修复】初始化搜索索引服务（全文搜索功能）
   final searchIndexService = SearchIndexService();
-  await searchIndexService.init();
-  AppLogger.i('搜索索引服务初始化完成', 'Main');
+  await _runNonFatalStartupStep(
+    'Search index service initialization',
+    () async {
+      await searchIndexService.init();
+      AppLogger.i('搜索索引服务初始化完成', 'Main');
+    },
+  );
 
   // 【修复】初始化 Tag 缓存服务
   final tagCacheService = TagCacheService();
-  await tagCacheService.init();
-  AppLogger.i('Tag 缓存服务初始化完成', 'Main');
+  await _runNonFatalStartupStep('Tag cache service initialization', () async {
+    await tagCacheService.init();
+    AppLogger.i('Tag 缓存服务初始化完成', 'Main');
+  });
 
   // 【修复】启动时清理嵌套缩略图（修复递归生成bug遗留问题）
   Future.microtask(() async {
@@ -472,8 +521,10 @@ Future<void> _bootstrapApplication() async {
 
   // 初始化快捷键存储
   final shortcutStorage = ShortcutStorage();
-  await shortcutStorage.init();
-  AppLogger.d('Shortcut storage initialized', 'Main');
+  await _runNonFatalStartupStep('Shortcut storage initialization', () async {
+    await shortcutStorage.init();
+    AppLogger.d('Shortcut storage initialized', 'Main');
+  });
 
   // Timeago 本地化配置
   timeago.setLocaleMessages('zh', timeago.ZhCnMessages());
@@ -529,119 +580,134 @@ Future<void> _bootstrapApplication() async {
 
   // 桌面端窗口配置
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-    await windowManager.ensureInitialized();
-
-    // 设置 Windows 唤醒消息处理（单实例唤醒）
-    if (Platform.isWindows) {
-      setupWindowsWakeUpChannel();
-    }
-
-    // 从 Hive 读取保存的窗口状态',
-    final box = Hive.box(StorageKeys.settingsBox);
-    final savedWidth =
-        box.get(StorageKeys.windowWidth, defaultValue: 1600.0) as double;
-    final savedHeight =
-        box.get(StorageKeys.windowHeight, defaultValue: 900.0) as double;
-    final savedX = box.get(StorageKeys.windowX) as double?;
-    final savedY = box.get(StorageKeys.windowY) as double?;
-
-    // 读取屏幕可用工作区
-    double effWidth = savedWidth;
-    double effHeight = savedHeight;
-    Rect? fillBounds; // macOS 首次启动：铺满工作区时使用
     try {
-      final display = await screenRetriever.getPrimaryDisplay();
-      final work = display.visibleSize ?? display.size;
-      final workPos = display.visiblePosition ?? Offset.zero;
+      await windowManager.ensureInitialized();
 
-      if (Platform.isMacOS) {
-        // macOS：启动时自适应屏幕，铺满可用工作区（紧贴屏幕，保留菜单栏/Dock）
-        effWidth = work.width;
-        effHeight = work.height;
-        fillBounds = Rect.fromLTWH(
-          workPos.dx,
-          workPos.dy,
-          work.width,
-          work.height,
-        );
-      } else {
-        // 其它情况：clamp 到工作区，避免窗口超出屏幕
-        final maxW = (work.width - 40).clamp(800.0, double.infinity).toDouble();
-        final maxH = (work.height - 40)
-            .clamp(600.0, double.infinity)
-            .toDouble();
-        effWidth = savedWidth.clamp(800.0, maxW).toDouble();
-        effHeight = savedHeight.clamp(600.0, maxH).toDouble();
-      }
-    } catch (e) {
-      AppLogger.w('获取屏幕工作区失败，使用默认窗口尺寸: $e', 'Main');
-    }
-
-    final windowOptions = WindowOptions(
-      size: Size(effWidth, effHeight),
-      minimumSize: const Size(800, 600),
-      center: fillBounds == null && (savedX == null || savedY == null),
-      backgroundColor: const Color(0xFF121212), // 深色背景，避免窗口透明
-      skipTaskbar: false,
-      titleBarStyle: TitleBarStyle.normal,
-      title: 'NAI Launcher',
-    );
-
-    await windowManager.waitUntilReadyToShow(windowOptions, () async {
-      if (fillBounds != null) {
-        // macOS 首次启动：精确铺满屏幕工作区
-        await windowManager.setBounds(fillBounds);
-        AppLogger.d(
-          'Window filled to work area: ${effWidth}x$effHeight',
-          'Main',
-        );
-      } else if (savedX != null && savedY != null) {
-        await windowManager.setPosition(Offset(savedX, savedY));
-        AppLogger.d(
-          'Window state restored: ${effWidth}x$effHeight at ($savedX, $savedY)',
-          'Main',
-        );
-      } else {
-        AppLogger.d(
-          'Window initialized with default state: ${effWidth}x$effHeight (centered)',
-          'Main',
-        );
+      // 设置 Windows 唤醒消息处理（单实例唤醒）
+      if (Platform.isWindows) {
+        setupWindowsWakeUpChannel();
       }
 
-      await windowManager.show();
-      await windowManager.focus();
-    });
+      // 从 Hive 读取保存的窗口状态
+      final box = Hive.box(StorageKeys.settingsBox);
+      final savedWidth = coerceWindowDimension(
+        box.get(StorageKeys.windowWidth, defaultValue: 1600.0),
+        fallback: 1600.0,
+      );
+      final savedHeight = coerceWindowDimension(
+        box.get(StorageKeys.windowHeight, defaultValue: 900.0),
+        fallback: 900.0,
+      );
+      final savedX = coerceWindowPosition(box.get(StorageKeys.windowX));
+      final savedY = coerceWindowPosition(box.get(StorageKeys.windowY));
 
-    // 初始化系统托盘（仅 Windows）
-    if (Platform.isWindows) {
+      // 读取屏幕可用工作区
+      double effWidth = savedWidth;
+      double effHeight = savedHeight;
+      Rect? fillBounds; // macOS 首次启动：铺满工作区时使用
       try {
-        // 设置托盘图标和提示',
-        // tray_manager 使用 Flutter 资源路径格式（相对于 data/flutter_assets/）
-        await trayManager.setIcon('assets/icons/app_icon.ico');
-        await trayManager.setToolTip('NAI Launcher');
+        final display = await screenRetriever.getPrimaryDisplay();
+        final work = display.visibleSize ?? display.size;
+        final workPos = display.visiblePosition ?? Offset.zero;
 
-        // 获取本地化字符串
-        final l10n = _getLocalizedStrings();
-
-        final menu = Menu(
-          items: [
-            MenuItem(key: 'show', label: l10n.tray_show),
-            MenuItem.separator(),
-            MenuItem(key: 'exit', label: l10n.tray_exit),
-          ],
-        );
-        await trayManager.setContextMenu(menu);
-
-        // 设置阻止关闭（关闭时隐藏到托盘）
-        await windowManager.setPreventClose(true);
-
-        trayManager.addListener(AppTrayListener());
-        windowManager.addListener(AppWindowListener());
-
-        AppLogger.d('System tray initialized', 'Main');
+        if (Platform.isMacOS) {
+          // macOS：启动时自适应屏幕，铺满可用工作区（紧贴屏幕，保留菜单栏/Dock）
+          effWidth = work.width;
+          effHeight = work.height;
+          fillBounds = Rect.fromLTWH(
+            workPos.dx,
+            workPos.dy,
+            work.width,
+            work.height,
+          );
+        } else {
+          // 其它情况：clamp 到工作区，避免窗口超出屏幕
+          final maxW = (work.width - 40)
+              .clamp(800.0, double.infinity)
+              .toDouble();
+          final maxH = (work.height - 40)
+              .clamp(600.0, double.infinity)
+              .toDouble();
+          effWidth = savedWidth.clamp(800.0, maxW).toDouble();
+          effHeight = savedHeight.clamp(600.0, maxH).toDouble();
+        }
       } catch (e) {
-        AppLogger.e('Failed to initialize system tray: $e', 'Main');
+        AppLogger.w('获取屏幕工作区失败，使用默认窗口尺寸: $e', 'Main');
       }
+
+      final windowOptions = WindowOptions(
+        size: Size(effWidth, effHeight),
+        minimumSize: const Size(800, 600),
+        center: fillBounds == null && (savedX == null || savedY == null),
+        backgroundColor: const Color(0xFF121212), // 深色背景，避免窗口透明
+        skipTaskbar: false,
+        titleBarStyle: TitleBarStyle.normal,
+        title: 'NAI Launcher',
+      );
+
+      await windowManager.waitUntilReadyToShow(windowOptions, () async {
+        if (fillBounds != null) {
+          // macOS 首次启动：精确铺满屏幕工作区
+          await windowManager.setBounds(fillBounds);
+          AppLogger.d(
+            'Window filled to work area: ${effWidth}x$effHeight',
+            'Main',
+          );
+        } else if (savedX != null && savedY != null) {
+          await windowManager.setPosition(Offset(savedX, savedY));
+          AppLogger.d(
+            'Window state restored: ${effWidth}x$effHeight at ($savedX, $savedY)',
+            'Main',
+          );
+        } else {
+          AppLogger.d(
+            'Window initialized with default state: ${effWidth}x$effHeight (centered)',
+            'Main',
+          );
+        }
+
+        await windowManager.show();
+        await windowManager.focus();
+      });
+
+      // 初始化系统托盘（仅 Windows）
+      if (Platform.isWindows) {
+        try {
+          // 设置托盘图标和提示
+          // tray_manager 使用 Flutter 资源路径格式（相对于 data/flutter_assets/）
+          await trayManager.setIcon('assets/icons/app_icon.ico');
+          await trayManager.setToolTip('NAI Launcher');
+
+          // 获取本地化字符串
+          final l10n = _getLocalizedStrings();
+
+          final menu = Menu(
+            items: [
+              MenuItem(key: 'show', label: l10n.tray_show),
+              MenuItem.separator(),
+              MenuItem(key: 'exit', label: l10n.tray_exit),
+            ],
+          );
+          await trayManager.setContextMenu(menu);
+
+          // 设置阻止关闭（关闭时隐藏到托盘）
+          await windowManager.setPreventClose(true);
+
+          trayManager.addListener(AppTrayListener());
+          windowManager.addListener(AppWindowListener());
+
+          AppLogger.d('System tray initialized', 'Main');
+        } catch (e) {
+          AppLogger.e('Failed to initialize system tray: $e', 'Main');
+        }
+      }
+    } catch (e, stackTrace) {
+      AppLogger.e(
+        'Desktop window initialization failed; continuing startup',
+        e,
+        stackTrace,
+        'Main',
+      );
     }
   }
 

@@ -68,40 +68,40 @@ class LocalImageDetailData implements ImageDetailData {
   /// 图像最大维度阈值（超过此值会进行缩放优化）
   static const int _maxImageDimension = 4096;
 
-  LocalImageDetailData(
-    this.record, {
-    this.getFavoriteStatus,
-  });
+  LocalImageDetailData(this.record, {this.getFavoriteStatus});
 
   @override
   ImageProvider getImageProvider() {
     final meta = metadata;
     final fileImage = FileImage(File(record.path));
 
+    // 无元数据时无法预判尺寸，仍要限制解码上限以避免超大图片撑爆内存。
+    if (meta == null) {
+      return ResizeImage(
+        fileImage,
+        width: _maxImageDimension,
+        height: _maxImageDimension,
+      );
+    }
+
     // 如果有元数据且图像尺寸超过阈值，使用 ResizeImage 限制内存
-    if (meta != null) {
-      final width = meta.width ?? 0;
-      final height = meta.height ?? 0;
+    final width = meta.width ?? 0;
+    final height = meta.height ?? 0;
 
-      if (width > _maxImageDimension || height > _maxImageDimension) {
-        // 计算缩放后的尺寸，保持宽高比
-        final int? targetWidth;
-        final int? targetHeight;
+    if (width > _maxImageDimension || height > _maxImageDimension) {
+      // 计算缩放后的尺寸，保持宽高比
+      final int? targetWidth;
+      final int? targetHeight;
 
-        if (width > height) {
-          targetWidth = _maxImageDimension;
-          targetHeight = null; // 保持宽高比
-        } else {
-          targetWidth = null;
-          targetHeight = _maxImageDimension;
-        }
-
-        return ResizeImage(
-          fileImage,
-          width: targetWidth,
-          height: targetHeight,
-        );
+      if (width > height) {
+        targetWidth = _maxImageDimension;
+        targetHeight = null; // 保持宽高比
+      } else {
+        targetWidth = null;
+        targetHeight = _maxImageDimension;
       }
+
+      return ResizeImage(fileImage, width: targetWidth, height: targetHeight);
     }
 
     return fileImage;
@@ -128,8 +128,9 @@ class LocalImageDetailData implements ImageDetailData {
 
     // 2. 在 Isolate 中解析（不阻塞 UI）
     // 先尝试快速路径（缓存）
-    final cached =
-        await ImageMetadataService().getMetadataImmediate(record.path);
+    final cached = await ImageMetadataService().getMetadataImmediate(
+      record.path,
+    );
     if (cached != null) return cached;
 
     // 3. 使用 Isolate 深度解析（针对大文件或复杂格式）
@@ -146,11 +147,11 @@ class LocalImageDetailData implements ImageDetailData {
 
   @override
   FileInfo get fileInfo => FileInfo(
-        path: record.path,
-        fileName: p.basename(record.path),
-        size: record.size,
-        modifiedAt: record.modifiedAt,
-      );
+    path: record.path,
+    fileName: p.basename(record.path),
+    size: record.size,
+    modifiedAt: record.modifiedAt,
+  );
 
   @override
   bool get showSaveButton => false;
@@ -179,10 +180,10 @@ class GeneratedImageDetailData implements ImageDetailData {
     String? id,
     bool showSaveButton = true,
     bool showCopyButton = true,
-  })  : _metadata = metadata,
-        _id = id ?? imageBytes.hashCode.toString(),
-        _showSaveButton = showSaveButton,
-        _showCopyButton = showCopyButton;
+  }) : _metadata = metadata,
+       _id = id ?? imageBytes.hashCode.toString(),
+       _showSaveButton = showSaveButton,
+       _showCopyButton = showCopyButton;
 
   @override
   ImageProvider getImageProvider() {
