@@ -4270,6 +4270,7 @@
   "settings_enableProxy": "启用代理",
   "settings_proxyEnabled": "已启用",
   "settings_proxyDisabled": "直接连接网络",
+  "settings_proxyTrafficDisclosure": "代理启用后，NovelAI API 流量（包括认证请求）会通过系统代理或手动代理发送。只使用你信任的代理。",
   "settings_proxyMode": "代理模式",
   "settings_proxyModeAuto": "自动检测系统代理",
   "settings_proxyModeManual": "手动配置",

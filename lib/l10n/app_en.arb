@@ -4549,6 +4549,7 @@
   "settings_enableProxy": "Enable Proxy",
   "settings_proxyEnabled": "Enabled",
   "settings_proxyDisabled": "Direct connection",
+  "settings_proxyTrafficDisclosure": "When proxy is enabled, NovelAI API traffic, including authentication requests, is sent through the system or manual proxy. Use only proxies you trust.",
   "settings_proxyMode": "Proxy Mode",
   "settings_proxyModeAuto": "Auto-detect system proxy",
   "settings_proxyModeManual": "Manual configuration",

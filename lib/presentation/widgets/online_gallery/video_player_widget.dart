@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+
+import '../../../core/utils/app_logger.dart';
 
 /// 简洁视频播放器组件
 ///
@@ -12,21 +15,21 @@ import 'package:video_player/video_player.dart';
 class VideoPlayerWidget extends StatefulWidget {
   final String videoUrl;
 
-  const VideoPlayerWidget({
-    super.key,
-    required this.videoUrl,
-  });
+  const VideoPlayerWidget({super.key, required this.videoUrl});
 
   @override
   State<VideoPlayerWidget> createState() => _VideoPlayerWidgetState();
 }
 
 class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
+  static int _activeVideoPlayers = 0;
+
   VideoPlayerController? _controller;
   bool _isInitialized = false;
   bool _hasError = false;
   String? _errorMessage;
   bool _showControls = true;
+  bool _registeredActivePlayer = false;
 
   @override
   void initState() {
@@ -44,14 +47,29 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
       _controller!.setLooping(true);
       _controller!.play();
 
-      _controller!.addListener(_onVideoUpdate);
+      _registeredActivePlayer = true;
+      _activeVideoPlayers++;
+      AppLogger.d(
+        'Online gallery video player initialized: '
+            'source=${describeOnlineGalleryVideoSourceForDiagnostics(widget.videoUrl)}, '
+            'active=$_activeVideoPlayers',
+        'OnlineGalleryVideo',
+      );
 
       if (mounted) {
         setState(() {
           _isInitialized = true;
         });
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.e(
+        'Online gallery video player initialization failed: '
+            'source=${describeOnlineGalleryVideoSourceForDiagnostics(widget.videoUrl)}, '
+            'errorType=${e.runtimeType}',
+        null,
+        stackTrace,
+        'OnlineGalleryVideo',
+      );
       if (mounted) {
         setState(() {
           _hasError = true;
@@ -61,15 +79,19 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     }
   }
 
-  void _onVideoUpdate() {
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
   @override
   void dispose() {
-    _controller?.removeListener(_onVideoUpdate);
+    if (_registeredActivePlayer) {
+      if (_activeVideoPlayers > 0) {
+        _activeVideoPlayers--;
+      }
+      AppLogger.d(
+        'Online gallery video player disposed: '
+            'source=${describeOnlineGalleryVideoSourceForDiagnostics(widget.videoUrl)}, '
+            'active=$_activeVideoPlayers',
+        'OnlineGalleryVideo',
+      );
+    }
     _controller?.dispose();
     super.dispose();
   }
@@ -77,12 +99,13 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   void _togglePlayPause() {
     if (_controller == null || !_isInitialized) return;
 
+    if (_controller!.value.isPlaying) {
+      _controller!.pause();
+    } else {
+      _controller!.play();
+    }
+
     setState(() {
-      if (_controller!.value.isPlaying) {
-        _controller!.pause();
-      } else {
-        _controller!.play();
-      }
       _showControls = true;
     });
 
@@ -101,9 +124,6 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   void _onTap() {
     if (!_isInitialized) return;
 
-    setState(() {
-      _showControls = true;
-    });
     _togglePlayPause();
   }
 
@@ -150,17 +170,10 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
       return Container(
         color: Colors.black,
         child: const Center(
-          child: CircularProgressIndicator(
-            color: Colors.white,
-            strokeWidth: 2,
-          ),
+          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
         ),
       );
     }
-
-    final isPlaying = _controller!.value.isPlaying;
-    final position = _controller!.value.position;
-    final duration = _controller!.value.duration;
 
     return Container(
       color: Colors.black,
@@ -176,10 +189,52 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                 child: VideoPlayer(_controller!),
               ),
             ),
+            OnlineGalleryVideoControls(
+              valueListenable: _controller!,
+              showControls: _showControls,
+              onTogglePlayPause: _togglePlayPause,
+              onSeek: _controller!.seekTo,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-            // 中央播放/暂停按钮
+class OnlineGalleryVideoControls extends StatelessWidget {
+  const OnlineGalleryVideoControls({
+    super.key,
+    required this.valueListenable,
+    required this.showControls,
+    required this.onTogglePlayPause,
+    required this.onSeek,
+  });
+
+  final ValueListenable<VideoPlayerValue> valueListenable;
+  final bool showControls;
+  final VoidCallback onTogglePlayPause;
+  final ValueChanged<Duration> onSeek;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<VideoPlayerValue>(
+      valueListenable: valueListenable,
+      builder: (context, value, child) {
+        final isPlaying = value.isPlaying;
+        final position = value.position;
+        final duration = value.duration;
+        final progress = duration.inMilliseconds > 0
+            ? (position.inMilliseconds / duration.inMilliseconds)
+                  .clamp(0.0, 1.0)
+                  .toDouble()
+            : 0.0;
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
             AnimatedOpacity(
-              opacity: _showControls && !isPlaying ? 1.0 : 0.0,
+              opacity: showControls && !isPlaying ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 200),
               child: Center(
                 child: Container(
@@ -196,14 +251,12 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                 ),
               ),
             ),
-
-            // 底部进度条
             Positioned(
               left: 0,
               right: 0,
               bottom: 0,
               child: AnimatedOpacity(
-                opacity: _showControls ? 1.0 : 0.0,
+                opacity: showControls ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 200),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -222,9 +275,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                   ),
                   child: Row(
                     children: [
-                      // 播放/暂停小按钮
                       GestureDetector(
-                        onTap: _togglePlayPause,
+                        onTap: onTogglePlayPause,
                         child: Icon(
                           isPlaying ? Icons.pause : Icons.play_arrow,
                           color: Colors.white,
@@ -232,16 +284,14 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // 时间显示
                       Text(
-                        _formatDuration(position),
+                        _formatVideoDuration(position),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 11,
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // 进度条
                       Expanded(
                         child: SliderTheme(
                           data: SliderThemeData(
@@ -253,30 +303,29 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                               overlayRadius: 10,
                             ),
                             activeTrackColor: Colors.white,
-                            inactiveTrackColor:
-                                Colors.white.withValues(alpha: 0.3),
+                            inactiveTrackColor: Colors.white.withValues(
+                              alpha: 0.3,
+                            ),
                             thumbColor: Colors.white,
                             overlayColor: Colors.white.withValues(alpha: 0.2),
                           ),
                           child: Slider(
-                            value: duration.inMilliseconds > 0
-                                ? position.inMilliseconds /
-                                    duration.inMilliseconds
-                                : 0.0,
-                            onChanged: (value) {
-                              final newPosition = Duration(
-                                milliseconds:
-                                    (value * duration.inMilliseconds).round(),
+                            value: progress,
+                            onChanged: (sliderValue) {
+                              onSeek(
+                                Duration(
+                                  milliseconds:
+                                      (sliderValue * duration.inMilliseconds)
+                                          .round(),
+                                ),
                               );
-                              _controller!.seekTo(newPosition);
                             },
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // 总时长
                       Text(
-                        _formatDuration(duration),
+                        _formatVideoDuration(duration),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 11,
@@ -288,14 +337,26 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
               ),
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
+}
 
-  String _formatDuration(Duration duration) {
-    final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
+String describeOnlineGalleryVideoSourceForDiagnostics(String videoUrl) {
+  final uri = Uri.tryParse(videoUrl);
+  if (uri == null || uri.scheme.isEmpty) {
+    return 'invalid-url';
   }
+
+  final segments = uri.pathSegments.where((segment) => segment.isNotEmpty);
+  final fileName = segments.isEmpty ? '' : '/${segments.last}';
+  final host = uri.host.isEmpty ? 'local' : uri.host;
+  return '${uri.scheme}://$host$fileName';
+}
+
+String _formatVideoDuration(Duration duration) {
+  final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+  final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+  return '$minutes:$seconds';
 }

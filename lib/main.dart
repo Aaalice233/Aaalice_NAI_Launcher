@@ -26,6 +26,7 @@ import 'core/database/database_manager.dart';
 import 'core/services/data_migration_service.dart';
 import 'core/services/sqflite_bootstrap_service.dart';
 import 'core/utils/app_error_reporter.dart';
+import 'core/utils/fatal_diagnostics.dart';
 import 'core/utils/app_logger.dart';
 import 'core/utils/hive_startup_box_opener.dart';
 import 'core/utils/hive_storage_helper.dart';
@@ -73,11 +74,29 @@ Future<void> _runNonFatalStartupStep(
   String name,
   Future<void> Function() action,
 ) async {
+  final stopwatch = Stopwatch()..start();
   try {
     await action();
   } catch (e, stackTrace) {
-    AppLogger.e('$name failed; continuing startup', e, stackTrace, 'Main');
+    AppLogger.e(
+      '$name failed after ${stopwatch.elapsedMilliseconds}ms; continuing startup',
+      e,
+      stackTrace,
+      'Main',
+    );
+    return;
   }
+
+  AppLogger.i(
+    '$name completed in ${stopwatch.elapsedMilliseconds}ms',
+    'Startup',
+  );
+}
+
+void _runDeferredStartupStep(String name, Future<void> Function() action) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(_runNonFatalStartupStep(name, action));
+  });
 }
 
 /// 窗口状态观察者，用于保存窗口位置和大小
@@ -318,6 +337,10 @@ Future<void> _bootstrapApplication() async {
   );
   AppLogger.i('Application starting', 'Main');
 
+  await _runNonFatalStartupStep('Fatal diagnostics initialization', () async {
+    await FatalDiagnostics.initialize();
+  });
+
   // 初始化版本信息（从 pubspec.yaml 读取）
   await _runNonFatalStartupStep('App version initialization', () async {
     await AppVersion.initialize();
@@ -482,23 +505,6 @@ Future<void> _bootstrapApplication() async {
       AppLogger.i('Isolate 元数据服务初始化完成', 'Main');
     },
   );
-
-  // 【修复】初始化搜索索引服务（全文搜索功能）
-  final searchIndexService = SearchIndexService();
-  await _runNonFatalStartupStep(
-    'Search index service initialization',
-    () async {
-      await searchIndexService.init();
-      AppLogger.i('搜索索引服务初始化完成', 'Main');
-    },
-  );
-
-  // 【修复】初始化 Tag 缓存服务
-  final tagCacheService = TagCacheService();
-  await _runNonFatalStartupStep('Tag cache service initialization', () async {
-    await tagCacheService.init();
-    AppLogger.i('Tag 缓存服务初始化完成', 'Main');
-  });
 
   // 【修复】启动时清理嵌套缩略图（修复递归生成bug遗留问题）
   Future.microtask(() async {
@@ -758,6 +764,18 @@ Future<void> _bootstrapApplication() async {
     WidgetsBinding.instance.addObserver(WindowStateObserver());
     AppLogger.d('Window state observer registered', 'Main');
   }
+
+  final searchIndexService = SearchIndexService();
+  _runDeferredStartupStep('Search index service initialization', () async {
+    await searchIndexService.init();
+    AppLogger.i('搜索索引服务初始化完成', 'Main');
+  });
+
+  final tagCacheService = TagCacheService();
+  _runDeferredStartupStep('Tag cache service initialization', () async {
+    await tagCacheService.init();
+    AppLogger.i('Tag 缓存服务初始化完成', 'Main');
+  });
 
   runApp(
     UncontrolledProviderScope(

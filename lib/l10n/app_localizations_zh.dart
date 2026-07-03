@@ -8930,6 +8930,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_proxyDisabled => '直接连接网络';
 
   @override
+  String get settings_proxyTrafficDisclosure =>
+      '代理启用后，NovelAI API 流量（包括认证请求）会通过系统代理或手动代理发送。只使用你信任的代理。';
+
+  @override
   String get settings_proxyMode => '代理模式';
 
   @override

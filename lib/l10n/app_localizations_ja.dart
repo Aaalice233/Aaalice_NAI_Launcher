@@ -9032,6 +9032,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_proxyDisabled => '直接接続';
 
   @override
+  String get settings_proxyTrafficDisclosure =>
+      'プロキシを有効にすると、認証リクエストを含む NovelAI API トラフィックはシステムまたは手動プロキシ経由で送信されます。信頼できるプロキシのみを使用してください。';
+
+  @override
   String get settings_proxyMode => 'プロキシ モード';
 
   @override

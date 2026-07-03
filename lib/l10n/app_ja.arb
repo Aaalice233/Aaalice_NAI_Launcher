@@ -4401,6 +4401,7 @@
   "settings_enableProxy": "プロキシを有効にする",
   "settings_proxyEnabled": "有効",
   "settings_proxyDisabled": "直接接続",
+  "settings_proxyTrafficDisclosure": "プロキシを有効にすると、認証リクエストを含む NovelAI API トラフィックはシステムまたは手動プロキシ経由で送信されます。信頼できるプロキシのみを使用してください。",
   "settings_proxyMode": "プロキシ モード",
   "settings_proxyModeAuto": "システム プロキシの自動検出",
   "settings_proxyModeManual": "手動構成",

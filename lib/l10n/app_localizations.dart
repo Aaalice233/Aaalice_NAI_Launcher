@@ -16541,6 +16541,12 @@ abstract class AppLocalizations {
   /// **'Direct connection'**
   String get settings_proxyDisabled;
 
+  /// No description provided for @settings_proxyTrafficDisclosure.
+  ///
+  /// In en, this message translates to:
+  /// **'When proxy is enabled, NovelAI API traffic, including authentication requests, is sent through the system or manual proxy. Use only proxies you trust.'**
+  String get settings_proxyTrafficDisclosure;
+
   /// No description provided for @settings_proxyMode.
   ///
   /// In en, this message translates to:

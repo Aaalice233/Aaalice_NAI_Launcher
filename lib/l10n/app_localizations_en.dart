@@ -9244,6 +9244,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_proxyDisabled => 'Direct connection';
 
   @override
+  String get settings_proxyTrafficDisclosure =>
+      'When proxy is enabled, NovelAI API traffic, including authentication requests, is sent through the system or manual proxy. Use only proxies you trust.';
+
+  @override
   String get settings_proxyMode => 'Proxy Mode';
 
   @override
