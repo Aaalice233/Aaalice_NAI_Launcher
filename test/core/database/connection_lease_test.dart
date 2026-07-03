@@ -63,4 +63,33 @@ void main() {
       }
     },
   );
+
+  test(
+    'execute treats database is closed errors as invalid connections',
+    () async {
+      final db = await databaseFactoryFfi.openDatabase(
+        p.join(tempDir.path, 'lease_error.db'),
+        options: OpenDatabaseOptions(singleInstance: false),
+      );
+      addTearDown(() async {
+        if (db.isOpen) {
+          await db.close();
+        }
+      });
+
+      final lease = ConnectionLease(
+        connection: db,
+        poolVersion: ConnectionPoolHolder.version,
+        releaseConnection: (_) async {},
+      );
+
+      await expectLater(
+        lease.execute<void>((_) async {
+          throw StateError('database is closed');
+        }, validateBefore: false),
+        throwsA(isA<ConnectionInvalidException>()),
+      );
+      expect(lease.isValid, isFalse);
+    },
+  );
 }

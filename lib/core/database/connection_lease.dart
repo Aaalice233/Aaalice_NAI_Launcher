@@ -205,7 +205,7 @@ class ConnectionLease {
       // 检查是否是连接相关错误
       final errorStr = e.toString().toLowerCase();
       if (errorStr.contains('database_closed') ||
-          errorStr.contains('database_closed')) {
+          errorStr.contains('database is closed')) {
         _isValid = false;
         throw ConnectionInvalidException(operationId: operationId);
       }

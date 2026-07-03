@@ -75,6 +75,7 @@ class ConnectionPool {
           // 启用外键和 WAL 模式
           await db.execute('PRAGMA foreign_keys = ON');
           await db.execute('PRAGMA journal_mode = WAL');
+          await db.execute('PRAGMA busy_timeout = 5000');
         },
       ),
     );
@@ -106,13 +107,7 @@ class ConnectionPool {
         _lock.release();
 
         try {
-          // 等待通知或超时（避免永久阻塞）
-          await completer.future.timeout(
-            const Duration(milliseconds: 100),
-            onTimeout: () {
-              // 超时后重新检查条件
-            },
-          );
+          await completer.future;
         } finally {
           _waiters.remove(completer);
           await _lock.acquire();
@@ -248,6 +243,8 @@ class ConnectionPool {
           } else {
             _availableConnections.add(db);
           }
+        } else {
+          await _replenishAvailableConnectionIfNeeded();
         }
       } else {
         // 临时连接直接关闭
@@ -261,6 +258,21 @@ class ConnectionPool {
     } finally {
       _lock.release();
     }
+  }
+
+  Future<void> _replenishAvailableConnectionIfNeeded() async {
+    if (_disposed) return;
+
+    final currentPoolSize =
+        _availableConnections.length + _inUseConnections.length;
+    if (currentPoolSize >= maxConnections) return;
+
+    final replacement = await _createConnection();
+    _availableConnections.add(replacement);
+    AppLogger.d(
+      'Replenished closed pooled connection (available: ${_availableConnections.length}, in-use: ${_inUseConnections.length})',
+      'ConnectionPool',
+    );
   }
 
   /// 通知等待的获取者有连接可用

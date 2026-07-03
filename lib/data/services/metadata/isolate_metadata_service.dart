@@ -7,6 +7,13 @@ import '../../../core/utils/app_logger.dart';
 import '../../models/gallery/nai_image_metadata.dart';
 import 'unified_metadata_parser.dart';
 
+bool metadataResponseMatchesActiveRequest({
+  required int? activeRequestId,
+  required int responseRequestId,
+}) {
+  return activeRequestId != null && activeRequestId == responseRequestId;
+}
+
 typedef MetadataWorkerInitializer =
     Future<void> Function(
       int workerId,
@@ -104,6 +111,7 @@ class IsolateMetadataService {
 
   /// 任务队列
   final List<_ParseTask> _taskQueue = [];
+  int _nextRequestId = 1;
 
   /// 是否已初始化
   bool _initialized = false;
@@ -135,7 +143,7 @@ class IsolateMetadataService {
     try {
       // 创建工作线程
       for (int i = 0; i < _maxWorkers; i++) {
-        pendingWorker = _ParseWorker(id: i);
+        pendingWorker = _ParseWorker(id: i, onBecameIdle: _processQueue);
         final initializeWorker = pendingWorker.initialize;
 
         if (_workerInitializer != null) {
@@ -191,6 +199,7 @@ class IsolateMetadataService {
     }
 
     final task = _ParseTask(
+      requestId: _nextRequestId++,
       filePath: filePath,
       config: config,
       startTime: DateTime.now(),
@@ -498,12 +507,9 @@ class IsolateMetadataService {
     _ParseTask task,
     Stopwatch stopwatch,
   ) async {
-    // 等待任务被处理
-    while (_taskQueue.contains(task)) {
-      await Future.delayed(const Duration(milliseconds: 10));
-
-      // 检查是否超时
-      if (DateTime.now().difference(task.startTime) > task.config.timeout) {
+    return task.completer.future.timeout(
+      task.config.timeout,
+      onTimeout: () {
         _taskQueue.remove(task);
         _timeoutTasks++;
         final result = IsolateParseResult.error(
@@ -513,11 +519,8 @@ class IsolateMetadataService {
         );
         _completeTask(task, result);
         return result;
-      }
-    }
-
-    // 任务已经被 worker 接手，等待真实解析结果。
-    return task.completer.future;
+      },
+    );
   }
 
   void _processQueue() {
@@ -531,7 +534,7 @@ class IsolateMetadataService {
 
     if (worker != null) {
       final task = _taskQueue.removeAt(0);
-      _executeTask(worker, task, Stopwatch()..start());
+      unawaited(_executeTask(worker, task, Stopwatch()..start()));
     }
   }
 
@@ -547,12 +550,14 @@ class _NoIdleWorkerException implements Exception {}
 
 /// 解析任务
 class _ParseTask {
+  final int requestId;
   final String filePath;
   final IsolateParseConfig config;
   final DateTime startTime;
   final Completer<IsolateParseResult> completer;
 
   _ParseTask({
+    required this.requestId,
     required this.filePath,
     required this.config,
     required this.startTime,
@@ -562,14 +567,16 @@ class _ParseTask {
 /// 解析工作线程
 class _ParseWorker {
   final int id;
+  final void Function()? onBecameIdle;
   Isolate? _isolate;
   SendPort? _sendPort;
   final _receivePort = ReceivePort();
   bool _isBusy = false;
+  int? _currentRequestId;
   Completer<IsolateParseResult>? _currentCompleter;
   StreamSubscription? _subscription;
 
-  _ParseWorker({required this.id});
+  _ParseWorker({required this.id, this.onBecameIdle});
 
   bool get isBusy => _isBusy;
 
@@ -598,6 +605,7 @@ class _ParseWorker {
     }
 
     _isBusy = true;
+    _currentRequestId = task.requestId;
     _currentCompleter = Completer<IsolateParseResult>();
 
     try {
@@ -620,6 +628,7 @@ class _ParseWorker {
       // 发送任务到 Isolate
       _sendPort!.send(
         _ParseRequest(
+          requestId: task.requestId,
           bytes: bytes,
           filePath: task.filePath,
           config: task.config,
@@ -631,7 +640,11 @@ class _ParseWorker {
       return result;
     } finally {
       _isBusy = false;
+      _currentRequestId = null;
       _currentCompleter = null;
+      if (onBecameIdle != null) {
+        scheduleMicrotask(onBecameIdle!);
+      }
     }
   }
 
@@ -659,7 +672,12 @@ class _ParseWorker {
   }
 
   void _handleResponse(dynamic message) {
-    if (message is _ParseResponse && _currentCompleter != null) {
+    if (message is _ParseResponse &&
+        _currentCompleter != null &&
+        metadataResponseMatchesActiveRequest(
+          activeRequestId: _currentRequestId,
+          responseRequestId: message.requestId,
+        )) {
       if (!_currentCompleter!.isCompleted) {
         if (message.error != null) {
           _currentCompleter!.complete(
@@ -686,6 +704,11 @@ class _ParseWorker {
           );
         }
       }
+    } else if (message is _ParseResponse) {
+      AppLogger.d(
+        '[IsolateMetadata] Ignored stale response for request ${message.requestId}; active request is $_currentRequestId',
+        'IsolateMetadataService',
+      );
     }
   }
 }
@@ -718,6 +741,7 @@ void _handleParseRequest(_ParseRequest request, SendPort sendPort) {
     if (result.success && result.metadata != null) {
       sendPort.send(
         _ParseResponse(
+          requestId: request.requestId,
           metadata: result.metadata,
           parseTime: stopwatch.elapsed,
           bytesRead: request.bytes.length,
@@ -727,6 +751,7 @@ void _handleParseRequest(_ParseRequest request, SendPort sendPort) {
     } else {
       sendPort.send(
         _ParseResponse(
+          requestId: request.requestId,
           error: result.errorMessage ?? 'Failed to parse metadata',
           parseTime: stopwatch.elapsed,
           wasCancelled: false,
@@ -737,6 +762,7 @@ void _handleParseRequest(_ParseRequest request, SendPort sendPort) {
     stopwatch.stop();
     sendPort.send(
       _ParseResponse(
+        requestId: request.requestId,
         error: 'Isolate parse error: $e',
         parseTime: stopwatch.elapsed,
         wasCancelled: false,
@@ -755,11 +781,13 @@ class _WorkerInitMessage {
 
 /// 解析请求
 class _ParseRequest {
+  final int requestId;
   final Uint8List bytes;
   final String filePath;
   final IsolateParseConfig config;
 
   _ParseRequest({
+    required this.requestId,
     required this.bytes,
     required this.filePath,
     required this.config,
@@ -768,6 +796,7 @@ class _ParseRequest {
 
 /// 解析响应
 class _ParseResponse {
+  final int requestId;
   final NaiImageMetadata? metadata;
   final String? error;
   final Duration parseTime;
@@ -776,6 +805,7 @@ class _ParseResponse {
 
   // ignore: unused_element
   _ParseResponse({
+    required this.requestId,
     this.metadata,
     this.error,
     required this.parseTime,

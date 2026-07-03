@@ -60,7 +60,8 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen> {
   @override
   void dispose() {
     _focusNode.dispose();
-    _stopAutoPlay();
+    _autoPlayTimer?.cancel();
+    _autoPlayTimer = null;
     super.dispose();
   }
 
