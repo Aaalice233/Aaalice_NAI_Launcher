@@ -258,7 +258,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
               builder: (context, snapshot) {
                 return GalleryCategoryTreeView(
                   categories: categoryState.categories,
-                  totalImageCount: state.allFiles.length,
+                  totalImageCount: state.totalCount,
                   favoriteCount: snapshot.data ?? 0,
                   selectedCategoryId: categoryState.selectedCategoryId,
                   onCategorySelected: _handleCategorySelected,

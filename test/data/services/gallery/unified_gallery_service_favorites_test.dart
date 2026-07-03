@@ -114,6 +114,34 @@ void main() {
         expect(favorites.single.isFavorite, isTrue);
       },
     );
+
+    test(
+      'counts favorites without changing the active favorites filter',
+      () async {
+        final favoriteFile = File(p.join(galleryRoot.path, 'favorite.png'));
+        final otherFile = File(p.join(galleryRoot.path, 'ordinary.png'));
+        await favoriteFile.writeAsBytes(<int>[137, 80, 78, 71]);
+        await otherFile.writeAsBytes(<int>[137, 80, 78, 71]);
+
+        await service.initialize();
+        expect(await service.toggleFavorite(favoriteFile.path), isTrue);
+        await service.setShowFavoritesOnly(true);
+
+        final beforeCount = service.filteredCount;
+        final beforeRecords = await service.getPage(0);
+        expect(beforeCount, 1);
+        expect(beforeRecords.map((record) => record.path), [favoriteFile.path]);
+
+        final count = await service.getFavoriteCount();
+
+        expect(count, 1);
+        expect(service.currentFilter.showFavoritesOnly, isTrue);
+        expect(service.filteredCount, beforeCount);
+
+        final afterRecords = await service.getPage(0);
+        expect(afterRecords.map((record) => record.path), [favoriteFile.path]);
+      },
+    );
   });
 }
 

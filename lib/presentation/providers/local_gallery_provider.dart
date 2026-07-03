@@ -944,14 +944,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   Future<int> getTotalFavoriteCount() async {
     try {
       final service = await getService();
-      // 通过过滤收藏项统计
-      const favCriteria = FilterCriteria(showFavoritesOnly: true);
-      await service.applyFilter(favCriteria);
-      final count = service.filteredCount;
-
-      // 恢复原始过滤
-      await service.applyFilter(state.filterCriteria);
-      return count;
+      return await service.getFavoriteCount();
     } catch (e) {
       AppLogger.e('Get favorite count failed', e, null, 'LocalGalleryNotifier');
       return 0;

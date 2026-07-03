@@ -103,6 +103,9 @@ abstract class LocalGalleryService {
   /// [filePath] 图片文件路径
   Future<bool> isFavorite(String filePath);
 
+  /// 获取当前画廊文件中的收藏图片数量
+  Future<int> getFavoriteCount();
+
   /// 获取图片元数据
   ///
   /// [filePath] 图片文件路径
@@ -954,6 +957,24 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
     }
   }
 
+  @override
+  Future<int> getFavoriteCount() async {
+    _ensureInitialized();
+
+    if (_allFiles.isEmpty) return 0;
+
+    final pathToIdMap = await _dataSource.getImageIdsByPaths(
+      _allFiles.map((file) => file.path).toList(growable: false),
+    );
+    final imageIds = pathToIdMap.values.whereType<int>().toList(
+      growable: false,
+    );
+    if (imageIds.isEmpty) return 0;
+
+    final favoritesMap = await _dataSource.getFavoritesByImageIds(imageIds);
+    return favoritesMap.values.where((isFavorite) => isFavorite).length;
+  }
+
   // ============================================================
   // 元数据
   // ============================================================
@@ -1266,6 +1287,9 @@ class ErrorGalleryService implements LocalGalleryService {
   Future<bool> isFavorite(String filePath) => _throwError();
 
   @override
+  Future<int> getFavoriteCount() => _throwError();
+
+  @override
   Future<NaiImageMetadata?> getMetadata(String filePath) => _throwError();
 
   @override
@@ -1341,6 +1365,9 @@ class _PlaceholderGalleryService implements LocalGalleryService {
 
   @override
   Future<bool> isFavorite(String filePath) => _throwNotInitialized();
+
+  @override
+  Future<int> getFavoriteCount() => _throwNotInitialized();
 
   @override
   Future<NaiImageMetadata?> getMetadata(String filePath) =>
