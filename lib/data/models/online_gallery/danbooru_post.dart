@@ -35,6 +35,7 @@ class DanbooruPost with _$DanbooruPost {
     @JsonKey(name: 'tag_string_meta') @Default('') String tagStringMeta,
     @JsonKey(name: 'fav_count') @Default(0) int favCount,
     @JsonKey(name: 'has_large') @Default(false) bool hasLarge,
+    @Default('danbooru') String site,
   }) = _DanbooruPost;
 
   factory DanbooruPost.fromJson(Map<String, dynamic> json) =>
@@ -122,7 +123,16 @@ class DanbooruPost with _$DanbooruPost {
   }
 
   /// 获取帖子页面 URL
-  String get postUrl => 'https://danbooru.donmai.us/posts/$id';
+  String get postUrl {
+    switch (site) {
+      case 'gelbooru':
+        return 'https://gelbooru.com/index.php?page=post&s=view&id=$id';
+      case 'safebooru':
+        return 'https://safebooru.donmai.us/posts/$id';
+      default:
+        return 'https://danbooru.donmai.us/posts/$id';
+    }
+  }
 
   /// 是否为视频
   bool get isVideo =>

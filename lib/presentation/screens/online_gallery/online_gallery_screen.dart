@@ -191,9 +191,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           // 顶部工具栏
           _buildToolbar(theme, state, authState),
           // 图片网格
-          Expanded(
-            child: _buildContent(theme, state),
-          ),
+          Expanded(child: _buildContent(theme, state)),
           // 底部分页条
           _buildPaginationBar(theme, state),
         ],
@@ -244,8 +242,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           const SizedBox(width: 24),
           // 图片计数
           Text(
-            context.l10n
-                .onlineGallery_imageCount(state.posts.length.toString()),
+            context.l10n.onlineGallery_imageCount(
+              state.posts.length.toString(),
+            ),
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -311,11 +310,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         ),
         decoration: InputDecoration(
           isDense: true,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 8,
           ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
         ),
         inputFormatters: [
           FilteringTextInputFormatter.digitsOnly,
@@ -335,7 +334,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
     if (selectionState.isActive) {
       final allPostIds = state.posts.map((p) => p.id.toString()).toList();
-      final isAllSelected = allPostIds.isNotEmpty &&
+      final isAllSelected =
+          allPostIds.isNotEmpty &&
           allPostIds.every((id) => selectionState.selectedIds.contains(id));
 
       return BulkActionBar(
@@ -497,8 +497,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         height: 36,
         constraints: const BoxConstraints(maxWidth: 400),
         decoration: BoxDecoration(
-          color:
-              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.4,
+          ),
           borderRadius: BorderRadius.circular(18),
         ),
         child: TextField(
@@ -521,8 +522,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                     icon: Icon(
                       Icons.close,
                       size: 16,
-                      color: theme.colorScheme.onSurfaceVariant
-                          .withValues(alpha: 0.6),
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.6,
+                      ),
                     ),
                     onPressed: () {
                       _searchController.clear();
@@ -740,8 +742,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                 if (authState.user != null)
                   Text(
                     authState.user!.levelName,
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
               ],
             ),
@@ -845,8 +848,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         // 计数
         Text(
           context.l10n.onlineGallery_imageCount(state.posts.length.toString()),
-          style: theme.textTheme.bodySmall
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
       ],
     );
@@ -1109,8 +1113,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       return;
     }
 
-    final addedCount =
-        await ref.read(replicationQueueNotifierProvider.notifier).addAll(tasks);
+    final addedCount = await ref
+        .read(replicationQueueNotifierProvider.notifier)
+        .addAll(tasks);
 
     if (mounted) {
       AppToast.success(
@@ -1194,8 +1199,10 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       _selectionNotifier.exit();
     }
 
-    final (successCount, failCount) =
-        await _downloadPosts(selectedPosts, result);
+    final (successCount, failCount) = await _downloadPosts(
+      selectedPosts,
+      result,
+    );
 
     if (mounted) {
       AppToast.success(
@@ -1225,10 +1232,15 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             final url = post.bestQualityUrl;
             if (url.isEmpty) return;
 
-            final file =
-                await DanbooruImageCacheManager.instance.getSingleFile(url);
-            final destination =
-                path.join(destinationDir, path.basename(Uri.parse(url).path));
+            final file = await DanbooruImageCacheManager.instance.getSingleFile(
+              url,
+              key: onlineGalleryImageCacheKeyForUrl(url),
+              headers: onlineGalleryImageHeadersForUrl(url),
+            );
+            final destination = path.join(
+              destinationDir,
+              path.basename(Uri.parse(url).path),
+            );
             await file.copy(destination);
             successCount++;
           } catch (e) {
@@ -1286,8 +1298,8 @@ class _ModeButtonState extends State<_ModeButton> {
             color: widget.isSelected
                 ? theme.colorScheme.primary
                 : (_isHovering
-                    ? theme.colorScheme.surfaceContainerHighest
-                    : Colors.transparent),
+                      ? theme.colorScheme.surfaceContainerHighest
+                      : Colors.transparent),
             borderRadius: BorderRadius.horizontal(
               left: widget.isFirst ? const Radius.circular(8) : Radius.zero,
               right: widget.isLast ? const Radius.circular(8) : Radius.zero,
@@ -1308,8 +1320,9 @@ class _ModeButtonState extends State<_ModeButton> {
                 widget.label,
                 style: TextStyle(
                   fontSize: 13,
-                  fontWeight:
-                      widget.isSelected ? FontWeight.w600 : FontWeight.normal,
+                  fontWeight: widget.isSelected
+                      ? FontWeight.w600
+                      : FontWeight.normal,
                   color: widget.isSelected
                       ? theme.colorScheme.onPrimary
                       : theme.colorScheme.onSurfaceVariant,
@@ -1377,8 +1390,9 @@ class _SourceDropdown extends StatelessWidget {
         height: 32,
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
-          color:
-              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.4,
+          ),
           borderRadius: BorderRadius.circular(6),
         ),
         child: Row(
@@ -1409,10 +1423,7 @@ class _FuzzySearchToggle extends StatelessWidget {
   final bool enabled;
   final ValueChanged<bool> onChanged;
 
-  const _FuzzySearchToggle({
-    required this.enabled,
-    required this.onChanged,
-  });
+  const _FuzzySearchToggle({required this.enabled, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -1432,8 +1443,9 @@ class _FuzzySearchToggle extends StatelessWidget {
       labelPadding: const EdgeInsets.symmetric(horizontal: 2),
       padding: const EdgeInsets.symmetric(horizontal: 4),
       selectedColor: theme.colorScheme.secondaryContainer,
-      backgroundColor:
-          theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+      backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(
+        alpha: 0.4,
+      ),
       side: BorderSide(
         color: enabled
             ? theme.colorScheme.secondary.withValues(alpha: 0.7)
@@ -1614,12 +1626,12 @@ class _RatingDropdown extends StatelessWidget {
   });
 
   List<(String, String, Color?)> _getRatings(BuildContext context) => [
-        ('all', context.l10n.onlineGallery_all, null),
-        ('g', context.l10n.onlineGallery_ratingGeneral, Colors.green),
-        ('s', context.l10n.onlineGallery_ratingSensitive, Colors.amber),
-        ('q', context.l10n.onlineGallery_ratingQuestionable, Colors.orange),
-        ('e', context.l10n.onlineGallery_ratingExplicit, Colors.red),
-      ];
+    ('all', context.l10n.onlineGallery_all, null),
+    ('g', context.l10n.onlineGallery_ratingGeneral, Colors.green),
+    ('s', context.l10n.onlineGallery_ratingSensitive, Colors.amber),
+    ('q', context.l10n.onlineGallery_ratingQuestionable, Colors.orange),
+    ('e', context.l10n.onlineGallery_ratingExplicit, Colors.red),
+  ];
 
   Color _ratingColor(String ratingCode) {
     switch (ratingCode) {
@@ -1678,18 +1690,23 @@ class _RatingDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final ratings = _getRatings(context);
-    final isAllSelected = selectedRatings.length == kAllRatings.length &&
+    final isAllSelected =
+        selectedRatings.length == kAllRatings.length &&
         selectedRatings.containsAll(kAllRatings);
-    final selectedCodesInOrder =
-        ['g', 's', 'q', 'e'].where(selectedRatings.contains).toList();
+    final selectedCodesInOrder = [
+      'g',
+      's',
+      'q',
+      'e',
+    ].where(selectedRatings.contains).toList();
     final selectedSpecific = ratings
         .where((r) => r.$1 != 'all' && selectedRatings.contains(r.$1))
         .toList();
     final current = isAllSelected
         ? ratings.first
         : (selectedSpecific.isNotEmpty
-            ? selectedSpecific.first
-            : ratings.first);
+              ? selectedSpecific.first
+              : ratings.first);
 
     String buttonText() {
       if (isAllSelected) return current.$2;
@@ -1705,8 +1722,9 @@ class _RatingDropdown extends StatelessWidget {
       offset: const Offset(0, 36),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       itemBuilder: (menuContext) => ratings.map((r) {
-        final isSelected =
-            r.$1 == 'all' ? isAllSelected : selectedRatings.contains(r.$1);
+        final isSelected = r.$1 == 'all'
+            ? isAllSelected
+            : selectedRatings.contains(r.$1);
         return PopupMenuItem<String>(
           value: r.$1,
           child: Row(
@@ -1715,8 +1733,10 @@ class _RatingDropdown extends StatelessWidget {
                 Container(
                   width: 8,
                   height: 8,
-                  decoration:
-                      BoxDecoration(color: r.$3, shape: BoxShape.circle),
+                  decoration: BoxDecoration(
+                    color: r.$3,
+                    shape: BoxShape.circle,
+                  ),
                 ),
               if (r.$3 != null) const SizedBox(width: 8),
               Text(
@@ -1737,8 +1757,9 @@ class _RatingDropdown extends StatelessWidget {
         height: 32,
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
-          color:
-              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.4,
+          ),
           borderRadius: BorderRadius.circular(6),
         ),
         child: Row(

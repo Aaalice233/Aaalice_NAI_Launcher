@@ -33,11 +33,7 @@ class PostDetailDialog extends ConsumerStatefulWidget {
   final DanbooruPost post;
   final Function(String)? onTagTap;
 
-  const PostDetailDialog({
-    super.key,
-    required this.post,
-    this.onTagTap,
-  });
+  const PostDetailDialog({super.key, required this.post, this.onTagTap});
 
   @override
   ConsumerState<PostDetailDialog> createState() => _PostDetailDialogState();
@@ -89,10 +85,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
       animation: _animationController,
       builder: (context, child) => FadeTransition(
         opacity: _fadeAnimation,
-        child: ScaleTransition(
-          scale: _scaleAnimation,
-          child: child,
-        ),
+        child: ScaleTransition(scale: _scaleAnimation, child: child),
       ),
       child: Dialog(
         backgroundColor: Colors.transparent,
@@ -133,17 +126,15 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
     return Row(
       children: [
         // 媒体区域
-        Expanded(
-          flex: 3,
-          child: _buildMediaSection(theme),
-        ),
+        Expanded(flex: 3, child: _buildMediaSection(theme)),
         // 信息面板
         Container(
           width: 320,
           decoration: BoxDecoration(
             border: Border(
-              left:
-                  BorderSide(color: theme.dividerColor.withValues(alpha: 0.3)),
+              left: BorderSide(
+                color: theme.dividerColor.withValues(alpha: 0.3),
+              ),
             ),
           ),
           child: _buildInfoPanel(theme, authState, isFavorited),
@@ -161,10 +152,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
     return Column(
       children: [
         // 媒体区域
-        Expanded(
-          flex: 2,
-          child: _buildMediaSection(theme),
-        ),
+        Expanded(flex: 2, child: _buildMediaSection(theme)),
         // 信息面板
         Expanded(
           flex: 3,
@@ -176,6 +164,12 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
 
   /// 媒体区域
   Widget _buildMediaSection(ThemeData theme) {
+    final videoUrl = widget.post.fileUrl ?? widget.post.sampleUrl ?? '';
+    final animatedImageUrl =
+        widget.post.fileUrl ?? widget.post.sampleUrl ?? widget.post.previewUrl;
+    final imageUrl =
+        widget.post.sampleUrl ?? widget.post.fileUrl ?? widget.post.previewUrl;
+
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: _close,
@@ -187,15 +181,14 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
             // 根据媒体类型渲染不同组件
             if (widget.post.isVideo)
               // 视频播放器
-              VideoPlayerWidget(
-                videoUrl: widget.post.fileUrl ?? widget.post.sampleUrl ?? '',
-              )
+              VideoPlayerWidget(videoUrl: videoUrl)
             else if (widget.post.isAnimated)
               // GIF 自动循环播放
               CachedNetworkImage(
-                imageUrl: widget.post.fileUrl ??
-                    widget.post.sampleUrl ??
-                    widget.post.previewUrl,
+                imageUrl: animatedImageUrl,
+                httpHeaders: onlineGalleryImageHeadersForUrl(animatedImageUrl),
+                cacheKey: onlineGalleryImageCacheKeyForUrl(animatedImageUrl),
+                cacheManager: DanbooruImageCacheManager.instance,
                 fit: BoxFit.contain,
                 errorListener: (error) {
                   // 静默处理图片加载错误
@@ -223,9 +216,10 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
                 minScale: 0.5,
                 maxScale: 4.0,
                 child: CachedNetworkImage(
-                  imageUrl: widget.post.sampleUrl ??
-                      widget.post.fileUrl ??
-                      widget.post.previewUrl,
+                  imageUrl: imageUrl,
+                  httpHeaders: onlineGalleryImageHeadersForUrl(imageUrl),
+                  cacheKey: onlineGalleryImageCacheKeyForUrl(imageUrl),
+                  cacheManager: DanbooruImageCacheManager.instance,
                   fit: BoxFit.contain,
                   errorListener: (error) {
                     // 静默处理图片加载错误
@@ -271,8 +265,10 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
                 bottom: 8,
                 left: 8,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(4),
@@ -322,9 +318,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
         ),
         const ThemedDivider(height: 1),
         // 标签区域
-        Expanded(
-          child: _buildTagsSection(theme),
-        ),
+        Expanded(child: _buildTagsSection(theme)),
         const ThemedDivider(height: 1),
         // 操作按钮
         _buildActionButtons(theme),
@@ -344,8 +338,9 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
         children: [
           Text(
             'Post #${widget.post.id}',
-            style: theme.textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w600),
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(width: 8),
           // 评级徽章
@@ -408,8 +403,8 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
           valueColor: widget.post.score > 0
               ? Colors.green
               : widget.post.score < 0
-                  ? Colors.red
-                  : null,
+              ? Colors.red
+              : null,
         ),
         const SizedBox(height: 6),
         _InfoRow(
@@ -441,8 +436,9 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
         children: [
           Text(
             context.l10n.onlineGallery_tags,
-            style: theme.textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.w600),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 12),
           // 艺术家标签
@@ -593,9 +589,9 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
     ref.read(characterPromptNotifierProvider.notifier).clearAllCharacters();
 
     // 设置待填充提示词
-    ref.read(pendingPromptNotifierProvider.notifier).set(
-          prompt: widget.post.tags.join(', '),
-        );
+    ref
+        .read(pendingPromptNotifierProvider.notifier)
+        .set(prompt: widget.post.tags.join(', '));
 
     // 关闭弹窗并导航到生成页面
     Navigator.pop(context);
@@ -615,13 +611,15 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
       return;
     }
     try {
-      final file =
-          await DanbooruImageCacheManager.instance.getSingleFile(imageUrl);
+      final file = await DanbooruImageCacheManager.instance.getSingleFile(
+        imageUrl,
+        key: onlineGalleryImageCacheKeyForUrl(imageUrl),
+        headers: onlineGalleryImageHeadersForUrl(imageUrl),
+      );
       final bytes = await file.readAsBytes();
-      await ref.read(reversePromptProvider.notifier).addImage(
-            bytes,
-            name: 'danbooru_${widget.post.id}',
-          );
+      await ref
+          .read(reversePromptProvider.notifier)
+          .addImage(bytes, name: 'danbooru_${widget.post.id}');
       if (!mounted) return;
       Navigator.pop(context);
       context.go(AppRoutes.generation);
@@ -649,8 +647,9 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
       source: ReplicationTaskSource.online,
     );
 
-    final added =
-        await ref.read(replicationQueueNotifierProvider.notifier).add(task);
+    final added = await ref
+        .read(replicationQueueNotifierProvider.notifier)
+        .add(task);
 
     if (mounted) {
       if (added) {
@@ -806,9 +805,6 @@ void showPostDetailDialog(
   showDialog(
     context: context,
     barrierColor: Colors.black.withValues(alpha: 0.7),
-    builder: (context) => PostDetailDialog(
-      post: post,
-      onTagTap: onTagTap,
-    ),
+    builder: (context) => PostDetailDialog(post: post, onTagTap: onTagTap),
   );
 }

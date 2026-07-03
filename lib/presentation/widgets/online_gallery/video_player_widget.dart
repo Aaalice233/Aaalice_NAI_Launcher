@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../../core/cache/danbooru_image_cache_manager.dart';
 import '../../../core/utils/app_logger.dart';
 
 /// 简洁视频播放器组件
@@ -41,6 +42,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     try {
       _controller = VideoPlayerController.networkUrl(
         Uri.parse(widget.videoUrl),
+        httpHeaders: onlineGalleryImageHeadersForUrl(widget.videoUrl),
       );
 
       await _controller!.initialize();

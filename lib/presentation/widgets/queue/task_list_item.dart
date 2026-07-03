@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:nai_launcher/core/cache/danbooru_image_cache_manager.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../data/models/queue/replication_task.dart';
@@ -129,14 +130,14 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
                 child: InkWell(
                   onTap: widget.isSelectionMode
                       ? () => ref
-                          .read(replicationQueueNotifierProvider.notifier)
-                          .toggleTaskSelection(widget.task.id)
+                            .read(replicationQueueNotifierProvider.notifier)
+                            .toggleTaskSelection(widget.task.id)
                       : widget.onTap,
                   onLongPress: widget.isSelectionMode
                       ? null
                       : () => ref
-                          .read(replicationQueueNotifierProvider.notifier)
-                          .toggleSelectionMode(),
+                            .read(replicationQueueNotifierProvider.notifier)
+                            .toggleSelectionMode(),
                   borderRadius: BorderRadius.circular(12),
                   child: AnimatedBuilder(
                     animation: _shimmerController,
@@ -147,21 +148,25 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: widget.isSelected
-                                ? theme.colorScheme.primary
-                                    .withValues(alpha: 0.5)
+                                ? theme.colorScheme.primary.withValues(
+                                    alpha: 0.5,
+                                  )
                                 : isRunning
-                                    ? theme.colorScheme.primary
-                                        .withValues(alpha: 0.3)
-                                    : theme.colorScheme.outline
-                                        .withValues(alpha: 0.1),
+                                ? theme.colorScheme.primary.withValues(
+                                    alpha: 0.3,
+                                  )
+                                : theme.colorScheme.outline.withValues(
+                                    alpha: 0.1,
+                                  ),
                             width: 1,
                           ),
                           // 如果是当前正在执行的任务，显示实心进度条；否则显示普通背景
                           color: widget.isSelected
-                              ? theme.colorScheme.primaryContainer
-                                  .withValues(alpha: 0.4)
+                              ? theme.colorScheme.primaryContainer.withValues(
+                                  alpha: 0.4,
+                                )
                               : theme.colorScheme.surfaceContainerHighest
-                                  .withValues(alpha: 0.4),
+                                    .withValues(alpha: 0.4),
                         ),
                         child: Stack(
                           children: [
@@ -172,8 +177,10 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
                                   borderRadius: BorderRadius.circular(11),
                                   child: FractionallySizedBox(
                                     alignment: Alignment.centerLeft,
-                                    widthFactor:
-                                        generationProgress.clamp(0.0, 1.0),
+                                    widthFactor: generationProgress.clamp(
+                                      0.0,
+                                      1.0,
+                                    ),
                                     child: _AnimatedStripeProgress(
                                       color: theme.colorScheme.primary,
                                     ),
@@ -212,8 +219,9 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
                                 overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   height: 1.35,
-                                  color: theme.colorScheme.onSurface
-                                      .withValues(alpha: 0.85),
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.85,
+                                  ),
                                 ),
                               ),
                               // 错误信息
@@ -272,6 +280,11 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
         borderRadius: BorderRadius.circular(8),
         child: CachedNetworkImage(
           imageUrl: widget.task.thumbnailUrl!,
+          httpHeaders: onlineGalleryImageHeadersForUrl(
+            widget.task.thumbnailUrl!,
+          ),
+          cacheKey: onlineGalleryImageCacheKeyForUrl(widget.task.thumbnailUrl!),
+          cacheManager: DanbooruImageCacheManager.instance,
           width: 44,
           height: 44,
           fit: BoxFit.cover,
@@ -415,10 +428,7 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
               widget.task.errorMessage!,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 10,
-                color: Colors.red,
-              ),
+              style: const TextStyle(fontSize: 10, color: Colors.red),
             ),
           ),
         ],
@@ -511,9 +521,7 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, true),
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.red,
-                ),
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
                 child: Text(l10n.common_confirm),
               ),
             ],
@@ -664,6 +672,13 @@ class _TaskTooltipContent extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                   child: CachedNetworkImage(
                     imageUrl: task.thumbnailUrl!,
+                    httpHeaders: onlineGalleryImageHeadersForUrl(
+                      task.thumbnailUrl!,
+                    ),
+                    cacheKey: onlineGalleryImageCacheKeyForUrl(
+                      task.thumbnailUrl!,
+                    ),
+                    cacheManager: DanbooruImageCacheManager.instance,
                     width: 200,
                     height: 200,
                     fit: BoxFit.cover,
@@ -787,9 +802,7 @@ class FailedTaskListItem extends ConsumerWidget {
                 task.prompt,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  height: 1.4,
-                ),
+                style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
               ),
 
               // 错误信息
@@ -841,7 +854,8 @@ class FailedTaskListItem extends ConsumerWidget {
                   _buildCompactButton(
                     icon: Icons.queue_rounded,
                     label: l10n.queue_requeue,
-                    onPressed: onRequeue ??
+                    onPressed:
+                        onRequeue ??
                         () => ref
                             .read(replicationQueueNotifierProvider.notifier)
                             .requeueFailedTask(task.id),
@@ -849,7 +863,8 @@ class FailedTaskListItem extends ConsumerWidget {
                   ),
                   const SizedBox(width: 6),
                   FilledButton.icon(
-                    onPressed: onRetry ??
+                    onPressed:
+                        onRetry ??
                         () => ref
                             .read(replicationQueueNotifierProvider.notifier)
                             .retryFailedTask(task.id),
@@ -946,10 +961,7 @@ class _StripeProgressPainter extends CustomPainter {
   final Color color;
   final double animationValue;
 
-  _StripeProgressPainter({
-    required this.color,
-    required this.animationValue,
-  });
+  _StripeProgressPainter({required this.color, required this.animationValue});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -974,9 +986,11 @@ class _StripeProgressPainter extends CustomPainter {
 
     // 绘制斜条纹（45度）
     final path = Path();
-    for (double x = -stripeSpacing * 2 + offset;
-        x < size.width + size.height + stripeSpacing;
-        x += stripeSpacing) {
+    for (
+      double x = -stripeSpacing * 2 + offset;
+      x < size.width + size.height + stripeSpacing;
+      x += stripeSpacing
+    ) {
       path.moveTo(x, size.height);
       path.lineTo(x + stripeWidth, size.height);
       path.lineTo(x + size.height + stripeWidth, 0);
