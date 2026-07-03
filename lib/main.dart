@@ -32,6 +32,7 @@ import 'core/utils/hive_startup_box_opener.dart';
 import 'core/utils/hive_storage_helper.dart';
 import 'core/utils/window_focus_tracker.dart';
 import 'core/utils/window_state_coercion.dart';
+import 'core/utils/window_state_persistence.dart';
 import 'data/datasources/local/nai_tags_data_source.dart';
 import 'data/models/gallery/nai_image_metadata.dart';
 import 'data/repositories/collection_repository.dart';
@@ -99,6 +100,19 @@ void _runDeferredStartupStep(String name, Future<void> Function() action) {
   });
 }
 
+Future<WindowStateSnapshot> _saveCurrentWindowState() async {
+  final snapshot = WindowStateSnapshot(
+    size: await windowManager.getSize(),
+    position: await windowManager.getPosition(),
+  );
+  final box = Hive.box(StorageKeys.settingsBox);
+  await persistWindowStateSnapshot(
+    put: (key, value) => box.put(key, value),
+    snapshot: snapshot,
+  );
+  return snapshot;
+}
+
 /// 窗口状态观察者，用于保存窗口位置和大小
 class WindowStateObserver extends WidgetsBindingObserver {
   @override
@@ -112,17 +126,10 @@ class WindowStateObserver extends WidgetsBindingObserver {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       try {
-        final size = await windowManager.getSize();
-        final position = await windowManager.getPosition();
-        final box = Hive.box(StorageKeys.settingsBox);
-
-        await box.put(StorageKeys.windowWidth, size.width);
-        await box.put(StorageKeys.windowHeight, size.height);
-        await box.put(StorageKeys.windowX, position.dx);
-        await box.put(StorageKeys.windowY, position.dy);
+        final snapshot = await _saveCurrentWindowState();
 
         AppLogger.i(
-          'Window state saved: ${size.width}x${size.height} at (${position.dx}, ${position.dy})',
+          'Window state saved: ${snapshot.size.width}x${snapshot.size.height} at (${snapshot.position.dx}, ${snapshot.position.dy})',
           'Main',
         );
         await AppLogger.flush();
@@ -231,17 +238,10 @@ class AppWindowListener extends WindowListener {
     _lastResizeSave = now;
 
     try {
-      final size = await windowManager.getSize();
-      final position = await windowManager.getPosition();
-      final box = Hive.box(StorageKeys.settingsBox);
-
-      await box.put(StorageKeys.windowWidth, size.width);
-      await box.put(StorageKeys.windowHeight, size.height);
-      await box.put(StorageKeys.windowX, position.dx);
-      await box.put(StorageKeys.windowY, position.dy);
+      final snapshot = await _saveCurrentWindowState();
 
       AppLogger.d(
-        'Window size/position saved: ${size.width}x${size.height} at (${position.dx}, ${position.dy})',
+        'Window size/position saved: ${snapshot.size.width}x${snapshot.size.height} at (${snapshot.position.dx}, ${snapshot.position.dy})',
         'WindowListener',
       );
     } catch (e) {
@@ -263,17 +263,10 @@ class AppWindowListener extends WindowListener {
     _lastResizeSave = now;
 
     try {
-      final size = await windowManager.getSize();
-      final position = await windowManager.getPosition();
-      final box = Hive.box(StorageKeys.settingsBox);
-
-      await box.put(StorageKeys.windowWidth, size.width);
-      await box.put(StorageKeys.windowHeight, size.height);
-      await box.put(StorageKeys.windowX, position.dx);
-      await box.put(StorageKeys.windowY, position.dy);
+      final snapshot = await _saveCurrentWindowState();
 
       AppLogger.d(
-        'Window position saved: (${position.dx}, ${position.dy})',
+        'Window position saved: (${snapshot.position.dx}, ${snapshot.position.dy})',
         'WindowListener',
       );
     } catch (e) {

@@ -116,6 +116,7 @@ class AppLogger {
       await _createNewLogFile();
       return _fileOutput != null;
     } catch (_) {
+      // File logging is optional at startup; logger output may not exist yet.
       await _fileOutput?.destroy();
       _fileOutput = null;
       _currentLogFile = null;
@@ -218,9 +219,10 @@ class AppLogger {
           .where((entity) => entity is File)
           .map((entity) => entity as File)
           .where((file) {
-        final name = path.basename(file.path);
-        return name.startsWith('app_') || name.startsWith('test_');
-      }).toList();
+            final name = path.basename(file.path);
+            return name.startsWith('app_') || name.startsWith('test_');
+          })
+          .toList();
 
       // 按修改时间排序（最新的在前）
       files.sort((a, b) {
@@ -245,9 +247,10 @@ class AppLogger {
           .where((entity) => entity is File)
           .map((entity) => entity as File)
           .where((file) {
-        final name = path.basename(file.path);
-        return name.startsWith('app_') || name.startsWith('test_');
-      }).toList();
+            final name = path.basename(file.path);
+            return name.startsWith('app_') || name.startsWith('test_');
+          })
+          .toList();
 
       remainingFiles.sort((a, b) {
         return b.lastModifiedSync().compareTo(a.lastModifiedSync());
@@ -274,7 +277,8 @@ class AppLogger {
     if (_logDirectory == null) return;
 
     final now = DateTime.now();
-    final timestamp = '${now.year}${_pad(now.month)}${_pad(now.day)}_'
+    final timestamp =
+        '${now.year}${_pad(now.month)}${_pad(now.day)}_'
         '${_pad(now.hour)}${_pad(now.minute)}${_pad(now.second)}';
 
     final prefix = _isTestEnvironment ? 'test' : 'app';
@@ -310,9 +314,10 @@ class AppLogger {
         .where((entity) => entity is File)
         .map((entity) => entity as File)
         .where((file) {
-      final name = path.basename(file.path);
-      return name.startsWith('app_') || name.startsWith('test_');
-    }).toList();
+          final name = path.basename(file.path);
+          return name.startsWith('app_') || name.startsWith('test_');
+        })
+        .toList();
 
     files.sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
     return files;
@@ -338,7 +343,8 @@ class AppLogger {
 
           // 创建新的日志文件
           final now = DateTime.now();
-          final timestamp = '${now.year}${_pad(now.month)}${_pad(now.day)}_'
+          final timestamp =
+              '${now.year}${_pad(now.month)}${_pad(now.day)}_'
               '${_pad(now.hour)}${_pad(now.minute)}${_pad(now.second)}';
 
           final prefix = _isTestEnvironment ? 'test' : 'app';
@@ -375,7 +381,8 @@ class AppLogger {
     _logsSinceRotateCheck++;
 
     final countDue = _logsSinceRotateCheck >= _rotateCheckLogInterval;
-    final timeDue = _lastRotateCheckAt == null ||
+    final timeDue =
+        _lastRotateCheckAt == null ||
         now.difference(_lastRotateCheckAt!) >= _rotateCheckTimeInterval;
 
     if (!countDue && !timeDue) return false;
@@ -437,8 +444,11 @@ class AppLogger {
     if (!_shouldLog(Level.error)) return;
     _checkAndRotateLogFile();
     _ensureInitialized();
-    _logger!
-        .e(_formatMessage(message, tag), error: error, stackTrace: stackTrace);
+    _logger!.e(
+      _formatMessage(message, tag),
+      error: error,
+      stackTrace: stackTrace,
+    );
     unawaited(flush());
   }
 

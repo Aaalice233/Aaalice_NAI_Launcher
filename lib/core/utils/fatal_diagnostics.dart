@@ -52,6 +52,7 @@ class FatalDiagnostics {
       file.writeAsStringSync(content, encoding: utf8, flush: true);
       return file;
     } catch (_) {
+      // Crash reporting must never throw while handling an existing failure.
       return null;
     }
   }
@@ -73,6 +74,7 @@ class FatalDiagnostics {
         ),
       );
     } catch (_) {
+      // Path provider can fail before Flutter desktop services settle.
       return _fallbackDirectory();
     }
   }

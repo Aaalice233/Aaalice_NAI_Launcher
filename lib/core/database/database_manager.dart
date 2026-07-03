@@ -75,7 +75,6 @@ class DatabaseManager {
 
   // 初始化完成标记
   final _initCompleter = Completer<void>();
-  final bool _backgroundCheckCompleted = false;
 
   // 数据源
   TranslationDataSource? _translationDataSource;
@@ -141,9 +140,6 @@ class DatabaseManager {
 
   /// 是否有错误
   bool get hasError => _state == DatabaseInitState.error;
-
-  /// 后台检查是否完成
-  bool get backgroundCheckCompleted => _backgroundCheckCompleted;
 
   /// 初始化完成Future
   Future<void> get initialized => _initCompleter.future;
