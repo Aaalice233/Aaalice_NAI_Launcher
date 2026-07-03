@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -39,11 +40,86 @@ void main() {
     await db.close();
 
     await pool.release(db);
+    await _waitForCondition(() => pool.availableCount == 1);
 
     expect(pool.availableCount, 1);
     final replacement = await pool.acquire();
     expect(replacement.isOpen, isTrue);
     await pool.release(replacement);
+  });
+
+  test(
+    'release schedules closed connection replenishment outside release path',
+    () async {
+      var createCount = 0;
+      final replacementStarted = Completer<void>();
+      final replacementCompleter = Completer<Database>();
+      final dbPath = p.join(tempDir.path, 'async_replenish.db');
+      final pool = ConnectionPool(
+        dbPath: dbPath,
+        maxConnections: 1,
+        connectionFactory: () async {
+          createCount++;
+          if (createCount == 1) {
+            return databaseFactoryFfi.openDatabase(
+              dbPath,
+              options: OpenDatabaseOptions(singleInstance: false),
+            );
+          }
+          replacementStarted.complete();
+          return replacementCompleter.future;
+        },
+      );
+      addTearDown(pool.dispose);
+
+      await pool.initialize();
+      final db = await pool.acquire();
+      await db.close();
+
+      await pool.release(db).timeout(const Duration(milliseconds: 100));
+      await replacementStarted.future.timeout(const Duration(seconds: 1));
+
+      expect(pool.availableCount, 0);
+      expect(pool.inUseCount, 0);
+
+      final replacement = await databaseFactoryFfi.openDatabase(
+        dbPath,
+        options: OpenDatabaseOptions(singleInstance: false),
+      );
+      replacementCompleter.complete(replacement);
+
+      await _waitForCondition(() => pool.availableCount == 1);
+    },
+  );
+
+  test('release absorbs asynchronous replenishment failures', () async {
+    var createCount = 0;
+    final dbPath = p.join(tempDir.path, 'failed_replenish.db');
+    final pool = ConnectionPool(
+      dbPath: dbPath,
+      maxConnections: 1,
+      connectionFactory: () async {
+        createCount++;
+        if (createCount == 1) {
+          return databaseFactoryFfi.openDatabase(
+            dbPath,
+            options: OpenDatabaseOptions(singleInstance: false),
+          );
+        }
+        throw StateError('replacement failed');
+      },
+    );
+    addTearDown(pool.dispose);
+
+    await pool.initialize();
+    final db = await pool.acquire();
+    await db.close();
+
+    await expectLater(pool.release(db), completes);
+    await _waitForCondition(() => createCount == 2);
+
+    expect(pool.availableCount, 0);
+    expect(pool.inUseCount, 0);
   });
 
   test(
@@ -112,4 +188,12 @@ void main() {
       await pool.release(db);
     }
   });
+}
+
+Future<void> _waitForCondition(bool Function() condition) async {
+  for (var i = 0; i < 50; i++) {
+    if (condition()) return;
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  fail('condition was not reached before timeout');
 }

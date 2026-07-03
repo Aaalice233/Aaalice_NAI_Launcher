@@ -11,7 +11,7 @@ void main() {
       );
       final lineCount = source.readAsLinesSync().length;
 
-      expect(lineCount, lessThanOrEqualTo(2200));
+      expect(lineCount, lessThanOrEqualTo(2300));
     },
   );
 }

@@ -165,6 +165,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   /// 媒体区域
   Widget _buildMediaSection(ThemeData theme) {
     final videoUrl = widget.post.fileUrl ?? widget.post.sampleUrl ?? '';
+    final hasPlayableVideo = widget.post.isVideo && videoUrl.isNotEmpty;
     final animatedImageUrl =
         widget.post.fileUrl ?? widget.post.sampleUrl ?? widget.post.previewUrl;
     final imageUrl =
@@ -179,7 +180,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
           fit: StackFit.expand,
           children: [
             // 根据媒体类型渲染不同组件
-            if (widget.post.isVideo)
+            if (hasPlayableVideo)
               // 视频播放器
               VideoPlayerWidget(videoUrl: videoUrl)
             else if (widget.post.isAnimated)

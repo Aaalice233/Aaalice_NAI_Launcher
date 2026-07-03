@@ -15,6 +15,7 @@ ImageProvider buildSlideshowImageProvider(String path) {
     FileImage(File(path)),
     width: _maxSlideshowImageDimension,
     height: _maxSlideshowImageDimension,
+    policy: ResizeImagePolicy.fit,
   );
 }
 

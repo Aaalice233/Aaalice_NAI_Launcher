@@ -64,6 +64,50 @@ void main() {
       expect(posts.last.tags, ["bang_dream!_it's_mygo!!!!!"]);
     });
 
+    test(
+      'classifies Gelbooru HTML video and animated posts from title tags',
+      () {
+        const html = '''
+<article class="thumbnail-preview">
+  <a id="p14416916" href="https://gelbooru.com/index.php?page=post&amp;s=view&amp;id=14416916">
+    <img src="https://img4.gelbooru.com/thumbnails/aa/bb/thumbnail_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg" title="video solo score:1 rating:general" />
+  </a>
+</article>
+<article class="thumbnail-preview">
+  <a id="p14416917" href="https://gelbooru.com/index.php?page=post&amp;s=view&amp;id=14416917">
+    <img src="https://img4.gelbooru.com/thumbnails/cc/dd/thumbnail_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.jpg" title="animated blinking score:2 rating:sensitive" />
+  </a>
+</article>
+''';
+
+        final posts = parseGelbooruHtmlPosts(html);
+
+        expect(posts, hasLength(2));
+        expect(posts.first.fileExt, 'mp4');
+        expect(posts.first.isVideo, isTrue);
+        expect(posts.last.fileExt, 'gif');
+        expect(posts.last.isAnimated, isTrue);
+      },
+    );
+
+    test('keeps parsing when Gelbooru title has invalid html entity', () {
+      const html = '''
+<article class="thumbnail-preview">
+  <a id="p14416918" href="https://gelbooru.com/index.php?page=post&amp;s=view&amp;id=14416918">
+    <img src="https://img4.gelbooru.com/thumbnails/ee/ff/thumbnail_cccccccccccccccccccccccccccccccc.jpg" title="solo &#xFFFFFFFF; score:3 rating:questionable" />
+  </a>
+</article>
+''';
+
+      final posts = parseGelbooruHtmlPosts(html);
+
+      expect(posts, hasLength(1));
+      expect(posts.single.id, 14416918);
+      expect(posts.single.tags, contains('solo'));
+      expect(posts.single.score, 3);
+      expect(posts.single.rating, 'q');
+    });
+
     test('decodes dimensions from Gelbooru JPEG thumbnails', () {
       final bytes = _minimalJpegBytes(width: 320, height: 180);
 

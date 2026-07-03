@@ -81,6 +81,7 @@ class LocalImageDetailData implements ImageDetailData {
         fileImage,
         width: _maxImageDimension,
         height: _maxImageDimension,
+        policy: ResizeImagePolicy.fit,
       );
     }
 

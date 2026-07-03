@@ -16,6 +16,7 @@ import '../utils/app_logger.dart';
 class ConnectionPool {
   final String dbPath;
   final int maxConnections;
+  final Future<Database> Function()? _connectionFactory;
 
   final Queue<Database> _availableConnections = Queue<Database>();
   final Set<Database> _inUseConnections = <Database>{};
@@ -40,7 +41,11 @@ class ConnectionPool {
   /// 是否已释放
   bool get isDisposed => _disposed;
 
-  ConnectionPool({required this.dbPath, this.maxConnections = 10});
+  ConnectionPool({
+    required this.dbPath,
+    this.maxConnections = 10,
+    Future<Database> Function()? connectionFactory,
+  }) : _connectionFactory = connectionFactory;
 
   /// 初始化连接池
   Future<void> initialize() async {
@@ -66,6 +71,11 @@ class ConnectionPool {
   /// 使用 singleInstance: false 确保每个连接是独立的实例，
   /// 避免当底层数据库被关闭时影响所有连接。
   Future<Database> _createConnection() async {
+    final connectionFactory = _connectionFactory;
+    if (connectionFactory != null) {
+      return connectionFactory();
+    }
+
     return await databaseFactoryFfi.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
@@ -206,6 +216,8 @@ class ConnectionPool {
   /// 关键改进：检查连接是否是"即将失效"的连接（来自旧连接池）。
   /// 如果是，则关闭它而不是放回池中。
   Future<void> release(Database db) async {
+    var shouldReplenishClosedConnection = false;
+
     await _lock.acquire();
     try {
       // 检查是否是即将失效的连接（来自正在关闭的连接池）
@@ -244,7 +256,7 @@ class ConnectionPool {
             _availableConnections.add(db);
           }
         } else {
-          await _replenishAvailableConnectionIfNeeded();
+          shouldReplenishClosedConnection = _needsAvailableConnectionLocked();
         }
       } else {
         // 临时连接直接关闭
@@ -258,21 +270,68 @@ class ConnectionPool {
     } finally {
       _lock.release();
     }
+
+    if (shouldReplenishClosedConnection) {
+      scheduleMicrotask(() {
+        unawaited(_replenishAvailableConnectionIfNeeded());
+      });
+    }
   }
 
   Future<void> _replenishAvailableConnectionIfNeeded() async {
-    if (_disposed) return;
+    await _lock.acquire();
+    try {
+      if (!_needsAvailableConnectionLocked()) return;
+    } finally {
+      _lock.release();
+    }
+
+    Database replacement;
+    try {
+      replacement = await _createConnection();
+    } catch (e) {
+      AppLogger.w(
+        'Failed to replenish closed pooled connection: $e',
+        'ConnectionPool',
+      );
+      return;
+    }
+
+    var closeReplacement = false;
+    await _lock.acquire();
+    try {
+      if (_needsAvailableConnectionLocked()) {
+        _availableConnections.add(replacement);
+        AppLogger.d(
+          'Replenished closed pooled connection (available: ${_availableConnections.length}, in-use: ${_inUseConnections.length})',
+          'ConnectionPool',
+        );
+        _notifyWaiters();
+      } else {
+        closeReplacement = true;
+      }
+    } finally {
+      _lock.release();
+    }
+
+    if (closeReplacement && replacement.isOpen) {
+      try {
+        await replacement.close();
+      } catch (e) {
+        AppLogger.w(
+          'Failed to close unneeded replenished connection: $e',
+          'ConnectionPool',
+        );
+      }
+    }
+  }
+
+  bool _needsAvailableConnectionLocked() {
+    if (_disposed) return false;
 
     final currentPoolSize =
         _availableConnections.length + _inUseConnections.length;
-    if (currentPoolSize >= maxConnections) return;
-
-    final replacement = await _createConnection();
-    _availableConnections.add(replacement);
-    AppLogger.d(
-      'Replenished closed pooled connection (available: ${_availableConnections.length}, in-use: ${_inUseConnections.length})',
-      'ConnectionPool',
-    );
+    return currentPoolSize < maxConnections;
   }
 
   /// 通知等待的获取者有连接可用

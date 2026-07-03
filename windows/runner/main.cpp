@@ -15,6 +15,11 @@ constexpr const wchar_t kFlutterRunnerWindowClassName[] =
 constexpr const wchar_t kLauncherWindowTitle[] = L"NAI Launcher";
 constexpr const wchar_t kWakeUpMessageName[] =
     L"NAI_Launcher_WakeUp_Message";
+constexpr DWORD kExistingWindowWaitTimeoutMs = 3000;
+constexpr DWORD kExistingWindowPollIntervalMs = 200;
+constexpr const wchar_t kAlreadyStartingMessage[] =
+    L"NAI Launcher is already starting.\n"
+    L"Please wait a few seconds and try again.";
 
 static UINT GetWakeUpMessage() {
   static const UINT message = RegisterWindowMessage(kWakeUpMessageName);
@@ -130,9 +135,34 @@ HWND FindExistingFlutterWindow() {
   return nullptr;
 }
 
+HWND WaitForExistingFlutterWindow(DWORD timeout_ms) {
+  const DWORD started_at = GetTickCount();
+
+  while (true) {
+    HWND existing_window = FindExistingFlutterWindow();
+    if (existing_window != nullptr) {
+      return existing_window;
+    }
+
+    const DWORD elapsed_ms = GetTickCount() - started_at;
+    if (elapsed_ms >= timeout_ms) {
+      return nullptr;
+    }
+
+    DWORD sleep_ms = kExistingWindowPollIntervalMs;
+    const DWORD remaining_ms = timeout_ms - elapsed_ms;
+    if (sleep_ms > remaining_ms) {
+      sleep_ms = remaining_ms;
+    }
+    Sleep(sleep_ms);
+  }
+}
+
 // 唤醒已存在的窗口
-bool WakeUpExistingWindow() {
-  HWND existing_window = FindExistingFlutterWindow();
+bool WakeUpExistingWindow(DWORD wait_timeout_ms) {
+  HWND existing_window = wait_timeout_ms > 0
+      ? WaitForExistingFlutterWindow(wait_timeout_ms)
+      : FindExistingFlutterWindow();
   if (existing_window == nullptr) {
     return false;
   }
@@ -170,8 +200,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   bool is_another_instance_running = (GetLastError() == ERROR_ALREADY_EXISTS);
 
   if (is_another_instance_running) {
-    // 已有实例在运行时，只有确认目标是本应用窗口才退出。
-    if (WakeUpExistingWindow()) {
+    // 已有实例在运行时，先等待首实例窗口完成创建，避免并发初始化数据文件。
+    if (WakeUpExistingWindow(kExistingWindowWaitTimeoutMs)) {
       if (single_instance_mutex != nullptr) {
         CloseHandle(single_instance_mutex);
       }
@@ -182,6 +212,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
       CloseHandle(single_instance_mutex);
       single_instance_mutex = nullptr;
     }
+    MessageBoxW(nullptr, kAlreadyStartingMessage, kLauncherWindowTitle,
+                MB_OK | MB_ICONINFORMATION | MB_SETFOREGROUND);
+    return EXIT_SUCCESS;
   }
 
   // Initialize COM, so that it is available for use in the library and/or

@@ -48,6 +48,7 @@ List<DanbooruPost> parseGelbooruHtmlPosts(String html) {
         '';
     final width = parseBooruInt(_htmlAttribute(imgTag, 'width')) ?? 0;
     final height = parseBooruInt(_htmlAttribute(imgTag, 'height')) ?? 0;
+    final fileExt = _gelbooruHtmlFileExtension(previewUrl, tags);
 
     posts.add(
       DanbooruPost(
@@ -59,7 +60,7 @@ List<DanbooruPost> parseGelbooruHtmlPosts(String html) {
         width: width,
         height: height,
         tagString: tags.join(' '),
-        fileExt: fileExtensionFromUrl(previewUrl),
+        fileExt: fileExt,
         previewFileUrl: previewUrl,
       ),
     );
@@ -118,6 +119,17 @@ String fileExtensionFromUrl(String? url) {
   final dot = path.lastIndexOf('.');
   if (dot < 0 || dot == path.length - 1) return 'jpg';
   return path.substring(dot + 1).toLowerCase();
+}
+
+String _gelbooruHtmlFileExtension(String previewUrl, List<String> tags) {
+  final normalizedTags = tags.map((tag) => tag.toLowerCase()).toSet();
+  if (normalizedTags.contains('video')) {
+    return 'mp4';
+  }
+  if (normalizedTags.contains('animated')) {
+    return 'gif';
+  }
+  return fileExtensionFromUrl(previewUrl);
 }
 
 ({int width, int height})? decodeJpegDimensions(Uint8List bytes) {
@@ -221,7 +233,9 @@ String _decodeHtmlEntities(String input) {
       final codePoint = hex != null
           ? int.tryParse(hex, radix: 16)
           : int.tryParse(decimal ?? '');
-      if (codePoint == null) return match.group(0)!;
+      if (codePoint == null || codePoint < 0 || codePoint > 0x10FFFF) {
+        return match.group(0)!;
+      }
       return String.fromCharCode(codePoint);
     });
     if (value == previous) break;

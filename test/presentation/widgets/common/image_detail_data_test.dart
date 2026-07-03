@@ -81,5 +81,6 @@ void main() {
     final resized = provider as ResizeImage;
     expect(resized.width, 4096);
     expect(resized.height, 4096);
+    expect(resized.policy, ResizeImagePolicy.fit);
   });
 }
