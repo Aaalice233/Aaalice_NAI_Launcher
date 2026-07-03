@@ -12,6 +12,17 @@ import '../common/themed_divider.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'gallery_scan_progress_panel.dart';
 
+String? galleryInternalDragPathFromLocalData(Object? localData) {
+  if (localData is! Map) return null;
+
+  final source = localData['source'];
+  final path = localData['path'];
+  if (source == 'gallery_internal' && path is String && path.isNotEmpty) {
+    return path;
+  }
+  return null;
+}
+
 /// Gallery category tree view with drag-drop support
 class GalleryCategoryTreeView extends StatefulWidget {
   final List<GalleryCategory> categories;
@@ -24,7 +35,7 @@ class GalleryCategoryTreeView extends StatefulWidget {
   final ValueChanged<String?>? onAddSubCategory;
   final void Function(String categoryId, String? newParentId)? onCategoryMove;
   final void Function(String? parentId, int oldIndex, int newIndex)?
-      onCategoryReorder;
+  onCategoryReorder;
   final void Function(String imagePath, String? categoryId)? onImageDrop;
   final VoidCallback? onSyncWithFileSystem;
 
@@ -77,7 +88,7 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
     return GestureDetector(
       onSecondaryTapUp: widget.onAddSubCategory != null
           ? (details) =>
-              _showEmptyAreaContextMenu(context, details.globalPosition)
+                _showEmptyAreaContextMenu(context, details.globalPosition)
           : null,
       behavior: HitTestBehavior.translucent,
       child: Column(
@@ -110,8 +121,8 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
                 if (widget.categories.isNotEmpty)
                   const ThemedDivider(height: 16, indent: 12, endIndent: 12),
                 ...widget.categories.rootCategories.sortedByOrder().map(
-                      (category) => _buildCategoryNode(theme, category, 0),
-                    ),
+                  (category) => _buildCategoryNode(theme, category, 0),
+                ),
               ],
             ),
           ),
@@ -168,12 +179,12 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
       onTap: () => widget.onCategorySelected(category.id),
       onExpand: hasChildren
           ? () => setState(() {
-                if (isExpanded) {
-                  _expandedIds.remove(category.id);
-                } else {
-                  _expandedIds.add(category.id);
-                }
-              })
+              if (isExpanded) {
+                _expandedIds.remove(category.id);
+              } else {
+                _expandedIds.add(category.id);
+              }
+            })
           : null,
       onRename: widget.onCategoryRename != null
           ? (newName) => widget.onCategoryRename!(category.id, newName)
@@ -197,16 +208,19 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
       categoryItem = _buildCategoryDragTarget(theme, category, categoryItem);
     }
 
-    categoryItem =
-        _buildImageDropTarget(categoryId: category.id, child: categoryItem);
+    categoryItem = _buildImageDropTarget(
+      categoryId: category.id,
+      child: categoryItem,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         categoryItem,
         if (hasChildren && isExpanded)
-          ...children
-              .map((child) => _buildCategoryNode(theme, child, depth + 1)),
+          ...children.map(
+            (child) => _buildCategoryNode(theme, child, depth + 1),
+          ),
       ],
     );
   }
@@ -268,8 +282,10 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
       onWillAcceptWithDetails: (details) {
         final draggedCategory = details.data;
         if (draggedCategory.id == targetCategory.id) return false;
-        if (widget.categories
-            .wouldCreateCycle(draggedCategory.id, targetCategory.id)) {
+        if (widget.categories.wouldCreateCycle(
+          draggedCategory.id,
+          targetCategory.id,
+        )) {
           return false;
         }
         if (draggedCategory.parentId == targetCategory.id) return false;
@@ -287,8 +303,9 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
       onMove: (details) {
         if (_hoveredCategoryId != targetCategory.id) {
           setState(() => _hoveredCategoryId = targetCategory.id);
-          final hasChildren =
-              widget.categories.getChildren(targetCategory.id).isNotEmpty;
+          final hasChildren = widget.categories
+              .getChildren(targetCategory.id)
+              .isNotEmpty;
           if (hasChildren && !_expandedIds.contains(targetCategory.id)) {
             _startAutoExpandTimer(targetCategory.id);
           }
@@ -313,11 +330,11 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
             border: isAccepting
                 ? Border.all(color: theme.colorScheme.primary, width: 2)
                 : isRejected
-                    ? Border.all(
-                        color: theme.colorScheme.error.withValues(alpha: 0.5),
-                        width: 1,
-                      )
-                    : null,
+                ? Border.all(
+                    color: theme.colorScheme.error.withValues(alpha: 0.5),
+                    width: 1,
+                  )
+                : null,
             borderRadius: BorderRadius.circular(8),
           ),
           child: child,
@@ -396,6 +413,15 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
 
         // 处理拖拽的文件
         for (final item in event.session.items) {
+          final internalPath = galleryInternalDragPathFromLocalData(
+            item.localData,
+          );
+          if (internalPath != null) {
+            HapticFeedback.heavyImpact();
+            widget.onImageDrop?.call(internalPath, categoryId);
+            continue;
+          }
+
           final reader = item.dataReader;
           if (reader == null) continue;
 
@@ -537,8 +563,8 @@ class _CategoryItemState extends State<_CategoryItem> {
             color: widget.isSelected
                 ? theme.colorScheme.primaryContainer
                 : (_isHovering
-                    ? theme.colorScheme.surfaceContainerHighest
-                    : Colors.transparent),
+                      ? theme.colorScheme.surfaceContainerHighest
+                      : Colors.transparent),
             borderRadius: BorderRadius.circular(8),
           ),
           child: InkWell(
@@ -572,7 +598,8 @@ class _CategoryItemState extends State<_CategoryItem> {
                   Icon(
                     widget.icon,
                     size: 18,
-                    color: widget.iconColor ??
+                    color:
+                        widget.iconColor ??
                         (widget.isSelected
                             ? theme.colorScheme.primary
                             : theme.colorScheme.onSurfaceVariant),

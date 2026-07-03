@@ -110,16 +110,21 @@ class FilterCriteria {
       showFavoritesOnly: showFavoritesOnly ?? this.showFavoritesOnly,
       selectedTags: selectedTags ?? this.selectedTags,
       filterModel: clearFilterModel ? null : (filterModel ?? this.filterModel),
-      filterSampler:
-          clearFilterSampler ? null : (filterSampler ?? this.filterSampler),
-      filterMinSteps:
-          clearFilterMinSteps ? null : (filterMinSteps ?? this.filterMinSteps),
-      filterMaxSteps:
-          clearFilterMaxSteps ? null : (filterMaxSteps ?? this.filterMaxSteps),
-      filterMinCfg:
-          clearFilterMinCfg ? null : (filterMinCfg ?? this.filterMinCfg),
-      filterMaxCfg:
-          clearFilterMaxCfg ? null : (filterMaxCfg ?? this.filterMaxCfg),
+      filterSampler: clearFilterSampler
+          ? null
+          : (filterSampler ?? this.filterSampler),
+      filterMinSteps: clearFilterMinSteps
+          ? null
+          : (filterMinSteps ?? this.filterMinSteps),
+      filterMaxSteps: clearFilterMaxSteps
+          ? null
+          : (filterMaxSteps ?? this.filterMaxSteps),
+      filterMinCfg: clearFilterMinCfg
+          ? null
+          : (filterMinCfg ?? this.filterMinCfg),
+      filterMaxCfg: clearFilterMaxCfg
+          ? null
+          : (filterMaxCfg ?? this.filterMaxCfg),
       filterResolution: clearFilterResolution
           ? null
           : (filterResolution ?? this.filterResolution),
@@ -259,8 +264,9 @@ class GalleryFilterService {
 
   // 过滤结果缓存
   static const int _maxCacheSize = 50;
-  final LRUCache<String, FilterResult> _filterCache =
-      LRUCache(maxSize: _maxCacheSize);
+  final LRUCache<String, FilterResult> _filterCache = LRUCache(
+    maxSize: _maxCacheSize,
+  );
 
   // 取消令牌
   final Map<String, CancelToken> _activeFilters = {};
@@ -356,8 +362,11 @@ class GalleryFilterService {
           // 有普通搜索关键词：使用数据库搜索
           filtered = await _searchInDatabase(allFiles, criteria, cancelToken);
         }
-        filtered =
-            await _applyPostSearchFilters(filtered, criteria, cancelToken);
+        filtered = await _applyPostSearchFilters(
+          filtered,
+          criteria,
+          cancelToken,
+        );
       } else {
         // 本地过滤
         filtered = await _applyLocalFilters(allFiles, criteria, cancelToken);
@@ -448,8 +457,11 @@ class GalleryFilterService {
 
     // 标签过滤（需要数据库查询）
     if (criteria.selectedTags.isNotEmpty) {
-      filtered =
-          await _filterByTags(filtered, criteria.selectedTags, cancelToken);
+      filtered = await _filterByTags(
+        filtered,
+        criteria.selectedTags,
+        cancelToken,
+      );
       AppLogger.d(
         '_applyLocalFilters after tags filter: ${filtered.length} files',
         'GalleryFilterService',
@@ -509,8 +521,11 @@ class GalleryFilterService {
     var filtered = files;
 
     if (criteria.selectedTags.isNotEmpty) {
-      filtered =
-          await _filterByTags(filtered, criteria.selectedTags, cancelToken);
+      filtered = await _filterByTags(
+        filtered,
+        criteria.selectedTags,
+        cancelToken,
+      );
     }
 
     if (cancelToken.isCancelled) return [];
@@ -677,7 +692,7 @@ class GalleryFilterService {
       }).toList();
     } catch (e) {
       AppLogger.w('Failed to filter favorites: $e', 'GalleryFilterService');
-      return files;
+      return [];
     }
   }
 
@@ -691,15 +706,17 @@ class GalleryFilterService {
   ) async {
     try {
       // 规范化路径分隔符并转换为小写以便比较
-      final normalizedCategoryPath =
-          categoryFolderPath.replaceAll('\\', '/').toLowerCase();
+      final normalizedCategoryPath = categoryFolderPath
+          .replaceAll('\\', '/')
+          .toLowerCase();
 
       return files.where((file) {
         if (cancelToken.isCancelled) return false;
 
         // 规范化文件路径
-        final normalizedFilePath =
-            file.path.replaceAll('\\', '/').toLowerCase();
+        final normalizedFilePath = file.path
+            .replaceAll('\\', '/')
+            .toLowerCase();
 
         // 检查文件路径是否包含分类文件夹路径
         // 使用 / 确保精确匹配文件夹名（如 "test_batch/" 不匹配 "test_batch_2/"）
@@ -760,11 +777,7 @@ class _DateFilterParams {
   final DateTime? dateStart;
   final DateTime? dateEnd;
 
-  _DateFilterParams({
-    required this.filePaths,
-    this.dateStart,
-    this.dateEnd,
-  });
+  _DateFilterParams({required this.filePaths, this.dateStart, this.dateEnd});
 }
 
 /// 在 isolate 中批量过滤日期
