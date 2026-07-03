@@ -34,10 +34,9 @@ void main() {
 
       Hive.init(p.join(tempDir.path, 'hive'));
       await Hive.openBox(StorageKeys.settingsBox);
-      await Hive.box(StorageKeys.settingsBox).put(
-        StorageKeys.imageSavePath,
-        galleryRoot.path,
-      );
+      await Hive.box(
+        StorageKeys.settingsBox,
+      ).put(StorageKeys.imageSavePath, galleryRoot.path);
 
       await ConnectionPoolHolder.initialize(
         dbPath: p.join(tempDir.path, 'gallery.db'),
@@ -140,6 +139,73 @@ void main() {
 
         final afterRecords = await service.getPage(0);
         expect(afterRecords.map((record) => record.path), [favoriteFile.path]);
+      },
+    );
+
+    test('queries favorite image records directly in modified order', () async {
+      final olderFile = File(p.join(galleryRoot.path, 'older.png'));
+      final newerFile = File(p.join(galleryRoot.path, 'newer.png'));
+      final ordinaryFile = File(p.join(galleryRoot.path, 'ordinary.png'));
+      await olderFile.writeAsBytes(<int>[137, 80, 78, 71]);
+      await newerFile.writeAsBytes(<int>[137, 80, 78, 71]);
+      await ordinaryFile.writeAsBytes(<int>[137, 80, 78, 71]);
+
+      final olderId = await dataSource.upsertImage(
+        filePath: olderFile.path,
+        fileName: p.basename(olderFile.path),
+        fileSize: await olderFile.length(),
+        createdAt: DateTime(2026),
+        modifiedAt: DateTime(2026),
+      );
+      final newerId = await dataSource.upsertImage(
+        filePath: newerFile.path,
+        fileName: p.basename(newerFile.path),
+        fileSize: await newerFile.length(),
+        createdAt: DateTime(2026, 1, 2),
+        modifiedAt: DateTime(2026, 1, 2),
+      );
+      await dataSource.upsertImage(
+        filePath: ordinaryFile.path,
+        fileName: p.basename(ordinaryFile.path),
+        fileSize: await ordinaryFile.length(),
+        createdAt: DateTime(2026, 1, 3),
+        modifiedAt: DateTime(2026, 1, 3),
+      );
+      expect(await dataSource.toggleFavorite(olderId), isTrue);
+      expect(await dataSource.toggleFavorite(newerId), isTrue);
+
+      final favorites = await dataSource.queryFavoriteImages(limit: 10);
+
+      expect(favorites.map((record) => record.filePath), [
+        newerFile.path,
+        olderFile.path,
+      ]);
+    });
+
+    test(
+      'counts only favorites that are still visible in the local gallery root',
+      () async {
+        final visibleFile = File(p.join(galleryRoot.path, 'visible.png'));
+        await visibleFile.writeAsBytes(<int>[137, 80, 78, 71]);
+
+        final outsideDir = Directory(p.join(tempDir.path, 'outside'));
+        await outsideDir.create();
+        final outsideFile = File(p.join(outsideDir.path, 'outside.png'));
+        await outsideFile.writeAsBytes(<int>[137, 80, 78, 71]);
+
+        await service.initialize();
+        expect(await service.toggleFavorite(visibleFile.path), isTrue);
+
+        final outsideId = await dataSource.upsertImage(
+          filePath: outsideFile.path,
+          fileName: p.basename(outsideFile.path),
+          fileSize: await outsideFile.length(),
+          createdAt: DateTime(2026),
+          modifiedAt: DateTime(2026),
+        );
+        expect(await dataSource.toggleFavorite(outsideId), isTrue);
+
+        expect(await service.getFavoriteCount(), 1);
       },
     );
   });

@@ -503,6 +503,67 @@ class GalleryDataSource extends EnhancedBaseDataSource
     }, details: 'limit=$limit, offset=$offset');
   }
 
+  Future<List<GalleryImageRecord>> queryFavoriteImages({
+    int limit = 50,
+    int offset = 0,
+    String orderBy = 'modified_at',
+    bool descending = true,
+  }) async {
+    final cacheKey = _QueryCacheKey('queryFavoriteImages', {
+      'limit': limit,
+      'offset': offset,
+      'orderBy': orderBy,
+      'descending': descending,
+    });
+
+    final cached = _queryCache.get(cacheKey);
+    if (cached != null) {
+      return cached.cast<GalleryImageRecord>();
+    }
+
+    return _trackQuery('queryFavoriteImages', () async {
+      return await execute('queryFavoriteImages', (db) async {
+        try {
+          final validImageColumns = {
+            'modified_at',
+            'created_at',
+            'indexed_at',
+            'file_name',
+            'file_size',
+            'id',
+          };
+          final useFavoriteOrder = orderBy == 'favorited_at';
+          final safeOrderBy = useFavoriteOrder
+              ? 'f.favorited_at'
+              : validImageColumns.contains(orderBy)
+              ? 'i.$orderBy'
+              : 'i.modified_at';
+          final orderDirection = descending ? 'DESC' : 'ASC';
+
+          final results = await db.rawQuery(
+            '''
+              SELECT i.* FROM $_imagesTable i
+              INNER JOIN $_favoritesTable f ON i.id = f.image_id
+              WHERE i.is_deleted = 0
+              ORDER BY $safeOrderBy $orderDirection
+              LIMIT ? OFFSET ?
+              ''',
+            [limit, offset],
+          );
+
+          final records = results
+              .map((row) => GalleryImageRecord.fromMap(row))
+              .toList();
+          _queryCache.put(cacheKey, records);
+          return records;
+        } catch (e, stack) {
+          AppLogger.e('Failed to query favorite images', e, stack, 'GalleryDS');
+          return [];
+        }
+      });
+    }, details: 'limit=$limit, offset=$offset');
+  }
+
   Future<void> markAsDeleted(String filePath) async {
     await execute('markAsDeleted', (db) async {
       try {
@@ -1179,16 +1240,14 @@ class GalleryDataSource extends EnhancedBaseDataSource
   }
 
   Future<int> getFavoriteCount() async {
-    if (_favoritesLoaded) {
-      return _favoriteCache.length;
-    }
-
     return await execute(
       'getFavoriteCount',
       (db) async {
-        final result = await db.rawQuery(
-          'SELECT COUNT(*) as count FROM $_favoritesTable',
-        );
+        final result = await db.rawQuery('''
+          SELECT COUNT(*) as count FROM $_favoritesTable f
+          INNER JOIN $_imagesTable i ON i.id = f.image_id
+          WHERE i.is_deleted = 0
+          ''');
         return (result.first['count'] as num?)?.toInt() ?? 0;
       },
       timeout: const Duration(seconds: 10),

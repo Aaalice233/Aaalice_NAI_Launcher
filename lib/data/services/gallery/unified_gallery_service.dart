@@ -60,6 +60,30 @@ bool shouldRunRefreshIndexScan({
   return scanRequested && !isBackgroundScanning;
 }
 
+bool isFavoriteOnlyFastFilter(FilterCriteria criteria) {
+  return criteria.showFavoritesOnly &&
+      criteria.searchQuery.trim().isEmpty &&
+      criteria.dateStart == null &&
+      criteria.dateEnd == null &&
+      criteria.selectedTags.isEmpty &&
+      criteria.filterModel == null &&
+      criteria.filterSampler == null &&
+      criteria.filterMinSteps == null &&
+      criteria.filterMaxSteps == null &&
+      criteria.filterMinCfg == null &&
+      criteria.filterMaxCfg == null &&
+      criteria.filterResolution == null &&
+      criteria.minWidth == null &&
+      criteria.minHeight == null &&
+      criteria.maxWidth == null &&
+      criteria.maxHeight == null &&
+      criteria.minFileSize == null &&
+      criteria.maxFileSize == null &&
+      criteria.metadataStatuses.isEmpty &&
+      criteria.categoryId == null &&
+      criteria.categoryFolderPath == null;
+}
+
 /// 画廊服务接口
 ///
 /// 定义了本地画廊模块的核心操作，包括：
@@ -873,6 +897,25 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
       return;
     }
 
+    if (isFavoriteOnlyFastFilter(criteria)) {
+      final favoriteRecords = await _dataSource.queryFavoriteImages(
+        limit: max(1, _allFiles.length),
+      );
+      if (generation != _filterGeneration || _currentFilter != criteria) {
+        return;
+      }
+
+      final pathToFile = {
+        for (final file in _allFiles) galleryFilePathKey(file.path): file,
+      };
+      _filteredFiles = [
+        for (final record in favoriteRecords)
+          if (pathToFile[galleryFilePathKey(record.filePath)] != null)
+            pathToFile[galleryFilePathKey(record.filePath)]!,
+      ];
+      return;
+    }
+
     final operationId = 'local_gallery_filter_$generation';
     _activeFilterOperationId = operationId;
 
@@ -996,16 +1039,21 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
 
     if (_allFiles.isEmpty) return 0;
 
-    final pathToIdMap = await _dataSource.getImageIdsByPaths(
-      _allFiles.map((file) => file.path).toList(growable: false),
-    );
-    final imageIds = pathToIdMap.values.whereType<int>().toList(
-      growable: false,
-    );
-    if (imageIds.isEmpty) return 0;
+    final totalFavorites = await _dataSource.getFavoriteCount();
+    if (totalFavorites == 0) return 0;
 
-    final favoritesMap = await _dataSource.getFavoritesByImageIds(imageIds);
-    return favoritesMap.values.where((isFavorite) => isFavorite).length;
+    final favoriteRecords = await _dataSource.queryFavoriteImages(
+      limit: totalFavorites,
+    );
+    final visiblePaths = {
+      for (final file in _allFiles) galleryFilePathKey(file.path),
+    };
+    return favoriteRecords
+        .where(
+          (record) =>
+              visiblePaths.contains(galleryFilePathKey(record.filePath)),
+        )
+        .length;
   }
 
   // ============================================================
