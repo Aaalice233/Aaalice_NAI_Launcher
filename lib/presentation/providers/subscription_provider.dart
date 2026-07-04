@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/constants/api_constants.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/nai_user_info_api_service.dart';
 import '../../data/models/user/user_subscription.dart';
@@ -88,7 +89,10 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
 
   void _scheduleNextRefresh(Duration delay) {
     _refreshTimer?.cancel();
-    AppLogger.d('Scheduling next subscription refresh in ${delay.inSeconds}s', 'Subscription');
+    AppLogger.d(
+      'Scheduling next subscription refresh in ${delay.inSeconds}s',
+      'Subscription',
+    );
     _refreshTimer = Timer(delay, () {
       unawaited(_runRefreshCycle());
     });
@@ -138,7 +142,9 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     }
 
     AppLogger.d('Starting network recovery probe', 'Subscription');
-    _networkRecoveryProbeTimer = Timer.periodic(_networkProbeInterval, (_) async {
+    _networkRecoveryProbeTimer = Timer.periodic(_networkProbeInterval, (
+      _,
+    ) async {
       if (_isNetworkRecoveryProbing) {
         return;
       }
@@ -150,7 +156,10 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
           return;
         }
 
-        AppLogger.i('Network recovered, triggering immediate subscription refresh', 'Subscription');
+        AppLogger.i(
+          'Network recovered, triggering immediate subscription refresh',
+          'Subscription',
+        );
         _networkFailureCount = 0;
         _stopNetworkRecoveryProbe();
         _scheduleNextRefresh(Duration.zero);
@@ -170,8 +179,9 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
 
   Future<bool> _isNovelApiReachable() async {
     try {
-      final result = await InternetAddress.lookup('api.novelai.net')
-          .timeout(_networkProbeTimeout);
+      final result = await InternetAddress.lookup(
+        Uri.parse(ApiConstants.imageBaseUrl).host,
+      ).timeout(_networkProbeTimeout);
       return result.isNotEmpty;
     } catch (_) {
       return false;
@@ -235,7 +245,8 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
 
       // 检查是否是网络连接错误，如果是则不标记为已加载，允许后续重试
       final errorStr = e.toString().toLowerCase();
-      final isNetworkError = errorStr.contains('timeout') ||
+      final isNetworkError =
+          errorStr.contains('timeout') ||
           errorStr.contains('connection') ||
           errorStr.contains('network') ||
           errorStr.contains('socket') ||
@@ -302,7 +313,7 @@ class AnlasBalanceWatcher extends _$AnlasBalanceWatcher {
   @override
   void build() {
     final currentBalance = ref.watch(anlasBalanceProvider);
-    
+
     // 检测余额减少
     if (_lastBalance != null && currentBalance != null) {
       final cost = _lastBalance! - currentBalance;
@@ -311,17 +322,22 @@ class AnlasBalanceWatcher extends _$AnlasBalanceWatcher {
         Future.microtask(() => _recordCost(cost));
       }
     }
-    
+
     _lastBalance = currentBalance;
   }
 
   Future<void> _recordCost(int cost) async {
     try {
-      final anlasService = await ref.read(anlasStatisticsServiceProvider.future);
+      final anlasService = await ref.read(
+        anlasStatisticsServiceProvider.future,
+      );
       await anlasService.recordCost(cost);
       AppLogger.i('Auto-recorded Anlas cost: $cost', 'AnlasBalanceWatcher');
     } catch (e) {
-      AppLogger.e('Failed to auto-record Anlas cost: $e', 'AnlasBalanceWatcher');
+      AppLogger.e(
+        'Failed to auto-record Anlas cost: $e',
+        'AnlasBalanceWatcher',
+      );
     }
   }
 }

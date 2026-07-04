@@ -17,6 +17,10 @@ void main() {
         'https://example.com/nai/user/subscription',
       );
       expect(
+        endpoint.userUrl(ApiConstants.userSubscriptionEndpoint),
+        'https://example.com/nai/user/subscription',
+      );
+      expect(
         endpoint.imageUrl(ApiConstants.generateImageEndpoint),
         'https://image.example.com/api/ai/generate-image',
       );
@@ -32,13 +36,28 @@ void main() {
         endpoint.imageUrl(ApiConstants.generateImageStreamEndpoint),
         'http://127.0.0.1:8080/proxy/ai/generate-image-stream',
       );
+      expect(
+        endpoint.userUrl(ApiConstants.userDataEndpoint),
+        'http://127.0.0.1:8080/proxy/user/data',
+      );
+    });
+
+    test('routes official user endpoints through image host', () {
+      expect(
+        NaiApiEndpointConfig.official.mainUrl(ApiConstants.loginEndpoint),
+        'https://api.novelai.net/user/login',
+      );
+      expect(
+        NaiApiEndpointConfig.official.userUrl(
+          ApiConstants.userSubscriptionEndpoint,
+        ),
+        'https://image.novelai.net/user/subscription',
+      );
     });
 
     test('rejects unsupported URL schemes', () {
       expect(
-        () => NaiApiEndpointConfig.fromInput(
-          mainBaseUrl: 'ftp://example.com',
-        ),
+        () => NaiApiEndpointConfig.fromInput(mainBaseUrl: 'ftp://example.com'),
         throwsArgumentError,
       );
     });
@@ -66,8 +85,7 @@ void main() {
       );
     });
 
-    test('negative presets should match current NovelAI documented mappings',
-        () {
+    test('negative presets should match current NovelAI documented mappings', () {
       expect(
         UcPresets.getPresetContent(model, UcPresetType.heavy),
         equals(
@@ -80,12 +98,16 @@ void main() {
       );
       expect(
         UcPresets.getPresetContent(
-            ImageModels.animeDiffusionV4Full, UcPresetType.heavy,),
+          ImageModels.animeDiffusionV4Full,
+          UcPresetType.heavy,
+        ),
         isNot(contains('blank page')),
       );
       expect(
         UcPresets.getPresetContent(
-            ImageModels.animeDiffusionV3, UcPresetType.light,),
+          ImageModels.animeDiffusionV3,
+          UcPresetType.light,
+        ),
         equals(
           'lowres, jpeg artifacts, worst quality, watermark, blurry, very displeasing',
         ),
@@ -163,19 +185,20 @@ void main() {
     });
 
     test(
-        'stripPresetByInt should recover user negative prompt from legacy text',
-        () {
-      const legacyPreset =
-          'nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page';
-      const importedNegativePrompt = '$legacyPreset, custom_negative';
+      'stripPresetByInt should recover user negative prompt from legacy text',
+      () {
+        const legacyPreset =
+            'nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page';
+        const importedNegativePrompt = '$legacyPreset, custom_negative';
 
-      final stripped = UcPresets.stripPresetByInt(
-        importedNegativePrompt,
-        model,
-        0,
-      );
+        final stripped = UcPresets.stripPresetByInt(
+          importedNegativePrompt,
+          model,
+          0,
+        );
 
-      expect(stripped, equals('custom_negative'));
-    });
+        expect(stripped, equals('custom_negative'));
+      },
+    );
   });
 }
