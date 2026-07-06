@@ -479,17 +479,11 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
     ImageWorkflowState workflow,
     Uint8List sourceBytes,
   ) {
-    final width = workflow.sourceWidth;
-    final height = workflow.sourceHeight;
-    if (width != null && height != null) {
-      return (width, height);
-    }
-
-    final decoded = img.decodeImage(sourceBytes);
-    if (decoded == null) {
-      return (1, 1);
-    }
-    return (decoded.width, decoded.height);
+    return resolveSourcePreviewDimensions(
+      sourceBytes: sourceBytes,
+      fallbackWidth: workflow.sourceWidth,
+      fallbackHeight: workflow.sourceHeight,
+    );
   }
 
   Widget _buildSliderSection(
