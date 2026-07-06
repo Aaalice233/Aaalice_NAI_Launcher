@@ -41,11 +41,7 @@ class VibeImageEncodeDialog extends StatefulWidget {
   /// 默认名称
   final String? defaultName;
 
-  const VibeImageEncodeDialog({
-    super.key,
-    this.thumbnail,
-    this.defaultName,
-  });
+  const VibeImageEncodeDialog({super.key, this.thumbnail, this.defaultName});
 
   /// 显示对话框的便捷方法
   static Future<VibeImageEncodeConfig?> show({
@@ -56,10 +52,8 @@ class VibeImageEncodeDialog extends StatefulWidget {
     return showDialog<VibeImageEncodeConfig>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => VibeImageEncodeDialog(
-        thumbnail: imageBytes,
-        defaultName: fileName,
-      ),
+      builder: (context) =>
+          VibeImageEncodeDialog(thumbnail: imageBytes, defaultName: fileName),
     );
   }
 
@@ -157,14 +151,9 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
       focusNode: _keyboardFocusNode,
       onKeyEvent: _handleKeyEvent,
       child: Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 400,
-            minWidth: 320,
-          ),
+          constraints: const BoxConstraints(maxWidth: 400, minWidth: 320),
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -209,10 +198,7 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
   Widget _buildHeader(ThemeData theme) {
     return Row(
       children: [
-        Icon(
-          Icons.image_search,
-          color: theme.colorScheme.primary,
-        ),
+        Icon(Icons.image_search, color: theme.colorScheme.primary),
         const SizedBox(width: 12),
         Expanded(
           child: Text(
@@ -235,9 +221,7 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           color: theme.colorScheme.surfaceContainerHighest,
-          border: Border.all(
-            color: theme.colorScheme.outlineVariant,
-          ),
+          border: Border.all(color: theme.colorScheme.outlineVariant),
         ),
         clipBehavior: Clip.antiAlias,
         child: widget.thumbnail != null
@@ -245,10 +229,7 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
                 widget.thumbnail!,
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) {
-                  AppLogger.w(
-                    '缩略图加载失败: $error',
-                    'VibeImageEncodeDialog',
-                  );
+                  AppLogger.w('缩略图加载失败: $error', 'VibeImageEncodeDialog');
                   return _buildErrorPlaceholder(theme);
                 },
               )
@@ -262,11 +243,7 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(
-          Icons.image,
-          size: 48,
-          color: theme.colorScheme.outline,
-        ),
+        Icon(Icons.image, size: 48, color: theme.colorScheme.outline),
         const SizedBox(height: 8),
         Text(
           context.l10n.vibe_imagePreview,
@@ -283,11 +260,7 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(
-          Icons.broken_image,
-          size: 48,
-          color: theme.colorScheme.outline,
-        ),
+        Icon(Icons.broken_image, size: 48, color: theme.colorScheme.outline),
         const SizedBox(height: 8),
         Text(
           context.l10n.vibe_previewLoadFailed,
@@ -309,9 +282,7 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
         hintText: context.l10n.vibe_saveToLibrary_nameHint,
         errorText: _errorText,
         prefixIcon: const Icon(Icons.label_outline),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: theme.colorScheme.surfaceContainerHighest,
       ),
@@ -334,15 +305,11 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
       children: [
         Row(
           children: [
-            Icon(
-              Icons.tune,
-              size: 18,
-              color: theme.colorScheme.primary,
-            ),
+            Icon(Icons.tune, size: 18, color: theme.colorScheme.primary),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Strength',
+                context.l10n.vibe_strength,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w500,
                 ),
@@ -537,10 +504,7 @@ class VibeImageEncodingDialog extends StatelessWidget {
 }
 
 /// 编码错误处理结果
-enum VibeEncodeErrorAction {
-  skip,
-  retry,
-}
+enum VibeEncodeErrorAction { skip, retry }
 
 /// Vibe 图片编码错误对话框
 class VibeImageEncodeErrorDialog extends StatelessWidget {

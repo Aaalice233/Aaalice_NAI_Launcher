@@ -170,6 +170,8 @@ class AddAccountResult {
 /// 认证状态 Notifier
 @Riverpod(keepAlive: true)
 class AuthNotifier extends _$AuthNotifier {
+  static const String _autoLoginKey = 'auto_login';
+
   @override
   AuthState build() {
     // 初始化时检查已存储的认证状态
@@ -181,9 +183,13 @@ class AuthNotifier extends _$AuthNotifier {
   Future<void> _checkExistingAuth() async {
     // 0. 检查自动登录设置（默认启用，确保重启后自动恢复登录）
     final prefs = await SharedPreferences.getInstance();
-    final autoLogin = prefs.getBool('auto_login') ?? true; // 改为默认 true
+    final autoLogin = prefs.getBool(_autoLoginKey) ?? true;
 
     if (!autoLogin) {
+      AppLogger.i(
+        'Auto-login disabled by preference, showing login page',
+        'Auth',
+      );
       ref.read(naiApiEndpointServiceProvider).resetToOfficial();
       state = const AuthState(status: AuthStatus.unauthenticated);
       return;
@@ -506,6 +512,7 @@ class AuthNotifier extends _$AuthNotifier {
         subscriptionInfo: subscriptionInfo,
       );
 
+      await _enableAutoLoginForSavedSession();
       return true;
     } catch (e) {
       AppLogger.e('Token login failed: $e');
@@ -597,6 +604,7 @@ class AuthNotifier extends _$AuthNotifier {
         subscriptionInfo: subscriptionInfo,
       );
 
+      await _enableAutoLoginForSavedSession();
       return true;
     } catch (e) {
       AppLogger.e('Third-party token login failed: $e');
@@ -717,6 +725,7 @@ class AuthNotifier extends _$AuthNotifier {
       );
 
       AppLogger.auth('Credentials account login successful');
+      await _enableAutoLoginForSavedSession();
       return true;
     } catch (e) {
       AppLogger.e('Credentials account login failed: $e');
@@ -820,6 +829,7 @@ class AuthNotifier extends _$AuthNotifier {
       );
 
       AppLogger.auth('Credentials login successful for: $email');
+      await _enableAutoLoginForSavedSession();
       return true;
     } catch (e) {
       AppLogger.e('Credentials login failed: $e');
@@ -924,6 +934,7 @@ class AuthNotifier extends _$AuthNotifier {
         subscriptionInfo: subscriptionInfo,
       );
 
+      await _enableAutoLoginForSavedSession();
       AppLogger.auth('tryAddAccount: Success for: $email');
       return AddAccountResult.ok();
     } catch (e) {
@@ -1008,6 +1019,17 @@ class AuthNotifier extends _$AuthNotifier {
       AppLogger.w(
         '[AuthNotifier] error cleared, state now: status=${state.status}',
         'AUTH',
+      );
+    }
+  }
+
+  Future<void> _enableAutoLoginForSavedSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_autoLoginKey) != true) {
+      await prefs.setBool(_autoLoginKey, true);
+      AppLogger.i(
+        'Auto-login enabled after successful saved session login',
+        'Auth',
       );
     }
   }

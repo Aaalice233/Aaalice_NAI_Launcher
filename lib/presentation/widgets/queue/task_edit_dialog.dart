@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:nai_launcher/core/cache/danbooru_image_cache_manager.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../data/models/queue/replication_task.dart';
@@ -20,10 +21,7 @@ import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 class TaskEditDialog extends ConsumerStatefulWidget {
   final ReplicationTask task;
 
-  const TaskEditDialog({
-    super.key,
-    required this.task,
-  });
+  const TaskEditDialog({super.key, required this.task});
 
   @override
   ConsumerState<TaskEditDialog> createState() => _TaskEditDialogState();
@@ -53,23 +51,21 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
 
   /// 确保自动补全策略 Future 已创建
   Future<AutocompleteStrategy> _ensureAutocompleteStrategyFuture() {
-    _autocompleteStrategyFuture ??= LocalTagStrategy.create(
-      ref,
-      const AutocompleteConfig(
-        maxSuggestions: 15,
-        showTranslation: true,
-        showCategory: true,
-        autoInsertComma: true,
-      ),
-    ).then((localTagStrategy) {
-      return CompositeStrategy(
-        strategies: [
-          localTagStrategy,
-          AliasStrategy.create(ref),
-        ],
-        strategySelector: defaultStrategySelector,
-      );
-    });
+    _autocompleteStrategyFuture ??=
+        LocalTagStrategy.create(
+          ref,
+          const AutocompleteConfig(
+            maxSuggestions: 15,
+            showTranslation: true,
+            showCategory: true,
+            autoInsertComma: true,
+          ),
+        ).then((localTagStrategy) {
+          return CompositeStrategy(
+            strategies: [localTagStrategy, AliasStrategy.create(ref)],
+            strategySelector: defaultStrategySelector,
+          );
+        });
     return _autocompleteStrategyFuture!;
   }
 
@@ -92,10 +88,7 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
                 children: [
                   const Icon(Icons.edit),
                   const SizedBox(width: 8),
-                  Text(
-                    l10n.queue_editTask,
-                    style: theme.textTheme.titleLarge,
-                  ),
+                  Text(l10n.queue_editTask, style: theme.textTheme.titleLarge),
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -121,6 +114,13 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
                           borderRadius: BorderRadius.circular(12),
                           child: CachedNetworkImage(
                             imageUrl: widget.task.thumbnailUrl!,
+                            httpHeaders: onlineGalleryImageHeadersForUrl(
+                              widget.task.thumbnailUrl!,
+                            ),
+                            cacheKey: onlineGalleryImageCacheKeyForUrl(
+                              widget.task.thumbnailUrl!,
+                            ),
+                            cacheManager: DanbooruImageCacheManager.instance,
                             width: 150,
                             height: 150,
                             fit: BoxFit.cover,
@@ -198,10 +198,7 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 标题
-        Text(
-          l10n.queue_positivePrompt,
-          style: theme.textTheme.titleSmall,
-        ),
+        Text(l10n.queue_positivePrompt, style: theme.textTheme.titleSmall),
         const SizedBox(height: 8),
         // 提示词编辑器
         SizedBox(
@@ -252,7 +249,8 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
   Widget _buildParametersSection(BuildContext context, ThemeData theme) {
     final l10n = context.l10n;
     final task = widget.task;
-    final hasParameters = task.seed != null ||
+    final hasParameters =
+        task.seed != null ||
         task.sampler != null ||
         task.steps != null ||
         task.cfgScale != null ||

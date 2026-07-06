@@ -105,26 +105,30 @@ class ImageSaveUtils {
     }
 
     // Vibe Transfer 数据（关键！之前缺失）
-    if (params.vibeReferencesV4.isNotEmpty) {
-      final validVibes = params.vibeReferencesV4
+    if (params.hasVibeReferencesV4) {
+      final validVibes = params.enabledVibeReferencesV4
           .where((v) => v.vibeEncoding.isNotEmpty)
           .toList();
 
       if (validVibes.isNotEmpty) {
-        commentJson['reference_image_multiple'] =
-            validVibes.map((v) => v.vibeEncoding).toList();
-        commentJson['reference_strength_multiple'] =
-            validVibes.map((v) => v.strength).toList();
-        commentJson['reference_information_extracted_multiple'] =
-            validVibes.map((v) => v.infoExtracted).toList();
+        commentJson['reference_image_multiple'] = validVibes
+            .map((v) => v.vibeEncoding)
+            .toList();
+        commentJson['reference_strength_multiple'] = validVibes
+            .map((v) => v.strength)
+            .toList();
+        commentJson['reference_information_extracted_multiple'] = validVibes
+            .map((v) => v.infoExtracted)
+            .toList();
       }
     }
 
     // Precise Reference 数据
-    if (params.preciseReferences.isNotEmpty) {
+    if (params.hasPreciseReferences) {
+      final preciseReferences = params.enabledPreciseReferences;
       commentJson['use_precise_ref'] = true;
-      commentJson['precise_ref_type'] =
-          params.preciseReferences.first.type.toApiString();
+      commentJson['precise_ref_type'] = preciseReferences.first.type
+          .toApiString();
       // 注意：Precise Reference 的图像数据不直接存入元数据，
       // 因为可能很大。这里只记录配置信息
     }
@@ -182,12 +186,13 @@ class ImageSaveUtils {
     }
 
     final embeddedSeed = existingMetadata?.commentJson['seed'];
-    final normalizedSeed = actualSeed ??
+    final normalizedSeed =
+        actualSeed ??
         (embeddedSeed is int
             ? embeddedSeed
             : embeddedSeed is num
-                ? embeddedSeed.toInt()
-                : params.seed);
+            ? embeddedSeed.toInt()
+            : params.seed);
     final rebuiltCommentJson = buildCommentJson(
       params: params,
       actualSeed: normalizedSeed,
@@ -201,15 +206,13 @@ class ImageSaveUtils {
     );
     final commentJson = existingMetadata?.commentJson == null
         ? rebuiltCommentJson
-        : {
-            ...existingMetadata!.commentJson,
-            ...rebuiltCommentJson,
-          };
+        : {...existingMetadata!.commentJson, ...rebuiltCommentJson};
 
     return _embedNaiAlignedMetadata(
       imageBytes: imageBytes,
       commentJson: commentJson,
-      description: existingMetadata?.description ??
+      description:
+          existingMetadata?.description ??
           buildPromptSemanticsSnapshot(
             prompt: params.prompt,
             negativePrompt: params.negativePrompt,
@@ -364,9 +367,7 @@ class ImageSaveUtils {
 
       // 恢复Vibe数据
       if (metadata.vibeReferences.isNotEmpty) {
-        params = params.copyWith(
-          vibeReferencesV4: metadata.vibeReferences,
-        );
+        params = params.copyWith(vibeReferencesV4: metadata.vibeReferences);
       }
 
       // 恢复多角色数据
@@ -510,7 +511,8 @@ class ImageSaveUtils {
   static _NormalizedPrebuiltMetadata _normalizePrebuiltMetadata(
     Map<String, dynamic> metadata,
   ) {
-    final description = (metadata['Description'] as String?) ??
+    final description =
+        (metadata['Description'] as String?) ??
         (metadata['prompt'] as String?) ??
         '';
     final software = (metadata['Software'] as String?) ?? 'NovelAI';

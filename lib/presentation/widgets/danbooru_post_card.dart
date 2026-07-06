@@ -111,7 +111,11 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
       if (!mounted) return;
       AppToast.info(context, context.l10n.onlineGallery_downloadStarted);
 
-      final file = await DanbooruImageCacheManager.instance.getSingleFile(url);
+      final file = await DanbooruImageCacheManager.instance.getSingleFile(
+        url,
+        key: onlineGalleryImageCacheKeyForUrl(url),
+        headers: onlineGalleryImageHeadersForUrl(url),
+      );
       final fileName = path.basename(Uri.parse(url).path);
       final destination = path.join(result, fileName);
 
@@ -125,10 +129,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
       }
     } catch (e) {
       if (mounted) {
-        AppToast.info(
-          context,
-          context.l10n.onlineGallery_downloadFailed('$e'),
-        );
+        AppToast.info(context, context.l10n.onlineGallery_downloadFailed('$e'));
       }
     }
   }
@@ -204,17 +205,19 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                     border: widget.isSelected
                         ? Border.all(color: theme.colorScheme.primary, width: 3)
                         : _isHovering && !widget.selectionMode
-                            ? Border.all(
-                                color: theme.colorScheme.primary
-                                    .withValues(alpha: 0.4),
-                                width: 1.5,
-                              )
-                            : null,
+                        ? Border.all(
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.4,
+                            ),
+                            width: 1.5,
+                          )
+                        : null,
                     boxShadow: _isHovering && !widget.selectionMode
                         ? [
                             BoxShadow(
-                              color: theme.colorScheme.primary
-                                  .withValues(alpha: 0.3),
+                              color: theme.colorScheme.primary.withValues(
+                                alpha: 0.3,
+                              ),
                               blurRadius: 16,
                               offset: const Offset(0, 8),
                               spreadRadius: 2,
@@ -239,6 +242,12 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                       children: [
                         CachedNetworkImage(
                           imageUrl: widget.post.previewUrl,
+                          httpHeaders: onlineGalleryImageHeadersForUrl(
+                            widget.post.previewUrl,
+                          ),
+                          cacheKey: onlineGalleryImageCacheKeyForUrl(
+                            widget.post.previewUrl,
+                          ),
                           fit: BoxFit.cover,
                           memCacheWidth: memCacheWidth,
                           cacheManager: DanbooruImageCacheManager.instance,
@@ -263,8 +272,9 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                           // Selection Overlay
                           if (widget.isSelected)
                             Container(
-                              color: theme.colorScheme.primary
-                                  .withValues(alpha: 0.2),
+                              color: theme.colorScheme.primary.withValues(
+                                alpha: 0.2,
+                              ),
                             ),
                           // Disabled Overlay
                           if (!widget.canSelect)
@@ -506,9 +516,11 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                             CardActionButtonConfig(
                               icon: Icons.manage_search_rounded,
                               tooltip: context
-                                  .l10n.onlineGallery_sendToReversePrompt,
+                                  .l10n
+                                  .onlineGallery_sendToReversePrompt,
                               onPressed: () async {
-                                final imageUrl = widget.post.sampleUrl ??
+                                final imageUrl =
+                                    widget.post.sampleUrl ??
                                     widget.post.fileUrl ??
                                     widget.post.previewUrl;
                                 if (imageUrl.isEmpty) {
@@ -521,7 +533,16 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                 try {
                                   final file = await DanbooruImageCacheManager
                                       .instance
-                                      .getSingleFile(imageUrl);
+                                      .getSingleFile(
+                                        imageUrl,
+                                        key: onlineGalleryImageCacheKeyForUrl(
+                                          imageUrl,
+                                        ),
+                                        headers:
+                                            onlineGalleryImageHeadersForUrl(
+                                              imageUrl,
+                                            ),
+                                      );
                                   final bytes = await file.readAsBytes();
                                   await ref
                                       .read(reversePromptProvider.notifier)
@@ -533,7 +554,8 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                     context.go('/');
                                     AppToast.info(
                                       context,
-                                      context.l10n
+                                      context
+                                          .l10n
                                           .onlineGallery_sentToReversePrompt,
                                     );
                                   }
@@ -543,8 +565,8 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                       context,
                                       context.l10n
                                           .onlineGallery_reversePromptSendFailed(
-                                        '$e',
-                                      ),
+                                            '$e',
+                                          ),
                                     );
                                   }
                                 }
@@ -639,6 +661,8 @@ class _HoverPreviewCardInner extends ConsumerWidget {
       }
     }
 
+    final imageUrl = post.sampleUrl ?? post.largeFileUrl ?? post.previewUrl;
+
     return Material(
       color: Colors.transparent,
       child: Container(
@@ -680,8 +704,9 @@ class _HoverPreviewCardInner extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
               child: SizedBox(
                 width: maxWidth,
                 height: previewHeight.clamp(150, maxHeight),
@@ -689,9 +714,9 @@ class _HoverPreviewCardInner extends ConsumerWidget {
                   fit: StackFit.expand,
                   children: [
                     CachedNetworkImage(
-                      imageUrl: post.sampleUrl ??
-                          post.largeFileUrl ??
-                          post.previewUrl,
+                      imageUrl: imageUrl,
+                      httpHeaders: onlineGalleryImageHeadersForUrl(imageUrl),
+                      cacheKey: onlineGalleryImageCacheKeyForUrl(imageUrl),
                       fit: BoxFit.cover,
                       cacheManager: DanbooruImageCacheManager.instance,
                       placeholder: (context, url) => Container(
@@ -702,6 +727,12 @@ class _HoverPreviewCardInner extends ConsumerWidget {
                       ),
                       errorWidget: (context, url, error) => CachedNetworkImage(
                         imageUrl: post.previewUrl,
+                        httpHeaders: onlineGalleryImageHeadersForUrl(
+                          post.previewUrl,
+                        ),
+                        cacheKey: onlineGalleryImageCacheKeyForUrl(
+                          post.previewUrl,
+                        ),
                         fit: BoxFit.cover,
                         cacheManager: DanbooruImageCacheManager.instance,
                       ),
@@ -898,8 +929,9 @@ class _TagRowState extends State<_TagRow> {
   }
 
   Future<void> _loadTranslations() async {
-    final translations =
-        await widget.translationService.translateBatch(widget.tags);
+    final translations = await widget.translationService.translateBatch(
+      widget.tags,
+    );
     if (mounted) {
       setState(() => _translations = translations);
     }

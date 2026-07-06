@@ -26,7 +26,7 @@ int _resolvePreciseReferenceExtraCost(ImageParams params) {
   if (!params.model.contains('diffusion-4-5')) {
     return 0;
   }
-  return params.preciseReferences.length * 5;
+  return params.preciseReferenceCount * 5;
 }
 
 _GenerationCostInput _resolveGenerationCostInput(
@@ -69,8 +69,9 @@ _GenerationCostInput _resolveGenerationCostInput(
   return _GenerationCostInput(
     width: params.width,
     height: params.height,
-    strength:
-        params.action == ImageGenerationAction.img2img ? params.strength : 1.0,
+    strength: params.action == ImageGenerationAction.img2img
+        ? params.strength
+        : 1.0,
   );
 }
 

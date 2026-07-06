@@ -43,9 +43,9 @@ class NaiApiEndpointConfig {
   }
 
   Map<String, dynamic> toJson() => {
-        'mainBaseUrl': mainBaseUrl,
-        'imageBaseUrl': imageBaseUrl,
-      };
+    'mainBaseUrl': mainBaseUrl,
+    'imageBaseUrl': imageBaseUrl,
+  };
 
   bool get isOfficial =>
       mainBaseUrl == ApiConstants.baseUrl &&
@@ -57,9 +57,20 @@ class NaiApiEndpointConfig {
 
   String imageUrl(String endpoint) => _appendEndpoint(imageBaseUrl, endpoint);
 
+  /// Official user data endpoints were migrated to the image API host by
+  /// NovelAI.
+  ///
+  /// This includes `/user/information`, `/user/data`, and
+  /// `/user/subscription`. NAI-compatible third-party sites keep using
+  /// [mainBaseUrl] because their endpoint layout is provider-specific.
+  String userUrl(String endpoint) {
+    return isOfficial ? imageUrl(endpoint) : mainUrl(endpoint);
+  }
+
   static String _appendEndpoint(String baseUrl, String endpoint) {
-    final normalizedEndpoint =
-        endpoint.startsWith('/') ? endpoint : '/$endpoint';
+    final normalizedEndpoint = endpoint.startsWith('/')
+        ? endpoint
+        : '/$endpoint';
     return '$baseUrl$normalizedEndpoint';
   }
 
@@ -93,7 +104,8 @@ class NaiApiEndpointConfig {
     }
 
     final hostPart = value.split('/').first.toLowerCase();
-    final isLocalHost = hostPart == 'localhost' ||
+    final isLocalHost =
+        hostPart == 'localhost' ||
         hostPart.startsWith('localhost:') ||
         hostPart == '127.0.0.1' ||
         hostPart.startsWith('127.0.0.1:') ||

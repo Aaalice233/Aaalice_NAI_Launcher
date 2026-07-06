@@ -225,6 +225,7 @@
   "settings_language": "语言",
   "settings_languageChinese": "中文",
   "settings_languageEnglish": "English",
+  "settings_languageJapanese": "日本語",
   "settings_shortcuts": "快捷键",
   "settings_dataSource": "数据源",
   "settings_generation": "生成",
@@ -852,6 +853,14 @@
   "editor_focusSelection": "选区",
   "editor_focusBrush": "画笔",
   "editor_focusContextHint": "外框是实际送去 Focused Inpaint 的区域，内框是主要重绘区域；两框之间的带宽就是 Minimum Context Area。",
+  "editor_focusAnlasWarning": "实际送出范围 {width}×{height}，按当前生成设置预计消耗 {cost} Anlas。",
+  "@editor_focusAnlasWarning": {
+    "placeholders": {
+      "width": {"type": "int"},
+      "height": {"type": "int"},
+      "cost": {"type": "int"}
+    }
+  },
   "editor_unsupportedImageFormat": "不支持的文件格式: .{extension}\n请选择图像文件（PNG、JPG、WEBP 等）",
   "@editor_unsupportedImageFormat": {
     "placeholders": {
@@ -992,6 +1001,9 @@
   "vibe_infoExtraction": "信息提取",
   "vibe_adjustParams": "调整参数",
   "vibe_remove": "移除",
+  "reference_enabled": "启用",
+  "reference_enable": "启用参考",
+  "reference_disable": "禁用参考",
   "vibe_sliderHint": "强度: 越高越模仿视觉线索\n信息提取: 降低会减少纹理、保留构图",
   "vibe_strengthInfo": "强度: {value} | 信息提取: {infoValue}",
   "vibe_normalize": "标准化参考强度值",
@@ -4274,6 +4286,7 @@
   "settings_enableProxy": "启用代理",
   "settings_proxyEnabled": "已启用",
   "settings_proxyDisabled": "直接连接网络",
+  "settings_proxyTrafficDisclosure": "代理启用后，NovelAI API 流量（包括认证请求）会通过系统代理或手动代理发送。只使用你信任的代理。",
   "settings_proxyMode": "代理模式",
   "settings_proxyModeAuto": "自动检测系统代理",
   "settings_proxyModeManual": "手动配置",
@@ -5061,8 +5074,11 @@
   "vibe_export_exportAsFiles": "导出为文件",
   "vibe_export_exportBundleDescription": "导出为 .naiv4vibebundle 文件",
   "vibe_export_exportAsFilesDescription": "导出为 .naiv4vibe 或 .naiv4vibebundle 文件",
+  "vibe_export_exportAsZip": "导出为 ZIP",
+  "vibe_export_exportAsZipDescription": "将选中的 Vibe 库条目作为独立文件打包为 .zip",
   "vibe_export_compressData": "压缩数据",
   "vibe_export_compressDataDescription": "使用压缩以减小文件大小 (推荐用于批量导出)",
+  "vibe_export_zipCompressDescription": "压缩 ZIP 内的文件以减小体积",
   "vibe_export_exportAsPng": "导出为 PNG",
   "vibe_export_pngInternalBundleUnsupported": "导出单个 Bundle 内部 Vibe 时不支持嵌入图片",
   "vibe_export_embedVibeDataIntoPng": "将 Vibe 数据写入 PNG 元数据",
@@ -5080,10 +5096,19 @@
   "vibe_export_selectVibeExportFolder": "选择 Vibe 导出文件夹",
   "vibe_export_saveEncodingFile": "保存编码文件",
   "vibe_export_preparingExport": "正在准备导出...",
+  "vibe_export_preparingVibeProgress": "正在读取 Vibe {current}/{total}...",
+  "@vibe_export_preparingVibeProgress": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
   "vibe_export_exportingBundle": "正在导出 Bundle...",
+  "vibe_export_exportingZip": "正在导出 ZIP...",
   "vibe_export_embeddingImage": "正在嵌入图片...",
   "vibe_export_exportingEncoding": "正在导出编码...",
   "vibe_export_exportFailedWithError": "导出失败: {error}",
+  "vibe_export_noExportableEntries": "没有可导出的 Vibe 条目",
   "vibe_export_bundleFilePathEmpty": "Bundle 文件路径为空",
   "vibe_export_invalidImageFormatWithError": "无效的图片格式: {error}",
   "vibe_export_embedFailedWithError": "嵌入失败: {error}",
@@ -5130,6 +5155,23 @@
       "error": {"type": "String"}
     }
   },
+  "vibe_import_bundleTitle": "导入 Vibe Bundle",
+  "vibe_import_bundleChooseMethod": "选择导入方式",
+  "vibe_import_bundleAsWhole": "作为整体导入",
+  "vibe_import_bundleAsWholeDescription": "保留 Bundle 结构，并作为一个库条目导入",
+  "vibe_import_bundleSplitEntries": "拆分为独立条目",
+  "vibe_import_bundleSplitEntriesDescription": "将每个 Vibe 作为独立库条目导入",
+  "vibe_import_bundleSelectVibes": "选择要导入的 Vibe",
+  "vibe_import_bundleSelectVibesDescription": "仅导入选中的 Vibe",
+  "vibe_import_bundleConfigureEachVibe": "配置每个 Vibe 的参数",
+  "vibe_import_bundleSelectAndConfigureEachVibe": "选择并配置每个 Vibe 的参数",
+  "vibe_import_bundleSelectedCount": "已选择 {selected}/{total}",
+  "@vibe_import_bundleSelectedCount": {
+    "placeholders": {
+      "selected": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
   "vibe_saveToLibrary_title": "保存到库",
   "vibe_saveToLibrary_strength": "参考强度",
   "vibe_saveToLibrary_infoExtracted": "信息提取",
@@ -5167,6 +5209,14 @@
       "count": {"type": "int"}
     }
   },
+  "vibe_saveToLibrary_saveAsBundle": "保存为 Bundle",
+  "vibe_saveToLibrary_saveAsBundleDescription": "将 {count} 个 Vibe 保存为一个 Bundle",
+  "@vibe_saveToLibrary_saveAsBundleDescription": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "vibe_saveToLibrary_tagHint": "输入标签后点击添加",
   "vibe_maxReached": "已达到最大数量 (16张)",
   "vibe_maxReachedRemoveSome": "已达到最大数量 (16张)，请先移除一些 Vibe",
   "vibe_addedNamed": "已添加 Vibe: {name}",

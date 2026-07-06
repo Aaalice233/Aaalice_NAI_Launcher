@@ -12,6 +12,7 @@ import '../../../../core/utils/vibe_export_utils.dart';
 import '../../../../core/utils/vibe_image_embedder.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/services/vibe_file_storage_service.dart';
+import '../../../../data/services/vibe_library_storage_service.dart';
 import '../../../widgets/common/app_toast.dart';
 
 /// Vibe 导出对话框（高级版）
@@ -19,10 +20,7 @@ import '../../../widgets/common/app_toast.dart';
 class VibeExportDialogAdvanced extends ConsumerStatefulWidget {
   final List<VibeLibraryEntry> entries;
 
-  const VibeExportDialogAdvanced({
-    super.key,
-    required this.entries,
-  });
+  const VibeExportDialogAdvanced({super.key, required this.entries});
 
   @override
   ConsumerState<VibeExportDialogAdvanced> createState() =>
@@ -43,6 +41,7 @@ class _VibeExportDialogAdvancedState
   bool _exportBundle = true;
   bool _embedIntoImage = false;
   bool _exportEncoding = false;
+  bool _exportZip = false;
 
   // Bundle 选项
   bool _bundleIncludeThumbnail = true;
@@ -69,6 +68,8 @@ class _VibeExportDialogAdvancedState
 
   // 错误信息
   String? _errorMessage;
+
+  List<VibeLibraryEntry>? _resolvedEntries;
 
   /// 是否为单选 bundle
   bool get _isSingleBundle {
@@ -102,6 +103,7 @@ class _VibeExportDialogAdvancedState
   void didUpdateWidget(covariant VibeExportDialogAdvanced oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.entries != widget.entries) {
+      _resolvedEntries = null;
       _syncInternalVibeSelections();
       _rebuildCarrierImageOptions();
     }
@@ -123,17 +125,18 @@ class _VibeExportDialogAdvancedState
       ..addAll(List<bool>.filled(count, true));
   }
 
-  void _rebuildCarrierImageOptions() {
-    if (widget.entries.length != 1) {
+  void _rebuildCarrierImageOptions([List<VibeLibraryEntry>? sourceEntries]) {
+    final entries = sourceEntries ?? widget.entries;
+    if (entries.length != 1) {
       _carrierImageOptions = const [];
       _selectedCarrierImageId = null;
       return;
     }
 
     final options = <_CarrierImageOption>[];
-    for (final entry in widget.entries) {
+    for (final entry in entries) {
       for (final candidate in VibeExportUtils.collectImageCandidates(entry)) {
-        final label = widget.entries.length == 1
+        final label = entries.length == 1
             ? candidate.label
             : '${entry.displayName} - ${candidate.label}';
         options.add(
@@ -147,12 +150,14 @@ class _VibeExportDialogAdvancedState
     }
 
     _carrierImageOptions = options;
-    if (_carrierImageOptions
-        .any((option) => option.id == _selectedCarrierImageId)) {
+    if (_carrierImageOptions.any(
+      (option) => option.id == _selectedCarrierImageId,
+    )) {
       return;
     }
-    _selectedCarrierImageId =
-        _carrierImageOptions.isNotEmpty ? _carrierImageOptions.first.id : null;
+    _selectedCarrierImageId = _carrierImageOptions.isNotEmpty
+        ? _carrierImageOptions.first.id
+        : null;
   }
 
   Uint8List? _currentCarrierImageBytes() {
@@ -235,6 +240,8 @@ class _VibeExportDialogAdvancedState
                         if (!isSingleBundle || _exportWholeBundle) ...[
                           _buildExportBundleOption(theme),
                           const SizedBox(height: 16),
+                          _buildExportZipOption(theme),
+                          const SizedBox(height: 16),
                         ],
 
                         // 单选 bundle 时的导出模式选择
@@ -301,8 +308,9 @@ class _VibeExportDialogAdvancedState
                     ),
                     const SizedBox(width: 12),
                     FilledButton.icon(
-                      onPressed:
-                          _validateExportOptions().isValid ? _export : null,
+                      onPressed: _validateExportOptions().isValid
+                          ? _export
+                          : null,
                       icon: const Icon(Icons.file_upload),
                       label: Text(context.l10n.common_export),
                     ),
@@ -405,11 +413,7 @@ class _VibeExportDialogAdvancedState
         children: [
           Row(
             children: [
-              Icon(
-                Icons.checklist,
-                size: 20,
-                color: theme.colorScheme.primary,
-              ),
+              Icon(Icons.checklist, size: 20, color: theme.colorScheme.primary),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -447,8 +451,9 @@ class _VibeExportDialogAdvancedState
               itemCount: names.length,
               itemBuilder: (context, index) {
                 final name = names[index];
-                final preview =
-                    index < previews.length ? previews[index] : null;
+                final preview = index < previews.length
+                    ? previews[index]
+                    : null;
                 final isSelected = _selectedInternalVibes[index];
 
                 return CheckboxListTile(
@@ -566,6 +571,49 @@ class _VibeExportDialogAdvancedState
                   },
                   title: context.l10n.vibe_export_compressData,
                   subtitle: context.l10n.vibe_export_compressDataDescription,
+                ),
+              ],
+            )
+          : null,
+    );
+  }
+
+  Widget _buildExportZipOption(ThemeData theme) {
+    return _OptionCard(
+      isSelected: _exportZip,
+      onTap: () {
+        setState(() {
+          _exportZip = !_exportZip;
+          _errorMessage = _validateExportOptions().errorMessage;
+        });
+      },
+      icon: Icons.archive_outlined,
+      title: context.l10n.vibe_export_exportAsZip,
+      subtitle: context.l10n.vibe_export_exportAsZipDescription,
+      child: _exportZip
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 12),
+                const Divider(height: 1),
+                const SizedBox(height: 12),
+                _buildCheckbox(
+                  value: _bundleIncludeThumbnail,
+                  onChanged: (value) {
+                    setState(() => _bundleIncludeThumbnail = value ?? true);
+                  },
+                  title: context.l10n.vibe_export_include_thumbnails,
+                  subtitle:
+                      context.l10n.vibe_export_include_thumbnails_subtitle,
+                ),
+                const SizedBox(height: 8),
+                _buildCheckbox(
+                  value: _bundleCompress,
+                  onChanged: (value) {
+                    setState(() => _bundleCompress = value ?? false);
+                  },
+                  title: context.l10n.vibe_export_compressData,
+                  subtitle: context.l10n.vibe_export_zipCompressDescription,
                 ),
               ],
             )
@@ -885,7 +933,7 @@ class _VibeExportDialogAdvancedState
     }
 
     // 确保至少选择一种导出方式
-    if (!_exportBundle && !_embedIntoImage && !_exportEncoding) {
+    if (!_exportBundle && !_embedIntoImage && !_exportEncoding && !_exportZip) {
       return _ValidationResult(
         isValid: false,
         errorMessage: context.l10n.vibe_export_selectAtLeastOneMethod,
@@ -980,10 +1028,22 @@ class _VibeExportDialogAdvancedState
     });
 
     try {
+      final entries = await _resolveEntriesForExport();
+      if (entries.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _isExporting = false;
+            _errorMessage = context.l10n.vibe_export_noExportableEntries;
+          });
+        }
+        return;
+      }
+
       final results = <String>[];
       var completed = 0;
       final total = [
         if (_exportBundle) 1,
+        if (_exportZip) 1,
         if (_embedIntoImage) 1,
         if (_exportEncoding) 1,
       ].length;
@@ -993,9 +1053,21 @@ class _VibeExportDialogAdvancedState
         setState(() {
           _statusMessage = context.l10n.vibe_export_exportingBundle;
         });
-        final bundlePath = await _exportBundleFile();
+        final bundlePath = await _exportBundleFile(entries);
         if (bundlePath != null) {
           results.add('Bundle: $bundlePath');
+        }
+        completed++;
+        setState(() => _progress = completed / total);
+      }
+
+      if (_exportZip) {
+        setState(() {
+          _statusMessage = context.l10n.vibe_export_exportingZip;
+        });
+        final zipPath = await _exportZipFile(entries);
+        if (zipPath != null) {
+          results.add('ZIP: $zipPath');
         }
         completed++;
         setState(() => _progress = completed / total);
@@ -1006,7 +1078,7 @@ class _VibeExportDialogAdvancedState
         setState(() {
           _statusMessage = context.l10n.vibe_export_embeddingImage;
         });
-        final embedPath = await _embedIntoImageFile();
+        final embedPath = await _embedIntoImageFile(entries);
         if (embedPath != null) {
           results.add('Image: $embedPath');
         }
@@ -1019,12 +1091,19 @@ class _VibeExportDialogAdvancedState
         setState(() {
           _statusMessage = context.l10n.vibe_export_exportingEncoding;
         });
-        final encodingPath = await _exportEncodingFile();
+        final encodingPath = await _exportEncodingFile(entries);
         if (encodingPath != null) {
           results.add('Encoding: $encodingPath');
         }
         completed++;
         setState(() => _progress = 1.0);
+      }
+
+      if (results.isEmpty) {
+        if (mounted) {
+          setState(() => _isExporting = false);
+        }
+        return;
       }
 
       // 显示成功提示
@@ -1045,14 +1124,49 @@ class _VibeExportDialogAdvancedState
     }
   }
 
-  /// 导出 Bundle 文件
-  Future<String?> _exportBundleFile() async {
-    // 处理单选 bundle 且选择导出内部单个 vibe 的情况
-    if (_isSingleBundle && !_exportWholeBundle) {
-      return _exportSelectedInternalVibes();
+  Future<List<VibeLibraryEntry>> _resolveEntriesForExport() async {
+    final cached = _resolvedEntries;
+    if (cached != null) {
+      return cached;
     }
 
-    final vibes = widget.entries.map((e) => e.toVibeReference()).toList();
+    final sourceEntries = widget.entries;
+    if (sourceEntries.isEmpty) {
+      return const <VibeLibraryEntry>[];
+    }
+
+    final storage = ref.read(vibeLibraryStorageServiceProvider);
+    final resolvedEntries = <VibeLibraryEntry>[];
+    for (var i = 0; i < sourceEntries.length; i++) {
+      final sourceEntry = sourceEntries[i];
+      if (mounted) {
+        setState(() {
+          _statusMessage = context.l10n.vibe_export_preparingVibeProgress(
+            i + 1,
+            sourceEntries.length,
+          );
+        });
+      }
+
+      final resolvedEntry = await storage.getEntry(sourceEntry.id);
+      resolvedEntries.add(resolvedEntry ?? sourceEntry);
+    }
+
+    _resolvedEntries = resolvedEntries;
+    if (resolvedEntries.length == 1) {
+      _rebuildCarrierImageOptions(resolvedEntries);
+    }
+    return resolvedEntries;
+  }
+
+  /// 导出 Bundle 文件
+  Future<String?> _exportBundleFile(List<VibeLibraryEntry> entries) async {
+    // 处理单选 bundle 且选择导出内部单个 vibe 的情况
+    if (_isSingleBundle && !_exportWholeBundle) {
+      return _exportSelectedInternalVibes(entries);
+    }
+
+    final vibes = entries.map((e) => e.toVibeReference()).toList();
 
     if (vibes.isEmpty) return null;
 
@@ -1060,21 +1174,34 @@ class _VibeExportDialogAdvancedState
       // 单个导出为 .naiv4vibe
       return VibeExportUtils.exportToNaiv4Vibe(
         vibes.first,
-        name: widget.entries.first.displayName,
+        name: entries.first.displayName,
       );
     } else {
       // 多个导出为 .naiv4vibebundle
       final bundleName = 'vibe_bundle_${vibes.length}';
-      return VibeExportUtils.exportToNaiv4VibeBundle(
-        vibes,
-        bundleName,
-      );
+      return VibeExportUtils.exportToNaiv4VibeBundle(vibes, bundleName);
     }
   }
 
+  Future<String?> _exportZipFile(List<VibeLibraryEntry> entries) async {
+    if (entries.isEmpty) return null;
+
+    final zipName = entries.length == 1
+        ? '${entries.first.displayName}_vibe_files'
+        : 'vibe_library_${entries.length}_items';
+    return VibeExportUtils.exportEntriesToZip(
+      entries,
+      name: zipName,
+      includeThumbnails: _bundleIncludeThumbnail,
+      compress: _bundleCompress,
+    );
+  }
+
   /// 导出选中的内部 vibe（从 bundle 中提取）
-  Future<String?> _exportSelectedInternalVibes() async {
-    final entry = widget.entries.first;
+  Future<String?> _exportSelectedInternalVibes(
+    List<VibeLibraryEntry> entries,
+  ) async {
+    final entry = entries.first;
     final filePath = entry.filePath;
 
     if (filePath == null || filePath.isEmpty) {
@@ -1136,9 +1263,9 @@ class _VibeExportDialogAdvancedState
   }
 
   /// 嵌入到图片
-  Future<String?> _embedIntoImageFile() async {
-    if (widget.entries.isEmpty) return null;
-    if (widget.entries.length > 1) {
+  Future<String?> _embedIntoImageFile(List<VibeLibraryEntry> entries) async {
+    if (entries.isEmpty) return null;
+    if (entries.length > 1) {
       return null;
     }
 
@@ -1148,11 +1275,10 @@ class _VibeExportDialogAdvancedState
     }
 
     try {
-      final vibes =
-          widget.entries.map((entry) => entry.toVibeReference()).toList();
-      final fileName = widget.entries.length == 1
-          ? '${widget.entries.first.displayName}_vibe.png'
-          : 'vibe_bundle_${widget.entries.length}.png';
+      final vibes = entries.map((entry) => entry.toVibeReference()).toList();
+      final fileName = entries.length == 1
+          ? '${entries.first.displayName}_vibe.png'
+          : 'vibe_bundle_${entries.length}.png';
 
       return VibeExportUtils.exportToEmbeddedPng(
         vibes,
@@ -1164,9 +1290,7 @@ class _VibeExportDialogAdvancedState
         context.l10n.vibe_export_invalidImageFormatWithError(e.message),
       );
     } on VibeEmbedException catch (e) {
-      throw Exception(
-        context.l10n.vibe_export_embedFailedWithError(e.message),
-      );
+      throw Exception(context.l10n.vibe_export_embedFailedWithError(e.message));
     } catch (e) {
       throw Exception(
         context.l10n.vibe_export_embedImageFailedWithError(e.toString()),
@@ -1175,15 +1299,15 @@ class _VibeExportDialogAdvancedState
   }
 
   /// 导出编码文件
-  Future<String?> _exportEncodingFile() async {
-    if (widget.entries.isEmpty) return null;
+  Future<String?> _exportEncodingFile(List<VibeLibraryEntry> entries) async {
+    if (entries.isEmpty) return null;
 
     // 生成编码内容
     final buffer = StringBuffer();
 
-    if (widget.entries.length == 1) {
+    if (entries.length == 1) {
       // 单个 Vibe
-      final entry = widget.entries.first;
+      final entry = entries.first;
       final vibeRef = entry.toVibeReference();
 
       if (_encodingAsJson) {
@@ -1194,8 +1318,8 @@ class _VibeExportDialogAdvancedState
     } else {
       // 多个 Vibe - 导出为数组格式
       buffer.writeln('[');
-      for (var i = 0; i < widget.entries.length; i++) {
-        final entry = widget.entries[i];
+      for (var i = 0; i < entries.length; i++) {
+        final entry = entries[i];
         final vibeRef = entry.toVibeReference();
 
         if (_encodingAsJson) {
@@ -1204,7 +1328,7 @@ class _VibeExportDialogAdvancedState
           buffer.writeln(VibeEncodingUtils.encodeToBase64(vibeRef));
         }
 
-        if (i < widget.entries.length - 1) {
+        if (i < entries.length - 1) {
           buffer.writeln(',');
         }
       }
@@ -1213,8 +1337,8 @@ class _VibeExportDialogAdvancedState
 
     // 选择保存位置
     final extension = _encodingAsJson ? 'json' : 'txt';
-    final fileName = widget.entries.length == 1
-        ? '${widget.entries.first.displayName}_encoding.$extension'
+    final fileName = entries.length == 1
+        ? '${entries.first.displayName}_encoding.$extension'
         : 'vibe_encodings_$extension';
 
     final savePath = await FilePicker.platform.saveFile(
@@ -1279,16 +1403,16 @@ class _OptionCard extends StatelessWidget {
             color: isDisabled
                 ? theme.colorScheme.outlineVariant.withValues(alpha: 0.3)
                 : isSelected
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.outlineVariant,
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outlineVariant,
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(12),
           color: isDisabled
               ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
               : isSelected
-                  ? theme.colorScheme.primaryContainer.withValues(alpha: 0.2)
-                  : theme.colorScheme.surface,
+              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.2)
+              : theme.colorScheme.surface,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1304,16 +1428,16 @@ class _OptionCard extends StatelessWidget {
                       color: isDisabled
                           ? theme.colorScheme.outline.withValues(alpha: 0.3)
                           : isSelected
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.outline,
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.outline,
                       width: 2,
                     ),
                     borderRadius: BorderRadius.circular(4),
                     color: isDisabled
                         ? theme.colorScheme.surface
                         : isSelected
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.surface,
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.surface,
                   ),
                   child: isSelected && !isDisabled
                       ? Icon(
@@ -1334,11 +1458,12 @@ class _OptionCard extends StatelessWidget {
                             icon,
                             size: 20,
                             color: isDisabled
-                                ? theme.colorScheme.outline
-                                    .withValues(alpha: 0.5)
+                                ? theme.colorScheme.outline.withValues(
+                                    alpha: 0.5,
+                                  )
                                 : isSelected
-                                    ? theme.colorScheme.primary
-                                    : theme.colorScheme.onSurface,
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurface,
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -1347,11 +1472,12 @@ class _OptionCard extends StatelessWidget {
                               style: theme.textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: isDisabled
-                                    ? theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.5)
+                                    ? theme.colorScheme.onSurface.withValues(
+                                        alpha: 0.5,
+                                      )
                                     : isSelected
-                                        ? theme.colorScheme.primary
-                                        : theme.colorScheme.onSurface,
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurface,
                               ),
                             ),
                           ),

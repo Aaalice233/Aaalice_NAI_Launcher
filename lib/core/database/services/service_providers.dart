@@ -32,28 +32,16 @@ Future<DanbooruTagDataSource> danbooruTagDataSource(Ref ref) async {
 @Riverpod(keepAlive: true)
 Future<TranslationDataSource> translationDataSource(Ref ref) async {
   // 等待数据库管理器就绪
-  await ref.watch(databaseManagerProvider.future);
-
-  final dataSource = TranslationDataSource();
-
-  // 数据源通过 ConnectionPoolHolder 在需要时动态获取连接
-  await dataSource.initialize();
-
-  return dataSource;
+  final manager = await ref.watch(databaseManagerProvider.future);
+  return manager.translationDataSource;
 }
 
 /// Cooccurrence DataSource Provider
 @Riverpod(keepAlive: true)
 Future<CooccurrenceDataSource> cooccurrenceDataSource(Ref ref) async {
   // 等待数据库管理器就绪
-  await ref.watch(databaseManagerProvider.future);
-
-  final dataSource = CooccurrenceDataSource();
-
-  // 数据源通过 ConnectionPoolHolder 在需要时动态获取连接
-  await dataSource.initialize();
-
-  return dataSource;
+  final manager = await ref.watch(databaseManagerProvider.future);
+  return manager.cooccurrenceDataSource;
 }
 
 /// 翻译服务 Provider
@@ -74,6 +62,8 @@ Future<CooccurrenceService> cooccurrenceService(Ref ref) async {
 @Riverpod(keepAlive: true)
 Future<CompletionService> completionService(Ref ref) async {
   final tagDataSource = await ref.watch(danbooruTagDataSourceProvider.future);
-  final translationDataSource = await ref.watch(translationDataSourceProvider.future);
+  final translationDataSource = await ref.watch(
+    translationDataSourceProvider.future,
+  );
   return CompletionService(tagDataSource, translationDataSource);
 }

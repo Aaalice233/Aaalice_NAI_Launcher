@@ -63,7 +63,7 @@ class NAIAuthApiService {
 
     try {
       final response = await _dio.get(
-        endpoint.imageUrl(ApiConstants.userSubscriptionEndpoint),
+        endpoint.userUrl(ApiConstants.userSubscriptionEndpoint),
         options: Options(
           headers: {'Authorization': authHeader},
           receiveTimeout: _timeout,

@@ -51,6 +51,9 @@ __pycache__/
 *.swo
 *~
 
+# 本地 Codex/agent 指令
+AGENTS.md
+
 
 # ===========================================================================
 # 操作系统产物
@@ -204,6 +207,14 @@ logs/security/
 test_results/
 test_hive/
 
+# 测试源码默认纳入版本控制；只忽略测试运行产生的临时输出。
+test/**/.dart_tool/
+test/**/.tmp/
+test/**/tmp/
+test/**/temp/
+test/**/*.tmp
+test/**/*.log
+
 # 项目管理文件
 GEMINI.md
 
@@ -234,6 +245,7 @@ NAI COPY/
 # 构建和分析报告
 analyze_report.txt
 install-log.txt
+CRASH_AUDIT_REPORT.md
 
 
 # ===========================================================================

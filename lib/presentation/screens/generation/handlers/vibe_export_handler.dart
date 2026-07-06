@@ -21,10 +21,7 @@ import '../../../widgets/common/app_toast.dart';
 /// - 嵌入 Vibe 数据到 PNG 图片
 /// - 导出进度和错误处理
 class VibeExportHandler {
-  VibeExportHandler({
-    required this.ref,
-    required this.context,
-  });
+  VibeExportHandler({required this.ref, required this.context});
 
   final WidgetRef ref;
   final BuildContext context;
@@ -179,10 +176,7 @@ class VibeExportHandler {
 
     if (context.mounted) {
       if (successCount == vibes.length) {
-        AppToast.success(
-          context,
-          l10n.vibe_export_bundleSuccess(successCount),
-        );
+        AppToast.success(context, l10n.vibe_export_bundleSuccess(successCount));
       } else if (successCount > 0) {
         AppToast.warning(
           context,
@@ -288,7 +282,9 @@ class VibeExportHandler {
 
                     return CheckboxListTile(
                       title: Text(vibe.displayName),
-                      subtitle: Text(vibe.sourceType.displayLabel),
+                      subtitle: Text(
+                        context.vibeSourceTypeLabel(vibe.sourceType),
+                      ),
                       value: isSelected,
                       onChanged: (value) {
                         setState(() {
@@ -374,11 +370,7 @@ class VibeExportHandler {
     final l10n = context.l10n;
 
     return PopupMenuButton<String>(
-      icon: Icon(
-        Icons.download,
-        size: 18,
-        color: theme.colorScheme.primary,
-      ),
+      icon: Icon(Icons.download, size: 18, color: theme.colorScheme.primary),
       tooltip: l10n.vibe_export_title,
       offset: const Offset(0, 32),
       itemBuilder: (context) => [
@@ -400,11 +392,7 @@ class VibeExportHandler {
           value: 'image',
           child: Row(
             children: [
-              Icon(
-                Icons.image,
-                size: 18,
-                color: theme.colorScheme.secondary,
-              ),
+              Icon(Icons.image, size: 18, color: theme.colorScheme.secondary),
               const SizedBox(width: 8),
               Text(l10n.vibe_embedToImage),
             ],

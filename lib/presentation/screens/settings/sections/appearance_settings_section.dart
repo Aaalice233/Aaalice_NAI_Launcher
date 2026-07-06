@@ -68,11 +68,7 @@ class _AppearanceSettingsSectionState
           ListTile(
             leading: const Icon(Icons.language),
             title: Text(context.l10n.settings_language),
-            subtitle: Text(
-              currentLocale.languageCode == 'zh'
-                  ? context.l10n.settings_languageChinese
-                  : context.l10n.settings_languageEnglish,
-            ),
+            subtitle: Text(_languageLabel(context, currentLocale.languageCode)),
             onTap: () => _showLanguageDialog(context, currentLocale),
           ),
         ],
@@ -80,10 +76,7 @@ class _AppearanceSettingsSectionState
     );
   }
 
-  void _showThemeDialog(
-    BuildContext context,
-    AppStyle currentTheme,
-  ) {
+  void _showThemeDialog(BuildContext context, AppStyle currentTheme) {
     // grungeCollage 已是 enum 第一个，无需手动排序
     const sortedStyles = AppStyle.values;
 
@@ -129,10 +122,7 @@ class _AppearanceSettingsSectionState
     );
   }
 
-  void _showFontDialog(
-    BuildContext context,
-    FontConfig currentFont,
-  ) {
+  void _showFontDialog(BuildContext context, FontConfig currentFont) {
     showDialog(
       context: context,
       builder: (dialogContext) {
@@ -167,8 +157,9 @@ class _AppearanceSettingsSectionState
                       child: ListView.builder(
                         itemCount: fontGroups.length,
                         itemBuilder: (context, groupIndex) {
-                          final groupName =
-                              fontGroups.keys.elementAt(groupIndex);
+                          final groupName = fontGroups.keys.elementAt(
+                            groupIndex,
+                          );
                           final fonts = fontGroups[groupName]!;
 
                           return Column(
@@ -179,9 +170,7 @@ class _AppearanceSettingsSectionState
                                 padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
                                 child: Text(
                                   '$groupName (${fonts.length})',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleSmall
+                                  style: Theme.of(context).textTheme.titleSmall
                                       ?.copyWith(
                                         color: Theme.of(
                                           context,
@@ -207,9 +196,9 @@ class _AppearanceSettingsSectionState
                                     ),
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? Theme.of(context)
-                                              .colorScheme
-                                              .primaryContainer
+                                          ? Theme.of(
+                                              context,
+                                            ).colorScheme.primaryContainer
                                           : null,
                                       borderRadius: BorderRadius.circular(8),
                                     ),
@@ -223,13 +212,13 @@ class _AppearanceSettingsSectionState
                                             style: TextStyle(
                                               fontFamily:
                                                   font.fontFamily.isEmpty
-                                                      ? null
-                                                      : font.fontFamily,
+                                                  ? null
+                                                  : font.fontFamily,
                                               fontSize: 16,
                                               color: isSelected
                                                   ? Theme.of(context)
-                                                      .colorScheme
-                                                      .onPrimaryContainer
+                                                        .colorScheme
+                                                        .onPrimaryContainer
                                                   : null,
                                             ),
                                             maxLines: 1,
@@ -243,9 +232,9 @@ class _AppearanceSettingsSectionState
                                               vertical: 2,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .secondaryContainer,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.secondaryContainer,
                                               borderRadius:
                                                   BorderRadius.circular(4),
                                             ),
@@ -266,9 +255,9 @@ class _AppearanceSettingsSectionState
                                             ),
                                             child: Icon(
                                               Icons.check,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onPrimaryContainer,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.onPrimaryContainer,
                                               size: 20,
                                             ),
                                           ),
@@ -300,10 +289,7 @@ class _AppearanceSettingsSectionState
     );
   }
 
-  void _showLanguageDialog(
-    BuildContext context,
-    Locale currentLocale,
-  ) {
+  void _showLanguageDialog(BuildContext context, Locale currentLocale) {
     showDialog(
       context: context,
       builder: (dialogContext) {
@@ -328,6 +314,10 @@ class _AppearanceSettingsSectionState
                   title: Text(context.l10n.settings_languageEnglish),
                   value: 'en',
                 ),
+                RadioListTile<String>(
+                  title: Text(context.l10n.settings_languageJapanese),
+                  value: 'ja',
+                ),
               ],
             ),
           ),
@@ -342,10 +332,18 @@ class _AppearanceSettingsSectionState
     );
   }
 
-  void _showFontScaleDialog(
-    BuildContext context,
-    double currentScale,
-  ) {
+  String _languageLabel(BuildContext context, String languageCode) {
+    switch (languageCode) {
+      case 'zh':
+        return context.l10n.settings_languageChinese;
+      case 'ja':
+        return context.l10n.settings_languageJapanese;
+      default:
+        return context.l10n.settings_languageEnglish;
+    }
+  }
+
+  void _showFontScaleDialog(BuildContext context, double currentScale) {
     showDialog(
       context: context,
       builder: (dialogContext) {
@@ -422,9 +420,7 @@ class _AppearanceSettingsSectionState
                                   currentScale = value;
                                 });
                                 ref
-                                    .read(
-                                      fontScaleNotifierProvider.notifier,
-                                    )
+                                    .read(fontScaleNotifierProvider.notifier)
                                     .setFontScale(value);
                               },
                             ),

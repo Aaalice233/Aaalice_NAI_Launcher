@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
@@ -54,11 +55,7 @@ class VibeExportUtils {
         return;
       }
       candidates.add(
-        VibeExportImageCandidate(
-          id: id,
-          label: label,
-          bytes: bytes,
-        ),
+        VibeExportImageCandidate(id: id, label: label, bytes: bytes),
       );
     }
 
@@ -200,12 +197,7 @@ class VibeExportUtils {
     try {
       // 检查是否有可导出的数据
       if (!_hasExportableData(vibe)) {
-        AppLogger.e(
-          '无法导出：Vibe 没有编码数据或原始图片',
-          null,
-          null,
-          'VibeExport',
-        );
+        AppLogger.e('无法导出：Vibe 没有编码数据或原始图片', null, null, 'VibeExport');
         return null;
       }
 
@@ -286,11 +278,215 @@ class VibeExportUtils {
     }
   }
 
+  /// 导出多个库条目为一个 ZIP 包。
+  ///
+  /// ZIP 内部会尽量保持“一个库条目一个文件”的直观结构：
+  /// - 普通 Vibe 条目导出为 `.naiv4vibe`
+  /// - Bundle 条目导出为 `.naiv4vibebundle`
+  static Future<String?> exportEntriesToZip(
+    List<VibeLibraryEntry> entries, {
+    String? name,
+    bool includeThumbnails = true,
+    bool compress = true,
+  }) async {
+    try {
+      if (entries.isEmpty) {
+        AppLogger.e('无法导出 ZIP：Vibe 列表为空', null, null, 'VibeExport');
+        return null;
+      }
+
+      final fileName = _generateZipFileName(name ?? 'vibe_library_export');
+      final outputFile = await _resolveOutputFilePath(
+        outputDirectory: null,
+        fileName: fileName,
+        dialogTitle: '导出 Vibe ZIP',
+        allowedExtensions: const ['zip'],
+      );
+
+      if (outputFile == null) {
+        AppLogger.i('用户取消了 ZIP 保存', 'VibeExport');
+        return null;
+      }
+
+      final zipBytes = await buildVibeZipArchiveBytes(
+        entries,
+        includeThumbnails: includeThumbnails,
+        compress: compress,
+      );
+      await File(outputFile).writeAsBytes(zipBytes);
+
+      AppLogger.i('Vibe ZIP 导出成功: $outputFile', 'VibeExport');
+      return outputFile;
+    } catch (e, stack) {
+      AppLogger.e('导出 Vibe ZIP 失败', e, stack, 'VibeExport');
+      return null;
+    }
+  }
+
+  /// 构建 Vibe ZIP 字节，用于 UI 导出和单元测试。
+  static Future<Uint8List> buildVibeZipArchiveBytes(
+    List<VibeLibraryEntry> entries, {
+    bool includeThumbnails = true,
+    bool compress = true,
+  }) async {
+    if (entries.isEmpty) {
+      throw ArgumentError('entries 不能为空');
+    }
+
+    final archive = Archive();
+    final usedNames = <String>{};
+
+    for (final entry in entries) {
+      final archiveFile = await _buildZipFileForEntry(
+        entry,
+        usedNames: usedNames,
+        includeThumbnails: includeThumbnails,
+      );
+      if (archiveFile != null) {
+        archive.addFile(archiveFile);
+      }
+    }
+
+    if (archive.files.isEmpty) {
+      throw StateError('没有可导出的 Vibe 条目');
+    }
+
+    final zipBytes = ZipEncoder().encode(
+      archive,
+      level: compress ? Deflate.BEST_COMPRESSION : Deflate.NO_COMPRESSION,
+    );
+    if (zipBytes == null) {
+      throw StateError('ZIP 编码失败');
+    }
+
+    return Uint8List.fromList(zipBytes);
+  }
+
+  static Future<ArchiveFile?> _buildZipFileForEntry(
+    VibeLibraryEntry entry, {
+    required Set<String> usedNames,
+    required bool includeThumbnails,
+  }) async {
+    final fileName = _uniqueArchiveFileName(
+      _archiveFileNameForEntry(entry),
+      usedNames,
+    );
+
+    final bytes = await _zipBytesForEntry(
+      entry,
+      includeThumbnails: includeThumbnails,
+    );
+    if (bytes == null || bytes.isEmpty) {
+      AppLogger.w('跳过无法导出的 ZIP 条目: ${entry.displayName}', 'VibeExport');
+      return null;
+    }
+
+    return ArchiveFile(fileName, bytes.length, bytes);
+  }
+
+  static Future<Uint8List?> _zipBytesForEntry(
+    VibeLibraryEntry entry, {
+    required bool includeThumbnails,
+  }) async {
+    if (entry.isBundle) {
+      final filePath = entry.filePath;
+      if (filePath != null &&
+          filePath.isNotEmpty &&
+          p.extension(filePath).toLowerCase() == '.naiv4vibebundle') {
+        final file = File(filePath);
+        if (await file.exists()) {
+          return file.readAsBytes();
+        }
+      }
+
+      final bundleVibes = _buildBundleVibesFromEntry(entry);
+      if (bundleVibes.isEmpty) {
+        return null;
+      }
+      final bundleJson = await _generateBundleJson(
+        bundleVibes,
+        includeThumbnails: includeThumbnails,
+      );
+      return Uint8List.fromList(utf8.encode(bundleJson));
+    }
+
+    final vibe = entry.toVibeReference();
+    if (!_hasExportableData(vibe)) {
+      return null;
+    }
+
+    final jsonData = await _generateNaiv4VibeJson(
+      vibe,
+      name: entry.displayName,
+      includeThumbnail: includeThumbnails,
+    );
+    return Uint8List.fromList(utf8.encode(jsonData));
+  }
+
+  static List<VibeReference> _buildBundleVibesFromEntry(
+    VibeLibraryEntry entry,
+  ) {
+    final names = entry.bundledVibeNames;
+    if (names == null || names.isEmpty) {
+      return const <VibeReference>[];
+    }
+
+    final encodings = entry.bundledVibeEncodings;
+    final previews = entry.bundledVibePreviews;
+    final strengths = entry.bundledVibeStrengths;
+    final infoExtracted = entry.bundledVibeInfoExtracted;
+
+    return [
+      for (var i = 0; i < names.length; i++)
+        VibeReference(
+          displayName: names[i],
+          vibeEncoding: encodings != null && i < encodings.length
+              ? encodings[i]
+              : '',
+          thumbnail: previews != null && i < previews.length
+              ? previews[i]
+              : null,
+          strength: strengths != null && i < strengths.length
+              ? strengths[i]
+              : entry.strength,
+          infoExtracted: infoExtracted != null && i < infoExtracted.length
+              ? infoExtracted[i]
+              : entry.infoExtracted,
+          sourceType: VibeSourceType.naiv4vibebundle,
+        ),
+    ];
+  }
+
+  static String _archiveFileNameForEntry(VibeLibraryEntry entry) {
+    final extension = entry.isBundle ? 'naiv4vibebundle' : 'naiv4vibe';
+    final baseName = FileNameSanitizer.sanitize(
+      entry.displayName,
+      fallback: entry.isBundle ? 'vibe-bundle' : 'vibe',
+      maxLength: 80,
+    );
+    return '$baseName.$extension';
+  }
+
+  static String _uniqueArchiveFileName(String fileName, Set<String> usedNames) {
+    final extension = p.extension(fileName);
+    final baseName = p.basenameWithoutExtension(fileName);
+    var candidate = fileName.replaceAll('\\', '/');
+    var index = 1;
+
+    while (!usedNames.add(candidate.toLowerCase())) {
+      candidate = '$baseName ($index)$extension';
+      index++;
+    }
+
+    return candidate;
+  }
+
   /// 生成 .naiv4vibe JSON 数据
   static Future<String> _generateNaiv4VibeJson(
     VibeReference vibe, {
     String? name,
     String defaultModel = 'nai-diffusion-4-full',
+    bool includeThumbnail = true,
   }) async {
     final displayName = name ?? vibe.displayName;
     final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -312,27 +508,29 @@ class VibeExportUtils {
     } else if (vibe.vibeEncoding.isNotEmpty) {
       // 预编码模式：导出为 encoding 类型
       type = 'encoding';
-      imageBase64 =
-          vibe.thumbnail != null ? base64Encode(vibe.thumbnail!) : null;
+      imageBase64 = vibe.thumbnail != null
+          ? base64Encode(vibe.thumbnail!)
+          : null;
 
       // 构建 encodings 结构
       encodings = {
         defaultModel: {
-          'vibe': {
-            'encoding': vibe.vibeEncoding,
-          },
+          'vibe': {'encoding': vibe.vibeEncoding},
         },
       };
     } else {
       // 使用缩略图作为图片
       type = 'image';
-      imageBase64 =
-          vibe.thumbnail != null ? base64Encode(vibe.thumbnail!) : null;
+      imageBase64 = vibe.thumbnail != null
+          ? base64Encode(vibe.thumbnail!)
+          : null;
       encodings = {};
     }
 
     // 生成缩略图（如果没有，使用原图缩小）
-    final String? thumbnailBase64 = await _generateThumbnailBase64(vibe);
+    final String? thumbnailBase64 = includeThumbnail
+        ? await _generateThumbnailBase64(vibe)
+        : null;
 
     // 构建 JSON 结构
     final jsonMap = <String, dynamic>{
@@ -357,20 +555,21 @@ class VibeExportUtils {
 
   /// 生成 bundle JSON 数据
   static Future<String> _generateBundleJson(
-    List<VibeReference> vibes,
-  ) async {
+    List<VibeReference> vibes, {
+    bool includeThumbnails = true,
+  }) async {
     final vibeEntries = <Map<String, dynamic>>[];
 
     for (final vibe in vibes) {
       if (!_hasExportableData(vibe)) {
-        AppLogger.w(
-          '跳过无法导出的 Vibe: ${vibe.displayName}',
-          'VibeExport',
-        );
+        AppLogger.w('跳过无法导出的 Vibe: ${vibe.displayName}', 'VibeExport');
         continue;
       }
 
-      final entry = await _generateBundleEntry(vibe);
+      final entry = await _generateBundleEntry(
+        vibe,
+        includeThumbnail: includeThumbnails,
+      );
       vibeEntries.add(entry);
     }
 
@@ -387,17 +586,16 @@ class VibeExportUtils {
   ///
   /// 包含：name、importInfo.strength、encodings、thumbnail
   static Future<Map<String, dynamic>> _generateBundleEntry(
-    VibeReference vibe,
-  ) async {
+    VibeReference vibe, {
+    bool includeThumbnail = true,
+  }) async {
     // 构建 encodings 结构
     final Map<String, dynamic> encodings;
 
     if (vibe.vibeEncoding.isNotEmpty) {
       encodings = {
         'nai-diffusion-4-full': {
-          'vibe': {
-            'encoding': vibe.vibeEncoding,
-          },
+          'vibe': {'encoding': vibe.vibeEncoding},
         },
       };
     } else {
@@ -414,7 +612,9 @@ class VibeExportUtils {
     };
 
     // 添加缩略图（如果存在）
-    final thumbnailBase64 = await _generateThumbnailBase64(vibe);
+    final thumbnailBase64 = includeThumbnail
+        ? await _generateThumbnailBase64(vibe)
+        : null;
     if (thumbnailBase64 != null && thumbnailBase64.isNotEmpty) {
       entry['thumbnail'] = thumbnailBase64;
     }
@@ -493,6 +693,16 @@ class VibeExportUtils {
     );
 
     return '$finalName.naiv4vibebundle';
+  }
+
+  static String _generateZipFileName(String name) {
+    final finalName = FileNameSanitizer.sanitize(
+      name,
+      fallback: 'vibe-library',
+      maxLength: 50,
+    );
+
+    return '$finalName.zip';
   }
 
   static String _generateEmbeddedPngFileName(String name) {

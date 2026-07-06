@@ -26,7 +26,8 @@ class VibeDetailCallbacks {
     bool isShiftPressed, {
     required bool applyParamOverrides,
     int? bundleChildParamOverrideIndex,
-  })? onSendToGeneration;
+  })?
+  onSendToGeneration;
 
   /// 导出回调
   final void Function(VibeLibraryEntry entry)? onExport;
@@ -36,7 +37,7 @@ class VibeDetailCallbacks {
 
   /// 重命名回调，返回错误信息（null 表示成功）
   final Future<String?> Function(VibeLibraryEntry entry, String newName)?
-      onRename;
+  onRename;
 
   /// 显式保存参数回调（仅在用户点击保存时触发）
   final Future<VibeLibraryEntry?> Function(
@@ -44,7 +45,8 @@ class VibeDetailCallbacks {
     double strength,
     double infoExtracted,
     int? bundleChildIndex,
-  )? onSaveParams;
+  )?
+  onSaveParams;
 
   const VibeDetailCallbacks({
     this.onSendToGeneration,
@@ -134,12 +136,12 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
       final savedInfoExtracted = _entry.bundledVibeInfoExtracted;
       final savedStrength =
           savedStrengths != null && index < savedStrengths.length
-              ? savedStrengths[index]
-              : _entry.strength;
+          ? savedStrengths[index]
+          : _entry.strength;
       final savedInfo =
           savedInfoExtracted != null && index < savedInfoExtracted.length
-              ? savedInfoExtracted[index]
-              : _entry.infoExtracted;
+          ? savedInfoExtracted[index]
+          : _entry.infoExtracted;
       return strengths[index] != savedStrength ||
           infoExtracted[index] != savedInfo;
     }
@@ -182,27 +184,19 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
     final strengths = entry.bundledVibeStrengths;
     final infoExtracted = entry.bundledVibeInfoExtracted;
 
-    _bundleStrengths = List<double>.generate(
-      names.length,
-      (index) {
-        final value = strengths != null && index < strengths.length
-            ? strengths[index]
-            : entry.strength;
-        return VibeReference.sanitizeStrength(value);
-      },
-      growable: false,
-    );
+    _bundleStrengths = List<double>.generate(names.length, (index) {
+      final value = strengths != null && index < strengths.length
+          ? strengths[index]
+          : entry.strength;
+      return VibeReference.sanitizeStrength(value);
+    }, growable: false);
 
-    _bundleInfoExtracted = List<double>.generate(
-      names.length,
-      (index) {
-        final value = infoExtracted != null && index < infoExtracted.length
-            ? infoExtracted[index]
-            : entry.infoExtracted;
-        return VibeReference.sanitizeInfoExtracted(value);
-      },
-      growable: false,
-    );
+    _bundleInfoExtracted = List<double>.generate(names.length, (index) {
+      final value = infoExtracted != null && index < infoExtracted.length
+          ? infoExtracted[index]
+          : entry.infoExtracted;
+      return VibeReference.sanitizeInfoExtracted(value);
+    }, growable: false);
   }
 
   void _selectFirstBundleChildIfNeeded() {
@@ -217,7 +211,8 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
     final selectedIndex = _selectedSubVibeIndex;
     final strengths = _bundleStrengths;
     final infoExtracted = _bundleInfoExtracted;
-    final hasSelectedBundleItem = _entry.isBundle &&
+    final hasSelectedBundleItem =
+        _entry.isBundle &&
         selectedIndex >= 0 &&
         strengths != null &&
         infoExtracted != null &&
@@ -311,7 +306,7 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
     final physicalKeys = HardwareKeyboard.instance.physicalKeysPressed;
     final isShiftPressed =
         physicalKeys.contains(PhysicalKeyboardKey.shiftLeft) ||
-            physicalKeys.contains(PhysicalKeyboardKey.shiftRight);
+        physicalKeys.contains(PhysicalKeyboardKey.shiftRight);
 
     widget.callbacks?.onSendToGeneration?.call(
       _entry,
@@ -319,8 +314,9 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
       _infoExtracted,
       isShiftPressed,
       applyParamOverrides: _hasParamChanges,
-      bundleChildParamOverrideIndex:
-          _entry.isBundle ? _selectedSubVibeIndex : null,
+      bundleChildParamOverrideIndex: _entry.isBundle
+          ? _selectedSubVibeIndex
+          : null,
     );
     Navigator.of(context).pop();
   }
@@ -360,7 +356,7 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
                 controller: controller,
                 autofocus: true,
                 decoration: InputDecoration(
-                  hintText: 'Enter a new name',
+                  hintText: context.l10n.vibe_saveToLibrary_nameHint,
                   errorText: errorText,
                 ),
                 onChanged: validate,
@@ -488,8 +484,9 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
   }
 
   Future<void> _loadActualEntry() async {
-    final actualEntry =
-        await ref.read(vibeLibraryStorageServiceProvider).getEntry(_entry.id);
+    final actualEntry = await ref
+        .read(vibeLibraryStorageServiceProvider)
+        .getEntry(_entry.id);
     if (!mounted || actualEntry == null) return;
     setState(() {
       _entry = actualEntry;
@@ -616,10 +613,7 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
             onClose: _close,
           ),
         ),
-        Expanded(
-          flex: 4,
-          child: _buildParamPanel(),
-        ),
+        Expanded(flex: 4, child: _buildParamPanel()),
       ],
     );
   }
@@ -636,10 +630,7 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
             onClose: _close,
           ),
         ),
-        Expanded(
-          flex: 4,
-          child: _buildParamPanel(),
-        ),
+        Expanded(flex: 4, child: _buildParamPanel()),
       ],
     );
   }
@@ -647,8 +638,8 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
   Widget _buildParamPanel() {
     final bundleParamHint = _entry.isBundle
         ? _selectedSubVibeIndex >= 0
-            ? 'Showing import parameters for child Vibe ${_selectedSubVibeIndex + 1}.'
-            : 'Showing Bundle default parameters. Click a child item below to view its parameters.'
+              ? 'Showing import parameters for child Vibe ${_selectedSubVibeIndex + 1}.'
+              : 'Showing Bundle default parameters. Click a child item below to view its parameters.'
         : null;
 
     return VibeDetailParamPanel(

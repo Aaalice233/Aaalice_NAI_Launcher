@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/constants/api_constants.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/nai_user_info_api_service.dart';
 import '../../data/models/user/user_subscription.dart';
@@ -210,7 +211,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   Future<bool> _isNovelApiReachable() async {
     try {
       final result = await InternetAddress.lookup(
-        'api.novelai.net',
+        Uri.parse(ApiConstants.imageBaseUrl).host,
       ).timeout(_networkProbeTimeout);
       return result.isNotEmpty;
     } catch (_) {

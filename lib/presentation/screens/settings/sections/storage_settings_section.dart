@@ -78,6 +78,22 @@ class _StorageSettingsSectionState
     }
   }
 
+  Future<void> _openLocalOnnxTaggerDirectory(String path) async {
+    if (path.isEmpty) {
+      return;
+    }
+
+    final openFolderFailed = context.l10n.settings_openFolderFailed;
+    try {
+      await launchUrl(
+        Uri.directory(path),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (e) {
+      AppLogger.e(openFolderFailed, e);
+    }
+  }
+
   Future<void> _editHighAnlasThreshold() async {
     final settings = ref.read(shareImageSettingsProvider);
     final controller = TextEditingController(
@@ -130,6 +146,7 @@ class _StorageSettingsSectionState
     final saveSettings = ref.watch(imageSaveSettingsNotifierProvider);
     final shareSettings = ref.watch(shareImageSettingsProvider);
     final localOnnxService = ref.watch(localOnnxModelServiceProvider);
+    final localOnnxDirectory = localOnnxService.taggerDirectory;
 
     return SettingsCard(
       title: context.l10n.settings_storage,
@@ -315,13 +332,25 @@ class _StorageSettingsSectionState
             leading: const Icon(Icons.sell_outlined),
             title: Text(context.l10n.settings_localOnnxTaggerFolder),
             subtitle: Text(
-              localOnnxService.taggerDirectory.isEmpty
+              localOnnxDirectory.isEmpty
                   ? context.l10n.settings_notConfigured
-                  : localOnnxService.taggerDirectory,
+                  : localOnnxDirectory,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (localOnnxDirectory.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.folder_open, size: 20),
+                    tooltip: context.l10n.settings_openFolder,
+                    onPressed: () =>
+                        _openLocalOnnxTaggerDirectory(localOnnxDirectory),
+                  ),
+                const Icon(Icons.chevron_right),
+              ],
+            ),
             onTap: _selectLocalOnnxTaggerDirectory,
           ),
           // Vibe库保存路径设置

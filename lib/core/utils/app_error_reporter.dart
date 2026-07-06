@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 
 import 'app_logger.dart';
+import 'fatal_diagnostics.dart';
 
 /// Low-overhead global error capture for failures that bypass local try/catch.
 class AppErrorReporter {
@@ -20,21 +21,13 @@ class AppErrorReporter {
     };
 
     ui.PlatformDispatcher.instance.onError = (error, stackTrace) {
-      reportError(
-        error,
-        stackTrace,
-        source: 'PlatformDispatcher',
-      );
+      reportError(error, stackTrace, source: 'PlatformDispatcher');
       return true;
     };
 
     _isolateErrorPort = RawReceivePort((dynamic message) {
       final (:error, :stackTrace) = _parseIsolateError(message);
-      reportError(
-        error,
-        stackTrace,
-        source: 'Isolate.current',
-      );
+      reportError(error, stackTrace, source: 'Isolate.current');
     });
     Isolate.current.addErrorListener(_isolateErrorPort!.sendPort);
   }
@@ -55,14 +48,30 @@ class AppErrorReporter {
     String? context,
     bool fatal = false,
   }) {
-    final contextText =
-        context == null || context.isEmpty ? '' : ' | context: $context';
+    final safeContext = context == null
+        ? null
+        : FatalDiagnostics.redactSensitiveText(context);
+    final safeError = FatalDiagnostics.redactSensitiveText(error.toString());
+    final safeStackTrace = StackTrace.fromString(
+      FatalDiagnostics.redactSensitiveText(stackTrace.toString()),
+    );
+    final contextText = safeContext == null || safeContext.isEmpty
+        ? ''
+        : ' | context: $safeContext';
     final fatalText = fatal ? ' | fatal' : '';
+
+    FatalDiagnostics.writeSync(
+      error,
+      stackTrace,
+      source: source,
+      context: context,
+      fatal: fatal,
+    );
 
     AppLogger.e(
       'Unhandled error captured by $source$fatalText$contextText',
-      error,
-      stackTrace,
+      safeError,
+      safeStackTrace,
       'CrashGuard',
     );
   }

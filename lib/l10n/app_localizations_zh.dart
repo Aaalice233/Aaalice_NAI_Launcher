@@ -587,6 +587,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_languageEnglish => 'English';
 
   @override
+  String get settings_languageJapanese => '日本語';
+
+  @override
   String get settings_shortcuts => '快捷键';
 
   @override
@@ -2170,6 +2173,11 @@ class AppLocalizationsZh extends AppLocalizations {
       '外框是实际送去 Focused Inpaint 的区域，内框是主要重绘区域；两框之间的带宽就是 Minimum Context Area。';
 
   @override
+  String editor_focusAnlasWarning(int width, int height, int cost) {
+    return '实际送出范围 $width×$height，按当前生成设置预计消耗 $cost Anlas。';
+  }
+
+  @override
   String editor_unsupportedImageFormat(Object extension) {
     return '不支持的文件格式: .$extension\n请选择图像文件（PNG、JPG、WEBP 等）';
   }
@@ -2438,6 +2446,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get vibe_remove => '移除';
+
+  @override
+  String get reference_enabled => '启用';
+
+  @override
+  String get reference_enable => '启用参考';
+
+  @override
+  String get reference_disable => '禁用参考';
 
   @override
   String get vibe_sliderHint => '强度: 越高越模仿视觉线索\n信息提取: 降低会减少纹理、保留构图';
@@ -8949,6 +8966,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_proxyDisabled => '直接连接网络';
 
   @override
+  String get settings_proxyTrafficDisclosure =>
+      '代理启用后，NovelAI API 流量（包括认证请求）会通过系统代理或手动代理发送。只使用你信任的代理。';
+
+  @override
   String get settings_proxyMode => '代理模式';
 
   @override
@@ -10618,10 +10639,20 @@ class AppLocalizationsZh extends AppLocalizations {
       '导出为 .naiv4vibe 或 .naiv4vibebundle 文件';
 
   @override
+  String get vibe_export_exportAsZip => '导出为 ZIP';
+
+  @override
+  String get vibe_export_exportAsZipDescription =>
+      '将选中的 Vibe 库条目作为独立文件打包为 .zip';
+
+  @override
   String get vibe_export_compressData => '压缩数据';
 
   @override
   String get vibe_export_compressDataDescription => '使用压缩以减小文件大小 (推荐用于批量导出)';
+
+  @override
+  String get vibe_export_zipCompressDescription => '压缩 ZIP 内的文件以减小体积';
 
   @override
   String get vibe_export_exportAsPng => '导出为 PNG';
@@ -10679,7 +10710,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_export_preparingExport => '正在准备导出...';
 
   @override
+  String vibe_export_preparingVibeProgress(int current, int total) {
+    return '正在读取 Vibe $current/$total...';
+  }
+
+  @override
   String get vibe_export_exportingBundle => '正在导出 Bundle...';
+
+  @override
+  String get vibe_export_exportingZip => '正在导出 ZIP...';
 
   @override
   String get vibe_export_embeddingImage => '正在嵌入图片...';
@@ -10691,6 +10730,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String vibe_export_exportFailedWithError(String error) {
     return '导出失败: $error';
   }
+
+  @override
+  String get vibe_export_noExportableEntries => '没有可导出的 Vibe 条目';
 
   @override
   String get vibe_export_bundleFilePathEmpty => 'Bundle 文件路径为空';
@@ -10838,6 +10880,41 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get vibe_import_bundleTitle => '导入 Vibe Bundle';
+
+  @override
+  String get vibe_import_bundleChooseMethod => '选择导入方式';
+
+  @override
+  String get vibe_import_bundleAsWhole => '作为整体导入';
+
+  @override
+  String get vibe_import_bundleAsWholeDescription => '保留 Bundle 结构，并作为一个库条目导入';
+
+  @override
+  String get vibe_import_bundleSplitEntries => '拆分为独立条目';
+
+  @override
+  String get vibe_import_bundleSplitEntriesDescription => '将每个 Vibe 作为独立库条目导入';
+
+  @override
+  String get vibe_import_bundleSelectVibes => '选择要导入的 Vibe';
+
+  @override
+  String get vibe_import_bundleSelectVibesDescription => '仅导入选中的 Vibe';
+
+  @override
+  String get vibe_import_bundleConfigureEachVibe => '配置每个 Vibe 的参数';
+
+  @override
+  String get vibe_import_bundleSelectAndConfigureEachVibe => '选择并配置每个 Vibe 的参数';
+
+  @override
+  String vibe_import_bundleSelectedCount(int selected, int total) {
+    return '已选择 $selected/$total';
+  }
+
+  @override
   String get vibe_saveToLibrary_title => '保存到库';
 
   @override
@@ -10879,6 +10956,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String vibe_saveToLibrary_reused(int count) {
     return '从库复用 $count 个';
   }
+
+  @override
+  String get vibe_saveToLibrary_saveAsBundle => '保存为 Bundle';
+
+  @override
+  String vibe_saveToLibrary_saveAsBundleDescription(int count) {
+    return '将 $count 个 Vibe 保存为一个 Bundle';
+  }
+
+  @override
+  String get vibe_saveToLibrary_tagHint => '输入标签后点击添加';
 
   @override
   String get vibe_maxReached => '已达到最大数量 (16张)';

@@ -63,6 +63,7 @@ class StreamGenerationState {
   StreamGenerationState copyWith({
     StreamGenerationStatus? status,
     GeneratedImage? result,
+    bool clearResult = false,
     String? errorMessage,
     double? progress,
     Uint8List? previewImage,
@@ -74,7 +75,7 @@ class StreamGenerationState {
   }) {
     return StreamGenerationState(
       status: status ?? this.status,
-      result: result ?? this.result,
+      result: clearResult ? null : (result ?? this.result),
       errorMessage: errorMessage,
       progress: progress ?? this.progress,
       previewImage: clearPreviewImage
@@ -193,7 +194,10 @@ class StreamGenerationNotifier extends _$StreamGenerationNotifier {
       // 验证错误信息
       final errorMessage = chunk.error;
       if (errorMessage == null || errorMessage.isEmpty) {
-        AppLogger.w('Received error chunk with null or empty error message', 'StreamGeneration');
+        AppLogger.w(
+          'Received error chunk with null or empty error message',
+          'StreamGeneration',
+        );
         _handleError('Unknown error occurred during stream generation');
         return;
       }
@@ -230,7 +234,10 @@ class StreamGenerationNotifier extends _$StreamGenerationNotifier {
       // 验证最终图像数据
       final finalImage = chunk.finalImage;
       if (finalImage == null || finalImage.isEmpty) {
-        AppLogger.w('Received complete chunk with invalid final image data', 'StreamGeneration');
+        AppLogger.w(
+          'Received complete chunk with invalid final image data',
+          'StreamGeneration',
+        );
         _handleError('Invalid final image data received from stream');
         return;
       }
@@ -332,7 +339,10 @@ class StreamGenerationNotifier extends _$StreamGenerationNotifier {
 
       // 检查取消状态，避免在已取消的情况下更新状态
       if (_isCancelled) {
-        AppLogger.d('Non-stream fallback cancelled after API call', 'StreamGeneration');
+        AppLogger.d(
+          'Non-stream fallback cancelled after API call',
+          'StreamGeneration',
+        );
         return;
       }
 
@@ -430,7 +440,7 @@ class StreamGenerationNotifier extends _$StreamGenerationNotifier {
   void clearResult() {
     state = state.copyWith(
       status: StreamGenerationStatus.idle,
-      result: null,
+      clearResult: true,
       errorMessage: null,
       progress: 0.0,
       clearPreviewImage: true,

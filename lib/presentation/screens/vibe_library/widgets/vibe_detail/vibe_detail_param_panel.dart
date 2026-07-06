@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../../data/models/vibe/vibe_reference.dart';
 import '../../../../../l10n/app_localizations.dart';
+import '../../../../../core/utils/localization_extension.dart';
 import '../../../../themes/design_tokens.dart';
 import '../../../../widgets/common/animated_favorite_button.dart';
 import '../../../../widgets/common/editable_double_field.dart';
@@ -72,13 +73,14 @@ class VibeDetailParamPanel extends StatelessWidget {
           sigmaY: DesignTokens.glassBlurRadius,
         ),
         child: Container(
-          color: theme.colorScheme.surface
-              .withValues(alpha: DesignTokens.glassOpacity),
+          color: theme.colorScheme.surface.withValues(
+            alpha: DesignTokens.glassOpacity,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 标题栏
-              _buildTitleBar(theme),
+              _buildTitleBar(context, theme),
 
               // 参数滑块区域（使用 Flexible 避免无界高度约束崩溃）
               Flexible(
@@ -142,7 +144,7 @@ class VibeDetailParamPanel extends StatelessWidget {
   }
 
   /// 标题栏：名称 + 来源类型 + 收藏按钮
-  Widget _buildTitleBar(ThemeData theme) {
+  Widget _buildTitleBar(BuildContext context, ThemeData theme) {
     return Container(
       padding: const EdgeInsets.all(DesignTokens.spacingMd),
       decoration: BoxDecoration(
@@ -167,7 +169,7 @@ class VibeDetailParamPanel extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: DesignTokens.spacingXxs),
-                _buildSourceTypeChip(theme),
+                _buildSourceTypeChip(context, theme),
               ],
             ),
           ),
@@ -182,7 +184,7 @@ class VibeDetailParamPanel extends StatelessWidget {
   }
 
   /// 来源类型标签
-  Widget _buildSourceTypeChip(ThemeData theme) {
+  Widget _buildSourceTypeChip(BuildContext context, ThemeData theme) {
     final color = theme.colorScheme.primary;
 
     return Container(
@@ -195,14 +197,10 @@ class VibeDetailParamPanel extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.label_outline,
-            size: 12,
-            color: color,
-          ),
+          Icon(Icons.label_outline, size: 12, color: color),
           const SizedBox(width: 4),
           Text(
-            entry.sourceType.displayLabel,
+            context.vibeSourceTypeLabel(entry.sourceType),
             style: theme.textTheme.labelSmall?.copyWith(
               color: color,
               fontWeight: FontWeight.w500,
@@ -340,9 +338,7 @@ class VibeDetailParamPanel extends StatelessWidget {
               ),
             ),
           ),
-          Expanded(
-            child: Text(value, style: theme.textTheme.bodySmall),
-          ),
+          Expanded(child: Text(value, style: theme.textTheme.bodySmall)),
         ],
       ),
     );

@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:super_clipboard/super_clipboard.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/enums/precise_ref_type.dart';
@@ -42,12 +44,42 @@ Future<void> appendDroppedCharacterReference({
   required GenerationParamsNotifier notifier,
   required Uint8List image,
 }) {
-  return notifier.addPreciseReferenceFromImage(
-    image,
-    type: PreciseRefType.character,
-    strength: 1.0,
-    fidelity: 1.0,
+  // addPreciseReferenceFromImage stages the original bytes before its first
+  // await, then replaces them after Director Reference normalization finishes.
+  unawaited(
+    notifier.addPreciseReferenceFromImage(
+      image,
+      type: PreciseRefType.characterAndStyle,
+      strength: 1.0,
+      fidelity: 1.0,
+    ),
   );
+  return Future<void>.value();
+}
+
+Future<NaiImageMetadata?> detectImportableDroppedImageMetadata(
+  String fileName,
+  Uint8List bytes,
+) async {
+  if (!fileName.toLowerCase().endsWith('.png')) return null;
+
+  try {
+    final metadata = await ImageMetadataService().getMetadataFromBytes(bytes);
+    if (metadata != null && metadata.hasData) {
+      AppLogger.i(
+        'Detected NovelAI metadata in dropped image: $fileName',
+        'DropHandler',
+      );
+      return metadata;
+    }
+  } catch (e) {
+    AppLogger.d('Failed to detect NovelAI metadata: $e', 'DropHandler');
+  }
+  return null;
+}
+
+class _PasteImageIntent extends Intent {
+  const _PasteImageIntent();
 }
 
 /// 全局拖拽处理器
@@ -57,10 +89,7 @@ Future<void> appendDroppedCharacterReference({
 class GlobalDropHandler extends ConsumerStatefulWidget {
   final Widget child;
 
-  const GlobalDropHandler({
-    super.key,
-    required this.child,
-  });
+  const GlobalDropHandler({super.key, required this.child});
 
   @override
   ConsumerState<GlobalDropHandler> createState() => _GlobalDropHandlerState();
@@ -69,53 +98,148 @@ class GlobalDropHandler extends ConsumerStatefulWidget {
 class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
   bool _isDragging = false;
   bool _isProcessing = false;
+  bool _isReadingClipboard = false;
+
+  Future<void> _handlePasteShortcut(VoidCallback? fallbackTextPaste) async {
+    if (_isReadingClipboard || _isProcessing) {
+      fallbackTextPaste?.call();
+      return;
+    }
+
+    _isReadingClipboard = true;
+    try {
+      final pastedFile = await _safeReadClipboardFile();
+      if (pastedFile == null) {
+        fallbackTextPaste?.call();
+        return;
+      }
+
+      _showProcessingIndicator();
+      try {
+        await _processDroppedFile(pastedFile.fileName, pastedFile.bytes);
+      } finally {
+        _hideProcessingIndicator();
+      }
+    } finally {
+      _isReadingClipboard = false;
+    }
+  }
+
+  Future<DroppedFileData?> _safeReadClipboardFile() async {
+    try {
+      return await _readClipboardFile();
+    } catch (e) {
+      AppLogger.d(
+        'Failed to inspect clipboard for pasted image: $e',
+        'ClipboardPaste',
+      );
+      return null;
+    }
+  }
+
+  Future<DroppedFileData?> _readClipboardFile() async {
+    final clipboard = SystemClipboard.instance;
+    if (clipboard == null) {
+      return null;
+    }
+
+    final clipboardReader = await clipboard.read();
+    for (final item in clipboardReader.items) {
+      final fileData = await DroppedFileReader.read(
+        item,
+        allowVibeFiles: true,
+        allowRemoteImages: false,
+        logTag: 'ClipboardPaste',
+      );
+      if (fileData != null) {
+        return fileData;
+      }
+    }
+    return null;
+  }
+
+  VoidCallback? _createTextPasteFallback(BuildContext? focusedContext) {
+    if (focusedContext == null) {
+      return null;
+    }
+    return () {
+      if (!focusedContext.mounted) {
+        return;
+      }
+      Actions.maybeInvoke(
+        focusedContext,
+        const PasteTextIntent(SelectionChangedCause.keyboard),
+      );
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
-    return DropRegion(
-      formats: Formats.standardFormats,
-      hitTestBehavior: HitTestBehavior.opaque,
-      onDropOver: (event) {
-        // 检查是否是应用内部拖拽（本地画廊拖拽图片）
-        // 内部拖拽包含 localData，外部拖拽没有
-        final isInternalDrag = event.session.items.any(
-          (item) => item.localData != null,
-        );
+    return Shortcuts(
+      shortcuts: const <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.keyV, control: true):
+            _PasteImageIntent(),
+        SingleActivator(LogicalKeyboardKey.keyV, meta: true):
+            _PasteImageIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          _PasteImageIntent: CallbackAction<_PasteImageIntent>(
+            onInvoke: (intent) {
+              final fallbackTextPaste = _createTextPasteFallback(
+                FocusManager.instance.primaryFocus?.context,
+              );
+              unawaited(_handlePasteShortcut(fallbackTextPaste));
+              return null;
+            },
+          ),
+        },
+        child: DropRegion(
+          formats: Formats.standardFormats,
+          hitTestBehavior: HitTestBehavior.opaque,
+          onDropOver: (event) {
+            // 检查是否是应用内部拖拽（本地画廊拖拽图片）
+            // 内部拖拽包含 localData，外部拖拽没有
+            final isInternalDrag = event.session.items.any(
+              (item) => item.localData != null,
+            );
 
-        // 如果是内部拖拽，不显示全局覆盖层
-        if (isInternalDrag) {
-          return DropOperation.none;
-        }
+            // 如果是内部拖拽，不显示全局覆盖层
+            if (isInternalDrag) {
+              return DropOperation.none;
+            }
 
-        // 检查是否包含文件
-        if (event.session.allowedOperations.contains(DropOperation.copy)) {
-          if (!_isDragging) {
-            setState(() => _isDragging = true);
-          }
-          return DropOperation.copy;
-        }
-        return DropOperation.none;
-      },
-      onDropLeave: (event) {
-        if (_isDragging) {
-          setState(() => _isDragging = false);
-        }
-      },
-      onPerformDrop: (event) async {
-        setState(() => _isDragging = false);
-        // 重要：不要等待 _handleDrop 完成，让拖放回调立即返回
-        // 否则 Windows 拖放系统会卡死，导致资源管理器无响应
-        unawaited(_handleDrop(event));
-        return;
-      },
-      child: Stack(
-        children: [
-          widget.child,
-          // 拖拽覆盖层
-          if (_isDragging) _buildDropOverlay(context),
-          // 处理中覆盖层
-          if (_isProcessing) _buildProcessingOverlay(context),
-        ],
+            // 检查是否包含文件
+            if (event.session.allowedOperations.contains(DropOperation.copy)) {
+              if (!_isDragging) {
+                setState(() => _isDragging = true);
+              }
+              return DropOperation.copy;
+            }
+            return DropOperation.none;
+          },
+          onDropLeave: (event) {
+            if (_isDragging) {
+              setState(() => _isDragging = false);
+            }
+          },
+          onPerformDrop: (event) async {
+            setState(() => _isDragging = false);
+            // 重要：不要等待 _handleDrop 完成，让拖放回调立即返回
+            // 否则 Windows 拖放系统会卡死，导致资源管理器无响应
+            unawaited(_handleDrop(event));
+            return;
+          },
+          child: Stack(
+            children: [
+              widget.child,
+              // 拖拽覆盖层
+              if (_isDragging) _buildDropOverlay(context),
+              // 处理中覆盖层
+              if (_isProcessing) _buildProcessingOverlay(context),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -129,17 +253,11 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
           color: theme.colorScheme.primary.withValues(alpha: 0.1),
           child: Center(
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 32,
-                vertical: 24,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: theme.colorScheme.primary,
-                  width: 2,
-                ),
+                border: Border.all(color: theme.colorScheme.primary, width: 2),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.2),
@@ -180,10 +298,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         color: Colors.black.withValues(alpha: 0.5),
         child: Center(
           child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 32,
-              vertical: 24,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
@@ -269,8 +384,9 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     }
 
     // 检测当前是否为词库页面
-    final currentPath =
-        GoRouter.of(context).routeInformationProvider.value.uri.path;
+    final currentPath = GoRouter.of(
+      context,
+    ).routeInformationProvider.value.uri.path;
     final isTagLibraryPage = currentPath == AppRoutes.tagLibraryPage;
 
     // 如果是词库页面，使用词库专属拖拽处理
@@ -286,7 +402,11 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
 
     // 保存 context 相关数据后再进行异步操作
     final l10n = context.l10n;
-    final showExtractMetadata = fileName.toLowerCase().endsWith('.png');
+    final detectedMetadata = await detectImportableDroppedImageMetadata(
+      fileName,
+      bytes,
+    );
+    final showExtractMetadata = detectedMetadata != null;
 
     // 检测是否包含 Vibe 元数据（仅 PNG）
     final detectedVibe = await _detectVibeMetadata(fileName, bytes);
@@ -316,6 +436,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       bytes,
       detectedVibe,
       detectedVibes,
+      detectedMetadata,
       notifier,
       l10n,
     );
@@ -372,12 +493,13 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     Uint8List bytes,
     VibeReference? detectedVibe,
     List<VibeReference> detectedVibes,
+    NaiImageMetadata? detectedMetadata,
     GenerationParamsNotifier notifier,
     AppLocalizations l10n,
   ) async {
     switch (destination) {
       case ImageDestination.img2img:
-        _handleImg2Img(bytes, l10n);
+        await _handleImg2Img(bytes, l10n);
         break;
 
       case ImageDestination.reversePrompt:
@@ -415,22 +537,19 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         break;
 
       case ImageDestination.extractMetadata:
-        await _handleExtractMetadata(bytes, notifier, l10n);
+        await _handleExtractMetadata(detectedMetadata, bytes, notifier, l10n);
         break;
 
       case ImageDestination.addToQueue:
-        await _handleAddToQueue(bytes, l10n);
+        await _handleAddToQueue(detectedMetadata, bytes, l10n);
         break;
     }
   }
 
-  void _handleImg2Img(
-    Uint8List bytes,
-    AppLocalizations l10n,
-  ) {
-    ref
+  Future<void> _handleImg2Img(Uint8List bytes, AppLocalizations l10n) async {
+    await ref
         .read(imageWorkflowControllerProvider.notifier)
-        .replaceSourceImage(bytes);
+        .replaceSourceImageAsync(bytes);
 
     if (mounted) {
       AppToast.success(context, l10n.drop_addedToImg2Img);
@@ -442,10 +561,9 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     Uint8List bytes,
     AppLocalizations l10n,
   ) async {
-    await ref.read(reversePromptProvider.notifier).addImage(
-          bytes,
-          name: fileName,
-        );
+    await ref
+        .read(reversePromptProvider.notifier)
+        .addImage(bytes, name: fileName);
 
     if (mounted) {
       AppToast.success(context, l10n.drop_addedToReversePrompt);
@@ -558,8 +676,9 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     }
 
     final isBundle = vibes.length > 1;
-    final defaultName =
-        isBundle ? vibes.first.displayName : vibes.first.displayName;
+    final defaultName = isBundle
+        ? vibes.first.displayName
+        : vibes.first.displayName;
 
     // 显示保存对话框
     final nameController = TextEditingController(text: defaultName);
@@ -652,10 +771,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     GenerationParamsNotifier notifier,
     AppLocalizations l10n,
   ) async {
-    await appendDroppedCharacterReference(
-      notifier: notifier,
-      image: bytes,
-    );
+    await appendDroppedCharacterReference(notifier: notifier, image: bytes);
 
     if (mounted) {
       AppToast.success(context, l10n.drop_addedToCharacterRef);
@@ -663,12 +779,15 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
   }
 
   Future<void> _handleExtractMetadata(
+    NaiImageMetadata? detectedMetadata,
     Uint8List bytes,
     GenerationParamsNotifier notifier,
     AppLocalizations l10n,
   ) async {
     try {
-      final metadata = await ImageMetadataService().getMetadataFromBytes(bytes);
+      final metadata =
+          detectedMetadata ??
+          await ImageMetadataService().getMetadataFromBytes(bytes);
 
       if (metadata == null || !metadata.hasData) {
         if (mounted) {
@@ -678,12 +797,17 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       }
 
       if (!mounted) return;
-      final options =
-          await MetadataImportDialog.show(context, metadata: metadata);
+      final options = await MetadataImportDialog.show(
+        context,
+        metadata: metadata,
+      );
       if (options == null || !mounted) return;
 
-      final appliedCount =
-          await _applyMetadataWithOptions(metadata, options, notifier);
+      final appliedCount = await _applyMetadataWithOptions(
+        metadata,
+        options,
+        notifier,
+      );
 
       if (!mounted) return;
 
@@ -908,9 +1032,15 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     return count;
   }
 
-  Future<void> _handleAddToQueue(Uint8List bytes, AppLocalizations l10n) async {
+  Future<void> _handleAddToQueue(
+    NaiImageMetadata? detectedMetadata,
+    Uint8List bytes,
+    AppLocalizations l10n,
+  ) async {
     try {
-      final metadata = await ImageMetadataService().getMetadataFromBytes(bytes);
+      final metadata =
+          detectedMetadata ??
+          await ImageMetadataService().getMetadataFromBytes(bytes);
 
       if (metadata == null || metadata.prompt.isEmpty) {
         if (mounted) {
@@ -1062,19 +1192,19 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         options.importSeed && metadata.seed != null,
         l10n.metadataImport_seed,
         metadata.seed?.toString(),
-        1
+        1,
       ),
       (
         options.importSteps && metadata.steps != null,
         l10n.metadataImport_steps,
         metadata.steps?.toString(),
-        1
+        1,
       ),
       (
         options.importScale && metadata.scale != null,
         l10n.metadataImport_scale,
         metadata.scale?.toString(),
-        1
+        1,
       ),
       (
         options.importSize && metadata.width != null && metadata.height != null,
@@ -1098,13 +1228,13 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         options.importSmea && metadata.smea != null,
         l10n.metadataImport_smea,
         metadata.smea?.toString(),
-        1
+        1,
       ),
       (
         options.importSmeaDyn && metadata.smeaDyn != null,
         l10n.metadataImport_smeaDyn,
         metadata.smeaDyn?.toString(),
-        1
+        1,
       ),
       (
         options.importVarietyPlus && metadata.varietyPlus != null,

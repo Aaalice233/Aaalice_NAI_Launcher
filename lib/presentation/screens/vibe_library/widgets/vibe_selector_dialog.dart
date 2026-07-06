@@ -52,10 +52,8 @@ class VibeSelectionResult {
   });
 }
 
-typedef BundleChildHydrator = Future<VibeReference?> Function(
-  VibeLibraryEntry bundleEntry,
-  int index,
-);
+typedef BundleChildHydrator =
+    Future<VibeReference?> Function(VibeLibraryEntry bundleEntry, int index);
 
 typedef VibeUsageRecorder = Future<void> Function(String id);
 
@@ -88,8 +86,8 @@ Future<VibeSelectionResult> buildLightweightVibeSelectionResult({
 
       final name =
           childSelection.index < (bundleEntry.bundledVibeNames?.length ?? 0)
-              ? bundleEntry.bundledVibeNames![childSelection.index]
-              : '${bundleEntry.displayName} - ${childSelection.index + 1}';
+          ? bundleEntry.bundledVibeNames![childSelection.index]
+          : '${bundleEntry.displayName} - ${childSelection.index + 1}';
 
       selectedEntries.add(
         VibeLibraryEntry.create(
@@ -224,9 +222,7 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
   }
 
   Future<void> _loadData() async {
-    final span = VibePerformanceDiagnostics.start(
-      'selector.loadData',
-    );
+    final span = VibePerformanceDiagnostics.start('selector.loadData');
     var usedCachedState = false;
     var entryCount = 0;
     var recentCount = 0;
@@ -297,8 +293,9 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
 
       // 3. 来源类型过滤
       if (_selectedSourceType != null) {
-        result =
-            result.where((e) => e.sourceType == _selectedSourceType).toList();
+        result = result
+            .where((e) => e.sourceType == _selectedSourceType)
+            .toList();
       }
 
       // 4. 标签过滤 (AND 逻辑)
@@ -488,9 +485,7 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
               else if (_allEntries.isEmpty)
                 _buildEmptyState(theme)
               else
-                Expanded(
-                  child: _buildContent(theme),
-                ),
+                Expanded(child: _buildContent(theme)),
               const SizedBox(height: 16),
               _buildFooter(theme),
             ],
@@ -503,10 +498,7 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
   Widget _buildHeader(ThemeData theme) {
     return Row(
       children: [
-        Icon(
-          Icons.style_outlined,
-          color: theme.colorScheme.primary,
-        ),
+        Icon(Icons.style_outlined, color: theme.colorScheme.primary),
         const SizedBox(width: 12),
         Text(
           widget.title ?? context.l10n.vibe_selector_title,
@@ -548,10 +540,7 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
         hintText: context.l10n.vibeLibrary_searchHint,
         prefixIcon: const Icon(Icons.search),
         suffixIcon: _searchQuery.isNotEmpty
-            ? IconButton(
-                icon: const Icon(Icons.clear),
-                onPressed: _clearSearch,
-              )
+            ? IconButton(icon: const Icon(Icons.clear), onPressed: _clearSearch)
             : null,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -677,7 +666,7 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(type.displayLabel),
+                Text(context.vibeSourceTypeLabel(type)),
                 if (_selectedSourceType == type) ...[
                   const Spacer(),
                   Icon(Icons.check, size: 18, color: theme.colorScheme.primary),
@@ -699,8 +688,9 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
               )
             : null,
         label: Text(
-          _selectedSourceType?.displayLabel ??
-              context.l10n.vibeSelectorFilterSourceAll,
+          _selectedSourceType != null
+              ? context.vibeSourceTypeLabel(_selectedSourceType!)
+              : context.l10n.vibeSelectorFilterSourceAll,
         ),
         padding: EdgeInsets.zero,
         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -922,18 +912,15 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
                   ),
                 )
               else
-                Icon(
-                  Icons.image,
-                  size: 18,
-                  color: theme.colorScheme.outline,
-                ),
+                Icon(Icons.image, size: 18, color: theme.colorScheme.outline),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
                   entry.displayName,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                   ),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
@@ -967,10 +954,7 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
   }
 
   // Bundle 紧凑卡片 - 复用 VibeCard
-  Widget _buildBundleCardCompact(
-    VibeLibraryEntry entry,
-    bool isSelected,
-  ) {
+  Widget _buildBundleCardCompact(VibeLibraryEntry entry, bool isSelected) {
     return VibeCard(
       entry: entry,
       width: 140,
@@ -995,14 +979,16 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
             const SizedBox(height: 16),
             Text(
               context.l10n.vibeLibrary_empty,
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(color: theme.colorScheme.outline),
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               context.l10n.vibeLibrary_emptyHint,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.outline),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
             ),
           ],
         ),
@@ -1019,8 +1005,9 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
           const SizedBox(height: 16),
           Text(
             context.l10n.search_noResults,
-            style: theme.textTheme.titleSmall
-                ?.copyWith(color: theme.colorScheme.outline),
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.outline,
+            ),
           ),
           const SizedBox(height: 8),
           TextButton(

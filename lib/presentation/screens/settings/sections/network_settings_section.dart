@@ -87,6 +87,10 @@ class NetworkSettingsSectionState
           // 代理模式选择（仅在启用时显示）
           if (proxySettings.enabled) ...[
             ListTile(
+              leading: const Icon(Icons.security_outlined),
+              title: Text(l10n.settings_proxyTrafficDisclosure),
+            ),
+            ListTile(
               leading: const Icon(Icons.settings_ethernet),
               title: Text(l10n.settings_proxyMode),
               subtitle: Text(
@@ -117,8 +121,10 @@ class NetworkSettingsSectionState
             // 手动模式输入框
             if (proxySettings.mode == ProxyMode.manual)
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -186,10 +192,9 @@ class NetworkSettingsSectionState
     if (host.isNotEmpty && portText.isNotEmpty) {
       final port = int.tryParse(portText);
       if (port != null && port > 0 && port <= 65535) {
-        ref.read(proxySettingsNotifierProvider.notifier).setManualProxy(
-              host,
-              port,
-            );
+        ref
+            .read(proxySettingsNotifierProvider.notifier)
+            .setManualProxy(host, port);
       }
     }
   }
@@ -221,8 +226,9 @@ class NetworkSettingsSectionState
           if (result.success) {
             _testResult = l10n.settings_testSuccess(result.latencyMs ?? 0);
           } else {
-            _testResult =
-                l10n.settings_testFailed(result.errorMessage ?? 'Unknown');
+            _testResult = l10n.settings_testFailed(
+              result.errorMessage ?? 'Unknown',
+            );
           }
         });
       }

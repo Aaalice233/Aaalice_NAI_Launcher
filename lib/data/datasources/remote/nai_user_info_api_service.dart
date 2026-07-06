@@ -25,7 +25,7 @@ class NAIUserInfoApiService {
   }) async {
     try {
       final response = await _dio.get(
-        _endpointService.imageUrl(ApiConstants.userSubscriptionEndpoint),
+        _endpointService.userUrl(ApiConstants.userSubscriptionEndpoint),
         options: Options(
           receiveTimeout: receiveTimeout ?? _timeout,
           sendTimeout: sendTimeout ?? _timeout,

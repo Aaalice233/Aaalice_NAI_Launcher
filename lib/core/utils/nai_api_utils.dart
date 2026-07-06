@@ -1,5 +1,4 @@
 import 'dart:isolate';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -32,9 +31,9 @@ class NAIApiUtils {
   }
 
   /// 将图片转换为 NovelAI Director Reference 要求的格式
-  /// 根据 Reddit 帖子的正确实现：
-  /// - 缩放到三种"大"分辨率之一：(1024,1536), (1536,1024), (1472,1472)
-  /// - 选择最接近的目标尺寸（最小化未使用的填充）
+  /// 按官方 Web 客户端 Q6 路径处理：
+  /// - 选择三种目标画布之一：(1024,1536), (1536,1024), (1472,1472)
+  /// - 选择宽高比最接近原图的目标画布
   /// - 按比例缩放图像，黑色背景居中粘贴
   /// - 转换为 PNG 格式
   static Uint8List ensurePngFormat(Uint8List imageBytes) {
@@ -53,45 +52,30 @@ class NAIApiUtils {
       'Utils',
     );
 
-    // =========================================================
-    // 1. 目标尺寸（portrait, landscape, square）
-    // 根据 Reddit 帖子，必须是这三种大分辨率之一
-    // =========================================================
     final targets = [
       (1024, 1536), // portrait
       (1536, 1024), // landscape
       (1472, 1472), // square
     ];
 
-    // 计算最佳适配（最小化未使用的填充面积）
-    int fitScore(int tw, int th) {
-      final scale = min(tw / width, th / height);
-      final newW = (width * scale).toInt();
-      final newH = (height * scale).toInt();
-      final padW = tw - newW;
-      final padH = th - newH;
-      return padW * padH; // 填充面积越小越好
-    }
-
-    // 选择最佳目标尺寸
+    final imageAspectRatio = width / height;
     var bestTarget = targets.first;
-    var bestScore = fitScore(bestTarget.$1, bestTarget.$2);
+    var bestAspectDelta = (bestTarget.$1 / bestTarget.$2 - imageAspectRatio)
+        .abs();
     for (final target in targets.skip(1)) {
-      final score = fitScore(target.$1, target.$2);
-      if (score < bestScore) {
-        bestScore = score;
+      final aspectDelta = (target.$1 / target.$2 - imageAspectRatio).abs();
+      if (aspectDelta < bestAspectDelta) {
+        bestAspectDelta = aspectDelta;
         bestTarget = target;
       }
     }
     final targetW = bestTarget.$1;
     final targetH = bestTarget.$2;
 
-    // =========================================================
-    // 2. 按比例缩放图像
-    // =========================================================
-    final scale = min(targetW / width, targetH / height);
-    final newW = (width * scale).toInt();
-    final newH = (height * scale).toInt();
+    final targetAspectRatio = targetW / targetH;
+    final (newW, newH) = imageAspectRatio > targetAspectRatio
+        ? (targetW, (targetW / imageAspectRatio).round())
+        : ((targetH * imageAspectRatio).round(), targetH);
     final resized = img.copyResize(
       originalImage,
       width: newW,
@@ -99,9 +83,6 @@ class NAIApiUtils {
       interpolation: img.Interpolation.cubic,
     );
 
-    // =========================================================
-    // 3. 创建黑色背景并居中粘贴
-    // =========================================================
     final newImg = img.Image(
       width: targetW,
       height: targetH,
@@ -109,21 +90,10 @@ class NAIApiUtils {
       backgroundColor: img.ColorRgb8(0, 0, 0), // 黑色背景
     );
 
-    // 填充黑色像素
-    for (int y = 0; y < targetH; y++) {
-      for (int x = 0; x < targetW; x++) {
-        newImg.setPixelRgb(x, y, 0, 0, 0);
-      }
-    }
-
-    // 居中粘贴
     final left = (targetW - newW) ~/ 2;
     final top = (targetH - newH) ~/ 2;
     img.compositeImage(newImg, resized, dstX: left, dstY: top);
 
-    // =========================================================
-    // 4. 转换为 PNG（Reddit 帖子说 PNG preferred）
-    // =========================================================
     final pngBytes = Uint8List.fromList(img.encodePng(newImg));
     AppLogger.d(
       'Character reference processed: ${width}x$height -> ${targetW}x$targetH (centered on black), '
@@ -136,8 +106,9 @@ class NAIApiUtils {
 
   /// 在后台 isolate 中执行 Director Reference 图片规范化，避免阻塞 UI isolate。
   static Future<Uint8List> ensurePngFormatAsync(Uint8List imageBytes) async {
-    final normalizedBytes =
-        await Isolate.run(() => ensurePngFormat(imageBytes));
+    final normalizedBytes = await Isolate.run(
+      () => ensurePngFormat(imageBytes),
+    );
     return markNormalizedPreciseReferencePng(normalizedBytes);
   }
 

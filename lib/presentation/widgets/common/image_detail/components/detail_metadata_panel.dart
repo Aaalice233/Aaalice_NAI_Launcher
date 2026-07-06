@@ -140,24 +140,26 @@ class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
     }
 
     if (future != null) {
-      _metadataFuture = future.then((metadata) {
-        AppLogger.i(
-          '[MetadataFlow] Async load completed: hasData=${metadata?.hasData}, prompt length=${metadata?.fullPrompt.length ?? 0}',
-          'DetailMetadataPanel',
-        );
-        if (mounted) {
-          setState(() => _loadedMetadata = metadata);
-        }
-        return metadata;
-      }).catchError((e, stack) {
-        AppLogger.e(
-          '[MetadataFlow] Async load failed',
-          e,
-          stack,
-          'DetailMetadataPanel',
-        );
-        throw e;
-      });
+      _metadataFuture = future
+          .then((metadata) {
+            AppLogger.i(
+              '[MetadataFlow] Async load completed: hasData=${metadata?.hasData}, prompt length=${metadata?.fullPrompt.length ?? 0}',
+              'DetailMetadataPanel',
+            );
+            if (mounted) {
+              setState(() => _loadedMetadata = metadata);
+            }
+            return metadata;
+          })
+          .catchError((e, stack) {
+            AppLogger.e(
+              '[MetadataFlow] Async load failed',
+              e,
+              stack,
+              'DetailMetadataPanel',
+            );
+            throw e;
+          });
     } else {
       _metadataFuture = null;
       _loadedMetadata = null;
@@ -215,10 +217,7 @@ class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
 
     return Column(
       children: [
-        _PanelHeader(
-          isExpanded: true,
-          onToggle: _toggleExpanded,
-        ),
+        _PanelHeader(isExpanded: true, onToggle: _toggleExpanded),
         const ThemedDivider(height: 1),
         Expanded(
           child: widget.currentImage == null
@@ -229,16 +228,16 @@ class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
                   ),
                 )
               : isLoading
-                  ? _buildLoadingState(theme)
-                  : metadata != null && metadata.hasData
-                      ? SingleChildScrollView(
-                          padding: const EdgeInsets.all(16),
-                          child: _MetadataContent(
-                            metadata: metadata,
-                            fileInfo: widget.currentImage!.fileInfo,
-                          ),
-                        )
-                      : _buildNoMetadataState(theme),
+              ? _buildLoadingState(theme)
+              : metadata != null && metadata.hasData
+              ? SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: _MetadataContent(
+                    metadata: metadata,
+                    fileInfo: widget.currentImage!.fileInfo,
+                  ),
+                )
+              : _buildNoMetadataState(theme),
         ),
         // 只在有元数据时显示操作按钮
         if (metadata != null && metadata.hasData)
@@ -246,9 +245,7 @@ class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const ThemedDivider(height: 1),
-              _ActionButtons(
-                metadata: metadata,
-              ),
+              _ActionButtons(metadata: metadata),
             ],
           ),
       ],
@@ -273,10 +270,7 @@ class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
           const SizedBox(height: 16),
           Text(
             context.l10n.detail_parsingMetadata,
-            style: TextStyle(
-              color: colorScheme.onSurfaceVariant,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12),
           ),
         ],
       ),
@@ -300,9 +294,7 @@ class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
             const SizedBox(height: 16),
             Text(
               context.l10n.detail_noMetadata,
-              style: TextStyle(
-                color: colorScheme.onSurfaceVariant,
-              ),
+              style: TextStyle(color: colorScheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -350,10 +342,7 @@ class _PanelHeader extends StatelessWidget {
   final bool isExpanded;
   final VoidCallback onToggle;
 
-  const _PanelHeader({
-    required this.isExpanded,
-    required this.onToggle,
-  });
+  const _PanelHeader({required this.isExpanded, required this.onToggle});
 
   @override
   Widget build(BuildContext context) {
@@ -364,11 +353,7 @@ class _PanelHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          Icon(
-            Icons.info_outline,
-            size: 20,
-            color: colorScheme.primary,
-          ),
+          Icon(Icons.info_outline, size: 20, color: colorScheme.primary),
           const SizedBox(width: 8),
           Text(
             context.l10n.detail_imageDetails,
@@ -399,10 +384,7 @@ class _MetadataContent extends StatelessWidget {
   final NaiImageMetadata metadata;
   final FileInfo? fileInfo;
 
-  const _MetadataContent({
-    required this.metadata,
-    this.fileInfo,
-  });
+  const _MetadataContent({required this.metadata, this.fileInfo});
 
   @override
   Widget build(BuildContext context) {
@@ -550,8 +532,9 @@ class _MetadataContent extends StatelessWidget {
               content: fixedNegativeTags.join(', '),
               tags: fixedNegativeTags,
               initiallyExpanded: false,
-              contentColor:
-                  Theme.of(context).colorScheme.error.withValues(alpha: 0.8),
+              contentColor: Theme.of(
+                context,
+              ).colorScheme.error.withValues(alpha: 0.8),
               borderColor: Theme.of(context).colorScheme.error,
             ),
           ],
@@ -594,8 +577,9 @@ class _MetadataContent extends StatelessWidget {
               content: negativePrompt,
               tags: negativeTags,
               initiallyExpanded: false,
-              contentColor:
-                  Theme.of(context).colorScheme.error.withValues(alpha: 0.8),
+              contentColor: Theme.of(
+                context,
+              ).colorScheme.error.withValues(alpha: 0.8),
               borderColor: Theme.of(context).colorScheme.error,
             ),
           ],
@@ -633,8 +617,9 @@ class _MetadataContent extends StatelessWidget {
             content: negativePrompt,
             tags: negativeTags,
             initiallyExpanded: false,
-            contentColor:
-                Theme.of(context).colorScheme.error.withValues(alpha: 0.8),
+            contentColor: Theme.of(
+              context,
+            ).colorScheme.error.withValues(alpha: 0.8),
             borderColor: Theme.of(context).colorScheme.error,
           ),
         ],
@@ -724,8 +709,7 @@ class _MetadataContent extends StatelessWidget {
   }
 
   String _formatTime(BuildContext context, DateTime time) {
-    final locale =
-        Localizations.localeOf(context).languageCode == 'zh' ? 'zh' : 'en';
+    final locale = context.timeagoLocaleCode;
     return '${timeago.format(time, locale: locale)} (${time.toString().substring(0, 16)})';
   }
 
@@ -809,10 +793,7 @@ class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _InfoRow({
-    required this.label,
-    required this.value,
-  });
+  const _InfoRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {

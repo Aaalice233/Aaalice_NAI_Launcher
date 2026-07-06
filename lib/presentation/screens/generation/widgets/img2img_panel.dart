@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -32,11 +33,7 @@ import '../../../widgets/image_editor/image_editor_screen.dart';
 import 'img2img_preview_cache.dart';
 import 'comfyui_workflow_dialog.dart';
 
-enum _UpscaleMetricLevel {
-  low,
-  medium,
-  high,
-}
+enum _UpscaleMetricLevel { low, medium, high }
 
 extension _UpscaleMetricLevelX on _UpscaleMetricLevel {
   double get value {
@@ -122,10 +119,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
             )
           : null,
       badge: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 8,
-          vertical: 2,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         decoration: BoxDecoration(
           color: showBackground
               ? Colors.white.withValues(alpha: 0.2)
@@ -189,8 +183,10 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
     }
 
     final isInpaintReady = workflow.isInpaint && params.maskImage != null;
-    final sourceDimensions =
-        _resolveSourceDimensions(workflow, params.sourceImage!);
+    final sourceDimensions = _resolveSourceDimensions(
+      workflow,
+      params.sourceImage!,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -199,9 +195,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           children: [
             Text(
               context.l10n.img2img_sourceImage,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.white,
-              ),
+              style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
             ),
             const Spacer(),
             _IconButton(
@@ -322,9 +316,11 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                 label: context.l10n.img2img_uploadImage,
                 height: 80,
                 onImageSelected: (bytes, fileName, path) {
-                  ref
-                      .read(imageWorkflowControllerProvider.notifier)
-                      .replaceSourceImage(bytes);
+                  unawaited(
+                    ref
+                        .read(imageWorkflowControllerProvider.notifier)
+                        .replaceSourceImageAsync(bytes),
+                  );
                 },
                 onError: (error) {
                   AppToast.error(
@@ -438,9 +434,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
             contentPadding: EdgeInsets.zero,
             title: Text(
               context.l10n.img2img_focusedInpaint,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.white,
-              ),
+              style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
             ),
             subtitle: Text(
               workflow.focusedInpaintEnabled
@@ -516,9 +510,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           children: [
             Text(
               label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.white,
-              ),
+              style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
             ),
             const Spacer(),
             Text(
@@ -548,18 +540,13 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
         if (hint != null)
           Text(
             hint,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.white70,
-            ),
+            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
           ),
       ],
     );
   }
 
-  Widget _buildEnhancePanel(
-    ThemeData theme,
-    ImageWorkflowState workflow,
-  ) {
+  Widget _buildEnhancePanel(ThemeData theme, ImageWorkflowState workflow) {
     final controller = ref.read(imageWorkflowControllerProvider.notifier);
     final enhance = workflow.enhance;
 
@@ -599,9 +586,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
             contentPadding: EdgeInsets.zero,
             title: Text(
               context.l10n.img2img_enhanceShowIndividualSettings,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.white,
-              ),
+              style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
             ),
             value: enhance.showIndividualSettings,
             onChanged: controller.toggleEnhanceIndividualSettings,
@@ -609,9 +594,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           const SizedBox(height: 8),
           Text(
             context.l10n.img2img_enhanceUpscaleAmount,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.white,
-            ),
+            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -632,18 +615,16 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
               theme,
               label: context.l10n.img2img_strength,
               value: enhance.strength,
-              onChanged: (value) => controller.updateEnhanceIndividualSettings(
-                strength: value,
-              ),
+              onChanged: (value) =>
+                  controller.updateEnhanceIndividualSettings(strength: value),
             ),
             const SizedBox(height: 12),
             _buildSliderSection(
               theme,
               label: context.l10n.img2img_noise,
               value: enhance.noise,
-              onChanged: (value) => controller.updateEnhanceIndividualSettings(
-                noise: value,
-              ),
+              onChanged: (value) =>
+                  controller.updateEnhanceIndividualSettings(noise: value),
             ),
           ],
         ],
@@ -652,8 +633,9 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
   }
 
   Widget _buildUpscalePanel(ThemeData theme, ImageWorkflowState workflow) {
-    final comfyEnabled =
-        ref.watch(comfyUISettingsProvider.select((s) => s.enabled));
+    final comfyEnabled = ref.watch(
+      comfyUISettingsProvider.select((s) => s.enabled),
+    );
     final taskState = ref.watch(comfyUITaskProvider);
     final hasSourceImage = ref.watch(
       generationParamsNotifierProvider.select(
@@ -672,8 +654,9 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       availableModels,
       module: comfyModule,
     );
-    final modelsFetchedFromServer =
-        ref.read(comfyUISeedvr2ModelsProvider.notifier).hasFetchedFromServer;
+    final modelsFetchedFromServer = ref
+        .read(comfyUISeedvr2ModelsProvider.notifier)
+        .hasFetchedFromServer;
     final resolvedComfyModel = resolveComfyUpscaleModelForModule(
       availableModels,
       module: comfyModule,
@@ -700,7 +683,8 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       canStart = hasSourceImage && !_naiUpscaling;
     } else {
       final hasRequiredComfyModel = isComfyRtx || resolvedComfyModel != null;
-      canStart = comfyEnabled &&
+      canStart =
+          comfyEnabled &&
           hasSourceImage &&
           !taskState.isRunning &&
           hasRequiredComfyModel;
@@ -750,9 +734,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           if (isNai) ...[
             Text(
               context.l10n.img2img_novelAiCloudUpscale,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.white70,
-              ),
+              style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
             ),
           ] else ...[
             if (!comfyEnabled)
@@ -765,8 +747,9 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
             else ...[
               Text(
                 context.l10n.img2img_upscaleMode,
-                style:
-                    theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(height: 6),
               SegmentedButton<ComfyUpscaleModule>(
@@ -797,16 +780,14 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                 ),
               ),
               const SizedBox(height: 12),
-              _buildSelectedUpscaleMetrics(
-                theme,
-                selectedModule: comfyModule,
-              ),
+              _buildSelectedUpscaleMetrics(theme, selectedModule: comfyModule),
               const SizedBox(height: 12),
               if (!isComfyRtx) ...[
                 Text(
                   context.l10n.img2img_upscaleModel,
-                  style:
-                      theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.white,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
@@ -819,8 +800,10 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
                     isDense: true,
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                   ),
                   dropdownColor: theme.colorScheme.surfaceContainerHigh,
                   items: moduleModels
@@ -828,7 +811,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                         (m) => DropdownMenuItem(
                           value: m,
                           child: Text(
-                            _friendlyModelName(context, m),
+                            _friendlyModelName(m),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -1089,8 +1072,9 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                           gradient: LinearGradient(colors: gradientColors),
                           boxShadow: [
                             BoxShadow(
-                              color:
-                                  gradientColors.last.withValues(alpha: 0.32),
+                              color: gradientColors.last.withValues(
+                                alpha: 0.32,
+                              ),
                               blurRadius: 8,
                             ),
                           ],
@@ -1115,25 +1099,22 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       return switch (level) {
         _UpscaleMetricLevel.low => const [Color(0xFFF59E0B), Color(0xFFFBBF24)],
         _UpscaleMetricLevel.medium => const [
-            Color(0xFF38BDF8),
-            Color(0xFF22D3EE),
-          ],
+          Color(0xFF38BDF8),
+          Color(0xFF22D3EE),
+        ],
         _UpscaleMetricLevel.high => const [
-            Color(0xFF34D399),
-            Color(0xFFA3E635),
-          ],
+          Color(0xFF34D399),
+          Color(0xFFA3E635),
+        ],
       };
     }
     return switch (level) {
       _UpscaleMetricLevel.low => const [Color(0xFF34D399), Color(0xFF2DD4BF)],
       _UpscaleMetricLevel.medium => const [
-          Color(0xFFF59E0B),
-          Color(0xFFFBBF24),
-        ],
-      _UpscaleMetricLevel.high => const [
-          Color(0xFFFB7185),
-          Color(0xFFF43F5E),
-        ],
+        Color(0xFFF59E0B),
+        Color(0xFFFBBF24),
+      ],
+      _UpscaleMetricLevel.high => const [Color(0xFFFB7185), Color(0xFFF43F5E)],
     };
   }
 
@@ -1155,21 +1136,24 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           onChanged: controller.updateSeedvr2VaeTileSize,
           hint: context.l10n.img2img_seedvr2VaeTileHint,
         ),
-        SwitchListTile.adaptive(
-          contentPadding: EdgeInsets.zero,
-          title: Text(
-            context.l10n.img2img_seedvr2UseTiledUpscale,
-            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
-          ),
-          subtitle: Text(
-            context.l10n.img2img_seedvr2UseTiledUpscaleHint,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.white70,
-              height: 1.35,
+        Material(
+          type: MaterialType.transparency,
+          child: SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              context.l10n.img2img_seedvr2UseTiledUpscale,
+              style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
             ),
+            subtitle: Text(
+              context.l10n.img2img_seedvr2UseTiledUpscaleHint,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white70,
+                height: 1.35,
+              ),
+            ),
+            value: upscale.seedvr2Tiled,
+            onChanged: controller.updateSeedvr2Tiled,
           ),
-          value: upscale.seedvr2Tiled,
-          onChanged: controller.updateSeedvr2Tiled,
         ),
         if (upscale.seedvr2Tiled)
           _buildIntegerSliderSection(
@@ -1240,23 +1224,18 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
         if (hint != null)
           Text(
             hint,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.white70,
-            ),
+            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
           ),
       ],
     );
   }
 
-  static String _friendlyModelName(BuildContext context, String filename) {
-    final base = filename
+  static String _friendlyModelName(String filename) {
+    return filename
         .replaceAll('.safetensors', '')
         .replaceAll('.ckpt', '')
         .replaceAll('.pth', '')
         .replaceAll('.pt', '');
-    return isComfySeedvr2UpscaleModel(filename)
-        ? 'SeedVR2 · $base'
-        : context.l10n.img2img_regularModelDescription(base);
   }
 
   static String _sourceLogSummary(ImageParams params, Uint8List src) {
@@ -1428,10 +1407,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
         : comfySeedvr2UpscaleTemplateId;
     final tileUpscaleResolution = math.max(
       64,
-      math.min(
-        8192,
-        (wf.upscale.seedvr2TileSize * scale).round(),
-      ),
+      math.min(8192, (wf.upscale.seedvr2TileSize * scale).round()),
     );
 
     AppLogger.i(
@@ -1439,21 +1415,23 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       'targetResolution=$targetResolution, tileUpscaleResolution=$tileUpscaleResolution',
       _upscaleLogTag,
     );
-    final results = await ref.read(comfyUITaskProvider.notifier).execute(
-      templateId: templateId,
-      inputImages: {'input_image': src},
-      paramValues: {
-        'target_resolution': targetResolution,
-        'dit_model': model,
-        'vae_encode_tile_size': wf.upscale.seedvr2VaeTileSize,
-        'vae_decode_tile_size': wf.upscale.seedvr2VaeTileSize,
-        if (wf.upscale.seedvr2Tiled) ...{
-          'tile_size': wf.upscale.seedvr2TileSize,
-          'tile_upscale_resolution': tileUpscaleResolution,
-        },
-        'seed': -1,
-      },
-    );
+    final results = await ref
+        .read(comfyUITaskProvider.notifier)
+        .execute(
+          templateId: templateId,
+          inputImages: {'input_image': src},
+          paramValues: {
+            'target_resolution': targetResolution,
+            'dit_model': model,
+            'vae_encode_tile_size': wf.upscale.seedvr2VaeTileSize,
+            'vae_decode_tile_size': wf.upscale.seedvr2VaeTileSize,
+            if (wf.upscale.seedvr2Tiled) ...{
+              'tile_size': wf.upscale.seedvr2TileSize,
+              'tile_upscale_resolution': tileUpscaleResolution,
+            },
+            'seed': -1,
+          },
+        );
     AppLogger.i(
       'SeedVR2 execute returned: ${_resultLogSummary(results)}',
       _upscaleLogTag,
@@ -1558,15 +1536,17 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       'model=$model, target=${targetWidth}x$targetHeight',
       _upscaleLogTag,
     );
-    final results = await ref.read(comfyUITaskProvider.notifier).execute(
-      templateId: comfyModelUpscaleTemplateId,
-      inputImages: {'input_image': src},
-      paramValues: {
-        'upscale_model': model,
-        'target_width': targetWidth,
-        'target_height': targetHeight,
-      },
-    );
+    final results = await ref
+        .read(comfyUITaskProvider.notifier)
+        .execute(
+          templateId: comfyModelUpscaleTemplateId,
+          inputImages: {'input_image': src},
+          paramValues: {
+            'upscale_model': model,
+            'target_width': targetWidth,
+            'target_height': targetHeight,
+          },
+        );
     AppLogger.i(
       'Regular ComfyUI execute returned: ${_resultLogSummary(results)}',
       _upscaleLogTag,
@@ -1648,13 +1628,13 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       'RTX execute start: template=$comfyRtxUpscaleTemplateId, scale=$scale',
       _upscaleLogTag,
     );
-    final results = await ref.read(comfyUITaskProvider.notifier).execute(
-      templateId: comfyRtxUpscaleTemplateId,
-      inputImages: {'input_image': src},
-      paramValues: {
-        'rtx_scale': scale,
-      },
-    );
+    final results = await ref
+        .read(comfyUITaskProvider.notifier)
+        .execute(
+          templateId: comfyRtxUpscaleTemplateId,
+          inputImages: {'input_image': src},
+          paramValues: {'rtx_scale': scale},
+        );
     AppLogger.i(
       'RTX execute returned: ${_resultLogSummary(results)}',
       _upscaleLogTag,
@@ -1674,9 +1654,11 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       _upscaleLogTag,
     );
     final decoded = img.decodeImage(bytes);
-    final outW = decoded?.width ??
+    final outW =
+        decoded?.width ??
         math.max(8, ((decodedSource.width * scale) / 8).round() * 8);
-    final outH = decoded?.height ??
+    final outH =
+        decoded?.height ??
         math.max(8, ((decodedSource.height * scale) / 8).round() * 8);
     AppLogger.d('RTX result size: ${outW}x$outH', _upscaleLogTag);
 
@@ -1723,9 +1705,9 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
         }
 
         if (bytes != null) {
-          ref
+          await ref
               .read(imageWorkflowControllerProvider.notifier)
-              .replaceSourceImage(bytes);
+              .replaceSourceImageAsync(bytes);
         }
       }
     } catch (e) {
@@ -1749,8 +1731,9 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
   List<Widget> _buildComfyUIChips(Img2ImgPanelViewData params) {
     final bool comfyEnabled;
     try {
-      comfyEnabled =
-          ref.watch(comfyUISettingsProvider.select((s) => s.enabled));
+      comfyEnabled = ref.watch(
+        comfyUISettingsProvider.select((s) => s.enabled),
+      );
     } catch (_) {
       return [];
     }
@@ -1814,10 +1797,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
 
   Future<void> _openBlankCanvas() async {
     final params = ref.read(generationParamsNotifierProvider);
-    final canvasSize = Size(
-      params.width.toDouble(),
-      params.height.toDouble(),
-    );
+    final canvasSize = Size(params.width.toDouble(), params.height.toDouble());
 
     final result = await ImageEditorScreen.show(
       context,
@@ -1872,9 +1852,9 @@ class _OperationChip extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 label,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: foreground,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(color: foreground),
               ),
             ],
           ),
@@ -2051,9 +2031,7 @@ class _FocusedCropOverlayPainter extends CustomPainter {
       return;
     }
 
-    FocusedOverlayPainter(
-      contextPath: contextPath,
-    ).paint(canvas, size);
+    FocusedOverlayPainter(contextPath: contextPath).paint(canvas, size);
   }
 
   @override
@@ -2095,11 +2073,7 @@ class _IconButton extends StatelessWidget {
           message: tooltip,
           child: Padding(
             padding: const EdgeInsets.all(4),
-            child: Icon(
-              icon,
-              size: 16,
-              color: Colors.white,
-            ),
+            child: Icon(icon, size: 16, color: Colors.white),
           ),
         ),
       ),

@@ -6,6 +6,8 @@ import '../../core/storage/local_storage_service.dart';
 
 part 'locale_provider.g.dart';
 
+const _supportedLanguageCodes = ['zh', 'en', 'ja'];
+
 /// 语言设置 Notifier
 @riverpod
 class LocaleNotifier extends _$LocaleNotifier {
@@ -27,10 +29,13 @@ class LocaleNotifier extends _$LocaleNotifier {
     await storage.setLocaleCode(languageCode);
   }
 
-  /// 切换语言 (中/英)
+  /// 切换语言
   Future<void> toggleLocale() async {
     final currentCode = state.languageCode;
-    final newCode = currentCode == 'zh' ? 'en' : 'zh';
+    final currentIndex = _supportedLanguageCodes.indexOf(currentCode);
+    final newCode =
+        _supportedLanguageCodes[(currentIndex + 1) %
+            _supportedLanguageCodes.length];
     await setLocale(newCode);
   }
 }

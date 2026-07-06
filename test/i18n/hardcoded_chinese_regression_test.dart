@@ -1,8 +1,19 @@
 import 'dart:io';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 
 void main() {
+  test('Japanese locale is generated and available', () {
+    expect(AppLocalizations.supportedLocales, contains(const Locale('ja')));
+
+    final l10n = lookupAppLocalizations(const Locale('ja'));
+    expect(l10n.settings_language, '言語');
+    expect(l10n.settings_languageJapanese, '日本語');
+    expect(l10n.common_cancel, isNot('Cancel'));
+  });
+
   test('selected visible surfaces do not hardcode Chinese strings', () {
     final files = [
       'lib/presentation/widgets/common/themed_confirm_dialog.dart',
@@ -44,8 +55,9 @@ void main() {
 
     final violations = <String>[];
     final chinese = RegExp(r'[\u4e00-\u9fff]');
-    final stringLiteral =
-        RegExp(r'''(["'])(?:(?!\1).)*[\u4e00-\u9fff](?:(?!\1).)*\1''');
+    final stringLiteral = RegExp(
+      r'''(["'])(?:(?!\1).)*[\u4e00-\u9fff](?:(?!\1).)*\1''',
+    );
 
     for (final path in files) {
       final file = File(path);

@@ -1,10 +1,14 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show compute;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/cache/danbooru_image_cache_manager.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/danbooru_api_service.dart';
 import '../../data/models/online_gallery/danbooru_post.dart';
+import '../../data/models/online_gallery/gelbooru_post_parser.dart';
 import '../../data/services/danbooru_auth_service.dart';
 import 'online_gallery_blacklist_provider.dart';
 
@@ -12,10 +16,7 @@ part 'online_gallery_provider.g.dart';
 
 const Set<String> kAllRatings = {'g', 's', 'q', 'e'};
 
-String buildOnlineGallerySearchQuery(
-  String query, {
-  required bool fuzzyMatch,
-}) {
+String buildOnlineGallerySearchQuery(String query, {required bool fuzzyMatch}) {
   final trimmed = query.trim();
   if (trimmed.isEmpty) return '';
 
@@ -58,23 +59,36 @@ List<DanbooruPost> parsePostsInIsolate(Map<String, dynamic> data) {
         // Gelbooru 需要特殊字段映射
         if (source == 'gelbooru') {
           return DanbooruPost(
-            id: json['id'] as int? ?? 0,
-            score: json['score'] as int? ?? 0,
-            source: json['source'] as String? ?? '',
-            md5: json['md5'] as String? ?? '',
-            rating: json['rating'] as String? ?? 'g',
-            width: json['width'] as int? ?? 0,
-            height: json['height'] as int? ?? 0,
-            tagString: json['tags'] as String? ?? '',
-            fileExt: json['image']?.toString().split('.').last ?? 'jpg',
-            fileUrl: json['file_url'] as String?,
-            previewFileUrl: json['preview_url'] as String?,
-            largeFileUrl: json['sample_url'] as String?,
+            id: parseBooruInt(json['id']) ?? 0,
+            site: 'gelbooru',
+            score: parseBooruInt(json['score']) ?? 0,
+            source: asBooruString(json['source']),
+            md5: asBooruString(json['md5']),
+            rating: normalizeBooruRating(json['rating']),
+            width: parseBooruInt(json['width']) ?? 0,
+            height: parseBooruInt(json['height']) ?? 0,
+            tagString: asBooruString(json['tags']),
+            fileExt: fileExtensionFromUrl(
+              asBooruString(json['image']).isNotEmpty
+                  ? asBooruString(json['image'])
+                  : asBooruString(json['file_url']),
+            ),
+            fileUrl: asBooruString(json['file_url']).isEmpty
+                ? null
+                : asBooruString(json['file_url']),
+            previewFileUrl: asBooruString(json['preview_url']).isEmpty
+                ? null
+                : asBooruString(json['preview_url']),
+            largeFileUrl: asBooruString(json['sample_url']).isEmpty
+                ? null
+                : asBooruString(json['sample_url']),
           );
         }
 
         // Danbooru/Safebooru 使用标准字段
-        return DanbooruPost.fromJson(json);
+        return DanbooruPost.fromJson(
+          json,
+        ).copyWith(site: source == 'safebooru' ? 'safebooru' : 'danbooru');
       })
       .where((post) => post.previewUrl.isNotEmpty)
       .toList();
@@ -223,8 +237,9 @@ class OnlineGalleryState {
       searchQuery: searchQuery ?? this.searchQuery,
       fuzzySearchEnabled: fuzzySearchEnabled ?? this.fuzzySearchEnabled,
       source: source ?? this.source,
-      selectedRatings:
-          Set.unmodifiable(selectedRatings ?? this.selectedRatings),
+      selectedRatings: Set.unmodifiable(
+        selectedRatings ?? this.selectedRatings,
+      ),
       viewMode: viewMode ?? this.viewMode,
       searchCache: searchCache ?? this.searchCache,
       popularCache: popularCache ?? this.popularCache,
@@ -234,8 +249,9 @@ class OnlineGalleryState {
       favoritedPostIds: favoritedPostIds ?? this.favoritedPostIds,
       favoriteLoadingPostIds:
           favoriteLoadingPostIds ?? this.favoriteLoadingPostIds,
-      dateRangeStart:
-          clearDateRange ? null : (dateRangeStart ?? this.dateRangeStart),
+      dateRangeStart: clearDateRange
+          ? null
+          : (dateRangeStart ?? this.dateRangeStart),
       dateRangeEnd: clearDateRange ? null : (dateRangeEnd ?? this.dateRangeEnd),
     );
   }
@@ -355,10 +371,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   /// 设置排行榜日期
   Future<void> setPopularDate(DateTime? date) async {
-    state = state.copyWith(
-      popularDate: date,
-      clearPopularDate: date == null,
-    );
+    state = state.copyWith(popularDate: date, clearPopularDate: date == null);
     if (state.viewMode == GalleryViewMode.popular) {
       await _loadPopularPosts(refresh: true);
     }
@@ -384,8 +397,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       await ref
           .read(onlineGalleryBlacklistNotifierProvider.notifier)
           .ensureInitialized();
-      final blacklistTags =
-          ref.read(onlineGalleryBlacklistNotifierProvider).effectiveTags;
+      final blacklistTags = ref
+          .read(onlineGalleryBlacklistNotifierProvider)
+          .effectiveTags;
       final posts = await _apiService.searchPosts(
         tags: 'order:rank',
         page: page,
@@ -400,17 +414,15 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
       // 更新缓存
       final newCache = ModeCache(
-        posts:
-            refresh ? filteredPosts : [...currentCache.posts, ...filteredPosts],
+        posts: refresh
+            ? filteredPosts
+            : [...currentCache.posts, ...filteredPosts],
         page: page,
         hasMore: posts.length >= _pageSize,
         scrollOffset: refresh ? 0 : currentCache.scrollOffset,
       );
 
-      state = state.copyWith(
-        isLoading: false,
-        popularCache: newCache,
-      );
+      state = state.copyWith(isLoading: false, popularCache: newCache);
     } catch (e, stack) {
       // 如果是取消请求，重置加载状态但不显示错误
       if (e is DioException && e.type == DioExceptionType.cancel) {
@@ -651,10 +663,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         scrollOffset: refresh ? 0 : currentCache.scrollOffset,
       );
 
-      state = state.copyWith(
-        isLoading: false,
-        searchCache: newCache,
-      );
+      state = state.copyWith(isLoading: false, searchCache: newCache);
     } catch (e, stack) {
       // 如果是取消请求，重置加载状态但不显示错误
       if (e is DioException && e.type == DioExceptionType.cancel) {
@@ -865,17 +874,18 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         .ensureInitialized();
     final baseUrl = _getBaseUrl(source);
     final endpoint = _getEndpoint(source);
-    final blacklistTags =
-        ref.read(onlineGalleryBlacklistNotifierProvider).effectiveTags;
+    final blacklistTags = ref
+        .read(onlineGalleryBlacklistNotifierProvider)
+        .effectiveTags;
 
     // 构建标签查询
     String tags = query;
     final normalizedRatings = _normalizeRatings(selectedRatings);
     if (normalizedRatings.length < kAllRatings.length) {
-      final ratingExpr = normalizedRatings.length == 1
-          ? 'rating:${normalizedRatings.first}'
-          : normalizedRatings.map((r) => '~rating:$r').join(' ');
-      tags = tags.isEmpty ? ratingExpr : '$tags $ratingExpr';
+      final ratingExpr = _buildRatingExpression(source, normalizedRatings);
+      if (ratingExpr.isNotEmpty) {
+        tags = tags.isEmpty ? ratingExpr : '$tags $ratingExpr';
+      }
     }
 
     // 添加日期范围筛选（Danbooru 语法：date:start..end）
@@ -902,15 +912,24 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     );
 
     Future<Response<dynamic>> requestWithTags(String requestTags) {
+      final queryParameters = <String, dynamic>{
+        'tags': source == 'gelbooru'
+            ? _formatGelbooruTagsForRequest(requestTags)
+            : requestTags,
+        'limit': _pageSize,
+      };
+      if (source == 'gelbooru') {
+        queryParameters['pid'] = _gelbooruApiPageToPid(page);
+      } else {
+        queryParameters['page'] = page;
+      }
+
       return _dio.get(
         '$baseUrl$endpoint',
-        queryParameters: {
-          'tags': requestTags,
-          'page': page,
-          'limit': _pageSize,
-        },
+        queryParameters: queryParameters,
         options: Options(
           headers: {
+            ...onlineGalleryImageHeadersForUrl('$baseUrl$endpoint'),
             'Accept': 'application/json',
             'User-Agent': 'NAI-Launcher/1.0',
           },
@@ -924,6 +943,19 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       response = await requestWithTags(tagsWithBlacklist);
     } on DioException catch (e) {
       final statusCode = e.response?.statusCode;
+      if (source == 'gelbooru' && statusCode == 401) {
+        AppLogger.w(
+          'Gelbooru API returned 401, fallback to public HTML post list',
+          'OnlineGallery',
+        );
+        return _fetchGelbooruHtmlPosts(
+          tagsWithBlacklist: tagsWithBlacklist,
+          baseTags: baseTags,
+          normalizedRatings: normalizedRatings,
+          blacklistTags: blacklistTags,
+          page: page,
+        );
+      }
       if (statusCode == 422 && blacklistTags.isNotEmpty) {
         AppLogger.w(
           '422 with blacklist query, fallback to request without blacklist and filter locally',
@@ -935,14 +967,13 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       }
     }
 
-    if (response.data is List) {
-      final rawList = response.data as List;
-
+    final rawList = extractPostListFromResponse(response.data, source);
+    if (rawList.isNotEmpty || response.data is List) {
       // 使用 compute 在独立 Isolate 中解析，避免主线程阻塞 UI
-      final List<DanbooruPost> posts = await compute(
-        parsePostsInIsolate,
-        {'rawList': rawList, 'source': source},
-      );
+      final List<DanbooruPost> posts = await compute(parsePostsInIsolate, {
+        'rawList': rawList,
+        'source': source,
+      });
       final filteredPosts = _filterByBlacklist(
         _filterByRatings(posts, normalizedRatings),
         blacklistTags,
@@ -956,6 +987,180 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     }
 
     return (<DanbooruPost>[], 0);
+  }
+
+  String _buildRatingExpression(String source, Set<String> normalizedRatings) {
+    if (source == 'gelbooru') {
+      // Gelbooru does not support Danbooru's rating:g shorthand in the web UI.
+      // For multi-rating subsets, request broadly and apply the exact filter locally.
+      if (normalizedRatings.length == 1) {
+        return 'rating:${gelbooruRatingName(normalizedRatings.first)}';
+      }
+      return '';
+    }
+
+    return normalizedRatings.length == 1
+        ? 'rating:${normalizedRatings.first}'
+        : normalizedRatings.map((r) => '~rating:$r').join(' ');
+  }
+
+  int _gelbooruApiPageToPid(dynamic page) {
+    final pageNumber = parseBooruInt(page) ?? 1;
+    if (pageNumber <= 1) return 0;
+    return pageNumber - 1;
+  }
+
+  int _gelbooruHtmlPageToPid(dynamic page) {
+    final pageNumber = parseBooruInt(page) ?? 1;
+    if (pageNumber <= 1) return 0;
+    return (pageNumber - 1) * 42;
+  }
+
+  String _formatGelbooruTagsForRequest(String tags) {
+    if (tags.trim().isEmpty) return tags;
+    return tags
+        .split(RegExp(r'\s+'))
+        .map((tag) {
+          final negative = tag.startsWith('-');
+          final prefix = negative ? '-' : '';
+          final body = negative ? tag.substring(1) : tag;
+          final ratingMatch = RegExp(
+            r'^rating:([a-zA-Z])$',
+            caseSensitive: false,
+          ).firstMatch(body);
+          if (ratingMatch == null) return tag;
+          return '${prefix}rating:${gelbooruRatingName(ratingMatch.group(1)!)}';
+        })
+        .join(' ');
+  }
+
+  Future<(List<DanbooruPost>, int)> _fetchGelbooruHtmlPosts({
+    required String tagsWithBlacklist,
+    required String baseTags,
+    required Set<String> normalizedRatings,
+    required Set<String> blacklistTags,
+    required dynamic page,
+  }) async {
+    Future<Response<dynamic>> requestHtml(String requestTags) {
+      return _dio.get(
+        'https://gelbooru.com/index.php',
+        queryParameters: {
+          'page': 'post',
+          's': 'list',
+          'tags': _formatGelbooruTagsForRequest(requestTags),
+          'pid': _gelbooruHtmlPageToPid(page),
+        },
+        options: Options(
+          headers: {
+            ...onlineGalleryImageHeadersForUrl(
+              'https://gelbooru.com/index.php',
+            ),
+            'Accept':
+                'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'User-Agent': 'Mozilla/5.0 NAI-Launcher/1.0',
+          },
+          responseType: ResponseType.plain,
+        ),
+        cancelToken: _cancelToken,
+      );
+    }
+
+    Response<dynamic> response;
+    try {
+      response = await requestHtml(tagsWithBlacklist);
+    } on DioException catch (e) {
+      if (blacklistTags.isNotEmpty && e.response?.statusCode == 422) {
+        response = await requestHtml(baseTags);
+      } else {
+        rethrow;
+      }
+    }
+
+    final html = response.data?.toString() ?? '';
+    final posts = parseGelbooruHtmlPosts(html);
+    final filteredPosts = _filterByBlacklist(
+      _filterByRatings(posts, normalizedRatings),
+      blacklistTags,
+    );
+    final postsWithDimensions = await _fillGelbooruThumbnailDimensions(
+      filteredPosts,
+    );
+
+    AppLogger.d(
+      'Fetched ${posts.length} Gelbooru HTML posts, ${filteredPosts.length} after filter',
+      'OnlineGallery',
+    );
+    return (postsWithDimensions, posts.length);
+  }
+
+  Future<List<DanbooruPost>> _fillGelbooruThumbnailDimensions(
+    List<DanbooruPost> posts,
+  ) async {
+    if (posts.isEmpty) return posts;
+
+    final updatedPosts = List<DanbooruPost>.of(posts);
+    var nextIndex = 0;
+    final workerCount = updatedPosts.length < 6 ? updatedPosts.length : 6;
+
+    Future<void> worker() async {
+      while (true) {
+        final index = nextIndex++;
+        if (index >= updatedPosts.length) return;
+
+        final post = updatedPosts[index];
+        if (post.width > 0 && post.height > 0) continue;
+
+        final size = await _fetchGelbooruThumbnailDimensions(post.previewUrl);
+        if (size == null) continue;
+        updatedPosts[index] = post.copyWith(
+          width: size.width,
+          height: size.height,
+        );
+      }
+    }
+
+    await Future.wait(List.generate(workerCount, (_) => worker()));
+    return updatedPosts;
+  }
+
+  Future<({int width, int height})?> _fetchGelbooruThumbnailDimensions(
+    String url,
+  ) async {
+    if (url.isEmpty) return null;
+
+    try {
+      final response = await _dio.get<List<int>>(
+        url,
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: {
+            ...onlineGalleryImageHeadersForUrl(url),
+            // Gelbooru HTML omits dimensions; the JPEG header provides enough
+            // ratio data for the masonry layout without downloading originals.
+            'Range': 'bytes=0-16383',
+          },
+        ),
+        cancelToken: _cancelToken,
+      );
+
+      final data = response.data;
+      if (data == null || data.isEmpty) return null;
+      final bytes = data is Uint8List ? data : Uint8List.fromList(data);
+      return decodeJpegDimensions(bytes);
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.cancel) rethrow;
+      AppLogger.d(
+        'Failed to read Gelbooru thumbnail dimensions: ${e.message}',
+        'OnlineGallery',
+      );
+      return null;
+    } catch (e) {
+      AppLogger.d(
+        'Failed to decode Gelbooru thumbnail dimensions: $e',
+        'OnlineGallery',
+      );
+      return null;
+    }
   }
 
   /// 格式化日期为 Danbooru 查询格式 (yyyy-MM-dd)

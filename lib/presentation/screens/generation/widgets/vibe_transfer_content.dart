@@ -49,6 +49,9 @@ class VibeTransferContent extends ConsumerStatefulWidget {
   /// 更新 Vibe 信息提取的回调
   final Function(int index, double value) onUpdateInfoExtracted;
 
+  /// 更新 Vibe 启用状态的回调
+  final Function(int index, bool value) onUpdateEnabled;
+
   /// 更新 Vibe 编码的回调
   final Function(int index, {required String vibeEncoding})? onUpdateEncoding;
 
@@ -63,14 +66,15 @@ class VibeTransferContent extends ConsumerStatefulWidget {
 
   /// 局部拖拽导入文件的回调
   final Future<int> Function(String fileName, Uint8List bytes)?
-      onImportDroppedFile;
+  onImportDroppedFile;
 
   /// 编码 Vibe 的回调
   final Future<String?> Function(
     Uint8List imageData, {
     required double informationExtracted,
     required String vibeName,
-  })? onEncode;
+  })?
+  onEncode;
 
   /// 最近使用的条目
   final List<VibeLibraryEntry> recentEntries;
@@ -91,6 +95,7 @@ class VibeTransferContent extends ConsumerStatefulWidget {
     required this.onRemoveVibe,
     required this.onUpdateStrength,
     required this.onUpdateInfoExtracted,
+    required this.onUpdateEnabled,
     this.onUpdateEncoding,
     required this.onClearAll,
     this.onSaveToLibrary,
@@ -188,8 +193,9 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
             icon: const Icon(Icons.clear_all, size: 18),
             label: Text(context.l10n.vibe_clearAll),
             style: TextButton.styleFrom(
-              foregroundColor:
-                  showBackground ? Colors.red[300] : theme.colorScheme.error,
+              foregroundColor: showBackground
+                  ? Colors.red[300]
+                  : theme.colorScheme.error,
             ),
           ),
         ],
@@ -265,8 +271,9 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
         HapticFeedback.heavyImpact();
         setState(() => _isDraggingOver = false);
         // 在回调中重新检查限制，使用最新的 vibes 状态
-        final currentVibes =
-            ref.read(generationParamsNotifierProvider).vibeReferencesV4;
+        final currentVibes = ref
+            .read(generationParamsNotifierProvider)
+            .vibeReferencesV4;
         if (currentVibes.length >= 16) {
           AppToast.warning(context, context.l10n.vibe_maxReached);
           return;
@@ -282,10 +289,7 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: _isDraggingOver
-                ? Border.all(
-                    color: theme.colorScheme.primary,
-                    width: 2,
-                  )
+                ? Border.all(color: theme.colorScheme.primary, width: 2)
                 : null,
             color: _isDraggingOver
                 ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
@@ -306,6 +310,8 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
                         widget.onUpdateStrength(index, value),
                     onInfoExtractedChanged: (value) =>
                         widget.onUpdateInfoExtracted(index, value),
+                    onEnabledChanged: (value) =>
+                        widget.onUpdateEnabled(index, value),
                     onEncode: widget.onEncode,
                     onUpdateEncoding: widget.onUpdateEncoding,
                   );

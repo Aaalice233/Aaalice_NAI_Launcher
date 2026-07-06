@@ -109,11 +109,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
         restored = true;
       }
     } finally {
-      span.finish(
-        details: {
-          'restored': restored,
-        },
-      );
+      span.finish(details: {'restored': restored});
     }
   }
 
@@ -129,14 +125,13 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
       final cachedEntries = ref.read(vibeLibraryNotifierProvider).entries;
       usedCachedEntries = cachedEntries.isNotEmpty;
       final entries = cachedEntries.isNotEmpty
-          ? ([
-              ...cachedEntries.where((entry) => entry.lastUsedAt != null),
-            ]..sort((a, b) => b.lastUsedAt!.compareTo(a.lastUsedAt!)))
-              .take(20)
-              .toList()
+          ? ([...cachedEntries.where((entry) => entry.lastUsedAt != null)]
+                  ..sort((a, b) => b.lastUsedAt!.compareTo(a.lastUsedAt!)))
+                .take(20)
+                .toList()
           : await ref
-              .read(vibeLibraryStorageServiceProvider)
-              .getRecentDisplayEntries(limit: 20);
+                .read(vibeLibraryStorageServiceProvider)
+                .getRecentDisplayEntries(limit: 20);
       entryCount = entries.length;
       final uniqueEntries = entries.deduplicateByEncodingAndThumbnail(limit: 5);
       uniqueCount = uniqueEntries.length;
@@ -190,10 +185,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
   Future<void> _addLibraryVibe(VibeLibraryEntry entry) async {
     final span = VibePerformanceDiagnostics.start(
       'unifiedReference.addLibraryVibe',
-      details: {
-        'entryId': entry.id,
-        'isBundle': entry.isBundle,
-      },
+      details: {'entryId': entry.id, 'isBundle': entry.isBundle},
     );
     var hydrated = false;
     var addedFromBundle = 0;
@@ -274,6 +266,13 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
         .updateVibeReference(index, infoExtracted: value);
   }
 
+  /// 更新 Vibe 启用状态
+  void _updateVibeEnabled(int index, bool value) {
+    ref
+        .read(generationParamsNotifierProvider.notifier)
+        .updateVibeReference(index, enabled: value);
+  }
+
   /// 更新 Vibe 编码
   void _updateVibeEncoding(int index, {required String vibeEncoding}) {
     ref
@@ -341,8 +340,10 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
       backgroundImage: _buildBackgroundImage(vibes),
       headerActions: hasVibes
           ? [
-              VibeExportHandler(ref: ref, context: context)
-                  .buildExportButton(vibes),
+              VibeExportHandler(
+                ref: ref,
+                context: context,
+              ).buildExportButton(vibes),
             ]
           : null,
       badge: Container(
@@ -377,6 +378,7 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
               onRemoveVibe: _removeVibe,
               onUpdateStrength: _updateVibeStrength,
               onUpdateInfoExtracted: _updateVibeInfoExtracted,
+              onUpdateEnabled: _updateVibeEnabled,
               onUpdateEncoding: _updateVibeEncoding,
               onClearAll: _clearAllVibes,
               onSaveToLibrary: _saveToLibrary,

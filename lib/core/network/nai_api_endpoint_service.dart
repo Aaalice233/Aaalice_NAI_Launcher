@@ -19,6 +19,8 @@ class NaiApiEndpointService {
   String mainUrl(String endpoint) => _current.mainUrl(endpoint);
 
   String imageUrl(String endpoint) => _current.imageUrl(endpoint);
+
+  String userUrl(String endpoint) => _current.userUrl(endpoint);
 }
 
 final naiApiEndpointServiceProvider = Provider<NaiApiEndpointService>(

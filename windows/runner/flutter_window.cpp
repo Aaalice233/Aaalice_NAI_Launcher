@@ -61,8 +61,13 @@ std::vector<std::string> GetSystemFonts() {
   return result;
 }
 
-// 自定义消息：唤醒窗口
-constexpr const UINT kWakeUpMessage = WM_USER + 1;
+constexpr const wchar_t kWakeUpMessageName[] =
+    L"NAI_Launcher_WakeUp_Message";
+
+static UINT GetWakeUpMessage() {
+  static const UINT message = RegisterWindowMessage(kWakeUpMessageName);
+  return message;
+}
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -142,23 +147,26 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     }
   }
 
+  const UINT wake_up_message = GetWakeUpMessage();
+  if (wake_up_message != 0 && message == wake_up_message) {
+    // 收到唤醒消息，通知 Flutter 侧显示窗口
+    if (flutter_controller_ && flutter_controller_->engine()) {
+      auto channel =
+          std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+              flutter_controller_->engine()->messenger(),
+              "com.nailauncher/window_control",
+              &flutter::StandardMethodCodec::GetInstance());
+      channel->InvokeMethod("wakeUp", nullptr);
+    }
+    return 0;
+  }
+
   switch (message) {
     case WM_FONTCHANGE:
       if (flutter_controller_ && flutter_controller_->engine()) {
         flutter_controller_->engine()->ReloadSystemFonts();
       }
       break;
-    case kWakeUpMessage: {
-      // 收到唤醒消息，通知 Flutter 侧显示窗口
-      if (flutter_controller_ && flutter_controller_->engine()) {
-        auto channel = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
-            flutter_controller_->engine()->messenger(),
-            "com.nailauncher/window_control",
-            &flutter::StandardMethodCodec::GetInstance());
-        channel->InvokeMethod("wakeUp", nullptr);
-      }
-      break;
-    }
   }
 
   return Win32Window::MessageHandler(hwnd, message, wparam, lparam);

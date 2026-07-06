@@ -20,36 +20,17 @@ import '../models/vibe/vibe_library_entry.dart';
 import '../models/vibe/vibe_reference.dart';
 import 'vibe_file_storage_service.dart';
 
+part 'vibe_library_storage_categories.dart';
+part 'vibe_library_storage_lifecycle.dart';
+part 'vibe_library_storage_types.dart';
 part 'vibe_library_storage_service.g.dart';
-
-enum VibeEntryRenameError {
-  invalidName,
-  entryNotFound,
-  nameConflict,
-  filePathMissing,
-  fileRenameFailed,
-}
-
-class VibeEntryRenameResult {
-  const VibeEntryRenameResult._({this.entry, this.error});
-
-  const VibeEntryRenameResult.success(VibeLibraryEntry entry)
-      : this._(entry: entry);
-
-  const VibeEntryRenameResult.failure(VibeEntryRenameError error)
-      : this._(error: error);
-
-  final VibeLibraryEntry? entry;
-  final VibeEntryRenameError? error;
-
-  bool get isSuccess => entry != null;
-}
 
 /// Vibe 库存储服务
 ///
 /// 负责 Vibe 库条目和分类的 CRUD 操作
 /// 使用 Hive 本地存储，支持搜索、筛选和使用统计
-class VibeLibraryStorageService {
+class VibeLibraryStorageService
+    with VibeLibraryStorageLifecycle, VibeLibraryStorageCategories {
   static const String _entriesBoxName = 'vibe_library_entries';
   static const String _displayEntriesBoxName =
       'vibe_library_display_entries_v2';
@@ -64,7 +45,7 @@ class VibeLibraryStorageService {
   static const String _tag = 'VibeLibrary';
 
   VibeLibraryStorageService({VibeFileStorageService? fileStorage})
-      : _fileStorage = fileStorage ?? VibeFileStorageService();
+    : _fileStorage = fileStorage ?? VibeFileStorageService();
 
   Box<VibeLibraryEntry>? _entriesBox;
   LazyBox<VibeLibraryEntry>? _lazyEntriesBox;
@@ -79,334 +60,6 @@ class VibeLibraryStorageService {
   Future<void> _thumbnailLoadQueue = Future.value();
   final Map<String, Future<Uint8List?>> _thumbnailLoadsById = {};
   final VibeFileStorageService _fileStorage;
-
-  void _registerAdapters() {
-    if (!Hive.isAdapterRegistered(23)) {
-      Hive.registerAdapter(VibeLibraryEntryAdapter());
-    }
-    if (!Hive.isAdapterRegistered(21)) {
-      Hive.registerAdapter(VibeLibraryCategoryAdapter());
-    }
-  }
-
-  /// 初始化并注册 Hive adapters
-  Future<void> init() async {
-    await VibePerformanceDiagnostics.measure('storage.init', () async {
-      _registerAdapters();
-      await Future.wait([
-        _ensureDisplayEntriesBox(),
-        _ensureCategoriesBox(),
-      ]);
-      AppLogger.d('VibeLibraryStorageService initialized', 'VibeLibrary');
-    });
-  }
-
-  Future<Box<VibeLibraryEntry>> _openEntriesBox() async {
-    return Hive.openBox<VibeLibraryEntry>(_entriesBoxName);
-  }
-
-  Future<LazyBox<VibeLibraryEntry>> _openLazyEntriesBox() async {
-    return Hive.openLazyBox<VibeLibraryEntry>(_entriesBoxName);
-  }
-
-  Future<Box<VibeLibraryEntry>> _openDisplayEntriesBox() async {
-    return Hive.openBox<VibeLibraryEntry>(_displayEntriesBoxName);
-  }
-
-  Future<Box<Uint8List>> _openThumbnailCacheBox() async {
-    return Hive.openBox<Uint8List>(_thumbnailCacheBoxName);
-  }
-
-  Future<Box<VibeLibraryCategory>> _openCategoriesBox() async {
-    return Hive.openBox<VibeLibraryCategory>(_categoriesBoxName);
-  }
-
-  Future<void> _ensureEntriesBox() async {
-    var awaitedActiveInit = false;
-    var closedLazyBox = false;
-    final span = VibePerformanceDiagnostics.start(
-      'storage.ensureEntriesBox',
-      details: {
-        'hadEntriesBox': _entriesBox?.isOpen == true,
-        'hadLazyBox': _lazyEntriesBox?.isOpen == true,
-      },
-    );
-    try {
-      if (_entriesBox != null && _entriesBox!.isOpen) {
-        return;
-      }
-
-      if (_lazyEntriesBox != null && _lazyEntriesBox!.isOpen) {
-        closedLazyBox = true;
-        await _lazyEntriesBox!.close();
-        _lazyEntriesBox = null;
-      }
-
-      _registerAdapters();
-      final activeInit = _entriesInitFuture;
-      if (activeInit != null) {
-        awaitedActiveInit = true;
-        await activeInit;
-        return;
-      }
-
-      final initFuture = _openEntriesBox().then((box) {
-        _entriesBox = box;
-      });
-      _entriesInitFuture = initFuture;
-      try {
-        await initFuture;
-      } catch (e, stackTrace) {
-        AppLogger.e('VibeLibrary entries 初始化失败', e, stackTrace, _tag);
-        rethrow;
-      } finally {
-        if (identical(_entriesInitFuture, initFuture)) {
-          _entriesInitFuture = null;
-        }
-      }
-    } finally {
-      span.finish(
-        details: {
-          'awaitedActiveInit': awaitedActiveInit,
-          'closedLazyBox': closedLazyBox,
-          'entriesBoxOpen': _entriesBox?.isOpen == true,
-        },
-      );
-    }
-  }
-
-  Future<void> _ensureLazyEntriesBox() async {
-    var awaitedActiveInit = false;
-    final span = VibePerformanceDiagnostics.start(
-      'storage.ensureLazyEntriesBox',
-      details: {
-        'hadEntriesBox': _entriesBox?.isOpen == true,
-        'hadLazyBox': _lazyEntriesBox?.isOpen == true,
-      },
-    );
-    try {
-      if (_entriesBox != null && _entriesBox!.isOpen) {
-        return;
-      }
-      if (_lazyEntriesBox != null && _lazyEntriesBox!.isOpen) {
-        return;
-      }
-
-      _registerAdapters();
-      final activeInit = _lazyEntriesInitFuture;
-      if (activeInit != null) {
-        awaitedActiveInit = true;
-        await activeInit;
-        return;
-      }
-
-      final initFuture = _openLazyEntriesBox().then((box) {
-        _lazyEntriesBox = box;
-      });
-      _lazyEntriesInitFuture = initFuture;
-      try {
-        await initFuture;
-      } catch (e, stackTrace) {
-        AppLogger.e('VibeLibrary lazy entries 初始化失败', e, stackTrace, _tag);
-        rethrow;
-      } finally {
-        if (identical(_lazyEntriesInitFuture, initFuture)) {
-          _lazyEntriesInitFuture = null;
-        }
-      }
-    } finally {
-      span.finish(
-        details: {
-          'awaitedActiveInit': awaitedActiveInit,
-          'entriesBoxOpen': _entriesBox?.isOpen == true,
-          'lazyBoxOpen': _lazyEntriesBox?.isOpen == true,
-        },
-      );
-    }
-  }
-
-  Future<void> _ensureDisplayEntriesBox() async {
-    var awaitedActiveInit = false;
-    final span = VibePerformanceDiagnostics.start(
-      'storage.ensureDisplayEntriesBox',
-      details: {
-        'hadDisplayBox': _displayEntriesBox?.isOpen == true,
-      },
-    );
-    try {
-      if (_displayEntriesBox != null && _displayEntriesBox!.isOpen) {
-        return;
-      }
-
-      _registerAdapters();
-      final activeInit = _displayEntriesInitFuture;
-      if (activeInit != null) {
-        awaitedActiveInit = true;
-        await activeInit;
-        return;
-      }
-
-      final initFuture = _openDisplayEntriesBox().then((box) {
-        _displayEntriesBox = box;
-      });
-      _displayEntriesInitFuture = initFuture;
-      try {
-        await initFuture;
-      } catch (e, stackTrace) {
-        AppLogger.e('VibeLibrary display cache 初始化失败', e, stackTrace, _tag);
-        rethrow;
-      } finally {
-        if (identical(_displayEntriesInitFuture, initFuture)) {
-          _displayEntriesInitFuture = null;
-        }
-      }
-    } finally {
-      span.finish(
-        details: {
-          'awaitedActiveInit': awaitedActiveInit,
-          'displayBoxOpen': _displayEntriesBox?.isOpen == true,
-        },
-      );
-    }
-  }
-
-  Future<void> _ensureThumbnailCacheBox() async {
-    var awaitedActiveInit = false;
-    final span = VibePerformanceDiagnostics.start(
-      'storage.ensureThumbnailCacheBox',
-      details: {
-        'hadThumbnailCacheBox': _thumbnailCacheBox?.isOpen == true,
-      },
-    );
-    try {
-      if (_thumbnailCacheBox != null && _thumbnailCacheBox!.isOpen) {
-        return;
-      }
-
-      _registerAdapters();
-      final activeInit = _thumbnailCacheInitFuture;
-      if (activeInit != null) {
-        awaitedActiveInit = true;
-        await activeInit;
-        return;
-      }
-
-      final initFuture = _openThumbnailCacheBox().then((box) {
-        _thumbnailCacheBox = box;
-      });
-      _thumbnailCacheInitFuture = initFuture;
-      try {
-        await initFuture;
-      } catch (e, stackTrace) {
-        AppLogger.e(
-          'VibeLibrary thumbnail cache 初始化失败',
-          e,
-          stackTrace,
-          _tag,
-        );
-        rethrow;
-      } finally {
-        if (identical(_thumbnailCacheInitFuture, initFuture)) {
-          _thumbnailCacheInitFuture = null;
-        }
-      }
-    } finally {
-      span.finish(
-        details: {
-          'awaitedActiveInit': awaitedActiveInit,
-          'thumbnailCacheBoxOpen': _thumbnailCacheBox?.isOpen == true,
-        },
-      );
-    }
-  }
-
-  Future<void> _ensureCategoriesBox() async {
-    var awaitedActiveInit = false;
-    final span = VibePerformanceDiagnostics.start(
-      'storage.ensureCategoriesBox',
-      details: {
-        'hadCategoriesBox': _categoriesBox?.isOpen == true,
-      },
-    );
-    try {
-      if (_categoriesBox != null && _categoriesBox!.isOpen) {
-        return;
-      }
-
-      _registerAdapters();
-      final activeInit = _categoriesInitFuture;
-      if (activeInit != null) {
-        awaitedActiveInit = true;
-        await activeInit;
-        return;
-      }
-
-      final initFuture = _openCategoriesBox().then((box) {
-        _categoriesBox = box;
-      });
-      _categoriesInitFuture = initFuture;
-      try {
-        await initFuture;
-      } catch (e, stackTrace) {
-        AppLogger.e('VibeLibrary categories 初始化失败', e, stackTrace, _tag);
-        rethrow;
-      } finally {
-        if (identical(_categoriesInitFuture, initFuture)) {
-          _categoriesInitFuture = null;
-        }
-      }
-    } finally {
-      span.finish(
-        details: {
-          'awaitedActiveInit': awaitedActiveInit,
-          'categoriesBoxOpen': _categoriesBox?.isOpen == true,
-        },
-      );
-    }
-  }
-
-  /// 确保完整条目和分类 Box 已初始化（线程安全）。
-  Future<void> _ensureInit() async {
-    await VibePerformanceDiagnostics.measure('storage.ensureInit', () async {
-      await Future.wait([
-        _ensureEntriesBox(),
-        _ensureCategoriesBox(),
-      ]);
-    });
-  }
-
-  Future<bool> _isDisplayCacheReady() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_displayCacheReadyKey) == true;
-  }
-
-  Future<void> _setDisplayCacheReady(bool ready) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_displayCacheReadyKey, ready);
-  }
-
-  Future<void> _upsertDisplayEntryIfReady(VibeLibraryEntry entry) async {
-    if (!await _isDisplayCacheReady()) {
-      return;
-    }
-
-    await _ensureDisplayEntriesBox();
-    await _displayEntriesBox!.put(entry.id, entry.toDisplayEntry());
-  }
-
-  Future<void> _deleteDisplayEntryIfReady(String id) async {
-    if (!await _isDisplayCacheReady()) {
-      return;
-    }
-
-    await _ensureDisplayEntriesBox();
-    await _displayEntriesBox!.delete(id);
-  }
-
-  Future<void> _deleteDisplayThumbnailCache(String id) async {
-    await _ensureThumbnailCacheBox();
-    await _thumbnailCacheBox!.delete(id);
-  }
 
   static Uint8List? _resizeDisplayThumbnailSync(Uint8List sourceBytes) {
     final source = img.decodeImage(sourceBytes);
@@ -473,9 +126,7 @@ class VibeLibraryStorageService {
   Future<Uint8List?> _loadAndCacheDisplayThumbnail(String id) async {
     final span = VibePerformanceDiagnostics.start(
       'storage.loadDisplayThumbnail',
-      details: {
-        'id': id,
-      },
+      details: {'id': id},
     );
     var found = false;
     var cached = false;
@@ -529,10 +180,7 @@ class VibeLibraryStorageService {
     final queued = _thumbnailLoadQueue.then(
       (_) => _loadAndCacheDisplayThumbnail(id),
     );
-    _thumbnailLoadQueue = queued.then<void>(
-      (_) {},
-      onError: (_) {},
-    );
+    _thumbnailLoadQueue = queued.then<void>((_) {}, onError: (_) {});
     return queued;
   }
 
@@ -580,9 +228,7 @@ class VibeLibraryStorageService {
         await Future<void>.delayed(Duration.zero);
       });
 
-      final entriesById = {
-        for (final entry in displayEntries) entry.id: entry,
-      };
+      final entriesById = {for (final entry in displayEntries) entry.id: entry};
 
       await _displayEntriesBox!.clear();
       if (entriesById.isNotEmpty) {
@@ -597,11 +243,7 @@ class VibeLibraryStorageService {
       );
       return displayEntries;
     } finally {
-      span.finish(
-        details: {
-          'entries': entryCount,
-        },
-      );
+      span.finish(details: {'entries': entryCount});
     }
   }
 
@@ -732,9 +374,7 @@ class VibeLibraryStorageService {
         'hasEncoding': vibe.vibeEncoding.isNotEmpty,
         'hasThumbnail': vibe.thumbnail?.isNotEmpty == true,
       },
-      resultDetails: (entry) => {
-        'found': entry != null,
-      },
+      resultDetails: (entry) => {'found': entry != null},
     );
   }
 
@@ -752,17 +392,15 @@ class VibeLibraryStorageService {
         return _firstStoredEntryWhere((entry) {
           final sameDisplayName = entry.displayName == vibe.displayName;
           final sameEncoding = entry.vibeEncoding == vibe.vibeEncoding;
-          final sameRawImage =
-              _bytesEqual(entry.rawImageData, vibe.rawImageData);
+          final sameRawImage = _bytesEqual(
+            entry.rawImageData,
+            vibe.rawImageData,
+          );
           return sameDisplayName && (sameEncoding || sameRawImage);
         });
       },
-      details: {
-        'vibes': vibes.length,
-      },
-      resultDetails: (entry) => {
-        'found': entry != null,
-      },
+      details: {'vibes': vibes.length},
+      resultDetails: (entry) => {'found': entry != null},
     );
   }
 
@@ -779,12 +417,8 @@ class VibeLibraryStorageService {
           return entry.name.trim().toLowerCase() == normalizedName;
         });
       },
-      details: {
-        'hasName': name.trim().isNotEmpty,
-      },
-      resultDetails: (entry) => {
-        'found': entry != null,
-      },
+      details: {'hasName': name.trim().isNotEmpty},
+      resultDetails: (entry) => {'found': entry != null},
     );
   }
 
@@ -887,15 +521,19 @@ class VibeLibraryStorageService {
           .map((v) => v.thumbnail!)
           .toList();
       final updatedEntry = entry.copyWith(
-        bundledVibeNames:
-            updatedVibes.map((v) => v.displayName).toList(growable: false),
+        bundledVibeNames: updatedVibes
+            .map((v) => v.displayName)
+            .toList(growable: false),
         bundledVibePreviews: previews.isEmpty ? null : previews,
-        bundledVibeEncodings:
-            updatedVibes.map((v) => v.vibeEncoding).toList(growable: false),
-        bundledVibeStrengths:
-            updatedVibes.map((v) => v.strength).toList(growable: false),
-        bundledVibeInfoExtracted:
-            updatedVibes.map((v) => v.infoExtracted).toList(growable: false),
+        bundledVibeEncodings: updatedVibes
+            .map((v) => v.vibeEncoding)
+            .toList(growable: false),
+        bundledVibeStrengths: updatedVibes
+            .map((v) => v.strength)
+            .toList(growable: false),
+        bundledVibeInfoExtracted: updatedVibes
+            .map((v) => v.infoExtracted)
+            .toList(growable: false),
       );
 
       await _putStoredEntry(updatedEntry);
@@ -920,7 +558,8 @@ class VibeLibraryStorageService {
       if (vibes.isEmpty) throw ArgumentError('vibes cannot be empty');
 
       final existingPath = replaceEntry?.filePath;
-      final canOverwriteExistingBundle = existingPath != null &&
+      final canOverwriteExistingBundle =
+          existingPath != null &&
           existingPath.isNotEmpty &&
           p.extension(existingPath).toLowerCase() == '.naiv4vibebundle' &&
           await File(existingPath).exists();
@@ -982,9 +621,7 @@ class VibeLibraryStorageService {
   Future<VibeLibraryEntry?> getEntry(String id) async {
     final span = VibePerformanceDiagnostics.start(
       'storage.getEntry',
-      details: {
-        'id': id,
-      },
+      details: {'id': id},
     );
     var found = false;
     var hasFile = false;
@@ -1032,14 +669,18 @@ class VibeLibraryStorageService {
         final bundleVibes = await _fileStorage.extractVibesFromBundle(filePath);
         if (bundleVibes.isNotEmpty) {
           mergedEntry = mergedEntry.copyWith(
-            bundledVibeNames:
-                bundleVibes.map((v) => v.displayName).toList(growable: false),
-            bundledVibeEncodings:
-                bundleVibes.map((v) => v.vibeEncoding).toList(growable: false),
-            bundledVibeStrengths:
-                bundleVibes.map((v) => v.strength).toList(growable: false),
-            bundledVibeInfoExtracted:
-                bundleVibes.map((v) => v.infoExtracted).toList(growable: false),
+            bundledVibeNames: bundleVibes
+                .map((v) => v.displayName)
+                .toList(growable: false),
+            bundledVibeEncodings: bundleVibes
+                .map((v) => v.vibeEncoding)
+                .toList(growable: false),
+            bundledVibeStrengths: bundleVibes
+                .map((v) => v.strength)
+                .toList(growable: false),
+            bundledVibeInfoExtracted: bundleVibes
+                .map((v) => v.infoExtracted)
+                .toList(growable: false),
           );
         }
 
@@ -1069,10 +710,7 @@ class VibeLibraryStorageService {
   }
 
   /// 读取 bundle 条目中的指定子 Vibe。
-  Future<VibeReference?> loadBundleChildVibe(
-    String id,
-    int childIndex,
-  ) async {
+  Future<VibeReference?> loadBundleChildVibe(String id, int childIndex) async {
     if (childIndex < 0) return null;
 
     try {
@@ -1097,9 +735,7 @@ class VibeLibraryStorageService {
         await _ensureInit();
         try {
           final entries = _entriesBox!.values.toList(growable: false);
-          return Future.wait(
-            entries.map(_resolveEntryDisplayParams),
-          );
+          return Future.wait(entries.map(_resolveEntryDisplayParams));
         } catch (e, stackTrace) {
           AppLogger.e(
             'Failed to get all entries: $e',
@@ -1109,9 +745,7 @@ class VibeLibraryStorageService {
           return [];
         }
       },
-      resultDetails: (entries) => {
-        'entries': entries.length,
-      },
+      resultDetails: (entries) => {'entries': entries.length},
     );
   }
 
@@ -1303,12 +937,8 @@ class VibeLibraryStorageService {
         recentEntries.sort((a, b) => b.lastUsedAt!.compareTo(a.lastUsedAt!));
         return recentEntries.take(limit).toList(growable: false);
       },
-      details: {
-        'limit': limit,
-      },
-      resultDetails: (entries) => {
-        'entries': entries.length,
-      },
+      details: {'limit': limit},
+      resultDetails: (entries) => {'entries': entries.length},
     );
   }
 
@@ -1500,9 +1130,7 @@ class VibeLibraryStorageService {
   }) async {
     final span = VibePerformanceDiagnostics.start(
       'storage.syncWithFileSystem',
-      details: {
-        'removeMissingEntries': removeMissingEntries,
-      },
+      details: {'removeMissingEntries': removeMissingEntries},
     );
     VibeFolderSyncResult? syncResult;
     try {
@@ -1627,16 +1255,20 @@ class VibeLibraryStorageService {
         );
       }
 
-      final renamedPath =
-          await _fileStorage.renameVibeFile(filePath, trimmedName);
+      final renamedPath = await _fileStorage.renameVibeFile(
+        filePath,
+        trimmedName,
+      );
       if (renamedPath == null) {
         return const VibeEntryRenameResult.failure(
           VibeEntryRenameError.fileRenameFailed,
         );
       }
 
-      final updatedEntry =
-          entry.copyWith(name: trimmedName, filePath: renamedPath);
+      final updatedEntry = entry.copyWith(
+        name: trimmedName,
+        filePath: renamedPath,
+      );
       await _putStoredEntry(updatedEntry);
       await _upsertDisplayEntryIfReady(updatedEntry);
       AppLogger.d('Entry renamed: $filePath -> $renamedPath', _tag);
@@ -1688,10 +1320,7 @@ class VibeLibraryStorageService {
               _buildBundleVibeReferences(entry),
               bundleName: entry.name,
             )
-          : await _fileStorage.saveVibeToFile(
-              vibeData,
-              customName: entry.name,
-            );
+          : await _fileStorage.saveVibeToFile(vibeData, customName: entry.name);
 
       if (savedPath.isEmpty) {
         throw StateError('Saved vibe file path is empty');
@@ -1700,10 +1329,7 @@ class VibeLibraryStorageService {
       // 从实际保存的文件路径提取文件名（不含扩展名），确保 name 与文件名一致
       final actualFileName = p.basenameWithoutExtension(savedPath);
 
-      return entry.copyWith(
-        filePath: savedPath,
-        name: actualFileName,
-      );
+      return entry.copyWith(filePath: savedPath, name: actualFileName);
     } catch (e, stackTrace) {
       AppLogger.e('Failed to save entry file', e, stackTrace, _tag);
       rethrow;
@@ -1726,10 +1352,12 @@ class VibeLibraryStorageService {
     final results = <VibeReference>[];
     for (var i = 0; i < encodings.length; i++) {
       final encoding = encodings[i];
-      final name =
-          names != null && i < names.length ? names[i] : '${entry.name}#$i';
-      final thumbnail =
-          previews != null && i < previews.length ? previews[i] : null;
+      final name = names != null && i < names.length
+          ? names[i]
+          : '${entry.name}#$i';
+      final thumbnail = previews != null && i < previews.length
+          ? previews[i]
+          : null;
       final strength = strengths != null && i < strengths.length
           ? strengths[i]
           : entry.strength;
@@ -1750,290 +1378,6 @@ class VibeLibraryStorageService {
     }
 
     return results;
-  }
-
-  // ==================== Category CRUD ====================
-
-  /// 保存分类（新增或更新）
-  Future<VibeLibraryCategory> saveCategory(VibeLibraryCategory category) async {
-    await _ensureCategoriesBox();
-    try {
-      await _categoriesBox!.put(category.id, category);
-      AppLogger.d('Category saved: ${category.name}', 'VibeLibrary');
-      return category;
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to save category: $e', 'VibeLibrary', stackTrace);
-      rethrow;
-    }
-  }
-
-  /// 根据 ID 获取分类
-  Future<VibeLibraryCategory?> getCategory(String id) async {
-    await _ensureCategoriesBox();
-    try {
-      return _categoriesBox!.get(id);
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to get category: $e', 'VibeLibrary', stackTrace);
-      return null;
-    }
-  }
-
-  /// 获取所有分类
-  Future<List<VibeLibraryCategory>> getAllCategories() async {
-    await _ensureCategoriesBox();
-    try {
-      return _categoriesBox!.values.toList();
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to get all categories: $e',
-        'VibeLibrary',
-        stackTrace,
-      );
-      return [];
-    }
-  }
-
-  /// 获取根级分类
-  Future<List<VibeLibraryCategory>> getRootCategories() async {
-    await _ensureCategoriesBox();
-    try {
-      return _categoriesBox!.values
-          .where((category) => category.parentId == null)
-          .toList();
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to get root categories: $e',
-        'VibeLibrary',
-        stackTrace,
-      );
-      return [];
-    }
-  }
-
-  /// 获取子分类
-  Future<List<VibeLibraryCategory>> getChildCategories(String parentId) async {
-    await _ensureCategoriesBox();
-    try {
-      return _categoriesBox!.values
-          .where((category) => category.parentId == parentId)
-          .toList();
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to get child categories: $e',
-        'VibeLibrary',
-        stackTrace,
-      );
-      return [];
-    }
-  }
-
-  /// 删除分类
-  ///
-  /// [moveEntriesToParent] 如果为 true，将分类下的条目移动到父分类；
-  /// 如果为 false，将条目设为无分类（categoryId = null）
-  Future<bool> deleteCategory(
-    String id, {
-    bool moveEntriesToParent = true,
-  }) async {
-    await Future.wait([
-      _ensureEntriesBox(),
-      _ensureCategoriesBox(),
-    ]);
-    try {
-      final category = _categoriesBox!.get(id);
-      if (category == null) return false;
-
-      // 更新该分类下的条目
-      final entriesInCategory = await getEntriesByCategory(id);
-      for (final entry in entriesInCategory) {
-        if (moveEntriesToParent && category.parentId != null) {
-          await updateEntryCategory(entry.id, category.parentId);
-        } else {
-          await updateEntryCategory(entry.id, null);
-        }
-      }
-
-      // 更新子分类的 parentId
-      final childCategories = await getChildCategories(id);
-      for (final child in childCategories) {
-        final updatedChild = child.moveTo(category.parentId);
-        await saveCategory(updatedChild);
-      }
-
-      await _categoriesBox!.delete(id);
-      AppLogger.d('Category deleted: ${category.name}', 'VibeLibrary');
-      return true;
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to delete category: $e', 'VibeLibrary', stackTrace);
-      return false;
-    }
-  }
-
-  /// 批量删除分类
-  Future<int> deleteCategories(List<String> ids) async {
-    await _ensureCategoriesBox();
-    var deletedCount = 0;
-    try {
-      for (final id in ids) {
-        if (await deleteCategory(id)) {
-          deletedCount++;
-        }
-      }
-      AppLogger.d('Categories deleted: $deletedCount', 'VibeLibrary');
-      return deletedCount;
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to delete categories: $e', 'VibeLibrary', stackTrace);
-      return deletedCount;
-    }
-  }
-
-  /// 更新分类名称
-  Future<VibeLibraryCategory?> updateCategoryName(
-    String id,
-    String newName,
-  ) async {
-    await _ensureCategoriesBox();
-    try {
-      final category = _categoriesBox!.get(id);
-      if (category == null) return null;
-
-      final updatedCategory = category.updateName(newName);
-      await _categoriesBox!.put(id, updatedCategory);
-      AppLogger.d('Category name updated: $newName', 'VibeLibrary');
-      return updatedCategory;
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to update category name: $e',
-        'VibeLibrary',
-        stackTrace,
-      );
-      return null;
-    }
-  }
-
-  /// 移动分类到新父分类
-  Future<VibeLibraryCategory?> moveCategory(
-    String id,
-    String? newParentId,
-  ) async {
-    await _ensureCategoriesBox();
-    try {
-      final category = _categoriesBox!.get(id);
-      if (category == null) return null;
-
-      // 检查循环引用
-      if (newParentId != null) {
-        final allCategories = await getAllCategories();
-        if (allCategories.wouldCreateCycle(id, newParentId)) {
-          throw ArgumentError('Cannot move category: would create cycle');
-        }
-      }
-
-      final updatedCategory = category.moveTo(newParentId);
-      await _categoriesBox!.put(id, updatedCategory);
-      AppLogger.d('Category moved: ${category.name}', 'VibeLibrary');
-      return updatedCategory;
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to move category: $e', 'VibeLibrary', stackTrace);
-      return null;
-    }
-  }
-
-  /// 获取分类数量
-  Future<int> getCategoriesCount() async {
-    await _ensureCategoriesBox();
-    try {
-      return _categoriesBox!.length;
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to get categories count: $e',
-        'VibeLibrary',
-        stackTrace,
-      );
-      return 0;
-    }
-  }
-
-  /// 检查分类是否存在
-  Future<bool> categoryExists(String id) async {
-    await _ensureCategoriesBox();
-    try {
-      return _categoriesBox!.containsKey(id);
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to check category existence: $e',
-        'VibeLibrary',
-        stackTrace,
-      );
-      return false;
-    }
-  }
-
-  /// 清除所有分类
-  Future<void> clearAllCategories() async {
-    await _ensureCategoriesBox();
-    try {
-      await _categoriesBox!.clear();
-      AppLogger.i('All categories cleared', 'VibeLibrary');
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to clear all categories: $e',
-        'VibeLibrary',
-        stackTrace,
-      );
-      rethrow;
-    }
-  }
-
-  // ==================== Utility ====================
-
-  /// 获取所有标签
-  Future<Set<String>> getAllTags() async {
-    await _ensureInit();
-    try {
-      final tags = <String>{};
-      for (final entry in _entriesBox!.values) {
-        tags.addAll(entry.tags);
-      }
-      return tags;
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to get all tags: $e', 'VibeLibrary', stackTrace);
-      return {};
-    }
-  }
-
-  /// 按标签筛选条目
-  Future<List<VibeLibraryEntry>> getEntriesByTag(String tag) async {
-    await _ensureInit();
-    try {
-      return _entriesBox!.values
-          .where((entry) => entry.tags.contains(tag))
-          .toList();
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to get entries by tag: $e',
-        'VibeLibrary',
-        stackTrace,
-      );
-      return [];
-    }
-  }
-
-  /// 获取按使用次数排序的条目
-  Future<List<VibeLibraryEntry>> getEntriesByUsage({int limit = 20}) async {
-    await _ensureInit();
-    try {
-      final entries = _entriesBox!.values.toList();
-      entries.sort((a, b) => b.usedCount.compareTo(a.usedCount));
-      return entries.take(limit).toList();
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Failed to get entries by usage: $e',
-        'VibeLibrary',
-        stackTrace,
-      );
-      return [];
-    }
   }
 
   // ==================== Generation State Persistence ====================
@@ -2111,9 +1455,7 @@ class VibeLibraryStorageService {
   Future<void> saveGenerationStateJson(String stateJson) async {
     final span = VibePerformanceDiagnostics.start(
       'storage.saveGenerationStateJson',
-      details: {
-        'chars': stateJson.length,
-      },
+      details: {'chars': stateJson.length},
     );
     var target = 'none';
     try {
@@ -2150,11 +1492,7 @@ class VibeLibraryStorageService {
         'VibeLibrary',
       );
     } finally {
-      span.finish(
-        details: {
-          'target': target,
-        },
-      );
+      span.finish(details: {'target': target});
     }
   }
 
@@ -2230,12 +1568,7 @@ class VibeLibraryStorageService {
       );
       return null;
     } finally {
-      span.finish(
-        details: {
-          'source': source,
-          'chars': chars,
-        },
-      );
+      span.finish(details: {'source': source, 'chars': chars});
     }
   }
 
@@ -2274,36 +1607,10 @@ class VibeLibraryStorageService {
       );
     }
   }
-
-  /// 关闭存储（清理资源）
-  Future<void> close() async {
-    try {
-      if (_entriesBox != null && _entriesBox!.isOpen) {
-        await _entriesBox!.close();
-      }
-      if (_lazyEntriesBox != null && _lazyEntriesBox!.isOpen) {
-        await _lazyEntriesBox!.close();
-      }
-      if (_displayEntriesBox != null && _displayEntriesBox!.isOpen) {
-        await _displayEntriesBox!.close();
-      }
-      if (_thumbnailCacheBox != null && _thumbnailCacheBox!.isOpen) {
-        await _thumbnailCacheBox!.close();
-      }
-      if (_categoriesBox != null && _categoriesBox!.isOpen) {
-        await _categoriesBox!.close();
-      }
-      AppLogger.d('VibeLibraryStorageService closed', 'VibeLibrary');
-    } catch (e, stackTrace) {
-      AppLogger.e('Failed to close storage: $e', 'VibeLibrary', stackTrace);
-    }
-  }
 }
 
 /// Provider
 @Riverpod(keepAlive: true)
 VibeLibraryStorageService vibeLibraryStorageService(Ref ref) {
-  return VibeLibraryStorageService(
-    fileStorage: VibeFileStorageService(),
-  );
+  return VibeLibraryStorageService(fileStorage: VibeFileStorageService());
 }

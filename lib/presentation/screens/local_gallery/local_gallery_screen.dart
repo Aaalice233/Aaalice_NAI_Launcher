@@ -258,7 +258,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
               builder: (context, snapshot) {
                 return GalleryCategoryTreeView(
                   categories: categoryState.categories,
-                  totalImageCount: state.allFiles.length,
+                  totalImageCount: state.totalCount,
                   favoriteCount: snapshot.data ?? 0,
                   selectedCategoryId: categoryState.selectedCategoryId,
                   onCategorySelected: _handleCategorySelected,
@@ -273,8 +273,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
                   onCategoryReorder: (parentId, oldIndex, newIndex) => ref
                       .read(galleryCategoryNotifierProvider.notifier)
                       .reorderCategories(parentId, oldIndex, newIndex),
-                  onImageDrop: (imagePath, categoryId) =>
-                      _handleImageDrop(imagePath, categoryId!),
+                  onImageDrop: _handleImageDrop,
                   onSyncWithFileSystem: _handleSyncWithFileSystem,
                 );
               },
@@ -357,10 +356,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       ref
           .read(localGalleryNotifierProvider.notifier)
           .setShowFavoritesOnly(false);
-      ref.read(localGalleryNotifierProvider.notifier).setSelectedCategory(
-            id,
-            category.folderPath,
-          );
+      ref
+          .read(localGalleryNotifierProvider.notifier)
+          .setSelectedCategory(id, category.folderPath);
     } else {
       // 全部：清除分类过滤
       ref
@@ -416,7 +414,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     }
   }
 
-  Future<void> _handleImageDrop(String imagePath, String categoryId) async {
+  Future<void> _handleImageDrop(String imagePath, String? categoryId) async {
     final protected = await AssetProtectionGuard.confirmDangerousAction(
       context: context,
       ref: ref,
@@ -431,7 +429,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         .read(galleryCategoryNotifierProvider.notifier)
         .moveImageToCategory(imagePath, categoryId);
     if (newPath != null) {
-      ref.read(localGalleryNotifierProvider.notifier).refresh();
+      await ref
+          .read(localGalleryNotifierProvider.notifier)
+          .refresh(scan: false);
       if (mounted) {
         AppToast.success(
           context,
@@ -495,7 +495,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       AppLogger.i('[AutoRefresh] Executing auto refresh', 'LocalGalleryScreen');
       _lastRefreshTime = now;
 
-      await ref.read(localGalleryNotifierProvider.notifier).refresh();
+      await ref
+          .read(localGalleryNotifierProvider.notifier)
+          .refresh(scan: false);
       await ref
           .read(galleryCategoryNotifierProvider.notifier)
           .syncWithFileSystem();
@@ -694,8 +696,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     final l10n = context.l10n;
 
     // 从数据库获取所有选中项的完整记录（支持跨页）
-    final service =
-        await ref.read(localGalleryNotifierProvider.notifier).getService();
+    final service = await ref
+        .read(localGalleryNotifierProvider.notifier)
+        .getService();
     final selectedImages = await service.getRecordsByPaths(
       selectionState.selectedIds.toList(),
     );
@@ -706,8 +709,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       // ignore: use_build_context_synchronously
       context: context,
       title: l10n.localGallery_confirmBulkDelete,
-      content:
-          l10n.localGallery_confirmBulkDeleteContent(selectedImages.length),
+      content: l10n.localGallery_confirmBulkDeleteContent(
+        selectedImages.length,
+      ),
       confirmText: l10n.common_delete,
       cancelText: l10n.common_cancel,
       type: ThemedConfirmDialogType.danger,
@@ -756,8 +760,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     final selectionState = ref.read(localGallerySelectionNotifierProvider);
 
     // 从数据库获取所有选中项的完整记录（支持跨页）
-    final service =
-        await ref.read(localGalleryNotifierProvider.notifier).getService();
+    final service = await ref
+        .read(localGalleryNotifierProvider.notifier)
+        .getService();
     final selectedImages = await service.getRecordsByPaths(
       selectionState.selectedIds.toList(),
     );
@@ -774,8 +779,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
     if (outputPath == null || !mounted) return;
 
-    final requestedPath =
-        outputPath.endsWith('.zip') ? outputPath : '$outputPath.zip';
+    final requestedPath = outputPath.endsWith('.zip')
+        ? outputPath
+        : '$outputPath.zip';
     final finalPath = AssetProtectionGuard.shouldPreventOverwrite(ref)
         ? await AssetProtectionGuard.resolveNonOverwritingPath(requestedPath)
         : requestedPath;
@@ -815,8 +821,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     final l10n = context.l10n;
 
     // 从数据库获取所有选中项的完整记录（支持跨页）
-    final service =
-        await ref.read(localGalleryNotifierProvider.notifier).getService();
+    final service = await ref
+        .read(localGalleryNotifierProvider.notifier)
+        .getService();
     final selectedImages = await service.getRecordsByPaths(
       selectionState.selectedIds.toList(),
     );
@@ -846,9 +853,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
               return ListTile(
                 leading: const Icon(Icons.folder),
                 title: Text(folder.name),
-                subtitle: Text(
-                  l10n.localGallery_imageCount(folder.imageCount),
-                ),
+                subtitle: Text(l10n.localGallery_imageCount(folder.imageCount)),
                 onTap: () => Navigator.of(context).pop(folder.path),
               );
             },
@@ -878,11 +883,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     if (!protected || !mounted) return;
 
     final imagePaths = selectedImages.map((img) => img.path).toList();
-    final movedCount =
-        await GalleryFolderRepository.instance.moveImagesToFolder(
-      imagePaths,
-      selectedFolder,
-    );
+    final movedCount = await GalleryFolderRepository.instance
+        .moveImagesToFolder(imagePaths, selectedFolder);
 
     if (mounted) {
       if (movedCount > 0) {
@@ -903,8 +905,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     final selectionState = ref.read(localGallerySelectionNotifierProvider);
 
     // 从数据库获取所有选中项的完整记录（支持跨页）
-    final service =
-        await ref.read(localGalleryNotifierProvider.notifier).getService();
+    final service = await ref
+        .read(localGalleryNotifierProvider.notifier)
+        .getService();
     final selectedImages = await service.getRecordsByPaths(
       selectionState.selectedIds.toList(),
     );
@@ -947,12 +950,15 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         return;
       }
 
-      final options =
-          await MetadataImportDialog.show(context, metadata: metadata);
+      final options = await MetadataImportDialog.show(
+        context,
+        metadata: metadata,
+      );
       if (options == null || !mounted) return;
 
-      final paramsNotifier =
-          ref.read(generationParamsNotifierProvider.notifier);
+      final paramsNotifier = ref.read(
+        generationParamsNotifierProvider.notifier,
+      );
 
       // 安全获取角色提示词列表（防止 null）
       final characterPrompts = metadata.characterPrompts;
@@ -1027,8 +1033,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   }
 
   void _applyCharacterPrompts(NaiImageMetadata metadata) {
-    final characterNotifier =
-        ref.read(characterPromptNotifierProvider.notifier);
+    final characterNotifier = ref.read(
+      characterPromptNotifierProvider.notifier,
+    );
     final characters = <char.CharacterPrompt>[];
 
     // 安全获取角色提示词列表
@@ -1102,8 +1109,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         return;
       }
 
-      final paramsNotifier =
-          ref.read(generationParamsNotifierProvider.notifier);
+      final paramsNotifier = ref.read(
+        generationParamsNotifierProvider.notifier,
+      );
       paramsNotifier.addVibeReferences([vibeData]);
 
       if (mounted) {
@@ -1376,8 +1384,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       builder: (pickerContext, child) => Theme(
         data: Theme.of(pickerContext).copyWith(
           dialogTheme: DialogThemeData(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         ),
         child: child!,

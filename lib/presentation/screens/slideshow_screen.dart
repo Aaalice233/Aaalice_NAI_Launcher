@@ -8,6 +8,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../data/models/gallery/local_image_record.dart';
 
+const int _maxSlideshowImageDimension = 4096;
+
+ImageProvider buildSlideshowImageProvider(String path) {
+  return ResizeImage(
+    FileImage(File(path)),
+    width: _maxSlideshowImageDimension,
+    height: _maxSlideshowImageDimension,
+    policy: ResizeImagePolicy.fit,
+  );
+}
+
 /// 幻灯片屏幕
 ///
 /// 全屏显示图片，支持键盘导航和自动播放
@@ -50,7 +61,8 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen> {
   @override
   void dispose() {
     _focusNode.dispose();
-    _stopAutoPlay();
+    _autoPlayTimer?.cancel();
+    _autoPlayTimer = null;
     super.dispose();
   }
 
@@ -181,8 +193,8 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen> {
               child: InteractiveViewer(
                 minScale: 0.5,
                 maxScale: 4.0,
-                child: Image.file(
-                  File(currentImage.path),
+                child: Image(
+                  image: buildSlideshowImageProvider(currentImage.path),
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
@@ -210,8 +222,10 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen> {
               left: 0,
               right: 0,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
@@ -263,8 +277,10 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen> {
               left: 0,
               right: 0,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,

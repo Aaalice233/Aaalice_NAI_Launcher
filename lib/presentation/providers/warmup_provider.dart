@@ -894,24 +894,23 @@ class WarmupNotifier extends _$WarmupNotifier {
       // 等待初始化完成
       await manager.initialized;
 
-      final stats = await manager.getStatistics();
-      final tableStats = stats['tables'] as Map<String, int>? ?? {};
+      final runtimeStats = await manager.getStatistics();
+      final tableStats = runtimeStats['tables'] as Map<String, int>? ?? {};
+      final coreAssetStats = await manager.getCoreAssetStatistics();
 
       // 获取各表记录数
-      final translationCount = tableStats['translations'] ?? 0;
-      final cooccurrenceCount = tableStats['cooccurrences'] ?? 0;
+      final translationCount = coreAssetStats['translations'] ?? 0;
+      final cooccurrenceCount = coreAssetStats['cooccurrences'] ?? 0;
       final danbooruCount = tableStats['danbooru_tags'] ?? 0;
 
       AppLogger.i(
-        '数据表状态: translations=$translationCount, cooccurrences=$cooccurrenceCount, danbooru_tags=$danbooruCount',
+        '核心资产数据库状态: translations=$translationCount, cooccurrences=$cooccurrenceCount, danbooru_tags=$danbooruCount',
         'Warmup',
       );
 
-      // 1. 检查 translations 和 cooccurrences
-      // 注意：核心数据恢复已在 main() 中完成，这里只检查状态
+      // 1. 检查 translations 和 cooccurrences 资产库
       if (translationCount == 0 || cooccurrenceCount == 0) {
-        AppLogger.w('核心数据为空，将在后台通过API拉取补充', 'Warmup');
-        // 不再调用 recover()，避免重复恢复导致 ConnectionPool 被替换
+        AppLogger.w('核心资产数据为空，请检查本地打包数据库', 'Warmup');
       }
 
       // 2. 恢复 danbooru_tags（从API）

@@ -51,8 +51,9 @@ class _VibeSectionState extends State<VibeSection> {
     for (var i = 0; i < widget.vibes.length; i++) {
       final vibe = widget.vibes[i];
       buffer.writeln('Vibe ${i + 1}: ${vibe.displayName}');
-      buffer
-          .writeln('  Strength: ${(vibe.strength * 100).toStringAsFixed(0)}%');
+      buffer.writeln(
+        '  Strength: ${(vibe.strength * 100).toStringAsFixed(0)}%',
+      );
       buffer.writeln(
         '  Info Extracted: ${(vibe.infoExtracted * 100).toStringAsFixed(0)}%',
       );
@@ -134,8 +135,9 @@ class _VibeSectionState extends State<VibeSection> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: colorScheme.tertiaryContainer
-                            .withValues(alpha: 0.5),
+                        color: colorScheme.tertiaryContainer.withValues(
+                          alpha: 0.5,
+                        ),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
@@ -225,9 +227,7 @@ class _VibeCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.1),
-        ),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.1)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -273,7 +273,7 @@ class _VibeCard extends StatelessWidget {
                 _buildInfoRow(
                   context,
                   icon: Icons.tune,
-                  label: 'Strength',
+                  label: context.l10n.vibe_strength,
                   value: '${(vibe.strength * 100).toStringAsFixed(0)}%',
                   valueColor: colorScheme.primary,
                 ),
@@ -282,7 +282,7 @@ class _VibeCard extends StatelessWidget {
                 _buildInfoRow(
                   context,
                   icon: Icons.info_outline,
-                  label: 'Info',
+                  label: context.l10n.vibe_infoExtracted,
                   value: '${(vibe.infoExtracted * 100).toStringAsFixed(0)}%',
                   valueColor: colorScheme.tertiary,
                 ),
@@ -291,8 +291,8 @@ class _VibeCard extends StatelessWidget {
                 _buildInfoRow(
                   context,
                   icon: Icons.source_outlined,
-                  label: 'Source',
-                  value: vibe.sourceType.displayLabel,
+                  label: context.l10n.vibe_sourceType,
+                  value: context.vibeSourceTypeLabel(vibe.sourceType),
                   valueColor: colorScheme.onSurfaceVariant,
                 ),
               ],
@@ -302,11 +302,7 @@ class _VibeCard extends StatelessWidget {
           if (onSaveToLibrary != null)
             IconButton(
               onPressed: onSaveToLibrary,
-              icon: Icon(
-                Icons.save_alt,
-                size: 18,
-                color: colorScheme.primary,
-              ),
+              icon: Icon(Icons.save_alt, size: 18, color: colorScheme.primary),
               tooltip: context.l10n.detail_saveToVibeLibrary,
               style: IconButton.styleFrom(
                 padding: const EdgeInsets.all(6),
@@ -370,9 +366,7 @@ class _VibeCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
       ),
       child: Icon(
         Icons.image_outlined,
@@ -394,11 +388,7 @@ class _VibeCard extends StatelessWidget {
 
     return Row(
       children: [
-        Icon(
-          icon,
-          size: 12,
-          color: colorScheme.onSurfaceVariant,
-        ),
+        Icon(icon, size: 12, color: colorScheme.onSurfaceVariant),
         const SizedBox(width: 4),
         Text(
           '$label:',

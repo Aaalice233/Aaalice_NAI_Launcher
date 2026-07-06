@@ -10,6 +10,7 @@ import '../../data/services/local_onnx_model_service.dart';
 import '../../data/services/local_onnx_tagger_service.dart';
 import '../prompt_assistant/models/prompt_assistant_models.dart';
 import '../prompt_assistant/services/prompt_assistant_service.dart';
+import '../utils/reverse_prompt_image_normalizer.dart';
 
 final reversePromptProvider =
     StateNotifierProvider<ReversePromptNotifier, ReversePromptState>((ref) {
@@ -248,15 +249,24 @@ class ReversePromptNotifier extends StateNotifier<ReversePromptState> {
   }
 
   Future<void> addImage(Uint8List bytes, {String? name}) async {
+    final normalizedBytes = await _normalizeImage(bytes);
     final next = ReversePromptImage(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
-      bytes: bytes,
+      bytes: normalizedBytes,
       name: name,
     );
     state = state.copyWith(
       images: [...state.images, next],
       clearError: true,
     );
+  }
+
+  Future<Uint8List> _normalizeImage(Uint8List bytes) async {
+    try {
+      return await ReversePromptImageNormalizer.normalize(bytes);
+    } catch (_) {
+      return bytes;
+    }
   }
 
   void removeImage(String id) {

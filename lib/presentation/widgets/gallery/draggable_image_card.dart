@@ -155,7 +155,8 @@ class _DraggableImageCardState extends ConsumerState<DraggableImageCard> {
                   theme,
                   dragData,
                   width: widget.feedbackWidth,
-                  hintText: widget.feedbackHint ??
+                  hintText:
+                      widget.feedbackHint ??
                       context.l10n.localGallery_dragToShare,
                   previewProvider: _previewProvider,
                 );
@@ -172,7 +173,8 @@ class _DraggableImageCardState extends ConsumerState<DraggableImageCard> {
                   theme,
                   dragData,
                   width: widget.feedbackWidth,
-                  hintText: widget.feedbackHint ??
+                  hintText:
+                      widget.feedbackHint ??
                       context.l10n.localGallery_dragToShare,
                   previewProvider: _previewProvider,
                 );
@@ -197,9 +199,11 @@ class _DraggableImageCardState extends ConsumerState<DraggableImageCard> {
 
     final item = DragItem(
       suggestedName: fileName,
-      localData: stripMetadata
-          ? {'source': 'gallery_sanitized'}
-          : {'source': 'gallery_internal', 'path': filePath},
+      localData: {
+        'source': 'gallery_internal',
+        'path': filePath,
+        if (stripMetadata) 'externalPayload': 'gallery_sanitized',
+      },
     );
 
     if (stripMetadata) {
@@ -214,8 +218,9 @@ class _DraggableImageCardState extends ConsumerState<DraggableImageCard> {
         );
         item.add(Formats.png(sanitized.bytes));
 
-        final tempFile =
-            await ImageShareSanitizer.writeTempShareFile(sanitized);
+        final tempFile = await ImageShareSanitizer.writeTempShareFile(
+          sanitized,
+        );
         item.add(Formats.fileUri(tempFile.uri));
       }
       return item;
@@ -318,9 +323,11 @@ class _DragWrapperState extends ConsumerState<_DragWrapper> {
 
     final item = DragItem(
       suggestedName: fileName,
-      localData: stripMetadata
-          ? {'source': 'gallery_sanitized'}
-          : {'source': 'gallery_internal', 'path': filePath},
+      localData: {
+        'source': 'gallery_internal',
+        'path': filePath,
+        if (stripMetadata) 'externalPayload': 'gallery_sanitized',
+      },
     );
 
     if (stripMetadata) {
@@ -335,8 +342,9 @@ class _DragWrapperState extends ConsumerState<_DragWrapper> {
         );
         item.add(Formats.png(sanitized.bytes));
 
-        final tempFile =
-            await ImageShareSanitizer.writeTempShareFile(sanitized);
+        final tempFile = await ImageShareSanitizer.writeTempShareFile(
+          sanitized,
+        );
         item.add(Formats.fileUri(tempFile.uri));
       }
       return item;
@@ -386,7 +394,8 @@ class _DragWrapperState extends ConsumerState<_DragWrapper> {
                   theme,
                   dragData,
                   width: widget.feedbackWidth,
-                  hintText: widget.feedbackHint ??
+                  hintText:
+                      widget.feedbackHint ??
                       context.l10n.localGallery_dragToShare,
                   previewProvider: _previewProvider,
                 );
@@ -403,7 +412,8 @@ class _DragWrapperState extends ConsumerState<_DragWrapper> {
                   theme,
                   dragData,
                   width: widget.feedbackWidth,
-                  hintText: widget.feedbackHint ??
+                  hintText:
+                      widget.feedbackHint ??
                       context.l10n.localGallery_dragToShare,
                   previewProvider: _previewProvider,
                 );

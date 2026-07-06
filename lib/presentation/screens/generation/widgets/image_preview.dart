@@ -64,9 +64,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       onTap: () {}, // 空回调，仅吸收点击
       child: Container(
         padding: const EdgeInsets.all(16),
-        child: Center(
-          child: _buildContent(context, ref, state, theme),
-        ),
+        child: Center(child: _buildContent(context, ref, state, theme)),
       ),
     );
   }
@@ -97,8 +95,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
 
     // 生成中状态
     if (state.isGenerating) {
-      // 如果有已完成的图像，显示混合视图（已完成图像 + 生成中卡片）
-      if (state.currentImages.isNotEmpty) {
+      final previewSlots = _visibleStreamPreviewSlots(state);
+      // 如果有已完成图像或当前请求有多个预览槽位，显示网格视图。
+      if (state.currentImages.isNotEmpty || previewSlots.length > 1) {
         return _buildGeneratingWithCompletedImages(
           context,
           ref,
@@ -122,12 +121,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     if (state.hasImages) {
       if (state.displayImages.length == 1) {
         // 单图：居中显示
-        return _buildImageView(
-          context,
-          ref,
-          state.displayImages.first,
-          theme,
-        );
+        return _buildImageView(context, ref, state.displayImages.first, theme);
       } else {
         // 多图：自适应网格
         return _buildMultiImageGrid(context, ref, state.displayImages, theme);
@@ -179,6 +173,36 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     return idealColumns;
   }
 
+  List<StreamPreviewSlot> _visibleStreamPreviewSlots(
+    ImageGenerationState state,
+  ) {
+    final completedCount = state.currentImages.length;
+    return [
+      for (final slot in state.streamPreviewSlots)
+        if (slot.imageNumber > completedCount) slot,
+    ]..sort((a, b) => a.imageNumber.compareTo(b.imageNumber));
+  }
+
+  Widget _buildGeneratingCard({
+    required int imageWidth,
+    required int imageHeight,
+    required int currentImage,
+    required int totalImages,
+    required double progress,
+    Uint8List? streamPreview,
+  }) {
+    return SelectableImageCard(
+      isGenerating: true,
+      currentImage: currentImage,
+      totalImages: totalImages,
+      progress: progress,
+      streamPreview: streamPreview,
+      imageWidth: imageWidth,
+      imageHeight: imageHeight,
+      enableSelection: false,
+    );
+  }
+
   /// 构建多图网格视图
   Widget _buildMultiImageGrid(
     BuildContext context,
@@ -191,8 +215,10 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final crossAxisCount =
-            _calculateColumnCount(images.length, constraints.maxWidth);
+        final crossAxisCount = _calculateColumnCount(
+          images.length,
+          constraints.maxWidth,
+        );
 
         return GridView.builder(
           padding: const EdgeInsets.all(8),
@@ -228,14 +254,17 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     int imageHeight,
   ) {
     final completedImages = state.currentImages;
-    // 总数 = 已完成 + 1个生成中卡片
-    final totalItems = completedImages.length + 1;
+    final previewSlots = _visibleStreamPreviewSlots(state);
+    final generatingCount = previewSlots.isNotEmpty ? previewSlots.length : 1;
+    final totalItems = completedImages.length + generatingCount;
     final aspectRatio = imageWidth / imageHeight;
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final crossAxisCount =
-            _calculateColumnCount(totalItems, constraints.maxWidth);
+        final crossAxisCount = _calculateColumnCount(
+          totalItems,
+          constraints.maxWidth,
+        );
 
         return GridView.builder(
           padding: const EdgeInsets.all(8),
@@ -247,28 +276,39 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           ),
           itemCount: totalItems,
           itemBuilder: (context, index) {
-            // 最后一个位置显示生成中卡片
-            if (index == completedImages.length) {
-              return SelectableImageCard(
-                isGenerating: true,
-                currentImage: state.currentImage,
-                totalImages: state.totalImages,
-                progress: state.progress,
-                streamPreview: state.streamPreview,
-                imageWidth: imageWidth,
-                imageHeight: imageHeight,
-                enableSelection: false,
+            // 已完成的图像
+            if (index < completedImages.length) {
+              final image = completedImages[index];
+              return _buildGeneratedImageCard(
+                context: context,
+                ref: ref,
+                image: image,
+                index: index,
+                showIndex: true,
               );
             }
 
-            // 已完成的图像
-            final image = completedImages[index];
-            return _buildGeneratedImageCard(
-              context: context,
-              ref: ref,
-              image: image,
-              index: index,
-              showIndex: true,
+            final generationIndex = index - completedImages.length;
+            if (previewSlots.isNotEmpty &&
+                generationIndex < previewSlots.length) {
+              final slot = previewSlots[generationIndex];
+              return _buildGeneratingCard(
+                imageWidth: imageWidth,
+                imageHeight: imageHeight,
+                currentImage: slot.imageNumber,
+                totalImages: slot.totalImages,
+                progress: slot.progress,
+                streamPreview: slot.previewBytes,
+              );
+            }
+
+            return _buildGeneratingCard(
+              imageWidth: imageWidth,
+              imageHeight: imageHeight,
+              currentImage: state.currentImage,
+              totalImages: state.totalImages,
+              progress: state.progress,
+              streamPreview: state.streamPreview,
             );
           },
         );
@@ -285,17 +325,17 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     int imageHeight,
   ) {
     final aspectRatio = imageWidth / imageHeight;
+    final previewSlots = _visibleStreamPreviewSlots(state);
+    final slot = previewSlots.isNotEmpty ? previewSlots.first : null;
     return _buildSingleAspectRatioCard(
       aspectRatio: aspectRatio,
-      child: SelectableImageCard(
-        isGenerating: true,
-        currentImage: state.currentImage,
-        totalImages: state.totalImages,
-        progress: state.progress,
-        streamPreview: state.streamPreview,
+      child: _buildGeneratingCard(
         imageWidth: imageWidth,
         imageHeight: imageHeight,
-        enableSelection: false,
+        currentImage: slot?.imageNumber ?? state.currentImage,
+        totalImages: slot?.totalImages ?? state.totalImages,
+        progress: slot?.progress ?? state.progress,
+        streamPreview: slot?.previewBytes ?? state.streamPreview,
       ),
     );
   }
@@ -338,11 +378,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(
-          Icons.error_outline,
-          size: 64,
-          color: theme.colorScheme.error,
-        ),
+        Icon(Icons.error_outline, size: 64, color: theme.colorScheme.error),
         const SizedBox(height: 16),
         Text(
           errorTitle,
@@ -385,35 +421,17 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
 
     switch (errorCode) {
       case 'API_ERROR_429':
-        return (
-          context.l10n.api_error_429,
-          context.l10n.api_error_429_hint,
-        );
+        return (context.l10n.api_error_429, context.l10n.api_error_429_hint);
       case 'API_ERROR_401':
-        return (
-          context.l10n.api_error_401,
-          context.l10n.api_error_401_hint,
-        );
+        return (context.l10n.api_error_401, context.l10n.api_error_401_hint);
       case 'API_ERROR_402':
-        return (
-          context.l10n.api_error_402,
-          context.l10n.api_error_402_hint,
-        );
+        return (context.l10n.api_error_402, context.l10n.api_error_402_hint);
       case 'API_ERROR_400':
-        return (
-          '${context.l10n.common_error} (400)',
-          details,
-        );
+        return ('${context.l10n.common_error} (400)', details);
       case 'API_ERROR_500':
-        return (
-          context.l10n.api_error_500,
-          context.l10n.api_error_500_hint,
-        );
+        return (context.l10n.api_error_500, context.l10n.api_error_500_hint);
       case 'API_ERROR_503':
-        return (
-          context.l10n.api_error_503,
-          context.l10n.api_error_503_hint,
-        );
+        return (context.l10n.api_error_503, context.l10n.api_error_503_hint);
       case 'API_ERROR_TIMEOUT':
         return (
           context.l10n.api_error_timeout,
@@ -428,10 +446,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         // 未知错误或其他 HTTP 错误
         if (errorCode.startsWith('API_ERROR_HTTP_')) {
           final code = errorCode.replaceFirst('API_ERROR_HTTP_', '');
-          return (
-            '${context.l10n.common_error} (HTTP $code)',
-            details,
-          );
+          return ('${context.l10n.common_error} (HTTP $code)', details);
         }
         return (context.l10n.generation_generationFailed, message);
     }
@@ -481,51 +496,41 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           : null,
       onTap: () => _showFullscreenImage(imageBytes),
       onReversePrompt: canUseAsInput
-          ? () => unawaited(
-                _sendPreviewImageToReversePrompt(context, image),
-              )
+          ? () => unawaited(_sendPreviewImageToReversePrompt(context, image))
           : null,
       onImageToImage: canUseAsInput
           ? () => _sendPreviewImageToImageToImage(context, image)
           : null,
       onVibeTransfer: canUseAsInput
-          ? () => unawaited(
-                _sendPreviewImageToVibeTransfer(context, image),
-              )
+          ? () => unawaited(_sendPreviewImageToVibeTransfer(context, image))
           : null,
       onPreciseReference: canUseAsInput
-          ? () => unawaited(
-                _sendPreviewImageToPreciseReference(context, image),
-              )
+          ? () => unawaited(_sendPreviewImageToPreciseReference(context, image))
           : null,
       onEditImage: canUseAsInput
           ? () => ImageWorkflowLauncher.openEditor(
-                context,
-                ref,
-                imageBytes,
-                mode: ImageEditorMode.edit,
-              )
+              context,
+              ref,
+              imageBytes,
+              mode: ImageEditorMode.edit,
+            )
           : null,
       onInpaint: canUseAsInput
-          ? () => ImageWorkflowLauncher.openInpaint(
-                context,
-                ref,
-                imageBytes,
-              )
+          ? () => ImageWorkflowLauncher.openInpaint(context, ref, imageBytes)
           : null,
       onGenerateVariations: canUseAsInput
           ? () => ImageWorkflowLauncher.generateVariations(
-                context,
-                ref,
-                imageBytes,
-              )
+              context,
+              ref,
+              imageBytes,
+            )
           : null,
       onDirectorTools: canUseAsInput
           ? () => ImageWorkflowLauncher.openDirectorTools(
-                context,
-                ref,
-                imageBytes,
-              )
+              context,
+              ref,
+              imageBytes,
+            )
           : null,
       onEnhance: canUseAsInput
           ? () => ImageWorkflowLauncher.openEnhance(ref, imageBytes)
@@ -535,14 +540,15 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           : null,
       onSendToKrita: canUseAsInput
           ? () => KritaSendHelper.sendImageBytes(
-                context,
-                ref,
-                imageBytes,
-                name: _previewImageFileName(image),
-              )
+              context,
+              ref,
+              imageBytes,
+              name: _previewImageFileName(image),
+            )
           : null,
-      onOpenInExplorer:
-          image.canSave ? () => _openImageInExplorer(context, image) : null,
+      onOpenInExplorer: image.canSave
+          ? () => _openImageInExplorer(context, image)
+          : null,
       onSaveToLibrary: canUseAsInput
           ? (bytes, _) => _showSaveToLibraryDialog(context, bytes)
           : null,
@@ -564,10 +570,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     final l10n = context.l10n;
 
     try {
-      await ref.read(reversePromptProvider.notifier).addImage(
-            image.bytes,
-            name: _previewImageFileName(image),
-          );
+      await ref
+          .read(reversePromptProvider.notifier)
+          .addImage(image.bytes, name: _previewImageFileName(image));
 
       if (!context.mounted) return;
       AppToast.success(context, l10n.drop_addedToReversePrompt);
@@ -614,8 +619,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       final message = currentCount > 0
           ? l10n.toast_appendedStyleReferences(vibes.length)
           : vibes.length == 1
-              ? l10n.drop_addedToVibe
-              : l10n.drop_addedMultipleToVibe(vibes.length);
+          ? l10n.drop_addedToVibe
+          : l10n.drop_addedMultipleToVibe(vibes.length);
       AppToast.success(context, message);
     } catch (e) {
       if (context.mounted) {
@@ -709,15 +714,14 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     );
   }
 
-  Size _fitAspectRatio({
-    required double aspectRatio,
-    required Size maxSize,
-  }) {
-    final safeAspectRatio =
-        aspectRatio.isFinite && aspectRatio > 0 ? aspectRatio : 1.0;
+  Size _fitAspectRatio({required double aspectRatio, required Size maxSize}) {
+    final safeAspectRatio = aspectRatio.isFinite && aspectRatio > 0
+        ? aspectRatio
+        : 1.0;
     final maxWidth = maxSize.width.isFinite ? max(0.0, maxSize.width) : 500.0;
-    final maxHeight =
-        maxSize.height.isFinite ? max(0.0, maxSize.height) : 650.0;
+    final maxHeight = maxSize.height.isFinite
+        ? max(0.0, maxSize.height)
+        : 650.0;
 
     var width = maxWidth;
     var height = width / safeAspectRatio;
@@ -857,12 +861,14 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         // 解析别名
         final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
         final resolvedPrompt = aliasResolver.resolveAliases(params.prompt);
-        final resolvedNegative =
-            aliasResolver.resolveAliases(params.negativePrompt);
-        final promptWithFixedTags =
-            fixedTagsState.applyToPrompt(resolvedPrompt);
-        final negativePromptWithFixedTags =
-            fixedTagsState.applyToNegativePrompt(resolvedNegative);
+        final resolvedNegative = aliasResolver.resolveAliases(
+          params.negativePrompt,
+        );
+        final promptWithFixedTags = fixedTagsState.applyToPrompt(
+          resolvedPrompt,
+        );
+        final negativePromptWithFixedTags = fixedTagsState
+            .applyToNegativePrompt(resolvedNegative);
         final qualityState = ref.read(qualityPresetNotifierProvider);
         final qualityContent = ref
             .read(qualityPresetNotifierProvider.notifier)
@@ -884,8 +890,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         // 尝试从图片元数据中提取实际的 seed
         int actualSeed = params.seed;
         if (actualSeed == -1) {
-          final extractedMeta =
-              await ImageMetadataService().getMetadataFromBytes(imageBytes);
+          final extractedMeta = await ImageMetadataService()
+              .getMetadataFromBytes(imageBytes);
           if (extractedMeta != null &&
               extractedMeta.seed != null &&
               extractedMeta.seed! > 0) {
@@ -899,8 +905,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         final charCaptions = <Map<String, dynamic>>[];
         final charNegCaptions = <Map<String, dynamic>>[];
 
-        for (final char in characterConfig.characters
-            .where((c) => c.enabled && c.prompt.isNotEmpty)) {
+        for (final char in characterConfig.characters.where(
+          (c) => c.enabled && c.prompt.isNotEmpty,
+        )) {
           charCaptions.add({
             'char_caption': aliasResolver.resolveAliases(char.prompt),
             'centers': [
@@ -950,14 +957,17 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
 
       // 立即解析并缓存刚保存图像的元数据
       unawaited(
-        ImageMetadataService().getMetadata(filePath).then((metadata) {
-          AppLogger.d(
-            '生成图像元数据已缓存: ${metadata?.prompt.substring(0, metadata.prompt.length > 30 ? 30 : metadata.prompt.length)}...',
-            'ImagePreview',
-          );
-        }).catchError((e) {
-          AppLogger.w('生成图像元数据缓存失败: $e', 'ImagePreview');
-        }),
+        ImageMetadataService()
+            .getMetadata(filePath)
+            .then((metadata) {
+              AppLogger.d(
+                '生成图像元数据已缓存: ${metadata?.prompt.substring(0, metadata.prompt.length > 30 ? 30 : metadata.prompt.length)}...',
+                'ImagePreview',
+              );
+            })
+            .catchError((e) {
+              AppLogger.w('生成图像元数据缓存失败: $e', 'ImagePreview');
+            }),
       );
 
       // 更新保存图像的文件路径到状态
@@ -1012,11 +1022,7 @@ class _DockedCharacterPanel extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: Row(
               children: [
-                Icon(
-                  Icons.people,
-                  size: 20,
-                  color: colorScheme.primary,
-                ),
+                Icon(Icons.people, size: 20, color: colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
                   l10n.characterEditor_title,
@@ -1052,8 +1058,9 @@ class _DockedCharacterPanel extends ConsumerWidget {
                   decoration: BoxDecoration(
                     border: Border(
                       right: BorderSide(
-                        color:
-                            colorScheme.outlineVariant.withValues(alpha: 0.15),
+                        color: colorScheme.outlineVariant.withValues(
+                          alpha: 0.15,
+                        ),
                       ),
                     ),
                   ),
@@ -1104,9 +1111,7 @@ class _DockedCharacterPanel extends ConsumerWidget {
                       onTap: () {
                         ref
                             .read(characterPromptNotifierProvider.notifier)
-                            .setGlobalAiChoice(
-                              !config.globalAiChoice,
-                            );
+                            .setGlobalAiChoice(!config.globalAiChoice);
                       },
                       child: Text(
                         l10n.characterEditor_globalAiChoice,
@@ -1121,8 +1126,9 @@ class _DockedCharacterPanel extends ConsumerWidget {
                       child: Icon(
                         Icons.info_outline,
                         size: 16,
-                        color:
-                            colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.6,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -1130,8 +1136,9 @@ class _DockedCharacterPanel extends ConsumerWidget {
                     Consumer(
                       builder: (context, ref, child) {
                         final globalAiChoice = ref.watch(
-                          characterPromptNotifierProvider
-                              .select((c) => c.globalAiChoice),
+                          characterPromptNotifierProvider.select(
+                            (c) => c.globalAiChoice,
+                          ),
                         );
                         return ThemedSwitch(
                           value: globalAiChoice,
@@ -1240,9 +1247,7 @@ class _VerticalAddButtons extends ConsumerWidget {
           ),
           const SizedBox(height: 6),
           // 词库按钮
-          _VerticalLibraryButton(
-            onTap: () => _addFromLibrary(context, ref),
-          ),
+          _VerticalLibraryButton(onTap: () => _addFromLibrary(context, ref)),
         ],
       ),
     );
@@ -1260,7 +1265,9 @@ class _VerticalAddButtons extends ConsumerWidget {
 
     if (entry != null) {
       ref.read(tagLibraryPageNotifierProvider.notifier).recordUsage(entry.id);
-      ref.read(characterPromptNotifierProvider.notifier).addCharacter(
+      ref
+          .read(characterPromptNotifierProvider.notifier)
+          .addCharacter(
             CharacterGender.female,
             name: entry.displayName,
             prompt: entry.content,
@@ -1314,17 +1321,14 @@ class _VerticalGenderButtonState extends State<_VerticalGenderButton> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                widget.icon,
-                size: 22,
-                color: widget.color,
-              ),
+              Icon(widget.icon, size: 22, color: widget.color),
               const SizedBox(height: 4),
               Text(
                 widget.label,
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color:
-                      _isHovered ? widget.color : colorScheme.onSurfaceVariant,
+                  color: _isHovered
+                      ? widget.color
+                      : colorScheme.onSurfaceVariant,
                   fontWeight: _isHovered ? FontWeight.w600 : FontWeight.w500,
                   fontSize: 11,
                 ),
@@ -1384,8 +1388,9 @@ class _VerticalLibraryButtonState extends State<_VerticalLibraryButton> {
               Text(
                 l10n.characterEditor_addFromLibrary,
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color:
-                      _isHovered ? accentColor : colorScheme.onSurfaceVariant,
+                  color: _isHovered
+                      ? accentColor
+                      : colorScheme.onSurfaceVariant,
                   fontWeight: _isHovered ? FontWeight.w600 : FontWeight.w500,
                   fontSize: 11,
                 ),
@@ -1428,11 +1433,7 @@ class _UndockButton extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.push_pin,
-                size: 16,
-                color: colorScheme.primary,
-              ),
+              Icon(Icons.push_pin, size: 16, color: colorScheme.primary),
               const SizedBox(width: 4),
               Text(
                 l10n.characterEditor_undock,

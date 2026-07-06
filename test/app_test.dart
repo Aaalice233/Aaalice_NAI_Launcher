@@ -51,6 +51,7 @@ import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/tag_l
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_export_dialog.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_export_dialog_advanced.dart';
 import 'package:nai_launcher/presentation/utils/dropped_file_reader.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/gallery_category_tree_view.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_gallery_toolbar.dart';
 import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_controller.dart';
 import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_strategy.dart';
@@ -211,6 +212,38 @@ void main() {
         container.read(localGallerySelectionNotifierProvider).isActive,
         isFalse,
       );
+    });
+
+    testWidgets('本地画廊分类树应分开显示总数和收藏数', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: SizedBox(
+                width: 260,
+                height: 200,
+                child: GalleryCategoryTreeView(
+                  categories: const [],
+                  totalImageCount: 42,
+                  favoriteCount: 17,
+                  selectedCategoryId: 'favorites',
+                  onCategorySelected: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('全部图片'), findsOneWidget);
+      expect(find.text('收藏'), findsOneWidget);
+      expect(find.text('42'), findsOneWidget);
+      expect(find.text('17'), findsOneWidget);
     });
 
     testWidgets('词库工具栏重建时搜索框应显示当前搜索条件', (tester) async {

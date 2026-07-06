@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
 import 'app_localizations_en.dart';
+import 'app_localizations_ja.dart';
 import 'app_localizations_zh.dart';
 
 // ignore_for_file: type=lint
@@ -95,6 +96,7 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
+    Locale('ja'),
     Locale('zh'),
   ];
 
@@ -1214,6 +1216,12 @@ abstract class AppLocalizations {
   /// **'English'**
   String get settings_languageEnglish;
 
+  /// No description provided for @settings_languageJapanese.
+  ///
+  /// In en, this message translates to:
+  /// **'日本語'**
+  String get settings_languageJapanese;
+
   /// No description provided for @settings_shortcuts.
   ///
   /// In en, this message translates to:
@@ -1859,37 +1867,37 @@ abstract class AppLocalizations {
   /// No description provided for @prompt_positive.
   ///
   /// In en, this message translates to:
-  /// **'Positive'**
+  /// **'Prompt'**
   String get prompt_positive;
 
   /// No description provided for @prompt_negative.
   ///
   /// In en, this message translates to:
-  /// **'Negative'**
+  /// **'Undesired Content'**
   String get prompt_negative;
 
   /// No description provided for @prompt_positivePrompt.
   ///
   /// In en, this message translates to:
-  /// **'Positive Prompt'**
+  /// **'Prompt'**
   String get prompt_positivePrompt;
 
   /// No description provided for @prompt_negativePrompt.
   ///
   /// In en, this message translates to:
-  /// **'Negative Prompt'**
+  /// **'Undesired Content'**
   String get prompt_negativePrompt;
 
   /// No description provided for @prompt_mainPositive.
   ///
   /// In en, this message translates to:
-  /// **'Main Prompt (Positive)'**
+  /// **'Main Prompt'**
   String get prompt_mainPositive;
 
   /// No description provided for @prompt_mainNegative.
   ///
   /// In en, this message translates to:
-  /// **'Main Prompt (Negative)'**
+  /// **'Main Prompt (Undesired Content)'**
   String get prompt_mainNegative;
 
   /// No description provided for @prompt_characterPrompts.
@@ -1913,7 +1921,7 @@ abstract class AppLocalizations {
   /// No description provided for @prompt_finalNegative.
   ///
   /// In en, this message translates to:
-  /// **'Final Effective Negative'**
+  /// **'Final Effective Undesired Content'**
   String get prompt_finalNegative;
 
   /// No description provided for @prompt_tags.
@@ -1967,7 +1975,7 @@ abstract class AppLocalizations {
   /// No description provided for @prompt_inputNegativePrompt.
   ///
   /// In en, this message translates to:
-  /// **'Enter negative prompt...'**
+  /// **'Enter Undesired Content...'**
   String get prompt_inputNegativePrompt;
 
   /// No description provided for @prompt_describeImage.
@@ -2045,13 +2053,13 @@ abstract class AppLocalizations {
   /// No description provided for @prompt_negativeFixedTagPrefix.
   ///
   /// In en, this message translates to:
-  /// **'Negative Fixed Tag Prefix'**
+  /// **'Undesired Content Fixed Tag Prefix'**
   String get prompt_negativeFixedTagPrefix;
 
   /// No description provided for @prompt_negativeFixedTagSuffix.
   ///
   /// In en, this message translates to:
-  /// **'Negative Fixed Tag Suffix'**
+  /// **'Undesired Content Fixed Tag Suffix'**
   String get prompt_negativeFixedTagSuffix;
 
   /// No description provided for @prompt_unwantedContent.
@@ -2633,7 +2641,7 @@ abstract class AppLocalizations {
   /// No description provided for @img2img_title.
   ///
   /// In en, this message translates to:
-  /// **'Img2Img'**
+  /// **'Image2Image'**
   String get img2img_title;
 
   /// No description provided for @img2img_enabled.
@@ -2687,7 +2695,7 @@ abstract class AppLocalizations {
   /// No description provided for @img2img_clearSettings.
   ///
   /// In en, this message translates to:
-  /// **'Clear Img2Img Settings'**
+  /// **'Clear Image2Image Settings'**
   String get img2img_clearSettings;
 
   /// No description provided for @img2img_changeImage.
@@ -3197,7 +3205,7 @@ abstract class AppLocalizations {
   /// No description provided for @img2img_upscalePanelOpened.
   ///
   /// In en, this message translates to:
-  /// **'Opened the image-to-image upscale panel'**
+  /// **'Opened the Image2Image Upscale panel'**
   String get img2img_upscalePanelOpened;
 
   /// No description provided for @editor_title.
@@ -4136,6 +4144,12 @@ abstract class AppLocalizations {
   /// **'The outer rectangle is the area sent to Focused Inpaint. The inner rectangle is the main repaint area. The band between them is the Minimum Context Area.'**
   String get editor_focusContextHint;
 
+  /// No description provided for @editor_focusAnlasWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Actual send area: {width}×{height}. Current generation settings will cost {cost} Anlas.'**
+  String editor_focusAnlasWarning(int width, int height, int cost);
+
   /// No description provided for @editor_unsupportedImageFormat.
   ///
   /// In en, this message translates to:
@@ -4601,7 +4615,7 @@ abstract class AppLocalizations {
   /// No description provided for @vibe_infoExtraction.
   ///
   /// In en, this message translates to:
-  /// **'Info Extraction'**
+  /// **'Information Extracted'**
   String get vibe_infoExtraction;
 
   /// No description provided for @vibe_adjustParams.
@@ -4616,16 +4630,34 @@ abstract class AppLocalizations {
   /// **'Remove'**
   String get vibe_remove;
 
+  /// No description provided for @reference_enabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get reference_enabled;
+
+  /// No description provided for @reference_enable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable reference'**
+  String get reference_enable;
+
+  /// No description provided for @reference_disable.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable reference'**
+  String get reference_disable;
+
   /// No description provided for @vibe_sliderHint.
   ///
   /// In en, this message translates to:
-  /// **'Strength: Higher mimics visual cues\nInfo Extraction: Lower reduces texture, preserves composition'**
+  /// **'Reference Strength: Higher mimics visual cues\nInformation Extracted: Lower reduces texture, preserves composition'**
   String get vibe_sliderHint;
 
   /// No description provided for @vibe_strengthInfo.
   ///
   /// In en, this message translates to:
-  /// **'Strength: {value} | Info Extraction: {infoValue}'**
+  /// **'Reference Strength: {value} | Information Extracted: {infoValue}'**
   String vibe_strengthInfo(Object value, Object infoValue);
 
   /// No description provided for @vibe_normalize.
@@ -4703,7 +4735,7 @@ abstract class AppLocalizations {
   /// No description provided for @vibe_infoExtracted.
   ///
   /// In en, this message translates to:
-  /// **'Info Extracted'**
+  /// **'Information Extracted'**
   String get vibe_infoExtracted;
 
   /// No description provided for @vibe_shiftReplaceHint.
@@ -4871,7 +4903,7 @@ abstract class AppLocalizations {
   /// No description provided for @character_negativeOptional.
   ///
   /// In en, this message translates to:
-  /// **'Negative Prompt (Optional)'**
+  /// **'Undesired Content (Optional)'**
   String get character_negativeOptional;
 
   /// No description provided for @character_negativeHint.
@@ -5033,13 +5065,13 @@ abstract class AppLocalizations {
   /// No description provided for @gallery_positivePrompt.
   ///
   /// In en, this message translates to:
-  /// **'Positive Prompt'**
+  /// **'Prompt'**
   String get gallery_positivePrompt;
 
   /// No description provided for @gallery_negativePrompt.
   ///
   /// In en, this message translates to:
-  /// **'Negative Prompt'**
+  /// **'Undesired Content'**
   String get gallery_negativePrompt;
 
   /// No description provided for @gallery_promptCopied.
@@ -5057,7 +5089,7 @@ abstract class AppLocalizations {
   /// No description provided for @gallery_sendToImg2Img.
   ///
   /// In en, this message translates to:
-  /// **'Image to Image'**
+  /// **'Image2Image'**
   String get gallery_sendToImg2Img;
 
   /// No description provided for @gallery_useImageForGeneration.
@@ -5111,7 +5143,7 @@ abstract class AppLocalizations {
   /// No description provided for @gallery_upscalePanelLoaded.
   ///
   /// In en, this message translates to:
-  /// **'Loaded the image-to-image upscale panel'**
+  /// **'Loaded the Image2Image Upscale panel'**
   String get gallery_upscalePanelLoaded;
 
   /// No description provided for @gallery_readImageFailed.
@@ -5177,7 +5209,7 @@ abstract class AppLocalizations {
   /// No description provided for @gallery_sentToImg2Img.
   ///
   /// In en, this message translates to:
-  /// **'Image sent to image-to-image'**
+  /// **'Image sent to Image2Image'**
   String get gallery_sentToImg2Img;
 
   /// No description provided for @gallery_sentToReversePrompt.
@@ -6209,7 +6241,7 @@ abstract class AppLocalizations {
   /// No description provided for @upscale_title.
   ///
   /// In en, this message translates to:
-  /// **'Image Upscale'**
+  /// **'Upscale'**
   String get upscale_title;
 
   /// No description provided for @upscale_close.
@@ -6983,13 +7015,13 @@ abstract class AppLocalizations {
   /// No description provided for @qualityTags_positive.
   ///
   /// In en, this message translates to:
-  /// **'Quality (Positive)'**
+  /// **'Quality (Prompt)'**
   String get qualityTags_positive;
 
   /// No description provided for @qualityTags_negative.
   ///
   /// In en, this message translates to:
-  /// **'Quality (Negative)'**
+  /// **'Quality (Undesired Content)'**
   String get qualityTags_negative;
 
   /// No description provided for @qualityTags_disabled.
@@ -7031,7 +7063,7 @@ abstract class AppLocalizations {
   /// No description provided for @ucPreset_label.
   ///
   /// In en, this message translates to:
-  /// **'UC Preset'**
+  /// **'Undesired Content Preset'**
   String get ucPreset_label;
 
   /// No description provided for @ucPreset_heavy.
@@ -7079,13 +7111,13 @@ abstract class AppLocalizations {
   /// No description provided for @ucPreset_addToNegative.
   ///
   /// In en, this message translates to:
-  /// **'Add to negative prompt:'**
+  /// **'Add to Undesired Content:'**
   String get ucPreset_addToNegative;
 
   /// No description provided for @ucPreset_nsfwHint.
   ///
   /// In en, this message translates to:
-  /// **'💡 To generate adult content, add nsfw to your positive prompt. The nsfw tag will be auto-removed from negative prompt'**
+  /// **'💡 To generate adult content, add nsfw to your prompt. The nsfw tag will be auto-removed from Undesired Content'**
   String get ucPreset_nsfwHint;
 
   /// No description provided for @ucPreset_addFromLibrary.
@@ -7925,7 +7957,7 @@ abstract class AppLocalizations {
   /// No description provided for @drop_img2img.
   ///
   /// In en, this message translates to:
-  /// **'Image to Image'**
+  /// **'Image2Image'**
   String get drop_img2img;
 
   /// No description provided for @drop_reversePrompt.
@@ -7955,7 +7987,7 @@ abstract class AppLocalizations {
   /// No description provided for @drop_addedToImg2Img.
   ///
   /// In en, this message translates to:
-  /// **'Added to Image to Image'**
+  /// **'Added to Image2Image'**
   String get drop_addedToImg2Img;
 
   /// No description provided for @drop_addedToReversePrompt.
@@ -8117,13 +8149,13 @@ abstract class AppLocalizations {
   /// No description provided for @characterEditor_promptHint.
   ///
   /// In en, this message translates to:
-  /// **'Enter positive prompt for this character...'**
+  /// **'Enter prompt for this character...'**
   String get characterEditor_promptHint;
 
   /// No description provided for @characterEditor_negativePromptHint.
   ///
   /// In en, this message translates to:
-  /// **'Enter negative prompt for this character...'**
+  /// **'Enter Undesired Content for this character...'**
   String get characterEditor_negativePromptHint;
 
   /// No description provided for @characterEditor_position.
@@ -8354,7 +8386,7 @@ abstract class AppLocalizations {
   /// No description provided for @characterTooltip_negativeLabel.
   ///
   /// In en, this message translates to:
-  /// **'Negative'**
+  /// **'Undesired Content'**
   String get characterTooltip_negativeLabel;
 
   /// No description provided for @characterTooltip_notSet.
@@ -12932,7 +12964,7 @@ abstract class AppLocalizations {
   /// No description provided for @localGallery_sentToImageToImage.
   ///
   /// In en, this message translates to:
-  /// **'Image sent to image-to-image'**
+  /// **'Image sent to Image2Image'**
   String get localGallery_sentToImageToImage;
 
   /// No description provided for @localGallery_sendFailed.
@@ -14732,13 +14764,13 @@ abstract class AppLocalizations {
   /// No description provided for @fixedTags_positive.
   ///
   /// In en, this message translates to:
-  /// **'Positive'**
+  /// **'Prompt'**
   String get fixedTags_positive;
 
   /// No description provided for @fixedTags_negative.
   ///
   /// In en, this message translates to:
-  /// **'Negative'**
+  /// **'Undesired Content'**
   String get fixedTags_negative;
 
   /// No description provided for @fixedTags_resetWeight.
@@ -14834,25 +14866,25 @@ abstract class AppLocalizations {
   /// No description provided for @fixedTags_addPositive.
   ///
   /// In en, this message translates to:
-  /// **'Add Positive Fixed Tag'**
+  /// **'Add Prompt Fixed Tag'**
   String get fixedTags_addPositive;
 
   /// No description provided for @fixedTags_addNegative.
   ///
   /// In en, this message translates to:
-  /// **'Add Negative Fixed Tag'**
+  /// **'Add Undesired Content Fixed Tag'**
   String get fixedTags_addNegative;
 
   /// No description provided for @fixedTags_addPositiveFromLibrary.
   ///
   /// In en, this message translates to:
-  /// **'Add Positive from Library'**
+  /// **'Add Prompt from Library'**
   String get fixedTags_addPositiveFromLibrary;
 
   /// No description provided for @fixedTags_addNegativeFromLibrary.
   ///
   /// In en, this message translates to:
-  /// **'Add Negative from Library'**
+  /// **'Add Undesired Content from Library'**
   String get fixedTags_addNegativeFromLibrary;
 
   /// No description provided for @fixedTags_searchNameOrContent.
@@ -14870,13 +14902,13 @@ abstract class AppLocalizations {
   /// No description provided for @fixedTags_enabledPositive.
   ///
   /// In en, this message translates to:
-  /// **'Enabled Positive'**
+  /// **'Enabled Prompt'**
   String get fixedTags_enabledPositive;
 
   /// No description provided for @fixedTags_emptyEnabledPositive.
   ///
   /// In en, this message translates to:
-  /// **'No enabled positive fixed tags'**
+  /// **'No enabled prompt fixed tags'**
   String get fixedTags_emptyEnabledPositive;
 
   /// No description provided for @fixedTags_noMatchingEnabled.
@@ -14888,19 +14920,19 @@ abstract class AppLocalizations {
   /// No description provided for @fixedTags_negativeTitle.
   ///
   /// In en, this message translates to:
-  /// **'Negative Fixed Tags'**
+  /// **'Undesired Content Fixed Tags'**
   String get fixedTags_negativeTitle;
 
   /// No description provided for @fixedTags_emptyNegative.
   ///
   /// In en, this message translates to:
-  /// **'No negative fixed tags'**
+  /// **'No Undesired Content fixed tags'**
   String get fixedTags_emptyNegative;
 
   /// No description provided for @fixedTags_noMatchingNegative.
   ///
   /// In en, this message translates to:
-  /// **'No matching negative fixed tags'**
+  /// **'No matching Undesired Content fixed tags'**
   String get fixedTags_noMatchingNegative;
 
   /// No description provided for @fixedTags_addedToSidebar.
@@ -14948,13 +14980,13 @@ abstract class AppLocalizations {
   /// No description provided for @fixedTags_expandNegative.
   ///
   /// In en, this message translates to:
-  /// **'Expand Negative'**
+  /// **'Expand Undesired Content'**
   String get fixedTags_expandNegative;
 
   /// No description provided for @fixedTags_collapseNegative.
   ///
   /// In en, this message translates to:
-  /// **'Collapse Negative'**
+  /// **'Collapse Undesired Content'**
   String get fixedTags_collapseNegative;
 
   /// No description provided for @fixedTags_undoTooltip.
@@ -14972,7 +15004,7 @@ abstract class AppLocalizations {
   /// No description provided for @fixedTags_positiveTitle.
   ///
   /// In en, this message translates to:
-  /// **'Positive Fixed Tags'**
+  /// **'Prompt Fixed Tags'**
   String get fixedTags_positiveTitle;
 
   /// No description provided for @fixedTags_columnCount.
@@ -15060,7 +15092,7 @@ abstract class AppLocalizations {
   /// No description provided for @fixedTags_linkInstruction.
   ///
   /// In en, this message translates to:
-  /// **'Drag the link icon from a positive fixed tag to a negative fixed tag to create a link'**
+  /// **'Drag the link icon from a prompt fixed tag to an Undesired Content fixed tag to create a link'**
   String get fixedTags_linkInstruction;
 
   /// No description provided for @fixedTags_manageLinks.
@@ -15084,13 +15116,13 @@ abstract class AppLocalizations {
   /// No description provided for @fixedTags_newPositive.
   ///
   /// In en, this message translates to:
-  /// **'New Positive'**
+  /// **'New Prompt'**
   String get fixedTags_newPositive;
 
   /// No description provided for @fixedTags_addPositiveFromLibraryShort.
   ///
   /// In en, this message translates to:
-  /// **'Add Positive from Library'**
+  /// **'Add Prompt from Library'**
   String get fixedTags_addPositiveFromLibraryShort;
 
   /// No description provided for @fixedTags_libraryEmpty.
@@ -15198,7 +15230,7 @@ abstract class AppLocalizations {
   /// No description provided for @reversePrompt_replacementEmptyHint.
   ///
   /// In en, this message translates to:
-  /// **'No replacement target character selected. Choose a character from the tag library here; it will not be injected into the positive prompt.'**
+  /// **'No replacement target character selected. Choose a character from the tag library here; it will not be injected into the prompt.'**
   String get reversePrompt_replacementEmptyHint;
 
   /// No description provided for @reversePrompt_selectReplacementCharacter.
@@ -15876,25 +15908,25 @@ abstract class AppLocalizations {
   /// No description provided for @promptToken_negativePrompt.
   ///
   /// In en, this message translates to:
-  /// **'Negative Prompt'**
+  /// **'Undesired Content'**
   String get promptToken_negativePrompt;
 
   /// No description provided for @promptToken_negativeFixedTags.
   ///
   /// In en, this message translates to:
-  /// **'Negative Fixed Tags'**
+  /// **'Undesired Content Fixed Tags'**
   String get promptToken_negativeFixedTags;
 
   /// No description provided for @promptToken_negativePreset.
   ///
   /// In en, this message translates to:
-  /// **'Negative Preset'**
+  /// **'Undesired Content Preset'**
   String get promptToken_negativePreset;
 
   /// No description provided for @promptToken_characterNegative.
   ///
   /// In en, this message translates to:
-  /// **'Character Negative'**
+  /// **'Character Undesired Content'**
   String get promptToken_characterNegative;
 
   /// No description provided for @common_rename.
@@ -16575,6 +16607,12 @@ abstract class AppLocalizations {
   /// **'Direct connection'**
   String get settings_proxyDisabled;
 
+  /// No description provided for @settings_proxyTrafficDisclosure.
+  ///
+  /// In en, this message translates to:
+  /// **'When proxy is enabled, NovelAI API traffic, including authentication requests, is sent through the system or manual proxy. Use only proxies you trust.'**
+  String get settings_proxyTrafficDisclosure;
+
   /// No description provided for @settings_proxyMode.
   ///
   /// In en, this message translates to:
@@ -17118,13 +17156,13 @@ abstract class AppLocalizations {
   /// No description provided for @queue_positivePrompt.
   ///
   /// In en, this message translates to:
-  /// **'Positive Prompt'**
+  /// **'Prompt'**
   String get queue_positivePrompt;
 
   /// No description provided for @queue_enterPositivePrompt.
   ///
   /// In en, this message translates to:
-  /// **'Enter positive prompt...'**
+  /// **'Enter prompt...'**
   String get queue_enterPositivePrompt;
 
   /// No description provided for @queue_parametersPreview.
@@ -17184,7 +17222,7 @@ abstract class AppLocalizations {
   /// No description provided for @queue_negativePromptFromMain.
   ///
   /// In en, this message translates to:
-  /// **'Negative prompt will use main page settings'**
+  /// **'Undesired Content will use main page settings'**
   String get queue_negativePromptFromMain;
 
   /// No description provided for @queue_pinToTop.
@@ -17958,7 +17996,7 @@ abstract class AppLocalizations {
   /// No description provided for @metadataImport_prompt.
   ///
   /// In en, this message translates to:
-  /// **'Positive Prompt'**
+  /// **'Prompt'**
   String get metadataImport_prompt;
 
   /// No description provided for @metadataImport_mainPrompt.
@@ -17988,13 +18026,13 @@ abstract class AppLocalizations {
   /// No description provided for @metadataImport_negativeFixedPrefix.
   ///
   /// In en, this message translates to:
-  /// **'Negative Prefix: {text}'**
+  /// **'Undesired Content Prefix: {text}'**
   String metadataImport_negativeFixedPrefix(Object text);
 
   /// No description provided for @metadataImport_negativeFixedSuffix.
   ///
   /// In en, this message translates to:
-  /// **'Negative Suffix: {text}'**
+  /// **'Undesired Content Suffix: {text}'**
   String metadataImport_negativeFixedSuffix(Object text);
 
   /// No description provided for @metadataImport_qualityTagsCount.
@@ -18006,7 +18044,7 @@ abstract class AppLocalizations {
   /// No description provided for @metadataImport_negativePrompt.
   ///
   /// In en, this message translates to:
-  /// **'Negative Prompt'**
+  /// **'Undesired Content'**
   String get metadataImport_negativePrompt;
 
   /// No description provided for @metadataImport_characterPrompts.
@@ -18048,7 +18086,7 @@ abstract class AppLocalizations {
   /// No description provided for @metadataImport_vibeDetail.
   ///
   /// In en, this message translates to:
-  /// **'{name} (strength {strength}%, info extraction {info}%)'**
+  /// **'{name} (Reference Strength {strength}%, Information Extracted {info}%)'**
   String metadataImport_vibeDetail(Object name, Object strength, Object info);
 
   /// No description provided for @metadataImport_preciseReferenceDetail.
@@ -18131,7 +18169,7 @@ abstract class AppLocalizations {
   /// No description provided for @metadataImport_ucPreset.
   ///
   /// In en, this message translates to:
-  /// **'UC Preset'**
+  /// **'Undesired Content Preset'**
   String get metadataImport_ucPreset;
 
   /// No description provided for @metadataImport_noData.
@@ -18773,7 +18811,7 @@ abstract class AppLocalizations {
   /// No description provided for @drop_addToQueueSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Extract positive prompt and add to generation queue'**
+  /// **'Extract prompt and add to generation queue'**
   String get drop_addToQueueSubtitle;
 
   /// No description provided for @drop_vibeDetected.
@@ -18791,7 +18829,7 @@ abstract class AppLocalizations {
   /// No description provided for @drop_vibeInfoExtracted.
   ///
   /// In en, this message translates to:
-  /// **'Info Extracted: {value}%'**
+  /// **'Information Extracted: {value}%'**
   String drop_vibeInfoExtracted(Object value);
 
   /// No description provided for @drop_reuseVibe.
@@ -18821,7 +18859,7 @@ abstract class AppLocalizations {
   /// No description provided for @drop_dragToImg2ImgOrOther.
   ///
   /// In en, this message translates to:
-  /// **'Drag to image-to-image or another target'**
+  /// **'Drag to Image2Image or another target'**
   String get drop_dragToImg2ImgOrOther;
 
   /// No description provided for @preciseRef_title.
@@ -18899,13 +18937,13 @@ abstract class AppLocalizations {
   /// No description provided for @preciseRef_costHint.
   ///
   /// In en, this message translates to:
-  /// **'Using precise reference consumes extra points'**
+  /// **'Using Precise Reference consumes extra Anlas'**
   String get preciseRef_costHint;
 
   /// No description provided for @preciseRef_costBadge.
   ///
   /// In en, this message translates to:
-  /// **'Uses points'**
+  /// **'Uses Anlas'**
   String get preciseRef_costBadge;
 
   /// No description provided for @preciseRef_dropToAdd.
@@ -19598,6 +19636,18 @@ abstract class AppLocalizations {
   /// **'Export as .naiv4vibe or .naiv4vibebundle files'**
   String get vibe_export_exportAsFilesDescription;
 
+  /// No description provided for @vibe_export_exportAsZip.
+  ///
+  /// In en, this message translates to:
+  /// **'Export as ZIP'**
+  String get vibe_export_exportAsZip;
+
+  /// No description provided for @vibe_export_exportAsZipDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Pack the selected Vibe library entries into a .zip as separate files'**
+  String get vibe_export_exportAsZipDescription;
+
   /// No description provided for @vibe_export_compressData.
   ///
   /// In en, this message translates to:
@@ -19609,6 +19659,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Use compression to reduce file size (recommended for batch export)'**
   String get vibe_export_compressDataDescription;
+
+  /// No description provided for @vibe_export_zipCompressDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Compress files inside the ZIP to reduce size'**
+  String get vibe_export_zipCompressDescription;
 
   /// No description provided for @vibe_export_exportAsPng.
   ///
@@ -19712,11 +19768,23 @@ abstract class AppLocalizations {
   /// **'Preparing export...'**
   String get vibe_export_preparingExport;
 
+  /// No description provided for @vibe_export_preparingVibeProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading Vibe {current}/{total}...'**
+  String vibe_export_preparingVibeProgress(int current, int total);
+
   /// No description provided for @vibe_export_exportingBundle.
   ///
   /// In en, this message translates to:
   /// **'Exporting Bundle...'**
   String get vibe_export_exportingBundle;
+
+  /// No description provided for @vibe_export_exportingZip.
+  ///
+  /// In en, this message translates to:
+  /// **'Exporting ZIP...'**
+  String get vibe_export_exportingZip;
 
   /// No description provided for @vibe_export_embeddingImage.
   ///
@@ -19735,6 +19803,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Export failed: {error}'**
   String vibe_export_exportFailedWithError(String error);
+
+  /// No description provided for @vibe_export_noExportableEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'No exportable Vibe entries'**
+  String get vibe_export_noExportableEntries;
 
   /// No description provided for @vibe_export_bundleFilePathEmpty.
   ///
@@ -19982,6 +20056,72 @@ abstract class AppLocalizations {
   /// **'Import failed: {error}'**
   String vibe_import_failedWithError(String error);
 
+  /// No description provided for @vibe_import_bundleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Vibe Bundle'**
+  String get vibe_import_bundleTitle;
+
+  /// No description provided for @vibe_import_bundleChooseMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose import method'**
+  String get vibe_import_bundleChooseMethod;
+
+  /// No description provided for @vibe_import_bundleAsWhole.
+  ///
+  /// In en, this message translates to:
+  /// **'Import as whole'**
+  String get vibe_import_bundleAsWhole;
+
+  /// No description provided for @vibe_import_bundleAsWholeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the bundle structure and import it as one library entry'**
+  String get vibe_import_bundleAsWholeDescription;
+
+  /// No description provided for @vibe_import_bundleSplitEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'Split into separate entries'**
+  String get vibe_import_bundleSplitEntries;
+
+  /// No description provided for @vibe_import_bundleSplitEntriesDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Import each vibe as a separate library entry'**
+  String get vibe_import_bundleSplitEntriesDescription;
+
+  /// No description provided for @vibe_import_bundleSelectVibes.
+  ///
+  /// In en, this message translates to:
+  /// **'Select vibes to import'**
+  String get vibe_import_bundleSelectVibes;
+
+  /// No description provided for @vibe_import_bundleSelectVibesDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Import only the selected vibes'**
+  String get vibe_import_bundleSelectVibesDescription;
+
+  /// No description provided for @vibe_import_bundleConfigureEachVibe.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure each Vibe\'s parameters'**
+  String get vibe_import_bundleConfigureEachVibe;
+
+  /// No description provided for @vibe_import_bundleSelectAndConfigureEachVibe.
+  ///
+  /// In en, this message translates to:
+  /// **'Select and configure each Vibe\'s parameters'**
+  String get vibe_import_bundleSelectAndConfigureEachVibe;
+
+  /// No description provided for @vibe_import_bundleSelectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{selected}/{total} selected'**
+  String vibe_import_bundleSelectedCount(int selected, int total);
+
   /// No description provided for @vibe_saveToLibrary_title.
   ///
   /// In en, this message translates to:
@@ -19997,7 +20137,7 @@ abstract class AppLocalizations {
   /// No description provided for @vibe_saveToLibrary_infoExtracted.
   ///
   /// In en, this message translates to:
-  /// **'Info Extracted'**
+  /// **'Information Extracted'**
   String get vibe_saveToLibrary_infoExtracted;
 
   /// No description provided for @vibe_saveToLibrary_saving.
@@ -20047,6 +20187,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reused {count} from library'**
   String vibe_saveToLibrary_reused(int count);
+
+  /// No description provided for @vibe_saveToLibrary_saveAsBundle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save as bundle'**
+  String get vibe_saveToLibrary_saveAsBundle;
+
+  /// No description provided for @vibe_saveToLibrary_saveAsBundleDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Save {count} Vibes as one bundle'**
+  String vibe_saveToLibrary_saveAsBundleDescription(int count);
+
+  /// No description provided for @vibe_saveToLibrary_tagHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a tag, then press Add'**
+  String get vibe_saveToLibrary_tagHint;
 
   /// No description provided for @vibe_maxReached.
   ///
@@ -21083,7 +21241,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_comfyUiCategoryImg2Img.
   ///
   /// In en, this message translates to:
-  /// **'Image-to-Image'**
+  /// **'Image2Image'**
   String get settings_comfyUiCategoryImg2Img;
 
   /// No description provided for @settings_comfyUiCategoryInpaint.
@@ -21844,7 +22002,7 @@ abstract class AppLocalizations {
   /// No description provided for @toast_styleReferenceLimit.
   ///
   /// In en, this message translates to:
-  /// **'Style references reached the limit ({max} images)'**
+  /// **'Style References reached the limit ({max} images)'**
   String toast_styleReferenceLimit(Object max);
 
   /// No description provided for @toast_noValidPromptFound.
@@ -22204,19 +22362,19 @@ abstract class AppLocalizations {
   /// No description provided for @toast_appendedStyleReferences.
   ///
   /// In en, this message translates to:
-  /// **'Appended {count} style references'**
+  /// **'Appended {count} Style References'**
   String toast_appendedStyleReferences(Object count);
 
   /// No description provided for @toast_appendedPreencodedVibe.
   ///
   /// In en, this message translates to:
-  /// **'Appended 1 style reference (reused pre-encoded Vibe)'**
+  /// **'Appended 1 Style Reference (reused pre-encoded Vibe)'**
   String get toast_appendedPreencodedVibe;
 
   /// No description provided for @toast_addedPreencodedVibe.
   ///
   /// In en, this message translates to:
-  /// **'Added style reference (reused pre-encoded Vibe, saved 2 Anlas)'**
+  /// **'Added Style Reference (reused pre-encoded Vibe, saved 2 Anlas)'**
   String get toast_addedPreencodedVibe;
 
   /// No description provided for @toast_vibesMissingEncoding.
@@ -22486,7 +22644,7 @@ abstract class AppLocalizations {
   /// No description provided for @detail_sendToImg2Img.
   ///
   /// In en, this message translates to:
-  /// **'Send to Image-to-Image'**
+  /// **'Send to Image2Image'**
   String get detail_sendToImg2Img;
 
   /// No description provided for @detail_sendToReversePrompt.
@@ -23215,7 +23373,7 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['en', 'zh'].contains(locale.languageCode);
+      <String>['en', 'ja', 'zh'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -23226,6 +23384,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   switch (locale.languageCode) {
     case 'en':
       return AppLocalizationsEn();
+    case 'ja':
+      return AppLocalizationsJa();
     case 'zh':
       return AppLocalizationsZh();
   }
