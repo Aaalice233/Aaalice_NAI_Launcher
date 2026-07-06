@@ -8,6 +8,7 @@ import 'sections/shortcut_settings_section.dart';
 import 'sections/storage_settings_section.dart';
 import 'sections/network_settings_section.dart';
 import 'sections/data_source_settings_section.dart';
+import 'sections/generation_settings_section.dart';
 import 'sections/queue_settings_section.dart';
 import 'sections/notification_settings_section.dart';
 import 'sections/about_settings_section.dart';
@@ -86,6 +87,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         selectedIcon: Icons.cloud_sync,
         label: context.l10n.settings_dataSource,
         widget: const DataSourceSettingsSection(),
+      ),
+      _SettingsSection(
+        icon: Icons.tune_outlined,
+        selectedIcon: Icons.tune,
+        label: context.l10n.settings_generation,
+        widget: const GenerationSettingsSection(),
       ),
       _SettingsSection(
         icon: Icons.queue_outlined,
@@ -263,8 +270,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           children: [
             DrawerHeader(
               decoration: BoxDecoration(
-                color:
-                    theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                color: theme.colorScheme.primaryContainer.withValues(
+                  alpha: 0.3,
+                ),
               ),
               child: Center(
                 child: Column(
@@ -306,8 +314,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         color: isSelected
                             ? theme.colorScheme.primary
                             : theme.colorScheme.onSurface,
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                       ),
                     ),
                     selected: isSelected,

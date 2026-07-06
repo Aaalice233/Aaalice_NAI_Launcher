@@ -130,6 +130,7 @@
 
   "auth_tokenLogin": "API Token Login",
   "auth_credentialsLogin": "Email & Password",
+  "auth_credentialsLoginUnavailable": "Email/password login is currently unavailable. Please use Token login.",
   "auth_credentialsLoginTitle": "Login with Email",
   "auth_tokenHint": "Enter your Persistent API Token",
   "auth_tokenRequired": "Please enter token",
@@ -190,6 +191,8 @@
   "auth_error_networkError": "Network error",
   "auth_error_authFailed": "Authentication failed",
   "auth_error_authFailed_tokenExpired": "Token expired, please login again",
+  "auth_error_credentialsLoginUnavailable": "Email/password login is currently unavailable",
+  "auth_error_credentialsLoginUnavailable_hint": "NovelAI now requires a web safety check for email/password login. Please use a Persistent API Token instead.",
   "auth_error_serverError": "Server error",
   "auth_error_unknown": "Unknown error",
   "auth_autoLogin": "Auto login",
@@ -230,6 +233,7 @@
   "settings_languageJapanese": "日本語",
   "settings_shortcuts": "Shortcuts",
   "settings_dataSource": "Data Source",
+  "settings_generation": "Generation",
   "settings_queue": "Queue",
   "settings_notifications": "Notifications",
   "settings_promptAssistant": "Assistant",
@@ -1957,6 +1961,17 @@
   "warmup_checkAndRecoverData": "Checking data integrity...",
   "warmup_group_dataSourceInitialization": "Initializing data source services...",
   "warmup_group_dataSourceInitialization_complete": "Data source services ready",
+  "warmup_fetchingTags": "Syncing tags: {message}",
+  "@warmup_fetchingTags": {
+    "placeholders": {
+      "message": {}
+    }
+  },
+  "warmup_fetchingTagDataFromServer": "Fetching tag data from server...",
+  "warmup_fetchingGeneralTags": "Fetching general tags...",
+  "warmup_fetchingCharacterTags": "Fetching character tags...",
+  "warmup_fetchingCopyrightTags": "Fetching copyright tags...",
+  "warmup_fetchingMetaTags": "Fetching meta tags...",
 
   "performanceReport_title": "Startup Performance",
   "performanceReport_export": "Export Report",
@@ -2105,6 +2120,7 @@
   "characterEditor_clickToEdit": "Click to edit multi-character prompts",
 
   "toolbar_randomPrompt": "Random Prompt",
+  "randomPromptToolsHiddenHint": "Random prompt tools are hidden in Settings",
   "toolbar_fullscreenEdit": "Fullscreen Edit",
   "toolbar_clear": "Clear",
   "toolbar_confirmClear": "Confirm Clear",
@@ -4777,6 +4793,8 @@
   "settings_queueRetryInterval": "Retry Interval",
   "settings_queueRetryCountSubtitle": "Maximum retry attempts for failed tasks",
   "settings_queueRetryIntervalSubtitle": "Time to wait between retries",
+  "settings_showRandomPromptTools": "Show random prompt tools",
+  "settings_showRandomPromptToolsSubtitle": "Show the Random Prompt button and Random Mode toggle on the generation page",
   "settings_queueRetryCountMax": "Max {count} times",
   "@settings_queueRetryCountMax": {
     "placeholders": {
@@ -6578,13 +6596,24 @@
 
   "updateAvailable": "Update Available",
   "updateChecking": "Checking for updates...",
+  "updateDownloading": "Downloading update...",
+  "updateInstalling": "Starting installer...",
   "updateUpToDate": "Already up to date",
   "updateError": "Failed to check for updates",
   "currentVersion": "Current Version",
   "latestVersion": "Latest Version",
   "releaseNotes": "Release Notes",
+  "updatePortableManualHint": "Portable builds open the Release page for manual download.",
+  "updateDownloadingProgress": "Downloading update package: {percent}%",
+  "@updateDownloadingProgress": {
+    "placeholders": {
+      "percent": {}
+    }
+  },
+  "updateInstallingHint": "The installer has started. The app will close shortly.",
   "remindMeLater": "Remind Me Later",
   "skipThisVersion": "Skip This Version",
+  "updateDownloadAndInstall": "Download and Install",
   "goToDownload": "Go to Download",
   "versionSkipped": "Version skipped",
   "cannotOpenUrl": "Cannot open link"

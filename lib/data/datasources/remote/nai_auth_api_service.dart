@@ -57,7 +57,7 @@ class NAIAuthApiService {
       'NAIAuth',
     );
     AppLogger.d(
-      'Auth header to be sent: length=${authHeader.length}',
+      'Auth header prepared: length=${authHeader.length}, tokenFormat=$tokenFormat',
       'NAIAuth',
     );
 

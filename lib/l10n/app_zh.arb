@@ -130,6 +130,7 @@
 
   "auth_tokenLogin": "API Token 登录",
   "auth_credentialsLogin": "邮箱密码登录",
+  "auth_credentialsLoginUnavailable": "账号密码登录当前不可用，请使用 Token 登录",
   "auth_credentialsLoginTitle": "邮箱登录",
   "auth_tokenHint": "请输入您的 Persistent API Token",
   "auth_tokenRequired": "请输入 Token",
@@ -185,6 +186,8 @@
   "auth_error_networkError": "网络连接错误",
   "auth_error_authFailed": "认证失败",
   "auth_error_authFailed_tokenExpired": "Token 已过期，请重新登录",
+  "auth_error_credentialsLoginUnavailable": "账号密码登录当前不可用",
+  "auth_error_credentialsLoginUnavailable_hint": "NovelAI 官网账号密码登录需要网页安全验证，客户端无法完成，请改用 Persistent API Token。",
   "auth_error_serverError": "服务器错误",
   "auth_error_unknown": "未知错误",
   "auth_autoLogin": "自动登录",
@@ -225,6 +228,7 @@
   "settings_languageJapanese": "日本語",
   "settings_shortcuts": "快捷键",
   "settings_dataSource": "数据源",
+  "settings_generation": "生成",
   "settings_queue": "队列",
   "settings_notifications": "通知",
   "settings_promptAssistant": "助手",
@@ -1619,6 +1623,17 @@
   "warmup_checkAndRecoverData": "检查数据完整性...",
   "warmup_group_dataSourceInitialization": "初始化数据源服务...",
   "warmup_group_dataSourceInitialization_complete": "数据源服务就绪",
+  "warmup_fetchingTags": "正在同步标签：{message}",
+  "@warmup_fetchingTags": {
+    "placeholders": {
+      "message": {}
+    }
+  },
+  "warmup_fetchingTagDataFromServer": "正在从服务器拉取标签数据...",
+  "warmup_fetchingGeneralTags": "正在拉取通用标签...",
+  "warmup_fetchingCharacterTags": "正在拉取角色标签...",
+  "warmup_fetchingCopyrightTags": "正在拉取版权标签...",
+  "warmup_fetchingMetaTags": "正在拉取元标签...",
 
   "performanceReport_title": "启动性能",
   "performanceReport_export": "导出报告",
@@ -1818,6 +1833,7 @@
   "characterEditor_clickToEdit": "点击编辑多人角色提示词",
 
   "toolbar_randomPrompt": "随机提示词",
+  "randomPromptToolsHiddenHint": "随机提示词工具已在设置中隐藏",
   "toolbar_fullscreenEdit": "全屏编辑",
   "toolbar_clear": "清空",
   "toolbar_confirmClear": "确认清空",
@@ -4498,6 +4514,8 @@
   "settings_queueRetryInterval": "重试间隔",
   "settings_queueRetryCountSubtitle": "失败任务的最大重试次数",
   "settings_queueRetryIntervalSubtitle": "重试之间的等待时间",
+  "settings_showRandomPromptTools": "显示随机提示词工具",
+  "settings_showRandomPromptToolsSubtitle": "在生成页显示“随机提示词”按钮和“抽卡模式”开关",
   "settings_queueRetryCountMax": "最多 {count} 次",
   "@settings_queueRetryCountMax": {
     "placeholders": {
@@ -6103,13 +6121,24 @@
 
   "updateAvailable": "发现新版本",
   "updateChecking": "正在检查更新...",
+  "updateDownloading": "正在下载更新...",
+  "updateInstalling": "正在启动安装器...",
   "updateUpToDate": "已是最新版本",
   "updateError": "检查更新失败",
   "currentVersion": "当前版本",
   "latestVersion": "最新版本",
   "releaseNotes": "更新日志",
+  "updatePortableManualHint": "便携版需要前往 Release 页面手动下载新版。",
+  "updateDownloadingProgress": "正在下载更新包：{percent}%",
+  "@updateDownloadingProgress": {
+    "placeholders": {
+      "percent": {}
+    }
+  },
+  "updateInstallingHint": "安装器已启动，应用即将关闭。",
   "remindMeLater": "稍后提醒",
   "skipThisVersion": "忽略此版本",
+  "updateDownloadAndInstall": "下载并安装",
   "goToDownload": "前往下载",
   "versionSkipped": "已忽略此版本",
   "cannotOpenUrl": "无法打开链接"

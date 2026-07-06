@@ -43,12 +43,7 @@ class MainNavRail extends ConsumerWidget {
       height: double.infinity,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        border: Border(
-          right: BorderSide(
-            color: theme.dividerColor,
-            width: 1,
-          ),
-        ),
+        border: Border(right: BorderSide(color: theme.dividerColor, width: 1)),
       ),
       child: Column(
         children: [
@@ -505,8 +500,9 @@ class _ExternalLinkIconState extends State<_ExternalLinkIcon> {
                 ),
                 child: Icon(
                   widget.icon,
-                  color:
-                      widget.color.withValues(alpha: _isHovering ? 1.0 : 0.7),
+                  color: widget.color.withValues(
+                    alpha: _isHovering ? 1.0 : 0.7,
+                  ),
                   size: 24,
                 ),
               ),
@@ -551,8 +547,9 @@ class _NavIconState extends State<_NavIcon> {
     if (widget.isSelected) {
       backgroundColor = theme.colorScheme.primary.withValues(alpha: 0.1);
     } else if (_isHovering) {
-      backgroundColor =
-          theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5);
+      backgroundColor = theme.colorScheme.surfaceContainerHighest.withValues(
+        alpha: 0.5,
+      );
     }
 
     return Tooltip(
@@ -582,17 +579,14 @@ class _NavIconState extends State<_NavIcon> {
                   borderRadius: BorderRadius.circular(8),
                   border: widget.isSelected
                       ? Border.all(
-                          color:
-                              theme.colorScheme.primary.withValues(alpha: 0.5),
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: 0.5,
+                          ),
                           width: 1,
                         )
                       : null,
                 ),
-                child: Icon(
-                  widget.icon,
-                  color: color,
-                  size: 24,
-                ),
+                child: Icon(widget.icon, color: color, size: 24),
               ),
             ),
           ),
@@ -626,8 +620,9 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
     SavedAccount? currentAccount;
     if (authState.accountId != null) {
       try {
-        currentAccount =
-            accounts.firstWhere((a) => a.id == authState.accountId);
+        currentAccount = accounts.firstWhere(
+          (a) => a.id == authState.accountId,
+        );
       } catch (_) {
         currentAccount = accounts.isNotEmpty ? accounts.first : null;
       }
@@ -653,10 +648,7 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOutCubic,
             child: currentAccount != null
-                ? AccountAvatarSmall(
-                    account: currentAccount,
-                    size: 40,
-                  )
+                ? AccountAvatarSmall(account: currentAccount, size: 40)
                 : Container(
                     decoration: BoxDecoration(
                       color: theme.colorScheme.primary.withValues(alpha: 0.2),
@@ -733,11 +725,7 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
                   ),
                 ),
                 if (account.id == authState.accountId)
-                  Icon(
-                    Icons.check,
-                    color: theme.colorScheme.primary,
-                    size: 20,
-                  ),
+                  Icon(Icons.check, color: theme.colorScheme.primary, size: 20),
               ],
             ),
           ),
@@ -750,11 +738,7 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
           value: 'add',
           child: Row(
             children: [
-              Icon(
-                Icons.add,
-                color: theme.colorScheme.onSurface,
-                size: 20,
-              ),
+              Icon(Icons.add, color: theme.colorScheme.onSurface, size: 20),
               const SizedBox(width: 12),
               Text(context.l10n.auth_addAccount),
             ],
@@ -766,11 +750,7 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
           value: 'logout',
           child: Row(
             children: [
-              Icon(
-                Icons.logout,
-                color: theme.colorScheme.error,
-                size: 20,
-              ),
+              Icon(Icons.logout, color: theme.colorScheme.error, size: 20),
               const SizedBox(width: 12),
               Text(
                 context.l10n.auth_logout,
@@ -824,13 +804,14 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
     }
 
     // 使用 switchAccount（根据账号类型选择验证方式）
-    final success =
-        await widget.ref.read(authNotifierProvider.notifier).switchAccount(
-              account.id,
-              token,
-              displayName: account.displayName,
-              accountType: account.accountType,
-            );
+    final success = await widget.ref
+        .read(authNotifierProvider.notifier)
+        .switchAccount(
+          account.id,
+          token,
+          displayName: account.displayName,
+          accountType: account.accountType,
+        );
 
     if (success) {
       // 更新最后使用时间
@@ -854,6 +835,9 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
           case AuthErrorCode.tokenInvalid:
             errorMessage = context.l10n.auth_error_authFailed;
             break;
+          case AuthErrorCode.credentialsLoginUnavailable:
+            errorMessage = context.l10n.auth_error_credentialsLoginUnavailable;
+            break;
           case AuthErrorCode.serverError:
             errorMessage = context.l10n.auth_error_serverError;
             break;
@@ -868,7 +852,7 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
 
   /// 显示添加账号对话框
   void _showAddAccountDialog(BuildContext context) {
-    // 重置 AuthMode 为默认模式（credentials）
+    // 重置 AuthMode 为当前默认登录模式
     widget.ref.read(authModeNotifierProvider.notifier).reset();
     // 立即清除之前的登录错误状态（无延迟）
     widget.ref.read(authNotifierProvider.notifier).clearError(delayMs: 0);

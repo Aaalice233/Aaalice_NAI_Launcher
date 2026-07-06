@@ -26,6 +26,7 @@ enum AuthErrorCode {
   networkError,
   authFailed,
   tokenInvalid,
+  credentialsLoginUnavailable,
   serverError,
   unknown,
 }
@@ -100,8 +101,15 @@ class AuthState {
         if (statusCode == 400) {
           // 检查是否是 Authorization header 相关的错误
           final responseData = e.response?.data;
-          final message = responseData is Map ? responseData['message'] : null;
-          if (message?.toString().contains('Authorization') ?? false) {
+          final message = switch (responseData) {
+            final Map data => data['message']?.toString(),
+            final String text => text,
+            _ => null,
+          };
+          if (message?.contains('Please refresh NovelAI.net') ?? false) {
+            return (AuthErrorCode.credentialsLoginUnavailable, statusCode);
+          }
+          if (message?.contains('Authorization') ?? false) {
             return (AuthErrorCode.tokenInvalid, statusCode);
           }
         }

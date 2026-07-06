@@ -86,12 +86,15 @@ class WarmupState {
     bool? isComplete,
     String? error,
     String? subTaskMessage,
+    bool clearSubTaskMessage = false,
   }) {
     return WarmupState(
       progress: progress ?? this.progress,
       isComplete: isComplete ?? this.isComplete,
       error: error ?? this.error,
-      subTaskMessage: subTaskMessage ?? this.subTaskMessage,
+      subTaskMessage: clearSubTaskMessage
+          ? null
+          : subTaskMessage ?? this.subTaskMessage,
     );
   }
 }
@@ -139,7 +142,7 @@ class WarmupNotifier extends _$WarmupNotifier {
     migrationService.onProgress = null;
 
     await _runVibeLibraryMigration();
-    state = state.copyWith(subTaskMessage: null);
+    state = state.copyWith(clearSubTaskMessage: true);
 
     if (result.isSuccess) {
       AppLogger.i('数据迁移完成: $result', 'Warmup');
@@ -501,7 +504,7 @@ class WarmupNotifier extends _$WarmupNotifier {
             progress: progress.progress * 0.3, // critical 占 30%
             currentTask: progress.currentTask,
           ),
-          subTaskMessage: progress.currentTask,
+          clearSubTaskMessage: true,
         );
       }
 
@@ -512,7 +515,7 @@ class WarmupNotifier extends _$WarmupNotifier {
             progress: 0.3 + progress.progress * 0.7, // quick 占 70%
             currentTask: progress.currentTask,
           ),
-          subTaskMessage: progress.currentTask,
+          clearSubTaskMessage: true,
         );
       }
 
@@ -747,7 +750,7 @@ class WarmupNotifier extends _$WarmupNotifier {
 
     // 设置进度回调（不显示百分比，只显示数量和状态）
     service.onProgress = (progress, message) {
-      state = state.copyWith(subTaskMessage: 'Fetching tags: $message');
+      state = state.copyWith(subTaskMessage: 'warmup_fetchingTags|$message');
     };
 
     try {
@@ -756,25 +759,25 @@ class WarmupNotifier extends _$WarmupNotifier {
         (
           name: 'general',
           needed: needsGeneralFetch,
-          message: 'Fetching general tags...',
+          message: 'warmup_fetchingGeneralTags',
           fetch: () => service.fetchGeneralTags(threshold: 1000, maxPages: 50),
         ),
         (
           name: 'character',
           needed: needsCharacterFetch,
-          message: 'Fetching character tags...',
+          message: 'warmup_fetchingCharacterTags',
           fetch: () => service.fetchCharacterTags(threshold: 100, maxPages: 50),
         ),
         (
           name: 'copyright',
           needed: needsCopyrightFetch,
-          message: 'Fetching copyright tags...',
+          message: 'warmup_fetchingCopyrightTags',
           fetch: () => service.fetchCopyrightTags(threshold: 500, maxPages: 50),
         ),
         (
           name: 'meta',
           needed: needsMetaFetch,
-          message: 'Fetching meta tags...',
+          message: 'warmup_fetchingMetaTags',
           fetch: () => service.fetchMetaTags(threshold: 10000, maxPages: 50),
         ),
       ];
@@ -950,32 +953,32 @@ class WarmupNotifier extends _$WarmupNotifier {
         'Warmup',
       );
       state = state.copyWith(
-        subTaskMessage: 'Fetching tag data from server...',
+        subTaskMessage: 'warmup_fetchingTagDataFromServer',
       );
 
       // 定义标签拉取任务
       final fetchTasks = [
         if (needsGeneralFetch)
           (
-            message: 'Fetching general tags...',
+            message: 'warmup_fetchingGeneralTags',
             fetch: () =>
                 service.fetchGeneralTags(threshold: 1000, maxPages: 50),
           ),
         if (needsCharacterFetch)
           (
-            message: 'Fetching character tags...',
+            message: 'warmup_fetchingCharacterTags',
             fetch: () =>
                 service.fetchCharacterTags(threshold: 100, maxPages: 50),
           ),
         if (needsCopyrightFetch)
           (
-            message: 'Fetching copyright tags...',
+            message: 'warmup_fetchingCopyrightTags',
             fetch: () =>
                 service.fetchCopyrightTags(threshold: 500, maxPages: 50),
           ),
         if (needsMetaFetch)
           (
-            message: 'Fetching meta tags...',
+            message: 'warmup_fetchingMetaTags',
             fetch: () => service.fetchMetaTags(threshold: 10000, maxPages: 50),
           ),
       ];

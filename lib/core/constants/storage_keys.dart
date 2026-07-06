@@ -89,6 +89,7 @@ class StorageKeys {
   static const String ucPresetCustomId = 'uc_preset_custom_id';
   static const String ucPresetCustomIds = 'uc_preset_custom_ids'; // 自定义条目ID列表
   static const String randomPromptMode = 'random_prompt_mode';
+  static const String showRandomPromptTools = 'show_random_prompt_tools';
   static const String randomGenerationMode = 'random_generation_mode';
   static const String imagesPerRequest = 'images_per_request';
   static const String enableAutocomplete = 'enable_autocomplete';

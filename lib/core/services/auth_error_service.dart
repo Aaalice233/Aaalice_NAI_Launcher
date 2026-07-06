@@ -48,6 +48,9 @@ class AuthErrorService {
       case AuthErrorCode.tokenInvalid:
         AppLogger.d('Invalid token', 'AuthErrorService');
         return l10n.auth_tokenInvalid;
+      case AuthErrorCode.credentialsLoginUnavailable:
+        AppLogger.d('Credentials login unavailable', 'AuthErrorService');
+        return l10n.auth_error_credentialsLoginUnavailable;
       case AuthErrorCode.serverError:
         AppLogger.d('Server error', 'AuthErrorService');
         if (httpStatusCode == 503) {
@@ -76,7 +79,8 @@ class AuthErrorService {
         return l10n.api_error_timeout_hint;
       case AuthErrorCode.networkError:
         AppLogger.d(
-            'Providing network error recovery hint', 'AuthErrorService',
+          'Providing network error recovery hint',
+          'AuthErrorService',
         );
         return l10n.api_error_network_hint;
       case AuthErrorCode.authFailed:
@@ -91,9 +95,16 @@ class AuthErrorService {
         return l10n.api_error_401_hint;
       case AuthErrorCode.tokenInvalid:
         AppLogger.d(
-            'Providing token invalid recovery hint', 'AuthErrorService',
+          'Providing token invalid recovery hint',
+          'AuthErrorService',
         );
         return l10n.api_error_401_hint;
+      case AuthErrorCode.credentialsLoginUnavailable:
+        AppLogger.d(
+          'Providing credentials login unavailable hint',
+          'AuthErrorService',
+        );
+        return l10n.auth_error_credentialsLoginUnavailable_hint;
       case AuthErrorCode.serverError:
         if (httpStatusCode == 503) {
           AppLogger.d(

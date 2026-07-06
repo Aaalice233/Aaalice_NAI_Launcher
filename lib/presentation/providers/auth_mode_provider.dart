@@ -23,7 +23,7 @@ class AuthModeState {
   final bool autoLogin;
 
   const AuthModeState({
-    this.currentMode = AuthMode.credentials,
+    this.currentMode = AuthMode.token,
     this.obscurePassword = true,
     this.autoLogin = true,
   });

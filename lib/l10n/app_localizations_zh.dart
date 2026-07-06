@@ -342,6 +342,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get auth_credentialsLogin => '邮箱密码登录';
 
   @override
+  String get auth_credentialsLoginUnavailable => '账号密码登录当前不可用，请使用 Token 登录';
+
+  @override
   String get auth_credentialsLoginTitle => '邮箱登录';
 
   @override
@@ -471,6 +474,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get auth_error_authFailed_tokenExpired => 'Token 已过期，请重新登录';
 
   @override
+  String get auth_error_credentialsLoginUnavailable => '账号密码登录当前不可用';
+
+  @override
+  String get auth_error_credentialsLoginUnavailable_hint =>
+      'NovelAI 官网账号密码登录需要网页安全验证，客户端无法完成，请改用 Persistent API Token。';
+
+  @override
   String get auth_error_serverError => '服务器错误';
 
   @override
@@ -584,6 +594,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_dataSource => '数据源';
+
+  @override
+  String get settings_generation => '生成';
 
   @override
   String get settings_queue => '队列';
@@ -4035,6 +4048,26 @@ class AppLocalizationsZh extends AppLocalizations {
   String get warmup_group_dataSourceInitialization_complete => '数据源服务就绪';
 
   @override
+  String warmup_fetchingTags(Object message) {
+    return '正在同步标签：$message';
+  }
+
+  @override
+  String get warmup_fetchingTagDataFromServer => '正在从服务器拉取标签数据...';
+
+  @override
+  String get warmup_fetchingGeneralTags => '正在拉取通用标签...';
+
+  @override
+  String get warmup_fetchingCharacterTags => '正在拉取角色标签...';
+
+  @override
+  String get warmup_fetchingCopyrightTags => '正在拉取版权标签...';
+
+  @override
+  String get warmup_fetchingMetaTags => '正在拉取元标签...';
+
+  @override
   String get performanceReport_title => '启动性能';
 
   @override
@@ -4382,6 +4415,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get toolbar_randomPrompt => '随机提示词';
+
+  @override
+  String get randomPromptToolsHiddenHint => '随机提示词工具已在设置中隐藏';
 
   @override
   String get toolbar_fullscreenEdit => '全屏编辑';
@@ -9394,6 +9430,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_queueRetryIntervalSubtitle => '重试之间的等待时间';
 
   @override
+  String get settings_showRandomPromptTools => '显示随机提示词工具';
+
+  @override
+  String get settings_showRandomPromptToolsSubtitle =>
+      '在生成页显示“随机提示词”按钮和“抽卡模式”开关';
+
+  @override
   String settings_queueRetryCountMax(Object count) {
     return '最多 $count 次';
   }
@@ -12637,6 +12680,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get updateChecking => '正在检查更新...';
 
   @override
+  String get updateDownloading => '正在下载更新...';
+
+  @override
+  String get updateInstalling => '正在启动安装器...';
+
+  @override
   String get updateUpToDate => '已是最新版本';
 
   @override
@@ -12652,10 +12701,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get releaseNotes => '更新日志';
 
   @override
+  String get updatePortableManualHint => '便携版需要前往 Release 页面手动下载新版。';
+
+  @override
+  String updateDownloadingProgress(Object percent) {
+    return '正在下载更新包：$percent%';
+  }
+
+  @override
+  String get updateInstallingHint => '安装器已启动，应用即将关闭。';
+
+  @override
   String get remindMeLater => '稍后提醒';
 
   @override
   String get skipThisVersion => '忽略此版本';
+
+  @override
+  String get updateDownloadAndInstall => '下载并安装';
 
   @override
   String get goToDownload => '前往下载';

@@ -39,6 +39,7 @@ class _MobileGenerationLayoutState
     final isLauncherGenerating = generationState.isGenerating;
     final isGenerating =
         isLauncherGenerating || kritaBridgeState.isBridgeGenerating;
+    final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
 
     return ThemedScaffold(
       // 使用 GlobalKey 来控制 Drawer
@@ -78,9 +79,7 @@ class _MobileGenerationLayoutState
                 ),
               ),
               const ThemedDivider(),
-              const Expanded(
-                child: ParameterPanel(),
-              ),
+              const Expanded(child: ParameterPanel()),
             ],
           ),
         ),
@@ -92,9 +91,7 @@ class _MobileGenerationLayoutState
               ? Expanded(
                   child: Container(
                     padding: const EdgeInsets.all(12),
-                    child: PromptInputWidget(
-                      isMaximized: isPromptMaximized,
-                    ),
+                    child: PromptInputWidget(isMaximized: isPromptMaximized),
                   ),
                 )
               : Container(
@@ -103,10 +100,7 @@ class _MobileGenerationLayoutState
                 ),
 
           // 图像预览区（最大化时隐藏）
-          if (!isPromptMaximized)
-            const Expanded(
-              child: ImagePreviewWidget(),
-            ),
+          if (!isPromptMaximized) const Expanded(child: ImagePreviewWidget()),
 
           // 生成状态和进度（最大化时隐藏）
           if (!isPromptMaximized && generationState.isGenerating)
@@ -138,10 +132,7 @@ class _MobileGenerationLayoutState
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
             border: Border(
-              top: BorderSide(
-                color: theme.dividerColor,
-                width: 1,
-              ),
+              top: BorderSide(color: theme.dividerColor, width: 1),
             ),
           ),
           child: Row(
@@ -150,10 +141,12 @@ class _MobileGenerationLayoutState
               const AnlasBalanceChip(compact: true),
               const SizedBox(width: 8),
               // 抽卡模式开关
-              _MobileRandomModeToggle(
-                enabled: ref.watch(randomPromptModeProvider),
-              ),
-              const SizedBox(width: 8),
+              if (showRandomTools) ...[
+                _MobileRandomModeToggle(
+                  enabled: ref.watch(randomPromptModeProvider),
+                ),
+                const SizedBox(width: 8),
+              ],
               // 生成按钮（集成价格徽章）
               Expanded(
                 child: _MobileGenerateButton(
@@ -176,10 +169,7 @@ class _MobileGenerationLayoutState
     );
   }
 
-  Future<void> _handleGenerate(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
+  Future<void> _handleGenerate(BuildContext context, WidgetRef ref) async {
     final params = ref.read(generationParamsNotifierProvider);
     if (ref.read(kritaBridgeNotifierProvider).isBridgeGenerating) {
       AppToast.warning(context, context.l10n.toast_kritaBusy);

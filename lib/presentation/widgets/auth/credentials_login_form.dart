@@ -14,10 +14,7 @@ class CredentialsLoginForm extends ConsumerStatefulWidget {
   /// 登录成功回调
   final VoidCallback? onLoginSuccess;
 
-  const CredentialsLoginForm({
-    super.key,
-    this.onLoginSuccess,
-  });
+  const CredentialsLoginForm({super.key, this.onLoginSuccess});
 
   @override
   ConsumerState<CredentialsLoginForm> createState() =>
@@ -187,8 +184,9 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
                         child: Text(
                           _getErrorMessage(errorCode),
                           style: TextStyle(
-                            color:
-                                Theme.of(context).colorScheme.onErrorContainer,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onErrorContainer,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -196,24 +194,17 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
                     ],
                   ),
                   // 显示恢复建议
-                  if (_getErrorRecoveryHint(
-                        errorCode,
-                        httpStatusCode,
-                      ) !=
+                  if (_getErrorRecoveryHint(errorCode, httpStatusCode) !=
                       null) ...[
                     const SizedBox(height: 8),
                     Padding(
                       padding: const EdgeInsets.only(left: 32),
                       child: Text(
-                        _getErrorRecoveryHint(
-                          errorCode,
-                          httpStatusCode,
-                        )!,
+                        _getErrorRecoveryHint(errorCode, httpStatusCode)!,
                         style: TextStyle(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onErrorContainer
-                              .withValues(alpha: 0.8),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onErrorContainer.withValues(alpha: 0.8),
                           fontSize: 12,
                         ),
                       ),
@@ -252,6 +243,8 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
         return context.l10n.auth_error_authFailed;
       case AuthErrorCode.tokenInvalid:
         return context.l10n.auth_error_authFailed;
+      case AuthErrorCode.credentialsLoginUnavailable:
+        return context.l10n.auth_error_credentialsLoginUnavailable;
       case AuthErrorCode.serverError:
         return context.l10n.auth_error_serverError;
       case AuthErrorCode.unknown:
@@ -274,6 +267,8 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
         return context.l10n.api_error_401_hint;
       case AuthErrorCode.tokenInvalid:
         return context.l10n.api_error_401_hint;
+      case AuthErrorCode.credentialsLoginUnavailable:
+        return context.l10n.auth_error_credentialsLoginUnavailable_hint;
       case AuthErrorCode.serverError:
         if (httpStatusCode == 503) {
           return context.l10n.api_error_503_hint;
@@ -317,10 +312,7 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
     if (currentAuthState.isAuthenticated) {
       final email = emailController.text.trim().toLowerCase();
       final password = passwordController.text.trim();
-      final result = await authNotifier.tryAddAccount(
-        email,
-        password,
-      );
+      final result = await authNotifier.tryAddAccount(email, password);
 
       if (!mounted) return;
 
@@ -341,10 +333,7 @@ class _CredentialsLoginFormState extends ConsumerState<CredentialsLoginForm> {
       // 未登录状态，使用正常的登录流程
       final email = emailController.text.trim().toLowerCase();
       final password = passwordController.text.trim();
-      final success = await authNotifier.loginWithCredentials(
-        email,
-        password,
-      );
+      final success = await authNotifier.loginWithCredentials(email, password);
 
       if (!mounted) return;
 

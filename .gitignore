@@ -269,6 +269,7 @@ mask_upload_*.md
 !macos/Flutter/*.xcconfig
 flutter_windows.zip
 dist/*.zip
+dist/*.exe
 .claude_settings.json
 /docs/
 .worktrees/

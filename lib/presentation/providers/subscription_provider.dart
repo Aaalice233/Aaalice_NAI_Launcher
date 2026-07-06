@@ -40,12 +40,16 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
 
     // Watch authentication state changes
     final authState = ref.watch(authNotifierProvider);
+    final hydratedState = _hydrateFromAuthState(authState);
 
     // React to authentication state changes
     if (_previousAuthState != null) {
       if (authState.isAuthenticated && !_previousAuthState!.isAuthenticated) {
-        // Login succeeded - fetch subscription info and start auto refresh
-        Future.microtask(() => unawaited(fetchSubscription()));
+        // Login succeeded - use the subscription info already fetched during
+        // token validation, then refresh in the background if needed.
+        if (hydratedState == null) {
+          Future.microtask(() => unawaited(fetchSubscription()));
+        }
       } else if (!authState.isAuthenticated &&
           _previousAuthState!.isAuthenticated) {
         // Logged out - clear subscription info and stop auto refresh
@@ -58,7 +62,9 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     } else if (authState.isAuthenticated && !_hasInitiallyLoaded) {
       // First build and already authenticated - fetch subscription
       // 使用 _hasInitiallyLoaded 标记避免重复加载（预热阶段可能已加载）
-      Future.microtask(() => unawaited(fetchSubscription()));
+      if (hydratedState == null) {
+        Future.microtask(() => unawaited(fetchSubscription()));
+      }
     }
 
     // Store current auth state for next comparison
@@ -70,7 +76,32 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       _stopNetworkRecoveryProbe();
     });
 
-    return const SubscriptionState.initial();
+    return hydratedState ?? const SubscriptionState.initial();
+  }
+
+  SubscriptionState? _hydrateFromAuthState(AuthState authState) {
+    if (!authState.isAuthenticated || authState.subscriptionInfo == null) {
+      return null;
+    }
+
+    try {
+      final subscription = UserSubscription.fromJson(
+        authState.subscriptionInfo!,
+      );
+      if (!_hasInitiallyLoaded) {
+        _hasInitiallyLoaded = true;
+        _networkFailureCount = 0;
+        _startAutoRefresh();
+        Future.microtask(() => unawaited(refreshBalance()));
+      }
+      return SubscriptionState.loaded(subscription);
+    } catch (e) {
+      AppLogger.w(
+        'Failed to hydrate subscription from auth state: $e',
+        'Subscription',
+      );
+      return null;
+    }
   }
 
   /// 启动自动刷新定时器

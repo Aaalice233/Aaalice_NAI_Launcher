@@ -24,9 +24,9 @@ class AccountQuickSwitch extends ConsumerWidget {
     return ExpansionTile(
       title: Text(
         context.l10n.auth_savedAccounts,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w500,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w500),
       ),
       children: [
         Padding(
@@ -39,8 +39,10 @@ class AccountQuickSwitch extends ConsumerWidget {
                   context: context,
                   account: account,
                   isCurrent: account.id == currentAccountId,
-                  isThirdParty: accountState
-                          .accountApiEndpoints[account.id]?.isThirdParty ??
+                  isThirdParty:
+                      accountState
+                          .accountApiEndpoints[account.id]
+                          ?.isThirdParty ??
                       false,
                   onTap: () async {
                     // 切换到该账号
@@ -82,6 +84,11 @@ class AccountQuickSwitch extends ConsumerWidget {
                         case AuthErrorCode.tokenInvalid:
                           errorMessage = context.l10n.auth_error_authFailed;
                           break;
+                        case AuthErrorCode.credentialsLoginUnavailable:
+                          errorMessage = context
+                              .l10n
+                              .auth_error_credentialsLoginUnavailable;
+                          break;
                         case AuthErrorCode.serverError:
                           errorMessage = context.l10n.auth_error_serverError;
                           break;
@@ -99,8 +106,9 @@ class AccountQuickSwitch extends ConsumerWidget {
                       builder: (context) => AlertDialog(
                         title: Text(context.l10n.auth_deleteAccount),
                         content: Text(
-                          context.l10n
-                              .auth_deleteAccountConfirm(account.displayName),
+                          context.l10n.auth_deleteAccountConfirm(
+                            account.displayName,
+                          ),
                         ),
                         actions: [
                           TextButton(
@@ -110,8 +118,9 @@ class AccountQuickSwitch extends ConsumerWidget {
                           TextButton(
                             onPressed: () => Navigator.of(context).pop(true),
                             style: TextButton.styleFrom(
-                              foregroundColor:
-                                  Theme.of(context).colorScheme.error,
+                              foregroundColor: Theme.of(
+                                context,
+                              ).colorScheme.error,
                             ),
                             child: Text(context.l10n.common_delete),
                           ),
@@ -168,8 +177,8 @@ class AccountQuickSwitch extends ConsumerWidget {
           isThirdParty
               ? '第三方站点'
               : account.accountType == AccountType.credentials
-                  ? context.l10n.auth_credentialsLogin
-                  : context.l10n.auth_tokenLogin,
+              ? context.l10n.auth_credentialsLogin
+              : context.l10n.auth_tokenLogin,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),

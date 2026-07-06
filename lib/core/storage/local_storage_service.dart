@@ -324,6 +324,20 @@ class LocalStorageService {
     await setSetting(StorageKeys.randomPromptMode, value);
   }
 
+  /// 获取是否显示随机提示词工具入口 (默认开启)
+  bool getShowRandomPromptTools() {
+    return getSetting<bool>(
+          StorageKeys.showRandomPromptTools,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存是否显示随机提示词工具入口
+  Future<void> setShowRandomPromptTools(bool value) async {
+    await setSetting(StorageKeys.showRandomPromptTools, value);
+  }
+
   /// 获取随机生成算法模式
   String getRandomGenerationMode() {
     return getSetting<String>(
@@ -607,10 +621,7 @@ class LocalStorageService {
 
   /// 获取提示区域最大化状态 (默认关闭)
   bool getPromptMaximized() {
-    return getSetting<bool>(
-          StorageKeys.promptMaximized,
-          defaultValue: false,
-        ) ??
+    return getSetting<bool>(StorageKeys.promptMaximized, defaultValue: false) ??
         false;
   }
 

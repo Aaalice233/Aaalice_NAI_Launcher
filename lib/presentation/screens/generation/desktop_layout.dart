@@ -106,7 +106,11 @@ class _DesktopGenerationLayoutState
       },
       // 随机提示词
       ShortcutIds.randomPrompt: () {
-        ref.read(randomPromptModeProvider.notifier).toggle();
+        if (ref.read(randomPromptToolsVisibilityProvider)) {
+          ref.read(randomPromptModeProvider.notifier).toggle();
+        } else {
+          AppToast.info(context, context.l10n.randomPromptToolsHiddenHint);
+        }
       },
       // 清空提示词
       ShortcutIds.clearPrompt: () {
@@ -149,10 +153,13 @@ class _DesktopGenerationLayoutState
             onDragEnd: () => setState(() => _isResizingLeft = false),
             onDrag: (dx) {
               // 读取最新的宽度值，避免闭包捕获旧值导致不跟手
-              final currentWidth =
-                  ref.read(layoutStateNotifierProvider).leftPanelWidth;
-              final newWidth = (currentWidth + dx)
-                  .clamp(_leftPanelMinWidth, _leftPanelMaxWidth);
+              final currentWidth = ref
+                  .read(layoutStateNotifierProvider)
+                  .leftPanelWidth;
+              final newWidth = (currentWidth + dx).clamp(
+                _leftPanelMinWidth,
+                _leftPanelMaxWidth,
+              );
               ref
                   .read(layoutStateNotifierProvider.notifier)
                   .setLeftPanelWidth(newWidth);
@@ -166,14 +173,10 @@ class _DesktopGenerationLayoutState
               final decoration = BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
                 border: Border(
-                  right: BorderSide(
-                    color: Theme.of(context).dividerColor,
-                  ),
+                  right: BorderSide(color: Theme.of(context).dividerColor),
                 ),
               );
-              final child = FixedTagsSidebar(
-                isResizing: _isResizingFixedTags,
-              );
+              final child = FixedTagsSidebar(isResizing: _isResizingFixedTags);
               if (_isResizingFixedTags) {
                 return Container(
                   width: width,
@@ -193,8 +196,9 @@ class _DesktopGenerationLayoutState
             onDragStart: () => setState(() => _isResizingFixedTags = true),
             onDragEnd: () => setState(() => _isResizingFixedTags = false),
             onDrag: (dx) {
-              final currentWidth =
-                  ref.read(layoutStateNotifierProvider).fixedTagsSidebarWidth;
+              final currentWidth = ref
+                  .read(layoutStateNotifierProvider)
+                  .fixedTagsSidebarWidth;
               final newWidth = (currentWidth + dx).clamp(
                 _fixedTagsSidebarMinWidth,
                 _fixedTagsSidebarMaxWidth,
@@ -212,9 +216,7 @@ class _DesktopGenerationLayoutState
             contextType: ShortcutContext.generation,
             shortcuts: shortcuts,
             autofocus: true,
-            child: MainWorkspace(
-              onToggleMaximize: _togglePromptMaximize,
-            ),
+            child: MainWorkspace(onToggleMaximize: _togglePromptMaximize),
           ),
         ),
 
@@ -225,10 +227,13 @@ class _DesktopGenerationLayoutState
             onDragEnd: () => setState(() => _isResizingRight = false),
             onDrag: (dx) {
               // 读取最新的宽度值，避免闭包捕获旧值导致不跟手
-              final currentWidth =
-                  ref.read(layoutStateNotifierProvider).rightPanelWidth;
-              final newWidth = (currentWidth - dx)
-                  .clamp(_rightPanelMinWidth, _rightPanelMaxWidth);
+              final currentWidth = ref
+                  .read(layoutStateNotifierProvider)
+                  .rightPanelWidth;
+              final newWidth = (currentWidth - dx).clamp(
+                _rightPanelMinWidth,
+                _rightPanelMaxWidth,
+              );
               ref
                   .read(layoutStateNotifierProvider.notifier)
                   .setRightPanelWidth(newWidth);
