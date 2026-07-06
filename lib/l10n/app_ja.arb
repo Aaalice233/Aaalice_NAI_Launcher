@@ -122,6 +122,7 @@
   "auth_passwordRequired": "パスワードを入力してください",
   "auth_tokenLogin": "API トークンのログイン",
   "auth_credentialsLogin": "電子メールとパスワード",
+  "auth_credentialsLoginUnavailable": "メールアドレス/パスワードでのログインは現在利用できません。Token ログインを使用してください。",
   "auth_credentialsLoginTitle": "電子メールでログイン",
   "auth_tokenHint": "永続 API トークンを入力してください",
   "auth_tokenRequired": "トークンを入力してください",
@@ -182,6 +183,8 @@
   "auth_error_networkError": "ネットワークエラー",
   "auth_error_authFailed": "認証に失敗しました",
   "auth_error_authFailed_tokenExpired": "トークンの有効期限が切れました。もう一度ログインしてください。",
+  "auth_error_credentialsLoginUnavailable": "メールアドレス/パスワードでのログインは現在利用できません",
+  "auth_error_credentialsLoginUnavailable_hint": "NovelAI ではメールアドレス/パスワードログインに Web の安全確認が必要になりました。代わりに Persistent API Token を使用してください。",
   "auth_error_serverError": "サーバーエラー",
   "auth_error_unknown": "不明なエラー",
   "auth_autoLogin": "自動ログイン",
@@ -219,6 +222,7 @@
   "settings_languageJapanese": "日本語",
   "settings_shortcuts": "ショートカット",
   "settings_dataSource": "データ ソース",
+  "settings_generation": "生成",
   "settings_queue": "キュー",
   "settings_notifications": "通知",
   "settings_promptAssistant": "アシスタント",
@@ -1150,6 +1154,9 @@
   "vibe_infoExtraction": "抽出情報",
   "vibe_adjustParams": "パラメータを調整する",
   "vibe_remove": "削除",
+  "reference_enabled": "有効",
+  "reference_enable": "参照を有効化",
+  "reference_disable": "参照を無効化",
   "vibe_sliderHint": "参照強度: 高いほど視覚的な特徴をまねします\n抽出情報: 低くするとテクスチャが減少し、構成が維持されます。",
   "vibe_strengthInfo": "参照強度: {value} | 抽出情報: {infoValue}",
   "@vibe_strengthInfo": {
@@ -1916,6 +1923,17 @@
   "warmup_checkAndRecoverData": "データの整合性をチェックしています...",
   "warmup_group_dataSourceInitialization": "データ ソース サービスを初期化しています...",
   "warmup_group_dataSourceInitialization_complete": "データ ソース サービスの準備が完了しました",
+  "warmup_fetchingTags": "タグを同期しています: {message}",
+  "@warmup_fetchingTags": {
+    "placeholders": {
+      "message": {}
+    }
+  },
+  "warmup_fetchingTagDataFromServer": "サーバーからタグデータを取得しています...",
+  "warmup_fetchingGeneralTags": "一般タグを取得しています...",
+  "warmup_fetchingCharacterTags": "キャラクタータグを取得しています...",
+  "warmup_fetchingCopyrightTags": "作品タグを取得しています...",
+  "warmup_fetchingMetaTags": "メタタグを取得しています...",
   "performanceReport_title": "起動パフォーマンス",
   "performanceReport_export": "レポートのエクスポート",
   "performanceReport_taskStats": "タスク統計",
@@ -2038,6 +2056,7 @@
   },
   "characterEditor_clickToEdit": "クリックして複数キャラクタープロンプトを編集します",
   "toolbar_randomPrompt": "ランダムなプロンプト",
+  "randomPromptToolsHiddenHint": "ランダムプロンプトツールは設定で非表示になっています",
   "toolbar_fullscreenEdit": "フルスクリーン編集",
   "toolbar_clear": "クリア",
   "toolbar_confirmClear": "クリアの確認",
@@ -4990,6 +5009,8 @@
   "shortcut_settings_enable": "ショートカットを有効にする",
   "shortcut_settings_show_badges": "ショートカット バッジを表示",
   "shortcut_settings_show_in_tooltips": "ツールチップに表示",
+  "settings_showRandomPromptTools": "ランダムプロンプトツールを表示",
+  "settings_showRandomPromptToolsSubtitle": "生成ページにランダムプロンプトボタンと Random Mode の切り替えを表示します",
   "shortcut_settings_reset_all": "すべてをデフォルトにリセット",
   "shortcut_settings_search": "ショートカットを検索...",
   "shortcut_settings_no_results": "ショートカットが見つかりませんでした",
@@ -6500,7 +6521,18 @@
   "releaseNotes": "リリースノート",
   "remindMeLater": "後で通知する",
   "skipThisVersion": "このバージョンをスキップ",
+  "updateDownloadAndInstall": "ダウンロードしてインストール",
   "goToDownload": "ダウンロードに移動",
+  "updateDownloading": "アップデートをダウンロードしています...",
+  "updateDownloadingProgress": "更新パッケージをダウンロードしています: {percent}%",
+  "@updateDownloadingProgress": {
+    "placeholders": {
+      "percent": {}
+    }
+  },
+  "updateInstalling": "インストーラーを起動しています...",
+  "updateInstallingHint": "インストーラーが起動しました。アプリはまもなく終了します。",
+  "updatePortableManualHint": "ポータブル版では Release ページを開いて手動でダウンロードします。",
   "versionSkipped": "バージョンがスキップされました",
   "cannotOpenUrl": "リンクを開けません"
 }

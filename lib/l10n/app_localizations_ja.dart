@@ -344,7 +344,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get auth_credentialsLoginUnavailable =>
-      'Email/password login is currently unavailable. Please use Token login.';
+      'メールアドレス/パスワードでのログインは現在利用できません。Token ログインを使用してください。';
 
   @override
   String get auth_credentialsLoginTitle => '電子メールでログイン';
@@ -478,11 +478,11 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get auth_error_credentialsLoginUnavailable =>
-      'Email/password login is currently unavailable';
+      'メールアドレス/パスワードでのログインは現在利用できません';
 
   @override
   String get auth_error_credentialsLoginUnavailable_hint =>
-      'NovelAI now requires a web safety check for email/password login. Please use a Persistent API Token instead.';
+      'NovelAI ではメールアドレス/パスワードログインに Web の安全確認が必要になりました。代わりに Persistent API Token を使用してください。';
 
   @override
   String get auth_error_serverError => 'サーバーエラー';
@@ -604,7 +604,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_dataSource => 'データ ソース';
 
   @override
-  String get settings_generation => 'Generation';
+  String get settings_generation => '生成';
 
   @override
   String get settings_queue => 'キュー';
@@ -2480,13 +2480,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get vibe_remove => '削除';
 
   @override
-  String get reference_enabled => 'Enabled';
+  String get reference_enabled => '有効';
 
   @override
-  String get reference_enable => 'Enable reference';
+  String get reference_enable => '参照を有効化';
 
   @override
-  String get reference_disable => 'Disable reference';
+  String get reference_disable => '参照を無効化';
 
   @override
   String get vibe_sliderHint =>
@@ -4104,24 +4104,23 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String warmup_fetchingTags(Object message) {
-    return 'Syncing tags: $message';
+    return 'タグを同期しています: $message';
   }
 
   @override
-  String get warmup_fetchingTagDataFromServer =>
-      'Fetching tag data from server...';
+  String get warmup_fetchingTagDataFromServer => 'サーバーからタグデータを取得しています...';
 
   @override
-  String get warmup_fetchingGeneralTags => 'Fetching general tags...';
+  String get warmup_fetchingGeneralTags => '一般タグを取得しています...';
 
   @override
-  String get warmup_fetchingCharacterTags => 'Fetching character tags...';
+  String get warmup_fetchingCharacterTags => 'キャラクタータグを取得しています...';
 
   @override
-  String get warmup_fetchingCopyrightTags => 'Fetching copyright tags...';
+  String get warmup_fetchingCopyrightTags => '作品タグを取得しています...';
 
   @override
-  String get warmup_fetchingMetaTags => 'Fetching meta tags...';
+  String get warmup_fetchingMetaTags => 'メタタグを取得しています...';
 
   @override
   String get performanceReport_title => '起動パフォーマンス';
@@ -4478,8 +4477,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get toolbar_randomPrompt => 'ランダムなプロンプト';
 
   @override
-  String get randomPromptToolsHiddenHint =>
-      'Random prompt tools are hidden in Settings';
+  String get randomPromptToolsHiddenHint => 'ランダムプロンプトツールは設定で非表示になっています';
 
   @override
   String get toolbar_fullscreenEdit => 'フルスクリーン編集';
@@ -9539,11 +9537,11 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_queueRetryIntervalSubtitle => '再試行間の待機時間';
 
   @override
-  String get settings_showRandomPromptTools => 'Show random prompt tools';
+  String get settings_showRandomPromptTools => 'ランダムプロンプトツールを表示';
 
   @override
   String get settings_showRandomPromptToolsSubtitle =>
-      'Show the Random Prompt button and Random Mode toggle on the generation page';
+      '生成ページにランダムプロンプトボタンと Random Mode の切り替えを表示します';
 
   @override
   String settings_queueRetryCountMax(Object count) {
@@ -12852,10 +12850,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get updateChecking => 'アップデートをチェックしています...';
 
   @override
-  String get updateDownloading => 'Downloading update...';
+  String get updateDownloading => 'アップデートをダウンロードしています...';
 
   @override
-  String get updateInstalling => 'Starting installer...';
+  String get updateInstalling => 'インストーラーを起動しています...';
 
   @override
   String get updateUpToDate => 'すでに最新です';
@@ -12874,16 +12872,15 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get updatePortableManualHint =>
-      'Portable builds open the Release page for manual download.';
+      'ポータブル版では Release ページを開いて手動でダウンロードします。';
 
   @override
   String updateDownloadingProgress(Object percent) {
-    return 'Downloading update package: $percent%';
+    return '更新パッケージをダウンロードしています: $percent%';
   }
 
   @override
-  String get updateInstallingHint =>
-      'The installer has started. The app will close shortly.';
+  String get updateInstallingHint => 'インストーラーが起動しました。アプリはまもなく終了します。';
 
   @override
   String get remindMeLater => '後で通知する';
@@ -12892,7 +12889,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get skipThisVersion => 'このバージョンをスキップ';
 
   @override
-  String get updateDownloadAndInstall => 'Download and Install';
+  String get updateDownloadAndInstall => 'ダウンロードしてインストール';
 
   @override
   String get goToDownload => 'ダウンロードに移動';
