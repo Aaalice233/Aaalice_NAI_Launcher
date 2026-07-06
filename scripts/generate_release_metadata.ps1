@@ -140,19 +140,22 @@ $manifest |
 $checksumLines |
   Set-Content -Path $checksumsPath -Encoding UTF8
 
+$markdownCodeTick = [char]96
 $downloadRows = $assets | ForEach-Object {
-  "| `$($_.fileName)` | $($_.description) |"
+  "| $markdownCodeTick$($_['fileName'])$markdownCodeTick | $($_['description']) |"
 }
 $changelogSection = Get-ChangelogSection -Version ($Version -replace '\+.*$', '')
 
-$releaseNotes = @(
+$releaseLines = @(
   "# NAI Launcher $Tag",
   "",
   "## 📦 发布文件",
   "",
   "| 文件 | 说明 |",
-  "| --- | --- |",
-  $downloadRows,
+  "| --- | --- |"
+)
+$releaseLines += $downloadRows
+$releaseLines += @(
   "",
   "## 📝 更新内容",
   "",
@@ -160,8 +163,10 @@ $releaseNotes = @(
   "",
   "## 🔐 校验",
   "",
-  "本次 Release 附带 `checksums.txt` 和 `release_manifest.json`。安装版应用内更新会在启动安装器前校验 SHA256。"
-) -join [Environment]::NewLine
+  '本次 Release 附带 `checksums.txt` 和 `release_manifest.json`。安装版应用内更新会在启动安装器前校验 SHA256。'
+)
+
+$releaseNotes = $releaseLines -join [Environment]::NewLine
 
 $releaseNotes | Set-Content -Path $notesPath -Encoding UTF8
 
