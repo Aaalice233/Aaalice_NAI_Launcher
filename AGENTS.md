@@ -33,6 +33,19 @@ Windows 桌面热重载优先使用 `scripts/dev_hot_reload_window.ps1`，它会
 
 `assets/databases/*.db` 通过 Git LFS 管理，发布前应确认本地文件是真实 SQLite 数据库而不是 LFS pointer。`assets/translations/`、`assets/data/` 和 `assets/images/` 会随 Flutter assets 打包，移动或重命名后需要同步检查 `pubspec.yaml`。发布前确认 `CHANGELOG.md`、`dist/release_notes_<tag>.md`、`pubspec.yaml` 版本号和 Windows release build。
 
+## Changelog 与 Release Notes 规范
+
+`CHANGELOG.md` 是 GitHub Release notes 的“更新内容”来源；Release workflow 不会自动根据 git commit 生成变更摘要。准备发布前必须对比上一个 tag 到当前 HEAD 的提交，把本版本用户可见变化整理进对应版本段落，例如 `## [1.0.0] - YYYY-MM-DD`。
+
+Changelog 条目应面向用户描述结果，不要只写内部实现名。常用分类为 `### ✨ 新增`、`### 🛠 改进`、`### 🐛 修复`，必要时才增加 `### ⚠️ 注意`。不要在 `CHANGELOG.md` 中写发布文件列表；安装版、便携版、macOS 包说明由 `scripts/generate_release_metadata.ps1` 自动生成，避免 Release notes 重复。
+
+准备发布时需要检查：
+
+- 当前版本段落是否覆盖登录、更新、生成、设置、启动、安装包等用户实际能感知到的变化。
+- bug 修复是否写成用户看到的问题和结果，例如“修复 Token 登录后无法获取会员状态”，而不是只写接口名或类名。
+- 新功能开发期间顺手修掉的问题，如果用户从未用过损坏版本，可以合并进新功能描述，不必拆成多条。
+- `CHANGELOG.md` 中不要重复自动生成的下载文件表；Release 页面会自动附带文件说明、校验文件和更新内容。
+
 ## 提交与 Pull Request 规范
 
 Git 历史使用 Conventional Commits，例如 `fix(generation): cancel stale results`、`feat(prompt): add random mode`。提交应保持范围清晰、标题简洁。Pull Request 需要说明用户可见变化，列出已运行的验证命令，标注生成文件、LFS 资源或 assets 变更；涉及界面变化时附截图。
