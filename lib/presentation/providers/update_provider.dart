@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/services/update_check_service.dart';
+import '../../core/services/update_installer_service.dart';
 import '../../data/models/version/version_info.dart';
 
 part 'update_provider.g.dart';
@@ -16,6 +17,12 @@ enum UpdateStatus {
 
   /// 有可用更新
   available,
+
+  /// 正在下载更新
+  downloading,
+
+  /// 正在启动安装器
+  installing,
 
   /// 已是最新版本
   upToDate,
@@ -37,10 +44,14 @@ class UpdateState {
   /// 错误消息（仅在 error 状态时有效）
   final String? errorMessage;
 
+  /// 下载进度，范围 0.0 - 1.0
+  final double downloadProgress;
+
   const UpdateState({
     this.status = UpdateStatus.idle,
     this.versionInfo,
     this.errorMessage,
+    this.downloadProgress = 0,
   });
 
   /// 是否正在检查更新
@@ -48,6 +59,10 @@ class UpdateState {
 
   /// 是否有可用更新
   bool get hasUpdate => status == UpdateStatus.available;
+
+  /// 是否正在下载或安装更新
+  bool get isInstalling =>
+      status == UpdateStatus.downloading || status == UpdateStatus.installing;
 
   /// 是否发生错误
   bool get isError => status == UpdateStatus.error;
@@ -57,14 +72,17 @@ class UpdateState {
     UpdateStatus? status,
     VersionInfo? versionInfo,
     String? errorMessage,
+    double? downloadProgress,
     bool clearVersionInfo = false,
     bool clearErrorMessage = false,
   }) {
     return UpdateState(
       status: status ?? this.status,
       versionInfo: clearVersionInfo ? null : (versionInfo ?? this.versionInfo),
-      errorMessage:
-          clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
+      errorMessage: clearErrorMessage
+          ? null
+          : (errorMessage ?? this.errorMessage),
+      downloadProgress: downloadProgress ?? this.downloadProgress,
     );
   }
 }
@@ -95,15 +113,60 @@ class UpdateStateNotifier extends _$UpdateStateNotifier {
         state = state.copyWith(
           status: UpdateStatus.available,
           versionInfo: versionInfo,
+          downloadProgress: 0,
+          clearErrorMessage: true,
         );
       } else {
         // 已是最新版本
         state = state.copyWith(
           status: UpdateStatus.upToDate,
           clearVersionInfo: true,
+          downloadProgress: 0,
+          clearErrorMessage: true,
         );
       }
     } on UpdateCheckException catch (e) {
+      state = state.copyWith(
+        status: UpdateStatus.error,
+        errorMessage: e.message,
+        downloadProgress: 0,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        status: UpdateStatus.error,
+        errorMessage: e.toString(),
+        downloadProgress: 0,
+      );
+    }
+  }
+
+  /// 下载并安装当前更新。
+  Future<void> downloadAndInstallUpdate() async {
+    final currentVersionInfo = state.versionInfo;
+    if (currentVersionInfo == null) return;
+
+    state = state.copyWith(
+      status: UpdateStatus.downloading,
+      downloadProgress: 0,
+      clearErrorMessage: true,
+    );
+
+    try {
+      final installer = ref.read(updateInstallerServiceProvider);
+      await installer.downloadAndInstall(
+        currentVersionInfo,
+        onProgress: (progress) {
+          state = state.copyWith(
+            status: UpdateStatus.downloading,
+            downloadProgress: progress,
+          );
+        },
+      );
+      state = state.copyWith(
+        status: UpdateStatus.installing,
+        downloadProgress: 1,
+      );
+    } on UpdateInstallException catch (e) {
       state = state.copyWith(
         status: UpdateStatus.error,
         errorMessage: e.message,
@@ -161,10 +224,7 @@ class UpdateStateNotifier extends _$UpdateStateNotifier {
   ///
   /// [message] 错误消息
   void setError(String message) {
-    state = UpdateState(
-      status: UpdateStatus.error,
-      errorMessage: message,
-    );
+    state = UpdateState(status: UpdateStatus.error, errorMessage: message);
   }
 
   /// 关闭更新提示

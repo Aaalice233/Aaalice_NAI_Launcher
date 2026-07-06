@@ -12,7 +12,7 @@ import 'app_toast.dart';
 /// 显示更新提示的 UI 组件，支持：
 /// - 显示当前版本和最新版本
 /// - 使用 flutter_markdown 渲染 Release body（Markdown）
-/// - 按钮: [稍后提醒] [忽略此版本] [前往下载]
+/// - 按钮: [稍后提醒] [忽略此版本] [下载并安装/前往下载]
 /// - 加载状态指示器（检查中）
 /// - 错误状态显示
 class UpdateCheckDialog extends ConsumerWidget {
@@ -24,10 +24,7 @@ class UpdateCheckDialog extends ConsumerWidget {
 
     return AlertDialog(
       title: Text(_getTitle(context, state)),
-      content: SizedBox(
-        width: 480,
-        child: _buildContent(context, state),
-      ),
+      content: SizedBox(width: 480, child: _buildContent(context, state)),
       actions: _buildActions(context, ref, state),
     );
   }
@@ -37,6 +34,8 @@ class UpdateCheckDialog extends ConsumerWidget {
     return switch (state.status) {
       UpdateStatus.checking => context.l10n.updateChecking,
       UpdateStatus.available => context.l10n.updateAvailable,
+      UpdateStatus.downloading => context.l10n.updateDownloading,
+      UpdateStatus.installing => context.l10n.updateInstalling,
       UpdateStatus.upToDate => context.l10n.updateUpToDate,
       UpdateStatus.error => context.l10n.updateError,
       UpdateStatus.idle => context.l10n.updateChecking,
@@ -47,8 +46,12 @@ class UpdateCheckDialog extends ConsumerWidget {
   Widget _buildContent(BuildContext context, UpdateState state) {
     return switch (state.status) {
       UpdateStatus.checking => _buildLoadingContent(context),
-      UpdateStatus.available =>
-        _buildUpdateAvailableContent(context, state.versionInfo!),
+      UpdateStatus.available => _buildUpdateAvailableContent(
+        context,
+        state.versionInfo!,
+      ),
+      UpdateStatus.downloading => _buildDownloadContent(context, state),
+      UpdateStatus.installing => _buildInstallingContent(context),
       UpdateStatus.upToDate => _buildUpToDateContent(context),
       UpdateStatus.error => _buildErrorContent(context, state.errorMessage),
       UpdateStatus.idle => _buildLoadingContent(context),
@@ -62,10 +65,7 @@ class UpdateCheckDialog extends ConsumerWidget {
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-          ],
+          children: [CircularProgressIndicator(), SizedBox(height: 16)],
         ),
       ),
     );
@@ -90,7 +90,7 @@ class UpdateCheckDialog extends ConsumerWidget {
                 child: _buildVersionInfoTile(
                   context,
                   label: context.l10n.currentVersion,
-                  value: versionInfo.version,
+                  value: versionInfo.currentVersion ?? '',
                 ),
               ),
               const SizedBox(width: 16),
@@ -105,6 +105,24 @@ class UpdateCheckDialog extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 16),
+          if (versionInfo.primaryAsset != null) ...[
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                versionInfo.supportsInAppInstall
+                    ? Icons.system_update_alt
+                    : Icons.open_in_new,
+              ),
+              title: Text(
+                versionInfo.primaryAsset!.label ?? context.l10n.common_download,
+              ),
+              subtitle: Text(
+                versionInfo.primaryAsset!.description ??
+                    context.l10n.updatePortableManualHint,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           // 更新日志
           if (versionInfo.releaseNotes != null &&
               versionInfo.releaseNotes!.isNotEmpty) ...[
@@ -122,8 +140,9 @@ class UpdateCheckDialog extends ConsumerWidget {
                 color: theme.colorScheme.surfaceContainerLowest,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color:
-                      theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.5,
+                  ),
                 ),
               ),
               child: SingleChildScrollView(
@@ -132,6 +151,43 @@ class UpdateCheckDialog extends ConsumerWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  /// 构建下载进度内容
+  Widget _buildDownloadContent(BuildContext context, UpdateState state) {
+    final progress = state.downloadProgress.clamp(0.0, 1.0);
+    final percent = (progress * 100).round();
+
+    return SizedBox(
+      height: 120,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            LinearProgressIndicator(value: progress == 0 ? null : progress),
+            const SizedBox(height: 16),
+            Text(context.l10n.updateDownloadingProgress(percent)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 构建安装器启动内容
+  Widget _buildInstallingContent(BuildContext context) {
+    return SizedBox(
+      height: 120,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(context.l10n.updateInstallingHint),
+          ],
+        ),
       ),
     );
   }
@@ -188,10 +244,7 @@ class UpdateCheckDialog extends ConsumerWidget {
     // 简单的 Markdown 渲染
     return SelectableText(
       releaseNotes,
-      style: const TextStyle(
-        fontSize: 14,
-        height: 1.6,
-      ),
+      style: const TextStyle(fontSize: 14, height: 1.6),
     );
   }
 
@@ -233,11 +286,7 @@ class UpdateCheckDialog extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 48,
-              color: theme.colorScheme.error,
-            ),
+            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
             const SizedBox(height: 16),
             Text(
               errorMessage ?? context.l10n.updateError,
@@ -260,80 +309,94 @@ class UpdateCheckDialog extends ConsumerWidget {
   ) {
     return switch (state.status) {
       UpdateStatus.checking => [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(context.l10n.common_cancel),
-          ),
-        ],
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(context.l10n.common_cancel),
+        ),
+      ],
       UpdateStatus.available => [
-          // 稍后提醒
-          TextButton(
-            onPressed: () {
-              // 关闭弹窗，保持状态
+        // 稍后提醒
+        TextButton(
+          onPressed: () {
+            // 关闭弹窗，保持状态
+            Navigator.of(context).pop();
+          },
+          child: Text(context.l10n.remindMeLater),
+        ),
+        // 忽略此版本
+        TextButton(
+          onPressed: () async {
+            await ref.read(updateStateProvider.notifier).skipUpdate();
+            if (context.mounted) {
+              AppToast.info(context, context.l10n.versionSkipped);
               Navigator.of(context).pop();
-            },
-            child: Text(context.l10n.remindMeLater),
+            }
+          },
+          child: Text(context.l10n.skipThisVersion),
+        ),
+        // 下载并安装 / 前往下载
+        FilledButton(
+          onPressed: () async {
+            final versionInfo = state.versionInfo;
+            if (versionInfo?.supportsInAppInstall == true) {
+              await ref
+                  .read(updateStateProvider.notifier)
+                  .downloadAndInstallUpdate();
+              return;
+            }
+            await _openDownloadUrl(context, versionInfo);
+            if (context.mounted) {
+              Navigator.of(context).pop();
+            }
+          },
+          child: Text(
+            state.versionInfo?.supportsInAppInstall == true
+                ? context.l10n.updateDownloadAndInstall
+                : context.l10n.goToDownload,
           ),
-          // 忽略此版本
-          TextButton(
-            onPressed: () async {
-              await ref.read(updateStateProvider.notifier).skipUpdate();
-              if (context.mounted) {
-                AppToast.info(context, context.l10n.versionSkipped);
-                Navigator.of(context).pop();
-              }
-            },
-            child: Text(context.l10n.skipThisVersion),
-          ),
-          // 前往下载
-          FilledButton(
-            onPressed: () async {
-              final versionInfo = state.versionInfo;
-              if (versionInfo != null) {
-                final url = versionInfo.downloadUrl ?? versionInfo.htmlUrl;
-                if (url != null) {
-                  final uri = Uri.parse(url);
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  } else {
-                    if (context.mounted) {
-                      AppToast.error(context, context.l10n.cannotOpenUrl);
-                    }
-                  }
-                }
-              }
-              if (context.mounted) {
-                Navigator.of(context).pop();
-              }
-            },
-            child: Text(context.l10n.goToDownload),
-          ),
-        ],
+        ),
+      ],
+      UpdateStatus.downloading || UpdateStatus.installing => const [],
       UpdateStatus.upToDate => [
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(context.l10n.common_ok),
-          ),
-        ],
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(context.l10n.common_ok),
+        ),
+      ],
       UpdateStatus.error => [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(context.l10n.common_close),
-          ),
-          FilledButton(
-            onPressed: () {
-              ref.read(updateStateProvider.notifier).checkForUpdates();
-            },
-            child: Text(context.l10n.common_retry),
-          ),
-        ],
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(context.l10n.common_close),
+        ),
+        FilledButton(
+          onPressed: () {
+            ref.read(updateStateProvider.notifier).checkForUpdates();
+          },
+          child: Text(context.l10n.common_retry),
+        ),
+      ],
       UpdateStatus.idle => [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(context.l10n.common_cancel),
-          ),
-        ],
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(context.l10n.common_cancel),
+        ),
+      ],
     };
+  }
+
+  Future<void> _openDownloadUrl(
+    BuildContext context,
+    VersionInfo? versionInfo,
+  ) async {
+    final url = versionInfo?.downloadUrl ?? versionInfo?.htmlUrl;
+    if (url == null) return;
+
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else if (context.mounted) {
+      AppToast.error(context, context.l10n.cannotOpenUrl);
+    }
   }
 
   /// 显示更新检查弹窗

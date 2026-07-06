@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../data/datasources/remote/github_api_service.dart';
 import '../../../data/models/version/version_info.dart';
 import '../storage/local_storage_service.dart';
+import 'app_installation_service.dart';
 
 part 'update_check_service.g.dart';
 
@@ -129,6 +130,9 @@ class UpdateCheckService {
   /// 包信息
   final PackageInfo _packageInfo;
 
+  /// 当前安装形态检测服务
+  final AppInstallationService _installationService;
+
   /// 默认仓库所有者
   static const String defaultOwner = 'Aaalice233';
 
@@ -149,12 +153,14 @@ class UpdateCheckService {
   UpdateCheckService({
     required GitHubApiService gitHubApiService,
     required PackageInfo packageInfo,
+    required AppInstallationService installationService,
     LocalStorageService? storage,
-  })  : _gitHubApiService = gitHubApiService,
-        _packageInfo = packageInfo,
-        _storage = storage != null
-            ? _LocalStorageUpdateCheckStorage(storage)
-            : _MemoryUpdateCheckStorage();
+  }) : _gitHubApiService = gitHubApiService,
+       _packageInfo = packageInfo,
+       _installationService = installationService,
+       _storage = storage != null
+           ? _LocalStorageUpdateCheckStorage(storage)
+           : _MemoryUpdateCheckStorage();
 
   /// 获取当前检查间隔
   Duration get checkInterval => _checkInterval;
@@ -165,7 +171,7 @@ class UpdateCheckService {
   }
 
   /// 检查是否应该执行更新检查
-  /// 
+  ///
   /// 根据上次检查时间和当前间隔判断是否需要检查
   Future<bool> shouldCheck() async {
     final lastCheckTime = _storage.getLastUpdateCheckTime();
@@ -194,6 +200,8 @@ class UpdateCheckService {
         owner: defaultOwner,
         repo: defaultRepo,
         currentVersion: currentVersion,
+        platform: _installationService.getReleaseAssetPreference(),
+        includePrerelease: shouldIncludePrerelease(),
       );
 
       // 检查版本是否被跳过
@@ -224,7 +232,7 @@ class UpdateCheckService {
   }
 
   /// 跳过指定版本
-  /// 
+  ///
   /// 跳过的版本将不会提示更新
   Future<void> skipVersion(String version) async {
     await _storage.setSkippedUpdateVersion(version);
@@ -262,11 +270,13 @@ class UpdateCheckService {
 Future<UpdateCheckService> _updateCheckServiceFuture(Ref ref) async {
   final gitHubApiService = ref.watch(gitHubApiServiceProvider);
   final localStorageService = ref.watch(localStorageServiceProvider);
+  final installationService = ref.watch(appInstallationServiceProvider);
   final packageInfo = await PackageInfo.fromPlatform();
 
   return UpdateCheckService(
     gitHubApiService: gitHubApiService,
     packageInfo: packageInfo,
+    installationService: installationService,
     storage: localStorageService,
   );
 }
@@ -275,21 +285,18 @@ Future<UpdateCheckService> _updateCheckServiceFuture(Ref ref) async {
 ///
 /// 这是一个同步 Provider，通过监听内部的异步 Provider 来获取服务实例。
 /// 在测试时可以使用 overrideWithValue 进行覆盖。
-final updateCheckServiceProvider = Provider<UpdateCheckService>(
-  (ref) {
-    final asyncValue = ref.watch(_updateCheckServiceFutureProvider);
-    return asyncValue.when(
-      data: (service) => service,
-      loading: () => throw StateError(
-        'UpdateCheckService is still loading. '
-        'Make sure to handle loading state before accessing this provider.',
-      ),
-      error: (error, stack) => throw StateError(
-        'Failed to initialize UpdateCheckService: $error',
-      ),
-    );
-  },
-);
+final updateCheckServiceProvider = Provider<UpdateCheckService>((ref) {
+  final asyncValue = ref.watch(_updateCheckServiceFutureProvider);
+  return asyncValue.when(
+    data: (service) => service,
+    loading: () => throw StateError(
+      'UpdateCheckService is still loading. '
+      'Make sure to handle loading state before accessing this provider.',
+    ),
+    error: (error, stack) =>
+        throw StateError('Failed to initialize UpdateCheckService: $error'),
+  );
+});
 
 /// 公开的异步初始化 Provider，供需要等待服务可用的调用方使用。
 final updateCheckServiceReadyProvider = _updateCheckServiceFutureProvider;

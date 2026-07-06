@@ -1,4 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:pub_semver/pub_semver.dart';
+
+import 'release_asset_info.dart';
 
 part 'version_info.freezed.dart';
 part 'version_info.g.dart';
@@ -11,6 +14,9 @@ class VersionInfo with _$VersionInfo {
   const factory VersionInfo({
     /// 版本号（不含 v 前缀）
     required String version,
+
+    /// 当前本地版本号
+    String? currentVersion,
 
     /// Release 名称
     String? name,
@@ -26,6 +32,15 @@ class VersionInfo with _$VersionInfo {
 
     /// Release 页面链接
     String? htmlUrl,
+
+    /// Release 中识别到的下载资产
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    @Default([])
+    List<ReleaseAssetInfo> assets,
+
+    /// 当前运行环境推荐使用的下载资产
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    ReleaseAssetInfo? primaryAsset,
 
     /// 是否比当前版本新
     @Default(false) bool isNewer,
@@ -43,36 +58,65 @@ class VersionInfo with _$VersionInfo {
   bool shouldUpdateFrom(VersionInfo current) {
     return VersionInfoComparator.isNewer(version, current.version);
   }
+
+  /// 当前版本是否可以在应用内下载安装。
+  bool get supportsInAppInstall =>
+      primaryAsset?.supportsInAppInstall == true &&
+      primaryAsset?.sha256 != null &&
+      primaryAsset!.sha256!.isNotEmpty;
 }
 
 /// 版本号比较器
 class VersionInfoComparator {
   /// 清理版本号字符串，移除 v 前缀
   static String _cleanVersion(String version) {
-    if (version.startsWith('v') || version.startsWith('V')) {
-      return version.substring(1);
-    }
-    return version;
+    final withoutPrefix = version.startsWith('v') || version.startsWith('V')
+        ? version.substring(1)
+        : version;
+    return withoutPrefix.trim();
   }
 
   /// 比较两个版本号，检查新版本是否比当前版本新
   static bool isNewer(String newVersion, String currentVersion) {
     try {
-      // 清理 v 前缀
-      final cleanNewVersion = _cleanVersion(newVersion);
-      final cleanCurrentVersion = _cleanVersion(currentVersion);
-
-      final newParts = cleanNewVersion.split('.').map(int.parse).toList();
-      final currentParts = cleanCurrentVersion.split('.').map(int.parse).toList();
-
-      for (var i = 0; i < newParts.length && i < currentParts.length; i++) {
-        if (newParts[i] > currentParts[i]) return true;
-        if (newParts[i] < currentParts[i]) return false;
+      final parsedNewVersion = Version.parse(_cleanVersion(newVersion));
+      final parsedCurrentVersion = Version.parse(_cleanVersion(currentVersion));
+      final semverCompare = parsedNewVersion.compareTo(parsedCurrentVersion);
+      if (semverCompare != 0) {
+        return semverCompare > 0;
       }
 
-      return newParts.length > currentParts.length;
+      return _compareBuildMetadata(parsedNewVersion, parsedCurrentVersion) > 0;
     } catch (_) {
       return false;
     }
+  }
+
+  /// 是否为预发布版本。
+  static bool isPrerelease(String version) {
+    try {
+      return Version.parse(_cleanVersion(version)).isPreRelease;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static int _compareBuildMetadata(Version newVersion, Version currentVersion) {
+    final newBuild = _parseBuildNumber(newVersion.build);
+    final currentBuild = _parseBuildNumber(currentVersion.build);
+    if (newBuild != null && currentBuild != null) {
+      return newBuild.compareTo(currentBuild);
+    }
+    if (newVersion.build.isEmpty || currentVersion.build.isEmpty) {
+      return newVersion.build.length.compareTo(currentVersion.build.length);
+    }
+    return newVersion.build.join('.').compareTo(currentVersion.build.join('.'));
+  }
+
+  static int? _parseBuildNumber(List<Object> buildParts) {
+    if (buildParts.length != 1) {
+      return null;
+    }
+    return int.tryParse(buildParts.single.toString());
   }
 }

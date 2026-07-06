@@ -46,22 +46,17 @@ class WarmupProgress {
     this.error,
   });
 
-  factory WarmupProgress.initial() => const WarmupProgress(
-        progress: 0.0,
-        currentTask: 'warmup_preparing',
-      );
+  factory WarmupProgress.initial() =>
+      const WarmupProgress(progress: 0.0, currentTask: 'warmup_preparing');
 
   factory WarmupProgress.complete() => const WarmupProgress(
-        progress: 1.0,
-        currentTask: 'warmup_complete',
-        isComplete: true,
-      );
+    progress: 1.0,
+    currentTask: 'warmup_complete',
+    isComplete: true,
+  );
 
-  factory WarmupProgress.error(String message) => WarmupProgress(
-        progress: 0.0,
-        currentTask: message,
-        error: message,
-      );
+  factory WarmupProgress.error(String message) =>
+      WarmupProgress(progress: 0.0, currentTask: message, error: message);
 }
 
 /// 预加载状态
@@ -80,26 +75,26 @@ class WarmupState {
     this.subTaskMessage,
   });
 
-  factory WarmupState.initial() => WarmupState(
-        progress: WarmupProgress.initial(),
-      );
+  factory WarmupState.initial() =>
+      WarmupState(progress: WarmupProgress.initial());
 
-  factory WarmupState.complete() => WarmupState(
-        progress: WarmupProgress.complete(),
-        isComplete: true,
-      );
+  factory WarmupState.complete() =>
+      WarmupState(progress: WarmupProgress.complete(), isComplete: true);
 
   WarmupState copyWith({
     WarmupProgress? progress,
     bool? isComplete,
     String? error,
     String? subTaskMessage,
+    bool clearSubTaskMessage = false,
   }) {
     return WarmupState(
       progress: progress ?? this.progress,
       isComplete: isComplete ?? this.isComplete,
       error: error ?? this.error,
-      subTaskMessage: subTaskMessage ?? this.subTaskMessage,
+      subTaskMessage: clearSubTaskMessage
+          ? null
+          : subTaskMessage ?? this.subTaskMessage,
     );
   }
 }
@@ -147,7 +142,7 @@ class WarmupNotifier extends _$WarmupNotifier {
     migrationService.onProgress = null;
 
     await _runVibeLibraryMigration();
-    state = state.copyWith(subTaskMessage: null);
+    state = state.copyWith(clearSubTaskMessage: true);
 
     if (result.isSuccess) {
       AppLogger.i('数据迁移完成: $result', 'Warmup');
@@ -181,9 +176,9 @@ class WarmupNotifier extends _$WarmupNotifier {
     }
 
     try {
-      await GoogleFonts.pendingFonts(
-        [GoogleFonts.getFont(fontConfig.fontFamily)],
-      );
+      await GoogleFonts.pendingFonts([
+        GoogleFonts.getFont(fontConfig.fontFamily),
+      ]);
       AppLogger.i('Preloaded Google Font: ${fontConfig.fontFamily}', 'Warmup');
     } catch (e) {
       AppLogger.w('Font preload failed: $e', 'Warmup');
@@ -228,8 +223,9 @@ class WarmupNotifier extends _$WarmupNotifier {
       );
 
       try {
-        final result =
-            await ProxyService.testNovelAIConnection(timeout: timeout);
+        final result = await ProxyService.testNovelAIConnection(
+          timeout: timeout,
+        );
 
         if (result.success) {
           AppLogger.i(
@@ -508,7 +504,7 @@ class WarmupNotifier extends _$WarmupNotifier {
             progress: progress.progress * 0.3, // critical 占 30%
             currentTask: progress.currentTask,
           ),
-          subTaskMessage: progress.currentTask,
+          clearSubTaskMessage: true,
         );
       }
 
@@ -519,7 +515,7 @@ class WarmupNotifier extends _$WarmupNotifier {
             progress: 0.3 + progress.progress * 0.7, // quick 占 70%
             currentTask: progress.currentTask,
           ),
-          subTaskMessage: progress.currentTask,
+          clearSubTaskMessage: true,
         );
       }
 
@@ -618,10 +614,7 @@ class WarmupNotifier extends _$WarmupNotifier {
         await ref
             .read(subscriptionNotifierProvider.notifier)
             .fetchSubscription()
-            .timeout(
-              const Duration(seconds: 2),
-              onTimeout: () => null,
-            );
+            .timeout(const Duration(seconds: 2), onTimeout: () => null);
       }
     } catch (e) {
       AppLogger.w('Subscription load failed (non-critical): $e', 'Warmup');
@@ -634,8 +627,9 @@ class WarmupNotifier extends _$WarmupNotifier {
     AppLogger.i('开始初始化共现数据...', 'Warmup');
 
     try {
-      final cooccurrenceService =
-          await ref.watch(cooccurrenceServiceProvider.future);
+      final cooccurrenceService = await ref.watch(
+        cooccurrenceServiceProvider.future,
+      );
 
       // 初始化共现服务
       final isReady = await cooccurrenceService.initialize();
@@ -663,9 +657,9 @@ class WarmupNotifier extends _$WarmupNotifier {
     // 统一翻译服务在读取 provider 时自动初始化
     // 增加超时时间，CSV加载可能需要较长时间
     try {
-      await ref.read(unifiedTranslationServiceProvider.future).timeout(
-            const Duration(seconds: 30),
-          );
+      await ref
+          .read(unifiedTranslationServiceProvider.future)
+          .timeout(const Duration(seconds: 30));
     } on TimeoutException {
       AppLogger.w(
         'Translation initialization timeout, will retry later',
@@ -733,10 +727,7 @@ class WarmupNotifier extends _$WarmupNotifier {
           !needsCharacterFetch &&
           !needsCopyrightFetch &&
           !needsMetaFetch) {
-        AppLogger.i(
-          '[_fetchGeneralAndCharacterTags] 所有分类都有数据，跳过拉取',
-          'Warmup',
-        );
+        AppLogger.i('[_fetchGeneralAndCharacterTags] 所有分类都有数据，跳过拉取', 'Warmup');
         return;
       }
 
@@ -759,9 +750,7 @@ class WarmupNotifier extends _$WarmupNotifier {
 
     // 设置进度回调（不显示百分比，只显示数量和状态）
     service.onProgress = (progress, message) {
-      state = state.copyWith(
-        subTaskMessage: 'Fetching tags: $message',
-      );
+      state = state.copyWith(subTaskMessage: 'warmup_fetchingTags|$message');
     };
 
     try {
@@ -770,25 +759,25 @@ class WarmupNotifier extends _$WarmupNotifier {
         (
           name: 'general',
           needed: needsGeneralFetch,
-          message: 'Fetching general tags...',
+          message: 'warmup_fetchingGeneralTags',
           fetch: () => service.fetchGeneralTags(threshold: 1000, maxPages: 50),
         ),
         (
           name: 'character',
           needed: needsCharacterFetch,
-          message: 'Fetching character tags...',
+          message: 'warmup_fetchingCharacterTags',
           fetch: () => service.fetchCharacterTags(threshold: 100, maxPages: 50),
         ),
         (
           name: 'copyright',
           needed: needsCopyrightFetch,
-          message: 'Fetching copyright tags...',
+          message: 'warmup_fetchingCopyrightTags',
           fetch: () => service.fetchCopyrightTags(threshold: 500, maxPages: 50),
         ),
         (
           name: 'meta',
           needed: needsMetaFetch,
-          message: 'Fetching meta tags...',
+          message: 'warmup_fetchingMetaTags',
           fetch: () => service.fetchMetaTags(threshold: 10000, maxPages: 50),
         ),
       ];
@@ -803,10 +792,10 @@ class WarmupNotifier extends _$WarmupNotifier {
         }
         state = state.copyWith(subTaskMessage: task.message);
         await task.fetch().timeout(
-              const Duration(seconds: 60),
-              onTimeout: () =>
-                  AppLogger.w('${task.name} tags fetch timeout', 'Warmup'),
-            );
+          const Duration(seconds: 60),
+          onTimeout: () =>
+              AppLogger.w('${task.name} tags fetch timeout', 'Warmup'),
+        );
         AppLogger.i('${task.name} tags fetched successfully', 'Warmup');
       }
 
@@ -876,7 +865,9 @@ class WarmupNotifier extends _$WarmupNotifier {
     try {
       // 使用 Provider 的 syncArtists 方法，确保完成后状态更新
       // 这会正确处理重复拉取的检查，并在完成后更新 Provider 状态
-      await ref.read(danbooruTagsCacheNotifierProvider.notifier).syncArtists(
+      await ref
+          .read(danbooruTagsCacheNotifierProvider.notifier)
+          .syncArtists(
             force: false, // 如果有数据则跳过
           );
 
@@ -919,10 +910,7 @@ class WarmupNotifier extends _$WarmupNotifier {
       // 1. 检查 translations 和 cooccurrences
       // 注意：核心数据恢复已在 main() 中完成，这里只检查状态
       if (translationCount == 0 || cooccurrenceCount == 0) {
-        AppLogger.w(
-          '核心数据为空，将在后台通过API拉取补充',
-          'Warmup',
-        );
+        AppLogger.w('核心数据为空，将在后台通过API拉取补充', 'Warmup');
         // 不再调用 recover()，避免重复恢复导致 ConnectionPool 被替换
       }
 
@@ -948,7 +936,8 @@ class WarmupNotifier extends _$WarmupNotifier {
       final needsCopyrightFetch = copyrightCount == 0;
       final needsMetaFetch = metaCount == 0;
 
-      final needsAnyFetch = needsGeneralFetch ||
+      final needsAnyFetch =
+          needsGeneralFetch ||
           needsCharacterFetch ||
           needsCopyrightFetch ||
           needsMetaFetch;
@@ -965,42 +954,42 @@ class WarmupNotifier extends _$WarmupNotifier {
         'Warmup',
       );
       state = state.copyWith(
-        subTaskMessage: 'Fetching tag data from server...',
+        subTaskMessage: 'warmup_fetchingTagDataFromServer',
       );
 
       // 定义标签拉取任务
       final fetchTasks = [
         if (needsGeneralFetch)
           (
-            message: 'Fetching general tags...',
-            fetch: () => service.fetchGeneralTags(threshold: 1000, maxPages: 50)
+            message: 'warmup_fetchingGeneralTags',
+            fetch: () =>
+                service.fetchGeneralTags(threshold: 1000, maxPages: 50),
           ),
         if (needsCharacterFetch)
           (
-            message: 'Fetching character tags...',
+            message: 'warmup_fetchingCharacterTags',
             fetch: () =>
-                service.fetchCharacterTags(threshold: 100, maxPages: 50)
+                service.fetchCharacterTags(threshold: 100, maxPages: 50),
           ),
         if (needsCopyrightFetch)
           (
-            message: 'Fetching copyright tags...',
+            message: 'warmup_fetchingCopyrightTags',
             fetch: () =>
-                service.fetchCopyrightTags(threshold: 500, maxPages: 50)
+                service.fetchCopyrightTags(threshold: 500, maxPages: 50),
           ),
         if (needsMetaFetch)
           (
-            message: 'Fetching meta tags...',
-            fetch: () => service.fetchMetaTags(threshold: 10000, maxPages: 50)
+            message: 'warmup_fetchingMetaTags',
+            fetch: () => service.fetchMetaTags(threshold: 10000, maxPages: 50),
           ),
       ];
 
       for (final task in fetchTasks) {
         state = state.copyWith(subTaskMessage: task.message);
         await task.fetch().timeout(
-              const Duration(seconds: 60),
-              onTimeout: () =>
-                  AppLogger.w('${task.message}超时，将在后台继续', 'Warmup'),
-            );
+          const Duration(seconds: 60),
+          onTimeout: () => AppLogger.w('${task.message}超时，将在后台继续', 'Warmup'),
+        );
       }
 
       AppLogger.i('标签数据拉取完成', 'Warmup');

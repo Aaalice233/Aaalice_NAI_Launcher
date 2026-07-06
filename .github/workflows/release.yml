@@ -19,9 +19,45 @@ env:
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
 jobs:
+  prepare:
+    name: Prepare release metadata
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      public_version: ${{ steps.version.outputs.public_version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          lfs: false
+
+      - name: Verify tag matches pubspec version
+        id: version
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $match = Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$'
+          if (!$match) {
+            throw 'pubspec.yaml does not contain a version field.'
+          }
+          $version = $match.Matches[0].Groups[1].Value.Trim()
+          $publicVersion = $version -replace '\+.*$', ''
+          $expectedTag = "v$publicVersion"
+          if ('${{ env.RELEASE_TAG }}' -ne $expectedTag) {
+            throw "Release tag ${{ env.RELEASE_TAG }} does not match pubspec version $version. Expected $expectedTag."
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "public_version=$publicVersion" >> $env:GITHUB_OUTPUT
+          "prerelease=$($publicVersion.Contains('-').ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+
   build-windows:
     name: Build Windows
     runs-on: windows-2022
+    needs: prepare
 
     steps:
       - name: Checkout
@@ -37,6 +73,10 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Install NSIS
+        shell: pwsh
+        run: choco install nsis -y --no-progress
+
       - name: Pull LFS databases
         shell: pwsh
         run: |
@@ -46,6 +86,7 @@ jobs:
       - name: Verify bundled databases
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           $files = @(
             "assets/databases/translation.db",
             "assets/databases/cooccurrence.db"
@@ -74,33 +115,36 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
 
+      - name: Generate localizations
+        run: flutter gen-l10n
+
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Build Windows release
         run: flutter build windows --release
 
-      - name: Package Windows artifact
+      - name: Package Windows artifacts
         shell: pwsh
         run: |
-          $match = Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$'
-          $version = $match.Matches[0].Groups[1].Value.Trim()
-          New-Item -ItemType Directory -Force dist | Out-Null
-          Compress-Archive `
-            -Path 'build/windows/x64/runner/Release/*' `
-            -DestinationPath "dist/NAI_Launcher_Windows_$version.zip" `
-            -Force
+          $ErrorActionPreference = 'Stop'
+          ./scripts/package_windows_release.ps1 `
+            -Version '${{ needs.prepare.outputs.version }}' `
+            -SkipFlutterBuild
 
-      - name: Upload Windows artifact
+      - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-release
-          path: dist/NAI_Launcher_Windows_*.zip
+          path: |
+            dist/NAI_Launcher_Windows_*_Setup.exe
+            dist/NAI_Launcher_Windows_*_Portable.zip
           if-no-files-found: error
 
   build-macos:
     name: Build macOS
     runs-on: macos-latest
+    needs: prepare
 
     steps:
       - name: Checkout
@@ -117,8 +161,7 @@ jobs:
           cache: true
 
       - name: Prepare CocoaPods
-        run: |
-          pod --version
+        run: pod --version
 
       - name: Pull LFS databases
         run: |
@@ -144,6 +187,9 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
 
+      - name: Generate localizations
+        run: flutter gen-l10n
+
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
 
@@ -152,22 +198,23 @@ jobs:
 
       - name: Package macOS artifact
         run: |
-          version="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | tr -d '\r')"
+          version="${{ needs.prepare.outputs.version }}"
           mkdir -p dist
           cd "build/macos/Build/Products/Release"
-          ditto -c -k --sequesterRsrc --keepParent "Aaalice NAI Launcher.app" "$GITHUB_WORKSPACE/dist/NAI_Launcher_macOS_$version.zip"
+          ditto -c -k --sequesterRsrc --keepParent "Aaalice NAI Launcher.app" "$GITHUB_WORKSPACE/dist/NAI_Launcher_macOS_${version}_Portable.zip"
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: macos-release
-          path: dist/NAI_Launcher_macOS_*.zip
+          path: dist/NAI_Launcher_macOS_*_Portable.zip
           if-no-files-found: error
 
   publish:
     name: Publish GitHub Release
     runs-on: ubuntu-latest
     needs:
+      - prepare
       - build-windows
       - build-macos
 
@@ -183,6 +230,17 @@ jobs:
           path: release-assets
           merge-multiple: true
 
+      - name: Generate release metadata
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./scripts/generate_release_metadata.ps1 `
+            -AssetDirectory release-assets `
+            -OutputDirectory release-assets `
+            -Version '${{ needs.prepare.outputs.version }}' `
+            -Tag '${{ env.RELEASE_TAG }}' `
+            -Repository '${{ github.repository }}'
+
       - name: Show assets
         run: ls -lh release-assets
 
@@ -191,7 +249,7 @@ jobs:
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           name: NAI Launcher ${{ env.RELEASE_TAG }}
-          body_path: dist/release_notes_${{ env.RELEASE_TAG }}.md
-          files: release-assets/*.zip
+          body_path: release-assets/release_notes_${{ env.RELEASE_TAG }}.md
+          files: release-assets/*
           draft: false
-          prerelease: false
+          prerelease: ${{ needs.prepare.outputs.prerelease }}

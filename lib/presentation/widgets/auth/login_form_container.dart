@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/config/auth_feature_flags.dart';
 import '../../providers/auth_mode_provider.dart';
 import 'auth_mode_switcher.dart';
 import 'credentials_login_form.dart';
@@ -12,14 +13,16 @@ class LoginFormContainer extends ConsumerWidget {
   /// 登录成功回调
   final VoidCallback? onLoginSuccess;
 
-  const LoginFormContainer({
-    super.key,
-    this.onLoginSuccess,
-  });
+  const LoginFormContainer({super.key, this.onLoginSuccess});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentMode = ref.watch(authModeProvider);
+    final effectiveMode =
+        currentMode == AuthMode.credentials &&
+            !AuthFeatureFlags.credentialsLoginEnabled
+        ? AuthMode.token
+        : currentMode;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -57,27 +60,27 @@ class LoginFormContainer extends ConsumerWidget {
               // 布局构建器，确保动画期间顶部对齐
               layoutBuilder:
                   (Widget? currentChild, List<Widget> previousChildren) {
-                return Stack(
-                  alignment: Alignment.topCenter,
-                  children: <Widget>[
-                    ...previousChildren,
-                    if (currentChild != null) currentChild,
-                  ],
-                );
-              },
-              child: switch (currentMode) {
+                    return Stack(
+                      alignment: Alignment.topCenter,
+                      children: <Widget>[
+                        ...previousChildren,
+                        if (currentChild != null) currentChild,
+                      ],
+                    );
+                  },
+              child: switch (effectiveMode) {
                 AuthMode.credentials => CredentialsLoginForm(
-                    key: const Key('credentials_form'),
-                    onLoginSuccess: onLoginSuccess,
-                  ),
+                  key: const Key('credentials_form'),
+                  onLoginSuccess: onLoginSuccess,
+                ),
                 AuthMode.token => TokenLoginCard(
-                    key: const Key('token_form'),
-                    onLoginSuccess: onLoginSuccess,
-                  ),
+                  key: const Key('token_form'),
+                  onLoginSuccess: onLoginSuccess,
+                ),
                 AuthMode.thirdParty => ThirdPartyApiLoginCard(
-                    key: const Key('third_party_form'),
-                    onLoginSuccess: onLoginSuccess,
-                  ),
+                  key: const Key('third_party_form'),
+                  onLoginSuccess: onLoginSuccess,
+                ),
               },
             ),
           ),

@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+### ✨ 新增
+
+- 新增 Windows NSIS 安装版发布包，安装到当前用户目录，支持开始菜单入口、卸载入口和应用内一键更新。
+- 新增 `release_manifest.json` 与 `checksums.txt`，用于区分安装版/便携版/macOS 便携版并提供 SHA256 校验信息。
+
+### 🛠 改进
+
+- 更新检查改为识别安装版与便携版：Windows 安装版可下载并安装更新，Windows 便携版和 macOS 便携版只跳转 Release 页面。
+- Release Actions 改为自动构建 Windows 安装版、Windows 便携版和 macOS 便携版，并自动生成规范 Release notes。
+- 版本比较改用 SemVer 解析，并在版本主体相同时继续比较 `+build` 数字，避免 `1.0.0-beta13+16` 这类版本判断失真。
+
+### 🐛 修复
+
+- 修正预发布版本更新筛选逻辑，未开启预发布时只检查稳定 Release。
+
+### 📦 发布文件
+
+- `NAI_Launcher_Windows_<version>_Setup.exe` - Windows 安装版，推荐普通用户，支持应用内一键更新。
+- `NAI_Launcher_Windows_<version>_Portable.zip` - Windows 便携版，解压即用，不自动更新。
+- `NAI_Launcher_macOS_<version>_Portable.zip` - macOS 便携版，需手动替换更新。
+
 ## [1.0.0-beta13] - 2026-06-20
 
 本次更新新增 macOS 最小适配，并开始同时发布 Windows 与 macOS 压缩包。

@@ -752,6 +752,12 @@ abstract class AppLocalizations {
   /// **'Email & Password'**
   String get auth_credentialsLogin;
 
+  /// No description provided for @auth_credentialsLoginUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Email/password login is currently unavailable. Please use Token login.'**
+  String get auth_credentialsLoginUnavailable;
+
   /// No description provided for @auth_credentialsLoginTitle.
   ///
   /// In en, this message translates to:
@@ -992,6 +998,18 @@ abstract class AppLocalizations {
   /// **'Token expired, please login again'**
   String get auth_error_authFailed_tokenExpired;
 
+  /// No description provided for @auth_error_credentialsLoginUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Email/password login is currently unavailable'**
+  String get auth_error_credentialsLoginUnavailable;
+
+  /// No description provided for @auth_error_credentialsLoginUnavailable_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'NovelAI now requires a web safety check for email/password login. Please use a Persistent API Token instead.'**
+  String get auth_error_credentialsLoginUnavailable_hint;
+
   /// No description provided for @auth_error_serverError.
   ///
   /// In en, this message translates to:
@@ -1207,6 +1225,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Data Source'**
   String get settings_dataSource;
+
+  /// No description provided for @settings_generation.
+  ///
+  /// In en, this message translates to:
+  /// **'Generation'**
+  String get settings_generation;
 
   /// No description provided for @settings_queue.
   ///
@@ -7538,6 +7562,42 @@ abstract class AppLocalizations {
   /// **'Data source services ready'**
   String get warmup_group_dataSourceInitialization_complete;
 
+  /// No description provided for @warmup_fetchingTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing tags: {message}'**
+  String warmup_fetchingTags(Object message);
+
+  /// No description provided for @warmup_fetchingTagDataFromServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetching tag data from server...'**
+  String get warmup_fetchingTagDataFromServer;
+
+  /// No description provided for @warmup_fetchingGeneralTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetching general tags...'**
+  String get warmup_fetchingGeneralTags;
+
+  /// No description provided for @warmup_fetchingCharacterTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetching character tags...'**
+  String get warmup_fetchingCharacterTags;
+
+  /// No description provided for @warmup_fetchingCopyrightTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetching copyright tags...'**
+  String get warmup_fetchingCopyrightTags;
+
+  /// No description provided for @warmup_fetchingMetaTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetching meta tags...'**
+  String get warmup_fetchingMetaTags;
+
   /// No description provided for @performanceReport_title.
   ///
   /// In en, this message translates to:
@@ -8212,6 +8272,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Random Prompt'**
   String get toolbar_randomPrompt;
+
+  /// No description provided for @randomPromptToolsHiddenHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Random prompt tools are hidden in Settings'**
+  String get randomPromptToolsHiddenHint;
 
   /// No description provided for @toolbar_fullscreenEdit.
   ///
@@ -17373,6 +17439,18 @@ abstract class AppLocalizations {
   /// **'Time to wait between retries'**
   String get settings_queueRetryIntervalSubtitle;
 
+  /// No description provided for @settings_showRandomPromptTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Show random prompt tools'**
+  String get settings_showRandomPromptTools;
+
+  /// No description provided for @settings_showRandomPromptToolsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the Random Prompt button and Random Mode toggle on the generation page'**
+  String get settings_showRandomPromptToolsSubtitle;
+
   /// No description provided for @settings_queueRetryCountMax.
   ///
   /// In en, this message translates to:
@@ -23029,6 +23107,18 @@ abstract class AppLocalizations {
   /// **'Checking for updates...'**
   String get updateChecking;
 
+  /// No description provided for @updateDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading update...'**
+  String get updateDownloading;
+
+  /// No description provided for @updateInstalling.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting installer...'**
+  String get updateInstalling;
+
   /// No description provided for @updateUpToDate.
   ///
   /// In en, this message translates to:
@@ -23059,6 +23149,24 @@ abstract class AppLocalizations {
   /// **'Release Notes'**
   String get releaseNotes;
 
+  /// No description provided for @updatePortableManualHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Portable builds open the Release page for manual download.'**
+  String get updatePortableManualHint;
+
+  /// No description provided for @updateDownloadingProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading update package: {percent}%'**
+  String updateDownloadingProgress(Object percent);
+
+  /// No description provided for @updateInstallingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The installer has started. The app will close shortly.'**
+  String get updateInstallingHint;
+
   /// No description provided for @remindMeLater.
   ///
   /// In en, this message translates to:
@@ -23070,6 +23178,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Skip This Version'**
   String get skipThisVersion;
+
+  /// No description provided for @updateDownloadAndInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Download and Install'**
+  String get updateDownloadAndInstall;
 
   /// No description provided for @goToDownload.
   ///

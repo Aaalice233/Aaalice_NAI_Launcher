@@ -18,13 +18,7 @@ import 'account_manager_provider.dart';
 part 'auth_provider.g.dart';
 
 /// 认证状态
-enum AuthStatus {
-  initial,
-  loading,
-  authenticated,
-  unauthenticated,
-  error,
-}
+enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
 
 /// 认证错误码
 enum AuthErrorCode {
@@ -32,6 +26,7 @@ enum AuthErrorCode {
   networkError,
   authFailed,
   tokenInvalid,
+  credentialsLoginUnavailable,
   serverError,
   unknown,
 }
@@ -68,8 +63,9 @@ class AuthState {
       accountId: accountId ?? this.accountId,
       displayName: displayName ?? this.displayName,
       errorCode: clearError ? null : (errorCode ?? this.errorCode),
-      httpStatusCode:
-          clearError ? null : (httpStatusCode ?? this.httpStatusCode),
+      httpStatusCode: clearError
+          ? null
+          : (httpStatusCode ?? this.httpStatusCode),
       subscriptionInfo: subscriptionInfo ?? this.subscriptionInfo,
     );
   }
@@ -105,8 +101,15 @@ class AuthState {
         if (statusCode == 400) {
           // 检查是否是 Authorization header 相关的错误
           final responseData = e.response?.data;
-          final message = responseData is Map ? responseData['message'] : null;
-          if (message?.toString().contains('Authorization') ?? false) {
+          final message = switch (responseData) {
+            final Map data => data['message']?.toString(),
+            final String text => text,
+            _ => null,
+          };
+          if (message?.contains('Please refresh NovelAI.net') ?? false) {
+            return (AuthErrorCode.credentialsLoginUnavailable, statusCode);
+          }
+          if (message?.contains('Authorization') ?? false) {
             return (AuthErrorCode.tokenInvalid, statusCode);
           }
         }
@@ -190,8 +193,9 @@ class AuthNotifier extends _$AuthNotifier {
     final endpointService = ref.read(naiApiEndpointServiceProvider);
 
     // 等待 AccountManager 加载完成（最多等待 5 秒）
-    final accountManagerNotifier =
-        ref.read(accountManagerNotifierProvider.notifier);
+    final accountManagerNotifier = ref.read(
+      accountManagerNotifierProvider.notifier,
+    );
     var accountManagerState = ref.read(accountManagerNotifierProvider);
     int waitCount = 0;
     const maxWait = 50; // 50 * 100ms = 5秒
@@ -217,8 +221,9 @@ class AuthNotifier extends _$AuthNotifier {
         SavedAccount? matchedAccount;
 
         for (final account in accounts) {
-          final accountToken =
-              await accountManagerNotifier.getAccountToken(account.id);
+          final accountToken = await accountManagerNotifier.getAccountToken(
+            account.id,
+          );
           if (accountToken == token) {
             matchedAccount = account;
             break;
@@ -226,23 +231,24 @@ class AuthNotifier extends _$AuthNotifier {
         }
 
         if (matchedAccount != null) {
-          final endpoint =
-              accountManagerNotifier.getAccountApiEndpoint(matchedAccount.id);
+          final endpoint = accountManagerNotifier.getAccountApiEndpoint(
+            matchedAccount.id,
+          );
           final subscriptionInfo = await apiService
               .validateToken(
-            token,
-            endpoint: endpoint,
-            allowAnyTokenFormat: endpoint.isThirdParty,
-          )
+                token,
+                endpoint: endpoint,
+                allowAnyTokenFormat: endpoint.isThirdParty,
+              )
               .timeout(
-            const Duration(seconds: 5),
-            onTimeout: () {
-              throw DioException(
-                type: DioExceptionType.connectionTimeout,
-                requestOptions: RequestOptions(path: '/user/subscription'),
+                const Duration(seconds: 5),
+                onTimeout: () {
+                  throw DioException(
+                    type: DioExceptionType.connectionTimeout,
+                    requestOptions: RequestOptions(path: '/user/subscription'),
+                  );
+                },
               );
-            },
-          );
 
           endpointService.setCurrent(endpoint);
           accountManagerNotifier.updateLastUsed(matchedAccount.id);
@@ -258,15 +264,17 @@ class AuthNotifier extends _$AuthNotifier {
           return; // 已登录，直接返回
         }
 
-        final subscriptionInfo = await apiService.validateToken(token).timeout(
-          const Duration(seconds: 5),
-          onTimeout: () {
-            throw DioException(
-              type: DioExceptionType.connectionTimeout,
-              requestOptions: RequestOptions(path: '/user/subscription'),
+        final subscriptionInfo = await apiService
+            .validateToken(token)
+            .timeout(
+              const Duration(seconds: 5),
+              onTimeout: () {
+                throw DioException(
+                  type: DioExceptionType.connectionTimeout,
+                  requestOptions: RequestOptions(path: '/user/subscription'),
+                );
+              },
             );
-          },
-        );
 
         AppLogger.w(
           'Token valid but no matching account found, clearing and trying auto-login...',
@@ -296,11 +304,13 @@ class AuthNotifier extends _$AuthNotifier {
       );
 
       // 获取账号的 Token 和类型
-      final accountToken =
-          await accountManager.getAccountToken(lastUsedAccount.id);
+      final accountToken = await accountManager.getAccountToken(
+        lastUsedAccount.id,
+      );
       final accountType = lastUsedAccount.accountType;
-      final accountEndpoint =
-          accountManager.getAccountApiEndpoint(lastUsedAccount.id);
+      final accountEndpoint = accountManager.getAccountApiEndpoint(
+        lastUsedAccount.id,
+      );
 
       if (accountToken != null && accountToken.isNotEmpty) {
         try {
@@ -316,10 +326,7 @@ class AuthNotifier extends _$AuthNotifier {
               'Auto-login: validating access token for credentials account...',
             );
             subscriptionInfo = await apiService
-                .validateToken(
-                  accountToken,
-                  endpoint: accountEndpoint,
-                )
+                .validateToken(accountToken, endpoint: accountEndpoint)
                 .timeout(
                   validationTimeout,
                   onTimeout: () => throw DioException(
@@ -454,8 +461,10 @@ class AuthNotifier extends _$AuthNotifier {
           'Invalid token format: length=${token.length}, prefix="$prefix"',
           'Auth',
         );
-        throw Exception('Token 格式无效。Persistent Token 应以 pst- 开头，'
-            '后跟至少10位字符。请检查输入的 Token 是否正确。');
+        throw Exception(
+          'Token 格式无效。Persistent Token 应以 pst- 开头，'
+          '后跟至少10位字符。请检查输入的 Token 是否正确。',
+        );
       }
 
       final apiService = ref.read(naiAuthApiServiceProvider);
@@ -641,16 +650,16 @@ class AuthNotifier extends _$AuthNotifier {
             displayName: displayName,
           )
         : accountType == AccountType.credentials
-            ? _loginWithAccessToken(
-                token,
-                accountId: accountId,
-                displayName: displayName,
-              )
-            : loginWithToken(
-                token,
-                accountId: accountId,
-                displayName: displayName,
-              ));
+        ? _loginWithAccessToken(
+            token,
+            accountId: accountId,
+            displayName: displayName,
+          )
+        : loginWithToken(
+            token,
+            accountId: accountId,
+            displayName: displayName,
+          ));
 
     // 登录成功后更新最后使用时间，确保下次启动时该账号排在最前
     if (success) {
@@ -995,10 +1004,7 @@ class AuthNotifier extends _$AuthNotifier {
           ? AuthStatus.authenticated
           : AuthStatus.unauthenticated;
 
-      state = state.copyWith(
-        status: nextStatus,
-        clearError: true,
-      );
+      state = state.copyWith(status: nextStatus, clearError: true);
       AppLogger.w(
         '[AuthNotifier] error cleared, state now: status=${state.status}',
         'AUTH',

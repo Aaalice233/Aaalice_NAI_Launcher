@@ -149,8 +149,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
   /// 应用到角色提示词
   void _applyToCharacterPrompt(String prompt, {required bool clearExisting}) {
-    final characterNotifier =
-        ref.read(characterPromptNotifierProvider.notifier);
+    final characterNotifier = ref.read(
+      characterPromptNotifierProvider.notifier,
+    );
 
     // 如果需要清空现有角色
     if (clearExisting) {
@@ -179,10 +180,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       }
     } else {
       // 非竖线格式，直接添加为单个角色
-      characterNotifier.addCharacter(
-        _inferGender(prompt),
-        prompt: prompt,
-      );
+      characterNotifier.addCharacter(_inferGender(prompt), prompt: prompt);
     }
 
     // 显示提示
@@ -213,8 +211,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
   /// 智能分解竖线格式并应用到对应位置
   void _applySmartDecompose(String prompt) {
-    final characterNotifier =
-        ref.read(characterPromptNotifierProvider.notifier);
+    final characterNotifier = ref.read(
+      characterPromptNotifierProvider.notifier,
+    );
 
     // 解析竖线格式
     final result = PipeParser.parse(prompt);
@@ -291,8 +290,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
       // 检查是否有角色被生成（用于 Toast 提示）
       final characterConfig = ref.read(characterPromptNotifierProvider);
-      final hasCharacters = characterConfig.characters
-          .any((c) => c.enabled && c.prompt.isNotEmpty);
+      final hasCharacters = characterConfig.characters.any(
+        (c) => c.enabled && c.prompt.isNotEmpty,
+      );
 
       if (hasCharacters && mounted) {
         final count = characterConfig.characters
@@ -364,30 +364,30 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     // 监听 Provider 变化，自动同步到本地状态
     // 注意：队列运行时不同步，避免替换用户正在编辑的提示词
     ref.listen(
-        generationParamsNotifierProvider.select(
-          (params) => (
-            prompt: params.prompt,
-            negativePrompt: params.negativePrompt,
-          ),
-        ), (previous, next) {
-      // 检查队列执行状态，队列运行/就绪时跳过同步
-      bool isQueueActive = false;
-      try {
-        final queueState = ref.read(queueExecutionNotifierProvider);
-        isQueueActive = queueState.isRunning || queueState.isReady;
-      } catch (e) {
-        // Provider 未初始化
-      }
+      generationParamsNotifierProvider.select(
+        (params) =>
+            (prompt: params.prompt, negativePrompt: params.negativePrompt),
+      ),
+      (previous, next) {
+        // 检查队列执行状态，队列运行/就绪时跳过同步
+        bool isQueueActive = false;
+        try {
+          final queueState = ref.read(queueExecutionNotifierProvider);
+          isQueueActive = queueState.isRunning || queueState.isReady;
+        } catch (e) {
+          // Provider 未初始化
+        }
 
-      if (!isQueueActive) {
-        if (previous?.prompt != next.prompt) {
-          _syncPromptFromProvider(next.prompt);
+        if (!isQueueActive) {
+          if (previous?.prompt != next.prompt) {
+            _syncPromptFromProvider(next.prompt);
+          }
+          if (previous?.negativePrompt != next.negativePrompt) {
+            _syncNegativeFromProvider(next.negativePrompt);
+          }
         }
-        if (previous?.negativePrompt != next.negativePrompt) {
-          _syncNegativeFromProvider(next.negativePrompt);
-        }
-      }
-    });
+      },
+    );
 
     // 监听待填充提示词变化（队列执行、画廊发送等）
     ref.listen(hasPendingPromptProvider, (previous, next) {
@@ -449,6 +449,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     final model = ref.watch(
       generationParamsNotifierProvider.select((params) => params.model),
     );
+    final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
 
     return Wrap(
       spacing: 8, // 水平间距
@@ -479,11 +480,16 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
             // 工具栏（随机、全屏、清空、设置）
             PromptEditorToolbar(
-              config: PromptEditorToolbarConfig.mainEditor,
-              onRandomPressed: _generateRandomPrompt,
-              onRandomLongPressed: _showRandomModeSelector,
+              config: PromptEditorToolbarConfig.mainEditor.copyWith(
+                showRandomButton: showRandomTools,
+              ),
+              onRandomPressed: showRandomTools ? _generateRandomPrompt : null,
+              onRandomLongPressed: showRandomTools
+                  ? _showRandomModeSelector
+                  : null,
               // 使用传入的回调或 Provider 切换最大化
-              onFullscreenPressed: widget.onToggleMaximize ??
+              onFullscreenPressed:
+                  widget.onToggleMaximize ??
                   () => ref
                       .read(promptMaximizeNotifierProvider.notifier)
                       .toggle(),
@@ -501,8 +507,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     final enableAutocomplete = ref.read(autocompleteSettingsProvider);
     final enableAutoFormat = ref.read(autoFormatPromptSettingsProvider);
     final enableHighlight = ref.read(highlightEmphasisSettingsProvider);
-    final enableSdSyntaxAutoConvert =
-        ref.read(sdSyntaxAutoConvertSettingsProvider);
+    final enableSdSyntaxAutoConvert = ref.read(
+      sdSyntaxAutoConvertSettingsProvider,
+    );
     final enableCooccurrence = ref.read(cooccurrenceSettingsProvider);
 
     // 使用工具栏提供的按钮位置
@@ -576,7 +583,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
     // 获取负面词预设数据
     ref.watch(ucPresetNotifierProvider);
-    final ucPresetContent = ref
+    final ucPresetContent =
+        ref
             .watch(ucPresetNotifierProvider.notifier)
             .getEffectiveContent(model) ??
         '';
@@ -645,8 +653,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
     final enableHighlight = ref.watch(highlightEmphasisSettingsProvider);
-    final enableSdSyntaxAutoConvert =
-        ref.watch(sdSyntaxAutoConvertSettingsProvider);
+    final enableSdSyntaxAutoConvert = ref.watch(
+      sdSyntaxAutoConvertSettingsProvider,
+    );
     return UnifiedPromptInput(
       key: const ValueKey('generation_prompt_positive_input'),
       controller: _promptController,
@@ -670,9 +679,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             ? context.l10n.prompt_describeImageWithHint
             : context.l10n.prompt_describeImage,
       ),
-      decoration: const InputDecoration(
-        contentPadding: EdgeInsets.all(12),
-      ),
+      decoration: const InputDecoration(contentPadding: EdgeInsets.all(12)),
       maxLines: null,
       expands: true,
       onComfyuiImport: (globalPrompt, characters) {
@@ -752,8 +759,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
     final enableHighlight = ref.watch(highlightEmphasisSettingsProvider);
-    final enableSdSyntaxAutoConvert =
-        ref.watch(sdSyntaxAutoConvertSettingsProvider);
+    final enableSdSyntaxAutoConvert = ref.watch(
+      sdSyntaxAutoConvertSettingsProvider,
+    );
     return UnifiedPromptInput(
       key: const ValueKey('generation_prompt_negative_input'),
       controller: _negativeController,
@@ -774,9 +782,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         ),
         hintText: context.l10n.prompt_unwantedContent,
       ),
-      decoration: const InputDecoration(
-        contentPadding: EdgeInsets.all(12),
-      ),
+      decoration: const InputDecoration(contentPadding: EdgeInsets.all(12)),
       maxLines: null,
       expands: true,
       onChanged: (value) {
@@ -814,15 +820,18 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
               hintText: context.l10n.prompt_inputPrompt,
             ),
             decoration: InputDecoration(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
               suffixIcon: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
                     icon: const Icon(Icons.fullscreen),
                     tooltip: context.l10n.tooltip_fullscreenEdit,
-                    onPressed: widget.onToggleMaximize ??
+                    onPressed:
+                        widget.onToggleMaximize ??
                         () => ref
                             .read(promptMaximizeNotifierProvider.notifier)
                             .toggle(),
@@ -919,8 +928,9 @@ class _PositivePromptTooltip extends StatelessWidget {
     final hasPrefixes = prefixes.isNotEmpty;
     final hasSuffixes = suffixes.isNotEmpty;
     final hasQuality = qualityContent != null && qualityContent!.isNotEmpty;
-    final enabledCharacters =
-        characters.where((c) => c.enabled && c.prompt.isNotEmpty).toList();
+    final enabledCharacters = characters
+        .where((c) => c.enabled && c.prompt.isNotEmpty)
+        .toList();
     final hasCharacters = enabledCharacters.isNotEmpty;
 
     // 构建最终生效的完整提示词
@@ -975,10 +985,7 @@ class _PositivePromptTooltip extends StatelessWidget {
 
         // 多角色提示词
         if (hasCharacters) ...[
-          _buildCharacterSection(
-            enabledCharacters,
-            isDark,
-          ),
+          _buildCharacterSection(enabledCharacters, isDark),
           const SizedBox(height: 8),
         ],
 
@@ -1035,11 +1042,7 @@ class _PositivePromptTooltip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.auto_awesome,
-            size: 14,
-            color: theme.colorScheme.primary,
-          ),
+          Icon(Icons.auto_awesome, size: 14, color: theme.colorScheme.primary),
           const SizedBox(width: 6),
           Text(
             l10n.prompt_positivePrompt,
@@ -1133,10 +1136,12 @@ class _PositivePromptTooltip extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            theme.colorScheme.primaryContainer
-                .withValues(alpha: isDark ? 0.3 : 0.4),
-            theme.colorScheme.secondaryContainer
-                .withValues(alpha: isDark ? 0.2 : 0.3),
+            theme.colorScheme.primaryContainer.withValues(
+              alpha: isDark ? 0.3 : 0.4,
+            ),
+            theme.colorScheme.secondaryContainer.withValues(
+              alpha: isDark ? 0.2 : 0.3,
+            ),
           ],
         ),
         borderRadius: BorderRadius.circular(10),
@@ -1218,8 +1223,9 @@ class _PositivePromptTooltip extends StatelessWidget {
     }
 
     // 多角色提示词
-    final enabledCharacters =
-        characters.where((c) => c.enabled && c.prompt.isNotEmpty);
+    final enabledCharacters = characters.where(
+      (c) => c.enabled && c.prompt.isNotEmpty,
+    );
     for (final character in enabledCharacters) {
       parts.add(character.toNaiPrompt(useAiPosition: globalAiChoice));
     }
@@ -1310,11 +1316,12 @@ class _PositivePromptTooltip extends StatelessWidget {
                           character.gender == CharacterGender.female
                               ? Icons.female
                               : character.gender == CharacterGender.male
-                                  ? Icons.male
-                                  : Icons.person,
+                              ? Icons.male
+                              : Icons.person,
                           size: 11,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.5),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
                         ),
                         const SizedBox(width: 4),
                         Expanded(
@@ -1322,8 +1329,9 @@ class _PositivePromptTooltip extends StatelessWidget {
                             '${character.name}: ${character.toNaiPrompt(useAiPosition: globalAiChoice)}',
                             style: TextStyle(
                               fontSize: 10,
-                              color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.8),
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.8,
+                              ),
                             ),
                           ),
                         ),
@@ -1471,11 +1479,7 @@ class _NegativePromptTooltip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.block,
-            size: 14,
-            color: theme.colorScheme.error,
-          ),
+          Icon(Icons.block, size: 14, color: theme.colorScheme.error),
           const SizedBox(width: 6),
           Text(
             l10n.prompt_negativePrompt,
@@ -1569,10 +1573,12 @@ class _NegativePromptTooltip extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            theme.colorScheme.errorContainer
-                .withValues(alpha: isDark ? 0.3 : 0.4),
-            theme.colorScheme.surfaceContainerHighest
-                .withValues(alpha: isDark ? 0.2 : 0.3),
+            theme.colorScheme.errorContainer.withValues(
+              alpha: isDark ? 0.3 : 0.4,
+            ),
+            theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: isDark ? 0.2 : 0.3,
+            ),
           ],
         ),
         borderRadius: BorderRadius.circular(10),
@@ -1729,10 +1735,8 @@ class _PromptTypeButtonState extends State<_PromptTypeButton>
         onTapCancel: () => _animController.reverse(),
         child: AnimatedBuilder(
           animation: _scaleAnim,
-          builder: (context, child) => Transform.scale(
-            scale: _scaleAnim.value,
-            child: child,
-          ),
+          builder: (context, child) =>
+              Transform.scale(scale: _scaleAnim.value, child: child),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOutCubic,
@@ -1752,15 +1756,15 @@ class _PromptTypeButtonState extends State<_PromptTypeButton>
               color: widget.isSelected
                   ? null
                   : (_isHovering
-                      ? theme.colorScheme.surfaceContainerHighest
-                      : theme.colorScheme.surfaceContainerHigh),
+                        ? theme.colorScheme.surfaceContainerHighest
+                        : theme.colorScheme.surfaceContainerHigh),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
                 color: widget.isSelected
                     ? widget.color.withValues(alpha: 0.5)
                     : (_isHovering
-                        ? theme.colorScheme.outline.withValues(alpha: 0.3)
-                        : Colors.transparent),
+                          ? theme.colorScheme.outline.withValues(alpha: 0.3)
+                          : Colors.transparent),
                 width: widget.isSelected ? 1.5 : 1,
               ),
               boxShadow: widget.isSelected
@@ -1800,8 +1804,9 @@ class _PromptTypeButtonState extends State<_PromptTypeButton>
                   widget.label,
                   style: TextStyle(
                     fontSize: 13,
-                    fontWeight:
-                        widget.isSelected ? FontWeight.w600 : FontWeight.w500,
+                    fontWeight: widget.isSelected
+                        ? FontWeight.w600
+                        : FontWeight.w500,
                     color: widget.isSelected
                         ? widget.color
                         : theme.colorScheme.onSurface.withValues(alpha: 0.7),
@@ -1812,8 +1817,10 @@ class _PromptTypeButtonState extends State<_PromptTypeButton>
                 if (widget.count > 0) ...[
                   const SizedBox(width: 6),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: widget.isSelected
                           ? widget.color.withValues(alpha: 0.2)
@@ -1827,8 +1834,9 @@ class _PromptTypeButtonState extends State<_PromptTypeButton>
                         fontWeight: FontWeight.w600,
                         color: widget.isSelected
                             ? widget.color
-                            : theme.colorScheme.onSurface
-                                .withValues(alpha: 0.6),
+                            : theme.colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
                       ),
                     ),
                   ),
@@ -1880,10 +1888,7 @@ class _CopyIconButton extends StatefulWidget {
   final String content;
   final Color color;
 
-  const _CopyIconButton({
-    required this.content,
-    required this.color,
-  });
+  const _CopyIconButton({required this.content, required this.color});
 
   @override
   State<_CopyIconButton> createState() => _CopyIconButtonState();

@@ -46,6 +46,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     final showCancel = isLauncherGenerating;
 
     final randomMode = ref.watch(randomPromptModeProvider);
+    final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
 
     // 监听队列执行状态
     final queueExecutionState = ref.watch(queueExecutionNotifierProvider);
@@ -55,44 +56,46 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     final isFloatingButtonClosed = ref.watch(floatingButtonClosedProvider);
 
     // 判断悬浮球是否可见（队列有任务或正在执行，且未被手动关闭）
-    final shouldShowFloatingButton = !isFloatingButtonClosed &&
+    final shouldShowFloatingButton =
+        !isFloatingButtonClosed &&
         !(queueState.isEmpty &&
             queueState.failedTasks.isEmpty &&
             queueExecutionState.isIdle &&
             !queueExecutionState.hasFailedTasks);
 
     // 监听队列状态变化，当变为 ready 时自动触发生成
-    ref.listen<QueueExecutionState>(
-      queueExecutionNotifierProvider,
-      (previous, next) {
-        // 从非 ready 状态变为 ready 状态，且当前没有在生成
-        if (previous?.status != QueueExecutionStatus.ready &&
-            next.status == QueueExecutionStatus.ready) {
-          final currentGenerationState =
-              ref.read(imageGenerationNotifierProvider);
-          if (!currentGenerationState.isGenerating) {
-            final currentKritaBridgeState =
-                ref.read(kritaBridgeNotifierProvider);
-            if (currentKritaBridgeState.isBridgeGenerating) {
-              return;
-            }
-            // 延迟一帧确保提示词已填充
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              final latestKritaBridgeState =
-                  ref.read(kritaBridgeNotifierProvider);
-              if (latestKritaBridgeState.isBridgeGenerating) return;
-              final currentParams = ref.read(generationParamsNotifierProvider);
-              if (currentParams.prompt.isNotEmpty) {
-                ref
-                    .read(imageGenerationNotifierProvider.notifier)
-                    .generate(currentParams);
-              }
-            });
+    ref.listen<QueueExecutionState>(queueExecutionNotifierProvider, (
+      previous,
+      next,
+    ) {
+      // 从非 ready 状态变为 ready 状态，且当前没有在生成
+      if (previous?.status != QueueExecutionStatus.ready &&
+          next.status == QueueExecutionStatus.ready) {
+        final currentGenerationState = ref.read(
+          imageGenerationNotifierProvider,
+        );
+        if (!currentGenerationState.isGenerating) {
+          final currentKritaBridgeState = ref.read(kritaBridgeNotifierProvider);
+          if (currentKritaBridgeState.isBridgeGenerating) {
+            return;
           }
+          // 延迟一帧确保提示词已填充
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            final latestKritaBridgeState = ref.read(
+              kritaBridgeNotifierProvider,
+            );
+            if (latestKritaBridgeState.isBridgeGenerating) return;
+            final currentParams = ref.read(generationParamsNotifierProvider);
+            if (currentParams.prompt.isNotEmpty) {
+              ref
+                  .read(imageGenerationNotifierProvider.notifier)
+                  .generate(currentParams);
+            }
+          });
         }
-      },
-    );
+      }
+    });
 
     // 快捷键已由父级 DesktopGenerationLayout 统一处理
     // 这里只负责布局
@@ -105,8 +108,10 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
           return Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              RandomModeToggle(enabled: randomMode),
-              const SizedBox(width: 8),
+              if (showRandomTools) ...[
+                RandomModeToggle(enabled: randomMode),
+                const SizedBox(width: 8),
+              ],
               // 生成按钮区域 - 悬浮球存在时hover显示"加入队列"
               _buildGenerateButtonWithHover(
                 context: context,
@@ -149,8 +154,10 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
                   const SizedBox(width: 16),
 
                   // 生成按钮区域 - 悬浮球存在时hover显示"加入队列"
-                  RandomModeToggle(enabled: randomMode),
-                  const SizedBox(width: 12),
+                  if (showRandomTools) ...[
+                    RandomModeToggle(enabled: randomMode),
+                    const SizedBox(width: 12),
+                  ],
                   _buildGenerateButtonWithHover(
                     context: context,
                     ref: ref,
@@ -242,10 +249,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     );
   }
 
-  void _handleAddToQueue(
-    BuildContext context,
-    WidgetRef ref,
-  ) {
+  void _handleAddToQueue(BuildContext context, WidgetRef ref) {
     final params = ref.read(generationParamsNotifierProvider);
     if (ref.read(kritaBridgeNotifierProvider).isBridgeGenerating) {
       AppToast.warning(context, context.l10n.toast_kritaBusy);
@@ -257,18 +261,13 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     }
 
     // 创建任务并添加到队列
-    final task = ReplicationTask.create(
-      prompt: params.prompt,
-    );
+    final task = ReplicationTask.create(prompt: params.prompt);
 
     ref.read(replicationQueueNotifierProvider.notifier).add(task);
     AppToast.success(context, context.l10n.queue_taskAdded);
   }
 
-  Future<void> _handleGenerate(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
+  Future<void> _handleGenerate(BuildContext context, WidgetRef ref) async {
     final params = ref.read(generationParamsNotifierProvider);
     if (params.prompt.isEmpty) {
       AppToast.warning(context, context.l10n.generation_pleaseInputPrompt);

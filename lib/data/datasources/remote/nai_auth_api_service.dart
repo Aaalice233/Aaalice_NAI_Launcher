@@ -57,13 +57,13 @@ class NAIAuthApiService {
       'NAIAuth',
     );
     AppLogger.d(
-      'Auth header to be sent: length=${authHeader.length}, value="$authHeader"',
+      'Auth header prepared: length=${authHeader.length}, tokenFormat=$tokenFormat',
       'NAIAuth',
     );
 
     try {
       final response = await _dio.get(
-        endpoint.mainUrl(ApiConstants.userSubscriptionEndpoint),
+        endpoint.imageUrl(ApiConstants.userSubscriptionEndpoint),
         options: Options(
           headers: {'Authorization': authHeader},
           receiveTimeout: _timeout,
@@ -88,7 +88,8 @@ class NAIAuthApiService {
             requestOptions: e.requestOptions,
             response: e.response,
             type: e.type,
-            error: 'Token无效或已过期，请检查Token是否正确。'
+            error:
+                'Token无效或已过期，请检查Token是否正确。'
                 '如果是Persistent Token，应以pst-开头。',
           );
         }
@@ -107,10 +108,7 @@ class NAIAuthApiService {
     final response = await _dio.post(
       endpoint.mainUrl(ApiConstants.loginEndpoint),
       data: {'key': accessKey},
-      options: Options(
-        receiveTimeout: _timeout,
-        sendTimeout: _timeout,
-      ),
+      options: Options(receiveTimeout: _timeout, sendTimeout: _timeout),
     );
 
     return response.data as Map<String, dynamic>;
@@ -138,8 +136,9 @@ class NAIAuthApiService {
     var previousToken = '';
     while (normalizedToken != previousToken) {
       previousToken = normalizedToken;
-      normalizedToken =
-          normalizedToken.replaceFirst(_bearerPrefixRegex, '').trim();
+      normalizedToken = normalizedToken
+          .replaceFirst(_bearerPrefixRegex, '')
+          .trim();
     }
 
     // 移除所有空白字符

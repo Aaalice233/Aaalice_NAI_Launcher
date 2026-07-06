@@ -80,8 +80,9 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 
 | 平台 | 下载文件 | 使用方式 |
 | --- | --- | --- |
-| Windows | `NAI_Launcher_Windows_<version>.zip` | 解压后运行 `nai_launcher.exe`。 |
-| macOS | `NAI_Launcher_macOS_<version>.zip` | 解压后打开 `Aaalice NAI Launcher.app`。未公证版本如被拦截，可在系统设置的隐私与安全中允许打开。 |
+| Windows | `NAI_Launcher_Windows_<version>_Setup.exe` | 安装版，推荐普通用户，安装到当前用户目录，支持应用内一键更新。 |
+| Windows | `NAI_Launcher_Windows_<version>_Portable.zip` | 便携版，解压后运行 `nai_launcher.exe`，只检测更新并跳转 Release 页面。 |
+| macOS | `NAI_Launcher_macOS_<version>_Portable.zip` | 便携版，解压后打开 `Aaalice NAI Launcher.app`。未公证版本如被拦截，可在系统设置的隐私与安全中允许打开。 |
 
 首次登录可以使用 NovelAI 账号密码或 API Token。账号数据仅保存在本地设备，桌面端使用系统安全存储保存敏感信息。
 
@@ -142,7 +143,7 @@ scripts/dev_run_macos_signed.sh debug
 
 ## 🚀 发布流程
 
-发布由 GitHub Actions 的 `Release` workflow 处理。推送 `v*` tag 后，工作流会分别在 Windows 和 macOS runner 上构建，并把压缩包上传到同一个 GitHub Release。
+发布由 GitHub Actions 的 `Release` workflow 处理。推送 `v*` tag 后，工作流会分别构建 Windows 安装版、Windows 便携版和 macOS 便携版，并生成 `release_manifest.json`、`checksums.txt` 与 Release notes。
 
 ```bash
 git tag v1.0.0-beta13
@@ -152,17 +153,17 @@ git push origin v1.0.0-beta13
 
 发布前请确保：
 
-- `pubspec.yaml` 版本号已更新。
-- `CHANGELOG.md` 和 `dist/release_notes_<tag>.md` 已写好。
+- `pubspec.yaml` 版本号已更新；tag 必须匹配去掉 `+build` 后的版本，例如 `1.0.0-beta13+16` 对应 `v1.0.0-beta13`。
+- `CHANGELOG.md` 已按 `✨ 新增`、`🛠 改进`、`🐛 修复`、`📦 发布文件` 分类补好。
 - `assets/databases/translation.db` 与 `assets/databases/cooccurrence.db` 是真实 SQLite 文件，不是 Git LFS pointer。
-- Windows 本地至少跑过一次 `flutter build windows --release`。
+- Windows 安装器依赖 NSIS；本地打包可运行 `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/package_windows_release.ps1`。
 
 ## 🗂️ 项目结构
 
 ```text
 nai_launcher/
 ├── assets/                 # 图标、截图、音效、标签数据、预置数据库
-├── dist/                   # GitHub Release 文案
+├── installer/              # 安装器脚本
 ├── krita_plugin/           # Krita 插件与打包/验收脚本
 ├── lib/
 │   ├── core/               # 网络、数据库、缓存、加密、文件、快捷键等基础能力

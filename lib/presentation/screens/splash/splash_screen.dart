@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_version.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/warmup_provider.dart';
+import '../../utils/warmup_message_localizer.dart';
 
 /// 启动画面
 /// 显示应用品牌和预加载进度
@@ -31,17 +32,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     )..repeat(reverse: true);
 
     _breathAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
-      CurvedAnimation(
-        parent: _breathController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _breathController, curve: Curves.easeInOut),
     );
 
     _glowAnimation = Tween<double>(begin: 0.3, end: 0.8).animate(
-      CurvedAnimation(
-        parent: _breathController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _breathController, curve: Curves.easeInOut),
     );
   }
 
@@ -148,10 +143,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  primaryColor,
-                  primaryColor.withValues(alpha: 0.6),
-                ],
+                colors: [primaryColor, primaryColor.withValues(alpha: 0.6)],
               ),
               boxShadow: [
                 BoxShadow(
@@ -181,10 +173,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       children: [
         ShaderMask(
           shaderCallback: (bounds) => LinearGradient(
-            colors: [
-              primaryColor,
-              lighterColor,
-            ],
+            colors: [primaryColor, lighterColor],
           ).createShader(bounds),
           child: const Text(
             'NAI Launcher',
@@ -209,116 +198,17 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     );
   }
 
-  /// 翻译任务 key 为本地化文本
-  String _translateTaskKey(BuildContext context, String taskKey) {
-    final l10n = context.l10n;
-    switch (taskKey) {
-      case 'warmup_preparing':
-        return l10n.warmup_preparing;
-      case 'warmup_complete':
-        return l10n.warmup_complete;
-      case 'warmup_dataMigration':
-        return l10n.warmup_dataMigration;
-      case 'warmup_networkCheck':
-        return l10n.warmup_networkCheck;
-      case 'warmup_loadingTranslation':
-        return l10n.warmup_loadingTranslation;
-      case 'warmup_initTagSystem':
-        return l10n.warmup_initTagSystem;
-      case 'warmup_initUnifiedDatabase':
-        return l10n.warmup_initUnifiedDatabase;
-      case 'warmup_loadingPromptConfig':
-        return l10n.warmup_loadingPromptConfig;
-      case 'warmup_danbooruAuth':
-        return l10n.warmup_danbooruAuth;
-      case 'warmup_imageEditor':
-        return l10n.warmup_imageEditor;
-      case 'warmup_database':
-        return l10n.warmup_database;
-      case 'warmup_network':
-        return l10n.warmup_network;
-      case 'warmup_fonts':
-        return l10n.warmup_fonts;
-      case 'warmup_imageCache':
-        return l10n.warmup_imageCache;
-      case 'warmup_statistics':
-        return l10n.warmup_statistics;
-      case 'warmup_subscription':
-        return l10n.warmup_subscription;
-      case 'warmup_dataSourceCache':
-        return l10n.warmup_dataSourceCache;
-      case 'warmup_galleryFileCount':
-        return l10n.warmup_galleryFileCount;
-      case 'warmup_cooccurrenceData':
-        return l10n.warmup_cooccurrenceData;
-      case 'warmup_cooccurrenceInit':
-        return l10n.warmup_cooccurrenceInit;
-      case 'warmup_danbooruTagsInit':
-        return l10n.warmup_danbooruTagsInit;
-      case 'warmup_galleryDataSource':
-        return l10n.warmup_galleryDataSource;
-      case 'warmup_checkAndRecoverData':
-        return l10n.warmup_checkAndRecoverData;
-      case 'warmup_translationInit':
-        return l10n.warmup_translationInit;
-      case 'warmup_group_dataSourceInitialization':
-        return l10n.warmup_group_dataSourceInitialization;
-      case 'warmup_group_dataSourceInitialization_complete':
-        return l10n.warmup_group_dataSourceInitialization_complete;
-      case 'warmup_group_basicUI':
-        return l10n.warmup_group_basicUI;
-      case 'warmup_group_basicUI_complete':
-        return l10n.warmup_group_basicUI_complete;
-      case 'warmup_group_dataServices':
-        return l10n.warmup_group_dataServices;
-      case 'warmup_group_dataServices_complete':
-        return l10n.warmup_group_dataServices_complete;
-      case 'warmup_group_networkServices':
-        return l10n.warmup_group_networkServices;
-      case 'warmup_group_networkServices_complete':
-        return l10n.warmup_group_networkServices_complete;
-      case 'warmup_group_cacheServices':
-        return l10n.warmup_group_cacheServices;
-      case 'warmup_group_cacheServices_complete':
-        return l10n.warmup_group_cacheServices_complete;
-      default:
-        return taskKey;
-    }
-  }
-
-  /// 翻译子任务消息（处理 provider 中的硬编码中文）
-  String _translateSubTaskMessage(BuildContext context, String message) {
-    final l10n = context.l10n;
-
-    if (message.startsWith('warmup_networkCheck_attempt|')) {
-      final parts = message.split('|');
-      if (parts.length == 3) {
-        return l10n.warmup_networkCheck_attempt(parts[1], parts[2]);
-      }
-      return l10n.warmup_networkCheck_testing;
-    }
-    if (message.startsWith('warmup_networkCheck_success|')) {
-      final parts = message.split('|');
-      if (parts.length == 2) {
-        return l10n.warmup_networkCheck_success(parts[1]);
-      }
-      return l10n.warmup_networkCheck_success('');
-    }
-    if (message == 'warmup_networkCheck_timeout') {
-      return l10n.warmup_networkCheck_timeout;
-    }
-
-    // 如果无法识别，直接返回原消息
-    return message;
-  }
-
   Widget _buildProgressSection(
     ThemeData theme,
     Color primaryColor,
     WarmupProgress progress,
     String? subTaskMessage,
   ) {
-    final translatedTask = _translateTaskKey(context, progress.currentTask);
+    final l10n = context.l10n;
+    final translatedTask = WarmupMessageLocalizer.localizeTask(
+      l10n,
+      progress.currentTask,
+    );
     final percentage = (progress.progress * 100).toInt();
 
     return Padding(
@@ -332,8 +222,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               Flexible(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 260),
-                  child:
-                      _buildProgressBar(theme, primaryColor, progress.progress),
+                  child: _buildProgressBar(
+                    theme,
+                    primaryColor,
+                    progress.progress,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -390,7 +283,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           if (subTaskMessage != null && !progress.isComplete) ...[
             const SizedBox(height: 8),
             Text(
-              _translateSubTaskMessage(context, subTaskMessage),
+              WarmupMessageLocalizer.localizeSubTask(l10n, subTaskMessage),
               style: TextStyle(
                 fontSize: 11,
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
@@ -423,10 +316,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(2),
                   gradient: LinearGradient(
-                    colors: [
-                      primaryColor,
-                      lighterColor,
-                    ],
+                    colors: [primaryColor, lighterColor],
                   ),
                   boxShadow: [
                     BoxShadow(

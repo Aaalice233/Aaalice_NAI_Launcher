@@ -12,10 +12,7 @@ import '../common/floating_label_input.dart';
 class ThirdPartyApiLoginCard extends ConsumerStatefulWidget {
   final VoidCallback? onLoginSuccess;
 
-  const ThirdPartyApiLoginCard({
-    super.key,
-    this.onLoginSuccess,
-  });
+  const ThirdPartyApiLoginCard({super.key, this.onLoginSuccess});
 
   @override
   ConsumerState<ThirdPartyApiLoginCard> createState() =>
@@ -167,10 +164,7 @@ class _ThirdPartyApiLoginCardState
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.error_outline,
-                    color: theme.colorScheme.error,
-                  ),
+                  Icon(Icons.error_outline, color: theme.colorScheme.error),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -276,6 +270,8 @@ class _ThirdPartyApiLoginCardState
       AuthErrorCode.networkError => context.l10n.auth_error_networkError,
       AuthErrorCode.authFailed => context.l10n.auth_error_authFailed,
       AuthErrorCode.tokenInvalid => context.l10n.auth_tokenInvalid,
+      AuthErrorCode.credentialsLoginUnavailable =>
+        context.l10n.auth_error_credentialsLoginUnavailable,
       AuthErrorCode.serverError => context.l10n.auth_error_serverError,
       AuthErrorCode.unknown || null => context.l10n.auth_error_unknown,
     };

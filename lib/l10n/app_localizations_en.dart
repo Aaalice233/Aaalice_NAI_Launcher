@@ -343,6 +343,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_credentialsLogin => 'Email & Password';
 
   @override
+  String get auth_credentialsLoginUnavailable =>
+      'Email/password login is currently unavailable. Please use Token login.';
+
+  @override
   String get auth_credentialsLoginTitle => 'Login with Email';
 
   @override
@@ -478,6 +482,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Token expired, please login again';
 
   @override
+  String get auth_error_credentialsLoginUnavailable =>
+      'Email/password login is currently unavailable';
+
+  @override
+  String get auth_error_credentialsLoginUnavailable_hint =>
+      'NovelAI now requires a web safety check for email/password login. Please use a Persistent API Token instead.';
+
+  @override
   String get auth_error_serverError => 'Server error';
 
   @override
@@ -593,6 +605,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_dataSource => 'Data Source';
+
+  @override
+  String get settings_generation => 'Generation';
 
   @override
   String get settings_queue => 'Queue';
@@ -4149,6 +4164,27 @@ class AppLocalizationsEn extends AppLocalizations {
       'Data source services ready';
 
   @override
+  String warmup_fetchingTags(Object message) {
+    return 'Syncing tags: $message';
+  }
+
+  @override
+  String get warmup_fetchingTagDataFromServer =>
+      'Fetching tag data from server...';
+
+  @override
+  String get warmup_fetchingGeneralTags => 'Fetching general tags...';
+
+  @override
+  String get warmup_fetchingCharacterTags => 'Fetching character tags...';
+
+  @override
+  String get warmup_fetchingCopyrightTags => 'Fetching copyright tags...';
+
+  @override
+  String get warmup_fetchingMetaTags => 'Fetching meta tags...';
+
+  @override
   String get performanceReport_title => 'Startup Performance';
 
   @override
@@ -4515,6 +4551,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get toolbar_randomPrompt => 'Random Prompt';
+
+  @override
+  String get randomPromptToolsHiddenHint =>
+      'Random prompt tools are hidden in Settings';
 
   @override
   String get toolbar_fullscreenEdit => 'Fullscreen Edit';
@@ -9698,6 +9738,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Time to wait between retries';
 
   @override
+  String get settings_showRandomPromptTools => 'Show random prompt tools';
+
+  @override
+  String get settings_showRandomPromptToolsSubtitle =>
+      'Show the Random Prompt button and Random Mode toggle on the generation page';
+
+  @override
   String settings_queueRetryCountMax(Object count) {
     return 'Max $count times';
   }
@@ -12990,6 +13037,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updateChecking => 'Checking for updates...';
 
   @override
+  String get updateDownloading => 'Downloading update...';
+
+  @override
+  String get updateInstalling => 'Starting installer...';
+
+  @override
   String get updateUpToDate => 'Already up to date';
 
   @override
@@ -13005,10 +13058,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get releaseNotes => 'Release Notes';
 
   @override
+  String get updatePortableManualHint =>
+      'Portable builds open the Release page for manual download.';
+
+  @override
+  String updateDownloadingProgress(Object percent) {
+    return 'Downloading update package: $percent%';
+  }
+
+  @override
+  String get updateInstallingHint =>
+      'The installer has started. The app will close shortly.';
+
+  @override
   String get remindMeLater => 'Remind Me Later';
 
   @override
   String get skipThisVersion => 'Skip This Version';
+
+  @override
+  String get updateDownloadAndInstall => 'Download and Install';
 
   @override
   String get goToDownload => 'Go to Download';

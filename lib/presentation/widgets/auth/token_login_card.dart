@@ -14,10 +14,7 @@ class TokenLoginCard extends ConsumerStatefulWidget {
   /// 登录成功回调
   final VoidCallback? onLoginSuccess;
 
-  const TokenLoginCard({
-    super.key,
-    this.onLoginSuccess,
-  });
+  const TokenLoginCard({super.key, this.onLoginSuccess});
 
   @override
   ConsumerState<TokenLoginCard> createState() => _TokenLoginCardState();
@@ -154,10 +151,7 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
                 children: [
                   Row(
                     children: [
-                      Icon(
-                        Icons.error_outline,
-                        color: theme.colorScheme.error,
-                      ),
+                      Icon(Icons.error_outline, color: theme.colorScheme.error),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -314,6 +308,8 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
         return context.l10n.auth_error_authFailed;
       case AuthErrorCode.tokenInvalid:
         return context.l10n.auth_tokenInvalid;
+      case AuthErrorCode.credentialsLoginUnavailable:
+        return context.l10n.auth_error_credentialsLoginUnavailable;
       case AuthErrorCode.serverError:
         return context.l10n.auth_error_serverError;
       case AuthErrorCode.unknown:
@@ -336,6 +332,8 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
         return context.l10n.api_error_401_hint;
       case AuthErrorCode.tokenInvalid:
         return context.l10n.api_error_401_hint;
+      case AuthErrorCode.credentialsLoginUnavailable:
+        return context.l10n.auth_error_credentialsLoginUnavailable_hint;
       case AuthErrorCode.serverError:
         if (httpStatusCode == 503) {
           return context.l10n.api_error_503_hint;
