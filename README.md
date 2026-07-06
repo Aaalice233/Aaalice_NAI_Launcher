@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases"><img src="https://img.shields.io/badge/version-1.0.0--beta13-blue" alt="Version"></a>
+  <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases"><img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version"></a>
   <img src="https://img.shields.io/badge/Flutter-3.44.2-blue?logo=flutter" alt="Flutter">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey" alt="Platforms">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
@@ -146,14 +146,14 @@ scripts/dev_run_macos_signed.sh debug
 发布由 GitHub Actions 的 `Release` workflow 处理。推送 `v*` tag 后，工作流会分别构建 Windows 安装版、Windows 便携版和 macOS 便携版，并生成 `release_manifest.json`、`checksums.txt` 与 Release notes。
 
 ```bash
-git tag v1.0.0-beta13
+git tag v1.0.0
 git push origin main
-git push origin v1.0.0-beta13
+git push origin v1.0.0
 ```
 
 发布前请确保：
 
-- `pubspec.yaml` 版本号已更新；tag 必须匹配去掉 `+build` 后的版本，例如 `1.0.0-beta13+16` 对应 `v1.0.0-beta13`。
+- `pubspec.yaml` 版本号已更新；tag 必须匹配去掉 `+build` 后的版本，例如 `1.0.0+17` 对应 `v1.0.0`。
 - `CHANGELOG.md` 已按 `✨ 新增`、`🛠 改进`、`🐛 修复`、`📦 发布文件` 分类补好。
 - `assets/databases/translation.db` 与 `assets/databases/cooccurrence.db` 是真实 SQLite 文件，不是 Git LFS pointer。
 - Windows 安装器依赖 NSIS；本地打包可运行 `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/package_windows_release.ps1`。
