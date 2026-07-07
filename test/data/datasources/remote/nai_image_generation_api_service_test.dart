@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:archive/archive.dart';
 import 'package:dio/dio.dart';
@@ -27,17 +28,17 @@ void main() {
     final first = service.generateImage(
       const ImageParams(prompt: 'first request'),
     );
-    final firstHandled = first.then<Object?>((_) => null).catchError(
-          (_) => null,
-        );
+    final firstHandled = first
+        .then<Object?>((_) => null)
+        .catchError((_) => null);
     await _waitForRequestCount(adapter, 1);
 
     final second = service.generateImage(
       const ImageParams(prompt: 'second request'),
     );
-    final secondHandled = second.then<Object?>((_) => null).catchError(
-          (_) => null,
-        );
+    final secondHandled = second
+        .then<Object?>((_) => null)
+        .catchError((_) => null);
     await _waitForRequestCount(adapter, 2);
 
     adapter.requests[0].completeWithEmptyZip();
@@ -61,58 +62,60 @@ void main() {
     await secondHandled;
   });
 
-  test('completed older stream request must not clear newer cancel token',
-      () async {
-    final adapter = _PendingDioAdapter();
-    final dio = Dio()..httpClientAdapter = adapter;
-    final endpointService = NaiApiEndpointService();
-    final service = NAIImageGenerationApiService(
-      dio,
-      NAIImageEnhancementApiService(dio, endpointService),
-      endpointService,
-    );
+  test(
+    'completed older stream request must not clear newer cancel token',
+    () async {
+      final adapter = _PendingDioAdapter();
+      final dio = Dio()..httpClientAdapter = adapter;
+      final endpointService = NaiApiEndpointService();
+      final service = NAIImageGenerationApiService(
+        dio,
+        NAIImageEnhancementApiService(dio, endpointService),
+        endpointService,
+      );
 
-    final first = service
-        .generateImageStream(const ImageParams(prompt: 'first stream'))
-        .drain<Object?>();
-    final firstHandled = first.then<Object?>((_) => null).catchError(
-          (_) => null,
-        );
-    await _waitForRequestCount(adapter, 1);
+      final first = service
+          .generateImageStream(const ImageParams(prompt: 'first stream'))
+          .drain<Object?>();
+      final firstHandled = first
+          .then<Object?>((_) => null)
+          .catchError((_) => null);
+      await _waitForRequestCount(adapter, 1);
 
-    final second = service
-        .generateImageStream(const ImageParams(prompt: 'second stream'))
-        .drain<Object?>();
-    final secondHandled = second.then<Object?>((_) => null).catchError(
-          (_) => null,
-        );
-    await _waitForRequestCount(adapter, 2);
+      final second = service
+          .generateImageStream(const ImageParams(prompt: 'second stream'))
+          .drain<Object?>();
+      final secondHandled = second
+          .then<Object?>((_) => null)
+          .catchError((_) => null);
+      await _waitForRequestCount(adapter, 2);
 
-    adapter.requests[0].completeWithError(
-      DioException(
-        requestOptions: adapter.requests[0].options,
-        type: DioExceptionType.cancel,
-      ),
-    );
-    await firstHandled;
+      adapter.requests[0].completeWithError(
+        DioException(
+          requestOptions: adapter.requests[0].options,
+          type: DioExceptionType.cancel,
+        ),
+      );
+      await firstHandled;
 
-    service.cancelGeneration();
+      service.cancelGeneration();
 
-    expect(
-      await adapter.requests[1].cancelledWithin(
-        const Duration(milliseconds: 100),
-      ),
-      isTrue,
-    );
+      expect(
+        await adapter.requests[1].cancelledWithin(
+          const Duration(milliseconds: 100),
+        ),
+        isTrue,
+      );
 
-    adapter.requests[1].completeWithError(
-      DioException(
-        requestOptions: adapter.requests[1].options,
-        type: DioExceptionType.cancel,
-      ),
-    );
-    await secondHandled;
-  });
+      adapter.requests[1].completeWithError(
+        DioException(
+          requestOptions: adapter.requests[1].options,
+          type: DioExceptionType.cancel,
+        ),
+      );
+      await secondHandled;
+    },
+  );
 
   test('stream cancelled before listen must not start a request', () async {
     final adapter = _PendingDioAdapter();
@@ -167,11 +170,7 @@ void main() {
         'step_ix': 0,
         'image': preview,
       },
-      {
-        'event_type': 'final',
-        'samp_ix': 0,
-        'image': finalImage,
-      },
+      {'event_type': 'final', 'samp_ix': 0, 'image': finalImage},
     ]);
 
     final chunks = await chunksFuture.timeout(const Duration(seconds: 2));
@@ -237,16 +236,8 @@ void main() {
     final first = Uint8List.fromList([1]);
     final second = Uint8List.fromList([2]);
     adapter.requests.single.completeWithMsgpackMessages([
-      {
-        'event_type': 'final',
-        'samp_ix': 1,
-        'image': second,
-      },
-      {
-        'event_type': 'final',
-        'samp_ix': 0,
-        'image': first,
-      },
+      {'event_type': 'final', 'samp_ix': 1, 'image': second},
+      {'event_type': 'final', 'samp_ix': 0, 'image': first},
     ]);
 
     final chunks = await chunksFuture.timeout(const Duration(seconds: 2));
@@ -259,8 +250,66 @@ void main() {
     expect(chunks.any((chunk) => chunk.hasError), isFalse);
   });
 
-  test('stream inpaint final preserves source outside composite mask',
-      () async {
+  test(
+    'stream inpaint final preserves source outside composite mask',
+    () async {
+      final adapter = _PendingDioAdapter();
+      final dio = Dio()..httpClientAdapter = adapter;
+      final endpointService = NaiApiEndpointService();
+      final service = NAIImageGenerationApiService(
+        dio,
+        NAIImageEnhancementApiService(dio, endpointService),
+        endpointService,
+      );
+
+      final source = _solidPng(width: 256, height: 256, r: 10, g: 20, b: 30);
+      final mask = _rectMaskPng(
+        width: 256,
+        height: 256,
+        x: 120,
+        y: 120,
+        rectWidth: 16,
+        rectHeight: 16,
+      );
+      final generated = _solidPng(
+        width: 256,
+        height: 256,
+        r: 200,
+        g: 210,
+        b: 220,
+      );
+
+      final chunksFuture = service
+          .generateImageStream(
+            ImageParams(
+              action: ImageGenerationAction.infill,
+              model: 'nai-diffusion-4-5-full-inpainting',
+              width: 256,
+              height: 256,
+              sourceImage: source,
+              maskImage: mask,
+            ),
+          )
+          .toList();
+      await _waitForRequestCount(adapter, 1);
+
+      adapter.requests.single.completeWithMsgpackMessages([
+        {'event_type': 'final', 'samp_ix': 0, 'image': generated},
+      ]);
+
+      final chunks = await chunksFuture.timeout(const Duration(seconds: 2));
+      final decoded = img.decodeImage(chunks.single.finalImage!)!;
+
+      expect(decoded.getPixel(0, 0).r.toInt(), equals(10));
+      expect(decoded.getPixel(0, 0).g.toInt(), equals(20));
+      expect(decoded.getPixel(0, 0).b.toInt(), equals(30));
+      expect(decoded.getPixel(128, 128).r.toInt(), greaterThan(190));
+      expect(decoded.getPixel(128, 128).g.toInt(), greaterThan(200));
+      expect(decoded.getPixel(128, 128).b.toInt(), greaterThan(210));
+    },
+  );
+
+  test('focused stream preview keeps raw crop and carries placement', () async {
     final adapter = _PendingDioAdapter();
     final dio = Dio()..httpClientAdapter = adapter;
     final endpointService = NaiApiEndpointService();
@@ -274,13 +323,25 @@ void main() {
     final mask = _rectMaskPng(
       width: 256,
       height: 256,
-      x: 120,
-      y: 120,
-      rectWidth: 16,
-      rectHeight: 16,
+      x: 96,
+      y: 96,
+      rectWidth: 64,
+      rectHeight: 64,
     );
-    final generated =
-        _solidPng(width: 256, height: 256, r: 200, g: 210, b: 220);
+    final previewCrop = _solidPng(
+      width: 128,
+      height: 128,
+      r: 120,
+      g: 130,
+      b: 140,
+    );
+    final finalCrop = _solidPng(
+      width: 128,
+      height: 128,
+      r: 220,
+      g: 230,
+      b: 240,
+    );
 
     final chunksFuture = service
         .generateImageStream(
@@ -292,27 +353,43 @@ void main() {
             sourceImage: source,
             maskImage: mask,
           ),
+          focusedInpaintEnabled: true,
+          minimumContextMegaPixels: 32,
+          focusedSelectionRect: const Rect.fromLTWH(96, 96, 64, 64),
         )
         .toList();
     await _waitForRequestCount(adapter, 1);
 
     adapter.requests.single.completeWithMsgpackMessages([
       {
-        'event_type': 'final',
+        'event_type': 'intermediate',
         'samp_ix': 0,
-        'image': generated,
+        'step_ix': 0,
+        'image': previewCrop,
       },
+      {'event_type': 'final', 'samp_ix': 0, 'image': finalCrop},
     ]);
 
     final chunks = await chunksFuture.timeout(const Duration(seconds: 2));
-    final decoded = img.decodeImage(chunks.single.finalImage!)!;
+    final preview = chunks.first;
+    final placement = preview.focusedPreviewPlacement;
+    final decodedFinal = img.decodeImage(chunks.last.finalImage!)!;
 
-    expect(decoded.getPixel(0, 0).r.toInt(), equals(10));
-    expect(decoded.getPixel(0, 0).g.toInt(), equals(20));
-    expect(decoded.getPixel(0, 0).b.toInt(), equals(30));
-    expect(decoded.getPixel(128, 128).r.toInt(), greaterThan(190));
-    expect(decoded.getPixel(128, 128).g.toInt(), greaterThan(200));
-    expect(decoded.getPixel(128, 128).b.toInt(), greaterThan(210));
+    expect(chunks, hasLength(2));
+    expect(preview.hasPreview, isTrue);
+    expect(preview.previewImage, orderedEquals(previewCrop));
+    expect(placement, isNotNull);
+    expect(placement!.sourceImage, orderedEquals(source));
+    expect(placement.xPercent, closeTo(0.25, 0.001));
+    expect(placement.yPercent, closeTo(0.25, 0.001));
+    expect(placement.widthPercent, closeTo(0.5, 0.001));
+    expect(placement.heightPercent, closeTo(0.5, 0.001));
+    expect(decodedFinal.width, equals(256));
+    expect(decodedFinal.height, equals(256));
+    expect(decodedFinal.getPixel(0, 0).r.toInt(), equals(10));
+    expect(decodedFinal.getPixel(128, 128).r.toInt(), greaterThan(210));
+    expect(decodedFinal.getPixel(128, 128).g.toInt(), greaterThan(220));
+    expect(decodedFinal.getPixel(128, 128).b.toInt(), greaterThan(230));
   });
 
   test('stream outpaint final preserves official raw service image', () async {
@@ -334,8 +411,13 @@ void main() {
       rectWidth: 32,
       rectHeight: 256,
     );
-    final generated =
-        _solidPng(width: 256, height: 256, r: 200, g: 210, b: 220);
+    final generated = _solidPng(
+      width: 256,
+      height: 256,
+      r: 200,
+      g: 210,
+      b: 220,
+    );
 
     final chunksFuture = service
         .generateImageStream(
@@ -353,11 +435,7 @@ void main() {
     await _waitForRequestCount(adapter, 1);
 
     adapter.requests.single.completeWithMsgpackMessages([
-      {
-        'event_type': 'final',
-        'samp_ix': 0,
-        'image': generated,
-      },
+      {'event_type': 'final', 'samp_ix': 0, 'image': generated},
     ]);
 
     final chunks = await chunksFuture.timeout(const Duration(seconds: 2));
@@ -397,9 +475,7 @@ void main() {
     final dio = Dio();
     final endpointService = NaiApiEndpointService()
       ..setCurrent(
-        NaiApiEndpointConfig.fromInput(
-          mainBaseUrl: '127.0.0.1:${server.port}',
-        ),
+        NaiApiEndpointConfig.fromInput(mainBaseUrl: '127.0.0.1:${server.port}'),
       );
     final service = NAIImageGenerationApiService(
       dio,

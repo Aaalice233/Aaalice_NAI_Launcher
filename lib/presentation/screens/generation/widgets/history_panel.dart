@@ -111,8 +111,12 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       children: [
         // 标题栏
         Padding(
-          padding:
-              const EdgeInsets.only(left: 8, right: 4, top: 12, bottom: 12),
+          padding: const EdgeInsets.only(
+            left: 8,
+            right: 4,
+            top: 12,
+            bottom: 12,
+          ),
           child: Row(
             children: [
               // 折叠按钮
@@ -131,8 +135,10 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                   state.currentImages.isNotEmpty) ...[
                 const SizedBox(width: 4),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(10),
@@ -166,7 +172,8 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                         : Icons.select_all,
                     size: 20,
                   ),
-                  tooltip: _selectedIds.length ==
+                  tooltip:
+                      _selectedIds.length ==
                           _getAllSelectableImages(state).length
                       ? context.l10n.common_deselectAll
                       : context.l10n.common_selectAll,
@@ -225,8 +232,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         child: Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest
-                .withValues(alpha: 0.5),
+            color: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.5,
+            ),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Icon(
@@ -268,12 +276,14 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     final currentIds = currentCompleted.map((img) => img.id).toSet();
 
     // 从历史中过滤掉已在 currentImages 中的图像
-    final deduplicatedHistory =
-        state.history.where((img) => !currentIds.contains(img.id)).toList();
-
-    return [...currentCompleted, ...deduplicatedHistory]
-        .where((image) => image.canBulkSelect)
+    final deduplicatedHistory = state.history
+        .where((img) => !currentIds.contains(img.id))
         .toList();
+
+    return [
+      ...currentCompleted,
+      ...deduplicatedHistory,
+    ].where((image) => image.canBulkSelect).toList();
   }
 
   /// 判断是否有当前正在生成的图像
@@ -287,7 +297,8 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   ) {
     final images = _getAllSelectableImages(state);
     final imageIds = images.map((image) => image.id).toSet();
-    final maintenanceKey = '${stripMetadata ? 'strip' : 'raw'}:'
+    final maintenanceKey =
+        '${stripMetadata ? 'strip' : 'raw'}:'
         '${imageIds.join('|')}';
 
     if (_lastSharePreparationMaintenanceKey == maintenanceKey) {
@@ -378,10 +389,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     });
   }
 
-  void _scheduleHoverPreheat(
-    GeneratedImage image,
-    bool stripMetadata,
-  ) {
+  void _scheduleHoverPreheat(GeneratedImage image, bool stripMetadata) {
     if (!image.canDrag) {
       return;
     }
@@ -479,8 +487,8 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     // 使用批次分辨率（点击生成时捕获），fallback 到全局参数
     final batchAspectRatio =
         (state.batchWidth != null && state.batchHeight != null)
-            ? state.batchWidth! / state.batchHeight!
-            : previewDimensions.width / previewDimensions.height;
+        ? state.batchWidth! / state.batchHeight!
+        : previewDimensions.width / previewDimensions.height;
 
     // 计算当前生成区块的项目数
     final currentGenerationCount = _getCurrentGenerationCount(state);
@@ -492,16 +500,15 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     }
 
     // 从历史中过滤掉已在 currentImages 中显示的图像
-    final deduplicatedHistory =
-        history.where((img) => !currentImageIds.contains(img.id)).toList();
+    final deduplicatedHistory = history
+        .where((img) => !currentImageIds.contains(img.id))
+        .toList();
 
     final totalCount = currentGenerationCount + deduplicatedHistory.length;
 
     return NotificationListener<ScrollNotification>(
-      onNotification: (notification) => _handleHistoryScrollNotification(
-        notification,
-        stripMetadata,
-      ),
+      onNotification: (notification) =>
+          _handleHistoryScrollNotification(notification, stripMetadata),
       child: ListView.builder(
         padding: const EdgeInsets.all(8),
         itemCount: totalCount,
@@ -581,82 +588,82 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                   shareWarmupEnabled: false,
                   onReversePrompt: historyImage.canUseAsGenerationInput
                       ? () => unawaited(
-                            _sendHistoryImageToReversePrompt(
-                              context,
-                              historyImage,
-                            ),
-                          )
+                          _sendHistoryImageToReversePrompt(
+                            context,
+                            historyImage,
+                          ),
+                        )
                       : null,
                   onImageToImage: historyImage.canUseAsGenerationInput
                       ? () => _sendHistoryImageToImageToImage(
-                            context,
-                            historyImage,
-                          )
+                          context,
+                          historyImage,
+                        )
                       : null,
                   onVibeTransfer: historyImage.canUseAsGenerationInput
                       ? () => unawaited(
-                            _sendHistoryImageToVibeTransfer(
-                              context,
-                              historyImage,
-                            ),
-                          )
+                          _sendHistoryImageToVibeTransfer(
+                            context,
+                            historyImage,
+                          ),
+                        )
                       : null,
                   onPreciseReference: historyImage.canUseAsGenerationInput
                       ? () => unawaited(
-                            _sendHistoryImageToPreciseReference(
-                              context,
-                              historyImage,
-                            ),
-                          )
+                          _sendHistoryImageToPreciseReference(
+                            context,
+                            historyImage,
+                          ),
+                        )
                       : null,
                   onEditImage: historyImage.canUseAsGenerationInput
                       ? () => ImageWorkflowLauncher.openEditor(
-                            context,
-                            ref,
-                            historyImage.bytes,
-                            mode: ImageEditorMode.edit,
-                          )
+                          context,
+                          ref,
+                          historyImage.bytes,
+                          mode: ImageEditorMode.edit,
+                        )
                       : null,
                   onInpaint: historyImage.canUseAsGenerationInput
                       ? () => ImageWorkflowLauncher.openInpaint(
-                            context,
-                            ref,
-                            historyImage.bytes,
-                          )
+                          context,
+                          ref,
+                          historyImage.bytes,
+                        )
                       : null,
                   onGenerateVariations: historyImage.canUseAsGenerationInput
                       ? () => ImageWorkflowLauncher.generateVariations(
-                            context,
-                            ref,
-                            historyImage.bytes,
-                          )
+                          context,
+                          ref,
+                          historyImage.bytes,
+                        )
                       : null,
                   onDirectorTools: historyImage.canUseAsGenerationInput
                       ? () => ImageWorkflowLauncher.openDirectorTools(
-                            context,
-                            ref,
-                            historyImage.bytes,
-                          )
+                          context,
+                          ref,
+                          historyImage.bytes,
+                        )
                       : null,
                   onEnhance: historyImage.canUseAsGenerationInput
                       ? () => ImageWorkflowLauncher.openEnhance(
-                            ref,
-                            historyImage.bytes,
-                          )
+                          ref,
+                          historyImage.bytes,
+                        )
                       : null,
                   onUpscale: historyImage.canUseAsGenerationInput
                       ? () => ImageWorkflowLauncher.openUpscale(
-                            ref,
-                            historyImage.bytes,
-                          )
+                          ref,
+                          historyImage.bytes,
+                        )
                       : null,
                   onSendToKrita: historyImage.canUseAsGenerationInput
                       ? () => KritaSendHelper.sendImageBytes(
-                            context,
-                            ref,
-                            historyImage.bytes,
-                            name: 'history_${historyImage.id}.png',
-                          )
+                          context,
+                          ref,
+                          historyImage.bytes,
+                          name: 'history_${historyImage.id}.png',
+                        )
                       : null,
                   onOpenInExplorer: historyImage.canSave
                       ? () => _openImageInExplorer(context, historyImage)
@@ -700,8 +707,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         requirePreparedDragFile: true,
         preparedDragFile: preparedFile,
         preparedDragStripMetadata: preparedFile == null ? null : stripMetadata,
-        disabledReason:
-            preparedFile == null ? _dragDisabledReason(snapshot) : null,
+        disabledReason: preparedFile == null
+            ? _dragDisabledReason(snapshot)
+            : null,
         child: childBuilder(dragPreparationReady),
       ),
     );
@@ -769,63 +777,45 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
           hoverEffectsEnabled: !_isHistoryScrolling,
           shareWarmupEnabled: false,
           onReversePrompt: image.canUseAsGenerationInput
-              ? () => unawaited(
-                    _sendHistoryImageToReversePrompt(
-                      context,
-                      image,
-                    ),
-                  )
+              ? () =>
+                    unawaited(_sendHistoryImageToReversePrompt(context, image))
               : null,
           onImageToImage: image.canUseAsGenerationInput
-              ? () => _sendHistoryImageToImageToImage(
-                    context,
-                    image,
-                  )
+              ? () => _sendHistoryImageToImageToImage(context, image)
               : null,
           onVibeTransfer: image.canUseAsGenerationInput
-              ? () => unawaited(
-                    _sendHistoryImageToVibeTransfer(
-                      context,
-                      image,
-                    ),
-                  )
+              ? () => unawaited(_sendHistoryImageToVibeTransfer(context, image))
               : null,
           onPreciseReference: image.canUseAsGenerationInput
               ? () => unawaited(
-                    _sendHistoryImageToPreciseReference(
-                      context,
-                      image,
-                    ),
-                  )
+                  _sendHistoryImageToPreciseReference(context, image),
+                )
               : null,
           onEditImage: image.canUseAsGenerationInput
               ? () => ImageWorkflowLauncher.openEditor(
-                    context,
-                    ref,
-                    imageBytes,
-                    mode: ImageEditorMode.edit,
-                  )
+                  context,
+                  ref,
+                  imageBytes,
+                  mode: ImageEditorMode.edit,
+                )
               : null,
           onInpaint: image.canUseAsGenerationInput
-              ? () => ImageWorkflowLauncher.openInpaint(
-                    context,
-                    ref,
-                    imageBytes,
-                  )
+              ? () =>
+                    ImageWorkflowLauncher.openInpaint(context, ref, imageBytes)
               : null,
           onGenerateVariations: image.canUseAsGenerationInput
               ? () => ImageWorkflowLauncher.generateVariations(
-                    context,
-                    ref,
-                    imageBytes,
-                  )
+                  context,
+                  ref,
+                  imageBytes,
+                )
               : null,
           onDirectorTools: image.canUseAsGenerationInput
               ? () => ImageWorkflowLauncher.openDirectorTools(
-                    context,
-                    ref,
-                    imageBytes,
-                  )
+                  context,
+                  ref,
+                  imageBytes,
+                )
               : null,
           onEnhance: image.canUseAsGenerationInput
               ? () => ImageWorkflowLauncher.openEnhance(ref, imageBytes)
@@ -835,14 +825,15 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
               : null,
           onSendToKrita: image.canUseAsGenerationInput
               ? () => KritaSendHelper.sendImageBytes(
-                    context,
-                    ref,
-                    image.bytes,
-                    name: 'history_${image.id}.png',
-                  )
+                  context,
+                  ref,
+                  image.bytes,
+                  name: 'history_${image.id}.png',
+                )
               : null,
-          onOpenInExplorer:
-              image.canSave ? () => _openImageInExplorer(context, image) : null,
+          onOpenInExplorer: image.canSave
+              ? () => _openImageInExplorer(context, image)
+              : null,
           onSaveToLibrary: image.canUseAsGenerationInput
               ? (bytes, _) => _showSaveToLibraryDialog(context, bytes)
               : null,
@@ -862,6 +853,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
           totalImages: slot.totalImages,
           progress: slot.progress,
           streamPreview: slot.previewBytes,
+          focusedPreviewPlacement: slot.focusedPreviewPlacement,
           imageWidth: imageWidth,
           imageHeight: imageHeight,
           enableSelection: false,
@@ -876,6 +868,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
           totalImages: state.totalImages,
           progress: state.progress,
           streamPreview: state.streamPreview,
+          focusedPreviewPlacement: state.focusedPreviewPlacement,
           imageWidth: imageWidth,
           imageHeight: imageHeight,
           enableSelection: false,
@@ -929,8 +922,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
             _favoriteStates[image.id] = isFavorite;
             _favoriteStatusLoadingIds.remove(image.id);
           });
-        }()
-            .catchError((Object error, StackTrace stack) {
+        }().catchError((Object error, StackTrace stack) {
           if (!mounted) return;
           setState(() {
             _favoriteStatusLoadingIds.remove(image.id);
@@ -1003,9 +995,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     ref
         .read(imageGenerationNotifierProvider.notifier)
         .updateImageFilePath(image.id, file.path);
-    await ref
-        .read(localGalleryNotifierProvider.notifier)
-        .addNewlySavedImages([file.path]);
+    await ref.read(localGalleryNotifierProvider.notifier).addNewlySavedImages([
+      file.path,
+    ]);
 
     return file.path;
   }
@@ -1025,10 +1017,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     final l10n = context.l10n;
 
     try {
-      await ref.read(reversePromptProvider.notifier).addImage(
-            image.bytes,
-            name: _historyImageFileName(image),
-          );
+      await ref
+          .read(reversePromptProvider.notifier)
+          .addImage(image.bytes, name: _historyImageFileName(image));
 
       if (!context.mounted) return;
       AppToast.success(context, l10n.drop_addedToReversePrompt);
@@ -1075,8 +1066,8 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       final message = currentCount > 0
           ? l10n.toast_appendedStyleReferences(vibes.length)
           : vibes.length == 1
-              ? l10n.drop_addedToVibe
-              : l10n.drop_addedMultipleToVibe(vibes.length);
+          ? l10n.drop_addedToVibe
+          : l10n.drop_addedMultipleToVibe(vibes.length);
       AppToast.success(context, message);
     } catch (e) {
       if (context.mounted) {
@@ -1120,9 +1111,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         border: Border(
-          top: BorderSide(
-            color: theme.dividerColor.withValues(alpha: 0.3),
-          ),
+          top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.3)),
         ),
       ),
       child: Row(
@@ -1133,9 +1122,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
               onPressed: () => _packSelectedImages(context, state),
               icon: const Icon(Icons.archive_outlined, size: 20),
               label: Text('打包 (${_selectedIds.length})'),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(0, 44),
-              ),
+              style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
             ),
           ),
           const SizedBox(width: 8),
@@ -1144,11 +1131,10 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
             child: FilledButton.icon(
               onPressed: () => _saveSelectedImages(context, state),
               icon: const Icon(Icons.save_alt, size: 20),
-              label:
-                  Text('${context.l10n.image_save} (${_selectedIds.length})'),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(0, 44),
+              label: Text(
+                '${context.l10n.image_save} (${_selectedIds.length})',
               ),
+              style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
             ),
           ),
         ],
@@ -1174,8 +1160,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
 
       // 从所有可选图像中查找选中的图像
       final allImages = _getAllSelectableImages(state);
-      final selectedImages =
-          allImages.where((img) => _selectedIds.contains(img.id)).toList();
+      final selectedImages = allImages
+          .where((img) => _selectedIds.contains(img.id))
+          .toList();
 
       for (int i = 0; i < selectedImages.length; i++) {
         final fileName = 'NAI_${timestamp}_${i + 1}.png';
@@ -1217,8 +1204,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     if (outputPath == null || !context.mounted) return;
 
     // 确保文件名以 .zip 结尾
-    final finalPath =
-        outputPath.endsWith('.zip') ? outputPath : '$outputPath.zip';
+    final finalPath = outputPath.endsWith('.zip')
+        ? outputPath
+        : '$outputPath.zip';
 
     // 显示打包进度
     AppToast.info(
@@ -1232,8 +1220,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       final imagePaths = <String>[];
 
       final allImages = _getAllSelectableImages(state);
-      final selectedImages =
-          allImages.where((img) => _selectedIds.contains(img.id)).toList();
+      final selectedImages = allImages
+          .where((img) => _selectedIds.contains(img.id))
+          .toList();
 
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       for (int i = 0; i < selectedImages.length; i++) {
@@ -1244,10 +1233,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       }
 
       // 执行打包
-      final success = await ZipUtils.createZipFromImages(
-        imagePaths,
-        finalPath,
-      );
+      final success = await ZipUtils.createZipFromImages(imagePaths, finalPath);
 
       // 清理临时文件
       await tempDir.delete(recursive: true);
@@ -1358,10 +1344,10 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       callbacks: ImageDetailCallbacks(
         onSave: image.canSave
             ? (img) => GenerationSaveService.saveImageFromDetail(
-                  currentContext,
-                  ref,
-                  img,
-                )
+                currentContext,
+                ref,
+                img,
+              )
             : null,
       ),
     );
@@ -1376,8 +1362,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     String prompt = '';
 
     try {
-      final extractedMeta =
-          await ImageMetadataService().getMetadataFromBytes(bytes);
+      final extractedMeta = await ImageMetadataService().getMetadataFromBytes(
+        bytes,
+      );
       if (extractedMeta != null && extractedMeta.prompt.isNotEmpty) {
         prompt = extractedMeta.prompt;
       }

@@ -3,11 +3,9 @@ import 'dart:typed_data';
 import 'package:uuid/uuid.dart';
 
 import '../../../data/models/gallery/nai_image_metadata.dart';
+import '../../../data/models/image/image_stream_chunk.dart';
 
-enum GeneratedImageKind {
-  completed,
-  failedStreamSnapshot,
-}
+enum GeneratedImageKind { completed, failedStreamSnapshot }
 
 /// 生成的图像（带唯一ID）
 class GeneratedImage {
@@ -94,13 +92,7 @@ class GeneratedImage {
 }
 
 /// 生成状态
-enum GenerationStatus {
-  idle,
-  generating,
-  completed,
-  error,
-  cancelled,
-}
+enum GenerationStatus { idle, generating, completed, error, cancelled }
 
 /// 单个流式预览槽位。
 class StreamPreviewSlot {
@@ -109,24 +101,31 @@ class StreamPreviewSlot {
     required this.totalImages,
     required this.progress,
     this.previewBytes,
+    this.focusedPreviewPlacement,
   });
 
   final int imageNumber;
   final int totalImages;
   final double progress;
   final Uint8List? previewBytes;
+  final FocusedStreamPreviewPlacement? focusedPreviewPlacement;
 
   StreamPreviewSlot copyWith({
     int? imageNumber,
     int? totalImages,
     double? progress,
     Uint8List? previewBytes,
+    FocusedStreamPreviewPlacement? focusedPreviewPlacement,
+    bool clearFocusedPreviewPlacement = false,
   }) {
     return StreamPreviewSlot(
       imageNumber: imageNumber ?? this.imageNumber,
       totalImages: totalImages ?? this.totalImages,
       progress: progress ?? this.progress,
       previewBytes: previewBytes ?? this.previewBytes,
+      focusedPreviewPlacement: clearFocusedPreviewPlacement
+          ? null
+          : (focusedPreviewPlacement ?? this.focusedPreviewPlacement),
     );
   }
 }
@@ -143,6 +142,9 @@ class ImageGenerationState {
 
   /// 流式预览图像（渐进式生成过程中的最新预览）
   final Uint8List? streamPreview;
+
+  /// Focused inpaint 当前流式预览在原始图上的覆盖位置。
+  final FocusedStreamPreviewPlacement? focusedPreviewPlacement;
 
   /// 当前请求中的流式预览槽位（用于一次请求多张时稳定历史位置）。
   final List<StreamPreviewSlot> streamPreviewSlots;
@@ -167,6 +169,7 @@ class ImageGenerationState {
     this.currentImage = 0,
     this.totalImages = 0,
     this.streamPreview,
+    this.focusedPreviewPlacement,
     this.streamPreviewSlots = const [],
     this.batchWidth,
     this.batchHeight,
@@ -184,8 +187,10 @@ class ImageGenerationState {
     int? currentImage,
     int? totalImages,
     Uint8List? streamPreview,
+    FocusedStreamPreviewPlacement? focusedPreviewPlacement,
     List<StreamPreviewSlot>? streamPreviewSlots,
     bool clearStreamPreview = false,
+    bool clearFocusedPreviewPlacement = false,
     int? batchWidth,
     int? batchHeight,
     List<GeneratedImage>? displayImages,
@@ -200,8 +205,13 @@ class ImageGenerationState {
       progress: progress ?? this.progress,
       currentImage: currentImage ?? this.currentImage,
       totalImages: totalImages ?? this.totalImages,
-      streamPreview:
-          clearStreamPreview ? null : (streamPreview ?? this.streamPreview),
+      streamPreview: clearStreamPreview
+          ? null
+          : (streamPreview ?? this.streamPreview),
+      focusedPreviewPlacement:
+          clearStreamPreview || clearFocusedPreviewPlacement
+          ? null
+          : (focusedPreviewPlacement ?? this.focusedPreviewPlacement),
       streamPreviewSlots: clearStreamPreview
           ? (streamPreviewSlots ?? const [])
           : (streamPreviewSlots ?? this.streamPreviewSlots),

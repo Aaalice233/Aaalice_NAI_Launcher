@@ -16,6 +16,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/prompt_preset_resolution.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
 import '../../../../data/models/character/character_prompt.dart';
+import '../../../../data/models/image/image_stream_chunk.dart';
 import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../../data/services/alias_resolver_service.dart';
 import '../../../../data/services/image_metadata_service.dart';
@@ -190,6 +191,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     required int totalImages,
     required double progress,
     Uint8List? streamPreview,
+    FocusedStreamPreviewPlacement? focusedPreviewPlacement,
   }) {
     return SelectableImageCard(
       isGenerating: true,
@@ -197,6 +199,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       totalImages: totalImages,
       progress: progress,
       streamPreview: streamPreview,
+      focusedPreviewPlacement: focusedPreviewPlacement,
       imageWidth: imageWidth,
       imageHeight: imageHeight,
       enableSelection: false,
@@ -299,6 +302,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
                 totalImages: slot.totalImages,
                 progress: slot.progress,
                 streamPreview: slot.previewBytes,
+                focusedPreviewPlacement: slot.focusedPreviewPlacement,
               );
             }
 
@@ -309,6 +313,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
               totalImages: state.totalImages,
               progress: state.progress,
               streamPreview: state.streamPreview,
+              focusedPreviewPlacement: state.focusedPreviewPlacement,
             );
           },
         );
@@ -336,6 +341,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         totalImages: slot?.totalImages ?? state.totalImages,
         progress: slot?.progress ?? state.progress,
         streamPreview: slot?.previewBytes ?? state.streamPreview,
+        focusedPreviewPlacement:
+            slot?.focusedPreviewPlacement ?? state.focusedPreviewPlacement,
       ),
     );
   }

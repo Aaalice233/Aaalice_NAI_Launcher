@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -39,9 +40,7 @@ class TestSubscriptionNotifier extends SubscriptionNotifier {
       UserSubscription(
         tier: 3,
         active: true,
-        trainingStepsLeft: TrainingStepsInfo(
-          fixedTrainingStepsLeft: 10000,
-        ),
+        trainingStepsLeft: TrainingStepsInfo(fixedTrainingStepsLeft: 10000),
       ),
     );
   }
@@ -121,295 +120,328 @@ void main() {
       expect(savedCopy.canSave, isFalse);
     });
 
-    test('generate applies positive and negative fixed tags before request',
-        () async {
-      final mockApiService = MockNAIImageGenerationApiService();
-      ImageParams? capturedParams;
+    test(
+      'generate applies positive and negative fixed tags before request',
+      () async {
+        final mockApiService = MockNAIImageGenerationApiService();
+        ImageParams? capturedParams;
 
-      when(
-        () => mockApiService.generateImage(
-          any(),
-          onProgress: any(named: 'onProgress'),
-          focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
-          minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
-          focusedSelectionRect: any(named: 'focusedSelectionRect'),
-        ),
-      ).thenAnswer((invocation) async {
-        capturedParams = invocation.positionalArguments.first as ImageParams;
-        return ([_validImageBytes(width: 512, height: 768)], <int, String>{});
-      });
-      when(
-        () => mockApiService.generateImageStream(
-          any(),
-          focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
-          minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
-          focusedSelectionRect: any(named: 'focusedSelectionRect'),
-        ),
-      ).thenAnswer((_) => const Stream.empty());
+        when(
+          () => mockApiService.generateImage(
+            any(),
+            onProgress: any(named: 'onProgress'),
+            focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+            minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+            focusedSelectionRect: any(named: 'focusedSelectionRect'),
+          ),
+        ).thenAnswer((invocation) async {
+          capturedParams = invocation.positionalArguments.first as ImageParams;
+          return ([_validImageBytes(width: 512, height: 768)], <int, String>{});
+        });
+        when(
+          () => mockApiService.generateImageStream(
+            any(),
+            focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+            minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+            focusedSelectionRect: any(named: 'focusedSelectionRect'),
+          ),
+        ).thenAnswer((_) => const Stream.empty());
 
-      final fixedEntries = [
-        FixedTagEntry.create(
-          name: 'positive-prefix',
-          content: 'masterpiece',
-          position: FixedTagPosition.prefix,
-          sortOrder: 0,
-        ),
-        FixedTagEntry.create(
-          name: 'positive-suffix',
-          content: 'cinematic lighting',
-          position: FixedTagPosition.suffix,
-          sortOrder: 1,
-        ),
-        FixedTagEntry.create(
-          name: 'negative-prefix',
-          content: 'bad anatomy',
-          position: FixedTagPosition.prefix,
-          promptType: FixedTagPromptType.negative,
-          sortOrder: 2,
-        ),
-        FixedTagEntry.create(
-          name: 'negative-suffix',
-          content: 'text',
-          position: FixedTagPosition.suffix,
-          promptType: FixedTagPromptType.negative,
-          sortOrder: 3,
-        ),
-      ];
-      await Hive.box(StorageKeys.settingsBox).put(
-        StorageKeys.fixedTagsData,
-        jsonEncode(fixedEntries.map((entry) => entry.toJson()).toList()),
-      );
+        final fixedEntries = [
+          FixedTagEntry.create(
+            name: 'positive-prefix',
+            content: 'masterpiece',
+            position: FixedTagPosition.prefix,
+            sortOrder: 0,
+          ),
+          FixedTagEntry.create(
+            name: 'positive-suffix',
+            content: 'cinematic lighting',
+            position: FixedTagPosition.suffix,
+            sortOrder: 1,
+          ),
+          FixedTagEntry.create(
+            name: 'negative-prefix',
+            content: 'bad anatomy',
+            position: FixedTagPosition.prefix,
+            promptType: FixedTagPromptType.negative,
+            sortOrder: 2,
+          ),
+          FixedTagEntry.create(
+            name: 'negative-suffix',
+            content: 'text',
+            position: FixedTagPosition.suffix,
+            promptType: FixedTagPromptType.negative,
+            sortOrder: 3,
+          ),
+        ];
+        await Hive.box(StorageKeys.settingsBox).put(
+          StorageKeys.fixedTagsData,
+          jsonEncode(fixedEntries.map((entry) => entry.toJson()).toList()),
+        );
 
-      container.dispose();
-      container = ProviderContainer(
-        overrides: [
-          naiImageGenerationApiServiceProvider
-              .overrideWithValue(mockApiService),
-        ],
-      );
-      await container
-          .read(notificationSettingsNotifierProvider.notifier)
-          .setSoundEnabled(false);
+        container.dispose();
+        container = ProviderContainer(
+          overrides: [
+            naiImageGenerationApiServiceProvider.overrideWithValue(
+              mockApiService,
+            ),
+          ],
+        );
+        await container
+            .read(notificationSettingsNotifierProvider.notifier)
+            .setSoundEnabled(false);
 
-      final params = container.read(generationParamsNotifierProvider).copyWith(
-            prompt: '1girl',
-            negativePrompt: 'bad hands',
-          );
-      await container.read(imageGenerationNotifierProvider.notifier).generate(
-            params,
-          );
+        final params = container
+            .read(generationParamsNotifierProvider)
+            .copyWith(prompt: '1girl', negativePrompt: 'bad hands');
+        await container
+            .read(imageGenerationNotifierProvider.notifier)
+            .generate(params);
 
-      expect(capturedParams, isNotNull);
-      expect(
-        capturedParams!.prompt,
-        equals('masterpiece, 1girl, cinematic lighting'),
-      );
-      expect(
-        capturedParams!.negativePrompt,
-        equals('bad anatomy, bad hands, text'),
-      );
-    });
-
-    test('imagesPerRequest sends one multi-sample request per repeat',
-        () async {
-      final mockApiService = MockNAIImageGenerationApiService();
-      final firstImage = _validImageBytes(width: 512, height: 768);
-      final secondImage = _validImageBytes(width: 512, height: 768);
-      final thirdImage = _validImageBytes(width: 512, height: 768);
-      final requestSampleCounts = <int>[];
-
-      when(
-        () => mockApiService.generateImage(
-          any(),
-          onProgress: any(named: 'onProgress'),
-          focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
-          minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
-          focusedSelectionRect: any(named: 'focusedSelectionRect'),
-        ),
-      ).thenAnswer((_) async => fail('non-stream fallback was not expected'));
-      when(
-        () => mockApiService.generateImageCancellable(
-          any(),
-          onProgress: any(named: 'onProgress'),
-          focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
-          minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
-          focusedSelectionRect: any(named: 'focusedSelectionRect'),
-        ),
-      ).thenAnswer((_) async => fail('cancellable fallback was not expected'));
-      when(
-        () => mockApiService.generateImageStream(
-          any(),
-          focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
-          minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
-          focusedSelectionRect: any(named: 'focusedSelectionRect'),
-        ),
-      ).thenAnswer((invocation) {
-        final params = invocation.positionalArguments.first as ImageParams;
-        requestSampleCounts.add(params.nSamples);
-        return Stream<ImageStreamChunk>.fromIterable([
-          ImageStreamChunk.complete(firstImage, sampleIndex: 0),
-          ImageStreamChunk.complete(secondImage, sampleIndex: 1),
-          ImageStreamChunk.complete(thirdImage, sampleIndex: 2),
-        ]);
-      });
-
-      container.dispose();
-      container = ProviderContainer(
-        overrides: [
-          naiImageGenerationApiServiceProvider
-              .overrideWithValue(mockApiService),
-          subscriptionNotifierProvider
-              .overrideWith(TestSubscriptionNotifier.new),
-        ],
-      );
-      await container
-          .read(notificationSettingsNotifierProvider.notifier)
-          .setSoundEnabled(false);
-      await container
-          .read(imageSaveSettingsNotifierProvider.notifier)
-          .setAutoSave(false);
-      container.read(imagesPerRequestProvider.notifier).set(3);
-
-      final params = container.read(generationParamsNotifierProvider).copyWith(
-            prompt: 'multi sample',
-            width: 512,
-            height: 768,
-            nSamples: 2,
-          );
-
-      await container.read(imageGenerationNotifierProvider.notifier).generate(
-            params,
-          );
-
-      final state = container.read(imageGenerationNotifierProvider);
-      expect(requestSampleCounts, equals([3, 3]));
-      expect(state.status, GenerationStatus.completed);
-      expect(state.currentImages, hasLength(6));
-      expect(state.displayImages, hasLength(6));
-    });
-    test('registerExternalImage should prepend external result to history',
-        () async {
-      final notifier = container.read(imageGenerationNotifierProvider.notifier);
-      final params = container.read(generationParamsNotifierProvider);
-
-      await notifier.registerExternalImage(
-        _validImageBytes(width: 640, height: 960),
-        params: params,
-      );
-
-      final state = container.read(imageGenerationNotifierProvider);
-
-      expect(state.history, hasLength(1));
-      expect(state.history.first.width, equals(640));
-      expect(state.history.first.height, equals(960));
-      expect(state.currentImages, isEmpty);
-      expect(state.displayImages, isEmpty);
-    });
-
-    test('registerExternalImage should save image locally when requested',
-        () async {
-      final notifier = container.read(imageGenerationNotifierProvider.notifier);
-      final params = container.read(generationParamsNotifierProvider);
-      final tempDir =
-          await Directory.systemTemp.createTemp('nai_launcher_director_');
-      addTearDown(() => tempDir.delete(recursive: true));
-
-      await notifier.registerExternalImage(
-        _validImageBytes(width: 512, height: 768),
-        params: params,
-        saveToLocal: true,
-        saveDirectoryPath: tempDir.path,
-        syncToGalleryIndex: false,
-      );
-
-      final savedImage =
-          container.read(imageGenerationNotifierProvider).history.first;
-      expect(savedImage.filePath, isNotNull);
-      expect(File(savedImage.filePath!).existsSync(), isTrue);
-    });
+        expect(capturedParams, isNotNull);
+        expect(
+          capturedParams!.prompt,
+          equals('masterpiece, 1girl, cinematic lighting'),
+        );
+        expect(
+          capturedParams!.negativePrompt,
+          equals('bad anatomy, bad hands, text'),
+        );
+      },
+    );
 
     test(
-        'registerExternalImage should prepend external result to current display',
-        () async {
-      final notifier = container.read(imageGenerationNotifierProvider.notifier);
-      final params = container.read(generationParamsNotifierProvider);
-      final existing = GeneratedImage.create(
-        _validImageBytes(width: 640, height: 960),
-        width: 640,
-        height: 960,
-      );
+      'imagesPerRequest sends one multi-sample request per repeat',
+      () async {
+        final mockApiService = MockNAIImageGenerationApiService();
+        final firstImage = _validImageBytes(width: 512, height: 768);
+        final secondImage = _validImageBytes(width: 512, height: 768);
+        final thirdImage = _validImageBytes(width: 512, height: 768);
+        final requestSampleCounts = <int>[];
 
-      notifier.state = notifier.state.copyWith(
-        currentImages: [existing],
-        history: [existing],
-        displayImages: [existing],
-      );
+        when(
+          () => mockApiService.generateImage(
+            any(),
+            onProgress: any(named: 'onProgress'),
+            focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+            minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+            focusedSelectionRect: any(named: 'focusedSelectionRect'),
+          ),
+        ).thenAnswer((_) async => fail('non-stream fallback was not expected'));
+        when(
+          () => mockApiService.generateImageCancellable(
+            any(),
+            onProgress: any(named: 'onProgress'),
+            focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+            minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+            focusedSelectionRect: any(named: 'focusedSelectionRect'),
+          ),
+        ).thenAnswer(
+          (_) async => fail('cancellable fallback was not expected'),
+        );
+        when(
+          () => mockApiService.generateImageStream(
+            any(),
+            focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+            minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+            focusedSelectionRect: any(named: 'focusedSelectionRect'),
+          ),
+        ).thenAnswer((invocation) {
+          final params = invocation.positionalArguments.first as ImageParams;
+          requestSampleCounts.add(params.nSamples);
+          return Stream<ImageStreamChunk>.fromIterable([
+            ImageStreamChunk.complete(firstImage, sampleIndex: 0),
+            ImageStreamChunk.complete(secondImage, sampleIndex: 1),
+            ImageStreamChunk.complete(thirdImage, sampleIndex: 2),
+          ]);
+        });
 
-      await notifier.registerExternalImage(
-        _validImageBytes(width: 1280, height: 1920),
-        params: params,
-        width: 1280,
-        height: 1920,
-        addToDisplay: true,
-      );
+        container.dispose();
+        container = ProviderContainer(
+          overrides: [
+            naiImageGenerationApiServiceProvider.overrideWithValue(
+              mockApiService,
+            ),
+            subscriptionNotifierProvider.overrideWith(
+              TestSubscriptionNotifier.new,
+            ),
+          ],
+        );
+        await container
+            .read(notificationSettingsNotifierProvider.notifier)
+            .setSoundEnabled(false);
+        await container
+            .read(imageSaveSettingsNotifierProvider.notifier)
+            .setAutoSave(false);
+        container.read(imagesPerRequestProvider.notifier).set(3);
 
-      final state = container.read(imageGenerationNotifierProvider);
+        final params = container
+            .read(generationParamsNotifierProvider)
+            .copyWith(
+              prompt: 'multi sample',
+              width: 512,
+              height: 768,
+              nSamples: 2,
+            );
 
-      expect(state.currentImages, hasLength(2));
-      expect(state.currentImages.first.width, equals(1280));
-      expect(state.currentImages.first.height, equals(1920));
-      expect(state.currentImages[1].id, equals(existing.id));
-      expect(state.history.first.id, equals(state.currentImages.first.id));
-      expect(
-        state.displayImages.first.id,
-        equals(state.currentImages.first.id),
-      );
-      expect(state.displayWidth, equals(1280));
-      expect(state.displayHeight, equals(1920));
-    });
+        await container
+            .read(imageGenerationNotifierProvider.notifier)
+            .generate(params);
 
-    test('registerExternalImage should rewrite embedded metadata resolution',
-        () async {
-      final notifier = container.read(imageGenerationNotifierProvider.notifier);
-      final params = container.read(generationParamsNotifierProvider).copyWith(
-            prompt: 'source prompt',
-            negativePrompt: 'source negative',
-            width: 640,
-            height: 960,
-            seed: 123456,
-            qualityToggle: false,
-            ucPreset: 3,
-          );
-      final upscaledBytes = await _buildImageWithEmbeddedMetadata(
-        imageWidth: 1280,
-        imageHeight: 1920,
-        metadataWidth: 640,
-        metadataHeight: 960,
-        prompt: 'source prompt',
-        negativePrompt: 'source negative',
-        seed: 123456,
-        qualityToggle: false,
-        ucPreset: 3,
-      );
+        final state = container.read(imageGenerationNotifierProvider);
+        expect(requestSampleCounts, equals([3, 3]));
+        expect(state.status, GenerationStatus.completed);
+        expect(state.currentImages, hasLength(6));
+        expect(state.displayImages, hasLength(6));
+      },
+    );
+    test(
+      'registerExternalImage should prepend external result to history',
+      () async {
+        final notifier = container.read(
+          imageGenerationNotifierProvider.notifier,
+        );
+        final params = container.read(generationParamsNotifierProvider);
 
-      await notifier.registerExternalImage(
-        upscaledBytes,
-        params: params,
-        width: 1280,
-        height: 1920,
-      );
+        await notifier.registerExternalImage(
+          _validImageBytes(width: 640, height: 960),
+          params: params,
+        );
 
-      final storedBytes =
-          container.read(imageGenerationNotifierProvider).history.first.bytes;
-      final parsed = UnifiedMetadataParser.parseFromPng(storedBytes);
+        final state = container.read(imageGenerationNotifierProvider);
 
-      expect(parsed.success, isTrue);
-      expect(parsed.metadata?.width, equals(1280));
-      expect(parsed.metadata?.height, equals(1920));
-      expect(parsed.metadata?.prompt, equals('source prompt'));
-    });
+        expect(state.history, hasLength(1));
+        expect(state.history.first.width, equals(640));
+        expect(state.history.first.height, equals(960));
+        expect(state.currentImages, isEmpty);
+        expect(state.displayImages, isEmpty);
+      },
+    );
 
-    test('generate should保留重绘会话状态而不是替换源图', () async {
+    test(
+      'registerExternalImage should save image locally when requested',
+      () async {
+        final notifier = container.read(
+          imageGenerationNotifierProvider.notifier,
+        );
+        final params = container.read(generationParamsNotifierProvider);
+        final tempDir = await Directory.systemTemp.createTemp(
+          'nai_launcher_director_',
+        );
+        addTearDown(() => tempDir.delete(recursive: true));
+
+        await notifier.registerExternalImage(
+          _validImageBytes(width: 512, height: 768),
+          params: params,
+          saveToLocal: true,
+          saveDirectoryPath: tempDir.path,
+          syncToGalleryIndex: false,
+        );
+
+        final savedImage = container
+            .read(imageGenerationNotifierProvider)
+            .history
+            .first;
+        expect(savedImage.filePath, isNotNull);
+        expect(File(savedImage.filePath!).existsSync(), isTrue);
+      },
+    );
+
+    test(
+      'registerExternalImage should prepend external result to current display',
+      () async {
+        final notifier = container.read(
+          imageGenerationNotifierProvider.notifier,
+        );
+        final params = container.read(generationParamsNotifierProvider);
+        final existing = GeneratedImage.create(
+          _validImageBytes(width: 640, height: 960),
+          width: 640,
+          height: 960,
+        );
+
+        notifier.state = notifier.state.copyWith(
+          currentImages: [existing],
+          history: [existing],
+          displayImages: [existing],
+        );
+
+        await notifier.registerExternalImage(
+          _validImageBytes(width: 1280, height: 1920),
+          params: params,
+          width: 1280,
+          height: 1920,
+          addToDisplay: true,
+        );
+
+        final state = container.read(imageGenerationNotifierProvider);
+
+        expect(state.currentImages, hasLength(2));
+        expect(state.currentImages.first.width, equals(1280));
+        expect(state.currentImages.first.height, equals(1920));
+        expect(state.currentImages[1].id, equals(existing.id));
+        expect(state.history.first.id, equals(state.currentImages.first.id));
+        expect(
+          state.displayImages.first.id,
+          equals(state.currentImages.first.id),
+        );
+        expect(state.displayWidth, equals(1280));
+        expect(state.displayHeight, equals(1920));
+      },
+    );
+
+    test(
+      'registerExternalImage should rewrite embedded metadata resolution',
+      () async {
+        final notifier = container.read(
+          imageGenerationNotifierProvider.notifier,
+        );
+        final params = container
+            .read(generationParamsNotifierProvider)
+            .copyWith(
+              prompt: 'source prompt',
+              negativePrompt: 'source negative',
+              width: 640,
+              height: 960,
+              seed: 123456,
+              qualityToggle: false,
+              ucPreset: 3,
+            );
+        final upscaledBytes = await _buildImageWithEmbeddedMetadata(
+          imageWidth: 1280,
+          imageHeight: 1920,
+          metadataWidth: 640,
+          metadataHeight: 960,
+          prompt: 'source prompt',
+          negativePrompt: 'source negative',
+          seed: 123456,
+          qualityToggle: false,
+          ucPreset: 3,
+        );
+
+        await notifier.registerExternalImage(
+          upscaledBytes,
+          params: params,
+          width: 1280,
+          height: 1920,
+        );
+
+        final storedBytes = container
+            .read(imageGenerationNotifierProvider)
+            .history
+            .first
+            .bytes;
+        final parsed = UnifiedMetadataParser.parseFromPng(storedBytes);
+
+        expect(parsed.success, isTrue);
+        expect(parsed.metadata?.width, equals(1280));
+        expect(parsed.metadata?.height, equals(1920));
+        expect(parsed.metadata?.prompt, equals('source prompt'));
+      },
+    );
+
+    test('generate should保留重绘会话状态并使用流式 focused inpaint', () async {
       final mockApiService = MockNAIImageGenerationApiService();
       final originalSource = _validImageBytes(width: 640, height: 960);
       final originalMask = _validMaskBytes(width: 640, height: 960);
@@ -421,14 +453,7 @@ void main() {
           minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
           focusedSelectionRect: any(named: 'focusedSelectionRect'),
         ),
-      ).thenAnswer(
-        (_) async => (
-          [
-            _validImageBytes(width: 640, height: 960),
-          ],
-          <int, String>{},
-        ),
-      );
+      ).thenAnswer((_) async => fail('focused inpaint should use stream'));
       when(
         () => mockApiService.generateImageStream(
           any(),
@@ -436,18 +461,24 @@ void main() {
           minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
           focusedSelectionRect: any(named: 'focusedSelectionRect'),
         ),
-      ).thenAnswer((_) => const Stream.empty());
+      ).thenAnswer(
+        (_) => Stream<ImageStreamChunk>.fromIterable([
+          ImageStreamChunk.complete(_validImageBytes(width: 640, height: 960)),
+        ]),
+      );
 
       container.dispose();
       container = ProviderContainer(
         overrides: [
-          naiImageGenerationApiServiceProvider
-              .overrideWithValue(mockApiService),
+          naiImageGenerationApiServiceProvider.overrideWithValue(
+            mockApiService,
+          ),
         ],
       );
 
-      final workflowNotifier =
-          container.read(imageWorkflowControllerProvider.notifier);
+      final workflowNotifier = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
       final notifier = container.read(imageGenerationNotifierProvider.notifier);
       await container
           .read(notificationSettingsNotifierProvider.notifier)
@@ -473,23 +504,229 @@ void main() {
       expect(workflow.mode, ImageWorkflowMode.inpaint);
 
       verify(
-        () => mockApiService.generateImage(
+        () => mockApiService.generateImageStream(
           any(),
-          onProgress: any(named: 'onProgress'),
           focusedInpaintEnabled: true,
           minimumContextMegaPixels: 120,
           focusedSelectionRect: const Rect.fromLTWH(120, 140, 280, 320),
         ),
       ).called(1);
       verifyNever(
-        () => mockApiService.generateImageStream(
+        () => mockApiService.generateImage(
           any(),
+          onProgress: any(named: 'onProgress'),
           focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
           minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
           focusedSelectionRect: any(named: 'focusedSelectionRect'),
         ),
       );
     });
+
+    test(
+      'focused inpaint batch should use stream instead of direct fallback',
+      () async {
+        final mockApiService = MockNAIImageGenerationApiService();
+        final originalSource = _validImageBytes(width: 640, height: 960);
+        final originalMask = _validMaskBytes(width: 640, height: 960);
+        final requestSampleCounts = <int>[];
+
+        when(
+          () => mockApiService.generateImage(
+            any(),
+            onProgress: any(named: 'onProgress'),
+            focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+            minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+            focusedSelectionRect: any(named: 'focusedSelectionRect'),
+          ),
+        ).thenAnswer(
+          (_) async => fail('focused inpaint batch should use stream'),
+        );
+        when(
+          () => mockApiService.generateImageCancellable(
+            any(),
+            onProgress: any(named: 'onProgress'),
+            focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+            minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+            focusedSelectionRect: any(named: 'focusedSelectionRect'),
+          ),
+        ).thenAnswer(
+          (_) async => fail('focused inpaint batch should not use fallback'),
+        );
+        when(
+          () => mockApiService.generateImageStream(
+            any(),
+            focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+            minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+            focusedSelectionRect: any(named: 'focusedSelectionRect'),
+          ),
+        ).thenAnswer((invocation) {
+          final params = invocation.positionalArguments.first as ImageParams;
+          requestSampleCounts.add(params.nSamples);
+          return Stream<ImageStreamChunk>.fromIterable([
+            ImageStreamChunk.complete(
+              _validImageBytes(width: 640, height: 960),
+              sampleIndex: 0,
+            ),
+            ImageStreamChunk.complete(
+              _validImageBytes(width: 640, height: 960),
+              sampleIndex: 1,
+            ),
+          ]);
+        });
+
+        container.dispose();
+        container = ProviderContainer(
+          overrides: [
+            naiImageGenerationApiServiceProvider.overrideWithValue(
+              mockApiService,
+            ),
+            subscriptionNotifierProvider.overrideWith(
+              TestSubscriptionNotifier.new,
+            ),
+          ],
+        );
+
+        final workflowNotifier = container.read(
+          imageWorkflowControllerProvider.notifier,
+        );
+        await container
+            .read(notificationSettingsNotifierProvider.notifier)
+            .setSoundEnabled(false);
+        await container
+            .read(imageSaveSettingsNotifierProvider.notifier)
+            .setAutoSave(false);
+        container.read(imagesPerRequestProvider.notifier).set(2);
+
+        workflowNotifier.replaceSourceImage(originalSource);
+        workflowNotifier.enterInpaintMode();
+        workflowNotifier.onMaskChanged(originalMask);
+        workflowNotifier.setFocusedInpaintEnabled(true);
+        workflowNotifier.setMinimumContextMegaPixels(96);
+        workflowNotifier.setFocusedSelectionRect(
+          const Rect.fromLTWH(100, 120, 240, 280),
+        );
+
+        final params = container.read(generationParamsNotifierProvider);
+        await container
+            .read(imageGenerationNotifierProvider.notifier)
+            .generate(params.copyWith(nSamples: 1));
+
+        final state = container.read(imageGenerationNotifierProvider);
+        expect(requestSampleCounts, equals([2]));
+        expect(state.status, GenerationStatus.completed);
+        expect(state.currentImages, hasLength(2));
+
+        verify(
+          () => mockApiService.generateImageStream(
+            any(),
+            focusedInpaintEnabled: true,
+            minimumContextMegaPixels: 96,
+            focusedSelectionRect: const Rect.fromLTWH(100, 120, 240, 280),
+          ),
+        ).called(1);
+        verifyNever(
+          () => mockApiService.generateImage(
+            any(),
+            onProgress: any(named: 'onProgress'),
+            focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+            minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+            focusedSelectionRect: any(named: 'focusedSelectionRect'),
+          ),
+        );
+        verifyNever(
+          () => mockApiService.generateImageCancellable(
+            any(),
+            onProgress: any(named: 'onProgress'),
+            focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+            minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+            focusedSelectionRect: any(named: 'focusedSelectionRect'),
+          ),
+        );
+      },
+    );
+
+    test(
+      'focused stream preview placement should clear after final image',
+      () async {
+        final mockApiService = MockNAIImageGenerationApiService();
+        final controller = StreamController<ImageStreamChunk>();
+        addTearDown(() async {
+          if (!controller.isClosed) {
+            await controller.close();
+          }
+        });
+
+        when(
+          () => mockApiService.generateImage(
+            any(),
+            onProgress: any(named: 'onProgress'),
+            focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+            minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+            focusedSelectionRect: any(named: 'focusedSelectionRect'),
+          ),
+        ).thenAnswer((_) async => fail('focused preview should use stream'));
+        when(
+          () => mockApiService.generateImageStream(
+            any(),
+            focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+            minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+            focusedSelectionRect: any(named: 'focusedSelectionRect'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        container.dispose();
+        container = ProviderContainer(
+          overrides: [
+            naiImageGenerationApiServiceProvider.overrideWithValue(
+              mockApiService,
+            ),
+          ],
+        );
+        await container
+            .read(notificationSettingsNotifierProvider.notifier)
+            .setSoundEnabled(false);
+
+        final source = _validImageBytes(width: 640, height: 960);
+        final preview = _validImageBytes(width: 320, height: 320);
+        final finalImage = _validImageBytes(width: 640, height: 960);
+        final placement = FocusedStreamPreviewPlacement(
+          sourceImage: source,
+          xPercent: 0.25,
+          yPercent: 0.125,
+          widthPercent: 0.5,
+          heightPercent: 0.375,
+        );
+        final params = container
+            .read(generationParamsNotifierProvider)
+            .copyWith(width: 640, height: 960, nSamples: 1);
+
+        final generationFuture = container
+            .read(imageGenerationNotifierProvider.notifier)
+            .generate(params);
+        await Future<void>.delayed(Duration.zero);
+        controller.add(
+          ImageStreamChunk.progress(
+            progress: 0.4,
+            previewImage: preview,
+            focusedPreviewPlacement: placement,
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        final streamingState = container.read(imageGenerationNotifierProvider);
+        expect(streamingState.streamPreview, orderedEquals(preview));
+        expect(streamingState.focusedPreviewPlacement, same(placement));
+
+        controller.add(ImageStreamChunk.complete(finalImage));
+        await controller.close();
+        await generationFuture;
+
+        final completedState = container.read(imageGenerationNotifierProvider);
+        expect(completedState.status, GenerationStatus.completed);
+        expect(completedState.focusedPreviewPlacement, isNull);
+        expect(completedState.streamPreviewSlots, isEmpty);
+      },
+    );
 
     test('generate 会在请求前自动编码待编码 Vibe 并回写当前状态', () async {
       final mockApiService = MockNAIImageGenerationApiService();
@@ -532,10 +769,12 @@ void main() {
       container.dispose();
       container = ProviderContainer(
         overrides: [
-          naiImageGenerationApiServiceProvider
-              .overrideWithValue(mockApiService),
-          naiImageEnhancementApiServiceProvider
-              .overrideWithValue(mockEnhancementApiService),
+          naiImageGenerationApiServiceProvider.overrideWithValue(
+            mockApiService,
+          ),
+          naiImageEnhancementApiServiceProvider.overrideWithValue(
+            mockEnhancementApiService,
+          ),
         ],
       );
 
@@ -543,8 +782,9 @@ void main() {
           .read(notificationSettingsNotifierProvider.notifier)
           .setSoundEnabled(false);
 
-      final paramsNotifier =
-          container.read(generationParamsNotifierProvider.notifier);
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
       final rawImage = _validImageBytes(width: 256, height: 256);
       paramsNotifier.addVibeReference(
         VibeReference(
@@ -559,9 +799,9 @@ void main() {
       );
 
       final params = container.read(generationParamsNotifierProvider);
-      await container.read(imageGenerationNotifierProvider.notifier).generate(
-            params,
-          );
+      await container
+          .read(imageGenerationNotifierProvider.notifier)
+          .generate(params);
 
       expect(capturedParams, isNotNull);
       expect(
@@ -626,10 +866,12 @@ void main() {
       container.dispose();
       container = ProviderContainer(
         overrides: [
-          naiImageGenerationApiServiceProvider
-              .overrideWithValue(mockApiService),
-          naiImageEnhancementApiServiceProvider
-              .overrideWithValue(mockEnhancementApiService),
+          naiImageGenerationApiServiceProvider.overrideWithValue(
+            mockApiService,
+          ),
+          naiImageEnhancementApiServiceProvider.overrideWithValue(
+            mockEnhancementApiService,
+          ),
         ],
       );
 
@@ -637,8 +879,9 @@ void main() {
           .read(notificationSettingsNotifierProvider.notifier)
           .setSoundEnabled(false);
 
-      final paramsNotifier =
-          container.read(generationParamsNotifierProvider.notifier);
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
       final rawImage = _validImageBytes(width: 256, height: 256);
       paramsNotifier.addVibeReference(
         VibeReference(
@@ -656,9 +899,9 @@ void main() {
       final params = container.read(generationParamsNotifierProvider);
       expect(params.vibeReferencesV4.single.vibeEncoding, isEmpty);
 
-      await container.read(imageGenerationNotifierProvider.notifier).generate(
-            params,
-          );
+      await container
+          .read(imageGenerationNotifierProvider.notifier)
+          .generate(params);
 
       expect(capturedParams, isNotNull);
       expect(
@@ -684,21 +927,13 @@ void main() {
   });
 }
 
-Uint8List _validImageBytes({
-  required int width,
-  required int height,
-}) {
+Uint8List _validImageBytes({required int width, required int height}) {
   return Uint8List.fromList(
-    img.encodePng(
-      img.Image(width: width, height: height),
-    ),
+    img.encodePng(img.Image(width: width, height: height)),
   );
 }
 
-Uint8List _validMaskBytes({
-  required int width,
-  required int height,
-}) {
+Uint8List _validMaskBytes({required int width, required int height}) {
   final mask = img.Image(width: width, height: height);
   img.fill(mask, color: img.ColorRgb8(0, 0, 0));
   for (var y = 100; y < 180; y++) {

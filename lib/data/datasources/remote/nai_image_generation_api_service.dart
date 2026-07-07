@@ -620,11 +620,11 @@ class NAIImageGenerationApiService {
                 if (eventType == null ||
                     eventType.isEmpty ||
                     eventType == 'intermediate') {
-                  final compositedImage = _compositeFocusedImage(
-                    imageBytes,
+                  final focusedPreviewPlacement = _focusedPreviewPlacement(
+                    params,
                     focusedRequest,
                   );
-                  latestPreviews[sampleIndex] = compositedImage;
+                  latestPreviews[sampleIndex] = imageBytes;
                   final currentStep = (stepIx ?? messageCount) + 1;
                   final progress = currentStep / totalSteps;
                   AppLogger.d(
@@ -636,7 +636,8 @@ class NAIImageGenerationApiService {
                     sampleIndex: sampleIndex,
                     currentStep: currentStep,
                     totalSteps: totalSteps,
-                    previewImage: compositedImage,
+                    previewImage: imageBytes,
+                    focusedPreviewPlacement: focusedPreviewPlacement,
                   );
                 } else {
                   AppLogger.d(
@@ -831,6 +832,29 @@ class NAIImageGenerationApiService {
     );
   }
 
+  FocusedStreamPreviewPlacement? _focusedPreviewPlacement(
+    ImageParams params,
+    FocusedInpaintRequest? focusedRequest,
+  ) {
+    if (focusedRequest == null || params.sourceImage == null) {
+      return null;
+    }
+
+    final sourceWidth = focusedRequest.originalSourceWidth;
+    final sourceHeight = focusedRequest.originalSourceHeight;
+    if (sourceWidth <= 0 || sourceHeight <= 0) {
+      return null;
+    }
+
+    return FocusedStreamPreviewPlacement(
+      sourceImage: params.sourceImage!,
+      xPercent: focusedRequest.crop.x / sourceWidth,
+      yPercent: focusedRequest.crop.y / sourceHeight,
+      widthPercent: focusedRequest.crop.width / sourceWidth,
+      heightPercent: focusedRequest.crop.height / sourceHeight,
+    );
+  }
+
   List<Uint8List> _compositeInpaintImages(
     List<Uint8List> images,
     ImageParams params,
@@ -875,16 +899,6 @@ class NAIImageGenerationApiService {
       generatedImage: imageBytes,
       normalizeMask: false,
     );
-  }
-
-  Uint8List _compositeFocusedImage(
-    Uint8List imageBytes,
-    FocusedInpaintRequest? focusedRequest,
-  ) {
-    if (focusedRequest == null) {
-      return imageBytes;
-    }
-    return focusedRequest.compositeGeneratedImage(imageBytes);
   }
 
   int? _optionalInt(Object? value) {
