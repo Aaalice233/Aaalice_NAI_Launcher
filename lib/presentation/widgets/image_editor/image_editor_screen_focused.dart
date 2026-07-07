@@ -142,9 +142,9 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
             ),
             Slider(
               value: _minimumContextMegaPixels,
-              min: 0,
+              min: 16,
               max: 192,
-              divisions: 192,
+              divisions: 176,
               onChanged: (value) {
                 _updateLayoutState(() {
                   _minimumContextMegaPixels = value;

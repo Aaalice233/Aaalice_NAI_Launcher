@@ -276,6 +276,36 @@ void main() {
     );
 
     test(
+      'focused inpaint minimum context should clamp to safe lower bound',
+      () {
+        final controller = container.read(
+          imageWorkflowControllerProvider.notifier,
+        );
+        final paramsNotifier = container.read(
+          generationParamsNotifierProvider.notifier,
+        );
+
+        controller.setMinimumContextMegaPixels(0);
+
+        var workflow = container.read(imageWorkflowControllerProvider);
+        expect(workflow.minimumContextMegaPixels, equals(16.0));
+
+        paramsNotifier.setSourceImage(
+          _validImageBytes(width: 768, height: 1024),
+        );
+        controller.applyInpaintEditorResult(
+          maskImage: Uint8List.fromList([9, 9, 9]),
+          focusedInpaintEnabled: true,
+          focusedSelectionRect: const Rect.fromLTWH(120, 160, 240, 320),
+          minimumContextMegaPixels: 0,
+        );
+
+        workflow = container.read(imageWorkflowControllerProvider);
+        expect(workflow.minimumContextMegaPixels, equals(16.0));
+      },
+    );
+
+    test(
       'focused selection rect should persist and clear with workflow resets',
       () {
         final controller = container.read(

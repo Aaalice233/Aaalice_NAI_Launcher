@@ -682,7 +682,7 @@ void main() {
 
       expect(capturedRequest.focusedInpaintEnabled, isTrue);
       expect(streamCalled, isFalse);
-      expect(capturedRequest.minimumContextPixels, equals(12));
+      expect(capturedRequest.minimumContextPixels, equals(16));
       expect(capturedRequest.focusedSelectionRect?.left, equals(1));
       expect(capturedRequest.focusedSelectionRect?.top, equals(1));
       expect(capturedRequest.focusedSelectionRect?.width, equals(2));

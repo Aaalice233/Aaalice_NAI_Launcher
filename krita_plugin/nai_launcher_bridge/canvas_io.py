@@ -155,7 +155,7 @@ def focus_context_rect_for_selection(
     canvas_height: int,
     minimum_context_pixels: int,
 ) -> dict:
-    padding = max(0, min(192, int(round(minimum_context_pixels))))
+    padding = max(16, min(192, int(round(minimum_context_pixels))))
     width = max(1, min(canvas_width, int(selection_rect["w"]) + padding * 2))
     height = max(1, min(canvas_height, int(selection_rect["h"]) + padding * 2))
     center_x = int(selection_rect["x"]) + int(selection_rect["w"]) / 2

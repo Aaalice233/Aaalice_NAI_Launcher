@@ -295,7 +295,7 @@ final kritaBridgeNotifierProvider =
           .read(imageWorkflowControllerProvider)
           .minimumContextMegaPixels
           .round()
-          .clamp(0, 192)
+          .clamp(16, 192)
           .toInt(),
       send: server.send,
       isUiGenerating: () =>

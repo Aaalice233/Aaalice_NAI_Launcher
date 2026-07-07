@@ -408,6 +408,17 @@ class CanvasIOMaskTests(unittest.TestCase):
             {"x": 34, "y": 44, "w": 52, "h": 62},
         )
 
+    def test_focus_context_rect_enforces_minimum_context(self):
+        self.assertEqual(
+            canvas_io.focus_context_rect_for_selection(
+                {"x": 50, "y": 60, "w": 20, "h": 30},
+                200,
+                180,
+                0,
+            ),
+            {"x": 34, "y": 44, "w": 52, "h": 62},
+        )
+
     def test_focus_context_rect_matches_launcher_focused_crop_golden_case(self):
         self.assertEqual(
             canvas_io.focus_context_rect_for_selection(

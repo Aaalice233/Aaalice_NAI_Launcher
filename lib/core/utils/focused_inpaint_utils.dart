@@ -39,9 +39,11 @@ class FocusedInpaintRequest {
     required this.crop,
     required img.Image originalSource,
     required img.Image compositeMaskAtCrop,
-  })  : _originalSource = img.Image.from(originalSource, noAnimation: true),
-        _compositeMaskAtCrop =
-            img.Image.from(compositeMaskAtCrop, noAnimation: true);
+  }) : _originalSource = img.Image.from(originalSource, noAnimation: true),
+       _compositeMaskAtCrop = img.Image.from(
+         compositeMaskAtCrop,
+         noAnimation: true,
+       );
 
   final Uint8List requestSourceImage;
   final Uint8List requestMaskImage;
@@ -50,6 +52,10 @@ class FocusedInpaintRequest {
   final FocusedInpaintCrop crop;
   final img.Image _originalSource;
   final img.Image _compositeMaskAtCrop;
+
+  int get originalSourceWidth => _originalSource.width;
+
+  int get originalSourceHeight => _originalSource.height;
 
   Uint8List compositeGeneratedImage(Uint8List generatedBytes) {
     final generated = img.decodeImage(generatedBytes);
@@ -275,7 +281,8 @@ class FocusedInpaintUtils {
     img.Image mask,
     img.Image compositeMaskAtCrop,
     FocusedInpaintCrop crop,
-  })? _resolveFocusedContext({
+  })?
+  _resolveFocusedContext({
     required Uint8List sourceImage,
     required Uint8List maskImage,
     Rect? focusedSelectionRect,
@@ -420,7 +427,7 @@ class FocusedInpaintUtils {
     required FocusedInpaintCrop bounds,
     required double minContextMegaPixels,
   }) {
-    final padding = minContextMegaPixels.round().clamp(0, 192);
+    final padding = minContextMegaPixels.round().clamp(16, 192);
 
     return _expandAndClamp(
       centerX: bounds.x + bounds.width / 2,
@@ -463,9 +470,7 @@ class FocusedInpaintUtils {
     required double minContextMegaPixels,
   }) {
     final cropArea = cropWidth * cropHeight;
-    final scale = math.sqrt(
-      math.max(_focusedTargetAreaPixels / cropArea, 1.0),
-    );
+    final scale = math.sqrt(math.max(_focusedTargetAreaPixels / cropArea, 1.0));
 
     var scaledWidth = (cropWidth * scale).ceil();
     var scaledHeight = (cropHeight * scale).ceil();

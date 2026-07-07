@@ -352,7 +352,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       initialRect: widget.existingFocusRect,
     );
     _minimumContextMegaPixels = widget.initialMinimumContextMegaPixels.clamp(
-      0.0,
+      16.0,
       192.0,
     );
     _focusedInpaintEnabled =

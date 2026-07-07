@@ -188,7 +188,7 @@ class KritaInpaintMessage extends KritaBridgeMessage {
   final bool focusedInpaint;
 
   KritaImageParamsMapping toImageParams(ImageParams baseParams) {
-    final clampedContext = minimumContextPixels.clamp(0, 192).toInt();
+    final clampedContext = minimumContextPixels.clamp(16, 192).toInt();
     final hasFocusedRect = focusedInpaint && selectionRect != null;
 
     return KritaImageParamsMapping(

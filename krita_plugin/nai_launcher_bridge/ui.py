@@ -93,7 +93,7 @@ class NAILauncherBridgeDocker(DockWidget):
             self._minimum_context,
             self._minimum_context_slider,
             minimum_context_control,
-        ) = self._create_int_slider_control(minimum=0, maximum=192, value=88)
+        ) = self._create_int_slider_control(minimum=16, maximum=192, value=88)
         self._focused_inpaint = QCheckBox("Focused Inpaint")
         form.addRow("Prompt", self._prompt)
         form.addRow("Negative", self._negative_prompt)

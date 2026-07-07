@@ -982,7 +982,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
   }
 
   void setMinimumContextMegaPixels(double value) {
-    state = state.copyWith(minimumContextMegaPixels: value.clamp(0.0, 192.0));
+    state = state.copyWith(minimumContextMegaPixels: value.clamp(16.0, 192.0));
   }
 
   void setFocusedSelectionRect(Rect? rect) {
@@ -1041,7 +1041,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       isPanelExpanded: true,
       isOutpaint: hasOutpaintSource,
       focusedInpaintEnabled: effectiveFocusedInpaintEnabled,
-      minimumContextMegaPixels: minimumContextMegaPixels.clamp(0.0, 192.0),
+      minimumContextMegaPixels: minimumContextMegaPixels.clamp(16.0, 192.0),
       focusedSelectionRect: effectiveFocusedSelectionRect,
       clearFocusedSelectionRect: !effectiveFocusedInpaintEnabled,
     );
