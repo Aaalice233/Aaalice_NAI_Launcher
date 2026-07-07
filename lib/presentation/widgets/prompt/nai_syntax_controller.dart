@@ -13,15 +13,18 @@ class NaiSyntaxController extends TextEditingController {
   // 1. weight::content::  - 完整格式 (数字::内容::)
   // 2. weight::content    - 只有开头权重 (数字::内容)
   // 3. content::          - 只有结尾 :: (内容::)
-  static final RegExp _weightPatternFull =
-      RegExp(r'(-?\d+\.?\d*)::(.+?)::(?=,|\s|$)');
-  static final RegExp _weightPatternLeading =
-      RegExp(r'(-?\d+\.?\d*)::([a-z0-9_:]+)(?=,|\s|$)');
+  static final RegExp _weightPatternFull = RegExp(
+    r'(-?\d+\.?\d*)::(.+?)::(?=,|\s|$)',
+  );
+  static final RegExp _weightPatternLeading = RegExp(
+    r'(-?\d+\.?\d*)::([a-z0-9_:]+)(?=,|\s|$)',
+  );
   static final RegExp _weightPatternTrailing = RegExp(r'([a-z0-9_:]+)::$');
 
   /// NAI 动态随机语法 ||A|B|C|| 或 ||n$$A|B|C||
-  static final RegExp _dynamicRandomPattern =
-      RegExp(r'\|\|([^|]+(?:\|[^|]+)*)\|\|');
+  static final RegExp _dynamicRandomPattern = RegExp(
+    r'\|\|([^|]+(?:\|[^|]+)*)\|\|',
+  );
 
   // 缓存：避免每次光标移动都重新解析
   String? _cachedText;
@@ -98,12 +101,7 @@ class NaiSyntaxController extends TextEditingController {
     // 解析并高亮文本
     final spans = highlightEnabled
         ? _parseAndHighlight(text, baseStyle, colors)
-        : [
-            TextSpan(
-              text: text,
-              style: baseStyle.copyWith(height: 1.35),
-            ),
-          ];
+        : [TextSpan(text: text, style: baseStyle.copyWith(height: 1.35))];
     final resolvedSpans = _applySearchHighlights(spans, baseStyle, colors);
 
     // 更新缓存
@@ -145,10 +143,7 @@ class NaiSyntaxController extends TextEditingController {
           final nextStart = _nextSearchStartAfter(absoluteOffset, spanEnd);
           highlighted.add(
             TextSpan(
-              text: spanText.substring(
-                localOffset,
-                nextStart - spanStart,
-              ),
+              text: spanText.substring(localOffset, nextStart - spanStart),
               style: span.style ?? baseStyle,
             ),
           );
@@ -212,6 +207,7 @@ class NaiSyntaxController extends TextEditingController {
 
     final spans = <TextSpan>[];
     final matches = <_SyntaxMatch>[];
+    final fullWeightMainRanges = <TextRange>[];
 
     // 使用栈算法解析括号（支持嵌套）
     _parseNestedBrackets(text, matches);
@@ -231,10 +227,13 @@ class NaiSyntaxController extends TextEditingController {
 
       // 主体部分: 数字::内容
       final mainPart = '$weightStr::$content';
+      final mainStart = match.start;
+      final mainEnd = match.start + mainPart.length;
+      fullWeightMainRanges.add(TextRange(start: mainStart, end: mainEnd));
       matches.add(
         _SyntaxMatch(
-          start: match.start,
-          end: match.start + mainPart.length,
+          start: mainStart,
+          end: mainEnd,
           text: mainPart,
           type: _SyntaxType.weightMain,
           weight: weight,
@@ -257,7 +256,10 @@ class NaiSyntaxController extends TextEditingController {
     final leadingMatches = _weightPatternLeading.allMatches(text).toList();
     for (final match in leadingMatches) {
       // 跳过已被完整格式匹配的部分
-      if (text.substring(match.end).startsWith('::')) continue;
+      if (text.substring(match.end).startsWith('::') ||
+          _overlapsAnyRange(match.start, match.end, fullWeightMainRanges)) {
+        continue;
+      }
 
       final weightStr = match.group(1)!;
       final weight = double.tryParse(weightStr) ?? 1.0;
@@ -529,6 +531,15 @@ class NaiSyntaxController extends TextEditingController {
       );
     }
   }
+
+  bool _overlapsAnyRange(int start, int end, List<TextRange> ranges) {
+    for (final range in ranges) {
+      if (start < range.end && end > range.start) {
+        return true;
+      }
+    }
+    return false;
+  }
 }
 
 /// 语法类型
@@ -611,8 +622,12 @@ class NaiSyntaxColors {
     // 深度 1 -> L=25%, 深度 5 -> L=50%
     final lightness = 0.25 + (depth - 1) * 0.0625;
     final alpha = isDark ? 0.55 : 0.50;
-    return HSLColor.fromAHSL(alpha, 30, 0.80, lightness.clamp(0.25, 0.50))
-        .toColor();
+    return HSLColor.fromAHSL(
+      alpha,
+      30,
+      0.80,
+      lightness.clamp(0.25, 0.50),
+    ).toColor();
   }
 
   /// 方括号颜色（深度1-5，线性变亮）
@@ -621,8 +636,12 @@ class NaiSyntaxColors {
     // 深度 1 -> L=25%, 深度 5 -> L=50%
     final lightness = 0.25 + (depth - 1) * 0.0625;
     final alpha = isDark ? 0.55 : 0.50;
-    return HSLColor.fromAHSL(alpha, 220, 0.70, lightness.clamp(0.25, 0.50))
-        .toColor();
+    return HSLColor.fromAHSL(
+      alpha,
+      220,
+      0.70,
+      lightness.clamp(0.25, 0.50),
+    ).toColor();
   }
 
   /// 根据权重生成动态颜色（线性变亮）
