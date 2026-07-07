@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:image/image.dart' as img;
 
 import 'inpaint_mask_utils.dart';
+import 'isolate_pool.dart';
 
 class FocusedInpaintCrop {
   const FocusedInpaintCrop({
@@ -31,6 +32,8 @@ class FocusedInpaintFrame {
 }
 
 class FocusedInpaintRequest {
+  /// 传入的 [originalSource] 与 [compositeMaskAtCrop] 由调用方让渡所有权，
+  /// 此处直接持有引用，不再整图深拷贝。
   FocusedInpaintRequest({
     required this.requestSourceImage,
     required this.requestMaskImage,
@@ -39,11 +42,8 @@ class FocusedInpaintRequest {
     required this.crop,
     required img.Image originalSource,
     required img.Image compositeMaskAtCrop,
-  }) : _originalSource = img.Image.from(originalSource, noAnimation: true),
-       _compositeMaskAtCrop = img.Image.from(
-         compositeMaskAtCrop,
-         noAnimation: true,
-       );
+  }) : _originalSource = originalSource,
+       _compositeMaskAtCrop = compositeMaskAtCrop;
 
   final Uint8List requestSourceImage;
   final Uint8List requestMaskImage;
@@ -56,6 +56,16 @@ class FocusedInpaintRequest {
   int get originalSourceWidth => _originalSource.width;
 
   int get originalSourceHeight => _originalSource.height;
+
+  /// [compositeGeneratedImage] 的后台 isolate 版本。
+  ///
+  /// 合成包含生成图解码、cubic 缩放、整图混合与全尺寸 PNG 编码，
+  /// 大图下同步执行会在收尾阶段阻塞 UI isolate 数秒。
+  Future<Uint8List> compositeGeneratedImageAsync(Uint8List generatedBytes) {
+    return ComputeGate().runIsolate(
+      () => compositeGeneratedImage(generatedBytes),
+    );
+  }
 
   Uint8List compositeGeneratedImage(Uint8List generatedBytes) {
     final generated = img.decodeImage(generatedBytes);
@@ -215,6 +225,43 @@ class FocusedInpaintUtils {
     );
   }
 
+  /// 仅根据蒙版字节计算聚焦重绘请求尺寸的轻量路径。
+  ///
+  /// 目标尺寸只由蒙版外接矩形决定，与蒙版内部形状无关，因此这里
+  /// 不做 [prepareRequest] 中的裁剪、缩放和 PNG 编码，结果与其
+  /// targetWidth/targetHeight 一致。蒙版默认与源图同尺寸（重绘
+  /// 流程的既有约定），外接矩形按蒙版自身宽高收敛。
+  static (int, int)? resolveRequestSizeForMask({
+    required Uint8List maskImage,
+    required double minContextMegaPixels,
+  }) {
+    final binaryMask = InpaintMaskUtils.decodeBinaryMask(maskImage);
+    if (binaryMask == null) {
+      return null;
+    }
+
+    final bounds = _findBinaryMaskBounds(
+      binaryMask.mask,
+      binaryMask.width,
+      binaryMask.height,
+    );
+    if (bounds == null) {
+      return null;
+    }
+
+    final crop = _resolveCrop(
+      sourceWidth: binaryMask.width,
+      sourceHeight: binaryMask.height,
+      bounds: bounds,
+      minContextMegaPixels: minContextMegaPixels,
+    );
+    return _resolveTargetSize(
+      cropWidth: crop.width,
+      cropHeight: crop.height,
+      minContextMegaPixels: minContextMegaPixels,
+    );
+  }
+
   static FocusedInpaintRequest? prepareRequest({
     required Uint8List sourceImage,
     required Uint8List maskImage,
@@ -266,13 +313,39 @@ class FocusedInpaintUtils {
     );
 
     return FocusedInpaintRequest(
-      requestSourceImage: Uint8List.fromList(img.encodePng(resizedSource)),
-      requestMaskImage: Uint8List.fromList(img.encodePng(resizedMask)),
+      // 仅作为请求载体、不落盘：用最快压缩等级换编码时间（像素无损）。
+      requestSourceImage: Uint8List.fromList(
+        img.encodePng(resizedSource, level: 1),
+      ),
+      requestMaskImage: Uint8List.fromList(
+        img.encodePng(resizedMask, level: 1),
+      ),
       targetWidth: targetSize.$1,
       targetHeight: targetSize.$2,
       crop: context.crop,
       originalSource: context.source,
       compositeMaskAtCrop: context.compositeMaskAtCrop,
+    );
+  }
+
+  /// [prepareRequest] 的后台 isolate 版本。
+  ///
+  /// 完整流程包含源图/蒙版解码、逐像素扫描、裁剪缩放与两次 PNG 编码，
+  /// 大图下同步执行会阻塞 UI isolate 数秒；与源图归一化一样统一走
+  /// [ComputeGate] 限制并发。
+  static Future<FocusedInpaintRequest?> prepareRequestAsync({
+    required Uint8List sourceImage,
+    required Uint8List maskImage,
+    Rect? focusedSelectionRect,
+    required double minContextMegaPixels,
+  }) {
+    return ComputeGate().runIsolate(
+      () => prepareRequest(
+        sourceImage: sourceImage,
+        maskImage: maskImage,
+        focusedSelectionRect: focusedSelectionRect,
+        minContextMegaPixels: minContextMegaPixels,
+      ),
     );
   }
 
@@ -293,17 +366,26 @@ class FocusedInpaintUtils {
       return null;
     }
 
-    final normalizedMaskBytes = InpaintMaskUtils.normalizeMaskBytes(maskImage);
-    if (!InpaintMaskUtils.hasMaskedPixels(normalizedMaskBytes)) {
+    final binaryMask = InpaintMaskUtils.decodeBinaryMask(maskImage);
+    if (binaryMask == null) {
       return null;
     }
 
-    final decodedMask = img.decodeImage(normalizedMaskBytes);
-    if (decodedMask == null) {
+    final maskBounds = _findBinaryMaskBounds(
+      binaryMask.mask,
+      binaryMask.width,
+      binaryMask.height,
+    );
+    if (maskBounds == null) {
+      // 与旧的 hasMaskedPixels 检查等价：空蒙版直接禁用聚焦重绘。
       return null;
     }
 
-    final maskBounds = _findMaskBounds(decodedMask);
+    final decodedMask = InpaintMaskUtils.binaryMaskToImage(
+      binaryMask.mask,
+      binaryMask.width,
+      binaryMask.height,
+    );
     final selectionBounds = focusedSelectionRect == null
         ? null
         : _resolveSelectionBounds(
@@ -340,16 +422,20 @@ class FocusedInpaintUtils {
     );
   }
 
-  static FocusedInpaintCrop? _findMaskBounds(img.Image mask) {
-    var minX = mask.width;
-    var minY = mask.height;
+  static FocusedInpaintCrop? _findBinaryMaskBounds(
+    Uint8List mask,
+    int width,
+    int height,
+  ) {
+    var minX = width;
+    var minY = height;
     var maxX = -1;
     var maxY = -1;
 
-    for (var y = 0; y < mask.height; y++) {
-      for (var x = 0; x < mask.width; x++) {
-        final pixel = mask.getPixel(x, y);
-        if (pixel.r.toInt() < 128) {
+    var index = 0;
+    for (var y = 0; y < height; y++) {
+      for (var x = 0; x < width; x++) {
+        if (mask[index++] == 0) {
           continue;
         }
 
@@ -377,17 +463,16 @@ class FocusedInpaintUtils {
       return null;
     }
 
-    final normalizedMaskBytes = InpaintMaskUtils.normalizeMaskBytes(maskImage);
-    if (!InpaintMaskUtils.hasMaskedPixels(normalizedMaskBytes)) {
+    final binaryMask = InpaintMaskUtils.decodeBinaryMask(maskImage);
+    if (binaryMask == null) {
       return null;
     }
 
-    final decodedMask = img.decodeImage(normalizedMaskBytes);
-    if (decodedMask == null) {
-      return null;
-    }
-
-    return _findMaskBounds(decodedMask);
+    return _findBinaryMaskBounds(
+      binaryMask.mask,
+      binaryMask.width,
+      binaryMask.height,
+    );
   }
 
   static FocusedInpaintCrop? _resolveSelectionBounds(

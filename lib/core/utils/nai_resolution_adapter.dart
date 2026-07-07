@@ -291,6 +291,12 @@ class NaiResolutionAdapter {
     required int targetWidth,
     required int targetHeight,
   }) {
+    // PNG 宽高可直接从 IHDR 读出：尺寸已匹配时跳过整次解码。
+    // 聚焦重绘等内部生成的请求图必然命中该路径。
+    if (_pngSizeMatches(imageBytes, targetWidth, targetHeight)) {
+      return imageBytes;
+    }
+
     final img.Image? decoded;
     try {
       decoded = img.decodeImage(imageBytes);
@@ -311,7 +317,8 @@ class NaiResolutionAdapter {
       height: targetHeight,
     );
 
-    return Uint8List.fromList(img.encodePng(resized));
+    // 仅作为请求载体、不落盘：用最快压缩等级换编码时间（像素无损）。
+    return Uint8List.fromList(img.encodePng(resized, level: 1));
   }
 
   /// 异步版本，适合大图在 isolate 中处理
@@ -354,6 +361,10 @@ class NaiResolutionAdapter {
     required int targetWidth,
     required int targetHeight,
   }) {
+    // 尺寸已匹配时直接短路，连 isolate 往返都省掉。
+    if (_pngSizeMatches(imageBytes, targetWidth, targetHeight)) {
+      return Future.value(imageBytes);
+    }
     return ComputeGate().runIsolate(
       () => normalizeImageForRequest(
         imageBytes,
@@ -393,6 +404,33 @@ class NaiResolutionAdapter {
         bytes[5] == 0x0A &&
         bytes[6] == 0x1A &&
         bytes[7] == 0x0A;
+  }
+
+  static bool _pngSizeMatches(Uint8List bytes, int width, int height) {
+    final size = _tryReadPngSize(bytes);
+    return size != null && size.$1 == width && size.$2 == height;
+  }
+
+  /// 从 PNG IHDR 直接读取宽高（签名 8 字节 + 长度 4 字节 + 'IHDR' + w/h）。
+  /// 非 PNG 或头部异常时返回 null，由调用方回退到完整解码。
+  static (int, int)? _tryReadPngSize(Uint8List bytes) {
+    if (bytes.length < 24 || !_isPng(bytes)) {
+      return null;
+    }
+    if (bytes[12] != 0x49 ||
+        bytes[13] != 0x48 ||
+        bytes[14] != 0x44 ||
+        bytes[15] != 0x52) {
+      return null;
+    }
+    final width =
+        (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19];
+    final height =
+        (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
+    if (width <= 0 || height <= 0) {
+      return null;
+    }
+    return (width, height);
   }
 
   static double _combinedScale(int srcW, int srcH, int dstW, int dstH) {

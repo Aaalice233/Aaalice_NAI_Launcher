@@ -131,6 +131,31 @@ void main() {
     });
 
     test(
+        'prepareNovelAiRequestMaskBytesAsync should match the sync request mask',
+        () async {
+      final mask = _buildParityMask(width: 256, height: 192);
+      final maskBytes = Uint8List.fromList(img.encodePng(mask));
+
+      final syncResult = InpaintMaskUtils.prepareNovelAiRequestMaskBytes(
+        maskBytes,
+        targetWidth: 256,
+        targetHeight: 192,
+        closingIterations: 1,
+        expansionIterations: 1,
+      );
+      final asyncResult =
+          await InpaintMaskUtils.prepareNovelAiRequestMaskBytesAsync(
+        maskBytes,
+        targetWidth: 256,
+        targetHeight: 192,
+        closingIterations: 1,
+        expansionIterations: 1,
+      );
+
+      expect(asyncResult, equals(syncResult));
+    });
+
+    test(
         'prepareGeneratedImageCompositeMaskBytes should match NovelAI worker mask samples',
         () {
       final mask = _buildParityMask(width: 256, height: 192);

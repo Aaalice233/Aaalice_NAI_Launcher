@@ -154,6 +154,67 @@ void main() {
 
       expect(container.read(estimatedCostProvider), equals(expected));
     });
+
+    test(
+        'should estimate mask-only focused inpaint from lightweight mask bounds',
+        () {
+      final workflow = container.read(imageWorkflowControllerProvider.notifier);
+      final subscription =
+          container.read(subscriptionNotifierProvider.notifier);
+
+      subscription.state = const SubscriptionState.loaded(
+        UserSubscription(tier: 1),
+      );
+
+      final source = _buildPng(width: 2048, height: 2048);
+      final mask = _buildMask(
+        width: 2048,
+        height: 2048,
+        rect: const Rect.fromLTWH(700, 800, 220, 180),
+      );
+
+      workflow.replaceSourceImage(
+        source,
+        sourceWidth: 2048,
+        sourceHeight: 2048,
+        autoAdapt: false,
+      );
+      workflow.enterInpaintMode();
+      workflow.setFocusedInpaintEnabled(true);
+      workflow.setMinimumContextMegaPixels(1.0);
+      workflow.onMaskChanged(mask);
+
+      final params = container.read(generationParamsNotifierProvider);
+      final focusedRequest = FocusedInpaintUtils.prepareRequest(
+        sourceImage: source,
+        maskImage: mask,
+        minContextMegaPixels: 1.0,
+      );
+
+      expect(focusedRequest, isNotNull);
+      expect(
+        container.read(focusedInpaintMaskRequestSizeProvider),
+        equals((focusedRequest!.targetWidth, focusedRequest.targetHeight)),
+      );
+
+      final expected = AnlasCalculator.calculateRequestCost(
+        width: focusedRequest.targetWidth,
+        height: focusedRequest.targetHeight,
+        steps: params.steps,
+        batchCount: params.nSamples,
+        batchSize: 1,
+        model: params.model,
+        subscriptionTier:
+            container.read(subscriptionNotifierProvider).subscription?.tier ??
+                0,
+        smea: params.smea,
+        smeaDyn: params.smeaDyn,
+        strength: 1.0,
+        extraPerSampleCost: 0,
+      );
+
+      expect(container.read(estimatedCostProvider), equals(expected));
+    });
   });
 }
 

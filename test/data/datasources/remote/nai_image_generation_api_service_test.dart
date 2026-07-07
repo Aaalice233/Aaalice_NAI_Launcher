@@ -519,7 +519,9 @@ Future<void> _waitForRequestCount(
   _PendingDioAdapter adapter,
   int expectedCount,
 ) async {
-  for (var attempt = 0; attempt < 50; attempt += 1) {
+  // 聚焦重绘等预处理已移入后台 isolate，请求发出前存在真实耗时；
+  // 条件满足即返回，上限放宽不会拖慢通过路径。
+  for (var attempt = 0; attempt < 500; attempt += 1) {
     if (adapter.requests.length >= expectedCount) return;
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }

@@ -167,6 +167,39 @@ void main() {
 
       expect(differingPixels, greaterThan(0));
     });
+
+    test(
+      'returns original bytes untouched when png size already matches',
+      () async {
+        final bytes = _png(width: 832, height: 1216);
+
+        final normalized = NaiResolutionAdapter.normalizeImageForRequest(
+          bytes,
+          targetWidth: 832,
+          targetHeight: 1216,
+        );
+        final normalizedAsync =
+            await NaiResolutionAdapter.normalizeImageForRequestAsync(
+          bytes,
+          targetWidth: 832,
+          targetHeight: 1216,
+        );
+
+        expect(identical(normalized, bytes), isTrue);
+        expect(identical(normalizedAsync, bytes), isTrue);
+      },
+    );
+
+    test('still resizes when png header size differs from target', () {
+      final normalized = NaiResolutionAdapter.normalizeImageForRequest(
+        _png(width: 512, height: 512),
+        targetWidth: 832,
+        targetHeight: 1216,
+      );
+
+      final decoded = img.decodeImage(normalized!)!;
+      expect((decoded.width, decoded.height), equals((832, 1216)));
+    });
   });
 }
 

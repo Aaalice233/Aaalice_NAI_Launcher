@@ -62,6 +62,39 @@ class InpaintMaskUtils {
     return binaryMask.any((value) => value == 1);
   }
 
+  /// 单次解码得到 0/1 二值蒙版数组及尺寸；解码失败返回 null。
+  ///
+  /// 供需要同时做"归一化 + 空蒙版检查 + 像素扫描"的调用方使用，
+  /// 避免 normalizeMaskBytes/hasMaskedPixels/decodeImage 三连的重复解码。
+  static ({Uint8List mask, int width, int height})? decodeBinaryMask(
+    Uint8List bytes,
+  ) {
+    img.Image? decoded;
+    try {
+      decoded = img.decodeImage(bytes);
+    } catch (_) {
+      return null;
+    }
+    if (decoded == null) {
+      return null;
+    }
+
+    return (
+      mask: _createBinaryMask(decoded),
+      width: decoded.width,
+      height: decoded.height,
+    );
+  }
+
+  /// 将 0/1 二值蒙版渲染为黑白 RGBA 图像（白=蒙版区域），不做 PNG 编码。
+  static img.Image binaryMaskToImage(
+    Uint8List binaryMask,
+    int width,
+    int height,
+  ) {
+    return _binaryMaskToImage(binaryMask, width, height);
+  }
+
   /// 将封闭轮廓内部的透明空洞补成白色蒙版。
   ///
   /// 仅填充与画布边界不连通的透明区域，保持开放轮廓不变。
@@ -407,7 +440,7 @@ class InpaintMaskUtils {
     int blurRadius = 20,
     int blurIterations = 2,
   }) {
-    final latentMaskBytes = prepareNovelAiLatentMaskBytes(
+    final latentMask = _prepareNovelAiLatentMaskImage(
       bytes,
       targetWidth: targetWidth,
       targetHeight: targetHeight,
@@ -415,9 +448,8 @@ class InpaintMaskUtils {
       expansionIterations: expansionIterations,
       latentGridSize: latentGridSize,
     );
-    final latentMask = img.decodeImage(latentMaskBytes);
     if (latentMask == null) {
-      return latentMaskBytes;
+      return bytes;
     }
     final latentWidth = latentMask.width;
     final latentHeight = latentMask.height;
@@ -587,7 +619,7 @@ class InpaintMaskUtils {
     int expansionIterations = 0,
     int latentGridSize = 8,
   }) {
-    final latentMaskBytes = prepareNovelAiLatentMaskBytes(
+    final latentMask = _prepareNovelAiLatentMaskImage(
       bytes,
       targetWidth: targetWidth,
       targetHeight: targetHeight,
@@ -595,14 +627,8 @@ class InpaintMaskUtils {
       expansionIterations: expansionIterations,
       latentGridSize: latentGridSize,
     );
-    img.Image? latentMask;
-    try {
-      latentMask = img.decodeImage(latentMaskBytes);
-    } catch (_) {
-      return latentMaskBytes;
-    }
     if (latentMask == null) {
-      return latentMaskBytes;
+      return bytes;
     }
 
     final fullSizeMask = _resizeNearestCanvasLike(
@@ -610,7 +636,32 @@ class InpaintMaskUtils {
       width: targetWidth,
       height: targetHeight,
     );
-    return Uint8List.fromList(img.encodePng(fullSizeMask));
+    // 仅作为请求载体、不落盘：用最快压缩等级换编码时间（像素无损）。
+    return Uint8List.fromList(img.encodePng(fullSizeMask, level: 1));
+  }
+
+  /// [prepareNovelAiRequestMaskBytes] 的后台 isolate 版本。
+  ///
+  /// 该流程包含多轮全图扫描与 PNG 编码，直接在 UI isolate 同步执行
+  /// 会在点击生成后造成可感知的卡顿。
+  static Future<Uint8List> prepareNovelAiRequestMaskBytesAsync(
+    Uint8List bytes, {
+    required int targetWidth,
+    required int targetHeight,
+    int closingIterations = 0,
+    int expansionIterations = 0,
+    int latentGridSize = 8,
+  }) {
+    return Isolate.run(
+      () => prepareNovelAiRequestMaskBytes(
+        bytes,
+        targetWidth: targetWidth,
+        targetHeight: targetHeight,
+        closingIterations: closingIterations,
+        expansionIterations: expansionIterations,
+        latentGridSize: latentGridSize,
+      ),
+    );
   }
 
   /// 构建 NovelAI 官网 infill 流程中的 latent 网格中间蒙版。
@@ -622,14 +673,38 @@ class InpaintMaskUtils {
     int expansionIterations = 0,
     int latentGridSize = 8,
   }) {
+    final latentMask = _prepareNovelAiLatentMaskImage(
+      bytes,
+      targetWidth: targetWidth,
+      targetHeight: targetHeight,
+      closingIterations: closingIterations,
+      expansionIterations: expansionIterations,
+      latentGridSize: latentGridSize,
+    );
+    if (latentMask == null) {
+      return bytes;
+    }
+    return Uint8List.fromList(img.encodePng(latentMask));
+  }
+
+  /// latent 蒙版流程的图像版主体：中间结果全程以 [img.Image] 传递，
+  /// 避免每个阶段 PNG 编码后又立刻解码的往返开销。
+  static img.Image? _prepareNovelAiLatentMaskImage(
+    Uint8List bytes, {
+    required int targetWidth,
+    required int targetHeight,
+    int closingIterations = 0,
+    int expansionIterations = 0,
+    int latentGridSize = 8,
+  }) {
     img.Image? decoded;
     try {
       decoded = img.decodeImage(bytes);
     } catch (_) {
-      return bytes;
+      return null;
     }
     if (decoded == null) {
-      return bytes;
+      return null;
     }
 
     var binaryMask = _createBinaryMask(decoded);
@@ -650,12 +725,11 @@ class InpaintMaskUtils {
       );
     }
 
-    var fullSizeMask = img.decodeImage(
-      _encodeBinaryMask(binaryMask, decoded.width, decoded.height),
+    var fullSizeMask = _binaryMaskToImage(
+      binaryMask,
+      decoded.width,
+      decoded.height,
     );
-    if (fullSizeMask == null) {
-      return bytes;
-    }
     if (fullSizeMask.width != targetWidth ||
         fullSizeMask.height != targetHeight) {
       fullSizeMask = _resizeNearestCanvasLike(
@@ -668,7 +742,7 @@ class InpaintMaskUtils {
     final latentWidth = (targetWidth / latentGridSize).round();
     final latentHeight = (targetHeight / latentGridSize).round();
     if (latentWidth <= 0 || latentHeight <= 0) {
-      return Uint8List.fromList(img.encodePng(fullSizeMask));
+      return fullSizeMask;
     }
 
     final latentMask = _resizeNearestCanvasLike(
@@ -677,7 +751,7 @@ class InpaintMaskUtils {
       height: latentHeight,
     );
     final latentBinaryMask = _createBinaryMask(latentMask);
-    return _encodeBinaryMask(latentBinaryMask, latentWidth, latentHeight);
+    return _binaryMaskToImage(latentBinaryMask, latentWidth, latentHeight);
   }
 
   /// 将已保存的黑白蒙版转换为编辑器可见的透明覆盖层。

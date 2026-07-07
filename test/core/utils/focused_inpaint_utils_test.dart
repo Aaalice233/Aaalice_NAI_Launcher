@@ -227,5 +227,125 @@ void main() {
         expect(requestSize.$2, equals(request.targetHeight));
       },
     );
+
+    test(
+      'resolveRequestSizeForMask should match prepareRequest for irregular masks',
+      () {
+        final source = img.Image(width: 1024, height: 768);
+        img.fill(source, color: img.ColorRgb8(0, 0, 0));
+        final mask = _buildIrregularMask(width: 1024, height: 768);
+        final sourceBytes = Uint8List.fromList(img.encodePng(source));
+        final maskBytes = Uint8List.fromList(img.encodePng(mask));
+
+        final lightweightSize = FocusedInpaintUtils.resolveRequestSizeForMask(
+          maskImage: maskBytes,
+          minContextMegaPixels: 88,
+        );
+        final request = FocusedInpaintUtils.prepareRequest(
+          sourceImage: sourceBytes,
+          maskImage: maskBytes,
+          minContextMegaPixels: 88,
+        );
+
+        expect(lightweightSize, isNotNull);
+        expect(request, isNotNull);
+        expect(lightweightSize!.$1, equals(request!.targetWidth));
+        expect(lightweightSize.$2, equals(request.targetHeight));
+      },
+    );
+
+    test('resolveRequestSizeForMask should return null for empty masks', () {
+      final mask = img.Image(width: 320, height: 240);
+      img.fill(mask, color: img.ColorRgb8(0, 0, 0));
+
+      final size = FocusedInpaintUtils.resolveRequestSizeForMask(
+        maskImage: Uint8List.fromList(img.encodePng(mask)),
+        minContextMegaPixels: 88,
+      );
+
+      expect(size, isNull);
+    });
+
+    test(
+      'prepareRequestAsync should match the sync path across the isolate boundary',
+      () async {
+        final source = img.Image(width: 640, height: 480);
+        img.fill(source, color: img.ColorRgb8(16, 32, 64));
+        final mask = _buildIrregularMask(width: 640, height: 480);
+        final sourceBytes = Uint8List.fromList(img.encodePng(source));
+        final maskBytes = Uint8List.fromList(img.encodePng(mask));
+
+        final syncRequest = FocusedInpaintUtils.prepareRequest(
+          sourceImage: sourceBytes,
+          maskImage: maskBytes,
+          minContextMegaPixels: 40,
+        )!;
+        final asyncRequest = await FocusedInpaintUtils.prepareRequestAsync(
+          sourceImage: sourceBytes,
+          maskImage: maskBytes,
+          minContextMegaPixels: 40,
+        );
+
+        expect(asyncRequest, isNotNull);
+        expect(asyncRequest!.targetWidth, equals(syncRequest.targetWidth));
+        expect(asyncRequest.targetHeight, equals(syncRequest.targetHeight));
+        expect(asyncRequest.crop.x, equals(syncRequest.crop.x));
+        expect(asyncRequest.crop.y, equals(syncRequest.crop.y));
+        expect(asyncRequest.crop.width, equals(syncRequest.crop.width));
+        expect(asyncRequest.crop.height, equals(syncRequest.crop.height));
+        expect(
+          asyncRequest.requestSourceImage,
+          equals(syncRequest.requestSourceImage),
+        );
+        expect(
+          asyncRequest.requestMaskImage,
+          equals(syncRequest.requestMaskImage),
+        );
+
+        final generated = img.Image(
+          width: asyncRequest.targetWidth,
+          height: asyncRequest.targetHeight,
+        );
+        img.fill(generated, color: img.ColorRgb8(255, 255, 255));
+        final generatedBytes = Uint8List.fromList(img.encodePng(generated));
+
+        final syncComposite = syncRequest.compositeGeneratedImage(
+          generatedBytes,
+        );
+        expect(
+          asyncRequest.compositeGeneratedImage(generatedBytes),
+          equals(syncComposite),
+        );
+        expect(
+          await asyncRequest.compositeGeneratedImageAsync(generatedBytes),
+          equals(syncComposite),
+        );
+      },
+    );
   });
+}
+
+/// 构造带斜向笔画、分离色块与孔洞的不规则蒙版。
+img.Image _buildIrregularMask({required int width, required int height}) {
+  final mask = img.Image(width: width, height: height);
+  img.fill(mask, color: img.ColorRgb8(0, 0, 0));
+
+  for (var y = height ~/ 4; y < height ~/ 4 + 60; y++) {
+    for (var x = width ~/ 3; x < width ~/ 3 + 90; x++) {
+      final onDiagonal = (x - y).abs() % 7 != 0;
+      final inHole =
+          x > width ~/ 3 + 30 && x < width ~/ 3 + 50 && y > height ~/ 4 + 20 &&
+              y < height ~/ 4 + 40;
+      if (onDiagonal && !inHole) {
+        mask.setPixelRgb(x, y, 255, 255, 255);
+      }
+    }
+  }
+  for (var y = height ~/ 2; y < height ~/ 2 + 24; y++) {
+    for (var x = width ~/ 2; x < width ~/ 2 + 36; x++) {
+      mask.setPixelRgb(x, y, 255, 255, 255);
+    }
+  }
+
+  return mask;
 }

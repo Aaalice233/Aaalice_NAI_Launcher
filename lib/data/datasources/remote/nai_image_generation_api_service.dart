@@ -15,6 +15,7 @@ import '../../../core/network/request_builders/nai_image_request_builder.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/focused_inpaint_utils.dart';
 import '../../../core/utils/inpaint_mask_utils.dart';
+import '../../../core/utils/isolate_pool.dart';
 import '../../../core/utils/nai_api_utils.dart';
 import '../../../core/utils/zip_utils.dart';
 import '../../models/image/image_params.dart';
@@ -86,7 +87,7 @@ class NAIImageGenerationApiService {
     double minimumContextMegaPixels = 88.0,
     Rect? focusedSelectionRect,
   }) async {
-    final focusedRequest = _prepareFocusedInpaint(
+    final focusedRequest = await _prepareFocusedInpaint(
       params,
       enabled: focusedInpaintEnabled,
       minimumContextMegaPixels: minimumContextMegaPixels,
@@ -271,7 +272,7 @@ class NAIImageGenerationApiService {
 
       // 6. 解压 ZIP 响应
       final zipBytes = response.data as Uint8List;
-      final images = _compositeInpaintImages(
+      final images = await _compositeInpaintImages(
         ZipUtils.extractAllImages(zipBytes),
         params,
         focusedRequest,
@@ -360,7 +361,7 @@ class NAIImageGenerationApiService {
       return;
     }
 
-    final focusedRequest = _prepareFocusedInpaint(
+    final focusedRequest = await _prepareFocusedInpaint(
       params,
       enabled: focusedInpaintEnabled,
       minimumContextMegaPixels: minimumContextMegaPixels,
@@ -600,7 +601,7 @@ class NAIImageGenerationApiService {
 
               if (imageBytes != null && imageBytes.isNotEmpty) {
                 if (eventType == 'final') {
-                  final compositedImage = _compositeInpaintImage(
+                  final compositedImage = await _compositeInpaintImage(
                     imageBytes,
                     params,
                     focusedRequest,
@@ -671,7 +672,11 @@ class NAIImageGenerationApiService {
             final images = ZipUtils.extractAllImages(bytes);
             if (images.isNotEmpty) {
               yield ImageStreamChunk.complete(
-                _compositeInpaintImage(images.first, params, focusedRequest),
+                await _compositeInpaintImage(
+                  images.first,
+                  params,
+                  focusedRequest,
+                ),
               );
               return;
             }
@@ -696,12 +701,16 @@ class NAIImageGenerationApiService {
                   final data = msg['data'];
                   if (data is Uint8List) {
                     yield ImageStreamChunk.complete(
-                      _compositeInpaintImage(data, params, focusedRequest),
+                      await _compositeInpaintImage(
+                        data,
+                        params,
+                        focusedRequest,
+                      ),
                     );
                     return;
                   } else if (data is List<int>) {
                     yield ImageStreamChunk.complete(
-                      _compositeInpaintImage(
+                      await _compositeInpaintImage(
                         Uint8List.fromList(data),
                         params,
                         focusedRequest,
@@ -710,7 +719,7 @@ class NAIImageGenerationApiService {
                     return;
                   } else if (data is String) {
                     yield ImageStreamChunk.complete(
-                      _compositeInpaintImage(
+                      await _compositeInpaintImage(
                         Uint8List.fromList(base64Decode(data)),
                         params,
                         focusedRequest,
@@ -784,12 +793,12 @@ class NAIImageGenerationApiService {
     }
   }
 
-  FocusedInpaintRequest? _prepareFocusedInpaint(
+  Future<FocusedInpaintRequest?> _prepareFocusedInpaint(
     ImageParams params, {
     required bool enabled,
     required double minimumContextMegaPixels,
     Rect? focusedSelectionRect,
-  }) {
+  }) async {
     if (!enabled ||
         params.action != ImageGenerationAction.infill ||
         params.sourceImage == null ||
@@ -797,7 +806,7 @@ class NAIImageGenerationApiService {
       return null;
     }
 
-    final request = FocusedInpaintUtils.prepareRequest(
+    final request = await FocusedInpaintUtils.prepareRequestAsync(
       sourceImage: params.sourceImage!,
       maskImage: params.maskImage!,
       focusedSelectionRect: focusedSelectionRect,
@@ -855,50 +864,62 @@ class NAIImageGenerationApiService {
     );
   }
 
-  List<Uint8List> _compositeInpaintImages(
+  Future<List<Uint8List>> _compositeInpaintImages(
     List<Uint8List> images,
     ImageParams params,
     FocusedInpaintRequest? focusedRequest,
   ) {
-    return images
-        .map(
-          (imageBytes) =>
-              _compositeInpaintImage(imageBytes, params, focusedRequest),
-        )
-        .toList(growable: false);
+    // Future.wait 保持顺序；并发由 ComputeGate 统一背压。
+    return Future.wait(
+      images.map(
+        (imageBytes) =>
+            _compositeInpaintImage(imageBytes, params, focusedRequest),
+      ),
+    );
   }
 
-  Uint8List _compositeInpaintImage(
+  /// 收尾贴回合成。重活（mask 构建 + 整图混合 + PNG 编码）在后台
+  /// isolate 完成；闭包只捕获原始字节与数值，避免捕获 Freezed 对象
+  /// （Windows 上 Isolate.run 与 Freezed 存在序列化兼容性问题）。
+  Future<Uint8List> _compositeInpaintImage(
     Uint8List imageBytes,
     ImageParams params,
     FocusedInpaintRequest? focusedRequest,
   ) {
     if (focusedRequest != null) {
-      return focusedRequest.compositeGeneratedImage(imageBytes);
+      return focusedRequest.compositeGeneratedImageAsync(imageBytes);
     }
     if (params.isOutpaint) {
-      return imageBytes;
+      return Future.value(imageBytes);
     }
+    final sourceImage = params.sourceImage;
+    final maskImage = params.maskImage;
     if (params.action != ImageGenerationAction.infill ||
-        params.sourceImage == null ||
-        params.maskImage == null) {
-      return imageBytes;
+        sourceImage == null ||
+        maskImage == null) {
+      return Future.value(imageBytes);
     }
 
-    final compositeMask =
-        InpaintMaskUtils.prepareGeneratedImageCompositeMaskBytes(
-          params.maskImage!,
-          targetWidth: params.width,
-          targetHeight: params.height,
-          closingIterations: params.inpaintMaskClosingIterations,
-          expansionIterations: params.inpaintMaskExpansionIterations,
-        );
-    return InpaintMaskUtils.compositeGeneratedImage(
-      sourceImage: params.sourceImage!,
-      maskImage: compositeMask,
-      generatedImage: imageBytes,
-      normalizeMask: false,
-    );
+    final targetWidth = params.width;
+    final targetHeight = params.height;
+    final closingIterations = params.inpaintMaskClosingIterations;
+    final expansionIterations = params.inpaintMaskExpansionIterations;
+    return ComputeGate().runIsolate(() {
+      final compositeMask =
+          InpaintMaskUtils.prepareGeneratedImageCompositeMaskBytes(
+            maskImage,
+            targetWidth: targetWidth,
+            targetHeight: targetHeight,
+            closingIterations: closingIterations,
+            expansionIterations: expansionIterations,
+          );
+      return InpaintMaskUtils.compositeGeneratedImage(
+        sourceImage: sourceImage,
+        maskImage: compositeMask,
+        generatedImage: imageBytes,
+        normalizeMask: false,
+      );
+    });
   }
 
   int? _optionalInt(Object? value) {

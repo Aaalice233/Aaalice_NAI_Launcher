@@ -437,7 +437,8 @@ class NAIImageRequestBuilder {
     if (params.action == ImageGenerationAction.infill &&
         params.sourceImage != null &&
         params.maskImage != null) {
-      final normalizedMask = InpaintMaskUtils.prepareNovelAiRequestMaskBytes(
+      final normalizedMask =
+          await InpaintMaskUtils.prepareNovelAiRequestMaskBytesAsync(
         params.maskImage!,
         targetWidth: params.width,
         targetHeight: params.height,
