@@ -24,6 +24,9 @@ import 'nai_image_enhancement_api_service.dart';
 
 part 'nai_image_generation_api_service.g.dart';
 
+// 管道计时开关（false=关闭，true=打开日志）
+const bool _enablePipelineTracing = true;
+
 /// NovelAI Image Generation API 服务
 /// 处理图像生成相关的 API 调用，包括流式和非流式生成
 class NAIImageGenerationApiService {
@@ -356,17 +359,35 @@ class NAIImageGenerationApiService {
     double minimumContextMegaPixels = 88.0,
     Rect? focusedSelectionRect,
   }) async* {
+    final pipelineStopwatch = Stopwatch()..start();
+    final stageName = focusedInpaintEnabled
+        ? 'FocusedInpaint'
+        : 'NormalInpaint';
+
+    if (_enablePipelineTracing) {
+      AppLogger.i('[Pipeline:$stageName] ===== START =====', 'PipelineTrace');
+    }
+
     if (cancelToken.isCancelled) {
       yield ImageStreamChunk.error('Cancelled');
       return;
     }
 
+    final prepStopwatch = Stopwatch()..start();
     final focusedRequest = await _prepareFocusedInpaint(
       params,
       enabled: focusedInpaintEnabled,
       minimumContextMegaPixels: minimumContextMegaPixels,
       focusedSelectionRect: focusedSelectionRect,
     );
+    prepStopwatch.stop();
+    if (_enablePipelineTracing) {
+      AppLogger.i(
+        '[Pipeline:$stageName] _prepareFocusedInpaint: ${prepStopwatch.elapsedMilliseconds}ms',
+        'PipelineTrace',
+      );
+    }
+
     final effectiveParams = _applyFocusedRequest(params, focusedRequest);
 
     // NovelAI 官方说明 Precise Reference 与 Vibe Transfer 不兼容。
@@ -390,11 +411,19 @@ class NAIImageGenerationApiService {
         return;
       }
 
+      final buildStopwatch = Stopwatch()..start();
       final requestBuildResult = await NAIImageRequestBuilder(
         params: effectiveParams,
         encodeVibe: _enhancementService.encodeVibe,
         preciseReferences: effectivePreciseRefs,
       ).build(sampler: effectiveParams.sampler, isStream: true);
+      buildStopwatch.stop();
+      if (_enablePipelineTracing) {
+        AppLogger.i(
+          '[Pipeline:$stageName] NAIImageRequestBuilder.build: ${buildStopwatch.elapsedMilliseconds}ms',
+          'PipelineTrace',
+        );
+      }
 
       final seed = requestBuildResult.seed;
       final effectivePrompt = requestBuildResult.effectivePrompt;
@@ -505,6 +534,15 @@ class NAIImageGenerationApiService {
       AppLogger.d('==========================================', 'ImgGen');
 
       // 3. 发送流式请求
+      final networkStopwatch = Stopwatch()..start();
+      final requestSentStopwatch = Stopwatch();
+      if (_enablePipelineTracing) {
+        AppLogger.i(
+          '[Pipeline:$stageName] Network request sending... (build_elapsed: ${buildStopwatch.elapsedMilliseconds}ms)',
+          'PipelineTrace',
+        );
+      }
+
       final response = await _dio.post<ResponseBody>(
         _endpointService.imageUrl(ApiConstants.generateImageStreamEndpoint),
         data: requestData,
@@ -514,10 +552,21 @@ class NAIImageGenerationApiService {
           headers: {'Accept': 'application/x-msgpack'},
         ),
       );
+      networkStopwatch.stop();
+      requestSentStopwatch.start(); // 开始计时"等待服务器"
+      if (_enablePipelineTracing) {
+        AppLogger.i(
+          '[Pipeline:$stageName] Request sent, headers received: ${networkStopwatch.elapsedMilliseconds}ms',
+          'PipelineTrace',
+        );
+      }
 
       // 4. 解析 MessagePack 流
       // NovelAI 流式格式：[4字节长度前缀(big-endian)] + [MessagePack数据]
       final responseStream = response.data!.stream;
+      bool firstPreviewLogged = false;
+      final firstPreviewStopwatch = Stopwatch()..start();
+      final serverLatencyStopwatch = Stopwatch(); // 测量从请求到第一数据的延迟
       final buffer = <int>[];
       int messageCount = 0;
       final latestPreviews = <int, Uint8List>{};
@@ -531,6 +580,17 @@ class NAIImageGenerationApiService {
         if (cancelToken.isCancelled) {
           yield ImageStreamChunk.error('Cancelled');
           return;
+        }
+
+        // 首次收到数据块时记录服务器延迟
+        if (!serverLatencyStopwatch.isRunning) {
+          serverLatencyStopwatch.start();
+          if (_enablePipelineTracing) {
+            AppLogger.i(
+              '[Pipeline:$stageName] First data chunk received: ${requestSentStopwatch.elapsedMilliseconds}ms (server latency)',
+              'PipelineTrace',
+            );
+          }
         }
 
         buffer.addAll(chunk);
@@ -601,12 +661,32 @@ class NAIImageGenerationApiService {
 
               if (imageBytes != null && imageBytes.isNotEmpty) {
                 if (eventType == 'final') {
+                  final compositeStopwatch = Stopwatch()..start();
+                  if (_enablePipelineTracing) {
+                    AppLogger.i(
+                      '[Pipeline:$stageName] Starting composite for final image, total_elapsed: ${pipelineStopwatch.elapsedMilliseconds}ms',
+                      'PipelineTrace',
+                    );
+                  }
+
                   final compositedImage = await _compositeInpaintImage(
                     imageBytes,
                     params,
                     focusedRequest,
                   );
+                  compositeStopwatch.stop();
+
                   completedSamples.add(sampleIndex);
+                  if (_enablePipelineTracing) {
+                    AppLogger.i(
+                      '[Pipeline:$stageName] Composite complete: ${compositeStopwatch.elapsedMilliseconds}ms (sample $sampleIndex)',
+                      'PipelineTrace',
+                    );
+                    AppLogger.i(
+                      '[Pipeline:$stageName] ===== SUMMARY ===== prepare:${prepStopwatch.elapsedMilliseconds}ms build:${buildStopwatch.elapsedMilliseconds}ms network:${networkStopwatch.elapsedMilliseconds}ms server_wait:${requestSentStopwatch.elapsedMilliseconds}ms preview_to_final:${firstPreviewStopwatch.elapsedMilliseconds - serverLatencyStopwatch.elapsedMilliseconds}ms composite:${compositeStopwatch.elapsedMilliseconds}ms TOTAL:${pipelineStopwatch.elapsedMilliseconds}ms',
+                      'PipelineTrace',
+                    );
+                  }
                   AppLogger.d(
                     'Stream final: sample $sampleIndex, ${imageBytes.length} bytes',
                     'Stream',
@@ -621,6 +701,17 @@ class NAIImageGenerationApiService {
                 if (eventType == null ||
                     eventType.isEmpty ||
                     eventType == 'intermediate') {
+                  if (!firstPreviewLogged) {
+                    firstPreviewLogged = true;
+                    serverLatencyStopwatch.stop();
+                    if (_enablePipelineTracing) {
+                      AppLogger.i(
+                        '[Pipeline:$stageName] First preview arrived: ${firstPreviewStopwatch.elapsedMilliseconds}ms (server_latency: ${serverLatencyStopwatch.elapsedMilliseconds}ms)',
+                        'PipelineTrace',
+                      );
+                    }
+                  }
+
                   final focusedPreviewPlacement = _focusedPreviewPlacement(
                     params,
                     focusedRequest,
@@ -655,8 +746,14 @@ class NAIImageGenerationApiService {
       }
 
       // 流结束后检查最终数据
+      if (_enablePipelineTracing) {
+        AppLogger.i(
+          '[Pipeline:$stageName] Stream ended, prepare:${prepStopwatch.elapsedMilliseconds}ms build:${buildStopwatch.elapsedMilliseconds}ms server_wait:${requestSentStopwatch.elapsedMilliseconds}ms total:${pipelineStopwatch.elapsedMilliseconds}ms',
+          'PipelineTrace',
+        );
+      }
       AppLogger.d(
-        'Stream ended, buffer remaining: ${buffer.length} bytes, messages: $messageCount',
+        'Stream ended, buffer remaining: ${buffer.length} bytes, messages: $messageCount, completed_samples: ${completedSamples.length}/$expectedSamples',
         'Stream',
       );
 
@@ -669,15 +766,22 @@ class NAIImageGenerationApiService {
           if (bytes.length > 4 && bytes[0] == 0x50 && bytes[1] == 0x4B) {
             // ZIP 文件头 "PK"
             AppLogger.d('Stream fallback: parsing as ZIP', 'Stream');
+            final compositeStopwatch = Stopwatch()..start();
             final images = ZipUtils.extractAllImages(bytes);
             if (images.isNotEmpty) {
-              yield ImageStreamChunk.complete(
-                await _compositeInpaintImage(
-                  images.first,
-                  params,
-                  focusedRequest,
-                ),
+              final compositedImage = await _compositeInpaintImage(
+                images.first,
+                params,
+                focusedRequest,
               );
+              compositeStopwatch.stop();
+              if (_enablePipelineTracing) {
+                AppLogger.i(
+                  '[Pipeline:$stageName] ZIP fallback composite: ${compositeStopwatch.elapsedMilliseconds}ms TOTAL:${pipelineStopwatch.elapsedMilliseconds}ms',
+                  'PipelineTrace',
+                );
+              }
+              yield ImageStreamChunk.complete(compositedImage);
               return;
             }
           }
@@ -699,34 +803,27 @@ class NAIImageGenerationApiService {
                 });
                 if (msg.containsKey('data')) {
                   final data = msg['data'];
-                  if (data is Uint8List) {
-                    yield ImageStreamChunk.complete(
-                      await _compositeInpaintImage(
-                        data,
-                        params,
-                        focusedRequest,
-                      ),
+                  final compositeStopwatch = Stopwatch()..start();
+                  final compositedImage = await _compositeInpaintImage(
+                    data is Uint8List
+                        ? data
+                        : data is List<int>
+                        ? Uint8List.fromList(data)
+                        : data is String
+                        ? Uint8List.fromList(base64Decode(data))
+                        : Uint8List(0),
+                    params,
+                    focusedRequest,
+                  );
+                  compositeStopwatch.stop();
+                  if (_enablePipelineTracing) {
+                    AppLogger.i(
+                      '[Pipeline:$stageName] Fallback msgpack composite: ${compositeStopwatch.elapsedMilliseconds}ms TOTAL:${pipelineStopwatch.elapsedMilliseconds}ms',
+                      'PipelineTrace',
                     );
-                    return;
-                  } else if (data is List<int>) {
-                    yield ImageStreamChunk.complete(
-                      await _compositeInpaintImage(
-                        Uint8List.fromList(data),
-                        params,
-                        focusedRequest,
-                      ),
-                    );
-                    return;
-                  } else if (data is String) {
-                    yield ImageStreamChunk.complete(
-                      await _compositeInpaintImage(
-                        Uint8List.fromList(base64Decode(data)),
-                        params,
-                        focusedRequest,
-                      ),
-                    );
-                    return;
                   }
+                  yield ImageStreamChunk.complete(compositedImage);
+                  return;
                 }
               }
             }
