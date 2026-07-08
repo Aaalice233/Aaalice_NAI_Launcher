@@ -192,6 +192,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       params: params,
       focusedPreviewPlacement: focusedPreviewPlacement?.copyWith(
         sourceImage: Uint8List.fromList(focusedPreviewPlacement.sourceImage),
+        maskImage: focusedPreviewPlacement.maskImage == null
+            ? null
+            : Uint8List.fromList(focusedPreviewPlacement.maskImage!),
       ),
     );
   }
@@ -274,6 +277,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   }) {
     final source = img.decodeImage(focusedPreviewPlacement.sourceImage);
     final preview = img.decodeImage(previewBytes);
+    final mask = focusedPreviewPlacement.maskImage == null
+        ? null
+        : img.decodeImage(focusedPreviewPlacement.maskImage!);
     if (source == null || preview == null) {
       return null;
     }
@@ -309,6 +315,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       dstY: dstY,
       dstW: dstW,
       dstH: dstH,
+      mask: mask,
       blend: img.BlendMode.direct,
     );
 

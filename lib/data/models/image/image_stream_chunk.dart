@@ -4,8 +4,8 @@ import 'dart:typed_data';
 ///
 /// The final image is composited back to the full source canvas in the service.
 /// Intermediate frames keep the crop bytes and carry this placement data so the
-/// UI can render them over the source image without re-encoding a full PNG for
-/// every stream step.
+/// UI can render them over the source image. [maskImage] is an alpha PNG for
+/// clipping the crop preview to the actual edited region.
 class FocusedStreamPreviewPlacement {
   const FocusedStreamPreviewPlacement({
     required this.sourceImage,
@@ -13,9 +13,11 @@ class FocusedStreamPreviewPlacement {
     required this.yPercent,
     required this.widthPercent,
     required this.heightPercent,
+    this.maskImage,
   });
 
   final Uint8List sourceImage;
+  final Uint8List? maskImage;
   final double xPercent;
   final double yPercent;
   final double widthPercent;
@@ -30,8 +32,11 @@ class FocusedStreamPreviewPlacement {
       widthPercent > 0 &&
       heightPercent > 0;
 
+  bool get hasMask => maskImage != null && maskImage!.isNotEmpty;
+
   FocusedStreamPreviewPlacement copyWith({
     Uint8List? sourceImage,
+    Uint8List? maskImage,
     double? xPercent,
     double? yPercent,
     double? widthPercent,
@@ -39,6 +44,7 @@ class FocusedStreamPreviewPlacement {
   }) {
     return FocusedStreamPreviewPlacement(
       sourceImage: sourceImage ?? this.sourceImage,
+      maskImage: maskImage ?? this.maskImage,
       xPercent: xPercent ?? this.xPercent,
       yPercent: yPercent ?? this.yPercent,
       widthPercent: widthPercent ?? this.widthPercent,

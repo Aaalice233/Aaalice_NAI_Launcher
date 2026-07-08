@@ -857,6 +857,7 @@ class NAIImageGenerationApiService {
 
     return FocusedStreamPreviewPlacement(
       sourceImage: params.sourceImage!,
+      maskImage: focusedRequest.streamPreviewMaskImage,
       xPercent: focusedRequest.crop.x / sourceWidth,
       yPercent: focusedRequest.crop.y / sourceHeight,
       widthPercent: focusedRequest.crop.width / sourceWidth,

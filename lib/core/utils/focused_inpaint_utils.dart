@@ -37,6 +37,7 @@ class FocusedInpaintRequest {
   FocusedInpaintRequest({
     required this.requestSourceImage,
     required this.requestMaskImage,
+    required this.streamPreviewMaskImage,
     required this.targetWidth,
     required this.targetHeight,
     required this.crop,
@@ -47,6 +48,7 @@ class FocusedInpaintRequest {
 
   final Uint8List requestSourceImage;
   final Uint8List requestMaskImage;
+  final Uint8List streamPreviewMaskImage;
   final int targetWidth;
   final int targetHeight;
   final FocusedInpaintCrop crop;
@@ -320,12 +322,30 @@ class FocusedInpaintUtils {
       requestMaskImage: Uint8List.fromList(
         img.encodePng(resizedMask, level: 1),
       ),
+      streamPreviewMaskImage: _encodeStreamPreviewAlphaMask(
+        context.compositeMaskAtCrop,
+      ),
       targetWidth: targetSize.$1,
       targetHeight: targetSize.$2,
       crop: context.crop,
       originalSource: context.source,
       compositeMaskAtCrop: context.compositeMaskAtCrop,
     );
+  }
+
+  static Uint8List _encodeStreamPreviewAlphaMask(img.Image mask) {
+    final alphaMask = img.Image(
+      width: mask.width,
+      height: mask.height,
+      numChannels: 4,
+    );
+    for (var y = 0; y < mask.height; y++) {
+      for (var x = 0; x < mask.width; x++) {
+        final value = mask.getPixel(x, y).r.toInt().clamp(0, 255);
+        alphaMask.setPixelRgba(x, y, 255, 255, 255, value);
+      }
+    }
+    return Uint8List.fromList(img.encodePng(alphaMask, level: 1));
   }
 
   /// [prepareRequest] 的后台 isolate 版本。

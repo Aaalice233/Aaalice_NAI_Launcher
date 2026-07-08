@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/image_preview.dart';
@@ -47,7 +48,8 @@ void main() {
     addTearDown(gesture.removePointer);
     await gesture.addPointer();
     await gesture.moveTo(tester.getCenter(find.byType(SelectableImageCard)));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.byTooltip('局部重绘'), findsOneWidget);
     expect(find.byTooltip('放大'), findsOneWidget);
@@ -65,7 +67,8 @@ void main() {
       buttons: kSecondaryMouseButton,
     );
     addTearDown(gesture.removePointer);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
     await gesture.up();
     await tester.pumpAndSettle();
 
@@ -253,6 +256,65 @@ void main() {
     expect(find.byType(SelectableImageCard), findsNWidgets(2));
     expect(find.text('1/2'), findsOneWidget);
     expect(find.text('2/2'), findsOneWidget);
+  });
+
+  testWidgets('focused stream preview with mask uses masked preview path', (
+    tester,
+  ) async {
+    final sourceBytes = Uint8List.fromList(
+      img.encodePng(img.Image(width: 32, height: 32)),
+    );
+    final previewBytes = Uint8List.fromList(
+      img.encodePng(img.Image(width: 16, height: 16)),
+    );
+    final mask = img.Image(width: 16, height: 16, numChannels: 4);
+    mask.setPixelRgba(8, 8, 255, 255, 255, 255);
+    final maskBytes = Uint8List.fromList(img.encodePng(mask));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: SizedBox(
+              width: 160,
+              height: 160,
+              child: SelectableImageCard(
+                imageBytes: sourceBytes,
+                streamPreview: previewBytes,
+                focusedPreviewPlacement: FocusedStreamPreviewPlacement(
+                  sourceImage: sourceBytes,
+                  maskImage: maskBytes,
+                  xPercent: 0.25,
+                  yPercent: 0.25,
+                  widthPercent: 0.5,
+                  heightPercent: 0.5,
+                ),
+                isGenerating: true,
+                imageWidth: 32,
+                imageHeight: 32,
+                currentImage: 1,
+                totalImages: 1,
+                progress: 0.5,
+                enableSelection: false,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget.runtimeType.toString() == '_FocusedStreamPreviewImage',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('disabled hover effects should not expose hover action bar', (

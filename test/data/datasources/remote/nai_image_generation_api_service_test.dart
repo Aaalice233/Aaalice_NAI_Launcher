@@ -380,6 +380,12 @@ void main() {
     expect(preview.previewImage, orderedEquals(previewCrop));
     expect(placement, isNotNull);
     expect(placement!.sourceImage, orderedEquals(source));
+    expect(placement.hasMask, isTrue);
+    final previewMask = img.decodeImage(placement.maskImage!)!;
+    expect(previewMask.width, equals(128));
+    expect(previewMask.height, equals(128));
+    expect(previewMask.getPixel(0, 0).a.toInt(), equals(0));
+    expect(previewMask.getPixel(64, 64).a.toInt(), equals(255));
     expect(placement.xPercent, closeTo(0.25, 0.001));
     expect(placement.yPercent, closeTo(0.25, 0.001));
     expect(placement.widthPercent, closeTo(0.5, 0.001));

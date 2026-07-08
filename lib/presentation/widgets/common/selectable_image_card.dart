@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -577,6 +579,13 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
         bytes: widget.streamPreview!,
         fit: BoxFit.cover,
         gaplessPlayback: true,
+      );
+    }
+
+    if (focusedPreviewPlacement.hasMask) {
+      return _FocusedStreamPreviewImage(
+        previewImage: widget.streamPreview!,
+        placement: focusedPreviewPlacement,
       );
     }
 
@@ -1740,6 +1749,244 @@ class _HoverActionButtonState extends State<_HoverActionButton> {
         ),
       ),
     );
+  }
+}
+
+class _FocusedStreamPreviewImage extends StatefulWidget {
+  const _FocusedStreamPreviewImage({
+    required this.previewImage,
+    required this.placement,
+  });
+
+  final Uint8List previewImage;
+  final FocusedStreamPreviewPlacement placement;
+
+  @override
+  State<_FocusedStreamPreviewImage> createState() =>
+      _FocusedStreamPreviewImageState();
+}
+
+class _FocusedStreamPreviewImageState
+    extends State<_FocusedStreamPreviewImage> {
+  ui.Image? _sourceImage;
+  ui.Image? _previewImage;
+  ui.Image? _maskImage;
+  Uint8List? _sourceBytes;
+  Uint8List? _previewBytes;
+  Uint8List? _maskBytes;
+  int _decodeEpoch = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _decodeChangedImages();
+  }
+
+  @override
+  void didUpdateWidget(covariant _FocusedStreamPreviewImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _decodeChangedImages();
+  }
+
+  @override
+  void dispose() {
+    _decodeEpoch++;
+    _sourceImage?.dispose();
+    _previewImage?.dispose();
+    _maskImage?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sourceImage = _sourceImage;
+    final previewImage = _previewImage;
+    final maskImage = _maskImage;
+    if (sourceImage == null || previewImage == null || maskImage == null) {
+      return DecodedMemoryImage(
+        bytes: widget.placement.sourceImage,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+      );
+    }
+
+    return CustomPaint(
+      painter: _FocusedStreamPreviewPainter(
+        sourceImage: sourceImage,
+        previewImage: previewImage,
+        maskImage: maskImage,
+        placement: widget.placement,
+      ),
+    );
+  }
+
+  void _decodeChangedImages() {
+    final maskBytes = widget.placement.maskImage;
+    if (maskBytes == null || maskBytes.isEmpty) {
+      return;
+    }
+
+    final sourceChanged = !_sameBytes(
+      _sourceBytes,
+      widget.placement.sourceImage,
+    );
+    final previewChanged = !_sameBytes(_previewBytes, widget.previewImage);
+    final maskChanged = !_sameBytes(_maskBytes, maskBytes);
+    if (!sourceChanged && !previewChanged && !maskChanged) {
+      return;
+    }
+
+    final epoch = ++_decodeEpoch;
+    unawaited(
+      Future.wait<ui.Image?>([
+        sourceChanged
+            ? _decodeUiImage(widget.placement.sourceImage)
+            : Future<ui.Image?>.value(_sourceImage),
+        previewChanged
+            ? _decodeUiImage(widget.previewImage)
+            : Future<ui.Image?>.value(_previewImage),
+        maskChanged
+            ? _decodeUiImage(maskBytes)
+            : Future<ui.Image?>.value(_maskImage),
+      ]).then((images) {
+        if (!mounted || epoch != _decodeEpoch) {
+          if (sourceChanged) images[0]?.dispose();
+          if (previewChanged) images[1]?.dispose();
+          if (maskChanged) images[2]?.dispose();
+          return;
+        }
+
+        setState(() {
+          if (sourceChanged) {
+            _sourceImage?.dispose();
+            _sourceImage = images[0];
+            _sourceBytes = widget.placement.sourceImage;
+          }
+          if (previewChanged) {
+            _previewImage?.dispose();
+            _previewImage = images[1];
+            _previewBytes = widget.previewImage;
+          }
+          if (maskChanged) {
+            _maskImage?.dispose();
+            _maskImage = images[2];
+            _maskBytes = maskBytes;
+          }
+        });
+      }),
+    );
+  }
+
+  static bool _sameBytes(Uint8List? a, Uint8List b) {
+    return identical(a, b) || (a != null && listEquals(a, b));
+  }
+
+  static Future<ui.Image?> _decodeUiImage(Uint8List bytes) async {
+    try {
+      return await decodeImageFromList(bytes);
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+class _FocusedStreamPreviewPainter extends CustomPainter {
+  _FocusedStreamPreviewPainter({
+    required this.sourceImage,
+    required this.previewImage,
+    required this.maskImage,
+    required this.placement,
+  });
+
+  final ui.Image sourceImage;
+  final ui.Image previewImage;
+  final ui.Image maskImage;
+  final FocusedStreamPreviewPlacement placement;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+
+    final imagePaint = Paint()
+      ..filterQuality = FilterQuality.low
+      ..isAntiAlias = false;
+    _drawCoverImage(canvas, sourceImage, Offset.zero & size, imagePaint);
+
+    final xPercent = placement.xPercent.clamp(0.0, 1.0).toDouble();
+    final yPercent = placement.yPercent.clamp(0.0, 1.0).toDouble();
+    final widthPercent = placement.widthPercent
+        .clamp(0.0, 1.0 - xPercent)
+        .toDouble();
+    final heightPercent = placement.heightPercent
+        .clamp(0.0, 1.0 - yPercent)
+        .toDouble();
+    if (widthPercent <= 0 || heightPercent <= 0) return;
+
+    final overlayRect = Rect.fromLTWH(
+      size.width * xPercent,
+      size.height * yPercent,
+      math.max(1.0, size.width * widthPercent),
+      math.max(1.0, size.height * heightPercent),
+    );
+    final imageSourceRect = Rect.fromLTWH(
+      0,
+      0,
+      previewImage.width.toDouble(),
+      previewImage.height.toDouble(),
+    );
+    final maskSourceRect = Rect.fromLTWH(
+      0,
+      0,
+      maskImage.width.toDouble(),
+      maskImage.height.toDouble(),
+    );
+    final previewPaint = Paint()
+      ..filterQuality = FilterQuality.low
+      ..isAntiAlias = false;
+    final maskPaint = Paint()
+      ..filterQuality = FilterQuality.low
+      ..isAntiAlias = false
+      ..blendMode = BlendMode.dstIn;
+
+    canvas.saveLayer(overlayRect, Paint());
+    canvas.drawImageRect(
+      previewImage,
+      imageSourceRect,
+      overlayRect,
+      previewPaint,
+    );
+    canvas.drawImageRect(maskImage, maskSourceRect, overlayRect, maskPaint);
+    canvas.restore();
+  }
+
+  void _drawCoverImage(
+    Canvas canvas,
+    ui.Image image,
+    Rect outputRect,
+    Paint paint,
+  ) {
+    final inputSize = Size(image.width.toDouble(), image.height.toDouble());
+    final fitted = applyBoxFit(BoxFit.cover, inputSize, outputRect.size);
+    final sourceRect = Alignment.center.inscribe(
+      fitted.source,
+      Offset.zero & inputSize,
+    );
+    final destinationRect = Alignment.center.inscribe(
+      fitted.destination,
+      outputRect,
+    );
+    canvas.drawImageRect(image, sourceRect, destinationRect, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _FocusedStreamPreviewPainter oldDelegate) {
+    return oldDelegate.sourceImage != sourceImage ||
+        oldDelegate.previewImage != previewImage ||
+        oldDelegate.maskImage != maskImage ||
+        oldDelegate.placement.xPercent != placement.xPercent ||
+        oldDelegate.placement.yPercent != placement.yPercent ||
+        oldDelegate.placement.widthPercent != placement.widthPercent ||
+        oldDelegate.placement.heightPercent != placement.heightPercent;
   }
 }
 
