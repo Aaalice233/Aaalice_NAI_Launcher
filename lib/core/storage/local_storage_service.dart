@@ -630,6 +630,20 @@ class LocalStorageService {
     await setSetting(StorageKeys.promptMaximized, maximized);
   }
 
+  /// 获取生成页布局模式 (默认 'classic')
+  String getGenerationLayoutMode() {
+    return getSetting<String>(
+          StorageKeys.generationLayoutMode,
+          defaultValue: 'classic',
+        ) ??
+        'classic';
+  }
+
+  /// 保存生成页布局模式
+  Future<void> setGenerationLayoutMode(String mode) async {
+    await setSetting(StorageKeys.generationLayoutMode, mode);
+  }
+
   /// 获取固定词侧边栏展开状态 (默认收起)
   bool getFixedTagsSidebarExpanded() {
     return getSetting<bool>(
