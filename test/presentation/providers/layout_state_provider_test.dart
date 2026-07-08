@@ -75,6 +75,83 @@ void main() {
       expect(storage.negativeHeight, 300.0);
     });
   });
+
+  group('LayoutState web style layout fields', () {
+    test('defaults', () {
+      const state = LayoutState();
+
+      expect(state.webLeftPanelWidth, 400.0);
+      expect(state.webPromptSectionRatio, 0.5);
+      expect(state.webLeftPanelExpanded, isTrue);
+      expect(state.webModelDrawerExpanded, isFalse);
+    });
+
+    test('copyWith 更新 web 字段且不影响其他字段', () {
+      final state = const LayoutState().copyWith(leftPanelWidth: 350.0);
+      final updated = state.copyWith(
+        webLeftPanelWidth: 480.0,
+        webPromptSectionRatio: 0.6,
+        webLeftPanelExpanded: false,
+        webModelDrawerExpanded: true,
+      );
+
+      expect(updated.leftPanelWidth, 350.0);
+      expect(updated.webLeftPanelWidth, 480.0);
+      expect(updated.webPromptSectionRatio, 0.6);
+      expect(updated.webLeftPanelExpanded, isFalse);
+      expect(updated.webModelDrawerExpanded, isTrue);
+    });
+  });
+
+  group('LayoutStateNotifier web style layout persistence', () {
+    test('build 从 storage 读取 web 字段', () {
+      final storage = _FakeLayoutStorage()
+        ..webWidth = 500.0
+        ..webRatio = 0.35
+        ..webExpanded = false
+        ..webModelDrawer = true;
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWith((ref) => storage),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final state = container.read(layoutStateNotifierProvider);
+
+      expect(state.webLeftPanelWidth, 500.0);
+      expect(state.webPromptSectionRatio, 0.35);
+      expect(state.webLeftPanelExpanded, isFalse);
+      expect(state.webModelDrawerExpanded, isTrue);
+    });
+
+    test('setter 写回 storage 并 clamp', () async {
+      final storage = _FakeLayoutStorage();
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWith((ref) => storage),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(layoutStateNotifierProvider.notifier);
+      await notifier.setWebLeftPanelWidth(9999.0);
+      await notifier.setWebPromptSectionRatio(0.95);
+      await notifier.setWebLeftPanelExpanded(false);
+      await notifier.setWebModelDrawerExpanded(true);
+
+      expect(storage.webWidth, 560.0);
+      expect(storage.webRatio, 0.8);
+      expect(storage.webExpanded, isFalse);
+      expect(storage.webModelDrawer, isTrue);
+
+      await notifier.setWebLeftPanelWidth(100.0);
+      await notifier.setWebPromptSectionRatio(0.05);
+
+      expect(storage.webWidth, 320.0);
+      expect(storage.webRatio, 0.2);
+    });
+  });
 }
 
 class _FakeLayoutStorage extends LocalStorageService {
@@ -88,6 +165,10 @@ class _FakeLayoutStorage extends LocalStorageService {
   double width = 280.0;
   String viewMode = 'list';
   double negativeHeight = 180.0;
+  double webWidth = 400.0;
+  double webRatio = 0.5;
+  bool webExpanded = true;
+  bool webModelDrawer = false;
 
   @override
   bool getLeftPanelExpanded() => leftExpanded;
@@ -137,5 +218,37 @@ class _FakeLayoutStorage extends LocalStorageService {
   @override
   Future<void> setFixedTagsNegativeHeight(double value) async {
     negativeHeight = value;
+  }
+
+  @override
+  double getWebLeftPanelWidth() => webWidth;
+
+  @override
+  Future<void> setWebLeftPanelWidth(double value) async {
+    webWidth = value;
+  }
+
+  @override
+  double getWebPromptSectionRatio() => webRatio;
+
+  @override
+  Future<void> setWebPromptSectionRatio(double value) async {
+    webRatio = value;
+  }
+
+  @override
+  bool getWebLeftPanelExpanded() => webExpanded;
+
+  @override
+  Future<void> setWebLeftPanelExpanded(bool value) async {
+    webExpanded = value;
+  }
+
+  @override
+  bool getWebModelDrawerExpanded() => webModelDrawer;
+
+  @override
+  Future<void> setWebModelDrawerExpanded(bool value) async {
+    webModelDrawer = value;
   }
 }

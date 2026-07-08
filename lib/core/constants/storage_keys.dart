@@ -49,6 +49,10 @@ class StorageKeys {
   static const String promptAreaHeight = 'prompt_area_height';
   static const String promptMaximized = 'prompt_maximized';
   static const String generationLayoutMode = 'generation_layout_mode';
+  static const String webLeftPanelWidth = 'web_left_panel_width';
+  static const String webPromptSectionRatio = 'web_prompt_section_ratio';
+  static const String webLeftPanelExpanded = 'web_left_panel_expanded';
+  static const String webModelDrawerExpanded = 'web_model_drawer_expanded';
   static const String fixedTagsSidebarExpanded = 'fixed_tags_sidebar_expanded';
   static const String fixedTagsSidebarWidth = 'fixed_tags_sidebar_width';
   static const String fixedTagsSidebarViewMode = 'fixed_tags_sidebar_view_mode';

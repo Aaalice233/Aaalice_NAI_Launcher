@@ -644,6 +644,62 @@ class LocalStorageService {
     await setSetting(StorageKeys.generationLayoutMode, mode);
   }
 
+  /// 获取官网式布局左栏宽度 (默认400)
+  double getWebLeftPanelWidth() {
+    return getSetting<double>(
+          StorageKeys.webLeftPanelWidth,
+          defaultValue: 400.0,
+        ) ??
+        400.0;
+  }
+
+  /// 保存官网式布局左栏宽度
+  Future<void> setWebLeftPanelWidth(double width) async {
+    await setSetting(StorageKeys.webLeftPanelWidth, width);
+  }
+
+  /// 获取官网式布局提示词区高度占比 (默认0.5)
+  double getWebPromptSectionRatio() {
+    return getSetting<double>(
+          StorageKeys.webPromptSectionRatio,
+          defaultValue: 0.5,
+        ) ??
+        0.5;
+  }
+
+  /// 保存官网式布局提示词区高度占比
+  Future<void> setWebPromptSectionRatio(double ratio) async {
+    await setSetting(StorageKeys.webPromptSectionRatio, ratio);
+  }
+
+  /// 获取官网式布局左栏展开状态 (默认展开)
+  bool getWebLeftPanelExpanded() {
+    return getSetting<bool>(
+          StorageKeys.webLeftPanelExpanded,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存官网式布局左栏展开状态
+  Future<void> setWebLeftPanelExpanded(bool expanded) async {
+    await setSetting(StorageKeys.webLeftPanelExpanded, expanded);
+  }
+
+  /// 获取官网式布局模型抽屉展开状态 (默认收起)
+  bool getWebModelDrawerExpanded() {
+    return getSetting<bool>(
+          StorageKeys.webModelDrawerExpanded,
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// 保存官网式布局模型抽屉展开状态
+  Future<void> setWebModelDrawerExpanded(bool expanded) async {
+    await setSetting(StorageKeys.webModelDrawerExpanded, expanded);
+  }
+
   /// 获取固定词侧边栏展开状态 (默认收起)
   bool getFixedTagsSidebarExpanded() {
     return getSetting<bool>(

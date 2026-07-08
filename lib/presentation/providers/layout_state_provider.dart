@@ -16,6 +16,10 @@ class LayoutState {
   final double fixedTagsSidebarWidth;
   final String fixedTagsSidebarViewMode;
   final double fixedTagsNegativeHeight;
+  final double webLeftPanelWidth;
+  final double webPromptSectionRatio;
+  final bool webLeftPanelExpanded;
+  final bool webModelDrawerExpanded;
 
   const LayoutState({
     this.leftPanelExpanded = true,
@@ -28,6 +32,10 @@ class LayoutState {
     this.fixedTagsSidebarWidth = 280.0,
     this.fixedTagsSidebarViewMode = 'list',
     this.fixedTagsNegativeHeight = 180.0,
+    this.webLeftPanelWidth = 400.0,
+    this.webPromptSectionRatio = 0.5,
+    this.webLeftPanelExpanded = true,
+    this.webModelDrawerExpanded = false,
   });
 
   /// 复制并更新部分字段
@@ -42,6 +50,10 @@ class LayoutState {
     double? fixedTagsSidebarWidth,
     String? fixedTagsSidebarViewMode,
     double? fixedTagsNegativeHeight,
+    double? webLeftPanelWidth,
+    double? webPromptSectionRatio,
+    bool? webLeftPanelExpanded,
+    bool? webModelDrawerExpanded,
   }) {
     return LayoutState(
       leftPanelExpanded: leftPanelExpanded ?? this.leftPanelExpanded,
@@ -58,6 +70,12 @@ class LayoutState {
           fixedTagsSidebarViewMode ?? this.fixedTagsSidebarViewMode,
       fixedTagsNegativeHeight:
           fixedTagsNegativeHeight ?? this.fixedTagsNegativeHeight,
+      webLeftPanelWidth: webLeftPanelWidth ?? this.webLeftPanelWidth,
+      webPromptSectionRatio:
+          webPromptSectionRatio ?? this.webPromptSectionRatio,
+      webLeftPanelExpanded: webLeftPanelExpanded ?? this.webLeftPanelExpanded,
+      webModelDrawerExpanded:
+          webModelDrawerExpanded ?? this.webModelDrawerExpanded,
     );
   }
 }
@@ -81,6 +99,10 @@ class LayoutStateNotifier extends _$LayoutStateNotifier {
       fixedTagsSidebarWidth: storage.getFixedTagsSidebarWidth(),
       fixedTagsSidebarViewMode: storage.getFixedTagsSidebarViewMode(),
       fixedTagsNegativeHeight: storage.getFixedTagsNegativeHeight(),
+      webLeftPanelWidth: storage.getWebLeftPanelWidth(),
+      webPromptSectionRatio: storage.getWebPromptSectionRatio(),
+      webLeftPanelExpanded: storage.getWebLeftPanelExpanded(),
+      webModelDrawerExpanded: storage.getWebModelDrawerExpanded(),
     );
   }
 
@@ -186,5 +208,39 @@ class LayoutStateNotifier extends _$LayoutStateNotifier {
 
     final storage = ref.read(localStorageServiceProvider);
     await storage.setFixedTagsNegativeHeight(clamped);
+  }
+
+  /// 设置官网式布局左栏宽度
+  Future<void> setWebLeftPanelWidth(double width) async {
+    final clamped = width.clamp(320.0, 560.0).toDouble();
+    state = state.copyWith(webLeftPanelWidth: clamped);
+
+    final storage = ref.read(localStorageServiceProvider);
+    await storage.setWebLeftPanelWidth(clamped);
+  }
+
+  /// 设置官网式布局提示词区高度占比
+  Future<void> setWebPromptSectionRatio(double ratio) async {
+    final clamped = ratio.clamp(0.2, 0.8).toDouble();
+    state = state.copyWith(webPromptSectionRatio: clamped);
+
+    final storage = ref.read(localStorageServiceProvider);
+    await storage.setWebPromptSectionRatio(clamped);
+  }
+
+  /// 设置官网式布局左栏展开状态
+  Future<void> setWebLeftPanelExpanded(bool expanded) async {
+    state = state.copyWith(webLeftPanelExpanded: expanded);
+
+    final storage = ref.read(localStorageServiceProvider);
+    await storage.setWebLeftPanelExpanded(expanded);
+  }
+
+  /// 设置官网式布局模型抽屉展开状态
+  Future<void> setWebModelDrawerExpanded(bool expanded) async {
+    state = state.copyWith(webModelDrawerExpanded: expanded);
+
+    final storage = ref.read(localStorageServiceProvider);
+    await storage.setWebModelDrawerExpanded(expanded);
   }
 }
