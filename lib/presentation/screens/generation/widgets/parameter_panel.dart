@@ -8,12 +8,14 @@ import '../../../../data/models/image/resolution_preset.dart';
 import '../../../providers/generation/generation_params_selectors.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/krita/krita_bridge_notifier.dart';
+import '../../../providers/layout_state_provider.dart';
 import '../../../utils/asset_protection_guard.dart';
 import '../../../widgets/common/themed_dropdown.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/common/themed_button.dart';
 import '../../../widgets/common/themed_slider.dart';
 import '../../../widgets/common/themed_divider.dart';
+import 'collapsible_model_selector.dart';
 import 'img2img_panel.dart';
 import 'reverse_prompt_panel.dart';
 import 'unified_reference_panel.dart';
@@ -26,11 +28,13 @@ import '../../../widgets/common/app_toast.dart';
 class ParameterPanel extends ConsumerStatefulWidget {
   final bool inBottomSheet;
   final bool showInput;
+  final bool collapsibleModelSelector;
 
   const ParameterPanel({
     super.key,
     this.inBottomSheet = false,
     this.showInput = false,
+    this.collapsibleModelSelector = false,
   });
 
   @override
@@ -168,27 +172,23 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
         ],
 
         // 模型选择
-        _buildSectionTitle(theme, context.l10n.generation_model),
-        const SizedBox(height: 8),
-        ThemedDropdown<String>(
-          value: params.model,
-          items: ImageModels.allModels.map((model) {
-            return DropdownMenuItem(
-              value: model,
-              child: Text(
-                ImageModels.modelDisplayNames[model] ?? model,
-                style: const TextStyle(fontSize: 13),
-              ),
-            );
-          }).toList(),
-          onChanged: (value) {
-            if (value != null) {
-              ref
-                  .read(generationParamsNotifierProvider.notifier)
-                  .updateModel(value);
-            }
-          },
-        ),
+        if (widget.collapsibleModelSelector)
+          CollapsibleModelSelector(
+            title: context.l10n.generation_model,
+            currentModelName:
+                ImageModels.modelDisplayNames[params.model] ?? params.model,
+            initiallyExpanded:
+                ref.read(layoutStateNotifierProvider).webModelDrawerExpanded,
+            onExpansionChanged: (expanded) => ref
+                .read(layoutStateNotifierProvider.notifier)
+                .setWebModelDrawerExpanded(expanded),
+            child: _buildModelDropdown(),
+          )
+        else ...[
+          _buildSectionTitle(theme, context.l10n.generation_model),
+          const SizedBox(height: 8),
+          _buildModelDropdown(),
+        ],
 
         const SizedBox(height: 16),
 
@@ -583,6 +583,31 @@ class _ParameterPanelState extends ConsumerState<ParameterPanel> {
       style: theme.textTheme.titleSmall?.copyWith(
         fontWeight: FontWeight.w600,
       ),
+    );
+  }
+
+  Widget _buildModelDropdown() {
+    final model = ref.watch(
+      generationParamsNotifierProvider.select((params) => params.model),
+    );
+    return ThemedDropdown<String>(
+      value: model,
+      items: ImageModels.allModels.map((model) {
+        return DropdownMenuItem(
+          value: model,
+          child: Text(
+            ImageModels.modelDisplayNames[model] ?? model,
+            style: const TextStyle(fontSize: 13),
+          ),
+        );
+      }).toList(),
+      onChanged: (value) {
+        if (value != null) {
+          ref
+              .read(generationParamsNotifierProvider.notifier)
+              .updateModel(value);
+        }
+      },
     );
   }
 
