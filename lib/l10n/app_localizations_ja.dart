@@ -11381,6 +11381,23 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_fontScale_done => '完了';
 
   @override
+  String get settings_generationLayout => '生成ページのレイアウト';
+
+  @override
+  String get settings_generationLayout_classic => 'クラシック';
+
+  @override
+  String get settings_generationLayout_classicDescription =>
+      'パラメータは左側、プロンプトはプレビューの上';
+
+  @override
+  String get settings_generationLayout_webStyle => '公式サイト風';
+
+  @override
+  String get settings_generationLayout_webStyleDescription =>
+      'プロンプトと設定を左端に固定、NovelAI 公式サイト風';
+
+  @override
   String get settings_defaultImagesPath =>
       'デフォルト (Documents/NAI_Launcher/images/)';
 

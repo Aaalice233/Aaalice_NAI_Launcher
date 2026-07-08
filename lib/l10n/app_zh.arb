@@ -5345,6 +5345,12 @@
   "settings_fontScale_reset": "重置",
   "settings_fontScale_done": "完成",
 
+  "settings_generationLayout": "生成页布局",
+  "settings_generationLayout_classic": "经典布局",
+  "settings_generationLayout_classicDescription": "参数在左侧，提示词位于预览区上方",
+  "settings_generationLayout_webStyle": "官网式布局",
+  "settings_generationLayout_webStyleDescription": "提示词与设置固定在最左栏，类似 NovelAI 官网",
+
   "settings_defaultImagesPath": "默认 (Documents/NAI_Launcher/images/)",
   "settings_defaultVibePath": "{path} (默认)",
   "@settings_defaultVibePath": {

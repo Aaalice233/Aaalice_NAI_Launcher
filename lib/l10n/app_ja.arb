@@ -5760,6 +5760,13 @@
   "settings_fontScale_previewLarge": "フォント サイズのプレビュー",
   "settings_fontScale_reset": "リセット",
   "settings_fontScale_done": "完了",
+
+  "settings_generationLayout": "生成ページのレイアウト",
+  "settings_generationLayout_classic": "クラシック",
+  "settings_generationLayout_classicDescription": "パラメータは左側、プロンプトはプレビューの上",
+  "settings_generationLayout_webStyle": "公式サイト風",
+  "settings_generationLayout_webStyleDescription": "プロンプトと設定を左端に固定、NovelAI 公式サイト風",
+
   "settings_defaultImagesPath": "デフォルト (Documents/NAI_Launcher/images/)",
   "settings_defaultVibePath": "{path} (デフォルト)",
   "@settings_defaultVibePath": {

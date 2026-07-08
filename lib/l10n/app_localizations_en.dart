@@ -11632,6 +11632,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_fontScale_done => 'Done';
 
   @override
+  String get settings_generationLayout => 'Generation page layout';
+
+  @override
+  String get settings_generationLayout_classic => 'Classic';
+
+  @override
+  String get settings_generationLayout_classicDescription =>
+      'Parameters on the left, prompt above the preview';
+
+  @override
+  String get settings_generationLayout_webStyle => 'Web style';
+
+  @override
+  String get settings_generationLayout_webStyleDescription =>
+      'Prompt and settings docked on the far left, like the NovelAI website';
+
+  @override
   String get settings_defaultImagesPath =>
       'Default (Documents/NAI_Launcher/images/)';
 

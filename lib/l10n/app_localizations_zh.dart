@@ -11246,6 +11246,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_fontScale_done => '完成';
 
   @override
+  String get settings_generationLayout => '生成页布局';
+
+  @override
+  String get settings_generationLayout_classic => '经典布局';
+
+  @override
+  String get settings_generationLayout_classicDescription => '参数在左侧，提示词位于预览区上方';
+
+  @override
+  String get settings_generationLayout_webStyle => '官网式布局';
+
+  @override
+  String get settings_generationLayout_webStyleDescription =>
+      '提示词与设置固定在最左栏，类似 NovelAI 官网';
+
+  @override
   String get settings_defaultImagesPath =>
       '默认 (Documents/NAI_Launcher/images/)';
 

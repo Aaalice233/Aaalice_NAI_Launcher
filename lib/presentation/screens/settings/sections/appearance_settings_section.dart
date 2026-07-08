@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/font_provider.dart';
 import '../../../providers/font_scale_provider.dart';
+import '../../../providers/generation_layout_mode_provider.dart';
 import '../../../providers/locale_provider.dart';
 import '../../../providers/theme_provider.dart';
 import '../../../themes/app_theme.dart';
@@ -29,6 +30,7 @@ class _AppearanceSettingsSectionState
     final currentFont = ref.watch(fontNotifierProvider);
     final currentLocale = ref.watch(localeNotifierProvider);
     final fontScale = ref.watch(fontScaleNotifierProvider);
+    final layoutMode = ref.watch(generationLayoutModeNotifierProvider);
 
     return SettingsCard(
       title: context.l10n.settings_appearance,
@@ -70,6 +72,18 @@ class _AppearanceSettingsSectionState
             title: Text(context.l10n.settings_language),
             subtitle: Text(_languageLabel(context, currentLocale.languageCode)),
             onTap: () => _showLanguageDialog(context, currentLocale),
+          ),
+
+          // 生成页布局选择
+          ListTile(
+            leading: const Icon(Icons.view_sidebar_outlined),
+            title: Text(context.l10n.settings_generationLayout),
+            subtitle: Text(
+              layoutMode == GenerationLayoutMode.webStyle
+                  ? context.l10n.settings_generationLayout_webStyle
+                  : context.l10n.settings_generationLayout_classic,
+            ),
+            onTap: () => _showGenerationLayoutDialog(context, layoutMode),
           ),
         ],
       ),
@@ -319,6 +333,64 @@ class _AppearanceSettingsSectionState
                   value: 'ja',
                 ),
               ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(context.l10n.common_cancel),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showGenerationLayoutDialog(
+    BuildContext context,
+    GenerationLayoutMode currentMode,
+  ) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(context.l10n.settings_generationLayout),
+          content: SizedBox(
+            width: 300,
+            child: RadioGroup<GenerationLayoutMode>(
+              groupValue: currentMode,
+              onChanged: (value) {
+                if (value != null) {
+                  ref
+                      .read(generationLayoutModeNotifierProvider.notifier)
+                      .setMode(value);
+                  Navigator.pop(dialogContext);
+                }
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile<GenerationLayoutMode>(
+                    title: Text(
+                      context.l10n.settings_generationLayout_classic,
+                    ),
+                    subtitle: Text(
+                      context.l10n.settings_generationLayout_classicDescription,
+                    ),
+                    value: GenerationLayoutMode.classic,
+                  ),
+                  RadioListTile<GenerationLayoutMode>(
+                    title: Text(
+                      context.l10n.settings_generationLayout_webStyle,
+                    ),
+                    subtitle: Text(
+                      context
+                          .l10n.settings_generationLayout_webStyleDescription,
+                    ),
+                    value: GenerationLayoutMode.webStyle,
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
