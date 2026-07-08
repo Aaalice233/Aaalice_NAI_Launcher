@@ -42,12 +42,16 @@ class PromptInputWidget extends ConsumerStatefulWidget {
   final bool compact;
   final VoidCallback? onToggleMaximize;
   final bool isMaximized;
+  final bool showMaximizeButton;
+  final ValueNotifier<bool>? negativeModeNotifier;
 
   const PromptInputWidget({
     super.key,
     this.compact = false,
     this.onToggleMaximize,
     this.isMaximized = false,
+    this.showMaximizeButton = true,
+    this.negativeModeNotifier,
   });
 
   @override
@@ -79,6 +83,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _consumePendingPrompt();
     });
+
+    _isNegativeMode = widget.negativeModeNotifier?.value ?? false;
+    widget.negativeModeNotifier?.addListener(_onExternalNegativeModeChanged);
   }
 
   /// 消费待填充提示词（从画廊或词库发送）
@@ -246,6 +253,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
   @override
   void dispose() {
+    widget.negativeModeNotifier?.removeListener(_onExternalNegativeModeChanged);
     _promptFocusNode.removeListener(_onPromptFocusChanged);
     _negativeFocusNode.removeListener(_onNegativeFocusChanged);
     _promptController.dispose();
@@ -263,6 +271,18 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   void _onNegativeFocusChanged() {
     // Focus 状态变化时触发重建
     setState(() {});
+  }
+
+  void _onExternalNegativeModeChanged() {
+    final value = widget.negativeModeNotifier?.value ?? false;
+    if (!mounted || value == _isNegativeMode) return;
+    setState(() => _isNegativeMode = value);
+  }
+
+  void _setNegativeMode(bool value) {
+    if (value == _isNegativeMode) return;
+    setState(() => _isNegativeMode = value);
+    widget.negativeModeNotifier?.value = value;
   }
 
   /// 从 Provider 同步提示词到本地状态
@@ -482,6 +502,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             PromptEditorToolbar(
               config: PromptEditorToolbarConfig.mainEditor.copyWith(
                 showRandomButton: showRandomTools,
+                showFullscreenButton: widget.showMaximizeButton,
               ),
               onRandomPressed: showRandomTools ? _generateRandomPrompt : null,
               onRandomLongPressed: showRandomTools
@@ -605,7 +626,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           count: promptCount,
           isSelected: !_isNegativeMode,
           color: theme.colorScheme.primary,
-          onTap: () => setState(() => _isNegativeMode = false),
+          onTap: () => _setNegativeMode(false),
           tooltipBuilder: (theme) => _PositivePromptTooltip(
             theme: theme,
             userPrompt: _promptController.text,
@@ -627,7 +648,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           count: negativeCount,
           isSelected: _isNegativeMode,
           color: theme.colorScheme.error,
-          onTap: () => setState(() => _isNegativeMode = true),
+          onTap: () => _setNegativeMode(true),
           tooltipBuilder: (theme) => _NegativePromptTooltip(
             theme: theme,
             userNegativePrompt: _negativeController.text,
@@ -827,15 +848,16 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
               suffixIcon: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.fullscreen),
-                    tooltip: context.l10n.tooltip_fullscreenEdit,
-                    onPressed:
-                        widget.onToggleMaximize ??
-                        () => ref
-                            .read(promptMaximizeNotifierProvider.notifier)
-                            .toggle(),
-                  ),
+                  if (widget.showMaximizeButton)
+                    IconButton(
+                      icon: const Icon(Icons.fullscreen),
+                      tooltip: context.l10n.tooltip_fullscreenEdit,
+                      onPressed:
+                          widget.onToggleMaximize ??
+                          () => ref
+                              .read(promptMaximizeNotifierProvider.notifier)
+                              .toggle(),
+                    ),
                   if (_promptController.text.isNotEmpty)
                     IconButton(
                       icon: const Icon(Icons.clear, size: 20),
