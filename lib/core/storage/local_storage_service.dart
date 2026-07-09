@@ -658,20 +658,6 @@ class LocalStorageService {
     await setSetting(StorageKeys.webLeftPanelWidth, width);
   }
 
-  /// 获取官网式布局提示词区高度占比 (默认0.5)
-  double getWebPromptSectionRatio() {
-    return getSetting<double>(
-          StorageKeys.webPromptSectionRatio,
-          defaultValue: 0.5,
-        ) ??
-        0.5;
-  }
-
-  /// 保存官网式布局提示词区高度占比
-  Future<void> setWebPromptSectionRatio(double ratio) async {
-    await setSetting(StorageKeys.webPromptSectionRatio, ratio);
-  }
-
   /// 获取官网式布局左栏展开状态 (默认展开)
   bool getWebLeftPanelExpanded() {
     return getSetting<bool>(

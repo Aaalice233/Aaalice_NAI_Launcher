@@ -45,6 +45,10 @@ class PromptInputWidget extends ConsumerStatefulWidget {
   final bool showMaximizeButton;
   final ValueNotifier<bool>? negativeModeNotifier;
 
+  /// 编辑器随内容自增高（用于一体式滚动布局），
+  /// 关闭时编辑器填充父级给定的高度并内部滚动。
+  final bool autoGrow;
+
   const PromptInputWidget({
     super.key,
     this.compact = false,
@@ -52,6 +56,7 @@ class PromptInputWidget extends ConsumerStatefulWidget {
     this.isMaximized = false,
     this.showMaximizeButton = true,
     this.negativeModeNotifier,
+    this.autoGrow = false,
   });
 
   @override
@@ -431,7 +436,11 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   }
 
   Widget _buildFullLayout(ThemeData theme) {
+    final editor = _isNegativeMode
+        ? _buildTextNegativeInput(theme)
+        : _buildTextPromptInput(theme);
     return Column(
+      mainAxisSize: widget.autoGrow ? MainAxisSize.min : MainAxisSize.max,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // 顶栏：正面/负面切换 + 操作按钮
@@ -439,12 +448,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
         const SizedBox(height: 8),
 
-        // 提示词编辑区域（始终为文本输入）
-        Expanded(
-          child: _isNegativeMode
-              ? _buildTextNegativeInput(theme)
-              : _buildTextPromptInput(theme),
-        ),
+        // 提示词编辑区域（autoGrow 时随内容自增高，否则填充可用高度）
+        if (widget.autoGrow) editor else Expanded(child: editor),
         _PromptTokenCountFooter(
           target: _isNegativeMode
               ? PromptTokenCountTarget.negative
@@ -702,7 +707,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       ),
       decoration: const InputDecoration(contentPadding: EdgeInsets.all(12)),
       maxLines: null,
-      expands: true,
+      minLines: widget.autoGrow ? 4 : null,
+      expands: !widget.autoGrow,
+      fitContent: widget.autoGrow,
       onComfyuiImport: (globalPrompt, characters) {
         // 清空现有角色并替换
         ref.read(characterPromptNotifierProvider.notifier).clearAll();
@@ -805,7 +812,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       ),
       decoration: const InputDecoration(contentPadding: EdgeInsets.all(12)),
       maxLines: null,
-      expands: true,
+      minLines: widget.autoGrow ? 4 : null,
+      expands: !widget.autoGrow,
+      fitContent: widget.autoGrow,
       onChanged: (value) {
         ref
             .read(generationParamsNotifierProvider.notifier)

@@ -22,7 +22,11 @@ import 'random_mode_toggle.dart';
 
 /// 生成控制按钮
 class GenerationControls extends ConsumerStatefulWidget {
-  const GenerationControls({super.key});
+  /// 紧凑模式：用于官网式布局的钉底控制条——
+  /// 强制窄排布、追加批次大小按钮、压低生成按钮高度。
+  final bool compact;
+
+  const GenerationControls({super.key, this.compact = false});
 
   @override
   ConsumerState<GenerationControls> createState() => _GenerationControlsState();
@@ -101,27 +105,28 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     // 这里只负责布局
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isNarrow = constraints.maxWidth < 500;
+        final isNarrow = widget.compact || constraints.maxWidth < 500;
 
         if (isNarrow) {
           // 窄屏布局：只显示核心组件
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (showRandomTools) ...[
-                RandomModeToggle(enabled: randomMode),
-                const SizedBox(width: 8),
-              ],
-              // 生成按钮区域 - 悬浮球存在时hover显示"加入队列"
-              _buildGenerateButtonWithHover(
-                context: context,
-                ref: ref,
-                isGenerating: isGenerating,
-                showCancel: showCancel,
-                generationState: generationState,
-                randomMode: randomMode,
-                shouldShowFloatingButton: shouldShowFloatingButton,
-              ),
+          final children = <Widget>[
+            if (showRandomTools) ...[
+              RandomModeToggle(enabled: randomMode),
+              const SizedBox(width: 8),
+            ],
+            // 生成按钮区域 - 悬浮球存在时hover显示"加入队列"
+            _buildGenerateButtonWithHover(
+              context: context,
+              ref: ref,
+              isGenerating: isGenerating,
+              showCancel: showCancel,
+              generationState: generationState,
+              randomMode: randomMode,
+              shouldShowFloatingButton: shouldShowFloatingButton,
+            ),
+            // 紧凑模式生成中隐藏批量调节（此时批量参数不可变更），
+            // 为跳过/停止按钮腾出宽度
+            if (!(widget.compact && showCancel)) ...[
               const SizedBox(width: 8),
               DraggableNumberInput(
                 value: nSamples,
@@ -134,6 +139,25 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
                 },
               ),
             ],
+            // 紧凑模式补上第二种批量控制：批次大小（每次请求张数）
+            if (widget.compact && !showCancel) ...[
+              const SizedBox(width: 4),
+              const BatchSettingsButton(),
+            ],
+          ];
+
+          if (widget.compact) {
+            // 极窄宽度下整体等比缩小，杜绝溢出条纹
+            return Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(mainAxisSize: MainAxisSize.min, children: children),
+              ),
+            );
+          }
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: children,
           );
         }
 
@@ -234,6 +258,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
           ),
           // 生图按钮（始终显示）
           GenerateButtonWithCost(
+            height: widget.compact ? 40 : 48,
             isGenerating: isGenerating,
             showCancel: showCancel,
             generationState: generationState,

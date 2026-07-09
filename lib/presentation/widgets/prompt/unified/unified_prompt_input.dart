@@ -75,6 +75,12 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
   /// 是否扩展填满空间
   final bool expands;
 
+  /// 输入区 Stack 适应内容高度而非撑满父级
+  ///
+  /// 用于随内容自增高的场景（如官网式布局的一体滚动列）：
+  /// 父级高度无界时必须为 true，否则 StackFit.expand 会得到无穷高度约束。
+  final bool fitContent;
+
   /// 输入框会话标识（用于历史栈隔离）
   final String? sessionId;
 
@@ -103,6 +109,7 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
     this.maxLines,
     this.minLines,
     this.expands = false,
+    this.fitContent = false,
     this.sessionId,
     this.enableAssistant = true,
     this.onOpenAssistantSettings,
@@ -779,7 +786,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     }
 
     final inputStack = Stack(
-      fit: StackFit.expand,
+      fit: widget.fitContent ? StackFit.loose : StackFit.expand,
       children: [
         result,
         if (widget.enableAssistant)
