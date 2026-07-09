@@ -16,6 +16,7 @@ import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_params_notifier.dart';
 import 'package:nai_launcher/presentation/providers/krita/krita_bridge_notifier.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/generation_param_sections.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/parameter_panel.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/size_selector.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/precise_reference_panel.dart';

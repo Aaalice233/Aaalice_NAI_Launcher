@@ -18,7 +18,6 @@ class LayoutState {
   final double fixedTagsNegativeHeight;
   final double webLeftPanelWidth;
   final bool webLeftPanelExpanded;
-  final bool webModelDrawerExpanded;
 
   const LayoutState({
     this.leftPanelExpanded = true,
@@ -33,7 +32,6 @@ class LayoutState {
     this.fixedTagsNegativeHeight = 180.0,
     this.webLeftPanelWidth = 400.0,
     this.webLeftPanelExpanded = true,
-    this.webModelDrawerExpanded = false,
   });
 
   /// 复制并更新部分字段
@@ -50,7 +48,6 @@ class LayoutState {
     double? fixedTagsNegativeHeight,
     double? webLeftPanelWidth,
     bool? webLeftPanelExpanded,
-    bool? webModelDrawerExpanded,
   }) {
     return LayoutState(
       leftPanelExpanded: leftPanelExpanded ?? this.leftPanelExpanded,
@@ -69,8 +66,6 @@ class LayoutState {
           fixedTagsNegativeHeight ?? this.fixedTagsNegativeHeight,
       webLeftPanelWidth: webLeftPanelWidth ?? this.webLeftPanelWidth,
       webLeftPanelExpanded: webLeftPanelExpanded ?? this.webLeftPanelExpanded,
-      webModelDrawerExpanded:
-          webModelDrawerExpanded ?? this.webModelDrawerExpanded,
     );
   }
 }
@@ -96,7 +91,6 @@ class LayoutStateNotifier extends _$LayoutStateNotifier {
       fixedTagsNegativeHeight: storage.getFixedTagsNegativeHeight(),
       webLeftPanelWidth: storage.getWebLeftPanelWidth(),
       webLeftPanelExpanded: storage.getWebLeftPanelExpanded(),
-      webModelDrawerExpanded: storage.getWebModelDrawerExpanded(),
     );
   }
 
@@ -221,11 +215,4 @@ class LayoutStateNotifier extends _$LayoutStateNotifier {
     await storage.setWebLeftPanelExpanded(expanded);
   }
 
-  /// 设置官网式布局模型抽屉展开状态
-  Future<void> setWebModelDrawerExpanded(bool expanded) async {
-    state = state.copyWith(webModelDrawerExpanded: expanded);
-
-    final storage = ref.read(localStorageServiceProvider);
-    await storage.setWebModelDrawerExpanded(expanded);
-  }
 }

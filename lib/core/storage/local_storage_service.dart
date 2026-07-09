@@ -672,20 +672,6 @@ class LocalStorageService {
     await setSetting(StorageKeys.webLeftPanelExpanded, expanded);
   }
 
-  /// 获取官网式布局模型抽屉展开状态 (默认收起)
-  bool getWebModelDrawerExpanded() {
-    return getSetting<bool>(
-          StorageKeys.webModelDrawerExpanded,
-          defaultValue: false,
-        ) ??
-        false;
-  }
-
-  /// 保存官网式布局模型抽屉展开状态
-  Future<void> setWebModelDrawerExpanded(bool expanded) async {
-    await setSetting(StorageKeys.webModelDrawerExpanded, expanded);
-  }
-
   /// 获取固定词侧边栏展开状态 (默认收起)
   bool getFixedTagsSidebarExpanded() {
     return getSetting<bool>(

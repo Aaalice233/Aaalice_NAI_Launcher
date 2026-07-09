@@ -82,7 +82,6 @@ void main() {
 
       expect(state.webLeftPanelWidth, 400.0);
       expect(state.webLeftPanelExpanded, isTrue);
-      expect(state.webModelDrawerExpanded, isFalse);
     });
 
     test('copyWith 更新 web 字段且不影响其他字段', () {
@@ -90,13 +89,11 @@ void main() {
       final updated = state.copyWith(
         webLeftPanelWidth: 480.0,
         webLeftPanelExpanded: false,
-        webModelDrawerExpanded: true,
       );
 
       expect(updated.leftPanelWidth, 350.0);
       expect(updated.webLeftPanelWidth, 480.0);
       expect(updated.webLeftPanelExpanded, isFalse);
-      expect(updated.webModelDrawerExpanded, isTrue);
     });
   });
 
@@ -104,8 +101,7 @@ void main() {
     test('build 从 storage 读取 web 字段', () {
       final storage = _FakeLayoutStorage()
         ..webWidth = 500.0
-        ..webExpanded = false
-        ..webModelDrawer = true;
+        ..webExpanded = false;
       final container = ProviderContainer(
         overrides: [
           localStorageServiceProvider.overrideWith((ref) => storage),
@@ -117,7 +113,6 @@ void main() {
 
       expect(state.webLeftPanelWidth, 500.0);
       expect(state.webLeftPanelExpanded, isFalse);
-      expect(state.webModelDrawerExpanded, isTrue);
     });
 
     test('setter 写回 storage 并 clamp', () async {
@@ -132,11 +127,9 @@ void main() {
       final notifier = container.read(layoutStateNotifierProvider.notifier);
       await notifier.setWebLeftPanelWidth(9999.0);
       await notifier.setWebLeftPanelExpanded(false);
-      await notifier.setWebModelDrawerExpanded(true);
 
       expect(storage.webWidth, 560.0);
       expect(storage.webExpanded, isFalse);
-      expect(storage.webModelDrawer, isTrue);
 
       await notifier.setWebLeftPanelWidth(100.0);
 
@@ -158,7 +151,6 @@ class _FakeLayoutStorage extends LocalStorageService {
   double negativeHeight = 180.0;
   double webWidth = 400.0;
   bool webExpanded = true;
-  bool webModelDrawer = false;
 
   @override
   bool getLeftPanelExpanded() => leftExpanded;
@@ -226,11 +218,4 @@ class _FakeLayoutStorage extends LocalStorageService {
     webExpanded = value;
   }
 
-  @override
-  bool getWebModelDrawerExpanded() => webModelDrawer;
-
-  @override
-  Future<void> setWebModelDrawerExpanded(bool value) async {
-    webModelDrawer = value;
-  }
 }
