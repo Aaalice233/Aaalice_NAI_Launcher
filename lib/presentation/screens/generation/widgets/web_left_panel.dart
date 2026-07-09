@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/layout_state_provider.dart';
-import 'character_panel.dart';
 import 'collapsed_panel.dart';
 import 'generation_controls/generation_controls.dart';
 import 'parameter_panel.dart';
@@ -127,15 +126,12 @@ class WebLeftPanel extends ConsumerWidget {
                 const SizedBox(height: 10),
 
                 // 提示词：随内容自由增高（官网式）
+                // 多角色编辑入口在提示词工具栏的「角色」按钮，不再内嵌卡片
                 PromptInputWidget(
                   autoGrow: true,
                   showMaximizeButton: false,
                   negativeModeNotifier: negativeModeNotifier,
                 ),
-                const SizedBox(height: 8),
-
-                // 角色卡片：内嵌堆叠，跟随提示词之下
-                const CharacterPanel(),
                 const SizedBox(height: 8),
 
                 // 其余参数（尺寸已置顶不再重复；紧凑嵌入，模型收进抽屉）

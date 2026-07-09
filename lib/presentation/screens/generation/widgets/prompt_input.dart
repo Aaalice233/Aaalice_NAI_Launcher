@@ -476,6 +476,48 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     );
     final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
 
+    final typeSwitch = _buildPromptTypeSwitch(theme, promptCount, negativeCount);
+
+    // 工具栏（随机、全屏、清空、设置）
+    final toolbar = PromptEditorToolbar(
+      config: PromptEditorToolbarConfig.mainEditor.copyWith(
+        showRandomButton: showRandomTools,
+        showFullscreenButton: widget.showMaximizeButton,
+      ),
+      onRandomPressed: showRandomTools ? _generateRandomPrompt : null,
+      onRandomLongPressed: showRandomTools ? _showRandomModeSelector : null,
+      // 使用传入的回调或 Provider 切换最大化
+      onFullscreenPressed:
+          widget.onToggleMaximize ??
+          () => ref.read(promptMaximizeNotifierProvider.notifier).toggle(),
+      onClearPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
+      onSettingsPressed: () => _showSettingsMenu(context, theme),
+    );
+
+    if (widget.autoGrow) {
+      // 一体式布局：顶栏压成单行，宽度不足时整行等比缩小而非换行
+      return FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            typeSwitch,
+            const SizedBox(width: 10),
+            const FixedTagsButton(),
+            const SizedBox(width: 6),
+            QualityTagsSelector(model: model),
+            const SizedBox(width: 6),
+            UcPresetSelector(model: model),
+            const SizedBox(width: 6),
+            const CharacterPromptButton(),
+            const SizedBox(width: 2),
+            toolbar,
+          ],
+        ),
+      );
+    }
+
     return Wrap(
       spacing: 8, // 水平间距
       runSpacing: 8, // 换行后的垂直间距
@@ -483,7 +525,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       crossAxisAlignment: WrapCrossAlignment.center, // 垂直居中
       children: [
         // 正面/负面切换标签 - 左侧
-        _buildPromptTypeSwitch(theme, promptCount, negativeCount),
+        typeSwitch,
 
         // 右侧工具按钮组（也用 Wrap 支持极端情况换行）
         Wrap(
@@ -503,25 +545,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             // 多人角色编辑器按钮
             const CharacterPromptButton(),
 
-            // 工具栏（随机、全屏、清空、设置）
-            PromptEditorToolbar(
-              config: PromptEditorToolbarConfig.mainEditor.copyWith(
-                showRandomButton: showRandomTools,
-                showFullscreenButton: widget.showMaximizeButton,
-              ),
-              onRandomPressed: showRandomTools ? _generateRandomPrompt : null,
-              onRandomLongPressed: showRandomTools
-                  ? _showRandomModeSelector
-                  : null,
-              // 使用传入的回调或 Provider 切换最大化
-              onFullscreenPressed:
-                  widget.onToggleMaximize ??
-                  () => ref
-                      .read(promptMaximizeNotifierProvider.notifier)
-                      .toggle(),
-              onClearPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
-              onSettingsPressed: () => _showSettingsMenu(context, theme),
-            ),
+            toolbar,
           ],
         ),
       ],

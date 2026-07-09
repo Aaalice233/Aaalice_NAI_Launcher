@@ -110,6 +110,11 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
         if (isNarrow) {
           // 窄屏布局：只显示核心组件
           final children = <Widget>[
+            // 官网式布局：剩余额度（Anlas 余额）常驻钉底行
+            if (widget.compact) ...[
+              const AnlasBalanceChip(),
+              const SizedBox(width: 8),
+            ],
             if (showRandomTools) ...[
               RandomModeToggle(enabled: randomMode),
               const SizedBox(width: 8),
