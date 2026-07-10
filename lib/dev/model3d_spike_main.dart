@@ -3,7 +3,11 @@
 // 3D 编辑器链路 spike:LocalAssetServer + InAppWebView + three.js + 桥往返。
 // 运行:flutter run -d windows -t lib/dev/model3d_spike_main.dart
 // 不被 lib/main.dart 引用,release 构建自动剔除。
+//
+// 无人值守自检:onReady 时写 %TEMP%/model3d_spike_ready.txt 并自动请求一次
+// 渲染,PNG 落盘 %TEMP%/model3d_spike_render.png,供无屏环境验证全链路。
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -44,12 +48,28 @@ class _SpikePageState extends State<_SpikePage> {
     super.dispose();
   }
 
+  void _diagLog(String line) {
+    File('${Directory.systemTemp.path}/model3d_spike_log.txt').writeAsStringSync(
+      '${DateTime.now().toIso8601String()} $line\n',
+      mode: FileMode.append,
+    );
+  }
+
   void _onJsMessage(List<dynamic> args) {
+    _diagLog('jsMessage: ${jsonEncode(args)}');
     final msg = (args.first as Map).cast<String, dynamic>();
     if (msg['type'] == 'onReady') {
-      setState(() => _status = 'bridge ready (onReady received)');
+      if (mounted) {
+        setState(() => _status = 'bridge ready (onReady received)');
+      }
+      File('${Directory.systemTemp.path}/model3d_spike_ready.txt')
+          .writeAsStringSync(DateTime.now().toIso8601String());
+      _requestRender();
     } else if (msg['type'] == 'response') {
       final png = base64Decode((msg['data'] as Map)['png'] as String);
+      File('${Directory.systemTemp.path}/model3d_spike_render.png')
+          .writeAsBytesSync(png);
+      if (!mounted) return;
       showDialog<void>(
         context: context,
         builder: (_) => Dialog(child: Image.memory(png)),
@@ -80,12 +100,19 @@ class _SpikePageState extends State<_SpikePage> {
                 url: WebUri('${_base}editor/spike.html'),
               ),
               onWebViewCreated: (controller) {
+                _diagLog('webViewCreated');
                 _controller = controller;
                 controller.addJavaScriptHandler(
                   handlerName: 'naiModel3d',
                   callback: _onJsMessage,
                 );
               },
+              onLoadStop: (controller, url) => _diagLog('loadStop: $url'),
+              onReceivedError: (controller, request, error) =>
+                  _diagLog('loadError: ${request.url} -> ${error.description}'),
+              onConsoleMessage: (controller, message) => _diagLog(
+                'console[${message.messageLevel}]: ${message.message}',
+              ),
             ),
     );
   }

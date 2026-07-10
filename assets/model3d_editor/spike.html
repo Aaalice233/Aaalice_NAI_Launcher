@@ -4,6 +4,16 @@
 <head>
 <meta charset="utf-8">
 <style>html,body{margin:0;height:100%;background:#202225}#c{width:100%;height:100%;display:block}</style>
+<script>
+// 诊断:module 静默失败时可经 evaluateJavascript 读取 window.__errs
+window.__errs = [];
+window.addEventListener('error', (e) => {
+  window.__errs.push(String(e.message || e) + ' @ ' + (e.filename || '') + ':' + (e.lineno || 0));
+}, true);
+window.addEventListener('unhandledrejection', (e) => {
+  window.__errs.push('rejection: ' + String(e.reason));
+});
+</script>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.min.js"}}</script>
 </head>
 <body>
@@ -58,9 +68,18 @@ window.naiEditor = {
   },
 };
 
-window.addEventListener('flutterInAppWebViewPlatformReady', () => {
-  window.flutter_inappwebview.callHandler('naiModel3d', { type: 'onReady' });
-});
+let readySent = false;
+function announceReady() {
+  if (readySent) return;
+  if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+    readySent = true;
+    window.flutter_inappwebview.callHandler('naiModel3d', { type: 'onReady' });
+  } else {
+    setTimeout(announceReady, 50);
+  }
+}
+window.addEventListener('flutterInAppWebViewPlatformReady', announceReady);
+announceReady();
 </script>
 </body>
 </html>
