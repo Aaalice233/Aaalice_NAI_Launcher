@@ -124,6 +124,7 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
 class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   /// 内部文本控制器（当未提供外部控制器时使用）
   TextEditingController? _internalController;
+  late final ValueGetter<TextEditingController> _effectiveControllerProvider;
 
   /// 语法高亮控制器
   NaiSyntaxController? _syntaxController;
@@ -257,6 +258,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   @override
   void initState() {
     super.initState();
+    _effectiveControllerProvider = () => _effectiveController;
     _sessionId = _resolveSessionId(widget.sessionId);
 
     // 初始化内部控制器（如果需要）
@@ -968,7 +970,9 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       scrollPhysics:
           enableWheelAdjustment &&
               supportsPromptWeightScrollPhysics(defaultTargetPlatform)
-          ? WeightAdjustScrollPhysics(controller: _effectiveController)
+          ? WeightAdjustScrollPhysics(
+              controllerProvider: _effectiveControllerProvider,
+            )
           : null,
       textAlignVertical: widget.expands ? TextAlignVertical.top : null,
       readOnly: widget.config.readOnly,

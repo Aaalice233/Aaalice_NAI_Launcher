@@ -348,21 +348,25 @@ class _WeightSelectionEditor {
 }
 
 class WeightAdjustScrollPhysics extends ScrollPhysics {
-  const WeightAdjustScrollPhysics({required this.controller, super.parent});
+  const WeightAdjustScrollPhysics({
+    required this.controllerProvider,
+    super.parent,
+  });
 
-  final TextEditingController controller;
+  /// Resolves lazily because Flutter can retain same-type physics on rebuild.
+  final ValueGetter<TextEditingController> controllerProvider;
 
   @override
   WeightAdjustScrollPhysics applyTo(ScrollPhysics? ancestor) {
     return WeightAdjustScrollPhysics(
-      controller: controller,
+      controllerProvider: controllerProvider,
       parent: buildParent(ancestor),
     );
   }
 
   @override
   bool shouldAcceptUserOffset(ScrollMetrics position) {
-    if (_WeightSelectionEditor.hasSelection(controller)) {
+    if (_WeightSelectionEditor.hasSelection(controllerProvider())) {
       return false;
     }
     return super.shouldAcceptUserOffset(position);

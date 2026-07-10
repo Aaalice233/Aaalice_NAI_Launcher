@@ -1,9 +1,14 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/weight_adjust_toolbar.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_config.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_input.dart';
 
 const _fieldKey = ValueKey('weight_test_prompt');
 
@@ -138,7 +143,9 @@ void main() {
       focus: focus,
       page: page,
       enableWheelAdjustment: true,
-      scrollPhysics: WeightAdjustScrollPhysics(controller: prompt),
+      scrollPhysics: WeightAdjustScrollPhysics(
+        controllerProvider: () => prompt,
+      ),
     );
     focus.requestFocus();
     prompt.selection = const TextSelection(baseOffset: 0, extentOffset: 3);
@@ -175,7 +182,9 @@ void main() {
       focus: focus,
       page: page,
       enableWheelAdjustment: true,
-      scrollPhysics: WeightAdjustScrollPhysics(controller: prompt),
+      scrollPhysics: WeightAdjustScrollPhysics(
+        controllerProvider: () => prompt,
+      ),
     );
     focus.requestFocus();
     prompt.selection = const TextSelection(baseOffset: 0, extentOffset: 3);
@@ -232,7 +241,9 @@ void main() {
       focus: focus,
       page: page,
       enableWheelAdjustment: true,
-      scrollPhysics: WeightAdjustScrollPhysics(controller: prompt),
+      scrollPhysics: WeightAdjustScrollPhysics(
+        controllerProvider: () => prompt,
+      ),
     );
     await tester.pump();
 
@@ -250,6 +261,116 @@ void main() {
     expect(inner.position.pixels, innerOffsetBefore);
     expect(page.offset, pageOffsetBefore);
   });
+
+  testWidgets(
+    'mounted unified input uses replacement controller for wheel exclusivity',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      try {
+        final originalA = List<String>.filled(40, 'old').join('\n');
+        final originalB = List<String>.filled(40, 'tag').join('\n');
+        final controllerA = TextEditingController(text: originalA)
+          ..selection = TextSelection.collapsed(offset: originalA.length);
+        final controllerB = TextEditingController(text: originalB)
+          ..selection = const TextSelection(baseOffset: 0, extentOffset: 3);
+        final focus = FocusNode();
+        final page = ScrollController(initialScrollOffset: 100);
+        var activeController = controllerA;
+        late StateSetter setHarnessState;
+
+        addTearDown(() async {
+          if (controllerB.selection.isValid) {
+            controllerB.selection = TextSelection.collapsed(
+              offset: controllerB.text.length,
+            );
+          }
+          focus.unfocus();
+          await tester.pump();
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pump(const Duration(milliseconds: 250));
+          page.dispose();
+          focus.dispose();
+          controllerB.dispose();
+          controllerA.dispose();
+        });
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              localStorageServiceProvider.overrideWith(
+                (ref) => _WheelEnabledStorage(),
+              ),
+            ],
+            child: MaterialApp(
+              supportedLocales: AppLocalizations.supportedLocales,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              home: Scaffold(
+                body: SizedBox(
+                  height: 300,
+                  child: SingleChildScrollView(
+                    controller: page,
+                    child: StatefulBuilder(
+                      builder: (context, setState) {
+                        setHarnessState = setState;
+                        return Column(
+                          children: [
+                            const SizedBox(height: 160),
+                            SizedBox(
+                              key: _fieldKey,
+                              height: 80,
+                              child: UnifiedPromptInput(
+                                controller: activeController,
+                                focusNode: focus,
+                                config: const UnifiedPromptConfig(
+                                  enableAutocomplete: false,
+                                  enableSyntaxHighlight: false,
+                                  enableAutoFormat: false,
+                                ),
+                                enableAssistant: false,
+                                maxLines: null,
+                              ),
+                            ),
+                            const SizedBox(height: 600),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        focus.requestFocus();
+        await tester.pump();
+
+        final innerFinder = find.descendant(
+          of: find.byKey(_fieldKey),
+          matching: find.byType(Scrollable),
+        );
+        expect(innerFinder, findsOneWidget);
+        final mountedInner = tester.state<ScrollableState>(innerFinder);
+
+        setHarnessState(() {
+          activeController = controllerB;
+        });
+        await tester.pump();
+
+        expect(tester.state<ScrollableState>(innerFinder), same(mountedInner));
+        final innerOffsetBefore = mountedInner.position.pixels;
+        final pageOffsetBefore = page.offset;
+
+        await _sendWheel(tester);
+
+        expect(controllerA.text, originalA);
+        expect(controllerB.text, startsWith('0.95::tag::\n'));
+        expect(mountedInner.position.pixels, innerOffsetBefore);
+        expect(page.offset, pageOffsetBefore);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
 
   test('exclusive prompt physics is desktop-only', () {
     expect(supportsPromptWeightScrollPhysics(TargetPlatform.windows), isTrue);
@@ -296,6 +417,11 @@ void main() {
 
     expect(prompt.text, 'cat');
   });
+}
+
+class _WheelEnabledStorage extends LocalStorageService {
+  @override
+  bool getEnablePromptWeightScroll() => true;
 }
 
 Future<void> _pumpHarness(
