@@ -622,7 +622,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_generationFeedbackSection => '完了通知';
 
   @override
-  String get settings_promptAssistant => 'アシスタント';
+  String get settings_promptAssistant => 'プロンプトアシスタント';
 
   @override
   String get settings_selectStyle => 'スタイルの選択';

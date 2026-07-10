@@ -628,7 +628,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_generationFeedbackSection => 'Completion Alert';
 
   @override
-  String get settings_promptAssistant => 'Assistant';
+  String get settings_promptAssistant => 'Prompt Assistant';
 
   @override
   String get settings_selectStyle => 'Select Style';

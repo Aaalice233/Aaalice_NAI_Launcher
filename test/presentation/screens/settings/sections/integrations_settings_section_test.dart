@@ -36,11 +36,12 @@ class _PanelProbeState extends State<_PanelProbe> {
 void main() {
   Future<void> pumpSection(
     WidgetTester tester,
-    List<String> disposedPanels,
-  ) async {
+    List<String> disposedPanels, {
+    Locale locale = const Locale('zh'),
+  }) async {
     await tester.pumpWidget(
       MaterialApp(
-        locale: const Locale('zh'),
+        locale: locale,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
@@ -105,7 +106,7 @@ void main() {
     await pumpSection(tester, disposedPanels);
 
     // 三段子导航
-    expect(find.text('Prompt Assistant'), findsOneWidget);
+    expect(find.text('提示词助手'), findsOneWidget);
     expect(find.text('ComfyUI'), findsOneWidget);
     expect(find.text('Krita'), findsOneWidget);
 
@@ -123,4 +124,49 @@ void main() {
     expectOnlyPanel(_kritaPanelKey);
     expect(disposedPanels, ['prompt-assistant', 'comfyui']);
   });
+
+  testWidgets('切换集成面板时分段导航总宽度保持不变', (tester) async {
+    final disposedPanels = <String>[];
+    await pumpSection(tester, disposedPanels);
+
+    final segmentedButton = find.byType(SegmentedButton<int>);
+    final promptAssistantWidth = tester.getSize(segmentedButton).width;
+
+    await tester.tap(find.text('ComfyUI'));
+    await tester.pumpAndSettle();
+    final comfyUiWidth = tester.getSize(segmentedButton).width;
+
+    await tester.tap(find.text('Krita'));
+    await tester.pumpAndSettle();
+    final kritaWidth = tester.getSize(segmentedButton).width;
+
+    expect(
+      [promptAssistantWidth, comfyUiWidth, kritaWidth],
+      everyElement(promptAssistantWidth),
+      reason:
+          'Prompt Assistant=$promptAssistantWidth, '
+          'ComfyUI=$comfyUiWidth, Krita=$kritaWidth',
+    );
+  });
+
+  const expectedLabels = <String, List<String>>{
+    'en': ['Prompt Assistant', 'ComfyUI', 'Krita'],
+    'zh': ['提示词助手', 'ComfyUI', 'Krita'],
+    'ja': ['プロンプトアシスタント', 'ComfyUI', 'Krita'],
+  };
+
+  for (final entry in expectedLabels.entries) {
+    testWidgets('分段导航按 ${entry.key} 显示精确文案', (tester) async {
+      await pumpSection(tester, <String>[], locale: Locale(entry.key));
+
+      final segmentedButton = tester.widget<SegmentedButton<int>>(
+        find.byType(SegmentedButton<int>),
+      );
+      final labels = segmentedButton.segments
+          .map((segment) => (segment.label as Text).data)
+          .toList();
+
+      expect(labels, entry.value, reason: 'locale=${entry.key}');
+    });
+  }
 }

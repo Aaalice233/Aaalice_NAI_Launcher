@@ -234,7 +234,7 @@
   "settings_generationInputSection": "输入",
   "settings_generationRetrySection": "失败重试",
   "settings_generationFeedbackSection": "完成提醒",
-  "settings_promptAssistant": "助手",
+  "settings_promptAssistant": "提示词助手",
   "settings_selectStyle": "选择风格",
   "settings_defaultPreset": "默认",
   "settings_selectFont": "选择字体",

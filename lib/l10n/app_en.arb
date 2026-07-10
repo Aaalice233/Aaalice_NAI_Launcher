@@ -239,7 +239,7 @@
   "settings_generationInputSection": "Input",
   "settings_generationRetrySection": "Retry on Failure",
   "settings_generationFeedbackSection": "Completion Alert",
-  "settings_promptAssistant": "Assistant",
+  "settings_promptAssistant": "Prompt Assistant",
   "settings_selectStyle": "Select Style",
   "settings_defaultPreset": "Default",
   "settings_selectFont": "Select Font",

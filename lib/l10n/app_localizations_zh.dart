@@ -614,7 +614,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_generationFeedbackSection => '完成提醒';
 
   @override
-  String get settings_promptAssistant => '助手';
+  String get settings_promptAssistant => '提示词助手';
 
   @override
   String get settings_selectStyle => '选择风格';

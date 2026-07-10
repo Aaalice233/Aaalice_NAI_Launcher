@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/localization_extension.dart';
 import 'comfyui_settings_section.dart';
 import 'krita_bridge_settings_section.dart';
 import 'prompt_assistant_settings_section.dart';
@@ -28,9 +29,6 @@ class IntegrationsSettingsSection extends StatefulWidget {
 
 class _IntegrationsSettingsSectionState
     extends State<IntegrationsSettingsSection> {
-  // 专有名词标签，不进 l10n（与原导航中 ComfyUI/Krita 标签一致）
-  static const _labels = ['Prompt Assistant', 'ComfyUI', 'Krita'];
-
   int _selectedIndex = 0;
 
   List<WidgetBuilder> get _builders =>
@@ -43,6 +41,8 @@ class _IntegrationsSettingsSectionState
 
   @override
   Widget build(BuildContext context) {
+    final labels = [context.l10n.settings_promptAssistant, 'ComfyUI', 'Krita'];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -51,10 +51,11 @@ class _IntegrationsSettingsSectionState
           child: Center(
             child: SegmentedButton<int>(
               segments: [
-                for (var i = 0; i < _labels.length; i++)
-                  ButtonSegment(value: i, label: Text(_labels[i])),
+                for (var i = 0; i < labels.length; i++)
+                  ButtonSegment(value: i, label: Text(labels[i])),
               ],
               selected: {_selectedIndex},
+              showSelectedIcon: false,
               onSelectionChanged: (selection) {
                 setState(() => _selectedIndex = selection.first);
               },

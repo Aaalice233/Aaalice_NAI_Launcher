@@ -228,7 +228,7 @@
   "settings_generationInputSection": "入力",
   "settings_generationRetrySection": "失敗時リトライ",
   "settings_generationFeedbackSection": "完了通知",
-  "settings_promptAssistant": "アシスタント",
+  "settings_promptAssistant": "プロンプトアシスタント",
   "settings_selectStyle": "スタイルの選択",
   "settings_defaultPreset": "デフォルト",
   "settings_selectFont": "フォントの選択",

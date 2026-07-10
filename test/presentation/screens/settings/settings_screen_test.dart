@@ -11,6 +11,7 @@ import 'package:nai_launcher/presentation/providers/account_manager_provider.dar
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/integrations_settings_section.dart';
+import 'package:nai_launcher/presentation/screens/settings/sections/prompt_assistant_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_screen.dart';
 
 class _FakeAuthNotifier extends AuthNotifier {
@@ -145,6 +146,13 @@ void main() {
     final segmentLabels = segments
         .map((segment) => (segment.label as Text).data)
         .toList();
-    expect(segmentLabels, const ['Prompt Assistant', 'ComfyUI', 'Krita']);
+
+    final promptAssistantSection = find.byType(PromptAssistantSettingsSection);
+    expect(promptAssistantSection, findsOneWidget);
+    expect(
+      find.descendant(of: promptAssistantSection, matching: find.text('提示词助手')),
+      findsOneWidget,
+    );
+    expect(segmentLabels, const ['提示词助手', 'ComfyUI', 'Krita']);
   });
 }

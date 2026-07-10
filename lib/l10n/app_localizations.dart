@@ -1273,7 +1273,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_promptAssistant.
   ///
   /// In en, this message translates to:
-  /// **'Assistant'**
+  /// **'Prompt Assistant'**
   String get settings_promptAssistant;
 
   /// No description provided for @settings_selectStyle.
