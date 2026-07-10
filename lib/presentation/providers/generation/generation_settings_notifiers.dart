@@ -74,25 +74,45 @@ class SdSyntaxAutoConvertSettings extends _$SdSyntaxAutoConvertSettings {
 class PromptWeightScrollSettings extends _$PromptWeightScrollSettings {
   LocalStorageService get _storage => ref.read(localStorageServiceProvider);
 
+  Future<void> _writeQueue = Future<void>.value();
+  late bool _lastConfirmedValue;
+  int _latestRevision = 0;
+
   @override
-  bool build() => _storage.getEnablePromptWeightScroll();
+  bool build() {
+    final storedValue = _storage.getEnablePromptWeightScroll();
+    _lastConfirmedValue = storedValue;
+    return storedValue;
+  }
 
   Future<void> toggle() => set(!state);
 
-  Future<void> set(bool value) async {
-    final previousValue = state;
+  Future<void> set(bool value) {
+    final revision = ++_latestRevision;
     state = value;
-    try {
-      await _storage.setEnablePromptWeightScroll(value);
-    } catch (error, stackTrace) {
-      state = previousValue;
-      AppLogger.e(
-        'Failed to persist prompt weight wheel setting',
-        error,
-        stackTrace,
-      );
-      rethrow;
-    }
+
+    final operation = _writeQueue.then<void>((_) async {
+      try {
+        await _storage.setEnablePromptWeightScroll(value);
+        _lastConfirmedValue = value;
+      } catch (error, stackTrace) {
+        if (revision == _latestRevision) {
+          state = _lastConfirmedValue;
+        }
+        AppLogger.e(
+          'Failed to persist prompt weight wheel setting',
+          error,
+          stackTrace,
+        );
+        rethrow;
+      }
+    });
+
+    _writeQueue = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return operation;
   }
 }
 
