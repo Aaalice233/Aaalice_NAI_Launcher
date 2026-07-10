@@ -10,6 +10,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
+import 'package:nai_launcher/presentation/screens/settings/sections/integrations_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/settings_screen.dart';
 
 class _FakeAuthNotifier extends AuthNotifier {
@@ -75,15 +76,75 @@ void main() {
     final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
     expect(rail.destinations.length, 9);
 
-    // 新分类标签（当前选中账号页，其余 section 未构建，导航标签唯一）
-    expect(find.text('数据与存储'), findsOneWidget);
-    expect(find.text('安全与分享'), findsOneWidget);
-    expect(find.text('集成'), findsOneWidget);
+    final labels = rail.destinations
+        .map((destination) => (destination.label as Text).data)
+        .toList();
+    expect(labels, const [
+      '账户',
+      '外观',
+      '生成',
+      '数据与存储',
+      '安全与分享',
+      '网络',
+      '快捷键',
+      '集成',
+      '关于',
+    ]);
+
+    final icons = rail.destinations
+        .map((destination) => (destination.icon as Icon).icon)
+        .toList();
+    expect(icons, const [
+      Icons.person_outline,
+      Icons.palette_outlined,
+      Icons.tune_outlined,
+      Icons.storage_outlined,
+      Icons.shield_outlined,
+      Icons.network_check_outlined,
+      Icons.keyboard_outlined,
+      Icons.extension_outlined,
+      Icons.info_outlined,
+    ]);
+
+    final selectedIcons = rail.destinations
+        .map((destination) => (destination.selectedIcon as Icon).icon)
+        .toList();
+    expect(selectedIcons, const [
+      Icons.person,
+      Icons.palette,
+      Icons.tune,
+      Icons.storage,
+      Icons.shield,
+      Icons.network_check,
+      Icons.keyboard,
+      Icons.extension,
+      Icons.info,
+    ]);
 
     // 撤销的分类不再出现
     expect(find.text('队列'), findsNothing);
     expect(find.text('通知'), findsNothing);
     expect(find.text('数据源'), findsNothing);
     expect(find.text('ComfyUI'), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.extension_outlined));
+    await tester.pumpAndSettle();
+
+    final integrations = find.byType(IntegrationsSettingsSection);
+    expect(integrations, findsOneWidget);
+
+    final segmentedButton = find.descendant(
+      of: integrations,
+      matching: find.byType(SegmentedButton<int>),
+    );
+    expect(segmentedButton, findsOneWidget);
+
+    final segments = tester
+        .widget<SegmentedButton<int>>(segmentedButton)
+        .segments;
+    final segmentLabels = segments
+        .map((segment) => (segment.label as Text).data)
+        .toList();
+    expect(segmentLabels, const ['Prompt Assistant', 'ComfyUI', 'Krita']);
   });
 }
