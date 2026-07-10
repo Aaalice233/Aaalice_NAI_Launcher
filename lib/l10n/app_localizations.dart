@@ -1228,12 +1228,6 @@ abstract class AppLocalizations {
   /// **'Shortcuts'**
   String get settings_shortcuts;
 
-  /// No description provided for @settings_dataSource.
-  ///
-  /// In en, this message translates to:
-  /// **'Data Source'**
-  String get settings_dataSource;
-
   /// No description provided for @settings_generation.
   ///
   /// In en, this message translates to:
@@ -1275,18 +1269,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Completion Alert'**
   String get settings_generationFeedbackSection;
-
-  /// No description provided for @settings_queue.
-  ///
-  /// In en, this message translates to:
-  /// **'Queue'**
-  String get settings_queue;
-
-  /// No description provided for @settings_notifications.
-  ///
-  /// In en, this message translates to:
-  /// **'Notifications'**
-  String get settings_notifications;
 
   /// No description provided for @settings_promptAssistant.
   ///

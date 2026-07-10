@@ -607,9 +607,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_shortcuts => 'Shortcuts';
 
   @override
-  String get settings_dataSource => 'Data Source';
-
-  @override
   String get settings_generation => 'Generation';
 
   @override
@@ -629,12 +626,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_generationFeedbackSection => 'Completion Alert';
-
-  @override
-  String get settings_queue => 'Queue';
-
-  @override
-  String get settings_notifications => 'Notifications';
 
   @override
   String get settings_promptAssistant => 'Assistant';

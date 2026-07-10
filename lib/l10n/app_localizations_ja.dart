@@ -601,9 +601,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_shortcuts => 'ショートカット';
 
   @override
-  String get settings_dataSource => 'データ ソース';
-
-  @override
   String get settings_generation => '生成';
 
   @override
@@ -623,12 +620,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settings_generationFeedbackSection => '完了通知';
-
-  @override
-  String get settings_queue => 'キュー';
-
-  @override
-  String get settings_notifications => '通知';
 
   @override
   String get settings_promptAssistant => 'アシスタント';

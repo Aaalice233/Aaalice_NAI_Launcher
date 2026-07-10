@@ -593,9 +593,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_shortcuts => '快捷键';
 
   @override
-  String get settings_dataSource => '数据源';
-
-  @override
   String get settings_generation => '生成';
 
   @override
@@ -615,12 +612,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_generationFeedbackSection => '完成提醒';
-
-  @override
-  String get settings_queue => '队列';
-
-  @override
-  String get settings_notifications => '通知';
 
   @override
   String get settings_promptAssistant => '助手';
