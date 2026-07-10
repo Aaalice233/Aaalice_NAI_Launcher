@@ -91,13 +91,8 @@ class _SpikePageState extends State<_SpikePage> {
     }
   }
 
-  Future<void> _requestRender() async {
-    final id = ++_nextRequestId;
-    final command = jsonEncode({'type': 'render', 'requestId': id});
-    await _controller?.evaluateJavascript(
-      source: 'window.naiEditor.dispatch(${jsonEncode(command)})',
-    );
-  }
+  Future<void> _requestRender() =>
+      _dispatch({'type': 'render', 'width': 640, 'height': 640});
 
   Future<void> _dispatch(Map<String, dynamic> message) async {
     final command = jsonEncode({
