@@ -125,9 +125,9 @@ void main() {
     expect(disposedPanels, ['prompt-assistant', 'comfyui']);
   });
 
-  testWidgets('切换集成面板时分段导航总宽度保持不变', (tester) async {
+  testWidgets('英文环境切换集成面板时分段导航总宽度保持不变', (tester) async {
     final disposedPanels = <String>[];
-    await pumpSection(tester, disposedPanels);
+    await pumpSection(tester, disposedPanels, locale: const Locale('en'));
 
     final segmentedButton = find.byType(SegmentedButton<int>);
     final promptAssistantWidth = tester.getSize(segmentedButton).width;
