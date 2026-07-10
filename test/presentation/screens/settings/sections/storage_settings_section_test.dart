@@ -9,8 +9,10 @@ import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/services/local_onnx_model_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/providers/data_source_cache_provider.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/storage_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/widgets/cache_statistics_tile.dart';
+import 'package:nai_launcher/presentation/screens/settings/widgets/data_source_cache_settings.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 void main() {
@@ -68,6 +70,34 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('聚焦数据与存储：保护模式移出，数据源缓存迁入', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 2400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(_buildSubject(storage));
+    await tester.pump();
+
+    expect(find.text('图片保存位置'), findsOneWidget);
+    expect(find.text('自动保存'), findsOneWidget);
+    expect(
+      <String, int>{
+        '数据与存储标题': find.text('数据与存储').evaluate().length,
+        '保护模式标题': find.text('保护模式').evaluate().length,
+        '移除元数据子项': find.text('复制/拖拽时移除全部元数据').evaluate().length,
+        'DataSourceCacheSettings': find
+            .byType(DataSourceCacheSettings)
+            .evaluate()
+            .length,
+      },
+      <String, int>{
+        '数据与存储标题': 1,
+        '保护模式标题': 0,
+        '移除元数据子项': 0,
+        'DataSourceCacheSettings': 1,
+      },
+    );
+  });
 }
 
 Widget _buildSubject(_MemoryLocalStorageService storage) {
@@ -91,6 +121,9 @@ Widget _buildSubject(_MemoryLocalStorageService storage) {
           lastUpdated: DateTime(2026),
         ),
       ),
+      danbooruTagsCacheNotifierProvider.overrideWith(
+        _TestDanbooruTagsCacheNotifier.new,
+      ),
     ],
     child: const MaterialApp(
       locale: Locale('zh'),
@@ -101,6 +134,13 @@ Widget _buildSubject(_MemoryLocalStorageService storage) {
       ),
     ),
   );
+}
+
+class _TestDanbooruTagsCacheNotifier extends DanbooruTagsCacheNotifier {
+  @override
+  Future<DanbooruTagsCacheState> build() async {
+    return const DanbooruTagsCacheState();
+  }
 }
 
 class _MemoryLocalStorageService extends LocalStorageService {
