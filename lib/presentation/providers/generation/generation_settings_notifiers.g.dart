@@ -83,7 +83,7 @@ final sdSyntaxAutoConvertSettingsProvider =
 
 typedef _$SdSyntaxAutoConvertSettings = Notifier<bool>;
 String _$promptWeightScrollSettingsHash() =>
-    r'9c0f3dabc7aeba5cad514b5237e7cd7870526f38';
+    r'13fe122febef46b936bfb22bbc7a62b0e1bdd3bf';
 
 /// 滚轮调整提示词权重设置 Notifier
 ///
