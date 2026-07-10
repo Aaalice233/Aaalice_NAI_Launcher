@@ -75,4 +75,26 @@ void main() {
       isNull,
     );
   });
+
+  test('rejects path traversal and malformed lib refs', () {
+    expect(service.urlPathFor('lib:../evil'), isNull);
+    expect(service.resolveFile('lib:../evil'), isNull);
+    expect(service.urlPathFor('lib:not-a-hash'), isNull);
+    expect(service.resolveFile('lib:not-a-hash'), isNull);
+  });
+
+  test('rejects uppercase hex hash', () {
+    final hash = 'C' * 64;
+    expect(service.resolveFile('lib:$hash'), isNull);
+  });
+
+  test('import leaves only the final file and no temp files', () async {
+    final source = await sourceFile('a.glb', [1, 2, 3]);
+    final ref = await service.importModel(source);
+    final hash = ref.substring(4);
+    final files = libraryDir.listSync().whereType<File>().toList();
+    expect(files, hasLength(1));
+    expect(files.single.path, endsWith('$hash.glb'));
+    expect(files.single.path, isNot(contains('.tmp')));
+  });
 }

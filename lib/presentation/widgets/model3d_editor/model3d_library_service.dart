@@ -26,39 +26,55 @@ class Model3dLibraryService {
 
   static const builtinMannequinRef = 'builtin:mannequin';
   static const _libPrefix = 'lib:';
+  static final _hashPattern = RegExp(r'^[a-f0-9]{64}$');
 
   final Directory libraryDir;
   final int maxFileBytes;
 
-  /// 导入模型:校验大小 → 流式 SHA-256 → 拷贝(已存在则去重跳过)
+  /// 导入模型:校验大小 → 流式 SHA-256 → 临时文件拷贝后原子改名(已存在则去重跳过)
   Future<String> importModel(File source) async {
-    final length = await source.length();
-    if (length > maxFileBytes) {
-      throw Model3dImportException(
-        'file too large: $length > $maxFileBytes bytes',
-      );
+    try {
+      final length = await source.length();
+      if (length > maxFileBytes) {
+        throw Model3dImportException(
+          'file too large: $length > $maxFileBytes bytes',
+        );
+      }
+      final digest = await sha256.bind(source.openRead()).first;
+      final hash = digest.toString();
+      final target = File(p.join(libraryDir.path, '$hash.glb'));
+      if (!await target.exists()) {
+        await libraryDir.create(recursive: true);
+        final temp = File('${target.path}.tmp-$hash');
+        try {
+          await source.copy(temp.path);
+          await temp.rename(target.path);
+        } catch (_) {
+          if (await temp.exists()) {
+            await temp.delete();
+          }
+          rethrow;
+        }
+      }
+      return '$_libPrefix$hash';
+    } on FileSystemException catch (e) {
+      throw Model3dImportException('io error: $e');
     }
-    final digest = await sha256.bind(source.openRead()).first;
-    final hash = digest.toString();
-    final target = File(p.join(libraryDir.path, '$hash.glb'));
-    if (!await target.exists()) {
-      await libraryDir.create(recursive: true);
-      await source.copy(target.path);
-    }
-    return '$_libPrefix$hash';
   }
 
-  /// modelRef → 本地服务 URL 路径(builtin 与未知前缀返回 null)
+  /// modelRef → 本地服务 URL 路径(builtin、未知前缀与非法 hash 返回 null)
   String? urlPathFor(String modelRef) {
     if (!modelRef.startsWith(_libPrefix)) return null;
-    return '/models/${modelRef.substring(_libPrefix.length)}.glb';
+    final hash = modelRef.substring(_libPrefix.length);
+    if (!_hashPattern.hasMatch(hash)) return null;
+    return '/models/$hash.glb';
   }
 
-  /// modelRef → 库文件(不检查存在性;builtin 与未知前缀返回 null)
+  /// modelRef → 库文件(不检查存在性;builtin、未知前缀与非法 hash 返回 null)
   File? resolveFile(String modelRef) {
     if (!modelRef.startsWith(_libPrefix)) return null;
-    return File(
-      p.join(libraryDir.path, '${modelRef.substring(_libPrefix.length)}.glb'),
-    );
+    final hash = modelRef.substring(_libPrefix.length);
+    if (!_hashPattern.hasMatch(hash)) return null;
+    return File(p.join(libraryDir.path, '$hash.glb'));
   }
 }
