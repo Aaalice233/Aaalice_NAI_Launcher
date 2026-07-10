@@ -421,6 +421,22 @@ class LocalStorageService {
     await setSetting(StorageKeys.sdSyntaxAutoConvert, value);
   }
 
+  // ==================== Prompt Weight Scroll ====================
+
+  /// 获取是否启用滚轮调整提示词权重（默认开启）
+  bool getEnablePromptWeightScroll() {
+    return getSetting<bool>(
+          StorageKeys.enablePromptWeightScroll,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存是否启用滚轮调整提示词权重
+  Future<void> setEnablePromptWeightScroll(bool value) async {
+    await setSetting(StorageKeys.enablePromptWeightScroll, value);
+  }
+
   // ==================== Cooccurrence Recommendation ====================
 
   /// 获取是否启用共现推荐 (默认开启)

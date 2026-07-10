@@ -68,6 +68,22 @@ class SdSyntaxAutoConvertSettings extends _$SdSyntaxAutoConvertSettings {
   }
 }
 
+/// 滚轮调整提示词权重设置 Notifier
+@Riverpod(keepAlive: true)
+class PromptWeightScrollSettings extends _$PromptWeightScrollSettings {
+  LocalStorageService get _storage => ref.read(localStorageServiceProvider);
+
+  @override
+  bool build() => _storage.getEnablePromptWeightScroll();
+
+  void toggle() => set(!state);
+
+  void set(bool value) {
+    state = value;
+    _storage.setEnablePromptWeightScroll(value);
+  }
+}
+
 /// 标签共现推荐设置 Notifier
 @Riverpod(keepAlive: true)
 class CooccurrenceSettings extends _$CooccurrenceSettings {

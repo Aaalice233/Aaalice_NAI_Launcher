@@ -99,6 +99,7 @@ class StorageKeys {
   static const String autoFormatPrompt = 'auto_format_prompt';
   static const String highlightEmphasis = 'highlight_emphasis';
   static const String sdSyntaxAutoConvert = 'sd_syntax_auto_convert';
+  static const String enablePromptWeightScroll = 'enable_prompt_weight_scroll';
 
   // Seed Lock Keys (种子锁定相关)
   static const String seedLocked = 'seed_locked';
