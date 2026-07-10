@@ -1,7 +1,9 @@
 #include "win32_window.h"
 
+#include <commctrl.h>
 #include <dwmapi.h>
 #include <flutter_windows.h>
+#include <uiautomation.h>
 
 #include "resource.h"
 
@@ -28,6 +30,37 @@ constexpr const wchar_t kGetPreferredBrightnessRegValue[] = L"AppsUseLightTheme"
 
 // The number of Win32Window objects that currently exist.
 static int g_active_window_count = 0;
+
+constexpr UINT_PTR kFlutterAccessibilityCrashGuardSubclassId = 1;
+
+bool IsFlutterAccessibilityRootRequest(LPARAM lparam) {
+  const DWORD object_id =
+      static_cast<DWORD>(static_cast<DWORD_PTR>(lparam));
+  return object_id == static_cast<DWORD>(OBJID_CLIENT) ||
+         object_id == static_cast<DWORD>(UiaRootObjectId);
+}
+
+LRESULT CALLBACK FlutterAccessibilityCrashGuardProc(
+    HWND window,
+    UINT message,
+    WPARAM wparam,
+    LPARAM lparam,
+    UINT_PTR subclass_id,
+    DWORD_PTR /* reference_data */) {
+  // Flutter 3.44 can corrupt its accessibility tree when a Windows UIA client
+  // remains attached during a resize. Block only the root accessibility
+  // requests until https://github.com/flutter/flutter/issues/175041 is fixed.
+  if (message == WM_GETOBJECT && IsFlutterAccessibilityRootRequest(lparam)) {
+    return 0;
+  }
+
+  if (message == WM_NCDESTROY) {
+    RemoveWindowSubclass(window, FlutterAccessibilityCrashGuardProc,
+                         subclass_id);
+  }
+
+  return DefSubclassProc(window, message, wparam, lparam);
+}
 
 using EnableNonClientDpiScaling = BOOL __stdcall(HWND hwnd);
 
@@ -238,7 +271,12 @@ Win32Window* Win32Window::GetThisFromHandle(HWND const window) noexcept {
       GetWindowLongPtr(window, GWLP_USERDATA));
 }
 
-void Win32Window::SetChildContent(HWND content) {
+bool Win32Window::SetChildContent(HWND content) {
+  if (!SetWindowSubclass(content, FlutterAccessibilityCrashGuardProc,
+                         kFlutterAccessibilityCrashGuardSubclassId, 0)) {
+    return false;
+  }
+
   child_content_ = content;
   SetParent(content, window_handle_);
   RECT frame = GetClientArea();
@@ -247,6 +285,7 @@ void Win32Window::SetChildContent(HWND content) {
              frame.bottom - frame.top, true);
 
   SetFocus(child_content_);
+  return true;
 }
 
 RECT Win32Window::GetClientArea() {

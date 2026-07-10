@@ -90,7 +90,9 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
-  SetChildContent(flutter_controller_->view()->GetNativeWindow());
+  if (!SetChildContent(flutter_controller_->view()->GetNativeWindow())) {
+    return false;
+  }
 
   // Register system fonts MethodChannel
   auto channel = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
