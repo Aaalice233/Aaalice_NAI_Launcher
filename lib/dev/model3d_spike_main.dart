@@ -66,6 +66,10 @@ class _SpikePageState extends State<_SpikePage> {
           .writeAsStringSync(DateTime.now().toIso8601String());
       _requestRender();
     } else if (msg['type'] == 'response') {
+      if (msg['ok'] != true) {
+        _diagLog('response error: ${jsonEncode(msg['data'])}');
+        return;
+      }
       final png = base64Decode((msg['data'] as Map)['png'] as String);
       File('${Directory.systemTemp.path}/model3d_spike_render.png')
           .writeAsBytesSync(png);
@@ -97,7 +101,10 @@ class _SpikePageState extends State<_SpikePage> {
           ? const Center(child: CircularProgressIndicator())
           : InAppWebView(
               initialUrlRequest: URLRequest(
-                url: WebUri('${_base}editor/spike.html'),
+                url: WebUri(
+                  '$_base'
+                  'editor/${const String.fromEnvironment('MODEL3D_PAGE', defaultValue: 'spike.html')}',
+                ),
               ),
               onWebViewCreated: (controller) {
                 _diagLog('webViewCreated');

@@ -155,6 +155,9 @@ flutter:
     - assets/databases/
     - assets/model3d_editor/
     - assets/model3d_editor/vendor/
+    - assets/model3d_editor/vendor/addons/controls/
+    - assets/model3d_editor/vendor/addons/loaders/
+    - assets/model3d_editor/vendor/addons/utils/
 
   fonts:
     - family: LXGW ZhenKai GB
