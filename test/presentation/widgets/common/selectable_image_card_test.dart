@@ -12,6 +12,7 @@ import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/image_preview.dart';
+import 'package:nai_launcher/presentation/widgets/common/draggable_memory_image.dart';
 import 'package:nai_launcher/presentation/widgets/common/pro_context_menu.dart';
 import 'package:nai_launcher/presentation/widgets/common/selectable_image_card.dart';
 
@@ -213,6 +214,59 @@ void main() {
       expect(find.text('精准参考'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'generation preview makes completed single and grid images draggable',
+    (tester) async {
+      final container = _createContainerWithPreviewImage();
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(_buildPreviewApp(container));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DraggableMemoryImage), findsOneWidget);
+
+      final bytes = Uint8List.fromList(
+        img.encodePng(img.Image(width: 32, height: 32)),
+      );
+      container
+          .read(imageGenerationNotifierProvider.notifier)
+          .updateDisplayImages([
+            GeneratedImage(id: 'grid-1', bytes: bytes, width: 32, height: 32),
+            GeneratedImage(id: 'grid-2', bytes: bytes, width: 32, height: 32),
+          ]);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DraggableMemoryImage), findsNWidgets(2));
+    },
+  );
+
+  testWidgets('generation preview keeps failed snapshots non-draggable', (
+    tester,
+  ) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final bytes = Uint8List.fromList(
+      img.encodePng(img.Image(width: 32, height: 32)),
+    );
+    container
+        .read(imageGenerationNotifierProvider.notifier)
+        .updateDisplayImages([
+          GeneratedImage(
+            id: 'failed-preview',
+            bytes: bytes,
+            width: 32,
+            height: 32,
+            kind: GeneratedImageKind.failedStreamSnapshot,
+          ),
+        ]);
+
+    await tester.pumpWidget(_buildPreviewApp(container));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SelectableImageCard), findsOneWidget);
+    expect(find.byType(DraggableMemoryImage), findsNothing);
+  });
 
   testWidgets('generation preview renders multiple stream preview slots', (
     tester,

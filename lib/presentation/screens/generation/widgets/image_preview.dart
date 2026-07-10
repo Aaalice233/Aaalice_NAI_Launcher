@@ -34,6 +34,7 @@ import '../../../services/image_workflow_launcher.dart';
 import '../../../widgets/character/character_card_grid.dart';
 import '../../../widgets/character/character_edit_dialog.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/draggable_memory_image.dart';
 import '../../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_viewer.dart';
@@ -487,7 +488,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     final canUseAsInput = image.canUseAsGenerationInput;
     final isFailedSnapshot = image.isFailedStreamSnapshot;
 
-    return SelectableImageCard(
+    final card = SelectableImageCard(
       imageBytes: imageBytes,
       sourceFilePath: image.filePath,
       index: index,
@@ -559,6 +560,17 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       onSaveToLibrary: canUseAsInput
           ? (bytes, _) => _showSaveToLibraryDialog(context, bytes)
           : null,
+    );
+
+    if (!image.canDrag) {
+      return card;
+    }
+
+    return DraggableMemoryImage(
+      imageBytes: imageBytes,
+      fileName: _previewImageFileName(image),
+      sourceFilePath: image.filePath,
+      child: card,
     );
   }
 
