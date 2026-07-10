@@ -64,7 +64,7 @@ class _SpikePageState extends State<_SpikePage> {
       }
       File('${Directory.systemTemp.path}/model3d_spike_ready.txt')
           .writeAsStringSync(DateTime.now().toIso8601String());
-      _requestRender();
+      _dispatch({'type': 'loadModel', 'builtin': 'mannequin'});
     } else if (msg['type'] == 'response') {
       if (msg['ok'] != true) {
         _diagLog('response error: ${jsonEncode(msg['data'])}');
@@ -89,13 +89,35 @@ class _SpikePageState extends State<_SpikePage> {
     );
   }
 
+  Future<void> _dispatch(Map<String, dynamic> message) async {
+    final command = jsonEncode({
+      ...message,
+      'requestId': ++_nextRequestId,
+    });
+    await _controller?.evaluateJavascript(
+      source: 'window.naiEditor.dispatch(${jsonEncode(command)})',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(_status)),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _requestRender,
-        child: const Icon(Icons.camera_alt),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton(
+            heroTag: 'mannequin',
+            onPressed: () => _dispatch({'type': 'loadModel', 'builtin': 'mannequin'}),
+            child: const Icon(Icons.accessibility_new),
+          ),
+          const SizedBox(height: 8),
+          FloatingActionButton(
+            heroTag: 'render',
+            onPressed: _requestRender,
+            child: const Icon(Icons.camera_alt),
+          ),
+        ],
       ),
       body: _base == null
           ? const Center(child: CircularProgressIndicator())

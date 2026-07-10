@@ -5,6 +5,8 @@
 //     msg: {type:'response', requestId, ok, data} 或事件 {type:'onReady'|'onModelLoaded'|'onLoadError'|'onDirty', ...}
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { buildMannequin } from './mannequin.js';
 
 const canvas = document.getElementById('viewport');
 
@@ -154,6 +156,90 @@ resize();
 renderer.setAnimationLoop(() => {
   controls.update();
   renderer.render(scene, camera);
+});
+
+// ---- 模型加载 ----
+function clearCurrentModel() {
+  if (!ctx.modelRoot) return;
+  scene.remove(ctx.modelRoot);
+  ctx.modelRoot.traverse((obj) => {
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+      const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+      materials.forEach((m) => m.dispose());
+    }
+  });
+  ctx.modelRoot = null;
+  ctx.skinnedMeshes = [];
+  ctx.restPose = null;
+}
+
+function collectBones() {
+  const bones = [];
+  for (const mesh of ctx.skinnedMeshes) {
+    for (const bone of mesh.skeleton.bones) {
+      if (!bones.includes(bone)) bones.push(bone);
+    }
+  }
+  return bones;
+}
+
+function captureRestPose() {
+  ctx.restPose = new Map();
+  for (const bone of collectBones()) {
+    ctx.restPose.set(bone, {
+      p: bone.position.clone(),
+      q: bone.quaternion.clone(),
+      s: bone.scale.clone(),
+    });
+  }
+}
+
+function frameObject(root) {
+  const box = new THREE.Box3().setFromObject(root);
+  if (box.isEmpty()) return;
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3()).length() || 1;
+  camera.position.copy(center)
+    .add(new THREE.Vector3(0, size * 0.15, size * 1.4));
+  controls.target.copy(center);
+  controls.update();
+}
+
+registerCommand('loadModel', async ({ url, builtin }) => {
+  clearCurrentModel();
+  let root;
+  try {
+    if (builtin === 'mannequin') {
+      root = buildMannequin();
+    } else if (url) {
+      const gltf = await new GLTFLoader().loadAsync(url);
+      root = gltf.scene;
+    } else {
+      throw new Error('loadModel requires url or builtin');
+    }
+  } catch (e) {
+    const error = String(e && e.message || e);
+    emit({ type: 'onLoadError', error });
+    throw e;
+  }
+
+  scene.add(root);
+  ctx.modelRoot = root;
+  ctx.skinnedMeshes = [];
+  root.traverse((obj) => {
+    if (obj.isSkinnedMesh) ctx.skinnedMeshes.push(obj);
+  });
+  captureRestPose();
+  frameObject(root);
+
+  const names = collectBones().map((b) => b.name);
+  const duplicateBoneNames = [...new Set(
+    names.filter((n, i) => names.indexOf(n) !== i),
+  )];
+  const result = { boneCount: names.length, duplicateBoneNames };
+  emit({ type: 'onModelLoaded', ...result });
+  return result;
 });
 
 announceReady(); // 模块初始化完成后宣告(轮询直至 callHandler 注入)
