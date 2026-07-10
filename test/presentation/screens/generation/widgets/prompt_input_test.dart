@@ -10,17 +10,13 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/prompt_token_counter_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
+import 'package:nai_launcher/presentation/widgets/common/weight_adjust_toolbar.dart';
 
 void main() {
   test('Windows 下提示词切换按钮不使用富文本 Tooltip', () {
-    expect(
-      usesRichPromptTypeTooltip(TargetPlatform.windows),
-      isFalse,
-    );
-    expect(
-      usesRichPromptTypeTooltip(TargetPlatform.macOS),
-      isTrue,
-    );
+    expect(usesRichPromptTypeTooltip(TargetPlatform.windows), isFalse);
+    expect(usesRichPromptTypeTooltip(TargetPlatform.macOS), isTrue);
   });
 
   testWidgets('冷启动时切换到负面提示词不会抛出异常', (tester) async {
@@ -33,30 +29,22 @@ void main() {
           characterPromptNotifierProvider.overrideWith(
             _TestCharacterPromptNotifier.new,
           ),
-          promptTokenUsageProvider(PromptTokenCountTarget.positive)
-              .overrideWith(
-            (ref) async => const PromptTokenUsage(
-              usedTokens: 0,
-              limit: 512,
-            ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.positive,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
           ),
-          promptTokenUsageProvider(PromptTokenCountTarget.negative)
-              .overrideWith(
-            (ref) async => const PromptTokenUsage(
-              usedTokens: 0,
-              limit: 512,
-            ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.negative,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
           ),
         ],
         child: const MaterialApp(
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           home: Scaffold(
-            body: SizedBox(
-              width: 960,
-              height: 420,
-              child: PromptInputWidget(),
-            ),
+            body: SizedBox(width: 960, height: 420, child: PromptInputWidget()),
           ),
         ),
       ),
@@ -89,19 +77,15 @@ void main() {
             characterPromptNotifierProvider.overrideWith(
               _TestCharacterPromptNotifier.new,
             ),
-            promptTokenUsageProvider(PromptTokenCountTarget.positive)
-                .overrideWith(
-              (ref) async => const PromptTokenUsage(
-                usedTokens: 0,
-                limit: 512,
-              ),
+            promptTokenUsageProvider(
+              PromptTokenCountTarget.positive,
+            ).overrideWith(
+              (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
             ),
-            promptTokenUsageProvider(PromptTokenCountTarget.negative)
-                .overrideWith(
-              (ref) async => const PromptTokenUsage(
-                usedTokens: 0,
-                limit: 512,
-              ),
+            promptTokenUsageProvider(
+              PromptTokenCountTarget.negative,
+            ).overrideWith(
+              (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
             ),
           ],
           child: const MaterialApp(
@@ -137,8 +121,9 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pump();
 
-      final searchField =
-          find.byKey(const ValueKey('prompt_input_search_field'));
+      final searchField = find.byKey(
+        const ValueKey('prompt_input_search_field'),
+      );
       expect(searchField, findsOneWidget);
       final promptTextField = find.byWidgetPredicate(
         (widget) => widget is TextField && widget.controller?.text == prompt,
@@ -155,9 +140,7 @@ void main() {
       expect(find.text('1 / 2'), findsOneWidget);
 
       final promptEditable = tester
-          .widgetList<EditableText>(
-            find.byType(EditableText),
-          )
+          .widgetList<EditableText>(find.byType(EditableText))
           .singleWhere((editable) => editable.controller.text == prompt);
       expect(
         promptEditable.controller.selection,
@@ -168,9 +151,59 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     }
   });
+
+  testWidgets('shared prompt input reads the disabled wheel setting', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith(
+            (ref) => _TestLocalStorageService(enablePromptWeightScroll: false),
+          ),
+          characterPromptNotifierProvider.overrideWith(
+            _TestCharacterPromptNotifier.new,
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.positive,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.negative,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 512),
+          ),
+        ],
+        child: const MaterialApp(
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: SizedBox(width: 960, height: 420, child: PromptInputWidget()),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final wrapper = tester.widget<WeightAdjustToolbarWrapper>(
+      find.byType(WeightAdjustToolbarWrapper).first,
+    );
+    final input = tester.widget<ThemedInput>(find.byType(ThemedInput).first);
+
+    expect(wrapper.enableWheelAdjustment, isFalse);
+    expect(input.scrollPhysics, isNull);
+  });
 }
 
 class _TestLocalStorageService extends LocalStorageService {
+  _TestLocalStorageService({this.enablePromptWeightScroll = true});
+
+  final bool enablePromptWeightScroll;
+
+  @override
+  bool getEnablePromptWeightScroll() => enablePromptWeightScroll;
+
   @override
   bool getEnableAutocomplete() => false;
 

@@ -15,12 +15,10 @@ void main() {
           localStorageServiceProvider.overrideWith((ref) {
             return _TestLocalStorageService();
           }),
-          promptTokenUsageProvider(PromptTokenCountTarget.positive)
-              .overrideWith(
-            (ref) async => const PromptTokenUsage(
-              usedTokens: 12,
-              limit: 512,
-            ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.positive,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 12, limit: 512),
           ),
         ],
         child: const MaterialApp(
@@ -47,6 +45,9 @@ void main() {
 }
 
 class _TestLocalStorageService extends LocalStorageService {
+  @override
+  bool getEnablePromptWeightScroll() => true;
+
   @override
   bool getEnableAutocomplete() => false;
 

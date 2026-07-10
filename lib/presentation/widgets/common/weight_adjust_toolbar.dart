@@ -32,12 +32,16 @@ class WeightAdjustToolbarWrapper extends StatefulWidget {
   /// 是否启用权重调整
   final bool enabled;
 
+  /// 是否允许通过鼠标滚轮调整权重
+  final bool enableWheelAdjustment;
+
   const WeightAdjustToolbarWrapper({
     super.key,
     required this.child,
     required this.controller,
     this.focusNode,
     this.enabled = true,
+    this.enableWheelAdjustment = true,
   });
 
   @override
@@ -85,6 +89,18 @@ class _WeightAdjustToolbarWrapperState
       }
       _initFocusNode();
     }
+    if (oldWidget.enableWheelAdjustment != widget.enableWheelAdjustment) {
+      final overlayEntry = _overlayEntry;
+      if (overlayEntry != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted &&
+              identical(_overlayEntry, overlayEntry) &&
+              overlayEntry.mounted) {
+            overlayEntry.markNeedsBuild();
+          }
+        });
+      }
+    }
   }
 
   @override
@@ -112,7 +128,8 @@ class _WeightAdjustToolbarWrapperState
     if (!widget.enabled || _isInteractingWithToolbar) return;
 
     final selection = widget.controller.selection;
-    final hasSelection = selection.isValid &&
+    final hasSelection =
+        selection.isValid &&
         selection.start != selection.end &&
         selection.start >= 0 &&
         selection.end <= widget.controller.text.length;
@@ -135,6 +152,7 @@ class _WeightAdjustToolbarWrapperState
         layerLink: _layerLink,
         textFieldKey: _textFieldKey,
         onClose: _hideToolbar,
+        enableWheelAdjustment: widget.enableWheelAdjustment,
         onInteractingChanged: (interacting) {
           _isInteractingWithToolbar = interacting;
         },
@@ -163,11 +181,18 @@ class _WeightAdjustToolbarWrapperState
     if (event is! PointerScrollEvent ||
         event.scrollDelta.dy == 0 ||
         !widget.enabled ||
+        !widget.enableWheelAdjustment ||
         !_WeightSelectionEditor.hasSelection(widget.controller)) {
       return;
     }
 
-    _adjustWeightByStep(event.scrollDelta.dy < 0 ? 0.05 : -0.05);
+    GestureBinding.instance.pointerSignalResolver.register(event, (
+      resolvedEvent,
+    ) {
+      final scrollEvent = resolvedEvent as PointerScrollEvent;
+      _adjustWeightByStep(scrollEvent.scrollDelta.dy < 0 ? 0.05 : -0.05);
+      scrollEvent.respond(allowPlatformDefault: false);
+    });
   }
 
   @override
@@ -176,10 +201,7 @@ class _WeightAdjustToolbarWrapperState
       onPointerSignal: _handlePointerSignal,
       child: CompositedTransformTarget(
         link: _layerLink,
-        child: KeyedSubtree(
-          key: _textFieldKey,
-          child: widget.child,
-        ),
+        child: KeyedSubtree(key: _textFieldKey, child: widget.child),
       ),
     );
   }
@@ -190,10 +212,7 @@ class _WeightParseResult {
   final String baseText;
   final double weight;
 
-  const _WeightParseResult({
-    required this.baseText,
-    required this.weight,
-  });
+  const _WeightParseResult({required this.baseText, required this.weight});
 }
 
 class _WeightSelectionEditor {
@@ -271,10 +290,12 @@ class _WeightSelectionEditor {
       }
     }
 
-    final effectiveBraces =
-        braceCount < closeBraceCount ? braceCount : closeBraceCount;
-    final effectiveBrackets =
-        bracketCount < closeBracketCount ? bracketCount : closeBracketCount;
+    final effectiveBraces = braceCount < closeBraceCount
+        ? braceCount
+        : closeBraceCount;
+    final effectiveBrackets = bracketCount < closeBracketCount
+        ? bracketCount
+        : closeBracketCount;
 
     if (effectiveBraces > 0) {
       weight = 1.0 + (effectiveBraces * 0.05);
@@ -294,10 +315,7 @@ class _WeightSelectionEditor {
     );
   }
 
-  static bool applyWeight(
-    TextEditingController controller,
-    double newWeight,
-  ) {
+  static bool applyWeight(TextEditingController controller, double newWeight) {
     final result = parseSelection(controller);
     final baseText = result.baseText;
 
@@ -312,7 +330,8 @@ class _WeightSelectionEditor {
 
     final text = controller.text;
     final selection = controller.selection;
-    final newTextValue = text.substring(0, selection.start) +
+    final newTextValue =
+        text.substring(0, selection.start) +
         newText +
         text.substring(selection.end);
 
@@ -328,12 +347,46 @@ class _WeightSelectionEditor {
   }
 }
 
+class WeightAdjustScrollPhysics extends ScrollPhysics {
+  const WeightAdjustScrollPhysics({required this.controller, super.parent});
+
+  final TextEditingController controller;
+
+  @override
+  WeightAdjustScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return WeightAdjustScrollPhysics(
+      controller: controller,
+      parent: buildParent(ancestor),
+    );
+  }
+
+  @override
+  bool shouldAcceptUserOffset(ScrollMetrics position) {
+    if (_WeightSelectionEditor.hasSelection(controller)) {
+      return false;
+    }
+    return super.shouldAcceptUserOffset(position);
+  }
+}
+
+bool supportsPromptWeightScrollPhysics(TargetPlatform platform) {
+  return switch (platform) {
+    TargetPlatform.windows ||
+    TargetPlatform.macOS ||
+    TargetPlatform.linux => true,
+    TargetPlatform.android ||
+    TargetPlatform.iOS ||
+    TargetPlatform.fuchsia => false,
+  };
+}
+
 /// 权重调整工具条
 class _WeightAdjustToolbar extends StatefulWidget {
   final TextEditingController controller;
   final LayerLink layerLink;
   final GlobalKey textFieldKey;
   final VoidCallback onClose;
+  final bool enableWheelAdjustment;
   final ValueChanged<bool> onInteractingChanged;
 
   const _WeightAdjustToolbar({
@@ -341,6 +394,7 @@ class _WeightAdjustToolbar extends StatefulWidget {
     required this.layerLink,
     required this.textFieldKey,
     required this.onClose,
+    required this.enableWheelAdjustment,
     required this.onInteractingChanged,
   });
 
@@ -384,10 +438,19 @@ class _WeightAdjustToolbarState extends State<_WeightAdjustToolbar> {
   }
 
   void _handlePointerSignal(PointerSignalEvent event) {
-    if (event is! PointerScrollEvent || event.scrollDelta.dy == 0) {
+    if (event is! PointerScrollEvent ||
+        event.scrollDelta.dy == 0 ||
+        !widget.enableWheelAdjustment) {
       return;
     }
-    _adjustWeightByStep(event.scrollDelta.dy < 0 ? 0.05 : -0.05);
+
+    GestureBinding.instance.pointerSignalResolver.register(event, (
+      resolvedEvent,
+    ) {
+      final scrollEvent = resolvedEvent as PointerScrollEvent;
+      _adjustWeightByStep(scrollEvent.scrollDelta.dy < 0 ? 0.05 : -0.05);
+      scrollEvent.respond(allowPlatformDefault: false);
+    });
   }
 
   Offset _calculateOffset() {
@@ -501,15 +564,17 @@ class _WeightAdjustToolbarState extends State<_WeightAdjustToolbar> {
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(4),
                               borderSide: BorderSide(
-                                color:
-                                    colorScheme.outline.withValues(alpha: 0.5),
+                                color: colorScheme.outline.withValues(
+                                  alpha: 0.5,
+                                ),
                               ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(4),
                               borderSide: BorderSide(
-                                color:
-                                    colorScheme.outline.withValues(alpha: 0.3),
+                                color: colorScheme.outline.withValues(
+                                  alpha: 0.3,
+                                ),
                               ),
                             ),
                             focusedBorder: OutlineInputBorder(
@@ -585,15 +650,9 @@ class _WeightButton extends StatelessWidget {
           child: Container(
             width: 28,
             height: 28,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(4),
-            ),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(4)),
             alignment: Alignment.center,
-            child: Icon(
-              icon,
-              size: 18,
-              color: colorScheme.onSurfaceVariant,
-            ),
+            child: Icon(icon, size: 18, color: colorScheme.onSurfaceVariant),
           ),
         ),
       ),
