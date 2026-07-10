@@ -81,6 +81,7 @@ class _WeightAdjustToolbarWrapperState
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_onSelectionChanged);
       widget.controller.addListener(_onSelectionChanged);
+      _scheduleControllerSelectionSync(widget.controller);
     }
     if (oldWidget.focusNode != widget.focusNode) {
       _focusNode.removeListener(_onFocusChanged);
@@ -127,6 +128,12 @@ class _WeightAdjustToolbarWrapperState
   void _onSelectionChanged() {
     if (!widget.enabled || _isInteractingWithToolbar) return;
 
+    _syncToolbarWithControllerSelection();
+  }
+
+  void _syncToolbarWithControllerSelection() {
+    if (!widget.enabled) return;
+
     final selection = widget.controller.selection;
     final hasSelection =
         selection.isValid &&
@@ -141,6 +148,16 @@ class _WeightAdjustToolbarWrapperState
     } else if (hasSelection && _overlayEntry != null) {
       _overlayEntry?.markNeedsBuild();
     }
+  }
+
+  void _scheduleControllerSelectionSync(
+    TextEditingController updatedController,
+  ) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && identical(widget.controller, updatedController)) {
+        _syncToolbarWithControllerSelection();
+      }
+    });
   }
 
   void _showToolbar() {

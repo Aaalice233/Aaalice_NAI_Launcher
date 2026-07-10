@@ -417,11 +417,151 @@ void main() {
 
     expect(prompt.text, 'cat');
   });
+
+  testWidgets('replacement controller without selection hides open toolbar', (
+    tester,
+  ) async {
+    final controllerA = TextEditingController(text: 'cat');
+    final controllerB = TextEditingController(text: 'dog');
+    final focus = FocusNode();
+    final page = ScrollController(initialScrollOffset: 100);
+    _registerControllerSwapCleanup(
+      tester,
+      [controllerA, controllerB],
+      focus,
+      page,
+    );
+
+    await _pumpHarness(
+      tester,
+      prompt: controllerA,
+      focus: focus,
+      page: page,
+      enableWheelAdjustment: true,
+    );
+    focus.requestFocus();
+    controllerA.selection = const TextSelection(baseOffset: 0, extentOffset: 3);
+    await tester.pump();
+    expect(find.byType(TextField), findsNWidgets(2));
+
+    await _pumpHarness(
+      tester,
+      prompt: controllerB,
+      focus: focus,
+      page: page,
+      enableWheelAdjustment: true,
+    );
+    await tester.pump();
+
+    expect(find.byType(TextField), findsOneWidget);
+  });
+
+  testWidgets('open toolbar targets selected replacement controller', (
+    tester,
+  ) async {
+    final controllerA = TextEditingController(text: 'cat');
+    final controllerB = TextEditingController(text: 'dog')
+      ..selection = const TextSelection(baseOffset: 0, extentOffset: 3);
+    final focus = FocusNode();
+    final page = ScrollController(initialScrollOffset: 100);
+    _registerControllerSwapCleanup(
+      tester,
+      [controllerA, controllerB],
+      focus,
+      page,
+    );
+
+    await _pumpHarness(
+      tester,
+      prompt: controllerA,
+      focus: focus,
+      page: page,
+      enableWheelAdjustment: true,
+    );
+    focus.requestFocus();
+    controllerA.selection = const TextSelection(baseOffset: 0, extentOffset: 3);
+    await tester.pump();
+    expect(find.byType(TextField), findsNWidgets(2));
+
+    await _pumpHarness(
+      tester,
+      prompt: controllerB,
+      focus: focus,
+      page: page,
+      enableWheelAdjustment: true,
+    );
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pump();
+
+    expect(controllerA.text, 'cat');
+    expect(controllerB.text, '1.05::dog::');
+  });
+
+  testWidgets('replacement controller with selection shows toolbar', (
+    tester,
+  ) async {
+    final controllerA = TextEditingController(text: 'cat');
+    final controllerB = TextEditingController(text: 'dog')
+      ..selection = const TextSelection(baseOffset: 0, extentOffset: 3);
+    final focus = FocusNode();
+    final page = ScrollController(initialScrollOffset: 100);
+    _registerControllerSwapCleanup(
+      tester,
+      [controllerA, controllerB],
+      focus,
+      page,
+    );
+
+    await _pumpHarness(
+      tester,
+      prompt: controllerA,
+      focus: focus,
+      page: page,
+      enableWheelAdjustment: true,
+    );
+    expect(find.byType(TextField), findsOneWidget);
+
+    await _pumpHarness(
+      tester,
+      prompt: controllerB,
+      focus: focus,
+      page: page,
+      enableWheelAdjustment: true,
+    );
+    await tester.pump();
+
+    expect(find.byType(TextField), findsNWidgets(2));
+  });
 }
 
 class _WheelEnabledStorage extends LocalStorageService {
   @override
   bool getEnablePromptWeightScroll() => true;
+}
+
+void _registerControllerSwapCleanup(
+  WidgetTester tester,
+  List<TextEditingController> prompts,
+  FocusNode focus,
+  ScrollController page,
+) {
+  addTearDown(() async {
+    for (final prompt in prompts) {
+      if (prompt.selection.isValid) {
+        prompt.selection = TextSelection.collapsed(offset: prompt.text.length);
+      }
+    }
+    focus.unfocus();
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 250));
+    page.dispose();
+    focus.dispose();
+    for (final prompt in prompts) {
+      prompt.dispose();
+    }
+  });
 }
 
 Future<void> _pumpHarness(

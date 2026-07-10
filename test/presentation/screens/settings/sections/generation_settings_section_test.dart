@@ -38,13 +38,48 @@ void main() {
     expect(tester.widget<SwitchListTile>(tileFinder).value, isFalse);
     expect(storage.values[StorageKeys.enablePromptWeightScroll], isFalse);
   });
+
+  testWidgets('prompt weight wheel switch rolls back and shows save failure', (
+    tester,
+  ) async {
+    final storage = _MemoryLocalStorageService(
+      writeError: StateError('settings write failed'),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SingleChildScrollView(child: GenerationSettingsSection()),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('滚轮调整提示词权重'));
+    await tester.pump();
+    await tester.pump();
+
+    final tileFinder = find.widgetWithText(SwitchListTile, '滚轮调整提示词权重');
+    expect(tester.widget<SwitchListTile>(tileFinder).value, isTrue);
+    expect(find.textContaining('保存失败'), findsOneWidget);
+    expect(storage.values, isEmpty);
+  });
 }
 
 class _MemoryLocalStorageService extends LocalStorageService {
-  _MemoryLocalStorageService([Map<String, Object?> initialValues = const {}])
-    : values = Map<String, Object?>.from(initialValues);
+  _MemoryLocalStorageService({
+    Map<String, Object?> initialValues = const {},
+    this.writeError,
+  }) : values = Map<String, Object?>.from(initialValues);
 
   final Map<String, Object?> values;
+  final Object? writeError;
 
   @override
   T? getSetting<T>(String key, {T? defaultValue}) {
@@ -53,6 +88,9 @@ class _MemoryLocalStorageService extends LocalStorageService {
 
   @override
   Future<void> setSetting<T>(String key, T value) async {
+    if (writeError case final error?) {
+      throw error;
+    }
     values[key] = value;
   }
 }

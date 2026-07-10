@@ -1,6 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/storage/local_storage_service.dart';
+import '../../../core/utils/app_logger.dart';
 
 part 'generation_settings_notifiers.g.dart';
 
@@ -76,11 +77,22 @@ class PromptWeightScrollSettings extends _$PromptWeightScrollSettings {
   @override
   bool build() => _storage.getEnablePromptWeightScroll();
 
-  void toggle() => set(!state);
+  Future<void> toggle() => set(!state);
 
-  void set(bool value) {
+  Future<void> set(bool value) async {
+    final previousValue = state;
     state = value;
-    _storage.setEnablePromptWeightScroll(value);
+    try {
+      await _storage.setEnablePromptWeightScroll(value);
+    } catch (error, stackTrace) {
+      state = previousValue;
+      AppLogger.e(
+        'Failed to persist prompt weight wheel setting',
+        error,
+        stackTrace,
+      );
+      rethrow;
+    }
   }
 }
 

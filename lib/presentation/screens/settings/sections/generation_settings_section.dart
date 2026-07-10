@@ -38,8 +38,19 @@ class GenerationSettingsSection extends ConsumerWidget {
             title: Text(l10n.settings_enablePromptWeightScroll),
             subtitle: Text(l10n.settings_enablePromptWeightScrollSubtitle),
             value: promptWeightScrollEnabled,
-            onChanged: (value) {
-              ref.read(promptWeightScrollSettingsProvider.notifier).set(value);
+            onChanged: (value) async {
+              final messenger = ScaffoldMessenger.maybeOf(context);
+              try {
+                await ref
+                    .read(promptWeightScrollSettingsProvider.notifier)
+                    .set(value);
+              } catch (error) {
+                messenger?.showSnackBar(
+                  SnackBar(
+                    content: Text(l10n.globalSettings_saveFailed('$error')),
+                  ),
+                );
+              }
             },
           ),
         ],
