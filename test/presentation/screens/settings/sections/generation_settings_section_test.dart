@@ -70,6 +70,64 @@ void main() {
     expect(find.textContaining('保存失败'), findsOneWidget);
     expect(storage.values, isEmpty);
   });
+
+  testWidgets('按任务流展示输入、重试、提醒三个小节', (tester) async {
+    final storage = _MemoryLocalStorageService();
+    await tester.binding.setSurfaceSize(const Size(1000, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SingleChildScrollView(child: GenerationSettingsSection()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('输入'), findsOneWidget);
+    expect(find.text('失败重试'), findsOneWidget);
+    expect(find.text('完成提醒'), findsOneWidget);
+    expect(find.text('显示随机提示词工具'), findsOneWidget);
+    expect(find.text('滚轮调整提示词权重'), findsOneWidget);
+    expect(find.text('重试次数'), findsOneWidget);
+    expect(find.text('重试间隔'), findsOneWidget);
+    expect(find.text('完成音效'), findsOneWidget);
+  });
+
+  testWidgets('音效开关关闭时隐藏自定义音效入口', (tester) async {
+    final storage = _MemoryLocalStorageService();
+    await tester.binding.setSurfaceSize(const Size(1000, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SingleChildScrollView(child: GenerationSettingsSection()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('自定义音效'), findsOneWidget);
+
+    await tester.tap(find.text('完成音效'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('自定义音效'), findsNothing);
+  });
 }
 
 class _MemoryLocalStorageService extends LocalStorageService {
