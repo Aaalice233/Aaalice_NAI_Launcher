@@ -70,13 +70,16 @@ class _SpikePageState extends State<_SpikePage> {
         _diagLog('response error: ${jsonEncode(msg['data'])}');
         return;
       }
-      final png = base64Decode((msg['data'] as Map)['png'] as String);
+      final data = (msg['data'] as Map?)?.cast<String, dynamic>() ?? const {};
+      final png = data['png'] as String?;
+      if (png == null) return; // 非渲染类响应(如 loadModel),日志已记录
+      final bytes = base64Decode(png);
       File('${Directory.systemTemp.path}/model3d_spike_render.png')
-          .writeAsBytesSync(png);
+          .writeAsBytesSync(bytes);
       if (!mounted) return;
       showDialog<void>(
         context: context,
-        builder: (_) => Dialog(child: Image.memory(png)),
+        builder: (_) => Dialog(child: Image.memory(bytes)),
       );
     }
   }

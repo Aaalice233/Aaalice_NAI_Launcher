@@ -163,10 +163,16 @@ function clearCurrentModel() {
   if (!ctx.modelRoot) return;
   scene.remove(ctx.modelRoot);
   ctx.modelRoot.traverse((obj) => {
+    if (obj.isSkinnedMesh && obj.skeleton) obj.skeleton.dispose();
     if (obj.geometry) obj.geometry.dispose();
     if (obj.material) {
       const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
-      materials.forEach((m) => m.dispose());
+      for (const material of materials) {
+        for (const value of Object.values(material)) {
+          if (value && value.isTexture) value.dispose();
+        }
+        material.dispose();
+      }
     }
   });
   ctx.modelRoot = null;
