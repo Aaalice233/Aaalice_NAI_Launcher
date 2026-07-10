@@ -9544,6 +9544,13 @@ class AppLocalizationsJa extends AppLocalizations {
       '生成ページにランダムプロンプトボタンと Random Mode の切り替えを表示します';
 
   @override
+  String get settings_enablePromptWeightScroll => 'マウスホイールでプロンプトの重みを調整';
+
+  @override
+  String get settings_enablePromptWeightScrollSubtitle =>
+      'プロンプトを選択している間は、ホイールで重みだけを調整し、ページスクロールなどの操作は行いません。';
+
+  @override
   String settings_queueRetryCountMax(Object count) {
     return '最大 $count 回';
   }

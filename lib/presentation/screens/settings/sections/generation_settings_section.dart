@@ -15,18 +15,34 @@ class GenerationSettingsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
+    final promptWeightScrollEnabled = ref.watch(
+      promptWeightScrollSettingsProvider,
+    );
 
     return SettingsCard(
       title: l10n.settings_generation,
       icon: Icons.tune_outlined,
-      child: SwitchListTile(
-        secondary: const Icon(Icons.casino_outlined),
-        title: Text(l10n.settings_showRandomPromptTools),
-        subtitle: Text(l10n.settings_showRandomPromptToolsSubtitle),
-        value: showRandomTools,
-        onChanged: (value) {
-          ref.read(randomPromptToolsVisibilityProvider.notifier).set(value);
-        },
+      child: Column(
+        children: [
+          SwitchListTile(
+            secondary: const Icon(Icons.casino_outlined),
+            title: Text(l10n.settings_showRandomPromptTools),
+            subtitle: Text(l10n.settings_showRandomPromptToolsSubtitle),
+            value: showRandomTools,
+            onChanged: (value) {
+              ref.read(randomPromptToolsVisibilityProvider.notifier).set(value);
+            },
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.mouse_outlined),
+            title: Text(l10n.settings_enablePromptWeightScroll),
+            subtitle: Text(l10n.settings_enablePromptWeightScrollSubtitle),
+            value: promptWeightScrollEnabled,
+            onChanged: (value) {
+              ref.read(promptWeightScrollSettingsProvider.notifier).set(value);
+            },
+          ),
+        ],
       ),
     );
   }

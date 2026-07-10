@@ -9768,6 +9768,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Show the Random Prompt button and Random Mode toggle on the generation page';
 
   @override
+  String get settings_enablePromptWeightScroll =>
+      'Adjust prompt weight with mouse wheel';
+
+  @override
+  String get settings_enablePromptWeightScrollSubtitle =>
+      'When prompt text is selected, use the wheel only to adjust its weight and suppress other scroll actions.';
+
+  @override
   String settings_queueRetryCountMax(Object count) {
     return 'Max $count times';
   }

@@ -5011,6 +5011,8 @@
   "shortcut_settings_show_in_tooltips": "ツールチップに表示",
   "settings_showRandomPromptTools": "ランダムプロンプトツールを表示",
   "settings_showRandomPromptToolsSubtitle": "生成ページにランダムプロンプトボタンと Random Mode の切り替えを表示します",
+  "settings_enablePromptWeightScroll": "マウスホイールでプロンプトの重みを調整",
+  "settings_enablePromptWeightScrollSubtitle": "プロンプトを選択している間は、ホイールで重みだけを調整し、ページスクロールなどの操作は行いません。",
   "shortcut_settings_reset_all": "すべてをデフォルトにリセット",
   "shortcut_settings_search": "ショートカットを検索...",
   "shortcut_settings_no_results": "ショートカットが見つかりませんでした",
