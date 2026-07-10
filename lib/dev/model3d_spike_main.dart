@@ -81,6 +81,11 @@ class _SpikePageState extends State<_SpikePage> {
         context: context,
         builder: (_) => Dialog(child: Image.memory(bytes)),
       );
+    } else if (msg['type'] == 'onModelLoaded') {
+      _dispatch({'type': 'setMode', 'mode': 'pose', 'gizmo': 'rotate'});
+      _dispatch({'type': 'undoPose'});
+      _dispatch({'type': 'resetPose'});
+      _dispatch({'type': 'setMode', 'mode': 'transform', 'gizmo': 'translate'});
     }
   }
 

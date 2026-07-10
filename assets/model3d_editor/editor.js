@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { buildMannequin } from './mannequin.js';
 
 const canvas = document.getElementById('viewport');
@@ -155,6 +156,7 @@ resize();
 
 renderer.setAnimationLoop(() => {
   controls.update();
+  syncBoneMarkers();
   renderer.render(scene, camera);
 });
 
@@ -238,6 +240,8 @@ registerCommand('loadModel', async ({ url, builtin }) => {
   });
   captureRestPose();
   frameObject(root);
+  rebuildBoneMarkers();
+  applyMode();
 
   const names = collectBones().map((b) => b.name);
   const duplicateBoneNames = [...new Set(
@@ -246,6 +250,163 @@ registerCommand('loadModel', async ({ url, builtin }) => {
   const result = { boneCount: names.length, duplicateBoneNames };
   emit({ type: 'onModelLoaded', ...result });
   return result;
+});
+
+// ---- 变换 gizmo 与双模式编辑 ----
+const transformControls = new TransformControls(camera, canvas);
+transformControls.setSize(0.8);
+// r169+ 的 TransformControls 不再是 Object3D,通过 getHelper() 挂载
+const gizmoHelper = transformControls.getHelper
+  ? transformControls.getHelper()
+  : transformControls;
+scene.add(gizmoHelper);
+
+transformControls.addEventListener('dragging-changed', (event) => {
+  controls.enabled = !event.value;
+  if (event.value) pushUndoSnapshot(); // 拖拽开始时记快照
+});
+transformControls.addEventListener('objectChange', markDirty);
+
+// 骨骼标记球:挂在 helpers 下(渲染输出时随 helpers 整组隐藏),
+// visible 由 pose 模式独立控制(嵌套 visible 为 AND 关系)。
+const boneMarkers = new THREE.Group();
+boneMarkers.name = 'boneMarkers';
+boneMarkers.visible = false;
+helpers.add(boneMarkers);
+
+const markerMaterial = new THREE.MeshBasicMaterial({
+  color: 0x4f8cff, depthTest: false, transparent: true, opacity: 0.85,
+});
+const markerSelectedColor = new THREE.Color(0xffc24f);
+let selectedMarker = null;
+
+function rebuildBoneMarkers() {
+  boneMarkers.clear();
+  selectedMarker = null;
+  if (!ctx.modelRoot) return;
+  const box = new THREE.Box3().setFromObject(ctx.modelRoot);
+  const radius = Math.max(box.getSize(new THREE.Vector3()).length() * 0.008, 0.006);
+  const geometry = new THREE.SphereGeometry(radius, 12, 8);
+  for (const bone of collectBones()) {
+    const marker = new THREE.Mesh(geometry, markerMaterial.clone());
+    marker.renderOrder = 999;
+    marker.userData.bone = bone;
+    boneMarkers.add(marker);
+  }
+}
+
+function syncBoneMarkers() {
+  const worldPos = new THREE.Vector3();
+  for (const marker of boneMarkers.children) {
+    marker.userData.bone.getWorldPosition(worldPos);
+    marker.position.copy(worldPos);
+  }
+}
+
+let mode = 'transform';
+
+function applyMode() {
+  if (mode === 'pose') {
+    boneMarkers.visible = true;
+    transformControls.detach(); // 等待用户点选骨骼
+  } else {
+    boneMarkers.visible = false;
+    selectedMarker = null;
+    if (ctx.modelRoot) {
+      transformControls.attach(ctx.modelRoot);
+    } else {
+      transformControls.detach();
+    }
+  }
+}
+
+registerCommand('setMode', ({ mode: newMode, gizmo }) => {
+  mode = newMode === 'pose' ? 'pose' : 'transform';
+  transformControls.setMode(gizmo || (mode === 'pose' ? 'rotate' : 'translate'));
+  applyMode();
+});
+
+function selectBone(marker) {
+  if (selectedMarker) selectedMarker.material.color.set(0x4f8cff);
+  selectedMarker = marker;
+  marker.material.color.copy(markerSelectedColor);
+  transformControls.attach(marker.userData.bone);
+}
+
+const raycaster = new THREE.Raycaster();
+canvas.addEventListener('pointerdown', (event) => {
+  if (mode !== 'pose' || transformControls.dragging) return;
+  const rect = canvas.getBoundingClientRect();
+  const ndc = new THREE.Vector2(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1,
+  );
+  raycaster.setFromCamera(ndc, camera);
+  const hits = raycaster.intersectObjects(boneMarkers.children, false);
+  if (hits.length) selectBone(hits[0].object);
+});
+
+// ---- 会话内撤销(仅姿势/变换,不进画布 history) ----
+const undoStack = [];
+
+function capturePoseSnapshot() {
+  const boneStates = collectBones().map((bone) => ({
+    bone,
+    p: bone.position.clone(),
+    q: bone.quaternion.clone(),
+    s: bone.scale.clone(),
+  }));
+  const root = ctx.modelRoot;
+  return {
+    boneStates,
+    rootState: root
+      ? { p: root.position.clone(), q: root.quaternion.clone(), s: root.scale.clone() }
+      : null,
+  };
+}
+
+function pushUndoSnapshot() {
+  undoStack.push(capturePoseSnapshot());
+  if (undoStack.length > 50) undoStack.shift();
+}
+
+function restoreSnapshot(snapshot) {
+  for (const { bone, p, q, s } of snapshot.boneStates) {
+    bone.position.copy(p);
+    bone.quaternion.copy(q);
+    bone.scale.copy(s);
+  }
+  if (snapshot.rootState && ctx.modelRoot) {
+    ctx.modelRoot.position.copy(snapshot.rootState.p);
+    ctx.modelRoot.quaternion.copy(snapshot.rootState.q);
+    ctx.modelRoot.scale.copy(snapshot.rootState.s);
+  }
+  markDirty();
+}
+
+function undoPose() {
+  const snapshot = undoStack.pop();
+  if (snapshot) restoreSnapshot(snapshot);
+}
+
+registerCommand('undoPose', () => undoPose());
+
+registerCommand('resetPose', () => {
+  if (!ctx.restPose) return;
+  pushUndoSnapshot();
+  for (const [bone, rest] of ctx.restPose) {
+    bone.position.copy(rest.p);
+    bone.quaternion.copy(rest.q);
+    bone.scale.copy(rest.s);
+  }
+  markDirty();
+});
+
+window.addEventListener('keydown', (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+    event.preventDefault();
+    undoPose();
+  }
 });
 
 announceReady(); // 模块初始化完成后宣告(轮询直至 callHandler 注入)
