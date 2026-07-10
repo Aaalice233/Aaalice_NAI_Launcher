@@ -607,6 +607,24 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_generation => '生成';
 
   @override
+  String get settings_dataStorage => 'データとストレージ';
+
+  @override
+  String get settings_privacySharing => '保護と共有';
+
+  @override
+  String get settings_integrations => '連携';
+
+  @override
+  String get settings_generationInputSection => '入力';
+
+  @override
+  String get settings_generationRetrySection => '失敗時リトライ';
+
+  @override
+  String get settings_generationFeedbackSection => '完了通知';
+
+  @override
   String get settings_queue => 'キュー';
 
   @override

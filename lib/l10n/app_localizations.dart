@@ -1240,6 +1240,42 @@ abstract class AppLocalizations {
   /// **'Generation'**
   String get settings_generation;
 
+  /// No description provided for @settings_dataStorage.
+  ///
+  /// In en, this message translates to:
+  /// **'Data & Storage'**
+  String get settings_dataStorage;
+
+  /// No description provided for @settings_privacySharing.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy & Sharing'**
+  String get settings_privacySharing;
+
+  /// No description provided for @settings_integrations.
+  ///
+  /// In en, this message translates to:
+  /// **'Integrations'**
+  String get settings_integrations;
+
+  /// No description provided for @settings_generationInputSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Input'**
+  String get settings_generationInputSection;
+
+  /// No description provided for @settings_generationRetrySection.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry on Failure'**
+  String get settings_generationRetrySection;
+
+  /// No description provided for @settings_generationFeedbackSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Completion Alert'**
+  String get settings_generationFeedbackSection;
+
   /// No description provided for @settings_queue.
   ///
   /// In en, this message translates to:

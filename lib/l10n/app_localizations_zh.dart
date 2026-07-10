@@ -599,6 +599,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_generation => '生成';
 
   @override
+  String get settings_dataStorage => '数据与存储';
+
+  @override
+  String get settings_privacySharing => '安全与分享';
+
+  @override
+  String get settings_integrations => '集成';
+
+  @override
+  String get settings_generationInputSection => '输入';
+
+  @override
+  String get settings_generationRetrySection => '失败重试';
+
+  @override
+  String get settings_generationFeedbackSection => '完成提醒';
+
+  @override
   String get settings_queue => '队列';
 
   @override

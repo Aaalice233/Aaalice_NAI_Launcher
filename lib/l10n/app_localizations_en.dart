@@ -613,6 +613,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_generation => 'Generation';
 
   @override
+  String get settings_dataStorage => 'Data & Storage';
+
+  @override
+  String get settings_privacySharing => 'Privacy & Sharing';
+
+  @override
+  String get settings_integrations => 'Integrations';
+
+  @override
+  String get settings_generationInputSection => 'Input';
+
+  @override
+  String get settings_generationRetrySection => 'Retry on Failure';
+
+  @override
+  String get settings_generationFeedbackSection => 'Completion Alert';
+
+  @override
   String get settings_queue => 'Queue';
 
   @override
