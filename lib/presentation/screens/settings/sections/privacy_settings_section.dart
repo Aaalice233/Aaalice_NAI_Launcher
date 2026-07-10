@@ -182,10 +182,7 @@ class _PrivacySettingsSectionState
             ],
           ),
         ),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: OnlineGalleryBlacklistSettingsPanel(),
-        ),
+        const OnlineGalleryBlacklistSettingsPanel(),
       ],
     );
   }

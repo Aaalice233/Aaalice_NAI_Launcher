@@ -13,6 +13,7 @@ import 'package:nai_launcher/presentation/providers/data_source_cache_provider.d
 import 'package:nai_launcher/presentation/screens/settings/sections/storage_settings_section.dart';
 import 'package:nai_launcher/presentation/screens/settings/widgets/cache_statistics_tile.dart';
 import 'package:nai_launcher/presentation/screens/settings/widgets/data_source_cache_settings.dart';
+import 'package:nai_launcher/presentation/screens/settings/widgets/settings_card.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 void main() {
@@ -97,6 +98,25 @@ void main() {
         'DataSourceCacheSettings': 1,
       },
     );
+  });
+
+  testWidgets('数据源缓存卡片与主设置卡片宽度一致', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 2400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(_buildSubject(storage));
+    await tester.pump();
+    await tester.pump();
+
+    final settingsCards = find.byType(SettingsCard);
+    expect(settingsCards, findsNWidgets(2));
+
+    final primaryRect = tester.getRect(settingsCards.at(0));
+    final cacheRect = tester.getRect(settingsCards.at(1));
+
+    expect(cacheRect.left, primaryRect.left);
+    expect(cacheRect.right, primaryRect.right);
+    expect(cacheRect.width, primaryRect.width);
   });
 }
 

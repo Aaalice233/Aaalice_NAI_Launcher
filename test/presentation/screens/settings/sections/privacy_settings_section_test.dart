@@ -9,6 +9,7 @@ import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/services/danbooru_tags_lazy_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/privacy_settings_section.dart';
+import 'package:nai_launcher/presentation/screens/settings/widgets/settings_card.dart';
 import 'package:nai_launcher/presentation/widgets/online_gallery/blacklist_settings_panel.dart';
 
 void main() {
@@ -73,5 +74,27 @@ void main() {
       ),
     );
     expect(stripTile.onChanged, isNull);
+  });
+
+  testWidgets('在线画廊黑名单与主设置卡片宽度一致', (tester) async {
+    await pumpSection(tester);
+
+    final primaryCard = find.descendant(
+      of: find.byType(SettingsCard),
+      matching: find.byType(Card),
+    );
+    final blacklistCard = find.descendant(
+      of: find.byType(OnlineGalleryBlacklistSettingsPanel),
+      matching: find.byType(Card),
+    );
+    expect(primaryCard, findsOneWidget);
+    expect(blacklistCard, findsOneWidget);
+
+    final primaryRect = tester.getRect(primaryCard);
+    final blacklistRect = tester.getRect(blacklistCard);
+
+    expect(blacklistRect.left, primaryRect.left);
+    expect(blacklistRect.right, primaryRect.right);
+    expect(blacklistRect.width, primaryRect.width);
   });
 }
