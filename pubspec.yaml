@@ -121,6 +121,8 @@ dependencies:
   pub_semver: ^2.1.4
   web_socket_channel: ^3.0.3
   onnxruntime: ^1.4.1
+  # 3D 编辑器 WebView (Windows=WebView2 / macOS=WKWebView / Android=Chromium)
+  flutter_inappwebview: ^6.1.5
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -151,6 +153,8 @@ flutter:
     - assets/data/tokenizers/
     - assets/sounds/
     - assets/databases/
+    - assets/model3d_editor/
+    - assets/model3d_editor/vendor/
 
   fonts:
     - family: LXGW ZhenKai GB
