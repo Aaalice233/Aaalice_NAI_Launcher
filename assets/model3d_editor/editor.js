@@ -58,7 +58,6 @@ controls.update();
 
 const hemiLight = new THREE.HemisphereLight(0xffffff, 0x445566, 1.0);
 const dirLight = new THREE.DirectionalLight(0xffffff, 1.6);
-dirLight.position.set(1.5, 3, 2);
 scene.add(hemiLight, dirLight);
 
 // 辅助对象(渲染输出时整组隐藏)
@@ -109,8 +108,10 @@ window.naiEditor = {
   },
 };
 
-registerCommand('setLight', ({ intensity, azimuth, elevation }) => {
-  // intensity: 0..3;azimuth/elevation: 度
+ctx.lightParams = { intensity: 1.6, azimuth: 37, elevation: 50 };
+
+function applyLight({ intensity, azimuth, elevation }) {
+  ctx.lightParams = { intensity, azimuth, elevation };
   ctx.dirLight.intensity = intensity;
   const az = azimuth * Math.PI / 180;
   const el = elevation * Math.PI / 180;
@@ -120,6 +121,15 @@ registerCommand('setLight', ({ intensity, azimuth, elevation }) => {
     r * Math.sin(el),
     r * Math.cos(el) * Math.cos(az),
   );
+}
+applyLight(ctx.lightParams);
+
+registerCommand('setLight', (params) => {
+  applyLight({
+    intensity: params.intensity,
+    azimuth: params.azimuth,
+    elevation: params.elevation,
+  });
   markDirty();
 });
 
@@ -180,6 +190,7 @@ function clearCurrentModel() {
   ctx.modelRoot = null;
   ctx.skinnedMeshes = [];
   ctx.restPose = null;
+  undoStack.length = 0; // 换模型时废弃旧快照,防止跨模型恢复污染
 }
 
 function collectBones() {
@@ -214,7 +225,7 @@ function frameObject(root) {
   controls.update();
 }
 
-registerCommand('loadModel', async ({ url, builtin }) => {
+registerCommand('loadModel', async ({ url, builtin, sceneState }) => {
   clearCurrentModel();
   let root;
   try {
@@ -239,7 +250,11 @@ registerCommand('loadModel', async ({ url, builtin }) => {
     if (obj.isSkinnedMesh) ctx.skinnedMeshes.push(obj);
   });
   captureRestPose();
-  frameObject(root);
+  if (sceneState) {
+    applySceneState(sceneState); // 再编辑:恢复姿势/相机/光照,不自动对焦
+  } else {
+    frameObject(root);
+  }
   rebuildBoneMarkers();
   applyMode();
 
@@ -343,7 +358,13 @@ canvas.addEventListener('pointerdown', (event) => {
   );
   raycaster.setFromCamera(ndc, camera);
   const hits = raycaster.intersectObjects(boneMarkers.children, false);
-  if (hits.length) selectBone(hits[0].object);
+  if (hits.length) {
+    controls.enabled = false; // 选骨点击不应带动相机
+    window.addEventListener('pointerup', () => {
+      if (!transformControls.dragging) controls.enabled = true;
+    }, { once: true });
+    selectBone(hits[0].object);
+  }
 });
 
 // ---- 会话内撤销(仅姿势/变换,不进画布 history) ----
@@ -406,6 +427,98 @@ window.addEventListener('keydown', (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
     event.preventDefault();
     undoPose();
+  }
+});
+
+// ---- sceneState 序列化与恢复 ----
+const POSE_EPS = 1e-4;
+
+function serializeScene() {
+  const bones = {};
+  if (ctx.restPose) {
+    for (const bone of collectBones()) {
+      const rest = ctx.restPose.get(bone);
+      if (!rest) continue;
+      const changed =
+        bone.position.distanceToSquared(rest.p) > POSE_EPS * POSE_EPS ||
+        Math.abs(bone.quaternion.dot(rest.q)) < 1 - POSE_EPS ||
+        bone.scale.distanceToSquared(rest.s) > POSE_EPS * POSE_EPS;
+      if (changed) {
+        bones[bone.name] = {
+          position: bone.position.toArray(),
+          quaternion: bone.quaternion.toArray(),
+          scale: bone.scale.toArray(),
+        };
+      }
+    }
+  }
+  return {
+    version: 1,
+    modelTransform: ctx.modelRoot
+      ? {
+          position: ctx.modelRoot.position.toArray(),
+          quaternion: ctx.modelRoot.quaternion.toArray(),
+          scale: ctx.modelRoot.scale.toArray(),
+        }
+      : null,
+    bones,
+    camera: {
+      position: camera.position.toArray(),
+      target: controls.target.toArray(),
+      fov: camera.fov,
+    },
+    light: { ...ctx.lightParams },
+  };
+}
+
+function applySceneState(state) {
+  if (!state) return;
+  const transform = state.modelTransform;
+  if (transform && ctx.modelRoot) {
+    ctx.modelRoot.position.fromArray(transform.position);
+    ctx.modelRoot.quaternion.fromArray(transform.quaternion);
+    ctx.modelRoot.scale.fromArray(transform.scale);
+  }
+  if (state.bones) {
+    const byName = new Map(collectBones().map((b) => [b.name, b]));
+    for (const [name, boneState] of Object.entries(state.bones)) {
+      const bone = byName.get(name);
+      if (!bone) continue; // 换模型后骨骼名不匹配则跳过
+      if (boneState.position) bone.position.fromArray(boneState.position);
+      if (boneState.quaternion) bone.quaternion.fromArray(boneState.quaternion);
+      if (boneState.scale) bone.scale.fromArray(boneState.scale);
+    }
+  }
+  if (state.camera) {
+    camera.position.fromArray(state.camera.position);
+    controls.target.fromArray(state.camera.target);
+    camera.fov = state.camera.fov;
+    camera.updateProjectionMatrix();
+    controls.update();
+  }
+  if (state.light) applyLight(state.light);
+}
+
+registerCommand('serialize', () => ({ sceneState: serializeScene() }));
+
+// ---- 渲染输出(透明 PNG,精确像素尺寸) ----
+registerCommand('render', ({ width, height }) => {
+  const prevPixelRatio = renderer.getPixelRatio();
+  helpers.visible = false;
+  gizmoHelper.visible = false;
+  try {
+    renderer.setPixelRatio(1); // 输出精确 width×height,不乘 DPR
+    renderer.setSize(width, height, false);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    renderer.render(scene, camera);
+    const png = renderer.domElement.toDataURL('image/png').split(',')[1];
+    return { png };
+  } finally {
+    helpers.visible = true;
+    gizmoHelper.visible = true;
+    renderer.setPixelRatio(prevPixelRatio);
+    resize(); // 恢复视口尺寸与相机纵横比
   }
 });
 

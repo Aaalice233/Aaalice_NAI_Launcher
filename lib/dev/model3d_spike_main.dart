@@ -86,6 +86,8 @@ class _SpikePageState extends State<_SpikePage> {
       _dispatch({'type': 'undoPose'});
       _dispatch({'type': 'resetPose'});
       _dispatch({'type': 'setMode', 'mode': 'transform', 'gizmo': 'translate'});
+      _dispatch({'type': 'serialize'});
+      _dispatch({'type': 'render', 'width': 640, 'height': 640});
     }
   }
 
