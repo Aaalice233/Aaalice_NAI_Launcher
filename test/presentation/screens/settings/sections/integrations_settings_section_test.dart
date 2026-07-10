@@ -3,8 +3,41 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/integrations_settings_section.dart';
 
+const _promptAssistantPanelKey = ValueKey<String>('panel-prompt-assistant');
+const _comfyUiPanelKey = ValueKey<String>('panel-comfyui');
+const _kritaPanelKey = ValueKey<String>('panel-krita');
+const _panelKeys = [_promptAssistantPanelKey, _comfyUiPanelKey, _kritaPanelKey];
+
+class _PanelProbe extends StatefulWidget {
+  const _PanelProbe({
+    required super.key,
+    required this.label,
+    required this.onDispose,
+  });
+
+  final String label;
+  final VoidCallback onDispose;
+
+  @override
+  State<_PanelProbe> createState() => _PanelProbeState();
+}
+
+class _PanelProbeState extends State<_PanelProbe> {
+  @override
+  Widget build(BuildContext context) => Text(widget.label);
+
+  @override
+  void dispose() {
+    widget.onDispose();
+    super.dispose();
+  }
+}
+
 void main() {
-  Future<void> pumpSection(WidgetTester tester) async {
+  Future<void> pumpSection(
+    WidgetTester tester,
+    List<String> disposedPanels,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         locale: const Locale('zh'),
@@ -13,9 +46,21 @@ void main() {
         home: Scaffold(
           body: IntegrationsSettingsSection(
             panelBuilders: [
-              (_) => const Text('panel-prompt-assistant'),
-              (_) => const Text('panel-comfyui'),
-              (_) => const Text('panel-krita'),
+              (_) => _PanelProbe(
+                key: _promptAssistantPanelKey,
+                label: 'panel-prompt-assistant',
+                onDispose: () => disposedPanels.add('prompt-assistant'),
+              ),
+              (_) => _PanelProbe(
+                key: _comfyUiPanelKey,
+                label: 'panel-comfyui',
+                onDispose: () => disposedPanels.add('comfyui'),
+              ),
+              (_) => _PanelProbe(
+                key: _kritaPanelKey,
+                label: 'panel-krita',
+                onDispose: () => disposedPanels.add('krita'),
+              ),
             ],
           ),
         ),
@@ -24,26 +69,58 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  void expectOnlyPanel(ValueKey<String> expectedKey) {
+    for (final panelKey in _panelKeys) {
+      expect(
+        find.byKey(panelKey, skipOffstage: false),
+        panelKey == expectedKey ? findsOneWidget : findsNothing,
+      );
+    }
+  }
+
+  test('测试注入面板数量必须恰好为三项', () {
+    Widget buildPanel(BuildContext _) => const SizedBox.shrink();
+
+    for (final invalidLength in [0, 1, 2, 4]) {
+      expect(
+        () => IntegrationsSettingsSection(
+          panelBuilders: List<WidgetBuilder>.filled(invalidLength, buildPanel),
+        ),
+        throwsAssertionError,
+        reason: 'panelBuilders length $invalidLength should be rejected',
+      );
+    }
+
+    expect(
+      () => IntegrationsSettingsSection(
+        panelBuilders: List<WidgetBuilder>.filled(3, buildPanel),
+      ),
+      returnsNormally,
+    );
+    expect(() => const IntegrationsSettingsSection(), returnsNormally);
+  });
+
   testWidgets('默认显示第一个面板且三段可切换', (tester) async {
-    await pumpSection(tester);
+    final disposedPanels = <String>[];
+    await pumpSection(tester, disposedPanels);
 
     // 三段子导航
     expect(find.text('Prompt Assistant'), findsOneWidget);
     expect(find.text('ComfyUI'), findsOneWidget);
     expect(find.text('Krita'), findsOneWidget);
 
-    // 默认渲染第一个面板，且一次只渲染一个
-    expect(find.text('panel-prompt-assistant'), findsOneWidget);
-    expect(find.text('panel-comfyui'), findsNothing);
+    // 从完整元素树确认默认只挂载第一个面板。
+    expectOnlyPanel(_promptAssistantPanelKey);
+    expect(disposedPanels, isEmpty);
 
     await tester.tap(find.text('ComfyUI'));
     await tester.pumpAndSettle();
-    expect(find.text('panel-comfyui'), findsOneWidget);
-    expect(find.text('panel-prompt-assistant'), findsNothing);
+    expectOnlyPanel(_comfyUiPanelKey);
+    expect(disposedPanels, ['prompt-assistant']);
 
     await tester.tap(find.text('Krita'));
     await tester.pumpAndSettle();
-    expect(find.text('panel-krita'), findsOneWidget);
-    expect(find.text('panel-comfyui'), findsNothing);
+    expectOnlyPanel(_kritaPanelKey);
+    expect(disposedPanels, ['prompt-assistant', 'comfyui']);
   });
 }
