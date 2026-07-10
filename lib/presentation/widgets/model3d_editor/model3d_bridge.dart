@@ -39,20 +39,27 @@ class Model3dBridge {
   bool _disposed = false;
 
   /// 接收 addJavaScriptHandler('naiModel3d') 的回调参数
+  ///
+  /// 字段类型不符合协议时按缺失处理(命令走超时/通用错误),不向外抛异常。
   void handleJsMessage(List<dynamic> args) {
+    if (_disposed) return;
     if (args.isEmpty || args.first is! Map) return;
     final message = (args.first as Map).cast<String, dynamic>();
-    final type = message['type'] as String?;
+    final type = message['type'] is String ? message['type'] as String : null;
     if (type == 'response') {
-      final completer = _pending.remove(message['requestId'] as int?);
+      final requestId =
+          message['requestId'] is int ? message['requestId'] as int : null;
+      final completer = _pending.remove(requestId);
       if (completer == null) return;
       final data =
-          ((message['data'] as Map?) ?? const {}).cast<String, dynamic>();
+          ((message['data'] is Map ? message['data'] as Map : null) ??
+                  const {})
+              .cast<String, dynamic>();
       if (message['ok'] == true) {
         completer.complete(data);
       } else {
         completer.completeError(Model3dBridgeException(
-          data['error'] as String? ?? 'unknown bridge error',
+          data['error']?.toString() ?? 'unknown bridge error',
         ));
       }
     } else if (type != null) {

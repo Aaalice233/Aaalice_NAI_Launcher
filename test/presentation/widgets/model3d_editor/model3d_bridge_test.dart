@@ -109,4 +109,32 @@ void main() {
     bridge.dispose();
     await expectLater(future, throwsA(isA<Model3dBridgeException>()));
   });
+
+  test('ignores messages after dispose', () {
+    bridge.dispose();
+    bridge.handleJsMessage([
+      {'type': 'onDirty'},
+    ]);
+    expect(events, isEmpty);
+  });
+
+  test('malformed response fields do not throw', () {
+    expect(
+      () => bridge.handleJsMessage([
+        {
+          'type': 'response',
+          'requestId': 'not-an-int',
+          'ok': true,
+          'data': 'not-a-map',
+        },
+      ]),
+      returnsNormally,
+    );
+    expect(
+      () => bridge.handleJsMessage([
+        {'type': 42},
+      ]),
+      returnsNormally,
+    );
+  });
 }
