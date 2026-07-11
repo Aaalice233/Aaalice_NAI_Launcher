@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/core/editor_state.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/layers/model3d_layer_data.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/project/project_data.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/project/project_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -85,6 +86,56 @@ void main() {
       expect(restored3d.hasBaseImage, isTrue);
       expect(restored3d.model3d?.modelRef, 'builtin:mannequin');
       expect(restored3d.model3d?.sceneState, {'version': 1});
+    });
+  });
+
+  testWidgets('corrupted layer data degrades instead of failing load',
+      (tester) async {
+    await tester.runAsync(() async {
+      // 一个正常图层 + 一个损坏图层(base64 非法、model3d 缺 modelRef):
+      // 位图为主、3D 元数据为增强,单层数据损坏不应阻断整个项目加载。
+      final project = ProjectData.fromJson({
+        'version': 2,
+        'width': 64,
+        'height': 64,
+        'layers': [
+          {
+            'id': 'normal1',
+            'name': 'Normal',
+            'visible': true,
+            'locked': false,
+            'opacity': 1.0,
+            'blendMode': 'normal',
+            'strokes': <dynamic>[],
+          },
+          {
+            'id': 'corrupt1',
+            'name': 'Corrupt 3D',
+            'visible': true,
+            'locked': false,
+            'opacity': 1.0,
+            'blendMode': 'normal',
+            'strokes': <dynamic>[],
+            'imageData': '!!!not-base64!!!',
+            'model3d': {'bogus': true},
+          },
+        ],
+        'foregroundColor': 0xFF000000,
+        'backgroundColor': 0xFFFFFFFF,
+      });
+
+      final restored = EditorState();
+      addTearDown(restored.dispose);
+
+      // 不应抛出:损坏图层退化(缺位图/缺元数据),其余图层正常加载
+      await ProjectManager.applyProjectData(restored, project);
+
+      expect(restored.layerManager.getLayerById('normal1'), isNotNull);
+
+      final corrupt = restored.layerManager.getLayerById('corrupt1');
+      expect(corrupt, isNotNull);
+      expect(corrupt!.model3d, isNull);
+      expect(corrupt.hasBaseImage, isFalse);
     });
   });
 }

@@ -45,6 +45,7 @@ Model3dBridge autoReplyBridge() {
 Future<Future<Model3dEditResult?>> pumpEditor(
   WidgetTester tester, {
   Model3dLayerData? existing,
+  Model3dBridge? bridge,
 }) async {
   late Future<Model3dEditResult?> resultFuture;
   await tester.pumpWidget(MaterialApp(
@@ -60,7 +61,7 @@ Future<Future<Model3dEditResult?>> pumpEditor(
                 renderWidth: 8,
                 renderHeight: 8,
                 existing: existing,
-                bridgeOverride: autoReplyBridge(),
+                bridgeOverride: bridge ?? autoReplyBridge(),
                 viewportBuilder: (_) => const ColoredBox(color: Colors.black),
                 markReadyForTest: true,
               ),
@@ -119,6 +120,22 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.text('Discard unapplied changes?'), findsOneWidget);
+  });
+
+  testWidgets('bridge timeout surfaces a snackbar', (tester) async {
+    // evalJs 从不回复,模拟 JS 侧卡死/无响应,驱动 Model3dBridge 的 15s
+    // 超时路径(此处缩短为 100ms 以加快测试)。
+    await pumpEditor(
+      tester,
+      bridge: Model3dBridge(
+        evalJs: (_) async {},
+        timeout: const Duration(milliseconds: 100),
+      ),
+    );
+    await tester.tap(find.text('Add Built-in Mannequin'));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle();
+    expect(find.byType(SnackBar), findsOneWidget);
   });
 
   testWidgets('existing builtin layer restores without dirty', (tester) async {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -349,6 +350,8 @@ class _Model3dEditorScreenState extends State<Model3dEditorScreen> {
       await action();
     } on Model3dBridgeException catch (e) {
       _showSnack(e.message);
+    } on TimeoutException catch (e) {
+      _showSnack(e.message ?? 'timeout');
     } finally {
       if (mounted) setState(() => _busy = false);
     }

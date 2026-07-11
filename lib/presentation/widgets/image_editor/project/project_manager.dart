@@ -112,11 +112,29 @@ class ProjectManager {
       );
 
       // 恢复 3D 图层的位图与元数据(v2;v1 项目两者均为 null)
+      //
+      // 位图为主、3D 元数据为增强:单个图层的数据损坏(如 base64 解码失败、
+      // 元数据字段缺失)不应阻断整个项目加载,两部分分别捕获、互不影响,
+      // 该图层保留但退化为缺少位图和/或元数据。
       if (layerData.imageData != null) {
-        await inserted.setBaseImage(base64Decode(layerData.imageData!));
+        try {
+          await inserted.setBaseImage(base64Decode(layerData.imageData!));
+        } catch (e) {
+          AppLogger.w(
+            'Failed to restore layer image data, layer degraded: $e',
+            'ProjectManager',
+          );
+        }
       }
       if (layerData.model3d != null) {
-        inserted.model3d = Model3dLayerData.fromJson(layerData.model3d!);
+        try {
+          inserted.model3d = Model3dLayerData.fromJson(layerData.model3d!);
+        } catch (e) {
+          AppLogger.w(
+            'Failed to restore layer model3d data, layer degraded: $e',
+            'ProjectManager',
+          );
+        }
       }
     }
 
