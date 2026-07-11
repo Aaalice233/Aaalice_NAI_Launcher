@@ -18,6 +18,11 @@ namespace {
 #define DWMWA_USE_IMMERSIVE_DARK_MODE 20
 #endif
 
+/// Windows 11 DWM attributes are defined explicitly so builds using an older
+/// Windows SDK keep working. Unsupported systems ignore the attribute.
+constexpr DWORD kDwmWindowAttributeBorderColor = 34;
+constexpr COLORREF kDwmColorNone = 0xFFFFFFFE;
+
 constexpr const wchar_t kWindowClassName[] = L"FLUTTER_RUNNER_WIN32_WINDOW";
 
 /// Registry key for app theme preference.
@@ -324,4 +329,8 @@ void Win32Window::UpdateTheme(HWND const window) {
     DwmSetWindowAttribute(window, DWMWA_USE_IMMERSIVE_DARK_MODE,
                           &enable_dark_mode, sizeof(enable_dark_mode));
   }
+
+  const COLORREF border_color = kDwmColorNone;
+  DwmSetWindowAttribute(window, kDwmWindowAttributeBorderColor, &border_color,
+                        sizeof(border_color));
 }
