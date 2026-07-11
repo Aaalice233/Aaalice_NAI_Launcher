@@ -303,13 +303,26 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     bool isListMode,
   ) {
     final sections = _positiveSections(fixedState, categories);
-    return ListView(
+    return CustomScrollView(
       controller: _positiveScrollController,
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 12),
-      children: [
-        _buildEnabledSummary(theme, fixedState),
-        for (final section in sections)
-          _buildPositiveSection(theme, section, libraryEntries, isListMode),
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(10, 8, 10, 12),
+          sliver: SliverMainAxisGroup(
+            slivers: [
+              SliverToBoxAdapter(
+                child: _buildEnabledSummary(theme, fixedState),
+              ),
+              for (final section in sections)
+                _buildPositiveSection(
+                  theme,
+                  section,
+                  libraryEntries,
+                  isListMode,
+                ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -376,65 +389,91 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     bool isListMode,
   ) {
     final entries = section.entries;
-    return Container(
-      key: _sectionKeyFor(section.id),
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _SectionTitle(
-            icon: Icons.folder_rounded,
-            label: section.name,
-            count: entries.length,
-            color: section.color,
-          ),
-          const SizedBox(height: 7),
-          if (isListMode)
-            ReorderableListView.builder(
-              buildDefaultDragHandles: false,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: entries.length,
-              onReorderItem: (oldIndex, newIndex) {
-                ref
-                    .read(fixedTagsNotifierProvider.notifier)
-                    .reorderWithinVisibleIds(
-                      promptType: FixedTagPromptType.positive,
-                      visibleIds: entries.map((entry) => entry.id).toList(),
-                      oldIndex: oldIndex,
-                      newIndex: newIndex,
-                    );
-              },
-              itemBuilder: (context, index) {
-                final entry = entries[index];
-                return Padding(
-                  key: ValueKey('positive-${entry.id}'),
-                  padding: const EdgeInsets.only(bottom: 7),
-                  child: _buildEntryTile(
-                    entry: entry,
-                    categoryName: section.name,
-                    categoryColor: section.color,
-                    libraryEntries: libraryEntries,
-                    isListMode: isListMode,
-                    dragHandleBuilder: entries.length > 1
-                        ? (child) => ReorderableDragStartListener(
-                            index: index,
-                            child: child,
-                          )
-                        : null,
-                  ),
-                );
-              },
-            )
-          else
-            _buildEntryGrid(
-              entries: entries,
-              categoryName: section.name,
-              categoryColor: section.color,
-              libraryEntries: libraryEntries,
+    return SliverMainAxisGroup(
+      key: ValueKey('positive-section-${section.id}'),
+      slivers: [
+        SliverToBoxAdapter(
+          child: Container(
+            key: _sectionKeyFor(section.id),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _SectionTitle(
+                  icon: Icons.folder_rounded,
+                  label: section.name,
+                  count: entries.length,
+                  color: section.color,
+                ),
+                const SizedBox(height: 7),
+              ],
             ),
-        ],
-      ),
+          ),
+        ),
+        if (isListMode)
+          SliverReorderableList(
+            key: ValueKey('positive-list-${section.id}'),
+            itemCount: entries.length,
+            prototypeItem: _buildListEntryPrototype(
+              entry: entries.first,
+              categoryColor: section.color,
+            ),
+            onReorderItem: (oldIndex, newIndex) {
+              ref
+                  .read(fixedTagsNotifierProvider.notifier)
+                  .reorderWithinVisibleIds(
+                    promptType: FixedTagPromptType.positive,
+                    visibleIds: entries.map((entry) => entry.id).toList(),
+                    oldIndex: oldIndex,
+                    newIndex: newIndex,
+                  );
+            },
+            itemBuilder: (context, index) {
+              final entry = entries[index];
+              return Padding(
+                key: ValueKey('positive-${entry.id}'),
+                padding: const EdgeInsets.only(bottom: 7),
+                child: _buildEntryTile(
+                  entry: entry,
+                  categoryName: section.name,
+                  categoryColor: section.color,
+                  libraryEntries: libraryEntries,
+                  isListMode: isListMode,
+                  dragHandleBuilder: entries.length > 1
+                      ? (child) => ReorderableDragStartListener(
+                          index: index,
+                          child: child,
+                        )
+                      : null,
+                ),
+              );
+            },
+          )
+        else
+          SliverGrid.builder(
+            key: ValueKey('positive-grid-${section.id}'),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisSpacing: 7,
+              crossAxisSpacing: 7,
+              mainAxisExtent: 150,
+            ),
+            itemCount: entries.length,
+            itemBuilder: (context, index) {
+              final entry = entries[index];
+              return KeyedSubtree(
+                key: ValueKey('grid-${entry.id}'),
+                child: _buildEntryTile(
+                  entry: entry,
+                  categoryName: section.name,
+                  categoryColor: section.color,
+                  libraryEntries: libraryEntries,
+                  isListMode: false,
+                ),
+              );
+            },
+          ),
+        const SliverToBoxAdapter(child: SizedBox(height: 12)),
+      ],
     );
   }
 
@@ -520,6 +559,10 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
                     padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
                     itemCount: entries.length,
                     scrollController: _negativeScrollController,
+                    prototypeItem: _buildListEntryPrototype(
+                      entry: entries.first,
+                      categoryColor: theme.colorScheme.error,
+                    ),
                     onReorderItem: (oldIndex, newIndex) {
                       ref
                           .read(fixedTagsNotifierProvider.notifier)
@@ -632,6 +675,33 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     }
     return tile;
   }
+
+  Widget _buildListEntryPrototype({
+    required FixedTagEntry entry,
+    required Color categoryColor,
+  }) {
+    final prototypeEntry = entry.copyWith(
+      id: '__sidebar-list-prototype__',
+      name: 'M',
+      content: 'M',
+      weight: 1,
+      enabled: true,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 7),
+      child: SidebarEntryTile(
+        entry: prototypeEntry,
+        categoryColor: categoryColor,
+        isListMode: true,
+        linkAnchor: const SizedBox(width: 22, height: 22),
+        onToggle: _noop,
+        onEdit: _noop,
+        onDelete: _noop,
+      ),
+    );
+  }
+
+  static void _noop() {}
 
   Widget _buildLinkAnchor(FixedTagEntry entry) {
     final theme = Theme.of(context);
