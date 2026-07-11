@@ -57,4 +57,23 @@ void main() {
 
     expect(cloned.model3d?.modelRef, 'builtin:mannequin');
   });
+
+  test('cloneAsync() copies model3d metadata', () async {
+    final manager = LayerManager();
+    addTearDown(manager.dispose);
+
+    final layer = await manager.addLayerFromImage(_png1, name: '3D Layer');
+    expect(layer, isNotNull);
+    layer!.model3d = const Model3dLayerData(
+      modelRef: 'builtin:mannequin',
+      sceneState: {'version': 1},
+    );
+
+    final cloned = await layer.cloneAsync();
+    addTearDown(cloned.dispose);
+
+    expect(cloned.model3d?.modelRef, 'builtin:mannequin');
+    // cloneAsync 会重新解码底图,顺带确认底图也完整复制
+    expect(cloned.hasBaseImage, isTrue);
+  });
 }
