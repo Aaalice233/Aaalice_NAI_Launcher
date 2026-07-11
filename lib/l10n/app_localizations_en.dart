@@ -13217,4 +13217,74 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cannotOpenUrl => 'Cannot open link';
+
+  @override
+  String get model3d_editorTitle => '3D Model Layer';
+
+  @override
+  String get model3d_addMannequin => 'Add Built-in Mannequin';
+
+  @override
+  String get model3d_importModel => 'Import Model (.glb/.gltf)';
+
+  @override
+  String get model3d_emptyHint =>
+      'Scene is empty. Add a mannequin or import a model.';
+
+  @override
+  String get model3d_apply => 'Apply to Layer';
+
+  @override
+  String get model3d_modeTransform => 'Transform';
+
+  @override
+  String get model3d_modePose => 'Pose';
+
+  @override
+  String get model3d_gizmoTranslate => 'Move';
+
+  @override
+  String get model3d_gizmoRotate => 'Rotate';
+
+  @override
+  String get model3d_gizmoScale => 'Scale';
+
+  @override
+  String get model3d_undo => 'Undo';
+
+  @override
+  String get model3d_resetPose => 'Reset Pose';
+
+  @override
+  String get model3d_replaceConfirm =>
+      'Replace the current model? Unapplied pose will be lost.';
+
+  @override
+  String get model3d_discardConfirm => 'Discard unapplied changes?';
+
+  @override
+  String get model3d_missingModel =>
+      'Model file is missing. You can re-import it.';
+
+  @override
+  String get model3d_loadError => 'Failed to load model';
+
+  @override
+  String get model3d_light => 'Lighting';
+
+  @override
+  String get model3d_lightIntensity => 'Intensity';
+
+  @override
+  String get model3d_lightAzimuth => 'Azimuth';
+
+  @override
+  String get model3d_lightElevation => 'Elevation';
+
+  @override
+  String get model3d_addLayerTooltip => 'Add 3D Model Layer';
+
+  @override
+  String get model3d_webview2Missing =>
+      'The 3D editor requires the Microsoft Edge WebView2 Runtime. It ships with Windows 10/11; if missing, install the Evergreen runtime from Microsoft and retry.';
 }

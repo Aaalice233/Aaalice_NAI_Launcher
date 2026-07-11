@@ -12760,4 +12760,71 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cannotOpenUrl => '无法打开链接';
+
+  @override
+  String get model3d_editorTitle => '3D 模型图层';
+
+  @override
+  String get model3d_addMannequin => '添加内置人偶';
+
+  @override
+  String get model3d_importModel => '导入模型 (.glb/.gltf)';
+
+  @override
+  String get model3d_emptyHint => '场景为空，先添加人偶或导入模型';
+
+  @override
+  String get model3d_apply => '应用到图层';
+
+  @override
+  String get model3d_modeTransform => '变换';
+
+  @override
+  String get model3d_modePose => '姿势';
+
+  @override
+  String get model3d_gizmoTranslate => '移动';
+
+  @override
+  String get model3d_gizmoRotate => '旋转';
+
+  @override
+  String get model3d_gizmoScale => '缩放';
+
+  @override
+  String get model3d_undo => '撤销';
+
+  @override
+  String get model3d_resetPose => '重置姿势';
+
+  @override
+  String get model3d_replaceConfirm => '替换当前模型？未应用的姿势将丢失。';
+
+  @override
+  String get model3d_discardConfirm => '放弃未应用的修改？';
+
+  @override
+  String get model3d_missingModel => '模型文件已丢失，可重新导入';
+
+  @override
+  String get model3d_loadError => '模型加载失败';
+
+  @override
+  String get model3d_light => '光照';
+
+  @override
+  String get model3d_lightIntensity => '强度';
+
+  @override
+  String get model3d_lightAzimuth => '方位角';
+
+  @override
+  String get model3d_lightElevation => '仰角';
+
+  @override
+  String get model3d_addLayerTooltip => '添加 3D 模型图层';
+
+  @override
+  String get model3d_webview2Missing =>
+      '3D 编辑器需要 Microsoft Edge WebView2 运行时。Windows 10/11 通常已自带;若缺失请从微软官网安装 Evergreen 版本后重试。';
 }

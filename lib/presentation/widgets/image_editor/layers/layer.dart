@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/hard_edge_mask_exporter.dart';
 import '../core/history_manager.dart';
+import 'model3d_layer_data.dart';
 
 /// 画布调整模式
 enum CanvasResizeMode {
@@ -206,6 +207,9 @@ class Layer {
   /// 如果图层与视口不相交，则可以跳过渲染
   Rect? get bounds => _bounds;
 
+  /// 3D 模型图层元数据(null = 普通图层)
+  Model3dLayerData? model3d;
+
   Layer({
     String? id,
     this.name = 'New Layer',
@@ -217,6 +221,9 @@ class Layer {
 
   /// 是否有基础图像
   bool get hasBaseImage => _baseImage != null;
+
+  /// 是否为 3D 模型图层
+  bool get hasModel3d => model3d != null;
 
   /// 是否有内容
   bool get hasContent => _baseImage != null || _strokes.isNotEmpty;
@@ -902,6 +909,7 @@ class Layer {
     for (final stroke in _strokes) {
       cloned.addStroke(stroke.copyWith());
     }
+    cloned.model3d = model3d;
     return cloned;
   }
 
@@ -915,6 +923,7 @@ class Layer {
       await cloned.setBaseImage(cloned._baseImageBytes!);
       cloned.setBaseImageOffset(baseImageOffset);
     }
+    cloned.model3d = model3d;
 
     return cloned;
   }

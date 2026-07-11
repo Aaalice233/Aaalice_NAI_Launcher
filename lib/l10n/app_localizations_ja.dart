@@ -12932,4 +12932,71 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get cannotOpenUrl => 'リンクを開けません';
+
+  @override
+  String get model3d_editorTitle => '3Dモデルレイヤー';
+
+  @override
+  String get model3d_addMannequin => '内蔵マネキンを追加';
+
+  @override
+  String get model3d_importModel => 'モデルをインポート (.glb/.gltf)';
+
+  @override
+  String get model3d_emptyHint => 'シーンは空です。マネキンを追加するかモデルをインポートしてください';
+
+  @override
+  String get model3d_apply => 'レイヤーに適用';
+
+  @override
+  String get model3d_modeTransform => '変換';
+
+  @override
+  String get model3d_modePose => 'ポーズ';
+
+  @override
+  String get model3d_gizmoTranslate => '移動';
+
+  @override
+  String get model3d_gizmoRotate => '回転';
+
+  @override
+  String get model3d_gizmoScale => '拡縮';
+
+  @override
+  String get model3d_undo => '元に戻す';
+
+  @override
+  String get model3d_resetPose => 'ポーズをリセット';
+
+  @override
+  String get model3d_replaceConfirm => '現在のモデルを置き換えますか？未適用のポーズは失われます。';
+
+  @override
+  String get model3d_discardConfirm => '未適用の変更を破棄しますか？';
+
+  @override
+  String get model3d_missingModel => 'モデルファイルが見つかりません。再インポートできます';
+
+  @override
+  String get model3d_loadError => 'モデルの読み込みに失敗しました';
+
+  @override
+  String get model3d_light => 'ライティング';
+
+  @override
+  String get model3d_lightIntensity => '強度';
+
+  @override
+  String get model3d_lightAzimuth => '方位角';
+
+  @override
+  String get model3d_lightElevation => '仰角';
+
+  @override
+  String get model3d_addLayerTooltip => '3Dモデルレイヤーを追加';
+
+  @override
+  String get model3d_webview2Missing =>
+      '3DエディタにはMicrosoft Edge WebView2ランタイムが必要です。Windows 10/11には通常同梱されています。無い場合はMicrosoftからEvergreen版をインストールして再試行してください。';
 }
