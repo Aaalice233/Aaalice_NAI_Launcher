@@ -12959,4 +12959,11 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get model3d_lightElevation => '仰角';
+
+  @override
+  String get model3d_addLayerTooltip => '3Dモデルレイヤーを追加';
+
+  @override
+  String get model3d_webview2Missing =>
+      '3DエディタにはMicrosoft Edge WebView2ランタイムが必要です。Windows 10/11には通常同梱されています。無い場合はMicrosoftからEvergreen版をインストールして再試行してください。';
 }

@@ -23480,6 +23480,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Elevation'**
   String get model3d_lightElevation;
+
+  /// No description provided for @model3d_addLayerTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Add 3D Model Layer'**
+  String get model3d_addLayerTooltip;
+
+  /// No description provided for @model3d_webview2Missing.
+  ///
+  /// In en, this message translates to:
+  /// **'The 3D editor requires the Microsoft Edge WebView2 Runtime. It ships with Windows 10/11; if missing, install the Evergreen runtime from Microsoft and retry.'**
+  String get model3d_webview2Missing;
 }
 
 class _AppLocalizationsDelegate

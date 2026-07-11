@@ -909,6 +909,7 @@ class Layer {
     for (final stroke in _strokes) {
       cloned.addStroke(stroke.copyWith());
     }
+    cloned.model3d = model3d;
     return cloned;
   }
 
@@ -922,6 +923,7 @@ class Layer {
       await cloned.setBaseImage(cloned._baseImageBytes!);
       cloned.setBaseImageOffset(baseImageOffset);
     }
+    cloned.model3d = model3d;
 
     return cloned;
   }

@@ -6637,6 +6637,8 @@
   "model3d_light": "Lighting",
   "model3d_lightIntensity": "Intensity",
   "model3d_lightAzimuth": "Azimuth",
-  "model3d_lightElevation": "Elevation"
+  "model3d_lightElevation": "Elevation",
+  "model3d_addLayerTooltip": "Add 3D Model Layer",
+  "model3d_webview2Missing": "The 3D editor requires the Microsoft Edge WebView2 Runtime. It ships with Windows 10/11; if missing, install the Evergreen runtime from Microsoft and retry."
 
 }

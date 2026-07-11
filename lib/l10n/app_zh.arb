@@ -6162,6 +6162,8 @@
   "model3d_light": "光照",
   "model3d_lightIntensity": "强度",
   "model3d_lightAzimuth": "方位角",
-  "model3d_lightElevation": "仰角"
+  "model3d_lightElevation": "仰角",
+  "model3d_addLayerTooltip": "添加 3D 模型图层",
+  "model3d_webview2Missing": "3D 编辑器需要 Microsoft Edge WebView2 运行时。Windows 10/11 通常已自带;若缺失请从微软官网安装 Evergreen 版本后重试。"
 
 }

@@ -13246,4 +13246,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get model3d_lightElevation => 'Elevation';
+
+  @override
+  String get model3d_addLayerTooltip => 'Add 3D Model Layer';
+
+  @override
+  String get model3d_webview2Missing =>
+      'The 3D editor requires the Microsoft Edge WebView2 Runtime. It ships with Windows 10/11; if missing, install the Evergreen runtime from Microsoft and retry.';
 }

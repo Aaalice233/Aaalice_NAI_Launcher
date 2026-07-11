@@ -12788,4 +12788,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get model3d_lightElevation => '仰角';
+
+  @override
+  String get model3d_addLayerTooltip => '添加 3D 模型图层';
+
+  @override
+  String get model3d_webview2Missing =>
+      '3D 编辑器需要 Microsoft Edge WebView2 运行时。Windows 10/11 通常已自带;若缺失请从微软官网安装 Evergreen 版本后重试。';
 }
