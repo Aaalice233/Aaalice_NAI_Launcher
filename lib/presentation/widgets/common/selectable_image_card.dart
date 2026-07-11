@@ -11,12 +11,19 @@ import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/image/image_stream_chunk.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../themes/theme_extension.dart';
 import '../../utils/clipboard_image.dart';
 import 'pro_context_menu.dart';
 import 'app_toast.dart';
 import 'decoded_memory_image.dart';
+
+typedef ImageClipboardWriter = Future<void> Function(Uint8List bytes);
+
+final imageClipboardWriterProvider = Provider<ImageClipboardWriter>(
+  (ref) => writeImageBytesToClipboardAsPng,
+);
 
 /// 可选择的图像卡片组件
 ///
@@ -810,7 +817,9 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
           });
         },
         onSecondaryTapDown: widget.enableContextMenu
-            ? (details) => _showContextMenu(context, details.globalPosition)
+            ? (details) {
+                unawaited(_showContextMenu(context, details.globalPosition));
+              }
             : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
@@ -1357,31 +1366,55 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     }
   }
 
-  Future<void> _copyImage(BuildContext context) async {
+  void _copyImage(BuildContext context) {
+    _createCopyImageAction(context)();
+  }
+
+  VoidCallback _createCopyImageAction(BuildContext context) {
     final l10n = context.l10n;
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    final stripMetadata = ref
+        .read(shareImageSettingsProvider)
+        .effectiveStripMetadataForCopyAndDrag;
+    final clipboardWriter = ref.read(imageClipboardWriterProvider);
+    final cache = _shareTransferCache ?? _createShareTransferCache();
+    if (cache != null) {
+      _shareTransferCache = cache;
+    }
+
+    return () {
+      unawaited(
+        _copyPreparedImage(
+          cache: cache,
+          stripMetadata: stripMetadata,
+          clipboardWriter: clipboardWriter,
+          overlay: overlay,
+          l10n: l10n,
+        ),
+      );
+    };
+  }
+
+  static Future<void> _copyPreparedImage({
+    required ShareImageTransferCache? cache,
+    required bool stripMetadata,
+    required ImageClipboardWriter clipboardWriter,
+    required OverlayState? overlay,
+    required AppLocalizations l10n,
+  }) async {
     try {
-      final stripMetadata = ref
-          .read(shareImageSettingsProvider)
-          .effectiveStripMetadataForCopyAndDrag;
-      final cache = _shareTransferCache ?? _createShareTransferCache();
       if (cache == null) {
         throw StateError(l10n.toast_imageDataUnavailable);
       }
-      _shareTransferCache = cache;
       final shareImage = await cache.prepareImage(stripMetadata: stripMetadata);
 
       // 跨平台复制到剪贴板（原 Windows 端走 PowerShell + System.Drawing，
       // macOS/Linux 不可用）。统一规范化为 PNG 写入，避免 jpg/webp 原始字节
       // 被当成 PNG 导致粘贴失败。
-      await writeImageBytesToClipboardAsPng(shareImage.bytes);
-
-      if (context.mounted) {
-        AppToast.success(context, l10n.image_copiedToClipboard);
-      }
+      await clipboardWriter(shareImage.bytes);
+      AppToast.successOnOverlay(overlay, l10n.image_copiedToClipboard);
     } catch (e) {
-      if (context.mounted) {
-        AppToast.error(context, l10n.image_copyFailed(e.toString()));
-      }
+      AppToast.errorOnOverlay(overlay, l10n.image_copyFailed(e.toString()));
     }
   }
 
@@ -1414,8 +1447,11 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
   }
 
   /// 显示右键菜单
-  void _showContextMenu(BuildContext context, Offset position) {
+  Future<void> _showContextMenu(BuildContext context, Offset position) async {
     final items = <ProMenuItem>[];
+    final copyImageAction = widget.enableCopyAction
+        ? _createCopyImageAction(context)
+        : null;
 
     void addDividerIfNeeded() {
       if (items.isNotEmpty && !items.last.isDivider) {
@@ -1440,7 +1476,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
           id: 'copy',
           label: context.l10n.shortcut_action_copy_image,
           icon: Icons.copy,
-          onTap: () => _copyImage(context),
+          onTap: copyImageAction,
         ),
       );
     }
@@ -1588,23 +1624,23 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       return;
     }
 
-    Navigator.of(context).push(
-      _ContextMenuRoute(position: position, items: items, onSelect: (item) {}),
-    );
+    final navigator = Navigator.of(context);
+    final route = _ContextMenuRoute(position: position, items: items);
+    final selectedItem = await navigator.push<ProMenuItem>(route);
+    await route.completed;
+    if (selectedItem == null) {
+      return;
+    }
+    selectedItem.onTap?.call();
   }
 }
 
 /// 右键菜单路由
-class _ContextMenuRoute extends PopupRoute {
+class _ContextMenuRoute extends PopupRoute<ProMenuItem> {
   final Offset position;
   final List<ProMenuItem> items;
-  final void Function(ProMenuItem) onSelect;
 
-  _ContextMenuRoute({
-    required this.position,
-    required this.items,
-    required this.onSelect,
-  });
+  _ContextMenuRoute({required this.position, required this.items});
 
   @override
   Color? get barrierColor => null;
@@ -1655,11 +1691,7 @@ class _ContextMenuRoute extends PopupRoute {
                   position: Offset(left, top),
                   items: items,
                   onSelect: (item) {
-                    onSelect(item);
-                    Navigator.of(context).pop();
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      item.onTap?.call();
-                    });
+                    Navigator.of(context).pop(item);
                   },
                 ),
               ],
@@ -1674,18 +1706,30 @@ class _ContextMenuRoute extends PopupRoute {
   Duration get transitionDuration => const Duration(milliseconds: 200);
 
   @override
+  Duration get reverseTransitionDuration => Duration.zero;
+
+  @override
   Widget buildTransitions(
     BuildContext context,
     Animation<double> animation,
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    return FadeTransition(
-      opacity: animation,
-      child: ScaleTransition(
-        scale: CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
-        child: child,
+    final fadeAnimation = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOut,
+      reverseCurve: Curves.easeIn,
+    );
+    final scaleAnimation = Tween<double>(begin: 0.96, end: 1).animate(
+      CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
       ),
+    );
+    return FadeTransition(
+      opacity: fadeAnimation,
+      child: ScaleTransition(scale: scaleAnimation, child: child),
     );
   }
 }

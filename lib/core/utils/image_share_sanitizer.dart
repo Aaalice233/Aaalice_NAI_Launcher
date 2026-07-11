@@ -43,13 +43,7 @@ class ShareImageTransferCache {
     ShareImagePrepareFunction? prepareImage,
     ShareImageWriteTempFileFunction? writeTempFile,
   })  : _prepareImage = prepareImage ??
-            ((bytes, {required fileName, required stripMetadata}) {
-              return ImageShareSanitizer.prepareForCopyOrDrag(
-                bytes,
-                fileName: fileName,
-                stripMetadata: stripMetadata,
-              );
-            }),
+            ImageShareSanitizer.prepareForCopyOrDragInBackground,
         _writeTempFile =
             writeTempFile ?? ImageShareSanitizer.writeTempShareFile;
 

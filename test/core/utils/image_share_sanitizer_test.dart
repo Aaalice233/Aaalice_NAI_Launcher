@@ -88,6 +88,22 @@ void main() {
   });
 
   group('ShareImageTransferCache', () {
+    test('default preparation should sanitize stripped copies', () async {
+      final original = _buildPngWithTextChunks({
+        'Comment': '{"prompt":"test prompt"}',
+      });
+      final cache = ShareImageTransferCache(
+        imageBytes: original,
+        fileName: 'memory.png',
+      );
+      addTearDown(cache.dispose);
+
+      final result = await cache.prepareImage(stripMetadata: true);
+
+      expect(result.mimeType, equals('image/png'));
+      expect(_extractTextChunks(result.bytes), isEmpty);
+    });
+
     test(
         'prepareFile should reuse source file directly when metadata stripping is disabled',
         () async {

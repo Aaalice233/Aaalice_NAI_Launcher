@@ -11,6 +11,7 @@ import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/history_panel.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/image_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/draggable_memory_image.dart';
 import 'package:nai_launcher/presentation/widgets/common/pro_context_menu.dart';
@@ -214,6 +215,86 @@ void main() {
       expect(find.text('精准参考'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'generation preview right-click copy writes the displayed image',
+    (tester) async {
+      Uint8List? copiedBytes;
+      bool? menuVisibleWhenCopyStarted;
+      final container = _createContainerWithPreviewImage(
+        clipboardWriter: (bytes) async {
+          menuVisibleWhenCopyStarted = find
+              .byType(ProContextMenu)
+              .evaluate()
+              .isNotEmpty;
+          copiedBytes = bytes;
+        },
+      );
+      addTearDown(container.dispose);
+      final expectedBytes = container
+          .read(imageGenerationNotifierProvider)
+          .displayImages
+          .single
+          .bytes;
+
+      await tester.pumpWidget(_buildPreviewApp(container));
+      await tester.pumpAndSettle();
+      await _openImageContextMenu(tester);
+
+      await tester.tap(find.text('复制图像'));
+      await tester.pump();
+
+      expect(copiedBytes, orderedEquals(expectedBytes));
+      expect(menuVisibleWhenCopyStarted, isFalse);
+      expect(find.byType(ProContextMenu), findsNothing);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ProContextMenu), findsNothing);
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('generation history right-click copy writes the history image', (
+    tester,
+  ) async {
+    Uint8List? copiedBytes;
+    final bytes = Uint8List.fromList(
+      img.encodePng(img.Image(width: 32, height: 32)),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        imageClipboardWriterProvider.overrideWithValue(
+          (imageBytes) async => copiedBytes = imageBytes,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final notifier = container.read(imageGenerationNotifierProvider.notifier);
+    notifier.state = notifier.state.copyWith(
+      history: [
+        GeneratedImage(
+          id: 'history-copy-image',
+          bytes: bytes,
+          width: 32,
+          height: 32,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(_buildHistoryApp(container));
+    await tester.pumpAndSettle();
+    await _openImageContextMenu(tester);
+
+    await tester.tap(find.text('复制图像'));
+    await tester.pumpAndSettle();
+
+    expect(copiedBytes, orderedEquals(bytes));
+    expect(find.byType(ProContextMenu), findsNothing);
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+  });
 
   testWidgets(
     'generation preview makes completed single and grid images draggable',
@@ -444,8 +525,15 @@ void main() {
 
 void _noop() {}
 
-ProviderContainer _createContainerWithPreviewImage() {
-  final container = ProviderContainer();
+ProviderContainer _createContainerWithPreviewImage({
+  ImageClipboardWriter? clipboardWriter,
+}) {
+  final container = ProviderContainer(
+    overrides: [
+      if (clipboardWriter != null)
+        imageClipboardWriterProvider.overrideWithValue(clipboardWriter),
+    ],
+  );
   final bytes = Uint8List.fromList(
     img.encodePng(img.Image(width: 32, height: 32)),
   );
@@ -469,6 +557,33 @@ Widget _buildPreviewApp(ProviderContainer container) {
       ),
     ),
   );
+}
+
+Widget _buildHistoryApp(ProviderContainer container) {
+  return UncontrolledProviderScope(
+    container: container,
+    child: const MaterialApp(
+      locale: Locale('zh'),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      home: Scaffold(
+        body: SizedBox(width: 320, height: 640, child: HistoryPanel()),
+      ),
+    ),
+  );
+}
+
+Future<void> _openImageContextMenu(WidgetTester tester) async {
+  final center = tester.getCenter(find.byType(SelectableImageCard).first);
+  final gesture = await tester.startGesture(
+    center,
+    kind: PointerDeviceKind.mouse,
+    buttons: kSecondaryMouseButton,
+  );
+  addTearDown(gesture.removePointer);
+  await tester.pumpAndSettle();
+  await gesture.up();
+  await tester.pumpAndSettle();
 }
 
 Widget _buildCardApp({
