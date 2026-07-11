@@ -129,6 +129,7 @@
   "auth_passwordRequired": "Please enter password",
 
   "auth_tokenLogin": "API Token Login",
+  "auth_tokenLoginRecommended": "API Token Login (Recommended)",
   "auth_credentialsLogin": "Email & Password",
   "auth_credentialsLoginUnavailable": "Email/password login is currently unavailable. Please use Token login.",
   "auth_credentialsLoginTitle": "Login with Email",
@@ -137,6 +138,7 @@
   "auth_tokenInvalid": "Invalid token format, should start with pst-",
   "auth_nicknameOptional": "Nickname (optional)",
   "auth_nicknameHint": "Set a recognizable name for this account",
+  "auth_thirdPartyLogin": "Third-party Site",
   "auth_thirdPartyApiSite": "Third-party API Site",
   "auth_imageApiSiteOptional": "Image API Site (optional)",
   "auth_imageApiSiteHint": "Leave empty to use the same third-party API site",

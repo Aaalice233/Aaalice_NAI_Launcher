@@ -340,6 +340,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get auth_tokenLogin => 'API トークンのログイン';
 
   @override
+  String get auth_tokenLoginRecommended => 'API トークンのログイン（推奨）';
+
+  @override
   String get auth_credentialsLogin => '電子メールとパスワード';
 
   @override
@@ -363,6 +366,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get auth_nicknameHint => 'このアカウントに認識可能な名前を設定します';
+
+  @override
+  String get auth_thirdPartyLogin => 'サードパーティサイト';
 
   @override
   String get auth_thirdPartyApiSite => 'サードパーティ API サイト';

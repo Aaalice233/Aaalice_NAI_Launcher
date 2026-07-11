@@ -339,6 +339,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get auth_tokenLogin => 'API Token 登录';
 
   @override
+  String get auth_tokenLoginRecommended => 'API Token 登录（推荐）';
+
+  @override
   String get auth_credentialsLogin => '邮箱密码登录';
 
   @override
@@ -361,6 +364,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get auth_nicknameHint => '为此账号设置一个便于识别的名称';
+
+  @override
+  String get auth_thirdPartyLogin => '第三方站点';
 
   @override
   String get auth_thirdPartyApiSite => '第三方 API 站点';

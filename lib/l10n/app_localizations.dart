@@ -748,6 +748,12 @@ abstract class AppLocalizations {
   /// **'API Token Login'**
   String get auth_tokenLogin;
 
+  /// No description provided for @auth_tokenLoginRecommended.
+  ///
+  /// In en, this message translates to:
+  /// **'API Token Login (Recommended)'**
+  String get auth_tokenLoginRecommended;
+
   /// No description provided for @auth_credentialsLogin.
   ///
   /// In en, this message translates to:
@@ -795,6 +801,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Set a recognizable name for this account'**
   String get auth_nicknameHint;
+
+  /// No description provided for @auth_thirdPartyLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Third-party Site'**
+  String get auth_thirdPartyLogin;
 
   /// No description provided for @auth_thirdPartyApiSite.
   ///

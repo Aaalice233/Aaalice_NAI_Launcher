@@ -340,6 +340,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_tokenLogin => 'API Token Login';
 
   @override
+  String get auth_tokenLoginRecommended => 'API Token Login (Recommended)';
+
+  @override
   String get auth_credentialsLogin => 'Email & Password';
 
   @override
@@ -364,6 +367,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get auth_nicknameHint => 'Set a recognizable name for this account';
+
+  @override
+  String get auth_thirdPartyLogin => 'Third-party Site';
 
   @override
   String get auth_thirdPartyApiSite => 'Third-party API Site';

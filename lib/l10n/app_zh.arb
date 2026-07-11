@@ -129,6 +129,7 @@
   "auth_passwordRequired": "请输入密码",
 
   "auth_tokenLogin": "API Token 登录",
+  "auth_tokenLoginRecommended": "API Token 登录（推荐）",
   "auth_credentialsLogin": "邮箱密码登录",
   "auth_credentialsLoginUnavailable": "账号密码登录当前不可用，请使用 Token 登录",
   "auth_credentialsLoginTitle": "邮箱登录",
@@ -137,6 +138,7 @@
   "auth_tokenInvalid": "Token 格式无效，应以 pst- 开头",
   "auth_nicknameOptional": "昵称（可选）",
   "auth_nicknameHint": "为此账号设置一个便于识别的名称",
+  "auth_thirdPartyLogin": "第三方站点",
   "auth_thirdPartyApiSite": "第三方 API 站点",
   "auth_imageApiSiteOptional": "图像 API 站点（可选）",
   "auth_imageApiSiteHint": "留空则使用同一个第三方 API 站点",

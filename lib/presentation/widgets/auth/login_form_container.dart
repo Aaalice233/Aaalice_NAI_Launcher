@@ -8,7 +8,7 @@ import 'credentials_login_form.dart';
 import 'third_party_api_login_card.dart';
 import 'token_login_card.dart';
 
-/// 登录表单容器 - 支持邮箱密码和 Token 两种登录模式
+/// 登录表单容器 - 支持 Token、邮箱密码和第三方站点登录
 class LoginFormContainer extends ConsumerWidget {
   /// 登录成功回调
   final VoidCallback? onLoginSuccess;
