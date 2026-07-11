@@ -63,6 +63,18 @@ class _ThumbnailItem extends StatefulWidget {
 class _ThumbnailItemState extends State<_ThumbnailItem> {
   bool _isHovered = false;
 
+  ImageProvider<Object> _buildThumbnailProvider() {
+    ImageProvider<Object> provider = widget.image.getImageProvider();
+
+    // 详情图可能已经为了限制大图解码尺寸而包装过 ResizeImage。
+    // ResizeImage 不支持嵌套，缩略图应直接基于最底层 provider 解码。
+    while (provider is ResizeImage) {
+      provider = provider.imageProvider;
+    }
+
+    return ResizeImage(provider, width: 160);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -144,13 +156,7 @@ class _ThumbnailItemState extends State<_ThumbnailItem> {
             child: AnimatedOpacity(
               duration: const Duration(milliseconds: 150),
               opacity: opacity,
-              child: Image(
-                image: ResizeImage(
-                  widget.image.getImageProvider(),
-                  width: 160,
-                ),
-                fit: BoxFit.cover,
-              ),
+              child: Image(image: _buildThumbnailProvider(), fit: BoxFit.cover),
             ),
           ),
         ),
