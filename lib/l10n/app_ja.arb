@@ -6534,5 +6534,26 @@
   "updateInstallingHint": "インストーラーが起動しました。アプリはまもなく終了します。",
   "updatePortableManualHint": "ポータブル版では Release ページを開いて手動でダウンロードします。",
   "versionSkipped": "バージョンがスキップされました",
-  "cannotOpenUrl": "リンクを開けません"
+  "cannotOpenUrl": "リンクを開けません",
+
+  "model3d_editorTitle": "3Dモデルレイヤー",
+  "model3d_addMannequin": "内蔵マネキンを追加",
+  "model3d_importModel": "モデルをインポート (.glb/.gltf)",
+  "model3d_emptyHint": "シーンは空です。マネキンを追加するかモデルをインポートしてください",
+  "model3d_apply": "レイヤーに適用",
+  "model3d_modeTransform": "変換",
+  "model3d_modePose": "ポーズ",
+  "model3d_gizmoTranslate": "移動",
+  "model3d_gizmoRotate": "回転",
+  "model3d_gizmoScale": "拡縮",
+  "model3d_undo": "元に戻す",
+  "model3d_resetPose": "ポーズをリセット",
+  "model3d_replaceConfirm": "現在のモデルを置き換えますか？未適用のポーズは失われます。",
+  "model3d_discardConfirm": "未適用の変更を破棄しますか？",
+  "model3d_missingModel": "モデルファイルが見つかりません。再インポートできます",
+  "model3d_loadError": "モデルの読み込みに失敗しました",
+  "model3d_light": "ライティング",
+  "model3d_lightIntensity": "強度",
+  "model3d_lightAzimuth": "方位角",
+  "model3d_lightElevation": "仰角"
 }

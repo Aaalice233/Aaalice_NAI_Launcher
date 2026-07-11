@@ -6616,6 +6616,27 @@
   "updateDownloadAndInstall": "Download and Install",
   "goToDownload": "Go to Download",
   "versionSkipped": "Version skipped",
-  "cannotOpenUrl": "Cannot open link"
+  "cannotOpenUrl": "Cannot open link",
+
+  "model3d_editorTitle": "3D Model Layer",
+  "model3d_addMannequin": "Add Built-in Mannequin",
+  "model3d_importModel": "Import Model (.glb/.gltf)",
+  "model3d_emptyHint": "Scene is empty. Add a mannequin or import a model.",
+  "model3d_apply": "Apply to Layer",
+  "model3d_modeTransform": "Transform",
+  "model3d_modePose": "Pose",
+  "model3d_gizmoTranslate": "Move",
+  "model3d_gizmoRotate": "Rotate",
+  "model3d_gizmoScale": "Scale",
+  "model3d_undo": "Undo",
+  "model3d_resetPose": "Reset Pose",
+  "model3d_replaceConfirm": "Replace the current model? Unapplied pose will be lost.",
+  "model3d_discardConfirm": "Discard unapplied changes?",
+  "model3d_missingModel": "Model file is missing. You can re-import it.",
+  "model3d_loadError": "Failed to load model",
+  "model3d_light": "Lighting",
+  "model3d_lightIntensity": "Intensity",
+  "model3d_lightAzimuth": "Azimuth",
+  "model3d_lightElevation": "Elevation"
 
 }

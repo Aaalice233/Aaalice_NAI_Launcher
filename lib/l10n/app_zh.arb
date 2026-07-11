@@ -6141,6 +6141,27 @@
   "updateDownloadAndInstall": "下载并安装",
   "goToDownload": "前往下载",
   "versionSkipped": "已忽略此版本",
-  "cannotOpenUrl": "无法打开链接"
+  "cannotOpenUrl": "无法打开链接",
+
+  "model3d_editorTitle": "3D 模型图层",
+  "model3d_addMannequin": "添加内置人偶",
+  "model3d_importModel": "导入模型 (.glb/.gltf)",
+  "model3d_emptyHint": "场景为空，先添加人偶或导入模型",
+  "model3d_apply": "应用到图层",
+  "model3d_modeTransform": "变换",
+  "model3d_modePose": "姿势",
+  "model3d_gizmoTranslate": "移动",
+  "model3d_gizmoRotate": "旋转",
+  "model3d_gizmoScale": "缩放",
+  "model3d_undo": "撤销",
+  "model3d_resetPose": "重置姿势",
+  "model3d_replaceConfirm": "替换当前模型？未应用的姿势将丢失。",
+  "model3d_discardConfirm": "放弃未应用的修改？",
+  "model3d_missingModel": "模型文件已丢失，可重新导入",
+  "model3d_loadError": "模型加载失败",
+  "model3d_light": "光照",
+  "model3d_lightIntensity": "强度",
+  "model3d_lightAzimuth": "方位角",
+  "model3d_lightElevation": "仰角"
 
 }

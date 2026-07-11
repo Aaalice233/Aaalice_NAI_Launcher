@@ -23360,6 +23360,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cannot open link'**
   String get cannotOpenUrl;
+
+  /// No description provided for @model3d_editorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'3D Model Layer'**
+  String get model3d_editorTitle;
+
+  /// No description provided for @model3d_addMannequin.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Built-in Mannequin'**
+  String get model3d_addMannequin;
+
+  /// No description provided for @model3d_importModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Model (.glb/.gltf)'**
+  String get model3d_importModel;
+
+  /// No description provided for @model3d_emptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Scene is empty. Add a mannequin or import a model.'**
+  String get model3d_emptyHint;
+
+  /// No description provided for @model3d_apply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply to Layer'**
+  String get model3d_apply;
+
+  /// No description provided for @model3d_modeTransform.
+  ///
+  /// In en, this message translates to:
+  /// **'Transform'**
+  String get model3d_modeTransform;
+
+  /// No description provided for @model3d_modePose.
+  ///
+  /// In en, this message translates to:
+  /// **'Pose'**
+  String get model3d_modePose;
+
+  /// No description provided for @model3d_gizmoTranslate.
+  ///
+  /// In en, this message translates to:
+  /// **'Move'**
+  String get model3d_gizmoTranslate;
+
+  /// No description provided for @model3d_gizmoRotate.
+  ///
+  /// In en, this message translates to:
+  /// **'Rotate'**
+  String get model3d_gizmoRotate;
+
+  /// No description provided for @model3d_gizmoScale.
+  ///
+  /// In en, this message translates to:
+  /// **'Scale'**
+  String get model3d_gizmoScale;
+
+  /// No description provided for @model3d_undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get model3d_undo;
+
+  /// No description provided for @model3d_resetPose.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset Pose'**
+  String get model3d_resetPose;
+
+  /// No description provided for @model3d_replaceConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace the current model? Unapplied pose will be lost.'**
+  String get model3d_replaceConfirm;
+
+  /// No description provided for @model3d_discardConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard unapplied changes?'**
+  String get model3d_discardConfirm;
+
+  /// No description provided for @model3d_missingModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model file is missing. You can re-import it.'**
+  String get model3d_missingModel;
+
+  /// No description provided for @model3d_loadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load model'**
+  String get model3d_loadError;
+
+  /// No description provided for @model3d_light.
+  ///
+  /// In en, this message translates to:
+  /// **'Lighting'**
+  String get model3d_light;
+
+  /// No description provided for @model3d_lightIntensity.
+  ///
+  /// In en, this message translates to:
+  /// **'Intensity'**
+  String get model3d_lightIntensity;
+
+  /// No description provided for @model3d_lightAzimuth.
+  ///
+  /// In en, this message translates to:
+  /// **'Azimuth'**
+  String get model3d_lightAzimuth;
+
+  /// No description provided for @model3d_lightElevation.
+  ///
+  /// In en, this message translates to:
+  /// **'Elevation'**
+  String get model3d_lightElevation;
 }
 
 class _AppLocalizationsDelegate
