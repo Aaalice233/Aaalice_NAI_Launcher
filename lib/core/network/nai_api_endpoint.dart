@@ -57,10 +57,9 @@ class NaiApiEndpointConfig {
 
   String imageUrl(String endpoint) => _appendEndpoint(imageBaseUrl, endpoint);
 
-  /// Official user data endpoints were migrated to the image API host by
-  /// NovelAI.
+  /// Official user endpoints are served by the image API host.
   ///
-  /// This includes `/user/information`, `/user/data`, and
+  /// This includes `/user/login`, `/user/information`, `/user/data`, and
   /// `/user/subscription`. NAI-compatible third-party sites keep using
   /// [mainBaseUrl] because their endpoint layout is provider-specific.
   String userUrl(String endpoint) {

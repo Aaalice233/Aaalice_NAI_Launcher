@@ -2,7 +2,7 @@
 class AuthFeatureFlags {
   AuthFeatureFlags._();
 
-  /// NovelAI currently requires a browser-side safety check for email/password
-  /// login, so keep the implementation dormant until that flow is usable again.
-  static const bool credentialsLoginEnabled = false;
+  /// NovelAI supports exchanging a client-derived access key on the user API.
+  /// Keep this alongside Token login so users can choose either flow.
+  static const bool credentialsLoginEnabled = true;
 }

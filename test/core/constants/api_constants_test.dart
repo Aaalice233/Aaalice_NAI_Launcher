@@ -44,8 +44,8 @@ void main() {
 
     test('routes official user endpoints through image host', () {
       expect(
-        NaiApiEndpointConfig.official.mainUrl(ApiConstants.loginEndpoint),
-        'https://api.novelai.net/user/login',
+        NaiApiEndpointConfig.official.userUrl(ApiConstants.loginEndpoint),
+        'https://image.novelai.net/user/login',
       );
       expect(
         NaiApiEndpointConfig.official.userUrl(

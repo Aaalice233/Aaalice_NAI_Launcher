@@ -11,7 +11,7 @@ import 'package:nai_launcher/data/datasources/remote/nai_auth_api_service.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_user_info_api_service.dart';
 
 void main() {
-  group('NAI subscription endpoint routing', () {
+  group('NAI user endpoint routing', () {
     test('validateToken uses the official image user endpoint', () async {
       final adapter = _RecordingDioAdapter();
       final dio = Dio()..httpClientAdapter = adapter;
@@ -76,7 +76,7 @@ void main() {
       );
     });
 
-    test('keeps login requests on the main endpoint', () async {
+    test('routes official login requests through the image host', () async {
       final adapter = _RecordingDioAdapter();
       final dio = Dio()..httpClientAdapter = adapter;
       final service = NAIAuthApiService(dio);
@@ -90,7 +90,24 @@ void main() {
       expect(adapter.requests, hasLength(1));
       expect(
         adapter.requests.single.uri.toString(),
-        '${ApiConstants.baseUrl}${ApiConstants.loginEndpoint}',
+        '${ApiConstants.imageBaseUrl}${ApiConstants.loginEndpoint}',
+      );
+    });
+
+    test('keeps third-party login requests on the main host', () async {
+      final adapter = _RecordingDioAdapter();
+      final dio = Dio()..httpClientAdapter = adapter;
+      final service = NAIAuthApiService(dio);
+      final endpoint = NaiApiEndpointConfig.fromInput(
+        mainBaseUrl: 'https://compatible.example',
+        imageBaseUrl: 'https://images.compatible.example',
+      );
+
+      await service.loginWithKey('access-key', endpoint: endpoint);
+
+      expect(
+        adapter.requests.single.uri.toString(),
+        'https://compatible.example${ApiConstants.loginEndpoint}',
       );
     });
   });
