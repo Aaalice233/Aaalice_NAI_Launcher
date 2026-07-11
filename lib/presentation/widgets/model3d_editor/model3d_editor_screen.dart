@@ -99,7 +99,13 @@ class _Model3dEditorScreenState extends State<Model3dEditorScreen> {
   void initState() {
     super.initState();
     _bridge = widget.bridgeOverride; // 真桥在 WebView controller 就绪后创建
-    if (widget.markReadyForTest) _ready = true;
+    if (widget.markReadyForTest) {
+      _ready = true;
+      // 与真实 onReady 事件走同一条恢复路径,让测试覆盖 existing 恢复逻辑
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _restoreExisting();
+      });
+    }
     _startServices();
   }
 
@@ -154,7 +160,12 @@ class _Model3dEditorScreenState extends State<Model3dEditorScreen> {
     final existing = widget.existing;
     if (existing == null) return;
     if (existing.modelRef == Model3dLibraryService.builtinMannequinRef) {
-      await _loadBuiltin(sceneState: existing.sceneState, confirm: false);
+      // 恢复已保存的图层不算脏:未做任何新修改就返回时不应弹放弃确认
+      await _loadBuiltin(
+        sceneState: existing.sceneState,
+        confirm: false,
+        markDirty: false,
+      );
       return;
     }
     final library = _library;
@@ -169,6 +180,7 @@ class _Model3dEditorScreenState extends State<Model3dEditorScreen> {
         url: _editorUrl!.resolve(path).toString(),
         sceneState: existing.sceneState,
       );
+      if (!mounted) return;
       setState(() {
         _modelRef = existing.modelRef;
         _dirty = false;
@@ -200,6 +212,7 @@ class _Model3dEditorScreenState extends State<Model3dEditorScreen> {
   Future<void> _loadBuiltin({
     Map<String, dynamic>? sceneState,
     bool confirm = true,
+    bool markDirty = true,
   }) async {
     if (confirm && !await _confirmReplace()) return;
     await _runBusy(() async {
@@ -207,9 +220,10 @@ class _Model3dEditorScreenState extends State<Model3dEditorScreen> {
         builtin: 'mannequin',
         sceneState: sceneState,
       );
+      if (!mounted) return;
       setState(() {
         _modelRef = Model3dLibraryService.builtinMannequinRef;
-        _dirty = true;
+        _dirty = markDirty;
       });
     });
   }
@@ -226,6 +240,7 @@ class _Model3dEditorScreenState extends State<Model3dEditorScreen> {
         await _bridge!.loadModel(
           url: _editorUrl!.resolve(path).toString(),
         );
+        if (!mounted) return;
         setState(() {
           _modelRef = ref;
           _dirty = true;
@@ -502,12 +517,12 @@ class _Model3dEditorScreenState extends State<Model3dEditorScreen> {
             IconButton(
               tooltip: l10n.model3d_addMannequin,
               icon: const Icon(Icons.accessibility_new, size: 20),
-              onPressed: _busy ? null : () => _loadBuiltin(),
+              onPressed: _ready && !_busy ? () => _loadBuiltin() : null,
             ),
             IconButton(
               tooltip: l10n.model3d_importModel,
               icon: const Icon(Icons.file_open, size: 20),
-              onPressed: _busy ? null : _importModel,
+              onPressed: _ready && !_busy ? _importModel : null,
             ),
           ],
         ),

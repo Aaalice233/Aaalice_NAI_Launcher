@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/layers/model3d_layer_data.dart';
 import 'package:nai_launcher/presentation/widgets/model3d_editor/model3d_bridge.dart';
 import 'package:nai_launcher/presentation/widgets/model3d_editor/model3d_editor_screen.dart';
 
@@ -40,19 +41,25 @@ Model3dBridge autoReplyBridge() {
   return bridge;
 }
 
-Future<void> pumpEditor(WidgetTester tester) async {
+/// 打开编辑器,返回 Navigator.push 的结果 Future(供断言 pop 返回值)
+Future<Future<Model3dEditResult?>> pumpEditor(
+  WidgetTester tester, {
+  Model3dLayerData? existing,
+}) async {
+  late Future<Model3dEditResult?> resultFuture;
   await tester.pumpWidget(MaterialApp(
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     home: Builder(
       builder: (context) => ElevatedButton(
         onPressed: () {
-          Navigator.push<Model3dEditResult>(
+          resultFuture = Navigator.push<Model3dEditResult>(
             context,
             MaterialPageRoute(
               builder: (_) => Model3dEditorScreen(
                 renderWidth: 8,
                 renderHeight: 8,
+                existing: existing,
                 bridgeOverride: autoReplyBridge(),
                 viewportBuilder: (_) => const ColoredBox(color: Colors.black),
                 markReadyForTest: true,
@@ -66,6 +73,7 @@ Future<void> pumpEditor(WidgetTester tester) async {
   ));
   await tester.tap(find.text('open'));
   await tester.pumpAndSettle();
+  return resultFuture;
 }
 
 void main() {
@@ -89,13 +97,18 @@ void main() {
   });
 
   testWidgets('apply pops with png, sceneState and modelRef', (tester) async {
-    await pumpEditor(tester);
+    final resultFuture = await pumpEditor(tester);
     await tester.tap(find.text('Add Built-in Mannequin'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Apply to Layer'));
     await tester.pumpAndSettle();
     // 编辑器已关闭(返回打开页)
     expect(find.text('open'), findsOneWidget);
+    final result = await resultFuture;
+    expect(result, isNotNull);
+    expect(result!.pngBytes, isNotEmpty);
+    expect(result.modelRef, 'builtin:mannequin');
+    expect(result.sceneState['version'], 1);
   });
 
   testWidgets('back with dirty scene asks confirmation', (tester) async {
@@ -106,5 +119,22 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.text('Discard unapplied changes?'), findsOneWidget);
+  });
+
+  testWidgets('existing builtin layer restores without dirty', (tester) async {
+    await pumpEditor(
+      tester,
+      existing: const Model3dLayerData(
+        modelRef: 'builtin:mannequin',
+        sceneState: {'version': 1},
+      ),
+    );
+    // 恢复完成:人偶已自动加载,空态卡片不再显示
+    expect(find.text('Add Built-in Mannequin'), findsNothing);
+    // 恢复不置脏:返回应直接关闭,不出现放弃确认
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Discard unapplied changes?'), findsNothing);
+    expect(find.text('open'), findsOneWidget);
   });
 }
