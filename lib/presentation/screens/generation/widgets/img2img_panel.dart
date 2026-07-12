@@ -1328,7 +1328,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
             result,
             params: params,
             saveToLocal: saveSettings.autoSave,
-            addToDisplay: true,
+            replaceCurrentDisplay: true,
           );
       AppLogger.i('NovelAI upscale result registered', _upscaleLogTag);
       if (mounted) {
@@ -1464,14 +1464,14 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           width: outW,
           height: outH,
           saveToLocal: saveSettings.autoSave,
-          addToDisplay: true,
+          replaceCurrentDisplay: true,
         );
     AppLogger.i('SeedVR2 result registered: ${outW}x$outH', _upscaleLogTag);
 
     if (mounted) {
       AppToast.success(
         context,
-        context.l10n.img2img_upscaleCompleteAdded(outW, outH),
+        context.l10n.img2img_upscaleComplete(outW, outH),
       );
     }
   }
@@ -1578,7 +1578,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           width: outW,
           height: outH,
           saveToLocal: saveSettings.autoSave,
-          addToDisplay: true,
+          replaceCurrentDisplay: true,
         );
     AppLogger.i(
       'Regular ComfyUI result registered: ${outW}x$outH',
@@ -1588,7 +1588,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
     if (mounted) {
       AppToast.success(
         context,
-        context.l10n.img2img_regularUpscaleCompleteAdded(outW, outH),
+        context.l10n.img2img_regularUpscaleComplete(outW, outH),
       );
     }
   }
@@ -1669,14 +1669,14 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           width: outW,
           height: outH,
           saveToLocal: saveSettings.autoSave,
-          addToDisplay: true,
+          replaceCurrentDisplay: true,
         );
     AppLogger.i('RTX result registered: ${outW}x$outH', _upscaleLogTag);
 
     if (mounted) {
       AppToast.success(
         context,
-        context.l10n.img2img_rtxUpscaleCompleteAdded(outW, outH),
+        context.l10n.img2img_rtxUpscaleComplete(outW, outH),
       );
     }
   }

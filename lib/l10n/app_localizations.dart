@@ -3142,23 +3142,23 @@ abstract class AppLocalizations {
   /// **'NovelAI upscale complete'**
   String get img2img_novelAiUpscaleComplete;
 
-  /// No description provided for @img2img_upscaleCompleteAdded.
+  /// No description provided for @img2img_upscaleComplete.
   ///
   /// In en, this message translates to:
-  /// **'Upscale complete ({width}x{height}); added to preview list'**
-  String img2img_upscaleCompleteAdded(Object width, Object height);
+  /// **'Upscale complete ({width}x{height})'**
+  String img2img_upscaleComplete(Object width, Object height);
 
-  /// No description provided for @img2img_regularUpscaleCompleteAdded.
+  /// No description provided for @img2img_regularUpscaleComplete.
   ///
   /// In en, this message translates to:
-  /// **'Regular model upscale complete ({width}x{height}); added to preview list'**
-  String img2img_regularUpscaleCompleteAdded(Object width, Object height);
+  /// **'Regular model upscale complete ({width}x{height})'**
+  String img2img_regularUpscaleComplete(Object width, Object height);
 
-  /// No description provided for @img2img_rtxUpscaleCompleteAdded.
+  /// No description provided for @img2img_rtxUpscaleComplete.
   ///
   /// In en, this message translates to:
-  /// **'RTX upscale complete ({width}x{height}); added to preview list'**
-  String img2img_rtxUpscaleCompleteAdded(Object width, Object height);
+  /// **'RTX upscale complete ({width}x{height})'**
+  String img2img_rtxUpscaleComplete(Object width, Object height);
 
   /// No description provided for @img2img_noAvailableSeedvr2Model.
   ///

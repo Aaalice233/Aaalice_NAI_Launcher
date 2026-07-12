@@ -1693,18 +1693,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get img2img_novelAiUpscaleComplete => 'NovelAI upscale complete';
 
   @override
-  String img2img_upscaleCompleteAdded(Object width, Object height) {
-    return 'Upscale complete (${width}x$height); added to preview list';
+  String img2img_upscaleComplete(Object width, Object height) {
+    return 'Upscale complete (${width}x$height)';
   }
 
   @override
-  String img2img_regularUpscaleCompleteAdded(Object width, Object height) {
-    return 'Regular model upscale complete (${width}x$height); added to preview list';
+  String img2img_regularUpscaleComplete(Object width, Object height) {
+    return 'Regular model upscale complete (${width}x$height)';
   }
 
   @override
-  String img2img_rtxUpscaleCompleteAdded(Object width, Object height) {
-    return 'RTX upscale complete (${width}x$height); added to preview list';
+  String img2img_rtxUpscaleComplete(Object width, Object height) {
+    return 'RTX upscale complete (${width}x$height)';
   }
 
   @override

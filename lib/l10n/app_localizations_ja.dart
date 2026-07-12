@@ -1662,18 +1662,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get img2img_novelAiUpscaleComplete => 'NovelAI 拡大が完了しました';
 
   @override
-  String img2img_upscaleCompleteAdded(Object width, Object height) {
-    return '拡大が完了しました (${width}x$height)。プレビューリストに追加されました';
+  String img2img_upscaleComplete(Object width, Object height) {
+    return '拡大が完了しました (${width}x$height)';
   }
 
   @override
-  String img2img_regularUpscaleCompleteAdded(Object width, Object height) {
-    return '通常モデルの拡大が完了しました (${width}x$height);プレビューリストに追加されました';
+  String img2img_regularUpscaleComplete(Object width, Object height) {
+    return '通常モデルの拡大が完了しました (${width}x$height)';
   }
 
   @override
-  String img2img_rtxUpscaleCompleteAdded(Object width, Object height) {
-    return 'RTX 拡大が完了しました (${width}x$height)。プレビューリストに追加されました';
+  String img2img_rtxUpscaleComplete(Object width, Object height) {
+    return 'RTX 拡大が完了しました (${width}x$height)';
   }
 
   @override

@@ -608,22 +608,22 @@
   "img2img_refreshModelList": "刷新模型列表",
   "img2img_startUpscale": "开始超分",
   "img2img_novelAiUpscaleComplete": "NovelAI 超分完成",
-  "img2img_upscaleCompleteAdded": "超分完成 ({width}x{height})，已加入预览列表",
-  "@img2img_upscaleCompleteAdded": {
+  "img2img_upscaleComplete": "超分完成 ({width}x{height})",
+  "@img2img_upscaleComplete": {
     "placeholders": {
       "width": {},
       "height": {}
     }
   },
-  "img2img_regularUpscaleCompleteAdded": "普通模型超分完成 ({width}x{height})，已加入预览列表",
-  "@img2img_regularUpscaleCompleteAdded": {
+  "img2img_regularUpscaleComplete": "普通模型超分完成 ({width}x{height})",
+  "@img2img_regularUpscaleComplete": {
     "placeholders": {
       "width": {},
       "height": {}
     }
   },
-  "img2img_rtxUpscaleCompleteAdded": "RTX 超分完成 ({width}x{height})，已加入预览列表",
-  "@img2img_rtxUpscaleCompleteAdded": {
+  "img2img_rtxUpscaleComplete": "RTX 超分完成 ({width}x{height})",
+  "@img2img_rtxUpscaleComplete": {
     "placeholders": {
       "width": {},
       "height": {}

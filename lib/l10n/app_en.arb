@@ -760,22 +760,22 @@
   "img2img_refreshModelList": "Refresh model list",
   "img2img_startUpscale": "Start Upscale",
   "img2img_novelAiUpscaleComplete": "NovelAI upscale complete",
-  "img2img_upscaleCompleteAdded": "Upscale complete ({width}x{height}); added to preview list",
-  "@img2img_upscaleCompleteAdded": {
+  "img2img_upscaleComplete": "Upscale complete ({width}x{height})",
+  "@img2img_upscaleComplete": {
     "placeholders": {
       "width": {},
       "height": {}
     }
   },
-  "img2img_regularUpscaleCompleteAdded": "Regular model upscale complete ({width}x{height}); added to preview list",
-  "@img2img_regularUpscaleCompleteAdded": {
+  "img2img_regularUpscaleComplete": "Regular model upscale complete ({width}x{height})",
+  "@img2img_regularUpscaleComplete": {
     "placeholders": {
       "width": {},
       "height": {}
     }
   },
-  "img2img_rtxUpscaleCompleteAdded": "RTX upscale complete ({width}x{height}); added to preview list",
-  "@img2img_rtxUpscaleCompleteAdded": {
+  "img2img_rtxUpscaleComplete": "RTX upscale complete ({width}x{height})",
+  "@img2img_rtxUpscaleComplete": {
     "placeholders": {
       "width": {},
       "height": {}

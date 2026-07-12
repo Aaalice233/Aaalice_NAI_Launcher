@@ -745,22 +745,22 @@
   "img2img_refreshModelList": "モデルリストを更新",
   "img2img_startUpscale": "拡大を開始",
   "img2img_novelAiUpscaleComplete": "NovelAI 拡大が完了しました",
-  "img2img_upscaleCompleteAdded": "拡大が完了しました ({width}x{height})。プレビューリストに追加されました",
-  "@img2img_upscaleCompleteAdded": {
+  "img2img_upscaleComplete": "拡大が完了しました ({width}x{height})",
+  "@img2img_upscaleComplete": {
     "placeholders": {
       "width": {},
       "height": {}
     }
   },
-  "img2img_regularUpscaleCompleteAdded": "通常モデルの拡大が完了しました ({width}x{height});プレビューリストに追加されました",
-  "@img2img_regularUpscaleCompleteAdded": {
+  "img2img_regularUpscaleComplete": "通常モデルの拡大が完了しました ({width}x{height})",
+  "@img2img_regularUpscaleComplete": {
     "placeholders": {
       "width": {},
       "height": {}
     }
   },
-  "img2img_rtxUpscaleCompleteAdded": "RTX 拡大が完了しました ({width}x{height})。プレビューリストに追加されました",
-  "@img2img_rtxUpscaleCompleteAdded": {
+  "img2img_rtxUpscaleComplete": "RTX 拡大が完了しました ({width}x{height})",
+  "@img2img_rtxUpscaleComplete": {
     "placeholders": {
       "width": {},
       "height": {}

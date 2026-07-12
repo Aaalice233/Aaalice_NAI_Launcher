@@ -789,7 +789,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
   /// 将外部结果登记到历史记录，并可选地直接保存到本地图库
   ///
-  /// [addToDisplay] 为 true 时，将图像插入中央预览列表首位（如 ComfyUI 超分结果）。
+  /// [addToDisplay] 为 true 时，将图像插入当前结果和中央预览列表首位。
+  /// [replaceCurrentDisplay] 为 true 时，将当前结果和中央预览替换为该图像，
+  /// 既有图像仍保留在历史记录中。
   Future<String?> registerExternalImage(
     Uint8List imageBytes, {
     required ImageParams params,
@@ -799,7 +801,13 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     String? saveDirectoryPath,
     bool syncToGalleryIndex = true,
     bool addToDisplay = false,
+    bool replaceCurrentDisplay = false,
   }) async {
+    assert(
+      !addToDisplay || !replaceCurrentDisplay,
+      'addToDisplay and replaceCurrentDisplay cannot both be true.',
+    );
+
     final resolvedSize =
         _resolveImageSize(imageBytes, width: width, height: height) ??
         (params.width, params.height);
@@ -823,16 +831,21 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       height: resolvedSize.$2,
     );
 
+    final shouldDisplay = addToDisplay || replaceCurrentDisplay;
     state = state.copyWith(
-      currentImages: addToDisplay
+      currentImages: replaceCurrentDisplay
+          ? [generatedImage]
+          : addToDisplay
           ? [generatedImage, ...state.currentImages]
           : state.currentImages,
       history: [generatedImage, ...state.history].take(50).toList(),
-      displayImages: addToDisplay
+      displayImages: replaceCurrentDisplay
+          ? [generatedImage]
+          : addToDisplay
           ? [generatedImage, ...state.displayImages]
           : state.displayImages,
-      displayWidth: addToDisplay ? resolvedSize.$1 : state.displayWidth,
-      displayHeight: addToDisplay ? resolvedSize.$2 : state.displayHeight,
+      displayWidth: shouldDisplay ? resolvedSize.$1 : state.displayWidth,
+      displayHeight: shouldDisplay ? resolvedSize.$2 : state.displayHeight,
     );
     _retainSharePreparationCacheForCurrentHistory();
 

@@ -1639,18 +1639,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get img2img_novelAiUpscaleComplete => 'NovelAI 超分完成';
 
   @override
-  String img2img_upscaleCompleteAdded(Object width, Object height) {
-    return '超分完成 (${width}x$height)，已加入预览列表';
+  String img2img_upscaleComplete(Object width, Object height) {
+    return '超分完成 (${width}x$height)';
   }
 
   @override
-  String img2img_regularUpscaleCompleteAdded(Object width, Object height) {
-    return '普通模型超分完成 (${width}x$height)，已加入预览列表';
+  String img2img_regularUpscaleComplete(Object width, Object height) {
+    return '普通模型超分完成 (${width}x$height)';
   }
 
   @override
-  String img2img_rtxUpscaleCompleteAdded(Object width, Object height) {
-    return 'RTX 超分完成 (${width}x$height)，已加入预览列表';
+  String img2img_rtxUpscaleComplete(Object width, Object height) {
+    return 'RTX 超分完成 (${width}x$height)';
   }
 
   @override

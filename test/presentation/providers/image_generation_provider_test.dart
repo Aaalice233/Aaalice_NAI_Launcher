@@ -392,6 +392,51 @@ void main() {
     );
 
     test(
+      'registerExternalImage should replace current display for upscale results',
+      () async {
+        final notifier = container.read(
+          imageGenerationNotifierProvider.notifier,
+        );
+        final params = container.read(generationParamsNotifierProvider);
+        final existing = GeneratedImage.create(
+          _validImageBytes(width: 640, height: 960),
+          width: 640,
+          height: 960,
+        );
+
+        notifier.state = notifier.state.copyWith(
+          currentImages: [existing],
+          history: [existing],
+          displayImages: [existing],
+        );
+
+        await notifier.registerExternalImage(
+          _validImageBytes(width: 1280, height: 1920),
+          params: params,
+          width: 1280,
+          height: 1920,
+          replaceCurrentDisplay: true,
+        );
+
+        final state = container.read(imageGenerationNotifierProvider);
+
+        expect(state.currentImages, hasLength(1));
+        expect(state.displayImages, hasLength(1));
+        expect(state.currentImages.single.width, equals(1280));
+        expect(state.currentImages.single.height, equals(1920));
+        expect(
+          state.displayImages.single.id,
+          equals(state.currentImages.single.id),
+        );
+        expect(state.history, hasLength(2));
+        expect(state.history.first.id, equals(state.currentImages.single.id));
+        expect(state.history.last.id, equals(existing.id));
+        expect(state.displayWidth, equals(1280));
+        expect(state.displayHeight, equals(1920));
+      },
+    );
+
+    test(
       'registerExternalImage should rewrite embedded metadata resolution',
       () async {
         final notifier = container.read(
