@@ -7289,6 +7289,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localGallery_sendTo => 'Send to...';
 
   @override
+  String get localGallery_sendToImg2Img => 'Send to Image2Image';
+
+  @override
+  String get localGallery_sendToReversePrompt => 'Send to Reverse Prompt';
+
+  @override
+  String get localGallery_sendToStyleTransfer => 'Send to Vibe Transfer';
+
+  @override
+  String get localGallery_sendToPreciseReference => 'Send to Precise Reference';
+
+  @override
+  String get localGallery_sendToKrita => 'Send to Krita';
+
+  @override
+  String get localGallery_importImageMetadata => 'Import Image Metadata';
+
+  @override
   String get localGallery_copyPrompt => 'Copy Prompt';
 
   @override

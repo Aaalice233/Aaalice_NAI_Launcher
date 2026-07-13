@@ -7024,6 +7024,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_sendTo => '发送到...';
 
   @override
+  String get localGallery_sendToImg2Img => '发送到图生图';
+
+  @override
+  String get localGallery_sendToReversePrompt => '发送到反推';
+
+  @override
+  String get localGallery_sendToStyleTransfer => '发送到风格迁移';
+
+  @override
+  String get localGallery_sendToPreciseReference => '发送到精准参考';
+
+  @override
+  String get localGallery_sendToKrita => '发送到 Krita';
+
+  @override
+  String get localGallery_importImageMetadata => '导入图片元数据';
+
+  @override
   String get localGallery_copyPrompt => '复制 Prompt';
 
   @override

@@ -3181,6 +3181,12 @@
     }
   },
   "localGallery_sendTo": "发送到...",
+  "localGallery_sendToImg2Img": "发送到图生图",
+  "localGallery_sendToReversePrompt": "发送到反推",
+  "localGallery_sendToStyleTransfer": "发送到风格迁移",
+  "localGallery_sendToPreciseReference": "发送到精准参考",
+  "localGallery_sendToKrita": "发送到 Krita",
+  "localGallery_importImageMetadata": "导入图片元数据",
   "localGallery_copyPrompt": "复制 Prompt",
   "localGallery_copySeed": "复制 Seed",
   "localGallery_dragToShare": "拖拽以分享",

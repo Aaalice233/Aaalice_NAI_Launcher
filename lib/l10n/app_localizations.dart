@@ -13039,6 +13039,42 @@ abstract class AppLocalizations {
   /// **'Send to...'**
   String get localGallery_sendTo;
 
+  /// No description provided for @localGallery_sendToImg2Img.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to Image2Image'**
+  String get localGallery_sendToImg2Img;
+
+  /// No description provided for @localGallery_sendToReversePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to Reverse Prompt'**
+  String get localGallery_sendToReversePrompt;
+
+  /// No description provided for @localGallery_sendToStyleTransfer.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to Vibe Transfer'**
+  String get localGallery_sendToStyleTransfer;
+
+  /// No description provided for @localGallery_sendToPreciseReference.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to Precise Reference'**
+  String get localGallery_sendToPreciseReference;
+
+  /// No description provided for @localGallery_sendToKrita.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to Krita'**
+  String get localGallery_sendToKrita;
+
+  /// No description provided for @localGallery_importImageMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Image Metadata'**
+  String get localGallery_importImageMetadata;
+
   /// No description provided for @localGallery_copyPrompt.
   ///
   /// In en, this message translates to:

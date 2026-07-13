@@ -3450,6 +3450,12 @@
     }
   },
   "localGallery_sendTo": "送信先...",
+  "localGallery_sendToImg2Img": "Image2Image に送信",
+  "localGallery_sendToReversePrompt": "逆プロンプトに送信",
+  "localGallery_sendToStyleTransfer": "バイブストランスファーに送信",
+  "localGallery_sendToPreciseReference": "精密参照に送信",
+  "localGallery_sendToKrita": "Krita に送信",
+  "localGallery_importImageMetadata": "画像メタデータをインポート",
   "localGallery_copyPrompt": "プロンプトのコピー",
   "localGallery_copySeed": "シードをコピー",
   "localGallery_dragToShare": "ドラッグして共有",

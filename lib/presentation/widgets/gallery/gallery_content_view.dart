@@ -302,6 +302,10 @@ class _GenericGalleryContentViewState<T>
                 widget.onEnterSelection?.call(record as T);
               }
             },
+            onSecondaryTapDown: widget.onContextMenu != null
+                ? (details) =>
+                      widget.onContextMenu!(record as T, details.globalPosition)
+                : null,
             onFavoriteToggle: () {
               widget.onFavoriteToggle?.call(record as T);
             },

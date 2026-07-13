@@ -7109,6 +7109,24 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_sendTo => '送信先...';
 
   @override
+  String get localGallery_sendToImg2Img => 'Image2Image に送信';
+
+  @override
+  String get localGallery_sendToReversePrompt => '逆プロンプトに送信';
+
+  @override
+  String get localGallery_sendToStyleTransfer => 'バイブストランスファーに送信';
+
+  @override
+  String get localGallery_sendToPreciseReference => '精密参照に送信';
+
+  @override
+  String get localGallery_sendToKrita => 'Krita に送信';
+
+  @override
+  String get localGallery_importImageMetadata => '画像メタデータをインポート';
+
+  @override
   String get localGallery_copyPrompt => 'プロンプトのコピー';
 
   @override

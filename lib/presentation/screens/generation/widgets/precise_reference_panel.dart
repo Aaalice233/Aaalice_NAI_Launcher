@@ -15,6 +15,7 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../utils/dropped_file_reader.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/hover_image_preview.dart';
+import '../../../widgets/common/precise_reference_type_dialog.dart';
 import '../../../widgets/common/themed_divider.dart';
 import '../../../widgets/common/collapsible_image_panel.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
@@ -301,7 +302,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
 
   Future<void> _addReference() async {
     // 先选择类型
-    final selectedType = await _showTypeSelectorDialog();
+    final selectedType = await PreciseReferenceTypeDialog.show(context);
     if (selectedType == null) return; // 用户取消了类型选择
 
     try {
@@ -374,7 +375,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
         return;
       }
 
-      final selectedType = await _showTypeSelectorDialog();
+      final selectedType = await PreciseReferenceTypeDialog.show(context);
       if (selectedType == null || !mounted) {
         return;
       }
@@ -421,41 +422,6 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
     }
 
     return File(path).readAsBytes();
-  }
-
-  /// 显示类型选择对话框
-  Future<PreciseRefType?> _showTypeSelectorDialog() async {
-    return showDialog<PreciseRefType>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(context.l10n.preciseRef_referenceType),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: PreciseRefType.values.map((type) {
-              return ListTile(
-                leading: Icon(type.icon),
-                title: Text(
-                  type.getDisplayName(
-                    character: context.l10n.preciseRef_typeCharacter,
-                    style: context.l10n.preciseRef_typeStyle,
-                    characterAndStyle:
-                        context.l10n.preciseRef_typeCharacterAndStyle,
-                  ),
-                ),
-                onTap: () => Navigator.of(context).pop(type),
-              );
-            }).toList(),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(context.l10n.common_cancel),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _removeReference(int index) {

@@ -3565,6 +3565,12 @@
     }
   },
   "localGallery_sendTo": "Send to...",
+  "localGallery_sendToImg2Img": "Send to Image2Image",
+  "localGallery_sendToReversePrompt": "Send to Reverse Prompt",
+  "localGallery_sendToStyleTransfer": "Send to Vibe Transfer",
+  "localGallery_sendToPreciseReference": "Send to Precise Reference",
+  "localGallery_sendToKrita": "Send to Krita",
+  "localGallery_importImageMetadata": "Import Image Metadata",
   "localGallery_copyPrompt": "Copy Prompt",
   "localGallery_copySeed": "Copy Seed",
   "localGallery_dragToShare": "Drag to share",
