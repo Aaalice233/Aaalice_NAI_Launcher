@@ -206,6 +206,7 @@ logs/security/
 .opencode/
 test_results/
 test_hive/
+/test_output.txt
 
 # 测试源码默认纳入版本控制；只忽略测试运行产生的临时输出。
 test/**/.dart_tool/
