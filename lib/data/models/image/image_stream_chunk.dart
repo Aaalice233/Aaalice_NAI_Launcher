@@ -1,11 +1,10 @@
 import 'dart:typed_data';
 
-/// Focused inpaint stream previews are generated for the cropped request area.
+/// Placement data for compositing an Inpaint stream preview over its source.
 ///
-/// The final image is composited back to the full source canvas in the service.
-/// Intermediate frames keep the crop bytes and carry this placement data so the
-/// UI can render them over the source image. [maskImage] is an alpha PNG for
-/// clipping the crop preview to the actual edited region.
+/// Focused Inpaint uses crop percentages; ordinary Inpaint uses the full-frame
+/// `0, 0, 1, 1` placement. [maskImage] is the shared request-size soft alpha
+/// mask used by both transient GPU previews and persisted failure snapshots.
 class FocusedStreamPreviewPlacement {
   const FocusedStreamPreviewPlacement({
     required this.sourceImage,

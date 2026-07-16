@@ -4,6 +4,10 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 
+import '../models/image_generation_artifact.dart';
+import 'isolate_pool.dart';
+import 'pica_lanczos_resizer.dart';
+
 enum MaskFillRegionStatus {
   emptyMask,
   outOfBounds,
@@ -22,6 +26,26 @@ class MaskFillRegionResult {
   final MaskFillRegionStatus status;
   final Uint8List? filledMaskBytes;
   final Uint8List? overlayBytes;
+}
+
+class NovelAiInpaintMaskArtifacts {
+  const NovelAiInpaintMaskArtifacts({
+    required this.requestMaskBytes,
+    required this.latentMaskBytes,
+    required this.compositeMaskBytes,
+    required this.requestWidth,
+    required this.requestHeight,
+    required this.latentWidth,
+    required this.latentHeight,
+  });
+
+  final Uint8List requestMaskBytes;
+  final Uint8List latentMaskBytes;
+  final Uint8List compositeMaskBytes;
+  final int requestWidth;
+  final int requestHeight;
+  final int latentWidth;
+  final int latentHeight;
 }
 
 /// Inpaint 蒙版处理工具
@@ -427,11 +451,10 @@ class InpaintMaskUtils {
     final generatedCanvas =
         generated.width == source.width && generated.height == source.height
         ? generated
-        : img.copyResize(
+        : PicaLanczosResizer.resizeImage(
             generated,
             width: source.width,
             height: source.height,
-            interpolation: img.Interpolation.cubic,
           );
 
     final composed = img.Image.from(source, noAnimation: true);
@@ -447,6 +470,51 @@ class InpaintMaskUtils {
     );
 
     return Uint8List.fromList(img.encodePng(composed));
+  }
+
+  /// Creates both the full display image and the transparent inpaint patch.
+  ///
+  /// [compositeMaskImage] must be the request-size soft mask derived from the
+  /// same latent mask as the HTTP payload. Patch RGB remains unassociated; only
+  /// alpha is multiplied so later compositing does not darken edges.
+  static ImageGenerationArtifact composeGeneratedImageArtifact({
+    required Uint8List normalizedSourceImage,
+    required Uint8List compositeMaskImage,
+    required Uint8List generatedImage,
+  }) {
+    img.Image? source;
+    img.Image? mask;
+    img.Image? generated;
+    try {
+      source = img.decodeImage(normalizedSourceImage);
+      mask = img.decodeImage(compositeMaskImage);
+      generated = img.decodeImage(generatedImage);
+    } catch (_) {
+      return ImageGenerationArtifact(displayImageBytes: generatedImage);
+    }
+    if (source == null || mask == null || generated == null) {
+      return ImageGenerationArtifact(displayImageBytes: generatedImage);
+    }
+    if (source.width != mask.width || source.height != mask.height) {
+      return ImageGenerationArtifact(displayImageBytes: generatedImage);
+    }
+
+    final generatedCanvas =
+        generated.width == source.width && generated.height == source.height
+        ? generated
+        : PicaLanczosResizer.resizeImage(
+            generated,
+            width: source.width,
+            height: source.height,
+          );
+    final patch = applyCompositeMaskToGeneratedImage(generatedCanvas, mask);
+    final display = img.Image.from(source, noAnimation: true);
+    img.compositeImage(display, patch, blend: img.BlendMode.alpha);
+
+    return ImageGenerationArtifact(
+      displayImageBytes: Uint8List.fromList(img.encodePng(display, level: 1)),
+      transparentPatchBytes: Uint8List.fromList(img.encodePng(patch, level: 1)),
+    );
   }
 
   /// 构建用于 final inpaint 写回的客户端合成蒙版。
@@ -465,31 +533,138 @@ class InpaintMaskUtils {
     int blurRadius = 20,
     int blurIterations = 2,
   }) {
-    final latentMask = _prepareNovelAiLatentMaskImage(
+    return prepareNovelAiInpaintMaskArtifacts(
       bytes,
       targetWidth: targetWidth,
       targetHeight: targetHeight,
       closingIterations: closingIterations,
       expansionIterations: expansionIterations,
       latentGridSize: latentGridSize,
-    );
-    if (latentMask == null) {
-      return bytes;
+      latentDilationIterations: latentDilationIterations,
+      blurRadius: blurRadius,
+      blurIterations: blurIterations,
+    ).compositeMaskBytes;
+  }
+
+  /// Builds the final HTTP payload and client-composite mask from one latent
+  /// mask.
+  ///
+  /// NovelAI web build ae6a6aa-production first converts arbitrary mask input
+  /// to coverage alpha, downsamples directly to the latent grid with nearest
+  /// sampling, then applies a strict alpha > 155 threshold. Its common request
+  /// layer then draws that latent mask over opaque black at the full request
+  /// size with smoothing disabled. Local Closing and Expansion remain an
+  /// opt-in pre-pass in source coordinates.
+  static NovelAiInpaintMaskArtifacts prepareNovelAiInpaintMaskArtifacts(
+    Uint8List bytes, {
+    required int targetWidth,
+    required int targetHeight,
+    int closingIterations = 0,
+    int expansionIterations = 0,
+    int latentGridSize = 8,
+    int latentDilationIterations = 4,
+    int blurRadius = 20,
+    int blurIterations = 2,
+  }) {
+    if (targetWidth <= 0 || targetHeight <= 0 || latentGridSize <= 0) {
+      throw ArgumentError('Target dimensions and latent grid must be positive');
     }
-    final latentWidth = latentMask.width;
-    final latentHeight = latentMask.height;
-    var binaryMask = _createBinaryMask(latentMask);
-    if (latentDilationIterations > 0) {
-      binaryMask = _dilateMask(
+
+    final latentWidth = math.max(1, targetWidth ~/ latentGridSize);
+    final latentHeight = math.max(1, targetHeight ~/ latentGridSize);
+    img.Image? decoded;
+    try {
+      decoded = img.decodeImage(bytes);
+    } catch (_) {
+      decoded = null;
+    }
+    if (decoded == null) {
+      return NovelAiInpaintMaskArtifacts(
+        requestMaskBytes: bytes,
+        latentMaskBytes: bytes,
+        compositeMaskBytes: bytes,
+        requestWidth: targetWidth,
+        requestHeight: targetHeight,
+        latentWidth: latentWidth,
+        latentHeight: latentHeight,
+      );
+    }
+
+    final img.Image coverageMask;
+    if (closingIterations == 0 && expansionIterations == 0) {
+      coverageMask = _normalizeMaskToCoverageImage(decoded);
+    } else {
+      var binaryMask = _createBinaryMask(decoded);
+      if (closingIterations > 0) {
+        binaryMask = _closeMask(
+          binaryMask,
+          decoded.width,
+          decoded.height,
+          closingIterations,
+        );
+      }
+      if (expansionIterations > 0) {
+        binaryMask = _dilateMask(
+          binaryMask,
+          decoded.width,
+          decoded.height,
+          expansionIterations,
+        );
+      }
+      coverageMask = _binaryMaskToCoverageImage(
         binaryMask,
+        decoded.width,
+        decoded.height,
+      );
+    }
+
+    final sampledCoverage = _resizeNearestCanvasLike(
+      coverageMask,
+      width: latentWidth,
+      height: latentHeight,
+    );
+    final latentBinaryMask = _thresholdCoverageAlpha(sampledCoverage);
+    final latentMask = _binaryMaskToCoverageImage(
+      latentBinaryMask,
+      latentWidth,
+      latentHeight,
+    );
+    final latentMaskBytes = Uint8List.fromList(
+      img.encodePng(latentMask, level: 1),
+    );
+    var requestMask = _binaryMaskToImage(
+      latentBinaryMask,
+      latentWidth,
+      latentHeight,
+    );
+    if (latentGridSize > 1) {
+      requestMask = _scaleImageByInteger(requestMask, latentGridSize);
+    }
+    if (requestMask.width != targetWidth ||
+        requestMask.height != targetHeight) {
+      requestMask = _resizeNearestCanvasLike(
+        requestMask,
+        width: targetWidth,
+        height: targetHeight,
+      );
+    }
+    final requestMaskBytes = Uint8List.fromList(
+      img.encodePng(requestMask, level: 1),
+    );
+
+    var compositeBinaryMask = latentBinaryMask;
+    if (latentDilationIterations > 0) {
+      compositeBinaryMask = _dilateMask(
+        compositeBinaryMask,
         latentWidth,
         latentHeight,
         latentDilationIterations,
       );
     }
-
+    // Transparent latent pixels are explicitly filled black before dilation
+    // and blur, matching the browser worker's canvas operations.
     var compositeMask = _binaryMaskToImage(
-      binaryMask,
+      compositeBinaryMask,
       latentWidth,
       latentHeight,
     );
@@ -513,7 +688,42 @@ class InpaintMaskUtils {
     }
     compositeMask = _alphaMatchRed(compositeMask);
 
-    return Uint8List.fromList(img.encodePng(compositeMask));
+    return NovelAiInpaintMaskArtifacts(
+      requestMaskBytes: requestMaskBytes,
+      latentMaskBytes: latentMaskBytes,
+      compositeMaskBytes: Uint8List.fromList(img.encodePng(compositeMask)),
+      requestWidth: targetWidth,
+      requestHeight: targetHeight,
+      latentWidth: latentWidth,
+      latentHeight: latentHeight,
+    );
+  }
+
+  static Future<NovelAiInpaintMaskArtifacts>
+  prepareNovelAiInpaintMaskArtifactsAsync(
+    Uint8List bytes, {
+    required int targetWidth,
+    required int targetHeight,
+    int closingIterations = 0,
+    int expansionIterations = 0,
+    int latentGridSize = 8,
+    int latentDilationIterations = 4,
+    int blurRadius = 20,
+    int blurIterations = 2,
+  }) {
+    return ComputeGate().runIsolate(
+      () => prepareNovelAiInpaintMaskArtifacts(
+        bytes,
+        targetWidth: targetWidth,
+        targetHeight: targetHeight,
+        closingIterations: closingIterations,
+        expansionIterations: expansionIterations,
+        latentGridSize: latentGridSize,
+        latentDilationIterations: latentDilationIterations,
+        blurRadius: blurRadius,
+        blurIterations: blurIterations,
+      ),
+    );
   }
 
   /// 从 inpaint 返回图中提取透明补丁层。
@@ -540,11 +750,10 @@ class InpaintMaskUtils {
     final generatedCanvas =
         generated.width == mask.width && generated.height == mask.height
         ? generated
-        : img.copyResize(
+        : PicaLanczosResizer.resizeImage(
             generated,
             width: mask.width,
             height: mask.height,
-            interpolation: img.Interpolation.cubic,
           );
 
     final patch = img.Image(
@@ -633,9 +842,8 @@ class InpaintMaskUtils {
 
   /// 构建 NovelAI 官网式 infill 请求蒙版。
   ///
-  /// 官网会先把 mask 量化到 latent 网格，再在真正提交请求前用
-  /// `imageSmoothingEnabled=false` 放大回生成尺寸。直接发送 latent
-  /// 尺寸 mask 会让服务端按粗块处理蒙版区域。
+  /// 官网先生成 `requestWidth / 8 × requestHeight / 8` latent mask，公共请求
+  /// 层再以黑色不透明背景和 nearest-neighbor 放大到完整请求尺寸后提交。
   static Uint8List prepareNovelAiRequestMaskBytes(
     Uint8List bytes, {
     required int targetWidth,
@@ -644,25 +852,14 @@ class InpaintMaskUtils {
     int expansionIterations = 0,
     int latentGridSize = 8,
   }) {
-    final latentMask = _prepareNovelAiLatentMaskImage(
+    return prepareNovelAiInpaintMaskArtifacts(
       bytes,
       targetWidth: targetWidth,
       targetHeight: targetHeight,
       closingIterations: closingIterations,
       expansionIterations: expansionIterations,
       latentGridSize: latentGridSize,
-    );
-    if (latentMask == null) {
-      return bytes;
-    }
-
-    final fullSizeMask = _resizeNearestCanvasLike(
-      latentMask,
-      width: targetWidth,
-      height: targetHeight,
-    );
-    // 仅作为请求载体、不落盘：用最快压缩等级换编码时间（像素无损）。
-    return Uint8List.fromList(img.encodePng(fullSizeMask, level: 1));
+    ).requestMaskBytes;
   }
 
   /// [prepareNovelAiRequestMaskBytes] 的后台 isolate 版本。
@@ -677,15 +874,15 @@ class InpaintMaskUtils {
     int expansionIterations = 0,
     int latentGridSize = 8,
   }) {
-    return Isolate.run(
-      () => prepareNovelAiRequestMaskBytes(
+    return ComputeGate().runIsolate(
+      () => prepareNovelAiInpaintMaskArtifacts(
         bytes,
         targetWidth: targetWidth,
         targetHeight: targetHeight,
         closingIterations: closingIterations,
         expansionIterations: expansionIterations,
         latentGridSize: latentGridSize,
-      ),
+      ).requestMaskBytes,
     );
   }
 
@@ -698,85 +895,14 @@ class InpaintMaskUtils {
     int expansionIterations = 0,
     int latentGridSize = 8,
   }) {
-    final latentMask = _prepareNovelAiLatentMaskImage(
+    return prepareNovelAiInpaintMaskArtifacts(
       bytes,
       targetWidth: targetWidth,
       targetHeight: targetHeight,
       closingIterations: closingIterations,
       expansionIterations: expansionIterations,
       latentGridSize: latentGridSize,
-    );
-    if (latentMask == null) {
-      return bytes;
-    }
-    return Uint8List.fromList(img.encodePng(latentMask));
-  }
-
-  /// latent 蒙版流程的图像版主体：中间结果全程以 [img.Image] 传递，
-  /// 避免每个阶段 PNG 编码后又立刻解码的往返开销。
-  static img.Image? _prepareNovelAiLatentMaskImage(
-    Uint8List bytes, {
-    required int targetWidth,
-    required int targetHeight,
-    int closingIterations = 0,
-    int expansionIterations = 0,
-    int latentGridSize = 8,
-  }) {
-    img.Image? decoded;
-    try {
-      decoded = img.decodeImage(bytes);
-    } catch (_) {
-      return null;
-    }
-    if (decoded == null) {
-      return null;
-    }
-
-    var binaryMask = _createBinaryMask(decoded);
-    if (closingIterations > 0) {
-      binaryMask = _closeMask(
-        binaryMask,
-        decoded.width,
-        decoded.height,
-        closingIterations,
-      );
-    }
-    if (expansionIterations > 0) {
-      binaryMask = _dilateMask(
-        binaryMask,
-        decoded.width,
-        decoded.height,
-        expansionIterations,
-      );
-    }
-
-    var fullSizeMask = _binaryMaskToImage(
-      binaryMask,
-      decoded.width,
-      decoded.height,
-    );
-    if (fullSizeMask.width != targetWidth ||
-        fullSizeMask.height != targetHeight) {
-      fullSizeMask = _resizeNearestCanvasLike(
-        fullSizeMask,
-        width: targetWidth,
-        height: targetHeight,
-      );
-    }
-
-    final latentWidth = (targetWidth / latentGridSize).round();
-    final latentHeight = (targetHeight / latentGridSize).round();
-    if (latentWidth <= 0 || latentHeight <= 0) {
-      return fullSizeMask;
-    }
-
-    final latentMask = _resizeNearestCanvasLike(
-      fullSizeMask,
-      width: latentWidth,
-      height: latentHeight,
-    );
-    final latentBinaryMask = _createBinaryMask(latentMask);
-    return _binaryMaskToImage(latentBinaryMask, latentWidth, latentHeight);
+    ).latentMaskBytes;
   }
 
   /// 将已保存的黑白蒙版转换为编辑器可见的透明覆盖层。
@@ -823,6 +949,37 @@ class InpaintMaskUtils {
     );
   }
 
+  static img.Image applyCompositeMaskToGeneratedImage(
+    img.Image generated,
+    img.Image compositeMask,
+  ) {
+    if (generated.width != compositeMask.width ||
+        generated.height != compositeMask.height) {
+      throw ArgumentError('Generated image and composite mask must match');
+    }
+    final patch = img.Image(
+      width: generated.width,
+      height: generated.height,
+      numChannels: 4,
+    );
+    for (var y = 0; y < generated.height; y++) {
+      for (var x = 0; x < generated.width; x++) {
+        final generatedPixel = generated.getPixel(x, y);
+        final maskAlpha = compositeMask.getPixel(x, y).a.toInt();
+        final alpha = (generatedPixel.a.toInt() * maskAlpha + 127) ~/ 255;
+        patch.setPixelRgba(
+          x,
+          y,
+          generatedPixel.r.toInt(),
+          generatedPixel.g.toInt(),
+          generatedPixel.b.toInt(),
+          alpha,
+        );
+      }
+    }
+    return patch;
+  }
+
   static bool _isMaskedPixel(img.Pixel pixel) {
     final alpha = pixel.a.toInt();
     if (alpha <= _alphaThreshold) {
@@ -836,6 +993,43 @@ class InpaintMaskUtils {
     ].reduce((a, b) => a > b ? a : b);
 
     return brightest >= _colorThreshold;
+  }
+
+  static img.Image _normalizeMaskToCoverageImage(img.Image source) {
+    final coverage = img.Image(
+      width: source.width,
+      height: source.height,
+      numChannels: 4,
+    );
+    for (var y = 0; y < source.height; y++) {
+      for (var x = 0; x < source.width; x++) {
+        final pixel = source.getPixel(x, y);
+        final brightest = math.max(
+          pixel.r.toInt(),
+          math.max(pixel.g.toInt(), pixel.b.toInt()),
+        );
+        final alpha = pixel.a.toInt();
+        final value = (brightest * alpha + 127) ~/ 255;
+        coverage.setPixelRgba(x, y, 255, 255, 255, value);
+      }
+    }
+    return coverage;
+  }
+
+  static Uint8List _thresholdCoverageAlpha(
+    img.Image coverage, {
+    int threshold = 155,
+  }) {
+    final binaryMask = Uint8List(coverage.width * coverage.height);
+    var index = 0;
+    for (var y = 0; y < coverage.height; y++) {
+      for (var x = 0; x < coverage.width; x++) {
+        binaryMask[index++] = coverage.getPixel(x, y).a.toInt() > threshold
+            ? 1
+            : 0;
+      }
+    }
+    return binaryMask;
   }
 
   static Uint8List _createBinaryMask(img.Image decoded) {
@@ -862,6 +1056,22 @@ class InpaintMaskUtils {
       for (var x = 0; x < width; x++) {
         final value = binaryMask[index++] == 1 ? 255 : 0;
         normalized.setPixelRgba(x, y, value, value, value, 255);
+      }
+    }
+    return normalized;
+  }
+
+  static img.Image _binaryMaskToCoverageImage(
+    Uint8List binaryMask,
+    int width,
+    int height,
+  ) {
+    final normalized = img.Image(width: width, height: height, numChannels: 4);
+    var index = 0;
+    for (var y = 0; y < height; y++) {
+      for (var x = 0; x < width; x++) {
+        final alpha = binaryMask[index++] == 1 ? 255 : 0;
+        normalized.setPixelRgba(x, y, 255, 255, 255, alpha);
       }
     }
     return normalized;

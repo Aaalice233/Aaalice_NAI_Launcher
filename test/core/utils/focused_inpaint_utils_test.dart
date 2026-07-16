@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/utils/focused_inpaint_utils.dart';
+import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
 
 void main() {
   group('FocusedInpaintUtils', () {
@@ -280,10 +281,9 @@ void main() {
           height: request.targetHeight,
         );
         img.fill(generated, color: img.ColorRgb8(255, 255, 255));
+        final generatedBytes = Uint8List.fromList(img.encodePng(generated));
 
-        final merged = request.compositeGeneratedImage(
-          Uint8List.fromList(img.encodePng(generated)),
-        );
+        final merged = request.compositeGeneratedImage(generatedBytes);
         final decoded = img.decodeImage(merged)!;
 
         expect(decoded.width, equals(400));
@@ -292,11 +292,31 @@ void main() {
         expect(decoded.getPixel(110, 80).r.toInt(), equals(16));
         expect(decoded.getPixel(110, 80).g.toInt(), equals(32));
         expect(decoded.getPixel(110, 80).b.toInt(), equals(64));
+
+        final maskArtifacts =
+            InpaintMaskUtils.prepareNovelAiInpaintMaskArtifacts(
+              request.requestMaskImage,
+              targetWidth: request.targetWidth,
+              targetHeight: request.targetHeight,
+            );
+        final artifact = request.composeGeneratedImageArtifact(
+          generatedBytes,
+          maskArtifacts,
+        );
+        final patch = img.decodeImage(artifact.transparentPatchBytes!)!;
+        final display = img.decodeImage(artifact.displayImageBytes)!;
+        final reconstructed = img.Image.from(source, noAnimation: true);
+        img.compositeImage(reconstructed, patch, blend: img.BlendMode.alpha);
+
+        expect((patch.width, patch.height), equals((400, 300)));
+        expect(patch.getPixel(0, 0).a.toInt(), equals(0));
+        expect(patch.getPixel(170, 140).a.toInt(), greaterThan(245));
+        _expectImagesMatch(reconstructed, display);
       },
     );
 
     test(
-      'compositeGeneratedImage should preserve pixels outside the original mask boundary',
+      'compositeGeneratedImage should use a soft edge and preserve distant pixels',
       () {
         final source = img.Image(width: 400, height: 300);
         img.fill(source, color: img.ColorRgb8(16, 32, 64));
@@ -326,11 +346,12 @@ void main() {
         );
         final decoded = img.decodeImage(merged)!;
 
-        expect(decoded.getPixel(150, 140).r.toInt(), equals(255));
-        expect(decoded.getPixel(149, 140).r.toInt(), equals(16));
-        expect(decoded.getPixel(149, 140).g.toInt(), equals(32));
-        expect(decoded.getPixel(149, 140).b.toInt(), equals(64));
-        expect(decoded.getPixel(190, 140).r.toInt(), equals(16));
+        expect(decoded.getPixel(150, 140).r.toInt(), greaterThan(245));
+        expect(decoded.getPixel(149, 140).r.toInt(), inInclusiveRange(17, 254));
+        expect(decoded.getPixel(190, 140).r.toInt(), inInclusiveRange(17, 254));
+        expect(decoded.getPixel(110, 80).r.toInt(), equals(16));
+        expect(decoded.getPixel(110, 80).g.toInt(), equals(32));
+        expect(decoded.getPixel(110, 80).b.toInt(), equals(64));
       },
     );
 
@@ -566,4 +587,29 @@ img.Image _buildIrregularMask({required int width, required int height}) {
   }
 
   return mask;
+}
+
+void _expectImagesMatch(img.Image actual, img.Image expected) {
+  expect((actual.width, actual.height), (expected.width, expected.height));
+  for (var y = 0; y < actual.height; y++) {
+    for (var x = 0; x < actual.width; x++) {
+      final actualPixel = actual.getPixel(x, y);
+      final expectedPixel = expected.getPixel(x, y);
+      expect(
+        (
+          actualPixel.r.toInt(),
+          actualPixel.g.toInt(),
+          actualPixel.b.toInt(),
+          actualPixel.a.toInt(),
+        ),
+        (
+          expectedPixel.r.toInt(),
+          expectedPixel.g.toInt(),
+          expectedPixel.b.toInt(),
+          expectedPixel.a.toInt(),
+        ),
+        reason: 'Pixel mismatch at $x,$y',
+      );
+    }
+  }
 }

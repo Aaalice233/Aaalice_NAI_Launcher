@@ -9,6 +9,7 @@ import 'package:msgpack_dart/msgpack_dart.dart' as msgpack;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/constants/api_constants.dart';
+import '../../../core/models/image_generation_artifact.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/nai_api_endpoint_service.dart';
 import '../../../core/network/request_builders/nai_image_request_builder.dart';
@@ -84,6 +85,29 @@ class NAIImageGenerationApiService {
   /// - 图像列表：生成的图像字节数据
   /// - Vibe哈希映射：key=vibeReferencesV4索引, value=编码哈希
   Future<(List<Uint8List>, Map<int, String>)> generateImage(
+    ImageParams params, {
+    void Function(int, int)? onProgress,
+    bool focusedInpaintEnabled = false,
+    double minimumContextMegaPixels = 88.0,
+    Rect? focusedSelectionRect,
+  }) async {
+    final result = await _generateImageArtifacts(
+      params,
+      onProgress: onProgress,
+      focusedInpaintEnabled: focusedInpaintEnabled,
+      minimumContextMegaPixels: minimumContextMegaPixels,
+      focusedSelectionRect: focusedSelectionRect,
+    );
+    return (
+      result.$1
+          .map((artifact) => artifact.displayImageBytes)
+          .toList(growable: false),
+      result.$2,
+    );
+  }
+
+  Future<(List<ImageGenerationArtifact>, Map<int, String>)>
+  _generateImageArtifacts(
     ImageParams params, {
     void Function(int, int)? onProgress,
     bool focusedInpaintEnabled = false,
@@ -275,18 +299,19 @@ class NAIImageGenerationApiService {
 
       // 6. 解压 ZIP 响应
       final zipBytes = response.data as Uint8List;
-      final images = await _compositeInpaintImages(
+      final artifacts = await _compositeInpaintImages(
         ZipUtils.extractAllImages(zipBytes),
         params,
         focusedRequest,
+        requestBuildResult,
       );
 
-      if (images.isEmpty) {
+      if (artifacts.isEmpty) {
         throw Exception('No images found in response');
       }
 
       // 返回图像和 Vibe 编码哈希映射
-      return (images, vibeEncodingMap);
+      return (artifacts, vibeEncodingMap);
     } finally {
       if (identical(_currentCancelToken, cancelToken)) {
         _currentCancelToken = null;
@@ -313,6 +338,23 @@ class NAIImageGenerationApiService {
       focusedSelectionRect: focusedSelectionRect,
     );
     return result.$1; // 返回图像列表部分
+  }
+
+  Future<List<ImageGenerationArtifact>> generateImageArtifactsCancellable(
+    ImageParams params, {
+    void Function(int, int)? onProgress,
+    bool focusedInpaintEnabled = false,
+    double minimumContextMegaPixels = 88.0,
+    Rect? focusedSelectionRect,
+  }) async {
+    final result = await _generateImageArtifacts(
+      params,
+      onProgress: onProgress,
+      focusedInpaintEnabled: focusedInpaintEnabled,
+      minimumContextMegaPixels: minimumContextMegaPixels,
+      focusedSelectionRect: focusedSelectionRect,
+    );
+    return result.$1;
   }
 
   /// 取消当前生成
@@ -673,6 +715,7 @@ class NAIImageGenerationApiService {
                     imageBytes,
                     params,
                     focusedRequest,
+                    requestBuildResult,
                   );
                   compositeStopwatch.stop();
 
@@ -692,7 +735,7 @@ class NAIImageGenerationApiService {
                     'Stream',
                   );
                   yield ImageStreamChunk.complete(
-                    compositedImage,
+                    compositedImage.displayImageBytes,
                     sampleIndex: sampleIndex,
                   );
                   continue;
@@ -712,9 +755,10 @@ class NAIImageGenerationApiService {
                     }
                   }
 
-                  final focusedPreviewPlacement = _focusedPreviewPlacement(
+                  final focusedPreviewPlacement = _inpaintPreviewPlacement(
                     params,
                     focusedRequest,
+                    requestBuildResult,
                   );
                   latestPreviews[sampleIndex] = imageBytes;
                   final currentStep = (stepIx ?? messageCount) + 1;
@@ -773,6 +817,7 @@ class NAIImageGenerationApiService {
                 images.first,
                 params,
                 focusedRequest,
+                requestBuildResult,
               );
               compositeStopwatch.stop();
               if (_enablePipelineTracing) {
@@ -781,7 +826,9 @@ class NAIImageGenerationApiService {
                   'PipelineTrace',
                 );
               }
-              yield ImageStreamChunk.complete(compositedImage);
+              yield ImageStreamChunk.complete(
+                compositedImage.displayImageBytes,
+              );
               return;
             }
           }
@@ -814,6 +861,7 @@ class NAIImageGenerationApiService {
                         : Uint8List(0),
                     params,
                     focusedRequest,
+                    requestBuildResult,
                   );
                   compositeStopwatch.stop();
                   if (_enablePipelineTracing) {
@@ -822,7 +870,9 @@ class NAIImageGenerationApiService {
                       'PipelineTrace',
                     );
                   }
-                  yield ImageStreamChunk.complete(compositedImage);
+                  yield ImageStreamChunk.complete(
+                    compositedImage.displayImageBytes,
+                  );
                   return;
                 }
               }
@@ -933,28 +983,49 @@ class NAIImageGenerationApiService {
       maskImage: focusedRequest.requestMaskImage,
       width: focusedRequest.targetWidth,
       height: focusedRequest.targetHeight,
-      inpaintMaskClosingIterations: 0,
-      inpaintMaskExpansionIterations: 0,
     );
   }
 
-  FocusedStreamPreviewPlacement? _focusedPreviewPlacement(
+  FocusedStreamPreviewPlacement? _inpaintPreviewPlacement(
     ImageParams params,
     FocusedInpaintRequest? focusedRequest,
+    NAIImageRequestBuildResult requestBuildResult,
   ) {
-    if (focusedRequest == null || params.sourceImage == null) {
+    if (params.action != ImageGenerationAction.infill || params.isOutpaint) {
       return null;
     }
 
+    final compositeMaskBytes =
+        requestBuildResult.inpaintMaskArtifacts?.compositeMaskBytes;
+    if (compositeMaskBytes == null) {
+      return null;
+    }
+
+    if (focusedRequest == null) {
+      final normalizedSource = requestBuildResult.normalizedSourceImageBytes;
+      if (normalizedSource == null) {
+        return null;
+      }
+      return FocusedStreamPreviewPlacement(
+        sourceImage: normalizedSource,
+        maskImage: compositeMaskBytes,
+        xPercent: 0,
+        yPercent: 0,
+        widthPercent: 1,
+        heightPercent: 1,
+      );
+    }
+
+    final originalSource = params.sourceImage;
     final sourceWidth = focusedRequest.originalSourceWidth;
     final sourceHeight = focusedRequest.originalSourceHeight;
-    if (sourceWidth <= 0 || sourceHeight <= 0) {
+    if (originalSource == null || sourceWidth <= 0 || sourceHeight <= 0) {
       return null;
     }
 
     return FocusedStreamPreviewPlacement(
-      sourceImage: params.sourceImage!,
-      maskImage: focusedRequest.streamPreviewMaskImage,
+      sourceImage: originalSource,
+      maskImage: compositeMaskBytes,
       xPercent: focusedRequest.crop.x / sourceWidth,
       yPercent: focusedRequest.crop.y / sourceHeight,
       widthPercent: focusedRequest.crop.width / sourceWidth,
@@ -962,16 +1033,21 @@ class NAIImageGenerationApiService {
     );
   }
 
-  Future<List<Uint8List>> _compositeInpaintImages(
+  Future<List<ImageGenerationArtifact>> _compositeInpaintImages(
     List<Uint8List> images,
     ImageParams params,
     FocusedInpaintRequest? focusedRequest,
+    NAIImageRequestBuildResult requestBuildResult,
   ) {
     // Future.wait 保持顺序；并发由 ComputeGate 统一背压。
     return Future.wait(
       images.map(
-        (imageBytes) =>
-            _compositeInpaintImage(imageBytes, params, focusedRequest),
+        (imageBytes) => _compositeInpaintImage(
+          imageBytes,
+          params,
+          focusedRequest,
+          requestBuildResult,
+        ),
       ),
     );
   }
@@ -979,43 +1055,43 @@ class NAIImageGenerationApiService {
   /// 收尾贴回合成。重活（mask 构建 + 整图混合 + PNG 编码）在后台
   /// isolate 完成；闭包只捕获原始字节与数值，避免捕获 Freezed 对象
   /// （Windows 上 Isolate.run 与 Freezed 存在序列化兼容性问题）。
-  Future<Uint8List> _compositeInpaintImage(
+  Future<ImageGenerationArtifact> _compositeInpaintImage(
     Uint8List imageBytes,
     ImageParams params,
     FocusedInpaintRequest? focusedRequest,
+    NAIImageRequestBuildResult requestBuildResult,
   ) {
+    final maskArtifacts = requestBuildResult.inpaintMaskArtifacts;
     if (focusedRequest != null) {
-      return focusedRequest.compositeGeneratedImageAsync(imageBytes);
+      if (maskArtifacts == null) {
+        return Future.value(
+          ImageGenerationArtifact(displayImageBytes: imageBytes),
+        );
+      }
+      return focusedRequest.composeGeneratedImageArtifactAsync(
+        imageBytes,
+        maskArtifacts,
+      );
     }
     if (params.isOutpaint) {
-      return Future.value(imageBytes);
+      return Future.value(
+        ImageGenerationArtifact(displayImageBytes: imageBytes),
+      );
     }
-    final sourceImage = params.sourceImage;
-    final maskImage = params.maskImage;
+    final sourceImage = requestBuildResult.normalizedSourceImageBytes;
     if (params.action != ImageGenerationAction.infill ||
         sourceImage == null ||
-        maskImage == null) {
-      return Future.value(imageBytes);
+        maskArtifacts == null) {
+      return Future.value(
+        ImageGenerationArtifact(displayImageBytes: imageBytes),
+      );
     }
 
-    final targetWidth = params.width;
-    final targetHeight = params.height;
-    final closingIterations = params.inpaintMaskClosingIterations;
-    final expansionIterations = params.inpaintMaskExpansionIterations;
     return ComputeGate().runIsolate(() {
-      final compositeMask =
-          InpaintMaskUtils.prepareGeneratedImageCompositeMaskBytes(
-            maskImage,
-            targetWidth: targetWidth,
-            targetHeight: targetHeight,
-            closingIterations: closingIterations,
-            expansionIterations: expansionIterations,
-          );
-      return InpaintMaskUtils.compositeGeneratedImage(
-        sourceImage: sourceImage,
-        maskImage: compositeMask,
+      return InpaintMaskUtils.composeGeneratedImageArtifact(
+        normalizedSourceImage: sourceImage,
+        compositeMaskImage: maskArtifacts.compositeMaskBytes,
         generatedImage: imageBytes,
-        normalizeMask: false,
       );
     });
   }

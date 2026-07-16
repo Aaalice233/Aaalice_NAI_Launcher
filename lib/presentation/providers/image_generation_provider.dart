@@ -12,7 +12,10 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/image_save_utils.dart';
 import '../../core/utils/image_share_sanitizer.dart';
+import '../../core/utils/inpaint_mask_utils.dart';
 import '../../core/utils/nai_prompt_formatter.dart';
+import '../../core/utils/nai_resolution_adapter.dart';
+import '../../core/utils/pica_lanczos_resizer.dart';
 import '../../core/utils/prompt_preset_resolution.dart';
 import '../../data/services/image_metadata_service.dart';
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
@@ -241,7 +244,11 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       width: resolvedSize.$1,
       height: resolvedSize.$2,
       kind: GeneratedImageKind.failedStreamSnapshot,
-      metadata: _metadataFromParams(params),
+      metadata: _metadataFromParams(
+        params,
+        outputWidth: resolvedSize.$1,
+        outputHeight: resolvedSize.$2,
+      ),
     );
 
     state = state.copyWith(
@@ -301,12 +308,32 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         .clamp(1, max(1, source.height - dstY))
         .toInt();
 
-    final resizedPreview = img.copyResize(
-      preview,
-      width: dstW,
-      height: dstH,
-      interpolation: img.Interpolation.cubic,
-    );
+    final img.Image resizedPreview;
+    final img.Image? resizedMask;
+    if (mask == null) {
+      resizedPreview = PicaLanczosResizer.resizeImage(
+        preview,
+        width: dstW,
+        height: dstH,
+      );
+      resizedMask = null;
+    } else {
+      final requestPreview = PicaLanczosResizer.resizeImage(
+        preview,
+        width: mask.width,
+        height: mask.height,
+      );
+      final requestPatch = InpaintMaskUtils.applyCompositeMaskToGeneratedImage(
+        requestPreview,
+        mask,
+      );
+      resizedPreview = PicaLanczosResizer.resizeImage(
+        requestPatch,
+        width: dstW,
+        height: dstH,
+      );
+      resizedMask = null;
+    }
     final composed = img.Image.from(source, noAnimation: true);
     img.compositeImage(
       composed,
@@ -315,11 +342,11 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       dstY: dstY,
       dstW: dstW,
       dstH: dstH,
-      mask: mask,
-      blend: img.BlendMode.direct,
+      mask: resizedMask,
+      blend: mask == null ? img.BlendMode.direct : img.BlendMode.alpha,
     );
 
-    return Uint8List.fromList(img.encodePng(composed));
+    return Uint8List.fromList(img.encodePng(composed, level: 1));
   }
 
   bool _appendFailedStreamSnapshotsForCurrentSlots(int generationRunId) {
@@ -361,20 +388,33 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     return updated..sort((a, b) => a.imageNumber.compareTo(b.imageNumber));
   }
 
-  NaiImageMetadata _metadataFromParams(ImageParams params) {
-    final (charCaptions, charNegCaptions) = _buildCharacterCaptions(params);
+  NaiImageMetadata _metadataFromParams(
+    ImageParams params, {
+    int? outputWidth,
+    int? outputHeight,
+  }) {
+    assert(
+      (outputWidth == null) == (outputHeight == null),
+      'Output width and height must be provided together.',
+    );
+    final metadataParams = outputWidth != null && outputHeight != null
+        ? params.copyWith(width: outputWidth, height: outputHeight)
+        : params;
+    final (charCaptions, charNegCaptions) = _buildCharacterCaptions(
+      metadataParams,
+    );
     final commentJson = ImageSaveUtils.buildCommentJson(
-      params: params,
-      actualSeed: params.seed,
+      params: metadataParams,
+      actualSeed: metadataParams.seed,
       charCaptions: charCaptions,
       charNegCaptions: charNegCaptions,
-      useCoords: params.useCoords,
+      useCoords: metadataParams.useCoords,
     );
     final rawJson = jsonEncode(commentJson);
     return NaiImageMetadata.fromNaiComment({
       'Comment': rawJson,
       'Software': 'NovelAI',
-      'Source': _modelSourceName(params.model),
+      'Source': _modelSourceName(metadataParams.model),
     }, rawJson: rawJson);
   }
 
@@ -753,8 +793,12 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           : GenerationStatus.completed,
       currentImages: List.from(allImages),
       displayImages: List.from(allImages), // 确保中央区域显示所有生成的图片
-      displayWidth: preparedParams.width,
-      displayHeight: preparedParams.height,
+      displayWidth: allImages.isEmpty
+          ? preparedParams.width
+          : allImages.first.width,
+      displayHeight: allImages.isEmpty
+          ? preparedParams.height
+          : allImages.first.height,
       progress: 1.0,
       currentImage: 0,
       totalImages: 0,
@@ -986,7 +1030,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           await ImageSaveUtils.saveImageWithMetadata(
             imageBytes: image.bytes,
             filePath: filePath,
-            params: params,
+            params: params.copyWith(width: image.width, height: image.height),
             actualSeed: actualSeed,
             fixedPrefixTags: fixedPrefixTags,
             fixedSuffixTags: fixedSuffixTags,
@@ -1562,8 +1606,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           status: GenerationStatus.completed,
           currentImages: generatedList,
           displayImages: generatedList,
-          displayWidth: params.width,
-          displayHeight: params.height,
+          displayWidth: generatedList.first.width,
+          displayHeight: generatedList.first.height,
           history: [...generatedList, ...state.history].take(50).toList(),
           progress: 1.0,
           currentImage: 0,
@@ -1603,8 +1647,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           status: GenerationStatus.completed,
           currentImages: generatedList,
           displayImages: generatedList,
-          displayWidth: params.width,
-          displayHeight: params.height,
+          displayWidth: generatedList.first.width,
+          displayHeight: generatedList.first.height,
           history: [...generatedList, ...state.history].take(50).toList(),
           progress: 1.0,
           currentImage: 0,
@@ -1647,8 +1691,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           status: GenerationStatus.completed,
           currentImages: generatedList,
           displayImages: generatedList,
-          displayWidth: params.width,
-          displayHeight: params.height,
+          displayWidth: generatedList.first.width,
+          displayHeight: generatedList.first.height,
           history: [...generatedList, ...state.history].take(50).toList(),
           progress: 1.0,
           currentImage: 0,
@@ -1729,8 +1773,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             status: GenerationStatus.completed,
             currentImages: generatedList,
             displayImages: generatedList,
-            displayWidth: params.width,
-            displayHeight: params.height,
+            displayWidth: generatedList.first.width,
+            displayHeight: generatedList.first.height,
             history: [...generatedList, ...state.history].take(50).toList(),
             progress: 1.0,
             currentImage: 0,
@@ -2053,6 +2097,11 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     int? width,
     int? height,
   }) {
+    final encodedSize = NaiResolutionAdapter.readImageSize(imageBytes);
+    if (encodedSize != null) {
+      return encodedSize;
+    }
+
     if (width != null && height != null) {
       return (width, height);
     }

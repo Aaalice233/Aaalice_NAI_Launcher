@@ -6,9 +6,9 @@ import 'dart:ui';
 import 'package:image/image.dart' as img;
 
 import '../../../core/krita/krita_bridge_models.dart';
+import '../../../core/models/image_generation_artifact.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/focused_inpaint_utils.dart';
-import '../../../core/utils/inpaint_mask_utils.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/image/image_stream_chunk.dart';
 
@@ -22,7 +22,9 @@ typedef KritaBridgeSender = void Function(Map<String, dynamic> message);
 typedef KritaBridgeStreamGenerator =
     Stream<ImageStreamChunk> Function(KritaBridgeGenerateRequest request);
 typedef KritaBridgeFallbackGenerator =
-    Future<List<Uint8List>> Function(KritaBridgeGenerateRequest request);
+    Future<List<ImageGenerationArtifact>> Function(
+      KritaBridgeGenerateRequest request,
+    );
 typedef KritaBridgeExternalImageRegistrar =
     Future<String?> Function(
       Uint8List image, {
@@ -223,11 +225,11 @@ class KritaBridgeService implements KritaBridgeMessageService {
     );
 
     try {
-      final image = await _generateImage(request);
+      final artifact = await _generateImage(request);
       if (_cancelled) {
         return;
       }
-      if (image == null) {
+      if (artifact == null) {
         _startFailureCooldown();
         _sendError(
           id,
@@ -237,14 +239,16 @@ class KritaBridgeService implements KritaBridgeMessageService {
         return;
       }
 
-      final displayImage = _prepareHistoryImage(request, image);
-      final layerImage = _prepareLayerImageForKrita(request, image);
       final savedPath = await _registerExternalImage(
-        displayImage,
+        artifact.displayImageBytes,
         params: request.params,
         addToDisplay: true,
       );
-      _sendResult(request, layerImage, savedPath: savedPath);
+      _sendResult(
+        request,
+        artifact.transparentPatchBytes ?? artifact.displayImageBytes,
+        savedPath: savedPath,
+      );
       AppLogger.i('Completed Krita request: ${request.id}', _logTag);
     } catch (error) {
       if (!_cancelled) {
@@ -290,7 +294,9 @@ class KritaBridgeService implements KritaBridgeMessageService {
         selection;
   }
 
-  Future<Uint8List?> _generateImage(KritaBridgeGenerateRequest request) async {
+  Future<ImageGenerationArtifact?> _generateImage(
+    KritaBridgeGenerateRequest request,
+  ) async {
     if (_shouldUseDirectFallback(request)) {
       final fallback = await _generateFallback(request);
       return fallback.isEmpty ? null : fallback.first;
@@ -333,7 +339,7 @@ class KritaBridgeService implements KritaBridgeMessageService {
     }
 
     if (!streamingUnsupported && finalImage != null) {
-      return finalImage;
+      return ImageGenerationArtifact(displayImageBytes: finalImage);
     }
 
     final fallback = await _generateFallback(request);
@@ -371,45 +377,8 @@ class KritaBridgeService implements KritaBridgeMessageService {
       if (chunk.totalSteps != null) 'total_steps': chunk.totalSteps,
       'progress': chunk.progress.clamp(0.0, 1.0),
       if (chunk.previewImage != null)
-        'preview_image': base64Encode(
-          _prepareLayerImageForKrita(request, chunk.previewImage!),
-        ),
+        'preview_image': base64Encode(chunk.previewImage!),
     });
-  }
-
-  Uint8List _prepareHistoryImage(
-    KritaBridgeGenerateRequest request,
-    Uint8List image,
-  ) {
-    final sourceImage = request.params.sourceImage;
-    final maskImage = request.params.maskImage;
-    if (request.params.action != ImageGenerationAction.infill ||
-        sourceImage == null ||
-        maskImage == null) {
-      return image;
-    }
-
-    return InpaintMaskUtils.compositeGeneratedImage(
-      sourceImage: sourceImage,
-      maskImage: maskImage,
-      generatedImage: image,
-    );
-  }
-
-  Uint8List _prepareLayerImageForKrita(
-    KritaBridgeGenerateRequest request,
-    Uint8List image,
-  ) {
-    final maskImage = request.params.maskImage;
-    if (request.params.action != ImageGenerationAction.infill ||
-        maskImage == null) {
-      return image;
-    }
-
-    return InpaintMaskUtils.extractGeneratedPatch(
-      maskImage: maskImage,
-      generatedImage: image,
-    );
   }
 
   void _sendResult(

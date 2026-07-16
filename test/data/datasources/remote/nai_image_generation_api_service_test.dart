@@ -117,6 +117,64 @@ void main() {
     },
   );
 
+  test(
+    'non-stream inpaint returns one display and transparent patch artifact',
+    () async {
+      final adapter = _PendingDioAdapter();
+      final dio = Dio()..httpClientAdapter = adapter;
+      final endpointService = NaiApiEndpointService();
+      final service = NAIImageGenerationApiService(
+        dio,
+        NAIImageEnhancementApiService(dio, endpointService),
+        endpointService,
+      );
+      final source = _solidPng(width: 256, height: 256, r: 10, g: 20, b: 30);
+      final mask = _rectMaskPng(
+        width: 256,
+        height: 256,
+        x: 112,
+        y: 112,
+        rectWidth: 32,
+        rectHeight: 32,
+      );
+      final generated = _solidPng(
+        width: 256,
+        height: 256,
+        r: 200,
+        g: 210,
+        b: 220,
+      );
+
+      final resultFuture = service.generateImageArtifactsCancellable(
+        ImageParams(
+          action: ImageGenerationAction.infill,
+          model: 'nai-diffusion-4-5-full-inpainting',
+          width: 256,
+          height: 256,
+          sourceImage: source,
+          maskImage: mask,
+        ),
+      );
+      await _waitForRequestCount(adapter, 1);
+      adapter.requests.single.completeWithZipImage(generated);
+
+      final artifacts = await resultFuture.timeout(const Duration(seconds: 2));
+      expect(artifacts, hasLength(1));
+      final display = img.decodeImage(artifacts.single.displayImageBytes)!;
+      final patch = img.decodeImage(artifacts.single.transparentPatchBytes!)!;
+      final reconstructed = img.decodeImage(source)!;
+      img.compositeImage(reconstructed, patch, blend: img.BlendMode.alpha);
+
+      expect((display.width, display.height), equals((256, 256)));
+      expect((patch.width, patch.height), equals((256, 256)));
+      expect(display.getPixel(0, 0).r.toInt(), equals(10));
+      expect(display.getPixel(128, 128).r.toInt(), greaterThan(190));
+      expect(patch.getPixel(0, 0).a.toInt(), equals(0));
+      expect(patch.getPixel(128, 128).a.toInt(), equals(255));
+      _expectSameImagePixels(reconstructed, display);
+    },
+  );
+
   test('stream cancelled before listen must not start a request', () async {
     final adapter = _PendingDioAdapter();
     final dio = Dio()..httpClientAdapter = adapter;
@@ -251,7 +309,7 @@ void main() {
   });
 
   test(
-    'stream inpaint final preserves source outside composite mask',
+    'stream inpaint preview reuses full-frame artifacts and final composites',
     () async {
       final adapter = _PendingDioAdapter();
       final dio = Dio()..httpClientAdapter = adapter;
@@ -294,11 +352,32 @@ void main() {
       await _waitForRequestCount(adapter, 1);
 
       adapter.requests.single.completeWithMsgpackMessages([
+        {
+          'event_type': 'intermediate',
+          'samp_ix': 0,
+          'step_ix': 0,
+          'image': generated,
+        },
         {'event_type': 'final', 'samp_ix': 0, 'image': generated},
       ]);
 
       final chunks = await chunksFuture.timeout(const Duration(seconds: 2));
-      final decoded = img.decodeImage(chunks.single.finalImage!)!;
+      final placement = chunks.first.focusedPreviewPlacement;
+      final decoded = img.decodeImage(chunks.last.finalImage!)!;
+
+      expect(chunks, hasLength(2));
+      expect(placement, isNotNull);
+      expect(placement!.sourceImage, orderedEquals(source));
+      expect(placement.hasMask, isTrue);
+      expect(placement.xPercent, 0);
+      expect(placement.yPercent, 0);
+      expect(placement.widthPercent, 1);
+      expect(placement.heightPercent, 1);
+      final previewMask = img.decodeImage(placement.maskImage!)!;
+      expect(previewMask.width, 256);
+      expect(previewMask.height, 256);
+      expect(previewMask.getPixel(0, 0).a.toInt(), 0);
+      expect(previewMask.getPixel(128, 128).a.toInt(), greaterThan(250));
 
       expect(decoded.getPixel(0, 0).r.toInt(), equals(10));
       expect(decoded.getPixel(0, 0).g.toInt(), equals(20));
@@ -382,10 +461,10 @@ void main() {
     expect(placement!.sourceImage, orderedEquals(source));
     expect(placement.hasMask, isTrue);
     final previewMask = img.decodeImage(placement.maskImage!)!;
-    expect(previewMask.width, equals(128));
-    expect(previewMask.height, equals(128));
+    expect(previewMask.width, equals(1024));
+    expect(previewMask.height, equals(1024));
     expect(previewMask.getPixel(0, 0).a.toInt(), equals(0));
-    expect(previewMask.getPixel(64, 64).a.toInt(), equals(255));
+    expect(previewMask.getPixel(512, 512).a.toInt(), equals(255));
     expect(placement.xPercent, closeTo(0.25, 0.001));
     expect(placement.yPercent, closeTo(0.25, 0.001));
     expect(placement.widthPercent, closeTo(0.5, 0.001));
@@ -617,6 +696,21 @@ class _PendingRequest {
     );
   }
 
+  void completeWithZipImage(Uint8List imageBytes) {
+    final archive = Archive()
+      ..addFile(ArchiveFile('image.png', imageBytes.length, imageBytes));
+    final bytes = ZipEncoder().encode(archive) ?? const <int>[];
+    response.complete(
+      ResponseBody.fromBytes(
+        bytes,
+        200,
+        headers: {
+          Headers.contentTypeHeader: ['application/x-zip-compressed'],
+        },
+      ),
+    );
+  }
+
   void completeWithEmptyStream() {
     response.complete(
       ResponseBody.fromBytes(
@@ -654,5 +748,20 @@ class _PendingRequest {
 
   void completeWithError(Object error) {
     response.completeError(error);
+  }
+}
+
+void _expectSameImagePixels(img.Image actual, img.Image expected) {
+  expect((actual.width, actual.height), (expected.width, expected.height));
+  for (var y = 0; y < actual.height; y++) {
+    for (var x = 0; x < actual.width; x++) {
+      final a = actual.getPixel(x, y);
+      final b = expected.getPixel(x, y);
+      expect(
+        (a.r.toInt(), a.g.toInt(), a.b.toInt(), a.a.toInt()),
+        (b.r.toInt(), b.g.toInt(), b.b.toInt(), b.a.toInt()),
+        reason: 'Pixel mismatch at $x,$y',
+      );
+    }
   }
 }

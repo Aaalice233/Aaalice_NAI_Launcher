@@ -5,7 +5,9 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/krita/krita_bridge_models.dart';
+import 'package:nai_launcher/core/models/image_generation_artifact.dart';
 import 'package:nai_launcher/core/utils/focused_inpaint_utils.dart';
+import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
 import 'package:nai_launcher/presentation/providers/krita/krita_bridge_service.dart';
@@ -537,7 +539,9 @@ void main() {
             streamCalled = true;
             return Stream.value(ImageStreamChunk.complete(generated));
           },
-          generateFallback: (_) async => [generated],
+          generateFallback: (_) async => [
+            _inpaintArtifact(source, mask, generated),
+          ],
           registerExternalImage:
               (image, {required params, addToDisplay}) async {
                 registered.add(image);
@@ -602,7 +606,9 @@ void main() {
               ),
             );
           },
-          generateFallback: (_) async => [generated],
+          generateFallback: (_) async => [
+            _inpaintArtifact(source, mask, generated),
+          ],
           registerExternalImage: (_, {required params, addToDisplay}) async =>
               null,
           cancelGeneration: () {},
@@ -659,7 +665,7 @@ void main() {
           },
           generateFallback: (request) async {
             capturedRequest = request;
-            return [generatedFullCanvas];
+            return [_inpaintArtifact(source, mask, generatedFullCanvas)];
           },
           registerExternalImage:
               (image, {required params, addToDisplay}) async {
@@ -935,4 +941,22 @@ Uint8List _maskPng(int width, int height, List<(int, int)> points) {
     image.setPixelRgba(x, y, 255, 255, 255, 255);
   }
   return Uint8List.fromList(img.encodePng(image));
+}
+
+ImageGenerationArtifact _inpaintArtifact(
+  Uint8List source,
+  Uint8List mask,
+  Uint8List generated,
+) {
+  return ImageGenerationArtifact(
+    displayImageBytes: InpaintMaskUtils.compositeGeneratedImage(
+      sourceImage: source,
+      maskImage: mask,
+      generatedImage: generated,
+    ),
+    transparentPatchBytes: InpaintMaskUtils.extractGeneratedPatch(
+      maskImage: mask,
+      generatedImage: generated,
+    ),
+  );
 }

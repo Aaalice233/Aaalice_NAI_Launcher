@@ -24,6 +24,7 @@ import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_save_settings_provider.dart';
+import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:nai_launcher/presentation/providers/notification_settings_provider.dart';
 
@@ -47,6 +48,15 @@ class TestSubscriptionNotifier extends SubscriptionNotifier {
 
   @override
   Future<bool> refreshBalance() async => true;
+}
+
+class TestLocalGalleryNotifier extends LocalGalleryNotifier {
+  @override
+  LocalGalleryState build() => const LocalGalleryState(isInitialized: true);
+
+  @override
+  Future<int> addNewlySavedImages(List<String> filePaths) async =>
+      filePaths.length;
 }
 
 void main() {
@@ -89,6 +99,20 @@ void main() {
       container.dispose();
       await Hive.box(StorageKeys.settingsBox).clear();
     });
+
+    test(
+      'GeneratedImage should prefer encoded dimensions over request hints',
+      () {
+        final image = GeneratedImage.create(
+          _validImageBytes(width: 640, height: 960),
+          width: 1792,
+          height: 896,
+        );
+
+        expect(image.width, equals(640));
+        expect(image.height, equals(960));
+      },
+    );
 
     test('failed stream snapshot images should be read-only', () {
       const metadata = NaiImageMetadata(
@@ -518,6 +542,9 @@ void main() {
           naiImageGenerationApiServiceProvider.overrideWithValue(
             mockApiService,
           ),
+          localGalleryNotifierProvider.overrideWith(
+            TestLocalGalleryNotifier.new,
+          ),
         ],
       );
 
@@ -528,6 +555,20 @@ void main() {
       await container
           .read(notificationSettingsNotifierProvider.notifier)
           .setSoundEnabled(false);
+      final tempDir = await Directory.systemTemp.createTemp(
+        'nai_launcher_focus_output_',
+      );
+      addTearDown(() async {
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      });
+      await container
+          .read(imageSaveSettingsNotifierProvider.notifier)
+          .setCustomPath(tempDir.path);
+      await container
+          .read(imageSaveSettingsNotifierProvider.notifier)
+          .setAutoSave(true);
 
       workflowNotifier.replaceSourceImage(originalSource);
       workflowNotifier.enterInpaintMode();
@@ -538,15 +579,29 @@ void main() {
         const Rect.fromLTWH(120, 140, 280, 320),
       );
 
-      final params = container.read(generationParamsNotifierProvider);
+      final params = container
+          .read(generationParamsNotifierProvider)
+          .copyWith(width: 1792, height: 896);
       await notifier.generate(params);
 
       final updatedParams = container.read(generationParamsNotifierProvider);
       final workflow = container.read(imageWorkflowControllerProvider);
+      final generationState = container.read(imageGenerationNotifierProvider);
 
       expect(updatedParams.maskImage, equals(originalMask));
       expect(updatedParams.sourceImage, equals(originalSource));
       expect(workflow.mode, ImageWorkflowMode.inpaint);
+      expect(generationState.history.single.width, equals(640));
+      expect(generationState.history.single.height, equals(960));
+      expect(generationState.displayWidth, equals(640));
+      expect(generationState.displayHeight, equals(960));
+      expect(generationState.history.single.filePath, isNotNull);
+      final savedResult = UnifiedMetadataParser.parseFromPng(
+        await File(generationState.history.single.filePath!).readAsBytes(),
+      );
+      expect(savedResult.success, isTrue);
+      expect(savedResult.metadata?.width, equals(640));
+      expect(savedResult.metadata?.height, equals(960));
 
       verify(
         () => mockApiService.generateImageStream(

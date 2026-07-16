@@ -4,8 +4,10 @@ import 'dart:ui';
 
 import 'package:image/image.dart' as img;
 
+import '../models/image_generation_artifact.dart';
 import 'inpaint_mask_utils.dart';
 import 'isolate_pool.dart';
+import 'pica_lanczos_resizer.dart';
 
 class FocusedInpaintCrop {
   const FocusedInpaintCrop({
@@ -64,39 +66,101 @@ class FocusedInpaintGeometry extends FocusedInpaintFrame {
 }
 
 class FocusedInpaintRequest {
-  /// 传入的 [originalSource] 与 [compositeMaskAtCrop] 由调用方让渡所有权，
-  /// 此处直接持有引用，不再整图深拷贝。
+  /// [originalSource] ownership is transferred to this request.
   FocusedInpaintRequest({
     required this.requestSourceImage,
     required this.requestMaskImage,
-    required this.streamPreviewMaskImage,
     required this.targetWidth,
     required this.targetHeight,
     required this.crop,
     required this.geometry,
     required img.Image originalSource,
-    required img.Image compositeMaskAtCrop,
-  }) : _originalSource = originalSource,
-       _compositeMaskAtCrop = compositeMaskAtCrop;
+  }) : _originalSource = originalSource;
 
   final Uint8List requestSourceImage;
   final Uint8List requestMaskImage;
-  final Uint8List streamPreviewMaskImage;
   final int targetWidth;
   final int targetHeight;
   final FocusedInpaintCrop crop;
   final FocusedInpaintGeometry geometry;
   final img.Image _originalSource;
-  final img.Image _compositeMaskAtCrop;
 
   int get originalSourceWidth => _originalSource.width;
 
   int get originalSourceHeight => _originalSource.height;
 
-  /// [compositeGeneratedImage] 的后台 isolate 版本。
-  ///
-  /// 合成包含生成图解码、cubic 缩放、整图混合与全尺寸 PNG 编码，
-  /// 大图下同步执行会在收尾阶段阻塞 UI isolate 数秒。
+  Future<ImageGenerationArtifact> composeGeneratedImageArtifactAsync(
+    Uint8List generatedBytes,
+    NovelAiInpaintMaskArtifacts maskArtifacts,
+  ) {
+    return ComputeGate().runIsolate(
+      () => composeGeneratedImageArtifact(generatedBytes, maskArtifacts),
+    );
+  }
+
+  ImageGenerationArtifact composeGeneratedImageArtifact(
+    Uint8List generatedBytes,
+    NovelAiInpaintMaskArtifacts maskArtifacts,
+  ) {
+    final generated = img.decodeImage(generatedBytes);
+    final compositeMask = img.decodeImage(maskArtifacts.compositeMaskBytes);
+    if (generated == null || compositeMask == null) {
+      return ImageGenerationArtifact(displayImageBytes: generatedBytes);
+    }
+
+    final requestGenerated =
+        generated.width == targetWidth && generated.height == targetHeight
+        ? generated
+        : PicaLanczosResizer.resizeImage(
+            generated,
+            width: targetWidth,
+            height: targetHeight,
+          );
+    if (compositeMask.width != targetWidth ||
+        compositeMask.height != targetHeight) {
+      return ImageGenerationArtifact(displayImageBytes: generatedBytes);
+    }
+
+    final requestPatch = InpaintMaskUtils.applyCompositeMaskToGeneratedImage(
+      requestGenerated,
+      compositeMask,
+    );
+    final cropPatch = PicaLanczosResizer.resizeImage(
+      requestPatch,
+      width: crop.width,
+      height: crop.height,
+    );
+    final fullPatch = img.Image(
+      width: _originalSource.width,
+      height: _originalSource.height,
+      numChannels: 4,
+    );
+    img.fill(fullPatch, color: img.ColorRgba8(0, 0, 0, 0));
+    img.compositeImage(
+      fullPatch,
+      cropPatch,
+      dstX: crop.x,
+      dstY: crop.y,
+      blend: img.BlendMode.direct,
+    );
+
+    final display = img.Image.from(_originalSource, noAnimation: true);
+    img.compositeImage(
+      display,
+      cropPatch,
+      dstX: crop.x,
+      dstY: crop.y,
+      blend: img.BlendMode.alpha,
+    );
+    return ImageGenerationArtifact(
+      displayImageBytes: Uint8List.fromList(img.encodePng(display, level: 1)),
+      transparentPatchBytes: Uint8List.fromList(
+        img.encodePng(fullPatch, level: 1),
+      ),
+    );
+  }
+
+  /// Compatibility wrapper for callers that do not already own artifacts.
   Future<Uint8List> compositeGeneratedImageAsync(Uint8List generatedBytes) {
     return ComputeGate().runIsolate(
       () => compositeGeneratedImage(generatedBytes),
@@ -104,36 +168,22 @@ class FocusedInpaintRequest {
   }
 
   Uint8List compositeGeneratedImage(Uint8List generatedBytes) {
-    final generated = img.decodeImage(generatedBytes);
-    if (generated == null) {
-      return generatedBytes;
-    }
-    final resizedGenerated = img.copyResize(
-      generated,
-      width: crop.width,
-      height: crop.height,
-      interpolation: img.Interpolation.cubic,
+    final artifacts = InpaintMaskUtils.prepareNovelAiInpaintMaskArtifacts(
+      requestMaskImage,
+      targetWidth: targetWidth,
+      targetHeight: targetHeight,
     );
-    final composed = img.Image.from(_originalSource, noAnimation: true);
-    img.compositeImage(
-      composed,
-      resizedGenerated,
-      dstX: crop.x,
-      dstY: crop.y,
-      dstW: crop.width,
-      dstH: crop.height,
-      mask: _compositeMaskAtCrop,
-      blend: img.BlendMode.direct,
-    );
-
-    return Uint8List.fromList(img.encodePng(composed));
+    return composeGeneratedImageArtifact(
+      generatedBytes,
+      artifacts,
+    ).displayImageBytes;
   }
 }
 
 class FocusedInpaintUtils {
   FocusedInpaintUtils._();
 
-  // NovelAI web build d7e955f-production, verified 2026-07-14.
+  // NovelAI web build ae6a6aa-production, verified 2026-07-16.
   static const int dimensionStep = 64;
   static const int focusedTargetAreaPixels = 1048576;
   static const int maxRequestAreaPixels = 3145728;
@@ -372,17 +422,10 @@ class FocusedInpaintUtils {
       height: context.geometry.contextCrop.height,
     );
 
-    final resizedSource = img.copyResize(
+    final resizedSource = PicaLanczosResizer.resizeImage(
       croppedSource,
       width: context.geometry.requestWidth,
       height: context.geometry.requestHeight,
-      interpolation: img.Interpolation.cubic,
-    );
-    final resizedMask = img.copyResize(
-      croppedMask,
-      width: context.geometry.requestWidth,
-      height: context.geometry.requestHeight,
-      interpolation: img.Interpolation.nearest,
     );
 
     return FocusedInpaintRequest(
@@ -391,33 +434,14 @@ class FocusedInpaintUtils {
         img.encodePng(resizedSource, level: 1),
       ),
       requestMaskImage: Uint8List.fromList(
-        img.encodePng(resizedMask, level: 1),
-      ),
-      streamPreviewMaskImage: _encodeStreamPreviewAlphaMask(
-        context.compositeMaskAtCrop,
+        img.encodePng(croppedMask, level: 1),
       ),
       targetWidth: context.geometry.requestWidth,
       targetHeight: context.geometry.requestHeight,
       crop: context.geometry.contextCrop,
       geometry: context.geometry,
       originalSource: context.source,
-      compositeMaskAtCrop: context.compositeMaskAtCrop,
     );
-  }
-
-  static Uint8List _encodeStreamPreviewAlphaMask(img.Image mask) {
-    final alphaMask = img.Image(
-      width: mask.width,
-      height: mask.height,
-      numChannels: 4,
-    );
-    for (var y = 0; y < mask.height; y++) {
-      for (var x = 0; x < mask.width; x++) {
-        final value = mask.getPixel(x, y).r.toInt().clamp(0, 255);
-        alphaMask.setPixelRgba(x, y, 255, 255, 255, value);
-      }
-    }
-    return Uint8List.fromList(img.encodePng(alphaMask, level: 1));
   }
 
   /// [prepareRequest] 的后台 isolate 版本。
@@ -441,12 +465,7 @@ class FocusedInpaintUtils {
     );
   }
 
-  static ({
-    img.Image source,
-    img.Image mask,
-    img.Image compositeMaskAtCrop,
-    FocusedInpaintGeometry geometry,
-  })?
+  static ({img.Image source, img.Image mask, FocusedInpaintGeometry geometry})?
   _resolveFocusedContext({
     required Uint8List sourceImage,
     required Uint8List maskImage,
@@ -473,11 +492,12 @@ class FocusedInpaintUtils {
       return null;
     }
 
-    final decodedMask = InpaintMaskUtils.binaryMaskToImage(
-      binaryMask.mask,
-      binaryMask.width,
-      binaryMask.height,
-    );
+    final decodedMask = img.decodeImage(maskImage);
+    if (decodedMask == null ||
+        decodedMask.width != decodedSource.width ||
+        decodedMask.height != decodedSource.height) {
+      return null;
+    }
     final focusRect = focusedSelectionRect ?? maskBounds.rect;
     final geometry = resolveGeometryForSelection(
       sourceWidth: decodedSource.width,
@@ -489,18 +509,7 @@ class FocusedInpaintUtils {
       return null;
     }
 
-    return (
-      source: decodedSource,
-      mask: decodedMask,
-      compositeMaskAtCrop: img.copyCrop(
-        decodedMask,
-        x: geometry.contextCrop.x,
-        y: geometry.contextCrop.y,
-        width: geometry.contextCrop.width,
-        height: geometry.contextCrop.height,
-      ),
-      geometry: geometry,
-    );
+    return (source: decodedSource, mask: decodedMask, geometry: geometry);
   }
 
   static FocusedInpaintCrop? _findBinaryMaskBounds(
