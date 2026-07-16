@@ -427,7 +427,14 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         widget.initialImage!,
         alignForInpaint: _isInpaintMode,
       );
-      final workingBytes = editorImage?.bytes ?? widget.initialImage!;
+      var workingBytes = editorImage?.bytes ?? widget.initialImage!;
+      if (editorImage?.resizeMode == NaiEditorResizeMode.medium) {
+        workingBytes = await _resizeEditorImageWithMedium(
+          workingBytes,
+          width: editorImage!.width,
+          height: editorImage.height,
+        );
+      }
       _initialSourceWidth = editorImage?.originalWidth;
       _initialSourceHeight = editorImage?.originalHeight;
       _sourceWasNormalized = editorImage?.wasNormalized ?? false;
@@ -491,6 +498,53 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
       _focusedSelectionState.canvasSize = _state.canvasSize;
     } finally {
       codec?.dispose();
+    }
+  }
+
+  Future<Uint8List> _resizeEditorImageWithMedium(
+    Uint8List sourceBytes, {
+    required int width,
+    required int height,
+  }) async {
+    ui.Codec? sourceCodec;
+    ui.Image? sourceImage;
+    ui.Image? targetImage;
+    ui.Picture? picture;
+    try {
+      sourceCodec = await ui.instantiateImageCodec(sourceBytes);
+      final frame = await sourceCodec.getNextFrame();
+      sourceImage = frame.image;
+
+      final recorder = ui.PictureRecorder();
+      final canvas = ui.Canvas(recorder);
+      canvas.drawImageRect(
+        sourceImage,
+        ui.Rect.fromLTWH(
+          0,
+          0,
+          sourceImage.width.toDouble(),
+          sourceImage.height.toDouble(),
+        ),
+        ui.Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
+        ui.Paint()..filterQuality = ui.FilterQuality.medium,
+      );
+      picture = recorder.endRecording();
+      targetImage = await picture.toImage(width, height);
+      final byteData = await targetImage.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
+      if (byteData == null) {
+        throw StateError('Failed to encode the editor working image');
+      }
+      return byteData.buffer.asUint8List(
+        byteData.offsetInBytes,
+        byteData.lengthInBytes,
+      );
+    } finally {
+      targetImage?.dispose();
+      picture?.dispose();
+      sourceImage?.dispose();
+      sourceCodec?.dispose();
     }
   }
 

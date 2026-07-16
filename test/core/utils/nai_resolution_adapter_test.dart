@@ -6,6 +6,13 @@ import 'package:nai_launcher/core/utils/nai_resolution_adapter.dart';
 
 void main() {
   group('NaiResolutionAdapter official import sizing', () {
+    test('reads encoded image dimensions from the image header', () {
+      final source = img.Image(width: 640, height: 960);
+      final bytes = Uint8List.fromList(img.encodePng(source));
+
+      expect(NaiResolutionAdapter.readImageSize(bytes), equals((640, 960)));
+    });
+
     test('matches current NovelAI Web buckets for oversized NAI images', () {
       final cases = [
         (source: (8000, 6000), expected: (1216, 896)),
@@ -190,6 +197,33 @@ void main() {
       },
     );
 
+    test('keeps exact-size jpeg bytes across import, request, and editor', () {
+      final bytes = Uint8List.fromList(
+        img.encodeJpg(img.Image(width: 1024, height: 1024)),
+      );
+
+      final imported = NaiResolutionAdapter.adaptImageForImport(
+        bytes,
+        currentWidth: 832,
+        currentHeight: 1216,
+      )!;
+      final normalized = NaiResolutionAdapter.normalizeImageForRequest(
+        bytes,
+        targetWidth: 1024,
+        targetHeight: 1024,
+      );
+      final working = NaiResolutionAdapter.prepareImageForEditor(
+        bytes,
+        alignForInpaint: true,
+      )!;
+
+      expect(identical(imported.bytes, bytes), isTrue);
+      expect(imported.wasResized, isFalse);
+      expect(identical(normalized, bytes), isTrue);
+      expect(identical(working.bytes, bytes), isTrue);
+      expect(working.resizeMode, NaiEditorResizeMode.passthrough);
+    });
+
     test('still resizes when png header size differs from target', () {
       final normalized = NaiResolutionAdapter.normalizeImageForRequest(
         _png(width: 512, height: 512),
@@ -212,18 +246,20 @@ void main() {
       expect((working.width, working.height), (2560, 98));
       expect((decoded.width, decoded.height), (2560, 98));
       expect(working.wasNormalized, isTrue);
+      expect(working.resizeMode, NaiEditorResizeMode.picaLanczos3);
     });
 
     test('aligns Inpaint working dimensions upward to the 64 grid', () {
+      final source = _png(width: 1001, height: 129);
       final working = NaiResolutionAdapter.prepareImageForEditor(
-        _png(width: 1001, height: 129),
+        source,
         alignForInpaint: true,
       )!;
-      final decoded = img.decodeImage(working.bytes)!;
 
       expect((working.width, working.height), (1024, 192));
-      expect((decoded.width, decoded.height), (1024, 192));
       expect(working.wasNormalized, isTrue);
+      expect(working.resizeMode, NaiEditorResizeMode.medium);
+      expect(identical(working.bytes, source), isTrue);
     });
 
     test('applies max-side scaling before Inpaint grid alignment', () {
@@ -233,6 +269,7 @@ void main() {
       )!;
 
       expect((working.width, working.height), (2560, 128));
+      expect(working.resizeMode, NaiEditorResizeMode.picaLanczos3);
     });
 
     test('ordinary Edit does not align an otherwise small source', () {
@@ -245,6 +282,7 @@ void main() {
       expect((working.width, working.height), (1001, 129));
       expect(working.wasNormalized, isFalse);
       expect(identical(working.bytes, source), isTrue);
+      expect(working.resizeMode, NaiEditorResizeMode.passthrough);
     });
   });
 }
