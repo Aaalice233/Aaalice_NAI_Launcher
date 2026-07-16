@@ -50,6 +50,16 @@ double resolveHistoryPreviewAspectRatio(
   return aspectRatio;
 }
 
+double resolveCurrentHistoryPreviewAspectRatio(
+  double batchAspectRatio, {
+  double? completedImageAspectRatio,
+}) {
+  return resolveHistoryPreviewAspectRatio(
+    completedImageAspectRatio ?? batchAspectRatio,
+    fallback: resolveHistoryPreviewAspectRatio(batchAspectRatio),
+  );
+}
+
 /// 历史面板组件
 class HistoryPanel extends ConsumerStatefulWidget {
   const HistoryPanel({super.key});
@@ -513,12 +523,18 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         padding: const EdgeInsets.all(8),
         itemCount: totalCount,
         itemBuilder: (context, index) {
-          // 当前生成区块（不参与选择）- 使用批次分辨率
+          // 已完成图片使用自身比例；流式占位仍使用本批次分辨率。
           if (index < currentGenerationCount) {
+            final completedImageAspectRatio = index < state.currentImages.length
+                ? state.currentImages[index].aspectRatio
+                : null;
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: AspectRatio(
-                aspectRatio: resolveHistoryPreviewAspectRatio(batchAspectRatio),
+                aspectRatio: resolveCurrentHistoryPreviewAspectRatio(
+                  batchAspectRatio,
+                  completedImageAspectRatio: completedImageAspectRatio,
+                ),
                 child: _buildCurrentGenerationItem(
                   context,
                   index,
