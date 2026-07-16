@@ -16,6 +16,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/datasources/remote/nai_image_enhancement_api_service.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/comfyui/comfyui_provider.dart';
+import '../../../providers/cost_estimate_provider.dart';
 import '../../../providers/generation/generation_params_selectors.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/image_save_settings_provider.dart';
@@ -407,6 +408,29 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
 
   Widget _buildInpaintPanel(ThemeData theme, Img2ImgPanelViewData params) {
     final workflow = ref.watch(imageWorkflowControllerProvider);
+    final generationSize = ref.watch(
+      generationParamsNotifierProvider.select(
+        (generationParams) => (generationParams.width, generationParams.height),
+      ),
+    );
+    final focusRect = workflow.focusedSelectionRect;
+    final focusGeometry = focusRect == null
+        ? null
+        : FocusedInpaintUtils.resolveGeometryForSelection(
+            sourceWidth:
+                workflow.sourceImageWidth ??
+                workflow.sourceWidth ??
+                generationSize.$1,
+            sourceHeight:
+                workflow.sourceImageHeight ??
+                workflow.sourceHeight ??
+                generationSize.$2,
+            selectionRect: focusRect,
+            minContextMegaPixels: workflow.minimumContextMegaPixels,
+          );
+    final focusedCost = focusGeometry == null
+        ? null
+        : ref.watch(estimatedCostProvider);
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -437,7 +461,10 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
               style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
             ),
             subtitle: Text(
-              workflow.focusedInpaintEnabled
+              workflow.focusedInpaintEnabled && focusGeometry != null
+                  ? '${context.l10n.img2img_focusedInpaintEnabledHint}\n'
+                        '${context.l10n.editor_focusRequestSummary(focusGeometry.contextCrop.width, focusGeometry.contextCrop.height, focusGeometry.requestWidth, focusGeometry.requestHeight, focusedCost ?? 0)}'
+                  : workflow.focusedInpaintEnabled
                   ? context.l10n.img2img_focusedInpaintEnabledHint
                   : context.l10n.img2img_focusedInpaintDisabledHint,
               style: theme.textTheme.bodySmall?.copyWith(

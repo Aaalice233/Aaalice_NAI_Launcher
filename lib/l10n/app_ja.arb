@@ -1000,6 +1000,16 @@
       "cost": {"type": "int"}
     }
   },
+  "editor_focusRequestSummary": "外側の切り抜き {outerWidth}×{outerHeight}、送信サイズ {requestWidth}×{requestHeight}、推定 {cost} Anlas。",
+  "@editor_focusRequestSummary": {
+    "placeholders": {
+      "outerWidth": {"type": "int"},
+      "outerHeight": {"type": "int"},
+      "requestWidth": {"type": "int"},
+      "requestHeight": {"type": "int"},
+      "cost": {"type": "int"}
+    }
+  },
   "editor_unsupportedImageFormat": "サポートされていないファイル形式: .{extension}\n画像ファイル(PNG、JPG、WEBPなど)を選択してください。",
   "@editor_unsupportedImageFormat": {
     "placeholders": {

@@ -1017,6 +1017,16 @@
       "cost": {"type": "int"}
     }
   },
+  "editor_focusRequestSummary": "Outer crop {outerWidth}×{outerHeight}, request {requestWidth}×{requestHeight}, estimated {cost} Anlas.",
+  "@editor_focusRequestSummary": {
+    "placeholders": {
+      "outerWidth": {"type": "int"},
+      "outerHeight": {"type": "int"},
+      "requestWidth": {"type": "int"},
+      "requestHeight": {"type": "int"},
+      "cost": {"type": "int"}
+    }
+  },
   "editor_unsupportedImageFormat": "Unsupported file format: .{extension}\nPlease choose an image file (PNG, JPG, WEBP, etc.)",
   "@editor_unsupportedImageFormat": {
     "placeholders": {

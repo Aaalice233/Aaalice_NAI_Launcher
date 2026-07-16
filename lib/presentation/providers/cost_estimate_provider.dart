@@ -32,22 +32,28 @@ int _resolvePreciseReferenceExtraCost(ImageParams params) {
 _GenerationCostInput _resolveGenerationCostInput(
   ImageParams params,
   ImageWorkflowState workflow,
-  (int, int)? focusedMaskRequestSize,
+  FocusedInpaintGeometry? focusedMaskGeometry,
 ) {
   if (workflow.focusedInpaintEnabled && params.isInpainting) {
     final focusedSelectionRect = workflow.focusedSelectionRect;
-    final focusedRequestSize = focusedSelectionRect == null
-        ? focusedMaskRequestSize
-        : FocusedInpaintUtils.resolveRequestSizeForSelection(
-            sourceWidth: workflow.sourceWidth ?? params.width,
-            sourceHeight: workflow.sourceHeight ?? params.height,
+    final focusedGeometry = focusedSelectionRect == null
+        ? focusedMaskGeometry
+        : FocusedInpaintUtils.resolveGeometryForSelection(
+            sourceWidth:
+                workflow.sourceImageWidth ??
+                workflow.sourceWidth ??
+                params.width,
+            sourceHeight:
+                workflow.sourceImageHeight ??
+                workflow.sourceHeight ??
+                params.height,
             selectionRect: focusedSelectionRect,
             minContextMegaPixels: workflow.minimumContextMegaPixels,
           );
-    if (focusedRequestSize != null) {
+    if (focusedGeometry != null) {
       return _GenerationCostInput(
-        width: focusedRequestSize.$1,
-        height: focusedRequestSize.$2,
+        width: focusedGeometry.requestWidth,
+        height: focusedGeometry.requestHeight,
         strength: 1.0,
       );
     }
@@ -68,7 +74,7 @@ _GenerationCostInput _resolveGenerationCostInput(
 /// 依赖项用 select 收窄：蒙版引用与上下文参数不变时（例如只调整
 /// steps/prompt），Riverpod 直接复用缓存结果，不会重复解码蒙版。
 @riverpod
-(int, int)? focusedInpaintMaskRequestSize(Ref ref) {
+FocusedInpaintGeometry? focusedInpaintMaskRequestSize(Ref ref) {
   final needsMaskSize = ref.watch(
     imageWorkflowControllerProvider.select(
       (workflow) =>
@@ -95,7 +101,7 @@ _GenerationCostInput _resolveGenerationCostInput(
       (workflow) => workflow.minimumContextMegaPixels,
     ),
   );
-  return FocusedInpaintUtils.resolveRequestSizeForMask(
+  return FocusedInpaintUtils.resolveGeometryForMask(
     maskImage: maskImage,
     minContextMegaPixels: minContextMegaPixels,
   );

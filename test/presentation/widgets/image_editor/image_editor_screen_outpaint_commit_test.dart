@@ -59,11 +59,7 @@ void main() {
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: ImageEditorScreen(
-            initialImage: _buildSolidPng(
-              128,
-              128,
-              const Color(0xFFAA3322),
-            ),
+            initialImage: _buildSolidPng(128, 128, const Color(0xFFAA3322)),
             mode: ImageEditorMode.inpaint,
             title: 'Inpaint test',
             initialShowLayerPanel: false,
@@ -88,7 +84,7 @@ void main() {
       final edgeRect = tester.getRect(rightEdge);
       final outwardBy64 =
           (state.debugCanvasToScreen(const Offset(192, 64)) as Offset) -
-              (state.debugCanvasToScreen(const Offset(128, 64)) as Offset);
+          (state.debugCanvasToScreen(const Offset(128, 64)) as Offset);
 
       final gesture = await tester.startGesture(
         edgeRect.center,
@@ -119,106 +115,105 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Save and Close materializes virtual outpaint source and mask',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1200, 800));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('Save and Close materializes virtual outpaint source and mask', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      ImageEditorResult? result;
+    ImageEditorResult? result;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          locale: const Locale('zh'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Builder(
-            builder: (context) {
-              return TextButton(
-                onPressed: () async {
-                  result = await Navigator.of(context).push<ImageEditorResult>(
-                    MaterialPageRoute(
-                      builder: (context) => ImageEditorScreen(
-                        initialImage: _buildSolidPng(
-                          128,
-                          128,
-                          const Color(0xFFAA3322),
-                        ),
-                        mode: ImageEditorMode.inpaint,
-                        title: 'Inpaint test',
-                        initialShowLayerPanel: false,
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) {
+            return TextButton(
+              onPressed: () async {
+                result = await Navigator.of(context).push<ImageEditorResult>(
+                  MaterialPageRoute(
+                    builder: (context) => ImageEditorScreen(
+                      initialImage: _buildSolidPng(
+                        128,
+                        128,
+                        const Color(0xFFAA3322),
                       ),
+                      mode: ImageEditorMode.inpaint,
+                      title: 'Inpaint test',
+                      initialShowLayerPanel: false,
                     ),
-                  );
-                },
-                child: const Text('Open editor'),
-              );
-            },
-          ),
+                  ),
+                );
+              },
+              child: const Text('Open editor'),
+            );
+          },
         ),
-      );
+      ),
+    );
 
-      await tester.tap(find.text('Open editor'));
-      await _pumpForAsyncEditorWork(tester);
-      await _pumpUntil(tester, () {
-        final state = tester.state(find.byType(ImageEditorScreen)) as dynamic;
-        return List<String>.from(state.debugLayerNames).contains('底图') &&
-            find.byType(EditorCanvas).evaluate().isNotEmpty;
-      });
-
+    await tester.tap(find.text('Open editor'));
+    await _pumpForAsyncEditorWork(tester);
+    await _pumpUntil(tester, () {
       final state = tester.state(find.byType(ImageEditorScreen)) as dynamic;
-      expect(state.debugCanvasSize, const Size(128, 128));
-      expect(state.debugHasMaskContent, isFalse);
-      expect(state.debugVirtualOutpaintMaskRects, isEmpty);
+      return List<String>.from(state.debugLayerNames).contains('底图') &&
+          find.byType(EditorCanvas).evaluate().isNotEmpty;
+    });
 
-      await tester.runAsync(() async {
-        await state.debugApplyOutpaintFrameDelta(
-          const OutpaintFrameDelta(right: 33),
-        );
-      });
-      await _pumpUntil(
-        tester,
-        () => state.debugCanvasSize == const Size(192, 128),
+    final state = tester.state(find.byType(ImageEditorScreen)) as dynamic;
+    expect(state.debugCanvasSize, const Size(128, 128));
+    expect(state.debugHasMaskContent, isFalse);
+    expect(state.debugVirtualOutpaintMaskRects, isEmpty);
+
+    await tester.runAsync(() async {
+      await state.debugApplyOutpaintFrameDelta(
+        const OutpaintFrameDelta(right: 33),
       );
+    });
+    await _pumpUntil(
+      tester,
+      () => state.debugCanvasSize == const Size(192, 128),
+    );
 
-      expect(state.debugHasMaskContent, isFalse);
-      expect(state.debugHasOutpaintChanges, isTrue);
-      expect(
-        state.debugVirtualOutpaintMaskRects,
-        contains(const Rect.fromLTRB(127, 0, 192, 128)),
-      );
+    expect(state.debugHasMaskContent, isFalse);
+    expect(state.debugHasOutpaintChanges, isTrue);
+    expect(
+      state.debugVirtualOutpaintMaskRects,
+      contains(const Rect.fromLTRB(127, 0, 192, 128)),
+    );
 
-      await tester.runAsync(() async {
-        await state.debugExportAndClose();
-      });
-      await _pumpForAsyncEditorWork(tester);
+    await tester.runAsync(() async {
+      await state.debugExportAndClose();
+    });
+    await _pumpForAsyncEditorWork(tester);
 
-      expect(result, isNotNull);
-      expect(result!.hasOutpaintChanges, isTrue);
-      expect(result!.outpaintSourceImage, isNotNull);
-      expect(result!.outpaintSourceWidth, 192);
-      expect(result!.outpaintSourceHeight, 128);
-      expect(result!.maskImage, isNotNull);
+    expect(result, isNotNull);
+    expect(result!.hasOutpaintChanges, isTrue);
+    expect(result!.outpaintSourceImage, isNotNull);
+    expect(result!.outpaintSourceWidth, 192);
+    expect(result!.outpaintSourceHeight, 128);
+    expect(result!.maskImage, isNotNull);
 
-      final sourceImage = img.decodeImage(result!.outpaintSourceImage!);
-      expect(sourceImage, isNotNull);
-      expect(sourceImage!.width, 192);
-      expect(sourceImage.height, 128);
+    final sourceImage = img.decodeImage(result!.outpaintSourceImage!);
+    expect(sourceImage, isNotNull);
+    expect(sourceImage!.width, 192);
+    expect(sourceImage.height, 128);
 
-      final maskImage = img.decodeImage(result!.maskImage!);
-      expect(maskImage, isNotNull);
-      expect(maskImage!.width, 192);
-      expect(maskImage.height, 128);
+    final maskImage = img.decodeImage(result!.maskImage!);
+    expect(maskImage, isNotNull);
+    expect(maskImage!.width, 192);
+    expect(maskImage.height, 128);
 
-      final outpaintPixel = maskImage.getPixel(160, 64);
-      expect(outpaintPixel.r, greaterThan(240));
-      expect(outpaintPixel.g, greaterThan(240));
-      expect(outpaintPixel.b, greaterThan(240));
+    final outpaintPixel = maskImage.getPixel(160, 64);
+    expect(outpaintPixel.r, greaterThan(240));
+    expect(outpaintPixel.g, greaterThan(240));
+    expect(outpaintPixel.b, greaterThan(240));
 
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump();
-    },
-  );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
 
   testWidgets(
     'Save and Close returns crop-only virtual outpaint source without mask',
@@ -323,11 +318,7 @@ void main() {
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: ImageEditorScreen(
-            initialImage: _buildSolidPng(
-              128,
-              96,
-              const Color(0xFFAA3322),
-            ),
+            initialImage: _buildSolidPng(128, 96, const Color(0xFFAA3322)),
             mode: ImageEditorMode.inpaint,
             title: 'Inpaint test',
             initialShowLayerPanel: false,
@@ -344,7 +335,7 @@ void main() {
       final state = tester.state(find.byType(ImageEditorScreen)) as dynamic;
       final previousLayerNames = List<String>.from(state.debugLayerNames);
 
-      expect(state.debugCanvasSize, const Size(128, 96));
+      expect(state.debugCanvasSize, const Size(128, 128));
       expect(state.debugFocusedInpaintEnabled, isFalse);
       expect(state.debugHasOutpaintChanges, isFalse);
       expect(state.debugOutpaintSourceWidth, isNull);
@@ -357,7 +348,7 @@ void main() {
       });
       await _pumpForAsyncEditorWork(tester);
 
-      expect(state.debugCanvasSize, const Size(128, 96));
+      expect(state.debugCanvasSize, const Size(128, 128));
       expect(state.debugFocusedInpaintEnabled, isFalse);
       expect(state.debugHasOutpaintChanges, isFalse);
       expect(state.debugOutpaintSourceWidth, isNull);
@@ -383,11 +374,7 @@ void main() {
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: ImageEditorScreen(
-            initialImage: _buildSolidPng(
-              128,
-              96,
-              const Color(0xFFAA3322),
-            ),
+            initialImage: _buildSolidPng(128, 96, const Color(0xFFAA3322)),
             existingFocusRect: const Rect.fromLTWH(16, 16, 48, 48),
             mode: ImageEditorMode.inpaint,
             title: 'Inpaint test',
@@ -405,7 +392,7 @@ void main() {
       final state = tester.state(find.byType(ImageEditorScreen)) as dynamic;
       final previousLayerNames = List<String>.from(state.debugLayerNames);
 
-      expect(state.debugCanvasSize, const Size(128, 96));
+      expect(state.debugCanvasSize, const Size(128, 128));
       expect(state.debugFocusedInpaintEnabled, isTrue);
 
       await tester.runAsync(() async {
@@ -415,7 +402,7 @@ void main() {
       });
       await _pumpForAsyncEditorWork(tester);
 
-      expect(state.debugCanvasSize, const Size(128, 96));
+      expect(state.debugCanvasSize, const Size(128, 128));
       expect(state.debugFocusedInpaintEnabled, isTrue);
       expect(state.debugHasOutpaintChanges, isFalse);
       expect(state.debugOutpaintSourceWidth, isNull);
@@ -441,11 +428,7 @@ void main() {
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: ImageEditorScreen(
-            initialImage: _buildSolidPng(
-              128,
-              96,
-              const Color(0xFFAA3322),
-            ),
+            initialImage: _buildSolidPng(128, 96, const Color(0xFFAA3322)),
             initialFocusedInpaintEnabled: true,
             mode: ImageEditorMode.inpaint,
             title: 'Inpaint test',
@@ -471,7 +454,7 @@ void main() {
       final previousActiveLayerId = state.debugActiveLayerId as String?;
       final previousActiveLayerName = state.debugActiveLayerName as String?;
 
-      expect(state.debugCanvasSize, const Size(128, 96));
+      expect(state.debugCanvasSize, const Size(128, 128));
       expect(state.debugFocusedInpaintEnabled, isTrue);
       expect(state.debugCurrentToolId, 'rect_selection');
       expect(state.debugSelectionBounds, const Rect.fromLTWH(12, 14, 30, 32));
@@ -484,7 +467,7 @@ void main() {
       });
       await _pumpForAsyncEditorWork(tester);
 
-      expect(state.debugCanvasSize, const Size(128, 96));
+      expect(state.debugCanvasSize, const Size(128, 128));
       expect(state.debugFocusedInpaintEnabled, isTrue);
       expect(state.debugCurrentToolId, 'rect_selection');
       expect(state.debugSelectionBounds, const Rect.fromLTWH(12, 14, 30, 32));
@@ -513,10 +496,7 @@ Future<void> _pumpForAsyncEditorWork(WidgetTester tester) async {
   }
 }
 
-Future<void> _pumpUntil(
-  WidgetTester tester,
-  bool Function() condition,
-) async {
+Future<void> _pumpUntil(WidgetTester tester, bool Function() condition) async {
   for (var i = 0; i < 10; i++) {
     if (condition()) {
       return;

@@ -4180,6 +4180,18 @@ abstract class AppLocalizations {
   /// **'Actual send area: {width}×{height}. Current generation settings will cost {cost} Anlas.'**
   String editor_focusAnlasWarning(int width, int height, int cost);
 
+  /// No description provided for @editor_focusRequestSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Outer crop {outerWidth}×{outerHeight}, request {requestWidth}×{requestHeight}, estimated {cost} Anlas.'**
+  String editor_focusRequestSummary(
+    int outerWidth,
+    int outerHeight,
+    int requestWidth,
+    int requestHeight,
+    int cost,
+  );
+
   /// No description provided for @editor_unsupportedImageFormat.
   ///
   /// In en, this message translates to:

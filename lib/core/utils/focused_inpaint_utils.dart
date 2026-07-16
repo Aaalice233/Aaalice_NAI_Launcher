@@ -19,6 +19,15 @@ class FocusedInpaintCrop {
   final int y;
   final int width;
   final int height;
+
+  int get area => width * height;
+
+  Rect get rect => Rect.fromLTWH(
+    x.toDouble(),
+    y.toDouble(),
+    width.toDouble(),
+    height.toDouble(),
+  );
 }
 
 class FocusedInpaintFrame {
@@ -31,6 +40,29 @@ class FocusedInpaintFrame {
   final FocusedInpaintCrop contextCrop;
 }
 
+enum FocusedInpaintRequestMode { upscaleToTarget, preserveCrop }
+
+class FocusedInpaintGeometry extends FocusedInpaintFrame {
+  const FocusedInpaintGeometry({
+    required super.focusBounds,
+    required super.contextCrop,
+    required this.requestWidth,
+    required this.requestHeight,
+    required this.requestMode,
+    required this.wasDynamicallyConstrained,
+  });
+
+  final int requestWidth;
+  final int requestHeight;
+  final FocusedInpaintRequestMode requestMode;
+  final bool wasDynamicallyConstrained;
+
+  int get requestArea => requestWidth * requestHeight;
+
+  bool get isUpscaled =>
+      requestMode == FocusedInpaintRequestMode.upscaleToTarget;
+}
+
 class FocusedInpaintRequest {
   /// 传入的 [originalSource] 与 [compositeMaskAtCrop] 由调用方让渡所有权，
   /// 此处直接持有引用，不再整图深拷贝。
@@ -41,6 +73,7 @@ class FocusedInpaintRequest {
     required this.targetWidth,
     required this.targetHeight,
     required this.crop,
+    required this.geometry,
     required img.Image originalSource,
     required img.Image compositeMaskAtCrop,
   }) : _originalSource = originalSource,
@@ -52,6 +85,7 @@ class FocusedInpaintRequest {
   final int targetWidth;
   final int targetHeight;
   final FocusedInpaintCrop crop;
+  final FocusedInpaintGeometry geometry;
   final img.Image _originalSource;
   final img.Image _compositeMaskAtCrop;
 
@@ -99,9 +133,80 @@ class FocusedInpaintRequest {
 class FocusedInpaintUtils {
   FocusedInpaintUtils._();
 
-  static const int _dimensionStep = 64;
-  static const int _maxDimension = 1216;
-  static const int _focusedTargetAreaPixels = 832 * 1216;
+  // NovelAI web build d7e955f-production, verified 2026-07-14.
+  static const int dimensionStep = 64;
+  static const int focusedTargetAreaPixels = 1048576;
+  static const int maxRequestAreaPixels = 3145728;
+
+  static FocusedInpaintGeometry? resolveGeometryForSelection({
+    required int sourceWidth,
+    required int sourceHeight,
+    required Rect selectionRect,
+    required double minContextMegaPixels,
+    Offset? fixedAnchor,
+  }) {
+    if (sourceWidth <= 0 || sourceHeight <= 0) {
+      return null;
+    }
+
+    final originalBounds = _resolveSelectionBounds(
+      selectionRect,
+      sourceWidth: sourceWidth,
+      sourceHeight: sourceHeight,
+    );
+    if (originalBounds == null) {
+      return null;
+    }
+
+    final originalCrop = _resolveCrop(
+      sourceWidth: sourceWidth,
+      sourceHeight: sourceHeight,
+      bounds: originalBounds,
+      minContextMegaPixels: minContextMegaPixels,
+    );
+    final mustConstrain = originalCrop.area > maxRequestAreaPixels;
+    final constrainedRect = mustConstrain
+        ? _constrainSelectionRectToMaxArea(
+            selectionRect,
+            sourceWidth: sourceWidth,
+            sourceHeight: sourceHeight,
+            minContextMegaPixels: minContextMegaPixels,
+            fixedAnchor: fixedAnchor,
+          )
+        : selectionRect;
+    final focusBounds = _resolveSelectionBounds(
+      constrainedRect,
+      sourceWidth: sourceWidth,
+      sourceHeight: sourceHeight,
+    );
+    if (focusBounds == null) {
+      return null;
+    }
+
+    return _resolveGeometryFromBounds(
+      sourceWidth: sourceWidth,
+      sourceHeight: sourceHeight,
+      focusBounds: focusBounds,
+      minContextMegaPixels: minContextMegaPixels,
+      wasDynamicallyConstrained: mustConstrain,
+    );
+  }
+
+  static Rect? constrainSelectionRect({
+    required int sourceWidth,
+    required int sourceHeight,
+    required Rect selectionRect,
+    required double minContextMegaPixels,
+    Offset? fixedAnchor,
+  }) {
+    return resolveGeometryForSelection(
+      sourceWidth: sourceWidth,
+      sourceHeight: sourceHeight,
+      selectionRect: selectionRect,
+      minContextMegaPixels: minContextMegaPixels,
+      fixedAnchor: fixedAnchor,
+    )?.focusBounds.rect;
+  }
 
   static FocusedInpaintCrop? resolvePreviewCrop({
     required Uint8List sourceImage,
@@ -128,30 +233,17 @@ class FocusedInpaintUtils {
       return null;
     }
 
-    final selectionBounds = focusedSelectionRect == null
-        ? null
-        : _resolveSelectionBounds(
-            focusedSelectionRect,
-            sourceWidth: decodedSource.width,
-            sourceHeight: decodedSource.height,
-          );
     final maskBounds = _resolveMaskBounds(maskImage);
-    final focusBounds = _resolveFocusBounds(
-      selectionBounds: selectionBounds,
-      maskBounds: maskBounds,
-    );
-    if (focusBounds == null) {
+    final focusRect = focusedSelectionRect ?? maskBounds?.rect;
+    if (focusRect == null) {
       return null;
     }
 
-    return FocusedInpaintFrame(
-      focusBounds: focusBounds,
-      contextCrop: _resolveCrop(
-        sourceWidth: decodedSource.width,
-        sourceHeight: decodedSource.height,
-        bounds: focusBounds,
-        minContextMegaPixels: minContextMegaPixels,
-      ),
+    return resolveGeometryForSelection(
+      sourceWidth: decodedSource.width,
+      sourceHeight: decodedSource.height,
+      selectionRect: focusRect,
+      minContextMegaPixels: minContextMegaPixels,
     );
   }
 
@@ -161,21 +253,12 @@ class FocusedInpaintUtils {
     required Rect selectionRect,
     required double minContextMegaPixels,
   }) {
-    final selectionBounds = _resolveSelectionBounds(
-      selectionRect,
+    return resolveGeometryForSelection(
       sourceWidth: sourceWidth,
       sourceHeight: sourceHeight,
-    );
-    if (selectionBounds == null) {
-      return null;
-    }
-
-    return _resolveCrop(
-      sourceWidth: sourceWidth,
-      sourceHeight: sourceHeight,
-      bounds: selectionBounds,
+      selectionRect: selectionRect,
       minContextMegaPixels: minContextMegaPixels,
-    );
+    )?.contextCrop;
   }
 
   static FocusedInpaintFrame? resolvePreviewFrameForSelection({
@@ -184,23 +267,11 @@ class FocusedInpaintUtils {
     required Rect selectionRect,
     required double minContextMegaPixels,
   }) {
-    final selectionBounds = _resolveSelectionBounds(
-      selectionRect,
+    return resolveGeometryForSelection(
       sourceWidth: sourceWidth,
       sourceHeight: sourceHeight,
-    );
-    if (selectionBounds == null) {
-      return null;
-    }
-
-    return FocusedInpaintFrame(
-      focusBounds: selectionBounds,
-      contextCrop: _resolveCrop(
-        sourceWidth: sourceWidth,
-        sourceHeight: sourceHeight,
-        bounds: selectionBounds,
-        minContextMegaPixels: minContextMegaPixels,
-      ),
+      selectionRect: selectionRect,
+      minContextMegaPixels: minContextMegaPixels,
     );
   }
 
@@ -210,21 +281,17 @@ class FocusedInpaintUtils {
     required Rect selectionRect,
     required double minContextMegaPixels,
   }) {
-    final crop = resolveContextCropForSelection(
+    final geometry = resolveGeometryForSelection(
       sourceWidth: sourceWidth,
       sourceHeight: sourceHeight,
       selectionRect: selectionRect,
       minContextMegaPixels: minContextMegaPixels,
     );
-    if (crop == null) {
+    if (geometry == null) {
       return null;
     }
 
-    return _resolveTargetSize(
-      cropWidth: crop.width,
-      cropHeight: crop.height,
-      minContextMegaPixels: minContextMegaPixels,
-    );
+    return (geometry.requestWidth, geometry.requestHeight);
   }
 
   /// 仅根据蒙版字节计算聚焦重绘请求尺寸的轻量路径。
@@ -233,7 +300,7 @@ class FocusedInpaintUtils {
   /// 不做 [prepareRequest] 中的裁剪、缩放和 PNG 编码，结果与其
   /// targetWidth/targetHeight 一致。蒙版默认与源图同尺寸（重绘
   /// 流程的既有约定），外接矩形按蒙版自身宽高收敛。
-  static (int, int)? resolveRequestSizeForMask({
+  static FocusedInpaintGeometry? resolveGeometryForMask({
     required Uint8List maskImage,
     required double minContextMegaPixels,
   }) {
@@ -251,17 +318,27 @@ class FocusedInpaintUtils {
       return null;
     }
 
-    final crop = _resolveCrop(
+    return resolveGeometryForSelection(
       sourceWidth: binaryMask.width,
       sourceHeight: binaryMask.height,
-      bounds: bounds,
+      selectionRect: bounds.rect,
       minContextMegaPixels: minContextMegaPixels,
     );
-    return _resolveTargetSize(
-      cropWidth: crop.width,
-      cropHeight: crop.height,
+  }
+
+  static (int, int)? resolveRequestSizeForMask({
+    required Uint8List maskImage,
+    required double minContextMegaPixels,
+  }) {
+    final geometry = resolveGeometryForMask(
+      maskImage: maskImage,
       minContextMegaPixels: minContextMegaPixels,
     );
+    if (geometry == null) {
+      return null;
+    }
+
+    return (geometry.requestWidth, geometry.requestHeight);
   }
 
   static FocusedInpaintRequest? prepareRequest({
@@ -280,37 +357,31 @@ class FocusedInpaintUtils {
       return null;
     }
 
-    final targetSize = _resolveTargetSize(
-      cropWidth: context.crop.width,
-      cropHeight: context.crop.height,
-      minContextMegaPixels: minContextMegaPixels,
-    );
-
     final croppedSource = img.copyCrop(
       context.source,
-      x: context.crop.x,
-      y: context.crop.y,
-      width: context.crop.width,
-      height: context.crop.height,
+      x: context.geometry.contextCrop.x,
+      y: context.geometry.contextCrop.y,
+      width: context.geometry.contextCrop.width,
+      height: context.geometry.contextCrop.height,
     );
     final croppedMask = img.copyCrop(
       context.mask,
-      x: context.crop.x,
-      y: context.crop.y,
-      width: context.crop.width,
-      height: context.crop.height,
+      x: context.geometry.contextCrop.x,
+      y: context.geometry.contextCrop.y,
+      width: context.geometry.contextCrop.width,
+      height: context.geometry.contextCrop.height,
     );
 
     final resizedSource = img.copyResize(
       croppedSource,
-      width: targetSize.$1,
-      height: targetSize.$2,
+      width: context.geometry.requestWidth,
+      height: context.geometry.requestHeight,
       interpolation: img.Interpolation.cubic,
     );
     final resizedMask = img.copyResize(
       croppedMask,
-      width: targetSize.$1,
-      height: targetSize.$2,
+      width: context.geometry.requestWidth,
+      height: context.geometry.requestHeight,
       interpolation: img.Interpolation.nearest,
     );
 
@@ -325,9 +396,10 @@ class FocusedInpaintUtils {
       streamPreviewMaskImage: _encodeStreamPreviewAlphaMask(
         context.compositeMaskAtCrop,
       ),
-      targetWidth: targetSize.$1,
-      targetHeight: targetSize.$2,
-      crop: context.crop,
+      targetWidth: context.geometry.requestWidth,
+      targetHeight: context.geometry.requestHeight,
+      crop: context.geometry.contextCrop,
+      geometry: context.geometry,
       originalSource: context.source,
       compositeMaskAtCrop: context.compositeMaskAtCrop,
     );
@@ -373,7 +445,7 @@ class FocusedInpaintUtils {
     img.Image source,
     img.Image mask,
     img.Image compositeMaskAtCrop,
-    FocusedInpaintCrop crop,
+    FocusedInpaintGeometry geometry,
   })?
   _resolveFocusedContext({
     required Uint8List sourceImage,
@@ -406,39 +478,28 @@ class FocusedInpaintUtils {
       binaryMask.width,
       binaryMask.height,
     );
-    final selectionBounds = focusedSelectionRect == null
-        ? null
-        : _resolveSelectionBounds(
-            focusedSelectionRect,
-            sourceWidth: decodedSource.width,
-            sourceHeight: decodedSource.height,
-          );
-    final focusBounds = _resolveFocusBounds(
-      selectionBounds: selectionBounds,
-      maskBounds: maskBounds,
-    );
-    if (focusBounds == null) {
-      return null;
-    }
-
-    final crop = _resolveCrop(
+    final focusRect = focusedSelectionRect ?? maskBounds.rect;
+    final geometry = resolveGeometryForSelection(
       sourceWidth: decodedSource.width,
       sourceHeight: decodedSource.height,
-      bounds: focusBounds,
+      selectionRect: focusRect,
       minContextMegaPixels: minContextMegaPixels,
     );
+    if (geometry == null) {
+      return null;
+    }
 
     return (
       source: decodedSource,
       mask: decodedMask,
       compositeMaskAtCrop: img.copyCrop(
         decodedMask,
-        x: crop.x,
-        y: crop.y,
-        width: crop.width,
-        height: crop.height,
+        x: geometry.contextCrop.x,
+        y: geometry.contextCrop.y,
+        width: geometry.contextCrop.width,
+        height: geometry.contextCrop.height,
       ),
-      crop: crop,
+      geometry: geometry,
     );
   }
 
@@ -507,7 +568,7 @@ class FocusedInpaintUtils {
 
     final width = (right - left).round();
     final height = (bottom - top).round();
-    if (width <= 2 || height <= 2) {
+    if (width <= 0 || height <= 0) {
       return null;
     }
 
@@ -517,13 +578,6 @@ class FocusedInpaintUtils {
       width: width,
       height: height,
     );
-  }
-
-  static FocusedInpaintCrop? _resolveFocusBounds({
-    FocusedInpaintCrop? selectionBounds,
-    FocusedInpaintCrop? maskBounds,
-  }) {
-    return selectionBounds ?? maskBounds;
   }
 
   static FocusedInpaintCrop _resolveCrop({
@@ -569,35 +623,170 @@ class FocusedInpaintUtils {
     );
   }
 
-  static (int, int) _resolveTargetSize({
-    required int cropWidth,
-    required int cropHeight,
+  static FocusedInpaintGeometry _resolveGeometryFromBounds({
+    required int sourceWidth,
+    required int sourceHeight,
+    required FocusedInpaintCrop focusBounds,
     required double minContextMegaPixels,
+    required bool wasDynamicallyConstrained,
   }) {
-    final cropArea = cropWidth * cropHeight;
-    final scale = math.sqrt(math.max(_focusedTargetAreaPixels / cropArea, 1.0));
+    final contextCrop = _resolveCrop(
+      sourceWidth: sourceWidth,
+      sourceHeight: sourceHeight,
+      bounds: focusBounds,
+      minContextMegaPixels: minContextMegaPixels,
+    );
+    final target = _resolveTargetSize(
+      cropWidth: contextCrop.width,
+      cropHeight: contextCrop.height,
+    );
 
-    var scaledWidth = (cropWidth * scale).ceil();
-    var scaledHeight = (cropHeight * scale).ceil();
-
-    if (scaledWidth > _maxDimension || scaledHeight > _maxDimension) {
-      final dimensionScale = math.min(
-        _maxDimension / scaledWidth,
-        _maxDimension / scaledHeight,
-      );
-      scaledWidth = math.max(1, (scaledWidth * dimensionScale).floor());
-      scaledHeight = math.max(1, (scaledHeight * dimensionScale).floor());
-    }
-
-    return (
-      _normalizeDimension(scaledWidth),
-      _normalizeDimension(scaledHeight),
+    return FocusedInpaintGeometry(
+      focusBounds: focusBounds,
+      contextCrop: contextCrop,
+      requestWidth: target.width,
+      requestHeight: target.height,
+      requestMode: target.mode,
+      wasDynamicallyConstrained: wasDynamicallyConstrained,
     );
   }
 
-  static int _normalizeDimension(int value) {
-    final normalized =
-        ((value + (_dimensionStep ~/ 2)) ~/ _dimensionStep) * _dimensionStep;
-    return normalized.clamp(_dimensionStep, _maxDimension);
+  static Rect _constrainSelectionRectToMaxArea(
+    Rect selectionRect, {
+    required int sourceWidth,
+    required int sourceHeight,
+    required double minContextMegaPixels,
+    Offset? fixedAnchor,
+  }) {
+    final canvasRect = Rect.fromLTWH(
+      0,
+      0,
+      sourceWidth.toDouble(),
+      sourceHeight.toDouble(),
+    );
+    final rect = selectionRect.intersect(canvasRect);
+    final center = rect.center;
+    final anchor = fixedAnchor == null
+        ? null
+        : Offset(
+            fixedAnchor.dx.clamp(0.0, sourceWidth.toDouble()),
+            fixedAnchor.dy.clamp(0.0, sourceHeight.toDouble()),
+          );
+    final movingCorner = anchor == null
+        ? null
+        : Offset(
+            (anchor.dx - rect.left).abs() <= (anchor.dx - rect.right).abs()
+                ? rect.right
+                : rect.left,
+            (anchor.dy - rect.top).abs() <= (anchor.dy - rect.bottom).abs()
+                ? rect.bottom
+                : rect.top,
+          );
+
+    Rect candidateAt(double scale) {
+      if (anchor != null && movingCorner != null) {
+        final moving = Offset(
+          anchor.dx + (movingCorner.dx - anchor.dx) * scale,
+          anchor.dy + (movingCorner.dy - anchor.dy) * scale,
+        );
+        return Rect.fromPoints(anchor, moving).intersect(canvasRect);
+      }
+      return Rect.fromCenter(
+        center: center,
+        width: rect.width * scale,
+        height: rect.height * scale,
+      ).intersect(canvasRect);
+    }
+
+    var low = 0.0;
+    var high = 1.0;
+    var best = _minimumSelectionRect(
+      center: center,
+      anchor: anchor,
+      movingCorner: movingCorner,
+      canvasRect: canvasRect,
+    );
+    for (var iteration = 0; iteration < 48; iteration++) {
+      final scale = (low + high) / 2;
+      final candidate = candidateAt(scale);
+      final bounds = _resolveSelectionBounds(
+        candidate,
+        sourceWidth: sourceWidth,
+        sourceHeight: sourceHeight,
+      );
+      if (bounds == null) {
+        low = scale;
+        continue;
+      }
+      final crop = _resolveCrop(
+        sourceWidth: sourceWidth,
+        sourceHeight: sourceHeight,
+        bounds: bounds,
+        minContextMegaPixels: minContextMegaPixels,
+      );
+      if (crop.area <= maxRequestAreaPixels) {
+        low = scale;
+        best = candidate;
+      } else {
+        high = scale;
+      }
+    }
+    return best;
+  }
+
+  static Rect _minimumSelectionRect({
+    required Offset center,
+    required Offset? anchor,
+    required Offset? movingCorner,
+    required Rect canvasRect,
+  }) {
+    if (anchor != null && movingCorner != null) {
+      final xDirection = movingCorner.dx >= anchor.dx ? 1.0 : -1.0;
+      final yDirection = movingCorner.dy >= anchor.dy ? 1.0 : -1.0;
+      return Rect.fromPoints(
+        anchor,
+        Offset(anchor.dx + 3 * xDirection, anchor.dy + 3 * yDirection),
+      ).intersect(canvasRect);
+    }
+    return Rect.fromCenter(
+      center: center,
+      width: 3,
+      height: 3,
+    ).intersect(canvasRect);
+  }
+
+  static ({int width, int height, FocusedInpaintRequestMode mode})
+  _resolveTargetSize({required int cropWidth, required int cropHeight}) {
+    final cropArea = cropWidth * cropHeight;
+    final mode = cropArea <= focusedTargetAreaPixels
+        ? FocusedInpaintRequestMode.upscaleToTarget
+        : FocusedInpaintRequestMode.preserveCrop;
+    final scale = mode == FocusedInpaintRequestMode.upscaleToTarget
+        ? math.sqrt(focusedTargetAreaPixels / cropArea)
+        : 1.0;
+    var width = _floorToGrid((cropWidth * scale).floor());
+    var height = _floorToGrid((cropHeight * scale).floor());
+    final areaLimit = mode == FocusedInpaintRequestMode.upscaleToTarget
+        ? focusedTargetAreaPixels
+        : maxRequestAreaPixels;
+
+    if (width * height > areaLimit) {
+      if (width >= height) {
+        width = _largestGridDimensionForArea(areaLimit, height);
+      } else {
+        height = _largestGridDimensionForArea(areaLimit, width);
+      }
+    }
+
+    return (width: width, height: height, mode: mode);
+  }
+
+  static int _floorToGrid(int value) {
+    return math.max(dimensionStep, (value ~/ dimensionStep) * dimensionStep);
+  }
+
+  static int _largestGridDimensionForArea(int areaLimit, int otherDimension) {
+    final gridUnits = areaLimit ~/ otherDimension ~/ dimensionStep;
+    return math.max(dimensionStep, gridUnits * dimensionStep);
   }
 }

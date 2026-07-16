@@ -13,6 +13,7 @@ import '../../../core/utils/focused_inpaint_utils.dart';
 import '../../../core/utils/inpaint_mask_utils.dart';
 import '../../../core/utils/inpaint_outpaint_utils.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../utils/dropped_file_reader.dart';
 import '../../widgets/common/app_toast.dart';
 import 'core/canvas_controller.dart';
@@ -168,6 +169,12 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   Uint8List? _outpaintSourceImage;
   int? _outpaintSourceWidth;
   int? _outpaintSourceHeight;
+  Uint8List? _inpaintWorkingSourceImage;
+  int? _inpaintWorkingSourceWidth;
+  int? _inpaintWorkingSourceHeight;
+  int? _initialSourceWidth;
+  int? _initialSourceHeight;
+  bool _sourceWasNormalized = false;
   OutpaintVirtualFrame? _virtualOutpaintFrame;
   // ignore: prefer_final_fields
   bool _hasOutpaintChanges = false;
@@ -357,6 +364,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     );
     _focusedInpaintEnabled =
         widget.initialFocusedInpaintEnabled || widget.existingFocusRect != null;
+    _syncFocusedSelectionConstraint();
     _isOutpaintCommitPending = widget.initialOutpaintCommitPending;
     _showLayerPanel = widget.initialShowLayerPanel;
   }
@@ -415,9 +423,27 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     final baseLayerName = context.l10n.editor_baseLayerName;
     ui.Codec? codec;
     try {
-      codec = await ui.instantiateImageCodec(widget.initialImage!);
+      final editorImage = await NaiResolutionAdapter.prepareImageForEditorAsync(
+        widget.initialImage!,
+        alignForInpaint: _isInpaintMode,
+      );
+      final workingBytes = editorImage?.bytes ?? widget.initialImage!;
+      _initialSourceWidth = editorImage?.originalWidth;
+      _initialSourceHeight = editorImage?.originalHeight;
+      _sourceWasNormalized = editorImage?.wasNormalized ?? false;
+      if (_isInpaintMode) {
+        _inpaintWorkingSourceImage = workingBytes;
+        _inpaintWorkingSourceWidth = editorImage?.width;
+        _inpaintWorkingSourceHeight = editorImage?.height;
+      }
+
+      codec = await ui.instantiateImageCodec(workingBytes);
       final frame = await codec.getNextFrame();
       final image = frame.image;
+      _initialSourceWidth ??= image.width;
+      _initialSourceHeight ??= image.height;
+      _inpaintWorkingSourceWidth ??= image.width;
+      _inpaintWorkingSourceHeight ??= image.height;
 
       _state.initNewCanvas(
         Size(image.width.toDouble(), image.height.toDouble()),
@@ -427,7 +453,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
 
       // 将图像添加为底图图层
       final sourceLayer = await _state.layerManager.addLayerFromImage(
-        widget.initialImage!,
+        workingBytes,
         name: baseLayerName,
       );
       _sourceLayerId = sourceLayer?.id;
@@ -472,9 +498,12 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     if (widget.existingMask == null) return;
 
     try {
-      final overlayBytes = InpaintMaskUtils.maskToEditorOverlay(
+      final resizedMask = InpaintMaskUtils.resizeMaskBytes(
         widget.existingMask!,
+        targetWidth: _state.canvasSize.width.round(),
+        targetHeight: _state.canvasSize.height.round(),
       );
+      final overlayBytes = InpaintMaskUtils.maskToEditorOverlay(resizedMask);
 
       // 将已有蒙版添加为图层
       final layer = await _addMaskLayerAboveSource(
@@ -499,7 +528,23 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     if (!_isInpaintMode || widget.existingFocusRect == null) {
       return;
     }
-    _focusedSelectionState.load(widget.existingFocusRect);
+    final sourceWidth = _initialSourceWidth;
+    final sourceHeight = _initialSourceHeight;
+    final rect = widget.existingFocusRect!;
+    if (sourceWidth == null || sourceHeight == null) {
+      _focusedSelectionState.load(rect);
+      _constrainCommittedFocusedSelection();
+      return;
+    }
+    _focusedSelectionState.load(
+      Rect.fromLTRB(
+        rect.left * _state.canvasSize.width / sourceWidth,
+        rect.top * _state.canvasSize.height / sourceHeight,
+        rect.right * _state.canvasSize.width / sourceWidth,
+        rect.bottom * _state.canvasSize.height / sourceHeight,
+      ),
+    );
+    _constrainCommittedFocusedSelection();
   }
 
   @override
@@ -773,6 +818,17 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
             outpaintSourceWidth: _isInpaintMode ? _outpaintSourceWidth : null,
             outpaintSourceHeight: _isInpaintMode ? _outpaintSourceHeight : null,
             hasOutpaintChanges: _isInpaintMode && _hasOutpaintChanges,
+            inpaintSourceImage: _isInpaintMode && !_hasOutpaintChanges
+                ? _inpaintWorkingSourceImage
+                : null,
+            inpaintSourceWidth: _isInpaintMode && !_hasOutpaintChanges
+                ? _inpaintWorkingSourceWidth
+                : null,
+            inpaintSourceHeight: _isInpaintMode && !_hasOutpaintChanges
+                ? _inpaintWorkingSourceHeight
+                : null,
+            sourceWasNormalized:
+                _isInpaintMode && !_hasOutpaintChanges && _sourceWasNormalized,
           ),
         );
       }
@@ -1176,6 +1232,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         _focusedSelectionState.canvasSize = previousCanvasSize;
         _focusedSelectionState.load(previousFocusedCanvasSize);
         _focusedInpaintEnabled = previousFocusedInpaintEnabled;
+        _syncFocusedSelectionConstraint();
         _state.setSelection(previousSelectionPath, saveHistory: false);
         _state.setPreviewPath(previousPreviewPath);
         if (previousToolId != null) {
@@ -1297,6 +1354,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
 
   void _disableFocusedInpaintForOutpaint() {
     _focusedInpaintEnabled = false;
+    _syncFocusedSelectionConstraint();
     _focusedSelectionState.clear();
     _state.clearSelection(saveHistory: false);
     _state.clearPreview();

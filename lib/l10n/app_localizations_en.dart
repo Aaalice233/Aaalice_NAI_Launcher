@@ -2266,6 +2266,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String editor_focusRequestSummary(
+    int outerWidth,
+    int outerHeight,
+    int requestWidth,
+    int requestHeight,
+    int cost,
+  ) {
+    return 'Outer crop $outerWidth×$outerHeight, request $requestWidth×$requestHeight, estimated $cost Anlas.';
+  }
+
+  @override
   String editor_unsupportedImageFormat(Object extension) {
     return 'Unsupported file format: .$extension\nPlease choose an image file (PNG, JPG, WEBP, etc.)';
   }

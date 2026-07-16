@@ -47,6 +47,37 @@ class InpaintMaskUtils {
     return _encodeBinaryMask(binaryMask, decoded.width, decoded.height);
   }
 
+  /// 将蒙版按最近邻重采样到编辑器工作画布，保持硬边和二值语义。
+  static Uint8List resizeMaskBytes(
+    Uint8List bytes, {
+    required int targetWidth,
+    required int targetHeight,
+  }) {
+    final decoded = decodeBinaryMask(bytes);
+    if (decoded == null || targetWidth <= 0 || targetHeight <= 0) {
+      return bytes;
+    }
+    if (decoded.width == targetWidth && decoded.height == targetHeight) {
+      return _encodeBinaryMask(decoded.mask, decoded.width, decoded.height);
+    }
+
+    final source = _binaryMaskToImage(
+      decoded.mask,
+      decoded.width,
+      decoded.height,
+    );
+    final resized = _resizeNearestCanvasLike(
+      source,
+      width: targetWidth,
+      height: targetHeight,
+    );
+    return _encodeBinaryMask(
+      _createBinaryMask(resized),
+      targetWidth,
+      targetHeight,
+    );
+  }
+
   static bool hasMaskedPixels(Uint8List bytes) {
     img.Image? decoded;
     try {
@@ -254,23 +285,17 @@ class InpaintMaskUtils {
     try {
       decoded = img.decodeImage(bytes);
     } catch (_) {
-      return const MaskFillRegionResult(
-        status: MaskFillRegionStatus.emptyMask,
-      );
+      return const MaskFillRegionResult(status: MaskFillRegionStatus.emptyMask);
     }
     if (decoded == null) {
-      return const MaskFillRegionResult(
-        status: MaskFillRegionStatus.emptyMask,
-      );
+      return const MaskFillRegionResult(status: MaskFillRegionStatus.emptyMask);
     }
 
     final width = decoded.width;
     final height = decoded.height;
     final binaryMask = _createBinaryMask(decoded);
     if (!binaryMask.any((value) => value == 1)) {
-      return const MaskFillRegionResult(
-        status: MaskFillRegionStatus.emptyMask,
-      );
+      return const MaskFillRegionResult(status: MaskFillRegionStatus.emptyMask);
     }
     if (x < 0 || x >= width || y < 0 || y >= height) {
       return const MaskFillRegionResult(
@@ -401,13 +426,13 @@ class InpaintMaskUtils {
 
     final generatedCanvas =
         generated.width == source.width && generated.height == source.height
-            ? generated
-            : img.copyResize(
-                generated,
-                width: source.width,
-                height: source.height,
-                interpolation: img.Interpolation.cubic,
-              );
+        ? generated
+        : img.copyResize(
+            generated,
+            width: source.width,
+            height: source.height,
+            interpolation: img.Interpolation.cubic,
+          );
 
     final composed = img.Image.from(source, noAnimation: true);
     img.compositeImage(
@@ -514,13 +539,13 @@ class InpaintMaskUtils {
 
     final generatedCanvas =
         generated.width == mask.width && generated.height == mask.height
-            ? generated
-            : img.copyResize(
-                generated,
-                width: mask.width,
-                height: mask.height,
-                interpolation: img.Interpolation.cubic,
-              );
+        ? generated
+        : img.copyResize(
+            generated,
+            width: mask.width,
+            height: mask.height,
+            interpolation: img.Interpolation.cubic,
+          );
 
     final patch = img.Image(
       width: mask.width,
@@ -830,11 +855,7 @@ class InpaintMaskUtils {
     int width,
     int height,
   ) {
-    final normalized = img.Image(
-      width: width,
-      height: height,
-      numChannels: 4,
-    );
+    final normalized = img.Image(width: width, height: height, numChannels: 4);
 
     var index = 0;
     for (var y = 0; y < height; y++) {
@@ -1015,10 +1036,12 @@ class InpaintMaskUtils {
             data[pixelIndex + 2] = 0;
           } else {
             data[pixelIndex] = _clampByte((r * constants.mul) >> constants.shg);
-            data[pixelIndex + 1] =
-                _clampByte((g * constants.mul) >> constants.shg);
-            data[pixelIndex + 2] =
-                _clampByte((b * constants.mul) >> constants.shg);
+            data[pixelIndex + 1] = _clampByte(
+              (g * constants.mul) >> constants.shg,
+            );
+            data[pixelIndex + 2] = _clampByte(
+              (b * constants.mul) >> constants.shg,
+            );
           }
 
           final add = x + minY[y] * width;
@@ -1074,14 +1097,7 @@ class InpaintMaskUtils {
       for (var x = 0; x < matched.width; x++) {
         final pixel = matched.getPixel(x, y);
         final red = pixel.r.toInt();
-        matched.setPixelRgba(
-          x,
-          y,
-          red,
-          pixel.g.toInt(),
-          pixel.b.toInt(),
-          red,
-        );
+        matched.setPixelRgba(x, y, red, pixel.g.toInt(), pixel.b.toInt(), red);
       }
     }
     return matched;
@@ -1093,11 +1109,7 @@ class InpaintMaskUtils {
     int height,
     int overlayAlpha,
   ) {
-    final overlay = img.Image(
-      width: width,
-      height: height,
-      numChannels: 4,
-    );
+    final overlay = img.Image(width: width, height: height, numChannels: 4);
 
     var index = 0;
     for (var y = 0; y < height; y++) {

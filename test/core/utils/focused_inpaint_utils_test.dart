@@ -7,6 +7,222 @@ import 'package:nai_launcher/core/utils/focused_inpaint_utils.dart';
 
 void main() {
   group('FocusedInpaintUtils', () {
+    group('geometry', () {
+      FocusedInpaintGeometry resolve({
+        required int sourceWidth,
+        required int sourceHeight,
+        required Rect selection,
+        double context = 16,
+        Offset? anchor,
+      }) {
+        return FocusedInpaintUtils.resolveGeometryForSelection(
+          sourceWidth: sourceWidth,
+          sourceHeight: sourceHeight,
+          selectionRect: selection,
+          minContextMegaPixels: context,
+          fixedAnchor: anchor,
+        )!;
+      }
+
+      test('upscales a 512x512 crop to the one megapixel target', () {
+        final geometry = resolve(
+          sourceWidth: 512,
+          sourceHeight: 512,
+          selection: const Rect.fromLTWH(0, 0, 512, 512),
+        );
+
+        expect(geometry.contextCrop.area, 512 * 512);
+        expect(geometry.requestMode, FocusedInpaintRequestMode.upscaleToTarget);
+        expect((geometry.requestWidth, geometry.requestHeight), (1024, 1024));
+      });
+
+      test('uses the upscale branch at exactly 1,048,576 pixels', () {
+        final geometry = resolve(
+          sourceWidth: 1024,
+          sourceHeight: 1024,
+          selection: const Rect.fromLTWH(0, 0, 1024, 1024),
+        );
+
+        expect(geometry.contextCrop.area, 1048576);
+        expect(geometry.requestMode, FocusedInpaintRequestMode.upscaleToTarget);
+        expect((geometry.requestWidth, geometry.requestHeight), (1024, 1024));
+      });
+
+      test('preserves scale immediately above the one megapixel threshold', () {
+        final geometry = resolve(
+          sourceWidth: 1025,
+          sourceHeight: 1024,
+          selection: const Rect.fromLTWH(0, 0, 1025, 1024),
+        );
+
+        expect(geometry.contextCrop.area, 1025 * 1024);
+        expect(geometry.requestMode, FocusedInpaintRequestMode.preserveCrop);
+        expect((geometry.requestWidth, geometry.requestHeight), (1024, 1024));
+      });
+
+      test('keeps a 1280x1024 paid crop and floors it to the 64 grid', () {
+        final geometry = resolve(
+          sourceWidth: 1280,
+          sourceHeight: 1024,
+          selection: const Rect.fromLTWH(0, 0, 1280, 1024),
+        );
+
+        expect(geometry.requestMode, FocusedInpaintRequestMode.preserveCrop);
+        expect((geometry.requestWidth, geometry.requestHeight), (1280, 1024));
+      });
+
+      test('accepts the exact 2048x1536 total-area boundary', () {
+        final geometry = resolve(
+          sourceWidth: 2048,
+          sourceHeight: 1536,
+          selection: const Rect.fromLTWH(0, 0, 2048, 1536),
+        );
+
+        expect(geometry.contextCrop.area, 3145728);
+        expect(geometry.wasDynamicallyConstrained, isFalse);
+        expect((geometry.requestWidth, geometry.requestHeight), (2048, 1536));
+      });
+
+      test('dynamically shrinks an outer crop above the total-area limit', () {
+        final geometry = resolve(
+          sourceWidth: 2048,
+          sourceHeight: 1537,
+          selection: const Rect.fromLTWH(0, 0, 2048, 1537),
+        );
+
+        expect(geometry.wasDynamicallyConstrained, isTrue);
+        expect(
+          geometry.contextCrop.area,
+          lessThanOrEqualTo(FocusedInpaintUtils.maxRequestAreaPixels),
+        );
+        expect(
+          geometry.requestArea,
+          lessThanOrEqualTo(FocusedInpaintUtils.maxRequestAreaPixels),
+        );
+      });
+
+      test('does not impose a 2048 per-side limit', () {
+        final geometry = resolve(
+          sourceWidth: 3072,
+          sourceHeight: 1024,
+          selection: const Rect.fromLTWH(0, 0, 3072, 1024),
+        );
+
+        expect(geometry.wasDynamicallyConstrained, isFalse);
+        expect((geometry.requestWidth, geometry.requestHeight), (3072, 1024));
+      });
+
+      test('supports horizontal and vertical legal strips', () {
+        final horizontal = resolve(
+          sourceWidth: 3000,
+          sourceHeight: 500,
+          selection: const Rect.fromLTWH(0, 0, 3000, 500),
+        );
+        final vertical = resolve(
+          sourceWidth: 500,
+          sourceHeight: 3000,
+          selection: const Rect.fromLTWH(0, 0, 500, 3000),
+        );
+
+        expect(
+          (horizontal.requestWidth, horizontal.requestHeight),
+          (2944, 448),
+        );
+        expect((vertical.requestWidth, vertical.requestHeight), (448, 2944));
+      });
+
+      test('floors non-grid paid crops without crossing the area limit', () {
+        final geometry = resolve(
+          sourceWidth: 1300,
+          sourceHeight: 1000,
+          selection: const Rect.fromLTWH(0, 0, 1300, 1000),
+        );
+
+        expect((geometry.requestWidth, geometry.requestHeight), (1280, 960));
+        expect(geometry.requestWidth % 64, 0);
+        expect(geometry.requestHeight % 64, 0);
+      });
+
+      test('clamps context crops at canvas edges', () {
+        final geometry = resolve(
+          sourceWidth: 1000,
+          sourceHeight: 800,
+          selection: const Rect.fromLTWH(0, 0, 120, 96),
+          context: 88,
+        );
+
+        expect(geometry.contextCrop.x, 0);
+        expect(geometry.contextCrop.y, 0);
+        expect(
+          (geometry.contextCrop.width, geometry.contextCrop.height),
+          (296, 272),
+        );
+      });
+
+      test('accepts a one-pixel focus region and applies the 64 grid', () {
+        final geometry = resolve(
+          sourceWidth: 32,
+          sourceHeight: 32,
+          selection: const Rect.fromLTWH(15, 15, 1, 1),
+        );
+
+        expect(
+          (geometry.focusBounds.width, geometry.focusBounds.height),
+          (1, 1),
+        );
+        expect((geometry.requestWidth, geometry.requestHeight), (1024, 1024));
+        expect(geometry.requestWidth % 64, 0);
+        expect(geometry.requestHeight % 64, 0);
+      });
+
+      test(
+        'larger Minimum Context immediately reduces an oversized selection',
+        () {
+          const selection = Rect.fromLTWH(100, 100, 1900, 1500);
+          final smallContext = resolve(
+            sourceWidth: 2200,
+            sourceHeight: 1800,
+            selection: selection,
+            context: 16,
+          );
+          final largeContext = resolve(
+            sourceWidth: 2200,
+            sourceHeight: 1800,
+            selection: selection,
+            context: 192,
+          );
+
+          expect(largeContext.wasDynamicallyConstrained, isTrue);
+          expect(
+            largeContext.focusBounds.area,
+            lessThan(smallContext.focusBounds.area),
+          );
+          expect(
+            largeContext.contextCrop.area,
+            lessThanOrEqualTo(FocusedInpaintUtils.maxRequestAreaPixels),
+          );
+        },
+      );
+
+      test('fixed-corner constraint keeps the pointer-down corner', () {
+        final geometry = resolve(
+          sourceWidth: 4096,
+          sourceHeight: 4096,
+          selection: const Rect.fromLTWH(128, 256, 3600, 3200),
+          context: 88,
+          anchor: const Offset(128, 256),
+        );
+
+        expect(geometry.wasDynamicallyConstrained, isTrue);
+        expect(geometry.focusBounds.x, 128);
+        expect(geometry.focusBounds.y, 256);
+        expect(
+          geometry.contextCrop.area,
+          lessThanOrEqualTo(FocusedInpaintUtils.maxRequestAreaPixels),
+        );
+      });
+    });
+
     test(
       'prepareRequest should crop around mask and upscale focused region to about 1MP',
       () {
@@ -334,8 +550,10 @@ img.Image _buildIrregularMask({required int width, required int height}) {
     for (var x = width ~/ 3; x < width ~/ 3 + 90; x++) {
       final onDiagonal = (x - y).abs() % 7 != 0;
       final inHole =
-          x > width ~/ 3 + 30 && x < width ~/ 3 + 50 && y > height ~/ 4 + 20 &&
-              y < height ~/ 4 + 40;
+          x > width ~/ 3 + 30 &&
+          x < width ~/ 3 + 50 &&
+          y > height ~/ 4 + 20 &&
+          y < height ~/ 4 + 40;
       if (onDiagonal && !inHole) {
         mask.setPixelRgb(x, y, 255, 255, 255);
       }

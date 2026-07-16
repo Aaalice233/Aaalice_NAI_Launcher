@@ -2193,6 +2193,17 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String editor_focusRequestSummary(
+    int outerWidth,
+    int outerHeight,
+    int requestWidth,
+    int requestHeight,
+    int cost,
+  ) {
+    return '外层裁剪 $outerWidth×$outerHeight，实际发送 $requestWidth×$requestHeight，预计 $cost Anlas。';
+  }
+
+  @override
   String editor_unsupportedImageFormat(Object extension) {
     return '不支持的文件格式: .$extension\n请选择图像文件（PNG、JPG、WEBP 等）';
   }

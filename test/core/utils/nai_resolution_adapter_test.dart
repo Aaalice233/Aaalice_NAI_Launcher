@@ -180,10 +180,10 @@ void main() {
         );
         final normalizedAsync =
             await NaiResolutionAdapter.normalizeImageForRequestAsync(
-          bytes,
-          targetWidth: 832,
-          targetHeight: 1216,
-        );
+              bytes,
+              targetWidth: 832,
+              targetHeight: 1216,
+            );
 
         expect(identical(normalized, bytes), isTrue);
         expect(identical(normalizedAsync, bytes), isTrue);
@@ -199,6 +199,52 @@ void main() {
 
       final decoded = img.decodeImage(normalized!)!;
       expect((decoded.width, decoded.height), equals((832, 1216)));
+    });
+
+    test('limits the editor working image longest side to 2560', () {
+      final source = _png(width: 2600, height: 100);
+      final working = NaiResolutionAdapter.prepareImageForEditor(
+        source,
+        alignForInpaint: false,
+      )!;
+      final decoded = img.decodeImage(working.bytes)!;
+
+      expect((working.width, working.height), (2560, 98));
+      expect((decoded.width, decoded.height), (2560, 98));
+      expect(working.wasNormalized, isTrue);
+    });
+
+    test('aligns Inpaint working dimensions upward to the 64 grid', () {
+      final working = NaiResolutionAdapter.prepareImageForEditor(
+        _png(width: 1001, height: 129),
+        alignForInpaint: true,
+      )!;
+      final decoded = img.decodeImage(working.bytes)!;
+
+      expect((working.width, working.height), (1024, 192));
+      expect((decoded.width, decoded.height), (1024, 192));
+      expect(working.wasNormalized, isTrue);
+    });
+
+    test('applies max-side scaling before Inpaint grid alignment', () {
+      final working = NaiResolutionAdapter.prepareImageForEditor(
+        _png(width: 2600, height: 100),
+        alignForInpaint: true,
+      )!;
+
+      expect((working.width, working.height), (2560, 128));
+    });
+
+    test('ordinary Edit does not align an otherwise small source', () {
+      final source = _png(width: 1001, height: 129);
+      final working = NaiResolutionAdapter.prepareImageForEditor(
+        source,
+        alignForInpaint: false,
+      )!;
+
+      expect((working.width, working.height), (1001, 129));
+      expect(working.wasNormalized, isFalse);
+      expect(identical(working.bytes, source), isTrue);
     });
   });
 }

@@ -866,6 +866,16 @@
       "cost": {"type": "int"}
     }
   },
+  "editor_focusRequestSummary": "外层裁剪 {outerWidth}×{outerHeight}，实际发送 {requestWidth}×{requestHeight}，预计 {cost} Anlas。",
+  "@editor_focusRequestSummary": {
+    "placeholders": {
+      "outerWidth": {"type": "int"},
+      "outerHeight": {"type": "int"},
+      "requestWidth": {"type": "int"},
+      "requestHeight": {"type": "int"},
+      "cost": {"type": "int"}
+    }
+  },
   "editor_unsupportedImageFormat": "不支持的文件格式: .{extension}\n请选择图像文件（PNG、JPG、WEBP 等）",
   "@editor_unsupportedImageFormat": {
     "placeholders": {

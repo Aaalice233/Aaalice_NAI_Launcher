@@ -11,8 +11,12 @@ import 'isolate_pool.dart';
 class NaiResolutionAdapter {
   NaiResolutionAdapter._();
 
+  // NovelAI web build d7e955f-production, verified 2026-07-14.
   /// 当前官网图像生成请求的最大像素面积。
   static const int officialMaxPixels = 3145728;
+
+  /// 当前官网图像编辑器工作画布的最长边限制。
+  static const int officialEditorMaxSide = 2560;
 
   /// 当前官网普通 NAI 模型导入基准边。
   static const int officialNaiTargetLongSide = 1216;
@@ -355,6 +359,64 @@ class NaiResolutionAdapter {
     );
   }
 
+  /// 构造官网编辑器语义下的独立工作图。
+  ///
+  /// 最长边超过 2560 时先等比缩小；Inpaint/Mask 编辑随后把宽高
+  /// 分别向上对齐到 64，并将图像绘制到完整工作画布。
+  static NaiEditorImage? prepareImageForEditor(
+    Uint8List imageBytes, {
+    required bool alignForInpaint,
+  }) {
+    final decoded = img.decodeImage(imageBytes);
+    if (decoded == null) return null;
+
+    final originalWidth = decoded.width;
+    final originalHeight = decoded.height;
+    var width = originalWidth;
+    var height = originalHeight;
+    final longestSide = math.max(width, height);
+    if (longestSide > officialEditorMaxSide) {
+      final scale = officialEditorMaxSide / longestSide;
+      width = math.max(1, (width * scale).round());
+      height = math.max(1, (height * scale).round());
+    }
+    if (alignForInpaint) {
+      width = _ceilToGrid(width);
+      height = _ceilToGrid(height);
+    }
+
+    final wasNormalized = width != originalWidth || height != originalHeight;
+    if (!wasNormalized) {
+      return NaiEditorImage(
+        bytes: imageBytes,
+        width: width,
+        height: height,
+        originalWidth: originalWidth,
+        originalHeight: originalHeight,
+        wasNormalized: false,
+      );
+    }
+
+    final resized = _copyResizeLanczos3(decoded, width: width, height: height);
+    return NaiEditorImage(
+      bytes: Uint8List.fromList(img.encodePng(resized, level: 1)),
+      width: width,
+      height: height,
+      originalWidth: originalWidth,
+      originalHeight: originalHeight,
+      wasNormalized: true,
+    );
+  }
+
+  static Future<NaiEditorImage?> prepareImageForEditorAsync(
+    Uint8List imageBytes, {
+    required bool alignForInpaint,
+  }) {
+    return ComputeGate().runIsolate(
+      () => prepareImageForEditor(imageBytes, alignForInpaint: alignForInpaint),
+    );
+  }
+
   /// 异步请求归一化版本，避免大图 Lanczos3 resize 阻塞 UI isolate。
   static Future<Uint8List?> normalizeImageForRequestAsync(
     Uint8List imageBytes, {
@@ -384,6 +446,14 @@ class NaiResolutionAdapter {
   static int _ceilTo64(int value) {
     final result = ((value + 63) ~/ 64) * 64;
     return result.clamp(64, 4096);
+  }
+
+  static int _ceilToGrid(int value) {
+    return math.max(
+      _officialGridSize,
+      ((value + _officialGridSize - 1) ~/ _officialGridSize) *
+          _officialGridSize,
+    );
   }
 
   static int _nearestOfficialGrid(double value) {
@@ -606,4 +676,22 @@ class NaiImportImageInfo {
     if (!sizeChanged) return '无需调整';
     return '$originalWidth×$originalHeight → $width×$height';
   }
+}
+
+class NaiEditorImage {
+  const NaiEditorImage({
+    required this.bytes,
+    required this.width,
+    required this.height,
+    required this.originalWidth,
+    required this.originalHeight,
+    required this.wasNormalized,
+  });
+
+  final Uint8List bytes;
+  final int width;
+  final int height;
+  final int originalWidth;
+  final int originalHeight;
+  final bool wasNormalized;
 }

@@ -166,6 +166,8 @@ void main() {
 
         expect(workflow.sourceWidth, equals(1472));
         expect(workflow.sourceHeight, equals(896));
+        expect(workflow.sourceImageWidth, equals(1500));
+        expect(workflow.sourceImageHeight, equals(900));
         expect(params.width, equals(1472));
         expect(params.height, equals(896));
         expect(params.sourceImage, same(original));
@@ -201,6 +203,8 @@ void main() {
 
         expect(workflow.sourceWidth, equals(1472));
         expect(workflow.sourceHeight, equals(896));
+        expect(workflow.sourceImageWidth, equals(1500));
+        expect(workflow.sourceImageHeight, equals(900));
         expect(params.width, equals(1472));
         expect(params.height, equals(896));
         expect(params.sourceImage, same(original));
@@ -441,6 +445,8 @@ void main() {
         expect(workflow.mode, ImageWorkflowMode.inpaint);
         expect(workflow.sourceWidth, equals(1472));
         expect(workflow.sourceHeight, equals(1664));
+        expect(workflow.sourceImageWidth, equals(1472));
+        expect(workflow.sourceImageHeight, equals(1664));
         expect(workflow.isOutpaint, isTrue);
         expect(workflow.focusedInpaintEnabled, isFalse);
         expect(workflow.focusedSelectionRect, isNull);
@@ -450,6 +456,41 @@ void main() {
         expect(params.height, equals(1664));
         expect(params.isOutpaint, isTrue);
         expect(params.action, ImageGenerationAction.infill);
+      },
+    );
+
+    test(
+      'applyInpaintEditorResult stores working source dimensions separately from request dimensions',
+      () {
+        final controller = container.read(
+          imageWorkflowControllerProvider.notifier,
+        );
+        final workingSource = _validImageBytes(width: 1500, height: 900);
+        final workingMask = _validMaskBytes(width: 1500, height: 900);
+
+        controller.applyInpaintEditorResult(
+          sourceImage: workingSource,
+          sourceWidth: 1500,
+          sourceHeight: 900,
+          sourceIsOutpaint: false,
+          maskImage: workingMask,
+          focusedInpaintEnabled: true,
+          focusedSelectionRect: const Rect.fromLTWH(120, 160, 900, 500),
+          minimumContextMegaPixels: 88,
+        );
+
+        final workflow = container.read(imageWorkflowControllerProvider);
+        final params = container.read(generationParamsNotifierProvider);
+
+        expect((workflow.sourceWidth, workflow.sourceHeight), (1472, 896));
+        expect(
+          (workflow.sourceImageWidth, workflow.sourceImageHeight),
+          (1500, 900),
+        );
+        expect(params.sourceImage, same(workingSource));
+        expect((params.width, params.height), (1472, 896));
+        expect(params.isOutpaint, isFalse);
+        expect(workflow.focusedInpaintEnabled, isTrue);
       },
     );
 

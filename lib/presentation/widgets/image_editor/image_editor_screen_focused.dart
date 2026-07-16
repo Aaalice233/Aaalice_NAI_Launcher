@@ -14,26 +14,22 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
       return null;
     }
 
-    final requestSize = FocusedInpaintUtils.resolveRequestSizeForSelection(
+    final geometry = FocusedInpaintUtils.resolveGeometryForSelection(
       sourceWidth: _state.canvasSize.width.round(),
       sourceHeight: _state.canvasSize.height.round(),
       selectionRect: focusAreaRect,
       minContextMegaPixels: _minimumContextMegaPixels,
     );
-    if (requestSize == null) {
+    if (geometry == null) {
       return null;
     }
 
-    final cost = config.estimate(width: requestSize.$1, height: requestSize.$2);
-    if (cost <= 0) {
-      return null;
-    }
-
-    return _FocusedInpaintCostEstimate(
-      width: requestSize.$1,
-      height: requestSize.$2,
-      cost: cost,
+    final cost = config.estimate(
+      width: geometry.requestWidth,
+      height: geometry.requestHeight,
     );
+
+    return _FocusedInpaintCostEstimate(geometry: geometry, cost: cost);
   }
 
   Widget _buildFocusedSelectionCard() {
@@ -148,6 +144,7 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
               onChanged: (value) {
                 _updateLayoutState(() {
                   _minimumContextMegaPixels = value;
+                  _constrainCommittedFocusedSelection();
                 });
               },
             ),
@@ -174,28 +171,30 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: colorScheme.errorContainer.withValues(alpha: 0.78),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colorScheme.error.withValues(alpha: 0.38)),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.32)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            Icons.warning_amber_rounded,
+            Icons.info_outline,
             size: 17,
-            color: colorScheme.onErrorContainer,
+            color: colorScheme.onSurfaceVariant,
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              context.l10n.editor_focusAnlasWarning(
-                estimate.width,
-                estimate.height,
+              context.l10n.editor_focusRequestSummary(
+                estimate.geometry.contextCrop.width,
+                estimate.geometry.contextCrop.height,
+                estimate.geometry.requestWidth,
+                estimate.geometry.requestHeight,
                 estimate.cost,
               ),
               style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onErrorContainer,
+                color: colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -216,6 +215,7 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
 
     _updateLayoutState(() {
       _focusedInpaintEnabled = !_focusedInpaintEnabled;
+      _syncFocusedSelectionConstraint();
       if (_focusedInpaintEnabled) {
         if (!_focusedSelectionState.hasCommittedRect) {
           _state.setToolById('rect_selection');
@@ -227,6 +227,35 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
         _state.setToolById('brush');
       }
     });
+  }
+
+  void _syncFocusedSelectionConstraint() {
+    if (!_isInpaintMode || !_focusedInpaintEnabled) {
+      _state.setRectSelectionConstraint(null);
+      return;
+    }
+    _state.setRectSelectionConstraint((candidate, fixedAnchor) {
+      return FocusedInpaintUtils.constrainSelectionRect(
+            sourceWidth: _state.canvasSize.width.round(),
+            sourceHeight: _state.canvasSize.height.round(),
+            selectionRect: candidate,
+            minContextMegaPixels: _minimumContextMegaPixels,
+            fixedAnchor: fixedAnchor,
+          ) ??
+          candidate;
+    });
+  }
+
+  void _constrainCommittedFocusedSelection() {
+    final selection = _focusedSelectionState.committedRect;
+    if (selection == null) return;
+    final constrained = FocusedInpaintUtils.constrainSelectionRect(
+      sourceWidth: _state.canvasSize.width.round(),
+      sourceHeight: _state.canvasSize.height.round(),
+      selectionRect: selection,
+      minContextMegaPixels: _minimumContextMegaPixels,
+    );
+    _focusedSelectionState.load(constrained);
   }
 
   void _consumeFocusedSelection() {

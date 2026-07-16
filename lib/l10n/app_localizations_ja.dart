@@ -2222,6 +2222,17 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String editor_focusRequestSummary(
+    int outerWidth,
+    int outerHeight,
+    int requestWidth,
+    int requestHeight,
+    int cost,
+  ) {
+    return '外側の切り抜き $outerWidth×$outerHeight、送信サイズ $requestWidth×$requestHeight、推定 $cost Anlas。';
+  }
+
+  @override
   String editor_unsupportedImageFormat(Object extension) {
     return 'サポートされていないファイル形式: .$extension\n画像ファイル(PNG、JPG、WEBPなど)を選択してください。';
   }
