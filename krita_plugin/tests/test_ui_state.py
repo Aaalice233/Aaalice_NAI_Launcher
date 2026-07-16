@@ -338,6 +338,7 @@ class FakeCanvasIO:
         self.write_result_mode = "layer"
         self.active_document = True
         self.selection_bounds = None
+        self.focus_constraint_calls = 0
         self.mask_sources = []
         self.events = []
 
@@ -360,6 +361,10 @@ class FakeCanvasIO:
     def active_selection_bounds(self):
         return self.selection_bounds
 
+    def constrain_active_focus_selection(self, _minimum_context_pixels):
+        self.focus_constraint_calls += 1
+        return self.selection_bounds
+
     def active_focus_preview_rects(self, minimum_context_pixels):
         inner = self.selection_bounds
         if inner is None:
@@ -371,6 +376,27 @@ class FakeCanvasIO:
             "h": inner["h"] + minimum_context_pixels * 2,
         }
         return inner, outer
+
+    def focus_request_size_for_context(self, outer):
+        import math
+
+        area = outer["w"] * outer["h"]
+        scale = math.sqrt(1048576 / area) if area <= 1048576 else 1.0
+        width = max(64, int(outer["w"] * scale) // 64 * 64)
+        height = max(64, int(outer["h"] * scale) // 64 * 64)
+        return {"w": width, "h": height}
+
+    def active_focus_geometry(self, minimum_context_pixels):
+        inner = self.constrain_active_focus_selection(minimum_context_pixels)
+        rects = self.active_focus_preview_rects(minimum_context_pixels)
+        if inner is None or rects is None:
+            return None
+        _, outer = rects
+        return {
+            "inner": inner,
+            "outer": outer,
+            "request": self.focus_request_size_for_context(outer),
+        }
 
     def write_focus_preview(self, minimum_context_pixels):
         self.events.append("write_focus_preview")
@@ -567,6 +593,7 @@ class DockerStateTests(unittest.TestCase):
         self.assertTrue(docker._focus_preview_write_timer.started)
         self.assertIn("inner 8,9 64x72", docker._focus_rect_label.text())
         self.assertIn("outer 0,0 240x248", docker._focus_rect_label.text())
+        self.assertIn("request ", docker._focus_rect_label.text())
 
         docker._focus_preview_write_timer.timeout.emit()
 
@@ -1011,6 +1038,7 @@ class DockerStateTests(unittest.TestCase):
         ui.canvas_io = fake_canvas
         docker = ui.NAILauncherBridgeDocker()
         docker._focused_inpaint.setChecked(True)
+        calls_before_send = fake_canvas.focus_constraint_calls
 
         docker._send_inpaint()
 
@@ -1018,6 +1046,7 @@ class DockerStateTests(unittest.TestCase):
         payload = json.loads(docker._client.sent[-1])
         self.assertEqual(payload["selection_rect"], {"x": 8, "y": 9, "w": 64, "h": 72})
         self.assertEqual(payload["minimum_context_pixels"], 88)
+        self.assertGreater(fake_canvas.focus_constraint_calls, calls_before_send)
 
     def test_inpaint_always_uses_selection_mask_source(self):
         ui = _load_ui_module()
@@ -1046,6 +1075,20 @@ class DockerStateTests(unittest.TestCase):
         self.assertFalse(payload["focused_inpaint"])
         self.assertIsNone(payload["selection_rect"])
         self.assertEqual(fake_canvas.mask_sources, [fake_canvas.MASK_SOURCE_SELECTION])
+
+    def test_non_focused_inpaint_does_not_constrain_native_selection(self):
+        ui = _load_ui_module()
+        fake_canvas = FakeCanvasIO()
+        fake_canvas.selection_bounds = {"x": 0, "y": 0, "w": 2400, "h": 1600}
+        ui.canvas_io = fake_canvas
+        docker = ui.NAILauncherBridgeDocker()
+
+        docker._send_inpaint()
+
+        self.assertEqual(fake_canvas.focus_constraint_calls, 0)
+        payload = json.loads(docker._client.sent[-1])
+        self.assertFalse(payload["focused_inpaint"])
+        self.assertIsNone(payload["selection_rect"])
 
     def test_focused_inpaint_send_exports_clean_canvas_and_restores_live_frame(self):
         ui = _load_ui_module()
