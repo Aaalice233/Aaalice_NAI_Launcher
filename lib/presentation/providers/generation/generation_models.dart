@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:uuid/uuid.dart';
 
+import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/models/image/image_stream_chunk.dart';
 
@@ -40,11 +41,12 @@ class GeneratedImage {
     GeneratedImageKind kind = GeneratedImageKind.completed,
     NaiImageMetadata? metadata,
   }) {
+    final encodedSize = NaiResolutionAdapter.readImageSize(bytes);
     return GeneratedImage(
       id: const Uuid().v4(),
       bytes: bytes,
-      width: width,
-      height: height,
+      width: encodedSize?.$1 ?? width,
+      height: encodedSize?.$2 ?? height,
       kind: kind,
       metadata: metadata,
     );

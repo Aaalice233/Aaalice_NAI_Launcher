@@ -1,9 +1,13 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../../../core/utils/app_logger.dart';
 import '../../../../../core/utils/localization_extension.dart';
+import '../../../../../core/utils/nai_resolution_adapter.dart';
 import '../../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../../data/models/vibe/vibe_reference.dart';
 import '../../add_to_library_dialog.dart';
@@ -49,6 +53,7 @@ class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
   late bool _isExpanded;
   Future<NaiImageMetadata?>? _metadataFuture;
   NaiImageMetadata? _loadedMetadata;
+  (int, int)? _actualImageSize;
 
   @override
   void initState() {
@@ -79,12 +84,16 @@ class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
   void _startMetadataLoading() {
     final image = widget.currentImage;
     if (image == null) {
+      _actualImageSize = null;
       AppLogger.w(
         '[MetadataFlow] _startMetadataLoading: image is null',
         'DetailMetadataPanel',
       );
       return;
     }
+
+    _actualImageSize = null;
+    unawaited(_loadActualImageSize(image));
 
     AppLogger.i(
       '[MetadataFlow] _startMetadataLoading: identifier=${image.identifier}, type=${image.runtimeType}',
@@ -166,6 +175,49 @@ class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
     }
   }
 
+  Future<void> _loadActualImageSize(ImageDetailData image) async {
+    try {
+      final filePath = switch (image) {
+        FileImageDetailData() => image.filePath,
+        LocalImageDetailData() => image.record.path,
+        _ => null,
+      };
+      final headerSize = filePath == null
+          ? null
+          : await _tryReadImageHeaderSize(filePath);
+      final size =
+          headerSize ??
+          NaiResolutionAdapter.readImageSize(await image.getImageBytes());
+      if (!mounted || widget.currentImage?.identifier != image.identifier) {
+        return;
+      }
+      setState(() => _actualImageSize = size);
+    } catch (error) {
+      AppLogger.w(
+        '[MetadataFlow] Failed to read encoded image size: $error',
+        'DetailMetadataPanel',
+      );
+    }
+  }
+
+  Future<(int, int)?> _tryReadImageHeaderSize(String path) async {
+    try {
+      return NaiResolutionAdapter.readImageSize(await _readImageHeader(path));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<Uint8List> _readImageHeader(String path) async {
+    const headerByteLimit = 64 * 1024;
+    final handle = await File(path).open();
+    try {
+      return handle.read(headerByteLimit);
+    } finally {
+      await handle.close();
+    }
+  }
+
   void _toggleExpanded() {
     setState(() => _isExpanded = !_isExpanded);
   }
@@ -235,6 +287,7 @@ class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
                   child: _MetadataContent(
                     metadata: metadata,
                     fileInfo: widget.currentImage!.fileInfo,
+                    actualImageSize: _actualImageSize,
                   ),
                 )
               : _buildNoMetadataState(theme),
@@ -383,12 +436,20 @@ class _PanelHeader extends StatelessWidget {
 class _MetadataContent extends StatelessWidget {
   final NaiImageMetadata metadata;
   final FileInfo? fileInfo;
+  final (int, int)? actualImageSize;
 
-  const _MetadataContent({required this.metadata, this.fileInfo});
+  const _MetadataContent({
+    required this.metadata,
+    this.fileInfo,
+    this.actualImageSize,
+  });
 
   @override
   Widget build(BuildContext context) {
     final displayModel = metadata.effectiveModel ?? metadata.source;
+    final resolution = actualImageSize == null
+        ? metadata.sizeString
+        : '${actualImageSize!.$1} × ${actualImageSize!.$2}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -445,10 +506,10 @@ class _MetadataContent extends StatelessWidget {
                 label: context.l10n.gallery_metaSampler,
                 value: metadata.displaySampler,
               ),
-            if (metadata.sizeString.isNotEmpty)
+            if (resolution.isNotEmpty)
               _InfoRow(
                 label: context.l10n.gallery_metaResolution,
-                value: metadata.sizeString,
+                value: resolution,
               ),
             if (metadata.smea == true || metadata.smeaDyn == true)
               _InfoRow(

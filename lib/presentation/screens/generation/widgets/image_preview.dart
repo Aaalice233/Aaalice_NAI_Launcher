@@ -13,6 +13,7 @@ import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/file_explorer_utils.dart';
 import '../../../../core/utils/image_save_utils.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../core/utils/nai_resolution_adapter.dart';
 import '../../../../core/utils/prompt_preset_resolution.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
 import '../../../../data/models/character/character_prompt.dart';
@@ -941,11 +942,14 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           });
         }
 
+        final encodedSize = NaiResolutionAdapter.readImageSize(imageBytes);
         final paramsForSave = params.copyWith(
           prompt: presetResolution.prompt,
           negativePrompt: presetResolution.negativePrompt,
           qualityToggle: presetResolution.qualityToggle,
           ucPreset: presetResolution.ucPreset,
+          width: encodedSize?.$1 ?? params.width,
+          height: encodedSize?.$2 ?? params.height,
         );
         await ImageSaveUtils.saveImageWithMetadata(
           imageBytes: imageBytes,
