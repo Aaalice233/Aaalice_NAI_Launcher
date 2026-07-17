@@ -340,6 +340,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get auth_tokenLogin => 'API トークンのログイン';
 
   @override
+  String get auth_tokenLoginRecommended => 'API トークンのログイン（推奨）';
+
+  @override
   String get auth_credentialsLogin => '電子メールとパスワード';
 
   @override
@@ -363,6 +366,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get auth_nicknameHint => 'このアカウントに認識可能な名前を設定します';
+
+  @override
+  String get auth_thirdPartyLogin => 'サードパーティサイト';
 
   @override
   String get auth_thirdPartyApiSite => 'サードパーティ API サイト';
@@ -601,19 +607,28 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_shortcuts => 'ショートカット';
 
   @override
-  String get settings_dataSource => 'データ ソース';
-
-  @override
   String get settings_generation => '生成';
 
   @override
-  String get settings_queue => 'キュー';
+  String get settings_dataStorage => 'データとストレージ';
 
   @override
-  String get settings_notifications => '通知';
+  String get settings_privacySharing => '保護と共有';
 
   @override
-  String get settings_promptAssistant => 'アシスタント';
+  String get settings_integrations => '連携';
+
+  @override
+  String get settings_generationInputSection => '入力';
+
+  @override
+  String get settings_generationRetrySection => '失敗時リトライ';
+
+  @override
+  String get settings_generationFeedbackSection => '完了通知';
+
+  @override
+  String get settings_promptAssistant => 'プロンプトアシスタント';
 
   @override
   String get settings_selectStyle => 'スタイルの選択';
@@ -1647,18 +1662,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get img2img_novelAiUpscaleComplete => 'NovelAI 拡大が完了しました';
 
   @override
-  String img2img_upscaleCompleteAdded(Object width, Object height) {
-    return '拡大が完了しました (${width}x$height)。プレビューリストに追加されました';
+  String img2img_upscaleComplete(Object width, Object height) {
+    return '拡大が完了しました (${width}x$height)';
   }
 
   @override
-  String img2img_regularUpscaleCompleteAdded(Object width, Object height) {
-    return '通常モデルの拡大が完了しました (${width}x$height);プレビューリストに追加されました';
+  String img2img_regularUpscaleComplete(Object width, Object height) {
+    return '通常モデルの拡大が完了しました (${width}x$height)';
   }
 
   @override
-  String img2img_rtxUpscaleCompleteAdded(Object width, Object height) {
-    return 'RTX 拡大が完了しました (${width}x$height)。プレビューリストに追加されました';
+  String img2img_rtxUpscaleComplete(Object width, Object height) {
+    return 'RTX 拡大が完了しました (${width}x$height)';
   }
 
   @override
@@ -2204,6 +2219,58 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String editor_focusAnlasWarning(int width, int height, int cost) {
     return '実際に送信する範囲は $width×$height です。現在の生成設定では $cost Anlas を消費します。';
+  }
+
+  @override
+  String get editor_compressionTitle => '出力解像度';
+
+  @override
+  String get editor_compressionTooltip => '出力解像度を選択';
+
+  @override
+  String get editor_compressionUncompressed => '編集作業サイズを維持し、圧縮は行いません。';
+
+  @override
+  String get editor_compressionApplyOnDone =>
+      '作業キャンバスは変更されません。「完了」を押したときに Pica Lanczos3 で 1 回だけ圧縮します。';
+
+  @override
+  String editor_compressionSizeSummary(
+    int workWidth,
+    int workHeight,
+    int targetWidth,
+    int targetHeight,
+  ) {
+    return '作業サイズ $workWidth×$workHeight → 出力サイズ $targetWidth×$targetHeight';
+  }
+
+  @override
+  String editor_compressionNormalSummary(
+    int normalWidth,
+    int normalHeight,
+    int minimumWidth,
+    int minimumHeight,
+  ) {
+    return 'Normal（約 1 MP）: $normalWidth×$normalHeight。最低: $minimumWidth×$minimumHeight。';
+  }
+
+  @override
+  String get editor_compressionUnavailable =>
+      '作業キャンバスはすでに最低圧縮段階より小さいため、解像度を下げられません。';
+
+  @override
+  String get editor_compressionFocusLimited =>
+      '現在の Focused Inpaint 選択範囲では、これ以上の解像度がリクエスト面積上限を超えるため、スライダー上限を制限しています。';
+
+  @override
+  String editor_focusRequestSummary(
+    int outerWidth,
+    int outerHeight,
+    int requestWidth,
+    int requestHeight,
+    int cost,
+  ) {
+    return '外側の切り抜き $outerWidth×$outerHeight、送信サイズ $requestWidth×$requestHeight、推定 $cost Anlas。';
   }
 
   @override
@@ -7094,6 +7161,24 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_sendTo => '送信先...';
 
   @override
+  String get localGallery_sendToImg2Img => 'Image2Image に送信';
+
+  @override
+  String get localGallery_sendToReversePrompt => '逆プロンプトに送信';
+
+  @override
+  String get localGallery_sendToStyleTransfer => 'バイブストランスファーに送信';
+
+  @override
+  String get localGallery_sendToPreciseReference => '精密参照に送信';
+
+  @override
+  String get localGallery_sendToKrita => 'Krita に送信';
+
+  @override
+  String get localGallery_importImageMetadata => '画像メタデータをインポート';
+
+  @override
   String get localGallery_copyPrompt => 'プロンプトのコピー';
 
   @override
@@ -9544,6 +9629,13 @@ class AppLocalizationsJa extends AppLocalizations {
       '生成ページにランダムプロンプトボタンと Random Mode の切り替えを表示します';
 
   @override
+  String get settings_enablePromptWeightScroll => 'マウスホイールでプロンプトの重みを調整';
+
+  @override
+  String get settings_enablePromptWeightScrollSubtitle =>
+      'プロンプトを選択している間は、ホイールで重みだけを調整し、ページスクロールなどの操作は行いません。';
+
+  @override
   String settings_queueRetryCountMax(Object count) {
     return '最大 $count 回';
   }
@@ -11381,6 +11473,23 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_fontScale_done => '完了';
 
   @override
+  String get settings_generationLayout => '生成ページのレイアウト';
+
+  @override
+  String get settings_generationLayout_classic => 'クラシック';
+
+  @override
+  String get settings_generationLayout_classicDescription =>
+      'パラメータは左側、プロンプトはプレビューの上';
+
+  @override
+  String get settings_generationLayout_webStyle => '公式サイト風';
+
+  @override
+  String get settings_generationLayout_webStyleDescription =>
+      'プロンプトと設定を左端に固定、NovelAI 公式サイト風';
+
+  @override
   String get settings_defaultImagesPath =>
       'デフォルト (Documents/NAI_Launcher/images/)';
 
@@ -12899,4 +13008,71 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get cannotOpenUrl => 'リンクを開けません';
+
+  @override
+  String get model3d_editorTitle => '3Dモデルレイヤー';
+
+  @override
+  String get model3d_addMannequin => '内蔵マネキンを追加';
+
+  @override
+  String get model3d_importModel => 'モデルをインポート (.glb/.gltf)';
+
+  @override
+  String get model3d_emptyHint => 'シーンは空です。マネキンを追加するかモデルをインポートしてください';
+
+  @override
+  String get model3d_apply => 'レイヤーに適用';
+
+  @override
+  String get model3d_modeTransform => '変換';
+
+  @override
+  String get model3d_modePose => 'ポーズ';
+
+  @override
+  String get model3d_gizmoTranslate => '移動';
+
+  @override
+  String get model3d_gizmoRotate => '回転';
+
+  @override
+  String get model3d_gizmoScale => '拡縮';
+
+  @override
+  String get model3d_undo => '元に戻す';
+
+  @override
+  String get model3d_resetPose => 'ポーズをリセット';
+
+  @override
+  String get model3d_replaceConfirm => '現在のモデルを置き換えますか？未適用のポーズは失われます。';
+
+  @override
+  String get model3d_discardConfirm => '未適用の変更を破棄しますか？';
+
+  @override
+  String get model3d_missingModel => 'モデルファイルが見つかりません。再インポートできます';
+
+  @override
+  String get model3d_loadError => 'モデルの読み込みに失敗しました';
+
+  @override
+  String get model3d_light => 'ライティング';
+
+  @override
+  String get model3d_lightIntensity => '強度';
+
+  @override
+  String get model3d_lightAzimuth => '方位角';
+
+  @override
+  String get model3d_lightElevation => '仰角';
+
+  @override
+  String get model3d_addLayerTooltip => '3Dモデルレイヤーを追加';
+
+  @override
+  String get model3d_webview2Missing =>
+      '3DエディタにはMicrosoft Edge WebView2ランタイムが必要です。Windows 10/11には通常同梱されています。無い場合はMicrosoftからEvergreen版をインストールして再試行してください。';
 }

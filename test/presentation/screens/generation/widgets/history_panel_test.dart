@@ -13,9 +13,38 @@ void main() {
         resolveHistoryPreviewAspectRatio(double.nan, fallback: 1.5),
         equals(1.5),
       );
+      expect(resolveHistoryPreviewAspectRatio(0, fallback: 0.75), equals(0.75));
+    });
+  });
+
+  group('resolveCurrentHistoryPreviewAspectRatio', () {
+    test(
+      'uses the completed image ratio instead of the previous batch ratio',
+      () {
+        expect(
+          resolveCurrentHistoryPreviewAspectRatio(
+            832 / 1216,
+            completedImageAspectRatio: 1536 / 1024,
+          ),
+          equals(1.5),
+        );
+      },
+    );
+
+    test('uses the batch ratio for an unfinished stream slot', () {
       expect(
-        resolveHistoryPreviewAspectRatio(0, fallback: 0.75),
-        equals(0.75),
+        resolveCurrentHistoryPreviewAspectRatio(832 / 1216),
+        equals(832 / 1216),
+      );
+    });
+
+    test('falls back to the batch ratio for an invalid image ratio', () {
+      expect(
+        resolveCurrentHistoryPreviewAspectRatio(
+          832 / 1216,
+          completedImageAspectRatio: double.nan,
+        ),
+        equals(832 / 1216),
       );
     });
   });

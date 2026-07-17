@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/editor_compression_utils.dart';
 import '../../../../core/utils/hard_edge_mask_exporter.dart';
 import '../../../../core/utils/inpaint_mask_utils.dart';
 import '../core/history_manager.dart';
@@ -11,6 +12,31 @@ import '../layers/layer_manager.dart';
 
 /// 图像导出器
 class ImageExporterNew {
+  /// Renders the merged editor canvas once and returns unencoded RGBA pixels.
+  static Future<EditorRawRgbaImage> exportMergedRgba(
+    LayerManager layerManager,
+    Size canvasSize,
+  ) async {
+    final image = await layerManager.exportMergedImage(canvasSize);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final width = image.width;
+    final height = image.height;
+    image.dispose();
+
+    if (byteData == null) {
+      throw Exception('Failed to convert image to RGBA bytes');
+    }
+
+    return EditorRawRgbaImage(
+      bytes: byteData.buffer.asUint8List(
+        byteData.offsetInBytes,
+        byteData.lengthInBytes,
+      ),
+      width: width,
+      height: height,
+    );
+  }
+
   /// 导出合并后的图像
   static Future<Uint8List> exportMergedImage(
     LayerManager layerManager,
@@ -87,10 +113,7 @@ class ImageExporterNew {
     }
 
     if (selectionPath != null) {
-      canvas.drawPath(
-        selectionPath,
-        Paint()..color = Colors.white,
-      );
+      canvas.drawPath(selectionPath, Paint()..color = Colors.white);
     }
 
     for (final rect in additionalMaskRects) {
@@ -116,6 +139,23 @@ class ImageExporterNew {
     return InpaintMaskUtils.normalizeMaskBytes(byteData.buffer.asUint8List());
   }
 
+  /// Returns the CPU hard-edge raster without a PNG encode/decode round trip.
+  static Future<HardEdgeMaskRaster?> tryExportHardEdgeMaskRasterFromLayers(
+    LayerManager layerManager,
+    Size canvasSize, {
+    Set<String> excludedBaseImageLayerIds = const {},
+    List<Rect> additionalMaskRects = const [],
+  }) async {
+    final input = _tryBuildHardEdgeMaskInput(
+      layerManager,
+      canvasSize,
+      excludedBaseImageLayerIds,
+      additionalMaskRects,
+    );
+    if (input == null) return null;
+    return HardEdgeMaskExporter.exportRasterAsync(input);
+  }
+
   static HardEdgeMaskExportInput? _tryBuildHardEdgeMaskInput(
     LayerManager layerManager,
     Size canvasSize,
@@ -134,8 +174,9 @@ class ImageExporterNew {
         continue;
       }
 
-      final shouldIncludeBaseImage =
-          !excludedBaseImageLayerIds.contains(layer.id);
+      final shouldIncludeBaseImage = !excludedBaseImageLayerIds.contains(
+        layer.id,
+      );
       final includeBaseImage =
           shouldIncludeBaseImage && layer.baseImage != null;
       if (includeBaseImage && layer.toHardEdgeBaseMask() == null) {
@@ -159,8 +200,9 @@ class ImageExporterNew {
 
   /// 导出单个图层
   static Future<Uint8List> exportLayer(ui.Image layerImage) async {
-    final byteData =
-        await layerImage.toByteData(format: ui.ImageByteFormat.png);
+    final byteData = await layerImage.toByteData(
+      format: ui.ImageByteFormat.png,
+    );
 
     if (byteData == null) {
       throw Exception('Failed to convert layer to bytes');
@@ -176,11 +218,7 @@ class ImageExporterNew {
     bool forceHardEdges = false,
   }) {
     if (includeBaseImage && layer.baseImage != null) {
-      canvas.drawImage(
-        layer.baseImage!,
-        layer.baseImageOffset,
-        Paint(),
-      );
+      canvas.drawImage(layer.baseImage!, layer.baseImageOffset, Paint());
     }
 
     for (final stroke in layer.strokes) {

@@ -18,51 +18,61 @@ class AuthModeSwitcher extends ConsumerWidget {
         ? AuthMode.token
         : currentMode;
 
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 12,
-      runSpacing: 12,
+    return Row(
+      key: const Key('auth_mode_switcher'),
       children: [
-        _buildModeButton(
-          context: context,
-          label: context.l10n.auth_credentialsLogin,
-          icon: Icons.email_outlined,
-          isSelected: effectiveMode == AuthMode.credentials,
-          enabled: credentialsEnabled,
-          disabledTooltip: context.l10n.auth_credentialsLoginUnavailable,
-          onTap: () {
-            ref
-                .read(authModeNotifierProvider.notifier)
-                .switchMode(AuthMode.credentials);
-          },
+        Expanded(
+          child: _buildModeButton(
+            key: const Key('auth_mode_token'),
+            context: context,
+            label: context.l10n.auth_tokenLoginRecommended,
+            icon: Icons.key_outlined,
+            isSelected: effectiveMode == AuthMode.token,
+            onTap: () {
+              ref
+                  .read(authModeNotifierProvider.notifier)
+                  .switchMode(AuthMode.token);
+            },
+          ),
         ),
-        _buildModeButton(
-          context: context,
-          label: context.l10n.auth_tokenLogin,
-          icon: Icons.key_outlined,
-          isSelected: effectiveMode == AuthMode.token,
-          onTap: () {
-            ref
-                .read(authModeNotifierProvider.notifier)
-                .switchMode(AuthMode.token);
-          },
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildModeButton(
+            key: const Key('auth_mode_credentials'),
+            context: context,
+            label: context.l10n.auth_credentialsLogin,
+            icon: Icons.email_outlined,
+            isSelected: effectiveMode == AuthMode.credentials,
+            enabled: credentialsEnabled,
+            disabledTooltip: context.l10n.auth_credentialsLoginUnavailable,
+            onTap: () {
+              ref
+                  .read(authModeNotifierProvider.notifier)
+                  .switchMode(AuthMode.credentials);
+            },
+          ),
         ),
-        _buildModeButton(
-          context: context,
-          label: '第三方站点',
-          icon: Icons.public_outlined,
-          isSelected: effectiveMode == AuthMode.thirdParty,
-          onTap: () {
-            ref
-                .read(authModeNotifierProvider.notifier)
-                .switchMode(AuthMode.thirdParty);
-          },
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildModeButton(
+            key: const Key('auth_mode_third_party'),
+            context: context,
+            label: context.l10n.auth_thirdPartyLogin,
+            icon: Icons.public_outlined,
+            isSelected: effectiveMode == AuthMode.thirdParty,
+            onTap: () {
+              ref
+                  .read(authModeNotifierProvider.notifier)
+                  .switchMode(AuthMode.thirdParty);
+            },
+          ),
         ),
       ],
     );
   }
 
   Widget _buildModeButton({
+    Key? key,
     required BuildContext context,
     required String label,
     required IconData icon,
@@ -79,12 +89,17 @@ class AuthModeSwitcher extends ConsumerWidget {
         : theme.disabledColor;
 
     final button = InkWell(
+      key: key,
       onTap: enabled ? onTap : null,
       borderRadius: BorderRadius.circular(12),
       child: Opacity(
         opacity: enabled ? 1 : 0.55,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          width: double.infinity,
+          height: 76,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           decoration: BoxDecoration(
             color: isSelected
                 ? theme.colorScheme.primaryContainer
@@ -99,18 +114,24 @@ class AuthModeSwitcher extends ConsumerWidget {
               width: enabled && isSelected ? 2 : 1,
             ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, size: 20, color: foregroundColor),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: foregroundColor,
-                  fontWeight: enabled && isSelected
-                      ? FontWeight.w600
-                      : FontWeight.normal,
+              const SizedBox(height: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: foregroundColor,
+                    height: 1.1,
+                    fontWeight: enabled && isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                  ),
                 ),
               ),
             ],

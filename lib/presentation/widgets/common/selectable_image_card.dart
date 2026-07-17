@@ -1,19 +1,29 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../data/models/image/image_stream_chunk.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../themes/theme_extension.dart';
 import '../../utils/clipboard_image.dart';
 import 'pro_context_menu.dart';
 import 'app_toast.dart';
 import 'decoded_memory_image.dart';
+
+typedef ImageClipboardWriter = Future<void> Function(Uint8List bytes);
+
+final imageClipboardWriterProvider = Provider<ImageClipboardWriter>(
+  (ref) => writeImageBytesToClipboardAsPng,
+);
 
 /// 可选择的图像卡片组件
 ///
@@ -140,6 +150,9 @@ class SelectableImageCard extends ConsumerStatefulWidget {
   /// 流式预览图像（渐进式生成中显示）
   final Uint8List? streamPreview;
 
+  /// Focused inpaint 流式预览在原图上的覆盖位置。
+  final FocusedStreamPreviewPlacement? focusedPreviewPlacement;
+
   /// 图像宽度（用于计算比例，生成中状态需要）
   final int? imageWidth;
 
@@ -190,12 +203,13 @@ class SelectableImageCard extends ConsumerStatefulWidget {
     this.currentImage,
     this.totalImages,
     this.streamPreview,
+    this.focusedPreviewPlacement,
     this.imageWidth,
     this.imageHeight,
   }) : assert(
-          !isGenerating || (imageWidth != null && imageHeight != null),
-          'imageWidth and imageHeight are required when isGenerating is true',
-        );
+         !isGenerating || (imageWidth != null && imageHeight != null),
+         'imageWidth and imageHeight are required when isGenerating is true',
+       );
 
   @override
   ConsumerState<SelectableImageCard> createState() =>
@@ -205,10 +219,12 @@ class SelectableImageCard extends ConsumerStatefulWidget {
 class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     with TickerProviderStateMixin {
   static const double _dragPreparationProgressValue = 0.96;
-  static const Duration _dragPreparationOverlayFadeDuration =
-      Duration(milliseconds: 140);
-  static const Duration _completionPlaceholderFallbackDuration =
-      Duration(milliseconds: 900);
+  static const Duration _dragPreparationOverlayFadeDuration = Duration(
+    milliseconds: 140,
+  );
+  static const Duration _completionPlaceholderFallbackDuration = Duration(
+    milliseconds: 900,
+  );
 
   bool _isHovering = false;
   late bool _showPreparedIndexBadge;
@@ -231,8 +247,9 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
   @override
   void initState() {
     super.initState();
-    _lastStreamPreviewBytes =
-        widget.streamPreview?.isNotEmpty == true ? widget.streamPreview : null;
+    _lastStreamPreviewBytes = widget.streamPreview?.isNotEmpty == true
+        ? widget.streamPreview
+        : null;
     _showPreparedIndexBadge = widget.dragPreparationReady;
     _completedImageHasFrame = _effectiveCompletionPlaceholderBytes == null;
     _scheduleCompletionPlaceholderFallback();
@@ -498,11 +515,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
           fit: StackFit.expand,
           children: [
             // 流式预览图像
-            DecodedMemoryImage(
-              bytes: widget.streamPreview!,
-              fit: BoxFit.cover,
-              gaplessPlayback: true,
-            ),
+            _buildStreamPreviewImage(),
             // 半透明遮罩 + 进度指示
             Container(
               decoration: BoxDecoration(
@@ -542,12 +555,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
                       color: Colors.white,
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black54,
-                          blurRadius: 4,
-                        ),
-                      ],
+                      shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
                     ),
                   ),
                   const Spacer(),
@@ -559,12 +567,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
                         color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black54,
-                            blurRadius: 4,
-                          ),
-                        ],
+                        shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
                       ),
                     ),
                 ],
@@ -573,6 +576,78 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStreamPreviewImage() {
+    final focusedPreviewPlacement = widget.focusedPreviewPlacement;
+    if (focusedPreviewPlacement == null || !focusedPreviewPlacement.isValid) {
+      return DecodedMemoryImage(
+        bytes: widget.streamPreview!,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+      );
+    }
+
+    if (focusedPreviewPlacement.hasMask) {
+      return _FocusedStreamPreviewImage(
+        previewImage: widget.streamPreview!,
+        placement: focusedPreviewPlacement,
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (!constraints.hasBoundedWidth || !constraints.hasBoundedHeight) {
+          return DecodedMemoryImage(
+            bytes: widget.streamPreview!,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+          );
+        }
+
+        final xPercent = focusedPreviewPlacement.xPercent
+            .clamp(0.0, 1.0)
+            .toDouble();
+        final yPercent = focusedPreviewPlacement.yPercent
+            .clamp(0.0, 1.0)
+            .toDouble();
+        final widthPercent = focusedPreviewPlacement.widthPercent
+            .clamp(0.0, 1.0 - xPercent)
+            .toDouble();
+        final heightPercent = focusedPreviewPlacement.heightPercent
+            .clamp(0.0, 1.0 - yPercent)
+            .toDouble();
+        final overlayWidth = math.max(1.0, constraints.maxWidth * widthPercent);
+        final overlayHeight = math.max(
+          1.0,
+          constraints.maxHeight * heightPercent,
+        );
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            DecodedMemoryImage(
+              bytes: focusedPreviewPlacement.sourceImage,
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+            ),
+            Positioned(
+              left: constraints.maxWidth * xPercent,
+              top: constraints.maxHeight * yPercent,
+              width: overlayWidth,
+              height: overlayHeight,
+              child: ClipRect(
+                child: DecodedMemoryImage(
+                  bytes: widget.streamPreview!,
+                  fit: BoxFit.fill,
+                  gaplessPlayback: true,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -635,11 +710,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
                     color: primaryColor,
                   ),
                 ),
-                Icon(
-                  Icons.auto_awesome_rounded,
-                  size: 22,
-                  color: primaryColor,
-                ),
+                Icon(Icons.auto_awesome_rounded, size: 22, color: primaryColor),
               ],
             ),
           ),
@@ -712,7 +783,8 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     if (widget.imageBytes == null) {
       return const SizedBox.shrink();
     }
-    final showIndexBadge = widget.dragPreparationReady &&
+    final showIndexBadge =
+        widget.dragPreparationReady &&
         _showPreparedIndexBadge &&
         widget.showIndex &&
         widget.index != null &&
@@ -745,7 +817,9 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
           });
         },
         onSecondaryTapDown: widget.enableContextMenu
-            ? (details) => _showContextMenu(context, details.globalPosition)
+            ? (details) {
+                unawaited(_showContextMenu(context, details.globalPosition));
+              }
             : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
@@ -761,19 +835,21 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
             border: widget.isSelected
                 ? Border.all(color: theme.colorScheme.primary, width: 3)
                 : (_isHovering
-                    ? Border.all(
-                        color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                        width: 2,
-                      )
-                    : null),
+                      ? Border.all(
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: 0.3,
+                          ),
+                          width: 2,
+                        )
+                      : null),
             boxShadow: [
               // 主阴影
               BoxShadow(
                 color: widget.isSelected
                     ? theme.colorScheme.primary.withValues(alpha: 0.3)
                     : (_isHovering
-                        ? Colors.black.withValues(alpha: 0.35)
-                        : Colors.black.withValues(alpha: 0.12)),
+                          ? Colors.black.withValues(alpha: 0.35)
+                          : Colors.black.withValues(alpha: 0.12)),
                 blurRadius: widget.isSelected ? 16 : (_isHovering ? 28 : 10),
                 offset: Offset(0, _isHovering ? 14 : 4),
                 spreadRadius: _isHovering ? 2 : 0,
@@ -862,8 +938,9 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
                                     ),
                                     value: _dragPreparationProgressValue,
                                     strokeWidth: 2,
-                                    backgroundColor:
-                                        Colors.white.withValues(alpha: 0.2),
+                                    backgroundColor: Colors.white.withValues(
+                                      alpha: 0.2,
+                                    ),
                                     color: Colors.white,
                                   ),
                                 ),
@@ -918,9 +995,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
                       child: AnimatedBuilder(
                         animation: _glossAnimation,
                         builder: (context, child) {
-                          return _GlossOverlay(
-                            progress: _glossAnimation.value,
-                          );
+                          return _GlossOverlay(progress: _glossAnimation.value);
                         },
                       ),
                     ),
@@ -954,11 +1029,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
                 if (widget.enableSelection &&
                     widget.statusBadgeLabel == null &&
                     (_isHovering || widget.isSelected))
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: _buildCheckbox(theme),
-                  ),
+                  Positioned(top: 8, left: 8, child: _buildCheckbox(theme)),
 
                 // 5.5 右上角：本地画廊收藏按钮
                 if (widget.onFavoriteToggle != null)
@@ -1013,8 +1084,9 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
                     child: IgnorePointer(
                       child: Container(
                         decoration: BoxDecoration(
-                          color:
-                              theme.colorScheme.primary.withValues(alpha: 0.15),
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: 0.15,
+                          ),
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
@@ -1039,9 +1111,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
         decoration: BoxDecoration(
           color: Colors.black.withValues(alpha: 0.62),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.18),
-          ),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.25),
@@ -1246,8 +1316,9 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
           color: widget.isSelected ? theme.colorScheme.primary : Colors.black45,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color:
-                widget.isSelected ? theme.colorScheme.primary : Colors.white70,
+            color: widget.isSelected
+                ? theme.colorScheme.primary
+                : Colors.white70,
             width: 2,
           ),
           boxShadow: [
@@ -1259,11 +1330,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
           ],
         ),
         child: widget.isSelected
-            ? Icon(
-                Icons.check,
-                color: theme.colorScheme.onPrimary,
-                size: 18,
-              )
+            ? Icon(Icons.check, color: theme.colorScheme.onPrimary, size: 18)
             : null,
       ),
     );
@@ -1299,33 +1366,55 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     }
   }
 
-  Future<void> _copyImage(BuildContext context) async {
+  void _copyImage(BuildContext context) {
+    _createCopyImageAction(context)();
+  }
+
+  VoidCallback _createCopyImageAction(BuildContext context) {
     final l10n = context.l10n;
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    final stripMetadata = ref
+        .read(shareImageSettingsProvider)
+        .effectiveStripMetadataForCopyAndDrag;
+    final clipboardWriter = ref.read(imageClipboardWriterProvider);
+    final cache = _shareTransferCache ?? _createShareTransferCache();
+    if (cache != null) {
+      _shareTransferCache = cache;
+    }
+
+    return () {
+      unawaited(
+        _copyPreparedImage(
+          cache: cache,
+          stripMetadata: stripMetadata,
+          clipboardWriter: clipboardWriter,
+          overlay: overlay,
+          l10n: l10n,
+        ),
+      );
+    };
+  }
+
+  static Future<void> _copyPreparedImage({
+    required ShareImageTransferCache? cache,
+    required bool stripMetadata,
+    required ImageClipboardWriter clipboardWriter,
+    required OverlayState? overlay,
+    required AppLocalizations l10n,
+  }) async {
     try {
-      final stripMetadata = ref
-          .read(shareImageSettingsProvider)
-          .effectiveStripMetadataForCopyAndDrag;
-      final cache = _shareTransferCache ?? _createShareTransferCache();
       if (cache == null) {
         throw StateError(l10n.toast_imageDataUnavailable);
       }
-      _shareTransferCache = cache;
-      final shareImage = await cache.prepareImage(
-        stripMetadata: stripMetadata,
-      );
+      final shareImage = await cache.prepareImage(stripMetadata: stripMetadata);
 
       // 跨平台复制到剪贴板（原 Windows 端走 PowerShell + System.Drawing，
       // macOS/Linux 不可用）。统一规范化为 PNG 写入，避免 jpg/webp 原始字节
       // 被当成 PNG 导致粘贴失败。
-      await writeImageBytesToClipboardAsPng(shareImage.bytes);
-
-      if (context.mounted) {
-        AppToast.success(context, l10n.image_copiedToClipboard);
-      }
+      await clipboardWriter(shareImage.bytes);
+      AppToast.successOnOverlay(overlay, l10n.image_copiedToClipboard);
     } catch (e) {
-      if (context.mounted) {
-        AppToast.error(context, l10n.image_copyFailed(e.toString()));
-      }
+      AppToast.errorOnOverlay(overlay, l10n.image_copyFailed(e.toString()));
     }
   }
 
@@ -1358,8 +1447,11 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
   }
 
   /// 显示右键菜单
-  void _showContextMenu(BuildContext context, Offset position) {
+  Future<void> _showContextMenu(BuildContext context, Offset position) async {
     final items = <ProMenuItem>[];
+    final copyImageAction = widget.enableCopyAction
+        ? _createCopyImageAction(context)
+        : null;
 
     void addDividerIfNeeded() {
       if (items.isNotEmpty && !items.last.isDivider) {
@@ -1384,7 +1476,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
           id: 'copy',
           label: context.l10n.shortcut_action_copy_image,
           icon: Icons.copy,
-          onTap: () => _copyImage(context),
+          onTap: copyImageAction,
         ),
       );
     }
@@ -1532,27 +1624,23 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       return;
     }
 
-    Navigator.of(context).push(
-      _ContextMenuRoute(
-        position: position,
-        items: items,
-        onSelect: (item) {},
-      ),
-    );
+    final navigator = Navigator.of(context);
+    final route = _ContextMenuRoute(position: position, items: items);
+    final selectedItem = await navigator.push<ProMenuItem>(route);
+    await route.completed;
+    if (selectedItem == null) {
+      return;
+    }
+    selectedItem.onTap?.call();
   }
 }
 
 /// 右键菜单路由
-class _ContextMenuRoute extends PopupRoute {
+class _ContextMenuRoute extends PopupRoute<ProMenuItem> {
   final Offset position;
   final List<ProMenuItem> items;
-  final void Function(ProMenuItem) onSelect;
 
-  _ContextMenuRoute({
-    required this.position,
-    required this.items,
-    required this.onSelect,
-  });
+  _ContextMenuRoute({required this.position, required this.items});
 
   @override
   Color? get barrierColor => null;
@@ -1579,7 +1667,8 @@ class _ContextMenuRoute extends PopupRoute {
         builder: (context) {
           final screenSize = MediaQuery.of(context).size;
           const menuWidth = 180.0;
-          final menuHeight = items.where((i) => !i.isDivider).length * 36.0 +
+          final menuHeight =
+              items.where((i) => !i.isDivider).length * 36.0 +
               items.where((i) => i.isDivider).length * 1.0;
 
           double left = position.dx;
@@ -1602,11 +1691,7 @@ class _ContextMenuRoute extends PopupRoute {
                   position: Offset(left, top),
                   items: items,
                   onSelect: (item) {
-                    onSelect(item);
-                    Navigator.of(context).pop();
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      item.onTap?.call();
-                    });
+                    Navigator.of(context).pop(item);
                   },
                 ),
               ],
@@ -1621,21 +1706,30 @@ class _ContextMenuRoute extends PopupRoute {
   Duration get transitionDuration => const Duration(milliseconds: 200);
 
   @override
+  Duration get reverseTransitionDuration => Duration.zero;
+
+  @override
   Widget buildTransitions(
     BuildContext context,
     Animation<double> animation,
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    return FadeTransition(
-      opacity: animation,
-      child: ScaleTransition(
-        scale: CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutBack,
-        ),
-        child: child,
+    final fadeAnimation = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOut,
+      reverseCurve: Curves.easeIn,
+    );
+    final scaleAnimation = Tween<double>(begin: 0.96, end: 1).animate(
+      CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
       ),
+    );
+    return FadeTransition(
+      opacity: fadeAnimation,
+      child: ScaleTransition(scale: scaleAnimation, child: child),
     );
   }
 }
@@ -1679,11 +1773,11 @@ class _HoverActionButtonState extends State<_HoverActionButton> {
             decoration: BoxDecoration(
               color: widget.isPrimary
                   ? (_isHovered
-                      ? primaryColor
-                      : primaryColor.withValues(alpha: 0.9))
+                        ? primaryColor
+                        : primaryColor.withValues(alpha: 0.9))
                   : (_isHovered
-                      ? Colors.white.withValues(alpha: 0.2)
-                      : Colors.transparent),
+                        ? Colors.white.withValues(alpha: 0.2)
+                        : Colors.transparent),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Icon(
@@ -1692,8 +1786,8 @@ class _HoverActionButtonState extends State<_HoverActionButton> {
               color: widget.isPrimary
                   ? Colors.white
                   : (_isHovered
-                      ? Colors.white
-                      : Colors.white.withValues(alpha: 0.8)),
+                        ? Colors.white
+                        : Colors.white.withValues(alpha: 0.8)),
             ),
           ),
         ),
@@ -1702,25 +1796,257 @@ class _HoverActionButtonState extends State<_HoverActionButton> {
   }
 }
 
+class _FocusedStreamPreviewImage extends StatefulWidget {
+  const _FocusedStreamPreviewImage({
+    required this.previewImage,
+    required this.placement,
+  });
+
+  final Uint8List previewImage;
+  final FocusedStreamPreviewPlacement placement;
+
+  @override
+  State<_FocusedStreamPreviewImage> createState() =>
+      _FocusedStreamPreviewImageState();
+}
+
+class _FocusedStreamPreviewImageState
+    extends State<_FocusedStreamPreviewImage> {
+  ui.Image? _sourceImage;
+  ui.Image? _previewImage;
+  ui.Image? _maskImage;
+  Uint8List? _sourceBytes;
+  Uint8List? _previewBytes;
+  Uint8List? _maskBytes;
+  int _decodeEpoch = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _decodeChangedImages();
+  }
+
+  @override
+  void didUpdateWidget(covariant _FocusedStreamPreviewImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _decodeChangedImages();
+  }
+
+  @override
+  void dispose() {
+    _decodeEpoch++;
+    _sourceImage?.dispose();
+    _previewImage?.dispose();
+    _maskImage?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sourceImage = _sourceImage;
+    final previewImage = _previewImage;
+    final maskImage = _maskImage;
+    if (sourceImage == null || previewImage == null || maskImage == null) {
+      return DecodedMemoryImage(
+        bytes: widget.placement.sourceImage,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+      );
+    }
+
+    return CustomPaint(
+      painter: _FocusedStreamPreviewPainter(
+        sourceImage: sourceImage,
+        previewImage: previewImage,
+        maskImage: maskImage,
+        placement: widget.placement,
+      ),
+    );
+  }
+
+  void _decodeChangedImages() {
+    final maskBytes = widget.placement.maskImage;
+    if (maskBytes == null || maskBytes.isEmpty) {
+      return;
+    }
+
+    final sourceChanged = !_sameBytes(
+      _sourceBytes,
+      widget.placement.sourceImage,
+    );
+    final previewChanged = !_sameBytes(_previewBytes, widget.previewImage);
+    final maskChanged = !_sameBytes(_maskBytes, maskBytes);
+    if (!sourceChanged && !previewChanged && !maskChanged) {
+      return;
+    }
+
+    final epoch = ++_decodeEpoch;
+    unawaited(
+      Future.wait<ui.Image?>([
+        sourceChanged
+            ? _decodeUiImage(widget.placement.sourceImage)
+            : Future<ui.Image?>.value(_sourceImage),
+        previewChanged
+            ? _decodeUiImage(widget.previewImage)
+            : Future<ui.Image?>.value(_previewImage),
+        maskChanged
+            ? _decodeUiImage(maskBytes)
+            : Future<ui.Image?>.value(_maskImage),
+      ]).then((images) {
+        if (!mounted || epoch != _decodeEpoch) {
+          if (sourceChanged) images[0]?.dispose();
+          if (previewChanged) images[1]?.dispose();
+          if (maskChanged) images[2]?.dispose();
+          return;
+        }
+
+        setState(() {
+          if (sourceChanged) {
+            _sourceImage?.dispose();
+            _sourceImage = images[0];
+            _sourceBytes = widget.placement.sourceImage;
+          }
+          if (previewChanged) {
+            _previewImage?.dispose();
+            _previewImage = images[1];
+            _previewBytes = widget.previewImage;
+          }
+          if (maskChanged) {
+            _maskImage?.dispose();
+            _maskImage = images[2];
+            _maskBytes = maskBytes;
+          }
+        });
+      }),
+    );
+  }
+
+  static bool _sameBytes(Uint8List? a, Uint8List b) {
+    return identical(a, b) || (a != null && listEquals(a, b));
+  }
+
+  static Future<ui.Image?> _decodeUiImage(Uint8List bytes) async {
+    try {
+      return await decodeImageFromList(bytes);
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+class _FocusedStreamPreviewPainter extends CustomPainter {
+  _FocusedStreamPreviewPainter({
+    required this.sourceImage,
+    required this.previewImage,
+    required this.maskImage,
+    required this.placement,
+  });
+
+  final ui.Image sourceImage;
+  final ui.Image previewImage;
+  final ui.Image maskImage;
+  final FocusedStreamPreviewPlacement placement;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+
+    final imagePaint = Paint()
+      ..filterQuality = FilterQuality.low
+      ..isAntiAlias = false;
+    _drawCoverImage(canvas, sourceImage, Offset.zero & size, imagePaint);
+
+    final xPercent = placement.xPercent.clamp(0.0, 1.0).toDouble();
+    final yPercent = placement.yPercent.clamp(0.0, 1.0).toDouble();
+    final widthPercent = placement.widthPercent
+        .clamp(0.0, 1.0 - xPercent)
+        .toDouble();
+    final heightPercent = placement.heightPercent
+        .clamp(0.0, 1.0 - yPercent)
+        .toDouble();
+    if (widthPercent <= 0 || heightPercent <= 0) return;
+
+    final overlayRect = Rect.fromLTWH(
+      size.width * xPercent,
+      size.height * yPercent,
+      math.max(1.0, size.width * widthPercent),
+      math.max(1.0, size.height * heightPercent),
+    );
+    final imageSourceRect = Rect.fromLTWH(
+      0,
+      0,
+      previewImage.width.toDouble(),
+      previewImage.height.toDouble(),
+    );
+    final maskSourceRect = Rect.fromLTWH(
+      0,
+      0,
+      maskImage.width.toDouble(),
+      maskImage.height.toDouble(),
+    );
+    final previewPaint = Paint()
+      ..filterQuality = FilterQuality.low
+      ..isAntiAlias = false;
+    final maskPaint = Paint()
+      ..filterQuality = FilterQuality.low
+      ..isAntiAlias = false
+      ..blendMode = BlendMode.dstIn;
+
+    canvas.saveLayer(overlayRect, Paint());
+    canvas.drawImageRect(
+      previewImage,
+      imageSourceRect,
+      overlayRect,
+      previewPaint,
+    );
+    canvas.drawImageRect(maskImage, maskSourceRect, overlayRect, maskPaint);
+    canvas.restore();
+  }
+
+  void _drawCoverImage(
+    Canvas canvas,
+    ui.Image image,
+    Rect outputRect,
+    Paint paint,
+  ) {
+    final inputSize = Size(image.width.toDouble(), image.height.toDouble());
+    final fitted = applyBoxFit(BoxFit.cover, inputSize, outputRect.size);
+    final sourceRect = Alignment.center.inscribe(
+      fitted.source,
+      Offset.zero & inputSize,
+    );
+    final destinationRect = Alignment.center.inscribe(
+      fitted.destination,
+      outputRect,
+    );
+    canvas.drawImageRect(image, sourceRect, destinationRect, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _FocusedStreamPreviewPainter oldDelegate) {
+    return oldDelegate.sourceImage != sourceImage ||
+        oldDelegate.previewImage != previewImage ||
+        oldDelegate.maskImage != maskImage ||
+        oldDelegate.placement.xPercent != placement.xPercent ||
+        oldDelegate.placement.yPercent != placement.yPercent ||
+        oldDelegate.placement.widthPercent != placement.widthPercent ||
+        oldDelegate.placement.heightPercent != placement.heightPercent;
+  }
+}
+
 /// 边缘发光效果覆盖层
 class _EdgeGlowOverlay extends StatelessWidget {
   final Color glowColor;
   final double intensity;
 
-  const _EdgeGlowOverlay({
-    required this.glowColor,
-    this.intensity = 1.0,
-  });
+  const _EdgeGlowOverlay({required this.glowColor, this.intensity = 1.0});
 
   @override
   Widget build(BuildContext context) {
     return IgnorePointer(
       child: CustomPaint(
         size: Size.infinite,
-        painter: _EdgeGlowPainter(
-          glowColor: glowColor,
-          intensity: intensity,
-        ),
+        painter: _EdgeGlowPainter(glowColor: glowColor, intensity: intensity),
       ),
     );
   }
@@ -1731,10 +2057,7 @@ class _EdgeGlowPainter extends CustomPainter {
   final Color glowColor;
   final double intensity;
 
-  _EdgeGlowPainter({
-    required this.glowColor,
-    required this.intensity,
-  });
+  _EdgeGlowPainter({required this.glowColor, required this.intensity});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1834,49 +2157,51 @@ class _GlossPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     // 主光泽层 - 白色高光
     final mainPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Colors.transparent,
-          Colors.white.withValues(alpha: 0.06),
-          Colors.white.withValues(alpha: 0.15),
-          Colors.white.withValues(alpha: 0.06),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
-      ).createShader(
-        Rect.fromLTWH(
-          size.width * progress - size.width * 0.5,
-          size.height * progress - size.height * 0.5,
-          size.width,
-          size.height,
-        ),
-      );
+      ..shader =
+          LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.transparent,
+              Colors.white.withValues(alpha: 0.06),
+              Colors.white.withValues(alpha: 0.15),
+              Colors.white.withValues(alpha: 0.06),
+              Colors.transparent,
+            ],
+            stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
+          ).createShader(
+            Rect.fromLTWH(
+              size.width * progress - size.width * 0.5,
+              size.height * progress - size.height * 0.5,
+              size.width,
+              size.height,
+            ),
+          );
 
     canvas.drawRect(Offset.zero & size, mainPaint);
 
     // 珠光层 - 微妙的彩色光泽
     final pearlPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Colors.transparent,
-          const Color(0xFFB8E6F5).withValues(alpha: 0.03), // 浅青色
-          const Color(0xFFFFF5E1).withValues(alpha: 0.05), // 浅金色
-          const Color(0xFFE6B8F5).withValues(alpha: 0.03), // 浅紫色
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.3, 0.5, 0.7, 1.0],
-      ).createShader(
-        Rect.fromLTWH(
-          size.width * progress - size.width * 0.6,
-          size.height * progress - size.height * 0.6,
-          size.width * 1.2,
-          size.height * 1.2,
-        ),
-      )
+      ..shader =
+          LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.transparent,
+              const Color(0xFFB8E6F5).withValues(alpha: 0.03), // 浅青色
+              const Color(0xFFFFF5E1).withValues(alpha: 0.05), // 浅金色
+              const Color(0xFFE6B8F5).withValues(alpha: 0.03), // 浅紫色
+              Colors.transparent,
+            ],
+            stops: const [0.0, 0.3, 0.5, 0.7, 1.0],
+          ).createShader(
+            Rect.fromLTWH(
+              size.width * progress - size.width * 0.6,
+              size.height * progress - size.height * 0.6,
+              size.width * 1.2,
+              size.height * 1.2,
+            ),
+          )
       ..blendMode = BlendMode.screen;
 
     canvas.drawRect(Offset.zero & size, pearlPaint);

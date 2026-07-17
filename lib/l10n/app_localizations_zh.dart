@@ -339,6 +339,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get auth_tokenLogin => 'API Token 登录';
 
   @override
+  String get auth_tokenLoginRecommended => 'API Token 登录（推荐）';
+
+  @override
   String get auth_credentialsLogin => '邮箱密码登录';
 
   @override
@@ -361,6 +364,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get auth_nicknameHint => '为此账号设置一个便于识别的名称';
+
+  @override
+  String get auth_thirdPartyLogin => '第三方站点';
 
   @override
   String get auth_thirdPartyApiSite => '第三方 API 站点';
@@ -593,19 +599,28 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_shortcuts => '快捷键';
 
   @override
-  String get settings_dataSource => '数据源';
-
-  @override
   String get settings_generation => '生成';
 
   @override
-  String get settings_queue => '队列';
+  String get settings_dataStorage => '数据与存储';
 
   @override
-  String get settings_notifications => '通知';
+  String get settings_privacySharing => '安全与分享';
 
   @override
-  String get settings_promptAssistant => '助手';
+  String get settings_integrations => '集成';
+
+  @override
+  String get settings_generationInputSection => '输入';
+
+  @override
+  String get settings_generationRetrySection => '失败重试';
+
+  @override
+  String get settings_generationFeedbackSection => '完成提醒';
+
+  @override
+  String get settings_promptAssistant => '提示词助手';
 
   @override
   String get settings_selectStyle => '选择风格';
@@ -1624,18 +1639,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get img2img_novelAiUpscaleComplete => 'NovelAI 超分完成';
 
   @override
-  String img2img_upscaleCompleteAdded(Object width, Object height) {
-    return '超分完成 (${width}x$height)，已加入预览列表';
+  String img2img_upscaleComplete(Object width, Object height) {
+    return '超分完成 (${width}x$height)';
   }
 
   @override
-  String img2img_regularUpscaleCompleteAdded(Object width, Object height) {
-    return '普通模型超分完成 (${width}x$height)，已加入预览列表';
+  String img2img_regularUpscaleComplete(Object width, Object height) {
+    return '普通模型超分完成 (${width}x$height)';
   }
 
   @override
-  String img2img_rtxUpscaleCompleteAdded(Object width, Object height) {
-    return 'RTX 超分完成 (${width}x$height)，已加入预览列表';
+  String img2img_rtxUpscaleComplete(Object width, Object height) {
+    return 'RTX 超分完成 (${width}x$height)';
   }
 
   @override
@@ -2175,6 +2190,57 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String editor_focusAnlasWarning(int width, int height, int cost) {
     return '实际送出范围 $width×$height，按当前生成设置预计消耗 $cost Anlas。';
+  }
+
+  @override
+  String get editor_compressionTitle => '输出分辨率';
+
+  @override
+  String get editor_compressionTooltip => '选择输出分辨率';
+
+  @override
+  String get editor_compressionUncompressed => '保持编辑工作尺寸，不执行压缩。';
+
+  @override
+  String get editor_compressionApplyOnDone =>
+      '工作画布保持原样；点击“完成”时使用 Pica Lanczos3 执行一次压缩。';
+
+  @override
+  String editor_compressionSizeSummary(
+    int workWidth,
+    int workHeight,
+    int targetWidth,
+    int targetHeight,
+  ) {
+    return '工作尺寸 $workWidth×$workHeight → 输出尺寸 $targetWidth×$targetHeight';
+  }
+
+  @override
+  String editor_compressionNormalSummary(
+    int normalWidth,
+    int normalHeight,
+    int minimumWidth,
+    int minimumHeight,
+  ) {
+    return 'Normal（约 1MP）为 $normalWidth×$normalHeight；最低档为 $minimumWidth×$minimumHeight。';
+  }
+
+  @override
+  String get editor_compressionUnavailable => '当前工作画布已经低于最低压缩档，不能继续降低分辨率。';
+
+  @override
+  String get editor_compressionFocusLimited =>
+      '当前 Focused Inpaint 选区在更高分辨率下会超过请求面积上限，因此滑条上限已收紧。';
+
+  @override
+  String editor_focusRequestSummary(
+    int outerWidth,
+    int outerHeight,
+    int requestWidth,
+    int requestHeight,
+    int cost,
+  ) {
+    return '外层裁剪 $outerWidth×$outerHeight，实际发送 $requestWidth×$requestHeight，预计 $cost Anlas。';
   }
 
   @override
@@ -7009,6 +7075,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_sendTo => '发送到...';
 
   @override
+  String get localGallery_sendToImg2Img => '发送到图生图';
+
+  @override
+  String get localGallery_sendToReversePrompt => '发送到反推';
+
+  @override
+  String get localGallery_sendToStyleTransfer => '发送到风格迁移';
+
+  @override
+  String get localGallery_sendToPreciseReference => '发送到精准参考';
+
+  @override
+  String get localGallery_sendToKrita => '发送到 Krita';
+
+  @override
+  String get localGallery_importImageMetadata => '导入图片元数据';
+
+  @override
   String get localGallery_copyPrompt => '复制 Prompt';
 
   @override
@@ -9437,6 +9521,13 @@ class AppLocalizationsZh extends AppLocalizations {
       '在生成页显示“随机提示词”按钮和“抽卡模式”开关';
 
   @override
+  String get settings_enablePromptWeightScroll => '滚轮调整提示词权重';
+
+  @override
+  String get settings_enablePromptWeightScrollSubtitle =>
+      '选中提示词时，滚轮仅调整权重，不再触发页面滚动等其他滚轮操作';
+
+  @override
   String settings_queueRetryCountMax(Object count) {
     return '最多 $count 次';
   }
@@ -11246,6 +11337,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_fontScale_done => '完成';
 
   @override
+  String get settings_generationLayout => '生成页布局';
+
+  @override
+  String get settings_generationLayout_classic => '经典布局';
+
+  @override
+  String get settings_generationLayout_classicDescription => '参数在左侧，提示词位于预览区上方';
+
+  @override
+  String get settings_generationLayout_webStyle => '官网式布局';
+
+  @override
+  String get settings_generationLayout_webStyleDescription =>
+      '提示词与设置固定在最左栏，类似 NovelAI 官网';
+
+  @override
   String get settings_defaultImagesPath =>
       '默认 (Documents/NAI_Launcher/images/)';
 
@@ -12728,4 +12835,71 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cannotOpenUrl => '无法打开链接';
+
+  @override
+  String get model3d_editorTitle => '3D 模型图层';
+
+  @override
+  String get model3d_addMannequin => '添加内置人偶';
+
+  @override
+  String get model3d_importModel => '导入模型 (.glb/.gltf)';
+
+  @override
+  String get model3d_emptyHint => '场景为空，先添加人偶或导入模型';
+
+  @override
+  String get model3d_apply => '应用到图层';
+
+  @override
+  String get model3d_modeTransform => '变换';
+
+  @override
+  String get model3d_modePose => '姿势';
+
+  @override
+  String get model3d_gizmoTranslate => '移动';
+
+  @override
+  String get model3d_gizmoRotate => '旋转';
+
+  @override
+  String get model3d_gizmoScale => '缩放';
+
+  @override
+  String get model3d_undo => '撤销';
+
+  @override
+  String get model3d_resetPose => '重置姿势';
+
+  @override
+  String get model3d_replaceConfirm => '替换当前模型？未应用的姿势将丢失。';
+
+  @override
+  String get model3d_discardConfirm => '放弃未应用的修改？';
+
+  @override
+  String get model3d_missingModel => '模型文件已丢失，可重新导入';
+
+  @override
+  String get model3d_loadError => '模型加载失败';
+
+  @override
+  String get model3d_light => '光照';
+
+  @override
+  String get model3d_lightIntensity => '强度';
+
+  @override
+  String get model3d_lightAzimuth => '方位角';
+
+  @override
+  String get model3d_lightElevation => '仰角';
+
+  @override
+  String get model3d_addLayerTooltip => '添加 3D 模型图层';
+
+  @override
+  String get model3d_webview2Missing =>
+      '3D 编辑器需要 Microsoft Edge WebView2 运行时。Windows 10/11 通常已自带;若缺失请从微软官网安装 Evergreen 版本后重试。';
 }

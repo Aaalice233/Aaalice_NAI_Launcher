@@ -13,9 +13,11 @@ import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/file_explorer_utils.dart';
 import '../../../../core/utils/image_save_utils.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../core/utils/nai_resolution_adapter.dart';
 import '../../../../core/utils/prompt_preset_resolution.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
 import '../../../../data/models/character/character_prompt.dart';
+import '../../../../data/models/image/image_stream_chunk.dart';
 import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../../data/services/alias_resolver_service.dart';
 import '../../../../data/services/image_metadata_service.dart';
@@ -33,6 +35,7 @@ import '../../../services/image_workflow_launcher.dart';
 import '../../../widgets/character/character_card_grid.dart';
 import '../../../widgets/character/character_edit_dialog.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/draggable_memory_image.dart';
 import '../../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_viewer.dart';
@@ -190,6 +193,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     required int totalImages,
     required double progress,
     Uint8List? streamPreview,
+    FocusedStreamPreviewPlacement? focusedPreviewPlacement,
   }) {
     return SelectableImageCard(
       isGenerating: true,
@@ -197,6 +201,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       totalImages: totalImages,
       progress: progress,
       streamPreview: streamPreview,
+      focusedPreviewPlacement: focusedPreviewPlacement,
       imageWidth: imageWidth,
       imageHeight: imageHeight,
       enableSelection: false,
@@ -299,6 +304,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
                 totalImages: slot.totalImages,
                 progress: slot.progress,
                 streamPreview: slot.previewBytes,
+                focusedPreviewPlacement: slot.focusedPreviewPlacement,
               );
             }
 
@@ -309,6 +315,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
               totalImages: state.totalImages,
               progress: state.progress,
               streamPreview: state.streamPreview,
+              focusedPreviewPlacement: state.focusedPreviewPlacement,
             );
           },
         );
@@ -336,6 +343,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         totalImages: slot?.totalImages ?? state.totalImages,
         progress: slot?.progress ?? state.progress,
         streamPreview: slot?.previewBytes ?? state.streamPreview,
+        focusedPreviewPlacement:
+            slot?.focusedPreviewPlacement ?? state.focusedPreviewPlacement,
       ),
     );
   }
@@ -480,7 +489,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     final canUseAsInput = image.canUseAsGenerationInput;
     final isFailedSnapshot = image.isFailedStreamSnapshot;
 
-    return SelectableImageCard(
+    final card = SelectableImageCard(
       imageBytes: imageBytes,
       sourceFilePath: image.filePath,
       index: index,
@@ -552,6 +561,17 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       onSaveToLibrary: canUseAsInput
           ? (bytes, _) => _showSaveToLibraryDialog(context, bytes)
           : null,
+    );
+
+    if (!image.canDrag) {
+      return card;
+    }
+
+    return DraggableMemoryImage(
+      imageBytes: imageBytes,
+      fileName: _previewImageFileName(image),
+      sourceFilePath: image.filePath,
+      child: card,
     );
   }
 
@@ -922,11 +942,14 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           });
         }
 
+        final encodedSize = NaiResolutionAdapter.readImageSize(imageBytes);
         final paramsForSave = params.copyWith(
           prompt: presetResolution.prompt,
           negativePrompt: presetResolution.negativePrompt,
           qualityToggle: presetResolution.qualityToggle,
           ucPreset: presetResolution.ucPreset,
+          width: encodedSize?.$1 ?? params.width,
+          height: encodedSize?.$2 ?? params.height,
         );
         await ImageSaveUtils.saveImageWithMetadata(
           imageBytes: imageBytes,

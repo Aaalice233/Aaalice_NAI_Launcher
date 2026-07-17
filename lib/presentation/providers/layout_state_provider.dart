@@ -16,6 +16,8 @@ class LayoutState {
   final double fixedTagsSidebarWidth;
   final String fixedTagsSidebarViewMode;
   final double fixedTagsNegativeHeight;
+  final double webLeftPanelWidth;
+  final bool webLeftPanelExpanded;
 
   const LayoutState({
     this.leftPanelExpanded = true,
@@ -28,6 +30,8 @@ class LayoutState {
     this.fixedTagsSidebarWidth = 280.0,
     this.fixedTagsSidebarViewMode = 'list',
     this.fixedTagsNegativeHeight = 180.0,
+    this.webLeftPanelWidth = 400.0,
+    this.webLeftPanelExpanded = true,
   });
 
   /// 复制并更新部分字段
@@ -42,6 +46,8 @@ class LayoutState {
     double? fixedTagsSidebarWidth,
     String? fixedTagsSidebarViewMode,
     double? fixedTagsNegativeHeight,
+    double? webLeftPanelWidth,
+    bool? webLeftPanelExpanded,
   }) {
     return LayoutState(
       leftPanelExpanded: leftPanelExpanded ?? this.leftPanelExpanded,
@@ -58,6 +64,8 @@ class LayoutState {
           fixedTagsSidebarViewMode ?? this.fixedTagsSidebarViewMode,
       fixedTagsNegativeHeight:
           fixedTagsNegativeHeight ?? this.fixedTagsNegativeHeight,
+      webLeftPanelWidth: webLeftPanelWidth ?? this.webLeftPanelWidth,
+      webLeftPanelExpanded: webLeftPanelExpanded ?? this.webLeftPanelExpanded,
     );
   }
 }
@@ -81,6 +89,8 @@ class LayoutStateNotifier extends _$LayoutStateNotifier {
       fixedTagsSidebarWidth: storage.getFixedTagsSidebarWidth(),
       fixedTagsSidebarViewMode: storage.getFixedTagsSidebarViewMode(),
       fixedTagsNegativeHeight: storage.getFixedTagsNegativeHeight(),
+      webLeftPanelWidth: storage.getWebLeftPanelWidth(),
+      webLeftPanelExpanded: storage.getWebLeftPanelExpanded(),
     );
   }
 
@@ -187,4 +197,22 @@ class LayoutStateNotifier extends _$LayoutStateNotifier {
     final storage = ref.read(localStorageServiceProvider);
     await storage.setFixedTagsNegativeHeight(clamped);
   }
+
+  /// 设置官网式布局左栏宽度
+  Future<void> setWebLeftPanelWidth(double width) async {
+    final clamped = width.clamp(320.0, 560.0).toDouble();
+    state = state.copyWith(webLeftPanelWidth: clamped);
+
+    final storage = ref.read(localStorageServiceProvider);
+    await storage.setWebLeftPanelWidth(clamped);
+  }
+
+  /// 设置官网式布局左栏展开状态
+  Future<void> setWebLeftPanelExpanded(bool expanded) async {
+    state = state.copyWith(webLeftPanelExpanded: expanded);
+
+    final storage = ref.read(localStorageServiceProvider);
+    await storage.setWebLeftPanelExpanded(expanded);
+  }
+
 }

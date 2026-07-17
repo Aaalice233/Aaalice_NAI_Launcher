@@ -18,7 +18,7 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
     final notifier = ref.read(promptAssistantConfigProvider.notifier);
 
     return SettingsCard(
-      title: 'Prompt Assistant',
+      title: context.l10n.settings_promptAssistant,
       icon: Icons.auto_awesome,
       child: Column(
         children: [

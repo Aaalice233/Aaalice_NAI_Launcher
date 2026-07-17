@@ -7,38 +7,40 @@ import 'package:nai_launcher/core/utils/inpaint_outpaint_utils.dart';
 
 void main() {
   group('InpaintOutpaintUtils.resolveExpansionGeometry', () {
-    test('resolves requested, snapped, applied, and source offset geometry',
-        () {
-      final geometry = InpaintOutpaintUtils.resolveExpansionGeometry(
-        sourceWidth: 1024,
-        sourceHeight: 1216,
-        edges: const OutpaintEdges(
-          left: 200,
-          top: 200,
-          right: 200,
-          bottom: 200,
-        ),
-        horizontalSnapTarget: OutpaintHorizontalSnapTarget.left,
-        verticalSnapTarget: OutpaintVerticalSnapTarget.top,
-      );
+    test(
+      'resolves requested, snapped, applied, and source offset geometry',
+      () {
+        final geometry = InpaintOutpaintUtils.resolveExpansionGeometry(
+          sourceWidth: 1024,
+          sourceHeight: 1216,
+          edges: const OutpaintEdges(
+            left: 200,
+            top: 200,
+            right: 200,
+            bottom: 200,
+          ),
+          horizontalSnapTarget: OutpaintHorizontalSnapTarget.left,
+          verticalSnapTarget: OutpaintVerticalSnapTarget.top,
+        );
 
-      expect(geometry.sourceWidth, equals(1024));
-      expect(geometry.sourceHeight, equals(1216));
-      expect(geometry.requestedWidth, equals(1424));
-      expect(geometry.requestedHeight, equals(1616));
-      expect(geometry.width, equals(1472));
-      expect(geometry.height, equals(1664));
-      expect(geometry.sourceOffsetX, equals(248));
-      expect(geometry.sourceOffsetY, equals(248));
-      expect(geometry.requestedEdges.left, equals(200));
-      expect(geometry.requestedEdges.top, equals(200));
-      expect(geometry.requestedEdges.right, equals(200));
-      expect(geometry.requestedEdges.bottom, equals(200));
-      expect(geometry.appliedEdges.left, equals(248));
-      expect(geometry.appliedEdges.top, equals(248));
-      expect(geometry.appliedEdges.right, equals(200));
-      expect(geometry.appliedEdges.bottom, equals(200));
-    });
+        expect(geometry.sourceWidth, equals(1024));
+        expect(geometry.sourceHeight, equals(1216));
+        expect(geometry.requestedWidth, equals(1424));
+        expect(geometry.requestedHeight, equals(1616));
+        expect(geometry.width, equals(1472));
+        expect(geometry.height, equals(1664));
+        expect(geometry.sourceOffsetX, equals(248));
+        expect(geometry.sourceOffsetY, equals(248));
+        expect(geometry.requestedEdges.left, equals(200));
+        expect(geometry.requestedEdges.top, equals(200));
+        expect(geometry.requestedEdges.right, equals(200));
+        expect(geometry.requestedEdges.bottom, equals(200));
+        expect(geometry.appliedEdges.left, equals(248));
+        expect(geometry.appliedEdges.top, equals(248));
+        expect(geometry.appliedEdges.right, equals(200));
+        expect(geometry.appliedEdges.bottom, equals(200));
+      },
+    );
 
     test('preserves requested geometry when snapping is disabled', () {
       final geometry = InpaintOutpaintUtils.resolveExpansionGeometry(
@@ -186,24 +188,26 @@ void main() {
       expect(expandedSource.getPixel(0, 0).a.toInt(), equals(0));
     });
 
-    test('shifts existing normalized mask pixels into expanded coordinates',
-        () {
-      final sourceImage = _sourcePng(4, 4);
-      final existingMask = img.Image(width: 4, height: 4);
-      img.fill(existingMask, color: img.ColorRgba8(0, 0, 0, 255));
-      existingMask.setPixelRgba(1, 2, 255, 255, 255, 255);
+    test(
+      'shifts existing normalized mask pixels into expanded coordinates',
+      () {
+        final sourceImage = _sourcePng(4, 4);
+        final existingMask = img.Image(width: 4, height: 4);
+        img.fill(existingMask, color: img.ColorRgba8(0, 0, 0, 255));
+        existingMask.setPixelRgba(1, 2, 255, 255, 255, 255);
 
-      final result = InpaintOutpaintUtils.expand(
-        sourceImage: sourceImage,
-        existingMask: Uint8List.fromList(img.encodePng(existingMask)),
-        edges: const OutpaintEdges(left: 2, top: 1),
-        snapTo64: false,
-      );
+        final result = InpaintOutpaintUtils.expand(
+          sourceImage: sourceImage,
+          existingMask: Uint8List.fromList(img.encodePng(existingMask)),
+          edges: const OutpaintEdges(left: 2, top: 1),
+          snapTo64: false,
+        );
 
-      final expandedMask = img.decodeImage(result.maskImage)!;
-      expect(expandedMask.getPixel(3, 3).r.toInt(), equals(255));
-      expect(expandedMask.getPixel(2, 1).r.toInt(), equals(0));
-    });
+        final expandedMask = img.decodeImage(result.maskImage)!;
+        expect(expandedMask.getPixel(3, 3).r.toInt(), equals(255));
+        expect(expandedMask.getPixel(2, 1).r.toInt(), equals(0));
+      },
+    );
 
     test('snaps expanded dimensions to 64 multiples on right and bottom', () {
       final sourceImage = _sourcePng(1024, 1216);
@@ -518,24 +522,26 @@ void main() {
       }
     });
 
-    test('snaps signed frame drags beyond half a cell to the next 64 multiple',
-        () {
-      final rightOut = InpaintOutpaintUtils.resolveFrameGeometry(
-        sourceWidth: 128,
-        sourceHeight: 128,
-        delta: const OutpaintFrameDelta(right: 33),
-      );
-      final rightIn = InpaintOutpaintUtils.resolveFrameGeometry(
-        sourceWidth: 128,
-        sourceHeight: 128,
-        delta: const OutpaintFrameDelta(right: -33),
-      );
+    test(
+      'snaps signed frame drags beyond half a cell to the next 64 multiple',
+      () {
+        final rightOut = InpaintOutpaintUtils.resolveFrameGeometry(
+          sourceWidth: 128,
+          sourceHeight: 128,
+          delta: const OutpaintFrameDelta(right: 33),
+        );
+        final rightIn = InpaintOutpaintUtils.resolveFrameGeometry(
+          sourceWidth: 128,
+          sourceHeight: 128,
+          delta: const OutpaintFrameDelta(right: -33),
+        );
 
-      expect(rightOut.width, equals(192));
-      expect(rightOut.appliedExpansionEdges.right, equals(64));
-      expect(rightIn.width, equals(64));
-      expect(rightIn.appliedCropEdges.right, equals(64));
-    });
+        expect(rightOut.width, equals(192));
+        expect(rightOut.appliedExpansionEdges.right, equals(64));
+        expect(rightIn.width, equals(64));
+        expect(rightIn.appliedCropEdges.right, equals(64));
+      },
+    );
 
     test('crops an inward right edge resize to the previous 64 multiple', () {
       final sourceImage = _horizontalGradientPng(128, 128);
@@ -678,24 +684,24 @@ void main() {
       );
     });
 
-    test('crops the current frame without mutating original source dimensions',
-        () {
-      final frame = OutpaintVirtualFrame.fromSource(
-        sourceWidth: 128,
-        sourceHeight: 128,
-      );
+    test(
+      'crops the current frame without mutating original source dimensions',
+      () {
+        final frame = OutpaintVirtualFrame.fromSource(
+          sourceWidth: 128,
+          sourceHeight: 128,
+        );
 
-      final result = frame.applyDelta(
-        const OutpaintFrameDelta(right: -33),
-      );
+        final result = frame.applyDelta(const OutpaintFrameDelta(right: -33));
 
-      expect(result.frame.sourceWidth, equals(128));
-      expect(result.frame.sourceHeight, equals(128));
-      expect(result.frame.canvasSize, equals(const Size(64, 128)));
-      expect(result.frame.sourceDrawOffset, Offset.zero);
-      expect(result.contentShift, Offset.zero);
-      expect(result.frame.hasOutpaintChanges, isTrue);
-    });
+        expect(result.frame.sourceWidth, equals(128));
+        expect(result.frame.sourceHeight, equals(128));
+        expect(result.frame.canvasSize, equals(const Size(64, 128)));
+        expect(result.frame.sourceDrawOffset, Offset.zero);
+        expect(result.contentShift, Offset.zero);
+        expect(result.frame.hasOutpaintChanges, isTrue);
+      },
+    );
 
     test('materializes a virtual right expansion like resizeFrame', () async {
       final sourceImage = _sourcePng(128, 96);
@@ -707,9 +713,9 @@ void main() {
 
       final virtualResult =
           await InpaintOutpaintUtils.materializeVirtualFrameAsync(
-        sourceImage: sourceImage,
-        frame: applied.frame,
-      );
+            sourceImage: sourceImage,
+            frame: applied.frame,
+          );
       final resizeResult = await InpaintOutpaintUtils.resizeFrameAsync(
         sourceImage: sourceImage,
         delta: const OutpaintFrameDelta(right: 33),
@@ -733,9 +739,9 @@ void main() {
 
       final virtualResult =
           await InpaintOutpaintUtils.materializeVirtualFrameAsync(
-        sourceImage: sourceImage,
-        frame: applied.frame,
-      );
+            sourceImage: sourceImage,
+            frame: applied.frame,
+          );
       final resizeResult = await InpaintOutpaintUtils.resizeFrameAsync(
         sourceImage: sourceImage,
         delta: const OutpaintFrameDelta(left: -33),
@@ -746,6 +752,30 @@ void main() {
       expect(virtualResult.width, equals(64));
       expect(virtualResult.height, equals(128));
     });
+
+    test(
+      'materializes and Pica-resizes a virtual frame before one PNG encode',
+      () async {
+        final sourceImage = _sourcePng(128, 128);
+        final frame = OutpaintVirtualFrame.fromSource(
+          sourceWidth: 128,
+          sourceHeight: 128,
+        ).applyDelta(const OutpaintFrameDelta(right: 64)).frame;
+
+        final result = await InpaintOutpaintUtils.materializeVirtualFrameAsync(
+          sourceImage: sourceImage,
+          frame: frame,
+          targetWidth: 128,
+          targetHeight: 64,
+        );
+        final decoded = img.decodeImage(result.sourceImage)!;
+
+        expect((result.width, result.height), (128, 64));
+        expect((decoded.width, decoded.height), (128, 64));
+        expect(decoded.getPixel(0, 32).a, 255);
+        expect(decoded.getPixel(127, 32).a, 0);
+      },
+    );
 
     test('rejects malformed virtual frame dimensions before materializing', () {
       final sourceImage = _sourcePng(128, 128);

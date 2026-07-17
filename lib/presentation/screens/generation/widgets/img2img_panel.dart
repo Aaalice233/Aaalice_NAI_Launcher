@@ -16,6 +16,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/datasources/remote/nai_image_enhancement_api_service.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/comfyui/comfyui_provider.dart';
+import '../../../providers/cost_estimate_provider.dart';
 import '../../../providers/generation/generation_params_selectors.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/image_save_settings_provider.dart';
@@ -407,6 +408,29 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
 
   Widget _buildInpaintPanel(ThemeData theme, Img2ImgPanelViewData params) {
     final workflow = ref.watch(imageWorkflowControllerProvider);
+    final generationSize = ref.watch(
+      generationParamsNotifierProvider.select(
+        (generationParams) => (generationParams.width, generationParams.height),
+      ),
+    );
+    final focusRect = workflow.focusedSelectionRect;
+    final focusGeometry = focusRect == null
+        ? null
+        : FocusedInpaintUtils.resolveGeometryForSelection(
+            sourceWidth:
+                workflow.sourceImageWidth ??
+                workflow.sourceWidth ??
+                generationSize.$1,
+            sourceHeight:
+                workflow.sourceImageHeight ??
+                workflow.sourceHeight ??
+                generationSize.$2,
+            selectionRect: focusRect,
+            minContextMegaPixels: workflow.minimumContextMegaPixels,
+          );
+    final focusedCost = focusGeometry == null
+        ? null
+        : ref.watch(estimatedCostProvider);
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -437,7 +461,10 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
               style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
             ),
             subtitle: Text(
-              workflow.focusedInpaintEnabled
+              workflow.focusedInpaintEnabled && focusGeometry != null
+                  ? '${context.l10n.img2img_focusedInpaintEnabledHint}\n'
+                        '${context.l10n.editor_focusRequestSummary(focusGeometry.contextCrop.width, focusGeometry.contextCrop.height, focusGeometry.requestWidth, focusGeometry.requestHeight, focusedCost ?? 0)}'
+                  : workflow.focusedInpaintEnabled
                   ? context.l10n.img2img_focusedInpaintEnabledHint
                   : context.l10n.img2img_focusedInpaintDisabledHint,
               style: theme.textTheme.bodySmall?.copyWith(
@@ -479,17 +506,11 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
     ImageWorkflowState workflow,
     Uint8List sourceBytes,
   ) {
-    final width = workflow.sourceWidth;
-    final height = workflow.sourceHeight;
-    if (width != null && height != null) {
-      return (width, height);
-    }
-
-    final decoded = img.decodeImage(sourceBytes);
-    if (decoded == null) {
-      return (1, 1);
-    }
-    return (decoded.width, decoded.height);
+    return resolveSourcePreviewDimensions(
+      sourceBytes: sourceBytes,
+      fallbackWidth: workflow.sourceWidth,
+      fallbackHeight: workflow.sourceHeight,
+    );
   }
 
   Widget _buildSliderSection(
@@ -1334,7 +1355,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
             result,
             params: params,
             saveToLocal: saveSettings.autoSave,
-            addToDisplay: true,
+            replaceCurrentDisplay: true,
           );
       AppLogger.i('NovelAI upscale result registered', _upscaleLogTag);
       if (mounted) {
@@ -1470,14 +1491,14 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           width: outW,
           height: outH,
           saveToLocal: saveSettings.autoSave,
-          addToDisplay: true,
+          replaceCurrentDisplay: true,
         );
     AppLogger.i('SeedVR2 result registered: ${outW}x$outH', _upscaleLogTag);
 
     if (mounted) {
       AppToast.success(
         context,
-        context.l10n.img2img_upscaleCompleteAdded(outW, outH),
+        context.l10n.img2img_upscaleComplete(outW, outH),
       );
     }
   }
@@ -1584,7 +1605,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           width: outW,
           height: outH,
           saveToLocal: saveSettings.autoSave,
-          addToDisplay: true,
+          replaceCurrentDisplay: true,
         );
     AppLogger.i(
       'Regular ComfyUI result registered: ${outW}x$outH',
@@ -1594,7 +1615,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
     if (mounted) {
       AppToast.success(
         context,
-        context.l10n.img2img_regularUpscaleCompleteAdded(outW, outH),
+        context.l10n.img2img_regularUpscaleComplete(outW, outH),
       );
     }
   }
@@ -1675,14 +1696,14 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           width: outW,
           height: outH,
           saveToLocal: saveSettings.autoSave,
-          addToDisplay: true,
+          replaceCurrentDisplay: true,
         );
     AppLogger.i('RTX result registered: ${outW}x$outH', _upscaleLogTag);
 
     if (mounted) {
       AppToast.success(
         context,
-        context.l10n.img2img_rtxUpscaleCompleteAdded(outW, outH),
+        context.l10n.img2img_rtxUpscaleComplete(outW, outH),
       );
     }
   }

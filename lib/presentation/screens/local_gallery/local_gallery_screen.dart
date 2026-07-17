@@ -30,6 +30,7 @@ import '../../providers/collection_provider.dart';
 import '../../providers/gallery_category_provider.dart';
 import '../../providers/gallery_folder_provider.dart';
 import '../../providers/image_generation_provider.dart';
+import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/gallery_scan_progress_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
@@ -37,19 +38,22 @@ import '../../router/app_router.dart';
 import '../../services/image_workflow_launcher.dart';
 import '../../utils/asset_protection_guard.dart';
 import '../../utils/krita_send_helper.dart';
+import '../../utils/local_gallery_reference_factory.dart';
 import '../../utils/metadata_import_applier.dart';
+import '../../utils/metadata_import_coordinator.dart';
 import '../../utils/prompt_preset_import_utils.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../widgets/bulk_metadata_edit_dialog.dart';
 import '../../widgets/collection_select_dialog.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/pagination_bar.dart';
+import '../../widgets/common/precise_reference_type_dialog.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
 import '../../widgets/gallery/gallery_category_tree_view.dart';
 import '../../widgets/gallery/gallery_content_view.dart';
 import '../../widgets/gallery/gallery_state_views.dart';
-import '../../widgets/gallery/image_send_destination_dialog.dart';
+import '../../widgets/gallery/local_image_context_menu.dart';
 import '../../widgets/gallery/local_gallery_toolbar.dart';
 import '../../widgets/gallery_filter_panel.dart';
 import '../../widgets/grouped_grid_view.dart'
@@ -1099,30 +1103,149 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     }
   }
 
-  Future<void> _sendToVibeTransfer(LocalImageRecord record) async {
+  Future<void> _sendToStyleTransfer(LocalImageRecord record) async {
     try {
-      final vibeData = record.vibeData;
-      if (vibeData == null) {
+      final file = File(record.path);
+      if (!await file.exists()) {
         if (mounted) {
-          AppToast.warning(context, context.l10n.localGallery_noVibeData);
+          AppToast.info(context, context.l10n.localGallery_imageFileMissing);
         }
         return;
       }
 
+      if (!mounted || _warnIfStyleReferenceLimitReached()) return;
+
+      final imageBytes = await file.readAsBytes();
+      if (!mounted || _warnIfStyleReferenceLimitReached()) return;
+      final currentCount = ref
+          .read(generationParamsNotifierProvider)
+          .vibeReferencesV4
+          .length;
       final paramsNotifier = ref.read(
         generationParamsNotifierProvider.notifier,
       );
-      paramsNotifier.addVibeReferences([vibeData]);
+      paramsNotifier.addVibeReference(
+        LocalGalleryReferenceFactory.createRawStyleReference(
+          fileName: path.basename(record.path),
+          imageBytes: imageBytes,
+        ),
+      );
 
       if (mounted) {
+        context.go(AppRoutes.home);
         AppToast.success(
           context,
-          context.l10n.localGallery_vibeAddedToParams(vibeData.displayName),
+          currentCount == 0
+              ? context.l10n.drop_addedToVibe
+              : context.l10n.toast_appendedStyleReferences(1),
         );
       }
     } catch (e) {
       if (mounted) {
-        AppToast.error(context, context.l10n.localGallery_addVibeFailed('$e'));
+        AppToast.error(context, context.l10n.localGallery_sendFailed('$e'));
+      }
+    }
+  }
+
+  bool _warnIfStyleReferenceLimitReached() {
+    const maxCount = 16;
+    if (ref.read(generationParamsNotifierProvider).vibeReferencesV4.length <
+        maxCount) {
+      return false;
+    }
+
+    AppToast.warning(context, context.l10n.toast_styleReferenceLimit(maxCount));
+    return true;
+  }
+
+  Future<void> _sendToPreciseReference(LocalImageRecord record) async {
+    try {
+      final file = File(record.path);
+      if (!await file.exists()) {
+        if (mounted) {
+          AppToast.info(context, context.l10n.localGallery_imageFileMissing);
+        }
+        return;
+      }
+
+      if (!mounted) return;
+      final selectedType = await PreciseReferenceTypeDialog.show(context);
+      if (selectedType == null || !mounted) return;
+
+      final imageBytes = await file.readAsBytes();
+      if (!mounted) return;
+      unawaited(
+        ref
+            .read(generationParamsNotifierProvider.notifier)
+            .addPreciseReferenceFromImage(
+              imageBytes,
+              type: selectedType,
+              strength: 1.0,
+              fidelity: 1.0,
+            ),
+      );
+
+      if (mounted) {
+        context.go(AppRoutes.home);
+        AppToast.success(context, context.l10n.drop_addedToCharacterRef);
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, context.l10n.localGallery_sendFailed('$e'));
+      }
+    }
+  }
+
+  Future<void> _importImageMetadata(LocalImageRecord record) async {
+    try {
+      final metadata = record.metadata;
+      if (metadata == null || !metadata.hasData) {
+        AppToast.warning(context, context.l10n.metadataImport_noDataFound);
+        return;
+      }
+
+      final options = await MetadataImportDialog.show(
+        context,
+        metadata: metadata,
+      );
+      if (options == null || !mounted) return;
+
+      final appliedCount = await MetadataImportCoordinator.apply(
+        read: ref.read,
+        metadata: metadata,
+        options: options,
+      );
+      if (!mounted) return;
+
+      if (appliedCount == 0) {
+        AppToast.warning(context, context.l10n.metadataImport_noParamsSelected);
+        return;
+      }
+
+      final l10n = context.l10n;
+      final currentModel = ref.read(generationParamsNotifierProvider).model;
+      final rootNavigator = Navigator.of(context, rootNavigator: true);
+      AppToast.success(context, l10n.metadataImport_appliedCount(appliedCount));
+      context.go(AppRoutes.home);
+
+      await WidgetsBinding.instance.endOfFrame;
+      if (!rootNavigator.mounted) return;
+      unawaited(
+        MetadataImportCoordinator.showAppliedDialog(
+          context: rootNavigator.context,
+          metadata: metadata,
+          options: options,
+          l10n: l10n,
+          currentModel: currentModel,
+        ),
+      );
+    } catch (e, stack) {
+      AppLogger.e('导入图片元数据失败', e, stack, 'LocalGallery');
+      if (mounted) {
+        AppToast.error(
+          context,
+          context.l10n.localGallery_importParamsFailed('$e'),
+        );
       }
     }
   }
@@ -1183,109 +1306,45 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     }
   }
 
-  Future<void> _showSendDestinationDialog(LocalImageRecord record) async {
-    final destination = await ImageSendDestinationDialog.show(context, record);
-    if (destination == null || !mounted) return;
-
-    switch (destination) {
-      case SendDestination.img2img:
-        await _sendToImg2Img(record);
-      case SendDestination.reversePrompt:
-        await _sendToReversePrompt(record);
-      case SendDestination.vibeTransfer:
-        await _sendToVibeTransfer(record);
-      case SendDestination.krita:
-        await _sendToKrita(record);
-    }
-  }
-
   Future<void> _showImageContextMenu(
     LocalImageRecord record,
     Offset position,
   ) async {
     final metadata = record.metadata;
-
-    final value = await showMenu<String>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        position.dx,
-        position.dy,
-        position.dx + 1,
-        position.dy + 1,
-      ),
-      items: [
-        PopupMenuItem(
-          value: 'send_to',
-          child: Row(
-            children: [
-              const Icon(Icons.send, size: 18),
-              const SizedBox(width: 8),
-              Text(context.l10n.localGallery_sendTo),
-            ],
-          ),
-        ),
-        const PopupMenuDivider(),
-        if (metadata?.prompt.isNotEmpty == true)
-          PopupMenuItem(
-            value: 'copy_prompt',
-            child: Row(
-              children: [
-                const Icon(Icons.content_copy, size: 18),
-                const SizedBox(width: 8),
-                Text(context.l10n.localGallery_copyPrompt),
-              ],
-            ),
-          ),
-        if (metadata?.seed != null)
-          PopupMenuItem(
-            value: 'copy_seed',
-            child: Row(
-              children: [
-                const Icon(Icons.tag, size: 18),
-                const SizedBox(width: 8),
-                Text(context.l10n.localGallery_copySeed),
-              ],
-            ),
-          ),
-        PopupMenuItem(
-          value: 'open_folder',
-          child: Row(
-            children: [
-              const Icon(Icons.folder_open, size: 18),
-              const SizedBox(width: 8),
-              Text(context.l10n.localGallery_showInFolder),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'delete',
-          child: Row(
-            children: [
-              const Icon(Icons.delete_outline, size: 18, color: Colors.red),
-              const SizedBox(width: 8),
-              Text(
-                context.l10n.common_delete,
-                style: const TextStyle(color: Colors.red),
-              ),
-            ],
-          ),
-        ),
-      ],
+    final action = await LocalImageContextMenu.show(
+      context,
+      position: position,
+      hasImportableMetadata: metadata?.hasData == true,
+      hasPrompt: metadata?.prompt.isNotEmpty == true,
+      hasSeed: metadata?.seed != null,
+      isKritaConnected:
+          ref.read(kritaBridgeNotifierProvider).status ==
+          KritaBridgeStatus.connected,
     );
 
-    if (value == null || !context.mounted) return;
+    if (action == null || !context.mounted) return;
 
-    switch (value) {
-      case 'send_to':
-        await _showSendDestinationDialog(record);
-      case 'copy_prompt':
+    switch (action) {
+      case LocalImageContextAction.sendToImg2Img:
+        await _sendToImg2Img(record);
+      case LocalImageContextAction.sendToReversePrompt:
+        await _sendToReversePrompt(record);
+      case LocalImageContextAction.sendToStyleTransfer:
+        await _sendToStyleTransfer(record);
+      case LocalImageContextAction.sendToPreciseReference:
+        await _sendToPreciseReference(record);
+      case LocalImageContextAction.sendToKrita:
+        await _sendToKrita(record);
+      case LocalImageContextAction.importMetadata:
+        await _importImageMetadata(record);
+      case LocalImageContextAction.copyPrompt:
         if (metadata?.fullPrompt.isNotEmpty == true) {
           await Clipboard.setData(ClipboardData(text: metadata!.fullPrompt));
           if (mounted) {
             AppToast.success(context, context.l10n.localGallery_promptCopied);
           }
         }
-      case 'copy_seed':
+      case LocalImageContextAction.copySeed:
         if (metadata?.seed != null) {
           await Clipboard.setData(
             ClipboardData(text: metadata!.seed.toString()),
@@ -1294,9 +1353,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
             AppToast.success(context, context.l10n.localGallery_seedCopied);
           }
         }
-      case 'open_folder':
+      case LocalImageContextAction.showInFolder:
         await _openFileInFolder(record.path);
-      case 'delete':
+      case LocalImageContextAction.delete:
         await _confirmDeleteImage(record);
     }
   }

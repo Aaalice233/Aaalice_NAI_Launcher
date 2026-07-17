@@ -129,6 +129,7 @@
   "auth_passwordRequired": "Please enter password",
 
   "auth_tokenLogin": "API Token Login",
+  "auth_tokenLoginRecommended": "API Token Login (Recommended)",
   "auth_credentialsLogin": "Email & Password",
   "auth_credentialsLoginUnavailable": "Email/password login is currently unavailable. Please use Token login.",
   "auth_credentialsLoginTitle": "Login with Email",
@@ -137,6 +138,7 @@
   "auth_tokenInvalid": "Invalid token format, should start with pst-",
   "auth_nicknameOptional": "Nickname (optional)",
   "auth_nicknameHint": "Set a recognizable name for this account",
+  "auth_thirdPartyLogin": "Third-party Site",
   "auth_thirdPartyApiSite": "Third-party API Site",
   "auth_imageApiSiteOptional": "Image API Site (optional)",
   "auth_imageApiSiteHint": "Leave empty to use the same third-party API site",
@@ -232,11 +234,14 @@
   "settings_languageEnglish": "English",
   "settings_languageJapanese": "日本語",
   "settings_shortcuts": "Shortcuts",
-  "settings_dataSource": "Data Source",
   "settings_generation": "Generation",
-  "settings_queue": "Queue",
-  "settings_notifications": "Notifications",
-  "settings_promptAssistant": "Assistant",
+  "settings_dataStorage": "Data & Storage",
+  "settings_privacySharing": "Privacy & Sharing",
+  "settings_integrations": "Integrations",
+  "settings_generationInputSection": "Input",
+  "settings_generationRetrySection": "Retry on Failure",
+  "settings_generationFeedbackSection": "Completion Alert",
+  "settings_promptAssistant": "Prompt Assistant",
   "settings_selectStyle": "Select Style",
   "settings_defaultPreset": "Default",
   "settings_selectFont": "Select Font",
@@ -755,22 +760,22 @@
   "img2img_refreshModelList": "Refresh model list",
   "img2img_startUpscale": "Start Upscale",
   "img2img_novelAiUpscaleComplete": "NovelAI upscale complete",
-  "img2img_upscaleCompleteAdded": "Upscale complete ({width}x{height}); added to preview list",
-  "@img2img_upscaleCompleteAdded": {
+  "img2img_upscaleComplete": "Upscale complete ({width}x{height})",
+  "@img2img_upscaleComplete": {
     "placeholders": {
       "width": {},
       "height": {}
     }
   },
-  "img2img_regularUpscaleCompleteAdded": "Regular model upscale complete ({width}x{height}); added to preview list",
-  "@img2img_regularUpscaleCompleteAdded": {
+  "img2img_regularUpscaleComplete": "Regular model upscale complete ({width}x{height})",
+  "@img2img_regularUpscaleComplete": {
     "placeholders": {
       "width": {},
       "height": {}
     }
   },
-  "img2img_rtxUpscaleCompleteAdded": "RTX upscale complete ({width}x{height}); added to preview list",
-  "@img2img_rtxUpscaleCompleteAdded": {
+  "img2img_rtxUpscaleComplete": "RTX upscale complete ({width}x{height})",
+  "@img2img_rtxUpscaleComplete": {
     "placeholders": {
       "width": {},
       "height": {}
@@ -1009,6 +1014,40 @@
     "placeholders": {
       "width": {"type": "int"},
       "height": {"type": "int"},
+      "cost": {"type": "int"}
+    }
+  },
+  "editor_compressionTitle": "Output resolution",
+  "editor_compressionTooltip": "Choose output resolution",
+  "editor_compressionUncompressed": "Original work resolution; no compression will be applied.",
+  "editor_compressionApplyOnDone": "Pica Lanczos3 compression runs once when you press Done. The work canvas stays unchanged.",
+  "editor_compressionSizeSummary": "Work {workWidth}×{workHeight} → output {targetWidth}×{targetHeight}",
+  "@editor_compressionSizeSummary": {
+    "placeholders": {
+      "workWidth": {"type": "int"},
+      "workHeight": {"type": "int"},
+      "targetWidth": {"type": "int"},
+      "targetHeight": {"type": "int"}
+    }
+  },
+  "editor_compressionNormalSummary": "Normal (about 1 MP): {normalWidth}×{normalHeight}. Lowest: {minimumWidth}×{minimumHeight}.",
+  "@editor_compressionNormalSummary": {
+    "placeholders": {
+      "normalWidth": {"type": "int"},
+      "normalHeight": {"type": "int"},
+      "minimumWidth": {"type": "int"},
+      "minimumHeight": {"type": "int"}
+    }
+  },
+  "editor_compressionUnavailable": "This work canvas is already below the lowest compression step.",
+  "editor_compressionFocusLimited": "Higher resolutions are unavailable because the current Focused Inpaint selection would exceed the request area limit.",
+  "editor_focusRequestSummary": "Outer crop {outerWidth}×{outerHeight}, request {requestWidth}×{requestHeight}, estimated {cost} Anlas.",
+  "@editor_focusRequestSummary": {
+    "placeholders": {
+      "outerWidth": {"type": "int"},
+      "outerHeight": {"type": "int"},
+      "requestWidth": {"type": "int"},
+      "requestHeight": {"type": "int"},
       "cost": {"type": "int"}
     }
   },
@@ -3560,6 +3599,12 @@
     }
   },
   "localGallery_sendTo": "Send to...",
+  "localGallery_sendToImg2Img": "Send to Image2Image",
+  "localGallery_sendToReversePrompt": "Send to Reverse Prompt",
+  "localGallery_sendToStyleTransfer": "Send to Vibe Transfer",
+  "localGallery_sendToPreciseReference": "Send to Precise Reference",
+  "localGallery_sendToKrita": "Send to Krita",
+  "localGallery_importImageMetadata": "Import Image Metadata",
   "localGallery_copyPrompt": "Copy Prompt",
   "localGallery_copySeed": "Copy Seed",
   "localGallery_dragToShare": "Drag to share",
@@ -4795,6 +4840,8 @@
   "settings_queueRetryIntervalSubtitle": "Time to wait between retries",
   "settings_showRandomPromptTools": "Show random prompt tools",
   "settings_showRandomPromptToolsSubtitle": "Show the Random Prompt button and Random Mode toggle on the generation page",
+  "settings_enablePromptWeightScroll": "Adjust prompt weight with mouse wheel",
+  "settings_enablePromptWeightScrollSubtitle": "When prompt text is selected, use the wheel only to adjust its weight and suppress other scroll actions.",
   "settings_queueRetryCountMax": "Max {count} times",
   "@settings_queueRetryCountMax": {
     "placeholders": {
@@ -5820,6 +5867,12 @@
   "settings_fontScale_reset": "Reset",
   "settings_fontScale_done": "Done",
 
+  "settings_generationLayout": "Generation page layout",
+  "settings_generationLayout_classic": "Classic",
+  "settings_generationLayout_classicDescription": "Parameters on the left, prompt above the preview",
+  "settings_generationLayout_webStyle": "Web style",
+  "settings_generationLayout_webStyleDescription": "Prompt and settings docked on the far left, like the NovelAI website",
+
   "settings_defaultImagesPath": "Default (Documents/NAI_Launcher/images/)",
   "settings_defaultVibePath": "{path} (Default)",
   "@settings_defaultVibePath": {
@@ -6616,6 +6669,29 @@
   "updateDownloadAndInstall": "Download and Install",
   "goToDownload": "Go to Download",
   "versionSkipped": "Version skipped",
-  "cannotOpenUrl": "Cannot open link"
+  "cannotOpenUrl": "Cannot open link",
+
+  "model3d_editorTitle": "3D Model Layer",
+  "model3d_addMannequin": "Add Built-in Mannequin",
+  "model3d_importModel": "Import Model (.glb/.gltf)",
+  "model3d_emptyHint": "Scene is empty. Add a mannequin or import a model.",
+  "model3d_apply": "Apply to Layer",
+  "model3d_modeTransform": "Transform",
+  "model3d_modePose": "Pose",
+  "model3d_gizmoTranslate": "Move",
+  "model3d_gizmoRotate": "Rotate",
+  "model3d_gizmoScale": "Scale",
+  "model3d_undo": "Undo",
+  "model3d_resetPose": "Reset Pose",
+  "model3d_replaceConfirm": "Replace the current model? Unapplied pose will be lost.",
+  "model3d_discardConfirm": "Discard unapplied changes?",
+  "model3d_missingModel": "Model file is missing. You can re-import it.",
+  "model3d_loadError": "Failed to load model",
+  "model3d_light": "Lighting",
+  "model3d_lightIntensity": "Intensity",
+  "model3d_lightAzimuth": "Azimuth",
+  "model3d_lightElevation": "Elevation",
+  "model3d_addLayerTooltip": "Add 3D Model Layer",
+  "model3d_webview2Missing": "The 3D editor requires the Microsoft Edge WebView2 Runtime. It ships with Windows 10/11; if missing, install the Evergreen runtime from Microsoft and retry."
 
 }

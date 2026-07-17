@@ -28,10 +28,14 @@ function Resolve-ToolCommand {
 $dartCommand = Resolve-ToolCommand -EnvironmentVariable 'DART_CMD' -CommandName 'dart'
 $flutterCommand = Resolve-ToolCommand -EnvironmentVariable 'FLUTTER_CMD' -CommandName 'flutter'
 
-Write-Host '[1/2] Running build_runner...' -ForegroundColor Cyan
+Write-Host '[1/3] Checking Windows build prerequisites...' -ForegroundColor Cyan
+& (Join-Path $scriptDir 'verify_nuget.ps1')
+
+Write-Host ''
+Write-Host '[2/3] Running build_runner...' -ForegroundColor Cyan
 & $dartCommand run build_runner build --delete-conflicting-outputs
 
 Write-Host ''
-Write-Host '[2/2] Starting Flutter Windows app...' -ForegroundColor Cyan
+Write-Host '[3/3] Starting Flutter Windows app...' -ForegroundColor Cyan
 Write-Host 'Hot reload: r    Hot restart: R    Quit: q' -ForegroundColor DarkGray
 & $flutterCommand run -d windows

@@ -199,6 +199,18 @@ class LayerManager extends ChangeNotifier {
     return layer;
   }
 
+  /// 替换图层底图(3D 图层再编辑用),保留图层其余状态
+  Future<Layer?> replaceLayerBaseImage(
+    String layerId,
+    Uint8List imageBytes,
+  ) async {
+    final layer = getLayerById(layerId);
+    if (layer == null) return null;
+    await layer.setBaseImage(imageBytes);
+    _markContentChanged();
+    return layer;
+  }
+
   /// 删除图层
   bool removeLayer(String layerId) {
     final index = _layers.indexWhere((l) => l.id == layerId);

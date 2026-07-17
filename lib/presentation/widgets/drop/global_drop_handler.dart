@@ -13,19 +13,13 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import '../../../core/enums/precise_ref_type.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
-import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
-import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../../data/services/image_metadata_service.dart';
 import '../../../core/utils/vibe_file_parser.dart';
-import '../../../data/models/character/character_prompt.dart' as char;
-import '../../../data/models/metadata/metadata_import_options.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../data/models/vibe/vibe_reference.dart';
 import '../../../data/services/vibe_library_storage_service.dart';
 import '../../../data/services/vibe_metadata_service.dart';
-import '../../providers/character_prompt_provider.dart';
-import '../../providers/fixed_tags_provider.dart';
 import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/replication_queue_provider.dart';
@@ -33,8 +27,7 @@ import '../../providers/reverse_prompt_provider.dart';
 import '../../providers/vibe_library_provider.dart';
 import '../../router/app_router.dart';
 import '../../utils/dropped_file_reader.dart';
-import '../../utils/metadata_import_applier.dart';
-import '../../utils/prompt_preset_import_utils.dart';
+import '../../utils/metadata_import_coordinator.dart';
 import '../common/app_toast.dart';
 import '../metadata/metadata_import_dialog.dart';
 import 'image_destination_dialog.dart';
@@ -537,7 +530,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         break;
 
       case ImageDestination.extractMetadata:
-        await _handleExtractMetadata(detectedMetadata, bytes, notifier, l10n);
+        await _handleExtractMetadata(detectedMetadata, bytes, l10n);
         break;
 
       case ImageDestination.addToQueue:
@@ -781,7 +774,6 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
   Future<void> _handleExtractMetadata(
     NaiImageMetadata? detectedMetadata,
     Uint8List bytes,
-    GenerationParamsNotifier notifier,
     AppLocalizations l10n,
   ) async {
     try {
@@ -803,10 +795,10 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       );
       if (options == null || !mounted) return;
 
-      final appliedCount = await _applyMetadataWithOptions(
-        metadata,
-        options,
-        notifier,
+      final appliedCount = await MetadataImportCoordinator.apply(
+        read: ref.read,
+        metadata: metadata,
+        options: options,
       );
 
       if (!mounted) return;
@@ -816,7 +808,15 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
           context,
           l10n.metadataImport_appliedCount(appliedCount),
         );
-        _showMetadataAppliedDialog(metadata, options, l10n);
+        unawaited(
+          MetadataImportCoordinator.showAppliedDialog(
+            context: context,
+            metadata: metadata,
+            options: options,
+            l10n: l10n,
+            currentModel: ref.read(generationParamsNotifierProvider).model,
+          ),
+        );
       } else {
         AppToast.warning(context, l10n.metadataImport_noParamsSelected);
       }
@@ -826,210 +826,6 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       }
       _showError(l10n.toast_extractMetadataFailed(e.toString()));
     }
-  }
-
-  /// 根据选项应用元数据
-  Future<int> _applyMetadataWithOptions(
-    NaiImageMetadata metadata,
-    MetadataImportOptions options,
-    GenerationParamsNotifier notifier,
-  ) async {
-    var appliedCount = 0;
-
-    // 安全获取角色提示词列表
-    final characterPrompts = metadata.characterPrompts;
-    final hasCharacters = characterPrompts.isNotEmpty;
-
-    // 只有在勾选导入多角色提示词时才清空
-    if (options.importCharacterPrompts && hasCharacters) {
-      ref.read(characterPromptNotifierProvider.notifier).clearAllCharacters();
-    }
-
-    final currentModel = ref.read(generationParamsNotifierProvider).model;
-
-    // 应用提示词和生成参数
-    appliedCount += MetadataImportApplier.applyPromptAndGenerationParams(
-      metadata: metadata,
-      options: options,
-      currentModel: currentModel,
-      target: MetadataImportTarget(
-        updatePrompt: notifier.updatePrompt,
-        updateNegativePrompt: notifier.updateNegativePrompt,
-        updateSeed: notifier.updateSeed,
-        updateSteps: notifier.updateSteps,
-        updateScale: notifier.updateScale,
-        updateSize: notifier.updateSize,
-        updateSampler: notifier.updateSampler,
-        updateModel: notifier.updateModel,
-        updateSmea: notifier.updateSmea,
-        updateSmeaDyn: notifier.updateSmeaDyn,
-        updateVarietyPlus: notifier.updateVarietyPlus,
-        updateNoiseSchedule: notifier.updateNoiseSchedule,
-        updateCfgRescale: notifier.updateCfgRescale,
-        updateQualityToggle: (value) {
-          notifier.updateQualityToggle(value);
-          applyImportedQualityToggle(ref.read, value);
-        },
-        updateUcPreset: (value) {
-          notifier.updateUcPreset(value);
-          applyImportedUcPreset(ref.read, value);
-        },
-      ),
-    );
-
-    // 应用多角色提示词
-    if (options.importCharacterPrompts && hasCharacters) {
-      _applyCharacterPrompts(metadata);
-      appliedCount++;
-    }
-
-    // 应用参考图参数
-    appliedCount += _applyReferenceParams(metadata, options, notifier);
-
-    // 应用结构化固定词
-    appliedCount += await _applyFixedTags(metadata, options);
-
-    return appliedCount;
-  }
-
-  Future<int> _applyFixedTags(
-    NaiImageMetadata metadata,
-    MetadataImportOptions options,
-  ) async {
-    if (!options.importFixedTags) {
-      return 0;
-    }
-
-    final fixedTagsNotifier = ref.read(fixedTagsNotifierProvider.notifier);
-    var added = 0;
-
-    Future<void> addTags(
-      List<String> tags, {
-      required FixedTagPosition position,
-      required FixedTagPromptType promptType,
-      required String prefix,
-    }) async {
-      for (final tag in tags) {
-        final content = tag.trim();
-        if (content.isEmpty) {
-          continue;
-        }
-        await fixedTagsNotifier.addEntry(
-          name: '$prefix$content',
-          content: content,
-          position: position,
-          promptType: promptType,
-          enabled: true,
-        );
-        added++;
-      }
-    }
-
-    if (options.importFixedPrefix) {
-      await addTags(
-        metadata.fixedPrefixTags,
-        position: FixedTagPosition.prefix,
-        promptType: FixedTagPromptType.positive,
-        prefix: '导入前缀: ',
-      );
-      await addTags(
-        metadata.fixedNegativePrefixTags,
-        position: FixedTagPosition.prefix,
-        promptType: FixedTagPromptType.negative,
-        prefix: '导入负向前缀: ',
-      );
-    }
-
-    if (options.importFixedSuffix) {
-      await addTags(
-        metadata.fixedSuffixTags,
-        position: FixedTagPosition.suffix,
-        promptType: FixedTagPromptType.positive,
-        prefix: '导入后缀: ',
-      );
-      await addTags(
-        metadata.fixedNegativeSuffixTags,
-        position: FixedTagPosition.suffix,
-        promptType: FixedTagPromptType.negative,
-        prefix: '导入负向后缀: ',
-      );
-    }
-
-    return added > 0 ? 1 : 0;
-  }
-
-  void _applyCharacterPrompts(NaiImageMetadata metadata) {
-    final characters = <char.CharacterPrompt>[];
-
-    // 安全获取角色提示词列表
-    final characterPrompts = metadata.characterPrompts;
-    final characterNegativePrompts = metadata.characterNegativePrompts;
-
-    for (var i = 0; i < characterPrompts.length; i++) {
-      final prompt = characterPrompts[i];
-      final negPrompt = i < characterNegativePrompts.length
-          ? characterNegativePrompts[i]
-          : '';
-
-      characters.add(
-        char.CharacterPrompt.create(
-          name: 'Character ${i + 1}',
-          gender: _inferGenderFromPrompt(prompt),
-          prompt: prompt,
-          negativePrompt: negPrompt,
-        ),
-      );
-    }
-    ref.read(characterPromptNotifierProvider.notifier).replaceAll(characters);
-  }
-
-  int _applyReferenceParams(
-    NaiImageMetadata metadata,
-    MetadataImportOptions options,
-    GenerationParamsNotifier notifier,
-  ) {
-    var count = 0;
-
-    if (options.importVibeReferences && metadata.vibeReferences.isNotEmpty) {
-      final selectedVibes = metadata.vibeReferences
-          .asMap()
-          .entries
-          .where((entry) => options.selectedVibeIndices.contains(entry.key))
-          .map((entry) => entry.value)
-          .toList();
-      if (selectedVibes.isNotEmpty) {
-        notifier.clearVibeReferences();
-        notifier.addVibeReferences(selectedVibes, recordUsage: false);
-        count++;
-      }
-    }
-
-    final preciseReferences = metadata.preciseReferences;
-    if (options.importPreciseReferences && preciseReferences.isNotEmpty) {
-      final selectedReferences = preciseReferences
-          .asMap()
-          .entries
-          .where(
-            (entry) =>
-                options.selectedPreciseReferenceIndices.contains(entry.key),
-          )
-          .map((entry) => entry.value)
-          .toList();
-      if (selectedReferences.isNotEmpty) {
-        notifier.clearPreciseReferences();
-        for (final reference in selectedReferences) {
-          notifier.addPreciseReference(
-            reference.image,
-            type: reference.type,
-            strength: reference.strength,
-            fidelity: reference.fidelity,
-          );
-        }
-        count++;
-      }
-    }
-
-    return count;
   }
 
   Future<void> _handleAddToQueue(
@@ -1067,239 +863,6 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       }
       _showError(l10n.toast_extractPromptFailed(e.toString()));
     }
-  }
-
-  /// 从提示词推断角色性别
-  char.CharacterGender _inferGenderFromPrompt(String prompt) {
-    final lowerPrompt = prompt.toLowerCase();
-    if (lowerPrompt.contains('1girl') ||
-        lowerPrompt.contains('girl,') ||
-        lowerPrompt.startsWith('girl')) {
-      return char.CharacterGender.female;
-    } else if (lowerPrompt.contains('1boy') ||
-        lowerPrompt.contains('boy,') ||
-        lowerPrompt.startsWith('boy')) {
-      return char.CharacterGender.male;
-    }
-    return char.CharacterGender.other;
-  }
-
-  void _showMetadataAppliedDialog(
-    dynamic metadata,
-    MetadataImportOptions options,
-    AppLocalizations l10n,
-  ) {
-    final items = _buildMetadataItems(metadata, options, l10n);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green),
-            const SizedBox(width: 8),
-            Text(l10n.metadataImport_appliedTitle),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(l10n.metadataImport_appliedDescription),
-              const SizedBox(height: 12),
-              ...items,
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.common_confirm),
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _buildMetadataItems(
-    dynamic metadata,
-    MetadataImportOptions options,
-    AppLocalizations l10n,
-  ) {
-    final items = <Widget>[];
-    final currentModel = ref.read(generationParamsNotifierProvider).model;
-    final negativePrompt = metadata is NaiImageMetadata
-        ? MetadataImportApplier.resolveImportedNegativePrompt(
-            metadata,
-            importUcPreset: options.importUcPreset,
-            currentModel: currentModel,
-          )
-        : metadata.negativePrompt;
-    final importableModel = metadata is NaiImageMetadata
-        ? MetadataImportApplier.resolveImportableModel(metadata)
-        : metadata.model;
-
-    final itemConfigs = [
-      (
-        options.importPrompt && metadata.prompt.isNotEmpty,
-        l10n.metadataImport_prompt,
-        metadata.prompt,
-        3,
-      ),
-      (
-        options.importNegativePrompt && negativePrompt.isNotEmpty,
-        l10n.metadataImport_negativePrompt,
-        negativePrompt,
-        2,
-      ),
-      (
-        options.importFixedTags &&
-            (options.importFixedPrefix || options.importFixedSuffix) &&
-            (metadata.fixedPrefixTags.isNotEmpty ||
-                metadata.fixedSuffixTags.isNotEmpty ||
-                metadata.fixedNegativePrefixTags.isNotEmpty ||
-                metadata.fixedNegativeSuffixTags.isNotEmpty),
-        '固定词',
-        [
-          if (options.importFixedPrefix) ...metadata.fixedPrefixTags,
-          if (options.importFixedSuffix) ...metadata.fixedSuffixTags,
-          if (options.importFixedPrefix) ...metadata.fixedNegativePrefixTags,
-          if (options.importFixedSuffix) ...metadata.fixedNegativeSuffixTags,
-        ].join(', '),
-        2,
-      ),
-      (
-        options.importCharacterPrompts && metadata.characterPrompts.isNotEmpty,
-        l10n.metadataImport_characterPrompts,
-        '${metadata.characterPrompts.length} ${l10n.metadataImport_charactersCount}',
-        1,
-      ),
-      (
-        options.importVibeReferences && metadata.vibeReferences.isNotEmpty,
-        'Vibe Transfer',
-        '${metadata.vibeReferences.length} 个',
-        1,
-      ),
-      (
-        options.importPreciseReferences &&
-            metadata.preciseReferences.isNotEmpty,
-        '精准参考',
-        '${metadata.preciseReferences.length} 个',
-        1,
-      ),
-      (
-        options.importSeed && metadata.seed != null,
-        l10n.metadataImport_seed,
-        metadata.seed?.toString(),
-        1,
-      ),
-      (
-        options.importSteps && metadata.steps != null,
-        l10n.metadataImport_steps,
-        metadata.steps?.toString(),
-        1,
-      ),
-      (
-        options.importScale && metadata.scale != null,
-        l10n.metadataImport_scale,
-        metadata.scale?.toString(),
-        1,
-      ),
-      (
-        options.importSize && metadata.width != null && metadata.height != null,
-        l10n.metadataImport_size,
-        '${metadata.width} x ${metadata.height}',
-        1,
-      ),
-      (
-        options.importSampler && metadata.sampler != null,
-        l10n.metadataImport_sampler,
-        metadata.displaySampler,
-        1,
-      ),
-      (
-        options.importModel && importableModel != null,
-        l10n.metadataImport_model,
-        importableModel?.toString(),
-        1,
-      ),
-      (
-        options.importSmea && metadata.smea != null,
-        l10n.metadataImport_smea,
-        metadata.smea?.toString(),
-        1,
-      ),
-      (
-        options.importSmeaDyn && metadata.smeaDyn != null,
-        l10n.metadataImport_smeaDyn,
-        metadata.smeaDyn?.toString(),
-        1,
-      ),
-      (
-        options.importVarietyPlus && metadata.varietyPlus != null,
-        'Variety+',
-        metadata.varietyPlus?.toString(),
-        1,
-      ),
-      (
-        options.importNoiseSchedule && metadata.noiseSchedule != null,
-        l10n.metadataImport_noiseSchedule,
-        metadata.noiseSchedule?.toString(),
-        1,
-      ),
-      (
-        options.importCfgRescale && metadata.cfgRescale != null,
-        l10n.metadataImport_cfgRescale,
-        metadata.cfgRescale?.toString(),
-        1,
-      ),
-      (
-        options.importQualityToggle && metadata.qualityToggle != null,
-        l10n.metadataImport_qualityToggle,
-        metadata.qualityToggle?.toString(),
-        1,
-      ),
-      (
-        options.importUcPreset && metadata.ucPreset != null,
-        l10n.metadataImport_ucPreset,
-        metadata.ucPreset?.toString(),
-        1,
-      ),
-    ];
-
-    for (final (shouldShow, label, value, maxLines) in itemConfigs) {
-      if (shouldShow && value != null) {
-        items.add(_buildAppliedItem(label, value, maxLines: maxLines));
-      }
-    }
-
-    return items;
-  }
-
-  Widget _buildAppliedItem(String label, String value, {int maxLines = 1}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              '$label:',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              maxLines: maxLines,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showError(String message) {

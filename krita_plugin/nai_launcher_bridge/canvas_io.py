@@ -1,4 +1,5 @@
 import os
+import math
 import tempfile
 from pathlib import Path
 from typing import Optional
@@ -12,6 +13,10 @@ MAX_V1_CANVAS_EDGE = 4096
 PREVIEW_LAYER_NAME = "NAI Preview"
 FOCUS_PREVIEW_LAYER_NAME = "NAI Focus Preview"
 MASK_SOURCE_SELECTION = "selection"
+# NovelAI web build d7e955f-production, verified 2026-07-14.
+FOCUS_DIMENSION_STEP = 64
+FOCUS_TARGET_AREA_PIXELS = 1048576
+FOCUS_MAX_REQUEST_AREA_PIXELS = 3145728
 
 
 def active_document():
@@ -155,7 +160,7 @@ def focus_context_rect_for_selection(
     canvas_height: int,
     minimum_context_pixels: int,
 ) -> dict:
-    padding = max(0, min(192, int(round(minimum_context_pixels))))
+    padding = max(16, min(192, int(round(minimum_context_pixels))))
     width = max(1, min(canvas_width, int(selection_rect["w"]) + padding * 2))
     height = max(1, min(canvas_height, int(selection_rect["h"]) + padding * 2))
     center_x = int(selection_rect["x"]) + int(selection_rect["w"]) / 2
@@ -167,9 +172,117 @@ def focus_context_rect_for_selection(
     return {"x": x, "y": y, "w": width, "h": height}
 
 
-def active_focus_preview_rects(minimum_context_pixels: int) -> Optional[tuple[dict, dict]]:
+def focus_request_size_for_context(context_rect: dict) -> dict:
+    width = max(1, int(context_rect["w"]))
+    height = max(1, int(context_rect["h"]))
+    area = width * height
+    upscale = area <= FOCUS_TARGET_AREA_PIXELS
+    scale = math.sqrt(FOCUS_TARGET_AREA_PIXELS / area) if upscale else 1.0
+    request_width = _floor_focus_dimension(int(math.floor(width * scale)))
+    request_height = _floor_focus_dimension(int(math.floor(height * scale)))
+    area_limit = (
+        FOCUS_TARGET_AREA_PIXELS if upscale else FOCUS_MAX_REQUEST_AREA_PIXELS
+    )
+    if request_width * request_height > area_limit:
+        if request_width >= request_height:
+            request_width = _largest_focus_dimension_for_area(
+                area_limit, request_height
+            )
+        else:
+            request_height = _largest_focus_dimension_for_area(
+                area_limit, request_width
+            )
+    return {
+        "w": request_width,
+        "h": request_height,
+        "mode": "upscale_to_target" if upscale else "preserve_crop",
+    }
+
+
+def constrain_focus_selection_rect(
+    selection_rect: dict,
+    canvas_width: int,
+    canvas_height: int,
+    minimum_context_pixels: int,
+) -> dict:
+    original = _clamp_selection_rect(selection_rect, canvas_width, canvas_height)
+    original_context = focus_context_rect_for_selection(
+        original,
+        canvas_width,
+        canvas_height,
+        minimum_context_pixels,
+    )
+    if _rect_area(original_context) <= FOCUS_MAX_REQUEST_AREA_PIXELS:
+        return original
+
+    center_x = original["x"] + original["w"] / 2
+    center_y = original["y"] + original["h"] / 2
+    low = 0.0
+    high = 1.0
+    best = _centered_selection_rect(
+        center_x,
+        center_y,
+        3,
+        3,
+        canvas_width,
+        canvas_height,
+    )
+    for _ in range(48):
+        scale = (low + high) / 2
+        width = max(3, int(round(original["w"] * scale)))
+        height = max(3, int(round(original["h"] * scale)))
+        candidate = _centered_selection_rect(
+            center_x,
+            center_y,
+            width,
+            height,
+            canvas_width,
+            canvas_height,
+        )
+        context = focus_context_rect_for_selection(
+            candidate,
+            canvas_width,
+            canvas_height,
+            minimum_context_pixels,
+        )
+        if _rect_area(context) <= FOCUS_MAX_REQUEST_AREA_PIXELS:
+            low = scale
+            best = candidate
+        else:
+            high = scale
+    return best
+
+
+def constrain_active_focus_selection(minimum_context_pixels: int) -> Optional[dict]:
     doc = active_document()
     selection_rect = active_selection_bounds()
+    if doc is None or selection_rect is None:
+        return None
+    constrained = constrain_focus_selection_rect(
+        selection_rect,
+        doc.width(),
+        doc.height(),
+        minimum_context_pixels,
+    )
+    if constrained == selection_rect:
+        return constrained
+
+    selection = _create_krita_selection()
+    selection.select(
+        constrained["x"],
+        constrained["y"],
+        constrained["w"],
+        constrained["h"],
+        255,
+    )
+    doc.setSelection(selection)
+    doc.refreshProjection()
+    return constrained
+
+
+def active_focus_geometry(minimum_context_pixels: int) -> Optional[dict]:
+    doc = active_document()
+    selection_rect = constrain_active_focus_selection(minimum_context_pixels)
     if doc is None or selection_rect is None:
         return None
     context_rect = focus_context_rect_for_selection(
@@ -178,7 +291,18 @@ def active_focus_preview_rects(minimum_context_pixels: int) -> Optional[tuple[di
         doc.height(),
         minimum_context_pixels,
     )
-    return selection_rect, context_rect
+    return {
+        "inner": selection_rect,
+        "outer": context_rect,
+        "request": focus_request_size_for_context(context_rect),
+    }
+
+
+def active_focus_preview_rects(minimum_context_pixels: int) -> Optional[tuple[dict, dict]]:
+    geometry = active_focus_geometry(minimum_context_pixels)
+    if geometry is None:
+        return None
+    return geometry["inner"], geometry["outer"]
 
 
 def write_focus_preview(minimum_context_pixels: int) -> tuple[dict, dict]:
@@ -423,3 +547,47 @@ def _remove_node(root, node) -> None:
 def _wait_for_done(doc) -> None:
     if hasattr(doc, "waitForDone"):
         doc.waitForDone()
+
+
+def _floor_focus_dimension(value: int) -> int:
+    return max(FOCUS_DIMENSION_STEP, (value // FOCUS_DIMENSION_STEP) * FOCUS_DIMENSION_STEP)
+
+
+def _largest_focus_dimension_for_area(area_limit: int, other_dimension: int) -> int:
+    grid_units = area_limit // other_dimension // FOCUS_DIMENSION_STEP
+    return max(FOCUS_DIMENSION_STEP, grid_units * FOCUS_DIMENSION_STEP)
+
+
+def _rect_area(rect: dict) -> int:
+    return int(rect["w"]) * int(rect["h"])
+
+
+def _clamp_selection_rect(rect: dict, canvas_width: int, canvas_height: int) -> dict:
+    x = max(0, min(canvas_width - 1, int(rect["x"])))
+    y = max(0, min(canvas_height - 1, int(rect["y"])))
+    width = max(1, min(canvas_width - x, int(rect["w"])))
+    height = max(1, min(canvas_height - y, int(rect["h"])))
+    return {"x": x, "y": y, "w": width, "h": height}
+
+
+def _centered_selection_rect(
+    center_x: float,
+    center_y: float,
+    width: int,
+    height: int,
+    canvas_width: int,
+    canvas_height: int,
+) -> dict:
+    resolved_width = max(1, min(canvas_width, int(width)))
+    resolved_height = max(1, min(canvas_height, int(height)))
+    x = int(math.floor(center_x - resolved_width / 2))
+    y = int(math.floor(center_y - resolved_height / 2))
+    x = max(0, min(canvas_width - resolved_width, x))
+    y = max(0, min(canvas_height - resolved_height, y))
+    return {"x": x, "y": y, "w": resolved_width, "h": resolved_height}
+
+
+def _create_krita_selection():
+    from krita import Selection
+
+    return Selection()

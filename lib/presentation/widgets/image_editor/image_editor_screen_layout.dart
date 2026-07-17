@@ -68,6 +68,7 @@ extension _ImageEditorScreenLayout on _ImageEditorScreenState {
       appBar: AppBar(
         title: Text(_editorTitle()),
         actions: [
+          _buildMobileCompressionAction(),
           // 图层按钮
           IconButton(
             icon: const Icon(Icons.layers),
@@ -150,12 +151,24 @@ extension _ImageEditorScreenLayout on _ImageEditorScreenState {
 
           const Spacer(),
 
+          _buildDesktopCompressionControl(
+            expanded: MediaQuery.sizeOf(context).width >= 1700,
+          ),
+          const SizedBox(width: 4),
+
           if (!_isInpaintMode)
-            TextButton.icon(
-              icon: const Icon(Icons.tune_rounded, size: 18),
-              label: const Text('Effects'),
-              onPressed: _showEffectsDialog,
-            ),
+            if (MediaQuery.sizeOf(context).width >= 1280)
+              TextButton.icon(
+                icon: const Icon(Icons.tune_rounded, size: 18),
+                label: const Text('Effects'),
+                onPressed: _showEffectsDialog,
+              )
+            else
+              IconButton(
+                icon: const Icon(Icons.tune_rounded, size: 20),
+                onPressed: _showEffectsDialog,
+                tooltip: 'Effects',
+              ),
 
           // 画布尺寸按钮（使用细粒度监听）
           TextButton.icon(
@@ -177,11 +190,18 @@ extension _ImageEditorScreenLayout on _ImageEditorScreenState {
             ),
 
           if (_isInpaintMode)
-            TextButton.icon(
-              icon: const Icon(Icons.open_in_full, size: 18),
-              label: const Text('Shift Edges'),
-              onPressed: _showShiftEdgesDialog,
-            ),
+            if (MediaQuery.sizeOf(context).width >= 1280)
+              TextButton.icon(
+                icon: const Icon(Icons.open_in_full, size: 18),
+                label: const Text('Shift Edges'),
+                onPressed: _showShiftEdgesDialog,
+              )
+            else
+              IconButton(
+                icon: const Icon(Icons.open_in_full, size: 20),
+                onPressed: _showShiftEdgesDialog,
+                tooltip: 'Shift Edges',
+              ),
 
           const ThemedDivider(
             height: 1,

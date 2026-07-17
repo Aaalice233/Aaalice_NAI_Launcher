@@ -42,13 +42,11 @@ class ImageEditorFocusedInpaintCostConfig {
 
 class _FocusedInpaintCostEstimate {
   const _FocusedInpaintCostEstimate({
-    required this.width,
-    required this.height,
+    required this.geometry,
     required this.cost,
   });
 
-  final int width;
-  final int height;
+  final FocusedInpaintGeometry geometry;
   final int cost;
 }
 
@@ -87,6 +85,22 @@ class ImageEditorResult {
   /// 是否有 Outpaint 源图像修改
   final bool hasOutpaintChanges;
 
+  /// 确认 Inpaint 编辑后采用的工作 source。
+  final Uint8List? inpaintSourceImage;
+
+  final int? inpaintSourceWidth;
+  final int? inpaintSourceHeight;
+
+  /// 工作 source 是否因 2560/64 规则或用户压缩发生规范化。
+  final bool sourceWasNormalized;
+
+  /// 用户确认后的实际输出/source 尺寸。
+  final int? outputWidth;
+  final int? outputHeight;
+
+  /// 用户是否在编辑器中选择了低于工作画布的压缩目标。
+  final bool compressionApplied;
+
   const ImageEditorResult({
     this.modifiedImage,
     this.maskImage,
@@ -99,5 +113,12 @@ class ImageEditorResult {
     this.outpaintSourceWidth,
     this.outpaintSourceHeight,
     this.hasOutpaintChanges = false,
+    this.inpaintSourceImage,
+    this.inpaintSourceWidth,
+    this.inpaintSourceHeight,
+    this.sourceWasNormalized = false,
+    this.outputWidth,
+    this.outputHeight,
+    this.compressionApplied = false,
   });
 }

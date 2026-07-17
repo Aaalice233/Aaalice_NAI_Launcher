@@ -3,7 +3,7 @@ import 'dart:ui';
 import '../core/history_manager.dart';
 
 /// 项目版本号
-const int projectVersion = 1;
+const int projectVersion = 2;
 
 /// 项目数据
 class ProjectData {
@@ -116,6 +116,9 @@ class LayerProjectData {
   /// 笔画数据
   final List<StrokeProjectData> strokes;
 
+  /// 3D 模型图层元数据(Model3dLayerData.toJson 的结果;v1 项目无此字段)
+  final Map<String, dynamic>? model3d;
+
   LayerProjectData({
     required this.id,
     required this.name,
@@ -125,6 +128,7 @@ class LayerProjectData {
     this.blendMode = 'normal',
     this.imageData,
     this.strokes = const [],
+    this.model3d,
   });
 
   /// 从JSON创建
@@ -143,6 +147,7 @@ class LayerProjectData {
               )
               .toList() ??
           [],
+      model3d: (json['model3d'] as Map?)?.cast<String, dynamic>(),
     );
   }
 
@@ -157,6 +162,7 @@ class LayerProjectData {
       'blendMode': blendMode,
       'imageData': imageData,
       'strokes': strokes.map((s) => s.toJson()).toList(),
+      'model3d': model3d,
     };
   }
 }

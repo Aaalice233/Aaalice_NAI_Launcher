@@ -9,6 +9,7 @@ import 'package:path/path.dart' as path;
 import '../../../../core/utils/app_logger.dart';
 import '../core/editor_state.dart';
 import '../layers/layer.dart';
+import '../layers/model3d_layer_data.dart';
 import 'project_data.dart';
 
 /// 项目文件扩展名
@@ -105,10 +106,36 @@ class ProjectManager {
       }
 
       // 添加图层到管理器
-      state.layerManager.insertLayerFromData(
+      final inserted = state.layerManager.insertLayerFromData(
         layer.toData(),
         state.layerManager.layerCount,
       );
+
+      // 恢复 3D 图层的位图与元数据(v2;v1 项目两者均为 null)
+      //
+      // 位图为主、3D 元数据为增强:单个图层的数据损坏(如 base64 解码失败、
+      // 元数据字段缺失)不应阻断整个项目加载,两部分分别捕获、互不影响,
+      // 该图层保留但退化为缺少位图和/或元数据。
+      if (layerData.imageData != null) {
+        try {
+          await inserted.setBaseImage(base64Decode(layerData.imageData!));
+        } catch (e) {
+          AppLogger.w(
+            'Failed to restore layer image data, layer degraded: $e',
+            'ProjectManager',
+          );
+        }
+      }
+      if (layerData.model3d != null) {
+        try {
+          inserted.model3d = Model3dLayerData.fromJson(layerData.model3d!);
+        } catch (e) {
+          AppLogger.w(
+            'Failed to restore layer model3d data, layer degraded: $e',
+            'ProjectManager',
+          );
+        }
+      }
     }
 
     // 设置活动图层
@@ -135,6 +162,11 @@ class ProjectManager {
           opacity: layer.opacity,
           blendMode: layer.blendMode.name,
           strokes: strokes,
+          // 3D 层持久化位图与元数据;普通层维持现状(不存底图)
+          imageData: layer.model3d != null && layer.baseImageBytes != null
+              ? base64Encode(layer.baseImageBytes!)
+              : null,
+          model3d: layer.model3d?.toJson(),
         ),
       );
     }

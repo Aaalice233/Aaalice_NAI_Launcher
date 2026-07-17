@@ -106,7 +106,7 @@ class NAIAuthApiService {
     AppLogger.d('Attempting login with access key', 'NAIAuth');
 
     final response = await _dio.post(
-      endpoint.mainUrl(ApiConstants.loginEndpoint),
+      endpoint.userUrl(ApiConstants.loginEndpoint),
       data: {'key': accessKey},
       options: Options(receiveTimeout: _timeout, sendTimeout: _timeout),
     );

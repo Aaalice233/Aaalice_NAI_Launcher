@@ -1,30 +1,59 @@
 import 'dart:typed_data';
 import 'dart:ui';
 
+import 'package:image/image.dart' as img;
+
 import '../../../../core/utils/focused_inpaint_utils.dart';
 import '../../../../core/utils/inpaint_mask_utils.dart';
 
-typedef FocusedPreviewFrameResolver = FocusedInpaintFrame? Function({
-  required Uint8List sourceImage,
-  Uint8List? maskImage,
-  Rect? focusedSelectionRect,
-  required double minContextMegaPixels,
-});
+typedef FocusedPreviewFrameResolver =
+    FocusedInpaintFrame? Function({
+      required Uint8List sourceImage,
+      Uint8List? maskImage,
+      Rect? focusedSelectionRect,
+      required double minContextMegaPixels,
+    });
 
-typedef SelectionPreviewFrameResolver = FocusedInpaintFrame? Function({
-  required int sourceWidth,
-  required int sourceHeight,
-  required Rect selectionRect,
-  required double minContextMegaPixels,
-});
+typedef SelectionPreviewFrameResolver =
+    FocusedInpaintFrame? Function({
+      required int sourceWidth,
+      required int sourceHeight,
+      required Rect selectionRect,
+      required double minContextMegaPixels,
+    });
 
 typedef MaskOverlayBuilder = Uint8List Function(Uint8List maskImage);
 
+typedef SourcePreviewImageDecoder = img.Image? Function(Uint8List sourceImage);
+
+(int, int) resolveSourcePreviewDimensions({
+  required Uint8List sourceBytes,
+  int? fallbackWidth,
+  int? fallbackHeight,
+  SourcePreviewImageDecoder? imageDecoder,
+}) {
+  img.Image? decoded;
+  try {
+    decoded = (imageDecoder ?? img.decodeImage)(sourceBytes);
+  } catch (_) {
+    decoded = null;
+  }
+  if (decoded != null) {
+    return (decoded.width, decoded.height);
+  }
+
+  if (fallbackWidth != null &&
+      fallbackHeight != null &&
+      fallbackWidth > 0 &&
+      fallbackHeight > 0) {
+    return (fallbackWidth, fallbackHeight);
+  }
+
+  return (1, 1);
+}
+
 class Img2ImgPreviewDerivedData {
-  const Img2ImgPreviewDerivedData({
-    this.maskOverlayBytes,
-    this.focusedFrame,
-  });
+  const Img2ImgPreviewDerivedData({this.maskOverlayBytes, this.focusedFrame});
 
   final Uint8List? maskOverlayBytes;
   final FocusedInpaintFrame? focusedFrame;
@@ -36,12 +65,13 @@ class Img2ImgPreviewCache {
     FocusedPreviewFrameResolver? focusedFrameResolver,
     SelectionPreviewFrameResolver? selectionPreviewFrameResolver,
     MaskOverlayBuilder? maskOverlayBuilder,
-  })  : _focusedFrameResolver =
-            focusedFrameResolver ?? FocusedInpaintUtils.resolvePreviewFrame,
-        _selectionPreviewFrameResolver = selectionPreviewFrameResolver ??
-            FocusedInpaintUtils.resolvePreviewFrameForSelection,
-        _maskOverlayBuilder =
-            maskOverlayBuilder ?? InpaintMaskUtils.maskToEditorOverlay;
+  }) : _focusedFrameResolver =
+           focusedFrameResolver ?? FocusedInpaintUtils.resolvePreviewFrame,
+       _selectionPreviewFrameResolver =
+           selectionPreviewFrameResolver ??
+           FocusedInpaintUtils.resolvePreviewFrameForSelection,
+       _maskOverlayBuilder =
+           maskOverlayBuilder ?? InpaintMaskUtils.maskToEditorOverlay;
 
   final FocusedPreviewFrameResolver _focusedFrameResolver;
   final SelectionPreviewFrameResolver _selectionPreviewFrameResolver;
@@ -70,20 +100,22 @@ class Img2ImgPreviewCache {
   }) {
     if (!identical(maskImage, _lastMaskImageForOverlay)) {
       _lastMaskImageForOverlay = maskImage;
-      _cachedMaskOverlayBytes =
-          maskImage == null ? null : _maskOverlayBuilder(maskImage);
+      _cachedMaskOverlayBytes = maskImage == null
+          ? null
+          : _maskOverlayBuilder(maskImage);
     }
 
-    final shouldResolveFocusedFrame = focusedInpaintEnabled &&
+    final shouldResolveFocusedFrame =
+        focusedInpaintEnabled &&
         (maskImage != null || focusedSelectionRect != null);
     final frameInputsChanged =
         !identical(sourceImage, _lastSourceImageForFrame) ||
-            !identical(maskImage, _lastMaskImageForFrame) ||
-            _lastFocusedSelectionRect != focusedSelectionRect ||
-            _lastMinimumContextMegaPixels != minContextMegaPixels ||
-            _lastFocusedInpaintEnabled != focusedInpaintEnabled ||
-            _lastSourceWidth != sourceWidth ||
-            _lastSourceHeight != sourceHeight;
+        !identical(maskImage, _lastMaskImageForFrame) ||
+        _lastFocusedSelectionRect != focusedSelectionRect ||
+        _lastMinimumContextMegaPixels != minContextMegaPixels ||
+        _lastFocusedInpaintEnabled != focusedInpaintEnabled ||
+        _lastSourceWidth != sourceWidth ||
+        _lastSourceHeight != sourceHeight;
 
     if (!shouldResolveFocusedFrame) {
       _cachedFocusedFrame = null;

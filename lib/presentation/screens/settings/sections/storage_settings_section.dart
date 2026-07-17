@@ -12,9 +12,9 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/vibe_library_path_helper.dart';
 import '../../../../data/services/local_onnx_model_service.dart';
 import '../../../providers/image_save_settings_provider.dart';
-import '../../../providers/share_image_settings_provider.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../widgets/cache_statistics_tile.dart';
+import '../widgets/data_source_cache_settings.dart';
 import '../widgets/gallery_cache_actions.dart';
 import '../widgets/settings_card.dart';
 
@@ -94,277 +94,133 @@ class _StorageSettingsSectionState
     }
   }
 
-  Future<void> _editHighAnlasThreshold() async {
-    final settings = ref.read(shareImageSettingsProvider);
-    final controller = TextEditingController(
-      text: settings.highAnlasCostThreshold.toString(),
-    );
-    final result = await showDialog<int>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(context.l10n.settings_setHighAnlasCostThresholdTitle),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: context.l10n.settings_threshold,
-            suffixText: 'Anlas',
-            helperText: context.l10n.settings_highAnlasCostThresholdHelper,
-            border: const OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(context.l10n.common_cancel),
-          ),
-          FilledButton(
-            onPressed: () {
-              final value = int.tryParse(controller.text.trim());
-              if (value != null && value > 0) {
-                Navigator.of(dialogContext).pop(value);
-              }
-            },
-            child: Text(context.l10n.common_save),
-          ),
-        ],
-      ),
-    );
-
-    controller.dispose();
-    if (result == null) {
-      return;
-    }
-    await ref
-        .read(shareImageSettingsProvider.notifier)
-        .setHighAnlasCostThreshold(result);
-  }
-
   @override
   Widget build(BuildContext context) {
     final saveSettings = ref.watch(imageSaveSettingsNotifierProvider);
-    final shareSettings = ref.watch(shareImageSettingsProvider);
     final localOnnxService = ref.watch(localOnnxModelServiceProvider);
     final localOnnxDirectory = localOnnxService.taggerDirectory;
 
-    return SettingsCard(
-      title: context.l10n.settings_storage,
-      icon: Icons.storage,
-      child: Column(
-        children: [
-          // 图片保存路径设置
-          ListTile(
-            leading: const Icon(Icons.folder_outlined),
-            title: Text(context.l10n.settings_imageSavePath),
-            subtitle: Text(
-              saveSettings.getDisplayPath(
-                context.l10n.settings_defaultImagesPath,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.folder_open, size: 20),
-                  tooltip: context.l10n.settings_openFolder,
-                  onPressed: () async {
-                    final openFolderFailed =
-                        context.l10n.settings_openFolderFailed;
-                    try {
-                      String path;
-                      if (saveSettings.hasCustomPath) {
-                        path = saveSettings.customPath!;
-                      } else {
-                        final docDir = await getApplicationDocumentsDirectory();
-                        path =
-                            '${docDir.path}${Platform.pathSeparator}NAI_Launcher${Platform.pathSeparator}images';
-                      }
-                      await launchUrl(
-                        Uri.directory(path),
-                        mode: LaunchMode.externalApplication,
-                      );
-                    } catch (e) {
-                      AppLogger.e(openFolderFailed, e);
-                    }
-                  },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SettingsCard(
+          title: context.l10n.settings_dataStorage,
+          icon: Icons.storage,
+          child: Column(
+            children: [
+              // 图片保存路径设置
+              ListTile(
+                leading: const Icon(Icons.folder_outlined),
+                title: Text(context.l10n.settings_imageSavePath),
+                subtitle: Text(
+                  saveSettings.getDisplayPath(
+                    context.l10n.settings_defaultImagesPath,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                if (saveSettings.hasCustomPath)
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 20),
-                    tooltip: context.l10n.common_reset,
-                    onPressed: () async {
-                      await ref
-                          .read(imageSaveSettingsNotifierProvider.notifier)
-                          .resetToDefault();
-                      if (context.mounted) {
-                        AppToast.success(
-                          context,
-                          context.l10n.settings_pathReset,
-                        );
-                      }
-                    },
-                  ),
-                const Icon(Icons.chevron_right),
-              ],
-            ),
-            onTap: () => _selectSaveDirectory(context),
-          ),
-          // 自动保存开关
-          SwitchListTile(
-            secondary: const Icon(Icons.save_outlined),
-            title: Text(context.l10n.settings_autoSave),
-            subtitle: Text(context.l10n.settings_autoSaveSubtitle),
-            value: saveSettings.autoSave,
-            onChanged: (value) async {
-              await ref
-                  .read(imageSaveSettingsNotifierProvider.notifier)
-                  .setAutoSave(value);
-            },
-          ),
-          SwitchListTile(
-            secondary: const Icon(Icons.shield_outlined),
-            title: Text(context.l10n.settings_protectionMode),
-            subtitle: Text(context.l10n.settings_protectionModeSubtitle),
-            value: shareSettings.protectionMode,
-            onChanged: (value) async {
-              await ref
-                  .read(shareImageSettingsProvider.notifier)
-                  .setProtectionMode(value);
-            },
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Text(
-              context.l10n.settings_protectionFeatures,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-          ),
-          SwitchListTile(
-            secondary: const Icon(Icons.cleaning_services_outlined),
-            title: Text(context.l10n.settings_stripMetadataTitle),
-            subtitle: Text(context.l10n.settings_stripMetadataSubtitle),
-            value: shareSettings.stripMetadataForCopyAndDrag,
-            onChanged: shareSettings.protectionMode
-                ? (value) async {
-                    await ref
-                        .read(shareImageSettingsProvider.notifier)
-                        .setStripMetadataForCopyAndDrag(value);
-                  }
-                : null,
-          ),
-          SwitchListTile(
-            secondary: const Icon(Icons.warning_amber_rounded),
-            title: Text(context.l10n.settings_confirmDangerousActionsTitle),
-            subtitle:
-                Text(context.l10n.settings_confirmDangerousActionsSubtitle),
-            value: shareSettings.confirmDangerousActions,
-            onChanged: shareSettings.protectionMode
-                ? (value) async {
-                    await ref
-                        .read(shareImageSettingsProvider.notifier)
-                        .setConfirmDangerousActions(value);
-                  }
-                : null,
-          ),
-          SwitchListTile(
-            secondary: const Icon(Icons.cloud_upload_outlined),
-            title: Text(context.l10n.settings_warnExternalImageSendTitle),
-            subtitle: Text(context.l10n.settings_warnExternalImageSendSubtitle),
-            value: shareSettings.warnExternalImageSend,
-            onChanged: shareSettings.protectionMode
-                ? (value) async {
-                    await ref
-                        .read(shareImageSettingsProvider.notifier)
-                        .setWarnExternalImageSend(value);
-                  }
-                : null,
-          ),
-          SwitchListTile(
-            secondary: const Icon(Icons.file_copy_outlined),
-            title: Text(context.l10n.settings_preventOverwriteTitle),
-            subtitle: Text(context.l10n.settings_preventOverwriteSubtitle),
-            value: shareSettings.preventOverwrite,
-            onChanged: shareSettings.protectionMode
-                ? (value) async {
-                    await ref
-                        .read(shareImageSettingsProvider.notifier)
-                        .setPreventOverwrite(value);
-                  }
-                : null,
-          ),
-          SwitchListTile(
-            secondary: const Icon(Icons.toll_outlined),
-            title: Text(context.l10n.settings_warnHighAnlasCostTitle),
-            subtitle: Text(
-              context.l10n.settings_warnHighAnlasCostSubtitle(
-                shareSettings.highAnlasCostThreshold,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.folder_open, size: 20),
+                      tooltip: context.l10n.settings_openFolder,
+                      onPressed: () async {
+                        final openFolderFailed =
+                            context.l10n.settings_openFolderFailed;
+                        try {
+                          String path;
+                          if (saveSettings.hasCustomPath) {
+                            path = saveSettings.customPath!;
+                          } else {
+                            final docDir =
+                                await getApplicationDocumentsDirectory();
+                            path =
+                                '${docDir.path}${Platform.pathSeparator}NAI_Launcher${Platform.pathSeparator}images';
+                          }
+                          await launchUrl(
+                            Uri.directory(path),
+                            mode: LaunchMode.externalApplication,
+                          );
+                        } catch (e) {
+                          AppLogger.e(openFolderFailed, e);
+                        }
+                      },
+                    ),
+                    if (saveSettings.hasCustomPath)
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 20),
+                        tooltip: context.l10n.common_reset,
+                        onPressed: () async {
+                          await ref
+                              .read(imageSaveSettingsNotifierProvider.notifier)
+                              .resetToDefault();
+                          if (context.mounted) {
+                            AppToast.success(
+                              context,
+                              context.l10n.settings_pathReset,
+                            );
+                          }
+                        },
+                      ),
+                    const Icon(Icons.chevron_right),
+                  ],
+                ),
+                onTap: () => _selectSaveDirectory(context),
               ),
-            ),
-            value: shareSettings.warnHighAnlasCost,
-            onChanged: shareSettings.protectionMode
-                ? (value) async {
-                    await ref
-                        .read(shareImageSettingsProvider.notifier)
-                        .setWarnHighAnlasCost(value);
-                  }
-                : null,
+              // 自动保存开关
+              SwitchListTile(
+                secondary: const Icon(Icons.save_outlined),
+                title: Text(context.l10n.settings_autoSave),
+                subtitle: Text(context.l10n.settings_autoSaveSubtitle),
+                value: saveSettings.autoSave,
+                onChanged: (value) async {
+                  await ref
+                      .read(imageSaveSettingsNotifierProvider.notifier)
+                      .setAutoSave(value);
+                },
+              ),
+              const Divider(height: 24),
+              ListTile(
+                leading: const Icon(Icons.sell_outlined),
+                title: Text(context.l10n.settings_localOnnxTaggerFolder),
+                subtitle: Text(
+                  localOnnxDirectory.isEmpty
+                      ? context.l10n.settings_notConfigured
+                      : localOnnxDirectory,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (localOnnxDirectory.isNotEmpty)
+                      IconButton(
+                        icon: const Icon(Icons.folder_open, size: 20),
+                        tooltip: context.l10n.settings_openFolder,
+                        onPressed: () =>
+                            _openLocalOnnxTaggerDirectory(localOnnxDirectory),
+                      ),
+                    const Icon(Icons.chevron_right),
+                  ],
+                ),
+                onTap: _selectLocalOnnxTaggerDirectory,
+              ),
+              // Vibe库保存路径设置
+              const VibeLibraryPathTile(),
+              // Hive 数据存储路径设置
+              const HiveStoragePathTile(),
+              const Divider(height: 32),
+              // 缓存统计
+              const CacheStatisticsTile(),
+              const Divider(height: 32),
+              // 画廊缓存操作（清除缓存 + 重建索引）
+              const GalleryCacheActions(),
+            ],
           ),
-          ListTile(
-            enabled:
-                shareSettings.protectionMode && shareSettings.warnHighAnlasCost,
-            leading: const Icon(Icons.speed_outlined),
-            title: Text(context.l10n.settings_highAnlasCostThresholdTitle),
-            subtitle: Text('${shareSettings.highAnlasCostThreshold} Anlas'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap:
-                shareSettings.protectionMode && shareSettings.warnHighAnlasCost
-                    ? _editHighAnlasThreshold
-                    : null,
-          ),
-          const Divider(height: 24),
-          ListTile(
-            leading: const Icon(Icons.sell_outlined),
-            title: Text(context.l10n.settings_localOnnxTaggerFolder),
-            subtitle: Text(
-              localOnnxDirectory.isEmpty
-                  ? context.l10n.settings_notConfigured
-                  : localOnnxDirectory,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (localOnnxDirectory.isNotEmpty)
-                  IconButton(
-                    icon: const Icon(Icons.folder_open, size: 20),
-                    tooltip: context.l10n.settings_openFolder,
-                    onPressed: () =>
-                        _openLocalOnnxTaggerDirectory(localOnnxDirectory),
-                  ),
-                const Icon(Icons.chevron_right),
-              ],
-            ),
-            onTap: _selectLocalOnnxTaggerDirectory,
-          ),
-          // Vibe库保存路径设置
-          const VibeLibraryPathTile(),
-          // Hive 数据存储路径设置
-          const HiveStoragePathTile(),
-          const Divider(height: 32),
-          // 缓存统计
-          const CacheStatisticsTile(),
-          const Divider(height: 32),
-          // 画廊缓存操作（清除缓存 + 重建索引）
-          const GalleryCacheActions(),
-        ],
-      ),
+        ),
+        const DataSourceCacheSettings(),
+      ],
     );
   }
 }

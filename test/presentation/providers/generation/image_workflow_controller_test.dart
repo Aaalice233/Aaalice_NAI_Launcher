@@ -166,6 +166,8 @@ void main() {
 
         expect(workflow.sourceWidth, equals(1472));
         expect(workflow.sourceHeight, equals(896));
+        expect(workflow.sourceImageWidth, equals(1500));
+        expect(workflow.sourceImageHeight, equals(900));
         expect(params.width, equals(1472));
         expect(params.height, equals(896));
         expect(params.sourceImage, same(original));
@@ -201,6 +203,8 @@ void main() {
 
         expect(workflow.sourceWidth, equals(1472));
         expect(workflow.sourceHeight, equals(896));
+        expect(workflow.sourceImageWidth, equals(1500));
+        expect(workflow.sourceImageHeight, equals(900));
         expect(params.width, equals(1472));
         expect(params.height, equals(896));
         expect(params.sourceImage, same(original));
@@ -272,6 +276,36 @@ void main() {
         expect(workflow.focusedInpaintEnabled, isFalse);
         expect(workflow.minimumContextMegaPixels, equals(120.0));
         expect(workflow.focusedSelectionRect, isNull);
+      },
+    );
+
+    test(
+      'focused inpaint minimum context should clamp to safe lower bound',
+      () {
+        final controller = container.read(
+          imageWorkflowControllerProvider.notifier,
+        );
+        final paramsNotifier = container.read(
+          generationParamsNotifierProvider.notifier,
+        );
+
+        controller.setMinimumContextMegaPixels(0);
+
+        var workflow = container.read(imageWorkflowControllerProvider);
+        expect(workflow.minimumContextMegaPixels, equals(16.0));
+
+        paramsNotifier.setSourceImage(
+          _validImageBytes(width: 768, height: 1024),
+        );
+        controller.applyInpaintEditorResult(
+          maskImage: Uint8List.fromList([9, 9, 9]),
+          focusedInpaintEnabled: true,
+          focusedSelectionRect: const Rect.fromLTWH(120, 160, 240, 320),
+          minimumContextMegaPixels: 0,
+        );
+
+        workflow = container.read(imageWorkflowControllerProvider);
+        expect(workflow.minimumContextMegaPixels, equals(16.0));
       },
     );
 
@@ -411,6 +445,8 @@ void main() {
         expect(workflow.mode, ImageWorkflowMode.inpaint);
         expect(workflow.sourceWidth, equals(1472));
         expect(workflow.sourceHeight, equals(1664));
+        expect(workflow.sourceImageWidth, equals(1472));
+        expect(workflow.sourceImageHeight, equals(1664));
         expect(workflow.isOutpaint, isTrue);
         expect(workflow.focusedInpaintEnabled, isFalse);
         expect(workflow.focusedSelectionRect, isNull);
@@ -420,6 +456,76 @@ void main() {
         expect(params.height, equals(1664));
         expect(params.isOutpaint, isTrue);
         expect(params.action, ImageGenerationAction.infill);
+      },
+    );
+
+    test(
+      'applyInpaintEditorResult stores working source dimensions separately from request dimensions',
+      () {
+        final controller = container.read(
+          imageWorkflowControllerProvider.notifier,
+        );
+        final workingSource = _validImageBytes(width: 1500, height: 900);
+        final workingMask = _validMaskBytes(width: 1500, height: 900);
+
+        controller.applyInpaintEditorResult(
+          sourceImage: workingSource,
+          sourceWidth: 1500,
+          sourceHeight: 900,
+          sourceIsOutpaint: false,
+          maskImage: workingMask,
+          focusedInpaintEnabled: true,
+          focusedSelectionRect: const Rect.fromLTWH(120, 160, 900, 500),
+          minimumContextMegaPixels: 88,
+        );
+
+        final workflow = container.read(imageWorkflowControllerProvider);
+        final params = container.read(generationParamsNotifierProvider);
+
+        expect((workflow.sourceWidth, workflow.sourceHeight), (1472, 896));
+        expect(
+          (workflow.sourceImageWidth, workflow.sourceImageHeight),
+          (1500, 900),
+        );
+        expect(params.sourceImage, same(workingSource));
+        expect((params.width, params.height), (1472, 896));
+        expect(params.isOutpaint, isFalse);
+        expect(workflow.focusedInpaintEnabled, isTrue);
+      },
+    );
+
+    test(
+      'applyInpaintEditorResult preserves an explicit editor compression target',
+      () {
+        final controller = container.read(
+          imageWorkflowControllerProvider.notifier,
+        );
+        final source = _validImageBytes(width: 1344, height: 640);
+        final mask = _validMaskBytes(width: 1344, height: 640);
+
+        controller.applyInpaintEditorResult(
+          sourceImage: source,
+          sourceWidth: 1344,
+          sourceHeight: 640,
+          sourceIsOutpaint: false,
+          useExactSourceDimensions: true,
+          maskImage: mask,
+          focusedInpaintEnabled: true,
+          focusedSelectionRect: const Rect.fromLTWH(128, 64, 640, 320),
+          minimumContextMegaPixels: 88,
+        );
+
+        final workflow = container.read(imageWorkflowControllerProvider);
+        final params = container.read(generationParamsNotifierProvider);
+        expect((workflow.sourceWidth, workflow.sourceHeight), (1344, 640));
+        expect(
+          (workflow.sourceImageWidth, workflow.sourceImageHeight),
+          (1344, 640),
+        );
+        expect((params.width, params.height), (1344, 640));
+        expect(params.sourceImage, same(source));
+        expect(params.maskImage, same(mask));
+        expect(workflow.focusedInpaintEnabled, isTrue);
       },
     );
 

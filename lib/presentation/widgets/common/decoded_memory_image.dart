@@ -32,31 +32,45 @@ class DecodedMemoryImage extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final pixelRatio = MediaQuery.maybeDevicePixelRatioOf(context) ??
+        final pixelRatio =
+            MediaQuery.maybeDevicePixelRatioOf(context) ??
             View.of(context).devicePixelRatio;
         final cacheWidth = resolveCacheDimension(
           logicalSize: maxLogicalWidth,
-          constrainedSize:
-              constraints.hasBoundedWidth ? constraints.maxWidth : null,
+          constrainedSize: constraints.hasBoundedWidth
+              ? constraints.maxWidth
+              : null,
           pixelRatio: pixelRatio,
           decodeScale: decodeScale,
         );
         final cacheHeight = resolveCacheDimension(
           logicalSize: maxLogicalHeight,
-          constrainedSize:
-              constraints.hasBoundedHeight ? constraints.maxHeight : null,
+          constrainedSize: constraints.hasBoundedHeight
+              ? constraints.maxHeight
+              : null,
           pixelRatio: pixelRatio,
           decodeScale: decodeScale,
         );
 
-        return Image.memory(
-          bytes,
+        final memoryImage = MemoryImage(bytes);
+        final ImageProvider<Object> imageProvider;
+        if (cacheWidth == null && cacheHeight == null) {
+          imageProvider = memoryImage;
+        } else {
+          imageProvider = ResizeImage(
+            memoryImage,
+            width: cacheWidth,
+            height: cacheHeight,
+            policy: ResizeImagePolicy.fit,
+          );
+        }
+
+        return Image(
+          image: imageProvider,
           fit: fit,
           alignment: alignment,
           filterQuality: filterQuality,
           gaplessPlayback: gaplessPlayback,
-          cacheWidth: cacheWidth,
-          cacheHeight: cacheHeight,
           errorBuilder: errorBuilder,
           frameBuilder: frameBuilder,
         );

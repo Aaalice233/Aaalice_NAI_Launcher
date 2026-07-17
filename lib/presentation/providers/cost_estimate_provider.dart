@@ -32,35 +32,28 @@ int _resolvePreciseReferenceExtraCost(ImageParams params) {
 _GenerationCostInput _resolveGenerationCostInput(
   ImageParams params,
   ImageWorkflowState workflow,
+  FocusedInpaintGeometry? focusedMaskGeometry,
 ) {
   if (workflow.focusedInpaintEnabled && params.isInpainting) {
     final focusedSelectionRect = workflow.focusedSelectionRect;
-    final focusedRequestSize = focusedSelectionRect == null
-        ? null
-        : FocusedInpaintUtils.resolveRequestSizeForSelection(
-            sourceWidth: workflow.sourceWidth ?? params.width,
-            sourceHeight: workflow.sourceHeight ?? params.height,
+    final focusedGeometry = focusedSelectionRect == null
+        ? focusedMaskGeometry
+        : FocusedInpaintUtils.resolveGeometryForSelection(
+            sourceWidth:
+                workflow.sourceImageWidth ??
+                workflow.sourceWidth ??
+                params.width,
+            sourceHeight:
+                workflow.sourceImageHeight ??
+                workflow.sourceHeight ??
+                params.height,
             selectionRect: focusedSelectionRect,
             minContextMegaPixels: workflow.minimumContextMegaPixels,
           );
-    if (focusedRequestSize != null) {
+    if (focusedGeometry != null) {
       return _GenerationCostInput(
-        width: focusedRequestSize.$1,
-        height: focusedRequestSize.$2,
-        strength: 1.0,
-      );
-    }
-
-    final focusedRequest = FocusedInpaintUtils.prepareRequest(
-      sourceImage: params.sourceImage!,
-      maskImage: params.maskImage!,
-      focusedSelectionRect: focusedSelectionRect,
-      minContextMegaPixels: workflow.minimumContextMegaPixels,
-    );
-    if (focusedRequest != null) {
-      return _GenerationCostInput(
-        width: focusedRequest.targetWidth,
-        height: focusedRequest.targetHeight,
+        width: focusedGeometry.requestWidth,
+        height: focusedGeometry.requestHeight,
         strength: 1.0,
       );
     }
@@ -72,6 +65,45 @@ _GenerationCostInput _resolveGenerationCostInput(
     strength: params.action == ImageGenerationAction.img2img
         ? params.strength
         : 1.0,
+  );
+}
+
+/// 聚焦重绘"仅蒙版"场景下的请求尺寸（轻量路径）。
+///
+/// 只解码蒙版求外接矩形，不做完整 prepareRequest 的裁剪/缩放/PNG 编码。
+/// 依赖项用 select 收窄：蒙版引用与上下文参数不变时（例如只调整
+/// steps/prompt），Riverpod 直接复用缓存结果，不会重复解码蒙版。
+@riverpod
+FocusedInpaintGeometry? focusedInpaintMaskRequestSize(Ref ref) {
+  final needsMaskSize = ref.watch(
+    imageWorkflowControllerProvider.select(
+      (workflow) =>
+          workflow.focusedInpaintEnabled &&
+          workflow.focusedSelectionRect == null,
+    ),
+  );
+  final isInpainting = ref.watch(
+    generationParamsNotifierProvider.select((params) => params.isInpainting),
+  );
+  if (!needsMaskSize || !isInpainting) {
+    return null;
+  }
+
+  final maskImage = ref.watch(
+    generationParamsNotifierProvider.select((params) => params.maskImage),
+  );
+  if (maskImage == null) {
+    return null;
+  }
+
+  final minContextMegaPixels = ref.watch(
+    imageWorkflowControllerProvider.select(
+      (workflow) => workflow.minimumContextMegaPixels,
+    ),
+  );
+  return FocusedInpaintUtils.resolveGeometryForMask(
+    maskImage: maskImage,
+    minContextMegaPixels: minContextMegaPixels,
   );
 }
 
@@ -112,7 +144,11 @@ int estimatedCost(Ref ref) {
     return 0;
   }
 
-  final requestInput = _resolveGenerationCostInput(params, workflow);
+  final requestInput = _resolveGenerationCostInput(
+    params,
+    workflow,
+    ref.watch(focusedInpaintMaskRequestSizeProvider),
+  );
   return AnlasCalculator.calculateRequestCost(
     width: requestInput.width,
     height: requestInput.height,

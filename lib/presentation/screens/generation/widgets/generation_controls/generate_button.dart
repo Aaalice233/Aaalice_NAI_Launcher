@@ -15,6 +15,9 @@ class GenerateButtonWithCost extends ConsumerWidget {
   final VoidCallback onCancel;
   final VoidCallback onSkipCurrent;
 
+  /// 按钮高度（紧凑布局可压低）
+  final double height;
+
   const GenerateButtonWithCost({
     super.key,
     required this.isGenerating,
@@ -23,6 +26,7 @@ class GenerateButtonWithCost extends ConsumerWidget {
     required this.onGenerate,
     required this.onCancel,
     required this.onSkipCurrent,
+    this.height = 48,
   });
 
   bool get _canSkipCurrentBatch =>
@@ -46,7 +50,7 @@ class GenerateButtonWithCost extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (showCancel) {
       return SizedBox(
-        height: 48,
+        height: height,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -73,7 +77,7 @@ class GenerateButtonWithCost extends ConsumerWidget {
     }
 
     return SizedBox(
-      height: 48,
+      height: height,
       child: ThemedButton(
         onPressed: isGenerating ? null : onGenerate,
         icon: isGenerating ? null : const Icon(Icons.auto_awesome),

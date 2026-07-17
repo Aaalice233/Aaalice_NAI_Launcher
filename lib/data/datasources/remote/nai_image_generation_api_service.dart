@@ -9,12 +9,14 @@ import 'package:msgpack_dart/msgpack_dart.dart' as msgpack;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/constants/api_constants.dart';
+import '../../../core/models/image_generation_artifact.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/nai_api_endpoint_service.dart';
 import '../../../core/network/request_builders/nai_image_request_builder.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/focused_inpaint_utils.dart';
 import '../../../core/utils/inpaint_mask_utils.dart';
+import '../../../core/utils/isolate_pool.dart';
 import '../../../core/utils/nai_api_utils.dart';
 import '../../../core/utils/zip_utils.dart';
 import '../../models/image/image_params.dart';
@@ -22,6 +24,9 @@ import '../../models/image/image_stream_chunk.dart';
 import 'nai_image_enhancement_api_service.dart';
 
 part 'nai_image_generation_api_service.g.dart';
+
+// 管道计时开关（false=关闭，true=打开日志）
+const bool _enablePipelineTracing = true;
 
 /// NovelAI Image Generation API 服务
 /// 处理图像生成相关的 API 调用，包括流式和非流式生成
@@ -86,7 +91,30 @@ class NAIImageGenerationApiService {
     double minimumContextMegaPixels = 88.0,
     Rect? focusedSelectionRect,
   }) async {
-    final focusedRequest = _prepareFocusedInpaint(
+    final result = await _generateImageArtifacts(
+      params,
+      onProgress: onProgress,
+      focusedInpaintEnabled: focusedInpaintEnabled,
+      minimumContextMegaPixels: minimumContextMegaPixels,
+      focusedSelectionRect: focusedSelectionRect,
+    );
+    return (
+      result.$1
+          .map((artifact) => artifact.displayImageBytes)
+          .toList(growable: false),
+      result.$2,
+    );
+  }
+
+  Future<(List<ImageGenerationArtifact>, Map<int, String>)>
+  _generateImageArtifacts(
+    ImageParams params, {
+    void Function(int, int)? onProgress,
+    bool focusedInpaintEnabled = false,
+    double minimumContextMegaPixels = 88.0,
+    Rect? focusedSelectionRect,
+  }) async {
+    final focusedRequest = await _prepareFocusedInpaint(
       params,
       enabled: focusedInpaintEnabled,
       minimumContextMegaPixels: minimumContextMegaPixels,
@@ -271,18 +299,19 @@ class NAIImageGenerationApiService {
 
       // 6. 解压 ZIP 响应
       final zipBytes = response.data as Uint8List;
-      final images = _compositeInpaintImages(
+      final artifacts = await _compositeInpaintImages(
         ZipUtils.extractAllImages(zipBytes),
         params,
         focusedRequest,
+        requestBuildResult,
       );
 
-      if (images.isEmpty) {
+      if (artifacts.isEmpty) {
         throw Exception('No images found in response');
       }
 
       // 返回图像和 Vibe 编码哈希映射
-      return (images, vibeEncodingMap);
+      return (artifacts, vibeEncodingMap);
     } finally {
       if (identical(_currentCancelToken, cancelToken)) {
         _currentCancelToken = null;
@@ -309,6 +338,23 @@ class NAIImageGenerationApiService {
       focusedSelectionRect: focusedSelectionRect,
     );
     return result.$1; // 返回图像列表部分
+  }
+
+  Future<List<ImageGenerationArtifact>> generateImageArtifactsCancellable(
+    ImageParams params, {
+    void Function(int, int)? onProgress,
+    bool focusedInpaintEnabled = false,
+    double minimumContextMegaPixels = 88.0,
+    Rect? focusedSelectionRect,
+  }) async {
+    final result = await _generateImageArtifacts(
+      params,
+      onProgress: onProgress,
+      focusedInpaintEnabled: focusedInpaintEnabled,
+      minimumContextMegaPixels: minimumContextMegaPixels,
+      focusedSelectionRect: focusedSelectionRect,
+    );
+    return result.$1;
   }
 
   /// 取消当前生成
@@ -355,17 +401,35 @@ class NAIImageGenerationApiService {
     double minimumContextMegaPixels = 88.0,
     Rect? focusedSelectionRect,
   }) async* {
+    final pipelineStopwatch = Stopwatch()..start();
+    final stageName = focusedInpaintEnabled
+        ? 'FocusedInpaint'
+        : 'NormalInpaint';
+
+    if (_enablePipelineTracing) {
+      AppLogger.i('[Pipeline:$stageName] ===== START =====', 'PipelineTrace');
+    }
+
     if (cancelToken.isCancelled) {
       yield ImageStreamChunk.error('Cancelled');
       return;
     }
 
-    final focusedRequest = _prepareFocusedInpaint(
+    final prepStopwatch = Stopwatch()..start();
+    final focusedRequest = await _prepareFocusedInpaint(
       params,
       enabled: focusedInpaintEnabled,
       minimumContextMegaPixels: minimumContextMegaPixels,
       focusedSelectionRect: focusedSelectionRect,
     );
+    prepStopwatch.stop();
+    if (_enablePipelineTracing) {
+      AppLogger.i(
+        '[Pipeline:$stageName] _prepareFocusedInpaint: ${prepStopwatch.elapsedMilliseconds}ms',
+        'PipelineTrace',
+      );
+    }
+
     final effectiveParams = _applyFocusedRequest(params, focusedRequest);
 
     // NovelAI 官方说明 Precise Reference 与 Vibe Transfer 不兼容。
@@ -389,11 +453,19 @@ class NAIImageGenerationApiService {
         return;
       }
 
+      final buildStopwatch = Stopwatch()..start();
       final requestBuildResult = await NAIImageRequestBuilder(
         params: effectiveParams,
         encodeVibe: _enhancementService.encodeVibe,
         preciseReferences: effectivePreciseRefs,
       ).build(sampler: effectiveParams.sampler, isStream: true);
+      buildStopwatch.stop();
+      if (_enablePipelineTracing) {
+        AppLogger.i(
+          '[Pipeline:$stageName] NAIImageRequestBuilder.build: ${buildStopwatch.elapsedMilliseconds}ms',
+          'PipelineTrace',
+        );
+      }
 
       final seed = requestBuildResult.seed;
       final effectivePrompt = requestBuildResult.effectivePrompt;
@@ -504,6 +576,15 @@ class NAIImageGenerationApiService {
       AppLogger.d('==========================================', 'ImgGen');
 
       // 3. 发送流式请求
+      final networkStopwatch = Stopwatch()..start();
+      final requestSentStopwatch = Stopwatch();
+      if (_enablePipelineTracing) {
+        AppLogger.i(
+          '[Pipeline:$stageName] Network request sending... (build_elapsed: ${buildStopwatch.elapsedMilliseconds}ms)',
+          'PipelineTrace',
+        );
+      }
+
       final response = await _dio.post<ResponseBody>(
         _endpointService.imageUrl(ApiConstants.generateImageStreamEndpoint),
         data: requestData,
@@ -513,10 +594,21 @@ class NAIImageGenerationApiService {
           headers: {'Accept': 'application/x-msgpack'},
         ),
       );
+      networkStopwatch.stop();
+      requestSentStopwatch.start(); // 开始计时"等待服务器"
+      if (_enablePipelineTracing) {
+        AppLogger.i(
+          '[Pipeline:$stageName] Request sent, headers received: ${networkStopwatch.elapsedMilliseconds}ms',
+          'PipelineTrace',
+        );
+      }
 
       // 4. 解析 MessagePack 流
       // NovelAI 流式格式：[4字节长度前缀(big-endian)] + [MessagePack数据]
       final responseStream = response.data!.stream;
+      bool firstPreviewLogged = false;
+      final firstPreviewStopwatch = Stopwatch()..start();
+      final serverLatencyStopwatch = Stopwatch(); // 测量从请求到第一数据的延迟
       final buffer = <int>[];
       int messageCount = 0;
       final latestPreviews = <int, Uint8List>{};
@@ -530,6 +622,17 @@ class NAIImageGenerationApiService {
         if (cancelToken.isCancelled) {
           yield ImageStreamChunk.error('Cancelled');
           return;
+        }
+
+        // 首次收到数据块时记录服务器延迟
+        if (!serverLatencyStopwatch.isRunning) {
+          serverLatencyStopwatch.start();
+          if (_enablePipelineTracing) {
+            AppLogger.i(
+              '[Pipeline:$stageName] First data chunk received: ${requestSentStopwatch.elapsedMilliseconds}ms (server latency)',
+              'PipelineTrace',
+            );
+          }
         }
 
         buffer.addAll(chunk);
@@ -600,18 +703,39 @@ class NAIImageGenerationApiService {
 
               if (imageBytes != null && imageBytes.isNotEmpty) {
                 if (eventType == 'final') {
-                  final compositedImage = _compositeInpaintImage(
+                  final compositeStopwatch = Stopwatch()..start();
+                  if (_enablePipelineTracing) {
+                    AppLogger.i(
+                      '[Pipeline:$stageName] Starting composite for final image, total_elapsed: ${pipelineStopwatch.elapsedMilliseconds}ms',
+                      'PipelineTrace',
+                    );
+                  }
+
+                  final compositedImage = await _compositeInpaintImage(
                     imageBytes,
                     params,
                     focusedRequest,
+                    requestBuildResult,
                   );
+                  compositeStopwatch.stop();
+
                   completedSamples.add(sampleIndex);
+                  if (_enablePipelineTracing) {
+                    AppLogger.i(
+                      '[Pipeline:$stageName] Composite complete: ${compositeStopwatch.elapsedMilliseconds}ms (sample $sampleIndex)',
+                      'PipelineTrace',
+                    );
+                    AppLogger.i(
+                      '[Pipeline:$stageName] ===== SUMMARY ===== prepare:${prepStopwatch.elapsedMilliseconds}ms build:${buildStopwatch.elapsedMilliseconds}ms network:${networkStopwatch.elapsedMilliseconds}ms server_wait:${requestSentStopwatch.elapsedMilliseconds}ms preview_to_final:${firstPreviewStopwatch.elapsedMilliseconds - serverLatencyStopwatch.elapsedMilliseconds}ms composite:${compositeStopwatch.elapsedMilliseconds}ms TOTAL:${pipelineStopwatch.elapsedMilliseconds}ms',
+                      'PipelineTrace',
+                    );
+                  }
                   AppLogger.d(
                     'Stream final: sample $sampleIndex, ${imageBytes.length} bytes',
                     'Stream',
                   );
                   yield ImageStreamChunk.complete(
-                    compositedImage,
+                    compositedImage.displayImageBytes,
                     sampleIndex: sampleIndex,
                   );
                   continue;
@@ -620,11 +744,23 @@ class NAIImageGenerationApiService {
                 if (eventType == null ||
                     eventType.isEmpty ||
                     eventType == 'intermediate') {
-                  final compositedImage = _compositeFocusedImage(
-                    imageBytes,
+                  if (!firstPreviewLogged) {
+                    firstPreviewLogged = true;
+                    serverLatencyStopwatch.stop();
+                    if (_enablePipelineTracing) {
+                      AppLogger.i(
+                        '[Pipeline:$stageName] First preview arrived: ${firstPreviewStopwatch.elapsedMilliseconds}ms (server_latency: ${serverLatencyStopwatch.elapsedMilliseconds}ms)',
+                        'PipelineTrace',
+                      );
+                    }
+                  }
+
+                  final focusedPreviewPlacement = _inpaintPreviewPlacement(
+                    params,
                     focusedRequest,
+                    requestBuildResult,
                   );
-                  latestPreviews[sampleIndex] = compositedImage;
+                  latestPreviews[sampleIndex] = imageBytes;
                   final currentStep = (stepIx ?? messageCount) + 1;
                   final progress = currentStep / totalSteps;
                   AppLogger.d(
@@ -636,7 +772,8 @@ class NAIImageGenerationApiService {
                     sampleIndex: sampleIndex,
                     currentStep: currentStep,
                     totalSteps: totalSteps,
-                    previewImage: compositedImage,
+                    previewImage: imageBytes,
+                    focusedPreviewPlacement: focusedPreviewPlacement,
                   );
                 } else {
                   AppLogger.d(
@@ -653,8 +790,14 @@ class NAIImageGenerationApiService {
       }
 
       // 流结束后检查最终数据
+      if (_enablePipelineTracing) {
+        AppLogger.i(
+          '[Pipeline:$stageName] Stream ended, prepare:${prepStopwatch.elapsedMilliseconds}ms build:${buildStopwatch.elapsedMilliseconds}ms server_wait:${requestSentStopwatch.elapsedMilliseconds}ms total:${pipelineStopwatch.elapsedMilliseconds}ms',
+          'PipelineTrace',
+        );
+      }
       AppLogger.d(
-        'Stream ended, buffer remaining: ${buffer.length} bytes, messages: $messageCount',
+        'Stream ended, buffer remaining: ${buffer.length} bytes, messages: $messageCount, completed_samples: ${completedSamples.length}/$expectedSamples',
         'Stream',
       );
 
@@ -667,10 +810,24 @@ class NAIImageGenerationApiService {
           if (bytes.length > 4 && bytes[0] == 0x50 && bytes[1] == 0x4B) {
             // ZIP 文件头 "PK"
             AppLogger.d('Stream fallback: parsing as ZIP', 'Stream');
+            final compositeStopwatch = Stopwatch()..start();
             final images = ZipUtils.extractAllImages(bytes);
             if (images.isNotEmpty) {
+              final compositedImage = await _compositeInpaintImage(
+                images.first,
+                params,
+                focusedRequest,
+                requestBuildResult,
+              );
+              compositeStopwatch.stop();
+              if (_enablePipelineTracing) {
+                AppLogger.i(
+                  '[Pipeline:$stageName] ZIP fallback composite: ${compositeStopwatch.elapsedMilliseconds}ms TOTAL:${pipelineStopwatch.elapsedMilliseconds}ms',
+                  'PipelineTrace',
+                );
+              }
               yield ImageStreamChunk.complete(
-                _compositeInpaintImage(images.first, params, focusedRequest),
+                compositedImage.displayImageBytes,
               );
               return;
             }
@@ -693,30 +850,30 @@ class NAIImageGenerationApiService {
                 });
                 if (msg.containsKey('data')) {
                   final data = msg['data'];
-                  if (data is Uint8List) {
-                    yield ImageStreamChunk.complete(
-                      _compositeInpaintImage(data, params, focusedRequest),
+                  final compositeStopwatch = Stopwatch()..start();
+                  final compositedImage = await _compositeInpaintImage(
+                    data is Uint8List
+                        ? data
+                        : data is List<int>
+                        ? Uint8List.fromList(data)
+                        : data is String
+                        ? Uint8List.fromList(base64Decode(data))
+                        : Uint8List(0),
+                    params,
+                    focusedRequest,
+                    requestBuildResult,
+                  );
+                  compositeStopwatch.stop();
+                  if (_enablePipelineTracing) {
+                    AppLogger.i(
+                      '[Pipeline:$stageName] Fallback msgpack composite: ${compositeStopwatch.elapsedMilliseconds}ms TOTAL:${pipelineStopwatch.elapsedMilliseconds}ms',
+                      'PipelineTrace',
                     );
-                    return;
-                  } else if (data is List<int>) {
-                    yield ImageStreamChunk.complete(
-                      _compositeInpaintImage(
-                        Uint8List.fromList(data),
-                        params,
-                        focusedRequest,
-                      ),
-                    );
-                    return;
-                  } else if (data is String) {
-                    yield ImageStreamChunk.complete(
-                      _compositeInpaintImage(
-                        Uint8List.fromList(base64Decode(data)),
-                        params,
-                        focusedRequest,
-                      ),
-                    );
-                    return;
                   }
+                  yield ImageStreamChunk.complete(
+                    compositedImage.displayImageBytes,
+                  );
+                  return;
                 }
               }
             }
@@ -783,12 +940,12 @@ class NAIImageGenerationApiService {
     }
   }
 
-  FocusedInpaintRequest? _prepareFocusedInpaint(
+  Future<FocusedInpaintRequest?> _prepareFocusedInpaint(
     ImageParams params, {
     required bool enabled,
     required double minimumContextMegaPixels,
     Rect? focusedSelectionRect,
-  }) {
+  }) async {
     if (!enabled ||
         params.action != ImageGenerationAction.infill ||
         params.sourceImage == null ||
@@ -796,7 +953,7 @@ class NAIImageGenerationApiService {
       return null;
     }
 
-    final request = FocusedInpaintUtils.prepareRequest(
+    final request = await FocusedInpaintUtils.prepareRequestAsync(
       sourceImage: params.sourceImage!,
       maskImage: params.maskImage!,
       focusedSelectionRect: focusedSelectionRect,
@@ -826,65 +983,117 @@ class NAIImageGenerationApiService {
       maskImage: focusedRequest.requestMaskImage,
       width: focusedRequest.targetWidth,
       height: focusedRequest.targetHeight,
-      inpaintMaskClosingIterations: 0,
-      inpaintMaskExpansionIterations: 0,
     );
   }
 
-  List<Uint8List> _compositeInpaintImages(
+  FocusedStreamPreviewPlacement? _inpaintPreviewPlacement(
+    ImageParams params,
+    FocusedInpaintRequest? focusedRequest,
+    NAIImageRequestBuildResult requestBuildResult,
+  ) {
+    if (params.action != ImageGenerationAction.infill || params.isOutpaint) {
+      return null;
+    }
+
+    final compositeMaskBytes =
+        requestBuildResult.inpaintMaskArtifacts?.compositeMaskBytes;
+    if (compositeMaskBytes == null) {
+      return null;
+    }
+
+    if (focusedRequest == null) {
+      final normalizedSource = requestBuildResult.normalizedSourceImageBytes;
+      if (normalizedSource == null) {
+        return null;
+      }
+      return FocusedStreamPreviewPlacement(
+        sourceImage: normalizedSource,
+        maskImage: compositeMaskBytes,
+        xPercent: 0,
+        yPercent: 0,
+        widthPercent: 1,
+        heightPercent: 1,
+      );
+    }
+
+    final originalSource = params.sourceImage;
+    final sourceWidth = focusedRequest.originalSourceWidth;
+    final sourceHeight = focusedRequest.originalSourceHeight;
+    if (originalSource == null || sourceWidth <= 0 || sourceHeight <= 0) {
+      return null;
+    }
+
+    return FocusedStreamPreviewPlacement(
+      sourceImage: originalSource,
+      maskImage: compositeMaskBytes,
+      xPercent: focusedRequest.crop.x / sourceWidth,
+      yPercent: focusedRequest.crop.y / sourceHeight,
+      widthPercent: focusedRequest.crop.width / sourceWidth,
+      heightPercent: focusedRequest.crop.height / sourceHeight,
+    );
+  }
+
+  Future<List<ImageGenerationArtifact>> _compositeInpaintImages(
     List<Uint8List> images,
     ImageParams params,
     FocusedInpaintRequest? focusedRequest,
+    NAIImageRequestBuildResult requestBuildResult,
   ) {
-    return images
-        .map(
-          (imageBytes) =>
-              _compositeInpaintImage(imageBytes, params, focusedRequest),
-        )
-        .toList(growable: false);
-  }
-
-  Uint8List _compositeInpaintImage(
-    Uint8List imageBytes,
-    ImageParams params,
-    FocusedInpaintRequest? focusedRequest,
-  ) {
-    if (focusedRequest != null) {
-      return focusedRequest.compositeGeneratedImage(imageBytes);
-    }
-    if (params.isOutpaint) {
-      return imageBytes;
-    }
-    if (params.action != ImageGenerationAction.infill ||
-        params.sourceImage == null ||
-        params.maskImage == null) {
-      return imageBytes;
-    }
-
-    final compositeMask =
-        InpaintMaskUtils.prepareGeneratedImageCompositeMaskBytes(
-          params.maskImage!,
-          targetWidth: params.width,
-          targetHeight: params.height,
-          closingIterations: params.inpaintMaskClosingIterations,
-          expansionIterations: params.inpaintMaskExpansionIterations,
-        );
-    return InpaintMaskUtils.compositeGeneratedImage(
-      sourceImage: params.sourceImage!,
-      maskImage: compositeMask,
-      generatedImage: imageBytes,
-      normalizeMask: false,
+    // Future.wait 保持顺序；并发由 ComputeGate 统一背压。
+    return Future.wait(
+      images.map(
+        (imageBytes) => _compositeInpaintImage(
+          imageBytes,
+          params,
+          focusedRequest,
+          requestBuildResult,
+        ),
+      ),
     );
   }
 
-  Uint8List _compositeFocusedImage(
+  /// 收尾贴回合成。重活（mask 构建 + 整图混合 + PNG 编码）在后台
+  /// isolate 完成；闭包只捕获原始字节与数值，避免捕获 Freezed 对象
+  /// （Windows 上 Isolate.run 与 Freezed 存在序列化兼容性问题）。
+  Future<ImageGenerationArtifact> _compositeInpaintImage(
     Uint8List imageBytes,
+    ImageParams params,
     FocusedInpaintRequest? focusedRequest,
+    NAIImageRequestBuildResult requestBuildResult,
   ) {
-    if (focusedRequest == null) {
-      return imageBytes;
+    final maskArtifacts = requestBuildResult.inpaintMaskArtifacts;
+    if (focusedRequest != null) {
+      if (maskArtifacts == null) {
+        return Future.value(
+          ImageGenerationArtifact(displayImageBytes: imageBytes),
+        );
+      }
+      return focusedRequest.composeGeneratedImageArtifactAsync(
+        imageBytes,
+        maskArtifacts,
+      );
     }
-    return focusedRequest.compositeGeneratedImage(imageBytes);
+    if (params.isOutpaint) {
+      return Future.value(
+        ImageGenerationArtifact(displayImageBytes: imageBytes),
+      );
+    }
+    final sourceImage = requestBuildResult.normalizedSourceImageBytes;
+    if (params.action != ImageGenerationAction.infill ||
+        sourceImage == null ||
+        maskArtifacts == null) {
+      return Future.value(
+        ImageGenerationArtifact(displayImageBytes: imageBytes),
+      );
+    }
+
+    return ComputeGate().runIsolate(() {
+      return InpaintMaskUtils.composeGeneratedImageArtifact(
+        normalizedSourceImage: sourceImage,
+        compositeMaskImage: maskArtifacts.compositeMaskBytes,
+        generatedImage: imageBytes,
+      );
+    });
   }
 
   int? _optionalInt(Object? value) {

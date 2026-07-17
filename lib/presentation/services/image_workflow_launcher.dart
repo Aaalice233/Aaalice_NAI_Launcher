@@ -93,6 +93,13 @@ class ImageWorkflowLauncher {
           'outpaintSourceBytes=${result.outpaintSourceImage?.length ?? 0}, '
           'outpaintSourceWidth=${result.outpaintSourceWidth}, '
           'outpaintSourceHeight=${result.outpaintSourceHeight}, '
+          'inpaintSourceBytes=${result.inpaintSourceImage?.length ?? 0}, '
+          'inpaintSourceWidth=${result.inpaintSourceWidth}, '
+          'inpaintSourceHeight=${result.inpaintSourceHeight}, '
+          'sourceWasNormalized=${result.sourceWasNormalized}, '
+          'outputWidth=${result.outputWidth}, '
+          'outputHeight=${result.outputHeight}, '
+          'compressionApplied=${result.compressionApplied}, '
           'focusRect=${result.focusAreaRect}, '
           'minContext=${result.minimumContextMegaPixels.toStringAsFixed(2)}, '
           'focusedEnabled=${result.focusedInpaintEnabled}',
@@ -101,7 +108,12 @@ class ImageWorkflowLauncher {
 
     if (mode == ImageEditorMode.edit) {
       if (result.hasImageChanges && result.modifiedImage != null) {
-        workflowNotifier.replaceSourceImage(result.modifiedImage!);
+        workflowNotifier.replaceSourceImage(
+          result.modifiedImage!,
+          sourceWidth: result.outputWidth,
+          sourceHeight: result.outputHeight,
+          autoAdapt: !result.compressionApplied,
+        );
         workflowNotifier.setPanelExpanded(true);
         AppToast.success(context, context.l10n.img2img_editApplied);
       }
@@ -116,18 +128,20 @@ class ImageWorkflowLauncher {
     workflowNotifier.applyInpaintEditorResult(
       sourceImage: result.hasOutpaintChanges
           ? result.outpaintSourceImage
-          : null,
+          : result.inpaintSourceImage,
       sourceWidth: result.hasOutpaintChanges
           ? result.outpaintSourceWidth
-          : null,
+          : result.inpaintSourceWidth,
       sourceHeight: result.hasOutpaintChanges
           ? result.outpaintSourceHeight
-          : null,
+          : result.inpaintSourceHeight,
       maskImage: effectiveMask,
       focusedInpaintEnabled: result.focusedInpaintEnabled,
       focusedSelectionRect: result.focusAreaRect,
       minimumContextMegaPixels: result.minimumContextMegaPixels,
       forceDisableFocusedInpaint: result.hasOutpaintChanges,
+      sourceIsOutpaint: result.hasOutpaintChanges,
+      useExactSourceDimensions: result.compressionApplied,
     );
     if (effectiveMask != null) {
       AppToast.success(context, context.l10n.img2img_inpaintMaskReady);

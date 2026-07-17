@@ -34,6 +34,9 @@ class ThemedInput extends StatefulWidget {
   /// 是否自动扩展
   final bool expands;
 
+  /// 文本输入框内部滚动行为
+  final ScrollPhysics? scrollPhysics;
+
   /// 键盘操作类型
   final TextInputAction? textInputAction;
 
@@ -117,7 +120,8 @@ class ThemedInput extends StatefulWidget {
   final Widget Function(
     BuildContext context,
     EditableTextState editableTextState,
-  )? contextMenuBuilder;
+  )?
+  contextMenuBuilder;
 
   /// Whether to add a native Ctrl+Y redo shortcut for plain text fields.
   final bool enableNativeRedoShortcut;
@@ -132,6 +136,7 @@ class ThemedInput extends StatefulWidget {
     this.maxLines = 1,
     this.minLines,
     this.expands = false,
+    this.scrollPhysics,
     this.textInputAction,
     this.keyboardType,
     this.onChanged,
@@ -176,6 +181,7 @@ class ThemedInput extends StatefulWidget {
     this.maxLines,
     this.minLines = 3,
     this.expands = false,
+    this.scrollPhysics,
     this.textInputAction,
     this.keyboardType = TextInputType.multiline,
     this.onChanged,
@@ -346,6 +352,7 @@ class _ThemedInputState extends State<ThemedInput> {
       maxLines: widget.maxLines,
       minLines: widget.minLines,
       expands: widget.expands,
+      scrollPhysics: widget.scrollPhysics,
       textInputAction: widget.textInputAction,
       keyboardType: widget.keyboardType,
       onChanged: widget.onChanged,
@@ -411,10 +418,7 @@ class _ThemedInputState extends State<ThemedInput> {
             padding: const EdgeInsets.only(left: 12),
             child: Text(
               widget.helperText!,
-              style: TextStyle(
-                fontSize: 12,
-                color: theme.colorScheme.outline,
-              ),
+              style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
             ),
           ),
         ],

@@ -421,6 +421,22 @@ class LocalStorageService {
     await setSetting(StorageKeys.sdSyntaxAutoConvert, value);
   }
 
+  // ==================== Prompt Weight Scroll ====================
+
+  /// 获取是否启用滚轮调整提示词权重（默认开启）
+  bool getEnablePromptWeightScroll() {
+    return getSetting<bool>(
+          StorageKeys.enablePromptWeightScroll,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存是否启用滚轮调整提示词权重
+  Future<void> setEnablePromptWeightScroll(bool value) async {
+    await setSetting(StorageKeys.enablePromptWeightScroll, value);
+  }
+
   // ==================== Cooccurrence Recommendation ====================
 
   /// 获取是否启用共现推荐 (默认开启)
@@ -628,6 +644,48 @@ class LocalStorageService {
   /// 保存提示区域最大化状态
   Future<void> setPromptMaximized(bool maximized) async {
     await setSetting(StorageKeys.promptMaximized, maximized);
+  }
+
+  /// 获取生成页布局模式 (默认 'classic')
+  String getGenerationLayoutMode() {
+    return getSetting<String>(
+          StorageKeys.generationLayoutMode,
+          defaultValue: 'classic',
+        ) ??
+        'classic';
+  }
+
+  /// 保存生成页布局模式
+  Future<void> setGenerationLayoutMode(String mode) async {
+    await setSetting(StorageKeys.generationLayoutMode, mode);
+  }
+
+  /// 获取官网式布局左栏宽度 (默认400)
+  double getWebLeftPanelWidth() {
+    return getSetting<double>(
+          StorageKeys.webLeftPanelWidth,
+          defaultValue: 400.0,
+        ) ??
+        400.0;
+  }
+
+  /// 保存官网式布局左栏宽度
+  Future<void> setWebLeftPanelWidth(double width) async {
+    await setSetting(StorageKeys.webLeftPanelWidth, width);
+  }
+
+  /// 获取官网式布局左栏展开状态 (默认展开)
+  bool getWebLeftPanelExpanded() {
+    return getSetting<bool>(
+          StorageKeys.webLeftPanelExpanded,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存官网式布局左栏展开状态
+  Future<void> setWebLeftPanelExpanded(bool expanded) async {
+    await setSetting(StorageKeys.webLeftPanelExpanded, expanded);
   }
 
   /// 获取固定词侧边栏展开状态 (默认收起)

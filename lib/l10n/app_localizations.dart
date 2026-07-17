@@ -748,6 +748,12 @@ abstract class AppLocalizations {
   /// **'API Token Login'**
   String get auth_tokenLogin;
 
+  /// No description provided for @auth_tokenLoginRecommended.
+  ///
+  /// In en, this message translates to:
+  /// **'API Token Login (Recommended)'**
+  String get auth_tokenLoginRecommended;
+
   /// No description provided for @auth_credentialsLogin.
   ///
   /// In en, this message translates to:
@@ -795,6 +801,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Set a recognizable name for this account'**
   String get auth_nicknameHint;
+
+  /// No description provided for @auth_thirdPartyLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Third-party Site'**
+  String get auth_thirdPartyLogin;
 
   /// No description provided for @auth_thirdPartyApiSite.
   ///
@@ -1228,34 +1240,52 @@ abstract class AppLocalizations {
   /// **'Shortcuts'**
   String get settings_shortcuts;
 
-  /// No description provided for @settings_dataSource.
-  ///
-  /// In en, this message translates to:
-  /// **'Data Source'**
-  String get settings_dataSource;
-
   /// No description provided for @settings_generation.
   ///
   /// In en, this message translates to:
   /// **'Generation'**
   String get settings_generation;
 
-  /// No description provided for @settings_queue.
+  /// No description provided for @settings_dataStorage.
   ///
   /// In en, this message translates to:
-  /// **'Queue'**
-  String get settings_queue;
+  /// **'Data & Storage'**
+  String get settings_dataStorage;
 
-  /// No description provided for @settings_notifications.
+  /// No description provided for @settings_privacySharing.
   ///
   /// In en, this message translates to:
-  /// **'Notifications'**
-  String get settings_notifications;
+  /// **'Privacy & Sharing'**
+  String get settings_privacySharing;
+
+  /// No description provided for @settings_integrations.
+  ///
+  /// In en, this message translates to:
+  /// **'Integrations'**
+  String get settings_integrations;
+
+  /// No description provided for @settings_generationInputSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Input'**
+  String get settings_generationInputSection;
+
+  /// No description provided for @settings_generationRetrySection.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry on Failure'**
+  String get settings_generationRetrySection;
+
+  /// No description provided for @settings_generationFeedbackSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Completion Alert'**
+  String get settings_generationFeedbackSection;
 
   /// No description provided for @settings_promptAssistant.
   ///
   /// In en, this message translates to:
-  /// **'Assistant'**
+  /// **'Prompt Assistant'**
   String get settings_promptAssistant;
 
   /// No description provided for @settings_selectStyle.
@@ -3112,23 +3142,23 @@ abstract class AppLocalizations {
   /// **'NovelAI upscale complete'**
   String get img2img_novelAiUpscaleComplete;
 
-  /// No description provided for @img2img_upscaleCompleteAdded.
+  /// No description provided for @img2img_upscaleComplete.
   ///
   /// In en, this message translates to:
-  /// **'Upscale complete ({width}x{height}); added to preview list'**
-  String img2img_upscaleCompleteAdded(Object width, Object height);
+  /// **'Upscale complete ({width}x{height})'**
+  String img2img_upscaleComplete(Object width, Object height);
 
-  /// No description provided for @img2img_regularUpscaleCompleteAdded.
+  /// No description provided for @img2img_regularUpscaleComplete.
   ///
   /// In en, this message translates to:
-  /// **'Regular model upscale complete ({width}x{height}); added to preview list'**
-  String img2img_regularUpscaleCompleteAdded(Object width, Object height);
+  /// **'Regular model upscale complete ({width}x{height})'**
+  String img2img_regularUpscaleComplete(Object width, Object height);
 
-  /// No description provided for @img2img_rtxUpscaleCompleteAdded.
+  /// No description provided for @img2img_rtxUpscaleComplete.
   ///
   /// In en, this message translates to:
-  /// **'RTX upscale complete ({width}x{height}); added to preview list'**
-  String img2img_rtxUpscaleCompleteAdded(Object width, Object height);
+  /// **'RTX upscale complete ({width}x{height})'**
+  String img2img_rtxUpscaleComplete(Object width, Object height);
 
   /// No description provided for @img2img_noAvailableSeedvr2Model.
   ///
@@ -4149,6 +4179,76 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Actual send area: {width}×{height}. Current generation settings will cost {cost} Anlas.'**
   String editor_focusAnlasWarning(int width, int height, int cost);
+
+  /// No description provided for @editor_compressionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Output resolution'**
+  String get editor_compressionTitle;
+
+  /// No description provided for @editor_compressionTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose output resolution'**
+  String get editor_compressionTooltip;
+
+  /// No description provided for @editor_compressionUncompressed.
+  ///
+  /// In en, this message translates to:
+  /// **'Original work resolution; no compression will be applied.'**
+  String get editor_compressionUncompressed;
+
+  /// No description provided for @editor_compressionApplyOnDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Pica Lanczos3 compression runs once when you press Done. The work canvas stays unchanged.'**
+  String get editor_compressionApplyOnDone;
+
+  /// No description provided for @editor_compressionSizeSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Work {workWidth}×{workHeight} → output {targetWidth}×{targetHeight}'**
+  String editor_compressionSizeSummary(
+    int workWidth,
+    int workHeight,
+    int targetWidth,
+    int targetHeight,
+  );
+
+  /// No description provided for @editor_compressionNormalSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Normal (about 1 MP): {normalWidth}×{normalHeight}. Lowest: {minimumWidth}×{minimumHeight}.'**
+  String editor_compressionNormalSummary(
+    int normalWidth,
+    int normalHeight,
+    int minimumWidth,
+    int minimumHeight,
+  );
+
+  /// No description provided for @editor_compressionUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This work canvas is already below the lowest compression step.'**
+  String get editor_compressionUnavailable;
+
+  /// No description provided for @editor_compressionFocusLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Higher resolutions are unavailable because the current Focused Inpaint selection would exceed the request area limit.'**
+  String get editor_compressionFocusLimited;
+
+  /// No description provided for @editor_focusRequestSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Outer crop {outerWidth}×{outerHeight}, request {requestWidth}×{requestHeight}, estimated {cost} Anlas.'**
+  String editor_focusRequestSummary(
+    int outerWidth,
+    int outerHeight,
+    int requestWidth,
+    int requestHeight,
+    int cost,
+  );
 
   /// No description provided for @editor_unsupportedImageFormat.
   ///
@@ -13009,6 +13109,42 @@ abstract class AppLocalizations {
   /// **'Send to...'**
   String get localGallery_sendTo;
 
+  /// No description provided for @localGallery_sendToImg2Img.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to Image2Image'**
+  String get localGallery_sendToImg2Img;
+
+  /// No description provided for @localGallery_sendToReversePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to Reverse Prompt'**
+  String get localGallery_sendToReversePrompt;
+
+  /// No description provided for @localGallery_sendToStyleTransfer.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to Vibe Transfer'**
+  String get localGallery_sendToStyleTransfer;
+
+  /// No description provided for @localGallery_sendToPreciseReference.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to Precise Reference'**
+  String get localGallery_sendToPreciseReference;
+
+  /// No description provided for @localGallery_sendToKrita.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to Krita'**
+  String get localGallery_sendToKrita;
+
+  /// No description provided for @localGallery_importImageMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Image Metadata'**
+  String get localGallery_importImageMetadata;
+
   /// No description provided for @localGallery_copyPrompt.
   ///
   /// In en, this message translates to:
@@ -17489,6 +17625,18 @@ abstract class AppLocalizations {
   /// **'Show the Random Prompt button and Random Mode toggle on the generation page'**
   String get settings_showRandomPromptToolsSubtitle;
 
+  /// No description provided for @settings_enablePromptWeightScroll.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust prompt weight with mouse wheel'**
+  String get settings_enablePromptWeightScroll;
+
+  /// No description provided for @settings_enablePromptWeightScrollSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'When prompt text is selected, use the wheel only to adjust its weight and suppress other scroll actions.'**
+  String get settings_enablePromptWeightScrollSubtitle;
+
   /// No description provided for @settings_queueRetryCountMax.
   ///
   /// In en, this message translates to:
@@ -20728,6 +20876,36 @@ abstract class AppLocalizations {
   /// **'Done'**
   String get settings_fontScale_done;
 
+  /// No description provided for @settings_generationLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'Generation page layout'**
+  String get settings_generationLayout;
+
+  /// No description provided for @settings_generationLayout_classic.
+  ///
+  /// In en, this message translates to:
+  /// **'Classic'**
+  String get settings_generationLayout_classic;
+
+  /// No description provided for @settings_generationLayout_classicDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Parameters on the left, prompt above the preview'**
+  String get settings_generationLayout_classicDescription;
+
+  /// No description provided for @settings_generationLayout_webStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Web style'**
+  String get settings_generationLayout_webStyle;
+
+  /// No description provided for @settings_generationLayout_webStyleDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt and settings docked on the far left, like the NovelAI website'**
+  String get settings_generationLayout_webStyleDescription;
+
   /// No description provided for @settings_defaultImagesPath.
   ///
   /// In en, this message translates to:
@@ -23360,6 +23538,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cannot open link'**
   String get cannotOpenUrl;
+
+  /// No description provided for @model3d_editorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'3D Model Layer'**
+  String get model3d_editorTitle;
+
+  /// No description provided for @model3d_addMannequin.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Built-in Mannequin'**
+  String get model3d_addMannequin;
+
+  /// No description provided for @model3d_importModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Model (.glb/.gltf)'**
+  String get model3d_importModel;
+
+  /// No description provided for @model3d_emptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Scene is empty. Add a mannequin or import a model.'**
+  String get model3d_emptyHint;
+
+  /// No description provided for @model3d_apply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply to Layer'**
+  String get model3d_apply;
+
+  /// No description provided for @model3d_modeTransform.
+  ///
+  /// In en, this message translates to:
+  /// **'Transform'**
+  String get model3d_modeTransform;
+
+  /// No description provided for @model3d_modePose.
+  ///
+  /// In en, this message translates to:
+  /// **'Pose'**
+  String get model3d_modePose;
+
+  /// No description provided for @model3d_gizmoTranslate.
+  ///
+  /// In en, this message translates to:
+  /// **'Move'**
+  String get model3d_gizmoTranslate;
+
+  /// No description provided for @model3d_gizmoRotate.
+  ///
+  /// In en, this message translates to:
+  /// **'Rotate'**
+  String get model3d_gizmoRotate;
+
+  /// No description provided for @model3d_gizmoScale.
+  ///
+  /// In en, this message translates to:
+  /// **'Scale'**
+  String get model3d_gizmoScale;
+
+  /// No description provided for @model3d_undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get model3d_undo;
+
+  /// No description provided for @model3d_resetPose.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset Pose'**
+  String get model3d_resetPose;
+
+  /// No description provided for @model3d_replaceConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace the current model? Unapplied pose will be lost.'**
+  String get model3d_replaceConfirm;
+
+  /// No description provided for @model3d_discardConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard unapplied changes?'**
+  String get model3d_discardConfirm;
+
+  /// No description provided for @model3d_missingModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model file is missing. You can re-import it.'**
+  String get model3d_missingModel;
+
+  /// No description provided for @model3d_loadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load model'**
+  String get model3d_loadError;
+
+  /// No description provided for @model3d_light.
+  ///
+  /// In en, this message translates to:
+  /// **'Lighting'**
+  String get model3d_light;
+
+  /// No description provided for @model3d_lightIntensity.
+  ///
+  /// In en, this message translates to:
+  /// **'Intensity'**
+  String get model3d_lightIntensity;
+
+  /// No description provided for @model3d_lightAzimuth.
+  ///
+  /// In en, this message translates to:
+  /// **'Azimuth'**
+  String get model3d_lightAzimuth;
+
+  /// No description provided for @model3d_lightElevation.
+  ///
+  /// In en, this message translates to:
+  /// **'Elevation'**
+  String get model3d_lightElevation;
+
+  /// No description provided for @model3d_addLayerTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Add 3D Model Layer'**
+  String get model3d_addLayerTooltip;
+
+  /// No description provided for @model3d_webview2Missing.
+  ///
+  /// In en, this message translates to:
+  /// **'The 3D editor requires the Microsoft Edge WebView2 Runtime. It ships with Windows 10/11; if missing, install the Evergreen runtime from Microsoft and retry.'**
+  String get model3d_webview2Missing;
 }
 
 class _AppLocalizationsDelegate

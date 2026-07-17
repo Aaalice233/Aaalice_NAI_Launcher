@@ -340,6 +340,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_tokenLogin => 'API Token Login';
 
   @override
+  String get auth_tokenLoginRecommended => 'API Token Login (Recommended)';
+
+  @override
   String get auth_credentialsLogin => 'Email & Password';
 
   @override
@@ -364,6 +367,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get auth_nicknameHint => 'Set a recognizable name for this account';
+
+  @override
+  String get auth_thirdPartyLogin => 'Third-party Site';
 
   @override
   String get auth_thirdPartyApiSite => 'Third-party API Site';
@@ -607,19 +613,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_shortcuts => 'Shortcuts';
 
   @override
-  String get settings_dataSource => 'Data Source';
-
-  @override
   String get settings_generation => 'Generation';
 
   @override
-  String get settings_queue => 'Queue';
+  String get settings_dataStorage => 'Data & Storage';
 
   @override
-  String get settings_notifications => 'Notifications';
+  String get settings_privacySharing => 'Privacy & Sharing';
 
   @override
-  String get settings_promptAssistant => 'Assistant';
+  String get settings_integrations => 'Integrations';
+
+  @override
+  String get settings_generationInputSection => 'Input';
+
+  @override
+  String get settings_generationRetrySection => 'Retry on Failure';
+
+  @override
+  String get settings_generationFeedbackSection => 'Completion Alert';
+
+  @override
+  String get settings_promptAssistant => 'Prompt Assistant';
 
   @override
   String get settings_selectStyle => 'Select Style';
@@ -1678,18 +1693,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get img2img_novelAiUpscaleComplete => 'NovelAI upscale complete';
 
   @override
-  String img2img_upscaleCompleteAdded(Object width, Object height) {
-    return 'Upscale complete (${width}x$height); added to preview list';
+  String img2img_upscaleComplete(Object width, Object height) {
+    return 'Upscale complete (${width}x$height)';
   }
 
   @override
-  String img2img_regularUpscaleCompleteAdded(Object width, Object height) {
-    return 'Regular model upscale complete (${width}x$height); added to preview list';
+  String img2img_regularUpscaleComplete(Object width, Object height) {
+    return 'Regular model upscale complete (${width}x$height)';
   }
 
   @override
-  String img2img_rtxUpscaleCompleteAdded(Object width, Object height) {
-    return 'RTX upscale complete (${width}x$height); added to preview list';
+  String img2img_rtxUpscaleComplete(Object width, Object height) {
+    return 'RTX upscale complete (${width}x$height)';
   }
 
   @override
@@ -2248,6 +2263,59 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String editor_focusAnlasWarning(int width, int height, int cost) {
     return 'Actual send area: $width×$height. Current generation settings will cost $cost Anlas.';
+  }
+
+  @override
+  String get editor_compressionTitle => 'Output resolution';
+
+  @override
+  String get editor_compressionTooltip => 'Choose output resolution';
+
+  @override
+  String get editor_compressionUncompressed =>
+      'Original work resolution; no compression will be applied.';
+
+  @override
+  String get editor_compressionApplyOnDone =>
+      'Pica Lanczos3 compression runs once when you press Done. The work canvas stays unchanged.';
+
+  @override
+  String editor_compressionSizeSummary(
+    int workWidth,
+    int workHeight,
+    int targetWidth,
+    int targetHeight,
+  ) {
+    return 'Work $workWidth×$workHeight → output $targetWidth×$targetHeight';
+  }
+
+  @override
+  String editor_compressionNormalSummary(
+    int normalWidth,
+    int normalHeight,
+    int minimumWidth,
+    int minimumHeight,
+  ) {
+    return 'Normal (about 1 MP): $normalWidth×$normalHeight. Lowest: $minimumWidth×$minimumHeight.';
+  }
+
+  @override
+  String get editor_compressionUnavailable =>
+      'This work canvas is already below the lowest compression step.';
+
+  @override
+  String get editor_compressionFocusLimited =>
+      'Higher resolutions are unavailable because the current Focused Inpaint selection would exceed the request area limit.';
+
+  @override
+  String editor_focusRequestSummary(
+    int outerWidth,
+    int outerHeight,
+    int requestWidth,
+    int requestHeight,
+    int cost,
+  ) {
+    return 'Outer crop $outerWidth×$outerHeight, request $requestWidth×$requestHeight, estimated $cost Anlas.';
   }
 
   @override
@@ -7274,6 +7342,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localGallery_sendTo => 'Send to...';
 
   @override
+  String get localGallery_sendToImg2Img => 'Send to Image2Image';
+
+  @override
+  String get localGallery_sendToReversePrompt => 'Send to Reverse Prompt';
+
+  @override
+  String get localGallery_sendToStyleTransfer => 'Send to Vibe Transfer';
+
+  @override
+  String get localGallery_sendToPreciseReference => 'Send to Precise Reference';
+
+  @override
+  String get localGallery_sendToKrita => 'Send to Krita';
+
+  @override
+  String get localGallery_importImageMetadata => 'Import Image Metadata';
+
+  @override
   String get localGallery_copyPrompt => 'Copy Prompt';
 
   @override
@@ -9768,6 +9854,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Show the Random Prompt button and Random Mode toggle on the generation page';
 
   @override
+  String get settings_enablePromptWeightScroll =>
+      'Adjust prompt weight with mouse wheel';
+
+  @override
+  String get settings_enablePromptWeightScrollSubtitle =>
+      'When prompt text is selected, use the wheel only to adjust its weight and suppress other scroll actions.';
+
+  @override
   String settings_queueRetryCountMax(Object count) {
     return 'Max $count times';
   }
@@ -11632,6 +11726,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_fontScale_done => 'Done';
 
   @override
+  String get settings_generationLayout => 'Generation page layout';
+
+  @override
+  String get settings_generationLayout_classic => 'Classic';
+
+  @override
+  String get settings_generationLayout_classicDescription =>
+      'Parameters on the left, prompt above the preview';
+
+  @override
+  String get settings_generationLayout_webStyle => 'Web style';
+
+  @override
+  String get settings_generationLayout_webStyleDescription =>
+      'Prompt and settings docked on the far left, like the NovelAI website';
+
+  @override
   String get settings_defaultImagesPath =>
       'Default (Documents/NAI_Launcher/images/)';
 
@@ -13183,4 +13294,74 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cannotOpenUrl => 'Cannot open link';
+
+  @override
+  String get model3d_editorTitle => '3D Model Layer';
+
+  @override
+  String get model3d_addMannequin => 'Add Built-in Mannequin';
+
+  @override
+  String get model3d_importModel => 'Import Model (.glb/.gltf)';
+
+  @override
+  String get model3d_emptyHint =>
+      'Scene is empty. Add a mannequin or import a model.';
+
+  @override
+  String get model3d_apply => 'Apply to Layer';
+
+  @override
+  String get model3d_modeTransform => 'Transform';
+
+  @override
+  String get model3d_modePose => 'Pose';
+
+  @override
+  String get model3d_gizmoTranslate => 'Move';
+
+  @override
+  String get model3d_gizmoRotate => 'Rotate';
+
+  @override
+  String get model3d_gizmoScale => 'Scale';
+
+  @override
+  String get model3d_undo => 'Undo';
+
+  @override
+  String get model3d_resetPose => 'Reset Pose';
+
+  @override
+  String get model3d_replaceConfirm =>
+      'Replace the current model? Unapplied pose will be lost.';
+
+  @override
+  String get model3d_discardConfirm => 'Discard unapplied changes?';
+
+  @override
+  String get model3d_missingModel =>
+      'Model file is missing. You can re-import it.';
+
+  @override
+  String get model3d_loadError => 'Failed to load model';
+
+  @override
+  String get model3d_light => 'Lighting';
+
+  @override
+  String get model3d_lightIntensity => 'Intensity';
+
+  @override
+  String get model3d_lightAzimuth => 'Azimuth';
+
+  @override
+  String get model3d_lightElevation => 'Elevation';
+
+  @override
+  String get model3d_addLayerTooltip => 'Add 3D Model Layer';
+
+  @override
+  String get model3d_webview2Missing =>
+      'The 3D editor requires the Microsoft Edge WebView2 Runtime. It ships with Windows 10/11; if missing, install the Evergreen runtime from Microsoft and retry.';
 }

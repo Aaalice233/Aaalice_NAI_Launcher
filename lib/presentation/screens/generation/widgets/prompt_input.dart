@@ -42,12 +42,21 @@ class PromptInputWidget extends ConsumerStatefulWidget {
   final bool compact;
   final VoidCallback? onToggleMaximize;
   final bool isMaximized;
+  final bool showMaximizeButton;
+  final ValueNotifier<bool>? negativeModeNotifier;
+
+  /// 编辑器随内容自增高（用于一体式滚动布局），
+  /// 关闭时编辑器填充父级给定的高度并内部滚动。
+  final bool autoGrow;
 
   const PromptInputWidget({
     super.key,
     this.compact = false,
     this.onToggleMaximize,
     this.isMaximized = false,
+    this.showMaximizeButton = true,
+    this.negativeModeNotifier,
+    this.autoGrow = false,
   });
 
   @override
@@ -79,6 +88,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _consumePendingPrompt();
     });
+
+    _isNegativeMode = widget.negativeModeNotifier?.value ?? false;
+    widget.negativeModeNotifier?.addListener(_onExternalNegativeModeChanged);
   }
 
   /// 消费待填充提示词（从画廊或词库发送）
@@ -246,6 +258,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
   @override
   void dispose() {
+    widget.negativeModeNotifier?.removeListener(_onExternalNegativeModeChanged);
     _promptFocusNode.removeListener(_onPromptFocusChanged);
     _negativeFocusNode.removeListener(_onNegativeFocusChanged);
     _promptController.dispose();
@@ -263,6 +276,18 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   void _onNegativeFocusChanged() {
     // Focus 状态变化时触发重建
     setState(() {});
+  }
+
+  void _onExternalNegativeModeChanged() {
+    final value = widget.negativeModeNotifier?.value ?? false;
+    if (!mounted || value == _isNegativeMode) return;
+    setState(() => _isNegativeMode = value);
+  }
+
+  void _setNegativeMode(bool value) {
+    if (value == _isNegativeMode) return;
+    setState(() => _isNegativeMode = value);
+    widget.negativeModeNotifier?.value = value;
   }
 
   /// 从 Provider 同步提示词到本地状态
@@ -411,7 +436,11 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   }
 
   Widget _buildFullLayout(ThemeData theme) {
+    final editor = _isNegativeMode
+        ? _buildTextNegativeInput(theme)
+        : _buildTextPromptInput(theme);
     return Column(
+      mainAxisSize: widget.autoGrow ? MainAxisSize.min : MainAxisSize.max,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // 顶栏：正面/负面切换 + 操作按钮
@@ -419,12 +448,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
         const SizedBox(height: 8),
 
-        // 提示词编辑区域（始终为文本输入）
-        Expanded(
-          child: _isNegativeMode
-              ? _buildTextNegativeInput(theme)
-              : _buildTextPromptInput(theme),
-        ),
+        // 提示词编辑区域（autoGrow 时随内容自增高，否则填充可用高度）
+        if (widget.autoGrow) editor else Expanded(child: editor),
         _PromptTokenCountFooter(
           target: _isNegativeMode
               ? PromptTokenCountTarget.negative
@@ -451,6 +476,48 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     );
     final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
 
+    final typeSwitch = _buildPromptTypeSwitch(theme, promptCount, negativeCount);
+
+    // 工具栏（随机、全屏、清空、设置）
+    final toolbar = PromptEditorToolbar(
+      config: PromptEditorToolbarConfig.mainEditor.copyWith(
+        showRandomButton: showRandomTools,
+        showFullscreenButton: widget.showMaximizeButton,
+      ),
+      onRandomPressed: showRandomTools ? _generateRandomPrompt : null,
+      onRandomLongPressed: showRandomTools ? _showRandomModeSelector : null,
+      // 使用传入的回调或 Provider 切换最大化
+      onFullscreenPressed:
+          widget.onToggleMaximize ??
+          () => ref.read(promptMaximizeNotifierProvider.notifier).toggle(),
+      onClearPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
+      onSettingsPressed: () => _showSettingsMenu(context, theme),
+    );
+
+    if (widget.autoGrow) {
+      // 一体式布局：顶栏压成单行，宽度不足时整行等比缩小而非换行
+      return FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            typeSwitch,
+            const SizedBox(width: 10),
+            const FixedTagsButton(),
+            const SizedBox(width: 6),
+            QualityTagsSelector(model: model),
+            const SizedBox(width: 6),
+            UcPresetSelector(model: model),
+            const SizedBox(width: 6),
+            const CharacterPromptButton(),
+            const SizedBox(width: 2),
+            toolbar,
+          ],
+        ),
+      );
+    }
+
     return Wrap(
       spacing: 8, // 水平间距
       runSpacing: 8, // 换行后的垂直间距
@@ -458,7 +525,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       crossAxisAlignment: WrapCrossAlignment.center, // 垂直居中
       children: [
         // 正面/负面切换标签 - 左侧
-        _buildPromptTypeSwitch(theme, promptCount, negativeCount),
+        typeSwitch,
 
         // 右侧工具按钮组（也用 Wrap 支持极端情况换行）
         Wrap(
@@ -478,24 +545,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             // 多人角色编辑器按钮
             const CharacterPromptButton(),
 
-            // 工具栏（随机、全屏、清空、设置）
-            PromptEditorToolbar(
-              config: PromptEditorToolbarConfig.mainEditor.copyWith(
-                showRandomButton: showRandomTools,
-              ),
-              onRandomPressed: showRandomTools ? _generateRandomPrompt : null,
-              onRandomLongPressed: showRandomTools
-                  ? _showRandomModeSelector
-                  : null,
-              // 使用传入的回调或 Provider 切换最大化
-              onFullscreenPressed:
-                  widget.onToggleMaximize ??
-                  () => ref
-                      .read(promptMaximizeNotifierProvider.notifier)
-                      .toggle(),
-              onClearPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
-              onSettingsPressed: () => _showSettingsMenu(context, theme),
-            ),
+            toolbar,
           ],
         ),
       ],
@@ -605,7 +655,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           count: promptCount,
           isSelected: !_isNegativeMode,
           color: theme.colorScheme.primary,
-          onTap: () => setState(() => _isNegativeMode = false),
+          onTap: () => _setNegativeMode(false),
           tooltipBuilder: (theme) => _PositivePromptTooltip(
             theme: theme,
             userPrompt: _promptController.text,
@@ -627,7 +677,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           count: negativeCount,
           isSelected: _isNegativeMode,
           color: theme.colorScheme.error,
-          onTap: () => setState(() => _isNegativeMode = true),
+          onTap: () => _setNegativeMode(true),
           tooltipBuilder: (theme) => _NegativePromptTooltip(
             theme: theme,
             userNegativePrompt: _negativeController.text,
@@ -681,7 +731,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       ),
       decoration: const InputDecoration(contentPadding: EdgeInsets.all(12)),
       maxLines: null,
-      expands: true,
+      minLines: widget.autoGrow ? 4 : null,
+      expands: !widget.autoGrow,
+      fitContent: widget.autoGrow,
       onComfyuiImport: (globalPrompt, characters) {
         // 清空现有角色并替换
         ref.read(characterPromptNotifierProvider.notifier).clearAll();
@@ -784,7 +836,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       ),
       decoration: const InputDecoration(contentPadding: EdgeInsets.all(12)),
       maxLines: null,
-      expands: true,
+      minLines: widget.autoGrow ? 4 : null,
+      expands: !widget.autoGrow,
+      fitContent: widget.autoGrow,
       onChanged: (value) {
         ref
             .read(generationParamsNotifierProvider.notifier)
@@ -827,15 +881,16 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
               suffixIcon: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.fullscreen),
-                    tooltip: context.l10n.tooltip_fullscreenEdit,
-                    onPressed:
-                        widget.onToggleMaximize ??
-                        () => ref
-                            .read(promptMaximizeNotifierProvider.notifier)
-                            .toggle(),
-                  ),
+                  if (widget.showMaximizeButton)
+                    IconButton(
+                      icon: const Icon(Icons.fullscreen),
+                      tooltip: context.l10n.tooltip_fullscreenEdit,
+                      onPressed:
+                          widget.onToggleMaximize ??
+                          () => ref
+                              .read(promptMaximizeNotifierProvider.notifier)
+                              .toggle(),
+                    ),
                   if (_promptController.text.isNotEmpty)
                     IconButton(
                       icon: const Icon(Icons.clear, size: 20),

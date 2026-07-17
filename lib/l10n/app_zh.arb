@@ -129,6 +129,7 @@
   "auth_passwordRequired": "请输入密码",
 
   "auth_tokenLogin": "API Token 登录",
+  "auth_tokenLoginRecommended": "API Token 登录（推荐）",
   "auth_credentialsLogin": "邮箱密码登录",
   "auth_credentialsLoginUnavailable": "账号密码登录当前不可用，请使用 Token 登录",
   "auth_credentialsLoginTitle": "邮箱登录",
@@ -137,6 +138,7 @@
   "auth_tokenInvalid": "Token 格式无效，应以 pst- 开头",
   "auth_nicknameOptional": "昵称（可选）",
   "auth_nicknameHint": "为此账号设置一个便于识别的名称",
+  "auth_thirdPartyLogin": "第三方站点",
   "auth_thirdPartyApiSite": "第三方 API 站点",
   "auth_imageApiSiteOptional": "图像 API 站点（可选）",
   "auth_imageApiSiteHint": "留空则使用同一个第三方 API 站点",
@@ -227,11 +229,14 @@
   "settings_languageEnglish": "English",
   "settings_languageJapanese": "日本語",
   "settings_shortcuts": "快捷键",
-  "settings_dataSource": "数据源",
   "settings_generation": "生成",
-  "settings_queue": "队列",
-  "settings_notifications": "通知",
-  "settings_promptAssistant": "助手",
+  "settings_dataStorage": "数据与存储",
+  "settings_privacySharing": "安全与分享",
+  "settings_integrations": "集成",
+  "settings_generationInputSection": "输入",
+  "settings_generationRetrySection": "失败重试",
+  "settings_generationFeedbackSection": "完成提醒",
+  "settings_promptAssistant": "提示词助手",
   "settings_selectStyle": "选择风格",
   "settings_defaultPreset": "默认",
   "settings_selectFont": "选择字体",
@@ -603,22 +608,22 @@
   "img2img_refreshModelList": "刷新模型列表",
   "img2img_startUpscale": "开始超分",
   "img2img_novelAiUpscaleComplete": "NovelAI 超分完成",
-  "img2img_upscaleCompleteAdded": "超分完成 ({width}x{height})，已加入预览列表",
-  "@img2img_upscaleCompleteAdded": {
+  "img2img_upscaleComplete": "超分完成 ({width}x{height})",
+  "@img2img_upscaleComplete": {
     "placeholders": {
       "width": {},
       "height": {}
     }
   },
-  "img2img_regularUpscaleCompleteAdded": "普通模型超分完成 ({width}x{height})，已加入预览列表",
-  "@img2img_regularUpscaleCompleteAdded": {
+  "img2img_regularUpscaleComplete": "普通模型超分完成 ({width}x{height})",
+  "@img2img_regularUpscaleComplete": {
     "placeholders": {
       "width": {},
       "height": {}
     }
   },
-  "img2img_rtxUpscaleCompleteAdded": "RTX 超分完成 ({width}x{height})，已加入预览列表",
-  "@img2img_rtxUpscaleCompleteAdded": {
+  "img2img_rtxUpscaleComplete": "RTX 超分完成 ({width}x{height})",
+  "@img2img_rtxUpscaleComplete": {
     "placeholders": {
       "width": {},
       "height": {}
@@ -858,6 +863,40 @@
     "placeholders": {
       "width": {"type": "int"},
       "height": {"type": "int"},
+      "cost": {"type": "int"}
+    }
+  },
+  "editor_compressionTitle": "输出分辨率",
+  "editor_compressionTooltip": "选择输出分辨率",
+  "editor_compressionUncompressed": "保持编辑工作尺寸，不执行压缩。",
+  "editor_compressionApplyOnDone": "工作画布保持原样；点击“完成”时使用 Pica Lanczos3 执行一次压缩。",
+  "editor_compressionSizeSummary": "工作尺寸 {workWidth}×{workHeight} → 输出尺寸 {targetWidth}×{targetHeight}",
+  "@editor_compressionSizeSummary": {
+    "placeholders": {
+      "workWidth": {"type": "int"},
+      "workHeight": {"type": "int"},
+      "targetWidth": {"type": "int"},
+      "targetHeight": {"type": "int"}
+    }
+  },
+  "editor_compressionNormalSummary": "Normal（约 1MP）为 {normalWidth}×{normalHeight}；最低档为 {minimumWidth}×{minimumHeight}。",
+  "@editor_compressionNormalSummary": {
+    "placeholders": {
+      "normalWidth": {"type": "int"},
+      "normalHeight": {"type": "int"},
+      "minimumWidth": {"type": "int"},
+      "minimumHeight": {"type": "int"}
+    }
+  },
+  "editor_compressionUnavailable": "当前工作画布已经低于最低压缩档，不能继续降低分辨率。",
+  "editor_compressionFocusLimited": "当前 Focused Inpaint 选区在更高分辨率下会超过请求面积上限，因此滑条上限已收紧。",
+  "editor_focusRequestSummary": "外层裁剪 {outerWidth}×{outerHeight}，实际发送 {requestWidth}×{requestHeight}，预计 {cost} Anlas。",
+  "@editor_focusRequestSummary": {
+    "placeholders": {
+      "outerWidth": {"type": "int"},
+      "outerHeight": {"type": "int"},
+      "requestWidth": {"type": "int"},
+      "requestHeight": {"type": "int"},
       "cost": {"type": "int"}
     }
   },
@@ -3176,6 +3215,12 @@
     }
   },
   "localGallery_sendTo": "发送到...",
+  "localGallery_sendToImg2Img": "发送到图生图",
+  "localGallery_sendToReversePrompt": "发送到反推",
+  "localGallery_sendToStyleTransfer": "发送到风格迁移",
+  "localGallery_sendToPreciseReference": "发送到精准参考",
+  "localGallery_sendToKrita": "发送到 Krita",
+  "localGallery_importImageMetadata": "导入图片元数据",
   "localGallery_copyPrompt": "复制 Prompt",
   "localGallery_copySeed": "复制 Seed",
   "localGallery_dragToShare": "拖拽以分享",
@@ -4516,6 +4561,8 @@
   "settings_queueRetryIntervalSubtitle": "重试之间的等待时间",
   "settings_showRandomPromptTools": "显示随机提示词工具",
   "settings_showRandomPromptToolsSubtitle": "在生成页显示“随机提示词”按钮和“抽卡模式”开关",
+  "settings_enablePromptWeightScroll": "滚轮调整提示词权重",
+  "settings_enablePromptWeightScrollSubtitle": "选中提示词时，滚轮仅调整权重，不再触发页面滚动等其他滚轮操作",
   "settings_queueRetryCountMax": "最多 {count} 次",
   "@settings_queueRetryCountMax": {
     "placeholders": {
@@ -5345,6 +5392,12 @@
   "settings_fontScale_reset": "重置",
   "settings_fontScale_done": "完成",
 
+  "settings_generationLayout": "生成页布局",
+  "settings_generationLayout_classic": "经典布局",
+  "settings_generationLayout_classicDescription": "参数在左侧，提示词位于预览区上方",
+  "settings_generationLayout_webStyle": "官网式布局",
+  "settings_generationLayout_webStyleDescription": "提示词与设置固定在最左栏，类似 NovelAI 官网",
+
   "settings_defaultImagesPath": "默认 (Documents/NAI_Launcher/images/)",
   "settings_defaultVibePath": "{path} (默认)",
   "@settings_defaultVibePath": {
@@ -6141,6 +6194,29 @@
   "updateDownloadAndInstall": "下载并安装",
   "goToDownload": "前往下载",
   "versionSkipped": "已忽略此版本",
-  "cannotOpenUrl": "无法打开链接"
+  "cannotOpenUrl": "无法打开链接",
+
+  "model3d_editorTitle": "3D 模型图层",
+  "model3d_addMannequin": "添加内置人偶",
+  "model3d_importModel": "导入模型 (.glb/.gltf)",
+  "model3d_emptyHint": "场景为空，先添加人偶或导入模型",
+  "model3d_apply": "应用到图层",
+  "model3d_modeTransform": "变换",
+  "model3d_modePose": "姿势",
+  "model3d_gizmoTranslate": "移动",
+  "model3d_gizmoRotate": "旋转",
+  "model3d_gizmoScale": "缩放",
+  "model3d_undo": "撤销",
+  "model3d_resetPose": "重置姿势",
+  "model3d_replaceConfirm": "替换当前模型？未应用的姿势将丢失。",
+  "model3d_discardConfirm": "放弃未应用的修改？",
+  "model3d_missingModel": "模型文件已丢失，可重新导入",
+  "model3d_loadError": "模型加载失败",
+  "model3d_light": "光照",
+  "model3d_lightIntensity": "强度",
+  "model3d_lightAzimuth": "方位角",
+  "model3d_lightElevation": "仰角",
+  "model3d_addLayerTooltip": "添加 3D 模型图层",
+  "model3d_webview2Missing": "3D 编辑器需要 Microsoft Edge WebView2 运行时。Windows 10/11 通常已自带;若缺失请从微软官网安装 Evergreen 版本后重试。"
 
 }

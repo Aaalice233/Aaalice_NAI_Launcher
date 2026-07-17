@@ -133,6 +133,14 @@ class AppToast {
     _show(context, message, ToastType.error);
   }
 
+  static void successOnOverlay(OverlayState? overlay, String message) {
+    _showOnOverlay(overlay, message, ToastType.success);
+  }
+
+  static void errorOnOverlay(OverlayState? overlay, String message) {
+    _showOnOverlay(overlay, message, ToastType.error);
+  }
+
   /// 显示警告通知
   static void warning(BuildContext context, String message) {
     _show(context, message, ToastType.warning);
@@ -190,6 +198,17 @@ class AppToast {
     }
   }
 
+  static void _showOnOverlay(
+    OverlayState? overlay,
+    String message,
+    ToastType type,
+  ) {
+    if (overlay == null || !overlay.mounted) {
+      return;
+    }
+    _showDesktopToastInOverlay(overlay, message, type);
+  }
+
   /// 用于生成唯一 toast ID 的计数器
   static int _toastIdCounter = 0;
 
@@ -203,7 +222,14 @@ class AppToast {
     if (overlay == null) {
       return;
     }
+    _showDesktopToastInOverlay(overlay, message, type);
+  }
 
+  static void _showDesktopToastInOverlay(
+    OverlayState overlay,
+    String message,
+    ToastType type,
+  ) {
     // 使用递增计数器确保 ID 唯一，避免同一毫秒内创建的 toast 有相同 ID
     final id = _toastIdCounter++;
 

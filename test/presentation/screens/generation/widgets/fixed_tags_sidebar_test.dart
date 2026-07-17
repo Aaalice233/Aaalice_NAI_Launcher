@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -655,6 +656,150 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'positive list keeps exact scroll metrics across uneven sections and search changes',
+    (tester) async {
+      final fixture = _buildUnevenPositiveFixture();
+      final storage = _SidebarTestStorage(
+        fixedEntries: fixture.entries,
+        categories: fixture.categories,
+        libraryEntries: const [],
+      );
+
+      await _pumpSidebar(tester, storage, textScale: 1.35);
+
+      final positiveScrollView = find.byType(CustomScrollView);
+      final controller =
+          tester.widget<CustomScrollView>(positiveScrollView).controller!;
+      final initialMax = await _expectStableScrollMetrics(
+        tester,
+        controller: controller,
+        scrollable: positiveScrollView,
+      );
+
+      controller.jumpTo(0);
+      await tester.enterText(find.byType(TextField), 'section-3-');
+      await tester.pumpAndSettle();
+
+      final filteredMax = controller.position.maxScrollExtent;
+      expect(filteredMax, greaterThan(0));
+      expect(filteredMax, lessThan(initialMax));
+      await _expectStableScrollMetrics(
+        tester,
+        controller: controller,
+        scrollable: positiveScrollView,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'positive grid keeps exact scroll metrics across uneven sections',
+    (tester) async {
+      final fixture = _buildUnevenPositiveFixture();
+      final storage = _SidebarTestStorage(
+        fixedEntries: fixture.entries,
+        categories: fixture.categories,
+        libraryEntries: const [],
+      )..fixedSidebarViewMode = 'grid';
+
+      await _pumpSidebar(tester, storage);
+
+      final positiveScrollView = find.byType(CustomScrollView);
+      final controller =
+          tester.widget<CustomScrollView>(positiveScrollView).controller!;
+      await _expectStableScrollMetrics(
+        tester,
+        controller: controller,
+        scrollable: positiveScrollView,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('negative list keeps exact scroll metrics while scrolling', (
+    tester,
+  ) async {
+    final entries = [
+      for (var index = 0; index < 32; index++)
+        FixedTagEntry.create(
+          name: 'negative-$index',
+          content: 'negative tag $index',
+          enabled: false,
+          promptType: FixedTagPromptType.negative,
+          sortOrder: index,
+        ),
+    ];
+    final storage = _SidebarTestStorage(
+      fixedEntries: entries,
+      categories: const [],
+      libraryEntries: const [],
+    );
+
+    await _pumpSidebar(tester, storage, textScale: 1.35);
+
+    final negativeList = find.byType(ReorderableListView);
+    expect(negativeList, findsOneWidget);
+    final controller =
+        tester.widget<ReorderableListView>(negativeList).scrollController!;
+    await _expectStableScrollMetrics(
+      tester,
+      controller: controller,
+      scrollable: negativeList,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'category chip scrolls to a section beyond the initial viewport',
+    (tester) async {
+      final near = TagLibraryCategory.create(name: 'Near', sortOrder: 0);
+      final far = TagLibraryCategory.create(name: 'Far', sortOrder: 1);
+      final entries = [
+        for (var index = 0; index < 30; index++)
+          FixedTagEntry.create(
+            name: 'near-$index',
+            content: 'near tag $index',
+            enabled: false,
+            categoryId: near.id,
+            sortOrder: index,
+          ),
+        FixedTagEntry.create(
+          name: 'far-entry',
+          content: 'far tag',
+          enabled: false,
+          categoryId: far.id,
+          sortOrder: 30,
+        ),
+      ];
+      final storage = _SidebarTestStorage(
+        fixedEntries: entries,
+        categories: [near, far],
+        libraryEntries: const [],
+      );
+
+      await _pumpSidebar(tester, storage);
+
+      final positiveScrollView = find.byType(CustomScrollView);
+      final controller =
+          tester.widget<CustomScrollView>(positiveScrollView).controller!;
+      final initialMax = controller.position.maxScrollExtent;
+
+      await tester.tap(find.text('Far 1'));
+      await tester.pumpAndSettle();
+
+      expect(controller.offset, greaterThan(0));
+      expect(controller.position.maxScrollExtent, closeTo(initialMax, 0.01));
+      expect(
+        tester
+            .getRect(positiveScrollView)
+            .overlaps(tester.getRect(find.text('Far'))),
+        isTrue,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('SidebarEntryTile triggers edit action after hover',
       (tester) async {
     var edited = false;
@@ -693,6 +838,126 @@ void main() {
 
     expect(edited, isTrue);
   });
+}
+
+({List<TagLibraryCategory> categories, List<FixedTagEntry> entries})
+    _buildUnevenPositiveFixture() {
+  const counts = [1, 18, 3, 24];
+  final categories = [
+    for (var index = 0; index < counts.length; index++)
+      TagLibraryCategory.create(name: 'Section $index', sortOrder: index),
+  ];
+  final entries = <FixedTagEntry>[
+    for (var sectionIndex = 0; sectionIndex < categories.length; sectionIndex++)
+      for (var entryIndex = 0; entryIndex < counts[sectionIndex]; entryIndex++)
+        FixedTagEntry.create(
+          name: 'section-$sectionIndex-entry-$entryIndex',
+          content: 'tag section-$sectionIndex-$entryIndex',
+          enabled: false,
+          categoryId: categories[sectionIndex].id,
+          sortOrder: entryIndex,
+        ),
+  ];
+  return (categories: categories, entries: entries);
+}
+
+Future<void> _pumpSidebar(
+  WidgetTester tester,
+  _SidebarTestStorage storage, {
+  double textScale = 1,
+}) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+      child: MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) {
+          return MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(textScale)),
+            child: child!,
+          );
+        },
+        home: const Scaffold(
+          body: SizedBox(width: 340, height: 620, child: FixedTagsSidebar()),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<double> _expectStableScrollMetrics(
+  WidgetTester tester, {
+  required ScrollController controller,
+  required Finder scrollable,
+}) async {
+  expect(controller.hasClients, isTrue);
+  controller.jumpTo(0);
+  await tester.pump();
+
+  final initialMax = controller.position.maxScrollExtent;
+  final initialViewport = controller.position.viewportDimension;
+  final initialVisibleFraction =
+      initialViewport / (initialMax + initialViewport);
+  expect(initialMax, greaterThan(0));
+
+  await tester.sendEventToBinding(
+    PointerScrollEvent(
+      kind: PointerDeviceKind.mouse,
+      position: tester.getCenter(scrollable),
+      scrollDelta: const Offset(0, 120),
+    ),
+  );
+  await tester.pump();
+
+  expect(controller.offset, greaterThan(0));
+  _expectScrollMetrics(
+    controller,
+    maxScrollExtent: initialMax,
+    viewportDimension: initialViewport,
+    visibleFraction: initialVisibleFraction,
+  );
+
+  controller.jumpTo(0);
+  await tester.pump();
+  var previousOffset = controller.offset;
+  for (final fraction in const [0.2, 0.5, 0.8, 0.98]) {
+    final target = initialMax * fraction;
+    controller.jumpTo(target);
+    await tester.pump();
+
+    expect(controller.offset, greaterThan(previousOffset));
+    expect(controller.offset, closeTo(target, 0.01));
+    _expectScrollMetrics(
+      controller,
+      maxScrollExtent: initialMax,
+      viewportDimension: initialViewport,
+      visibleFraction: initialVisibleFraction,
+    );
+    previousOffset = controller.offset;
+  }
+
+  return initialMax;
+}
+
+void _expectScrollMetrics(
+  ScrollController controller, {
+  required double maxScrollExtent,
+  required double viewportDimension,
+  required double visibleFraction,
+}) {
+  final position = controller.position;
+  expect(position.maxScrollExtent, closeTo(maxScrollExtent, 0.01));
+  expect(position.viewportDimension, closeTo(viewportDimension, 0.01));
+  expect(
+    position.viewportDimension /
+        (position.maxScrollExtent + position.viewportDimension),
+    closeTo(visibleFraction, 0.0001),
+  );
 }
 
 bool _linkPainterHasPreview(WidgetTester tester) {

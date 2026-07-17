@@ -75,6 +75,67 @@ void main() {
       expect(storage.negativeHeight, 300.0);
     });
   });
+
+  group('LayoutState web style layout fields', () {
+    test('defaults', () {
+      const state = LayoutState();
+
+      expect(state.webLeftPanelWidth, 400.0);
+      expect(state.webLeftPanelExpanded, isTrue);
+    });
+
+    test('copyWith 更新 web 字段且不影响其他字段', () {
+      final state = const LayoutState().copyWith(leftPanelWidth: 350.0);
+      final updated = state.copyWith(
+        webLeftPanelWidth: 480.0,
+        webLeftPanelExpanded: false,
+      );
+
+      expect(updated.leftPanelWidth, 350.0);
+      expect(updated.webLeftPanelWidth, 480.0);
+      expect(updated.webLeftPanelExpanded, isFalse);
+    });
+  });
+
+  group('LayoutStateNotifier web style layout persistence', () {
+    test('build 从 storage 读取 web 字段', () {
+      final storage = _FakeLayoutStorage()
+        ..webWidth = 500.0
+        ..webExpanded = false;
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWith((ref) => storage),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final state = container.read(layoutStateNotifierProvider);
+
+      expect(state.webLeftPanelWidth, 500.0);
+      expect(state.webLeftPanelExpanded, isFalse);
+    });
+
+    test('setter 写回 storage 并 clamp', () async {
+      final storage = _FakeLayoutStorage();
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWith((ref) => storage),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(layoutStateNotifierProvider.notifier);
+      await notifier.setWebLeftPanelWidth(9999.0);
+      await notifier.setWebLeftPanelExpanded(false);
+
+      expect(storage.webWidth, 560.0);
+      expect(storage.webExpanded, isFalse);
+
+      await notifier.setWebLeftPanelWidth(100.0);
+
+      expect(storage.webWidth, 320.0);
+    });
+  });
 }
 
 class _FakeLayoutStorage extends LocalStorageService {
@@ -88,6 +149,8 @@ class _FakeLayoutStorage extends LocalStorageService {
   double width = 280.0;
   String viewMode = 'list';
   double negativeHeight = 180.0;
+  double webWidth = 400.0;
+  bool webExpanded = true;
 
   @override
   bool getLeftPanelExpanded() => leftExpanded;
@@ -138,4 +201,21 @@ class _FakeLayoutStorage extends LocalStorageService {
   Future<void> setFixedTagsNegativeHeight(double value) async {
     negativeHeight = value;
   }
+
+  @override
+  double getWebLeftPanelWidth() => webWidth;
+
+  @override
+  Future<void> setWebLeftPanelWidth(double value) async {
+    webWidth = value;
+  }
+
+  @override
+  bool getWebLeftPanelExpanded() => webExpanded;
+
+  @override
+  Future<void> setWebLeftPanelExpanded(bool value) async {
+    webExpanded = value;
+  }
+
 }

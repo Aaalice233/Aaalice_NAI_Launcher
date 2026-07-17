@@ -450,6 +450,8 @@ void main() {
 
         expect(decodedSource, isNotNull);
         expect('${decodedSource!.width}x${decodedSource.height}', '1472x896');
+        expect(result.normalizedSourceImageBytes, equals(sourceBytes));
+        expect(result.inpaintMaskArtifacts, isNull);
         expect(result.requestParameters['width'], equals(1472));
         expect(result.requestParameters['height'], equals(896));
         expect(result.requestData['action'], equals('img2img'));
@@ -527,13 +529,13 @@ void main() {
     });
 
     test(
-      'should send official full-size infill mask and disable server original image overlay',
+      'should send the full official infill mask and retain latent artifacts',
       () async {
         final noisyMask = img.Image(width: 128, height: 128);
         img.fill(noisyMask, color: img.ColorRgba8(0, 0, 0, 255));
         for (var y = 80; y <= 111; y++) {
           for (var x = 80; x <= 111; x++) {
-            noisyMask.setPixelRgba(x, y, 90, 160, 255, 120);
+            noisyMask.setPixelRgba(x, y, 90, 160, 255, 200);
           }
         }
 
@@ -561,11 +563,21 @@ void main() {
         expect(result.requestParameters['add_original_image'], isFalse);
         expect('${decodedMask.width}x${decodedMask.height}', '128x128');
         expect(decodedMask.getPixel(0, 0).r.toInt(), equals(0));
-        expect(decodedMask.getPixel(0, 0).a.toInt(), equals(255));
         expect(decodedMask.getPixel(80, 80).r.toInt(), equals(255));
         expect(decodedMask.getPixel(111, 111).r.toInt(), equals(255));
-        expect(decodedMask.getPixel(80, 80).a.toInt(), equals(255));
-        expect(decodedMask.getPixel(79, 79).r.toInt(), equals(0));
+        expect(decodedMask.getPixel(79, 80).r.toInt(), equals(0));
+        expect(decodedMask.every((pixel) => pixel.a.toInt() == 255), isTrue);
+        expect(result.inpaintMaskArtifacts, isNotNull);
+        expect(
+          result.inpaintMaskArtifacts!.requestMaskBytes,
+          equals(maskBytes),
+        );
+        expect(result.inpaintMaskArtifacts!.latentWidth, equals(16));
+        expect(result.inpaintMaskArtifacts!.latentHeight, equals(16));
+        final latentMask = img.decodeImage(
+          result.inpaintMaskArtifacts!.latentMaskBytes,
+        )!;
+        expect('${latentMask.width}x${latentMask.height}', '16x16');
       },
     );
 
@@ -600,12 +612,17 @@ void main() {
         expect(decodedMask, isNotNull);
         expect('${decodedSource!.width}x${decodedSource.height}', '128x128');
         expect('${decodedMask!.width}x${decodedMask.height}', '128x128');
+        expect(result.normalizedSourceImageBytes, equals(sourceBytes));
+        expect(
+          result.inpaintMaskArtifacts!.requestMaskBytes,
+          equals(maskBytes),
+        );
         expect(result.requestData['action'], equals('infill'));
       },
     );
 
     test(
-      'should send expanded infill source and full-size mask for outpaint',
+      'should send expanded infill source and full-size request mask for outpaint',
       () async {
         final expandedSource = _validPngBytes(width: 1472, height: 1664);
         final expandedMask = img.Image(width: 1472, height: 1664);
@@ -662,6 +679,12 @@ void main() {
         expect(decodedMask.getPixel(0, 0).r.toInt(), equals(255));
         expect(decodedMask.getPixel(0, 63).r.toInt(), equals(255));
         expect(decodedMask.getPixel(0, 64).r.toInt(), equals(0));
+        expect(decodedMask.getPixel(0, 64).a.toInt(), equals(255));
+        expect(result.normalizedSourceImageBytes, equals(expandedSource));
+        expect(
+          result.inpaintMaskArtifacts!.requestMaskBytes,
+          equals(base64Decode(parameters['mask'] as String)),
+        );
         expect(parameters['strength'], equals(0.42));
         expect(parameters['noise'], equals(0.13));
         expect(parameters['add_original_image'], isFalse);
@@ -706,8 +729,10 @@ void main() {
 
         expect('${decodedMask.width}x${decodedMask.height}', '128x128');
         expect(decodedMask.getPixel(64, 64).r.toInt(), equals(255));
+        expect(decodedMask.getPixel(71, 71).r.toInt(), equals(255));
         expect(decodedMask.getPixel(63, 64).r.toInt(), equals(0));
         expect(decodedMask.getPixel(64, 63).r.toInt(), equals(0));
+        expect(decodedMask.getPixel(72, 64).r.toInt(), equals(0));
       },
     );
 

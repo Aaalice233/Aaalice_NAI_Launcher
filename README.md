@@ -93,6 +93,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 - Flutter `3.44.2`（项目最低要求 Flutter `3.35.0` / Dart `3.10.7`）
 - Git LFS，用于拉取 `assets/databases/*.db`
 - Windows 构建：Visual Studio 2022 Desktop development with C++
+- Windows 构建：[NuGet CLI](https://learn.microsoft.com/nuget/install-nuget-client-tools)，`nuget.exe` 所在目录必须加入 `PATH`
 - macOS 构建：完整 Xcode、CocoaPods、Git LFS
 
 ### 通用步骤
@@ -113,8 +114,11 @@ flutter test
 ### Windows
 
 ```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_nuget.ps1
 flutter build windows --release
 ```
+
+`flutter_inappwebview` 的 Windows 实现会在编译阶段通过 NuGet 获取 WebView2 SDK 等原生依赖。`verify_nuget.ps1` 检查失败时，请先安装 NuGet CLI，并确认新 PowerShell 窗口中可以直接运行 `nuget help`。
 
 产物目录：
 

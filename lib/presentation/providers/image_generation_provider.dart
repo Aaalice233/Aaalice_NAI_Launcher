@@ -12,7 +12,10 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/image_save_utils.dart';
 import '../../core/utils/image_share_sanitizer.dart';
+import '../../core/utils/inpaint_mask_utils.dart';
 import '../../core/utils/nai_prompt_formatter.dart';
+import '../../core/utils/nai_resolution_adapter.dart';
+import '../../core/utils/pica_lanczos_resizer.dart';
 import '../../core/utils/prompt_preset_resolution.dart';
 import '../../data/services/image_metadata_service.dart';
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
@@ -20,6 +23,7 @@ import '../../data/models/character/character_prompt.dart' as ui_character;
 import '../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/image/image_params.dart';
+import '../../data/models/image/image_stream_chunk.dart';
 import '../../data/repositories/gallery_folder_repository.dart';
 import '../../data/services/statistics_cache_service.dart';
 import '../../data/services/alias_resolver_service.dart';
@@ -57,10 +61,12 @@ class _RememberedStreamPreview {
   const _RememberedStreamPreview({
     required this.bytes,
     required this.params,
+    this.focusedPreviewPlacement,
   });
 
   final Uint8List bytes;
   final ImageParams params;
+  final FocusedStreamPreviewPlacement? focusedPreviewPlacement;
 }
 
 /// 图像生成状态 Notifier
@@ -175,23 +181,28 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     required ImageParams params,
     required int generationRunId,
     required int imageNumber,
+    FocusedStreamPreviewPlacement? focusedPreviewPlacement,
   }) {
     if (_shouldAbortGenerationRun(generationRunId) || bytes.isEmpty) {
       return;
     }
 
-    _streamPreviewsForSnapshots[
-            _streamSnapshotKey(generationRunId, imageNumber)] =
-        _RememberedStreamPreview(
+    _streamPreviewsForSnapshots[_streamSnapshotKey(
+      generationRunId,
+      imageNumber,
+    )] = _RememberedStreamPreview(
       bytes: Uint8List.fromList(bytes),
       params: params,
+      focusedPreviewPlacement: focusedPreviewPlacement?.copyWith(
+        sourceImage: Uint8List.fromList(focusedPreviewPlacement.sourceImage),
+        maskImage: focusedPreviewPlacement.maskImage == null
+            ? null
+            : Uint8List.fromList(focusedPreviewPlacement.maskImage!),
+      ),
     );
   }
 
-  void _clearRememberedStreamPreview({
-    int? generationRunId,
-    int? imageNumber,
-  }) {
+  void _clearRememberedStreamPreview({int? generationRunId, int? imageNumber}) {
     if (generationRunId != null && imageNumber != null) {
       _streamPreviewsForSnapshots.remove(
         _streamSnapshotKey(generationRunId, imageNumber),
@@ -215,12 +226,17 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     }
     if (!_failedStreamSnapshotKeys.add(key)) return false;
 
-    final previewBytes = rememberedPreview.bytes;
+    final previewBytes = _materializeRememberedStreamPreview(rememberedPreview);
     final params = rememberedPreview.params;
-    final resolvedSize = _resolveImageSize(
+    final resolvedSize =
+        _resolveImageSize(
           previewBytes,
-          width: params.width,
-          height: params.height,
+          width: rememberedPreview.focusedPreviewPlacement == null
+              ? params.width
+              : null,
+          height: rememberedPreview.focusedPreviewPlacement == null
+              ? params.height
+              : null,
         ) ??
         (params.width, params.height);
     final snapshot = GeneratedImage.create(
@@ -228,7 +244,11 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       width: resolvedSize.$1,
       height: resolvedSize.$2,
       kind: GeneratedImageKind.failedStreamSnapshot,
-      metadata: _metadataFromParams(params),
+      metadata: _metadataFromParams(
+        params,
+        outputWidth: resolvedSize.$1,
+        outputHeight: resolvedSize.$2,
+      ),
     );
 
     state = state.copyWith(
@@ -243,12 +263,99 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     return true;
   }
 
+  Uint8List _materializeRememberedStreamPreview(
+    _RememberedStreamPreview rememberedPreview,
+  ) {
+    final placement = rememberedPreview.focusedPreviewPlacement;
+    if (placement == null || !placement.isValid) {
+      return rememberedPreview.bytes;
+    }
+
+    final materialized = _compositeFocusedStreamPreview(
+      previewBytes: rememberedPreview.bytes,
+      focusedPreviewPlacement: placement,
+    );
+    return materialized ?? rememberedPreview.bytes;
+  }
+
+  Uint8List? _compositeFocusedStreamPreview({
+    required Uint8List previewBytes,
+    required FocusedStreamPreviewPlacement focusedPreviewPlacement,
+  }) {
+    final source = img.decodeImage(focusedPreviewPlacement.sourceImage);
+    final preview = img.decodeImage(previewBytes);
+    final mask = focusedPreviewPlacement.maskImage == null
+        ? null
+        : img.decodeImage(focusedPreviewPlacement.maskImage!);
+    if (source == null || preview == null) {
+      return null;
+    }
+
+    final dstX = (focusedPreviewPlacement.xPercent * source.width)
+        .round()
+        .clamp(0, max(0, source.width - 1))
+        .toInt();
+    final dstY = (focusedPreviewPlacement.yPercent * source.height)
+        .round()
+        .clamp(0, max(0, source.height - 1))
+        .toInt();
+    final dstW = (focusedPreviewPlacement.widthPercent * source.width)
+        .round()
+        .clamp(1, max(1, source.width - dstX))
+        .toInt();
+    final dstH = (focusedPreviewPlacement.heightPercent * source.height)
+        .round()
+        .clamp(1, max(1, source.height - dstY))
+        .toInt();
+
+    final img.Image resizedPreview;
+    final img.Image? resizedMask;
+    if (mask == null) {
+      resizedPreview = PicaLanczosResizer.resizeImage(
+        preview,
+        width: dstW,
+        height: dstH,
+      );
+      resizedMask = null;
+    } else {
+      final requestPreview = PicaLanczosResizer.resizeImage(
+        preview,
+        width: mask.width,
+        height: mask.height,
+      );
+      final requestPatch = InpaintMaskUtils.applyCompositeMaskToGeneratedImage(
+        requestPreview,
+        mask,
+      );
+      resizedPreview = PicaLanczosResizer.resizeImage(
+        requestPatch,
+        width: dstW,
+        height: dstH,
+      );
+      resizedMask = null;
+    }
+    final composed = img.Image.from(source, noAnimation: true);
+    img.compositeImage(
+      composed,
+      resizedPreview,
+      dstX: dstX,
+      dstY: dstY,
+      dstW: dstW,
+      dstH: dstH,
+      mask: resizedMask,
+      blend: mask == null ? img.BlendMode.direct : img.BlendMode.alpha,
+    );
+
+    return Uint8List.fromList(img.encodePng(composed, level: 1));
+  }
+
   bool _appendFailedStreamSnapshotsForCurrentSlots(int generationRunId) {
     var appended = false;
     final slots = state.streamPreviewSlots;
     if (slots.isNotEmpty) {
       for (final slot in slots.reversed) {
-        appended = _appendFailedStreamSnapshotToHistory(
+        appended =
+            _appendFailedStreamSnapshotToHistory(
               generationRunId: generationRunId,
               imageNumber: slot.imageNumber,
             ) ||
@@ -281,30 +388,41 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     return updated..sort((a, b) => a.imageNumber.compareTo(b.imageNumber));
   }
 
-  NaiImageMetadata _metadataFromParams(ImageParams params) {
-    final (charCaptions, charNegCaptions) = _buildCharacterCaptions(params);
+  NaiImageMetadata _metadataFromParams(
+    ImageParams params, {
+    int? outputWidth,
+    int? outputHeight,
+  }) {
+    assert(
+      (outputWidth == null) == (outputHeight == null),
+      'Output width and height must be provided together.',
+    );
+    final metadataParams = outputWidth != null && outputHeight != null
+        ? params.copyWith(width: outputWidth, height: outputHeight)
+        : params;
+    final (charCaptions, charNegCaptions) = _buildCharacterCaptions(
+      metadataParams,
+    );
     final commentJson = ImageSaveUtils.buildCommentJson(
-      params: params,
-      actualSeed: params.seed,
+      params: metadataParams,
+      actualSeed: metadataParams.seed,
       charCaptions: charCaptions,
       charNegCaptions: charNegCaptions,
-      useCoords: params.useCoords,
+      useCoords: metadataParams.useCoords,
     );
     final rawJson = jsonEncode(commentJson);
-    return NaiImageMetadata.fromNaiComment(
-      {
-        'Comment': rawJson,
-        'Software': 'NovelAI',
-        'Source': _modelSourceName(params.model),
-      },
-      rawJson: rawJson,
-    );
+    return NaiImageMetadata.fromNaiComment({
+      'Comment': rawJson,
+      'Software': 'NovelAI',
+      'Source': _modelSourceName(metadataParams.model),
+    }, rawJson: rawJson);
   }
 
   (
     List<Map<String, dynamic>> charCaptions,
     List<Map<String, dynamic>> charNegCaptions,
-  ) _buildCharacterCaptions(ImageParams params) {
+  )
+  _buildCharacterCaptions(ImageParams params) {
     final charCaptions = <Map<String, dynamic>>[];
     final charNegCaptions = <Map<String, dynamic>>[];
 
@@ -453,16 +571,15 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     // 解析别名（将 <词库名> 展开为实际内容）
     // 统一在此处解析所有提示词（主提示词、负向提示词）
     final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
-    final promptWithAliases =
-        aliasResolver.resolveAliases(effectiveParams.prompt);
-    final negativeWithAliases =
-        aliasResolver.resolveAliases(effectiveParams.negativePrompt);
+    final promptWithAliases = aliasResolver.resolveAliases(
+      effectiveParams.prompt,
+    );
+    final negativeWithAliases = aliasResolver.resolveAliases(
+      effectiveParams.negativePrompt,
+    );
     if (promptWithAliases != effectiveParams.prompt ||
         negativeWithAliases != effectiveParams.negativePrompt) {
-      AppLogger.d(
-        'Resolved aliases in prompts',
-        'AliasResolver',
-      );
+      AppLogger.d('Resolved aliases in prompts', 'AliasResolver');
       effectiveParams = effectiveParams.copyWith(
         prompt: promptWithAliases,
         negativePrompt: negativeWithAliases,
@@ -471,10 +588,12 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
     // 应用固定词到提示词
     final fixedTagsState = ref.read(fixedTagsNotifierProvider);
-    final promptWithFixedTags =
-        fixedTagsState.applyToPrompt(effectiveParams.prompt);
-    final negativePromptWithFixedTags =
-        fixedTagsState.applyToNegativePrompt(effectiveParams.negativePrompt);
+    final promptWithFixedTags = fixedTagsState.applyToPrompt(
+      effectiveParams.prompt,
+    );
+    final negativePromptWithFixedTags = fixedTagsState.applyToNegativePrompt(
+      effectiveParams.negativePrompt,
+    );
     if (promptWithFixedTags != effectiveParams.prompt ||
         negativePromptWithFixedTags != effectiveParams.negativePrompt) {
       AppLogger.d(
@@ -558,12 +677,14 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           );
           // 重新读取角色配置并更新参数
           final newCharacterConfig = ref.read(characterPromptNotifierProvider);
-          final newApiCharacters =
-              _convertCharactersToApiFormat(newCharacterConfig);
+          final newApiCharacters = _convertCharactersToApiFormat(
+            newCharacterConfig,
+          );
           currentParams = currentParams.copyWith(
             prompt: randomPrompt,
             characters: newApiCharacters,
-            useCoords: newApiCharacters.isNotEmpty &&
+            useCoords:
+                newApiCharacters.isNotEmpty &&
                 !newCharacterConfig.globalAiChoice,
           );
         }
@@ -672,8 +793,12 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           : GenerationStatus.completed,
       currentImages: List.from(allImages),
       displayImages: List.from(allImages), // 确保中央区域显示所有生成的图片
-      displayWidth: preparedParams.width,
-      displayHeight: preparedParams.height,
+      displayWidth: allImages.isEmpty
+          ? preparedParams.width
+          : allImages.first.width,
+      displayHeight: allImages.isEmpty
+          ? preparedParams.height
+          : allImages.first.height,
       progress: 1.0,
       currentImage: 0,
       totalImages: 0,
@@ -708,7 +833,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
   /// 将外部结果登记到历史记录，并可选地直接保存到本地图库
   ///
-  /// [addToDisplay] 为 true 时，将图像插入中央预览列表首位（如 ComfyUI 超分结果）。
+  /// [addToDisplay] 为 true 时，将图像插入当前结果和中央预览列表首位。
+  /// [replaceCurrentDisplay] 为 true 时，将当前结果和中央预览替换为该图像，
+  /// 既有图像仍保留在历史记录中。
   Future<String?> registerExternalImage(
     Uint8List imageBytes, {
     required ImageParams params,
@@ -718,16 +845,20 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     String? saveDirectoryPath,
     bool syncToGalleryIndex = true,
     bool addToDisplay = false,
+    bool replaceCurrentDisplay = false,
   }) async {
-    final resolvedSize = _resolveImageSize(
-          imageBytes,
-          width: width,
-          height: height,
-        ) ??
+    assert(
+      !addToDisplay || !replaceCurrentDisplay,
+      'addToDisplay and replaceCurrentDisplay cannot both be true.',
+    );
+
+    final resolvedSize =
+        _resolveImageSize(imageBytes, width: width, height: height) ??
         (params.width, params.height);
 
-    final existingMetadata =
-        await ImageMetadataService().getMetadataFromBytes(imageBytes);
+    final existingMetadata = await ImageMetadataService().getMetadataFromBytes(
+      imageBytes,
+    );
     final effectiveParams = params.copyWith(
       width: resolvedSize.$1,
       height: resolvedSize.$2,
@@ -744,16 +875,21 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       height: resolvedSize.$2,
     );
 
+    final shouldDisplay = addToDisplay || replaceCurrentDisplay;
     state = state.copyWith(
-      currentImages: addToDisplay
+      currentImages: replaceCurrentDisplay
+          ? [generatedImage]
+          : addToDisplay
           ? [generatedImage, ...state.currentImages]
           : state.currentImages,
       history: [generatedImage, ...state.history].take(50).toList(),
-      displayImages: addToDisplay
+      displayImages: replaceCurrentDisplay
+          ? [generatedImage]
+          : addToDisplay
           ? [generatedImage, ...state.displayImages]
           : state.displayImages,
-      displayWidth: addToDisplay ? resolvedSize.$1 : state.displayWidth,
-      displayHeight: addToDisplay ? resolvedSize.$2 : state.displayHeight,
+      displayWidth: shouldDisplay ? resolvedSize.$1 : state.displayWidth,
+      displayHeight: shouldDisplay ? resolvedSize.$2 : state.displayHeight,
     );
     _retainSharePreparationCacheForCurrentHistory();
 
@@ -791,7 +927,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     if (!saveImages) return;
 
     try {
-      final saveDirPath = saveDirectoryPath ??
+      final saveDirPath =
+          saveDirectoryPath ??
           await GalleryFolderRepository.instance.getRootPath();
       if (saveDirPath == null) return;
       final saveDir = Directory(saveDirPath);
@@ -874,8 +1011,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           // 从图片元数据中提取实际的 seed
           int actualSeed = params.seed;
           if (params.seed == -1) {
-            final extractedMeta =
-                await ImageMetadataService().getMetadataFromBytes(image.bytes);
+            final extractedMeta = await ImageMetadataService()
+                .getMetadataFromBytes(image.bytes);
             if (extractedMeta != null &&
                 extractedMeta.seed != null &&
                 extractedMeta.seed! > 0) {
@@ -893,7 +1030,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           await ImageSaveUtils.saveImageWithMetadata(
             imageBytes: image.bytes,
             filePath: filePath,
-            params: params,
+            params: params.copyWith(width: image.width, height: image.height),
             actualSeed: actualSeed,
             fixedPrefixTags: fixedPrefixTags,
             fixedSuffixTags: fixedSuffixTags,
@@ -922,10 +1059,12 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       if (savedCount > 0) {
         if (syncToGalleryIndex) {
           // 【优化】使用即时添加新图像，避免全量扫描延迟
-          final galleryNotifier =
-              ref.read(localGalleryNotifierProvider.notifier);
-          final addedCount =
-              await galleryNotifier.addNewlySavedImages(savedFilePaths);
+          final galleryNotifier = ref.read(
+            localGalleryNotifierProvider.notifier,
+          );
+          final addedCount = await galleryNotifier.addNewlySavedImages(
+            savedFilePaths,
+          );
 
           // 如果即时添加失败或数量不匹配，回退到传统刷新方式
           if (addedCount < savedCount) {
@@ -1084,8 +1223,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final workflow = ref.read(imageWorkflowControllerProvider);
     final requestParams = _materializeRandomSeed(params);
     final batchSize = max(1, requestParams.nSamples);
-    final useFocusedNonStream = workflow.focusedInpaintEnabled &&
-        requestParams.action == ImageGenerationAction.infill;
     var useNonStreamFallback = false;
 
     int imageNumberForSample(int sampleIndex) {
@@ -1153,7 +1290,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         final finalImages = <int, Uint8List>{};
 
         try {
-          if (useNonStreamFallback || useFocusedNonStream) {
+          if (useNonStreamFallback) {
             return await runNonStreamFallback();
           }
 
@@ -1197,12 +1334,14 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
                 params: requestParams,
                 generationRunId: generationRunId,
                 imageNumber: imageNumber,
+                focusedPreviewPlacement: chunk.focusedPreviewPlacement,
               );
               final slot = StreamPreviewSlot(
                 imageNumber: imageNumber,
                 totalImages: total,
                 progress: chunk.progress.clamp(0.0, 0.99).toDouble(),
                 previewBytes: chunk.previewImage,
+                focusedPreviewPlacement: chunk.focusedPreviewPlacement,
               );
               state = state.copyWith(
                 currentImage: imageNumber,
@@ -1211,6 +1350,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
                   inFlightProgress: slot.progress,
                 ),
                 streamPreview: chunk.previewImage,
+                focusedPreviewPlacement: chunk.focusedPreviewPlacement,
                 streamPreviewSlots: _replaceStreamPreviewSlot(
                   state.streamPreviewSlots,
                   slot,
@@ -1238,6 +1378,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
                   completedSamples: finalImages.length,
                 ),
                 streamPreview: chunk.finalImage,
+                clearFocusedPreviewPlacement: true,
                 streamPreviewSlots: _replaceStreamPreviewSlot(
                   state.streamPreviewSlots,
                   slot,
@@ -1350,52 +1491,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     try {
       final apiService = ref.read(naiImageGenerationApiServiceProvider);
       final workflow = ref.read(imageWorkflowControllerProvider);
-      final useFocusedNonStream = workflow.focusedInpaintEnabled &&
-          params.action == ImageGenerationAction.infill;
-
-      if (useFocusedNonStream) {
-        final (imageBytes, vibeEncodings) = await _generateWithRetry(
-          params,
-          generationRunId,
-        );
-
-        if (_shouldAbortGenerationRun(generationRunId)) return;
-
-        if (imageBytes.isEmpty) {
-          throw Exception('No images returned from focused inpaint request');
-        }
-
-        final generatedList = imageBytes
-            .map(
-              (bytes) => GeneratedImage.create(
-                bytes,
-                width: params.width,
-                height: params.height,
-              ),
-            )
-            .toList();
-
-        if (vibeEncodings.isNotEmpty) {
-          _saveVibeEncodings(vibeEncodings);
-        }
-
-        state = state.copyWith(
-          status: GenerationStatus.completed,
-          progress: 1.0,
-          currentImage: 0,
-          totalImages: 0,
-          currentImages: generatedList,
-          displayImages: generatedList,
-          displayWidth: params.width,
-          displayHeight: params.height,
-          history: [...generatedList, ...state.history].take(50).toList(),
-          clearStreamPreview: true,
-        );
-        _retainSharePreparationCacheForCurrentHistory();
-        await _autoSaveIfEnabled(generatedList, params);
-        _preloadMetadataInBackground(generatedList);
-        return;
-      }
 
       final stream = apiService.generateImageStream(
         params,
@@ -1421,8 +1516,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           }
           if (_isConcurrencyLimited(chunk.error ?? '') &&
               DateTime.now().isBefore(
-                concurrencyDeadline ??=
-                    DateTime.now().add(_concurrencyRetryBudget),
+                concurrencyDeadline ??= DateTime.now().add(
+                  _concurrencyRetryBudget,
+                ),
               )) {
             // 并发限制：等待 NAI 释放额度后自动重试（取消可随时中断）
             AppLogger.w(
@@ -1462,15 +1558,28 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             params: params,
             generationRunId: generationRunId,
             imageNumber: current,
+            focusedPreviewPlacement: chunk.focusedPreviewPlacement,
           );
           state = state.copyWith(
             progress: chunk.progress,
             streamPreview: chunk.previewImage,
+            focusedPreviewPlacement: chunk.focusedPreviewPlacement,
           );
         }
 
         if (chunk.isComplete && chunk.hasFinalImage) {
           finalImages[chunk.sampleIndex] = chunk.finalImage!;
+          _rememberStreamPreview(
+            bytes: chunk.finalImage!,
+            params: params,
+            generationRunId: generationRunId,
+            imageNumber: current,
+          );
+          state = state.copyWith(
+            progress: 1.0,
+            streamPreview: chunk.finalImage,
+            clearFocusedPreviewPlacement: true,
+          );
         }
       }
 
@@ -1497,8 +1606,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           status: GenerationStatus.completed,
           currentImages: generatedList,
           displayImages: generatedList,
-          displayWidth: params.width,
-          displayHeight: params.height,
+          displayWidth: generatedList.first.width,
+          displayHeight: generatedList.first.height,
           history: [...generatedList, ...state.history].take(50).toList(),
           progress: 1.0,
           currentImage: 0,
@@ -1538,8 +1647,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           status: GenerationStatus.completed,
           currentImages: generatedList,
           displayImages: generatedList,
-          displayWidth: params.width,
-          displayHeight: params.height,
+          displayWidth: generatedList.first.width,
+          displayHeight: generatedList.first.height,
           history: [...generatedList, ...state.history].take(50).toList(),
           progress: 1.0,
           currentImage: 0,
@@ -1582,8 +1691,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           status: GenerationStatus.completed,
           currentImages: generatedList,
           displayImages: generatedList,
-          displayWidth: params.width,
-          displayHeight: params.height,
+          displayWidth: generatedList.first.width,
+          displayHeight: generatedList.first.height,
           history: [...generatedList, ...state.history].take(50).toList(),
           progress: 1.0,
           currentImage: 0,
@@ -1664,8 +1773,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             status: GenerationStatus.completed,
             currentImages: generatedList,
             displayImages: generatedList,
-            displayWidth: params.width,
-            displayHeight: params.height,
+            displayWidth: generatedList.first.width,
+            displayHeight: generatedList.first.height,
             history: [...generatedList, ...state.history].take(50).toList(),
             progress: 1.0,
             currentImage: 0,
@@ -1763,29 +1872,20 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
   /// 清除当前图像
   void clearCurrent() {
-    state = state.copyWith(
-      currentImages: [],
-      status: GenerationStatus.idle,
-    );
+    state = state.copyWith(currentImages: [], status: GenerationStatus.idle);
     _retainSharePreparationCacheForCurrentHistory();
   }
 
   /// 清除错误
   void clearError() {
     if (state.status == GenerationStatus.error) {
-      state = state.copyWith(
-        status: GenerationStatus.idle,
-        errorMessage: null,
-      );
+      state = state.copyWith(status: GenerationStatus.idle, errorMessage: null);
     }
   }
 
   /// 清除历史记录（包含当前批次图像）
   void clearHistory() {
-    state = state.copyWith(
-      currentImages: [],
-      history: [],
-    );
+    state = state.copyWith(currentImages: [], history: []);
     _retainSharePreparationCacheForCurrentHistory();
   }
 
@@ -1793,9 +1893,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   ///
   /// 用于保存图像后更新 filePath 等信息
   void updateDisplayImages(List<GeneratedImage> images) {
-    state = state.copyWith(
-      displayImages: images,
-    );
+    state = state.copyWith(displayImages: images);
   }
 
   /// 更新指定生成图像的本地文件路径。
@@ -1999,6 +2097,11 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     int? width,
     int? height,
   }) {
+    final encodedSize = NaiResolutionAdapter.readImageSize(imageBytes);
+    if (encodedSize != null) {
+      return encodedSize;
+    }
+
     if (width != null && height != null) {
       return (width, height);
     }

@@ -48,6 +48,9 @@ class StorageKeys {
   static const String leftPanelWidth = 'left_panel_width';
   static const String promptAreaHeight = 'prompt_area_height';
   static const String promptMaximized = 'prompt_maximized';
+  static const String generationLayoutMode = 'generation_layout_mode';
+  static const String webLeftPanelWidth = 'web_left_panel_width';
+  static const String webLeftPanelExpanded = 'web_left_panel_expanded';
   static const String fixedTagsSidebarExpanded = 'fixed_tags_sidebar_expanded';
   static const String fixedTagsSidebarWidth = 'fixed_tags_sidebar_width';
   static const String fixedTagsSidebarViewMode = 'fixed_tags_sidebar_view_mode';
@@ -96,6 +99,7 @@ class StorageKeys {
   static const String autoFormatPrompt = 'auto_format_prompt';
   static const String highlightEmphasis = 'highlight_emphasis';
   static const String sdSyntaxAutoConvert = 'sd_syntax_auto_convert';
+  static const String enablePromptWeightScroll = 'enable_prompt_weight_scroll';
 
   // Seed Lock Keys (种子锁定相关)
   static const String seedLocked = 'seed_locked';

@@ -10,6 +10,7 @@ import '../../../../core/utils/nai_prompt_formatter.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../../presentation/utils/text_selection_utils.dart';
+import '../../../providers/generation/generation_settings_notifiers.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../screens/tag_library_page/widgets/entry_add_dialog.dart';
 import '../../autocomplete/autocomplete_wrapper.dart';
@@ -75,6 +76,12 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
   /// 是否扩展填满空间
   final bool expands;
 
+  /// 输入区 Stack 适应内容高度而非撑满父级
+  ///
+  /// 用于随内容自增高的场景（如官网式布局的一体滚动列）：
+  /// 父级高度无界时必须为 true，否则 StackFit.expand 会得到无穷高度约束。
+  final bool fitContent;
+
   /// 输入框会话标识（用于历史栈隔离）
   final String? sessionId;
 
@@ -90,7 +97,7 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
   /// [globalPrompt] 全局提示词，用于替换主输入框内容
   /// [characters] 角色列表，用于替换角色配置
   final void Function(String globalPrompt, List<CharacterPrompt> characters)?
-      onComfyuiImport;
+  onComfyuiImport;
 
   const UnifiedPromptInput({
     super.key,
@@ -103,6 +110,7 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
     this.maxLines,
     this.minLines,
     this.expands = false,
+    this.fitContent = false,
     this.sessionId,
     this.enableAssistant = true,
     this.onOpenAssistantSettings,
@@ -116,6 +124,7 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
 class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   /// 内部文本控制器（当未提供外部控制器时使用）
   TextEditingController? _internalController;
+  late final ValueGetter<TextEditingController> _effectiveControllerProvider;
 
   /// 语法高亮控制器
   NaiSyntaxController? _syntaxController;
@@ -249,6 +258,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   @override
   void initState() {
     super.initState();
+    _effectiveControllerProvider = () => _effectiveController;
     _sessionId = _resolveSessionId(widget.sessionId);
 
     // 初始化内部控制器（如果需要）
@@ -377,14 +387,8 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
     await _assistantStreamSub?.cancel();
     final stream = taskType == AssistantTaskType.llm
-        ? service.optimizePrompt(
-            text,
-            sessionId: _sessionId,
-          )
-        : service.translatePrompt(
-            text,
-            sessionId: _sessionId,
-          );
+        ? service.optimizePrompt(text, sessionId: _sessionId)
+        : service.translatePrompt(text, sessionId: _sessionId);
 
     _assistantStreamSub = stream.listen(
       (chunk) {
@@ -405,20 +409,22 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
         if (buffer.isNotEmpty) {
           final finalText = buffer.toString();
           _effectiveController.text = finalText;
-          _effectiveController.selection =
-              TextSelection.collapsed(offset: _effectiveController.text.length);
+          _effectiveController.selection = TextSelection.collapsed(
+            offset: _effectiveController.text.length,
+          );
         }
         stateNotifier.finishProcessing(_sessionId);
         final afterText = _effectiveController.text;
-        ref.read(promptAssistantHistoryProvider.notifier).recordExternalChange(
+        ref
+            .read(promptAssistantHistoryProvider.notifier)
+            .recordExternalChange(
               _sessionId,
               before: beforeText,
               after: afterText,
             );
-        ref.read(promptAssistantHistoryProvider.notifier).push(
-              _sessionId,
-              afterText,
-            );
+        ref
+            .read(promptAssistantHistoryProvider.notifier)
+            .push(_sessionId, afterText);
       },
       cancelOnError: true,
     );
@@ -486,19 +492,22 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
   /// 确保自动补全策略 Future 已创建
   Future<AutocompleteStrategy> _ensureAutocompleteStrategyFuture() {
-    _autocompleteStrategyFuture ??= LocalTagStrategy.create(
-      ref,
-      widget.config.autocompleteConfig,
-    ).then((localTagStrategy) {
-      return CompositeStrategy(
-        strategies: [
+    _autocompleteStrategyFuture ??=
+        LocalTagStrategy.create(ref, widget.config.autocompleteConfig).then((
           localTagStrategy,
-          AliasStrategy.create(ref),
-          CooccurrenceStrategy.create(ref, widget.config.autocompleteConfig),
-        ],
-        strategySelector: defaultStrategySelector,
-      );
-    });
+        ) {
+          return CompositeStrategy(
+            strategies: [
+              localTagStrategy,
+              AliasStrategy.create(ref),
+              CooccurrenceStrategy.create(
+                ref,
+                widget.config.autocompleteConfig,
+              ),
+            ],
+            strategySelector: defaultStrategySelector,
+          );
+        });
     return _autocompleteStrategyFuture!;
   }
 
@@ -673,7 +682,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     }
     final nextIndex = previous
         ? (_activeSearchMatchIndex - 1 + _searchMatches.length) %
-            _searchMatches.length
+              _searchMatches.length
         : (_activeSearchMatchIndex + 1) % _searchMatches.length;
 
     setState(() {
@@ -717,8 +726,9 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     BuildContext context,
     EditableTextState editableTextState,
   ) {
-    final selectedText =
-        TextSelectionUtils.getSelectedText(_effectiveController);
+    final selectedText = TextSelectionUtils.getSelectedText(
+      _effectiveController,
+    );
     final hasSelection = selectedText.isNotEmpty;
 
     // 获取默认的上下文菜单项
@@ -779,7 +789,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     }
 
     final inputStack = Stack(
-      fit: StackFit.expand,
+      fit: widget.fitContent ? StackFit.loose : StackFit.expand,
       children: [
         result,
         if (widget.enableAssistant)
@@ -910,38 +920,41 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
   /// 构建文本输入框
   Widget _buildTextField() {
+    final enableWheelAdjustment = ref.watch(promptWeightScrollSettingsProvider);
+
     // 合并 decoration：优先使用传入的 decoration，但保留 config 中的 hintText
-    final effectiveDecoration = InputDecoration(
-      hintText: widget.config.hintText,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 10,
-      ),
-    ).copyWith(
-      hintText: widget.config.hintText,
-      contentPadding: widget.decoration?.contentPadding,
-      filled: widget.decoration?.filled,
-      fillColor: widget.decoration?.fillColor,
-      border: widget.decoration?.border,
-      enabledBorder: widget.decoration?.enabledBorder,
-      focusedBorder: widget.decoration?.focusedBorder,
-      errorBorder: widget.decoration?.errorBorder,
-      focusedErrorBorder: widget.decoration?.focusedErrorBorder,
-      prefixIcon: widget.decoration?.prefixIcon,
-      suffixIcon: widget.decoration?.suffixIcon,
-      prefix: widget.decoration?.prefix,
-      suffix: widget.decoration?.suffix,
-      labelText: widget.decoration?.labelText,
-      labelStyle: widget.decoration?.labelStyle,
-      floatingLabelStyle: widget.decoration?.floatingLabelStyle,
-      helperText: widget.decoration?.helperText,
-      helperStyle: widget.decoration?.helperStyle,
-      errorText: widget.decoration?.errorText,
-      errorStyle: widget.decoration?.errorStyle,
-      counterText: widget.decoration?.counterText,
-      counterStyle: widget.decoration?.counterStyle,
-      isDense: widget.decoration?.isDense,
-    );
+    final effectiveDecoration =
+        InputDecoration(
+          hintText: widget.config.hintText,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
+        ).copyWith(
+          hintText: widget.config.hintText,
+          contentPadding: widget.decoration?.contentPadding,
+          filled: widget.decoration?.filled,
+          fillColor: widget.decoration?.fillColor,
+          border: widget.decoration?.border,
+          enabledBorder: widget.decoration?.enabledBorder,
+          focusedBorder: widget.decoration?.focusedBorder,
+          errorBorder: widget.decoration?.errorBorder,
+          focusedErrorBorder: widget.decoration?.focusedErrorBorder,
+          prefixIcon: widget.decoration?.prefixIcon,
+          suffixIcon: widget.decoration?.suffixIcon,
+          prefix: widget.decoration?.prefix,
+          suffix: widget.decoration?.suffix,
+          labelText: widget.decoration?.labelText,
+          labelStyle: widget.decoration?.labelStyle,
+          floatingLabelStyle: widget.decoration?.floatingLabelStyle,
+          helperText: widget.decoration?.helperText,
+          helperStyle: widget.decoration?.helperStyle,
+          errorText: widget.decoration?.errorText,
+          errorStyle: widget.decoration?.errorStyle,
+          counterText: widget.decoration?.counterText,
+          counterStyle: widget.decoration?.counterStyle,
+          isDense: widget.decoration?.isDense,
+        );
 
     // 构建基础 ThemedInput
     // 注意：focusNode 必须始终传给 ThemedInput，
@@ -954,6 +967,13 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       maxLines: widget.expands ? null : widget.maxLines,
       minLines: widget.expands ? null : (widget.minLines ?? 1),
       expands: widget.expands,
+      scrollPhysics:
+          enableWheelAdjustment &&
+              supportsPromptWeightScrollPhysics(defaultTargetPlatform)
+          ? WeightAdjustScrollPhysics(
+              controllerProvider: _effectiveControllerProvider,
+            )
+          : null,
       textAlignVertical: widget.expands ? TextAlignVertical.top : null,
       readOnly: widget.config.readOnly,
       inputFormatters: widget.config.readOnly
@@ -978,6 +998,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     Widget result = WeightAdjustToolbarWrapper(
       controller: _effectiveController,
       focusNode: _effectiveFocusNode,
+      enableWheelAdjustment: enableWheelAdjustment,
       child: baseInput,
     );
 

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -319,9 +318,6 @@ void main() {
 Future<void> _bootstrapApplication() async {
   WidgetsFlutterBinding.ensureInitialized();
   AppErrorReporter.installGlobalHandlers();
-
-  // 初始化 Semantics 以避免 Windows 桌面端的 accessibility_bridge 错误刷屏
-  SemanticsBinding.instance.ensureSemantics();
 
   // 先初始化控制台日志；文件日志稍后读取设置后按需开启，默认关闭。
   await AppLogger.initialize(

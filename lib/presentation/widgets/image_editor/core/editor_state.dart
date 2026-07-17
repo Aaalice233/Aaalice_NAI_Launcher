@@ -56,8 +56,9 @@ class EditorState extends ChangeNotifier {
   final ValueNotifier<EditorTool?> toolChangeNotifier = ValueNotifier(null);
 
   /// 画布尺寸通知器（仅画布尺寸相关 UI 监听）
-  final ValueNotifier<Size> canvasSizeNotifier =
-      ValueNotifier(const Size(1024, 1024));
+  final ValueNotifier<Size> canvasSizeNotifier = ValueNotifier(
+    const Size(1024, 1024),
+  );
 
   /// 光标位置通知器（仅光标绘制器监听）
   /// 避免光标移动触发整个 UI 重建
@@ -68,6 +69,7 @@ class EditorState extends ChangeNotifier {
   /// 画布尺寸
   Size _canvasSize = const Size(1024, 1024);
   Size get canvasSize => _canvasSize;
+  Rect Function(Rect candidate, Offset fixedAnchor)? _rectSelectionConstraint;
 
   // ===== 内部状态 =====
 
@@ -109,6 +111,16 @@ class EditorState extends ChangeNotifier {
   // 选区代理
   Path? get selectionPath => selectionManager.selectionPath;
   Path? get previewPath => selectionManager.previewPath;
+
+  void setRectSelectionConstraint(
+    Rect Function(Rect candidate, Offset fixedAnchor)? constraint,
+  ) {
+    _rectSelectionConstraint = constraint;
+  }
+
+  Rect constrainRectSelection(Rect candidate, Offset fixedAnchor) {
+    return _rectSelectionConstraint?.call(candidate, fixedAnchor) ?? candidate;
+  }
 
   // 笔画代理
   List<Offset> get currentStrokePoints => strokeManager.currentStrokePoints;
@@ -390,10 +402,7 @@ class EditorState extends ChangeNotifier {
     final layer = layerManager.activeLayer;
     if (layer == null || layer.locked || !layer.hasContent) return;
 
-    historyManager.execute(
-      ClearLayerAction(layerId: layer.id),
-      this,
-    );
+    historyManager.execute(ClearLayerAction(layerId: layer.id), this);
   }
 
   /// 调整画布大小（支持撤销）
@@ -402,10 +411,7 @@ class EditorState extends ChangeNotifier {
     if (_canvasSize == newSize) return;
 
     historyManager.execute(
-      ResizeCanvasAction(
-        newSize: newSize,
-        mode: mode,
-      ),
+      ResizeCanvasAction(newSize: newSize, mode: mode),
       this,
     );
   }
@@ -431,8 +437,9 @@ class EditorState extends ChangeNotifier {
     layerImg.dispose();
 
     final cutPng = await cutImg.toByteData(format: ui.ImageByteFormat.png);
-    final remainPng =
-        await remainImg.toByteData(format: ui.ImageByteFormat.png);
+    final remainPng = await remainImg.toByteData(
+      format: ui.ImageByteFormat.png,
+    );
     if (cutPng == null || remainPng == null) {
       cutImg.dispose();
       remainImg.dispose();

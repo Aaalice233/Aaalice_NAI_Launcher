@@ -1,13 +1,18 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart'
+    show WebViewEnvironment;
 
 import '../../../../../core/utils/app_logger.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../core/editor_state.dart';
 import '../../layers/layer.dart';
+import '../../layers/model3d_layer_data.dart';
 import '../../../../widgets/common/themed_divider.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
+import '../../../model3d_editor/model3d_editor_screen.dart';
 
 /// 图层面板
 class LayerPanel extends StatefulWidget {
@@ -94,6 +99,75 @@ class _LayerPanelState extends State<LayerPanel> {
     }
   }
 
+  /// Windows 下 WebView2 Runtime 缺失时提前拦截(Win10/11 一般自带)
+  Future<bool> _ensureWebView2Available() async {
+    if (!Platform.isWindows) return true;
+    String? version;
+    try {
+      version = await WebViewEnvironment.getAvailableVersion();
+    } catch (_) {
+      return true; // 查询本身失败时不拦截,交由编辑器内错误处理兜底
+    }
+    if (version != null) return true;
+    if (!mounted) return false;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        content: Text(context.l10n.model3d_webview2Missing),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(MaterialLocalizations.of(context).okButtonLabel),
+          ),
+        ],
+      ),
+    );
+    return false;
+  }
+
+  Future<void> _onAdd3dLayer() async {
+    if (!await _ensureWebView2Available()) return;
+    if (!mounted) return;
+    final size = widget.state.canvasSize;
+    final result = await Model3dEditorScreen.show(
+      context,
+      renderWidth: size.width.round(),
+      renderHeight: size.height.round(),
+    );
+    if (result == null || !mounted) return;
+    final layer = await widget.state.layerManager.addLayerFromImage(
+      result.pngBytes,
+      name: context.l10n.model3d_editorTitle,
+    );
+    layer?.model3d = Model3dLayerData(
+      modelRef: result.modelRef,
+      sceneState: result.sceneState,
+    );
+  }
+
+  Future<void> _onEdit3dLayer(Layer layer) async {
+    final data = layer.model3d;
+    if (data == null) return;
+    if (!await _ensureWebView2Available()) return;
+    if (!mounted) return;
+    final size = widget.state.canvasSize;
+    final result = await Model3dEditorScreen.show(
+      context,
+      existing: data,
+      renderWidth: size.width.round(),
+      renderHeight: size.height.round(),
+    );
+    if (result == null || !mounted) return;
+    await widget.state.layerManager.replaceLayerBaseImage(
+      layer.id,
+      result.pngBytes,
+    );
+    layer.model3d = Model3dLayerData(
+      modelRef: result.modelRef,
+      sceneState: result.sceneState,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -128,6 +202,7 @@ class _LayerPanelState extends State<LayerPanel> {
                     ),
                   );
                 },
+                onAdd3dLayer: _onAdd3dLayer,
                 onMergeDown: state.layerManager.layers.length > 1
                     ? () => state.layerManager.mergeDown()
                     : null,
@@ -208,6 +283,9 @@ class _LayerPanelState extends State<LayerPanel> {
                                       opacity,
                                     );
                                   },
+                                  onDoubleTap: layer.hasModel3d
+                                      ? () => _onEdit3dLayer(layer)
+                                      : null,
                                   state: state,
                                 );
                               },
@@ -227,9 +305,14 @@ class _LayerPanelState extends State<LayerPanel> {
 /// 图层面板头部
 class _LayerPanelHeader extends StatelessWidget {
   final VoidCallback onAddLayer;
+  final VoidCallback onAdd3dLayer;
   final VoidCallback? onMergeDown;
 
-  const _LayerPanelHeader({required this.onAddLayer, this.onMergeDown});
+  const _LayerPanelHeader({
+    required this.onAddLayer,
+    required this.onAdd3dLayer,
+    this.onMergeDown,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -251,6 +334,13 @@ class _LayerPanelHeader extends StatelessWidget {
             icon: const Icon(Icons.add, size: 20),
             tooltip: context.l10n.layer_add,
             onPressed: onAddLayer,
+            visualDensity: VisualDensity.compact,
+          ),
+          // 添加 3D 模型图层
+          IconButton(
+            icon: const Icon(Icons.view_in_ar, size: 20),
+            tooltip: context.l10n.model3d_addLayerTooltip,
+            onPressed: onAdd3dLayer,
             visualDensity: VisualDensity.compact,
           ),
           // 向下合并
@@ -279,6 +369,7 @@ class _LayerTile extends StatefulWidget {
   final VoidCallback onDuplicate;
   final ValueChanged<String> onRename;
   final ValueChanged<double> onOpacityChanged;
+  final VoidCallback? onDoubleTap;
   final EditorState state;
 
   const _LayerTile({
@@ -293,6 +384,7 @@ class _LayerTile extends StatefulWidget {
     required this.onDuplicate,
     required this.onRename,
     required this.onOpacityChanged,
+    this.onDoubleTap,
     required this.state,
   });
 
@@ -342,6 +434,7 @@ class _LayerTileState extends State<_LayerTile>
             : Colors.transparent,
         child: InkWell(
           onTap: widget.onTap,
+          onDoubleTap: widget.onDoubleTap,
           onLongPress: () => _showContextMenu(context),
           onSecondaryTap: () => _showContextMenu(context),
           child: Container(
@@ -404,9 +497,10 @@ class _LayerTileState extends State<_LayerTile>
                           },
                         )
                       : GestureDetector(
-                          onDoubleTap: () {
-                            setState(() => _isEditing = true);
-                          },
+                          // 3D 图层(onDoubleTap 非空)双击名字进入 3D 编辑器;
+                          // 普通图层保留双击重命名。3D 图层仍可经右键菜单重命名。
+                          onDoubleTap: widget.onDoubleTap ??
+                              () => setState(() => _isEditing = true),
                           child: Text(
                             widget.layer.name,
                             style: theme.textTheme.bodySmall?.copyWith(
@@ -420,6 +514,24 @@ class _LayerTileState extends State<_LayerTile>
                           ),
                         ),
                 ),
+
+                // 3D 模型图层角标
+                if (widget.layer.hasModel3d)
+                  Container(
+                    margin: const EdgeInsets.only(left: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '3D',
+                      style: theme.textTheme.labelSmall,
+                    ),
+                  ),
 
                 // 不透明度指示
                 if (widget.layer.opacity < 1.0)

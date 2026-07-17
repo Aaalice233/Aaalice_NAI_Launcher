@@ -8,6 +8,7 @@ import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/auth/saved_account.dart';
 import '../../providers/account_manager_provider.dart';
+import '../../providers/auth_mode_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/auth/account_avatar.dart';
 import '../../widgets/auth/login_form_container.dart';
@@ -32,6 +33,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   OverlayEntry? _loadingOverlayEntry;
   bool _showTroubleshootingButton = false;
+
+  @override
+  void initState() {
+    super.initState();
+    ref.read(authModeNotifierProvider.notifier).reset();
+  }
 
   @override
   void dispose() {
@@ -351,6 +358,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _showAddAccountDialog(BuildContext context) {
+    ref.read(authModeNotifierProvider.notifier).reset();
     showDialog(
       context: context,
       builder: (dialogContext) => Dialog(

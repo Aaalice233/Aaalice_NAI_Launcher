@@ -824,6 +824,116 @@ void main() {
     );
   });
 
+  test('focused stream error snapshot uses shared soft-mask placement',
+      () async {
+    final mockApiService = MockNAIImageGenerationApiService();
+    final source = _solidImageBytes(
+      width: 256,
+      height: 256,
+      red: 10,
+      green: 20,
+      blue: 30,
+    );
+    final preview = _solidImageBytes(
+      width: 128,
+      height: 128,
+      red: 200,
+      green: 210,
+      blue: 220,
+    );
+    final compositeMask = img.Image(
+      width: 128,
+      height: 128,
+      numChannels: 4,
+    );
+    img.fill(compositeMask, color: img.ColorRgba8(0, 0, 0, 0));
+    img.fillRect(
+      compositeMask,
+      x1: 32,
+      y1: 32,
+      x2: 95,
+      y2: 95,
+      color: img.ColorRgba8(255, 255, 255, 255),
+    );
+    compositeMask.setPixelRgba(16, 16, 128, 128, 128, 128);
+    final placement = FocusedStreamPreviewPlacement(
+      sourceImage: source,
+      maskImage: Uint8List.fromList(img.encodePng(compositeMask)),
+      xPercent: 0.25,
+      yPercent: 0.25,
+      widthPercent: 0.5,
+      heightPercent: 0.5,
+    );
+
+    when(
+      () => mockApiService.generateImage(
+        any(),
+        onProgress: any(named: 'onProgress'),
+        focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+        minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+        focusedSelectionRect: any(named: 'focusedSelectionRect'),
+      ),
+    ).thenAnswer((_) async => (<Uint8List>[], <int, String>{}));
+    when(
+      () => mockApiService.generateImageStream(
+        any(),
+        focusedInpaintEnabled: any(named: 'focusedInpaintEnabled'),
+        minimumContextMegaPixels: any(named: 'minimumContextMegaPixels'),
+        focusedSelectionRect: any(named: 'focusedSelectionRect'),
+      ),
+    ).thenAnswer(
+      (_) => Stream<ImageStreamChunk>.fromIterable([
+        ImageStreamChunk.progress(
+          progress: 0.5,
+          currentStep: 14,
+          totalSteps: 28,
+          previewImage: preview,
+          focusedPreviewPlacement: placement,
+        ),
+        ImageStreamChunk.error('API_ERROR_500|focused stream failed'),
+      ]),
+    );
+    when(() => mockApiService.cancelGeneration()).thenReturn(null);
+
+    final container = ProviderContainer(
+      overrides: [
+        naiImageGenerationApiServiceProvider.overrideWithValue(mockApiService),
+      ],
+    );
+    addTearDown(container.dispose);
+    await container
+        .read(notificationSettingsNotifierProvider.notifier)
+        .setSoundEnabled(false);
+
+    final notifier = container.read(imageGenerationNotifierProvider.notifier);
+    final rawMask = img.Image(width: 256, height: 256, numChannels: 4);
+    img.fill(rawMask, color: img.ColorRgba8(0, 0, 0, 255));
+    rawMask.setPixelRgba(128, 128, 255, 255, 255, 255);
+    final params = container.read(generationParamsNotifierProvider).copyWith(
+          prompt: 'focused failed snapshot',
+          action: ImageGenerationAction.infill,
+          model: 'nai-diffusion-4-5-full-inpainting',
+          width: 256,
+          height: 256,
+          sourceImage: source,
+          maskImage: Uint8List.fromList(img.encodePng(rawMask)),
+        );
+
+    await notifier.generate(params);
+
+    final state = container.read(imageGenerationNotifierProvider);
+    expect(state.status, GenerationStatus.error);
+    expect(state.history, hasLength(1));
+    final snapshot = img.decodeImage(state.history.single.bytes)!;
+    expect((snapshot.width, snapshot.height), (256, 256));
+    expect(_rgb(snapshot, 0, 0), (10, 20, 30));
+    expect(_rgb(snapshot, 128, 128), (200, 210, 220));
+    final softPixel = _rgb(snapshot, 80, 80);
+    expect(softPixel.$1, inInclusiveRange(100, 110));
+    expect(softPixel.$2, inInclusiveRange(110, 120));
+    expect(softPixel.$3, inInclusiveRange(120, 130));
+  });
+
   test('batch empty fallback after preview keeps failed snapshot in history',
       () async {
     final mockApiService = MockNAIImageGenerationApiService();
@@ -1263,4 +1373,21 @@ Uint8List _validImageBytes({
       img.Image(width: width, height: height),
     ),
   );
+}
+
+Uint8List _solidImageBytes({
+  required int width,
+  required int height,
+  required int red,
+  required int green,
+  required int blue,
+}) {
+  final image = img.Image(width: width, height: height, numChannels: 4);
+  img.fill(image, color: img.ColorRgba8(red, green, blue, 255));
+  return Uint8List.fromList(img.encodePng(image));
+}
+
+(int, int, int) _rgb(img.Image image, int x, int y) {
+  final pixel = image.getPixel(x, y);
+  return (pixel.r.toInt(), pixel.g.toInt(), pixel.b.toInt());
 }

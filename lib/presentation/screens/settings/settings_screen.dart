@@ -4,17 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/localization_extension.dart';
 import 'sections/account_settings_section.dart';
 import 'sections/appearance_settings_section.dart';
-import 'sections/shortcut_settings_section.dart';
-import 'sections/storage_settings_section.dart';
-import 'sections/network_settings_section.dart';
-import 'sections/data_source_settings_section.dart';
 import 'sections/generation_settings_section.dart';
-import 'sections/queue_settings_section.dart';
-import 'sections/notification_settings_section.dart';
+import 'sections/storage_settings_section.dart';
+import 'sections/privacy_settings_section.dart';
+import 'sections/network_settings_section.dart';
+import 'sections/shortcut_settings_section.dart';
+import 'sections/integrations_settings_section.dart';
 import 'sections/about_settings_section.dart';
-import 'sections/comfyui_settings_section.dart';
-import 'sections/krita_bridge_settings_section.dart';
-import 'sections/prompt_assistant_settings_section.dart';
 
 /// 设置页面 Section 数据模型
 class _SettingsSection {
@@ -65,16 +61,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         widget: const AppearanceSettingsSection(),
       ),
       _SettingsSection(
-        icon: Icons.keyboard_outlined,
-        selectedIcon: Icons.keyboard,
-        label: context.l10n.settings_shortcuts,
-        widget: const ShortcutSettingsSection(),
+        icon: Icons.tune_outlined,
+        selectedIcon: Icons.tune,
+        label: context.l10n.settings_generation,
+        widget: const GenerationSettingsSection(),
       ),
       _SettingsSection(
         icon: Icons.storage_outlined,
         selectedIcon: Icons.storage,
-        label: context.l10n.settings_storage,
+        label: context.l10n.settings_dataStorage,
         widget: const StorageSettingsSection(),
+      ),
+      _SettingsSection(
+        icon: Icons.shield_outlined,
+        selectedIcon: Icons.shield,
+        label: context.l10n.settings_privacySharing,
+        widget: const PrivacySettingsSection(),
       ),
       _SettingsSection(
         icon: Icons.network_check_outlined,
@@ -83,46 +85,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         widget: const NetworkSettingsSection(),
       ),
       _SettingsSection(
-        icon: Icons.cloud_sync_outlined,
-        selectedIcon: Icons.cloud_sync,
-        label: context.l10n.settings_dataSource,
-        widget: const DataSourceSettingsSection(),
+        icon: Icons.keyboard_outlined,
+        selectedIcon: Icons.keyboard,
+        label: context.l10n.settings_shortcuts,
+        widget: const ShortcutSettingsSection(),
       ),
       _SettingsSection(
-        icon: Icons.tune_outlined,
-        selectedIcon: Icons.tune,
-        label: context.l10n.settings_generation,
-        widget: const GenerationSettingsSection(),
-      ),
-      _SettingsSection(
-        icon: Icons.queue_outlined,
-        selectedIcon: Icons.queue,
-        label: context.l10n.settings_queue,
-        widget: const QueueSettingsSection(),
-      ),
-      _SettingsSection(
-        icon: Icons.notifications_outlined,
-        selectedIcon: Icons.notifications,
-        label: context.l10n.settings_notifications,
-        widget: const NotificationSettingsSection(),
-      ),
-      _SettingsSection(
-        icon: Icons.auto_awesome_outlined,
-        selectedIcon: Icons.auto_awesome,
-        label: context.l10n.settings_promptAssistant,
-        widget: const PromptAssistantSettingsSection(),
-      ),
-      const _SettingsSection(
-        icon: Icons.auto_fix_high_outlined,
-        selectedIcon: Icons.auto_fix_high,
-        label: 'ComfyUI',
-        widget: ComfyUISettingsSection(),
-      ),
-      const _SettingsSection(
-        icon: Icons.brush_outlined,
-        selectedIcon: Icons.brush,
-        label: 'Krita',
-        widget: KritaBridgeSettingsSection(),
+        icon: Icons.extension_outlined,
+        selectedIcon: Icons.extension,
+        label: context.l10n.settings_integrations,
+        widget: const IntegrationsSettingsSection(),
       ),
       _SettingsSection(
         icon: Icons.info_outlined,

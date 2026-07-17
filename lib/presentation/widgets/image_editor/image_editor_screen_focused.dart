@@ -14,26 +14,17 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
       return null;
     }
 
-    final requestSize = FocusedInpaintUtils.resolveRequestSizeForSelection(
-      sourceWidth: _state.canvasSize.width.round(),
-      sourceHeight: _state.canvasSize.height.round(),
-      selectionRect: focusAreaRect,
-      minContextMegaPixels: _minimumContextMegaPixels,
-    );
-    if (requestSize == null) {
+    final geometry = _resolveFocusedGeometryForWorkRect(focusAreaRect);
+    if (geometry == null) {
       return null;
     }
 
-    final cost = config.estimate(width: requestSize.$1, height: requestSize.$2);
-    if (cost <= 0) {
-      return null;
-    }
-
-    return _FocusedInpaintCostEstimate(
-      width: requestSize.$1,
-      height: requestSize.$2,
-      cost: cost,
+    final cost = config.estimate(
+      width: geometry.requestWidth,
+      height: geometry.requestHeight,
     );
+
+    return _FocusedInpaintCostEstimate(geometry: geometry, cost: cost);
   }
 
   Widget _buildFocusedSelectionCard() {
@@ -126,6 +117,7 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
                           _state.clearSelection(saveHistory: false);
                           _state.clearPreview();
                           _state.setToolById('rect_selection');
+                          _refreshCompressionPlan();
                         });
                       }
                     : null,
@@ -142,12 +134,14 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
             ),
             Slider(
               value: _minimumContextMegaPixels,
-              min: 0,
+              min: 16,
               max: 192,
-              divisions: 192,
+              divisions: 176,
               onChanged: (value) {
                 _updateLayoutState(() {
                   _minimumContextMegaPixels = value;
+                  _constrainCommittedFocusedSelection();
+                  _refreshCompressionPlan();
                 });
               },
             ),
@@ -174,28 +168,30 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: colorScheme.errorContainer.withValues(alpha: 0.78),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colorScheme.error.withValues(alpha: 0.38)),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.32)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            Icons.warning_amber_rounded,
+            Icons.info_outline,
             size: 17,
-            color: colorScheme.onErrorContainer,
+            color: colorScheme.onSurfaceVariant,
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              context.l10n.editor_focusAnlasWarning(
-                estimate.width,
-                estimate.height,
+              context.l10n.editor_focusRequestSummary(
+                estimate.geometry.contextCrop.width,
+                estimate.geometry.contextCrop.height,
+                estimate.geometry.requestWidth,
+                estimate.geometry.requestHeight,
                 estimate.cost,
               ),
               style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onErrorContainer,
+                color: colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -214,6 +210,7 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
       return;
     }
 
+    final desiredScale = _compressionLinearScale;
     _updateLayoutState(() {
       _focusedInpaintEnabled = !_focusedInpaintEnabled;
       if (_focusedInpaintEnabled) {
@@ -226,7 +223,26 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
         _focusedSelectionState.clear();
         _state.setToolById('brush');
       }
+      _refreshCompressionPlan(desiredScale: desiredScale);
     });
+  }
+
+  void _syncFocusedSelectionConstraint() {
+    if (!_isInpaintMode || !_focusedInpaintEnabled) {
+      _state.setRectSelectionConstraint(null);
+      return;
+    }
+    _state.setRectSelectionConstraint((candidate, fixedAnchor) {
+      return _constrainFocusedWorkRect(candidate, fixedAnchor: fixedAnchor) ??
+          candidate;
+    });
+  }
+
+  void _constrainCommittedFocusedSelection() {
+    final selection = _focusedSelectionState.committedRect;
+    if (selection == null) return;
+    final constrained = _constrainFocusedWorkRect(selection);
+    _focusedSelectionState.load(constrained);
   }
 
   void _consumeFocusedSelection() {
@@ -246,6 +262,7 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
     _state.clearSelection(saveHistory: false);
     _state.clearPreview();
     _state.setToolById('brush');
+    _refreshCompressionPlan();
     _state.requestUiUpdate();
     if (mounted) {
       _updateLayoutState(() {});
@@ -297,7 +314,7 @@ class _FocusedContextOverlayPainter extends CustomPainter {
 
   final CanvasController canvasController;
   final Rect focusAreaRect;
-  final FocusedInpaintCrop contextCrop;
+  final Rect contextCrop;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -305,16 +322,7 @@ class _FocusedContextOverlayPainter extends CustomPainter {
     final screenSelectionPath = (Path()..addRect(focusAreaRect)).transform(
       matrix,
     );
-    final screenContextPath =
-        (Path()..addRect(
-              Rect.fromLTWH(
-                contextCrop.x.toDouble(),
-                contextCrop.y.toDouble(),
-                contextCrop.width.toDouble(),
-                contextCrop.height.toDouble(),
-              ),
-            ))
-            .transform(matrix);
+    final screenContextPath = (Path()..addRect(contextCrop)).transform(matrix);
 
     FocusedOverlayPainter(
       contextPath: screenContextPath,
@@ -324,10 +332,7 @@ class _FocusedContextOverlayPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _FocusedContextOverlayPainter oldDelegate) {
-    return contextCrop.x != oldDelegate.contextCrop.x ||
-        contextCrop.y != oldDelegate.contextCrop.y ||
-        contextCrop.width != oldDelegate.contextCrop.width ||
-        contextCrop.height != oldDelegate.contextCrop.height ||
+    return contextCrop != oldDelegate.contextCrop ||
         focusAreaRect != oldDelegate.focusAreaRect ||
         canvasController != oldDelegate.canvasController;
   }

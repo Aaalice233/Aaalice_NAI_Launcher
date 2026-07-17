@@ -25,6 +25,8 @@ class NAIImageRequestBuildResult {
     required this.requestParameters,
     required this.requestData,
     this.vibeEncodingMap = const {},
+    this.normalizedSourceImageBytes,
+    this.inpaintMaskArtifacts,
   });
 
   final int seed;
@@ -33,6 +35,8 @@ class NAIImageRequestBuildResult {
   final Map<String, dynamic> requestParameters;
   final Map<String, dynamic> requestData;
   final Map<int, String> vibeEncodingMap;
+  final Uint8List? normalizedSourceImageBytes;
+  final NovelAiInpaintMaskArtifacts? inpaintMaskArtifacts;
 }
 
 class NAIImageRequestBuilder {
@@ -415,6 +419,8 @@ class NAIImageRequestBuilder {
       effectiveNegativePrompt: effectiveNegativePrompt,
       isStream: isStream,
     );
+    Uint8List? normalizedSourceImageBytes;
+    NovelAiInpaintMaskArtifacts? inpaintMaskArtifacts;
 
     if (params.isV4Model) {
       buildV4Parameters(
@@ -429,6 +435,7 @@ class NAIImageRequestBuilder {
       final normalizedSource = await _normalizeRequestSourceImage(
         params.sourceImage!,
       );
+      normalizedSourceImageBytes = normalizedSource;
       requestParameters['image'] = base64Encode(normalizedSource);
       requestParameters['strength'] = params.strength;
       requestParameters['noise'] = params.noise;
@@ -437,18 +444,24 @@ class NAIImageRequestBuilder {
     if (params.action == ImageGenerationAction.infill &&
         params.sourceImage != null &&
         params.maskImage != null) {
-      final normalizedMask = InpaintMaskUtils.prepareNovelAiRequestMaskBytes(
-        params.maskImage!,
-        targetWidth: params.width,
-        targetHeight: params.height,
-        closingIterations: params.inpaintMaskClosingIterations,
-        expansionIterations: params.inpaintMaskExpansionIterations,
-      );
-      final normalizedSource = await _normalizeRequestSourceImage(
+      final maskArtifactsFuture =
+          InpaintMaskUtils.prepareNovelAiInpaintMaskArtifactsAsync(
+            params.maskImage!,
+            targetWidth: params.width,
+            targetHeight: params.height,
+            closingIterations: params.inpaintMaskClosingIterations,
+            expansionIterations: params.inpaintMaskExpansionIterations,
+          );
+      final normalizedSourceFuture = _normalizeRequestSourceImage(
         params.sourceImage!,
       );
+      final normalizedSource = await normalizedSourceFuture;
+      inpaintMaskArtifacts = await maskArtifactsFuture;
+      normalizedSourceImageBytes = normalizedSource;
       requestParameters['image'] = base64Encode(normalizedSource);
-      requestParameters['mask'] = base64Encode(normalizedMask);
+      requestParameters['mask'] = base64Encode(
+        inpaintMaskArtifacts.requestMaskBytes,
+      );
       requestParameters['strength'] = NAIApiUtils.toJsonNumber(params.strength);
       requestParameters['noise'] = NAIApiUtils.toJsonNumber(params.noise);
     }
@@ -475,6 +488,8 @@ class NAIImageRequestBuilder {
       requestParameters: requestParameters,
       requestData: requestData,
       vibeEncodingMap: vibeEncodingMap,
+      normalizedSourceImageBytes: normalizedSourceImageBytes,
+      inpaintMaskArtifacts: inpaintMaskArtifacts,
     );
   }
 }
