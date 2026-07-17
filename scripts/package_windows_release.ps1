@@ -49,6 +49,7 @@ $portablePath = Join-Path $distPath "NAI_Launcher_Windows_${Version}_Portable.zi
 $installerPath = Join-Path $distPath "NAI_Launcher_Windows_${Version}_Setup.exe"
 
 if (-not $SkipFlutterBuild) {
+  & (Join-Path $PSScriptRoot "verify_nuget.ps1")
   flutter pub get
   flutter gen-l10n
   dart run build_runner build --delete-conflicting-outputs
