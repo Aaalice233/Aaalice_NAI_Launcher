@@ -1050,6 +1050,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     required double minimumContextMegaPixels,
     bool forceDisableFocusedInpaint = false,
     bool sourceIsOutpaint = true,
+    bool useExactSourceDimensions = false,
   }) {
     final hasReplacementSource = sourceImage != null;
     if (hasReplacementSource) {
@@ -1078,14 +1079,16 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     NaiImportImageInfo? importInfo;
     if (hasReplacementSource) {
       _paramsNotifier.setSourceImage(sourceImage);
-      importInfo = NaiResolutionAdapter.describeImageForImport(
-        sourceImage,
-        currentWidth: _params.width,
-        currentHeight: _params.height,
-        isStableDiffusionFamily: _usesStableDiffusionImportBounds(
-          _params.model,
-        ),
-      );
+      if (!useExactSourceDimensions) {
+        importInfo = NaiResolutionAdapter.describeImageForImport(
+          sourceImage,
+          currentWidth: _params.width,
+          currentHeight: _params.height,
+          isStableDiffusionFamily: _usesStableDiffusionImportBounds(
+            _params.model,
+          ),
+        );
+      }
     }
 
     _ensureBaseSnapshot();

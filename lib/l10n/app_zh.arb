@@ -866,6 +866,30 @@
       "cost": {"type": "int"}
     }
   },
+  "editor_compressionTitle": "输出分辨率",
+  "editor_compressionTooltip": "选择输出分辨率",
+  "editor_compressionUncompressed": "保持编辑工作尺寸，不执行压缩。",
+  "editor_compressionApplyOnDone": "工作画布保持原样；点击“完成”时使用 Pica Lanczos3 执行一次压缩。",
+  "editor_compressionSizeSummary": "工作尺寸 {workWidth}×{workHeight} → 输出尺寸 {targetWidth}×{targetHeight}",
+  "@editor_compressionSizeSummary": {
+    "placeholders": {
+      "workWidth": {"type": "int"},
+      "workHeight": {"type": "int"},
+      "targetWidth": {"type": "int"},
+      "targetHeight": {"type": "int"}
+    }
+  },
+  "editor_compressionNormalSummary": "Normal（约 1MP）为 {normalWidth}×{normalHeight}；最低档为 {minimumWidth}×{minimumHeight}。",
+  "@editor_compressionNormalSummary": {
+    "placeholders": {
+      "normalWidth": {"type": "int"},
+      "normalHeight": {"type": "int"},
+      "minimumWidth": {"type": "int"},
+      "minimumHeight": {"type": "int"}
+    }
+  },
+  "editor_compressionUnavailable": "当前工作画布已经低于最低压缩档，不能继续降低分辨率。",
+  "editor_compressionFocusLimited": "当前 Focused Inpaint 选区在更高分辨率下会超过请求面积上限，因此滑条上限已收紧。",
   "editor_focusRequestSummary": "外层裁剪 {outerWidth}×{outerHeight}，实际发送 {requestWidth}×{requestHeight}，预计 {cost} Anlas。",
   "@editor_focusRequestSummary": {
     "placeholders": {

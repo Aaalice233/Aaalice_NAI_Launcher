@@ -2193,6 +2193,46 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get editor_compressionTitle => '输出分辨率';
+
+  @override
+  String get editor_compressionTooltip => '选择输出分辨率';
+
+  @override
+  String get editor_compressionUncompressed => '保持编辑工作尺寸，不执行压缩。';
+
+  @override
+  String get editor_compressionApplyOnDone =>
+      '工作画布保持原样；点击“完成”时使用 Pica Lanczos3 执行一次压缩。';
+
+  @override
+  String editor_compressionSizeSummary(
+    int workWidth,
+    int workHeight,
+    int targetWidth,
+    int targetHeight,
+  ) {
+    return '工作尺寸 $workWidth×$workHeight → 输出尺寸 $targetWidth×$targetHeight';
+  }
+
+  @override
+  String editor_compressionNormalSummary(
+    int normalWidth,
+    int normalHeight,
+    int minimumWidth,
+    int minimumHeight,
+  ) {
+    return 'Normal（约 1MP）为 $normalWidth×$normalHeight；最低档为 $minimumWidth×$minimumHeight。';
+  }
+
+  @override
+  String get editor_compressionUnavailable => '当前工作画布已经低于最低压缩档，不能继续降低分辨率。';
+
+  @override
+  String get editor_compressionFocusLimited =>
+      '当前 Focused Inpaint 选区在更高分辨率下会超过请求面积上限，因此滑条上限已收紧。';
+
+  @override
   String editor_focusRequestSummary(
     int outerWidth,
     int outerHeight,

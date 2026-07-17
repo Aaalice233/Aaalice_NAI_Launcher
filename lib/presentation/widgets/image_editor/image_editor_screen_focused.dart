@@ -14,12 +14,7 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
       return null;
     }
 
-    final geometry = FocusedInpaintUtils.resolveGeometryForSelection(
-      sourceWidth: _state.canvasSize.width.round(),
-      sourceHeight: _state.canvasSize.height.round(),
-      selectionRect: focusAreaRect,
-      minContextMegaPixels: _minimumContextMegaPixels,
-    );
+    final geometry = _resolveFocusedGeometryForWorkRect(focusAreaRect);
     if (geometry == null) {
       return null;
     }
@@ -122,6 +117,7 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
                           _state.clearSelection(saveHistory: false);
                           _state.clearPreview();
                           _state.setToolById('rect_selection');
+                          _refreshCompressionPlan();
                         });
                       }
                     : null,
@@ -145,6 +141,7 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
                 _updateLayoutState(() {
                   _minimumContextMegaPixels = value;
                   _constrainCommittedFocusedSelection();
+                  _refreshCompressionPlan();
                 });
               },
             ),
@@ -213,9 +210,9 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
       return;
     }
 
+    final desiredScale = _compressionLinearScale;
     _updateLayoutState(() {
       _focusedInpaintEnabled = !_focusedInpaintEnabled;
-      _syncFocusedSelectionConstraint();
       if (_focusedInpaintEnabled) {
         if (!_focusedSelectionState.hasCommittedRect) {
           _state.setToolById('rect_selection');
@@ -226,6 +223,7 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
         _focusedSelectionState.clear();
         _state.setToolById('brush');
       }
+      _refreshCompressionPlan(desiredScale: desiredScale);
     });
   }
 
@@ -235,13 +233,7 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
       return;
     }
     _state.setRectSelectionConstraint((candidate, fixedAnchor) {
-      return FocusedInpaintUtils.constrainSelectionRect(
-            sourceWidth: _state.canvasSize.width.round(),
-            sourceHeight: _state.canvasSize.height.round(),
-            selectionRect: candidate,
-            minContextMegaPixels: _minimumContextMegaPixels,
-            fixedAnchor: fixedAnchor,
-          ) ??
+      return _constrainFocusedWorkRect(candidate, fixedAnchor: fixedAnchor) ??
           candidate;
     });
   }
@@ -249,12 +241,7 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
   void _constrainCommittedFocusedSelection() {
     final selection = _focusedSelectionState.committedRect;
     if (selection == null) return;
-    final constrained = FocusedInpaintUtils.constrainSelectionRect(
-      sourceWidth: _state.canvasSize.width.round(),
-      sourceHeight: _state.canvasSize.height.round(),
-      selectionRect: selection,
-      minContextMegaPixels: _minimumContextMegaPixels,
-    );
+    final constrained = _constrainFocusedWorkRect(selection);
     _focusedSelectionState.load(constrained);
   }
 
@@ -275,6 +262,7 @@ extension _ImageEditorScreenFocused on _ImageEditorScreenState {
     _state.clearSelection(saveHistory: false);
     _state.clearPreview();
     _state.setToolById('brush');
+    _refreshCompressionPlan();
     _state.requestUiUpdate();
     if (mounted) {
       _updateLayoutState(() {});
@@ -326,7 +314,7 @@ class _FocusedContextOverlayPainter extends CustomPainter {
 
   final CanvasController canvasController;
   final Rect focusAreaRect;
-  final FocusedInpaintCrop contextCrop;
+  final Rect contextCrop;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -334,16 +322,7 @@ class _FocusedContextOverlayPainter extends CustomPainter {
     final screenSelectionPath = (Path()..addRect(focusAreaRect)).transform(
       matrix,
     );
-    final screenContextPath =
-        (Path()..addRect(
-              Rect.fromLTWH(
-                contextCrop.x.toDouble(),
-                contextCrop.y.toDouble(),
-                contextCrop.width.toDouble(),
-                contextCrop.height.toDouble(),
-              ),
-            ))
-            .transform(matrix);
+    final screenContextPath = (Path()..addRect(contextCrop)).transform(matrix);
 
     FocusedOverlayPainter(
       contextPath: screenContextPath,
@@ -353,10 +332,7 @@ class _FocusedContextOverlayPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _FocusedContextOverlayPainter oldDelegate) {
-    return contextCrop.x != oldDelegate.contextCrop.x ||
-        contextCrop.y != oldDelegate.contextCrop.y ||
-        contextCrop.width != oldDelegate.contextCrop.width ||
-        contextCrop.height != oldDelegate.contextCrop.height ||
+    return contextCrop != oldDelegate.contextCrop ||
         focusAreaRect != oldDelegate.focusAreaRect ||
         canvasController != oldDelegate.canvasController;
   }

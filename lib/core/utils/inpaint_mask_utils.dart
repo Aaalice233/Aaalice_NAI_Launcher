@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' show Rect;
 import 'package:image/image.dart' as img;
 
 import '../models/image_generation_artifact.dart';
@@ -100,6 +101,115 @@ class InpaintMaskUtils {
       targetWidth,
       targetHeight,
     );
+  }
+
+  static Future<Uint8List> resizeMaskBytesAsync(
+    Uint8List bytes, {
+    required int targetWidth,
+    required int targetHeight,
+  }) {
+    return ComputeGate().runIsolate(
+      () => resizeMaskBytes(
+        bytes,
+        targetWidth: targetWidth,
+        targetHeight: targetHeight,
+      ),
+    );
+  }
+
+  static Uint8List resizeBinaryMask(
+    Uint8List source, {
+    required int sourceWidth,
+    required int sourceHeight,
+    required int targetWidth,
+    required int targetHeight,
+  }) {
+    if (sourceWidth <= 0 ||
+        sourceHeight <= 0 ||
+        targetWidth <= 0 ||
+        targetHeight <= 0 ||
+        source.length != sourceWidth * sourceHeight) {
+      throw ArgumentError('Invalid binary mask dimensions.');
+    }
+    if (sourceWidth == targetWidth && sourceHeight == targetHeight) {
+      return Uint8List.fromList(source);
+    }
+
+    final target = Uint8List(targetWidth * targetHeight);
+    var targetIndex = 0;
+    for (var y = 0; y < targetHeight; y++) {
+      final sourceY = (((y + 0.5) * sourceHeight) / targetHeight).floor().clamp(
+        0,
+        sourceHeight - 1,
+      );
+      for (var x = 0; x < targetWidth; x++) {
+        final sourceX = (((x + 0.5) * sourceWidth) / targetWidth).floor().clamp(
+          0,
+          sourceWidth - 1,
+        );
+        target[targetIndex++] = source[sourceY * sourceWidth + sourceX];
+      }
+    }
+    return target;
+  }
+
+  static Future<Uint8List> resizeBinaryMaskToPngAsync(
+    Uint8List source, {
+    required int sourceWidth,
+    required int sourceHeight,
+    required int targetWidth,
+    required int targetHeight,
+  }) {
+    return ComputeGate().runIsolate(() {
+      final resized = resizeBinaryMask(
+        source,
+        sourceWidth: sourceWidth,
+        sourceHeight: sourceHeight,
+        targetWidth: targetWidth,
+        targetHeight: targetHeight,
+      );
+      return encodeBinaryMask(resized, targetWidth, targetHeight);
+    });
+  }
+
+  static Future<Uint8List> createRectMaskBytesAsync({
+    required int width,
+    required int height,
+    required Rect rect,
+  }) {
+    return ComputeGate().runIsolate(
+      () => createRectMaskBytes(width: width, height: height, rect: rect),
+    );
+  }
+
+  static Uint8List createRectMaskBytes({
+    required int width,
+    required int height,
+    required Rect rect,
+  }) {
+    if (width <= 0 || height <= 0) {
+      throw ArgumentError('Mask dimensions must be positive.');
+    }
+    final binaryMask = Uint8List(width * height);
+    final left = rect.left.floor().clamp(0, width);
+    final top = rect.top.floor().clamp(0, height);
+    final right = rect.right.ceil().clamp(0, width);
+    final bottom = rect.bottom.ceil().clamp(0, height);
+    for (var y = top; y < bottom; y++) {
+      binaryMask.fillRange(y * width + left, y * width + right, 1);
+    }
+    return encodeBinaryMask(binaryMask, width, height);
+  }
+
+  static Uint8List encodeBinaryMask(
+    Uint8List binaryMask,
+    int width,
+    int height,
+  ) {
+    if (binaryMask.length != width * height) {
+      throw ArgumentError('Binary mask length does not match dimensions.');
+    }
+    return _encodeBinaryMask(binaryMask, width, height);
   }
 
   static bool hasMaskedPixels(Uint8List bytes) {

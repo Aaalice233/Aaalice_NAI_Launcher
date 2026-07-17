@@ -4180,6 +4180,64 @@ abstract class AppLocalizations {
   /// **'Actual send area: {width}×{height}. Current generation settings will cost {cost} Anlas.'**
   String editor_focusAnlasWarning(int width, int height, int cost);
 
+  /// No description provided for @editor_compressionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Output resolution'**
+  String get editor_compressionTitle;
+
+  /// No description provided for @editor_compressionTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose output resolution'**
+  String get editor_compressionTooltip;
+
+  /// No description provided for @editor_compressionUncompressed.
+  ///
+  /// In en, this message translates to:
+  /// **'Original work resolution; no compression will be applied.'**
+  String get editor_compressionUncompressed;
+
+  /// No description provided for @editor_compressionApplyOnDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Pica Lanczos3 compression runs once when you press Done. The work canvas stays unchanged.'**
+  String get editor_compressionApplyOnDone;
+
+  /// No description provided for @editor_compressionSizeSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Work {workWidth}×{workHeight} → output {targetWidth}×{targetHeight}'**
+  String editor_compressionSizeSummary(
+    int workWidth,
+    int workHeight,
+    int targetWidth,
+    int targetHeight,
+  );
+
+  /// No description provided for @editor_compressionNormalSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Normal (about 1 MP): {normalWidth}×{normalHeight}. Lowest: {minimumWidth}×{minimumHeight}.'**
+  String editor_compressionNormalSummary(
+    int normalWidth,
+    int normalHeight,
+    int minimumWidth,
+    int minimumHeight,
+  );
+
+  /// No description provided for @editor_compressionUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This work canvas is already below the lowest compression step.'**
+  String get editor_compressionUnavailable;
+
+  /// No description provided for @editor_compressionFocusLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Higher resolutions are unavailable because the current Focused Inpaint selection would exceed the request area limit.'**
+  String get editor_compressionFocusLimited;
+
   /// No description provided for @editor_focusRequestSummary.
   ///
   /// In en, this message translates to:

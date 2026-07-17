@@ -495,6 +495,41 @@ void main() {
     );
 
     test(
+      'applyInpaintEditorResult preserves an explicit editor compression target',
+      () {
+        final controller = container.read(
+          imageWorkflowControllerProvider.notifier,
+        );
+        final source = _validImageBytes(width: 1344, height: 640);
+        final mask = _validMaskBytes(width: 1344, height: 640);
+
+        controller.applyInpaintEditorResult(
+          sourceImage: source,
+          sourceWidth: 1344,
+          sourceHeight: 640,
+          sourceIsOutpaint: false,
+          useExactSourceDimensions: true,
+          maskImage: mask,
+          focusedInpaintEnabled: true,
+          focusedSelectionRect: const Rect.fromLTWH(128, 64, 640, 320),
+          minimumContextMegaPixels: 88,
+        );
+
+        final workflow = container.read(imageWorkflowControllerProvider);
+        final params = container.read(generationParamsNotifierProvider);
+        expect((workflow.sourceWidth, workflow.sourceHeight), (1344, 640));
+        expect(
+          (workflow.sourceImageWidth, workflow.sourceImageHeight),
+          (1344, 640),
+        );
+        expect((params.width, params.height), (1344, 640));
+        expect(params.sourceImage, same(source));
+        expect(params.maskImage, same(mask));
+        expect(workflow.focusedInpaintEnabled, isTrue);
+      },
+    );
+
+    test(
       'applyInpaintEditorResult requires dimensions with outpaint source',
       () {
         final controller = container.read(

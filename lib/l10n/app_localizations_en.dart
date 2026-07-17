@@ -2266,6 +2266,48 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get editor_compressionTitle => 'Output resolution';
+
+  @override
+  String get editor_compressionTooltip => 'Choose output resolution';
+
+  @override
+  String get editor_compressionUncompressed =>
+      'Original work resolution; no compression will be applied.';
+
+  @override
+  String get editor_compressionApplyOnDone =>
+      'Pica Lanczos3 compression runs once when you press Done. The work canvas stays unchanged.';
+
+  @override
+  String editor_compressionSizeSummary(
+    int workWidth,
+    int workHeight,
+    int targetWidth,
+    int targetHeight,
+  ) {
+    return 'Work $workWidth×$workHeight → output $targetWidth×$targetHeight';
+  }
+
+  @override
+  String editor_compressionNormalSummary(
+    int normalWidth,
+    int normalHeight,
+    int minimumWidth,
+    int minimumHeight,
+  ) {
+    return 'Normal (about 1 MP): $normalWidth×$normalHeight. Lowest: $minimumWidth×$minimumHeight.';
+  }
+
+  @override
+  String get editor_compressionUnavailable =>
+      'This work canvas is already below the lowest compression step.';
+
+  @override
+  String get editor_compressionFocusLimited =>
+      'Higher resolutions are unavailable because the current Focused Inpaint selection would exceed the request area limit.';
+
+  @override
   String editor_focusRequestSummary(
     int outerWidth,
     int outerHeight,

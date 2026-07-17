@@ -2222,6 +2222,47 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get editor_compressionTitle => '出力解像度';
+
+  @override
+  String get editor_compressionTooltip => '出力解像度を選択';
+
+  @override
+  String get editor_compressionUncompressed => '編集作業サイズを維持し、圧縮は行いません。';
+
+  @override
+  String get editor_compressionApplyOnDone =>
+      '作業キャンバスは変更されません。「完了」を押したときに Pica Lanczos3 で 1 回だけ圧縮します。';
+
+  @override
+  String editor_compressionSizeSummary(
+    int workWidth,
+    int workHeight,
+    int targetWidth,
+    int targetHeight,
+  ) {
+    return '作業サイズ $workWidth×$workHeight → 出力サイズ $targetWidth×$targetHeight';
+  }
+
+  @override
+  String editor_compressionNormalSummary(
+    int normalWidth,
+    int normalHeight,
+    int minimumWidth,
+    int minimumHeight,
+  ) {
+    return 'Normal（約 1 MP）: $normalWidth×$normalHeight。最低: $minimumWidth×$minimumHeight。';
+  }
+
+  @override
+  String get editor_compressionUnavailable =>
+      '作業キャンバスはすでに最低圧縮段階より小さいため、解像度を下げられません。';
+
+  @override
+  String get editor_compressionFocusLimited =>
+      '現在の Focused Inpaint 選択範囲では、これ以上の解像度がリクエスト面積上限を超えるため、スライダー上限を制限しています。';
+
+  @override
   String editor_focusRequestSummary(
     int outerWidth,
     int outerHeight,

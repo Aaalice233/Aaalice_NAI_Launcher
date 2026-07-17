@@ -4,6 +4,7 @@ import 'dart:ui' show Offset, Rect, Size;
 
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
+import 'package:nai_launcher/core/utils/pica_lanczos_resizer.dart';
 
 class OutpaintEdges {
   final int left;
@@ -166,23 +167,23 @@ class OutpaintResolvedGeometry {
 
   @override
   int get hashCode => Object.hashAll([
-        sourceWidth,
-        sourceHeight,
-        requestedWidth,
-        requestedHeight,
-        width,
-        height,
-        sourceOffsetX,
-        sourceOffsetY,
-        requestedEdges.left,
-        requestedEdges.top,
-        requestedEdges.right,
-        requestedEdges.bottom,
-        appliedEdges.left,
-        appliedEdges.top,
-        appliedEdges.right,
-        appliedEdges.bottom,
-      ]);
+    sourceWidth,
+    sourceHeight,
+    requestedWidth,
+    requestedHeight,
+    width,
+    height,
+    sourceOffsetX,
+    sourceOffsetY,
+    requestedEdges.left,
+    requestedEdges.top,
+    requestedEdges.right,
+    requestedEdges.bottom,
+    appliedEdges.left,
+    appliedEdges.top,
+    appliedEdges.right,
+    appliedEdges.bottom,
+  ]);
 }
 
 class OutpaintExpansionResult {
@@ -305,11 +306,11 @@ class OutpaintVirtualFrame {
       frameBottom != sourceHeight;
 
   Rect get sourceDestinationRect => Rect.fromLTWH(
-        sourceDrawOffset.dx,
-        sourceDrawOffset.dy,
-        sourceWidth.toDouble(),
-        sourceHeight.toDouble(),
-      );
+    sourceDrawOffset.dx,
+    sourceDrawOffset.dy,
+    sourceWidth.toDouble(),
+    sourceHeight.toDouble(),
+  );
 
   List<Rect> get outpaintMaskRects {
     final rects = <Rect>[];
@@ -328,27 +329,13 @@ class OutpaintVirtualFrame {
       final top = (sourceRect.bottom - 1) < canvasRect.top
           ? canvasRect.top
           : sourceRect.bottom - 1;
-      rects.add(
-        Rect.fromLTRB(
-          0,
-          top,
-          canvasRect.right,
-          canvasRect.bottom,
-        ),
-      );
+      rects.add(Rect.fromLTRB(0, top, canvasRect.right, canvasRect.bottom));
     }
     if (sourceRect.left > 0) {
       final right = (sourceRect.left + 1) > canvasRect.right
           ? canvasRect.right
           : sourceRect.left + 1;
-      rects.add(
-        Rect.fromLTRB(
-          0,
-          sourceRect.top,
-          right,
-          sourceRect.bottom,
-        ),
-      );
+      rects.add(Rect.fromLTRB(0, sourceRect.top, right, sourceRect.bottom));
     }
     if (sourceRect.right < canvasRect.right) {
       final left = (sourceRect.right - 1) < canvasRect.left
@@ -427,8 +414,10 @@ class InpaintOutpaintUtils {
     if (decodedSource == null) {
       throw const FormatException('Unable to decode source image');
     }
-    final source =
-        decodedSource.convert(format: img.Format.uint8, numChannels: 4);
+    final source = decodedSource.convert(
+      format: img.Format.uint8,
+      numChannels: 4,
+    );
     final geometry = resolveFrameGeometry(
       sourceWidth: source.width,
       sourceHeight: source.height,
@@ -502,11 +491,15 @@ class InpaintOutpaintUtils {
   static Future<OutpaintVirtualMaterializeResult> materializeVirtualFrameAsync({
     required Uint8List sourceImage,
     required OutpaintVirtualFrame frame,
+    int? targetWidth,
+    int? targetHeight,
   }) {
     return Isolate.run(
       () => materializeVirtualFrame(
         sourceImage: sourceImage,
         frame: frame,
+        targetWidth: targetWidth,
+        targetHeight: targetHeight,
       ),
     );
   }
@@ -514,13 +507,17 @@ class InpaintOutpaintUtils {
   static OutpaintVirtualMaterializeResult materializeVirtualFrame({
     required Uint8List sourceImage,
     required OutpaintVirtualFrame frame,
+    int? targetWidth,
+    int? targetHeight,
   }) {
     final decodedSource = _decodeSourceImage(sourceImage);
     if (decodedSource == null) {
       throw const FormatException('Unable to decode source image');
     }
-    final source =
-        decodedSource.convert(format: img.Format.uint8, numChannels: 4);
+    final source = decodedSource.convert(
+      format: img.Format.uint8,
+      numChannels: 4,
+    );
     if (source.width != frame.sourceWidth ||
         source.height != frame.sourceHeight) {
       throw ArgumentError(
@@ -552,21 +549,34 @@ class InpaintOutpaintUtils {
           continue;
         }
         final pixel = source.getPixel(sourceX, sourceY);
-        output.setPixelRgba(
-          x,
-          y,
-          pixel.r,
-          pixel.g,
-          pixel.b,
-          pixel.a,
-        );
+        output.setPixelRgba(x, y, pixel.r, pixel.g, pixel.b, pixel.a);
       }
     }
 
+    if ((targetWidth == null) != (targetHeight == null)) {
+      throw ArgumentError('Both target dimensions must be provided together.');
+    }
+    final outputWidth = targetWidth ?? frameWidth;
+    final outputHeight = targetHeight ?? frameHeight;
+    if (outputWidth <= 0 || outputHeight <= 0) {
+      throw ArgumentError('Target dimensions must be positive.');
+    }
+    final encodedImage =
+        outputWidth == frameWidth && outputHeight == frameHeight
+        ? output
+        : PicaLanczosResizer.resizeImage(
+            output,
+            width: outputWidth,
+            height: outputHeight,
+          );
+
+    final encodedBytes = targetWidth == null
+        ? img.encodePng(encodedImage)
+        : img.encodePng(encodedImage, level: 1);
     return OutpaintVirtualMaterializeResult(
-      sourceImage: Uint8List.fromList(img.encodePng(output)),
-      width: frameWidth,
-      height: frameHeight,
+      sourceImage: Uint8List.fromList(encodedBytes),
+      width: outputWidth,
+      height: outputHeight,
     );
   }
 
@@ -601,19 +611,19 @@ class InpaintOutpaintUtils {
 
     final appliedFrameLeft =
         horizontalSnapTarget == OutpaintHorizontalSnapTarget.left
-            ? requestedFrameRight - width
-            : requestedFrameLeft;
+        ? requestedFrameRight - width
+        : requestedFrameLeft;
     final appliedFrameRight =
         horizontalSnapTarget == OutpaintHorizontalSnapTarget.left
-            ? requestedFrameRight
-            : requestedFrameLeft + width;
+        ? requestedFrameRight
+        : requestedFrameLeft + width;
     final appliedFrameTop = verticalSnapTarget == OutpaintVerticalSnapTarget.top
         ? requestedFrameBottom - height
         : requestedFrameTop;
     final appliedFrameBottom =
         verticalSnapTarget == OutpaintVerticalSnapTarget.top
-            ? requestedFrameBottom
-            : requestedFrameTop + height;
+        ? requestedFrameBottom
+        : requestedFrameTop + height;
 
     if (validateMaxDimension) {
       _validateExpandedDimensions(width, height);
@@ -624,8 +634,9 @@ class InpaintOutpaintUtils {
     final appliedExpansionEdges = OutpaintEdges(
       left: appliedFrameLeft < 0 ? -appliedFrameLeft : 0,
       top: appliedFrameTop < 0 ? -appliedFrameTop : 0,
-      right:
-          appliedFrameRight > sourceWidth ? appliedFrameRight - sourceWidth : 0,
+      right: appliedFrameRight > sourceWidth
+          ? appliedFrameRight - sourceWidth
+          : 0,
       bottom: appliedFrameBottom > sourceHeight
           ? appliedFrameBottom - sourceHeight
           : 0,
@@ -633,8 +644,9 @@ class InpaintOutpaintUtils {
     final appliedCropEdges = OutpaintEdges(
       left: appliedFrameLeft > 0 ? appliedFrameLeft : 0,
       top: appliedFrameTop > 0 ? appliedFrameTop : 0,
-      right:
-          appliedFrameRight < sourceWidth ? sourceWidth - appliedFrameRight : 0,
+      right: appliedFrameRight < sourceWidth
+          ? sourceWidth - appliedFrameRight
+          : 0,
       bottom: appliedFrameBottom < sourceHeight
           ? sourceHeight - appliedFrameBottom
           : 0,
@@ -705,8 +717,10 @@ class InpaintOutpaintUtils {
     if (decodedSource == null) {
       throw const FormatException('Unable to decode source image');
     }
-    final source =
-        decodedSource.convert(format: img.Format.uint8, numChannels: 4);
+    final source = decodedSource.convert(
+      format: img.Format.uint8,
+      numChannels: 4,
+    );
     final geometry = resolveExpansionGeometry(
       sourceWidth: source.width,
       sourceHeight: source.height,
@@ -1017,14 +1031,7 @@ class InpaintOutpaintUtils {
           continue;
         }
         final pixel = source.getPixel(sourceX, sourceY);
-        resized.setPixelRgba(
-          x,
-          y,
-          pixel.r,
-          pixel.g,
-          pixel.b,
-          pixel.a,
-        );
+        resized.setPixelRgba(x, y, pixel.r, pixel.g, pixel.b, pixel.a);
       }
     }
 
@@ -1048,7 +1055,8 @@ class InpaintOutpaintUtils {
 
     for (var y = 0; y < height; y++) {
       for (var x = 0; x < width; x++) {
-        final outsideSource = x < sourceLeft ||
+        final outsideSource =
+            x < sourceLeft ||
             x >= sourceRight ||
             y < sourceTop ||
             y >= sourceBottom;

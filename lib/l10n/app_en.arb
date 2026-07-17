@@ -1017,6 +1017,30 @@
       "cost": {"type": "int"}
     }
   },
+  "editor_compressionTitle": "Output resolution",
+  "editor_compressionTooltip": "Choose output resolution",
+  "editor_compressionUncompressed": "Original work resolution; no compression will be applied.",
+  "editor_compressionApplyOnDone": "Pica Lanczos3 compression runs once when you press Done. The work canvas stays unchanged.",
+  "editor_compressionSizeSummary": "Work {workWidth}×{workHeight} → output {targetWidth}×{targetHeight}",
+  "@editor_compressionSizeSummary": {
+    "placeholders": {
+      "workWidth": {"type": "int"},
+      "workHeight": {"type": "int"},
+      "targetWidth": {"type": "int"},
+      "targetHeight": {"type": "int"}
+    }
+  },
+  "editor_compressionNormalSummary": "Normal (about 1 MP): {normalWidth}×{normalHeight}. Lowest: {minimumWidth}×{minimumHeight}.",
+  "@editor_compressionNormalSummary": {
+    "placeholders": {
+      "normalWidth": {"type": "int"},
+      "normalHeight": {"type": "int"},
+      "minimumWidth": {"type": "int"},
+      "minimumHeight": {"type": "int"}
+    }
+  },
+  "editor_compressionUnavailable": "This work canvas is already below the lowest compression step.",
+  "editor_compressionFocusLimited": "Higher resolutions are unavailable because the current Focused Inpaint selection would exceed the request area limit.",
   "editor_focusRequestSummary": "Outer crop {outerWidth}×{outerHeight}, request {requestWidth}×{requestHeight}, estimated {cost} Anlas.",
   "@editor_focusRequestSummary": {
     "placeholders": {
