@@ -220,6 +220,12 @@ class StorageKeys {
       'prompt_assistant_config_json';
   static const String promptAssistantApiKeyPrefix = 'prompt_assistant_api_key_';
 
+  // 在线画廊凭据（系统安全存储）
+  static const String onlineGalleryDanbooruCredentialsV1 =
+      'online_gallery_danbooru_credentials_v1';
+  static const String onlineGalleryGelbooruCredentialsV1 =
+      'online_gallery_gelbooru_credentials_v1';
+
   // Danbooru 画师同步设置
   // 分类阈值配置（V2新增）
   static const String danbooruCategoryThresholds =
