@@ -485,6 +485,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   /// 标签区域
   Widget _buildTagsSection(ThemeData theme) {
     final translationService = ref.watch(tagTranslationServiceProvider);
+    final generalTags = _generalDisplayTags(widget.post);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -526,10 +527,10 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
               onTagTap: _handleTagTap,
             ),
           // 通用标签
-          if (widget.post.generalTags.isNotEmpty)
+          if (generalTags.isNotEmpty)
             _TagSection(
               title: context.l10n.onlineGallery_general,
-              tags: widget.post.generalTags,
+              tags: generalTags,
               color: TagColors.general,
               translationService: translationService,
               onTagTap: _handleTagTap,
@@ -783,6 +784,19 @@ class _InfoRow extends StatelessWidget {
       ],
     );
   }
+}
+
+List<String> _generalDisplayTags(DanbooruPost post) {
+  final categorizedTags = <String>{
+    ...post.artistTags,
+    ...post.characterTags,
+    ...post.copyrightTags,
+    ...post.generalTags,
+    ...post.metaTags,
+  };
+  final displayTags = <String>{...post.generalTags};
+  displayTags.addAll(post.tags.where((tag) => !categorizedTags.contains(tag)));
+  return displayTags.toList();
 }
 
 /// 标签分类组件

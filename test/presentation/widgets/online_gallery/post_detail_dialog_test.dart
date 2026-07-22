@@ -74,6 +74,36 @@ void main() {
     expect(find.byTooltip('Unfavorite'), findsNothing);
   });
 
+  testWidgets('Gelbooru detail displays unclassified post tags', (
+    tester,
+  ) async {
+    const post = DanbooruPost(
+      id: 204,
+      site: 'gelbooru',
+      previewFileUrl: 'https://img4.gelbooru.com/thumbnail.jpg',
+      tagString: 'solo blue_hair',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+        ],
+        child: const MaterialApp(
+          locale: Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: PostDetailDialog(post: post),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('General (2)'), findsOneWidget);
+    expect(find.text('solo'), findsOneWidget);
+    expect(find.text('blue hair'), findsOneWidget);
+  });
+
   testWidgets(
     'Gelbooru favorite detail shows a non-clickable read-only marker',
     (tester) async {

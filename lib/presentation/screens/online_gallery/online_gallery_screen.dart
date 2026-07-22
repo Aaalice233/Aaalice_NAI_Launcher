@@ -1247,7 +1247,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       final nextIndex = currentIndex + i;
       if (nextIndex < state.posts.length) {
         final nextPost = state.posts[nextIndex];
-        if (nextPost.previewUrl.isNotEmpty) {
+        if (nextPost.previewUrl.isNotEmpty &&
+            shouldPrefetchOnlineGalleryImage(nextPost.previewUrl)) {
           precacheImage(
             CachedNetworkImageProvider(nextPost.previewUrl),
             context,
