@@ -3364,6 +3364,53 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_last30Days => '過去 30 日間';
 
   @override
+  String get onlineGallery_configureGelbooruApi => 'Gelbooru API を設定';
+
+  @override
+  String get onlineGallery_gelbooruApiReady => 'Gelbooru API は検証済みです';
+
+  @override
+  String get onlineGallery_gelbooruApiInvalid => 'Gelbooru 認証情報が無効です';
+
+  @override
+  String get onlineGallery_gelbooruCredentialsRequired =>
+      'ウェブサイトのお気に入りを表示するには、Gelbooru の User ID と API Key を設定してください。';
+
+  @override
+  String get onlineGallery_gelbooruCredentialsInvalid =>
+      'Gelbooru 認証情報が無効になりました。再設定してください。';
+
+  @override
+  String get onlineGallery_gelbooruRateLimited =>
+      'Gelbooru のリクエスト回数が多すぎます。しばらくしてから再試行してください。';
+
+  @override
+  String get onlineGallery_gelbooruTimeout =>
+      'Gelbooru リクエストがタイムアウトしました。ネットワーク接続を確認してください。';
+
+  @override
+  String get onlineGallery_gelbooruServerError => 'Gelbooru サーバーは一時的に利用できません。';
+
+  @override
+  String get onlineGallery_gelbooruNetworkError =>
+      'Gelbooru に接続できません。ネットワークまたはプロキシ設定を確認してください。';
+
+  @override
+  String get onlineGallery_gelbooruMalformedResponse =>
+      'Gelbooru から解析できないデータが返されました。';
+
+  @override
+  String get onlineGallery_gelbooruRequestFailed =>
+      'Gelbooru リクエストに失敗しました。しばらくしてから再試行してください。';
+
+  @override
+  String get onlineGallery_gelbooruReadOnly => '読み取り専用のお気に入り';
+
+  @override
+  String get onlineGallery_gelbooruFavoritesSortHint =>
+      '投稿 ID の新しい順です。ウェブサイトのお気に入り登録時刻順とは異なる場合があります。';
+
+  @override
   String get tooltip_randomPrompt => 'ランダムプロンプト (長押しして設定)';
 
   @override
@@ -3505,6 +3552,69 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get danbooru_loginSuccess => 'ログインに成功しました';
+
+  @override
+  String get gelbooru_configureTitle => 'Gelbooru API を設定';
+
+  @override
+  String get gelbooru_configureHint =>
+      'Gelbooru のアカウント設定に表示される User ID と API Key を入力してください。パスワードやブラウザー Cookie は収集しません。';
+
+  @override
+  String get gelbooru_userId => 'User ID';
+
+  @override
+  String get gelbooru_userIdHint => '正の整数の User ID を入力';
+
+  @override
+  String get gelbooru_userIdRequired => '有効な正の整数の User ID を入力してください';
+
+  @override
+  String get gelbooru_apiKeyHint => 'API Key を入力';
+
+  @override
+  String get gelbooru_apiKeyRequired => 'API Key を入力してください';
+
+  @override
+  String get gelbooru_openAccountSettings => 'Gelbooru のアカウント設定を開く';
+
+  @override
+  String get gelbooru_save => '検証して保存';
+
+  @override
+  String get gelbooru_saved => 'Gelbooru 認証情報を保存しました';
+
+  @override
+  String get gelbooru_removeCredentials => '認証情報を削除';
+
+  @override
+  String get gelbooru_invalidInput => '有効な User ID と API Key を入力してください。';
+
+  @override
+  String get gelbooru_invalidCredentials =>
+      'Gelbooru に認証情報を拒否されました。User ID と API Key を確認してください。';
+
+  @override
+  String get gelbooru_rateLimited => 'リクエスト回数が多すぎます。しばらくしてから再試行してください。';
+
+  @override
+  String get gelbooru_timeout => '検証がタイムアウトしました。ネットワーク接続を確認してください。';
+
+  @override
+  String get gelbooru_serverError => 'Gelbooru サーバーは一時的に利用できません。';
+
+  @override
+  String get gelbooru_networkError =>
+      'Gelbooru に接続できません。ネットワークまたはプロキシ設定を確認してください。';
+
+  @override
+  String get gelbooru_malformedResponse => 'Gelbooru から解析できないデータが返されました。';
+
+  @override
+  String get gelbooru_storageError => 'Gelbooru 認証情報を安全に保存または読み取れませんでした。';
+
+  @override
+  String get gelbooru_unknownError => 'Gelbooru の検証に失敗しました。しばらくしてから再試行してください。';
 
   @override
   String get weight_title => 'ウェイト';

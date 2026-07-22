@@ -6224,6 +6224,84 @@ abstract class AppLocalizations {
   /// **'Last 30 Days'**
   String get onlineGallery_last30Days;
 
+  /// No description provided for @onlineGallery_configureGelbooruApi.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure Gelbooru API'**
+  String get onlineGallery_configureGelbooruApi;
+
+  /// No description provided for @onlineGallery_gelbooruApiReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru API verified'**
+  String get onlineGallery_gelbooruApiReady;
+
+  /// No description provided for @onlineGallery_gelbooruApiInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru credentials expired'**
+  String get onlineGallery_gelbooruApiInvalid;
+
+  /// No description provided for @onlineGallery_gelbooruCredentialsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure your Gelbooru User ID and API Key to view website favorites.'**
+  String get onlineGallery_gelbooruCredentialsRequired;
+
+  /// No description provided for @onlineGallery_gelbooruCredentialsInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Gelbooru credentials are no longer valid. Configure them again.'**
+  String get onlineGallery_gelbooruCredentialsInvalid;
+
+  /// No description provided for @onlineGallery_gelbooruRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru is rate limiting requests. Try again later.'**
+  String get onlineGallery_gelbooruRateLimited;
+
+  /// No description provided for @onlineGallery_gelbooruTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'The Gelbooru request timed out. Check your network connection.'**
+  String get onlineGallery_gelbooruTimeout;
+
+  /// No description provided for @onlineGallery_gelbooruServerError.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru is temporarily unavailable. Try again later.'**
+  String get onlineGallery_gelbooruServerError;
+
+  /// No description provided for @onlineGallery_gelbooruNetworkError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not connect to Gelbooru. Check your network or proxy settings.'**
+  String get onlineGallery_gelbooruNetworkError;
+
+  /// No description provided for @onlineGallery_gelbooruMalformedResponse.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru returned data that could not be parsed.'**
+  String get onlineGallery_gelbooruMalformedResponse;
+
+  /// No description provided for @onlineGallery_gelbooruRequestFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The Gelbooru request failed. Try again later.'**
+  String get onlineGallery_gelbooruRequestFailed;
+
+  /// No description provided for @onlineGallery_gelbooruReadOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-only favorites'**
+  String get onlineGallery_gelbooruReadOnly;
+
+  /// No description provided for @onlineGallery_gelbooruFavoritesSortHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Sorted by post ID, newest first. This may differ from website favorite-time order.'**
+  String get onlineGallery_gelbooruFavoritesSortHint;
+
   /// No description provided for @tooltip_randomPrompt.
   ///
   /// In en, this message translates to:
@@ -6493,6 +6571,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Login successful'**
   String get danbooru_loginSuccess;
+
+  /// No description provided for @gelbooru_configureTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure Gelbooru API'**
+  String get gelbooru_configureTitle;
+
+  /// No description provided for @gelbooru_configureHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the User ID and API Key shown in your Gelbooru account settings. The app does not collect your password or browser cookies.'**
+  String get gelbooru_configureHint;
+
+  /// No description provided for @gelbooru_userId.
+  ///
+  /// In en, this message translates to:
+  /// **'User ID'**
+  String get gelbooru_userId;
+
+  /// No description provided for @gelbooru_userIdHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a positive numeric User ID'**
+  String get gelbooru_userIdHint;
+
+  /// No description provided for @gelbooru_userIdRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid positive numeric User ID'**
+  String get gelbooru_userIdRequired;
+
+  /// No description provided for @gelbooru_apiKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter API Key'**
+  String get gelbooru_apiKeyHint;
+
+  /// No description provided for @gelbooru_apiKeyRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an API Key'**
+  String get gelbooru_apiKeyRequired;
+
+  /// No description provided for @gelbooru_openAccountSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Gelbooru account settings'**
+  String get gelbooru_openAccountSettings;
+
+  /// No description provided for @gelbooru_save.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify and Save'**
+  String get gelbooru_save;
+
+  /// No description provided for @gelbooru_saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru credentials saved'**
+  String get gelbooru_saved;
+
+  /// No description provided for @gelbooru_removeCredentials.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Credentials'**
+  String get gelbooru_removeCredentials;
+
+  /// No description provided for @gelbooru_invalidInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid User ID and API Key.'**
+  String get gelbooru_invalidInput;
+
+  /// No description provided for @gelbooru_invalidCredentials.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru rejected these credentials. Check the User ID and API Key.'**
+  String get gelbooru_invalidCredentials;
+
+  /// No description provided for @gelbooru_rateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many requests. Try again later.'**
+  String get gelbooru_rateLimited;
+
+  /// No description provided for @gelbooru_timeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification timed out. Check your network connection.'**
+  String get gelbooru_timeout;
+
+  /// No description provided for @gelbooru_serverError.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru is temporarily unavailable.'**
+  String get gelbooru_serverError;
+
+  /// No description provided for @gelbooru_networkError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not connect to Gelbooru. Check your network or proxy settings.'**
+  String get gelbooru_networkError;
+
+  /// No description provided for @gelbooru_malformedResponse.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru returned data that could not be parsed.'**
+  String get gelbooru_malformedResponse;
+
+  /// No description provided for @gelbooru_storageError.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru credentials could not be stored or read securely.'**
+  String get gelbooru_storageError;
+
+  /// No description provided for @gelbooru_unknownError.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru verification failed. Try again later.'**
+  String get gelbooru_unknownError;
 
   /// No description provided for @weight_title.
   ///

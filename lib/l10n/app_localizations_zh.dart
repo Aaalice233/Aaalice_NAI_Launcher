@@ -3325,6 +3325,49 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_last30Days => '最近30天';
 
   @override
+  String get onlineGallery_configureGelbooruApi => '配置 Gelbooru API';
+
+  @override
+  String get onlineGallery_gelbooruApiReady => 'Gelbooru API 已验证';
+
+  @override
+  String get onlineGallery_gelbooruApiInvalid => 'Gelbooru 凭据已失效';
+
+  @override
+  String get onlineGallery_gelbooruCredentialsRequired =>
+      '请先配置 Gelbooru User ID 和 API Key 以查看网站收藏。';
+
+  @override
+  String get onlineGallery_gelbooruCredentialsInvalid =>
+      'Gelbooru 凭据已失效，请重新配置。';
+
+  @override
+  String get onlineGallery_gelbooruRateLimited => 'Gelbooru 请求过于频繁，请稍后再试。';
+
+  @override
+  String get onlineGallery_gelbooruTimeout => 'Gelbooru 请求超时，请检查网络连接。';
+
+  @override
+  String get onlineGallery_gelbooruServerError => 'Gelbooru 服务器暂时不可用，请稍后再试。';
+
+  @override
+  String get onlineGallery_gelbooruNetworkError =>
+      '无法连接 Gelbooru，请检查网络设置或代理配置。';
+
+  @override
+  String get onlineGallery_gelbooruMalformedResponse => 'Gelbooru 返回了无法解析的数据。';
+
+  @override
+  String get onlineGallery_gelbooruRequestFailed => 'Gelbooru 请求失败，请稍后重试。';
+
+  @override
+  String get onlineGallery_gelbooruReadOnly => '只读收藏';
+
+  @override
+  String get onlineGallery_gelbooruFavoritesSortHint =>
+      '按帖子 ID 从新到旧排列，不保证与网站收藏时间顺序一致。';
+
+  @override
   String get tooltip_randomPrompt => '随机提示词 (长按配置)';
 
   @override
@@ -3466,6 +3509,68 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get danbooru_loginSuccess => '登录成功';
+
+  @override
+  String get gelbooru_configureTitle => '配置 Gelbooru API';
+
+  @override
+  String get gelbooru_configureHint =>
+      '输入 Gelbooru 账户设置页提供的 User ID 和 API Key。应用不会收集密码或浏览器 Cookie。';
+
+  @override
+  String get gelbooru_userId => 'User ID';
+
+  @override
+  String get gelbooru_userIdHint => '输入正整数 User ID';
+
+  @override
+  String get gelbooru_userIdRequired => '请输入有效的正整数 User ID';
+
+  @override
+  String get gelbooru_apiKeyHint => '输入 API Key';
+
+  @override
+  String get gelbooru_apiKeyRequired => '请输入 API Key';
+
+  @override
+  String get gelbooru_openAccountSettings => '打开 Gelbooru 账户设置';
+
+  @override
+  String get gelbooru_save => '验证并保存';
+
+  @override
+  String get gelbooru_saved => 'Gelbooru 凭据已保存';
+
+  @override
+  String get gelbooru_removeCredentials => '移除凭据';
+
+  @override
+  String get gelbooru_invalidInput => '请输入有效的 User ID 和 API Key。';
+
+  @override
+  String get gelbooru_invalidCredentials =>
+      'Gelbooru 拒绝了这些凭据，请检查 User ID 和 API Key。';
+
+  @override
+  String get gelbooru_rateLimited => '请求过于频繁，请稍后再试。';
+
+  @override
+  String get gelbooru_timeout => '验证超时，请检查网络连接。';
+
+  @override
+  String get gelbooru_serverError => 'Gelbooru 服务器暂时不可用。';
+
+  @override
+  String get gelbooru_networkError => '无法连接 Gelbooru，请检查网络设置或代理配置。';
+
+  @override
+  String get gelbooru_malformedResponse => 'Gelbooru 返回了无法解析的数据。';
+
+  @override
+  String get gelbooru_storageError => '无法安全保存或读取 Gelbooru 凭据。';
+
+  @override
+  String get gelbooru_unknownError => 'Gelbooru 验证失败，请稍后重试。';
 
   @override
   String get weight_title => '权重';

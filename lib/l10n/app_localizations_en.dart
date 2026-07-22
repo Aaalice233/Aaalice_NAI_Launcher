@@ -3435,6 +3435,54 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_last30Days => 'Last 30 Days';
 
   @override
+  String get onlineGallery_configureGelbooruApi => 'Configure Gelbooru API';
+
+  @override
+  String get onlineGallery_gelbooruApiReady => 'Gelbooru API verified';
+
+  @override
+  String get onlineGallery_gelbooruApiInvalid => 'Gelbooru credentials expired';
+
+  @override
+  String get onlineGallery_gelbooruCredentialsRequired =>
+      'Configure your Gelbooru User ID and API Key to view website favorites.';
+
+  @override
+  String get onlineGallery_gelbooruCredentialsInvalid =>
+      'Your Gelbooru credentials are no longer valid. Configure them again.';
+
+  @override
+  String get onlineGallery_gelbooruRateLimited =>
+      'Gelbooru is rate limiting requests. Try again later.';
+
+  @override
+  String get onlineGallery_gelbooruTimeout =>
+      'The Gelbooru request timed out. Check your network connection.';
+
+  @override
+  String get onlineGallery_gelbooruServerError =>
+      'Gelbooru is temporarily unavailable. Try again later.';
+
+  @override
+  String get onlineGallery_gelbooruNetworkError =>
+      'Could not connect to Gelbooru. Check your network or proxy settings.';
+
+  @override
+  String get onlineGallery_gelbooruMalformedResponse =>
+      'Gelbooru returned data that could not be parsed.';
+
+  @override
+  String get onlineGallery_gelbooruRequestFailed =>
+      'The Gelbooru request failed. Try again later.';
+
+  @override
+  String get onlineGallery_gelbooruReadOnly => 'Read-only favorites';
+
+  @override
+  String get onlineGallery_gelbooruFavoritesSortHint =>
+      'Sorted by post ID, newest first. This may differ from website favorite-time order.';
+
+  @override
   String get tooltip_randomPrompt => 'Random Prompt (long press to configure)';
 
   @override
@@ -3577,6 +3625,74 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get danbooru_loginSuccess => 'Login successful';
+
+  @override
+  String get gelbooru_configureTitle => 'Configure Gelbooru API';
+
+  @override
+  String get gelbooru_configureHint =>
+      'Enter the User ID and API Key shown in your Gelbooru account settings. The app does not collect your password or browser cookies.';
+
+  @override
+  String get gelbooru_userId => 'User ID';
+
+  @override
+  String get gelbooru_userIdHint => 'Enter a positive numeric User ID';
+
+  @override
+  String get gelbooru_userIdRequired =>
+      'Enter a valid positive numeric User ID';
+
+  @override
+  String get gelbooru_apiKeyHint => 'Enter API Key';
+
+  @override
+  String get gelbooru_apiKeyRequired => 'Enter an API Key';
+
+  @override
+  String get gelbooru_openAccountSettings => 'Open Gelbooru account settings';
+
+  @override
+  String get gelbooru_save => 'Verify and Save';
+
+  @override
+  String get gelbooru_saved => 'Gelbooru credentials saved';
+
+  @override
+  String get gelbooru_removeCredentials => 'Remove Credentials';
+
+  @override
+  String get gelbooru_invalidInput => 'Enter a valid User ID and API Key.';
+
+  @override
+  String get gelbooru_invalidCredentials =>
+      'Gelbooru rejected these credentials. Check the User ID and API Key.';
+
+  @override
+  String get gelbooru_rateLimited => 'Too many requests. Try again later.';
+
+  @override
+  String get gelbooru_timeout =>
+      'Verification timed out. Check your network connection.';
+
+  @override
+  String get gelbooru_serverError => 'Gelbooru is temporarily unavailable.';
+
+  @override
+  String get gelbooru_networkError =>
+      'Could not connect to Gelbooru. Check your network or proxy settings.';
+
+  @override
+  String get gelbooru_malformedResponse =>
+      'Gelbooru returned data that could not be parsed.';
+
+  @override
+  String get gelbooru_storageError =>
+      'Gelbooru credentials could not be stored or read securely.';
+
+  @override
+  String get gelbooru_unknownError =>
+      'Gelbooru verification failed. Try again later.';
 
   @override
   String get weight_title => 'Weight';

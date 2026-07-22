@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### ✨ 新增
+
+- 在线画廊支持配置 Gelbooru User ID 与 API Key，认证后通过 DAPI 加速搜索，并可浏览 Gelbooru 网站的只读收藏。
+
+### 🛠 改进
+
+- Danbooru 与 Gelbooru API 凭据改用系统安全存储；现有 Danbooru 登录信息会在安全写入并回读成功后自动迁移，Gelbooru 收藏会明确显示只读状态和帖子 ID 排序规则。
+
 ## [1.1.0] - 2026-07-17
 
 ### ✨ 新增

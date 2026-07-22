@@ -16,12 +16,14 @@ import '../../../data/datasources/remote/danbooru_api_service.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/services/danbooru_auth_service.dart';
+import '../../../data/services/gelbooru_auth_service.dart';
 
 import '../../providers/online_gallery_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../widgets/danbooru_login_dialog.dart';
 import '../../widgets/danbooru_post_card.dart';
+import '../../widgets/gelbooru_credentials_dialog.dart';
 import '../../widgets/online_gallery/post_detail_dialog.dart';
 import '../../widgets/online_gallery/blacklist_settings_panel.dart';
 
@@ -54,6 +56,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   OverlayEntry? _dateRangeOverlayEntry;
   bool _isEditingPage = false;
   GalleryViewMode? _lastViewMode;
+  String? _lastFavoritesSource;
 
   @override
   bool get wantKeepAlive => true;
@@ -88,6 +91,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       }
       // 记录当前模式
       _lastViewMode = state.viewMode;
+      _lastFavoritesSource = state.favoritesSource;
     });
   }
 
@@ -176,20 +180,39 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     final theme = Theme.of(context);
     final state = ref.watch(onlineGalleryNotifierProvider);
     final authState = ref.watch(danbooruAuthProvider);
+    final gelbooruAuthState = ref.watch(gelbooruAuthProvider);
+
+    ref.listen<OnlineGalleryNotice?>(
+      onlineGalleryNotifierProvider.select((value) => value.notice),
+      (previous, next) {
+        if (next == null || next == previous) return;
+        if (next == OnlineGalleryNotice.gelbooruCredentialsInvalid) {
+          AppToast.warning(
+            context,
+            context.l10n.onlineGallery_gelbooruCredentialsInvalid,
+          );
+        }
+        _galleryNotifier.clearNotice();
+      },
+    );
 
     // 检测模式切换，保存旧模式滚动位置，恢复新模式滚动位置
-    if (_lastViewMode != null && _lastViewMode != state.viewMode) {
+    if ((_lastViewMode != null && _lastViewMode != state.viewMode) ||
+        (state.viewMode == GalleryViewMode.favorites &&
+            _lastFavoritesSource != null &&
+            _lastFavoritesSource != state.favoritesSource)) {
       // 模式已切换，恢复目标模式的滚动位置
       _restoreScrollOffset(state.scrollOffset);
     }
     _lastViewMode = state.viewMode;
+    _lastFavoritesSource = state.favoritesSource;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: Column(
         children: [
           // 顶部工具栏
-          _buildToolbar(theme, state, authState),
+          _buildToolbar(theme, state, authState, gelbooruAuthState),
           // 图片网格
           Expanded(child: _buildContent(theme, state)),
           // 底部分页条
@@ -329,6 +352,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     ThemeData theme,
     OnlineGalleryState state,
     DanbooruAuthState authState,
+    GelbooruAuthState gelbooruAuthState,
   ) {
     final selectionState = ref.watch(onlineGallerySelectionNotifierProvider);
 
@@ -356,12 +380,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             onPressed: _addSelectedToQueue,
             color: theme.colorScheme.primary,
           ),
-          BulkActionItem(
-            icon: Icons.favorite_border,
-            label: context.l10n.onlineGallery_bulkFavorite,
-            onPressed: _favoriteSelected,
-            color: theme.colorScheme.secondary,
-          ),
+          if (_canWriteFavorites(state))
+            BulkActionItem(
+              icon: Icons.favorite_border,
+              label: context.l10n.onlineGallery_bulkFavorite,
+              onPressed: _favoriteSelected,
+              color: theme.colorScheme.secondary,
+            ),
           BulkActionItem(
             icon: Icons.download,
             label: context.l10n.onlineGallery_bulkDownload,
@@ -382,7 +407,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 1440;
+          final compact = constraints.maxWidth < 1800;
 
           return Column(
             children: [
@@ -390,7 +415,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               Row(
                 children: [
                   // 模式切换（紧凑设计）
-                  _buildModeSelector(theme, state, authState),
+                  _buildModeSelector(
+                    theme,
+                    state,
+                    authState,
+                    gelbooruAuthState,
+                  ),
                   const SizedBox(width: 16),
                   // 搜索框
                   if (state.viewMode == GalleryViewMode.search)
@@ -400,7 +430,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                   if (!compact) ...[
                     const SizedBox(width: 12),
                     // 筛选和操作
-                    _buildFilterAndActions(theme, state, authState),
+                    _buildFilterAndActions(
+                      theme,
+                      state,
+                      authState,
+                      gelbooruAuthState,
+                    ),
                   ],
                 ],
               ),
@@ -410,7 +445,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                   alignment: Alignment.centerRight,
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
-                    child: _buildFilterAndActions(theme, state, authState),
+                    child: _buildFilterAndActions(
+                      theme,
+                      state,
+                      authState,
+                      gelbooruAuthState,
+                    ),
                   ),
                 ),
               ],
@@ -418,6 +458,14 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               if (state.viewMode == GalleryViewMode.popular) ...[
                 const SizedBox(height: 8),
                 _buildPopularOptions(theme, state),
+              ],
+              if (state.viewMode == GalleryViewMode.favorites &&
+                  state.favoritesSource == 'gelbooru') ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: _buildGelbooruFavoritesNotice(theme),
+                ),
               ],
             ],
           );
@@ -430,6 +478,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     ThemeData theme,
     OnlineGalleryState state,
     DanbooruAuthState authState,
+    GelbooruAuthState gelbooruAuthState,
   ) {
     return Container(
       decoration: BoxDecoration(
@@ -463,15 +512,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             label: context.l10n.onlineGallery_favorites,
             isSelected: state.viewMode == GalleryViewMode.favorites,
             onTap: () {
-              if (!authState.isLoggedIn) {
-                _showLoginDialog(context);
-                return;
-              }
               _saveScrollOffset();
               _galleryNotifier.switchToFavorites();
             },
             isLast: true,
-            showBadge: !authState.isLoggedIn,
+            showBadge: state.favoritesSource == 'gelbooru'
+                ? !gelbooruAuthState.isAuthenticated
+                : !authState.isLoggedIn,
           ),
         ],
       ),
@@ -550,6 +597,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     ThemeData theme,
     OnlineGalleryState state,
     DanbooruAuthState authState,
+    GelbooruAuthState gelbooruAuthState,
   ) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -558,12 +606,28 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         if (state.viewMode == GalleryViewMode.search) ...[
           _SourceDropdown(
             selected: state.source,
+            sources: const {
+              'danbooru': 'Danbooru',
+              'safebooru': 'Safebooru',
+              'gelbooru': 'Gelbooru',
+            },
             onChanged: _galleryNotifier.setSource,
           ),
           const SizedBox(width: 6),
           _FuzzySearchToggle(
             enabled: state.fuzzySearchEnabled,
             onChanged: _galleryNotifier.setFuzzySearchEnabled,
+          ),
+          const SizedBox(width: 6),
+        ],
+        if (state.viewMode == GalleryViewMode.favorites) ...[
+          _SourceDropdown(
+            selected: state.favoritesSource,
+            sources: const {'danbooru': 'Danbooru', 'gelbooru': 'Gelbooru'},
+            onChanged: (source) {
+              _saveScrollOffset();
+              _galleryNotifier.setFavoritesSource(source);
+            },
           ),
           const SizedBox(width: 6),
         ],
@@ -612,7 +676,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         ),
         const SizedBox(width: 8),
         // 用户
-        _buildUserButton(theme, authState),
+        _buildUserButton(theme, state, authState, gelbooruAuthState),
       ],
     );
   }
@@ -719,7 +783,43 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     _dateRangeOverlayEntry = null;
   }
 
-  Widget _buildUserButton(ThemeData theme, DanbooruAuthState authState) {
+  Widget _buildUserButton(
+    ThemeData theme,
+    OnlineGalleryState state,
+    DanbooruAuthState authState,
+    GelbooruAuthState gelbooruAuthState,
+  ) {
+    final source = _activeSource(state);
+    if (source == 'safebooru') return const SizedBox.shrink();
+    if (source == 'gelbooru') {
+      final invalid = gelbooruAuthState.status == GelbooruAuthStatus.invalid;
+      final ready = gelbooruAuthState.isAuthenticated;
+      return Tooltip(
+        message: invalid
+            ? context.l10n.onlineGallery_gelbooruApiInvalid
+            : ready
+            ? context.l10n.onlineGallery_gelbooruApiReady
+            : context.l10n.onlineGallery_configureGelbooruApi,
+        child: OutlinedButton.icon(
+          onPressed: () => _showGelbooruCredentialsDialog(context),
+          icon: Icon(
+            invalid
+                ? Icons.error_outline
+                : ready
+                ? Icons.verified_user_outlined
+                : Icons.key_outlined,
+            size: 18,
+          ),
+          label: Text(context.l10n.onlineGallery_configureGelbooruApi),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: invalid ? theme.colorScheme.error : null,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+      );
+    }
+
     if (authState.isLoggedIn) {
       return PopupMenuButton<String>(
         onSelected: (value) {
@@ -879,12 +979,75 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     );
   }
 
+  void _showGelbooruCredentialsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => const GelbooruCredentialsDialog(),
+    );
+  }
+
+  String _activeSource(OnlineGalleryState state) {
+    switch (state.viewMode) {
+      case GalleryViewMode.search:
+        return state.source;
+      case GalleryViewMode.favorites:
+        return state.favoritesSource;
+      case GalleryViewMode.popular:
+        return 'danbooru';
+    }
+  }
+
+  bool _canWriteFavorites(OnlineGalleryState state) {
+    return _activeSource(state) == 'danbooru';
+  }
+
+  Widget _buildGelbooruFavoritesNotice(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.lock_outline,
+            size: 15,
+            color: theme.colorScheme.onSecondaryContainer,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            context.l10n.onlineGallery_gelbooruReadOnly,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSecondaryContainer,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              context.l10n.onlineGallery_gelbooruFavoritesSortHint,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSecondaryContainer,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildContent(ThemeData theme, OnlineGalleryState state) {
     return _buildPageContent(theme, state);
   }
 
   /// 构建错误状态
   Widget _buildErrorState(ThemeData theme, OnlineGalleryState state) {
+    final message = state.error ?? _localizedError(state.errorCode);
+    final needsGelbooruCredentials =
+        state.errorCode == OnlineGalleryErrorCode.gelbooruCredentialsRequired ||
+        state.errorCode == OnlineGalleryErrorCode.gelbooruCredentialsInvalid;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -897,19 +1060,50 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           ),
           const SizedBox(height: 4),
           Text(
-            state.error!,
+            message,
             style: theme.textTheme.bodySmall,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: _galleryNotifier.refresh,
-            icon: const Icon(Icons.refresh, size: 18),
-            label: Text(context.l10n.common_retry),
+            onPressed: needsGelbooruCredentials
+                ? () => _showGelbooruCredentialsDialog(context)
+                : _galleryNotifier.refresh,
+            icon: Icon(
+              needsGelbooruCredentials ? Icons.key_outlined : Icons.refresh,
+              size: 18,
+            ),
+            label: Text(
+              needsGelbooruCredentials
+                  ? context.l10n.onlineGallery_configureGelbooruApi
+                  : context.l10n.common_retry,
+            ),
           ),
         ],
       ),
     );
+  }
+
+  String _localizedError(OnlineGalleryErrorCode? errorCode) {
+    switch (errorCode) {
+      case OnlineGalleryErrorCode.gelbooruCredentialsRequired:
+        return context.l10n.onlineGallery_gelbooruCredentialsRequired;
+      case OnlineGalleryErrorCode.gelbooruCredentialsInvalid:
+        return context.l10n.onlineGallery_gelbooruCredentialsInvalid;
+      case OnlineGalleryErrorCode.gelbooruRateLimited:
+        return context.l10n.onlineGallery_gelbooruRateLimited;
+      case OnlineGalleryErrorCode.gelbooruTimeout:
+        return context.l10n.onlineGallery_gelbooruTimeout;
+      case OnlineGalleryErrorCode.gelbooruServer:
+        return context.l10n.onlineGallery_gelbooruServerError;
+      case OnlineGalleryErrorCode.gelbooruNetwork:
+        return context.l10n.onlineGallery_gelbooruNetworkError;
+      case OnlineGalleryErrorCode.gelbooruMalformedResponse:
+        return context.l10n.onlineGallery_gelbooruMalformedResponse;
+      case OnlineGalleryErrorCode.gelbooruRequestFailed:
+      case null:
+        return context.l10n.onlineGallery_gelbooruRequestFailed;
+    }
   }
 
   /// 构建空状态
@@ -945,14 +1139,17 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     final itemWidth = (screenWidth - 24 - (columnCount - 1) * 6) / columnCount;
 
     return MasonryGridView.count(
-      key: PageStorageKey<String>('online_gallery_${state.viewMode.name}'),
+      key: PageStorageKey<String>(
+        state.viewMode == GalleryViewMode.favorites
+            ? 'online_gallery_favorites_${state.favoritesSource}'
+            : 'online_gallery_${state.viewMode.name}',
+      ),
       controller: _scrollController,
       padding: const EdgeInsets.all(12),
       crossAxisCount: columnCount,
       mainAxisSpacing: 6,
       crossAxisSpacing: 6,
-      itemCount:
-          state.posts.length + (state.hasMore || state.error != null ? 1 : 0),
+      itemCount: state.posts.length + (state.hasMore || state.hasError ? 1 : 0),
       itemBuilder: (context, index) =>
           _buildGridItem(theme, state, index, itemWidth),
     );
@@ -972,14 +1169,22 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
     final post = state.posts[index];
     final selectionState = ref.watch(onlineGallerySelectionNotifierProvider);
+    final postKey = onlineGalleryPostKey(post);
+    final favoriteReadOnly =
+        post.site == 'gelbooru' &&
+        state.viewMode == GalleryViewMode.favorites &&
+        state.favoritesSource == 'gelbooru';
+    final canWriteFavorite = post.site == 'danbooru';
 
     _prefetchImages(state, index);
 
     return DanbooruPostCard(
       post: post,
       itemWidth: itemWidth,
-      isFavorited: state.favoritedPostIds.contains(post.id),
-      isFavoriteLoading: state.favoriteLoadingPostIds.contains(post.id),
+      isFavorited: state.favoritedPostKeys.contains(postKey),
+      isFavoriteLoading: state.favoriteLoadingPostKeys.contains(postKey),
+      showFavoriteAction: canWriteFavorite || favoriteReadOnly,
+      favoriteReadOnly: favoriteReadOnly,
       selectionMode: selectionState.isActive,
       isSelected: selectionState.selectedIds.contains(post.id.toString()),
       canSelect: post.tags.isNotEmpty,
@@ -994,13 +1199,15 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         _searchController.text = tag;
         _galleryNotifier.search(tag);
       },
-      onFavoriteToggle: () => _handleFavoriteToggle(context, state, post),
+      onFavoriteToggle: canWriteFavorite
+          ? () => _handleFavoriteToggle(context, state, post)
+          : null,
     );
   }
 
   /// 构建加载更多指示器
   Widget _buildLoadMoreIndicator(ThemeData theme, OnlineGalleryState state) {
-    if (state.error != null) {
+    if (state.hasError) {
       return Center(
         child: TextButton(
           onPressed: _galleryNotifier.loadMore,
@@ -1024,7 +1231,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     if (state.isLoading && state.posts.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (state.error != null && state.posts.isEmpty) {
+    if (state.hasError && state.posts.isEmpty) {
       return _buildErrorState(theme, state);
     }
     if (state.posts.isEmpty) {
@@ -1067,14 +1274,17 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     OnlineGalleryState state,
     DanbooruPost post,
   ) async {
+    if (post.site != 'danbooru') return;
     final authState = ref.read(danbooruAuthProvider);
     if (!authState.isLoggedIn) {
       _showLoginDialog(context);
       return;
     }
 
-    final wasFavorited = state.favoritedPostIds.contains(post.id);
-    final success = await _galleryNotifier.toggleFavorite(post.id);
+    final wasFavorited = state.favoritedPostKeys.contains(
+      onlineGalleryPostKey(post),
+    );
+    final success = await _galleryNotifier.toggleFavorite(post);
 
     if (context.mounted && success) {
       AppToast.info(
@@ -1137,20 +1347,27 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       return;
     }
 
-    final selectedIds = selectionState.selectedIds.toList();
-    if (selectedIds.isEmpty) return;
+    final selectedPosts = galleryState.posts
+        .where(
+          (post) =>
+              post.site == 'danbooru' &&
+              selectionState.selectedIds.contains(post.id.toString()),
+        )
+        .toList();
+    if (selectedPosts.isEmpty) return;
 
     // 简单的批量收藏实现：逐个调用 toggleFavorite
     // 注意：这可能会触发多次 API 调用，理想情况下应该有批量 API
     // 这里为了简化，我们只对未收藏的进行收藏操作
     int count = 0;
-    for (final idStr in selectedIds) {
+    for (final post in selectedPosts) {
       // 检查widget是否仍然挂载，避免在widget disposed后继续操作
       if (!mounted) return;
 
-      final id = int.tryParse(idStr);
-      if (id != null && !galleryState.favoritedPostIds.contains(id)) {
-        await _galleryNotifier.toggleFavorite(id);
+      if (!galleryState.favoritedPostKeys.contains(
+        onlineGalleryPostKey(post),
+      )) {
+        await _galleryNotifier.toggleFavorite(post);
         count++;
         await Future.delayed(const Duration(milliseconds: 100));
       }
@@ -1349,19 +1566,18 @@ class _ModeButtonState extends State<_ModeButton> {
 /// 数据源下拉
 class _SourceDropdown extends StatelessWidget {
   final String selected;
+  final Map<String, String> sources;
   final Function(String) onChanged;
 
-  const _SourceDropdown({required this.selected, required this.onChanged});
+  const _SourceDropdown({
+    required this.selected,
+    required this.sources,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final sources = {
-      'danbooru': 'Danbooru',
-      'safebooru': 'Safebooru',
-      'gelbooru': 'Gelbooru',
-    };
-
     return PopupMenuButton<String>(
       onSelected: onChanged,
       offset: const Offset(0, 36),

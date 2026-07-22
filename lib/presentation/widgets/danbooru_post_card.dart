@@ -30,12 +30,14 @@ class DanbooruPostCard extends StatefulWidget {
   final double itemWidth;
   final bool isFavorited;
   final bool isFavoriteLoading;
+  final bool showFavoriteAction;
+  final bool favoriteReadOnly;
   final bool selectionMode;
   final bool isSelected;
   final bool canSelect;
   final VoidCallback onTap;
   final Function(String) onTagTap;
-  final VoidCallback onFavoriteToggle;
+  final VoidCallback? onFavoriteToggle;
   final VoidCallback? onSelectionToggle;
   final VoidCallback? onLongPress;
 
@@ -45,12 +47,14 @@ class DanbooruPostCard extends StatefulWidget {
     required this.itemWidth,
     required this.isFavorited,
     this.isFavoriteLoading = false,
+    this.showFavoriteAction = true,
+    this.favoriteReadOnly = false,
     this.selectionMode = false,
     this.isSelected = false,
     this.canSelect = true,
     required this.onTap,
     required this.onTagTap,
-    required this.onFavoriteToggle,
+    this.onFavoriteToggle,
     this.onSelectionToggle,
     this.onLongPress,
   });
@@ -314,6 +318,27 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                             ),
                         ],
                         if (!widget.selectionMode) ...[
+                          if (widget.favoriteReadOnly && !_isHovering)
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: Tooltip(
+                                message:
+                                    context.l10n.onlineGallery_gelbooruReadOnly,
+                                child: Container(
+                                  padding: const EdgeInsets.all(5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.6),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.favorite,
+                                    size: 14,
+                                    color: Colors.redAccent,
+                                  ),
+                                ),
+                              ),
+                            ),
                           if (widget.post.isVideo || widget.post.isAnimated)
                             Positioned(
                               top: 4,
@@ -354,7 +379,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                 ),
                               ),
                             ),
-                          if (!_isHovering)
+                          if (!_isHovering && !widget.favoriteReadOnly)
                             Positioned(
                               top: 4,
                               right: 4,
@@ -443,19 +468,22 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                           direction: buttonDirection,
                           hoverDelay: const Duration(milliseconds: 100),
                           buttons: [
-                            CardActionButtonConfig(
-                              icon: widget.isFavorited
-                                  ? Icons.favorite
-                                  : Icons.favorite_border,
-                              tooltip: widget.isFavorited
-                                  ? context.l10n.common_unfavorite
-                                  : context.l10n.common_favorite,
-                              iconColor: widget.isFavorited
-                                  ? Colors.red
-                                  : Colors.white,
-                              isLoading: widget.isFavoriteLoading,
-                              onPressed: widget.onFavoriteToggle,
-                            ),
+                            if (widget.showFavoriteAction &&
+                                !widget.favoriteReadOnly &&
+                                widget.onFavoriteToggle != null)
+                              CardActionButtonConfig(
+                                icon: widget.isFavorited
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                tooltip: widget.isFavorited
+                                    ? context.l10n.common_unfavorite
+                                    : context.l10n.common_favorite,
+                                iconColor: widget.isFavorited
+                                    ? Colors.red
+                                    : Colors.white,
+                                isLoading: widget.isFavoriteLoading,
+                                onPressed: widget.onFavoriteToggle!,
+                              ),
                             CardActionButtonConfig(
                               icon: Icons.download,
                               tooltip:
