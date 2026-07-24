@@ -446,6 +446,21 @@ class ProviderConfig {
   }
 }
 
+/// 模型条目的来源，用于刷新模型列表时区分“可回收的 API 模型”与
+/// “用户/预设手动模型”，避免弃用模型残留，也避免误删手动模型。
+enum ModelSource {
+  /// 通过供应商 `/models` 接口拉取；刷新时若不在最新列表里可安全清理。
+  api,
+
+  /// 用户手动添加，或添加供应商时自动创建的默认/占位模型；刷新时永不删除。
+  manual;
+
+  static ModelSource fromName(String? value) => ModelSource.values.firstWhere(
+        (source) => source.name == value,
+        orElse: () => ModelSource.manual,
+      );
+}
+
 class ModelConfig {
   final String providerId;
   final String name;
@@ -453,12 +468,18 @@ class ModelConfig {
   final AssistantTaskType forTask;
   final bool isDefault;
 
+  /// 该模型是自动拉取（[ModelSource.api]）还是手动/默认（[ModelSource.manual]）。
+  /// 默认 [ModelSource.manual]：只有明确从接口拉取的路径才标记为 api，
+  /// 因此手动、预设、占位、测试构造的模型天然免于被刷新清理。
+  final ModelSource source;
+
   const ModelConfig({
     required this.providerId,
     required this.name,
     required this.displayName,
     required this.forTask,
     this.isDefault = false,
+    this.source = ModelSource.manual,
   });
 
   bool get isPlaceholder =>
@@ -470,6 +491,7 @@ class ModelConfig {
     String? displayName,
     AssistantTaskType? forTask,
     bool? isDefault,
+    ModelSource? source,
   }) {
     return ModelConfig(
       providerId: providerId ?? this.providerId,
@@ -477,6 +499,7 @@ class ModelConfig {
       displayName: displayName ?? this.displayName,
       forTask: forTask ?? this.forTask,
       isDefault: isDefault ?? this.isDefault,
+      source: source ?? this.source,
     );
   }
 
@@ -486,6 +509,7 @@ class ModelConfig {
         'displayName': displayName,
         'forTask': forTask.name,
         'isDefault': isDefault,
+        'source': source.name,
       };
 
   factory ModelConfig.fromJson(Map<String, dynamic> json) {
@@ -498,6 +522,16 @@ class ModelConfig {
         orElse: () => AssistantTaskType.llm,
       ),
       isDefault: json['isDefault'] as bool? ?? false,
+      // 来源迁移（关键决策点）：
+      // - 新数据带有 'source' 键 → 直接采用。
+      // - 旧数据（升级前保存，无该键）→ 按 isDefault 推断：默认/占位模型
+      //   视为 manual 永久保留；其余视为 api，让升级后第一次“刷新模型”
+      //   就能清掉历史遗留的弃用模型，无需用户手动逐条删除。
+      source: json.containsKey('source')
+          ? ModelSource.fromName(json['source'] as String?)
+          : ((json['isDefault'] as bool? ?? false)
+              ? ModelSource.manual
+              : ModelSource.api),
     );
   }
 }

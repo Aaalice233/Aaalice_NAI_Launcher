@@ -388,48 +388,9 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
         throw StateError(l10n.promptAssistant_emptyModelList);
       }
 
-      final latestState = ref.read(promptAssistantConfigProvider);
-      for (final task in AssistantTaskType.values) {
-        for (final name in modelNames) {
-          final exists = latestState.models.any(
-            (m) =>
-                m.providerId == providerId &&
-                m.forTask == task &&
-                m.name == name,
-          );
-          if (!exists) {
-            await notifier.upsertModel(
-              ModelConfig(
-                providerId: providerId,
-                name: name,
-                displayName: name,
-                forTask: task,
-              ),
-            );
-          }
-        }
-      }
-
-      final updated = ref.read(promptAssistantConfigProvider);
-      final modelSet = modelNames.toSet();
-      var routing = updated.routing;
-      var changed = false;
-
-      for (final taskType in AssistantTaskType.values) {
-        if (routing.providerIdFor(taskType) == providerId &&
-            !modelSet.contains(routing.modelFor(taskType))) {
-          routing = routing.copyWithTask(
-            taskType: taskType,
-            providerId: providerId,
-            model: modelNames.first,
-          );
-          changed = true;
-        }
-      }
-
-      if (changed) {
-        await notifier.setRouting(routing);
-      }
+      // 以接口返回的最新列表为准同步：新增缺失模型、清理已弃用的 API 模型、
+      // 保留手动/默认模型，并在需要时迁移受影响的任务路由。
+      await notifier.syncProviderModels(providerId, modelNames);
 
       messenger?.showSnackBar(
         SnackBar(
