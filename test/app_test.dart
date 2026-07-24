@@ -26,6 +26,7 @@ import 'package:nai_launcher/data/models/gallery/gallery_statistics.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/tag/local_tag.dart';
+import 'package:nai_launcher/data/models/tag/tag_suggestion.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/local_onnx_tagger_service.dart';
@@ -442,6 +443,51 @@ void main() {
           fuzzyMatch: false,
         ),
         'kanzarin 1girl solo',
+      );
+    });
+
+    test('treats spaces as tag separators in fuzzy searches', () {
+      expect(
+        buildOnlineGallerySearchQuery(
+          'foot_focus lo',
+          fuzzyMatch: true,
+        ),
+        '*foot_focus* *lo*',
+      );
+    });
+
+    testWidgets('updates autocomplete for a space separated second tag', (
+      tester,
+    ) async {
+      await _pumpOnlineGalleryScreen(tester);
+      await tester.pump();
+
+      final searchField = find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField &&
+            widget.decoration?.hintText == 'Search tags...',
+      );
+
+      await tester.tap(searchField);
+      await tester.enterText(searchField, 'foot_focus');
+      await tester.pump(const Duration(milliseconds: 80));
+      expect(
+        tester
+            .widget<GenericSuggestionTile>(find.byType(GenericSuggestionTile))
+            .data
+            .tag,
+        'foot_focus',
+      );
+
+      await tester.enterText(searchField, 'foot_focus lo');
+      await tester.pump(const Duration(milliseconds: 80));
+
+      expect(
+        tester
+            .widget<GenericSuggestionTile>(find.byType(GenericSuggestionTile))
+            .data
+            .tag,
+        'long_hair',
       );
     });
 
@@ -2308,7 +2354,19 @@ class _FakeDanbooruSuggestionNotifier extends DanbooruSuggestionNotifier {
   TagSuggestionState build() => const TagSuggestionState();
 
   @override
-  void search(String query, {bool immediate = false}) {}
+  void search(String query, {bool immediate = false}) {
+    final suggestion = switch (query) {
+      'foot_focus' => const TagSuggestion(tag: 'foot_focus'),
+      'lo' => const TagSuggestion(tag: 'long_hair'),
+      _ => null,
+    };
+    if (suggestion == null) return;
+
+    state = TagSuggestionState(
+      suggestions: [suggestion],
+      currentQuery: query,
+    );
+  }
 
   @override
   void clear() {

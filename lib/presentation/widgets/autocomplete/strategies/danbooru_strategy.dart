@@ -116,13 +116,15 @@ class DanbooruStrategy extends AutocompleteStrategy<TagSuggestion> {
 
   /// 获取最后一个标签（根据分隔符分割）
   String _getLastTag(String text) {
-    // 支持中英文逗号和空格作为分隔符
-    final separatorPattern = _config.separator == ','
-        ? RegExp(r'[,，]')
-        : RegExp(RegExp.escape(_config.separator));
+    final separatorPattern = _separatorPattern;
     final parts = text.split(separatorPattern);
     return parts.isNotEmpty ? parts.last.trim() : '';
   }
+
+  /// 逗号分隔模式同时接受空白，兼容 Danbooru 原生的空格分隔语法。
+  RegExp get _separatorPattern => _config.separator == ','
+      ? RegExp(r'[,，\s]+')
+      : RegExp(RegExp.escape(_config.separator));
 
   @override
   void clear() {
@@ -155,10 +157,7 @@ class DanbooruStrategy extends AutocompleteStrategy<TagSuggestion> {
       newText = item.tag;
     } else {
       // 只替换最后一个标签
-      final separatorPattern = _config.separator == ','
-          ? RegExp(r'[,，]')
-          : RegExp(RegExp.escape(_config.separator));
-      final parts = text.split(separatorPattern);
+      final parts = text.split(_separatorPattern);
       if (parts.isNotEmpty) {
         parts[parts.length - 1] = item.tag;
       } else {

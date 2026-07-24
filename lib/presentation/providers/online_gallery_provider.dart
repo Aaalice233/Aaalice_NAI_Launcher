@@ -24,7 +24,7 @@ String buildOnlineGallerySearchQuery(String query, {required bool fuzzyMatch}) {
   if (trimmed.isEmpty) return '';
 
   final tags = trimmed
-      .split(RegExp(r'[,，]'))
+      .split(RegExp(r'[,，\s]+'))
       .map((tag) => tag.trim())
       .where((tag) => tag.isNotEmpty)
       .toList();
@@ -870,7 +870,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   /// 搜索
   ///
   /// 支持：
-  /// - 逗号分隔多个 tag（AND 逻辑，结果必须包含所有 tag）
+  /// - 逗号或空格分隔多个 tag（AND 逻辑，结果必须包含所有 tag）
   /// - 开启模糊匹配时自动添加通配符
   /// - 末尾逗号会被忽略
   Future<void> search(String query) async {
