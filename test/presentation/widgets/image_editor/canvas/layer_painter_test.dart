@@ -57,6 +57,29 @@ int _alphaByte(Color color) {
   return (color.a * 255).round().clamp(0, 255);
 }
 
+int _redByte(Color color) {
+  return (color.r * 255).round().clamp(0, 255);
+}
+
+Future<ui.Image> _createTwoToneImage() async {
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  canvas.drawRect(
+    const Rect.fromLTWH(0, 0, 2, 4),
+    Paint()..color = Colors.black,
+  );
+  canvas.drawRect(
+    const Rect.fromLTWH(2, 0, 2, 4),
+    Paint()..color = Colors.white,
+  );
+  final picture = recorder.endRecording();
+  try {
+    return await picture.toImage(4, 4);
+  } finally {
+    picture.dispose();
+  }
+}
+
 void main() {
   setUp(LayerPainter.debugResetCheckerboardCache);
   tearDown(LayerPainter.debugResetCheckerboardCache);
@@ -222,4 +245,37 @@ void main() {
 
     expect(_pixelAt(byteData!, 32, 16, 16), Colors.white);
   });
+
+  test(
+    'layer painter filters bitmap layers at fractional sample positions',
+    () async {
+      final state = EditorState()..setCanvasSize(const Size(4, 4));
+      addTearDown(state.dispose);
+
+      final sourceImage = await _createTwoToneImage();
+      state.layerManager.addLayerFromUiImage(sourceImage, name: 'two-tone');
+      state.canvasController.setViewportSize(const Size(3, 3));
+      state.canvasController.setScale(0.75);
+
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      LayerPainter(
+        state: state,
+        showTransparentCanvasBackground: false,
+      ).paint(canvas, const Size(3, 3));
+
+      final picture = recorder.endRecording();
+      addTearDown(picture.dispose);
+      final image = await picture.toImage(3, 3);
+      addTearDown(image.dispose);
+      final byteData = await image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      );
+      expect(byteData, isNotNull);
+
+      final boundaryRed = _redByte(_pixelAt(byteData!, 3, 1, 1));
+      expect(boundaryRed, greaterThan(0));
+      expect(boundaryRed, lessThan(255));
+    },
+  );
 }

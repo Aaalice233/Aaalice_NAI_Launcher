@@ -178,8 +178,12 @@ class LayerPainter extends CustomPainter {
     final viewportBounds = controller.viewportBounds;
 
     // 绘制所有图层（传入视口边界以启用空间剔除优化）
-    state.layerManager
-        .renderAll(canvas, canvasSize, viewportBounds: viewportBounds);
+    state.layerManager.renderAll(
+      canvas,
+      canvasSize,
+      viewportBounds: viewportBounds,
+      filterQuality: FilterQuality.medium,
+    );
 
     // 恢复状态
     canvas.restore();
