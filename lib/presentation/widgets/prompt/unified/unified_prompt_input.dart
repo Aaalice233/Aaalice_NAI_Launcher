@@ -921,18 +921,28 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   /// 构建文本输入框
   Widget _buildTextField() {
     final enableWheelAdjustment = ref.watch(promptWeightScrollSettingsProvider);
+    final assistantConfig = widget.enableAssistant
+        ? ref.watch(promptAssistantConfigProvider)
+        : null;
+    final shouldReserveAssistantSpace =
+        assistantConfig != null &&
+        assistantConfig.enabled &&
+        (!_isDesktop || assistantConfig.desktopOverlayEnabled);
+    final requestedContentPadding =
+        widget.decoration?.contentPadding ??
+        const EdgeInsets.symmetric(horizontal: 12, vertical: 10);
+    final effectiveContentPadding = _withAssistantBottomClearance(
+      requestedContentPadding,
+      reserveSpace: shouldReserveAssistantSpace,
+    );
 
     // 合并 decoration：优先使用传入的 decoration，但保留 config 中的 hintText
     final effectiveDecoration =
         InputDecoration(
           hintText: widget.config.hintText,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 10,
-          ),
+          contentPadding: effectiveContentPadding,
         ).copyWith(
           hintText: widget.config.hintText,
-          contentPadding: widget.decoration?.contentPadding,
           filled: widget.decoration?.filled,
           fillColor: widget.decoration?.fillColor,
           border: widget.decoration?.border,
@@ -1018,6 +1028,23 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     }
 
     return result;
+  }
+
+  EdgeInsetsGeometry _withAssistantBottomClearance(
+    EdgeInsetsGeometry contentPadding, {
+    required bool reserveSpace,
+  }) {
+    if (!reserveSpace) {
+      return contentPadding;
+    }
+
+    final resolved = contentPadding.resolve(Directionality.of(context));
+    if (resolved.bottom >= PromptAssistantOverlay.contentBottomClearance) {
+      return resolved;
+    }
+    return resolved.copyWith(
+      bottom: PromptAssistantOverlay.contentBottomClearance,
+    );
   }
 }
 
