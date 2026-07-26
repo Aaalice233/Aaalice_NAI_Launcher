@@ -4,11 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../data/models/character/character_prompt.dart';
+import '../../providers/character_position_canvas_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
 import 'add_to_library_dialog.dart';
+import 'character_position_canvas.dart';
 import 'inline_character_card.dart';
 import 'inline_character_editor.dart';
 
@@ -70,6 +72,11 @@ class InlineCharacterRow extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // 位置模式常驻在角色行上方（行仅在有角色时渲染）
+          const Padding(
+            padding: EdgeInsets.only(bottom: 6),
+            child: Row(children: [CharacterPositionModeSegments()]),
+          ),
           // Wrap 换行：角色多时排到第二排，不再横向滚动到不可见区域
           Wrap(
             spacing: 6,
@@ -165,6 +172,8 @@ class _RowEditorPanelState extends ConsumerState<_RowEditorPanel> {
 
   void _handleTapOutside() {
     if (_modalOpen) return;
+    // 位置画布打开时，点画布拖锚点是位置编辑的一部分，不退出编辑态
+    if (ref.read(characterPositionCanvasProvider)) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (ref.read(selectedCharacterIdProvider) != widget.character.id) {
@@ -204,16 +213,16 @@ class _RowEditorPanelState extends ConsumerState<_RowEditorPanel> {
                     width: 8,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: _genderColor(widget.character.gender),
+                      color: _genderColor(widget.character.effectiveGender),
                       shape: BoxShape.circle,
                     ),
                   ),
                   const SizedBox(width: 6),
                   Expanded(
-                    child: Text(
-                      widget.character.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    // 面板即编辑态，名字就地可改
+                    child: CharacterNameField(
+                      key: ValueKey('panel-name-${widget.character.id}'),
+                      character: widget.character,
                       style: theme.textTheme.labelMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -234,18 +243,6 @@ class _RowEditorPanelState extends ConsumerState<_RowEditorPanel> {
                     onTap: () => notifier.moveCharacterDown(widget.index),
                   ),
                   _PanelIconButton(
-                    icon: Icons.edit_outlined,
-                    color: iconColor,
-                    tooltip: l10n.characterEditor_name,
-                    onTap: () => _openModal(
-                      () => showCharacterRenameDialog(
-                        context,
-                        ref,
-                        widget.character,
-                      ),
-                    ),
-                  ),
-                  _PanelIconButton(
                     icon: Icons.library_add_outlined,
                     color: iconColor,
                     tooltip: l10n.tagLibrary_addToLibrary,
@@ -254,17 +251,6 @@ class _RowEditorPanelState extends ConsumerState<_RowEditorPanel> {
                         context,
                         name: widget.character.name,
                         content: widget.character.prompt,
-                      ),
-                    ),
-                  ),
-                  _PanelIconButton(
-                    icon: Icons.grid_on_rounded,
-                    color: iconColor,
-                    tooltip: l10n.characterEditor_position,
-                    onTap: () => _openModal(
-                      () => CharacterPositionDialog.show(
-                        context,
-                        widget.character.id,
                       ),
                     ),
                   ),
@@ -278,10 +264,7 @@ class _RowEditorPanelState extends ConsumerState<_RowEditorPanel> {
                 ],
               ),
               const SizedBox(height: 6),
-              CharacterPromptEditor(
-                character: widget.character,
-                compact: true,
-              ),
+              CharacterPromptEditor(character: widget.character, compact: true),
             ],
           ),
         ),
@@ -447,9 +430,7 @@ class _AddCharacterChip extends ConsumerWidget {
   void _selectLast(WidgetRef ref) {
     final characters = ref.read(characterPromptNotifierProvider).characters;
     if (characters.isNotEmpty) {
-      ref
-          .read(selectedCharacterIdProvider.notifier)
-          .select(characters.last.id);
+      ref.read(selectedCharacterIdProvider.notifier).select(characters.last.id);
     }
   }
 }

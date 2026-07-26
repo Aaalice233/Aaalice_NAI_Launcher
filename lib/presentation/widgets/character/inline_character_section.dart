@@ -6,6 +6,7 @@ import '../../../core/constants/api_constants.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import 'add_character_buttons.dart';
+import 'character_position_canvas.dart';
 import 'inline_character_card.dart';
 
 /// 内联角色区块（官网布局左栏用，竖排）
@@ -63,8 +64,10 @@ class InlineCharacterSection extends ConsumerWidget {
               if (hasCharacters) ...[
                 const SizedBox(width: 6),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 1,
+                  ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(8),
@@ -78,6 +81,11 @@ class InlineCharacterSection extends ConsumerWidget {
                 ),
               ],
               const Spacer(),
+              // 位置模式常驻在角色模块头部（有角色时显示）
+              if (hasCharacters) ...[
+                const CharacterPositionModeSegments(),
+                const SizedBox(width: 8),
+              ],
               if (hasCharacters)
                 Tooltip(
                   message: l10n.characterEditor_clearAll,
@@ -142,4 +150,3 @@ class InlineCharacterSection extends ConsumerWidget {
     }
   }
 }
-

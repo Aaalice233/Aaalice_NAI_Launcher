@@ -133,17 +133,11 @@ class NAIImageRequestBuilder {
     final characterPrompts = <Map<String, dynamic>>[];
 
     for (final char in params.characters) {
+      // 连续坐标直传（0-1），与位置画布所见即所得
       double x = 0, y = 0;
-      if (char.position != null && char.position!.length >= 2) {
-        final letter = char.position![0].toUpperCase();
-        final digit = char.position![1];
-        x = 0.5 + 0.2 * (letter.codeUnitAt(0) - 'C'.codeUnitAt(0));
-        y = 0.5 + 0.2 * (int.tryParse(digit) ?? 3) - 0.5 - 0.4;
-        x = x.clamp(0.1, 0.9);
-        y = y.clamp(0.1, 0.9);
-      } else if (char.positionX != null && char.positionY != null) {
-        x = char.positionX!;
-        y = char.positionY!;
+      if (char.positionX != null && char.positionY != null) {
+        x = char.positionX!.clamp(0.0, 1.0);
+        y = char.positionY!.clamp(0.0, 1.0);
       }
 
       charCaptions.add({

@@ -5,10 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/character/character_prompt.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
-import '../common/themed_switch.dart';
 import '../prompt/toolbar/toolbar.dart';
 import '../prompt/unified/unified.dart';
-import 'position_grid_selector.dart';
 
 /// 角色提示词编辑器（正/负切换 + 统一提示词编辑器）
 ///
@@ -30,10 +28,12 @@ class CharacterPromptEditor extends ConsumerStatefulWidget {
 }
 
 class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
-  late final TextEditingController _promptController =
-      TextEditingController(text: widget.character.prompt);
-  late final TextEditingController _negativeController =
-      TextEditingController(text: widget.character.negativePrompt);
+  late final TextEditingController _promptController = TextEditingController(
+    text: widget.character.prompt,
+  );
+  late final TextEditingController _negativeController = TextEditingController(
+    text: widget.character.negativePrompt,
+  );
   final FocusNode _promptFocusNode = FocusNode();
   final FocusNode _negativeFocusNode = FocusNode();
 
@@ -57,12 +57,15 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
       _focusCurrentTab();
       return;
     }
-    // 外部状态变化（随机生成、词库导入等）时同步到输入框，
-    // 与当前文本一致时跳过，避免打字回环导致光标跳动
-    if (widget.character.prompt != _promptController.text) {
+    // 外部状态变化（随机生成、词库导入等）时同步到输入框。
+    // 输入框聚焦中绝不同步：生命周期内的 controller.text 赋值会重置
+    // 光标并打断键盘输入连接，聚焦时以用户输入为准
+    if (!_promptFocusNode.hasFocus &&
+        widget.character.prompt != _promptController.text) {
       _promptController.text = widget.character.prompt;
     }
-    if (widget.character.negativePrompt != _negativeController.text) {
+    if (!_negativeFocusNode.hasFocus &&
+        widget.character.negativePrompt != _negativeController.text) {
       _negativeController.text = widget.character.negativePrompt;
     }
   }
@@ -126,9 +129,8 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
             controller: _promptController,
             focusNode: _promptFocusNode,
             hintText: l10n.characterEditor_promptHint,
-            onChanged: (value) => _updateCharacter(
-              widget.character.copyWith(prompt: value),
-            ),
+            onChanged: (value) =>
+                _updateCharacter(widget.character.copyWith(prompt: value)),
           )
         else
           _buildPromptEditor(
@@ -152,8 +154,9 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
     final enableHighlight = ref.watch(highlightEmphasisSettingsProvider);
-    final enableSdSyntaxAutoConvert =
-        ref.watch(sdSyntaxAutoConvertSettingsProvider);
+    final enableSdSyntaxAutoConvert = ref.watch(
+      sdSyntaxAutoConvertSettingsProvider,
+    );
 
     final inputConfig = UnifiedPromptConfig.compactMode.copyWith(
       hintText: hintText,
@@ -161,14 +164,15 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
       enableAutoFormat: enableAutoFormat,
       enableSyntaxHighlight: enableHighlight,
       enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
+      // 清空由 UnifiedPromptInput 内部处理并回调 onChanged('')，无需重复
       showClearButton: true,
       clearNeedsConfirm: true,
-      onClearPressed: () => onChanged(''),
     );
 
     return PromptEditorWithToolbar(
-      toolbarConfig:
-          PromptEditorToolbarConfig.compactMode.copyWith(showClearButton: false),
+      toolbarConfig: PromptEditorToolbarConfig.compactMode.copyWith(
+        showClearButton: false,
+      ),
       inputConfig: inputConfig,
       controller: controller,
       focusNode: focusNode,
@@ -222,136 +226,90 @@ class _EditorTab extends StatelessWidget {
   }
 }
 
-/// 角色位置设置对话框
+/// 角色名称就地编辑框
 ///
-/// 集中管理位置相关设置：全局 AI 选择开关 + 该角色的 5x5 网格位置。
-/// 全局 AI 开启时网格禁用。
-class CharacterPositionDialog extends ConsumerWidget {
-  final String characterId;
+/// 嵌在卡片/编辑面板头部的名字位置，点击即可直接改名，
+/// 输入实时写回 provider（空白输入不生效，保留原名）。
+class CharacterNameField extends ConsumerStatefulWidget {
+  final CharacterPrompt character;
+  final TextStyle? style;
 
-  const CharacterPositionDialog({super.key, required this.characterId});
+  const CharacterNameField({super.key, required this.character, this.style});
 
-  static Future<void> show(BuildContext context, String characterId) {
-    return showDialog<void>(
-      context: context,
-      builder: (context) => CharacterPositionDialog(characterId: characterId),
-    );
+  @override
+  ConsumerState<CharacterNameField> createState() => _CharacterNameFieldState();
+}
+
+class _CharacterNameFieldState extends ConsumerState<CharacterNameField> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.character.name,
+  );
+  final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    // 失焦提交：输入过程完全本地，不触发 provider 更新与整卡重建，
+    // 焦点和光标不会被打断
+    _focusNode.addListener(_onFocusChanged);
+  }
+
+  void _onFocusChanged() {
+    if (!_focusNode.hasFocus) {
+      _commit();
+    }
+  }
+
+  void _commit() {
+    final trimmed = _controller.text.trim();
+    if (trimmed.isEmpty || trimmed == widget.character.name) return;
+    ref
+        .read(characterPromptNotifierProvider.notifier)
+        .updateCharacter(widget.character.copyWith(name: trimmed));
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    final config = ref.watch(characterPromptNotifierProvider);
-    final character = config.findCharacterById(characterId);
-    if (character == null) {
-      return const SizedBox.shrink();
+  void didUpdateWidget(CharacterNameField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.character.id != widget.character.id) {
+      _controller.text = widget.character.name;
+      return;
     }
-    final globalAiChoice = config.globalAiChoice;
-
-    return AlertDialog(
-      title: Text(l10n.characterEditor_position),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  l10n.characterEditor_globalAiChoice,
-                  style: theme.textTheme.bodySmall,
-                ),
-              ),
-              Tooltip(
-                message: l10n.characterEditor_globalAiChoiceHint,
-                child: Icon(
-                  Icons.info_outline,
-                  size: 16,
-                  color: theme.colorScheme.onSurfaceVariant
-                      .withValues(alpha: 0.6),
-                ),
-              ),
-              const SizedBox(width: 8),
-              ThemedSwitch(
-                value: globalAiChoice,
-                onChanged: (value) => ref
-                    .read(characterPromptNotifierProvider.notifier)
-                    .setGlobalAiChoice(value),
-                scale: 0.85,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          AnimatedOpacity(
-            duration: const Duration(milliseconds: 150),
-            opacity: globalAiChoice ? 0.4 : 1.0,
-            child: LabeledPositionGridSelector(
-              selectedPosition: character.customPosition ??
-                  const CharacterPosition(row: 0.5, column: 0.5),
-              enabled: !globalAiChoice,
-              onPositionSelected: (position) {
-                ref.read(characterPromptNotifierProvider.notifier).updateCharacter(
-                      character.copyWith(
-                        customPosition: position,
-                        positionMode: CharacterPositionMode.custom,
-                      ),
-                    );
-              },
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.common_close),
-        ),
-      ],
-    );
+    // 外部改名（如词库导入覆盖）时同步；编辑中（持有焦点）不覆盖用户输入
+    if (!_focusNode.hasFocus && widget.character.name != _controller.text) {
+      _controller.text = widget.character.name;
+    }
   }
-}
 
-/// 角色重命名对话框，确认后直接写回 provider
-Future<void> showCharacterRenameDialog(
-  BuildContext context,
-  WidgetRef ref,
-  CharacterPrompt character,
-) async {
-  final l10n = AppLocalizations.of(context)!;
-  final controller = TextEditingController(text: character.name);
-  final newName = await showDialog<String>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text(l10n.characterEditor_name),
-      content: TextField(
-        controller: controller,
-        autofocus: true,
-        maxLength: 50,
-        decoration: InputDecoration(
-          hintText: l10n.characterEditor_nameHint,
-          counterText: '',
+  @override
+  void dispose() {
+    _focusNode.removeListener(_onFocusChanged);
+    _focusNode.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return TextField(
+      controller: _controller,
+      focusNode: _focusNode,
+      maxLength: 50,
+      maxLines: 1,
+      style: widget.style,
+      decoration: InputDecoration(
+        isDense: true,
+        isCollapsed: true,
+        counterText: '',
+        border: InputBorder.none,
+        hintText: l10n.characterEditor_nameHint,
+        hintStyle: widget.style?.copyWith(
+          color: widget.style?.color?.withValues(alpha: 0.5),
         ),
-        onSubmitted: (value) => Navigator.of(context).pop(value),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.common_cancel),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(controller.text),
-          child: Text(l10n.common_save),
-        ),
-      ],
-    ),
-  );
-  controller.dispose();
-
-  final trimmed = newName?.trim();
-  if (trimmed != null && trimmed.isNotEmpty) {
-    ref
-        .read(characterPromptNotifierProvider.notifier)
-        .updateCharacter(character.copyWith(name: trimmed));
+      onSubmitted: (_) => _commit(),
+    );
   }
 }

@@ -6,6 +6,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/character/character_prompt.dart';
+import '../../providers/character_position_canvas_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../common/decoded_memory_image.dart';
 import 'add_to_library_dialog.dart';
@@ -107,6 +108,8 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
     // 退出逻辑全权交给面板自己的 TapRegion
     if (!widget.inlineEditor) return;
     if (_modalOpen) return;
+    // 位置画布打开时，点画布拖锚点是位置编辑的一部分，不退出编辑态
+    if (ref.read(characterPositionCanvasProvider)) return;
     // TapRegion 恒挂（结构稳定），非选中卡的外部点击直接忽略
     if (ref.read(selectedCharacterIdProvider) != widget.character.id) return;
     // TapRegion 回调发生在指针按下时，等本帧手势与焦点变化尘埃落定再判断
@@ -150,7 +153,7 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildHeader(context, theme),
+          _buildHeader(context, theme, showInlineEditor),
           // 预览 ↔ 编辑器：高度平滑生长 + 内容交叉淡化，替代瞬时替换
           AnimatedSize(
             duration: _animDuration,
@@ -192,27 +195,28 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
       opacity: enabled ? 1.0 : 0.48,
       child: Focus(
         focusNode: _cardFocusNode,
-        child: TapRegion(
-          onTapOutside: (_) => _handleTapOutside(),
-          child: card,
-        ),
+        child: TapRegion(onTapOutside: (_) => _handleTapOutside(), child: card),
       ),
     );
   }
 
   // ==================== 头部条 ====================
 
-  Widget _buildHeader(BuildContext context, ThemeData theme) {
+  Widget _buildHeader(
+    BuildContext context,
+    ThemeData theme,
+    bool editableName,
+  ) {
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final character = widget.character;
-    final hasThumbnail = character.thumbnailPath != null &&
+    final hasThumbnail =
+        character.thumbnailPath != null &&
         character.thumbnailPath!.isNotEmpty &&
         File(character.thumbnailPath!).existsSync();
     final headerHeight = widget.compact ? 30.0 : 34.0;
     // 缩略图铺满头部时文字压图，统一转白色
-    final onHeader =
-        hasThumbnail ? Colors.white : colorScheme.onSurfaceVariant;
+    final onHeader = hasThumbnail ? Colors.white : colorScheme.onSurfaceVariant;
 
     return SizedBox(
       height: headerHeight,
@@ -238,28 +242,45 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
                         width: 8,
                         height: 8,
                         decoration: BoxDecoration(
-                          color: _genderColor(character.gender),
+                          color: _genderColor(character.effectiveGender),
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: 6),
                     ],
                     Expanded(
-                      child: Text(
-                        character.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: hasThumbnail
-                              ? Colors.white
-                              : colorScheme.onSurface,
-                          fontWeight: FontWeight.w600,
-                          shadows: hasThumbnail
-                              ? const [
-                                  Shadow(color: Colors.black54, blurRadius: 4),
-                                ]
-                              : null,
-                        ),
+                      child: Builder(
+                        builder: (context) {
+                          final nameStyle = theme.textTheme.labelMedium
+                              ?.copyWith(
+                                color: hasThumbnail
+                                    ? Colors.white
+                                    : colorScheme.onSurface,
+                                fontWeight: FontWeight.w600,
+                                shadows: hasThumbnail
+                                    ? const [
+                                        Shadow(
+                                          color: Colors.black54,
+                                          blurRadius: 4,
+                                        ),
+                                      ]
+                                    : null,
+                              );
+                          // 编辑态名字就地可改，无需弹窗
+                          if (editableName) {
+                            return CharacterNameField(
+                              key: ValueKey('name-${character.id}'),
+                              character: character,
+                              style: nameStyle,
+                            );
+                          }
+                          return Text(
+                            character.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: nameStyle,
+                          );
+                        },
                       ),
                     ),
                     // 操作全部平铺一排；紧凑卡只留启用与删除，
@@ -271,9 +292,7 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
                           ? Icons.check_circle
                           : Icons.circle_outlined,
                       color: character.enabled
-                          ? (hasThumbnail
-                              ? Colors.white
-                              : colorScheme.primary)
+                          ? (hasThumbnail ? Colors.white : colorScheme.primary)
                           : onHeader,
                       tooltip: l10n.characterEditor_enabled,
                       onTap: () =>
@@ -281,9 +300,7 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
                     ),
                     _HeaderIconButton(
                       icon: Icons.delete_outline,
-                      color: hasThumbnail
-                          ? Colors.white
-                          : colorScheme.error,
+                      color: hasThumbnail ? Colors.white : colorScheme.error,
                       tooltip: l10n.common_delete,
                       onTap: _deleteCharacter,
                     ),
@@ -318,14 +335,6 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
         onTap: () => _notifier.moveCharacterDown(widget.index),
       ),
       _HeaderIconButton(
-        icon: Icons.edit_outlined,
-        color: onHeader,
-        tooltip: l10n.characterEditor_name,
-        onTap: () => _openModal(
-          () => showCharacterRenameDialog(context, ref, widget.character),
-        ),
-      ),
-      _HeaderIconButton(
         icon: Icons.library_add_outlined,
         color: onHeader,
         tooltip: l10n.tagLibrary_addToLibrary,
@@ -335,14 +344,6 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
             name: widget.character.name,
             content: widget.character.prompt,
           ),
-        ),
-      ),
-      _HeaderIconButton(
-        icon: Icons.grid_on_rounded,
-        color: onHeader,
-        tooltip: l10n.characterEditor_position,
-        onTap: () => _openModal(
-          () => CharacterPositionDialog.show(context, widget.character.id),
         ),
       ),
     ];
@@ -417,10 +418,9 @@ class _HeaderThumbnail extends StatelessWidget {
               alignment: const Alignment(0, -0.4),
               cacheWidth: cacheWidth,
               errorBuilder: (context, error, stack) => ColoredBox(
-                color: Theme.of(context)
-                    .colorScheme
-                    .surfaceContainerHighest
-                    .withValues(alpha: 0.4),
+                color: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
               ),
             ),
             const ColoredBox(color: Color(0x66000000)),

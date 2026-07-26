@@ -1968,19 +1968,23 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
 
     return enabledCharacters.map((uiChar) {
-      // 计算位置字符串
-      String? position;
+      // NAI API 接收连续坐标 center {x, y}，直接透传 0-1 百分比位置，
+      // 不再量化成 5×5 格号字符串（画布拖到哪就生成在哪）
+      double? positionX;
+      double? positionY;
       if (!config.globalAiChoice &&
           uiChar.positionMode == ui_character.CharacterPositionMode.custom &&
           uiChar.customPosition != null) {
-        position = uiChar.customPosition!.toNaiString();
+        positionX = uiChar.customPosition!.column.clamp(0.0, 1.0);
+        positionY = uiChar.customPosition!.row.clamp(0.0, 1.0);
       }
 
       // 解析角色提示词中的别名
       return CharacterPrompt(
         prompt: aliasResolver.resolveAliases(uiChar.prompt),
         negativePrompt: aliasResolver.resolveAliases(uiChar.negativePrompt),
-        position: position,
+        positionX: positionX,
+        positionY: positionY,
       );
     }).toList();
   }

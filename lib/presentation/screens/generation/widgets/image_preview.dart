@@ -20,6 +20,7 @@ import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../../data/services/alias_resolver_service.dart';
 import '../../../../data/services/image_metadata_service.dart';
 import '../../../providers/generation/generation_params_selectors.dart';
+import '../../../providers/character_position_canvas_provider.dart';
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/fixed_tags_provider.dart';
 import '../../../providers/image_generation_provider.dart';
@@ -29,6 +30,7 @@ import '../../../providers/reverse_prompt_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../providers/uc_preset_provider.dart';
 import '../../../services/image_workflow_launcher.dart';
+import '../../../widgets/character/character_position_canvas.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/draggable_memory_image.dart';
 import '../../../widgets/common/image_detail/file_image_detail_data.dart';
@@ -71,6 +73,11 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     ImageGenerationState state,
     ThemeData theme,
   ) {
+    // 角色位置画布模式：预览区变成锚点拖拽画布
+    if (ref.watch(characterPositionCanvasProvider)) {
+      return const CharacterPositionCanvasView();
+    }
+
     // 错误状态
     if (state.status == GenerationStatus.error) {
       return _buildErrorState(theme, state.errorMessage, context);

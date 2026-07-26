@@ -8444,6 +8444,36 @@ abstract class AppLocalizations {
   /// **'Position'**
   String get characterEditor_position;
 
+  /// No description provided for @characterCanvas_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Character Positions'**
+  String get characterCanvas_title;
+
+  /// No description provided for @characterCanvas_aiChoice.
+  ///
+  /// In en, this message translates to:
+  /// **'AI\'s Choice'**
+  String get characterCanvas_aiChoice;
+
+  /// No description provided for @characterCanvas_custom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get characterCanvas_custom;
+
+  /// No description provided for @characterCanvas_aiHint.
+  ///
+  /// In en, this message translates to:
+  /// **'AI will place all characters automatically'**
+  String get characterCanvas_aiHint;
+
+  /// No description provided for @characterCanvas_dragHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag anchors to position characters; release to apply'**
+  String get characterCanvas_dragHint;
+
   /// No description provided for @characterEditor_genderFemale.
   ///
   /// In en, this message translates to:

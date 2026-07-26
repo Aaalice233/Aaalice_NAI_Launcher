@@ -111,6 +111,27 @@ class CharacterPrompt with _$CharacterPrompt {
     );
   }
 
+  /// 依提示词首 tag 推导的有效性别
+  ///
+  /// girl/1girl → female，boy/1boy → male，其余 → other。
+  /// UI 的性别配色（色点/锚点/图标）应使用此值而非 [gender] 字段：
+  /// 用户把提示词里的 boy 改成 girl 时颜色随之变化。
+  CharacterGender get effectiveGender {
+    for (final tag in prompt.split(',')) {
+      final trimmed = tag.trim();
+      if (trimmed.isEmpty) continue;
+      switch (trimmed.toLowerCase()) {
+        case 'girl' || '1girl':
+          return CharacterGender.female;
+        case 'boy' || '1boy':
+          return CharacterGender.male;
+        default:
+          return CharacterGender.other;
+      }
+    }
+    return CharacterGender.other;
+  }
+
   /// 生成NAI格式的角色提示词
   /// [useAiPosition] 是否使用AI选择位置（全局设置）
   String toNaiPrompt({bool useAiPosition = false}) {
@@ -169,8 +190,9 @@ class CharacterPromptConfig with _$CharacterPromptConfig {
 
   /// 生成NAI格式的多角色提示词
   String toNaiPrompt() {
-    final enabledCharacters =
-        characters.where((c) => c.enabled && c.prompt.isNotEmpty);
+    final enabledCharacters = characters.where(
+      (c) => c.enabled && c.prompt.isNotEmpty,
+    );
     if (enabledCharacters.isEmpty) return '';
 
     return enabledCharacters
@@ -184,14 +206,14 @@ class CharacterPromptConfig with _$CharacterPromptConfig {
     return 'Character ${characters.length + 1}';
   }
 
-  /// 预定义的默认位置列表（分散在5x5网格中，尽量不重合）
+  /// 预定义的默认位置列表（0-1 百分比坐标，分散排布尽量不重合）
   static const List<CharacterPosition> _defaultPositions = [
-    CharacterPosition(row: 2, column: 2), // C3 - 中心
-    CharacterPosition(row: 1, column: 1), // B2 - 左上
-    CharacterPosition(row: 1, column: 3), // D2 - 右上
-    CharacterPosition(row: 3, column: 1), // B4 - 左下
-    CharacterPosition(row: 3, column: 3), // D4 - 右下
-    CharacterPosition(row: 2, column: 0), // A3 - 最左
+    CharacterPosition(row: 0.5, column: 0.5), // 中心
+    CharacterPosition(row: 0.3, column: 0.3), // 左上
+    CharacterPosition(row: 0.3, column: 0.7), // 右上
+    CharacterPosition(row: 0.7, column: 0.3), // 左下
+    CharacterPosition(row: 0.7, column: 0.7), // 右下
+    CharacterPosition(row: 0.5, column: 0.1), // 最左
   ];
 
   /// 获取下一个可用的默认位置
@@ -239,7 +261,8 @@ class CharacterPromptConfig with _$CharacterPromptConfig {
     String? thumbnailPath,
   }) {
     // 根据性别设置初始提示词（如果未指定）
-    final initialPrompt = prompt ??
+    final initialPrompt =
+        prompt ??
         switch (gender) {
           CharacterGender.female => 'girl, ',
           CharacterGender.male => 'boy, ',
@@ -262,16 +285,15 @@ class CharacterPromptConfig with _$CharacterPromptConfig {
 
   /// 移除角色
   CharacterPromptConfig removeCharacter(String id) {
-    return copyWith(
-      characters: characters.where((c) => c.id != id).toList(),
-    );
+    return copyWith(characters: characters.where((c) => c.id != id).toList());
   }
 
   /// 更新角色
   CharacterPromptConfig updateCharacter(CharacterPrompt character) {
     return copyWith(
-      characters:
-          characters.map((c) => c.id == character.id ? character : c).toList(),
+      characters: characters
+          .map((c) => c.id == character.id ? character : c)
+          .toList(),
     );
   }
 

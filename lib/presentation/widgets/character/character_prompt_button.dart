@@ -191,9 +191,7 @@ class _AddCharacterMenu extends ConsumerWidget {
   void _selectLast(WidgetRef ref) {
     final characters = ref.read(characterPromptNotifierProvider).characters;
     if (characters.isNotEmpty) {
-      ref
-          .read(selectedCharacterIdProvider.notifier)
-          .select(characters.last.id);
+      ref.read(selectedCharacterIdProvider.notifier).select(characters.last.id);
     }
   }
 }
@@ -210,10 +208,7 @@ class _CharacterCountBadge extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Container(
-      constraints: const BoxConstraints(
-        minWidth: 14,
-        minHeight: 14,
-      ),
+      constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: colorScheme.primary,
@@ -250,15 +245,15 @@ class _DynamicCharacterIcon extends StatelessWidget {
     required this.emptyColor,
   });
 
-  /// 根据性别获取对应颜色
+  /// 根据性别获取对应颜色（与角色卡配色一致）
   static Color getGenderColor(CharacterGender gender) {
     switch (gender) {
       case CharacterGender.female:
-        return const Color(0xFFE91E63); // 粉色
+        return const Color(0xFFEC4899); // 粉色
       case CharacterGender.male:
-        return const Color(0xFF2196F3); // 蓝色
+        return const Color(0xFF3B82F6); // 蓝色
       case CharacterGender.other:
-        return const Color(0xFF9E9E9E); // 灰色
+        return const Color(0xFF8B5CF6); // 紫色
     }
   }
 
@@ -300,7 +295,8 @@ class _DynamicCharacterIcon extends StatelessWidget {
               child: CustomPaint(
                 size: Size(personWidth, size),
                 painter: _FilledPersonPainter(
-                  color: getGenderColor(displayCharacters[i].gender),
+                  // 颜色跟随提示词首 tag 推导的有效性别
+                  color: getGenderColor(displayCharacters[i].effectiveGender),
                 ),
               ),
             ),
@@ -334,11 +330,7 @@ class _EmptyPersonPainter extends CustomPainter {
     final headCenterY = startY + headRadius;
 
     // 绘制头部（圆形）
-    canvas.drawCircle(
-      Offset(centerX, headCenterY),
-      headRadius,
-      paint,
-    );
+    canvas.drawCircle(Offset(centerX, headCenterY), headRadius, paint);
 
     // 绘制身体（简化的圆角矩形躯干）
     final bodyTop = headCenterY + headRadius + gap;
@@ -386,11 +378,7 @@ class _FilledPersonPainter extends CustomPainter {
     final headCenterY = startY + headRadius;
 
     // 绘制头部（圆形）
-    canvas.drawCircle(
-      Offset(centerX, headCenterY),
-      headRadius,
-      paint,
-    );
+    canvas.drawCircle(Offset(centerX, headCenterY), headRadius, paint);
 
     // 绘制身体（简化的圆角矩形躯干）
     final bodyTop = headCenterY + headRadius + gap;
@@ -422,10 +410,7 @@ class _CharacterTooltipWrapper extends StatelessWidget {
   final CharacterPromptConfig config;
   final Widget child;
 
-  const _CharacterTooltipWrapper({
-    required this.config,
-    required this.child,
-  });
+  const _CharacterTooltipWrapper({required this.config, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -433,9 +418,7 @@ class _CharacterTooltipWrapper extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Tooltip(
-      richMessage: WidgetSpan(
-        child: CharacterTooltipContent(config: config),
-      ),
+      richMessage: WidgetSpan(child: CharacterTooltipContent(config: config)),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),

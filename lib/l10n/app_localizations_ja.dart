@@ -4568,6 +4568,21 @@ class AppLocalizationsJa extends AppLocalizations {
   String get characterEditor_position => '位置';
 
   @override
+  String get characterCanvas_title => 'キャラクター位置';
+
+  @override
+  String get characterCanvas_aiChoice => 'AIにおまかせ';
+
+  @override
+  String get characterCanvas_custom => 'カスタム';
+
+  @override
+  String get characterCanvas_aiHint => 'AIがすべてのキャラクターの位置を自動で決めます';
+
+  @override
+  String get characterCanvas_dragHint => 'アンカーをドラッグして位置を設定し、離すと反映されます';
+
+  @override
   String get characterEditor_genderFemale => '女性';
 
   @override

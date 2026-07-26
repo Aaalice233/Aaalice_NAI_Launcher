@@ -4502,6 +4502,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get characterEditor_position => '位置';
 
   @override
+  String get characterCanvas_title => '角色位置';
+
+  @override
+  String get characterCanvas_aiChoice => 'AI 选择';
+
+  @override
+  String get characterCanvas_custom => '自定义';
+
+  @override
+  String get characterCanvas_aiHint => 'AI 将自动安排角色位置';
+
+  @override
+  String get characterCanvas_dragHint => '拖动锚点设置角色位置，松开即生效';
+
+  @override
   String get characterEditor_genderFemale => '女性';
 
   @override
