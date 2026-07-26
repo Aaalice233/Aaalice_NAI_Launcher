@@ -4441,15 +4441,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get characterEditor_close => '关闭';
 
   @override
-  String get characterEditor_dock => '停靠';
-
-  @override
-  String get characterEditor_undock => '取消停靠';
-
-  @override
-  String get characterEditor_dockedHint => '角色面板已停靠到图像区域';
-
-  @override
   String get characterEditor_confirm => '确定';
 
   @override
@@ -4484,12 +4475,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get characterEditor_addCharacterHint => '点击上方按钮添加角色';
-
-  @override
-  String get characterEditor_deleteTitle => '删除角色';
-
-  @override
-  String get characterEditor_deleteConfirm => '确定要删除这个角色吗？此操作无法撤销。';
 
   @override
   String get characterEditor_name => '名称';

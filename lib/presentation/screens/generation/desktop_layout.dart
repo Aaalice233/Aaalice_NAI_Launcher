@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/queue/replication_task.dart';
-import '../../providers/character_panel_dock_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
@@ -50,19 +49,6 @@ class _DesktopGenerationLayoutState
   /// 切换提示词区域最大化状态
   void _togglePromptMaximize() {
     final newValue = !ref.read(promptMaximizeNotifierProvider);
-
-    // 如果即将最大化，自动退出停靠模式（两者互斥）
-    if (newValue) {
-      final isDocked = ref.read(characterPanelDockProvider);
-      if (isDocked) {
-        ref.read(characterPanelDockProvider.notifier).undock();
-        AppLogger.d(
-          'Auto-undocked character panel on maximize',
-          'DesktopLayout',
-        );
-      }
-    }
-
     ref.read(promptMaximizeNotifierProvider.notifier).setMaximized(newValue);
     AppLogger.d('Prompt area maximize toggled', 'DesktopLayout');
   }

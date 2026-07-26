@@ -2129,9 +2129,6 @@
 
   "characterEditor_title": "Multi-Character Prompts",
   "characterEditor_close": "Close",
-  "characterEditor_dock": "Dock",
-  "characterEditor_undock": "Undock",
-  "characterEditor_dockedHint": "Character panel is docked to image area",
   "characterEditor_confirm": "Confirm",
   "characterEditor_clearAll": "Clear All",
   "characterEditor_clearAllTitle": "Clear All Characters",
@@ -2144,8 +2141,6 @@
   "characterEditor_emptyHint": "Select from the list or add a new character",
   "characterEditor_noCharacters": "No characters",
   "characterEditor_addCharacterHint": "Click buttons above to add characters",
-  "characterEditor_deleteTitle": "Delete Character",
-  "characterEditor_deleteConfirm": "Are you sure you want to delete this character? This action cannot be undone.",
   "characterEditor_name": "Name",
   "characterEditor_nameHint": "Enter character name",
   "characterEditor_enabled": "Enabled",

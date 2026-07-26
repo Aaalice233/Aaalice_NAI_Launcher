@@ -61,10 +61,6 @@ class StorageKeys {
   static const String img2imgExpanded = 'img2img_expanded';
   static const String vibeTransferExpanded = 'vibe_transfer_expanded';
   static const String preciseRefExpanded = 'precise_ref_expanded';
-  static const String characterPanelExpanded = 'character_panel_expanded';
-
-  // Character Panel Dock State (多角色面板停靠状态)
-  static const String characterPanelDocked = 'character_panel_docked';
 
   // Panel Width Keys (面板宽度)
   static const String historyPanelWidth = 'history_panel_width';

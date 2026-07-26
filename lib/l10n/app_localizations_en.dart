@@ -4598,16 +4598,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get characterEditor_close => 'Close';
 
   @override
-  String get characterEditor_dock => 'Dock';
-
-  @override
-  String get characterEditor_undock => 'Undock';
-
-  @override
-  String get characterEditor_dockedHint =>
-      'Character panel is docked to image area';
-
-  @override
   String get characterEditor_confirm => 'Confirm';
 
   @override
@@ -4646,13 +4636,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get characterEditor_addCharacterHint =>
       'Click buttons above to add characters';
-
-  @override
-  String get characterEditor_deleteTitle => 'Delete Character';
-
-  @override
-  String get characterEditor_deleteConfirm =>
-      'Are you sure you want to delete this character? This action cannot be undone.';
 
   @override
   String get characterEditor_name => 'Name';

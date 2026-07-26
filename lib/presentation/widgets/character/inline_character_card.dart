@@ -1,0 +1,442 @@
+import 'dart:io';
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../data/models/character/character_prompt.dart';
+import '../../providers/character_prompt_provider.dart';
+import '../common/decoded_memory_image.dart';
+import 'add_to_library_dialog.dart';
+import 'inline_character_editor.dart';
+
+/// 内联角色卡（内容常显，点击即编辑）
+///
+/// 官网式设计：没有折叠态，只有「只读预览」和「正在编辑」两种状态。
+/// - 未选中：头部条 + 提示词只读预览，点击任意处进入编辑
+/// - 编辑中（[inlineEditor] 为 true）：头部条 + 原位编辑器
+/// - 编辑中（[inlineEditor] 为 false，经典布局横排）：仅高亮边框，
+///   编辑器由外部的全宽面板承载，保持网格排版整齐
+/// - 词库角色的缩略图作为头部条背景横向铺满
+/// - 编辑态点击卡片外部自动退回未选中状态
+///
+/// [compact] 用于经典布局的横排行：更矮的头部、更少的预览行数、
+/// 头部只保留启用与删除按钮。
+class InlineCharacterCard extends ConsumerStatefulWidget {
+  final CharacterPrompt character;
+  final int index;
+  final int total;
+  final bool compact;
+  final bool inlineEditor;
+
+  const InlineCharacterCard({
+    super.key,
+    required this.character,
+    required this.index,
+    required this.total,
+    this.compact = false,
+    this.inlineEditor = true,
+  });
+
+  @override
+  ConsumerState<InlineCharacterCard> createState() =>
+      _InlineCharacterCardState();
+}
+
+class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
+  /// 卡的焦点父节点：hasFocus 含后代（输入框）焦点，
+  /// 用于区分「点击外部失焦」与「点击自动补全浮层但焦点仍在输入框」
+  final FocusNode _cardFocusNode = FocusNode(
+    skipTraversal: true,
+    canRequestFocus: false,
+  );
+
+  /// 模态对话框（位置/重命名/词库）打开期间抑制点外部收起
+  bool _modalOpen = false;
+
+  @override
+  void dispose() {
+    _cardFocusNode.dispose();
+    super.dispose();
+  }
+
+  bool get _isEditing =>
+      ref.watch(selectedCharacterIdProvider) == widget.character.id;
+
+  CharacterPromptNotifier get _notifier =>
+      ref.read(characterPromptNotifierProvider.notifier);
+
+  void _enterEditing() {
+    ref.read(selectedCharacterIdProvider.notifier).select(widget.character.id);
+  }
+
+  void _toggleEditing() {
+    final selector = ref.read(selectedCharacterIdProvider.notifier);
+    if (ref.read(selectedCharacterIdProvider) == widget.character.id) {
+      selector.clear();
+    } else {
+      _enterEditing();
+    }
+  }
+
+  /// 直接删除（不弹确认框）
+  void _deleteCharacter() {
+    final selector = ref.read(selectedCharacterIdProvider.notifier);
+    if (ref.read(selectedCharacterIdProvider) == widget.character.id) {
+      selector.clear();
+    }
+    _notifier.removeCharacter(widget.character.id);
+  }
+
+  Future<void> _openModal(Future<void> Function() open) async {
+    _modalOpen = true;
+    try {
+      await open();
+    } finally {
+      _modalOpen = false;
+    }
+  }
+
+  void _handleTapOutside() {
+    if (_modalOpen) return;
+    // TapRegion 回调发生在指针按下时，等本帧手势与焦点变化尘埃落定再判断
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // 用户点了另一张卡：选中已切换，别把新选择清掉
+      if (ref.read(selectedCharacterIdProvider) != widget.character.id) {
+        return;
+      }
+      // 点击自动补全浮层的建议项时浮层在卡外，但输入框焦点保持，
+      // 此时不应退出编辑
+      if (_cardFocusNode.hasFocus) return;
+      ref.read(selectedCharacterIdProvider.notifier).clear();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isEditing = _isEditing;
+    final enabled = widget.character.enabled;
+    final showInlineEditor = isEditing && widget.inlineEditor;
+
+    Widget card = Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isEditing
+              ? colorScheme.primary
+              : colorScheme.outline.withValues(alpha: 0.3),
+          width: isEditing ? 1.5 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildHeader(context, theme),
+          if (showInlineEditor)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+              child: CharacterPromptEditor(
+                character: widget.character,
+                compact: widget.compact,
+              ),
+            )
+          else
+            _buildPreview(context, theme),
+        ],
+      ),
+    );
+
+    // 编辑态点击卡外自动退出；经典布局（inlineEditor 为 false）下
+    // 编辑器在外部全宽面板里，点面板不能算「卡外」，
+    // 退出逻辑全权交给面板自己的 TapRegion
+    if (isEditing && widget.inlineEditor) {
+      card = TapRegion(
+        onTapOutside: (_) => _handleTapOutside(),
+        child: card,
+      );
+    }
+
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 150),
+      opacity: enabled ? 1.0 : 0.48,
+      child: Focus(
+        focusNode: _cardFocusNode,
+        child: card,
+      ),
+    );
+  }
+
+  // ==================== 头部条 ====================
+
+  Widget _buildHeader(BuildContext context, ThemeData theme) {
+    final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final character = widget.character;
+    final hasThumbnail = character.thumbnailPath != null &&
+        character.thumbnailPath!.isNotEmpty &&
+        File(character.thumbnailPath!).existsSync();
+    final headerHeight = widget.compact ? 30.0 : 34.0;
+    // 缩略图铺满头部时文字压图，统一转白色
+    final onHeader =
+        hasThumbnail ? Colors.white : colorScheme.onSurfaceVariant;
+
+    return SizedBox(
+      height: headerHeight,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (hasThumbnail)
+            _HeaderThumbnail(path: character.thumbnailPath!)
+          else
+            ColoredBox(
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+            ),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _toggleEditing,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  children: [
+                    if (!hasThumbnail) ...[
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: _genderColor(character.gender),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Expanded(
+                      child: Text(
+                        character.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: hasThumbnail
+                              ? Colors.white
+                              : colorScheme.onSurface,
+                          fontWeight: FontWeight.w600,
+                          shadows: hasThumbnail
+                              ? const [
+                                  Shadow(color: Colors.black54, blurRadius: 4),
+                                ]
+                              : null,
+                        ),
+                      ),
+                    ),
+                    // 操作全部平铺一排；紧凑卡只留启用与删除，
+                    // 其余操作在全宽编辑面板的头部
+                    if (!widget.compact)
+                      ..._buildFullActions(context, l10n, onHeader),
+                    _HeaderIconButton(
+                      icon: character.enabled
+                          ? Icons.check_circle
+                          : Icons.circle_outlined,
+                      color: character.enabled
+                          ? (hasThumbnail
+                              ? Colors.white
+                              : colorScheme.primary)
+                          : onHeader,
+                      tooltip: l10n.characterEditor_enabled,
+                      onTap: () =>
+                          _notifier.toggleCharacterEnabled(character.id),
+                    ),
+                    _HeaderIconButton(
+                      icon: Icons.delete_outline,
+                      color: hasThumbnail
+                          ? Colors.white
+                          : colorScheme.error,
+                      tooltip: l10n.common_delete,
+                      onTap: _deleteCharacter,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildFullActions(
+    BuildContext context,
+    AppLocalizations l10n,
+    Color onHeader,
+  ) {
+    return [
+      _HeaderIconButton(
+        icon: Icons.arrow_upward,
+        color: onHeader,
+        tooltip: l10n.characterEditor_moveUp,
+        enabled: widget.index > 0,
+        onTap: () => _notifier.moveCharacterUp(widget.index),
+      ),
+      _HeaderIconButton(
+        icon: Icons.arrow_downward,
+        color: onHeader,
+        tooltip: l10n.characterEditor_moveDown,
+        enabled: widget.index < widget.total - 1,
+        onTap: () => _notifier.moveCharacterDown(widget.index),
+      ),
+      _HeaderIconButton(
+        icon: Icons.edit_outlined,
+        color: onHeader,
+        tooltip: l10n.characterEditor_name,
+        onTap: () => _openModal(
+          () => showCharacterRenameDialog(context, ref, widget.character),
+        ),
+      ),
+      _HeaderIconButton(
+        icon: Icons.library_add_outlined,
+        color: onHeader,
+        tooltip: l10n.tagLibrary_addToLibrary,
+        onTap: () => _openModal(
+          () => AddToLibraryDialog.show(
+            context,
+            name: widget.character.name,
+            content: widget.character.prompt,
+          ),
+        ),
+      ),
+      _HeaderIconButton(
+        icon: Icons.grid_on_rounded,
+        color: onHeader,
+        tooltip: l10n.characterEditor_position,
+        onTap: () => _openModal(
+          () => CharacterPositionDialog.show(context, widget.character.id),
+        ),
+      ),
+    ];
+  }
+
+  static Color _genderColor(CharacterGender gender) {
+    switch (gender) {
+      case CharacterGender.female:
+        return const Color(0xFFEC4899);
+      case CharacterGender.male:
+        return const Color(0xFF3B82F6);
+      case CharacterGender.other:
+        return const Color(0xFF8B5CF6);
+    }
+  }
+
+  // ==================== 只读预览 ====================
+
+  Widget _buildPreview(BuildContext context, ThemeData theme) {
+    final l10n = AppLocalizations.of(context)!;
+    final prompt = widget.character.prompt;
+    final isEmpty = prompt.trim().isEmpty;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        // 与头部一致的开关语义：未选中点击进入编辑，已选中（经典布局
+        // 编辑器在外部面板、预览区仍可见）再点收起
+        onTap: _toggleEditing,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Text(
+            isEmpty ? l10n.characterEditor_promptHint : prompt,
+            maxLines: widget.compact ? 2 : 3,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: isEmpty
+                  ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)
+                  : theme.colorScheme.onSurfaceVariant,
+              height: 1.4,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 头部条缩略图背景（横向铺满 + 暗遮罩保证文字可读）
+class _HeaderThumbnail extends StatelessWidget {
+  final String path;
+
+  const _HeaderThumbnail({required this.path});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final cacheWidth = DecodedMemoryImage.resolveCacheDimension(
+          logicalSize: width.isFinite ? math.min(width, 720.0) : 720.0,
+          constrainedSize: null,
+          pixelRatio: MediaQuery.devicePixelRatioOf(context),
+        );
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.file(
+              File(path),
+              fit: BoxFit.cover,
+              alignment: const Alignment(0, -0.4),
+              cacheWidth: cacheWidth,
+              errorBuilder: (context, error, stack) => ColoredBox(
+                color: Theme.of(context)
+                    .colorScheme
+                    .surfaceContainerHighest
+                    .withValues(alpha: 0.4),
+              ),
+            ),
+            const ColoredBox(color: Color(0x66000000)),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// 头部条小图标按钮
+class _HeaderIconButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String tooltip;
+  final VoidCallback onTap;
+  final bool enabled;
+
+  const _HeaderIconButton({
+    required this.icon,
+    required this.color,
+    required this.tooltip,
+    required this.onTap,
+    this.enabled = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      waitDuration: const Duration(milliseconds: 500),
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Icon(
+            icon,
+            size: 15,
+            color: enabled ? color : color.withValues(alpha: 0.3),
+          ),
+        ),
+      ),
+    );
+  }
+}

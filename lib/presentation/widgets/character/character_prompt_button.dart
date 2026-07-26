@@ -3,18 +3,17 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/character/character_prompt.dart';
-import '../../providers/character_panel_dock_provider.dart';
 import '../../providers/character_prompt_provider.dart';
-import '../common/app_toast.dart';
-import 'character_editor_dialog.dart';
+import '../../providers/tag_library_page_provider.dart';
+import '../tag_library/tag_library_picker_dialog.dart';
 import 'character_tooltip_content.dart';
 
 /// 多人角色提示词触发按钮
 ///
-/// 显示在提示词区域工具栏中，点击打开角色编辑对话框。
-/// 当存在角色时，显示角色数量徽章。
-///
-/// Requirements: 1.1, 5.3
+/// 显示在提示词区域工具栏中，作为内联角色区的状态指示器：
+/// - 有角色时点击选中第一个角色进入编辑（角色区常显于布局中）
+/// - 无角色时点击弹出添加菜单（女/男/其他/词库）
+/// - 当存在角色时，显示角色数量徽章
 class CharacterPromptButton extends ConsumerWidget {
   const CharacterPromptButton({super.key});
 
@@ -25,7 +24,43 @@ class CharacterPromptButton extends ConsumerWidget {
     final hasCharacters = characterCount > 0;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isDocked = ref.watch(characterPanelDockProvider);
+
+    final buttonContent = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: hasCharacters
+              ? colorScheme.primary.withValues(alpha: 0.5)
+              : colorScheme.outline.withValues(alpha: 0.3),
+          width: 1,
+        ),
+        color: hasCharacters
+            ? colorScheme.primary.withValues(alpha: 0.1)
+            : Colors.transparent,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _DynamicCharacterIcon(
+            characters: config.characters,
+            size: 18,
+            emptyColor: colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            AppLocalizations.of(context)!.character_buttonLabel,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: hasCharacters
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
 
     return _CharacterTooltipWrapper(
       config: config,
@@ -34,56 +69,18 @@ class CharacterPromptButton extends ConsumerWidget {
         children: [
           Material(
             color: Colors.transparent,
-            child: InkWell(
-              onTap: () {
-                if (isDocked) {
-                  // 停靠模式下提示用户面板已显示在图像区域
-                  AppToast.info(
-                    context,
-                    AppLocalizations.of(context)!.characterEditor_dockedHint,
-                  );
-                } else {
-                  CharacterEditorDialog.show(context);
-                }
-              },
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: hasCharacters
-                        ? colorScheme.primary.withValues(alpha: 0.5)
-                        : colorScheme.outline.withValues(alpha: 0.3),
-                    width: 1,
-                  ),
-                  color: hasCharacters
-                      ? colorScheme.primary.withValues(alpha: 0.1)
-                      : Colors.transparent,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    _DynamicCharacterIcon(
-                      characters: config.characters,
-                      size: 18,
-                      emptyColor: colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      AppLocalizations.of(context)!.character_buttonLabel,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: hasCharacters
-                            ? colorScheme.primary
-                            : colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            child: hasCharacters
+                ? InkWell(
+                    onTap: () {
+                      // 角色区常显在布局中，点击选中第一个角色进入编辑
+                      ref
+                          .read(selectedCharacterIdProvider.notifier)
+                          .select(config.characters.first.id);
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: buttonContent,
+                  )
+                : _AddCharacterMenu(child: buttonContent),
           ),
           // 按钮右上角角标
           if (hasCharacters)
@@ -95,6 +92,109 @@ class CharacterPromptButton extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+/// 无角色时的添加菜单包装
+class _AddCharacterMenu extends ConsumerWidget {
+  final Widget child;
+
+  const _AddCharacterMenu({required this.child});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+
+    return PopupMenuButton<CharacterGender?>(
+      tooltip: '',
+      padding: EdgeInsets.zero,
+      onSelected: (gender) => _handleAdd(context, ref, gender),
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: CharacterGender.female,
+          child: _menuRow(
+            Icons.female,
+            l10n.characterEditor_addFemale,
+            const Color(0xFFEC4899),
+          ),
+        ),
+        PopupMenuItem(
+          value: CharacterGender.male,
+          child: _menuRow(
+            Icons.male,
+            l10n.characterEditor_addMale,
+            const Color(0xFF3B82F6),
+          ),
+        ),
+        PopupMenuItem(
+          value: CharacterGender.other,
+          child: _menuRow(
+            Icons.transgender,
+            l10n.characterEditor_addOther,
+            const Color(0xFF8B5CF6),
+          ),
+        ),
+        PopupMenuItem(
+          value: null,
+          child: _menuRow(
+            Icons.library_books_outlined,
+            l10n.characterEditor_addFromLibrary,
+            theme.colorScheme.tertiary,
+          ),
+        ),
+      ],
+      child: child,
+    );
+  }
+
+  Widget _menuRow(IconData icon, String label, Color color) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 10),
+        Text(label),
+      ],
+    );
+  }
+
+  Future<void> _handleAdd(
+    BuildContext context,
+    WidgetRef ref,
+    CharacterGender? gender,
+  ) async {
+    final notifier = ref.read(characterPromptNotifierProvider.notifier);
+
+    if (gender != null) {
+      notifier.addCharacter(gender);
+      _selectLast(ref);
+      return;
+    }
+
+    final entry = await showDialog(
+      context: context,
+      builder: (context) => const TagLibraryPickerDialog(),
+    );
+    if (entry != null) {
+      ref.read(tagLibraryPageNotifierProvider.notifier).recordUsage(entry.id);
+      notifier.addCharacter(
+        CharacterGender.female,
+        name: entry.displayName,
+        prompt: entry.content,
+        thumbnailPath: entry.thumbnail,
+      );
+      _selectLast(ref);
+    }
+  }
+
+  /// 新增后直接选中进入编辑，省一次点击
+  void _selectLast(WidgetRef ref) {
+    final characters = ref.read(characterPromptNotifierProvider).characters;
+    if (characters.isNotEmpty) {
+      ref
+          .read(selectedCharacterIdProvider.notifier)
+          .select(characters.last.id);
+    }
   }
 }
 
@@ -129,64 +229,6 @@ class _CharacterCountBadge extends StatelessWidget {
             height: 1,
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// 紧凑版角色提示词按钮（仅图标）
-///
-/// 用于空间受限的工具栏
-class CharacterPromptIconButton extends ConsumerWidget {
-  const CharacterPromptIconButton({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final config = ref.watch(characterPromptNotifierProvider);
-    final characterCount = config.characters.length;
-    final hasCharacters = characterCount > 0;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return _CharacterTooltipWrapper(
-      config: config,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          IconButton(
-            onPressed: () => CharacterEditorDialog.show(context),
-            icon: _DynamicCharacterIcon(
-              characters: config.characters,
-              size: 24,
-              emptyColor: colorScheme.onSurfaceVariant,
-            ),
-          ),
-          if (hasCharacters)
-            Positioned(
-              right: 4,
-              top: 4,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: colorScheme.primary,
-                  shape: BoxShape.circle,
-                ),
-                constraints: const BoxConstraints(
-                  minWidth: 16,
-                  minHeight: 16,
-                ),
-                child: Text(
-                  characterCount.toString(),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: colorScheme.onPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 10,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }

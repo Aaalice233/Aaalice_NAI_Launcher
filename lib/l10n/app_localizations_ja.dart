@@ -4503,15 +4503,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get characterEditor_close => '閉じる';
 
   @override
-  String get characterEditor_dock => 'ドック';
-
-  @override
-  String get characterEditor_undock => 'ドッキング解除';
-
-  @override
-  String get characterEditor_dockedHint => 'キャラクターパネルが画像領域にドッキングされています';
-
-  @override
   String get characterEditor_confirm => '確認';
 
   @override
@@ -4549,12 +4540,6 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get characterEditor_addCharacterHint =>
       'キャラクターを追加するには上のボタンをクリックしてください';
-
-  @override
-  String get characterEditor_deleteTitle => 'キャラクターの削除';
-
-  @override
-  String get characterEditor_deleteConfirm => 'このキャラクターを削除しますか？この操作は元に戻せません。';
 
   @override
   String get characterEditor_name => '名前';
