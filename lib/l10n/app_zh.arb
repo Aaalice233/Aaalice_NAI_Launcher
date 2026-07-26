@@ -640,6 +640,8 @@
   "img2img_seedvr2UseTiledUpscaleHint": "启用后改用 SeedVR2TilingUpscaler，适合大图或显存压力较高的场景。",
   "img2img_seedvr2TileSize": "分块图块大小",
   "img2img_seedvr2TileSizeHint": "同时控制 SeedVR2TilingUpscaler 的 tile_width / tile_height。",
+  "img2img_seedvr2BlocksToSwap": "内存卸载层数",
+  "img2img_seedvr2BlocksToSwapHint": "把多少 DiT 层放在内存里、推理时再逐层送入显存。调高更省显存但更吃内存也更慢；显存充裕可调低甚至设为 0。显存不足报错时请调高。",
   "img2img_regularModelDescription": "普通模型 · {name}",
   "@img2img_regularModelDescription": {
     "placeholders": {

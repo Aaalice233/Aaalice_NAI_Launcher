@@ -270,6 +270,8 @@ class StorageKeys {
       'comfyui_seedvr2_vae_tile_size';
   static const String comfyuiSeedvr2Tiled = 'comfyui_seedvr2_tiled';
   static const String comfyuiSeedvr2TileSize = 'comfyui_seedvr2_tile_size';
+  static const String comfyuiSeedvr2BlocksToSwap =
+      'comfyui_seedvr2_blocks_to_swap';
 
   // Krita Bridge 设置
   static const String kritaBridgeEnabled = 'krita_bridge_enabled';

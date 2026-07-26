@@ -92,6 +92,29 @@ class BuiltinWorkflows {
         max: 4096,
         step: 64,
       ),
+      // 参数：放在 CPU 内存的 DiT 层数（显存与内存的取舍）
+      WorkflowSlot(
+        id: 'blocks_to_swap',
+        direction: SlotDirection.parameter,
+        dataType: SlotDataType.integer,
+        nodeId: '6',
+        field: 'blocks_to_swap',
+        label: 'Blocks To Swap',
+        defaultValue: 16,
+        min: 0,
+        max: 36,
+        step: 1,
+      ),
+      // 参数：是否连输入输出组件一起卸载到 CPU
+      WorkflowSlot(
+        id: 'swap_io_components',
+        direction: SlotDirection.parameter,
+        dataType: SlotDataType.boolean,
+        nodeId: '6',
+        field: 'swap_io_components',
+        label: 'Swap IO Components',
+        defaultValue: false,
+      ),
       // 参数：种子
       WorkflowSlot(
         id: 'seed',
@@ -190,6 +213,29 @@ class BuiltinWorkflows {
         min: 128,
         max: 4096,
         step: 64,
+      ),
+      // 参数：放在 CPU 内存的 DiT 层数（显存与内存的取舍）
+      WorkflowSlot(
+        id: 'blocks_to_swap',
+        direction: SlotDirection.parameter,
+        dataType: SlotDataType.integer,
+        nodeId: '6',
+        field: 'blocks_to_swap',
+        label: 'Blocks To Swap',
+        defaultValue: 16,
+        min: 0,
+        max: 36,
+        step: 1,
+      ),
+      // 参数：是否连输入输出组件一起卸载到 CPU
+      WorkflowSlot(
+        id: 'swap_io_components',
+        direction: SlotDirection.parameter,
+        dataType: SlotDataType.boolean,
+        nodeId: '6',
+        field: 'swap_io_components',
+        label: 'Swap IO Components',
+        defaultValue: false,
       ),
       WorkflowSlot(
         id: 'tile_size',
@@ -407,11 +453,14 @@ class BuiltinWorkflows {
       'inputs': {
         'model': 'seedvr2_ema_7b_fp16.safetensors',
         'device': 'cuda:0',
-        'blocks_to_swap': 36,
-        'swap_io_components': true,
+        // 实际值由启动器按用户设置注入，这里只是模板默认。
+        'blocks_to_swap': 16,
+        'swap_io_components': false,
         'offload_device': 'cpu',
         'cache_model': false,
-        'attention_mode': 'sageattn_2',
+        // sdpa 是 PyTorch 内置后端，任何环境都可用；sageattn / flash_attn
+        // 需要用户自行安装扩展包，不适合作为发行默认值。
+        'attention_mode': 'sdpa',
       },
       'class_type': 'SeedVR2LoadDiTModel',
       '_meta': {'title': 'SeedVR2 Load DiT Model'},
@@ -457,11 +506,14 @@ class BuiltinWorkflows {
       'inputs': {
         'model': 'seedvr2_ema_7b_fp16.safetensors',
         'device': 'cuda:0',
-        'blocks_to_swap': 36,
-        'swap_io_components': true,
+        // 实际值由启动器按用户设置注入，这里只是模板默认。
+        'blocks_to_swap': 16,
+        'swap_io_components': false,
         'offload_device': 'cpu',
         'cache_model': false,
-        'attention_mode': 'sageattn_2',
+        // sdpa 是 PyTorch 内置后端，任何环境都可用；sageattn / flash_attn
+        // 需要用户自行安装扩展包，不适合作为发行默认值。
+        'attention_mode': 'sdpa',
       },
       'class_type': 'SeedVR2LoadDiTModel',
       '_meta': {'title': 'SeedVR2 Load DiT Model'},

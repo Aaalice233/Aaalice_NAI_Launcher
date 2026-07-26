@@ -1714,6 +1714,13 @@ class AppLocalizationsJa extends AppLocalizations {
       'SeedVR2TilingUpscaler tile_width / tile_height も制御します。';
 
   @override
+  String get img2img_seedvr2BlocksToSwap => 'メモリへ退避するブロック数';
+
+  @override
+  String get img2img_seedvr2BlocksToSwapHint =>
+      'DiT ブロックのうち何個をシステムメモリに置き、推論時に VRAM へ順次転送するかを指定します。大きいほど VRAM を節約できますがメモリを消費し遅くなります。VRAM に余裕がある場合は 0 まで下げられます。メモリ不足エラーが出る場合は上げてください。';
+
+  @override
   String img2img_regularModelDescription(Object name) {
     return '通常モデル · $name';
   }

@@ -3226,6 +3226,18 @@ abstract class AppLocalizations {
   /// **'Also controls SeedVR2TilingUpscaler tile_width / tile_height.'**
   String get img2img_seedvr2TileSizeHint;
 
+  /// No description provided for @img2img_seedvr2BlocksToSwap.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocks Offloaded To RAM'**
+  String get img2img_seedvr2BlocksToSwap;
+
+  /// No description provided for @img2img_seedvr2BlocksToSwapHint.
+  ///
+  /// In en, this message translates to:
+  /// **'How many DiT blocks stay in system RAM and are streamed to VRAM during inference. Higher saves VRAM but uses more RAM and runs slower; lower it (even to 0) when VRAM is plentiful. Raise it if you hit out-of-memory errors.'**
+  String get img2img_seedvr2BlocksToSwapHint;
+
   /// No description provided for @img2img_regularModelDescription.
   ///
   /// In en, this message translates to:

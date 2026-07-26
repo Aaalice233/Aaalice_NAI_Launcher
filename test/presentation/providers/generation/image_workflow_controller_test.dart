@@ -743,6 +743,45 @@ void main() {
       },
     );
 
+    test(
+      'upscale settings should persist SeedVR2 blocks to swap across rebuilds',
+      () async {
+        final controller = container.read(
+          imageWorkflowControllerProvider.notifier,
+        );
+
+        controller.updateSeedvr2BlocksToSwap(28);
+        await Hive.box(StorageKeys.settingsBox).flush();
+
+        container.dispose();
+        container = ProviderContainer();
+
+        final workflow = container.read(imageWorkflowControllerProvider);
+
+        expect(workflow.upscale.seedvr2BlocksToSwap, equals(28));
+      },
+    );
+
+    test('updateSeedvr2BlocksToSwap should clamp values to the valid range', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+
+      controller.updateSeedvr2BlocksToSwap(-8);
+      expect(
+        container.read(imageWorkflowControllerProvider).upscale
+            .seedvr2BlocksToSwap,
+        equals(UpscaleWorkflowSettings.minSeedvr2BlocksToSwap),
+      );
+
+      controller.updateSeedvr2BlocksToSwap(120);
+      expect(
+        container.read(imageWorkflowControllerProvider).upscale
+            .seedvr2BlocksToSwap,
+        equals(UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap),
+      );
+    });
+
     test('build should default upscale settings to safe local defaults', () {
       final workflow = container.read(imageWorkflowControllerProvider);
 
@@ -849,6 +888,46 @@ void main() {
         expect(workflow.enhance.noise, equals(0.12));
       },
     );
+  });
+
+  group('resolveSeedvr2SwapIoComponents', () {
+    test('should keep IO components on the GPU at low swap levels', () {
+      expect(resolveSeedvr2SwapIoComponents(0), isFalse);
+      expect(
+        resolveSeedvr2SwapIoComponents(
+          UpscaleWorkflowSettings.defaultSeedvr2BlocksToSwap,
+        ),
+        isFalse,
+      );
+      expect(
+        resolveSeedvr2SwapIoComponents(seedvr2SwapIoComponentsThreshold - 1),
+        isFalse,
+      );
+    });
+
+    test('should offload IO components once swapping gets aggressive', () {
+      expect(
+        resolveSeedvr2SwapIoComponents(seedvr2SwapIoComponentsThreshold),
+        isTrue,
+      );
+      expect(
+        resolveSeedvr2SwapIoComponents(
+          UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap,
+        ),
+        isTrue,
+      );
+    });
+
+    test('should stay within the slider range exposed by the UI', () {
+      expect(
+        seedvr2SwapIoComponentsThreshold,
+        greaterThan(UpscaleWorkflowSettings.defaultSeedvr2BlocksToSwap),
+      );
+      expect(
+        seedvr2SwapIoComponentsThreshold,
+        lessThanOrEqualTo(UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap),
+      );
+    });
   });
 }
 

@@ -158,6 +158,29 @@ bool shouldAutoPersistResolvedUpscaleModel({
   return resolvedModel != currentModel;
 }
 
+/// 决定 SeedVR2 是否把 DiT 的输入输出组件（embedding 与归一化层）也卸载到
+/// CPU 内存。
+///
+/// 上游把这个开关描述为「在 blocks_to_swap 之上进一步压低显存」的手段，默认
+/// 关闭，只在显存确实吃紧时才建议打开；它同样要求 offload_device 已设置。
+/// 启动器此前把它固定为 true，导致用户即使把 [blocksToSwap] 调到 0，仍有一部分
+/// 权重留在内存里、每次前向都要经 PCIe 往返。
+///
+/// [blocksToSwap] 为用户在界面上设定的层数，范围见
+/// [UpscaleWorkflowSettings.minSeedvr2BlocksToSwap] 与
+/// [UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap]。
+bool resolveSeedvr2SwapIoComponents(int blocksToSwap) {
+  return blocksToSwap >= seedvr2SwapIoComponentsThreshold;
+}
+
+/// [resolveSeedvr2SwapIoComponents] 启用输入输出组件卸载的层数阈值。
+///
+/// 取值落在默认档（[UpscaleWorkflowSettings.defaultSeedvr2BlocksToSwap]）与
+/// 上游给 8GB 显存的推荐档（32）之间：停在中低档位说明显存尚有余量，不值得
+/// 为有限的显存收益换来每次前向都要付的 PCIe 往返；用户主动调到该档位以上，
+/// 才说明显存确实吃紧、需要这个额外手段。
+const int seedvr2SwapIoComponentsThreshold = 24;
+
 /// 图生图「超分」子模式设置
 class UpscaleWorkflowSettings {
   const UpscaleWorkflowSettings({
@@ -170,6 +193,7 @@ class UpscaleWorkflowSettings {
     this.seedvr2VaeTileSize = defaultSeedvr2VaeTileSize,
     this.seedvr2Tiled = false,
     this.seedvr2TileSize = defaultSeedvr2TileSize,
+    this.seedvr2BlocksToSwap = defaultSeedvr2BlocksToSwap,
   });
 
   static const UpscaleBackend defaultBackend = UpscaleBackend.comfyui;
@@ -181,6 +205,13 @@ class UpscaleWorkflowSettings {
   static const int defaultSeedvr2VaeTileSize = 1024;
   static const int defaultSeedvr2TileSize = 1024;
 
+  /// SeedVR2 DiT 主干中放在 CPU 内存、推理时再逐层搬进显存的层数。
+  ///
+  /// 这个值决定权重在显存和内存之间怎么切分：调高省显存但吃内存并变慢，
+  /// 调低反之。默认取上游建议的起步值，保证 8GB 显存搭配默认的 3B 量化模型
+  /// 可以直接跑起来；显存充裕的用户可以在界面上调低以释放内存。
+  static const int defaultSeedvr2BlocksToSwap = 16;
+
   final UpscaleBackend backend;
   final ComfyUpscaleModule comfyModule;
   final double comfyScale;
@@ -190,6 +221,7 @@ class UpscaleWorkflowSettings {
   final int seedvr2VaeTileSize;
   final bool seedvr2Tiled;
   final int seedvr2TileSize;
+  final int seedvr2BlocksToSwap;
 
   static const double minScale = 1.0;
   static const double maxScale = 2.0;
@@ -197,6 +229,10 @@ class UpscaleWorkflowSettings {
   static const int maxSeedvr2VaeTileSize = 4096;
   static const int minSeedvr2TileSize = 256;
   static const int maxSeedvr2TileSize = 4096;
+  static const int minSeedvr2BlocksToSwap = 0;
+
+  /// 上游节点对 7B 模型的上限即为 36；更小的模型层数不足时会自行截断。
+  static const int maxSeedvr2BlocksToSwap = 36;
 
   UpscaleWorkflowSettings copyWith({
     UpscaleBackend? backend,
@@ -208,6 +244,7 @@ class UpscaleWorkflowSettings {
     int? seedvr2VaeTileSize,
     bool? seedvr2Tiled,
     int? seedvr2TileSize,
+    int? seedvr2BlocksToSwap,
   }) {
     return UpscaleWorkflowSettings(
       backend: backend ?? this.backend,
@@ -219,6 +256,7 @@ class UpscaleWorkflowSettings {
       seedvr2VaeTileSize: seedvr2VaeTileSize ?? this.seedvr2VaeTileSize,
       seedvr2Tiled: seedvr2Tiled ?? this.seedvr2Tiled,
       seedvr2TileSize: seedvr2TileSize ?? this.seedvr2TileSize,
+      seedvr2BlocksToSwap: seedvr2BlocksToSwap ?? this.seedvr2BlocksToSwap,
     );
   }
 
@@ -455,6 +493,12 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       min: UpscaleWorkflowSettings.minSeedvr2TileSize,
       max: UpscaleWorkflowSettings.maxSeedvr2TileSize,
     );
+    final persistedSeedvr2BlocksToSwap = _readPersistedIntSetting(
+      StorageKeys.comfyuiSeedvr2BlocksToSwap,
+      defaultValue: UpscaleWorkflowSettings.defaultSeedvr2BlocksToSwap,
+      min: UpscaleWorkflowSettings.minSeedvr2BlocksToSwap,
+      max: UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap,
+    );
     final persistedEnhance = _readPersistedEnhanceSettings();
 
     return _buildDefaultState(
@@ -469,6 +513,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
         seedvr2VaeTileSize: persistedSeedvr2VaeTileSize,
         seedvr2Tiled: persistedSeedvr2Tiled,
         seedvr2TileSize: persistedSeedvr2TileSize,
+        seedvr2BlocksToSwap: persistedSeedvr2BlocksToSwap,
       ),
     );
   }
@@ -680,6 +725,12 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       _storage.setSetting(
         StorageKeys.comfyuiSeedvr2TileSize,
         settings.seedvr2TileSize,
+      ),
+    );
+    unawaited(
+      _storage.setSetting(
+        StorageKeys.comfyuiSeedvr2BlocksToSwap,
+        settings.seedvr2BlocksToSwap,
       ),
     );
   }
@@ -985,6 +1036,20 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
           .clamp(
             UpscaleWorkflowSettings.minSeedvr2TileSize,
             UpscaleWorkflowSettings.maxSeedvr2TileSize,
+          )
+          .toInt(),
+    );
+    state = state.copyWith(upscale: nextSettings);
+    _persistUpscaleSettings(nextSettings);
+  }
+
+  void updateSeedvr2BlocksToSwap(double value) {
+    final nextSettings = state.upscale.copyWith(
+      seedvr2BlocksToSwap: value
+          .round()
+          .clamp(
+            UpscaleWorkflowSettings.minSeedvr2BlocksToSwap,
+            UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap,
           )
           .toInt(),
     );

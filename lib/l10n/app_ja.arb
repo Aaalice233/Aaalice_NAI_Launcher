@@ -777,6 +777,8 @@
   "img2img_seedvr2UseTiledUpscaleHint": "有効にすると、SeedVR2TilingUpscaler が使用されます。大きな画像や VRAM 負荷が高い場合に推奨します。",
   "img2img_seedvr2TileSize": "タイルのサイズ",
   "img2img_seedvr2TileSizeHint": "SeedVR2TilingUpscaler tile_width / tile_height も制御します。",
+  "img2img_seedvr2BlocksToSwap": "メモリへ退避するブロック数",
+  "img2img_seedvr2BlocksToSwapHint": "DiT ブロックのうち何個をシステムメモリに置き、推論時に VRAM へ順次転送するかを指定します。大きいほど VRAM を節約できますがメモリを消費し遅くなります。VRAM に余裕がある場合は 0 まで下げられます。メモリ不足エラーが出る場合は上げてください。",
   "img2img_regularModelDescription": "通常モデル · {name}",
   "@img2img_regularModelDescription": {
     "placeholders": {

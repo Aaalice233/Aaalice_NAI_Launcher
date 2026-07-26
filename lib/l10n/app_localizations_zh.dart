@@ -1690,6 +1690,13 @@ class AppLocalizationsZh extends AppLocalizations {
       '同时控制 SeedVR2TilingUpscaler 的 tile_width / tile_height。';
 
   @override
+  String get img2img_seedvr2BlocksToSwap => '内存卸载层数';
+
+  @override
+  String get img2img_seedvr2BlocksToSwapHint =>
+      '把多少 DiT 层放在内存里、推理时再逐层送入显存。调高更省显存但更吃内存也更慢；显存充裕可调低甚至设为 0。显存不足报错时请调高。';
+
+  @override
   String img2img_regularModelDescription(Object name) {
     return '普通模型 · $name';
   }

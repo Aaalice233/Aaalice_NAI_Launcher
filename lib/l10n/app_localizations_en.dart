@@ -1746,6 +1746,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Also controls SeedVR2TilingUpscaler tile_width / tile_height.';
 
   @override
+  String get img2img_seedvr2BlocksToSwap => 'Blocks Offloaded To RAM';
+
+  @override
+  String get img2img_seedvr2BlocksToSwapHint =>
+      'How many DiT blocks stay in system RAM and are streamed to VRAM during inference. Higher saves VRAM but uses more RAM and runs slower; lower it (even to 0) when VRAM is plentiful. Raise it if you hit out-of-memory errors.';
+
+  @override
   String img2img_regularModelDescription(Object name) {
     return 'Regular Model · $name';
   }

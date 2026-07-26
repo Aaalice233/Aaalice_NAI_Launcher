@@ -897,6 +897,37 @@ void main() {
       expect(executable['7']['inputs']['decode_tile_size'], 768);
     });
 
+    test('injects SeedVR2 block swap settings into the DiT loader node', () {
+      final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
+      final workflow = manager.getById(comfySeedvr2UpscaleTemplateId)!;
+
+      final executable = manager.buildExecutableWorkflow(
+        template: workflow,
+        paramValues: const {
+          'blocks_to_swap': 28,
+          'swap_io_components': true,
+        },
+      );
+
+      expect(executable['6']['inputs']['blocks_to_swap'], 28);
+      expect(executable['6']['inputs']['swap_io_components'], isTrue);
+      // sageattn / flash_attn 需要额外安装，发行默认值必须是 PyTorch 内置后端。
+      expect(executable['6']['inputs']['attention_mode'], 'sdpa');
+    });
+
+    test('injects SeedVR2 block swap settings into the tiled workflow', () {
+      final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
+      final workflow = manager.getById(comfySeedvr2TiledUpscaleTemplateId)!;
+
+      final executable = manager.buildExecutableWorkflow(
+        template: workflow,
+        paramValues: const {'blocks_to_swap': 0, 'swap_io_components': false},
+      );
+
+      expect(executable['6']['inputs']['blocks_to_swap'], 0);
+      expect(executable['6']['inputs']['swap_io_components'], isFalse);
+    });
+
     test('includes RTX upscale workflow using Nvidia RTX nodes', () {
       final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
       final workflow = manager.getById('builtin_rtx_upscale')!;
