@@ -544,10 +544,18 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
   /// 处理清空操作
   void _handleClear() {
-    _effectiveController.clear();
+    // 不用 controller.clear()：它把 selection 置为 -1（无效），
+    // 光标会消失且后续键盘输入连接错乱，需要重新点击才能恢复。
+    // 显式给出光标位置 0，清空后可直接继续输入。
+    const clearedValue = TextEditingValue(
+      text: '',
+      selection: TextSelection.collapsed(offset: 0),
+    );
+    _effectiveController.value = clearedValue;
     // 同步到外部控制器
-    if (widget.controller != null) {
-      widget.controller!.clear();
+    if (widget.controller != null &&
+        !identical(widget.controller, _effectiveController)) {
+      widget.controller!.value = clearedValue;
     }
 
     widget.onChanged?.call('');
