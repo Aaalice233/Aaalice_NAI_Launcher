@@ -648,11 +648,12 @@ class LocalStorageService {
 
   /// 获取生成页布局模式 (默认 'classic')
   String getGenerationLayoutMode() {
+    // 官网式布局体验更好，未主动设置过的用户默认使用官网式
     return getSetting<String>(
           StorageKeys.generationLayoutMode,
-          defaultValue: 'classic',
+          defaultValue: 'web_style',
         ) ??
-        'classic';
+        'web_style';
   }
 
   /// 保存生成页布局模式
