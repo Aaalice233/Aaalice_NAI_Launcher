@@ -90,15 +90,31 @@ class InlineCharacterRow extends ConsumerWidget {
               if (characters.length < 6) const _AddCharacterChip(),
             ],
           ),
-          if (editingCharacter != null) ...[
-            const SizedBox(height: 6),
-            _RowEditorPanel(
-              key: ValueKey('editor-${editingCharacter.id}'),
-              character: editingCharacter,
-              index: editingIndex,
-              total: characters.length,
+          // 面板展开/收起用高度生长 + 交叉淡化，切换角色时两面板淡化过渡
+          AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 120),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              child: editingCharacter == null
+                  ? const SizedBox(width: double.infinity)
+                  : SizedBox(
+                      key: ValueKey('editor-${editingCharacter.id}'),
+                      width: double.infinity,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: _RowEditorPanel(
+                          character: editingCharacter,
+                          index: editingIndex,
+                          total: characters.length,
+                        ),
+                      ),
+                    ),
             ),
-          ],
+          ),
         ],
       ),
     );
@@ -114,7 +130,6 @@ class _RowEditorPanel extends ConsumerStatefulWidget {
   final int total;
 
   const _RowEditorPanel({
-    super.key,
     required this.character,
     required this.index,
     required this.total,

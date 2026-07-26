@@ -45,6 +45,10 @@ class InlineCharacterCard extends ConsumerStatefulWidget {
 }
 
 class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
+  /// 选中切换的统一动画规格（与左栏参数抽屉的节奏一致）
+  static const _animDuration = Duration(milliseconds: 180);
+  static const _animCurve = Curves.easeOutCubic;
+
   /// 卡的焦点父节点：hasFocus 含后代（输入框）焦点，
   /// 用于区分「点击外部失焦」与「点击自动补全浮层但焦点仍在输入框」
   final FocusNode _cardFocusNode = FocusNode(
@@ -99,7 +103,12 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
   }
 
   void _handleTapOutside() {
+    // 经典布局下编辑器在外部全宽面板里，点面板不能算「卡外」，
+    // 退出逻辑全权交给面板自己的 TapRegion
+    if (!widget.inlineEditor) return;
     if (_modalOpen) return;
+    // TapRegion 恒挂（结构稳定），非选中卡的外部点击直接忽略
+    if (ref.read(selectedCharacterIdProvider) != widget.character.id) return;
     // TapRegion 回调发生在指针按下时，等本帧手势与焦点变化尘埃落定再判断
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -122,7 +131,10 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
     final enabled = widget.character.enabled;
     final showInlineEditor = isEditing && widget.inlineEditor;
 
-    Widget card = Container(
+    // 边框恒宽只变色：宽度变化会挤动内容造成微抖，颜色用动画过渡
+    final card = AnimatedContainer(
+      duration: _animDuration,
+      curve: _animCurve,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: colorScheme.surface,
@@ -131,7 +143,7 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
           color: isEditing
               ? colorScheme.primary
               : colorScheme.outline.withValues(alpha: 0.3),
-          width: isEditing ? 1.5 : 1,
+          width: 1.5,
         ),
       ),
       child: Column(
@@ -139,36 +151,51 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildHeader(context, theme),
-          if (showInlineEditor)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
-              child: CharacterPromptEditor(
-                character: widget.character,
-                compact: widget.compact,
-              ),
-            )
-          else
-            _buildPreview(context, theme),
+          // 预览 ↔ 编辑器：高度平滑生长 + 内容交叉淡化，替代瞬时替换
+          AnimatedSize(
+            duration: _animDuration,
+            curve: _animCurve,
+            alignment: Alignment.topCenter,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 120),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              // AnimatedSwitcher 默认用居中 Stack 布局，子项会缩成内容宽，
+              // 预览区点击热区随之变窄；强制占满卡宽让整个框内都可点中
+              child: showInlineEditor
+                  ? SizedBox(
+                      key: const ValueKey('editor'),
+                      width: double.infinity,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+                        child: CharacterPromptEditor(
+                          character: widget.character,
+                          compact: widget.compact,
+                        ),
+                      ),
+                    )
+                  : SizedBox(
+                      key: const ValueKey('preview'),
+                      width: double.infinity,
+                      child: _buildPreview(context, theme),
+                    ),
+            ),
+          ),
         ],
       ),
     );
 
-    // 编辑态点击卡外自动退出；经典布局（inlineEditor 为 false）下
-    // 编辑器在外部全宽面板里，点面板不能算「卡外」，
-    // 退出逻辑全权交给面板自己的 TapRegion
-    if (isEditing && widget.inlineEditor) {
-      card = TapRegion(
-        onTapOutside: (_) => _handleTapOutside(),
-        child: card,
-      );
-    }
-
+    // TapRegion/Focus 恒挂，保持子树结构稳定（条件包装会让 Element
+    // 无法复用、整卡重建闪一帧）；是否响应由回调内部判断
     return AnimatedOpacity(
-      duration: const Duration(milliseconds: 150),
+      duration: _animDuration,
       opacity: enabled ? 1.0 : 0.48,
       child: Focus(
         focusNode: _cardFocusNode,
-        child: card,
+        child: TapRegion(
+          onTapOutside: (_) => _handleTapOutside(),
+          child: card,
+        ),
       ),
     );
   }
