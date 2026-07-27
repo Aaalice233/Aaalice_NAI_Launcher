@@ -1,8 +1,46 @@
+import 'dart:async';
+
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../data/models/image/image_params.dart';
+import 'character_prompt_provider.dart';
+import 'generation_layout_mode_provider.dart';
+import 'image_generation_provider.dart';
 import 'prompt_maximize_provider.dart';
 
 part 'character_position_canvas_provider.g.dart';
+
+bool isCharacterPositionCanvasAvailable({
+  required bool isV4Model,
+  required bool hasCharacters,
+  required bool isGenerating,
+  required bool hasError,
+}) {
+  return isV4Model && hasCharacters && !isGenerating && !hasError;
+}
+
+/// 位置画布仅在 V4、多角色且未生成/报错时可占用预览区。
+final characterPositionCanvasAvailableProvider = Provider<bool>((ref) {
+  final isV4Model = ref.watch(
+    generationParamsNotifierProvider.select((params) => params.isV4Model),
+  );
+  final hasCharacters = ref.watch(
+    characterPromptNotifierProvider.select(
+      (config) => config.characters.isNotEmpty,
+    ),
+  );
+  final generationState = ref.watch(
+    imageGenerationNotifierProvider.select(
+      (state) => (state.isGenerating, state.status == GenerationStatus.error),
+    ),
+  );
+  return isCharacterPositionCanvasAvailable(
+    isV4Model: isV4Model,
+    hasCharacters: hasCharacters,
+    isGenerating: generationState.$1,
+    hasError: generationState.$2,
+  );
+});
 
 /// 角色位置画布开关
 ///
@@ -12,11 +50,28 @@ part 'character_position_canvas_provider.g.dart';
 @riverpod
 class CharacterPositionCanvas extends _$CharacterPositionCanvas {
   @override
-  bool build() => false;
+  bool build() {
+    ref.listen<bool>(characterPositionCanvasAvailableProvider, (_, available) {
+      if (!available && state) {
+        state = false;
+      }
+    });
+    return false;
+  }
 
   void open() {
-    // 全屏编辑遮住预览区，先退出（官网式布局无全屏概念，调用无害）
-    ref.read(promptMaximizeNotifierProvider.notifier).setMaximized(false);
+    if (!ref.read(characterPositionCanvasAvailableProvider)) {
+      state = false;
+      return;
+    }
+
+    final layoutMode = ref.read(generationLayoutModeNotifierProvider);
+    final promptMaximized = ref.read(promptMaximizeNotifierProvider);
+    if (layoutMode == GenerationLayoutMode.classic && promptMaximized) {
+      unawaited(
+        ref.read(promptMaximizeNotifierProvider.notifier).setMaximized(false),
+      );
+    }
     state = true;
   }
 

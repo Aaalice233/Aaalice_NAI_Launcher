@@ -73,11 +73,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     ImageGenerationState state,
     ThemeData theme,
   ) {
-    // 角色位置画布模式：预览区变成锚点拖拽画布
-    if (ref.watch(characterPositionCanvasProvider)) {
-      return const CharacterPositionCanvasView();
-    }
-
     // 错误状态
     if (state.status == GenerationStatus.error) {
       return _buildErrorState(theme, state.errorMessage, context);
@@ -112,6 +107,14 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         batchWidth,
         batchHeight,
       );
+    }
+
+    // 角色位置画布不能遮挡生成与错误状态，也不能跨越模型/角色能力边界。
+    final showCharacterCanvas =
+        ref.watch(characterPositionCanvasProvider) &&
+        ref.watch(characterPositionCanvasAvailableProvider);
+    if (showCharacterCanvas) {
+      return const CharacterPositionCanvasView();
     }
 
     // 有图像：根据数量决定布局（使用 displayImages）

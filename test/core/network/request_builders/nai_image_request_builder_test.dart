@@ -86,6 +86,48 @@ void main() {
     });
 
     test(
+      'should keep explicit centers and give all six characters a fallback',
+      () async {
+        final params = ImageParams(
+          model: ImageModels.animeDiffusionV45Full,
+          useCoords: true,
+          characters: [
+            const CharacterPrompt(
+              prompt: 'explicit',
+              negativePrompt: 'explicit negative',
+              positionX: 0.37,
+              positionY: 0.64,
+            ),
+            for (var index = 1; index < 6; index++)
+              CharacterPrompt(prompt: 'character $index'),
+          ],
+        );
+        final result = await NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler');
+
+        final v4Prompt =
+            result.requestParameters['v4_prompt'] as Map<String, dynamic>;
+        final caption = v4Prompt['caption'] as Map<String, dynamic>;
+        final captions = caption['char_captions'] as List<dynamic>;
+        final explicitCenter =
+            (captions.first as Map<String, dynamic>)['centers']
+                as List<dynamic>;
+        final lastCenter =
+            (captions.last as Map<String, dynamic>)['centers'] as List<dynamic>;
+
+        expect(explicitCenter.single, equals({'x': 0.37, 'y': 0.64}));
+        expect(lastCenter.single, equals({'x': 0.8, 'y': 0.75}));
+        expect(
+          result
+              .requestParameters['v4_negative_prompt']['caption']['char_captions'][0]['centers'][0],
+          equals({'x': 0.37, 'y': 0.64}),
+        );
+      },
+    );
+
+    test(
       'should apply native quality and UC presets only at request boundary',
       () async {
         final params = ImageParams(

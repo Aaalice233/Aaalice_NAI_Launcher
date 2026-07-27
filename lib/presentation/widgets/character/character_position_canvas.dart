@@ -175,9 +175,11 @@ class _CharacterPositionCanvasViewState
               clipBehavior: Clip.none,
               children: [
                 if (backgroundImage != null) ...[
-                  Image.memory(
-                    backgroundImage.bytes,
+                  DecodedMemoryImage(
+                    bytes: backgroundImage.bytes,
                     fit: BoxFit.cover,
+                    maxLogicalWidth: size.width,
+                    maxLogicalHeight: size.height,
                     gaplessPlayback: true,
                   ),
                   // 轻微暗化，让锚点在亮图上也清晰
@@ -215,7 +217,13 @@ class _CharacterPositionCanvasViewState
                   )
                 else ...[
                   for (var i = 0; i < config.characters.length; i++)
-                    _buildAnchor(context, config.characters[i], i, size),
+                    _buildAnchor(
+                      context,
+                      config,
+                      config.characters[i],
+                      i,
+                      size,
+                    ),
                   // 浮签独立成层且始终位于列表尾部：拖动开始时插入它
                   // 不会挤动锚点的 Element 位置（锚点手势不被打断）
                   if (_draggingId != null) _buildDragLabel(size),
@@ -228,23 +236,16 @@ class _CharacterPositionCanvasViewState
     );
   }
 
-  /// 锚点显示坐标：拖动中用本地值，否则用角色位置（无位置时横向分散兜底）
+  /// 锚点显示坐标：拖动中用本地值，否则使用与请求层一致的有效位置。
   ({double row, double column}) _anchorPosition(
+    CharacterPromptConfig config,
     CharacterPrompt character,
-    int index,
-    int total,
   ) {
     if (_draggingId == character.id) {
       return (row: _dragRow, column: _dragColumn);
     }
-    final position = character.customPosition;
-    if (position != null) {
-      return (
-        row: position.row.clamp(0.0, 1.0),
-        column: position.column.clamp(0.0, 1.0),
-      );
-    }
-    return (row: 0.5, column: (index + 1) / (total + 1));
+    final position = config.resolvePosition(character);
+    return (row: position.row, column: position.column);
   }
 
   /// 拖动中的坐标浮签（独立于锚点渲染，避免打断手势）
@@ -254,8 +255,8 @@ class _CharacterPositionCanvasViewState
 
     return Positioned(
       key: const ValueKey('canvas-drag-label'),
-      left: (centerX - 40).clamp(0.0, canvasSize.width - 80),
-      top: (centerY - 50).clamp(0.0, canvasSize.height - 22),
+      left: (centerX - 40).clamp(0.0, math.max(0.0, canvasSize.width - 80)),
+      top: (centerY - 50).clamp(0.0, math.max(0.0, canvasSize.height - 22)),
       child: IgnorePointer(
         child: Container(
           width: 80,
@@ -277,6 +278,7 @@ class _CharacterPositionCanvasViewState
 
   Widget _buildAnchor(
     BuildContext context,
+    CharacterPromptConfig config,
     CharacterPrompt character,
     int index,
     Size canvasSize,
@@ -284,11 +286,7 @@ class _CharacterPositionCanvasViewState
     final selectedId = ref.watch(selectedCharacterIdProvider);
     final isSelected = selectedId == character.id;
     final isDragging = _draggingId == character.id;
-    final position = _anchorPosition(
-      character,
-      index,
-      ref.read(characterPromptNotifierProvider).characters.length,
-    );
+    final position = _anchorPosition(config, character);
     final diameter = isDragging ? 40.0 : (isSelected ? 36.0 : 32.0);
     final centerX = position.column * canvasSize.width;
     final centerY = position.row * canvasSize.height;
@@ -339,6 +337,7 @@ class _CharacterPositionCanvasViewState
           character.copyWith(
             positionMode: CharacterPositionMode.custom,
             customPosition: CharacterPosition(
+              mode: CharacterPositionMode.custom,
               row: _dragRow,
               column: _dragColumn,
             ),
@@ -596,9 +595,7 @@ class _AnchorDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasThumbnail =
-        character.thumbnailPath != null &&
-        character.thumbnailPath!.isNotEmpty &&
-        File(character.thumbnailPath!).existsSync();
+        character.thumbnailPath != null && character.thumbnailPath!.isNotEmpty;
 
     final anchor = AnimatedContainer(
       duration: const Duration(milliseconds: 120),

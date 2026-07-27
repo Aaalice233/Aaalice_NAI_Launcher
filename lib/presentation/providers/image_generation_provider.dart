@@ -17,6 +17,7 @@ import '../../core/utils/nai_prompt_formatter.dart';
 import '../../core/utils/nai_resolution_adapter.dart';
 import '../../core/utils/pica_lanczos_resizer.dart';
 import '../../core/utils/prompt_preset_resolution.dart';
+import '../../core/services/character_conversion_service.dart';
 import '../../data/services/image_metadata_service.dart';
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
@@ -427,16 +428,20 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final charNegCaptions = <Map<String, dynamic>>[];
 
     for (final char in params.characters) {
+      final useCharacterPosition =
+          params.useCoords && char.positionX != null && char.positionY != null;
+      final x = useCharacterPosition ? char.positionX!.clamp(0.0, 1.0) : 0.5;
+      final y = useCharacterPosition ? char.positionY!.clamp(0.0, 1.0) : 0.5;
       charCaptions.add({
         'char_caption': char.prompt,
         'centers': [
-          {'x': 0.5, 'y': 0.5},
+          {'x': x, 'y': y},
         ],
       });
       charNegCaptions.add({
         'char_caption': char.negativePrompt,
         'centers': [
-          {'x': 0.5, 'y': 0.5},
+          {'x': x, 'y': y},
         ],
       });
     }
@@ -1955,38 +1960,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   List<CharacterPrompt> _convertCharactersToApiFormat(
     ui_character.CharacterPromptConfig config,
   ) {
-    // 过滤出启用且有提示词的角色
-    final enabledCharacters = config.characters
-        .where((c) => c.enabled && c.prompt.isNotEmpty)
-        .toList();
-
-    if (enabledCharacters.isEmpty) {
-      return [];
-    }
-
-    // 获取别名解析器统一解析角色提示词
     final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
-
-    return enabledCharacters.map((uiChar) {
-      // NAI API 接收连续坐标 center {x, y}，直接透传 0-1 百分比位置，
-      // 不再量化成 5×5 格号字符串（画布拖到哪就生成在哪）
-      double? positionX;
-      double? positionY;
-      if (!config.globalAiChoice &&
-          uiChar.positionMode == ui_character.CharacterPositionMode.custom &&
-          uiChar.customPosition != null) {
-        positionX = uiChar.customPosition!.column.clamp(0.0, 1.0);
-        positionY = uiChar.customPosition!.row.clamp(0.0, 1.0);
-      }
-
-      // 解析角色提示词中的别名
-      return CharacterPrompt(
-        prompt: aliasResolver.resolveAliases(uiChar.prompt),
-        negativePrompt: aliasResolver.resolveAliases(uiChar.negativePrompt),
-        positionX: positionX,
-        positionY: positionY,
-      );
-    }).toList();
+    return CharacterConversionService(
+      aliasResolver: aliasResolver.resolveAliases,
+    ).convert(config).characters;
   }
 
   /// 统一随机提示词生成并应用方法

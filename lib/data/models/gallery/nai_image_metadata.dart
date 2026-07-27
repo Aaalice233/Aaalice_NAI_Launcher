@@ -28,6 +28,12 @@ class CharacterPromptInfo with _$CharacterPromptInfo {
 
     /// 角色位置信息（可选，如中心、左侧等）
     @HiveField(2) String? position,
+
+    /// NovelAI V4 连续坐标中心 X（来自官方 centers[0].x）
+    @HiveField(3) double? centerX,
+
+    /// NovelAI V4 连续坐标中心 Y（来自官方 centers[0].y）
+    @HiveField(4) double? centerY,
   }) = _CharacterPromptInfo;
 
   const CharacterPromptInfo._();
@@ -127,8 +133,11 @@ class NaiImageMetadata with _$NaiImageMetadata {
     /// 质量词列表
     @HiveField(26) @Default([]) List<String> qualityTags,
 
-    /// 角色提示词详细信息列表（包含prompt、negativePrompt、position）
+    /// 角色提示词详细信息列表（包含提示词、负向提示词和官方坐标）
     @HiveField(27) @Default([]) List<CharacterPromptInfo> characterInfos,
+
+    /// NovelAI V4 是否启用连续角色坐标
+    @HiveField(37) bool? characterUseCoords,
 
     /// Vibe数据列表
     @HiveField(28) @Default([]) List<VibeReference> vibeReferences,
@@ -201,9 +210,12 @@ class NaiImageMetadata with _$NaiImageMetadata {
         characterNegativePrompts: base.characterNegativePrompts.isEmpty
             ? reparsed.characterNegativePrompts
             : base.characterNegativePrompts,
-        characterInfos: base.characterInfos.isEmpty
-            ? reparsed.characterInfos
-            : base.characterInfos,
+        characterInfos: _mergeCharacterInfos(
+          base.characterInfos,
+          reparsed.characterInfos,
+        ),
+        characterUseCoords:
+            base.characterUseCoords ?? reparsed.characterUseCoords,
         vibeReferences: base.vibeReferences.isEmpty
             ? reparsed.vibeReferences
             : base.vibeReferences,
@@ -267,6 +279,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
     List<String> characterPrompts = [];
     List<String> characterNegativePrompts = [];
     List<CharacterPromptInfo> characterInfos = [];
+    bool? characterUseCoords;
     List<VibeReference> vibeReferences = [];
     _PreciseReferenceMetadata preciseReferenceMetadata =
         const _PreciseReferenceMetadata();
@@ -283,6 +296,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
       characterPrompts = charResult.$1;
       characterNegativePrompts = charResult.$2;
       characterInfos = charResult.$3;
+      characterUseCoords = _extractCharacterUseCoords(commentData);
     } catch (e) {
       AppLogger.w(
         'Failed to extract character prompts: $e',
@@ -311,10 +325,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
     try {
       prompt = commentData['prompt'] as String? ?? '';
     } catch (e) {
-      AppLogger.d(
-        'Failed to parse prompt field: $e',
-        'NaiImageMetadata',
-      );
+      AppLogger.d('Failed to parse prompt field: $e', 'NaiImageMetadata');
     }
 
     String negativePrompt = '';
@@ -365,6 +376,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
         fixedNegativeSuffixTags: parts['fixedNegativeSuffix'] ?? [],
         qualityTags: parts['qualityTags'] ?? [],
         characterInfos: characterInfos,
+        characterUseCoords: characterUseCoords,
         vibeReferences: vibeReferences,
         originalPrompt: prompt,
         preciseReferenceImages: preciseReferenceMetadata.images,
@@ -416,6 +428,32 @@ class NaiImageMetadata with _$NaiImageMetadata {
     }
   }
 
+  static List<CharacterPromptInfo> _mergeCharacterInfos(
+    List<CharacterPromptInfo> current,
+    List<CharacterPromptInfo> reparsed,
+  ) {
+    if (current.isEmpty) return reparsed;
+    if (reparsed.isEmpty) return current;
+
+    final length = current.length > reparsed.length
+        ? current.length
+        : reparsed.length;
+    return List<CharacterPromptInfo>.generate(length, (index) {
+      if (index >= current.length) return reparsed[index];
+      if (index >= reparsed.length) return current[index];
+
+      final existing = current[index];
+      final parsed = reparsed[index];
+      return existing.copyWith(
+        prompt: existing.prompt.isEmpty ? parsed.prompt : existing.prompt,
+        negativePrompt: existing.negativePrompt ?? parsed.negativePrompt,
+        position: existing.position ?? parsed.position,
+        centerX: existing.centerX ?? parsed.centerX,
+        centerY: existing.centerY ?? parsed.centerY,
+      );
+    });
+  }
+
   /// 安全转换为 int
   ///
   /// 支持：int, double, String, 以及科学计数法字符串
@@ -447,9 +485,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
 
   /// 提取 Comment 数据（支持官网格式和直接格式）
   static (Map<String, dynamic> data, String? software, String? source)
-      _extractCommentData(
-    Map<String, dynamic> json,
-  ) {
+  _extractCommentData(Map<String, dynamic> json) {
     if (json['Comment'] is String) {
       try {
         final data =
@@ -498,35 +534,26 @@ class NaiImageMetadata with _$NaiImageMetadata {
         source ?? data['Source'] as String? ?? data['source'] as String?;
 
     if (nestedComment is String && nestedComment.isNotEmpty) {
-      return NaiImageMetadata.fromNaiComment(
-        {
-          'Comment': nestedComment,
-          'Software': resolvedSoftware,
-          'Source': resolvedSource,
-        },
-        rawJson: raw,
-      );
+      return NaiImageMetadata.fromNaiComment({
+        'Comment': nestedComment,
+        'Software': resolvedSoftware,
+        'Source': resolvedSource,
+      }, rawJson: raw);
     }
 
     if (nestedComment is Map) {
-      return NaiImageMetadata.fromNaiComment(
-        {
-          'Comment': jsonEncode(nestedComment),
-          'Software': resolvedSoftware,
-          'Source': resolvedSource,
-        },
-        rawJson: raw,
-      );
-    }
-
-    return NaiImageMetadata.fromNaiComment(
-      {
-        'Comment': raw,
+      return NaiImageMetadata.fromNaiComment({
+        'Comment': jsonEncode(nestedComment),
         'Software': resolvedSoftware,
         'Source': resolvedSource,
-      },
-      rawJson: raw,
-    );
+      }, rawJson: raw);
+    }
+
+    return NaiImageMetadata.fromNaiComment({
+      'Comment': raw,
+      'Software': resolvedSoftware,
+      'Source': resolvedSource,
+    }, rawJson: raw);
   }
 
   /// 提取固定词信息
@@ -569,7 +596,8 @@ class NaiImageMetadata with _$NaiImageMetadata {
         final caption = v4Prompt['caption'];
         if (caption is Map<String, dynamic>) {
           // 支持 base_caption（NAI官方格式）和 main_caption（旧版）
-          final baseCaption = caption['base_caption'] as String? ??
+          final baseCaption =
+              caption['base_caption'] as String? ??
               caption['main_caption'] as String? ??
               '';
           if (baseCaption.isNotEmpty) {
@@ -600,7 +628,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
 
   /// 提取角色提示词信息
   static (List<String>, List<String>, List<CharacterPromptInfo>)
-      _extractCharacterPrompts(
+  _extractCharacterPrompts(
     Map<String, dynamic> commentData,
     Map<String, List<String>> parts,
   ) {
@@ -620,11 +648,14 @@ class NaiImageMetadata with _$NaiImageMetadata {
     for (final char in charCaptions) {
       if (char is! Map<String, dynamic>) continue;
       final prompt = char['char_caption'] as String? ?? '';
+      final center = _extractFirstCenter(char['centers']);
       prompts.add(prompt);
       infos.add(
         CharacterPromptInfo(
           prompt: prompt,
           position: char['position'] as String?,
+          centerX: center.x,
+          centerY: center.y,
         ),
       );
     }
@@ -642,7 +673,12 @@ class NaiImageMetadata with _$NaiImageMetadata {
             final negPrompt = char['char_caption'] as String? ?? '';
             negPrompts.add(negPrompt);
             if (i < infos.length) {
-              infos[i] = infos[i].copyWith(negativePrompt: negPrompt);
+              final center = _extractFirstCenter(char['centers']);
+              infos[i] = infos[i].copyWith(
+                negativePrompt: negPrompt,
+                centerX: infos[i].centerX ?? center.x,
+                centerY: infos[i].centerY ?? center.y,
+              );
             }
           }
         }
@@ -650,6 +686,35 @@ class NaiImageMetadata with _$NaiImageMetadata {
     }
 
     return (prompts, negPrompts, infos);
+  }
+
+  static bool? _extractCharacterUseCoords(Map<String, dynamic> commentData) {
+    final value = commentData['v4_prompt'];
+    if (value is Map<String, dynamic>) {
+      return _safeGetBool(value, 'use_coords');
+    }
+    if (value is Map) {
+      return _safeGetBool(Map<String, dynamic>.from(value), 'use_coords');
+    }
+    return null;
+  }
+
+  static ({double? x, double? y}) _extractFirstCenter(dynamic value) {
+    if (value is! List || value.isEmpty) {
+      return (x: null, y: null);
+    }
+
+    final first = value.first;
+    if (first is! Map) {
+      return (x: null, y: null);
+    }
+    final center = Map<String, dynamic>.from(first);
+    final x = _toDouble(center['x']);
+    final y = _toDouble(center['y']);
+    return (
+      x: x != null && x.isFinite ? x : null,
+      y: y != null && y.isFinite ? y : null,
+    );
   }
 
   /// 提取 Vibe 引用
@@ -695,76 +760,59 @@ class NaiImageMetadata with _$NaiImageMetadata {
       );
     }
 
-    final multiStrengths = _firstDoubleList(
-      commentData,
-      const [
-        'reference_strength_multiple',
-        'reference_strengths',
-        'referenceStrengthMultiple',
-        'referenceStrengths',
-      ],
-    );
-    final multiInfoExtracted = _firstDoubleList(
-      commentData,
-      const [
-        'reference_information_extracted_multiple',
-        'reference_information_extracted',
-        'referenceInformationExtractedMultiple',
-        'referenceInformationExtracted',
-      ],
-    );
+    final multiStrengths = _firstDoubleList(commentData, const [
+      'reference_strength_multiple',
+      'reference_strengths',
+      'referenceStrengthMultiple',
+      'referenceStrengths',
+    ]);
+    final multiInfoExtracted = _firstDoubleList(commentData, const [
+      'reference_information_extracted_multiple',
+      'reference_information_extracted',
+      'referenceInformationExtractedMultiple',
+      'referenceInformationExtracted',
+    ]);
 
     addFromValue(
-      _firstPresent(
-        commentData,
-        const [
-          'reference_image_multiple',
-          'reference_images',
-          'referenceImages',
-        ],
-      ),
+      _firstPresent(commentData, const [
+        'reference_image_multiple',
+        'reference_images',
+        'referenceImages',
+      ]),
       strengths: multiStrengths,
       infoExtracted: multiInfoExtracted,
     );
 
     addFromValue(
-      _firstPresent(
-        commentData,
-        const [
-          'reference_image',
-          'referenceImage',
-          'vibe_reference',
-          'vibeReference',
-        ],
-      ),
-      strengths: _firstDoubleList(
-        commentData,
-        const ['reference_strength', 'referenceStrength'],
-      ),
-      infoExtracted: _firstDoubleList(
-        commentData,
-        const [
-          'reference_information_extracted',
-          'referenceInformationExtracted',
-        ],
-      ),
+      _firstPresent(commentData, const [
+        'reference_image',
+        'referenceImage',
+        'vibe_reference',
+        'vibeReference',
+      ]),
+      strengths: _firstDoubleList(commentData, const [
+        'reference_strength',
+        'referenceStrength',
+      ]),
+      infoExtracted: _firstDoubleList(commentData, const [
+        'reference_information_extracted',
+        'referenceInformationExtracted',
+      ]),
     );
 
     addFromValue(
-      _firstPresent(
-        commentData,
-        const [
-          'vibe_references',
-          'vibeReferences',
-          'vibes',
-        ],
-      ),
+      _firstPresent(commentData, const [
+        'vibe_references',
+        'vibeReferences',
+        'vibes',
+      ]),
     );
 
-    final nestedReferenceData = _firstPresent(
-      commentData,
-      const ['references', 'referenceData', 'reference_data'],
-    );
+    final nestedReferenceData = _firstPresent(commentData, const [
+      'references',
+      'referenceData',
+      'reference_data',
+    ]);
     if (nestedReferenceData is List) {
       for (final item in nestedReferenceData) {
         if (item is Map) {
@@ -789,8 +837,9 @@ class NaiImageMetadata with _$NaiImageMetadata {
         displayName: 'Vibe ${index + 1}',
         vibeEncoding: value,
         strength: VibeReference.sanitizeStrength(strength ?? 0.6),
-        infoExtracted:
-            VibeReference.sanitizeInfoExtracted(infoExtracted ?? 0.7),
+        infoExtracted: VibeReference.sanitizeInfoExtracted(
+          infoExtracted ?? 0.7,
+        ),
         sourceType: VibeSourceType.png,
       );
     }
@@ -836,51 +885,47 @@ class NaiImageMetadata with _$NaiImageMetadata {
     final encoding = _extractVibeEncoding(data);
     if (encoding == null || encoding.isEmpty) return null;
 
-    final importInfo =
-        _asStringKeyMap(data['importInfo'] ?? data['import_info']);
+    final importInfo = _asStringKeyMap(
+      data['importInfo'] ?? data['import_info'],
+    );
     return VibeReference(
-      displayName: _firstString(
-            data,
-            const ['displayName', 'display_name', 'name', 'fileName'],
-          ) ??
+      displayName:
+          _firstString(data, const [
+            'displayName',
+            'display_name',
+            'name',
+            'fileName',
+          ]) ??
           'Vibe ${index + 1}',
       vibeEncoding: encoding,
       strength: VibeReference.sanitizeStrength(
         strength ??
-            _firstDouble(
-              data,
-              const [
-                'strength',
-                'reference_strength',
-                'referenceStrength',
-              ],
-            ) ??
-            _firstDouble(
-              importInfo,
-              const ['strength', 'reference_strength', 'referenceStrength'],
-            ) ??
+            _firstDouble(data, const [
+              'strength',
+              'reference_strength',
+              'referenceStrength',
+            ]) ??
+            _firstDouble(importInfo, const [
+              'strength',
+              'reference_strength',
+              'referenceStrength',
+            ]) ??
             0.6,
       ),
       infoExtracted: VibeReference.sanitizeInfoExtracted(
         infoExtracted ??
-            _firstDouble(
-              data,
-              const [
-                'infoExtracted',
-                'info_extracted',
-                'information_extracted',
-                'reference_information_extracted',
-                'referenceInformationExtracted',
-              ],
-            ) ??
-            _firstDouble(
-              importInfo,
-              const [
-                'infoExtracted',
-                'info_extracted',
-                'information_extracted',
-              ],
-            ) ??
+            _firstDouble(data, const [
+              'infoExtracted',
+              'info_extracted',
+              'information_extracted',
+              'reference_information_extracted',
+              'referenceInformationExtracted',
+            ]) ??
+            _firstDouble(importInfo, const [
+              'infoExtracted',
+              'info_extracted',
+              'information_extracted',
+            ]) ??
             0.7,
       ),
       sourceType: VibeSourceType.png,
@@ -888,17 +933,14 @@ class NaiImageMetadata with _$NaiImageMetadata {
   }
 
   static String? _extractVibeEncoding(Map<String, dynamic> data) {
-    final direct = _firstString(
-      data,
-      const [
-        'vibeEncoding',
-        'vibe_encoding',
-        'encoding',
-        'reference_image',
-        'referenceImage',
-        'image',
-      ],
-    );
+    final direct = _firstString(data, const [
+      'vibeEncoding',
+      'vibe_encoding',
+      'encoding',
+      'reference_image',
+      'referenceImage',
+      'image',
+    ]);
     if (direct != null && direct.isNotEmpty) return direct;
 
     final vibe = _asStringKeyMap(data['vibe']);
@@ -921,10 +963,11 @@ class NaiImageMetadata with _$NaiImageMetadata {
     }
     if (value is Map) {
       final map = Map<String, dynamic>.from(value);
-      final direct = _firstString(
-        map,
-        const ['encoding', 'vibeEncoding', 'vibe_encoding'],
-      );
+      final direct = _firstString(map, const [
+        'encoding',
+        'vibeEncoding',
+        'vibe_encoding',
+      ]);
       if (direct != null && direct.isNotEmpty) return direct;
       for (final nestedValue in map.values) {
         final nested = _extractNestedEncoding(nestedValue);
@@ -966,8 +1009,9 @@ class NaiImageMetadata with _$NaiImageMetadata {
       referenceStrengths.add(
         (i < strengths.length ? strengths[i] : 1.0).clamp(0.0, 1.0).toDouble(),
       );
-      final secondary =
-          i < secondaryStrengths.length ? secondaryStrengths[i] : 0.0;
+      final secondary = i < secondaryStrengths.length
+          ? secondaryStrengths[i]
+          : 0.0;
       fidelities.add((1.0 - secondary).clamp(0.0, 1.0).toDouble());
     }
 
@@ -1242,8 +1286,9 @@ class NaiImageMetadata with _$NaiImageMetadata {
     final results = <PreciseReference>[];
     for (var i = 0; i < preciseReferenceImages.length; i++) {
       try {
-        final image =
-            Uint8List.fromList(base64Decode(preciseReferenceImages[i]));
+        final image = Uint8List.fromList(
+          base64Decode(preciseReferenceImages[i]),
+        );
         final type = i < preciseReferenceTypes.length
             ? _parsePreciseRefType(preciseReferenceTypes[i])
             : PreciseRefType.character;

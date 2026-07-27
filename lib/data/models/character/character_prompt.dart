@@ -52,6 +52,163 @@ class CharacterPosition with _$CharacterPosition {
   }
 }
 
+/// 角色连续坐标的统一布局规则。
+///
+/// 画布兜底、状态规范化和请求构造必须使用同一套规则，避免界面显示位置
+/// 与实际发送给 NovelAI 的 centers 分叉。
+abstract final class CharacterPositionLayout {
+  static const CharacterPosition _center = CharacterPosition(
+    mode: CharacterPositionMode.custom,
+    row: 0.5,
+    column: 0.5,
+  );
+
+  /// 按角色数量返回稳定的默认位置。
+  static List<CharacterPosition> positionsForCount(int count) {
+    switch (count) {
+      case <= 0:
+        return const [];
+      case 1:
+        return const [_center];
+      case 2:
+        return const [
+          CharacterPosition(
+            mode: CharacterPositionMode.custom,
+            row: 0.5,
+            column: 0.25,
+          ),
+          CharacterPosition(
+            mode: CharacterPositionMode.custom,
+            row: 0.5,
+            column: 0.75,
+          ),
+        ];
+      case 3:
+        return const [
+          CharacterPosition(
+            mode: CharacterPositionMode.custom,
+            row: 0.5,
+            column: 0.2,
+          ),
+          _center,
+          CharacterPosition(
+            mode: CharacterPositionMode.custom,
+            row: 0.5,
+            column: 0.8,
+          ),
+        ];
+      case 4:
+        return const [
+          CharacterPosition(
+            mode: CharacterPositionMode.custom,
+            row: 0.25,
+            column: 0.25,
+          ),
+          CharacterPosition(
+            mode: CharacterPositionMode.custom,
+            row: 0.25,
+            column: 0.75,
+          ),
+          CharacterPosition(
+            mode: CharacterPositionMode.custom,
+            row: 0.75,
+            column: 0.25,
+          ),
+          CharacterPosition(
+            mode: CharacterPositionMode.custom,
+            row: 0.75,
+            column: 0.75,
+          ),
+        ];
+      case 5:
+        return const [
+          CharacterPosition(
+            mode: CharacterPositionMode.custom,
+            row: 0.2,
+            column: 0.2,
+          ),
+          CharacterPosition(
+            mode: CharacterPositionMode.custom,
+            row: 0.2,
+            column: 0.8,
+          ),
+          _center,
+          CharacterPosition(
+            mode: CharacterPositionMode.custom,
+            row: 0.8,
+            column: 0.2,
+          ),
+          CharacterPosition(
+            mode: CharacterPositionMode.custom,
+            row: 0.8,
+            column: 0.8,
+          ),
+        ];
+      case 6:
+        return const [
+          CharacterPosition(
+            mode: CharacterPositionMode.custom,
+            row: 0.25,
+            column: 0.2,
+          ),
+          CharacterPosition(
+            mode: CharacterPositionMode.custom,
+            row: 0.25,
+            column: 0.5,
+          ),
+          CharacterPosition(
+            mode: CharacterPositionMode.custom,
+            row: 0.25,
+            column: 0.8,
+          ),
+          CharacterPosition(
+            mode: CharacterPositionMode.custom,
+            row: 0.75,
+            column: 0.2,
+          ),
+          CharacterPosition(
+            mode: CharacterPositionMode.custom,
+            row: 0.75,
+            column: 0.5,
+          ),
+          CharacterPosition(
+            mode: CharacterPositionMode.custom,
+            row: 0.75,
+            column: 0.8,
+          ),
+        ];
+      default:
+        return List<CharacterPosition>.generate(count, (index) {
+          const columns = 3;
+          final rows = (count / columns).ceil();
+          final row = index ~/ columns;
+          final column = index % columns;
+          return CharacterPosition(
+            mode: CharacterPositionMode.custom,
+            row: (row + 1) / (rows + 1),
+            column: (column + 1) / (columns + 1),
+          );
+        });
+    }
+  }
+
+  static CharacterPosition positionForIndex(int index, int total) {
+    final positions = positionsForCount(total);
+    if (index >= 0 && index < positions.length) {
+      return positions[index];
+    }
+    return _center;
+  }
+
+  static CharacterPosition clampPosition(CharacterPosition position) {
+    return position.copyWith(
+      mode: CharacterPositionMode.custom,
+      row: position.row.clamp(0.0, 1.0),
+      column: position.column.clamp(0.0, 1.0),
+    );
+  }
+}
+
 /// 单个角色提示词模型
 @freezed
 class CharacterPrompt with _$CharacterPrompt {
@@ -187,6 +344,54 @@ class CharacterPromptConfig with _$CharacterPromptConfig {
 
   factory CharacterPromptConfig.fromJson(Map<String, dynamic> json) =>
       _$CharacterPromptConfigFromJson(json);
+
+  /// 解析角色在画布和请求中的有效连续坐标。
+  CharacterPosition resolvePosition(CharacterPrompt character) {
+    if (character.positionMode == CharacterPositionMode.custom &&
+        character.customPosition != null) {
+      return CharacterPositionLayout.clampPosition(character.customPosition!);
+    }
+
+    final enabledCharacters = characters.where((item) => item.enabled).toList();
+    var index = enabledCharacters.indexWhere((item) => item.id == character.id);
+    var total = enabledCharacters.length;
+    if (index < 0) {
+      index = characters.indexWhere((item) => item.id == character.id);
+      total = characters.length;
+    }
+    return CharacterPositionLayout.positionForIndex(index, total);
+  }
+
+  /// 在自定义模式下为全部启用角色补齐并钳制连续坐标。
+  CharacterPromptConfig normalizeCustomPositions() {
+    if (globalAiChoice) return this;
+
+    final enabledCharacters = characters.where((item) => item.enabled).toList();
+    if (enabledCharacters.isEmpty) return this;
+
+    final positions = CharacterPositionLayout.positionsForCount(
+      enabledCharacters.length,
+    );
+    final enabledIndices = <String, int>{
+      for (var i = 0; i < enabledCharacters.length; i++)
+        enabledCharacters[i].id: i,
+    };
+    final normalized = characters.map((character) {
+      final enabledIndex = enabledIndices[character.id];
+      if (enabledIndex == null) return character;
+
+      final position =
+          character.positionMode == CharacterPositionMode.custom &&
+              character.customPosition != null
+          ? CharacterPositionLayout.clampPosition(character.customPosition!)
+          : positions[enabledIndex];
+      return character.copyWith(
+        positionMode: CharacterPositionMode.custom,
+        customPosition: position,
+      );
+    }).toList();
+    return copyWith(characters: normalized);
+  }
 
   /// 生成NAI格式的多角色提示词
   String toNaiPrompt() {

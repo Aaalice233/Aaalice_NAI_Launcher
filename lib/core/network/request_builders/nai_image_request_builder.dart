@@ -8,6 +8,8 @@ import '../../utils/inpaint_mask_utils.dart';
 import '../../utils/nai_resolution_adapter.dart';
 import '../../utils/nai_api_utils.dart';
 import '../../utils/prompt_semantics_utils.dart';
+import '../../../data/models/character/character_prompt.dart'
+    show CharacterPositionLayout;
 import '../../../data/models/image/image_params.dart';
 
 typedef EncodeVibeFn =
@@ -132,9 +134,15 @@ class NAIImageRequestBuilder {
     final negativeCharCaptions = <Map<String, dynamic>>[];
     final characterPrompts = <Map<String, dynamic>>[];
 
-    for (final char in params.characters) {
+    for (var index = 0; index < params.characters.length; index++) {
+      final char = params.characters[index];
       // 连续坐标直传（0-1），与位置画布所见即所得
-      double x = 0, y = 0;
+      final fallbackPosition = CharacterPositionLayout.positionForIndex(
+        index,
+        params.characters.length,
+      );
+      var x = fallbackPosition.column;
+      var y = fallbackPosition.row;
       if (char.positionX != null && char.positionY != null) {
         x = char.positionX!.clamp(0.0, 1.0);
         y = char.positionY!.clamp(0.0, 1.0);

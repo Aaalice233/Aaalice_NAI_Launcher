@@ -1,20 +1,52 @@
-import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
+import 'package:nai_launcher/data/repositories/character_prompt_repository.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/widgets/character/character_position_canvas.dart';
+import 'package:nai_launcher/presentation/widgets/common/decoded_memory_image.dart';
 
 /// 惰性生成状态：真实 Notifier 内部有持续性任务会阻止测试进程退出
 class _IdleImageGenerationNotifier extends ImageGenerationNotifier {
   @override
   ImageGenerationState build() => const ImageGenerationState();
+}
+
+class _WidePreviewImageGenerationNotifier extends ImageGenerationNotifier {
+  @override
+  ImageGenerationState build() {
+    return ImageGenerationState(
+      displayImages: [
+        GeneratedImage(
+          id: 'wide-preview',
+          bytes: base64Decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0l'
+            'EQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+          ),
+          width: 1000,
+          height: 10,
+        ),
+      ],
+    );
+  }
+}
+
+class _MemoryCharacterPromptRepository extends CharacterPromptRepository {
+  CharacterPromptConfig config = const CharacterPromptConfig();
+
+  @override
+  CharacterPromptConfig load() => config;
+
+  @override
+  Future<bool> save(CharacterPromptConfig value) async {
+    config = value;
+    return true;
+  }
 }
 
 void main() {
@@ -117,36 +149,43 @@ void main() {
         expect(position.column, inInclusiveRange(0.0, 1.0));
       }
     });
+
+    test('六角色自定义布局会为每个角色生成稳定连续坐标', () {
+      final characters = List<CharacterPrompt>.generate(
+        6,
+        (index) => CharacterPrompt(
+          id: 'character-$index',
+          name: 'Character ${index + 1}',
+          prompt: 'character $index',
+        ),
+      );
+
+      final config = CharacterPromptConfig(
+        characters: characters,
+        globalAiChoice: false,
+      ).normalizeCustomPositions();
+
+      expect(config.characters, hasLength(6));
+      expect(
+        config.characters.every(
+          (character) =>
+              character.positionMode == CharacterPositionMode.custom &&
+              character.customPosition != null,
+        ),
+        isTrue,
+      );
+      expect(config.characters.last.customPosition?.column, 0.8);
+      expect(config.characters.last.customPosition?.row, 0.75);
+    });
   });
 
   group('CharacterPositionCanvasView', () {
-    late Directory hiveTempDir;
-
-    setUpAll(() async {
-      hiveTempDir = await Directory.systemTemp.createTemp(
-        'nai_launcher_position_canvas_hive_',
-      );
-      Hive.init(hiveTempDir.path);
-      await Hive.openBox(StorageKeys.settingsBox);
-    });
-
-    tearDownAll(() async {
-      // 不调用 Hive.close()：widget 测试的 fake async 环境可能给 box
-      // 留下悬置的写锁，close 会永远等待；进程退出时锁自然释放。
-      try {
-        await hiveTempDir.delete(recursive: true);
-      } catch (_) {
-        // Windows 下文件占用时删除失败可容忍，系统临时目录会被清理
-      }
-    });
-
-    setUp(() async {
-      await Hive.box(StorageKeys.settingsBox).clear();
-    });
-
     Widget buildTestApp() {
       return ProviderScope(
         overrides: [
+          characterPromptRepositoryProvider.overrideWith(
+            (ref) => _MemoryCharacterPromptRepository(),
+          ),
           imageGenerationNotifierProvider.overrideWith(
             _IdleImageGenerationNotifier.new,
           ),
@@ -158,6 +197,72 @@ void main() {
         ),
       );
     }
+
+    Widget buildWidePreviewTestApp() {
+      return ProviderScope(
+        overrides: [
+          characterPromptRepositoryProvider.overrideWith(
+            (ref) => _MemoryCharacterPromptRepository(),
+          ),
+          imageGenerationNotifierProvider.overrideWith(
+            _WidePreviewImageGenerationNotifier.new,
+          ),
+        ],
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: CharacterPositionCanvasView()),
+        ),
+      );
+    }
+
+    test('replaceAll 和重新启用会在自定义模式补齐全部坐标', () async {
+      final container = ProviderContainer(
+        overrides: [
+          characterPromptRepositoryProvider.overrideWith(
+            (ref) => _MemoryCharacterPromptRepository(),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(characterPromptNotifierProvider.notifier);
+      notifier.setGlobalAiChoice(false);
+      notifier.replaceAll(
+        List<CharacterPrompt>.generate(
+          6,
+          (index) => CharacterPrompt(
+            id: 'replace-$index',
+            name: 'Character ${index + 1}',
+            prompt: 'character $index',
+          ),
+        ),
+      );
+
+      var config = container.read(characterPromptNotifierProvider);
+      expect(
+        config.characters.every(
+          (character) => character.customPosition != null,
+        ),
+        isTrue,
+      );
+      expect(config.characters.last.customPosition?.column, 0.8);
+      expect(config.characters.last.customPosition?.row, 0.75);
+
+      final last = config.characters.last;
+      notifier.updateCharacter(
+        last.copyWith(
+          enabled: false,
+          positionMode: CharacterPositionMode.aiChoice,
+          customPosition: null,
+        ),
+      );
+      notifier.toggleCharacterEnabled(last.id);
+
+      config = container.read(characterPromptNotifierProvider);
+      expect(config.characters.last.enabled, isTrue);
+      expect(config.characters.last.customPosition, isNotNull);
+      await Future<void>.delayed(Duration.zero);
+    });
 
     testWidgets('自定义模式显示锚点，AI 选择模式隐藏锚点', (tester) async {
       await tester.pumpWidget(buildTestApp());
@@ -186,6 +291,45 @@ void main() {
             .read(characterPromptNotifierProvider)
             .characters
             .first
+            .customPosition,
+        isNotNull,
+      );
+    });
+
+    testWidgets('极矮画布真实拖动不抛异常并限制背景解码尺寸', (tester) async {
+      await tester.pumpWidget(buildWidePreviewTestApp());
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(CharacterPositionCanvasView)),
+      );
+      final notifier = container.read(characterPromptNotifierProvider.notifier);
+      notifier.addCharacter(CharacterGender.female, name: 'Alice');
+      notifier.setGlobalAiChoice(false);
+      await tester.pump();
+
+      final character = container
+          .read(characterPromptNotifierProvider)
+          .characters
+          .single;
+      final anchor = find.byKey(
+        ValueKey<String>('canvas-anchor-${character.id}'),
+      );
+      expect(anchor, findsOneWidget);
+      expect(find.byType(DecodedMemoryImage), findsOneWidget);
+
+      await tester.drag(
+        anchor,
+        const Offset(4, 1),
+        touchSlopX: 0,
+        touchSlopY: 0,
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      expect(
+        container
+            .read(characterPromptNotifierProvider)
+            .characters
+            .single
             .customPosition,
         isNotNull,
       );

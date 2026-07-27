@@ -50,6 +50,15 @@ void main() {
         prompt: '1girl, sunset',
         characterPrompts: const ['1girl, blue hair'],
         characterNegativePrompts: const ['bad hands'],
+        characterInfos: const [
+          CharacterPromptInfo(
+            prompt: '1girl, blue hair',
+            negativePrompt: 'bad hands',
+            centerX: 0.24,
+            centerY: 0.73,
+          ),
+        ],
+        characterUseCoords: true,
         vibeReferences: [
           VibeReference(
             displayName: 'Imported style',
@@ -95,6 +104,51 @@ void main() {
       expect(characters.characters, hasLength(1));
       expect(characters.characters.single.prompt, '1girl, blue hair');
       expect(characters.characters.single.negativePrompt, 'bad hands');
+      expect(characters.globalAiChoice, isFalse);
+      expect(
+        characters.characters.single.customPosition?.column,
+        closeTo(0.24, 0.0001),
+      );
+      expect(
+        characters.characters.single.customPosition?.row,
+        closeTo(0.73, 0.0001),
+      );
+    },
+  );
+
+  test(
+    'official centers are retained while use_coords false restores AI mode',
+    () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      const metadata = NaiImageMetadata(
+        characterPrompts: ['1boy, black hair'],
+        characterInfos: [
+          CharacterPromptInfo(
+            prompt: '1boy, black hair',
+            centerX: 0.8,
+            centerY: 0.2,
+          ),
+        ],
+        characterUseCoords: false,
+      );
+
+      await MetadataImportCoordinator.apply(
+        read: container.read,
+        metadata: metadata,
+        options: const MetadataImportOptions(
+          importPrompt: false,
+          importNegativePrompt: false,
+          importFixedTags: false,
+          importQualityTags: false,
+          selectedCharacterIndices: [0],
+        ),
+      );
+
+      final characters = container.read(characterPromptNotifierProvider);
+      expect(characters.globalAiChoice, isTrue);
+      expect(characters.characters.single.customPosition?.column, 0.8);
+      expect(characters.characters.single.customPosition?.row, 0.2);
     },
   );
 }

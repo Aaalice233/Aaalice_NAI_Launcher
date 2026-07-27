@@ -181,12 +181,23 @@ class MetadataImportCoordinator {
   ) {
     final characters = <char.CharacterPrompt>[];
     final negativePrompts = metadata.characterNegativePrompts;
+    final characterInfos = metadata.characterInfos;
+    var hasImportedCenters = false;
 
     for (var i = 0; i < metadata.characterPrompts.length; i++) {
       final prompt = metadata.characterPrompts[i];
-      final negativePrompt = i < negativePrompts.length
-          ? negativePrompts[i]
-          : '';
+      final info = i < characterInfos.length ? characterInfos[i] : null;
+      final negativePrompt =
+          info?.negativePrompt ??
+          (i < negativePrompts.length ? negativePrompts[i] : '');
+      final centerX = info?.centerX;
+      final centerY = info?.centerY;
+      final hasCenter =
+          centerX != null &&
+          centerY != null &&
+          centerX.isFinite &&
+          centerY.isFinite;
+      hasImportedCenters = hasImportedCenters || hasCenter;
 
       characters.add(
         char.CharacterPrompt.create(
@@ -194,11 +205,24 @@ class MetadataImportCoordinator {
           gender: _inferGenderFromPrompt(prompt),
           prompt: prompt,
           negativePrompt: negativePrompt,
+          positionMode: hasCenter
+              ? char.CharacterPositionMode.custom
+              : char.CharacterPositionMode.aiChoice,
+          customPosition: hasCenter
+              ? char.CharacterPosition(
+                  mode: char.CharacterPositionMode.custom,
+                  row: centerY.clamp(0.0, 1.0),
+                  column: centerX.clamp(0.0, 1.0),
+                )
+              : null,
         ),
       );
     }
 
-    read(characterPromptNotifierProvider.notifier).replaceAll(characters);
+    final notifier = read(characterPromptNotifierProvider.notifier);
+    notifier.replaceAll(characters);
+    final useCoords = metadata.characterUseCoords ?? hasImportedCenters;
+    notifier.setGlobalAiChoice(!useCoords);
   }
 
   static char.CharacterGender _inferGenderFromPrompt(String prompt) {

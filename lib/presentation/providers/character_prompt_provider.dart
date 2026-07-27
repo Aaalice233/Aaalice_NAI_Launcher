@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -20,7 +22,12 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
   CharacterPromptConfig build() {
     _repository = ref.read(characterPromptRepositoryProvider);
     // 同步加载配置（应用启动时 Hive box 已打开）
-    return _repository.load();
+    final loaded = _repository.load();
+    final normalized = loaded.normalizeCustomPositions();
+    if (normalized != loaded) {
+      unawaited(_repository.save(normalized));
+    }
+    return normalized;
   }
 
   /// 保存配置到本地存储
@@ -67,7 +74,7 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
   ///
   /// Requirements: 2.2, 2.3, 2.4, 2.5
   void updateCharacter(CharacterPrompt character) {
-    state = state.updateCharacter(character);
+    state = state.updateCharacter(character).normalizeCustomPositions();
     _saveConfig();
   }
 
@@ -92,89 +99,11 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
 
     // 当关闭全局AI选择时，为未设置位置的角色智能分配位置
     if (!value) {
-      newState = _autoAssignPositions(newState);
+      newState = newState.normalizeCustomPositions();
     }
 
     state = newState;
     _saveConfig();
-  }
-
-  /// 智能分配角色位置（根据角色数量）
-  ///
-  /// 当关闭全局AI选择位置时自动调用
-  CharacterPromptConfig _autoAssignPositions(CharacterPromptConfig config) {
-    final characters = config.characters;
-    if (characters.isEmpty) return config;
-
-    // 只处理启用的角色
-    final enabledCharacters = characters.where((c) => c.enabled).toList();
-    if (enabledCharacters.isEmpty) return config;
-
-    // 预设位置模板（根据角色数量）
-    final List<CharacterPosition> positions = _getPresetPositions(enabledCharacters.length);
-
-    final updatedCharacters = List<CharacterPrompt>.from(characters);
-
-    for (var i = 0; i < enabledCharacters.length && i < positions.length; i++) {
-      final char = enabledCharacters[i];
-      // 只给未设置自定义位置的角色分配
-      if (char.positionMode != CharacterPositionMode.custom || char.customPosition == null) {
-        final index = updatedCharacters.indexWhere((c) => c.id == char.id);
-        if (index != -1) {
-          updatedCharacters[index] = char.copyWith(
-            positionMode: CharacterPositionMode.custom,
-            customPosition: positions[i],
-          );
-        }
-      }
-    }
-
-    return config.copyWith(characters: updatedCharacters);
-  }
-
-  /// 根据角色数量获取预设位置
-  List<CharacterPosition> _getPresetPositions(int count) {
-    // 5x5 网格位置映射（0.0-1.0）
-    // 列：A=0.0, B=0.25, C=0.5, D=0.75, E=1.0
-    // 行：1=0.0, 2=0.25, 3=0.5, 4=0.75, 5=1.0
-    switch (count) {
-      case 1:
-        // 1人：中心
-        return [const CharacterPosition(row: 0.5, column: 0.5)];
-      case 2:
-        // 2人：左右分布
-        return [
-          const CharacterPosition(row: 0.5, column: 0.25), // 左
-          const CharacterPosition(row: 0.5, column: 0.75), // 右
-        ];
-      case 3:
-        // 3人：左中右或三角形
-        return [
-          const CharacterPosition(row: 0.5, column: 0.2),  // 左
-          const CharacterPosition(row: 0.5, column: 0.5),  // 中
-          const CharacterPosition(row: 0.5, column: 0.8),  // 右
-        ];
-      case 4:
-        // 4人：四角
-        return [
-          const CharacterPosition(row: 0.25, column: 0.25), // 左上
-          const CharacterPosition(row: 0.25, column: 0.75), // 右上
-          const CharacterPosition(row: 0.75, column: 0.25), // 左下
-          const CharacterPosition(row: 0.75, column: 0.75), // 右下
-        ];
-      default:
-        // 5人及以上：均匀分布
-        if (count >= 5) {
-          return [
-            const CharacterPosition(row: 0.2, column: 0.2),  // 左上
-            const CharacterPosition(row: 0.2, column: 0.8),  // 右上
-            const CharacterPosition(row: 0.5, column: 0.5),  // 中
-            const CharacterPosition(row: 0.8, column: 0.2),  // 左下
-            const CharacterPosition(row: 0.8, column: 0.8),  // 右下
-          ];
-        }
-        return [];
-    }
   }
 
   /// 清空所有角色
@@ -195,7 +124,7 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
     state = CharacterPromptConfig(
       characters: characters,
       globalAiChoice: state.globalAiChoice,
-    );
+    ).normalizeCustomPositions();
     _saveConfig();
   }
 
