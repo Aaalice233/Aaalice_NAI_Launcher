@@ -646,7 +646,7 @@ class LocalStorageService {
     await setSetting(StorageKeys.promptMaximized, maximized);
   }
 
-  /// 获取生成页布局模式 (默认 'classic')
+  /// 获取生成页布局模式 (默认 'web_style')
   String getGenerationLayoutMode() {
     // 官网式布局体验更好，未主动设置过的用户默认使用官网式
     return getSetting<String>(
