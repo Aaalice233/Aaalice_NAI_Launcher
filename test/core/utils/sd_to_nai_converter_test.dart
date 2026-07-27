@@ -108,6 +108,21 @@ void main() {
       expect(SdToNaiConverter.hasSDWeightSyntax('[bad anatomy]'), isFalse);
       expect(SdToNaiConverter.hasSDWeightSyntax('(masterpiece:1.2)'), isTrue);
       expect(SdToNaiConverter.hasSDWeightSyntax('[bad anatomy:0.8]'), isTrue);
+      expect(SdToNaiConverter.hasSDWeightSyntax('(red hair:.5)'), isTrue);
+      expect(SdToNaiConverter.hasSDWeightSyntax('(tag:-.5)'), isTrue);
+      expect(SdToNaiConverter.hasSDWeightSyntax('((red hair):1.2)'), isTrue);
+    });
+
+    test('should convert leading-decimal and nested explicit weights', () {
+      expect(
+        SdToNaiConverter.convert('(red hair:.5)'),
+        equals('0.5::red hair::'),
+      );
+      expect(SdToNaiConverter.convert('(tag:-.5)'), equals('-0.5::tag::'));
+      expect(
+        SdToNaiConverter.convert('((red hair):1.2)'),
+        equals('1.2::(red hair)::'),
+      );
     });
 
     test('should convert explicit square-bracket weights', () {

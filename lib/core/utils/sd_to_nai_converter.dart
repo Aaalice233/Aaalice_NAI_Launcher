@@ -20,11 +20,27 @@ class SdToNaiConverter {
 
   /// 检测明确的权重语法：(text:weight) 或 [text:weight]
   static bool _hasExplicitWeightSyntax(String text) {
-    // 匹配 (text:1.5) 或 [text:0.8] 这种明确指定权重的格式
-    final explicitWeightPattern = RegExp(
-      r'[\(\[]\s*[^\(\)\[\]:]+\s*:\s*[+-]?\d+\.?\d*\s*[\)\]]',
-    );
-    return explicitWeightPattern.hasMatch(text);
+    for (var index = 0; index < text.length; index++) {
+      final openChar = text[index];
+      if ((openChar != '(' && openChar != '[') || _isEscaped(text, index)) {
+        continue;
+      }
+
+      final closeChar = openChar == '(' ? ')' : ']';
+      final closeIndex = _findMatchingCloseBracket(
+        text,
+        index,
+        openChar,
+        closeChar,
+      );
+      if (closeIndex < 0) continue;
+
+      final content = text.substring(index + 1, closeIndex);
+      if (_extractExplicitWeight(content) != null) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /// 检查字符是否被转义
