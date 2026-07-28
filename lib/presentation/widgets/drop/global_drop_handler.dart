@@ -71,6 +71,13 @@ Future<NaiImageMetadata?> detectImportableDroppedImageMetadata(
   return null;
 }
 
+bool isGalleryInternalDragLocalData(Object? localData) {
+  if (localData is! Map) {
+    return false;
+  }
+  return localData['source'] == 'gallery_internal';
+}
+
 class _PasteImageIntent extends Intent {
   const _PasteImageIntent();
 }
@@ -191,14 +198,13 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
           formats: Formats.standardFormats,
           hitTestBehavior: HitTestBehavior.opaque,
           onDropOver: (event) {
-            // 检查是否是应用内部拖拽（本地画廊拖拽图片）
-            // 内部拖拽包含 localData，外部拖拽没有
-            final isInternalDrag = event.session.items.any(
-              (item) => item.localData != null,
+            // Gallery drags have category-specific targets. History drags must
+            // continue through the global image destination flow.
+            final isGalleryInternalDrag = event.session.items.any(
+              (item) => isGalleryInternalDragLocalData(item.localData),
             );
 
-            // 如果是内部拖拽，不显示全局覆盖层
-            if (isInternalDrag) {
+            if (isGalleryInternalDrag) {
               return DropOperation.none;
             }
 
