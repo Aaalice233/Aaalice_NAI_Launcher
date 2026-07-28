@@ -68,7 +68,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Ctrl+F 打开提示词搜索并选中第一个命中', (tester) async {
+  testWidgets('Ctrl+F 搜索选中命中且编辑提示词不重置光标', (tester) async {
     const prompt = 'alpha, beta, Alpha';
     debugDefaultTargetPlatformOverride = TargetPlatform.windows;
     try {
@@ -150,6 +150,31 @@ void main() {
         promptEditable.controller.selection,
         const TextSelection(baseOffset: 0, extentOffset: 5),
       );
+
+      final promptController = promptEditable.controller;
+      final activePromptField = find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField &&
+            identical(widget.controller, promptController),
+      );
+      await tester.tap(activePromptField);
+      await tester.pump();
+
+      const editedPrompt = '$prompt!';
+      tester.testTextInput.updateEditingValue(
+        const TextEditingValue(
+          text: editedPrompt,
+          selection: TextSelection.collapsed(offset: editedPrompt.length),
+        ),
+      );
+      await tester.pump();
+
+      expect(promptController.text, editedPrompt);
+      expect(
+        promptController.selection,
+        const TextSelection.collapsed(offset: editedPrompt.length),
+      );
+      expect(find.text('1 / 2'), findsOneWidget);
       await tester.pump(const Duration(milliseconds: 250));
     } finally {
       debugDefaultTargetPlatformOverride = null;

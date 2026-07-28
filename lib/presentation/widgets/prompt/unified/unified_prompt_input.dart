@@ -523,7 +523,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     }
 
     if (_searchVisible && externalText != _lastSearchSourceText) {
-      _refreshSearchMatches(preserveActive: true);
+      _refreshSearchMatches(preserveActive: true, selectActiveMatch: false);
     }
   }
 
@@ -538,7 +538,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     widget.onChanged?.call(text);
 
     if (_searchVisible && text != _lastSearchSourceText) {
-      _refreshSearchMatches(preserveActive: true);
+      _refreshSearchMatches(preserveActive: true, selectActiveMatch: false);
     }
   }
 
@@ -622,7 +622,10 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     _refreshSearchMatches(preserveActive: false);
   }
 
-  void _refreshSearchMatches({required bool preserveActive}) {
+  void _refreshSearchMatches({
+    required bool preserveActive,
+    bool selectActiveMatch = true,
+  }) {
     final sourceText = _effectiveController.text;
     final matches = _findSearchMatches(sourceText, _searchController.text);
     final activeIndex = _resolveActiveSearchIndex(
@@ -636,7 +639,9 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       _lastSearchSourceText = sourceText;
     });
     _syncSearchHighlights();
-    _selectActiveSearchMatch();
+    if (selectActiveMatch) {
+      _selectActiveSearchMatch();
+    }
   }
 
   List<TextRange> _findSearchMatches(String source, String query) {
