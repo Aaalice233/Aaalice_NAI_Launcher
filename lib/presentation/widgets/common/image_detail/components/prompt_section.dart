@@ -5,6 +5,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../data/services/tag_translation_service.dart';
 import '../../app_toast.dart';
+import 'selection_copy_shortcuts.dart';
 
 /// 提示词分组展示组件
 ///
@@ -418,11 +419,13 @@ class CharacterPromptCard extends StatelessWidget {
         children: [
           _buildHeader(context, colorScheme, theme),
           const SizedBox(height: 8),
-          SelectableText(
-            prompt,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontFamily: 'monospace',
-              height: 1.5,
+          SelectionCopyShortcuts(
+            child: SelectableText(
+              prompt,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontFamily: 'monospace',
+                height: 1.5,
+              ),
             ),
           ),
           if (negativePrompt?.isNotEmpty == true)
@@ -518,12 +521,14 @@ class CharacterPromptCard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 4),
-        SelectableText(
-          negativePrompt!,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontFamily: 'monospace',
-            height: 1.5,
-            color: colorScheme.error.withValues(alpha: 0.8),
+        SelectionCopyShortcuts(
+          child: SelectableText(
+            negativePrompt!,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontFamily: 'monospace',
+              height: 1.5,
+              color: colorScheme.error.withValues(alpha: 0.8),
+            ),
           ),
         ),
       ],
