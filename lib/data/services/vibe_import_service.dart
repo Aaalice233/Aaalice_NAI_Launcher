@@ -9,22 +9,21 @@ import '../../core/utils/vibe_file_parser.dart';
 import '../models/vibe/vibe_library_entry.dart';
 import '../models/vibe/vibe_reference.dart';
 
-typedef ImportProgressCallback = void Function(
-  int current,
-  int total,
-  String message,
-);
+typedef ImportProgressCallback =
+    void Function(int current, int total, String message);
 
-typedef VibeNamingCallback = Future<String?> Function(
-  String suggestedName, {
-  required bool isBatch,
-  Uint8List? thumbnail,
-});
+typedef VibeNamingCallback =
+    Future<String?> Function(
+      String suggestedName, {
+      required bool isBatch,
+      Uint8List? thumbnail,
+    });
 
-typedef BundleImportOptionCallback = Future<BundleImportOption?> Function(
-  String bundleName,
-  List<VibeReference> vibes,
-);
+typedef BundleImportOptionCallback =
+    Future<BundleImportOption?> Function(
+      String bundleName,
+      List<VibeReference> vibes,
+    );
 
 class BundleImportOption {
   const BundleImportOption._({
@@ -36,46 +35,36 @@ class BundleImportOption {
   const BundleImportOption.keepAsBundle({
     List<VibeReference>? configuredReferences,
   }) : this._(
-          keepAsBundle: true,
-          selectedIndices: null,
-          configuredReferences: configuredReferences,
-        );
+         keepAsBundle: true,
+         selectedIndices: null,
+         configuredReferences: configuredReferences,
+       );
 
-  const BundleImportOption.split({
-    List<VibeReference>? configuredReferences,
-  }) : this._(
-          keepAsBundle: false,
-          selectedIndices: null,
-          configuredReferences: configuredReferences,
-        );
+  const BundleImportOption.split({List<VibeReference>? configuredReferences})
+    : this._(
+        keepAsBundle: false,
+        selectedIndices: null,
+        configuredReferences: configuredReferences,
+      );
 
   const BundleImportOption.select(
     List<int> indices, {
     List<VibeReference>? configuredReferences,
   }) : this._(
-          keepAsBundle: false,
-          selectedIndices: indices,
-          configuredReferences: configuredReferences,
-        );
+         keepAsBundle: false,
+         selectedIndices: indices,
+         configuredReferences: configuredReferences,
+       );
 
   final bool keepAsBundle;
   final List<int>? selectedIndices;
   final List<VibeReference>? configuredReferences;
 }
 
-enum ConflictResolution {
-  skip,
-  replace,
-  rename,
-  ask,
-}
+enum ConflictResolution { skip, replace, rename, ask }
 
 class ImportError {
-  const ImportError({
-    required this.source,
-    required this.error,
-    this.details,
-  });
+  const ImportError({required this.source, required this.error, this.details});
 
   final String source;
   final String error;
@@ -131,9 +120,8 @@ abstract class VibeLibraryImportRepository {
 }
 
 class VibeImportService {
-  VibeImportService({
-    required VibeLibraryImportRepository repository,
-  }) : _repository = repository;
+  VibeImportService({required VibeLibraryImportRepository repository})
+    : _repository = repository;
 
   final VibeLibraryImportRepository _repository;
 
@@ -168,9 +156,7 @@ class VibeImportService {
           stackTrace,
           'VibeImportService',
         );
-        errors.add(
-          ImportError(source: file.name, error: '文件解析失败', details: e),
-        );
+        errors.add(ImportError(source: file.name, error: '文件解析失败', details: e));
       }
     }
 
@@ -218,8 +204,10 @@ class VibeImportService {
 
     for (final image in images) {
       try {
-        final references =
-            await VibeFileParser.parseFile(image.source, image.bytes);
+        final references = await VibeFileParser.parseFile(
+          image.source,
+          image.bytes,
+        );
         for (final vibe in references) {
           AppLogger.d(
             'Prepared vibe import: ${vibe.displayName}, sourceType=${vibe.sourceType.name}, thumbnail: ${vibe.thumbnail != null ? '${vibe.thumbnail!.length} bytes' : 'null'}',
@@ -273,8 +261,9 @@ class VibeImportService {
       try {
         final references = await _parseEncodingItem(item);
         for (final reference in references) {
-          sourceItems
-              .add(_ParsedSource(source: item.source, reference: reference));
+          sourceItems.add(
+            _ParsedSource(source: item.source, reference: reference),
+          );
         }
       } catch (e, stackTrace) {
         AppLogger.e(
@@ -329,8 +318,9 @@ class VibeImportService {
       final defaultName = source.preferredName?.trim().isNotEmpty == true
           ? source.preferredName!.trim()
           : source.reference.displayName;
-      final baseName =
-          defaultName.trim().isEmpty ? 'vibe-$current' : defaultName.trim();
+      final baseName = defaultName.trim().isEmpty
+          ? 'vibe-$current'
+          : defaultName.trim();
 
       final isBatch = sources.length > 1;
       var candidateName = baseName;
@@ -372,8 +362,10 @@ class VibeImportService {
       );
 
       try {
-        final conflictEntry =
-            await _findEntryByNameCached(candidateName, nameMap);
+        final conflictEntry = await _findEntryByNameCached(
+          candidateName,
+          nameMap,
+        );
         if (conflictEntry != null) hasConflicts = true;
 
         final resolvedName = await _resolveName(
@@ -399,7 +391,8 @@ class VibeImportService {
             name: resolvedName,
             categoryId: categoryId,
             tags: tags,
-            replaceEntry: conflictEntry != null &&
+            replaceEntry:
+                conflictEntry != null &&
                     conflictResolution == ConflictResolution.replace
                 ? conflictEntry
                 : null,
@@ -629,10 +622,7 @@ class VibeImportService {
   ) {
     return references
         .map(
-          (reference) => _ParsedSource(
-            source: fileName,
-            reference: reference,
-          ),
+          (reference) => _ParsedSource(source: fileName, reference: reference),
         )
         .toList();
   }
@@ -710,6 +700,7 @@ class VibeImportService {
         rawImageData: reference.rawImageData,
         strength: reference.strength,
         infoExtracted: reference.infoExtracted,
+        encodingModel: reference.encodingModel,
         sourceTypeIndex: reference.sourceType.index,
         categoryId: categoryId,
         tags: tagsToUse,
@@ -719,6 +710,7 @@ class VibeImportService {
         bundledVibeEncodings: bundleData.encodings,
         bundledVibeStrengths: bundleData.strengths,
         bundledVibeInfoExtracted: bundleData.infoExtracted,
+        bundledVibeEncodingModels: bundleData.encodingModels,
         filePath: bundleFileName,
       );
     }
@@ -736,6 +728,7 @@ class VibeImportService {
       bundledVibeEncodings: bundleData.encodings,
       bundledVibeStrengths: bundleData.strengths,
       bundledVibeInfoExtracted: bundleData.infoExtracted,
+      bundledVibeEncodingModels: bundleData.encodingModels,
     );
   }
 
@@ -745,9 +738,9 @@ class VibeImportService {
     List<String>? encodings,
     List<double>? strengths,
     List<double>? infoExtracted,
-  }) _extractBundleData(
-    List<VibeReference>? bundledReferences,
-  ) {
+    List<String?>? encodingModels,
+  })
+  _extractBundleData(List<VibeReference>? bundledReferences) {
     if (bundledReferences == null || bundledReferences.isEmpty) {
       return (
         names: null,
@@ -755,6 +748,7 @@ class VibeImportService {
         encodings: null,
         strengths: null,
         infoExtracted: null,
+        encodingModels: null,
       );
     }
 
@@ -771,29 +765,30 @@ class VibeImportService {
 
     final encodings = bundledReferences
         .map((item) => item.vibeEncoding)
-        .where((item) => item.trim().isNotEmpty)
-        .toList();
-    final strengths =
-        bundledReferences.map((item) => item.strength).toList(growable: false);
+        .toList(growable: false);
+    final strengths = bundledReferences
+        .map((item) => item.strength)
+        .toList(growable: false);
     final infoExtracted = bundledReferences
         .map((item) => item.infoExtracted)
+        .toList(growable: false);
+    final encodingModels = bundledReferences
+        .map((item) => item.encodingModel)
         .toList(growable: false);
 
     return (
       names: names.isNotEmpty ? names : null,
       previews: previews.isNotEmpty ? previews : null,
-      encodings: encodings.isNotEmpty ? encodings : null,
+      encodings: encodings,
       strengths: strengths,
       infoExtracted: infoExtracted,
+      encodingModels: encodingModels,
     );
   }
 }
 
 class VibeImageImportItem {
-  const VibeImageImportItem({
-    required this.source,
-    required this.bytes,
-  });
+  const VibeImageImportItem({required this.source, required this.bytes});
 
   final String source;
   final Uint8List bytes;

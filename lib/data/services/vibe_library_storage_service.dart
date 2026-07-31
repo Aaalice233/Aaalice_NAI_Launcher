@@ -534,6 +534,9 @@ class VibeLibraryStorageService
         bundledVibeInfoExtracted: updatedVibes
             .map((v) => v.infoExtracted)
             .toList(growable: false),
+        bundledVibeEncodingModels: updatedVibes
+            .map((v) => v.encodingModel)
+            .toList(growable: false),
       );
 
       await _putStoredEntry(updatedEntry);
@@ -604,6 +607,7 @@ class VibeLibraryStorageService
         bundledVibeEncodings: vibes.map((v) => v.vibeEncoding).toList(),
         bundledVibeStrengths: vibes.map((v) => v.strength).toList(),
         bundledVibeInfoExtracted: vibes.map((v) => v.infoExtracted).toList(),
+        bundledVibeEncodingModels: vibes.map((v) => v.encodingModel).toList(),
       );
 
       await _putStoredEntry(entry);
@@ -656,12 +660,15 @@ class VibeLibraryStorageService
       final effectiveVibeEncoding = vibeData.vibeEncoding.isNotEmpty
           ? vibeData.vibeEncoding
           : entry.vibeEncoding;
+      final effectiveEncodingModel =
+          vibeData.encodingModel ?? entry.encodingModel;
       var mergedEntry = entry
           .updateVibeData(
             vibeData.copyWith(
               vibeEncoding: effectiveVibeEncoding,
               thumbnail: effectiveThumbnail,
               rawImageData: effectiveRawImageData,
+              encodingModel: effectiveEncodingModel,
             ),
           )
           .copyWith(filePath: filePath);
@@ -680,6 +687,9 @@ class VibeLibraryStorageService
                 .toList(growable: false),
             bundledVibeInfoExtracted: bundleVibes
                 .map((v) => v.infoExtracted)
+                .toList(growable: false),
+            bundledVibeEncodingModels: bundleVibes
+                .map((v) => v.encodingModel)
                 .toList(growable: false),
           );
         }
@@ -1343,6 +1353,7 @@ class VibeLibraryStorageService
     final previews = entry.bundledVibePreviews;
     final strengths = entry.bundledVibeStrengths;
     final infoExtracted = entry.bundledVibeInfoExtracted;
+    final encodingModels = entry.bundledVibeEncodingModels;
 
     if (encodings == null || encodings.isEmpty) {
       // 如果没有存储编码列表，只返回第一个 vibe
@@ -1364,6 +1375,9 @@ class VibeLibraryStorageService
       final info = infoExtracted != null && i < infoExtracted.length
           ? infoExtracted[i]
           : entry.infoExtracted;
+      final encodingModel = encodingModels != null && i < encodingModels.length
+          ? encodingModels[i]
+          : entry.encodingModel;
 
       results.add(
         VibeReference(
@@ -1372,6 +1386,7 @@ class VibeLibraryStorageService
           thumbnail: thumbnail,
           strength: strength,
           infoExtracted: info,
+          encodingModel: encodingModel,
           sourceType: VibeSourceType.naiv4vibebundle,
         ),
       );

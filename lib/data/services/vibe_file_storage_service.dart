@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/file_name_sanitizer.dart';
+import '../../core/utils/novelai_vibe_codec.dart';
 import '../../core/utils/vibe_export_utils.dart';
 import '../../core/utils/vibe_file_parser.dart';
 import '../../core/utils/vibe_library_path_helper.dart';
@@ -97,50 +98,22 @@ class VibeFileStorageService {
     try {
       final existingJson = await file.readAsString();
       final decoded = jsonDecode(existingJson);
-      jsonData =
-          decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+      jsonData = decoded is Map<String, dynamic>
+          ? decoded
+          : <String, dynamic>{};
     } catch (_) {
       jsonData = <String, dynamic>{};
     }
 
-    final importInfo = Map<String, dynamic>.from(
-      (jsonData['importInfo'] as Map?)?.cast<String, dynamic>() ??
-          const <String, dynamic>{},
-    );
-    importInfo['model'] = defaultModel;
     final vibeForFile = vibe.normalizedForLibraryStorage();
-
-    importInfo['information_extracted'] = vibeForFile.infoExtracted;
-    importInfo['strength'] = vibeForFile.strength;
-
-    final encodings = Map<String, dynamic>.from(
-      (jsonData['encodings'] as Map?)?.cast<String, dynamic>() ??
-          const <String, dynamic>{},
+    final replacement = NovelAiVibeCodec.buildSingleMap(
+      vibeForFile,
+      name: displayName,
+      fallbackModel: defaultModel,
     );
-    encodings[defaultModel] = <String, dynamic>{
-      'vibe': <String, dynamic>{
-        'encoding': vibeForFile.vibeEncoding,
-      },
-    };
+    _mergeCompatibleImageEncodings(jsonData, replacement);
 
-    jsonData
-      ..['identifier'] = jsonData['identifier'] ?? 'novelai-vibe-transfer'
-      ..['version'] = jsonData['version'] ?? 1
-      ..['type'] = 'encoding'
-      ..['name'] = displayName
-      ..['importInfo'] = importInfo
-      ..['encodings'] = encodings;
-
-    if (vibeForFile.rawImageData != null &&
-        vibeForFile.rawImageData!.isNotEmpty) {
-      jsonData['image'] = base64Encode(vibeForFile.rawImageData!);
-    }
-    if (vibeForFile.thumbnail != null && vibeForFile.thumbnail!.isNotEmpty) {
-      jsonData['thumbnail'] = base64Encode(vibeForFile.thumbnail!);
-    }
-
-    await file
-        .writeAsString(const JsonEncoder.withIndent('  ').convert(jsonData));
+    await file.writeAsString(NovelAiVibeCodec.encodeJson(replacement));
     AppLogger.i('Vibe 文件覆盖成功: $filePath', _tag);
   }
 
@@ -148,6 +121,7 @@ class VibeFileStorageService {
   Future<String> saveBundleToFile(
     List<VibeReference> vibes, {
     String? bundleName,
+    String defaultModel = NovelAiVibeCodec.defaultModel,
   }) async {
     if (vibes.isEmpty) {
       throw ArgumentError('vibes 不能为空');
@@ -163,7 +137,7 @@ class VibeFileStorageService {
     final filePath = p.join(directoryPath, fileName);
 
     try {
-      final jsonString = _buildBundleJson(vibes);
+      final jsonString = _buildBundleJson(vibes, defaultModel: defaultModel);
       await File(filePath).writeAsString(jsonString);
       AppLogger.i('Vibe Bundle 保存成功: $filePath', _tag);
       return filePath;
@@ -176,8 +150,9 @@ class VibeFileStorageService {
   /// 覆盖已有 .naiv4vibebundle 文件
   Future<void> overwriteBundleFile(
     String filePath,
-    List<VibeReference> vibes,
-  ) async {
+    List<VibeReference> vibes, {
+    String defaultModel = NovelAiVibeCodec.defaultModel,
+  }) async {
     if (vibes.isEmpty) {
       throw ArgumentError('vibes 不能为空');
     }
@@ -193,7 +168,7 @@ class VibeFileStorageService {
     }
 
     try {
-      final jsonString = _buildBundleJson(vibes);
+      final jsonString = _buildBundleJson(vibes, defaultModel: defaultModel);
       await file.writeAsString(jsonString);
       AppLogger.i('Vibe Bundle 文件覆盖成功: $filePath', _tag);
     } catch (e, stackTrace) {
@@ -347,8 +322,10 @@ class VibeFileStorageService {
       }
 
       final bytes = await file.readAsBytes();
-      final vibes =
-          await VibeFileParser.fromBundle(p.basename(bundlePath), bytes);
+      final vibes = await VibeFileParser.fromBundle(
+        p.basename(bundlePath),
+        bytes,
+      );
 
       if (safeStartIndex >= vibes.length) {
         AppLogger.w(
@@ -361,8 +338,8 @@ class VibeFileStorageService {
       final endIndex = safeLimit == null
           ? vibes.length
           : (safeStartIndex + safeLimit)
-              .clamp(safeStartIndex, vibes.length)
-              .toInt();
+                .clamp(safeStartIndex, vibes.length)
+                .toInt();
       return vibes.sublist(safeStartIndex, endIndex);
     } catch (e, stackTrace) {
       AppLogger.e('从 Bundle 批量提取 Vibe 失败: $bundlePath', e, stackTrace, _tag);
@@ -419,7 +396,8 @@ class VibeFileStorageService {
           continue;
         }
 
-        final thumbnail = _decodeBase64Image(item['thumbnail']) ??
+        final thumbnail =
+            _decodeBase64Image(item['thumbnail']) ??
             _decodeBase64Image(item['image']);
         if (thumbnail != null) previews.add(thumbnail);
       }
@@ -434,7 +412,13 @@ class VibeFileStorageService {
   Uint8List? _decodeBase64Image(String? base64String) {
     if (base64String == null || base64String.isEmpty) return null;
     try {
-      return base64Decode(base64String);
+      final commaIndex = base64String.startsWith('data:')
+          ? base64String.indexOf(',')
+          : -1;
+      final payload = commaIndex >= 0
+          ? base64String.substring(commaIndex + 1)
+          : base64String;
+      return base64Decode(payload);
     } catch (_) {
       return null;
     }
@@ -499,8 +483,10 @@ class VibeFileStorageService {
 
           try {
             final existingEntry = existingPathMap[normalizedPath];
-            final discovered =
-                await _buildEntryFromFile(filePath, existingEntry);
+            final discovered = await _buildEntryFromFile(
+              filePath,
+              existingEntry,
+            );
 
             return (
               path: normalizedPath,
@@ -608,8 +594,12 @@ class VibeFileStorageService {
 
     final encodings = vibes.map((v) => v.vibeEncoding).toList(growable: false);
     final strengths = vibes.map((v) => v.strength).toList(growable: false);
-    final infoExtracted =
-        vibes.map((v) => v.infoExtracted).toList(growable: false);
+    final infoExtracted = vibes
+        .map((v) => v.infoExtracted)
+        .toList(growable: false);
+    final encodingModels = vibes
+        .map((v) => v.encodingModel)
+        .toList(growable: false);
 
     return _mergeWithExistingEntry(
       generatedEntry: generatedEntry,
@@ -618,11 +608,13 @@ class VibeFileStorageService {
     ).copyWith(
       bundleId: existingEntry?.bundleId ?? p.basenameWithoutExtension(filePath),
       bundledVibeNames: names,
-      bundledVibePreviews:
-          previews.isEmpty ? existingEntry?.bundledVibePreviews : previews,
+      bundledVibePreviews: previews.isEmpty
+          ? existingEntry?.bundledVibePreviews
+          : previews,
       bundledVibeEncodings: encodings,
       bundledVibeStrengths: strengths,
       bundledVibeInfoExtracted: infoExtracted,
+      bundledVibeEncodingModels: encodingModels,
     );
   }
 
@@ -682,6 +674,7 @@ class VibeFileStorageService {
       bundledVibeEncodings: existingEntry.bundledVibeEncodings,
       bundledVibeStrengths: existingEntry.bundledVibeStrengths,
       bundledVibeInfoExtracted: existingEntry.bundledVibeInfoExtracted,
+      bundledVibeEncodingModels: existingEntry.bundledVibeEncodingModels,
     );
   }
 
@@ -723,11 +716,7 @@ class VibeFileStorageService {
   }
 
   String _normalizeFileBaseName(String name) {
-    return FileNameSanitizer.sanitize(
-      name,
-      fallback: 'vibe',
-      maxLength: 120,
-    );
+    return FileNameSanitizer.sanitize(name, fallback: 'vibe', maxLength: 120);
   }
 
   Map<String, dynamic>? _extractBundleImportInfo(
@@ -755,8 +744,8 @@ class VibeFileStorageService {
       final double v => VibeReference.sanitizeStrength(v),
       final int v => VibeReference.sanitizeStrength(v.toDouble()),
       final String v => VibeReference.sanitizeStrength(
-          double.tryParse(v) ?? defaultValue,
-        ),
+        double.tryParse(v) ?? defaultValue,
+      ),
       _ => defaultValue,
     };
   }
@@ -770,8 +759,8 @@ class VibeFileStorageService {
       final double v => VibeReference.sanitizeInfoExtracted(v),
       final int v => VibeReference.sanitizeInfoExtracted(v.toDouble()),
       final String v => VibeReference.sanitizeInfoExtracted(
-          double.tryParse(v) ?? defaultValue,
-        ),
+        double.tryParse(v) ?? defaultValue,
+      ),
       _ => defaultValue,
     };
   }
@@ -781,96 +770,55 @@ class VibeFileStorageService {
     required String displayName,
     required String defaultModel,
   }) {
-    final vibeForFile = vibe.normalizedForLibraryStorage();
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final idSource = vibeForFile.vibeEncoding.isNotEmpty
-        ? vibeForFile.vibeEncoding
-        : base64Encode(
-            vibeForFile.rawImageData ?? vibeForFile.thumbnail ?? Uint8List(0),
-          );
-    final id =
-        base64Url.encode(utf8.encode('$idSource|$timestamp')).substring(0, 32);
-
-    final isRawImage =
-        !vibeForFile.hasVibeEncoding && vibeForFile.rawImageData != null;
-    final type = isRawImage ? 'image' : 'encoding';
-
-    final data = <String, dynamic>{
-      'identifier': 'novelai-vibe-transfer',
-      'version': 1,
-      'type': type,
-      'id': id,
-      'name': displayName,
-      'createdAt': timestamp,
-      'encodings': type == 'encoding'
-          ? {
-              defaultModel: {
-                'vibe': {
-                  'encoding': vibeForFile.vibeEncoding,
-                },
-              },
-            }
-          : <String, dynamic>{},
-      'importInfo': {
-        'model': defaultModel,
-        'information_extracted': vibeForFile.infoExtracted,
-        'strength': vibeForFile.strength,
-      },
-    };
-
-    if (isRawImage) {
-      data['image'] = base64Encode(vibeForFile.rawImageData!);
-    }
-
-    if (!isRawImage &&
-        vibeForFile.rawImageData != null &&
-        vibeForFile.rawImageData!.isNotEmpty) {
-      data['image'] = base64Encode(vibeForFile.rawImageData!);
-    }
-
-    if (vibeForFile.thumbnail != null && vibeForFile.thumbnail!.isNotEmpty) {
-      data['thumbnail'] = base64Encode(vibeForFile.thumbnail!);
-    }
-
-    return const JsonEncoder.withIndent('  ').convert(data);
+    return NovelAiVibeCodec.encodeJson(
+      NovelAiVibeCodec.buildSingleMap(
+        vibe.normalizedForLibraryStorage(),
+        name: displayName,
+        fallbackModel: defaultModel,
+      ),
+    );
   }
 
-  String _buildBundleJson(List<VibeReference> vibes) {
-    final entries = vibes.map((vibe) {
-      final data = <String, dynamic>{
-        'name': vibe.displayName,
-        'encodings': vibe.vibeEncoding.isEmpty
-            ? <String, dynamic>{}
-            : {
-                'nai-diffusion-4-full': {
-                  'vibe': {
-                    'encoding': vibe.vibeEncoding,
-                  },
-                },
-              },
-        'importInfo': {
-          'information_extracted': vibe.infoExtracted,
-          'strength': vibe.strength,
-        },
-      };
-
-      if (vibe.thumbnail != null && vibe.thumbnail!.isNotEmpty) {
-        data['thumbnail'] = base64Encode(vibe.thumbnail!);
-      }
-
-      if (vibe.rawImageData != null && vibe.rawImageData!.isNotEmpty) {
-        data['image'] = base64Encode(vibe.rawImageData!);
-      }
-
-      return data;
-    }).toList(growable: false);
-
-    return const JsonEncoder.withIndent('  ').convert(
-      <String, dynamic>{
-        'identifier': 'novelai-vibe-transfer-bundle',
-        'version': 1,
-        'vibes': entries,
-      },
+  String _buildBundleJson(
+    List<VibeReference> vibes, {
+    String defaultModel = NovelAiVibeCodec.defaultModel,
+  }) {
+    return NovelAiVibeCodec.encodeJson(
+      NovelAiVibeCodec.buildBundleMap(vibes, fallbackModel: defaultModel),
     );
+  }
+
+  void _mergeCompatibleImageEncodings(
+    Map<String, dynamic> existing,
+    Map<String, dynamic> replacement,
+  ) {
+    if (existing['type'] != 'image' ||
+        replacement['type'] != 'image' ||
+        existing['id'] != replacement['id']) {
+      return;
+    }
+
+    final existingEncodings = existing['encodings'];
+    final replacementEncodings = replacement['encodings'];
+    if (existingEncodings is! Map || replacementEncodings is! Map) {
+      return;
+    }
+
+    for (final modelEntry in existingEncodings.entries) {
+      final oldVariants = modelEntry.value;
+      if (oldVariants is! Map) {
+        continue;
+      }
+      final targetVariants = replacementEncodings.putIfAbsent(
+        modelEntry.key,
+        () => <String, dynamic>{},
+      );
+      if (targetVariants is! Map) {
+        continue;
+      }
+      for (final variantEntry in oldVariants.entries) {
+        targetVariants.putIfAbsent(variantEntry.key, () => variantEntry.value);
+      }
+    }
   }
 }

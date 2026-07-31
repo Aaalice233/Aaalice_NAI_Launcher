@@ -98,6 +98,7 @@ Future<VibeSelectionResult> buildLightweightVibeSelectionResult({
           sourceType: vibeRef.sourceType,
           strength: vibeRef.strength,
           infoExtracted: vibeRef.infoExtracted,
+          encodingModel: vibeRef.encodingModel,
         ),
       );
       continue;

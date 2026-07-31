@@ -30,10 +30,7 @@ import '../../vibe_library/widgets/vibe_selector_dialog.dart';
 /// - 保存到 Vibe 库
 /// - 从 Vibe 库导入
 class VibeImportHandler {
-  VibeImportHandler({
-    required this.ref,
-    required this.context,
-  });
+  VibeImportHandler({required this.ref, required this.context});
 
   final WidgetRef ref;
   final BuildContext context;
@@ -220,13 +217,17 @@ class VibeImportHandler {
         }
       }
 
-      final beforeCount =
-          ref.read(generationParamsNotifierProvider).vibeReferencesV4.length;
+      final beforeCount = ref
+          .read(generationParamsNotifierProvider)
+          .vibeReferencesV4
+          .length;
       notifier.addVibeReferences(vibes);
       await notifier.saveGenerationState();
 
-      final afterCount =
-          ref.read(generationParamsNotifierProvider).vibeReferencesV4.length;
+      final afterCount = ref
+          .read(generationParamsNotifierProvider)
+          .vibeReferencesV4
+          .length;
       if (afterCount > beforeCount) {
         addedVibes = afterCount - beforeCount;
       }
@@ -234,10 +235,7 @@ class VibeImportHandler {
     } catch (e) {
       AppLogger.e('Failed to parse dropped file: $fileName', e, null, _tag);
       if (context.mounted) {
-        AppToast.error(
-          context,
-          context.l10n.vibe_import_fileParseFailed,
-        );
+        AppToast.error(context, context.l10n.vibe_import_fileParseFailed);
       }
       return 0;
     } finally {
@@ -253,9 +251,7 @@ class VibeImportHandler {
 
   /// 显示编码确认对话框
   Future<(bool confirmed, bool encode, bool autoSave)?>
-      _showEncodingConfirmDialog(
-    String fileName,
-  ) async {
+  _showEncodingConfirmDialog(String fileName) async {
     final l10n = context.l10n;
     return showDialog<(bool confirmed, bool encode, bool autoSave)>(
       context: context,
@@ -354,16 +350,12 @@ class VibeImportHandler {
                         Expanded(
                           child: Text(
                             l10n.vibe_import_autoSave,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
+                            style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
                                   color: encodeChecked
                                       ? null
-                                      : Theme.of(context)
-                                          .colorScheme
-                                          .onSurface
-                                          .withValues(alpha: 0.4),
+                                      : Theme.of(context).colorScheme.onSurface
+                                            .withValues(alpha: 0.4),
                                 ),
                           ),
                         ),
@@ -379,8 +371,9 @@ class VibeImportHandler {
                   child: Text(context.l10n.common_cancel),
                 ),
                 ElevatedButton(
-                  onPressed: () => Navigator.of(context)
-                      .pop((true, encodeChecked, autoSaveChecked)),
+                  onPressed: () => Navigator.of(
+                    context,
+                  ).pop((true, encodeChecked, autoSaveChecked)),
                   child: Text(confirmButtonText),
                 ),
               ],
@@ -478,25 +471,25 @@ class VibeImportHandler {
           // 添加 30 秒超时保护，防止 API 无限卡住
           final encoding = await notifier
               .encodeVibeWithCache(
-            vibe.rawImageData!,
-            model: model,
-            informationExtracted: vibe.infoExtracted,
-            vibeName: vibe.displayName,
-          )
+                vibe.rawImageData!,
+                model: model,
+                informationExtracted: vibe.infoExtracted,
+                vibeName: vibe.displayName,
+              )
               .timeout(
-            const Duration(seconds: 30),
-            onTimeout: () {
-              AppLogger.w(
-                'Vibe encoding timeout: ${vibe.displayName}',
-                _tag,
+                const Duration(seconds: 30),
+                onTimeout: () {
+                  AppLogger.w(
+                    'Vibe encoding timeout: ${vibe.displayName}',
+                    _tag,
+                  );
+                  return null;
+                },
               );
-              return null;
-            },
-          );
 
           if (encoding != null) {
             encodedVibes.add(
-              buildEncodedImportVibe(vibe, encoding),
+              buildEncodedImportVibe(vibe, encoding, model: model),
             );
             encodedCount++;
           } else {
@@ -543,10 +536,7 @@ class VibeImportHandler {
       return null;
     } finally {
       span.finish(
-        details: {
-          'encoded': encodedCount,
-          'returnedVibes': returnedCount,
-        },
+        details: {'encoded': encodedCount, 'returnedVibes': returnedCount},
       );
     }
   }
@@ -560,9 +550,7 @@ class VibeImportHandler {
   ) async {
     final span = VibePerformanceDiagnostics.start(
       'importHandler.saveEncodedVibesToLibrary',
-      details: {
-        'vibes': vibes.length,
-      },
+      details: {'vibes': vibes.length},
     );
     final storageService = ref.read(vibeLibraryStorageServiceProvider);
     var savedCount = 0;
@@ -596,10 +584,7 @@ class VibeImportHandler {
           );
           await storageService.saveEntry(entry);
           savedCount++;
-          AppLogger.i(
-            'New Vibe saved: ${entry.id}, name=${entry.name}',
-            _tag,
-          );
+          AppLogger.i('New Vibe saved: ${entry.id}, name=${entry.name}', _tag);
         }
       }
 
@@ -620,12 +605,7 @@ class VibeImportHandler {
         AppToast.error(context, context.l10n.vibe_saveToLibrary_saveFailed);
       }
     } finally {
-      span.finish(
-        details: {
-          'saved': savedCount,
-          'reused': reusedCount,
-        },
-      );
+      span.finish(details: {'saved': savedCount, 'reused': reusedCount});
     }
   }
 
@@ -675,8 +655,10 @@ class VibeImportHandler {
 
       // 处理每个选中的条目（支持 bundle 展开）
       for (final selectedEntry in result.selectedEntries) {
-        final currentCount =
-            ref.read(generationParamsNotifierProvider).vibeReferencesV4.length;
+        final currentCount = ref
+            .read(generationParamsNotifierProvider)
+            .vibeReferencesV4
+            .length;
         if (currentCount >= 16) break;
 
         var addedForEntry = 0;
@@ -719,10 +701,7 @@ class VibeImportHandler {
       }
 
       if (context.mounted) {
-        AppToast.success(
-          context,
-          context.l10n.vibe_import_result(totalAdded),
-        );
+        AppToast.success(context, context.l10n.vibe_import_result(totalAdded));
       }
     } catch (e, stackTrace) {
       AppLogger.e('Failed to import from library', e, stackTrace, _tag);
@@ -768,8 +747,10 @@ class VibeImportHandler {
       },
     );
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
-    final currentCount =
-        ref.read(generationParamsNotifierProvider).vibeReferencesV4.length;
+    final currentCount = ref
+        .read(generationParamsNotifierProvider)
+        .vibeReferencesV4
+        .length;
     final availableSlots = maxCount - currentCount;
     var extractedCount = 0;
 
@@ -777,8 +758,9 @@ class VibeImportHandler {
       if (availableSlots <= 0 || entry.filePath == null) return 0;
 
       final fileStorage = VibeFileStorageService();
-      final extractLimit =
-          entry.bundledVibeCount.clamp(0, availableSlots).toInt();
+      final extractLimit = entry.bundledVibeCount
+          .clamp(0, availableSlots)
+          .toInt();
       final extractedVibes = await fileStorage.extractVibesFromBundle(
         entry.filePath!,
         limit: extractLimit,
@@ -787,11 +769,7 @@ class VibeImportHandler {
       if (extractedVibes.isNotEmpty) {
         // 设置 bundle 来源
         final vibesWithSource = extractedVibes
-            .map(
-              (vibe) => vibe.copyWith(
-                bundleSource: entry.displayName,
-              ),
-            )
+            .map((vibe) => vibe.copyWith(bundleSource: entry.displayName))
             .toList();
         notifier.addVibeReferences(vibesWithSource, recordUsage: false);
 
@@ -846,111 +824,113 @@ class VibeImportHandler {
     final overwriteCandidate = await ref
         .read(vibeLibraryStorageServiceProvider)
         .findOverwriteCandidate(vibes);
-    final showInfoExtractedControl =
-        shouldShowInfoExtractedForLibrarySave(vibes);
+    final showInfoExtractedControl = shouldShowInfoExtractedForLibrarySave(
+      vibes,
+    );
 
     if (!context.mounted) {
       nameController.dispose();
       return;
     }
 
-    final result = await showDialog<
-        (
-          bool confirmed,
-          double strength,
-          double infoExtracted,
-          bool overwriteOriginal
-        )?>(
-      context: context,
-      builder: (context) {
-        var strengthValue = firstVibe.strength;
-        var infoExtractedValue = firstVibe.infoExtracted;
-        var overwriteOriginal = false;
+    final result =
+        await showDialog<
+          (
+            bool confirmed,
+            double strength,
+            double infoExtracted,
+            bool overwriteOriginal,
+          )?
+        >(
+          context: context,
+          builder: (context) {
+            var strengthValue = firstVibe.strength;
+            var infoExtractedValue = firstVibe.infoExtracted;
+            var overwriteOriginal = false;
 
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text(l10n.vibe_saveToLibrary_title),
-              content: SizedBox(
-                width: 400,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(l10n.vibe_saveToLibrary_savingCount(vibes.length)),
-                    const SizedBox(height: 16),
-                    // 名称输入
-                    TextField(
-                      controller: nameController,
-                      decoration: InputDecoration(
-                        labelText: l10n.vibe_saveToLibrary_nameLabel,
-                        hintText: l10n.vibe_saveToLibrary_nameHint,
-                        border: const OutlineInputBorder(),
-                      ),
-                      autofocus: true,
-                    ),
-                    const SizedBox(height: 24),
-                    // Reference Strength 滑条
-                    _buildDialogSlider(
-                      context,
-                      label: l10n.vibe_saveToLibrary_strength,
-                      value: strengthValue,
-                      onChanged: (value) =>
-                          setState(() => strengthValue = value),
-                    ),
-                    if (showInfoExtractedControl) ...[
-                      const SizedBox(height: 16),
-                      _buildDialogSlider(
-                        context,
-                        label: l10n.vibe_saveToLibrary_infoExtracted,
-                        value: infoExtractedValue,
-                        onChanged: (value) =>
-                            setState(() => infoExtractedValue = value),
-                      ),
-                    ],
-                    if (overwriteCandidate != null) ...[
-                      const SizedBox(height: 16),
-                      CheckboxListTile(
-                        value: overwriteOriginal,
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('直接替换原 Vibe 参数'),
-                        subtitle: Text(
-                          '仅覆盖 ${overwriteCandidate.displayName} 的库内参数，默认不勾选',
+            return StatefulBuilder(
+              builder: (context, setState) {
+                return AlertDialog(
+                  title: Text(l10n.vibe_saveToLibrary_title),
+                  content: SizedBox(
+                    width: 400,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(l10n.vibe_saveToLibrary_savingCount(vibes.length)),
+                        const SizedBox(height: 16),
+                        // 名称输入
+                        TextField(
+                          controller: nameController,
+                          decoration: InputDecoration(
+                            labelText: l10n.vibe_saveToLibrary_nameLabel,
+                            hintText: l10n.vibe_saveToLibrary_nameHint,
+                            border: const OutlineInputBorder(),
+                          ),
+                          autofocus: true,
                         ),
-                        onChanged: (value) =>
-                            setState(() => overwriteOriginal = value ?? false),
-                      ),
-                    ],
+                        const SizedBox(height: 24),
+                        // Reference Strength 滑条
+                        _buildDialogSlider(
+                          context,
+                          label: l10n.vibe_saveToLibrary_strength,
+                          value: strengthValue,
+                          onChanged: (value) =>
+                              setState(() => strengthValue = value),
+                        ),
+                        if (showInfoExtractedControl) ...[
+                          const SizedBox(height: 16),
+                          _buildDialogSlider(
+                            context,
+                            label: l10n.vibe_saveToLibrary_infoExtracted,
+                            value: infoExtractedValue,
+                            onChanged: (value) =>
+                                setState(() => infoExtractedValue = value),
+                          ),
+                        ],
+                        if (overwriteCandidate != null) ...[
+                          const SizedBox(height: 16),
+                          CheckboxListTile(
+                            value: overwriteOriginal,
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('直接替换原 Vibe 参数'),
+                            subtitle: Text(
+                              '仅覆盖 ${overwriteCandidate.displayName} 的库内参数，默认不勾选',
+                            ),
+                            onChanged: (value) => setState(
+                              () => overwriteOriginal = value ?? false,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(null),
+                      child: Text(l10n.common_cancel),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        if (nameController.text.trim().isNotEmpty) {
+                          Navigator.of(context).pop((
+                            true,
+                            strengthValue,
+                            infoExtractedValue,
+                            overwriteOriginal,
+                          ));
+                        }
+                      },
+                      child: Text(l10n.common_save),
+                    ),
                   ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(null),
-                  child: Text(l10n.common_cancel),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (nameController.text.trim().isNotEmpty) {
-                      Navigator.of(context).pop(
-                        (
-                          true,
-                          strengthValue,
-                          infoExtractedValue,
-                          overwriteOriginal,
-                        ),
-                      );
-                    }
-                  },
-                  child: Text(l10n.common_save),
-                ),
-              ],
+                );
+              },
             );
           },
         );
-      },
-    );
 
     if (result != null && result.$1 && context.mounted) {
       final storageService = ref.read(vibeLibraryStorageServiceProvider);
@@ -963,17 +943,18 @@ class VibeImportHandler {
         var savedCount = 0;
         var reusedCount = 0;
         final generationParams = ref.read(generationParamsNotifierProvider);
-        final paramsNotifier =
-            ref.read(generationParamsNotifierProvider.notifier);
+        final paramsNotifier = ref.read(
+          generationParamsNotifierProvider.notifier,
+        );
 
         for (final vibe in vibes) {
-          final preparedVibe =
-              await paramsNotifier.prepareVibeForLibraryParamSave(
-            vibe,
-            strength: strength,
-            infoExtracted: infoExtracted,
-            model: generationParams.model,
-          );
+          final preparedVibe = await paramsNotifier
+              .prepareVibeForLibraryParamSave(
+                vibe,
+                strength: strength,
+                infoExtracted: infoExtracted,
+                model: generationParams.model,
+              );
           if (preparedVibe == null) {
             throw StateError('Vibe 重新编码失败: ${vibe.displayName}');
           }
@@ -989,7 +970,8 @@ class VibeImportHandler {
             reusedCount++;
           }
 
-          final shouldOverwrite = overwriteOriginal &&
+          final shouldOverwrite =
+              overwriteOriginal &&
               overwriteCandidate != null &&
               vibes.length == 1;
           final entry = shouldOverwrite
@@ -1005,8 +987,9 @@ class VibeImportHandler {
                       overwriteCandidate.thumbnail ?? vibeWithParams.thumbnail,
                 )
               : VibeLibraryEntry.fromVibeReference(
-                  name:
-                      vibes.length == 1 ? name : '$name - ${vibe.displayName}',
+                  name: vibes.length == 1
+                      ? name
+                      : '$name - ${vibe.displayName}',
                   vibeData: vibeWithParams,
                 );
           await storageService.saveEntry(entry);
@@ -1092,8 +1075,10 @@ VibeLibraryEntry? findOriginalLibraryEntryForOverwrite(
   return entries.firstWhereOrNull((entry) {
     final sameDisplayName = entry.displayName == vibe.displayName;
     final sameEncoding = entry.vibeEncoding == vibe.vibeEncoding;
-    final sameRawImage =
-        const ListEquality<int>().equals(entry.rawImageData, vibe.rawImageData);
+    final sameRawImage = const ListEquality<int>().equals(
+      entry.rawImageData,
+      vibe.rawImageData,
+    );
     return sameDisplayName && (sameEncoding || sameRawImage);
   });
 }
@@ -1107,7 +1092,8 @@ bool shouldShowInfoExtractedForLibrarySave(List<VibeReference> vibes) {
 
 VibeReference buildEncodedImportVibe(
   VibeReference vibe,
-  String encoding,
-) {
-  return vibe.withEncodedVibe(encoding);
+  String encoding, {
+  String? model,
+}) {
+  return vibe.withEncodedVibe(encoding, model: model);
 }

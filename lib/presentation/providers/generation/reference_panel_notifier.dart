@@ -102,10 +102,7 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
       AppLogger.e('Failed to load recent vibes', e, stackTrace);
     } finally {
       span.finish(
-        details: {
-          'entries': entryCount,
-          'uniqueEntries': uniqueCount,
-        },
+        details: {'entries': entryCount, 'uniqueEntries': uniqueCount},
       );
     }
   }
@@ -162,7 +159,7 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
           );
 
           if (encoding != null) {
-            encodedVibes.add(vibe.withEncodedVibe(encoding));
+            encodedVibes.add(vibe.withEncodedVibe(encoding, model: model));
           } else {
             encodedVibes.add(vibe);
           }
@@ -233,17 +230,18 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
       var savedCount = 0;
       var reusedCount = 0;
       final generationParams = ref.read(generationParamsNotifierProvider);
-      final paramsNotifier =
-          ref.read(generationParamsNotifierProvider.notifier);
+      final paramsNotifier = ref.read(
+        generationParamsNotifierProvider.notifier,
+      );
 
       for (final vibe in vibes) {
-        final preparedVibe =
-            await paramsNotifier.prepareVibeForLibraryParamSave(
-          vibe,
-          strength: strength,
-          infoExtracted: infoExtracted,
-          model: generationParams.model,
-        );
+        final preparedVibe = await paramsNotifier
+            .prepareVibeForLibraryParamSave(
+              vibe,
+              strength: strength,
+              infoExtracted: infoExtracted,
+              model: generationParams.model,
+            );
         if (preparedVibe == null) {
           return SaveToLibraryResult(
             savedCount: savedCount,
@@ -287,10 +285,7 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
     VibeLibraryEntry entry, {
     required int maxCount,
   }) async {
-    return _addBundleVibesToGeneration(
-      entry: entry,
-      maxCount: maxCount,
-    );
+    return _addBundleVibesToGeneration(entry: entry, maxCount: maxCount);
   }
 
   Future<int> _addBundleVibesToGeneration({
@@ -308,16 +303,19 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
     var extractedCount = 0;
     var availableSlots = 0;
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
-    final currentCount =
-        ref.read(generationParamsNotifierProvider).vibeReferencesV4.length;
+    final currentCount = ref
+        .read(generationParamsNotifierProvider)
+        .vibeReferencesV4
+        .length;
     availableSlots = maxCount - currentCount;
 
     try {
       if (availableSlots <= 0 || entry.filePath == null) return 0;
 
       final fileStorage = VibeFileStorageService();
-      final extractLimit =
-          entry.bundledVibeCount.clamp(0, availableSlots).toInt();
+      final extractLimit = entry.bundledVibeCount
+          .clamp(0, availableSlots)
+          .toInt();
       final extractedVibes = await fileStorage.extractVibesFromBundle(
         entry.filePath!,
         limit: extractLimit,
@@ -350,10 +348,7 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
   Future<bool> addRecentVibe(VibeLibraryEntry entry) async {
     final span = VibePerformanceDiagnostics.start(
       'referencePanel.addRecentVibe',
-      details: {
-        'entryId': entry.id,
-        'isBundle': entry.isBundle,
-      },
+      details: {'entryId': entry.id, 'isBundle': entry.isBundle},
     );
     var success = false;
     var addedFromBundle = 0;
@@ -388,10 +383,7 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
       return true;
     } finally {
       span.finish(
-        details: {
-          'success': success,
-          'addedFromBundle': addedFromBundle,
-        },
+        details: {'success': success, 'addedFromBundle': addedFromBundle},
       );
     }
   }
@@ -400,10 +392,7 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
   Future<bool> addLibraryVibe(VibeLibraryEntry entry) async {
     final span = VibePerformanceDiagnostics.start(
       'referencePanel.addLibraryVibe',
-      details: {
-        'entryId': entry.id,
-        'isBundle': entry.isBundle,
-      },
+      details: {'entryId': entry.id, 'isBundle': entry.isBundle},
     );
     var success = false;
     var addedFromBundle = 0;
@@ -436,10 +425,7 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
       return true;
     } finally {
       span.finish(
-        details: {
-          'success': success,
-          'addedFromBundle': addedFromBundle,
-        },
+        details: {'success': success, 'addedFromBundle': addedFromBundle},
       );
     }
   }
@@ -448,10 +434,7 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
   Future<int> addVibesFromBundle(VibeLibraryEntry entry) async {
     final span = VibePerformanceDiagnostics.start(
       'referencePanel.addVibesFromBundle',
-      details: {
-        'entryId': entry.id,
-        'bundledVibes': entry.bundledVibeCount,
-      },
+      details: {'entryId': entry.id, 'bundledVibes': entry.bundledVibeCount},
     );
     var added = 0;
     try {
@@ -459,18 +442,17 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
         return 0;
       }
 
-      final currentCount =
-          ref.read(generationParamsNotifierProvider).vibeReferencesV4.length;
+      final currentCount = ref
+          .read(generationParamsNotifierProvider)
+          .vibeReferencesV4
+          .length;
       final availableSlots = 16 - currentCount;
 
       if (availableSlots <= 0) {
         return 0;
       }
 
-      added = await _addBundleVibesToGeneration(
-        entry: entry,
-        maxCount: 16,
-      );
+      added = await _addBundleVibesToGeneration(entry: entry, maxCount: 16);
 
       if (added > 0) {
         await _storageService.incrementUsedCount(entry.id);
@@ -479,11 +461,7 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
 
       return added;
     } finally {
-      span.finish(
-        details: {
-          'added': added,
-        },
-      );
+      span.finish(details: {'added': added});
     }
   }
 
@@ -502,12 +480,8 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
           return null;
         }
       },
-      details: {
-        'bytes': bytes.length,
-      },
-      resultDetails: (vibes) => {
-        'parsedVibes': vibes?.length ?? 0,
-      },
+      details: {'bytes': bytes.length},
+      resultDetails: (vibes) => {'parsedVibes': vibes?.length ?? 0},
     );
   }
 

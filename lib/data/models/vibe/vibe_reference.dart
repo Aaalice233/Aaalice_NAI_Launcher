@@ -79,6 +79,9 @@ class VibeReference with _$VibeReference {
     /// 对于可重新编码的 Vibe，控制从参考图中提取多少信息
     @Default(0.7) double infoExtracted,
 
+    /// 生成当前预编码数据时使用的 NovelAI 模型。
+    String? encodingModel,
+
     /// 数据来源类型
     @Default(VibeSourceType.rawImage) VibeSourceType sourceType,
 
@@ -101,13 +104,14 @@ class VibeReference with _$VibeReference {
 
   bool get hasVibeEncoding => vibeEncoding.isNotEmpty;
 
-  VibeReference withEncodedVibe(String encoding) {
+  VibeReference withEncodedVibe(String encoding, {String? model}) {
     if (encoding.isEmpty) {
       return copyWith(vibeEncoding: encoding);
     }
 
     return copyWith(
       vibeEncoding: encoding,
+      encodingModel: model ?? encodingModel,
       sourceType: VibeSourceType.naiv4vibe,
     );
   }

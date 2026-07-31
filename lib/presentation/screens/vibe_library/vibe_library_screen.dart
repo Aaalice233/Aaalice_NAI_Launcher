@@ -1776,12 +1776,14 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
       }
 
       String? encoding;
+      String? encodingModel;
       String? errorMessage;
 
       try {
         final notifier = ref.read(generationParamsNotifierProvider.notifier);
         final params = ref.read(generationParamsNotifierProvider);
         final model = params.model;
+        encodingModel = model;
 
         encoding = await notifier
             .encodeVibeWithCache(
@@ -1813,6 +1815,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
           imageBytes: imageFile.bytes,
           strength: config.strength,
           infoExtracted: config.infoExtracted,
+          encodingModel: encodingModel,
           categoryId: targetCategoryId,
         );
       }
@@ -1844,6 +1847,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     required Uint8List imageBytes,
     required double strength,
     required double infoExtracted,
+    required String? encodingModel,
     String? categoryId,
   }) async {
     try {
@@ -1855,6 +1859,7 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         vibeEncoding: encoding,
         strength: strength,
         infoExtracted: infoExtracted,
+        encodingModel: encodingModel,
         sourceType: VibeSourceType.naiv4vibe,
         thumbnail: imageBytes,
         rawImageData: imageBytes,

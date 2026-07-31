@@ -11,6 +11,8 @@ import '../../data/models/vibe/vibe_library_entry.dart';
 import '../../data/models/vibe/vibe_reference.dart';
 import 'app_logger.dart';
 import 'file_name_sanitizer.dart';
+import 'novelai_vibe_codec.dart';
+import 'vibe_file_parser.dart';
 import 'vibe_image_embedder.dart';
 
 class VibeEmbeddedPngExportPlan {
@@ -33,8 +35,6 @@ class VibeEmbeddedPngExportPlan {
 ///
 /// 用于将 VibeReference 导出为 .naiv4vibe 格式文件
 class VibeExportUtils {
-  static const String _identifier = 'novelai-vibe-transfer';
-  static const int _version = 1;
   static const String _rawImageCandidateId = 'raw_image';
   static const String _vibeThumbnailCandidateId = 'vibe_thumbnail';
   static const String _thumbnailCandidateId = 'thumbnail';
@@ -106,8 +106,13 @@ class VibeExportUtils {
   static Future<Uint8List> buildEmbeddedPngBytes({
     required List<VibeReference> vibes,
     required Uint8List carrierImageBytes,
+    String defaultModel = NovelAiVibeCodec.defaultModel,
   }) async {
-    return VibeImageEmbedder.embedVibesToImage(carrierImageBytes, vibes);
+    return VibeImageEmbedder.embedVibesToImage(
+      carrierImageBytes,
+      vibes,
+      defaultModel: defaultModel,
+    );
   }
 
   /// 导出带 Vibe 元数据的 PNG
@@ -115,6 +120,7 @@ class VibeExportUtils {
     List<VibeReference> vibes, {
     required Uint8List carrierImageBytes,
     required String fileName,
+    String defaultModel = NovelAiVibeCodec.defaultModel,
   }) async {
     try {
       if (vibes.isEmpty) {
@@ -137,6 +143,7 @@ class VibeExportUtils {
       final embeddedBytes = await buildEmbeddedPngBytes(
         vibes: vibes,
         carrierImageBytes: carrierImageBytes,
+        defaultModel: defaultModel,
       );
       await File(outputFile).writeAsBytes(embeddedBytes);
 
@@ -150,8 +157,9 @@ class VibeExportUtils {
 
   /// 批量导出多个条目为各自独立的 PNG
   static Future<List<String>> exportEntriesToEmbeddedPngDirectory(
-    List<VibeLibraryEntry> entries,
-  ) async {
+    List<VibeLibraryEntry> entries, {
+    String defaultModel = NovelAiVibeCodec.defaultModel,
+  }) async {
     final plans = buildEmbeddedPngExportPlans(entries);
     if (plans.isEmpty) {
       AppLogger.e('无法导出 PNG：没有任何 Vibe 拥有可用图片', null, null, 'VibeExport');
@@ -171,6 +179,7 @@ class VibeExportUtils {
       final embeddedBytes = await buildEmbeddedPngBytes(
         vibes: plan.vibes,
         carrierImageBytes: plan.carrierImageBytes,
+        defaultModel: defaultModel,
       );
       final outputPath = p.join(outputDirectory, plan.fileName);
       await File(outputPath).writeAsBytes(embeddedBytes);
@@ -191,7 +200,7 @@ class VibeExportUtils {
   static Future<String?> exportToNaiv4Vibe(
     VibeReference vibe, {
     String? name,
-    String defaultModel = 'nai-diffusion-4-full',
+    String defaultModel = NovelAiVibeCodec.defaultModel,
     String? outputDirectory,
   }) async {
     try {
@@ -243,6 +252,7 @@ class VibeExportUtils {
     List<VibeReference> vibes,
     String bundleName, {
     String? outputDirectory,
+    String defaultModel = NovelAiVibeCodec.defaultModel,
   }) async {
     try {
       if (vibes.isEmpty) {
@@ -264,7 +274,10 @@ class VibeExportUtils {
       }
 
       // 生成 bundle JSON 数据
-      final bundleData = await _generateBundleJson(vibes);
+      final bundleData = await _generateBundleJson(
+        vibes,
+        defaultModel: defaultModel,
+      );
 
       // 写入文件
       final file = File(outputFile);
@@ -288,6 +301,7 @@ class VibeExportUtils {
     String? name,
     bool includeThumbnails = true,
     bool compress = true,
+    String defaultModel = NovelAiVibeCodec.defaultModel,
   }) async {
     try {
       if (entries.isEmpty) {
@@ -312,6 +326,7 @@ class VibeExportUtils {
         entries,
         includeThumbnails: includeThumbnails,
         compress: compress,
+        defaultModel: defaultModel,
       );
       await File(outputFile).writeAsBytes(zipBytes);
 
@@ -328,6 +343,7 @@ class VibeExportUtils {
     List<VibeLibraryEntry> entries, {
     bool includeThumbnails = true,
     bool compress = true,
+    String defaultModel = NovelAiVibeCodec.defaultModel,
   }) async {
     if (entries.isEmpty) {
       throw ArgumentError('entries 不能为空');
@@ -341,6 +357,7 @@ class VibeExportUtils {
         entry,
         usedNames: usedNames,
         includeThumbnails: includeThumbnails,
+        defaultModel: defaultModel,
       );
       if (archiveFile != null) {
         archive.addFile(archiveFile);
@@ -366,6 +383,7 @@ class VibeExportUtils {
     VibeLibraryEntry entry, {
     required Set<String> usedNames,
     required bool includeThumbnails,
+    required String defaultModel,
   }) async {
     final fileName = _uniqueArchiveFileName(
       _archiveFileNameForEntry(entry),
@@ -375,6 +393,7 @@ class VibeExportUtils {
     final bytes = await _zipBytesForEntry(
       entry,
       includeThumbnails: includeThumbnails,
+      defaultModel: defaultModel,
     );
     if (bytes == null || bytes.isEmpty) {
       AppLogger.w('跳过无法导出的 ZIP 条目: ${entry.displayName}', 'VibeExport');
@@ -387,6 +406,7 @@ class VibeExportUtils {
   static Future<Uint8List?> _zipBytesForEntry(
     VibeLibraryEntry entry, {
     required bool includeThumbnails,
+    required String defaultModel,
   }) async {
     if (entry.isBundle) {
       final filePath = entry.filePath;
@@ -395,7 +415,23 @@ class VibeExportUtils {
           p.extension(filePath).toLowerCase() == '.naiv4vibebundle') {
         final file = File(filePath);
         if (await file.exists()) {
-          return file.readAsBytes();
+          try {
+            final storedVibes = await VibeFileParser.fromBundle(
+              p.basename(filePath),
+              await file.readAsBytes(),
+            );
+            final bundleJson = await _generateBundleJson(
+              storedVibes,
+              includeThumbnails: includeThumbnails,
+              defaultModel: defaultModel,
+            );
+            return Uint8List.fromList(utf8.encode(bundleJson));
+          } catch (error) {
+            AppLogger.w(
+              '无法重建原 Bundle，改用库内数据: ${entry.displayName}, $error',
+              'VibeExport',
+            );
+          }
         }
       }
 
@@ -406,6 +442,7 @@ class VibeExportUtils {
       final bundleJson = await _generateBundleJson(
         bundleVibes,
         includeThumbnails: includeThumbnails,
+        defaultModel: defaultModel,
       );
       return Uint8List.fromList(utf8.encode(bundleJson));
     }
@@ -419,6 +456,7 @@ class VibeExportUtils {
       vibe,
       name: entry.displayName,
       includeThumbnail: includeThumbnails,
+      defaultModel: defaultModel,
     );
     return Uint8List.fromList(utf8.encode(jsonData));
   }
@@ -435,6 +473,7 @@ class VibeExportUtils {
     final previews = entry.bundledVibePreviews;
     final strengths = entry.bundledVibeStrengths;
     final infoExtracted = entry.bundledVibeInfoExtracted;
+    final encodingModels = entry.bundledVibeEncodingModels;
 
     return [
       for (var i = 0; i < names.length; i++)
@@ -452,6 +491,9 @@ class VibeExportUtils {
           infoExtracted: infoExtracted != null && i < infoExtracted.length
               ? infoExtracted[i]
               : entry.infoExtracted,
+          encodingModel: encodingModels != null && i < encodingModels.length
+              ? encodingModels[i]
+              : entry.encodingModel,
           sourceType: VibeSourceType.naiv4vibebundle,
         ),
     ];
@@ -485,164 +527,36 @@ class VibeExportUtils {
   static Future<String> _generateNaiv4VibeJson(
     VibeReference vibe, {
     String? name,
-    String defaultModel = 'nai-diffusion-4-full',
+    String defaultModel = NovelAiVibeCodec.defaultModel,
     bool includeThumbnail = true,
   }) async {
-    final displayName = name ?? vibe.displayName;
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-
-    // 计算 ID (sha256 hash)
-    final id = _generateId(vibe);
-
-    // 确定类型和数据
-    final String type;
-    final String? imageBase64;
-    final Map<String, dynamic> encodings;
-
-    if (vibe.sourceType == VibeSourceType.rawImage &&
-        vibe.rawImageData != null) {
-      // 原始图片模式：导出为 image 类型
-      type = 'image';
-      imageBase64 = base64Encode(vibe.rawImageData!);
-      encodings = {};
-    } else if (vibe.vibeEncoding.isNotEmpty) {
-      // 预编码模式：导出为 encoding 类型
-      type = 'encoding';
-      imageBase64 = vibe.thumbnail != null
-          ? base64Encode(vibe.thumbnail!)
-          : null;
-
-      // 构建 encodings 结构
-      encodings = {
-        defaultModel: {
-          'vibe': {'encoding': vibe.vibeEncoding},
-        },
-      };
-    } else {
-      // 使用缩略图作为图片
-      type = 'image';
-      imageBase64 = vibe.thumbnail != null
-          ? base64Encode(vibe.thumbnail!)
-          : null;
-      encodings = {};
-    }
-
-    // 生成缩略图（如果没有，使用原图缩小）
-    final String? thumbnailBase64 = includeThumbnail
-        ? await _generateThumbnailBase64(vibe)
-        : null;
-
-    // 构建 JSON 结构
-    final jsonMap = <String, dynamic>{
-      'identifier': _identifier,
-      'version': _version,
-      'type': type,
-      'id': id,
-      'name': displayName,
-      'createdAt': timestamp,
-      if (imageBase64 != null) 'image': imageBase64,
-      'encodings': encodings,
-      if (thumbnailBase64 != null) 'thumbnail': thumbnailBase64,
-      'importInfo': {
-        'model': defaultModel,
-        'information_extracted': vibe.infoExtracted,
-        'strength': vibe.strength,
-      },
-    };
-
-    return const JsonEncoder.withIndent('  ').convert(jsonMap);
+    return NovelAiVibeCodec.encodeJson(
+      NovelAiVibeCodec.buildSingleMap(
+        vibe,
+        name: name,
+        fallbackModel: defaultModel,
+        includeThumbnail: includeThumbnail,
+      ),
+    );
   }
 
   /// 生成 bundle JSON 数据
   static Future<String> _generateBundleJson(
     List<VibeReference> vibes, {
     bool includeThumbnails = true,
+    String defaultModel = NovelAiVibeCodec.defaultModel,
   }) async {
-    final vibeEntries = <Map<String, dynamic>>[];
-
-    for (final vibe in vibes) {
-      if (!_hasExportableData(vibe)) {
-        AppLogger.w('跳过无法导出的 Vibe: ${vibe.displayName}', 'VibeExport');
-        continue;
-      }
-
-      final entry = await _generateBundleEntry(
-        vibe,
-        includeThumbnail: includeThumbnails,
-      );
-      vibeEntries.add(entry);
+    final exportableVibes = vibes.where(_hasExportableData).toList();
+    if (exportableVibes.isEmpty) {
+      throw StateError('没有可导出的 Vibe 条目');
     }
-
-    final bundleMap = <String, dynamic>{
-      'identifier': 'novelai-vibe-transfer-bundle',
-      'version': 1,
-      'vibes': vibeEntries,
-    };
-
-    return const JsonEncoder.withIndent('  ').convert(bundleMap);
-  }
-
-  /// 生成单个 bundle 条目（简化格式，仅包含必要字段）
-  ///
-  /// 包含：name、importInfo.strength、encodings、thumbnail
-  static Future<Map<String, dynamic>> _generateBundleEntry(
-    VibeReference vibe, {
-    bool includeThumbnail = true,
-  }) async {
-    // 构建 encodings 结构
-    final Map<String, dynamic> encodings;
-
-    if (vibe.vibeEncoding.isNotEmpty) {
-      encodings = {
-        'nai-diffusion-4-full': {
-          'vibe': {'encoding': vibe.vibeEncoding},
-        },
-      };
-    } else {
-      encodings = {};
-    }
-
-    final entry = <String, dynamic>{
-      'name': vibe.displayName,
-      'encodings': encodings,
-      'importInfo': {
-        'information_extracted': vibe.infoExtracted,
-        'strength': vibe.strength,
-      },
-    };
-
-    // 添加缩略图（如果存在）
-    final thumbnailBase64 = includeThumbnail
-        ? await _generateThumbnailBase64(vibe)
-        : null;
-    if (thumbnailBase64 != null && thumbnailBase64.isNotEmpty) {
-      entry['thumbnail'] = thumbnailBase64;
-    }
-
-    // 添加原始图片数据（如果encodings为空但原始数据存在，用于后续编码）
-    if (vibe.vibeEncoding.isEmpty &&
-        vibe.rawImageData != null &&
-        vibe.rawImageData!.isNotEmpty) {
-      entry['image'] = base64Encode(vibe.rawImageData!);
-    }
-
-    return entry;
-  }
-
-  /// 生成缩略图的 base64（如果没有缩略图，尝试生成一个）
-  static Future<String?> _generateThumbnailBase64(VibeReference vibe) async {
-    // 如果已有缩略图，直接使用
-    if (vibe.thumbnail != null && vibe.thumbnail!.isNotEmpty) {
-      return base64Encode(vibe.thumbnail!);
-    }
-
-    // 如果有原始图片数据，使用原始图片
-    if (vibe.rawImageData != null && vibe.rawImageData!.isNotEmpty) {
-      // 这里可以添加图片压缩逻辑，但目前直接使用原图
-      return base64Encode(vibe.rawImageData!);
-    }
-
-    return null;
+    return NovelAiVibeCodec.encodeJson(
+      NovelAiVibeCodec.buildBundleMap(
+        exportableVibes,
+        fallbackModel: defaultModel,
+        includeThumbnails: includeThumbnails,
+      ),
+    );
   }
 
   /// 检查 Vibe 是否有可导出的数据
@@ -650,27 +564,6 @@ class VibeExportUtils {
     return vibe.vibeEncoding.isNotEmpty ||
         (vibe.rawImageData != null && vibe.rawImageData!.isNotEmpty) ||
         (vibe.thumbnail != null && vibe.thumbnail!.isNotEmpty);
-  }
-
-  /// 生成唯一 ID (SHA256)
-  static String _generateId(VibeReference vibe) {
-    final data = <int>[];
-
-    // 使用 vibe 编码或图片数据生成 ID
-    if (vibe.vibeEncoding.isNotEmpty) {
-      data.addAll(utf8.encode(vibe.vibeEncoding));
-    } else if (vibe.rawImageData != null) {
-      data.addAll(vibe.rawImageData!);
-    } else if (vibe.thumbnail != null) {
-      data.addAll(vibe.thumbnail!);
-    } else {
-      // 回退：使用名称和时间戳
-      data.addAll(utf8.encode(vibe.displayName));
-      data.addAll(utf8.encode(DateTime.now().toIso8601String()));
-    }
-
-    final hash = sha256.convert(data);
-    return hash.toString();
   }
 
   /// 生成文件名
@@ -756,31 +649,9 @@ class VibeExportUtils {
   /// 验证 .naiv4vibe JSON 格式是否有效
   static bool validateNaiv4VibeJson(String jsonString) {
     try {
-      final jsonData = jsonDecode(jsonString) as Map<String, dynamic>;
-
-      // 检查必需字段
-      if (jsonData['identifier'] != _identifier) {
-        return false;
-      }
-
-      if (jsonData['version'] != _version) {
-        return false;
-      }
-
-      if (jsonData['id'] == null || jsonData['id'] is! String) {
-        return false;
-      }
-
-      if (jsonData['name'] == null || jsonData['name'] is! String) {
-        return false;
-      }
-
-      final type = jsonData['type'] as String?;
-      if (type != 'image' && type != 'encoding') {
-        return false;
-      }
-
-      return true;
+      final jsonData = jsonDecode(jsonString);
+      return jsonData is Map<String, dynamic> &&
+          NovelAiVibeCodec.validateSingleMap(jsonData);
     } catch (e) {
       return false;
     }
