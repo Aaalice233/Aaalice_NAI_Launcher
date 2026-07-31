@@ -6,6 +6,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import 'draggable_image_card.dart';
 import 'local_image_card_3d.dart';
+import 'local_image_context_menu.dart';
 
 class ResponsiveLayout {
   ResponsiveLayout._();
@@ -46,8 +47,13 @@ class GalleryGrid extends StatefulWidget {
   )?
   onSecondaryTapDown;
   final void Function(LocalImageRecord record, int index)? onFavoriteToggle;
-  final void Function(LocalImageRecord record, int index)? onSendToHome;
-  final void Function(LocalImageRecord record, int index)? onSendToImg2Img;
+  final Future<void> Function(
+    LocalImageRecord record,
+    int index,
+    LocalImageContextAction action,
+  )?
+  onSendAction;
+  final bool isKritaConnected;
   final Set<int>? selectedIndices;
   final double preloadScreens;
   final bool enableDrag;
@@ -63,8 +69,8 @@ class GalleryGrid extends StatefulWidget {
     this.onLongPress,
     this.onSecondaryTapDown,
     this.onFavoriteToggle,
-    this.onSendToHome,
-    this.onSendToImg2Img,
+    this.onSendAction,
+    this.isKritaConnected = false,
     this.selectedIndices,
     this.preloadScreens = 2.0,
     this.enableDrag = true,
@@ -223,12 +229,10 @@ class _GalleryGridState extends State<GalleryGrid> {
                   onFavoriteToggle: widget.onFavoriteToggle != null
                       ? () => widget.onFavoriteToggle!(record, index)
                       : null,
-                  onSendToHome: widget.onSendToHome != null
-                      ? () => widget.onSendToHome!(record, index)
+                  onSendAction: widget.onSendAction != null
+                      ? (action) => widget.onSendAction!(record, index, action)
                       : null,
-                  onSendToImg2Img: widget.onSendToImg2Img != null
-                      ? () => widget.onSendToImg2Img!(record, index)
-                      : null,
+                  isKritaConnected: widget.isKritaConnected,
                 ),
               ),
             );
@@ -290,8 +294,8 @@ class _GalleryImageCard extends StatefulWidget {
   final VoidCallback? onLongPress;
   final void Function(TapDownDetails)? onSecondaryTapDown;
   final VoidCallback? onFavoriteToggle;
-  final VoidCallback? onSendToHome;
-  final VoidCallback? onSendToImg2Img;
+  final Future<void> Function(LocalImageContextAction action)? onSendAction;
+  final bool isKritaConnected;
 
   const _GalleryImageCard({
     super.key,
@@ -307,8 +311,8 @@ class _GalleryImageCard extends StatefulWidget {
     this.onLongPress,
     this.onSecondaryTapDown,
     this.onFavoriteToggle,
-    this.onSendToHome,
-    this.onSendToImg2Img,
+    this.onSendAction,
+    this.isKritaConnected = false,
   });
 
   @override
@@ -330,8 +334,8 @@ class _GalleryImageCardState extends State<_GalleryImageCard> {
       onLongPress: widget.onLongPress,
       onSecondaryTapDown: widget.onSecondaryTapDown,
       onFavoriteToggle: widget.onFavoriteToggle,
-      onSendToHome: widget.onSendToHome,
-      onSendToImg2Img: widget.onSendToImg2Img,
+      onSendAction: widget.onSendAction,
+      isKritaConnected: widget.isKritaConnected,
       // 使用 dragWrapper 将拖拽功能注入到卡片内部
       // 解决 GestureDetector 与拖拽手势的冲突问题
       dragWrapper: widget.enableDrag

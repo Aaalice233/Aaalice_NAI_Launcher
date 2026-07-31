@@ -6,6 +6,7 @@ import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/gallery_content_view.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_card_3d.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/local_image_context_menu.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 void main() {
@@ -54,6 +55,57 @@ void main() {
 
     expect(selectedRecord, same(record));
     expect(selectedPosition, isNotNull);
+  });
+
+  testWidgets('grouped gallery send button dispatches the shared send action', (
+    tester,
+  ) async {
+    VisibilityDetectorController.instance.updateInterval = Duration.zero;
+    final record = LocalImageRecord(
+      path: 'G:/gallery/grouped-send-image.png',
+      size: 42,
+      modifiedAt: DateTime(2026, 7, 29),
+    );
+    LocalImageRecord? selectedRecord;
+    LocalImageContextAction? selectedAction;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: GenericGalleryContentView<LocalImageRecord>(
+              columns: 1,
+              itemWidth: 160,
+              state: _GroupedGalleryState(record),
+              selectionState: const _InactiveSelectionState(),
+              itemBuilder: (_, __, ___, ____) => const SizedBox.shrink(),
+              idExtractor: (item) => item.path,
+              onSendAction: (item, action) async {
+                selectedRecord = item;
+                selectedAction = action;
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byIcon(Icons.send));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Send to Reverse Prompt'), findsOneWidget);
+    expect(find.text('Import Image Metadata'), findsNothing);
+
+    await tester.tap(find.text('Send to Reverse Prompt'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(selectedRecord, same(record));
+    expect(selectedAction, LocalImageContextAction.sendToReversePrompt);
   });
 }
 
