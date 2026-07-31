@@ -1811,6 +1811,31 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get editor_toolRectSelect => '矩形选框';
+  @override
+  String get editor_toolMagicWand => '魔棒';
+
+  @override
+  String get editor_magicWandHelp => '点击颜色相近的连续区域。编辑图像时将其抠除为透明区域；重绘时将其加入蒙版。';
+
+  @override
+  String get editor_magicWandMode => '选择方式';
+
+  @override
+  String get editor_magicWandSmartObject => '智能对象（EfficientViT）';
+
+  @override
+  String get editor_magicWandColorArea => '颜色区域（洪水填充）';
+
+  @override
+  String get editor_magicWandSmartHelp =>
+      '点击要选择的对象。首次使用会从 MIT Han Lab 下载约 133 MiB 的 EfficientViT-SAM L0 模型（Apache-2.0），之后保存在本地。';
+
+  @override
+  String get editor_magicWandColorHelp => '点击颜色相近的连续区域。适合边界清晰的纯色图像，无需下载模型。';
+
+  @override
+  String get editor_magicWandInvert => '反选结果';
+
 
   @override
   String get editor_toolEllipseSelect => '椭圆选框';
@@ -2180,6 +2205,37 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get editor_focusReadyHint => '已选定聚焦区域，可继续用画笔编辑蒙版。';
+  @override
+  String get editor_magicWandNoSource => '没有可供魔棒取样的图像图层。';
+
+  @override
+  String get editor_magicWandNothingChanged => '选中的区域已经透明或已在蒙版中。';
+
+  @override
+  String get editor_magicWandModelPreparing => '正在检查 EfficientViT-SAM 模型…';
+
+  @override
+  String editor_magicWandModelDownloading(int percent) {
+    return '正在下载 EfficientViT-SAM 模型：$percent%';
+  }
+
+  @override
+  String get editor_magicWandModelLoading => '正在加载 EfficientViT-SAM 模型…';
+
+  @override
+  String get editor_magicWandEncoding => '正在分析图像对象…';
+
+  @override
+  String get editor_magicWandSegmenting => '正在根据点击位置分割对象…';
+
+  @override
+  String get editor_magicWandPostprocessing => '正在生成选区…';
+
+  @override
+  String editor_magicWandFailed(Object error) {
+    return '魔棒处理失败: $error';
+  }
+
 
   @override
   String get editor_focusNeedsSelectionHint => '先框选聚焦区域，再切换画笔绘制蒙版。';

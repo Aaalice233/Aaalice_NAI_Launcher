@@ -842,6 +842,14 @@
   "editor_toolLassoSelect": "Lasso",
   "editor_toolColorPicker": "Color Picker",
   "editor_toolCloneStamp": "Clone Stamp",
+  "editor_toolMagicWand": "Magic Wand",
+  "editor_magicWandHelp": "Click a contiguous region of similar color. Image editing erases it to transparency; inpainting adds it to the mask.",
+  "editor_magicWandMode": "Selection method",
+  "editor_magicWandSmartObject": "Smart object (EfficientViT)",
+  "editor_magicWandColorArea": "Color area (flood fill)",
+  "editor_magicWandSmartHelp": "Click the object to select. The first use downloads the approximately 133 MiB EfficientViT-SAM L0 model from MIT Han Lab (Apache-2.0), then keeps it locally.",
+  "editor_magicWandColorHelp": "Click a contiguous region of similar color. This works best on flat, clean boundaries and requires no model download.",
+  "editor_magicWandInvert": "Invert result",
   "editor_toolBlur": "Blur",
   "editor_presetDefault": "Default",
   "editor_presetPencil": "Pencil",
@@ -1011,6 +1019,27 @@
   "editor_focusSelection": "Selection",
   "editor_focusBrush": "Brush",
   "editor_focusContextHint": "The outer rectangle is the area sent to Focused Inpaint. The inner rectangle is the main repaint area. The band between them is the Minimum Context Area.",
+  "editor_magicWandNoSource": "No editable image layer is available for sampling.",
+  "editor_magicWandNothingChanged": "The selected region is already transparent or masked.",
+  "editor_magicWandModelPreparing": "Checking the EfficientViT-SAM model…",
+  "editor_magicWandModelDownloading": "Downloading the EfficientViT-SAM model: {percent}%",
+  "@editor_magicWandModelDownloading": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "editor_magicWandModelLoading": "Loading the EfficientViT-SAM model…",
+  "editor_magicWandEncoding": "Analyzing image objects…",
+  "editor_magicWandSegmenting": "Segmenting the object at the clicked point…",
+  "editor_magicWandPostprocessing": "Building the selection…",
+  "editor_magicWandFailed": "Magic Wand failed: {error}",
+  "@editor_magicWandFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "editor_focusAnlasWarning": "Actual send area: {width}×{height}. Current generation settings will cost {cost} Anlas.",
   "@editor_focusAnlasWarning": {
     "placeholders": {

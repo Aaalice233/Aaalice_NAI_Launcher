@@ -1835,6 +1835,33 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get editor_toolRectSelect => '長方形';
+  @override
+  String get editor_toolMagicWand => 'マジックワンド';
+
+  @override
+  String get editor_magicWandHelp =>
+      '近い色の連続領域をクリックします。画像編集ではその領域を透明にし、インペイントではマスクに追加します。';
+
+  @override
+  String get editor_magicWandMode => '選択方法';
+
+  @override
+  String get editor_magicWandSmartObject => 'スマートオブジェクト（EfficientViT）';
+
+  @override
+  String get editor_magicWandColorArea => '色領域（塗りつぶし）';
+
+  @override
+  String get editor_magicWandSmartHelp =>
+      '選択するオブジェクトをクリックします。初回使用時に MIT Han Lab から約 133 MiB の EfficientViT-SAM L0 モデル（Apache-2.0）をダウンロードし、以後はローカルに保存します。';
+
+  @override
+  String get editor_magicWandColorHelp =>
+      '近い色の連続領域をクリックします。境界が明瞭なフラット画像に適し、モデルのダウンロードは不要です。';
+
+  @override
+  String get editor_magicWandInvert => '結果を反転';
+
 
   @override
   String get editor_toolEllipseSelect => '楕円';
@@ -2206,6 +2233,37 @@ class AppLocalizationsJa extends AppLocalizations {
       'ボタンをクリックしてフォーカス モードに入り、フォーカス エリアを描画してマスクをペイントします。';
 
   @override
+  @override
+  String get editor_magicWandNoSource => 'サンプリング可能な画像レイヤーがありません。';
+
+  @override
+  String get editor_magicWandNothingChanged => '選択した領域はすでに透明、またはマスク済みです。';
+
+  @override
+  String get editor_magicWandModelPreparing => 'EfficientViT-SAM モデルを確認しています…';
+
+  @override
+  String editor_magicWandModelDownloading(int percent) {
+    return 'EfficientViT-SAM モデルをダウンロード中：$percent%';
+  }
+
+  @override
+  String get editor_magicWandModelLoading => 'EfficientViT-SAM モデルを読み込んでいます…';
+
+  @override
+  String get editor_magicWandEncoding => '画像内のオブジェクトを解析しています…';
+
+  @override
+  String get editor_magicWandSegmenting => 'クリック位置のオブジェクトを分割しています…';
+
+  @override
+  String get editor_magicWandPostprocessing => '選択範囲を生成しています…';
+
+  @override
+  String editor_magicWandFailed(Object error) {
+    return 'マジックワンドに失敗しました: $error';
+  }
+
   String get editor_focusReadyHint =>
       'フォーカス エリアが選択されました。ブラシを使用してマスクの編集を続けることができます。';
 

@@ -426,6 +426,7 @@ extension _ImageEditorScreenLayout on _ImageEditorScreenState {
                 _buildShortcutSection(context.l10n.editor_shortcutPaintTools, [
                   ('B', context.l10n.editor_toolBrush),
                   ('E', context.l10n.editor_toolEraser),
+                  ('W', context.l10n.editor_toolMagicWand),
                   ('P', context.l10n.editor_toolColorPicker),
                   ('Alt', context.l10n.editor_shortcutTemporaryColorPicker),
                 ]),

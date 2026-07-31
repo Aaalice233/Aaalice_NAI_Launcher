@@ -825,6 +825,14 @@
   "editor_toolLassoSelect": "なげなわ",
   "editor_toolColorPicker": "カラーピッカー",
   "editor_toolCloneStamp": "クローンスタンプ",
+  "editor_toolMagicWand": "マジックワンド",
+  "editor_magicWandHelp": "近い色の連続領域をクリックします。画像編集ではその領域を透明にし、インペイントではマスクに追加します。",
+  "editor_magicWandMode": "選択方法",
+  "editor_magicWandSmartObject": "スマートオブジェクト（EfficientViT）",
+  "editor_magicWandColorArea": "色領域（塗りつぶし）",
+  "editor_magicWandSmartHelp": "選択するオブジェクトをクリックします。初回使用時に MIT Han Lab から約 133 MiB の EfficientViT-SAM L0 モデル（Apache-2.0）をダウンロードし、以後はローカルに保存します。",
+  "editor_magicWandColorHelp": "近い色の連続領域をクリックします。境界が明瞭なフラット画像に適し、モデルのダウンロードは不要です。",
+  "editor_magicWandInvert": "結果を反転",
   "editor_toolBlur": "ぼかし",
   "editor_presetDefault": "デフォルト",
   "editor_presetPencil": "鉛筆",
@@ -994,6 +1002,27 @@
   "editor_focusSelection": "選択",
   "editor_focusBrush": "ブラシ",
   "editor_focusContextHint": "外側の長方形は Focused インペイントに送信される領域です。内側の長方形が主な再描画領域です。その間の帯が最小コンテキスト領域です。",
+  "editor_magicWandNoSource": "サンプリング可能な画像レイヤーがありません。",
+  "editor_magicWandNothingChanged": "選択した領域はすでに透明、またはマスク済みです。",
+  "editor_magicWandModelPreparing": "EfficientViT-SAM モデルを確認しています…",
+  "editor_magicWandModelDownloading": "EfficientViT-SAM モデルをダウンロード中：{percent}%",
+  "@editor_magicWandModelDownloading": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "editor_magicWandModelLoading": "EfficientViT-SAM モデルを読み込んでいます…",
+  "editor_magicWandEncoding": "画像内のオブジェクトを解析しています…",
+  "editor_magicWandSegmenting": "クリック位置のオブジェクトを分割しています…",
+  "editor_magicWandPostprocessing": "選択範囲を生成しています…",
+  "editor_magicWandFailed": "マジックワンドに失敗しました: {error}",
+  "@editor_magicWandFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "editor_focusAnlasWarning": "実際に送信する範囲は {width}×{height} です。現在の生成設定では {cost} Anlas を消費します。",
   "@editor_focusAnlasWarning": {
     "placeholders": {

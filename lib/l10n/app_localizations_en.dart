@@ -1870,6 +1870,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editor_toolRectSelect => 'Rectangle';
+  @override
+  String get editor_toolMagicWand => 'Magic Wand';
+
+  @override
+  String get editor_magicWandHelp =>
+      'Click a contiguous region of similar color. Image editing erases it to transparency; inpainting adds it to the mask.';
+
+  @override
+  String get editor_magicWandMode => 'Selection method';
+
+  @override
+  String get editor_magicWandSmartObject => 'Smart object (EfficientViT)';
+
+  @override
+  String get editor_magicWandColorArea => 'Color area (flood fill)';
+
+  @override
+  String get editor_magicWandSmartHelp =>
+      'Click the object to select. The first use downloads the approximately 133 MiB EfficientViT-SAM L0 model from MIT Han Lab (Apache-2.0), then keeps it locally.';
+
+  @override
+  String get editor_magicWandColorHelp =>
+      'Click a contiguous region of similar color. This works best on flat, clean boundaries and requires no model download.';
+
+  @override
+  String get editor_magicWandInvert => 'Invert result';
+
 
   @override
   String get editor_toolEllipseSelect => 'Ellipse';
@@ -2250,6 +2277,42 @@ class AppLocalizationsEn extends AppLocalizations {
       'Click the button to enter focus mode, then draw a focus area and paint the mask.';
 
   @override
+  @override
+  String get editor_magicWandNoSource =>
+      'No editable image layer is available for sampling.';
+
+  @override
+  String get editor_magicWandNothingChanged =>
+      'The selected region is already transparent or masked.';
+
+  @override
+  String get editor_magicWandModelPreparing =>
+      'Checking the EfficientViT-SAM model…';
+
+  @override
+  String editor_magicWandModelDownloading(int percent) {
+    return 'Downloading the EfficientViT-SAM model: $percent%';
+  }
+
+  @override
+  String get editor_magicWandModelLoading =>
+      'Loading the EfficientViT-SAM model…';
+
+  @override
+  String get editor_magicWandEncoding => 'Analyzing image objects…';
+
+  @override
+  String get editor_magicWandSegmenting =>
+      'Segmenting the object at the clicked point…';
+
+  @override
+  String get editor_magicWandPostprocessing => 'Building the selection…';
+
+  @override
+  String editor_magicWandFailed(Object error) {
+    return 'Magic Wand failed: $error';
+  }
+
   String get editor_focusReadyHint =>
       'Focus area selected. You can continue editing the mask with the brush.';
 

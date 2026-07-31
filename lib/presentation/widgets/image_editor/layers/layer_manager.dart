@@ -610,15 +610,19 @@ class LayerManager extends ChangeNotifier {
   }
 
   /// 导出合并后的图像
-  Future<ui.Image> exportMergedImage(Size canvasSize) async {
+  Future<ui.Image> exportMergedImage(
+    Size canvasSize, {
+    bool transparentBackground = false,
+  }) async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
 
-    // 绘制白色背景
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
-      Paint()..color = Colors.white,
-    );
+    if (!transparentBackground) {
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, canvasSize.width, canvasSize.height),
+        Paint()..color = Colors.white,
+      );
+    }
 
     // 渲染所有图层
     renderAll(canvas, canvasSize);

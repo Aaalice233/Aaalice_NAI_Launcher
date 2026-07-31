@@ -683,6 +683,14 @@
   "editor_toolLassoSelect": "套索选区",
   "editor_toolColorPicker": "吸管取色",
   "editor_toolCloneStamp": "仿制图章",
+  "editor_toolMagicWand": "魔棒",
+  "editor_magicWandHelp": "点击颜色相近的连续区域。编辑图像时将其抠除为透明区域；重绘时将其加入蒙版。",
+  "editor_magicWandMode": "选择方式",
+  "editor_magicWandSmartObject": "智能对象（EfficientViT）",
+  "editor_magicWandColorArea": "颜色区域（洪水填充）",
+  "editor_magicWandSmartHelp": "点击要选择的对象。首次使用会从 MIT Han Lab 下载约 133 MiB 的 EfficientViT-SAM L0 模型（Apache-2.0），之后保存在本地。",
+  "editor_magicWandColorHelp": "点击颜色相近的连续区域。适合边界清晰的纯色图像，无需下载模型。",
+  "editor_magicWandInvert": "反选结果",
   "editor_toolBlur": "模糊",
   "editor_presetDefault": "默认",
   "editor_presetPencil": "铅笔",
@@ -860,6 +868,27 @@
   "editor_focusSelection": "选区",
   "editor_focusBrush": "画笔",
   "editor_focusContextHint": "外框是实际送去 Focused Inpaint 的区域，内框是主要重绘区域；两框之间的带宽就是 Minimum Context Area。",
+  "editor_magicWandNoSource": "没有可供魔棒取样的图像图层。",
+  "editor_magicWandNothingChanged": "选中的区域已经透明或已在蒙版中。",
+  "editor_magicWandModelPreparing": "正在检查 EfficientViT-SAM 模型…",
+  "editor_magicWandModelDownloading": "正在下载 EfficientViT-SAM 模型：{percent}%",
+  "@editor_magicWandModelDownloading": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "editor_magicWandModelLoading": "正在加载 EfficientViT-SAM 模型…",
+  "editor_magicWandEncoding": "正在分析图像对象…",
+  "editor_magicWandSegmenting": "正在根据点击位置分割对象…",
+  "editor_magicWandPostprocessing": "正在生成选区…",
+  "editor_magicWandFailed": "魔棒处理失败: {error}",
+  "@editor_magicWandFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "editor_focusAnlasWarning": "实际送出范围 {width}×{height}，按当前生成设置预计消耗 {cost} Anlas。",
   "@editor_focusAnlasWarning": {
     "placeholders": {

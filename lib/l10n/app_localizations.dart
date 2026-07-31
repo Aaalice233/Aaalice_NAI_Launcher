@@ -3460,6 +3460,54 @@ abstract class AppLocalizations {
   /// **'Line'**
   String get editor_toolLine;
 
+  /// No description provided for @editor_toolMagicWand.
+  ///
+  /// In en, this message translates to:
+  /// **'Magic Wand'**
+  String get editor_toolMagicWand;
+
+  /// No description provided for @editor_magicWandHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Click a contiguous region of similar color. Image editing erases it to transparency; inpainting adds it to the mask.'**
+  String get editor_magicWandHelp;
+
+  /// No description provided for @editor_magicWandMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Selection method'**
+  String get editor_magicWandMode;
+
+  /// No description provided for @editor_magicWandSmartObject.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart object (EfficientViT)'**
+  String get editor_magicWandSmartObject;
+
+  /// No description provided for @editor_magicWandColorArea.
+  ///
+  /// In en, this message translates to:
+  /// **'Color area (flood fill)'**
+  String get editor_magicWandColorArea;
+
+  /// No description provided for @editor_magicWandSmartHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Click the object to select. The first use downloads the approximately 133 MiB EfficientViT-SAM L0 model from MIT Han Lab (Apache-2.0), then keeps it locally.'**
+  String get editor_magicWandSmartHelp;
+
+  /// No description provided for @editor_magicWandColorHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Click a contiguous region of similar color. This works best on flat, clean boundaries and requires no model download.'**
+  String get editor_magicWandColorHelp;
+
+  /// No description provided for @editor_magicWandInvert.
+  ///
+  /// In en, this message translates to:
+  /// **'Invert result'**
+  String get editor_magicWandInvert;
+
   /// No description provided for @editor_toolRectSelect.
   ///
   /// In en, this message translates to:
@@ -4155,6 +4203,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Click the button to enter focus mode, then draw a focus area and paint the mask.'**
   String get editor_focusInactiveHint;
+
+  /// No description provided for @editor_magicWandNoSource.
+  ///
+  /// In en, this message translates to:
+  /// **'No editable image layer is available for sampling.'**
+  String get editor_magicWandNoSource;
+
+  /// No description provided for @editor_magicWandNothingChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected region is already transparent or masked.'**
+  String get editor_magicWandNothingChanged;
+
+  /// No description provided for @editor_magicWandModelPreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking the EfficientViT-SAM model…'**
+  String get editor_magicWandModelPreparing;
+
+  /// No description provided for @editor_magicWandModelDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading the EfficientViT-SAM model: {percent}%'**
+  String editor_magicWandModelDownloading(int percent);
+
+  /// No description provided for @editor_magicWandModelLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading the EfficientViT-SAM model…'**
+  String get editor_magicWandModelLoading;
+
+  /// No description provided for @editor_magicWandEncoding.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing image objects…'**
+  String get editor_magicWandEncoding;
+
+  /// No description provided for @editor_magicWandSegmenting.
+  ///
+  /// In en, this message translates to:
+  /// **'Segmenting the object at the clicked point…'**
+  String get editor_magicWandSegmenting;
+
+  /// No description provided for @editor_magicWandPostprocessing.
+  ///
+  /// In en, this message translates to:
+  /// **'Building the selection…'**
+  String get editor_magicWandPostprocessing;
+
+  /// No description provided for @editor_magicWandFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Magic Wand failed: {error}'**
+  String editor_magicWandFailed(Object error);
 
   /// No description provided for @editor_focusReadyHint.
   ///
