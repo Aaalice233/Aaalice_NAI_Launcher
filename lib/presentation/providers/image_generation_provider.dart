@@ -39,11 +39,13 @@ import 'subscription_provider.dart';
 import 'uc_preset_provider.dart';
 
 import 'generation/generation_models.dart';
+import 'generation/generation_cooldown_provider.dart';
 import 'generation/generation_params_notifier.dart';
 import 'generation/generation_settings_notifiers.dart';
 import 'generation/image_workflow_controller.dart';
 
 export 'generation/generation_models.dart';
+export 'generation/generation_cooldown_provider.dart';
 export 'generation/generation_params_notifier.dart';
 export 'generation/generation_auxiliary_notifiers.dart';
 export 'generation/generation_settings_notifiers.dart';
@@ -518,6 +520,13 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   }
 
   Future<void> generate(ImageParams params) async {
+    final canStart = ref
+        .read(generationCooldownProvider.notifier)
+        .tryStartGeneration();
+    if (!canStart) {
+      return;
+    }
+
     final generationRunId = _startGenerationRun();
 
     // 获取抽卡模式设置

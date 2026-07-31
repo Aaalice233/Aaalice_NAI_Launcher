@@ -800,6 +800,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get generation_generate => '生成';
 
   @override
+  String generation_cooldownRemaining(Object seconds) {
+    return '等待 $seconds 秒';
+  }
+
+  @override
   String get generation_cancel => '取消';
 
   @override
@@ -1807,11 +1812,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editor_toolFill => '填充';
 
   @override
-  String get editor_toolLine => '直线';
-
-  @override
-  String get editor_toolRectSelect => '矩形选框';
-  @override
   String get editor_toolMagicWand => '魔棒';
 
   @override
@@ -1836,6 +1836,11 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get editor_magicWandInvert => '反选结果';
 
+  @override
+  String get editor_toolLine => '直线';
+
+  @override
+  String get editor_toolRectSelect => '矩形选框';
 
   @override
   String get editor_toolEllipseSelect => '椭圆选框';
@@ -2201,11 +2206,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get editor_focusInactiveHint => '点击按钮后进入聚焦模式，再框选区域并绘制蒙版。';
-
-  @override
-  String get editor_focusReadyHint => '已选定聚焦区域，可继续用画笔编辑蒙版。';
-  @override
   String get editor_magicWandNoSource => '没有可供魔棒取样的图像图层。';
 
   @override
@@ -2236,6 +2236,11 @@ class AppLocalizationsZh extends AppLocalizations {
     return '魔棒处理失败: $error';
   }
 
+  @override
+  String get editor_focusInactiveHint => '点击按钮后进入聚焦模式，再框选区域并绘制蒙版。';
+
+  @override
+  String get editor_focusReadyHint => '已选定聚焦区域，可继续用画笔编辑蒙版。';
 
   @override
   String get editor_focusNeedsSelectionHint => '先框选聚焦区域，再切换画笔绘制蒙版。';
@@ -11537,7 +11542,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_protectionModeSubtitle =>
-      '开启后按下方子项保护本地资产、分享副本和高消耗操作；关闭时保留子项配置但不生效。';
+      '开启后按下方子项保护本地资产、分享副本、高消耗和高频生图操作；关闭时保留子项配置但不生效。';
 
   @override
   String get settings_protectionFeatures => '保护功能';
@@ -11588,6 +11593,27 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_highAnlasCostThresholdHelper => '当单次生成预计消耗达到或超过该值时弹出确认。';
+
+  @override
+  String get settings_limitGenerationIntervalTitle => '限制生图频率';
+
+  @override
+  String get settings_limitGenerationIntervalSubtitle =>
+      '开启后，两次生图开始时间必须至少间隔设定秒数；冷却期间生图按钮不可点击。';
+
+  @override
+  String get settings_generationIntervalTitle => '生图间隔';
+
+  @override
+  String settings_generationIntervalValue(Object seconds) {
+    return '$seconds 秒';
+  }
+
+  @override
+  String get settings_setGenerationIntervalTitle => '设置生图间隔';
+
+  @override
+  String get settings_generationIntervalHelper => '可设置 1–3600 秒，从开始执行生图时计时。';
 
   @override
   String get settings_selectLocalOnnxTaggerFolder => '选择 ONNX tagger 模型文件夹';

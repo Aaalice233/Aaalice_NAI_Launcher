@@ -54,6 +54,7 @@ class _WebStyleGenerationLayoutState
   Widget build(BuildContext context) {
     final layoutState = ref.watch(layoutStateNotifierProvider);
     final generationState = ref.watch(imageGenerationNotifierProvider);
+    final cooldownState = ref.watch(generationCooldownProvider);
     final kritaBridgeState = ref.watch(kritaBridgeNotifierProvider);
     final isLauncherGenerating = generationState.isGenerating;
     final isGenerating =
@@ -61,7 +62,7 @@ class _WebStyleGenerationLayoutState
 
     final shortcuts = <String, VoidCallback>{
       ShortcutIds.generateImage: () {
-        if (!isGenerating) {
+        if (!isGenerating && !cooldownState.isActive) {
           unawaited(generateWithProtection(context, ref));
         }
       },

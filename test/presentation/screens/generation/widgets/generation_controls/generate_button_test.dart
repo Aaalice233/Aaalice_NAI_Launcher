@@ -17,6 +17,7 @@ void main() {
     WidgetTester tester, {
     required bool isGenerating,
     required bool showCancel,
+    int cooldownRemainingSeconds = 0,
     ImageGenerationState generationState = const ImageGenerationState(),
     VoidCallback? onGenerate,
     VoidCallback? onCancel,
@@ -38,6 +39,7 @@ void main() {
                 isGenerating: isGenerating,
                 showCancel: showCancel,
                 generationState: generationState,
+                cooldownRemainingSeconds: cooldownRemainingSeconds,
                 onGenerate: onGenerate ?? () {},
                 onCancel: onCancel ?? () {},
                 onSkipCurrent: onSkipCurrent ?? () {},
@@ -87,6 +89,26 @@ void main() {
 
     await tester.tap(find.byType(OutlinedButton));
     expect(cancelCalled, isTrue);
+    expect(generateCalled, isFalse);
+  });
+
+  testWidgets('cooldown: shows countdown and disables generation',
+      (tester) async {
+    var generateCalled = false;
+    await pumpButton(
+      tester,
+      isGenerating: false,
+      showCancel: false,
+      cooldownRemainingSeconds: 8,
+      onGenerate: () => generateCalled = true,
+    );
+
+    expect(find.text(l10n.generation_cooldownRemaining(8)), findsOneWidget);
+    expect(find.byIcon(Icons.hourglass_bottom_outlined), findsOneWidget);
+
+    final button = tester.widget<FilledButton>(find.byType(FilledButton));
+    expect(button.onPressed, isNull);
+    await tester.tap(find.byType(FilledButton));
     expect(generateCalled, isFalse);
   });
 

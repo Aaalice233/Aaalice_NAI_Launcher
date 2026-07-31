@@ -303,6 +303,12 @@ class StorageKeys {
       'protection_warn_high_anlas_cost';
   static const String protectionHighAnlasCostThreshold =
       'protection_high_anlas_cost_threshold';
+  static const String protectionLimitGenerationInterval =
+      'protection_limit_generation_interval';
+  static const String protectionGenerationIntervalSeconds =
+      'protection_generation_interval_seconds';
+  static const String protectionLastGenerationStartedAt =
+      'protection_last_generation_started_at';
 
   // 旧版资产保护 key，保留读取兼容。
   static const String assetProtectionMode = 'asset_protection_mode';

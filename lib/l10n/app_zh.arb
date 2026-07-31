@@ -306,6 +306,12 @@
 
   "generation_title": "生成",
   "generation_generate": "生成",
+  "generation_cooldownRemaining": "等待 {seconds} 秒",
+  "@generation_cooldownRemaining": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
   "generation_cancel": "取消",
   "generation_generating": "生成中...",
   "generation_cancelGeneration": "取消生成",
@@ -677,12 +683,6 @@
   "editor_toolBrush": "画笔",
   "editor_toolEraser": "橡皮擦",
   "editor_toolFill": "填充",
-  "editor_toolLine": "直线",
-  "editor_toolRectSelect": "矩形选框",
-  "editor_toolEllipseSelect": "椭圆选框",
-  "editor_toolLassoSelect": "套索选区",
-  "editor_toolColorPicker": "吸管取色",
-  "editor_toolCloneStamp": "仿制图章",
   "editor_toolMagicWand": "魔棒",
   "editor_magicWandHelp": "点击颜色相近的连续区域。编辑图像时将其抠除为透明区域；重绘时将其加入蒙版。",
   "editor_magicWandMode": "选择方式",
@@ -691,6 +691,12 @@
   "editor_magicWandSmartHelp": "点击要选择的对象。首次使用会从 MIT Han Lab 下载约 133 MiB 的 EfficientViT-SAM L0 模型（Apache-2.0），之后保存在本地。",
   "editor_magicWandColorHelp": "点击颜色相近的连续区域。适合边界清晰的纯色图像，无需下载模型。",
   "editor_magicWandInvert": "反选结果",
+  "editor_toolLine": "直线",
+  "editor_toolRectSelect": "矩形选框",
+  "editor_toolEllipseSelect": "椭圆选框",
+  "editor_toolLassoSelect": "套索选区",
+  "editor_toolColorPicker": "吸管取色",
+  "editor_toolCloneStamp": "仿制图章",
   "editor_toolBlur": "模糊",
   "editor_presetDefault": "默认",
   "editor_presetPencil": "铅笔",
@@ -862,12 +868,6 @@
       "error": {}
     }
   },
-  "editor_focusInactiveHint": "点击按钮后进入聚焦模式，再框选区域并绘制蒙版。",
-  "editor_focusReadyHint": "已选定聚焦区域，可继续用画笔编辑蒙版。",
-  "editor_focusNeedsSelectionHint": "先框选聚焦区域，再切换画笔绘制蒙版。",
-  "editor_focusSelection": "选区",
-  "editor_focusBrush": "画笔",
-  "editor_focusContextHint": "外框是实际送去 Focused Inpaint 的区域，内框是主要重绘区域；两框之间的带宽就是 Minimum Context Area。",
   "editor_magicWandNoSource": "没有可供魔棒取样的图像图层。",
   "editor_magicWandNothingChanged": "选中的区域已经透明或已在蒙版中。",
   "editor_magicWandModelPreparing": "正在检查 EfficientViT-SAM 模型…",
@@ -889,6 +889,12 @@
       "error": {}
     }
   },
+  "editor_focusInactiveHint": "点击按钮后进入聚焦模式，再框选区域并绘制蒙版。",
+  "editor_focusReadyHint": "已选定聚焦区域，可继续用画笔编辑蒙版。",
+  "editor_focusNeedsSelectionHint": "先框选聚焦区域，再切换画笔绘制蒙版。",
+  "editor_focusSelection": "选区",
+  "editor_focusBrush": "画笔",
+  "editor_focusContextHint": "外框是实际送去 Focused Inpaint 的区域，内框是主要重绘区域；两框之间的带宽就是 Minimum Context Area。",
   "editor_focusAnlasWarning": "实际送出范围 {width}×{height}，按当前生成设置预计消耗 {cost} Anlas。",
   "@editor_focusAnlasWarning": {
     "placeholders": {
@@ -5471,7 +5477,7 @@
   },
   "settings_defaultHivePath": "默认 (%APPDATA%/NAI_Launcher/hive/)",
   "settings_protectionMode": "保护模式",
-  "settings_protectionModeSubtitle": "开启后按下方子项保护本地资产、分享副本和高消耗操作；关闭时保留子项配置但不生效。",
+  "settings_protectionModeSubtitle": "开启后按下方子项保护本地资产、分享副本、高消耗和高频生图操作；关闭时保留子项配置但不生效。",
   "settings_protectionFeatures": "保护功能",
   "settings_stripMetadataTitle": "复制/拖拽时移除全部元数据",
   "settings_stripMetadataSubtitle": "生成净化副本，清除 PNG 文本块、EXIF 与 NAI 隐写水印，并避免拖拽暴露原始路径。",
@@ -5492,6 +5498,17 @@
   "settings_setHighAnlasCostThresholdTitle": "设置 Anlas 警告阈值",
   "settings_threshold": "阈值",
   "settings_highAnlasCostThresholdHelper": "当单次生成预计消耗达到或超过该值时弹出确认。",
+  "settings_limitGenerationIntervalTitle": "限制生图频率",
+  "settings_limitGenerationIntervalSubtitle": "开启后，两次生图开始时间必须至少间隔设定秒数；冷却期间生图按钮不可点击。",
+  "settings_generationIntervalTitle": "生图间隔",
+  "settings_generationIntervalValue": "{seconds} 秒",
+  "@settings_generationIntervalValue": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
+  "settings_setGenerationIntervalTitle": "设置生图间隔",
+  "settings_generationIntervalHelper": "可设置 1–3600 秒，从开始执行生图时计时。",
   "settings_selectLocalOnnxTaggerFolder": "选择 ONNX tagger 模型文件夹",
   "settings_localOnnxTaggerFolderSaved": "ONNX tagger 模型文件夹已保存",
   "settings_localOnnxTaggerFolder": "本地 ONNX tagger 模型文件夹",

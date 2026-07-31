@@ -11,6 +11,7 @@ class GenerateButtonWithCost extends ConsumerWidget {
   final bool isGenerating;
   final bool showCancel;
   final ImageGenerationState generationState;
+  final int cooldownRemainingSeconds;
   final VoidCallback onGenerate;
   final VoidCallback onCancel;
   final VoidCallback onSkipCurrent;
@@ -23,6 +24,7 @@ class GenerateButtonWithCost extends ConsumerWidget {
     required this.isGenerating,
     required this.showCancel,
     required this.generationState,
+    this.cooldownRemainingSeconds = 0,
     required this.onGenerate,
     required this.onCancel,
     required this.onSkipCurrent,
@@ -42,6 +44,11 @@ class GenerateButtonWithCost extends ConsumerWidget {
       return generationState.totalImages > 1
           ? _progressText()
           : context.l10n.generation_generating;
+    }
+    if (cooldownRemainingSeconds > 0) {
+      return context.l10n.generation_cooldownRemaining(
+        cooldownRemainingSeconds,
+      );
     }
     return context.l10n.generation_generate;
   }
@@ -79,8 +86,14 @@ class GenerateButtonWithCost extends ConsumerWidget {
     return SizedBox(
       height: height,
       child: ThemedButton(
-        onPressed: isGenerating ? null : onGenerate,
-        icon: isGenerating ? null : const Icon(Icons.auto_awesome),
+        onPressed: isGenerating || cooldownRemainingSeconds > 0
+            ? null
+            : onGenerate,
+        icon: isGenerating
+            ? null
+            : cooldownRemainingSeconds > 0
+            ? const Icon(Icons.hourglass_bottom_outlined)
+            : const Icon(Icons.auto_awesome),
         isLoading: isGenerating,
         label: Row(
           mainAxisSize: MainAxisSize.min,

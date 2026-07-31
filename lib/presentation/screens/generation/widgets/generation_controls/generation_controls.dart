@@ -34,10 +34,12 @@ class GenerationControls extends ConsumerStatefulWidget {
 
 class _GenerationControlsState extends ConsumerState<GenerationControls> {
   bool _showAddToQueueButton = false;
+  int _queueReadyGenerationRequestId = 0;
 
   @override
   Widget build(BuildContext context) {
     final generationState = ref.watch(imageGenerationNotifierProvider);
+    final cooldownState = ref.watch(generationCooldownProvider);
     final kritaBridgeState = ref.watch(kritaBridgeNotifierProvider);
     final nSamples = ref.watch(
       generationParamsNotifierProvider.select((params) => params.nSamples),
@@ -84,18 +86,9 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
             return;
           }
           // 延迟一帧确保提示词已填充
+          final requestId = ++_queueReadyGenerationRequestId;
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            final latestKritaBridgeState = ref.read(
-              kritaBridgeNotifierProvider,
-            );
-            if (latestKritaBridgeState.isBridgeGenerating) return;
-            final currentParams = ref.read(generationParamsNotifierProvider);
-            if (currentParams.prompt.isNotEmpty) {
-              ref
-                  .read(imageGenerationNotifierProvider.notifier)
-                  .generate(currentParams);
-            }
+            unawaited(_generateReadyQueueTaskWhenAvailable(requestId));
           });
         }
       }
@@ -126,6 +119,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
               isGenerating: isGenerating,
               showCancel: showCancel,
               generationState: generationState,
+              cooldownRemainingSeconds: cooldownState.remainingSeconds,
               randomMode: randomMode,
               shouldShowFloatingButton: shouldShowFloatingButton,
             ),
@@ -193,6 +187,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
                     isGenerating: isGenerating,
                     showCancel: showCancel,
                     generationState: generationState,
+                    cooldownRemainingSeconds: cooldownState.remainingSeconds,
                     randomMode: randomMode,
                     shouldShowFloatingButton: shouldShowFloatingButton,
                   ),
@@ -227,6 +222,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
     required bool isGenerating,
     required bool showCancel,
     required ImageGenerationState generationState,
+    required int cooldownRemainingSeconds,
     required bool randomMode,
     required bool shouldShowFloatingButton,
   }) {
@@ -267,6 +263,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
             isGenerating: isGenerating,
             showCancel: showCancel,
             generationState: generationState,
+            cooldownRemainingSeconds: cooldownRemainingSeconds,
             onGenerate: () => unawaited(_handleGenerate(context, ref)),
             onCancel: () =>
                 ref.read(imageGenerationNotifierProvider.notifier).cancel(),
@@ -277,6 +274,29 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
         ],
       ),
     );
+  }
+
+  Future<void> _generateReadyQueueTaskWhenAvailable(int requestId) async {
+    await ref.read(generationCooldownProvider.notifier).waitUntilAvailable();
+    if (!mounted || requestId != _queueReadyGenerationRequestId) {
+      return;
+    }
+
+    final queueExecutionState = ref.read(queueExecutionNotifierProvider);
+    final generationState = ref.read(imageGenerationNotifierProvider);
+    final kritaBridgeState = ref.read(kritaBridgeNotifierProvider);
+    if (queueExecutionState.status != QueueExecutionStatus.ready ||
+        generationState.isGenerating ||
+        kritaBridgeState.isBridgeGenerating) {
+      return;
+    }
+
+    final currentParams = ref.read(generationParamsNotifierProvider);
+    if (currentParams.prompt.isNotEmpty) {
+      await ref
+          .read(imageGenerationNotifierProvider.notifier)
+          .generate(currentParams);
+    }
   }
 
   void _handleAddToQueue(BuildContext context, WidgetRef ref) {

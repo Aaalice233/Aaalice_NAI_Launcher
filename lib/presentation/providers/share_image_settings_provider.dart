@@ -12,6 +12,8 @@ class ShareImageSettings {
     this.preventOverwrite = true,
     this.warnHighAnlasCost = true,
     this.highAnlasCostThreshold = 50,
+    this.limitGenerationInterval = false,
+    this.generationIntervalSeconds = 5,
   });
 
   final bool protectionMode;
@@ -21,6 +23,8 @@ class ShareImageSettings {
   final bool preventOverwrite;
   final bool warnHighAnlasCost;
   final int highAnlasCostThreshold;
+  final bool limitGenerationInterval;
+  final int generationIntervalSeconds;
 
   bool get effectiveStripMetadataForCopyAndDrag =>
       protectionMode && stripMetadataForCopyAndDrag;
@@ -36,6 +40,9 @@ class ShareImageSettings {
   bool get effectiveWarnHighAnlasCost =>
       protectionMode && warnHighAnlasCost && highAnlasCostThreshold > 0;
 
+  int get effectiveGenerationIntervalSeconds =>
+      protectionMode && limitGenerationInterval ? generationIntervalSeconds : 0;
+
   @Deprecated('Use protectionMode instead.')
   bool get assetProtectionMode => protectionMode;
 
@@ -47,6 +54,8 @@ class ShareImageSettings {
     bool? preventOverwrite,
     bool? warnHighAnlasCost,
     int? highAnlasCostThreshold,
+    bool? limitGenerationInterval,
+    int? generationIntervalSeconds,
   }) {
     return ShareImageSettings(
       protectionMode: protectionMode ?? this.protectionMode,
@@ -60,61 +69,85 @@ class ShareImageSettings {
       warnHighAnlasCost: warnHighAnlasCost ?? this.warnHighAnlasCost,
       highAnlasCostThreshold:
           highAnlasCostThreshold ?? this.highAnlasCostThreshold,
+      limitGenerationInterval:
+          limitGenerationInterval ?? this.limitGenerationInterval,
+      generationIntervalSeconds:
+          generationIntervalSeconds ?? this.generationIntervalSeconds,
     );
   }
 }
 
 final shareImageSettingsProvider =
     NotifierProvider<ShareImageSettingsNotifier, ShareImageSettings>(
-  ShareImageSettingsNotifier.new,
-);
+      ShareImageSettingsNotifier.new,
+    );
 
 class ShareImageSettingsNotifier extends Notifier<ShareImageSettings> {
   LocalStorageService get _storage => ref.read(localStorageServiceProvider);
 
   @override
   ShareImageSettings build() {
-    final protectionMode = _storage.getSetting<bool>(
-          StorageKeys.protectionMode,
-        ) ??
+    final protectionMode =
+        _storage.getSetting<bool>(StorageKeys.protectionMode) ??
         _storage.getSetting<bool>(
           StorageKeys.assetProtectionMode,
           defaultValue: false,
         ) ??
         false;
+    final generationIntervalSeconds =
+        (_storage.getSetting<int>(
+                  StorageKeys.protectionGenerationIntervalSeconds,
+                  defaultValue: 5,
+                ) ??
+                5)
+            .clamp(1, 3600)
+            .toInt();
 
     return ShareImageSettings(
       protectionMode: protectionMode,
-      stripMetadataForCopyAndDrag: _storage.getSetting<bool>(
+      stripMetadataForCopyAndDrag:
+          _storage.getSetting<bool>(
             StorageKeys.shareStripMetadata,
             defaultValue: true,
           ) ??
           true,
-      confirmDangerousActions: _storage.getSetting<bool>(
+      confirmDangerousActions:
+          _storage.getSetting<bool>(
             StorageKeys.protectionConfirmDangerousActions,
             defaultValue: true,
           ) ??
           true,
-      warnExternalImageSend: _storage.getSetting<bool>(
+      warnExternalImageSend:
+          _storage.getSetting<bool>(
             StorageKeys.protectionWarnExternalImageSend,
             defaultValue: true,
           ) ??
           true,
-      preventOverwrite: _storage.getSetting<bool>(
+      preventOverwrite:
+          _storage.getSetting<bool>(
             StorageKeys.protectionPreventOverwrite,
             defaultValue: true,
           ) ??
           true,
-      warnHighAnlasCost: _storage.getSetting<bool>(
+      warnHighAnlasCost:
+          _storage.getSetting<bool>(
             StorageKeys.protectionWarnHighAnlasCost,
             defaultValue: true,
           ) ??
           true,
-      highAnlasCostThreshold: _storage.getSetting<int>(
+      highAnlasCostThreshold:
+          _storage.getSetting<int>(
             StorageKeys.protectionHighAnlasCostThreshold,
             defaultValue: 50,
           ) ??
           50,
+      limitGenerationInterval:
+          _storage.getSetting<bool>(
+            StorageKeys.protectionLimitGenerationInterval,
+            defaultValue: false,
+          ) ??
+          false,
+      generationIntervalSeconds: generationIntervalSeconds,
     );
   }
 
@@ -160,6 +193,23 @@ class ShareImageSettingsNotifier extends Notifier<ShareImageSettings> {
     state = state.copyWith(highAnlasCostThreshold: clamped);
     await _storage.setSetting(
       StorageKeys.protectionHighAnlasCostThreshold,
+      clamped,
+    );
+  }
+
+  Future<void> setLimitGenerationInterval(bool value) async {
+    state = state.copyWith(limitGenerationInterval: value);
+    await _storage.setSetting(
+      StorageKeys.protectionLimitGenerationInterval,
+      value,
+    );
+  }
+
+  Future<void> setGenerationIntervalSeconds(int value) async {
+    final clamped = value.clamp(1, 3600).toInt();
+    state = state.copyWith(generationIntervalSeconds: clamped);
+    await _storage.setSetting(
+      StorageKeys.protectionGenerationIntervalSeconds,
       clamped,
     );
   }

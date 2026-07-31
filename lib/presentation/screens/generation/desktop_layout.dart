@@ -59,6 +59,7 @@ class _DesktopGenerationLayoutState
     final layoutState = ref.watch(layoutStateNotifierProvider);
     // 从 Provider 读取生成状态（用于快捷键回调）
     final generationState = ref.watch(imageGenerationNotifierProvider);
+    final cooldownState = ref.watch(generationCooldownProvider);
     final kritaBridgeState = ref.watch(kritaBridgeNotifierProvider);
     final isLauncherGenerating = generationState.isGenerating;
     final isGenerating =
@@ -68,7 +69,7 @@ class _DesktopGenerationLayoutState
     final shortcuts = <String, VoidCallback>{
       // 生成图像
       ShortcutIds.generateImage: () {
-        if (!isGenerating) {
+        if (!isGenerating && !cooldownState.isActive) {
           unawaited(generateWithProtection(context, ref));
         }
       },

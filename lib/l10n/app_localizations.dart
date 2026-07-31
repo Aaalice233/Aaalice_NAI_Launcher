@@ -1624,6 +1624,12 @@ abstract class AppLocalizations {
   /// **'Generate'**
   String get generation_generate;
 
+  /// No description provided for @generation_cooldownRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait {seconds}s'**
+  String generation_cooldownRemaining(Object seconds);
+
   /// No description provided for @generation_cancel.
   ///
   /// In en, this message translates to:
@@ -3454,12 +3460,6 @@ abstract class AppLocalizations {
   /// **'Fill'**
   String get editor_toolFill;
 
-  /// No description provided for @editor_toolLine.
-  ///
-  /// In en, this message translates to:
-  /// **'Line'**
-  String get editor_toolLine;
-
   /// No description provided for @editor_toolMagicWand.
   ///
   /// In en, this message translates to:
@@ -3507,6 +3507,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Invert result'**
   String get editor_magicWandInvert;
+
+  /// No description provided for @editor_toolLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Line'**
+  String get editor_toolLine;
 
   /// No description provided for @editor_toolRectSelect.
   ///
@@ -4198,12 +4204,6 @@ abstract class AppLocalizations {
   /// **'Failed to fill mask: {error}'**
   String editor_fillMaskFailed(Object error);
 
-  /// No description provided for @editor_focusInactiveHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Click the button to enter focus mode, then draw a focus area and paint the mask.'**
-  String get editor_focusInactiveHint;
-
   /// No description provided for @editor_magicWandNoSource.
   ///
   /// In en, this message translates to:
@@ -4257,6 +4257,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Magic Wand failed: {error}'**
   String editor_magicWandFailed(Object error);
+
+  /// No description provided for @editor_focusInactiveHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Click the button to enter focus mode, then draw a focus area and paint the mask.'**
+  String get editor_focusInactiveHint;
 
   /// No description provided for @editor_focusReadyHint.
   ///
@@ -21245,7 +21251,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_protectionModeSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Protect local assets, shared copies, and high-cost operations through the options below. Turning this off keeps the option values but disables them.'**
+  /// **'Protect local assets, shared copies, and high-cost or high-frequency generation operations through the options below. Turning this off keeps the option values but disables them.'**
   String get settings_protectionModeSubtitle;
 
   /// No description provided for @settings_protectionFeatures.
@@ -21337,6 +21343,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show a confirmation when the estimated single generation cost reaches or exceeds this value.'**
   String get settings_highAnlasCostThresholdHelper;
+
+  /// No description provided for @settings_limitGenerationIntervalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Limit generation frequency'**
+  String get settings_limitGenerationIntervalTitle;
+
+  /// No description provided for @settings_limitGenerationIntervalSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Require the configured minimum time between generation starts. The Generate button is disabled during the cooldown.'**
+  String get settings_limitGenerationIntervalSubtitle;
+
+  /// No description provided for @settings_generationIntervalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Generation interval'**
+  String get settings_generationIntervalTitle;
+
+  /// No description provided for @settings_generationIntervalValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{seconds} seconds'**
+  String settings_generationIntervalValue(Object seconds);
+
+  /// No description provided for @settings_setGenerationIntervalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set Generation Interval'**
+  String get settings_setGenerationIntervalTitle;
+
+  /// No description provided for @settings_generationIntervalHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter 1–3600 seconds. The cooldown starts when generation begins.'**
+  String get settings_generationIntervalHelper;
 
   /// No description provided for @settings_selectLocalOnnxTaggerFolder.
   ///

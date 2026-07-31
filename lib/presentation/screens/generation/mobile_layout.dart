@@ -33,6 +33,7 @@ class _MobileGenerationLayoutState
   @override
   Widget build(BuildContext context) {
     final generationState = ref.watch(imageGenerationNotifierProvider);
+    final cooldownState = ref.watch(generationCooldownProvider);
     final kritaBridgeState = ref.watch(kritaBridgeNotifierProvider);
     final isPromptMaximized = ref.watch(promptMaximizeNotifierProvider);
     final theme = Theme.of(context);
@@ -153,6 +154,7 @@ class _MobileGenerationLayoutState
                   isGenerating: isGenerating,
                   showCancel: isLauncherGenerating,
                   generationState: generationState,
+                  cooldownRemainingSeconds: cooldownState.remainingSeconds,
                   onGenerate: () => _handleGenerate(context, ref),
                   onCancel: () => ref
                       .read(imageGenerationNotifierProvider.notifier)
@@ -245,6 +247,7 @@ class _MobileGenerateButton extends ConsumerWidget {
   final bool isGenerating;
   final bool showCancel;
   final ImageGenerationState generationState;
+  final int cooldownRemainingSeconds;
   final VoidCallback onGenerate;
   final VoidCallback onCancel;
   final VoidCallback onSkipCurrent;
@@ -253,6 +256,7 @@ class _MobileGenerateButton extends ConsumerWidget {
     required this.isGenerating,
     required this.showCancel,
     required this.generationState,
+    this.cooldownRemainingSeconds = 0,
     required this.onGenerate,
     required this.onCancel,
     required this.onSkipCurrent,
@@ -297,8 +301,14 @@ class _MobileGenerateButton extends ConsumerWidget {
     }
 
     return ThemedButton(
-      onPressed: isGenerating ? null : onGenerate,
-      icon: isGenerating ? null : const Icon(Icons.auto_awesome),
+      onPressed: isGenerating || cooldownRemainingSeconds > 0
+          ? null
+          : onGenerate,
+      icon: isGenerating
+          ? null
+          : cooldownRemainingSeconds > 0
+          ? const Icon(Icons.hourglass_bottom_outlined)
+          : const Icon(Icons.auto_awesome),
       isLoading: isGenerating,
       label: Row(
         mainAxisSize: MainAxisSize.min,
@@ -306,6 +316,10 @@ class _MobileGenerateButton extends ConsumerWidget {
           Text(
             isGenerating
                 ? context.l10n.generation_generating
+                : cooldownRemainingSeconds > 0
+                ? context.l10n.generation_cooldownRemaining(
+                    cooldownRemainingSeconds,
+                  )
                 : context.l10n.generation_generate,
           ),
           AnlasCostBadge(isGenerating: isGenerating),

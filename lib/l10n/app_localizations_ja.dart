@@ -810,6 +810,11 @@ class AppLocalizationsJa extends AppLocalizations {
   String get generation_generate => '生成';
 
   @override
+  String generation_cooldownRemaining(Object seconds) {
+    return 'あと$seconds秒';
+  }
+
+  @override
   String get generation_cancel => 'キャンセル';
 
   @override
@@ -1831,11 +1836,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editor_toolFill => '塗りつぶし';
 
   @override
-  String get editor_toolLine => '直線';
-
-  @override
-  String get editor_toolRectSelect => '長方形';
-  @override
   String get editor_toolMagicWand => 'マジックワンド';
 
   @override
@@ -1862,6 +1862,11 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get editor_magicWandInvert => '結果を反転';
 
+  @override
+  String get editor_toolLine => '直線';
+
+  @override
+  String get editor_toolRectSelect => '長方形';
 
   @override
   String get editor_toolEllipseSelect => '楕円';
@@ -2229,11 +2234,6 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get editor_focusInactiveHint =>
-      'ボタンをクリックしてフォーカス モードに入り、フォーカス エリアを描画してマスクをペイントします。';
-
-  @override
-  @override
   String get editor_magicWandNoSource => 'サンプリング可能な画像レイヤーがありません。';
 
   @override
@@ -2264,6 +2264,11 @@ class AppLocalizationsJa extends AppLocalizations {
     return 'マジックワンドに失敗しました: $error';
   }
 
+  @override
+  String get editor_focusInactiveHint =>
+      'ボタンをクリックしてフォーカス モードに入り、フォーカス エリアを描画してマスクをペイントします。';
+
+  @override
   String get editor_focusReadyHint =>
       'フォーカス エリアが選択されました。ブラシを使用してマスクの編集を続けることができます。';
 
@@ -11681,7 +11686,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settings_protectionModeSubtitle =>
-      '以下のオプションを通じて、ローカル資産、共有コピー、および高コストの操作を保護します。これをオフにすると、オプションの値は保持されますが、無効になります。';
+      '以下のオプションを通じて、ローカル資産、共有コピー、高コストおよび高頻度の画像生成操作を保護します。オフにしても各設定値は保持されますが、機能は無効になります。';
 
   @override
   String get settings_protectionFeatures => '保護機能';
@@ -11734,6 +11739,28 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get settings_highAnlasCostThresholdHelper =>
       '1 回の生成にかかる推定コストがこの値以上になった場合に確認を表示します。';
+
+  @override
+  String get settings_limitGenerationIntervalTitle => '画像生成の頻度を制限';
+
+  @override
+  String get settings_limitGenerationIntervalSubtitle =>
+      '画像生成の開始間隔を設定値以上に制限します。クールダウン中は生成ボタンを使用できません。';
+
+  @override
+  String get settings_generationIntervalTitle => '画像生成の間隔';
+
+  @override
+  String settings_generationIntervalValue(Object seconds) {
+    return '$seconds 秒';
+  }
+
+  @override
+  String get settings_setGenerationIntervalTitle => '画像生成の間隔を設定';
+
+  @override
+  String get settings_generationIntervalHelper =>
+      '1～3600 秒で設定できます。画像生成の開始時から計測します。';
 
   @override
   String get settings_selectLocalOnnxTaggerFolder =>

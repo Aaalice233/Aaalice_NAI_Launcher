@@ -10,6 +10,9 @@ import '../../../widgets/common/app_toast.dart';
 /// 带资产保护确认的生成入口（经典布局与官网式布局共用）
 Future<void> generateWithProtection(BuildContext context, WidgetRef ref) async {
   final currentParams = ref.read(generationParamsNotifierProvider);
+  if (ref.read(generationCooldownProvider).isActive) {
+    return;
+  }
   if (ref.read(kritaBridgeNotifierProvider).isBridgeGenerating) {
     AppToast.warning(context, context.l10n.kritaBridge_busyGenerating);
     return;

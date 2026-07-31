@@ -820,6 +820,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generation_generate => 'Generate';
 
   @override
+  String generation_cooldownRemaining(Object seconds) {
+    return 'Wait ${seconds}s';
+  }
+
+  @override
   String get generation_cancel => 'Cancel';
 
   @override
@@ -1866,11 +1871,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editor_toolFill => 'Fill';
 
   @override
-  String get editor_toolLine => 'Line';
-
-  @override
-  String get editor_toolRectSelect => 'Rectangle';
-  @override
   String get editor_toolMagicWand => 'Magic Wand';
 
   @override
@@ -1897,6 +1897,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get editor_magicWandInvert => 'Invert result';
 
+  @override
+  String get editor_toolLine => 'Line';
+
+  @override
+  String get editor_toolRectSelect => 'Rectangle';
 
   @override
   String get editor_toolEllipseSelect => 'Ellipse';
@@ -2273,11 +2278,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get editor_focusInactiveHint =>
-      'Click the button to enter focus mode, then draw a focus area and paint the mask.';
-
-  @override
-  @override
   String get editor_magicWandNoSource =>
       'No editable image layer is available for sampling.';
 
@@ -2313,6 +2313,11 @@ class AppLocalizationsEn extends AppLocalizations {
     return 'Magic Wand failed: $error';
   }
 
+  @override
+  String get editor_focusInactiveHint =>
+      'Click the button to enter focus mode, then draw a focus area and paint the mask.';
+
+  @override
   String get editor_focusReadyHint =>
       'Focus area selected. You can continue editing the mask with the brush.';
 
@@ -11946,7 +11951,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_protectionModeSubtitle =>
-      'Protect local assets, shared copies, and high-cost operations through the options below. Turning this off keeps the option values but disables them.';
+      'Protect local assets, shared copies, and high-cost or high-frequency generation operations through the options below. Turning this off keeps the option values but disables them.';
 
   @override
   String get settings_protectionFeatures => 'Protection Features';
@@ -12004,6 +12009,29 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settings_highAnlasCostThresholdHelper =>
       'Show a confirmation when the estimated single generation cost reaches or exceeds this value.';
+
+  @override
+  String get settings_limitGenerationIntervalTitle =>
+      'Limit generation frequency';
+
+  @override
+  String get settings_limitGenerationIntervalSubtitle =>
+      'Require the configured minimum time between generation starts. The Generate button is disabled during the cooldown.';
+
+  @override
+  String get settings_generationIntervalTitle => 'Generation interval';
+
+  @override
+  String settings_generationIntervalValue(Object seconds) {
+    return '$seconds seconds';
+  }
+
+  @override
+  String get settings_setGenerationIntervalTitle => 'Set Generation Interval';
+
+  @override
+  String get settings_generationIntervalHelper =>
+      'Enter 1–3600 seconds. The cooldown starts when generation begins.';
 
   @override
   String get settings_selectLocalOnnxTaggerFolder =>

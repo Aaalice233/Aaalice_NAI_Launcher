@@ -311,6 +311,12 @@
   "settings_startupPerformanceSubtitle": "起動時のパフォーマンス設定を構成する",
   "generation_title": "生成",
   "generation_generate": "生成",
+  "generation_cooldownRemaining": "あと{seconds}秒",
+  "@generation_cooldownRemaining": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
   "generation_cancel": "キャンセル",
   "generation_generating": "生成中...",
   "generation_cancelGeneration": "生成のキャンセル",
@@ -819,12 +825,6 @@
   "editor_toolBrush": "ブラシ",
   "editor_toolEraser": "消しゴム",
   "editor_toolFill": "塗りつぶし",
-  "editor_toolLine": "直線",
-  "editor_toolRectSelect": "長方形",
-  "editor_toolEllipseSelect": "楕円",
-  "editor_toolLassoSelect": "なげなわ",
-  "editor_toolColorPicker": "カラーピッカー",
-  "editor_toolCloneStamp": "クローンスタンプ",
   "editor_toolMagicWand": "マジックワンド",
   "editor_magicWandHelp": "近い色の連続領域をクリックします。画像編集ではその領域を透明にし、インペイントではマスクに追加します。",
   "editor_magicWandMode": "選択方法",
@@ -833,6 +833,12 @@
   "editor_magicWandSmartHelp": "選択するオブジェクトをクリックします。初回使用時に MIT Han Lab から約 133 MiB の EfficientViT-SAM L0 モデル（Apache-2.0）をダウンロードし、以後はローカルに保存します。",
   "editor_magicWandColorHelp": "近い色の連続領域をクリックします。境界が明瞭なフラット画像に適し、モデルのダウンロードは不要です。",
   "editor_magicWandInvert": "結果を反転",
+  "editor_toolLine": "直線",
+  "editor_toolRectSelect": "長方形",
+  "editor_toolEllipseSelect": "楕円",
+  "editor_toolLassoSelect": "なげなわ",
+  "editor_toolColorPicker": "カラーピッカー",
+  "editor_toolCloneStamp": "クローンスタンプ",
   "editor_toolBlur": "ぼかし",
   "editor_presetDefault": "デフォルト",
   "editor_presetPencil": "鉛筆",
@@ -996,12 +1002,6 @@
       "error": {}
     }
   },
-  "editor_focusInactiveHint": "ボタンをクリックしてフォーカス モードに入り、フォーカス エリアを描画してマスクをペイントします。",
-  "editor_focusReadyHint": "フォーカス エリアが選択されました。ブラシを使用してマスクの編集を続けることができます。",
-  "editor_focusNeedsSelectionHint": "最初にフォーカス エリアを描画し、次にブラシに切り替えてマスクをペイントします。",
-  "editor_focusSelection": "選択",
-  "editor_focusBrush": "ブラシ",
-  "editor_focusContextHint": "外側の長方形は Focused インペイントに送信される領域です。内側の長方形が主な再描画領域です。その間の帯が最小コンテキスト領域です。",
   "editor_magicWandNoSource": "サンプリング可能な画像レイヤーがありません。",
   "editor_magicWandNothingChanged": "選択した領域はすでに透明、またはマスク済みです。",
   "editor_magicWandModelPreparing": "EfficientViT-SAM モデルを確認しています…",
@@ -1023,6 +1023,12 @@
       "error": {}
     }
   },
+  "editor_focusInactiveHint": "ボタンをクリックしてフォーカス モードに入り、フォーカス エリアを描画してマスクをペイントします。",
+  "editor_focusReadyHint": "フォーカス エリアが選択されました。ブラシを使用してマスクの編集を続けることができます。",
+  "editor_focusNeedsSelectionHint": "最初にフォーカス エリアを描画し、次にブラシに切り替えてマスクをペイントします。",
+  "editor_focusSelection": "選択",
+  "editor_focusBrush": "ブラシ",
+  "editor_focusContextHint": "外側の長方形は Focused インペイントに送信される領域です。内側の長方形が主な再描画領域です。その間の帯が最小コンテキスト領域です。",
   "editor_focusAnlasWarning": "実際に送信する範囲は {width}×{height} です。現在の生成設定では {cost} Anlas を消費します。",
   "@editor_focusAnlasWarning": {
     "placeholders": {
@@ -5887,7 +5893,7 @@
   },
   "settings_defaultHivePath": "デフォルト (%APPDATA%/NAI_Launcher/hive/)",
   "settings_protectionMode": "保護モード",
-  "settings_protectionModeSubtitle": "以下のオプションを通じて、ローカル資産、共有コピー、および高コストの操作を保護します。これをオフにすると、オプションの値は保持されますが、無効になります。",
+  "settings_protectionModeSubtitle": "以下のオプションを通じて、ローカル資産、共有コピー、高コストおよび高頻度の画像生成操作を保護します。オフにしても各設定値は保持されますが、機能は無効になります。",
   "settings_protectionFeatures": "保護機能",
   "settings_stripMetadataTitle": "コピーまたはドラッグするときにすべてのメタデータを削除します",
   "settings_stripMetadataSubtitle": "サニタイズされたコピーを作成し、PNG テキスト チャンク、EXIF、および NAI ステガノグラフィック透かしデータを削除し、ドラッグ中に元のパスが露出しないようにします。",
@@ -5908,6 +5914,17 @@
   "settings_setHighAnlasCostThresholdTitle": "Anlas 警告しきい値を設定",
   "settings_threshold": "しきい値",
   "settings_highAnlasCostThresholdHelper": "1 回の生成にかかる推定コストがこの値以上になった場合に確認を表示します。",
+  "settings_limitGenerationIntervalTitle": "画像生成の頻度を制限",
+  "settings_limitGenerationIntervalSubtitle": "画像生成の開始間隔を設定値以上に制限します。クールダウン中は生成ボタンを使用できません。",
+  "settings_generationIntervalTitle": "画像生成の間隔",
+  "settings_generationIntervalValue": "{seconds} 秒",
+  "@settings_generationIntervalValue": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
+  "settings_setGenerationIntervalTitle": "画像生成の間隔を設定",
+  "settings_generationIntervalHelper": "1～3600 秒で設定できます。画像生成の開始時から計測します。",
   "settings_selectLocalOnnxTaggerFolder": "ONNX タガー モデル フォルダーを選択してください",
   "settings_localOnnxTaggerFolderSaved": "ONNX タガー モデル フォルダーが保存されました",
   "settings_localOnnxTaggerFolder": "ローカル ONNX タガー モデル フォルダー",

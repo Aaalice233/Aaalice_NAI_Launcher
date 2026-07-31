@@ -22,9 +22,7 @@ class StatisticsScreen extends ConsumerWidget {
       body: Column(
         children: [
           _buildHeader(context, theme, l10n),
-          Expanded(
-            child: _buildContent(context, l10n, data, ref, screenWidth),
-          ),
+          Expanded(child: _buildContent(context, l10n, data, ref, screenWidth)),
         ],
       ),
     );
@@ -45,8 +43,10 @@ class StatisticsScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         border: Border(
-          bottom:
-              BorderSide(color: borderColor.withValues(alpha: 0.2), width: 1),
+          bottom: BorderSide(
+            color: borderColor.withValues(alpha: 0.2),
+            width: 1,
+          ),
         ),
       ),
       child: Row(
@@ -55,8 +55,9 @@ class StatisticsScreen extends ConsumerWidget {
           const SizedBox(width: 12),
           Text(
             l10n.statistics_title,
-            style: theme.textTheme.titleLarge
-                ?.copyWith(fontWeight: FontWeight.w600),
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const Spacer(),
           const AnimatedRefreshButton(),
@@ -86,8 +87,6 @@ class StatisticsScreen extends ConsumerWidget {
     }
 
     final crossAxisCount = screenWidth < 600 ? 1 : (screenWidth < 900 ? 2 : 3);
-    final records = data.filteredRecords;
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: StaggeredGrid.count(
@@ -117,15 +116,17 @@ class StatisticsScreen extends ConsumerWidget {
           ),
           StaggeredGridTile.fit(
             crossAxisCellCount: 1,
-            child: ActivityHeatmapCard(records: records),
+            child: ActivityHeatmapCard(dailyTrends: stats.dailyTrends),
           ),
           StaggeredGridTile.fit(
             crossAxisCellCount: 1,
-            child: HourlyDistributionCard(records: records),
+            child: HourlyDistributionCard(hourlyData: stats.hourlyDistribution),
           ),
           StaggeredGridTile.fit(
             crossAxisCellCount: 1,
-            child: WeekdayDistributionCard(records: records),
+            child: WeekdayDistributionCard(
+              weekdayData: stats.weekdayDistribution,
+            ),
           ),
         ],
       ),

@@ -1255,6 +1255,8 @@ void main() {
         preventOverwrite: true,
         warnHighAnlasCost: true,
         highAnlasCostThreshold: 50,
+        limitGenerationInterval: true,
+        generationIntervalSeconds: 15,
       );
 
       expect(disabled.effectiveStripMetadataForCopyAndDrag, isFalse);
@@ -1262,6 +1264,7 @@ void main() {
       expect(disabled.effectiveWarnExternalImageSend, isFalse);
       expect(disabled.effectivePreventOverwrite, isFalse);
       expect(disabled.effectiveWarnHighAnlasCost, isFalse);
+      expect(disabled.effectiveGenerationIntervalSeconds, 0);
 
       final enabled = disabled.copyWith(protectionMode: true);
       expect(enabled.effectiveStripMetadataForCopyAndDrag, isTrue);
@@ -1269,6 +1272,7 @@ void main() {
       expect(enabled.effectiveWarnExternalImageSend, isTrue);
       expect(enabled.effectivePreventOverwrite, isTrue);
       expect(enabled.effectiveWarnHighAnlasCost, isTrue);
+      expect(enabled.effectiveGenerationIntervalSeconds, 15);
     });
 
     test('allows each protection feature to be disabled independently', () {
@@ -1280,6 +1284,8 @@ void main() {
         preventOverwrite: false,
         warnHighAnlasCost: false,
         highAnlasCostThreshold: 50,
+        limitGenerationInterval: false,
+        generationIntervalSeconds: 15,
       );
 
       expect(settings.effectiveStripMetadataForCopyAndDrag, isFalse);
@@ -1287,6 +1293,7 @@ void main() {
       expect(settings.effectiveWarnExternalImageSend, isFalse);
       expect(settings.effectivePreventOverwrite, isFalse);
       expect(settings.effectiveWarnHighAnlasCost, isFalse);
+      expect(settings.effectiveGenerationIntervalSeconds, 0);
     });
   });
 

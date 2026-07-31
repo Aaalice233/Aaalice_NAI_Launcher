@@ -29,10 +29,10 @@ class StatisticsCacheMetadata {
   });
 
   Map<String, dynamic> toJson() => {
-        'imageCount': imageCount,
-        'cachedAt': cachedAt.toIso8601String(),
-        'galleryPath': galleryPath,
-      };
+    'imageCount': imageCount,
+    'cachedAt': cachedAt.toIso8601String(),
+    'galleryPath': galleryPath,
+  };
 
   factory StatisticsCacheMetadata.fromJson(Map<String, dynamic> json) {
     return StatisticsCacheMetadata(
@@ -160,8 +160,9 @@ class StatisticsCacheService {
     // 计算允许的图片数量变化范围
     final cachedCount = metadata.imageCount;
     final toleranceByPercent = (cachedCount * tolerancePercent / 100).ceil();
-    final tolerance =
-        toleranceByPercent > minTolerance ? toleranceByPercent : minTolerance;
+    final tolerance = toleranceByPercent > minTolerance
+        ? toleranceByPercent
+        : minTolerance;
 
     final diff = (currentImageCount - cachedCount).abs();
 
@@ -305,6 +306,14 @@ class StatisticsCacheService {
             },
           )
           .toList(),
+      'hourlyDistribution': {
+        for (final entry in stats.hourlyDistribution.entries)
+          entry.key.toString(): entry.value,
+      },
+      'weekdayDistribution': {
+        for (final entry in stats.weekdayDistribution.entries)
+          entry.key.toString(): entry.value,
+      },
       'weeklyTrends': stats.weeklyTrends
           .map(
             (w) => {
@@ -349,7 +358,8 @@ class StatisticsCacheService {
       favoriteCount: json['favoriteCount'] as int? ?? 0,
       taggedImageCount: json['taggedImageCount'] as int? ?? 0,
       imagesWithMetadata: json['imagesWithMetadata'] as int? ?? 0,
-      resolutionDistribution: (json['resolutionDistribution'] as List?)
+      resolutionDistribution:
+          (json['resolutionDistribution'] as List?)
               ?.map(
                 (r) => ResolutionStatistics(
                   label: r['label'] as String,
@@ -359,7 +369,8 @@ class StatisticsCacheService {
               )
               .toList() ??
           [],
-      modelDistribution: (json['modelDistribution'] as List?)
+      modelDistribution:
+          (json['modelDistribution'] as List?)
               ?.map(
                 (m) => ModelStatistics(
                   modelName: m['modelName'] as String,
@@ -369,7 +380,8 @@ class StatisticsCacheService {
               )
               .toList() ??
           [],
-      samplerDistribution: (json['samplerDistribution'] as List?)
+      samplerDistribution:
+          (json['samplerDistribution'] as List?)
               ?.map(
                 (s) => SamplerStatistics(
                   samplerName: s['samplerName'] as String,
@@ -379,7 +391,8 @@ class StatisticsCacheService {
               )
               .toList() ??
           [],
-      sizeDistribution: (json['sizeDistribution'] as List?)
+      sizeDistribution:
+          (json['sizeDistribution'] as List?)
               ?.map(
                 (s) => SizeDistributionStatistics(
                   label: s['label'] as String,
@@ -389,7 +402,8 @@ class StatisticsCacheService {
               )
               .toList() ??
           [],
-      tagDistribution: (json['tagDistribution'] as List?)
+      tagDistribution:
+          (json['tagDistribution'] as List?)
               ?.map(
                 (t) => TagStatistics(
                   tagName: t['tagName'] as String,
@@ -399,7 +413,8 @@ class StatisticsCacheService {
               )
               .toList() ??
           [],
-      parameterDistribution: (json['parameterDistribution'] as List?)
+      parameterDistribution:
+          (json['parameterDistribution'] as List?)
               ?.map(
                 (p) => ParameterStatistics(
                   parameterName: p['parameterName'] as String,
@@ -410,7 +425,8 @@ class StatisticsCacheService {
               )
               .toList() ??
           [],
-      dailyTrends: (json['dailyTrends'] as List?)
+      dailyTrends:
+          (json['dailyTrends'] as List?)
               ?.map(
                 (d) => DailyTrendStatistics(
                   date: DateTime.parse(d['date'] as String),
@@ -423,7 +439,14 @@ class StatisticsCacheService {
               )
               .toList() ??
           [],
-      weeklyTrends: (json['weeklyTrends'] as List?)
+      hourlyDistribution: _deserializeIntDistribution(
+        json['hourlyDistribution'],
+      ),
+      weekdayDistribution: _deserializeIntDistribution(
+        json['weekdayDistribution'],
+      ),
+      weeklyTrends:
+          (json['weeklyTrends'] as List?)
               ?.map(
                 (w) => WeeklyTrendStatistics(
                   weekStart: DateTime.parse(w['weekStart'] as String),
@@ -437,7 +460,8 @@ class StatisticsCacheService {
               )
               .toList() ??
           [],
-      monthlyTrends: (json['monthlyTrends'] as List?)
+      monthlyTrends:
+          (json['monthlyTrends'] as List?)
               ?.map(
                 (m) => MonthlyTrendStatistics(
                   year: m['year'] as int,
@@ -453,12 +477,26 @@ class StatisticsCacheService {
           [],
       favoritesStatistics:
           (json['favoritesStatistics'] as Map<String, dynamic>?) ?? {},
-      recentActivity: (json['recentActivity'] as List?)
+      recentActivity:
+          (json['recentActivity'] as List?)
               ?.map((a) => Map<String, dynamic>.from(a as Map))
               .toList() ??
           [],
       calculatedAt: DateTime.parse(json['calculatedAt'] as String),
     );
+  }
+
+  Map<int, int> _deserializeIntDistribution(Object? value) {
+    if (value is! Map) return {};
+
+    final result = <int, int>{};
+    for (final entry in value.entries) {
+      final key = int.tryParse(entry.key.toString());
+      final count = entry.value;
+      if (key == null || count is! num) continue;
+      result[key] = count.toInt();
+    }
+    return result;
   }
 }
 
