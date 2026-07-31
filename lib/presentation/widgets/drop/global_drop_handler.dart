@@ -27,6 +27,7 @@ import '../../providers/reverse_prompt_provider.dart';
 import '../../providers/vibe_library_provider.dart';
 import '../../router/app_router.dart';
 import '../../utils/dropped_file_reader.dart';
+import '../../utils/internal_drag_protocol.dart' as internal_drag;
 import '../../utils/metadata_import_coordinator.dart';
 import '../common/app_toast.dart';
 import '../metadata/metadata_import_dialog.dart';
@@ -72,10 +73,7 @@ Future<NaiImageMetadata?> detectImportableDroppedImageMetadata(
 }
 
 bool isGalleryInternalDragLocalData(Object? localData) {
-  if (localData is! Map) {
-    return false;
-  }
-  return localData['source'] == 'gallery_internal';
+  return internal_drag.isGalleryInternalDragLocalData(localData);
 }
 
 class _PasteImageIntent extends Intent {
@@ -339,6 +337,19 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     try {
       var handledAny = false;
       for (final item in event.session.items) {
+        final internalPayload = internal_drag.resolveInternalHistoryDropPayload(
+          item.localData,
+          ref.read(imageGenerationNotifierProvider),
+        );
+        if (internalPayload != null) {
+          handledAny = true;
+          await _processDroppedFile(
+            internalPayload.fileName,
+            internalPayload.bytes,
+          );
+          continue;
+        }
+
         final reader = item.dataReader;
         if (reader == null) continue;
 

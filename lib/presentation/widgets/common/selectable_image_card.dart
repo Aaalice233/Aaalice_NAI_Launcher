@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,8 +41,13 @@ class SelectableImageCard extends ConsumerStatefulWidget {
   final bool isSelected;
   final bool showIndex;
   final VoidCallback? onTap;
+  final VoidCallback? onDoubleTap;
+  final VoidCallback? onLongPress;
   final ValueChanged<bool>? onSelectionChanged;
   final VoidCallback? onFullscreen;
+  final bool isPreviewActive;
+  final Object? imageIdentity;
+  final bool allowRepeatedModifierTaps;
 
   /// 是否启用右键菜单
   final bool enableContextMenu;
@@ -166,8 +172,13 @@ class SelectableImageCard extends ConsumerStatefulWidget {
     this.isSelected = false,
     this.showIndex = true,
     this.onTap,
+    this.onDoubleTap,
+    this.onLongPress,
     this.onSelectionChanged,
     this.onFullscreen,
+    this.isPreviewActive = false,
+    this.imageIdentity,
+    this.allowRepeatedModifierTaps = false,
     this.enableContextMenu = true,
     this.enableHoverScale = true,
     this.enableGlossEffect = true,
@@ -242,6 +253,11 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
 
   // 防止重复点击打开多个详情页
   bool _isTapping = false;
+  DateTime? _lastTapTime;
+  Offset? _lastTapPosition;
+  PointerDeviceKind? _lastTapKind;
+  Timer? _legacyTapResetTimer;
+  Timer? _doubleTapResetTimer;
   ShareImageTransferCache? _shareTransferCache;
 
   @override
@@ -331,6 +347,11 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
         (!oldWidget.dragPreparationReady && widget.dragPreparationReady)) {
       _showPreparedIndexBadge = false;
     }
+
+    if (oldWidget.imageIdentity != widget.imageIdentity ||
+        (oldWidget.onDoubleTap != null && widget.onDoubleTap == null)) {
+      _clearPendingDoubleTap();
+    }
   }
 
   @override
@@ -338,6 +359,8 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     _glossController.dispose();
     _glowController?.dispose();
     _completionPlaceholderFallbackTimer?.cancel();
+    _legacyTapResetTimer?.cancel();
+    _doubleTapResetTimer?.cancel();
     final cache = _shareTransferCache;
     if (cache != null) {
       unawaited(cache.dispose());
@@ -799,23 +822,14 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       onExit: (_) => _onHoverExit(),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: () {
-          // 防止重复点击
-          if (_isTapping) return;
-          _isTapping = true;
-
-          final callback = widget.onTap ?? widget.onFullscreen;
-          if (callback != null) {
-            callback();
-          }
-
-          // 延迟重置标志，防止快速连续点击
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted) {
-              setState(() => _isTapping = false);
-            }
-          });
-        },
+        onTap: widget.onDoubleTap == null ? _handleLegacyTap : null,
+        onTapUp: widget.onDoubleTap != null ? _handleLinkedTapUp : null,
+        onLongPress: widget.onLongPress == null
+            ? null
+            : () {
+                _clearPendingDoubleTap();
+                widget.onLongPress?.call();
+              },
         onSecondaryTapDown: widget.enableContextMenu
             ? (details) {
                 unawaited(_showContextMenu(context, details.globalPosition));
@@ -834,6 +848,8 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
             borderRadius: BorderRadius.circular(12),
             border: widget.isSelected
                 ? Border.all(color: theme.colorScheme.primary, width: 3)
+                : widget.isPreviewActive
+                ? Border.all(color: theme.colorScheme.tertiary, width: 3)
                 : (_isHovering
                       ? Border.all(
                           color: theme.colorScheme.primary.withValues(
@@ -1098,6 +1114,68 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
         ),
       ),
     );
+  }
+
+  bool get _isMultiSelectModifierPressed {
+    final keyboard = HardwareKeyboard.instance;
+    return keyboard.isControlPressed || keyboard.isMetaPressed;
+  }
+
+  void _handleLegacyTap() {
+    final bypassDebounce =
+        widget.allowRepeatedModifierTaps && _isMultiSelectModifierPressed;
+    if (_isTapping && !bypassDebounce) return;
+    if (!bypassDebounce) _isTapping = true;
+
+    (widget.onTap ?? widget.onFullscreen)?.call();
+
+    if (!bypassDebounce) {
+      _legacyTapResetTimer?.cancel();
+      _legacyTapResetTimer = Timer(const Duration(milliseconds: 500), () {
+        if (mounted) _isTapping = false;
+      });
+    }
+  }
+
+  void _handleLinkedTapUp(TapUpDetails details) {
+    if (_isMultiSelectModifierPressed) {
+      _clearPendingDoubleTap();
+      widget.onTap?.call();
+      return;
+    }
+
+    final now = DateTime.now();
+    final previousTime = _lastTapTime;
+    final previousPosition = _lastTapPosition;
+    final previousKind = _lastTapKind;
+    final isDoubleTap =
+        previousTime != null &&
+        now.difference(previousTime) <= kDoubleTapTimeout &&
+        previousPosition != null &&
+        (details.globalPosition - previousPosition).distance <=
+            kDoubleTapSlop &&
+        previousKind == details.kind;
+
+    if (isDoubleTap) {
+      _clearPendingDoubleTap();
+      widget.onDoubleTap?.call();
+      return;
+    }
+
+    widget.onTap?.call();
+    _lastTapTime = now;
+    _lastTapPosition = details.globalPosition;
+    _lastTapKind = details.kind;
+    _doubleTapResetTimer?.cancel();
+    _doubleTapResetTimer = Timer(kDoubleTapTimeout, _clearPendingDoubleTap);
+  }
+
+  void _clearPendingDoubleTap() {
+    _doubleTapResetTimer?.cancel();
+    _doubleTapResetTimer = null;
+    _lastTapTime = null;
+    _lastTapPosition = null;
+    _lastTapKind = null;
   }
 
   Widget _buildStatusBadge(BuildContext context) {
@@ -1459,6 +1537,20 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       }
     }
 
+    if (widget.onFullscreen != null) {
+      items.add(
+        ProMenuItem(
+          id: 'view_detail',
+          label: context.l10n.image_viewDetail,
+          icon: Icons.open_in_full,
+          onTap: widget.onFullscreen,
+        ),
+      );
+    }
+
+    if (widget.enableSaveAction || widget.enableCopyAction) {
+      addDividerIfNeeded();
+    }
     if (widget.enableSaveAction) {
       items.add(
         ProMenuItem(

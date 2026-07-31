@@ -661,6 +661,20 @@ class LocalStorageService {
     await setSetting(StorageKeys.generationLayoutMode, mode);
   }
 
+  /// 获取历史记录点击行为 (默认经典行为)
+  String getHistoryClickBehavior() {
+    return getSetting<String>(
+          StorageKeys.historyClickBehavior,
+          defaultValue: 'open_detail',
+        ) ??
+        'open_detail';
+  }
+
+  /// 保存历史记录点击行为
+  Future<void> setHistoryClickBehavior(String behavior) async {
+    await setSetting(StorageKeys.historyClickBehavior, behavior);
+  }
+
   /// 获取官网式布局左栏宽度 (默认400)
   double getWebLeftPanelWidth() {
     return getSetting<double>(

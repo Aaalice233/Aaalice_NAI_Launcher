@@ -1,27 +1,23 @@
 import 'dart:async';
 import 'dart:collection';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-typedef ShareImagePrepareFunction = Future<SanitizedShareImage> Function(
-  Uint8List bytes, {
-  required String fileName,
-  required bool stripMetadata,
-});
-typedef ShareImageWriteTempFileFunction = Future<File> Function(
-  SanitizedShareImage image,
-);
-typedef ShareImageWritePreparedFileFunction = Future<File> Function(
-  String cacheKey,
-  SanitizedShareImage image,
-);
+typedef ShareImagePrepareFunction =
+    Future<SanitizedShareImage> Function(
+      Uint8List bytes, {
+      required String fileName,
+      required bool stripMetadata,
+    });
+typedef ShareImageWriteTempFileFunction =
+    Future<File> Function(SanitizedShareImage image);
+typedef ShareImageWritePreparedFileFunction =
+    Future<File> Function(String cacheKey, SanitizedShareImage image);
 
 class SanitizedShareImage {
   const SanitizedShareImage({
@@ -35,6 +31,15 @@ class SanitizedShareImage {
   final String mimeType;
 }
 
+class ImageSanitizeException implements Exception {
+  const ImageSanitizeException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'ImageSanitizeException: $message';
+}
+
 class ShareImageTransferCache {
   ShareImageTransferCache({
     required this.imageBytes,
@@ -42,10 +47,9 @@ class ShareImageTransferCache {
     this.sourceFilePath,
     ShareImagePrepareFunction? prepareImage,
     ShareImageWriteTempFileFunction? writeTempFile,
-  })  : _prepareImage = prepareImage ??
-            ImageShareSanitizer.prepareForCopyOrDragInBackground,
-        _writeTempFile =
-            writeTempFile ?? ImageShareSanitizer.writeTempShareFile;
+  }) : _prepareImage =
+           prepareImage ?? ImageShareSanitizer.prepareForCopyOrDragInBackground,
+       _writeTempFile = writeTempFile ?? ImageShareSanitizer.writeTempShareFile;
 
   final Uint8List imageBytes;
   final String fileName;
@@ -57,9 +61,7 @@ class ShareImageTransferCache {
   final Map<bool, Future<File>> _preparedFiles = {};
   final Map<bool, File> _temporaryFiles = {};
 
-  Future<SanitizedShareImage> prepareImage({
-    required bool stripMetadata,
-  }) {
+  Future<SanitizedShareImage> prepareImage({required bool stripMetadata}) {
     return _preparedImages.putIfAbsent(
       stripMetadata,
       () => _prepareImage(
@@ -70,9 +72,7 @@ class ShareImageTransferCache {
     );
   }
 
-  Future<File> prepareFile({
-    required bool stripMetadata,
-  }) {
+  Future<File> prepareFile({required bool stripMetadata}) {
     final sourceFile = _resolveSourceFile(stripMetadata: stripMetadata);
     if (sourceFile != null) {
       return Future.value(sourceFile);
@@ -87,7 +87,7 @@ class ShareImageTransferCache {
   }
 
   void warmUp({required bool stripMetadata}) {
-    unawaited(prepareFile(stripMetadata: stripMetadata));
+    prepareFile(stripMetadata: stripMetadata).ignore();
   }
 
   Future<void> dispose() async {
@@ -117,12 +117,7 @@ class ShareImageTransferCache {
   }
 }
 
-enum ShareImagePreparationStatus {
-  notQueued,
-  preparing,
-  ready,
-  failed,
-}
+enum ShareImagePreparationStatus { notQueued, preparing, ready, failed }
 
 class ShareImagePreparationSnapshot {
   const ShareImagePreparationSnapshot({
@@ -147,9 +142,9 @@ class ShareImagePreparationService extends ChangeNotifier {
     ShareImagePrepareFunction? prepareImage,
     ShareImageWritePreparedFileFunction? writePreparedFile,
     this.maxConcurrentPreparations = 1,
-  })  : _prepareImage = prepareImage ?? _defaultPrepareImage,
-        _writePreparedFile =
-            writePreparedFile ?? ImageShareSanitizer.writeCachedShareFile;
+  }) : _prepareImage = prepareImage ?? _defaultPrepareImage,
+       _writePreparedFile =
+           writePreparedFile ?? ImageShareSanitizer.writeCachedShareFile;
 
   static final ShareImagePreparationService instance =
       ShareImagePreparationService();
@@ -186,10 +181,7 @@ class ShareImagePreparationService extends ChangeNotifier {
     );
   }
 
-  File? readyFileFor(
-    String imageId, {
-    required bool stripMetadata,
-  }) {
+  File? readyFileFor(String imageId, {required bool stripMetadata}) {
     final snapshot = snapshotFor(imageId, stripMetadata: stripMetadata);
     if (!snapshot.isReady) {
       return null;
@@ -237,10 +229,7 @@ class ShareImagePreparationService extends ChangeNotifier {
     _pumpQueue();
   }
 
-  Future<File?> waitUntilReady(
-    String imageId, {
-    required bool stripMetadata,
-  }) {
+  Future<File?> waitUntilReady(String imageId, {required bool stripMetadata}) {
     final readyFile = readyFileFor(imageId, stripMetadata: stripMetadata);
     if (readyFile != null) {
       return Future<File?>.value(readyFile);
@@ -260,8 +249,9 @@ class ShareImagePreparationService extends ChangeNotifier {
   }
 
   Future<void> retainHistoryImageIds(Set<String> retainedImageIds) async {
-    final removedIds =
-        _entries.keys.where((id) => !retainedImageIds.contains(id)).toList();
+    final removedIds = _entries.keys
+        .where((id) => !retainedImageIds.contains(id))
+        .toList();
     if (removedIds.isEmpty) {
       return;
     }
@@ -282,8 +272,8 @@ class ShareImagePreparationService extends ChangeNotifier {
   }
 
   void _pumpQueue() {
-    while (
-        _activePreparations < maxConcurrentPreparations && _queue.isNotEmpty) {
+    while (_activePreparations < maxConcurrentPreparations &&
+        _queue.isNotEmpty) {
       final request = _queue.removeFirst();
       final variant =
           _entries[request.imageId]?.variants[request.stripMetadata];
@@ -316,11 +306,7 @@ class ShareImagePreparationService extends ChangeNotifier {
         ..file = prepared.file
         ..ownsFile = prepared.ownsFile
         ..error = null;
-      _completeWaiters(
-        request.imageId,
-        request.stripMetadata,
-        prepared.file,
-      );
+      _completeWaiters(request.imageId, request.stripMetadata, prepared.file);
     } catch (error) {
       final variant =
           _entries[request.imageId]?.variants[request.stripMetadata];
@@ -377,11 +363,7 @@ class ShareImagePreparationService extends ChangeNotifier {
     }
   }
 
-  void _completeWaiters(
-    String imageId,
-    bool stripMetadata,
-    File? file,
-  ) {
+  void _completeWaiters(String imageId, bool stripMetadata, File? file) {
     final waiters = _readyWaiters.remove(_variantKey(imageId, stripMetadata));
     if (waiters == null) {
       return;
@@ -468,10 +450,7 @@ class _SharePreparationRequest {
 }
 
 class _PreparedShareFile {
-  const _PreparedShareFile({
-    required this.file,
-    required this.ownsFile,
-  });
+  const _PreparedShareFile({required this.file, required this.ownsFile});
 
   final File file;
   final bool ownsFile;
@@ -489,14 +468,6 @@ class ImageShareSanitizer {
     '.webp',
   };
 
-  static const Set<String> _stripChunkTypes = {
-    'tEXt',
-    'zTXt',
-    'iTXt',
-    'eXIf',
-    'tIME',
-  };
-
   static Future<SanitizedShareImage> sanitizeForShare(
     Uint8List bytes, {
     required String fileName,
@@ -512,17 +483,18 @@ class ImageShareSanitizer {
       );
     }
 
-    final decoded = img.decodeImage(bytes);
+    final img.Image? decoded;
+    try {
+      decoded = img.decodeImage(bytes);
+    } on Object {
+      throw const ImageSanitizeException('Image bytes could not be decoded');
+    }
     if (decoded == null) {
-      return SanitizedShareImage(
-        bytes: bytes,
-        fileName: p.setExtension(p.basename(fileName), '.png'),
-        mimeType: 'image/png',
-      );
+      throw const ImageSanitizeException('Image bytes could not be decoded');
     }
 
     return SanitizedShareImage(
-      bytes: Uint8List.fromList(img.encodePng(decoded)),
+      bytes: Uint8List.fromList(img.encodePng(_clearStealthAlphaLsb(decoded))),
       fileName: p.setExtension(p.basename(fileName), '.png'),
       mimeType: 'image/png',
     );
@@ -535,11 +507,12 @@ class ImageShareSanitizer {
   }) async {
     final normalizedFileName = _normalizeShareFileName(fileName);
     final extension = p.extension(normalizedFileName).toLowerCase();
-    final shouldNormalize =
-        stripMetadata || !_clipboardFriendlyExtensions.contains(extension);
-
-    if (shouldNormalize) {
+    if (stripMetadata) {
       return sanitizeForShare(bytes, fileName: normalizedFileName);
+    }
+
+    if (!_clipboardFriendlyExtensions.contains(extension)) {
+      return _normalizeWithoutProtection(bytes, fileName: normalizedFileName);
     }
 
     return SanitizedShareImage(
@@ -592,8 +565,9 @@ class ImageShareSanitizer {
     SanitizedShareImage image,
   ) async {
     final tempDir = await getTemporaryDirectory();
-    final shareDir =
-        Directory(p.join(tempDir.path, 'nai_launcher_share_cache'));
+    final shareDir = Directory(
+      p.join(tempDir.path, 'nai_launcher_share_cache'),
+    );
     if (!await shareDir.exists()) {
       await shareDir.create(recursive: true);
     }
@@ -614,40 +588,43 @@ class ImageShareSanitizer {
 
   static Uint8List _sanitizePng(Uint8List bytes) {
     if (!_looksLikePng(bytes)) {
-      return bytes;
+      throw const ImageSanitizeException('PNG signature is missing');
     }
 
-    final decoded = img.decodePng(bytes);
-    if (decoded != null) {
-      return Uint8List.fromList(
-        img.encodePng(_clearStealthAlphaLsb(decoded)),
+    final img.Image? decoded;
+    try {
+      decoded = img.decodePng(bytes);
+    } on Object {
+      throw const ImageSanitizeException('PNG bytes could not be decoded');
+    }
+    if (decoded == null) {
+      throw const ImageSanitizeException('PNG bytes could not be decoded');
+    }
+    return Uint8List.fromList(img.encodePng(_clearStealthAlphaLsb(decoded)));
+  }
+
+  static Future<SanitizedShareImage> _normalizeWithoutProtection(
+    Uint8List bytes, {
+    required String fileName,
+  }) async {
+    img.Image? decoded;
+    try {
+      decoded = img.decodeImage(bytes);
+    } on Object {
+      decoded = null;
+    }
+    if (decoded == null) {
+      return SanitizedShareImage(
+        bytes: bytes,
+        fileName: p.setExtension(p.basename(fileName), '.png'),
+        mimeType: 'image/png',
       );
     }
-
-    final output = BytesBuilder();
-    output.add(bytes.sublist(0, 8));
-
-    var offset = 8;
-    while (offset + 12 <= bytes.length) {
-      final length =
-          ByteData.sublistView(bytes, offset, offset + 4).getUint32(0);
-      final type = latin1.decode(bytes.sublist(offset + 4, offset + 8));
-      final dataStart = offset + 8;
-      final dataEnd = dataStart + length;
-      final chunkEnd = dataEnd + 4;
-      if (chunkEnd > bytes.length) {
-        break;
-      }
-
-      final shouldKeep = !_stripChunkTypes.contains(type);
-      if (shouldKeep) {
-        output.add(bytes.sublist(offset, chunkEnd));
-      }
-
-      offset = chunkEnd;
-    }
-
-    return output.toBytes();
+    return SanitizedShareImage(
+      bytes: Uint8List.fromList(img.encodePng(decoded)),
+      fileName: p.setExtension(p.basename(fileName), '.png'),
+      mimeType: 'image/png',
+    );
   }
 
   static String _normalizeShareFileName(String fileName) {
@@ -691,6 +668,7 @@ class ImageShareSanitizer {
 
   static void _clearFrameStealthAlphaLsb(img.Image frame) {
     frame.textData = null;
+    frame.iccProfile = null;
     for (var x = 0; x < frame.width; x++) {
       for (var y = 0; y < frame.height; y++) {
         final pixel = frame.getPixel(x, y);

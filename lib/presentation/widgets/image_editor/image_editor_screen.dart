@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/services/anlas_calculator.dart';
@@ -18,6 +19,8 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/services/efficient_vit_sam_service.dart';
 import '../../utils/dropped_file_reader.dart';
+import '../../utils/internal_drag_protocol.dart';
+import '../../providers/image_generation_provider.dart';
 import '../../widgets/common/app_toast.dart';
 import 'core/canvas_controller.dart';
 import 'core/editor_state.dart';
@@ -1546,7 +1549,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         }
 
         final isInternalDrag = event.session.items.any(
-          (item) => item.localData != null,
+          (item) => isGalleryInternalDragLocalData(item.localData),
         );
         if (isInternalDrag) {
           return DropOperation.none;
@@ -1571,7 +1574,24 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     setState(() => _isImportingDroppedImage = true);
     try {
       var handledAny = false;
+      final generationState = ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(imageGenerationNotifierProvider);
       for (final item in event.session.items) {
+        final internalPayload = resolveInternalHistoryDropPayload(
+          item.localData,
+          generationState,
+        );
+        if (internalPayload != null) {
+          handledAny = true;
+          await _importDroppedImageLayer(
+            internalPayload.fileName,
+            internalPayload.bytes,
+          );
+          continue;
+        }
+
         final reader = item.dataReader;
         if (reader == null) {
           continue;

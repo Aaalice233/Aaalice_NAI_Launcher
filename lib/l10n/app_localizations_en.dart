@@ -10547,6 +10547,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shortcut_action_generate_image => 'Generate Image';
 
   @override
+  String get shortcut_action_generation_prev_image =>
+      'Previous preview (linked history)';
+
+  @override
+  String get shortcut_action_generation_next_image =>
+      'Next preview (linked history)';
+
+  @override
   String get shortcut_action_cancel_generation => 'Cancel Generation';
 
   @override
@@ -11932,6 +11940,26 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settings_generationLayout_webStyleDescription =>
       'Prompt and settings docked on the far left, like the NovelAI website';
+
+  @override
+  String get settings_historyClickBehavior => 'History click behavior';
+
+  @override
+  String get settings_historyClickBehavior_classic => 'Classic';
+
+  @override
+  String get settings_historyClickBehavior_classicDescription =>
+      'Click a history image to open its details';
+
+  @override
+  String get settings_historyClickBehavior_linked => 'Linked preview';
+
+  @override
+  String get settings_historyClickBehavior_linkedDescription =>
+      'Click to switch the central preview, double-click or hold for details, and browse with Left/Right';
+
+  @override
+  String get image_viewDetail => 'View details';
 
   @override
   String get settings_defaultImagesPath =>

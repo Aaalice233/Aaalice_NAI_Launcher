@@ -10184,6 +10184,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get shortcut_action_generate_image => '生成图像';
 
   @override
+  String get shortcut_action_generation_prev_image => '预览上一张（历史联动）';
+
+  @override
+  String get shortcut_action_generation_next_image => '预览下一张（历史联动）';
+
+  @override
   String get shortcut_action_cancel_generation => '取消生成';
 
   @override
@@ -11524,6 +11530,25 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get settings_generationLayout_webStyleDescription =>
       '提示词与设置固定在最左栏，类似 NovelAI 官网';
+
+  @override
+  String get settings_historyClickBehavior => '历史记录点击行为';
+
+  @override
+  String get settings_historyClickBehavior_classic => '经典';
+
+  @override
+  String get settings_historyClickBehavior_classicDescription => '单击历史图片直接打开详情';
+
+  @override
+  String get settings_historyClickBehavior_linked => '官网式联动';
+
+  @override
+  String get settings_historyClickBehavior_linkedDescription =>
+      '单击切换中央预览，双击或长按打开详情，并支持左右方向键浏览';
+
+  @override
+  String get image_viewDetail => '查看详情';
 
   @override
   String get settings_defaultImagesPath =>

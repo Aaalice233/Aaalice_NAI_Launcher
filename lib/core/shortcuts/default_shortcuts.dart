@@ -26,6 +26,8 @@ class ShortcutIds {
   static const String openParamsPanel = 'open_params_panel';
   static const String openHistoryPanel = 'open_history_panel';
   static const String reuseParams = 'reuse_params';
+  static const String generationPrevImage = 'generation_prev_image';
+  static const String generationNextImage = 'generation_next_image';
 
   // 画廊快捷键（查看器）
   static const String previousImage = 'previous_image';
@@ -162,92 +164,94 @@ class DefaultShortcuts {
   /// 获取所有默认快捷键配置
   /// 格式: Map<快捷键ID, 默认快捷键字符串>
   static Map<String, String> get all => {
-        // 页面导航
-        ShortcutIds.navigateToGeneration: 'ctrl+1',
-        ShortcutIds.navigateToLocalGallery: 'ctrl+2',
-        ShortcutIds.navigateToOnlineGallery: 'ctrl+3',
-        ShortcutIds.navigateToRandomConfig: 'ctrl+4',
-        ShortcutIds.navigateToTagLibrary: 'ctrl+5',
-        ShortcutIds.navigateToStatistics: 'ctrl+6',
-        ShortcutIds.navigateToSettings: 'ctrl+comma',
-        ShortcutIds.navigateToVibeLibrary: 'ctrl+7',
+    // 页面导航
+    ShortcutIds.navigateToGeneration: 'ctrl+1',
+    ShortcutIds.navigateToLocalGallery: 'ctrl+2',
+    ShortcutIds.navigateToOnlineGallery: 'ctrl+3',
+    ShortcutIds.navigateToRandomConfig: 'ctrl+4',
+    ShortcutIds.navigateToTagLibrary: 'ctrl+5',
+    ShortcutIds.navigateToStatistics: 'ctrl+6',
+    ShortcutIds.navigateToSettings: 'ctrl+comma',
+    ShortcutIds.navigateToVibeLibrary: 'ctrl+7',
 
-        // 生成页面
-        ShortcutIds.generateImage: 'ctrl+enter',
-        ShortcutIds.cancelGeneration: 'escape',
-        ShortcutIds.addToQueue: 'ctrl+shift+enter',
-        ShortcutIds.randomPrompt: 'ctrl+r',
-        ShortcutIds.clearPrompt: 'ctrl+l',
-        ShortcutIds.togglePromptMode: 'ctrl+m',
-        ShortcutIds.openTagLibrary: 'ctrl+t',
-        ShortcutIds.upscaleImage: 'ctrl+u',
+    // 生成页面
+    ShortcutIds.generateImage: 'ctrl+enter',
+    ShortcutIds.cancelGeneration: 'escape',
+    ShortcutIds.addToQueue: 'ctrl+shift+enter',
+    ShortcutIds.randomPrompt: 'ctrl+r',
+    ShortcutIds.clearPrompt: 'ctrl+l',
+    ShortcutIds.togglePromptMode: 'ctrl+m',
+    ShortcutIds.openTagLibrary: 'ctrl+t',
+    ShortcutIds.upscaleImage: 'ctrl+u',
+    ShortcutIds.generationPrevImage: 'arrowleft',
+    ShortcutIds.generationNextImage: 'arrowright',
 
-        // 画廊查看器
-        ShortcutIds.previousImage: 'arrowleft',
-        ShortcutIds.nextImage: 'arrowright',
-        ShortcutIds.zoomIn: 'equal',
-        ShortcutIds.zoomOut: 'minus',
-        ShortcutIds.resetZoom: '0',
-        ShortcutIds.toggleFullscreen: 'f11',
-        ShortcutIds.closeViewer: 'escape',
-        ShortcutIds.toggleFavorite: 'f',
-        ShortcutIds.copyPrompt: 'ctrl+c',
-        ShortcutIds.reuseGalleryParams: 'ctrl+r',
-        ShortcutIds.deleteImage: 'delete',
+    // 画廊查看器
+    ShortcutIds.previousImage: 'arrowleft',
+    ShortcutIds.nextImage: 'arrowright',
+    ShortcutIds.zoomIn: 'equal',
+    ShortcutIds.zoomOut: 'minus',
+    ShortcutIds.resetZoom: '0',
+    ShortcutIds.toggleFullscreen: 'f11',
+    ShortcutIds.closeViewer: 'escape',
+    ShortcutIds.toggleFavorite: 'f',
+    ShortcutIds.copyPrompt: 'ctrl+c',
+    ShortcutIds.reuseGalleryParams: 'ctrl+r',
+    ShortcutIds.deleteImage: 'delete',
 
-        // 画廊列表
-        ShortcutIds.previousPage: 'pageup',
-        ShortcutIds.nextPage: 'pagedown',
-        ShortcutIds.refreshGallery: 'f5',
-        ShortcutIds.focusSearch: 'ctrl+f',
-        ShortcutIds.enterSelectionMode: 'ctrl+a',
-        ShortcutIds.openFilterPanel: 'ctrl+shift+f',
-        ShortcutIds.clearFilter: 'ctrl+shift+c',
-        ShortcutIds.toggleCategoryPanel: 'ctrl+b',
-        ShortcutIds.jumpToDate: 'ctrl+g',
-        ShortcutIds.openFolder: 'ctrl+o',
+    // 画廊列表
+    ShortcutIds.previousPage: 'pageup',
+    ShortcutIds.nextPage: 'pagedown',
+    ShortcutIds.refreshGallery: 'f5',
+    ShortcutIds.focusSearch: 'ctrl+f',
+    ShortcutIds.enterSelectionMode: 'ctrl+a',
+    ShortcutIds.openFilterPanel: 'ctrl+shift+f',
+    ShortcutIds.clearFilter: 'ctrl+shift+c',
+    ShortcutIds.toggleCategoryPanel: 'ctrl+b',
+    ShortcutIds.jumpToDate: 'ctrl+g',
+    ShortcutIds.openFolder: 'ctrl+o',
 
-        // 词库
-        ShortcutIds.selectAllTags: 'ctrl+a',
-        ShortcutIds.deselectAllTags: 'ctrl+shift+a',
-        ShortcutIds.newCategory: 'ctrl+shift+n',
-        ShortcutIds.newTag: 'ctrl+n',
-        ShortcutIds.searchTags: 'ctrl+f',
-        ShortcutIds.batchDeleteTags: 'delete',
-        ShortcutIds.batchCopyTags: 'ctrl+c',
-        ShortcutIds.sendToHome: 'enter',
-        ShortcutIds.exitSelectionMode: 'escape',
+    // 词库
+    ShortcutIds.selectAllTags: 'ctrl+a',
+    ShortcutIds.deselectAllTags: 'ctrl+shift+a',
+    ShortcutIds.newCategory: 'ctrl+shift+n',
+    ShortcutIds.newTag: 'ctrl+n',
+    ShortcutIds.searchTags: 'ctrl+f',
+    ShortcutIds.batchDeleteTags: 'delete',
+    ShortcutIds.batchCopyTags: 'ctrl+c',
+    ShortcutIds.sendToHome: 'enter',
+    ShortcutIds.exitSelectionMode: 'escape',
 
-        // 随机配置
-        ShortcutIds.syncDanbooru: 'ctrl+s',
-        ShortcutIds.generatePreview: 'ctrl+g',
-        ShortcutIds.searchPresets: 'ctrl+f',
-        ShortcutIds.newPreset: 'ctrl+n',
-        ShortcutIds.duplicatePreset: 'ctrl+d',
-        ShortcutIds.deletePreset: 'delete',
-        ShortcutIds.closeConfig: 'escape',
+    // 随机配置
+    ShortcutIds.syncDanbooru: 'ctrl+s',
+    ShortcutIds.generatePreview: 'ctrl+g',
+    ShortcutIds.searchPresets: 'ctrl+f',
+    ShortcutIds.newPreset: 'ctrl+n',
+    ShortcutIds.duplicatePreset: 'ctrl+d',
+    ShortcutIds.deletePreset: 'delete',
+    ShortcutIds.closeConfig: 'escape',
 
-        // 全局
-        ShortcutIds.minimizeToTray: 'ctrl+m',
-        ShortcutIds.quitApp: 'ctrl+q',
-        ShortcutIds.showShortcutHelp: 'f1',
-        ShortcutIds.toggleQueue: 'ctrl+j',
-        ShortcutIds.toggleQueuePause: 'ctrl+space',
-        ShortcutIds.toggleTheme: 'ctrl+shift+t',
+    // 全局
+    ShortcutIds.minimizeToTray: 'ctrl+m',
+    ShortcutIds.quitApp: 'ctrl+q',
+    ShortcutIds.showShortcutHelp: 'f1',
+    ShortcutIds.toggleQueue: 'ctrl+j',
+    ShortcutIds.toggleQueuePause: 'ctrl+space',
+    ShortcutIds.toggleTheme: 'ctrl+shift+t',
 
-        // Vibe库
-        ShortcutIds.vibeImport: 'ctrl+i',
-        ShortcutIds.vibeExport: 'ctrl+e',
+    // Vibe库
+    ShortcutIds.vibeImport: 'ctrl+i',
+    ShortcutIds.vibeExport: 'ctrl+e',
 
-        // Vibe详情页
-        ShortcutIds.vibeDetailSendToGeneration: 'enter',
-        ShortcutIds.vibeDetailExport: 'ctrl+e',
-        ShortcutIds.vibeDetailRename: 'f2',
-        ShortcutIds.vibeDetailDelete: 'delete',
-        ShortcutIds.vibeDetailToggleFavorite: 'f',
-        ShortcutIds.vibeDetailPrevSubVibe: 'arrowleft',
-        ShortcutIds.vibeDetailNextSubVibe: 'arrowright',
-      };
+    // Vibe详情页
+    ShortcutIds.vibeDetailSendToGeneration: 'enter',
+    ShortcutIds.vibeDetailExport: 'ctrl+e',
+    ShortcutIds.vibeDetailRename: 'f2',
+    ShortcutIds.vibeDetailDelete: 'delete',
+    ShortcutIds.vibeDetailToggleFavorite: 'f',
+    ShortcutIds.vibeDetailPrevSubVibe: 'arrowleft',
+    ShortcutIds.vibeDetailNextSubVibe: 'arrowright',
+  };
 
   /// 获取快捷键的上下文
   static ShortcutContext getContext(String shortcutId) {
@@ -279,6 +283,8 @@ class DefaultShortcuts {
       case ShortcutIds.openTagLibrary:
       case ShortcutIds.upscaleImage:
       case ShortcutIds.fullscreenPreview:
+      case ShortcutIds.generationPrevImage:
+      case ShortcutIds.generationNextImage:
         return ShortcutContext.generation;
 
       // 画廊查看器

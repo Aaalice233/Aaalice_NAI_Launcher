@@ -94,8 +94,16 @@ class ShortcutConfigNotifier extends _$ShortcutConfigNotifier {
   }
 
   /// 检查快捷键是否有冲突
-  List<String> findConflicts(String shortcut, {String? excludeId}) {
-    return currentState.findConflicts(shortcut, excludeId: excludeId);
+  List<String> findConflicts(
+    String shortcut, {
+    required ShortcutContext context,
+    String? excludeId,
+  }) {
+    return currentState.findConflicts(
+      shortcut,
+      context: context,
+      excludeId: excludeId,
+    );
   }
 
   /// 获取指定ID的有效快捷键
@@ -146,11 +154,13 @@ class ShortcutEditingNotifier extends _$ShortcutEditingNotifier {
 List<String> shortcutConflicts(
   Ref ref,
   String shortcut,
+  ShortcutContext context,
   String? excludeId,
 ) {
   final configAsync = ref.watch(shortcutConfigNotifierProvider);
   return configAsync.when(
-    data: (config) => config.findConflicts(shortcut, excludeId: excludeId),
+    data: (config) =>
+        config.findConflicts(shortcut, context: context, excludeId: excludeId),
     loading: () => [],
     error: (_, __) => [],
   );
@@ -172,9 +182,7 @@ String? effectiveShortcut(Ref ref, String id) {
 
 /// 按上下文分组的快捷键
 @riverpod
-Map<ShortcutContext, List<ShortcutBinding>> shortcutsByContext(
-  Ref ref,
-) {
+Map<ShortcutContext, List<ShortcutBinding>> shortcutsByContext(Ref ref) {
   final configAsync = ref.watch(shortcutConfigNotifierProvider);
   return configAsync.when(
     data: (config) => config.getBindingsByContext(),
@@ -185,10 +193,7 @@ Map<ShortcutContext, List<ShortcutBinding>> shortcutsByContext(
 
 /// 搜索快捷键
 @riverpod
-List<ShortcutBinding> searchShortcuts(
-  Ref ref,
-  String query,
-) {
+List<ShortcutBinding> searchShortcuts(Ref ref, String query) {
   final configAsync = ref.watch(shortcutConfigNotifierProvider);
   return configAsync.when(
     data: (config) {

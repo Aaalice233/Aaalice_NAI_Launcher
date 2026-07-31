@@ -18800,6 +18800,18 @@ abstract class AppLocalizations {
   /// **'Generate Image'**
   String get shortcut_action_generate_image;
 
+  /// No description provided for @shortcut_action_generation_prev_image.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous preview (linked history)'**
+  String get shortcut_action_generation_prev_image;
+
+  /// No description provided for @shortcut_action_generation_next_image.
+  ///
+  /// In en, this message translates to:
+  /// **'Next preview (linked history)'**
+  String get shortcut_action_generation_next_image;
+
   /// No description provided for @shortcut_action_cancel_generation.
   ///
   /// In en, this message translates to:
@@ -21223,6 +21235,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Prompt and settings docked on the far left, like the NovelAI website'**
   String get settings_generationLayout_webStyleDescription;
+
+  /// No description provided for @settings_historyClickBehavior.
+  ///
+  /// In en, this message translates to:
+  /// **'History click behavior'**
+  String get settings_historyClickBehavior;
+
+  /// No description provided for @settings_historyClickBehavior_classic.
+  ///
+  /// In en, this message translates to:
+  /// **'Classic'**
+  String get settings_historyClickBehavior_classic;
+
+  /// No description provided for @settings_historyClickBehavior_classicDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Click a history image to open its details'**
+  String get settings_historyClickBehavior_classicDescription;
+
+  /// No description provided for @settings_historyClickBehavior_linked.
+  ///
+  /// In en, this message translates to:
+  /// **'Linked preview'**
+  String get settings_historyClickBehavior_linked;
+
+  /// No description provided for @settings_historyClickBehavior_linkedDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Click to switch the central preview, double-click or hold for details, and browse with Left/Right'**
+  String get settings_historyClickBehavior_linkedDescription;
+
+  /// No description provided for @image_viewDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'View details'**
+  String get image_viewDetail;
 
   /// No description provided for @settings_defaultImagesPath.
   ///

@@ -10304,6 +10304,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get shortcut_action_generate_image => '画像の生成';
 
   @override
+  String get shortcut_action_generation_prev_image => '前のプレビュー（履歴連動）';
+
+  @override
+  String get shortcut_action_generation_next_image => '次のプレビュー（履歴連動）';
+
+  @override
   String get shortcut_action_cancel_generation => '生成のキャンセル';
 
   @override
@@ -11668,6 +11674,26 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get settings_generationLayout_webStyleDescription =>
       'プロンプトと設定を左端に固定、NovelAI 公式サイト風';
+
+  @override
+  String get settings_historyClickBehavior => '履歴クリックの動作';
+
+  @override
+  String get settings_historyClickBehavior_classic => 'クラシック';
+
+  @override
+  String get settings_historyClickBehavior_classicDescription =>
+      '履歴画像をクリックして詳細を開きます';
+
+  @override
+  String get settings_historyClickBehavior_linked => 'プレビュー連動';
+
+  @override
+  String get settings_historyClickBehavior_linkedDescription =>
+      'クリックで中央プレビューを切り替え、ダブルクリックまたは長押しで詳細を開き、左右キーで移動します';
+
+  @override
+  String get image_viewDetail => '詳細を表示';
 
   @override
   String get settings_defaultImagesPath =>

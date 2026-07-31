@@ -5,6 +5,10 @@ import 'package:flutter/material.dart';
 
 import '../../data/models/gallery/local_image_record.dart';
 
+const protectedDragFeedbackMarkerKey = ValueKey<String>(
+  'protected-drag-feedback-marker',
+);
+
 /// 拖拽数据格式常量
 class DragDropFormats {
   /// PNG 图像格式
@@ -28,20 +32,14 @@ class ImageDragData {
   final Uint8List? previewBytes;
 
   /// 创建图像拖拽数据
-  const ImageDragData({
-    required this.record,
-    this.previewBytes,
-  });
+  const ImageDragData({required this.record, this.previewBytes});
 
   /// 从 LocalImageRecord 创建拖拽数据
   factory ImageDragData.fromRecord(
     LocalImageRecord record, {
     Uint8List? previewBytes,
   }) {
-    return ImageDragData(
-      record: record,
-      previewBytes: previewBytes,
-    );
+    return ImageDragData(record: record, previewBytes: previewBytes);
   }
 
   /// 获取文件路径
@@ -232,6 +230,107 @@ Widget buildImageDragFeedback(
                         ),
                       ),
                     ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// Feedback used while external drag protection is effective. It deliberately
+/// accepts no image bytes, file path, file name, or encoded size.
+Widget buildProtectedImageDragFeedback(
+  ThemeData theme, {
+  double width = 280,
+  String? hintText,
+  int? pixelWidth,
+  int? pixelHeight,
+  String? format,
+}) {
+  final structuredDetails = <String>[
+    if (pixelWidth != null && pixelHeight != null) '${pixelWidth}x$pixelHeight',
+    if (format != null && format.isNotEmpty) format.toUpperCase(),
+  ].join('  ');
+
+  return RepaintBoundary(
+    key: protectedDragFeedbackMarkerKey,
+    child: Material(
+      elevation: 8,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        width: width,
+        height: 108,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            const ColoredBox(color: Color(0xFF123B3A)),
+            Align(
+              alignment: Alignment.topLeft,
+              child: Container(
+                width: width * 0.36,
+                height: 18,
+                color: const Color(0xFFFFB000),
+              ),
+            ),
+            Align(
+              alignment: Alignment.topRight,
+              child: Container(
+                width: width * 0.18,
+                height: 18,
+                color: const Color(0xFF00D6C9),
+              ),
+            ),
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.shield_outlined,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                  const SizedBox(height: 3),
+                  const Text(
+                    'NAI SAFE DRAG',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  if (structuredDetails.isNotEmpty)
+                    Text(
+                      structuredDetails,
+                      style: const TextStyle(
+                        color: Color(0xFFD6FFFA),
+                        fontSize: 9,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (hintText != null && hintText.isNotEmpty)
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Container(
+                  width: double.infinity,
+                  height: 20,
+                  alignment: Alignment.center,
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  child: Text(
+                    hintText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),

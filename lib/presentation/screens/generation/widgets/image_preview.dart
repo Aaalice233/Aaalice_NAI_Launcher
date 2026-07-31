@@ -8,6 +8,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../../core/enums/precise_ref_type.dart';
+import '../../../../core/shortcuts/default_shortcuts.dart';
+import '../../../../core/shortcuts/shortcut_config.dart';
+import '../../../../core/shortcuts/shortcut_manager.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/file_explorer_utils.dart';
 import '../../../../core/utils/image_save_utils.dart';
@@ -20,6 +23,8 @@ import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../../data/services/alias_resolver_service.dart';
 import '../../../../data/services/image_metadata_service.dart';
 import '../../../providers/generation/generation_params_selectors.dart';
+import '../../../providers/generation/preview_selection_provider.dart';
+import '../../../providers/history_click_behavior_provider.dart';
 import '../../../providers/character_position_canvas_provider.dart';
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/fixed_tags_provider.dart';
@@ -28,6 +33,7 @@ import '../../../providers/local_gallery_provider.dart';
 import '../../../providers/quality_preset_provider.dart';
 import '../../../providers/reverse_prompt_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
+import '../../../providers/shortcuts_provider.dart';
 import '../../../providers/uc_preset_provider.dart';
 import '../../../services/image_workflow_launcher.dart';
 import '../../../widgets/character/character_position_canvas.dart';
@@ -41,6 +47,57 @@ import '../../../widgets/image_editor/image_editor_screen.dart';
 import '../../../utils/image_detail_opener.dart';
 import '../../../utils/krita_send_helper.dart';
 import '../../tag_library_page/widgets/entry_add_dialog.dart';
+
+class PreviewNavShortcuts extends ConsumerWidget {
+  const PreviewNavShortcuts({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final focusNode = ref.watch(generationPreviewFocusNodeProvider);
+    final behavior = ref.watch(historyClickBehaviorNotifierProvider);
+    if (behavior != HistoryClickBehavior.selectPreview) {
+      return Focus(focusNode: focusNode, child: child);
+    }
+
+    final config = ref
+        .watch(shortcutConfigNotifierProvider)
+        .when(
+          data: (value) => value,
+          loading: ShortcutConfig.createDefault,
+          error: (_, _) => ShortcutConfig.createDefault(),
+        );
+    final bindings = <ShortcutActivator, VoidCallback>{};
+    if (config.enableShortcuts) {
+      void register(String id, VoidCallback callback) {
+        final binding = config.bindings[id];
+        if (binding == null ||
+            !binding.enabled ||
+            binding.context != ShortcutContext.generation) {
+          return;
+        }
+        final activator = AppShortcutManager.parseActivator(
+          binding.effectiveShortcut,
+        );
+        if (activator != null) bindings.putIfAbsent(activator, () => callback);
+      }
+
+      register(
+        ShortcutIds.generationPrevImage,
+        ref.read(generationPreviewSelectionProvider.notifier).selectPrevious,
+      );
+      register(
+        ShortcutIds.generationNextImage,
+        ref.read(generationPreviewSelectionProvider.notifier).selectNext,
+      );
+    }
+
+    final focusedChild = Focus(focusNode: focusNode, child: child);
+    if (bindings.isEmpty) return focusedChild;
+    return CallbackShortcuts(bindings: bindings, child: focusedChild);
+  }
+}
 
 /// 图像预览组件
 class ImagePreviewWidget extends ConsumerStatefulWidget {
@@ -57,12 +114,19 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     final theme = Theme.of(context);
 
     // 使用 GestureDetector 吸收整个区域的点击事件，避免 Windows 系统提示音
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {}, // 空回调，仅吸收点击
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        child: Center(child: _buildContent(context, ref, state, theme)),
+    return PreviewNavShortcuts(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (ref.read(historyClickBehaviorNotifierProvider) ==
+              HistoryClickBehavior.selectPreview) {
+            ref.read(generationPreviewFocusNodeProvider).requestFocus();
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          child: Center(child: _buildContent(context, ref, state, theme)),
+        ),
       ),
     );
   }
@@ -115,6 +179,15 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         ref.watch(characterPositionCanvasAvailableProvider);
     if (showCharacterCanvas) {
       return const CharacterPositionCanvasView();
+    }
+
+    final behavior = ref.watch(historyClickBehaviorNotifierProvider);
+    if (behavior == HistoryClickBehavior.selectPreview) {
+      final selectedId = ref.watch(generationPreviewSelectionProvider);
+      final selectedImage = state.findImageById(selectedId);
+      if (selectedImage != null) {
+        return _buildImageView(context, ref, selectedImage, theme);
+      }
     }
 
     // 有图像：根据数量决定布局（使用 displayImages）
@@ -500,7 +573,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       statusBadgeTooltip: isFailedSnapshot
           ? context.l10n.generation_failedStreamSnapshotHint
           : null,
-      onTap: () => _showFullscreenImage(imageBytes),
+      onTap: () => _showFullscreenImage(image),
       onReversePrompt: canUseAsInput
           ? () => unawaited(_sendPreviewImageToReversePrompt(context, image))
           : null,
@@ -565,7 +638,11 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     }
 
     return DraggableMemoryImage(
+      imageId: image.id,
       imageBytes: imageBytes,
+      feedbackPixelWidth: image.width,
+      feedbackPixelHeight: image.height,
+      feedbackFormat: 'PNG',
       fileName: _previewImageFileName(image),
       sourceFilePath: image.filePath,
       child: card,
@@ -795,18 +872,25 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     );
   }
 
-  Future<void> _showFullscreenImage(Uint8List imageBytes) async {
+  Future<void> _showFullscreenImage(GeneratedImage selectedImage) async {
     final state = ref.read(imageGenerationNotifierProvider);
-
-    // 找到当前点击图像的索引
-    final initialIndex = state.displayImages
-        .indexWhere((img) => img.bytes == imageBytes)
-        .clamp(0, state.displayImages.length - 1);
+    final linkedSelection =
+        ref.read(historyClickBehaviorNotifierProvider) ==
+            HistoryClickBehavior.selectPreview &&
+        ref.read(generationPreviewSelectionProvider) == selectedImage.id;
+    final sequence = linkedSelection
+        ? state.detailSequenceFor(selectedImage)
+        : state.displayImages;
+    if (sequence.isEmpty) return;
+    final selectedIndex = sequence.indexWhere(
+      (image) => image.id == selectedImage.id,
+    );
+    final initialIndex = selectedIndex < 0 ? 0 : selectedIndex;
 
     // 简化逻辑：统一使用 FileImageDetailData 从 PNG 文件解析
     // - 已保存的图像直接使用 filePath
     // - 未保存的图像使用 GeneratedImageDetailData 作为 fallback
-    final allImages = state.displayImages.map((img) {
+    final allImages = sequence.map((img) {
       if (img.filePath != null && img.filePath!.isNotEmpty) {
         // 加入预加载队列（如果尚未解析）
         ImageMetadataService().enqueuePreload(

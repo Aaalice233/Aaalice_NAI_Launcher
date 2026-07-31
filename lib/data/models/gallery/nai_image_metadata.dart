@@ -6,7 +6,7 @@ import 'package:hive/hive.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/enums/precise_ref_type.dart';
-import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/portable_logger.dart';
 import '../image/image_params.dart';
 import '../vibe/vibe_reference.dart';
 
@@ -234,7 +234,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
             : base.preciseReferenceFidelities,
       );
     } catch (e) {
-      AppLogger.w(
+      PortableLogger.w(
         'Failed to upgrade metadata from rawJson: $e',
         'NaiImageMetadata',
       );
@@ -263,7 +263,10 @@ class NaiImageMetadata with _$NaiImageMetadata {
       software = extracted.$2;
       source = extracted.$3;
     } catch (e) {
-      AppLogger.w('Failed to extract comment data: $e', 'NaiImageMetadata');
+      PortableLogger.w(
+        'Failed to extract comment data: $e',
+        'NaiImageMetadata',
+      );
       // 使用原始 JSON 作为备选
       commentData = json;
     }
@@ -287,7 +290,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
     try {
       parts = _extractFixedTags(commentData);
     } catch (e) {
-      AppLogger.w('Failed to extract fixed tags: $e', 'NaiImageMetadata');
+      PortableLogger.w('Failed to extract fixed tags: $e', 'NaiImageMetadata');
     }
 
     try {
@@ -298,7 +301,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
       characterInfos = charResult.$3;
       characterUseCoords = _extractCharacterUseCoords(commentData);
     } catch (e) {
-      AppLogger.w(
+      PortableLogger.w(
         'Failed to extract character prompts: $e',
         'NaiImageMetadata',
       );
@@ -308,13 +311,16 @@ class NaiImageMetadata with _$NaiImageMetadata {
       // 提取 Vibe 数据
       vibeReferences = _extractVibeReferences(commentData);
     } catch (e) {
-      AppLogger.w('Failed to extract vibe references: $e', 'NaiImageMetadata');
+      PortableLogger.w(
+        'Failed to extract vibe references: $e',
+        'NaiImageMetadata',
+      );
     }
 
     try {
       preciseReferenceMetadata = _extractPreciseReferenceMetadata(commentData);
     } catch (e) {
-      AppLogger.w(
+      PortableLogger.w(
         'Failed to extract precise references: $e',
         'NaiImageMetadata',
       );
@@ -325,14 +331,14 @@ class NaiImageMetadata with _$NaiImageMetadata {
     try {
       prompt = commentData['prompt'] as String? ?? '';
     } catch (e) {
-      AppLogger.d('Failed to parse prompt field: $e', 'NaiImageMetadata');
+      PortableLogger.d('Failed to parse prompt field: $e', 'NaiImageMetadata');
     }
 
     String negativePrompt = '';
     try {
       negativePrompt = commentData['uc'] as String? ?? '';
     } catch (e) {
-      AppLogger.d(
+      PortableLogger.d(
         'Failed to parse negative prompt field: $e',
         'NaiImageMetadata',
       );
@@ -385,7 +391,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
         preciseReferenceFidelities: preciseReferenceMetadata.fidelities,
       );
     } catch (e, stack) {
-      AppLogger.e(
+      PortableLogger.e(
         'fromNaiComment failed, returning partial metadata',
         e,
         stack,
@@ -1305,7 +1311,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
           ),
         );
       } catch (e) {
-        AppLogger.w(
+        PortableLogger.w(
           'Failed to decode precise reference image at index $i: $e',
           'NaiImageMetadata',
         );

@@ -9,6 +9,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/font_provider.dart';
 import '../../../providers/font_scale_provider.dart';
 import '../../../providers/generation_layout_mode_provider.dart';
+import '../../../providers/history_click_behavior_provider.dart';
 import '../../../providers/locale_provider.dart';
 import '../../../providers/theme_provider.dart';
 import '../../../themes/app_theme.dart';
@@ -35,6 +36,9 @@ class _AppearanceSettingsSectionState
     final currentLocale = ref.watch(localeNotifierProvider);
     final fontScale = ref.watch(fontScaleNotifierProvider);
     final layoutMode = ref.watch(generationLayoutModeNotifierProvider);
+    final historyClickBehavior = ref.watch(
+      historyClickBehaviorNotifierProvider,
+    );
 
     return SettingsCard(
       title: context.l10n.settings_appearance,
@@ -88,6 +92,18 @@ class _AppearanceSettingsSectionState
                   : context.l10n.settings_generationLayout_classic,
             ),
             onTap: () => _showGenerationLayoutDialog(context, layoutMode),
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.photo_library_outlined),
+            title: Text(context.l10n.settings_historyClickBehavior),
+            subtitle: Text(
+              historyClickBehavior == HistoryClickBehavior.selectPreview
+                  ? context.l10n.settings_historyClickBehavior_linked
+                  : context.l10n.settings_historyClickBehavior_classic,
+            ),
+            onTap: () =>
+                _showHistoryClickBehaviorDialog(context, historyClickBehavior),
           ),
 
           // 悬浮球背景图片（自原队列设置迁入）
@@ -378,9 +394,7 @@ class _AppearanceSettingsSectionState
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   RadioListTile<GenerationLayoutMode>(
-                    title: Text(
-                      context.l10n.settings_generationLayout_classic,
-                    ),
+                    title: Text(context.l10n.settings_generationLayout_classic),
                     subtitle: Text(
                       context.l10n.settings_generationLayout_classicDescription,
                     ),
@@ -392,9 +406,70 @@ class _AppearanceSettingsSectionState
                     ),
                     subtitle: Text(
                       context
-                          .l10n.settings_generationLayout_webStyleDescription,
+                          .l10n
+                          .settings_generationLayout_webStyleDescription,
                     ),
                     value: GenerationLayoutMode.webStyle,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(context.l10n.common_cancel),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showHistoryClickBehaviorDialog(
+    BuildContext context,
+    HistoryClickBehavior currentBehavior,
+  ) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(context.l10n.settings_historyClickBehavior),
+          content: SizedBox(
+            width: 360,
+            child: RadioGroup<HistoryClickBehavior>(
+              groupValue: currentBehavior,
+              onChanged: (value) async {
+                if (value == null) return;
+                await ref
+                    .read(historyClickBehaviorNotifierProvider.notifier)
+                    .setBehavior(value);
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile<HistoryClickBehavior>(
+                    title: Text(
+                      context.l10n.settings_historyClickBehavior_classic,
+                    ),
+                    subtitle: Text(
+                      context
+                          .l10n
+                          .settings_historyClickBehavior_classicDescription,
+                    ),
+                    value: HistoryClickBehavior.openDetail,
+                  ),
+                  RadioListTile<HistoryClickBehavior>(
+                    title: Text(
+                      context.l10n.settings_historyClickBehavior_linked,
+                    ),
+                    subtitle: Text(
+                      context
+                          .l10n
+                          .settings_historyClickBehavior_linkedDescription,
+                    ),
+                    value: HistoryClickBehavior.selectPreview,
                   ),
                 ],
               ),

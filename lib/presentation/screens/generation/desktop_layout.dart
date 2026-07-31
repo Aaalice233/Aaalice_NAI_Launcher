@@ -9,6 +9,7 @@ import '../../../core/utils/app_logger.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
+import '../../providers/generation/preview_selection_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/layout_state_provider.dart';
 import '../../providers/prompt_maximize_provider.dart';
@@ -77,6 +78,8 @@ class _DesktopGenerationLayoutState
       ShortcutIds.cancelGeneration: () {
         if (isLauncherGenerating) {
           ref.read(imageGenerationNotifierProvider.notifier).cancel();
+        } else if (ref.read(generationPreviewSelectionProvider) != null) {
+          ref.read(generationPreviewSelectionProvider.notifier).clear();
         }
       },
       // 加入队列

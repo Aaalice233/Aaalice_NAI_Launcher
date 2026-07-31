@@ -51,10 +51,7 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.keyboard,
-                    color: theme.colorScheme.primary,
-                  ),
+                  Icon(Icons.keyboard, color: theme.colorScheme.primary),
                   const SizedBox(width: 12),
                   Text(
                     context.l10n.shortcut_help_title,
@@ -131,9 +128,7 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
             const Divider(),
 
             // 快捷键列表
-            Expanded(
-              child: _buildShortcutsList(bindingsByContext),
-            ),
+            Expanded(child: _buildShortcutsList(bindingsByContext)),
 
             // 底部提示
             Container(
@@ -191,8 +186,9 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
       return _buildSearchResults();
     }
 
-    final contextsToShow =
-        _selectedContext != null ? [_selectedContext!] : ShortcutContext.values;
+    final contextsToShow = _selectedContext != null
+        ? [_selectedContext!]
+        : ShortcutContext.values;
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -278,12 +274,7 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              actionName,
-              style: theme.textTheme.bodyMedium,
-            ),
-          ),
+          Expanded(child: Text(actionName, style: theme.textTheme.bodyMedium)),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
@@ -324,8 +315,8 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
             Text(
               context.l10n.shortcut_settings_no_matches,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
+                color: Theme.of(context).colorScheme.outline,
+              ),
             ),
           ],
         ),
@@ -363,6 +354,10 @@ class _ShortcutHelpDialogState extends ConsumerState<ShortcutHelpDialog> {
         return l10n.shortcut_action_navigate_to_settings;
       case 'shortcut_action_generate_image':
         return l10n.shortcut_action_generate_image;
+      case 'shortcut_action_generation_prev_image':
+        return l10n.shortcut_action_generation_prev_image;
+      case 'shortcut_action_generation_next_image':
+        return l10n.shortcut_action_generation_next_image;
       case 'shortcut_action_cancel_generation':
         return l10n.shortcut_action_cancel_generation;
       case 'shortcut_action_add_to_queue':
