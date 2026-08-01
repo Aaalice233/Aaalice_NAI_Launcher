@@ -599,6 +599,55 @@ void main() {
       expect(find.byType(GenericSuggestionTile), findsNothing);
     });
 
+    testWidgets('does not show suggestions after the input loses focus', (
+      tester,
+    ) async {
+      final controller = TextEditingController();
+      final focusNode = FocusNode();
+      final strategy = _FakeAutocompleteStrategy();
+      addTearDown(controller.dispose);
+      addTearDown(focusNode.dispose);
+      addTearDown(strategy.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: AutocompleteWrapper(
+                controller: controller,
+                focusNode: focusNode,
+                strategy: strategy,
+                child: TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byType(TextField));
+      await tester.enterText(find.byType(TextField), 'kan');
+      await tester.pump(const Duration(milliseconds: 80));
+      await tester.pump();
+
+      expect(find.byType(GenericSuggestionTile), findsOneWidget);
+
+      focusNode.unfocus();
+      await tester.pump(const Duration(milliseconds: 160));
+
+      expect(focusNode.hasFocus, isFalse);
+      expect(find.byType(GenericSuggestionTile), findsNothing);
+
+      await strategy.search('kan', 3);
+      await tester.pump();
+
+      expect(find.byType(GenericSuggestionTile), findsNothing);
+    });
+
     Future<void> pumpAutocompleteWrapper(
       WidgetTester tester,
       TextEditingController controller,
