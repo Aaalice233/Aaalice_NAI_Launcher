@@ -162,7 +162,9 @@ Future<void> _createMatrix(Directory session, File sentinelManifest) async {
           referencedBytes,
           'referenced-file',
         );
-        final shellBytes = mode == 'protected' ? markerBytes : originalBytes;
+        final shellBytes = mode == 'protected'
+            ? markerBytes
+            : _attenuateForShellFeedback(originalBytes);
         final shellRaw = await _writeArtifact(
           cell,
           'formats/drag_image_bits.bin',
@@ -276,6 +278,30 @@ img.Image _patternImage(List<List<int>> palette) {
     }
   }
   return image;
+}
+
+Uint8List _attenuateForShellFeedback(Uint8List bytes) {
+  final source = img.decodeImage(bytes)!;
+  final output = img.Image(
+    width: source.width,
+    height: source.height,
+    numChannels: 4,
+  );
+  for (var y = 0; y < source.height; y++) {
+    final scale = y < source.height / 2 ? 1.0 : 0.62;
+    for (var x = 0; x < source.width; x++) {
+      final pixel = source.getPixel(x, y);
+      output.setPixelRgba(
+        x,
+        y,
+        (pixel.r * scale).round(),
+        (pixel.g * scale).round(),
+        (pixel.b * scale).round(),
+        128,
+      );
+    }
+  }
+  return Uint8List.fromList(img.encodePng(output));
 }
 
 img.Image _markerImage() {

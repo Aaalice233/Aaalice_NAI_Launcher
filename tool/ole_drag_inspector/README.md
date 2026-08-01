@@ -43,9 +43,9 @@ $process = Start-Process -FilePath $exe -ArgumentList @('--self-test', '--output
 if ($process.ExitCode -ne 0) { throw "Self-test failed: $($process.ExitCode)" }
 ```
 
-The self-test exercises DIB wrapping/decoding, normalized PNG/RGBA output,
-artifact hashing, and manifest serialization. It does not replace a real OLE
-drag from the launcher.
+The self-test exercises DIB wrapping/decoding, the serialized cross-process
+`DragImageBits` layout, normalized PNG/RGBA output, artifact hashing, and
+manifest serialization. It does not replace a real OLE drag from the launcher.
 
 ## Generate sentinels
 

@@ -516,10 +516,68 @@ bool _matchesProtectedMarker(Uint8List bytes) {
 }
 
 bool _matchesPalettePattern(Uint8List bytes, List<List<int>> palette) {
-  return _matchesColors(bytes, [
+  final image = img.decodeImage(bytes);
+  if (image == null || image.width == 0 || image.height == 0) return false;
+  final targets = [
     for (final color in palette)
-      _ColorTarget(color[0], color[1], color[2], 0.035),
-  ], tolerance: 34);
+      _ColorTarget(color[0], color[1], color[2], 0.015),
+  ];
+  final counts = List<int>.filled(targets.length, 0);
+  final xSums = List<int>.filled(targets.length, 0);
+  final ySums = List<int>.filled(targets.length, 0);
+  for (var y = 0; y < image.height; y++) {
+    for (var x = 0; x < image.width; x++) {
+      final pixel = image.getPixel(x, y);
+      var bestIndex = -1;
+      var bestError = double.infinity;
+      for (var index = 0; index < targets.length; index++) {
+        final error = _scaledColorError(pixel, targets[index]);
+        if (error != null && error < bestError) {
+          bestIndex = index;
+          bestError = error;
+        }
+      }
+      if (bestIndex >= 0) {
+        counts[bestIndex]++;
+        xSums[bestIndex] += x;
+        ySums[bestIndex] += y;
+      }
+    }
+  }
+
+  final total = image.width * image.height;
+  for (var index = 0; index < targets.length; index++) {
+    if (counts[index] / total < targets[index].minimumFraction) return false;
+  }
+
+  final centroids = [
+    for (var index = 0; index < targets.length; index++)
+      (x: xSums[index] / counts[index], y: ySums[index] / counts[index]),
+  ];
+  return centroids[0].x < centroids[1].x &&
+      centroids[2].x < centroids[3].x &&
+      centroids[0].y < centroids[2].y &&
+      centroids[1].y < centroids[3].y;
+}
+
+double? _scaledColorError(img.Pixel pixel, _ColorTarget target) {
+  final red = pixel.r.toDouble();
+  final green = pixel.g.toDouble();
+  final blue = pixel.b.toDouble();
+  final targetLengthSquared =
+      target.r * target.r + target.g * target.g + target.b * target.b;
+  final scale =
+      (red * target.r + green * target.g + blue * target.b) /
+      targetLengthSquared;
+  if (scale < 0.45 || scale > 1.35) return null;
+
+  final redError = red - target.r * scale;
+  final greenError = green - target.g * scale;
+  final blueError = blue - target.b * scale;
+  const tolerance = 28.0;
+  final error =
+      redError * redError + greenError * greenError + blueError * blueError;
+  return error <= 3 * tolerance * tolerance ? error : null;
 }
 
 bool _matchesColors(

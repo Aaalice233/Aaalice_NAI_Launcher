@@ -291,13 +291,36 @@ internal static class OleDataInspector
         {
             NativeMethods.DeleteObject(bitmapHandle);
         }
+        var shellDragBytes = CreateSerializedShellDragImageSelfTestPayload();
+        using (var shellDragImage = DecodeShellDragImage(shellDragBytes))
+        {
+            if (shellDragImage.Width != 2 || shellDragImage.Height != 2)
+            {
+                throw new InvalidDataException(
+                    "Serialized DragImageBits self-test changed image dimensions.");
+            }
+            using var shellDragBitmap = new Bitmap(shellDragImage);
+            if (shellDragBitmap.GetPixel(0, 0).ToArgb()
+                    != Color.FromArgb(85, 210, 120, 60).ToArgb()
+                || shellDragBitmap.GetPixel(0, 1).ToArgb()
+                    != Color.FromArgb(255, 12, 34, 56).ToArgb())
+            {
+                throw new InvalidDataException(
+                    "Serialized DragImageBits self-test changed row order or RGBA values.");
+            }
+            SaveDecodedImage(
+                shellDragImage,
+                format,
+                cellDirectory,
+                "self_test_shell_drag");
+        }
         var manifest = new DropManifest
         {
             Mode = "self_test",
             Path = "self_test",
             Payload = "self_test",
             ProcessBitness = Environment.Is64BitProcess ? 64 : 32,
-            InspectionPassed = format.DecodedImages.Count == 2,
+            InspectionPassed = format.DecodedImages.Count == 3,
         };
         manifest.Formats.Add(format);
         ManifestWriter.Write(cellDirectory, manifest);
@@ -1017,8 +1040,8 @@ internal static class OleDataInspector
 
     private static Image DecodeShellDragImage(byte[] bytes)
     {
-        var required = IntPtr.Size == 8 ? 32 : 24;
-        if (bytes.Length < required)
+        const int serializedHeaderSize = 24;
+        if (bytes.Length < serializedHeaderSize)
         {
             throw new InvalidDataException("DragImageBits is shorter than SHDRAGIMAGE.");
         }
@@ -1028,6 +1051,27 @@ internal static class OleDataInspector
         if (width <= 0 || height <= 0 || width > 16384 || height > 16384)
         {
             throw new InvalidDataException($"SHDRAGIMAGE size {width}x{height} is invalid.");
+        }
+
+        var pixelBytes = checked((long)width * height * 4);
+        if (pixelBytes > MaximumPayloadBytes)
+        {
+            throw new InvalidDataException("Serialized DragImageBits exceeds the payload limit.");
+        }
+        var inlineHeaderBytes = bytes.LongLength - pixelBytes;
+        if (inlineHeaderBytes is 24 or 32)
+        {
+            return DecodeSerializedShellDragImage(
+                bytes,
+                checked((int)inlineHeaderBytes),
+                width,
+                height);
+        }
+
+        var required = IntPtr.Size == 8 ? 32 : 24;
+        if (bytes.Length < required)
+        {
+            throw new InvalidDataException("DragImageBits is shorter than SHDRAGIMAGE.");
         }
 
         var handleValue = IntPtr.Size == 8
@@ -1040,6 +1084,89 @@ internal static class OleDataInspector
         }
 
         return CaptureHBitmap(bitmapHandle, width, height);
+    }
+
+    private static Image DecodeSerializedShellDragImage(
+        byte[] bytes,
+        int headerBytes,
+        int width,
+        int height)
+    {
+        var topDownBgra = new byte[checked(width * height * 4)];
+        var rowBytes = checked(width * 4);
+        for (var y = 0; y < height; y++)
+        {
+            var sourceRow = height - y - 1;
+            var sourceOffset = checked(headerBytes + sourceRow * rowBytes);
+            var destinationOffset = checked(y * rowBytes);
+            for (var x = 0; x < width; x++)
+            {
+                var sourcePixel = sourceOffset + x * 4;
+                var destinationPixel = destinationOffset + x * 4;
+                var alpha = bytes[sourcePixel + 3];
+                topDownBgra[destinationPixel] = Unpremultiply(
+                    bytes[sourcePixel],
+                    alpha);
+                topDownBgra[destinationPixel + 1] = Unpremultiply(
+                    bytes[sourcePixel + 1],
+                    alpha);
+                topDownBgra[destinationPixel + 2] = Unpremultiply(
+                    bytes[sourcePixel + 2],
+                    alpha);
+                topDownBgra[destinationPixel + 3] = alpha;
+            }
+        }
+        return CreateBitmapFromTopDownBgra(width, height, topDownBgra);
+    }
+
+    private static byte Unpremultiply(byte channel, byte alpha)
+    {
+        if (alpha == 0)
+        {
+            return 0;
+        }
+        return (byte)Math.Min(255, (channel * 255 + alpha / 2) / alpha);
+    }
+
+    private static byte[] CreateSerializedShellDragImageSelfTestPayload()
+    {
+        const int width = 2;
+        const int height = 2;
+        const int headerBytes = 24;
+        var colors = new[,]
+        {
+            {
+                Color.FromArgb(85, 210, 120, 60),
+                Color.FromArgb(255, 2, 4, 6),
+            },
+            {
+                Color.FromArgb(255, 12, 34, 56),
+                Color.FromArgb(170, 30, 90, 150),
+            },
+        };
+        var bytes = new byte[headerBytes + width * height * 4];
+        Buffer.BlockCopy(BitConverter.GetBytes(width), 0, bytes, 0, 4);
+        Buffer.BlockCopy(BitConverter.GetBytes(height), 0, bytes, 4, 4);
+        Buffer.BlockCopy(BitConverter.GetBytes(-1), 0, bytes, 20, 4);
+        for (var y = 0; y < height; y++)
+        {
+            var destinationRow = height - y - 1;
+            for (var x = 0; x < width; x++)
+            {
+                var color = colors[y, x];
+                var offset = headerBytes + (destinationRow * width + x) * 4;
+                bytes[offset] = Premultiply(color.B, color.A);
+                bytes[offset + 1] = Premultiply(color.G, color.A);
+                bytes[offset + 2] = Premultiply(color.R, color.A);
+                bytes[offset + 3] = color.A;
+            }
+        }
+        return bytes;
+    }
+
+    private static byte Premultiply(byte channel, byte alpha)
+    {
+        return (byte)((channel * alpha + 127) / 255);
     }
 
     private static Bitmap CaptureHBitmap(
