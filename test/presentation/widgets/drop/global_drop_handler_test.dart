@@ -1,6 +1,7 @@
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -73,6 +74,34 @@ void main() {
         isFalse,
       );
       expect(isGalleryInternalDragLocalData(null), isFalse);
+    });
+
+    test('Windows preserves Win+V for system clipboard history', () {
+      final shortcuts = pasteShortcutsForPlatform(TargetPlatform.windows);
+
+      expect(
+        shortcuts,
+        contains(const SingleActivator(LogicalKeyboardKey.keyV, control: true)),
+      );
+      expect(
+        shortcuts,
+        isNot(
+          contains(const SingleActivator(LogicalKeyboardKey.keyV, meta: true)),
+        ),
+      );
+    });
+
+    test('macOS keeps Command+V image paste handling', () {
+      final shortcuts = pasteShortcutsForPlatform(TargetPlatform.macOS);
+
+      expect(
+        shortcuts,
+        contains(const SingleActivator(LogicalKeyboardKey.keyV, control: true)),
+      );
+      expect(
+        shortcuts,
+        contains(const SingleActivator(LogicalKeyboardKey.keyV, meta: true)),
+      );
     });
 
     test(
