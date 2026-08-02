@@ -20,6 +20,7 @@ import '../../../../data/services/vibe_library_storage_service.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/vibe_library_provider.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/editable_double_field.dart';
 import '../../vibe_library/widgets/vibe_selector_dialog.dart';
 
 /// Vibe 导入处理器
@@ -876,6 +877,9 @@ class VibeImportHandler {
                           context,
                           label: l10n.vibe_saveToLibrary_strength,
                           value: strengthValue,
+                          min: VibeReference.minSliderStrength,
+                          max: VibeReference.maxSliderStrength,
+                          unboundedInput: true,
                           onChanged: (value) =>
                               setState(() => strengthValue = value),
                         ),
@@ -885,6 +889,8 @@ class VibeImportHandler {
                             context,
                             label: l10n.vibe_saveToLibrary_infoExtracted,
                             value: infoExtractedValue,
+                            min: VibeReference.minInfoExtracted,
+                            max: VibeReference.maxInfoExtracted,
                             onChanged: (value) =>
                                 setState(() => infoExtractedValue = value),
                           ),
@@ -1030,8 +1036,13 @@ class VibeImportHandler {
     BuildContext context, {
     required String label,
     required double value,
+    required double min,
+    required double max,
     required ValueChanged<double> onChanged,
+    bool unboundedInput = false,
   }) {
+    final sliderValue = value.clamp(min, max).toDouble();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1043,19 +1054,24 @@ class VibeImportHandler {
                 style: const TextStyle(fontWeight: FontWeight.w500),
               ),
             ),
-            Text(
-              value.toStringAsFixed(2),
-              style: const TextStyle(
+            EditableDoubleField(
+              value: value,
+              min: unboundedInput ? null : min,
+              max: unboundedInput ? null : max,
+              decimals: 2,
+              width: 64,
+              onChanged: onChanged,
+              textStyle: const TextStyle(
                 fontFeatures: [FontFeature.tabularFigures()],
               ),
             ),
           ],
         ),
         Slider(
-          value: value,
-          min: 0.0,
-          max: 1.0,
-          divisions: 100,
+          value: sliderValue,
+          min: min,
+          max: max,
+          divisions: 99,
           onChanged: onChanged,
         ),
       ],

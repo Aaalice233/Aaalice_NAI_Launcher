@@ -9,13 +9,14 @@ import 'package:nai_launcher/presentation/screens/generation/widgets/vibe_card.d
 import 'package:nai_launcher/presentation/widgets/common/editable_double_field.dart';
 
 void main() {
-  testWidgets('参考强度滑条范围为 0-1，但数值输入允许负数', (tester) async {
+  testWidgets('参考强度滑条保持官网范围，但数值输入不设上下限', (tester) async {
+    double? changedStrength;
     final vibe = VibeReference(
       displayName: 'test',
       vibeEncoding: 'encoded',
       rawImageData: Uint8List.fromList(const [1, 2, 3]),
       thumbnail: Uint8List.fromList(const [1, 2, 3]),
-      strength: -0.4,
+      strength: -2.4,
       infoExtracted: 0.7,
       sourceType: VibeSourceType.naiv4vibe,
     );
@@ -30,7 +31,7 @@ void main() {
               index: 0,
               vibe: vibe,
               onRemove: () {},
-              onStrengthChanged: (_) {},
+              onStrengthChanged: (value) => changedStrength = value,
               onInfoExtractedChanged: (_) {},
             ),
           ),
@@ -43,11 +44,27 @@ void main() {
       find.byType(EditableDoubleField).at(0),
     );
 
-    expect(strengthSlider.min, 0.0);
+    expect(strengthSlider.min, 0.01);
     expect(strengthSlider.max, 1.0);
-    expect(strengthSlider.value, 0.0);
-    expect(strengthField.min, -1.0);
-    expect(strengthField.max, 1.0);
+    expect(strengthSlider.value, 0.01);
+    expect(strengthSlider.divisions, 99);
+    expect(strengthField.min, isNull);
+    expect(strengthField.max, isNull);
+
+    await tester.enterText(find.byType(TextField).at(0), '3.25');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(changedStrength, 3.25);
+  });
+
+  test('参考强度只拒绝非有限数值', () {
+    expect(VibeReference.sanitizeStrength(4.2), 4.2);
+    expect(VibeReference.sanitizeStrength(-3.1), -3.1);
+    expect(
+      VibeReference.sanitizeStrength(double.infinity),
+      VibeReference.defaultStrength,
+    );
   });
 
   testWidgets('没有原图数据时不显示信息提取调节项', (tester) async {

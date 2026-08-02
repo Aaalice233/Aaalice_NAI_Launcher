@@ -253,6 +253,30 @@ void main() {
       },
     );
 
+    test('should forward uncapped vibe strength', () async {
+      const params = ImageParams(
+        model: 'nai-diffusion-4-full',
+        vibeReferencesV4: [
+          VibeReference(
+            displayName: 'uncapped',
+            vibeEncoding: 'encoded-vibe',
+            sourceType: VibeSourceType.png,
+            strength: 3.25,
+          ),
+        ],
+      );
+
+      final result = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler');
+
+      expect(
+        result.requestParameters['reference_strength_multiple'],
+        equals([3.25]),
+      );
+    });
+
     test(
       'should not let disabled precise references block enabled vibe transfer',
       () async {
@@ -345,6 +369,35 @@ void main() {
         );
       },
     );
+
+    test('should forward uncapped precise strength and fidelity', () async {
+      final params = ImageParams(
+        model: 'nai-diffusion-4-5-full',
+        preciseReferences: [
+          PreciseReference(
+            image: _validPngBytes(),
+            type: PreciseRefType.character,
+            strength: 2.5,
+            fidelity: -1.25,
+          ),
+        ],
+      );
+
+      final result = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler');
+
+      expect(
+        result.requestParameters['director_reference_strength_values'],
+        equals([2.5]),
+      );
+      expect(
+        result
+            .requestParameters['director_reference_secondary_strength_values'],
+        equals([2.25]),
+      );
+    });
 
     test('should ignore precise references for non-v4.5 model', () async {
       final params = ImageParams(

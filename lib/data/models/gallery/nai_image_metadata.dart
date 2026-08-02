@@ -1012,13 +1012,11 @@ class NaiImageMetadata with _$NaiImageMetadata {
 
       images.add(image);
       types.add(_extractPreciseType(descriptions, i).toApiString());
-      referenceStrengths.add(
-        (i < strengths.length ? strengths[i] : 1.0).clamp(0.0, 1.0).toDouble(),
-      );
+      referenceStrengths.add(i < strengths.length ? strengths[i] : 1.0);
       final secondary = i < secondaryStrengths.length
           ? secondaryStrengths[i]
           : 0.0;
-      fidelities.add((1.0 - secondary).clamp(0.0, 1.0).toDouble());
+      fidelities.add(1.0 - secondary);
     }
 
     return _PreciseReferenceMetadata(

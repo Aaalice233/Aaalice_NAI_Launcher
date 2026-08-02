@@ -229,11 +229,19 @@ class VibeDetailParamPanel extends StatelessWidget {
     };
 
     final isInfoExtracted = labelKey == 'infoExtracted';
-    final fieldMin = isInfoExtracted
+    final double? fieldMin = isInfoExtracted
         ? VibeReference.minInfoExtracted
-        : VibeReference.minStrength;
-    final sliderMin = isInfoExtracted ? VibeReference.minInfoExtracted : 0.0;
-    final sliderValue = value.clamp(sliderMin, 1.0).toDouble();
+        : null;
+    final double? fieldMax = isInfoExtracted
+        ? VibeReference.maxInfoExtracted
+        : null;
+    final sliderMin = isInfoExtracted
+        ? VibeReference.minInfoExtracted
+        : VibeReference.minSliderStrength;
+    final sliderMax = isInfoExtracted
+        ? VibeReference.maxInfoExtracted
+        : VibeReference.maxSliderStrength;
+    final sliderValue = value.clamp(sliderMin, sliderMax).toDouble();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -251,7 +259,7 @@ class VibeDetailParamPanel extends StatelessWidget {
             EditableDoubleField(
               value: value,
               min: fieldMin,
-              max: 1.0,
+              max: fieldMax,
               width: 72,
               onChanged: onChanged,
               enabled: enabled,
@@ -282,8 +290,8 @@ class VibeDetailParamPanel extends StatelessWidget {
           child: Slider(
             value: sliderValue,
             min: sliderMin,
-            max: 1.0,
-            divisions: isInfoExtracted ? 200 : 100,
+            max: sliderMax,
+            divisions: 99,
             onChanged: enabled ? onChanged : null,
           ),
         ),

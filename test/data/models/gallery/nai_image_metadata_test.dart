@@ -240,7 +240,7 @@ void main() {
           'prompt': '1girl',
           'uc': 'bad hands',
           'reference_image_multiple': ['encoded-vibe-a', 'encoded-vibe-b'],
-          'reference_strength_multiple': [0.35, -0.25],
+          'reference_strength_multiple': [2.35, -3.25],
           'reference_information_extracted_multiple': [0.4, 0.85],
         }),
         'Software': 'NovelAI',
@@ -249,10 +249,10 @@ void main() {
 
       expect(metadata.vibeReferences, hasLength(2));
       expect(metadata.vibeReferences[0].vibeEncoding, 'encoded-vibe-a');
-      expect(metadata.vibeReferences[0].strength, 0.35);
+      expect(metadata.vibeReferences[0].strength, 2.35);
       expect(metadata.vibeReferences[0].infoExtracted, 0.4);
       expect(metadata.vibeReferences[1].vibeEncoding, 'encoded-vibe-b');
-      expect(metadata.vibeReferences[1].strength, -0.25);
+      expect(metadata.vibeReferences[1].strength, -3.25);
       expect(metadata.vibeReferences[1].infoExtracted, 0.85);
     });
 
@@ -558,6 +558,25 @@ void main() {
       expect(metadata.preciseReferences[0].type, PreciseRefType.style);
       expect(metadata.preciseReferences[0].strength, 0.65);
       expect(metadata.preciseReferences[0].fidelity, 0.8);
+    });
+
+    test('fromNaiComment should preserve uncapped precise parameters', () {
+      final referenceImage = base64Encode([1, 2, 3, 4]);
+      final metadata = NaiImageMetadata.fromNaiComment({
+        'Comment': jsonEncode({
+          'prompt': '1girl',
+          'uc': 'bad hands',
+          'director_reference_images': [referenceImage],
+          'director_reference_strengths': [2.65],
+          'director_reference_secondary_strengths': [3.2],
+        }),
+        'Software': 'NovelAI',
+        'Source': 'NovelAI Diffusion V4.5 4BDE2A90',
+      });
+
+      expect(metadata.preciseReferences, hasLength(1));
+      expect(metadata.preciseReferences[0].strength, 2.65);
+      expect(metadata.preciseReferences[0].fidelity, closeTo(-2.2, 1e-12));
     });
 
     test('fromNaiComment should parse structured negative fixed tags', () {

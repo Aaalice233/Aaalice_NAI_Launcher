@@ -37,10 +37,10 @@ class VibeLibraryEntry with _$VibeLibraryEntry {
     /// 原始图片数据 (仅 rawImage 模式使用)
     @HiveField(5) Uint8List? rawImageData,
 
-    /// Reference Strength (-1 到 1)
+    /// Reference Strength（数值输入不设前端上下限）
     @HiveField(6) @Default(0.6) double strength,
 
-    /// Information Extracted (0-1)
+    /// Information Extracted (0.01-1)
     @HiveField(7) @Default(0.7) double infoExtracted,
 
     /// 数据来源类型索引 (VibeSourceType 的索引)

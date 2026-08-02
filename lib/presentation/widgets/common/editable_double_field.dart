@@ -5,18 +5,18 @@ class EditableDoubleField extends StatefulWidget {
   const EditableDoubleField({
     super.key,
     required this.value,
-    required this.min,
-    required this.max,
     required this.onChanged,
+    this.min,
+    this.max,
     this.decimals = 2,
     this.width = 64,
     this.textStyle,
     this.enabled = true,
-  });
+  }) : assert(min == null || max == null || min <= max);
 
   final double value;
-  final double min;
-  final double max;
+  final double? min;
+  final double? max;
   final ValueChanged<double> onChanged;
   final int decimals;
   final double width;
@@ -63,12 +63,20 @@ class _EditableDoubleFieldState extends State<EditableDoubleField> {
 
   void _commit() {
     final parsed = double.tryParse(_controller.text.trim());
-    if (parsed == null) {
+    if (parsed == null || !parsed.isFinite) {
       _controller.text = _format(widget.value);
       return;
     }
 
-    final normalized = parsed.clamp(widget.min, widget.max).toDouble();
+    var normalized = parsed;
+    final min = widget.min;
+    final max = widget.max;
+    if (min != null && normalized < min) {
+      normalized = min;
+    }
+    if (max != null && normalized > max) {
+      normalized = max;
+    }
     if (normalized != widget.value) {
       widget.onChanged(normalized);
     }
@@ -96,8 +104,10 @@ class _EditableDoubleFieldState extends State<EditableDoubleField> {
         ],
         decoration: InputDecoration(
           isDense: true,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 6,
+          ),
           filled: true,
           fillColor: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
           border: OutlineInputBorder(
