@@ -8,8 +8,27 @@ import 'package:nai_launcher/presentation/screens/generation/widgets/img2img_pre
 
 void main() {
   group('resolveSourcePreviewDimensions', () {
+    test('uses known source dimensions without reading image bytes', () {
+      var imageSizeReadCount = 0;
+
+      final dimensions = resolveSourcePreviewDimensions(
+        sourceBytes: Uint8List.fromList([1, 2, 3]),
+        sourceWidth: 8000,
+        sourceHeight: 6000,
+        fallbackWidth: 1216,
+        fallbackHeight: 896,
+        imageSizeReader: (_) {
+          imageSizeReadCount += 1;
+          return (1, 1);
+        },
+      );
+
+      expect(dimensions, equals((8000, 6000)));
+      expect(imageSizeReadCount, isZero);
+    });
+
     test(
-      'prefers encoded source dimensions over request bucket dimensions',
+      'reads encoded source dimensions instead of request bucket dimensions',
       () {
         final sourceBytes = Uint8List.fromList(
           img.encodePng(img.Image(width: 1500, height: 900)),
@@ -26,16 +45,19 @@ void main() {
       },
     );
 
-    test('uses fallback request dimensions when source decode fails', () {
-      final dimensions = resolveSourcePreviewDimensions(
-        sourceBytes: Uint8List.fromList([1, 2, 3]),
-        fallbackWidth: 1472,
-        fallbackHeight: 896,
-      );
+    test(
+      'uses fallback request dimensions when encoded size is unreadable',
+      () {
+        final dimensions = resolveSourcePreviewDimensions(
+          sourceBytes: Uint8List.fromList([1, 2, 3]),
+          fallbackWidth: 1472,
+          fallbackHeight: 896,
+        );
 
-      expect(dimensions.$1, equals(1472));
-      expect(dimensions.$2, equals(896));
-    });
+        expect(dimensions.$1, equals(1472));
+        expect(dimensions.$2, equals(896));
+      },
+    );
   });
 
   group('Img2ImgPreviewCache', () {

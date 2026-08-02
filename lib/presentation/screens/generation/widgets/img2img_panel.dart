@@ -508,6 +508,8 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
   ) {
     return resolveSourcePreviewDimensions(
       sourceBytes: sourceBytes,
+      sourceWidth: workflow.sourceImageWidth,
+      sourceHeight: workflow.sourceImageHeight,
       fallbackWidth: workflow.sourceWidth,
       fallbackHeight: workflow.sourceHeight,
     );

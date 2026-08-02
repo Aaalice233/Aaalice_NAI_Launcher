@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image/image.dart' as img;
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/storage_keys.dart';
@@ -1523,10 +1522,6 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       return (width, height);
     }
 
-    final decoded = img.decodeImage(imageBytes);
-    if (decoded == null) {
-      return null;
-    }
-    return (decoded.width, decoded.height);
+    return NaiResolutionAdapter.readImageSize(imageBytes);
   }
 }
