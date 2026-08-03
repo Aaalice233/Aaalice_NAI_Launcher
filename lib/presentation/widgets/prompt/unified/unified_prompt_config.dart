@@ -19,6 +19,9 @@ class UnifiedPromptConfig {
   /// 启用后，在文本模式下对 NAI 语法进行着色显示。
   final bool enableSyntaxHighlight;
 
+  /// 当前模型是否支持官网的数值强调语法。
+  final bool numericEmphasisEnabled;
+
   /// 是否启用自动格式化（失焦时）
   ///
   /// 启用后，当输入框失去焦点时自动格式化提示词文本。
@@ -77,6 +80,7 @@ class UnifiedPromptConfig {
   const UnifiedPromptConfig({
     this.enableAutocomplete = true,
     this.enableSyntaxHighlight = true,
+    this.numericEmphasisEnabled = true,
     this.enableAutoFormat = true,
     this.enableSdSyntaxAutoConvert = false,
     this.enableComfyuiImport = false,
@@ -151,6 +155,7 @@ class UnifiedPromptConfig {
   UnifiedPromptConfig copyWith({
     bool? enableAutocomplete,
     bool? enableSyntaxHighlight,
+    bool? numericEmphasisEnabled,
     bool? enableAutoFormat,
     bool? enableSdSyntaxAutoConvert,
     bool? enableComfyuiImport,
@@ -168,6 +173,8 @@ class UnifiedPromptConfig {
       enableAutocomplete: enableAutocomplete ?? this.enableAutocomplete,
       enableSyntaxHighlight:
           enableSyntaxHighlight ?? this.enableSyntaxHighlight,
+      numericEmphasisEnabled:
+          numericEmphasisEnabled ?? this.numericEmphasisEnabled,
       enableAutoFormat: enableAutoFormat ?? this.enableAutoFormat,
       enableSdSyntaxAutoConvert:
           enableSdSyntaxAutoConvert ?? this.enableSdSyntaxAutoConvert,
@@ -190,6 +197,7 @@ class UnifiedPromptConfig {
     return other is UnifiedPromptConfig &&
         other.enableAutocomplete == enableAutocomplete &&
         other.enableSyntaxHighlight == enableSyntaxHighlight &&
+        other.numericEmphasisEnabled == numericEmphasisEnabled &&
         other.enableAutoFormat == enableAutoFormat &&
         other.enableSdSyntaxAutoConvert == enableSdSyntaxAutoConvert &&
         other.enableComfyuiImport == enableComfyuiImport &&
@@ -207,6 +215,7 @@ class UnifiedPromptConfig {
     return Object.hash(
       enableAutocomplete,
       enableSyntaxHighlight,
+      numericEmphasisEnabled,
       enableAutoFormat,
       enableSdSyntaxAutoConvert,
       enableComfyuiImport,

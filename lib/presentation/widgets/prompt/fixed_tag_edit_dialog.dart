@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../../../core/constants/api_constants.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../providers/image_generation_provider.dart';
@@ -68,14 +69,19 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    _contentController.highlightEnabled = ref.watch(
+      highlightEmphasisSettingsProvider,
+    );
+    _contentController.numericEmphasisEnabled = ImageModels.isV4Model(
+      ref.watch(
+        generationParamsNotifierProvider.select((params) => params.model),
+      ),
+    );
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 500,
-          minWidth: 400,
-        ),
+        constraints: const BoxConstraints(maxWidth: 500, minWidth: 400),
         child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -113,8 +119,10 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                 if (widget.entry?.sourceEntryId != null)
                   Container(
                     margin: const EdgeInsets.only(bottom: 16),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(6),
@@ -171,8 +179,9 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                   child: PromptFormatterWrapper(
                     controller: _contentController,
                     focusNode: _contentFocusNode,
-                    enableAutoFormat:
-                        ref.watch(autoFormatPromptSettingsProvider),
+                    enableAutoFormat: ref.watch(
+                      autoFormatPromptSettingsProvider,
+                    ),
                     child: AutocompleteWrapper.withAlias(
                       controller: _contentController,
                       focusNode: _contentFocusNode,
@@ -288,8 +297,9 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color:
-                            theme.colorScheme.secondary.withValues(alpha: 0.1),
+                        color: theme.colorScheme.secondary.withValues(
+                          alpha: 0.1,
+                        ),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -386,15 +396,17 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: _saveToLibrary
-                          ? theme.colorScheme.primaryContainer
-                              .withValues(alpha: 0.3)
+                          ? theme.colorScheme.primaryContainer.withValues(
+                              alpha: 0.3,
+                            )
                           : theme.colorScheme.surfaceContainerLow,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: _saveToLibrary
                             ? theme.colorScheme.primary.withValues(alpha: 0.4)
-                            : theme.colorScheme.outlineVariant
-                                .withValues(alpha: 0.5),
+                            : theme.colorScheme.outlineVariant.withValues(
+                                alpha: 0.5,
+                              ),
                       ),
                     ),
                     child: Column(
@@ -437,21 +449,21 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                                   children: [
                                     Text(
                                       context.l10n.fixedTags_saveToLibrary,
-                                      style:
-                                          theme.textTheme.bodyMedium?.copyWith(
-                                        fontWeight: FontWeight.w500,
-                                        color: _saveToLibrary
-                                            ? theme.colorScheme.primary
-                                            : null,
-                                      ),
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w500,
+                                            color: _saveToLibrary
+                                                ? theme.colorScheme.primary
+                                                : null,
+                                          ),
                                     ),
                                     Text(
                                       context.l10n.fixedTags_saveToLibraryHint,
-                                      style:
-                                          theme.textTheme.bodySmall?.copyWith(
-                                        color: theme.colorScheme.outline,
-                                        fontSize: 11,
-                                      ),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: theme.colorScheme.outline,
+                                            fontSize: 11,
+                                          ),
                                     ),
                                   ],
                                 ),
@@ -496,8 +508,8 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
   String _getWeightPreview() {
     final content = _contentController.text.isNotEmpty
         ? (_contentController.text.length > 30
-            ? '${_contentController.text.substring(0, 30)}...'
-            : _contentController.text)
+              ? '${_contentController.text.substring(0, 30)}...'
+              : _contentController.text)
         : 'your_content';
     return FixedTagEntry.applyWeight(content, _weight);
   }
@@ -512,7 +524,8 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
 
     if (content.isEmpty) return;
 
-    final result = widget.entry?.update(
+    final result =
+        widget.entry?.update(
           name: name,
           content: content,
           weight: _weight,
@@ -531,7 +544,9 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
 
     // 如果选中了"保存到词库"，同时添加到词库
     if (_saveToLibrary && !_isEditing) {
-      ref.read(tagLibraryPageNotifierProvider.notifier).addEntry(
+      ref
+          .read(tagLibraryPageNotifierProvider.notifier)
+          .addEntry(
             name: name.isNotEmpty
                 ? name
                 : content.substring(
