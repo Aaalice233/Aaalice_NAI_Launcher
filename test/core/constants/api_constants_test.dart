@@ -3,6 +3,71 @@ import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/network/nai_api_endpoint.dart';
 
 void main() {
+  group('ImageModels', () {
+    test('maps selectable models to their inpainting request models', () {
+      expect(
+        ImageModels.resolveInpaintingModel(ImageModels.animeDiffusionV45Full),
+        ImageModels.animeDiffusionV45FullInpainting,
+      );
+      expect(
+        ImageModels.resolveInpaintingModel(ImageModels.animeDiffusionV4Curated),
+        ImageModels.animeDiffusionV4CuratedInpainting,
+      );
+      expect(
+        ImageModels.resolveInpaintingModel(ImageModels.furryDiffusionV3),
+        ImageModels.furryDiffusionV3Inpainting,
+      );
+      expect(
+        ImageModels.resolveInpaintingModel(
+          ImageModels.animeDiffusionV45FullInpainting,
+        ),
+        ImageModels.animeDiffusionV45FullInpainting,
+      );
+    });
+
+    test('maps inpainting request models back to selectable models', () {
+      expect(
+        ImageModels.resolveBaseModel(
+          ImageModels.animeDiffusionV45CuratedInpainting,
+        ),
+        ImageModels.animeDiffusionV45Curated,
+      );
+      expect(
+        ImageModels.resolveBaseModel(ImageModels.animeDiffusionV3Inpainting),
+        ImageModels.animeDiffusionV3,
+      );
+      expect(
+        ImageModels.resolveBaseModel(ImageModels.animeDiffusionV4Full),
+        ImageModels.animeDiffusionV4Full,
+      );
+    });
+
+    test('matches img2img inpainting support of current request models', () {
+      expect(
+        ImageModels.supportsImg2ImgInpainting(
+          ImageModels.animeDiffusionV45FullInpainting,
+        ),
+        isTrue,
+      );
+      expect(
+        ImageModels.supportsImg2ImgInpainting(
+          ImageModels.animeDiffusionV3Inpainting,
+        ),
+        isTrue,
+      );
+      expect(
+        ImageModels.supportsImg2ImgInpainting(
+          ImageModels.furryDiffusionV3Inpainting,
+        ),
+        isTrue,
+      );
+      expect(
+        ImageModels.supportsImg2ImgInpainting(ImageModels.furryDiffusion),
+        isFalse,
+      );
+    });
+  });
+
   group('NaiApiEndpointConfig', () {
     test('normalizes third party base URLs and appends API endpoints', () {
       final endpoint = NaiApiEndpointConfig.fromInput(

@@ -108,6 +108,52 @@ class ImageModels {
 
   /// 判断是否为 Inpainting 模型
   static bool isInpaintingModel(String model) => model.contains('inpainting');
+
+  /// 将设置界面使用的基础模型转换为实际的 Inpainting 请求模型。
+  static String resolveInpaintingModel(String model) {
+    if (isInpaintingModel(model)) return model;
+
+    return switch (model) {
+      animeDiffusionV45Full => animeDiffusionV45FullInpainting,
+      animeDiffusionV45Curated => animeDiffusionV45CuratedInpainting,
+      animeDiffusionV4Full => animeDiffusionV4FullInpainting,
+      animeDiffusionV4Curated => animeDiffusionV4CuratedInpainting,
+      furryDiffusion || furryDiffusionV3 => furryDiffusionV3Inpainting,
+      _ => animeDiffusionV3Inpainting,
+    };
+  }
+
+  /// 将 Inpainting 请求模型还原为设置界面对应的基础模型。
+  static String resolveBaseModel(String model) {
+    return switch (model) {
+      animeDiffusionV45FullInpainting => animeDiffusionV45Full,
+      animeDiffusionV45CuratedInpainting => animeDiffusionV45Curated,
+      animeDiffusionV4FullInpainting => animeDiffusionV4Full,
+      animeDiffusionV4CuratedInpainting => animeDiffusionV4Curated,
+      furryDiffusionV3Inpainting => furryDiffusionV3,
+      animeDiffusionV3Inpainting => animeDiffusionV3,
+      _ => model,
+    };
+  }
+
+  /// 判断实际请求模型是否支持在 Inpainting 中复用原图潜空间。
+  static bool supportsImg2ImgInpainting(String model) {
+    return switch (model) {
+      animeDiffusionV45Full ||
+      animeDiffusionV45FullInpainting ||
+      animeDiffusionV45Curated ||
+      animeDiffusionV45CuratedInpainting ||
+      animeDiffusionV4Full ||
+      animeDiffusionV4FullInpainting ||
+      animeDiffusionV4Curated ||
+      animeDiffusionV4CuratedInpainting ||
+      animeDiffusionV3 ||
+      animeDiffusionV3Inpainting ||
+      furryDiffusionV3 ||
+      furryDiffusionV3Inpainting => true,
+      _ => false,
+    };
+  }
 }
 
 /// 采样器列表

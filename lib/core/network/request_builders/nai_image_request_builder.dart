@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
+import '../../constants/api_constants.dart';
 import '../../enums/precise_ref_type.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/inpaint_mask_utils.dart';
@@ -405,10 +406,14 @@ class NAIImageRequestBuilder {
 
     final seed = params.seed == -1 ? Random().nextInt(4294967295) : params.seed;
 
+    final baseModel = ImageModels.resolveBaseModel(params.model);
+    final requestModel = params.action == ImageGenerationAction.infill
+        ? ImageModels.resolveInpaintingModel(baseModel)
+        : params.model;
     final promptSemantics = buildPromptSemanticsSnapshot(
       prompt: params.prompt,
       negativePrompt: params.negativePrompt,
-      model: params.model,
+      model: baseModel,
       qualityToggle: params.qualityToggle,
       ucPreset: params.ucPreset,
     );
@@ -466,6 +471,13 @@ class NAIImageRequestBuilder {
       );
       requestParameters['strength'] = NAIApiUtils.toJsonNumber(params.strength);
       requestParameters['noise'] = NAIApiUtils.toJsonNumber(params.noise);
+      if (ImageModels.supportsImg2ImgInpainting(requestModel) &&
+          params.inpaintStrength != 1.0) {
+        requestParameters['img2img'] = {
+          'strength': NAIApiUtils.toJsonNumber(params.inpaintStrength),
+          'color_correct': true,
+        };
+      }
     }
 
     final vibeEncodingMap = await buildVibeTransferParameters(
@@ -477,7 +489,7 @@ class NAIImageRequestBuilder {
 
     final requestData = <String, dynamic>{
       'input': effectivePrompt,
-      'model': params.model,
+      'model': requestModel,
       'action': params.action.value,
       'parameters': requestParameters,
       'use_new_shared_trial': true,

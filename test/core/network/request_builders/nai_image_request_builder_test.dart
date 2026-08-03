@@ -554,11 +554,11 @@ void main() {
     );
 
     test(
-      'should forward infill strength and noise to request parameters',
+      'should build official V4 inpaint model and img2img strength parameters',
       () async {
         final params = ImageParams(
           action: ImageGenerationAction.infill,
-          model: 'nai-diffusion-4-full',
+          model: ImageModels.animeDiffusionV4Full,
           sourceImage: Uint8List.fromList([1, 2, 3]),
           maskImage: Uint8List.fromList([4, 5, 6]),
           strength: 0.42,
@@ -579,9 +579,66 @@ void main() {
           result.requestParameters['inpaintImg2ImgStrength'],
           equals(0.55),
         );
+        expect(
+          result.requestParameters['img2img'],
+          equals({'strength': 0.55, 'color_correct': true}),
+        );
         expect(result.requestParameters['mask'], isNotNull);
+        expect(
+          result.requestData['model'],
+          ImageModels.animeDiffusionV4FullInpainting,
+        );
+        expect(params.model, ImageModels.animeDiffusionV4Full);
       },
     );
+
+    test(
+      'should omit nested img2img config at full inpaint strength',
+      () async {
+        final params = ImageParams(
+          action: ImageGenerationAction.infill,
+          model: ImageModels.animeDiffusionV45Curated,
+          sourceImage: Uint8List.fromList([1, 2, 3]),
+          maskImage: Uint8List.fromList([4, 5, 6]),
+        );
+
+        final result = await NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler', isStream: true);
+
+        expect(result.requestParameters.containsKey('img2img'), isFalse);
+        expect(
+          result.requestData['model'],
+          ImageModels.animeDiffusionV45CuratedInpainting,
+        );
+        expect(result.requestParameters['stream'], 'msgpack');
+      },
+    );
+
+    test('should send supported inpaint strength config to V3', () async {
+      final params = ImageParams(
+        action: ImageGenerationAction.infill,
+        model: ImageModels.animeDiffusionV3,
+        sourceImage: Uint8List.fromList([1, 2, 3]),
+        maskImage: Uint8List.fromList([4, 5, 6]),
+        inpaintStrength: 0.55,
+      );
+
+      final result = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler');
+
+      expect(
+        result.requestParameters['img2img'],
+        equals({'strength': 0.55, 'color_correct': true}),
+      );
+      expect(
+        result.requestData['model'],
+        ImageModels.animeDiffusionV3Inpainting,
+      );
+    });
 
     test('should omit vibe transfer payload for infill requests', () async {
       final params = ImageParams(

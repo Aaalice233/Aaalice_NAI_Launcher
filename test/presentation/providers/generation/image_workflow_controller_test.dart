@@ -407,10 +407,7 @@ void main() {
         expect(params.maskImage, isNotNull);
         expect(params.isOutpaint, isFalse);
         expect(params.action, ImageGenerationAction.infill);
-        expect(
-          params.model,
-          equals(ImageModels.animeDiffusionV45FullInpainting),
-        );
+        expect(params.model, equals(ImageModels.animeDiffusionV45Full));
       },
     );
 
@@ -585,7 +582,7 @@ void main() {
     );
 
     test(
-      'enterInpaintMode should switch v4.5 full to inpainting model and restore base model on exit',
+      'enterInpaintMode should keep the settings model stable across inpaint',
       () {
         final controller = container.read(
           imageWorkflowControllerProvider.notifier,
@@ -606,15 +603,17 @@ void main() {
         controller.onMaskChanged(Uint8List.fromList([9, 9, 9]));
 
         var params = container.read(generationParamsNotifierProvider);
-        expect(
-          params.model,
-          equals(ImageModels.animeDiffusionV45FullInpainting),
+        expect(params.model, equals(ImageModels.animeDiffusionV45Full));
+
+        paramsNotifier.updateModel(
+          ImageModels.animeDiffusionV45Curated,
+          persist: false,
         );
 
         controller.enterBaseMode();
 
         params = container.read(generationParamsNotifierProvider);
-        expect(params.model, equals(ImageModels.animeDiffusionV45Full));
+        expect(params.model, equals(ImageModels.animeDiffusionV45Curated));
       },
     );
 
@@ -657,7 +656,7 @@ void main() {
     );
 
     test(
-      'onMaskChanged should keep model and action aligned while toggling inpaint mode',
+      'onMaskChanged should keep the settings model while toggling inpaint mode',
       () {
         final controller = container.read(
           imageWorkflowControllerProvider.notifier,
@@ -684,7 +683,7 @@ void main() {
 
         params = container.read(generationParamsNotifierProvider);
         expect(params.action, ImageGenerationAction.infill);
-        expect(params.model, ImageModels.animeDiffusionV4FullInpainting);
+        expect(params.model, ImageModels.animeDiffusionV4Full);
 
         controller.onMaskChanged(null);
 

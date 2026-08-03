@@ -330,7 +330,6 @@ class ImageWorkflowState {
     this.baseHeight,
     this.baseStrength,
     this.baseNoise,
-    this.baseModel,
     this.enhance = const EnhanceWorkflowSettings(),
     this.upscale = const UpscaleWorkflowSettings(),
     this.isPanelExpanded = false,
@@ -349,7 +348,6 @@ class ImageWorkflowState {
   final int? baseHeight;
   final double? baseStrength;
   final double? baseNoise;
-  final String? baseModel;
   final EnhanceWorkflowSettings enhance;
   final UpscaleWorkflowSettings upscale;
   final bool isPanelExpanded;
@@ -372,7 +370,6 @@ class ImageWorkflowState {
     int? baseHeight,
     double? baseStrength,
     double? baseNoise,
-    String? baseModel,
     EnhanceWorkflowSettings? enhance,
     UpscaleWorkflowSettings? upscale,
     bool? isPanelExpanded,
@@ -402,7 +399,6 @@ class ImageWorkflowState {
           ? null
           : (baseStrength ?? this.baseStrength),
       baseNoise: clearBaseSnapshot ? null : (baseNoise ?? this.baseNoise),
-      baseModel: clearBaseSnapshot ? null : (baseModel ?? this.baseModel),
       enhance: enhance ?? this.enhance,
       upscale: upscale ?? this.upscale,
       isPanelExpanded: isPanelExpanded ?? this.isPanelExpanded,
@@ -904,13 +900,11 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
   }
 
   void clearSourceImage() {
-    if (state.baseWidth != null ||
-        state.baseHeight != null ||
-        state.baseModel != null) {
+    if (state.baseWidth != null || state.baseHeight != null) {
       _restoreBaseParams();
     } else if (ImageModels.isInpaintingModel(_params.model)) {
       _paramsNotifier.updateModel(
-        _resolveBaseModel(_params.model),
+        ImageModels.resolveBaseModel(_params.model),
         persist: false,
       );
     }
@@ -1366,7 +1360,6 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       baseHeight: _params.height,
       baseStrength: _params.strength,
       baseNoise: _params.noise,
-      baseModel: _resolveBaseModel(_params.model),
     );
   }
 
@@ -1383,9 +1376,6 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     }
     if (state.baseNoise != null) {
       _paramsNotifier.updateNoise(state.baseNoise!);
-    }
-    if (state.baseModel != null) {
-      _paramsNotifier.updateModel(state.baseModel!, persist: false);
     }
   }
 
@@ -1422,76 +1412,19 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     _paramsNotifier.updateSize(width, height, persist: false);
   }
 
-  void _applyInpaintModel() {
-    final sourceModel = state.baseModel ?? _params.model;
-    _paramsNotifier.updateModel(
-      _resolveInpaintModel(sourceModel),
-      persist: false,
-    );
-  }
-
-  void _restoreBaseModel() {
-    final baseModel = state.baseModel ?? _resolveBaseModel(_params.model);
-    _paramsNotifier.updateModel(baseModel, persist: false);
-  }
-
   void _syncInpaintRequestState() {
     if (state.mode != ImageWorkflowMode.inpaint) {
       return;
     }
 
     if (_params.maskImage != null) {
-      _applyInpaintModel();
       _paramsNotifier.updateIsOutpaint(state.isOutpaint);
       _paramsNotifier.updateAction(ImageGenerationAction.infill);
       return;
     }
 
-    _restoreBaseModel();
     _paramsNotifier.updateIsOutpaint(false);
     _paramsNotifier.updateAction(ImageGenerationAction.img2img);
-  }
-
-  String _resolveInpaintModel(String model) {
-    if (ImageModels.isInpaintingModel(model)) {
-      return model;
-    }
-
-    switch (model) {
-      case ImageModels.animeDiffusionV45Full:
-        return ImageModels.animeDiffusionV45FullInpainting;
-      case ImageModels.animeDiffusionV45Curated:
-        return ImageModels.animeDiffusionV45CuratedInpainting;
-      case ImageModels.animeDiffusionV4Full:
-        return ImageModels.animeDiffusionV4FullInpainting;
-      case ImageModels.animeDiffusionV4Curated:
-        return ImageModels.animeDiffusionV4CuratedInpainting;
-      case ImageModels.furryDiffusion:
-      case ImageModels.furryDiffusionV3:
-        return ImageModels.furryDiffusionV3Inpainting;
-      case ImageModels.animeDiffusionV3:
-      default:
-        return ImageModels.animeDiffusionV3Inpainting;
-    }
-  }
-
-  String _resolveBaseModel(String model) {
-    switch (model) {
-      case ImageModels.animeDiffusionV45FullInpainting:
-        return ImageModels.animeDiffusionV45Full;
-      case ImageModels.animeDiffusionV45CuratedInpainting:
-        return ImageModels.animeDiffusionV45Curated;
-      case ImageModels.animeDiffusionV4FullInpainting:
-        return ImageModels.animeDiffusionV4Full;
-      case ImageModels.animeDiffusionV4CuratedInpainting:
-        return ImageModels.animeDiffusionV4Curated;
-      case ImageModels.furryDiffusionV3Inpainting:
-        return ImageModels.furryDiffusionV3;
-      case ImageModels.animeDiffusionV3Inpainting:
-        return ImageModels.animeDiffusionV3;
-      default:
-        return model;
-    }
   }
 
   (double, double) _resolveMagnitude(double magnitude) {
@@ -1507,7 +1440,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
   }
 
   bool _usesStableDiffusionImportBounds(String model) {
-    final baseModel = _resolveBaseModel(model);
+    final baseModel = ImageModels.resolveBaseModel(model);
     return baseModel == ImageModels.animeCurated ||
         baseModel == ImageModels.animeFull ||
         baseModel == ImageModels.furry;
