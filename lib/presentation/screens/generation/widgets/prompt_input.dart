@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
 import '../../../../core/utils/nai_prompt_formatter.dart';
@@ -425,20 +426,27 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
     // 监听高亮设置变化，更新控制器
     final highlightEnabled = ref.watch(highlightEmphasisSettingsProvider);
+    final numericEmphasisEnabled = ImageModels.isV4Model(
+      ref.watch(
+        generationParamsNotifierProvider.select((params) => params.model),
+      ),
+    );
     _promptController.highlightEnabled = highlightEnabled;
     _negativeController.highlightEnabled = highlightEnabled;
+    _promptController.numericEmphasisEnabled = numericEmphasisEnabled;
+    _negativeController.numericEmphasisEnabled = numericEmphasisEnabled;
 
     if (widget.compact) {
-      return _buildCompactLayout(theme);
+      return _buildCompactLayout(theme, numericEmphasisEnabled);
     }
 
-    return _buildFullLayout(theme);
+    return _buildFullLayout(theme, numericEmphasisEnabled);
   }
 
-  Widget _buildFullLayout(ThemeData theme) {
+  Widget _buildFullLayout(ThemeData theme, bool numericEmphasisEnabled) {
     final editor = _isNegativeMode
-        ? _buildTextNegativeInput(theme)
-        : _buildTextPromptInput(theme);
+        ? _buildTextNegativeInput(theme, numericEmphasisEnabled)
+        : _buildTextPromptInput(theme, numericEmphasisEnabled);
     return Column(
       mainAxisSize: widget.autoGrow ? MainAxisSize.min : MainAxisSize.max,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -476,7 +484,11 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     );
     final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
 
-    final typeSwitch = _buildPromptTypeSwitch(theme, promptCount, negativeCount);
+    final typeSwitch = _buildPromptTypeSwitch(
+      theme,
+      promptCount,
+      negativeCount,
+    );
 
     // 工具栏（随机、全屏、清空、设置）
     final toolbar = PromptEditorToolbar(
@@ -699,7 +711,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         .updateNegativePrompt('');
   }
 
-  Widget _buildTextPromptInput(ThemeData theme) {
+  Widget _buildTextPromptInput(ThemeData theme, bool numericEmphasisEnabled) {
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
     final enableHighlight = ref.watch(highlightEmphasisSettingsProvider);
@@ -714,6 +726,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       onOpenAssistantSettings: _openAssistantQuickSettings,
       config: UnifiedPromptConfig(
         enableSyntaxHighlight: enableHighlight,
+        numericEmphasisEnabled: numericEmphasisEnabled,
         enableAutocomplete: enableAutocomplete,
         enableAutoFormat: enableAutoFormat,
         enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
@@ -807,7 +820,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     }
   }
 
-  Widget _buildTextNegativeInput(ThemeData theme) {
+  Widget _buildTextNegativeInput(ThemeData theme, bool numericEmphasisEnabled) {
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
     final enableAutoFormat = ref.watch(autoFormatPromptSettingsProvider);
     final enableHighlight = ref.watch(highlightEmphasisSettingsProvider);
@@ -822,6 +835,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       onOpenAssistantSettings: _openAssistantQuickSettings,
       config: UnifiedPromptConfig(
         enableSyntaxHighlight: enableHighlight,
+        numericEmphasisEnabled: numericEmphasisEnabled,
         enableAutocomplete: enableAutocomplete,
         enableAutoFormat: enableAutoFormat,
         enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
@@ -847,7 +861,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     );
   }
 
-  Widget _buildCompactLayout(ThemeData theme) {
+  Widget _buildCompactLayout(ThemeData theme, bool numericEmphasisEnabled) {
     final enableHighlight = ref.watch(highlightEmphasisSettingsProvider);
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);
 
@@ -864,6 +878,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             onOpenAssistantSettings: _openAssistantQuickSettings,
             config: UnifiedPromptConfig(
               enableSyntaxHighlight: enableHighlight,
+              numericEmphasisEnabled: numericEmphasisEnabled,
               enableAutocomplete: enableAutocomplete,
               enableComfyuiImport: true,
               autocompleteConfig: const AutocompleteConfig(

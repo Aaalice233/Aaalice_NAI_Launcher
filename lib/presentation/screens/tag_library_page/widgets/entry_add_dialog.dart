@@ -9,6 +9,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../../core/constants/api_constants.dart';
 import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../providers/image_generation_provider.dart';
@@ -92,6 +93,17 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
 
   bool get _isEditing => widget.entry != null;
 
+  void _syncSyntaxHighlightSettings() {
+    _contentController.highlightEnabled = ref.watch(
+      highlightEmphasisSettingsProvider,
+    );
+    _contentController.numericEmphasisEnabled = ImageModels.isV4Model(
+      ref.watch(
+        generationParamsNotifierProvider.select((params) => params.model),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -160,6 +172,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    _syncSyntaxHighlightSettings();
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -211,9 +224,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                     const SizedBox(width: 24),
 
                     // 右侧 - 表单
-                    Expanded(
-                      child: _buildFormSection(theme),
-                    ),
+                    Expanded(child: _buildFormSection(theme)),
                   ],
                 ),
 
@@ -230,8 +241,9 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                   child: PromptFormatterWrapper(
                     controller: _contentController,
                     focusNode: _contentFocusNode,
-                    enableAutoFormat:
-                        ref.watch(autoFormatPromptSettingsProvider),
+                    enableAutoFormat: ref.watch(
+                      autoFormatPromptSettingsProvider,
+                    ),
                     child: AutocompleteWrapper.withAlias(
                       controller: _contentController,
                       focusNode: _contentFocusNode,
@@ -302,7 +314,9 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
         ),
         const SizedBox(height: 8),
         GestureDetector(
-          onTap: _thumbnailPath != null ? _showThumbnailOptions : _selectThumbnail,
+          onTap: _thumbnailPath != null
+              ? _showThumbnailOptions
+              : _selectThumbnail,
           child: Container(
             width: 200,
             height: 80,
@@ -363,10 +377,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
         const SizedBox(height: 8),
         Text(
           context.l10n.tagLibrary_thumbnailHint,
-          style: TextStyle(
-            fontSize: 11,
-            color: theme.colorScheme.outline,
-          ),
+          style: TextStyle(fontSize: 11, color: theme.colorScheme.outline),
         ),
       ],
     );
@@ -377,10 +388,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 名称
-        Text(
-          context.l10n.tagLibrary_name,
-          style: theme.textTheme.labelLarge,
-        ),
+        Text(context.l10n.tagLibrary_name, style: theme.textTheme.labelLarge),
         const SizedBox(height: 8),
         ThemedInput(
           controller: _nameController,
@@ -442,10 +450,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
         const SizedBox(height: 16),
 
         // 标签
-        Text(
-          context.l10n.tagLibrary_tags,
-          style: theme.textTheme.labelLarge,
-        ),
+        Text(context.l10n.tagLibrary_tags, style: theme.textTheme.labelLarge),
         const SizedBox(height: 8),
         AutocompleteWrapper(
           controller: _tagsController,
@@ -482,8 +487,10 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     }
 
     // 调试用
-    debugPrint('EntryAddDialog: offset=($_thumbnailOffsetX, $_thumbnailOffsetY), scale=$_thumbnailScale');
-    
+    debugPrint(
+      'EntryAddDialog: offset=($_thumbnailOffsetX, $_thumbnailOffsetY), scale=$_thumbnailScale',
+    );
+
     // 使用 ThumbnailDisplay 组件确保与 EntryCard 显示一致
     return ThumbnailDisplay(
       imagePath: _thumbnailPath!,
@@ -627,21 +634,23 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     final tagsText = _tagsController.text.trim();
     final tags = tagsText.isNotEmpty
         ? tagsText
-            .split(',')
-            .map((t) => t.trim())
-            .where((t) => t.isNotEmpty)
-            .toList()
+              .split(',')
+              .map((t) => t.trim())
+              .where((t) => t.isNotEmpty)
+              .toList()
         : <String>[];
 
     if (content.isEmpty) return;
 
     // 获取旧的缩略图路径（用于后续清理）
-    final String? oldThumbnailPath =
-        _isEditing ? widget.entry?.thumbnail : null;
+    final String? oldThumbnailPath = _isEditing
+        ? widget.entry?.thumbnail
+        : null;
 
     // 处理缩略图：确保存储在应用目录内
-    final String? savedThumbnailPath =
-        await _ensureThumbnailInAppDir(_thumbnailPath);
+    final String? savedThumbnailPath = await _ensureThumbnailInAppDir(
+      _thumbnailPath,
+    );
 
     // 如果缩略图发生了变化，删除旧的
     if (oldThumbnailPath != null &&

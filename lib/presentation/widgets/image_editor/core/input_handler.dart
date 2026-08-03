@@ -555,6 +555,7 @@ class InputHandler {
       case 'rect_selection':
       case 'ellipse_selection':
       case 'lasso_selection':
+      case 'magic_wand':
         return SystemMouseCursors.precise;
       case 'color_picker':
         return SystemMouseCursors.precise;

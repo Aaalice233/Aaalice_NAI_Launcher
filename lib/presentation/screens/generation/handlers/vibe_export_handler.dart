@@ -11,6 +11,7 @@ import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/vibe_export_utils.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
+import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../widgets/common/app_toast.dart';
 
 /// Vibe 导出处理器
@@ -27,6 +28,8 @@ class VibeExportHandler {
   final BuildContext context;
 
   static const String _tag = 'VibeExportHandler';
+
+  String get _defaultModel => ref.read(generationParamsNotifierProvider).model;
 
   /// 导出 Vibe 列表
   ///
@@ -68,7 +71,10 @@ class VibeExportHandler {
       return;
     }
 
-    final result = await VibeExportUtils.exportToNaiv4Vibe(vibe);
+    final result = await VibeExportUtils.exportToNaiv4Vibe(
+      vibe,
+      defaultModel: _defaultModel,
+    );
 
     if (result != null && context.mounted) {
       AppToast.success(context, l10n.vibe_export_success);
@@ -143,6 +149,7 @@ class VibeExportHandler {
     final result = await VibeExportUtils.exportToNaiv4VibeBundle(
       exportableVibes,
       'vibe-bundle',
+      defaultModel: _defaultModel,
     );
 
     if (result != null && context.mounted) {
@@ -168,7 +175,10 @@ class VibeExportHandler {
         continue;
       }
 
-      final result = await VibeExportUtils.exportToNaiv4Vibe(vibe);
+      final result = await VibeExportUtils.exportToNaiv4Vibe(
+        vibe,
+        defaultModel: _defaultModel,
+      );
       if (result != null) {
         successCount++;
       }
@@ -335,6 +345,7 @@ class VibeExportHandler {
       vibes,
       carrierImageBytes: carrierImageBytes,
       fileName: fileName,
+      defaultModel: _defaultModel,
     );
 
     if (result != null && context.mounted) {

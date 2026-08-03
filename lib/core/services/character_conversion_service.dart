@@ -39,22 +39,14 @@ class CharacterConversionResult {
   bool get hasCharacters => characters.isNotEmpty;
 }
 
-/// 别名解析器接口
-///
-/// 用于解析提示词中的别名引用
-abstract class AliasResolver {
-  /// 解析文本中的所有别名
-  ///
-  /// [text] 包含别名的原始文本
-  /// 返回解析后的文本
-  String resolveAliases(String text);
-}
+/// 别名解析函数。
+typedef AliasResolver = String Function(String text);
 
 /// 角色转换服务
 ///
 /// 负责将 UI 层的角色提示词配置转换为 API 层的格式，包括：
 /// - 过滤启用且有提示词的角色
-/// - 位置信息转换（自定义位置转 NAI 网格格式）
+/// - 位置信息转换（自定义位置转连续坐标）
 /// - 别名解析（角色提示词中的别名展开）
 ///
 /// 这是一个纯服务类，不依赖 Riverpod，便于单元测试和复用
@@ -65,9 +57,8 @@ class CharacterConversionService {
   /// 创建角色转换服务
   ///
   /// [aliasResolver] 别名解析器，用于解析角色提示词中的别名
-  CharacterConversionService({
-    AliasResolver? aliasResolver,
-  }) : _aliasResolver = aliasResolver;
+  CharacterConversionService({AliasResolver? aliasResolver})
+    : _aliasResolver = aliasResolver;
 
   /// 转换角色配置为 API 格式
   ///
@@ -91,12 +82,12 @@ class CharacterConversionService {
     bool aliasesWereResolved = false;
 
     final apiCharacters = enabledCharacters.map((uiChar) {
-      // 计算位置字符串
-      String? position;
-      if (!config.globalAiChoice &&
-          uiChar.positionMode == ui_character.CharacterPositionMode.custom &&
-          uiChar.customPosition != null) {
-        position = uiChar.customPosition!.toNaiString();
+      double? positionX;
+      double? positionY;
+      if (!config.globalAiChoice) {
+        final position = config.resolvePosition(uiChar);
+        positionX = position.column;
+        positionY = position.row;
       }
 
       // 解析角色提示词中的别名
@@ -106,9 +97,8 @@ class CharacterConversionService {
       if (resolveAliases) {
         final aliasResolver = _aliasResolver;
         if (aliasResolver != null) {
-          final promptWithAliases = aliasResolver.resolveAliases(uiChar.prompt);
-          final negativeWithAliases =
-              aliasResolver.resolveAliases(uiChar.negativePrompt);
+          final promptWithAliases = aliasResolver(uiChar.prompt);
+          final negativeWithAliases = aliasResolver(uiChar.negativePrompt);
 
           if (promptWithAliases != uiChar.prompt ||
               negativeWithAliases != uiChar.negativePrompt) {
@@ -122,7 +112,8 @@ class CharacterConversionService {
       return CharacterPrompt(
         prompt: resolvedPrompt,
         negativePrompt: resolvedNegativePrompt,
-        position: position,
+        positionX: positionX,
+        positionY: positionY,
       );
     }).toList();
 

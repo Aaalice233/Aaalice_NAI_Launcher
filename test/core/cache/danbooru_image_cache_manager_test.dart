@@ -65,4 +65,30 @@ void main() {
       expect(onlineGalleryImageCacheKeyForUrl('not a url'), isNull);
     });
   });
+
+  group('shouldPrefetchOnlineGalleryImage', () {
+    test('skips Gelbooru media that require browser headers', () {
+      expect(
+        shouldPrefetchOnlineGalleryImage(
+          'https://img4.gelbooru.com/thumbnails/51/d1/thumbnail_image.jpg',
+        ),
+        isFalse,
+      );
+      expect(
+        shouldPrefetchOnlineGalleryImage(
+          'https://gelbooru.com/images/51/d1/source.jpg',
+        ),
+        isFalse,
+      );
+    });
+
+    test('keeps bare prefetch for Danbooru media', () {
+      expect(
+        shouldPrefetchOnlineGalleryImage(
+          'https://cdn.donmai.us/preview/test.jpg',
+        ),
+        isTrue,
+      );
+    });
+  });
 }

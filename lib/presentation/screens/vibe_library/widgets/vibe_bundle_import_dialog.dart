@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
+import '../../../widgets/common/editable_double_field.dart';
 
 enum BundleImportOption { keepAsBundle, split, importSelected }
 
@@ -569,9 +570,10 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
                     theme,
                     label: context.l10n.vibe_strength,
                     value: _strengthValues[index],
-                    min: VibeReference.minStrength,
-                    max: VibeReference.maxStrength,
-                    divisions: 200,
+                    min: VibeReference.minSliderStrength,
+                    max: VibeReference.maxSliderStrength,
+                    divisions: 99,
+                    unboundedInput: true,
                     enabled: isSelected,
                     onChanged: (value) {
                       setState(() => _strengthValues[index] = value);
@@ -584,7 +586,7 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
                     value: _infoExtractedValues[index],
                     min: VibeReference.minInfoExtracted,
                     max: VibeReference.maxInfoExtracted,
-                    divisions: 100,
+                    divisions: 99,
                     enabled: isSelected,
                     onChanged: (value) {
                       setState(() => _infoExtractedValues[index] = value);
@@ -646,6 +648,7 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
     required int divisions,
     required bool enabled,
     required ValueChanged<double> onChanged,
+    bool unboundedInput = false,
   }) {
     return Row(
       children: [
@@ -667,14 +670,16 @@ class _VibeBundleImportDialogState extends State<VibeBundleImportDialog> {
             onChanged: enabled ? onChanged : null,
           ),
         ),
-        SizedBox(
-          width: 44,
-          child: Text(
-            value.toStringAsFixed(2),
-            textAlign: TextAlign.end,
-            style: theme.textTheme.labelSmall?.copyWith(
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
+        EditableDoubleField(
+          value: value,
+          min: unboundedInput ? null : min,
+          max: unboundedInput ? null : max,
+          decimals: 2,
+          width: 56,
+          enabled: enabled,
+          onChanged: onChanged,
+          textStyle: theme.textTheme.labelSmall?.copyWith(
+            fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
       ],

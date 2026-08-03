@@ -122,12 +122,11 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
 }
 
 class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
-  /// 内部文本控制器（当未提供外部控制器时使用）
-  TextEditingController? _internalController;
   late final ValueGetter<TextEditingController> _effectiveControllerProvider;
 
   /// 语法高亮控制器
   NaiSyntaxController? _syntaxController;
+  bool _syncingControllerValue = false;
 
   /// 焦点节点
   FocusNode? _internalFocusNode;
@@ -215,12 +214,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   }
 
   /// 获取有效的文本控制器
-  TextEditingController get _effectiveController {
-    if (widget.config.enableSyntaxHighlight) {
-      return _syntaxController!;
-    }
-    return widget.controller ?? _internalController!;
-  }
+  TextEditingController get _effectiveController => _syntaxController!;
 
   /// 获取有效的焦点节点
   FocusNode get _effectiveFocusNode {
@@ -261,19 +255,17 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     _effectiveControllerProvider = () => _effectiveController;
     _sessionId = _resolveSessionId(widget.sessionId);
 
-    // 初始化内部控制器（如果需要）
-    if (widget.controller == null) {
-      _internalController = TextEditingController();
+    // 官网的竖线装饰独立于强调开关，因此始终使用语法控制器。
+    final initialText = widget.controller?.text ?? '';
+    _syntaxController = NaiSyntaxController(
+      text: initialText,
+      highlightEnabled: widget.config.enableSyntaxHighlight,
+      numericEmphasisEnabled: widget.config.numericEmphasisEnabled,
+    );
+    if (widget.controller != null) {
+      _syntaxController!.value = widget.controller!.value;
     }
-
-    // 初始化语法高亮控制器
-    if (widget.config.enableSyntaxHighlight) {
-      final initialText = widget.controller?.text ?? '';
-      _syntaxController = NaiSyntaxController(
-        text: initialText,
-        highlightEnabled: true,
-      );
-    }
+    _syntaxController!.addListener(_syncToExternalController);
 
     // 初始化焦点节点（如果需要）
     if (widget.focusNode == null) {
@@ -314,32 +306,17 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       oldWidget.controller?.removeListener(_syncFromExternalController);
       widget.controller?.addListener(_syncFromExternalController);
 
-      if (widget.controller == null && _internalController == null) {
-        _internalController = TextEditingController();
-      }
-
-      _syncFromExternalController();
+      final updatedController = widget.controller;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && identical(widget.controller, updatedController)) {
+          _syncFromExternalController();
+        }
+      });
     }
 
-    // 语法高亮配置变化
-    if (widget.config.enableSyntaxHighlight !=
-        oldWidget.config.enableSyntaxHighlight) {
-      if (widget.config.enableSyntaxHighlight && _syntaxController == null) {
-        // 使用旧的配置获取当前文本，避免在 _syntaxController 为 null 时访问 _effectiveController
-        final currentText = oldWidget.config.enableSyntaxHighlight
-            ? widget.controller?.text ?? _internalController?.text ?? ''
-            : widget.controller?.text ?? _internalController?.text ?? '';
-        _syntaxController = NaiSyntaxController(
-          text: currentText,
-          highlightEnabled: true,
-        );
-      } else if (!widget.config.enableSyntaxHighlight &&
-          _syntaxController != null) {
-        // 禁用语法高亮时，释放资源
-        _syntaxController?.dispose();
-        _syntaxController = null;
-      }
-    }
+    _syntaxController?.highlightEnabled = widget.config.enableSyntaxHighlight;
+    _syntaxController?.numericEmphasisEnabled =
+        widget.config.numericEmphasisEnabled;
 
     if (_shouldResetAutocompleteStrategy(oldWidget)) {
       _autocompleteStrategyFuture = null;
@@ -354,7 +331,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     HardwareKeyboard.instance.removeHandler(_handleHardwareKeyEvent);
     _effectiveFocusNode.removeListener(_onFocusChanged);
     widget.controller?.removeListener(_syncFromExternalController);
-    _internalController?.dispose();
+    _syntaxController?.removeListener(_syncToExternalController);
     _syntaxController?.dispose();
     _internalFocusNode?.dispose();
     _searchController.dispose();
@@ -513,41 +490,76 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
   /// 同步外部控制器变化到内部状态
   void _syncFromExternalController() {
-    if (widget.controller == null) return;
-
-    final externalText = widget.controller!.text;
-
-    // 同步到语法高亮控制器
-    if (_syntaxController != null && _syntaxController!.text != externalText) {
-      _syntaxController!.text = externalText;
+    final externalController = widget.controller;
+    final syntaxController = _syntaxController;
+    if (externalController == null ||
+        syntaxController == null ||
+        _syncingControllerValue) {
+      return;
     }
 
-    if (_searchVisible && externalText != _lastSearchSourceText) {
-      _refreshSearchMatches(preserveActive: true);
+    final externalValue = externalController.value;
+
+    if (syntaxController.value != externalValue) {
+      _syncingControllerValue = true;
+      try {
+        syntaxController.value = externalValue;
+      } finally {
+        _syncingControllerValue = false;
+      }
+    }
+
+    if (_searchVisible && externalValue.text != _lastSearchSourceText) {
+      _refreshSearchMatches(preserveActive: true, selectActiveMatch: false);
+    }
+  }
+
+  void _syncToExternalController() {
+    final externalController = widget.controller;
+    final syntaxController = _syntaxController;
+    if (syntaxController == null || _syncingControllerValue) {
+      return;
+    }
+
+    if (externalController != null &&
+        externalController.value != syntaxController.value) {
+      _syncingControllerValue = true;
+      try {
+        externalController.value = syntaxController.value;
+      } finally {
+        _syncingControllerValue = false;
+      }
+    }
+
+    if (_searchVisible && syntaxController.text != _lastSearchSourceText) {
+      _refreshSearchMatches(preserveActive: true, selectActiveMatch: false);
     }
   }
 
   /// 处理文本变化
   void _handleTextChanged(String text) {
-    // 同步到外部控制器
-    if (widget.controller != null && widget.controller!.text != text) {
-      widget.controller!.text = text;
-    }
-
     // 触发回调
     widget.onChanged?.call(text);
 
     if (_searchVisible && text != _lastSearchSourceText) {
-      _refreshSearchMatches(preserveActive: true);
+      _refreshSearchMatches(preserveActive: true, selectActiveMatch: false);
     }
   }
 
   /// 处理清空操作
   void _handleClear() {
-    _effectiveController.clear();
+    // 不用 controller.clear()：它把 selection 置为 -1（无效），
+    // 光标会消失且后续键盘输入连接错乱，需要重新点击才能恢复。
+    // 显式给出光标位置 0，清空后可直接继续输入。
+    const clearedValue = TextEditingValue(
+      text: '',
+      selection: TextSelection.collapsed(offset: 0),
+    );
+    _effectiveController.value = clearedValue;
     // 同步到外部控制器
-    if (widget.controller != null) {
-      widget.controller!.clear();
+    if (widget.controller != null &&
+        !identical(widget.controller, _effectiveController)) {
+      widget.controller!.value = clearedValue;
     }
 
     widget.onChanged?.call('');
@@ -614,7 +626,10 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     _refreshSearchMatches(preserveActive: false);
   }
 
-  void _refreshSearchMatches({required bool preserveActive}) {
+  void _refreshSearchMatches({
+    required bool preserveActive,
+    bool selectActiveMatch = true,
+  }) {
     final sourceText = _effectiveController.text;
     final matches = _findSearchMatches(sourceText, _searchController.text);
     final activeIndex = _resolveActiveSearchIndex(
@@ -628,7 +643,9 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       _lastSearchSourceText = sourceText;
     });
     _syncSearchHighlights();
-    _selectActiveSearchMatch();
+    if (selectActiveMatch) {
+      _selectActiveSearchMatch();
+    }
   }
 
   List<TextRange> _findSearchMatches(String source, String query) {
@@ -921,18 +938,28 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   /// 构建文本输入框
   Widget _buildTextField() {
     final enableWheelAdjustment = ref.watch(promptWeightScrollSettingsProvider);
+    final assistantConfig = widget.enableAssistant
+        ? ref.watch(promptAssistantConfigProvider)
+        : null;
+    final shouldReserveAssistantSpace =
+        assistantConfig != null &&
+        assistantConfig.enabled &&
+        (!_isDesktop || assistantConfig.desktopOverlayEnabled);
+    final requestedContentPadding =
+        widget.decoration?.contentPadding ??
+        const EdgeInsets.symmetric(horizontal: 12, vertical: 10);
+    final effectiveContentPadding = _withAssistantBottomClearance(
+      requestedContentPadding,
+      reserveSpace: shouldReserveAssistantSpace,
+    );
 
     // 合并 decoration：优先使用传入的 decoration，但保留 config 中的 hintText
     final effectiveDecoration =
         InputDecoration(
           hintText: widget.config.hintText,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 10,
-          ),
+          contentPadding: effectiveContentPadding,
         ).copyWith(
           hintText: widget.config.hintText,
-          contentPadding: widget.decoration?.contentPadding,
           filled: widget.decoration?.filled,
           fillColor: widget.decoration?.fillColor,
           border: widget.decoration?.border,
@@ -1018,6 +1045,23 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     }
 
     return result;
+  }
+
+  EdgeInsetsGeometry _withAssistantBottomClearance(
+    EdgeInsetsGeometry contentPadding, {
+    required bool reserveSpace,
+  }) {
+    if (!reserveSpace) {
+      return contentPadding;
+    }
+
+    final resolved = contentPadding.resolve(Directionality.of(context));
+    if (resolved.bottom >= PromptAssistantOverlay.contentBottomClearance) {
+      return resolved;
+    }
+    return resolved.copyWith(
+      bottom: PromptAssistantOverlay.contentBottomClearance,
+    );
   }
 }
 

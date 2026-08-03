@@ -135,6 +135,12 @@ class GalleryStatistics with _$GalleryStatistics {
     /// 每日趋势统计
     @Default([]) List<DailyTrendStatistics> dailyTrends,
 
+    /// 每小时活动分布（0-23）
+    @Default({}) Map<int, int> hourlyDistribution,
+
+    /// 每周活动分布（DateTime.monday-DateTime.sunday）
+    @Default({}) Map<int, int> weekdayDistribution,
+
     /// 每周趋势统计
     @Default([]) List<WeeklyTrendStatistics> weeklyTrends,
 

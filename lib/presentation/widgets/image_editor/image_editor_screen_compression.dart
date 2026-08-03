@@ -123,6 +123,7 @@ extension _ImageEditorScreenCompression on _ImageEditorScreenState {
     final raw = await ImageExporterNew.exportMergedRgba(
       _state.layerManager,
       _state.canvasSize,
+      transparentBackground: _hasTransparentCutout,
     );
     final target = _activeCompressionTarget;
     return EditorCompressionEncoder.encodeRgbaPngAsync(

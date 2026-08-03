@@ -306,6 +306,12 @@
 
   "generation_title": "生成",
   "generation_generate": "生成",
+  "generation_cooldownRemaining": "等待 {seconds} 秒",
+  "@generation_cooldownRemaining": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
   "generation_cancel": "取消",
   "generation_generating": "生成中...",
   "generation_cancelGeneration": "取消生成",
@@ -640,6 +646,8 @@
   "img2img_seedvr2UseTiledUpscaleHint": "启用后改用 SeedVR2TilingUpscaler，适合大图或显存压力较高的场景。",
   "img2img_seedvr2TileSize": "分块图块大小",
   "img2img_seedvr2TileSizeHint": "同时控制 SeedVR2TilingUpscaler 的 tile_width / tile_height。",
+  "img2img_seedvr2BlocksToSwap": "内存卸载层数",
+  "img2img_seedvr2BlocksToSwapHint": "把多少 DiT 层放在内存里、推理时再逐层送入显存。调高更省显存但更吃内存也更慢；显存充裕可调低甚至设为 0。显存不足报错时请调高。",
   "img2img_regularModelDescription": "普通模型 · {name}",
   "@img2img_regularModelDescription": {
     "placeholders": {
@@ -675,6 +683,14 @@
   "editor_toolBrush": "画笔",
   "editor_toolEraser": "橡皮擦",
   "editor_toolFill": "填充",
+  "editor_toolMagicWand": "魔棒",
+  "editor_magicWandHelp": "点击颜色相近的连续区域。编辑图像时将其抠除为透明区域；重绘时将其加入蒙版。",
+  "editor_magicWandMode": "选择方式",
+  "editor_magicWandSmartObject": "智能对象（EfficientViT）",
+  "editor_magicWandColorArea": "颜色区域（洪水填充）",
+  "editor_magicWandSmartHelp": "点击要选择的对象。首次使用会从 MIT Han Lab 下载约 133 MiB 的 EfficientViT-SAM L0 模型（Apache-2.0），之后保存在本地。",
+  "editor_magicWandColorHelp": "点击颜色相近的连续区域。适合边界清晰的纯色图像，无需下载模型。",
+  "editor_magicWandInvert": "反选结果",
   "editor_toolLine": "直线",
   "editor_toolRectSelect": "矩形选框",
   "editor_toolEllipseSelect": "椭圆选框",
@@ -848,6 +864,27 @@
   "editor_closedRegionFilled": "封闭区域已填充为蒙版。",
   "editor_fillMaskFailed": "填充蒙版失败: {error}",
   "@editor_fillMaskFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "editor_magicWandNoSource": "没有可供魔棒取样的图像图层。",
+  "editor_magicWandNothingChanged": "选中的区域已经透明或已在蒙版中。",
+  "editor_magicWandModelPreparing": "正在检查 EfficientViT-SAM 模型…",
+  "editor_magicWandModelDownloading": "正在下载 EfficientViT-SAM 模型：{percent}%",
+  "@editor_magicWandModelDownloading": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "editor_magicWandModelLoading": "正在加载 EfficientViT-SAM 模型…",
+  "editor_magicWandEncoding": "正在分析图像对象…",
+  "editor_magicWandSegmenting": "正在根据点击位置分割对象…",
+  "editor_magicWandPostprocessing": "正在生成选区…",
+  "editor_magicWandFailed": "魔棒处理失败: {error}",
+  "@editor_magicWandFailed": {
     "placeholders": {
       "error": {}
     }
@@ -1371,6 +1408,19 @@
   "onlineGallery_invalidDateFormat": "日期格式无效",
   "onlineGallery_dateOutOfRange": "日期超出范围",
   "onlineGallery_last30Days": "最近30天",
+  "onlineGallery_configureGelbooruApi": "配置 Gelbooru API",
+  "onlineGallery_gelbooruApiReady": "Gelbooru API 已验证",
+  "onlineGallery_gelbooruApiInvalid": "Gelbooru 凭据已失效",
+  "onlineGallery_gelbooruCredentialsRequired": "请先配置 Gelbooru User ID 和 API Key 以查看网站收藏。",
+  "onlineGallery_gelbooruCredentialsInvalid": "Gelbooru 凭据已失效，请重新配置。",
+  "onlineGallery_gelbooruRateLimited": "Gelbooru 请求过于频繁，请稍后再试。",
+  "onlineGallery_gelbooruTimeout": "Gelbooru 请求超时，请检查网络连接。",
+  "onlineGallery_gelbooruServerError": "Gelbooru 服务器暂时不可用，请稍后再试。",
+  "onlineGallery_gelbooruNetworkError": "无法连接 Gelbooru，请检查网络设置或代理配置。",
+  "onlineGallery_gelbooruMalformedResponse": "Gelbooru 返回了无法解析的数据。",
+  "onlineGallery_gelbooruRequestFailed": "Gelbooru 请求失败，请稍后重试。",
+  "onlineGallery_gelbooruReadOnly": "只读收藏",
+  "onlineGallery_gelbooruFavoritesSortHint": "按帖子 ID 从新到旧排列，不保证与网站收藏时间顺序一致。",
 
   "tooltip_randomPrompt": "随机提示词 (长按配置)",
   "tooltip_fullscreenEdit": "全屏编辑",
@@ -1419,6 +1469,26 @@
   "danbooru_apiKeyRequired": "请输入 API Key",
   "danbooru_howToGetApiKey": "如何获取 API Key?",
   "danbooru_loginSuccess": "登录成功",
+  "gelbooru_configureTitle": "配置 Gelbooru API",
+  "gelbooru_configureHint": "输入 Gelbooru 账户设置页提供的 User ID 和 API Key。应用不会收集密码或浏览器 Cookie。",
+  "gelbooru_userId": "User ID",
+  "gelbooru_userIdHint": "输入正整数 User ID",
+  "gelbooru_userIdRequired": "请输入有效的正整数 User ID",
+  "gelbooru_apiKeyHint": "输入 API Key",
+  "gelbooru_apiKeyRequired": "请输入 API Key",
+  "gelbooru_openAccountSettings": "打开 Gelbooru 账户设置",
+  "gelbooru_save": "验证并保存",
+  "gelbooru_saved": "Gelbooru 凭据已保存",
+  "gelbooru_removeCredentials": "移除凭据",
+  "gelbooru_invalidInput": "请输入有效的 User ID 和 API Key。",
+  "gelbooru_invalidCredentials": "Gelbooru 拒绝了这些凭据，请检查 User ID 和 API Key。",
+  "gelbooru_rateLimited": "请求过于频繁，请稍后再试。",
+  "gelbooru_timeout": "验证超时，请检查网络连接。",
+  "gelbooru_serverError": "Gelbooru 服务器暂时不可用。",
+  "gelbooru_networkError": "无法连接 Gelbooru，请检查网络设置或代理配置。",
+  "gelbooru_malformedResponse": "Gelbooru 返回了无法解析的数据。",
+  "gelbooru_storageError": "无法安全保存或读取 Gelbooru 凭据。",
+  "gelbooru_unknownError": "Gelbooru 验证失败，请稍后重试。",
 
   "weight_title": "权重",
   "weight_reset": "重置",
@@ -1809,9 +1879,6 @@
 
   "characterEditor_title": "多人角色提示词",
   "characterEditor_close": "关闭",
-  "characterEditor_dock": "停靠",
-  "characterEditor_undock": "取消停靠",
-  "characterEditor_dockedHint": "角色面板已停靠到图像区域",
   "characterEditor_confirm": "确定",
   "characterEditor_clearAll": "清空所有",
   "characterEditor_clearAllTitle": "清空所有角色",
@@ -1824,14 +1891,17 @@
   "characterEditor_emptyHint": "从左侧列表选择或添加新角色",
   "characterEditor_noCharacters": "暂无角色",
   "characterEditor_addCharacterHint": "点击上方按钮添加角色",
-  "characterEditor_deleteTitle": "删除角色",
-  "characterEditor_deleteConfirm": "确定要删除这个角色吗？此操作无法撤销。",
   "characterEditor_name": "名称",
   "characterEditor_nameHint": "输入角色名称",
   "characterEditor_enabled": "启用",
   "characterEditor_promptHint": "输入角色的正向提示词...",
   "characterEditor_negativePromptHint": "输入角色的负面提示词...",
   "characterEditor_position": "位置",
+  "characterCanvas_title": "角色位置",
+  "characterCanvas_aiChoice": "AI 选择",
+  "characterCanvas_custom": "自定义",
+  "characterCanvas_aiHint": "AI 将自动安排角色位置",
+  "characterCanvas_dragHint": "拖动锚点设置角色位置，松开即生效",
   "characterEditor_genderFemale": "女性",
   "characterEditor_genderMale": "男性",
   "characterEditor_genderOther": "其他",
@@ -4863,6 +4933,8 @@
   "shortcut_action_navigate_to_statistics": "统计页面",
   "shortcut_action_navigate_to_settings": "设置页面",
   "shortcut_action_generate_image": "生成图像",
+  "shortcut_action_generation_prev_image": "预览上一张（历史联动）",
+  "shortcut_action_generation_next_image": "预览下一张（历史联动）",
   "shortcut_action_cancel_generation": "取消生成",
   "shortcut_action_add_to_queue": "加入队列",
   "shortcut_action_random_prompt": "随机提示词",
@@ -5397,6 +5469,12 @@
   "settings_generationLayout_classicDescription": "参数在左侧，提示词位于预览区上方",
   "settings_generationLayout_webStyle": "官网式布局",
   "settings_generationLayout_webStyleDescription": "提示词与设置固定在最左栏，类似 NovelAI 官网",
+  "settings_historyClickBehavior": "历史记录点击行为",
+  "settings_historyClickBehavior_classic": "经典",
+  "settings_historyClickBehavior_classicDescription": "单击历史图片直接打开详情",
+  "settings_historyClickBehavior_linked": "官网式联动",
+  "settings_historyClickBehavior_linkedDescription": "单击切换中央预览，双击或长按打开详情，并支持左右方向键浏览",
+  "image_viewDetail": "查看详情",
 
   "settings_defaultImagesPath": "默认 (Documents/NAI_Launcher/images/)",
   "settings_defaultVibePath": "{path} (默认)",
@@ -5407,7 +5485,7 @@
   },
   "settings_defaultHivePath": "默认 (%APPDATA%/NAI_Launcher/hive/)",
   "settings_protectionMode": "保护模式",
-  "settings_protectionModeSubtitle": "开启后按下方子项保护本地资产、分享副本和高消耗操作；关闭时保留子项配置但不生效。",
+  "settings_protectionModeSubtitle": "开启后按下方子项保护本地资产、分享副本、高消耗和高频生图操作；关闭时保留子项配置但不生效。",
   "settings_protectionFeatures": "保护功能",
   "settings_stripMetadataTitle": "复制/拖拽时移除全部元数据",
   "settings_stripMetadataSubtitle": "生成净化副本，清除 PNG 文本块、EXIF 与 NAI 隐写水印，并避免拖拽暴露原始路径。",
@@ -5428,6 +5506,17 @@
   "settings_setHighAnlasCostThresholdTitle": "设置 Anlas 警告阈值",
   "settings_threshold": "阈值",
   "settings_highAnlasCostThresholdHelper": "当单次生成预计消耗达到或超过该值时弹出确认。",
+  "settings_limitGenerationIntervalTitle": "限制生图频率",
+  "settings_limitGenerationIntervalSubtitle": "开启后，两次生图开始时间必须至少间隔设定秒数；冷却期间生图按钮不可点击。",
+  "settings_generationIntervalTitle": "生图间隔",
+  "settings_generationIntervalValue": "{seconds} 秒",
+  "@settings_generationIntervalValue": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
+  "settings_setGenerationIntervalTitle": "设置生图间隔",
+  "settings_generationIntervalHelper": "可设置 1–3600 秒，从开始执行生图时计时。",
   "settings_selectLocalOnnxTaggerFolder": "选择 ONNX tagger 模型文件夹",
   "settings_localOnnxTaggerFolderSaved": "ONNX tagger 模型文件夹已保存",
   "settings_localOnnxTaggerFolder": "本地 ONNX tagger 模型文件夹",

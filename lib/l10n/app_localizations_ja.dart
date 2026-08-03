@@ -810,6 +810,11 @@ class AppLocalizationsJa extends AppLocalizations {
   String get generation_generate => '生成';
 
   @override
+  String generation_cooldownRemaining(Object seconds) {
+    return 'あと$seconds秒';
+  }
+
+  @override
   String get generation_cancel => 'キャンセル';
 
   @override
@@ -1714,6 +1719,13 @@ class AppLocalizationsJa extends AppLocalizations {
       'SeedVR2TilingUpscaler tile_width / tile_height も制御します。';
 
   @override
+  String get img2img_seedvr2BlocksToSwap => 'メモリへ退避するブロック数';
+
+  @override
+  String get img2img_seedvr2BlocksToSwapHint =>
+      'DiT ブロックのうち何個をシステムメモリに置き、推論時に VRAM へ順次転送するかを指定します。大きいほど VRAM を節約できますがメモリを消費し遅くなります。VRAM に余裕がある場合は 0 まで下げられます。メモリ不足エラーが出る場合は上げてください。';
+
+  @override
   String img2img_regularModelDescription(Object name) {
     return '通常モデル · $name';
   }
@@ -1822,6 +1834,33 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get editor_toolFill => '塗りつぶし';
+
+  @override
+  String get editor_toolMagicWand => 'マジックワンド';
+
+  @override
+  String get editor_magicWandHelp =>
+      '近い色の連続領域をクリックします。画像編集ではその領域を透明にし、インペイントではマスクに追加します。';
+
+  @override
+  String get editor_magicWandMode => '選択方法';
+
+  @override
+  String get editor_magicWandSmartObject => 'スマートオブジェクト（EfficientViT）';
+
+  @override
+  String get editor_magicWandColorArea => '色領域（塗りつぶし）';
+
+  @override
+  String get editor_magicWandSmartHelp =>
+      '選択するオブジェクトをクリックします。初回使用時に MIT Han Lab から約 133 MiB の EfficientViT-SAM L0 モデル（Apache-2.0）をダウンロードし、以後はローカルに保存します。';
+
+  @override
+  String get editor_magicWandColorHelp =>
+      '近い色の連続領域をクリックします。境界が明瞭なフラット画像に適し、モデルのダウンロードは不要です。';
+
+  @override
+  String get editor_magicWandInvert => '結果を反転';
 
   @override
   String get editor_toolLine => '直線';
@@ -2192,6 +2231,37 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String editor_fillMaskFailed(Object error) {
     return 'マスクの塗りつぶしに失敗しました: $error';
+  }
+
+  @override
+  String get editor_magicWandNoSource => 'サンプリング可能な画像レイヤーがありません。';
+
+  @override
+  String get editor_magicWandNothingChanged => '選択した領域はすでに透明、またはマスク済みです。';
+
+  @override
+  String get editor_magicWandModelPreparing => 'EfficientViT-SAM モデルを確認しています…';
+
+  @override
+  String editor_magicWandModelDownloading(int percent) {
+    return 'EfficientViT-SAM モデルをダウンロード中：$percent%';
+  }
+
+  @override
+  String get editor_magicWandModelLoading => 'EfficientViT-SAM モデルを読み込んでいます…';
+
+  @override
+  String get editor_magicWandEncoding => '画像内のオブジェクトを解析しています…';
+
+  @override
+  String get editor_magicWandSegmenting => 'クリック位置のオブジェクトを分割しています…';
+
+  @override
+  String get editor_magicWandPostprocessing => '選択範囲を生成しています…';
+
+  @override
+  String editor_magicWandFailed(Object error) {
+    return 'マジックワンドに失敗しました: $error';
   }
 
   @override
@@ -3364,6 +3434,53 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_last30Days => '過去 30 日間';
 
   @override
+  String get onlineGallery_configureGelbooruApi => 'Gelbooru API を設定';
+
+  @override
+  String get onlineGallery_gelbooruApiReady => 'Gelbooru API は検証済みです';
+
+  @override
+  String get onlineGallery_gelbooruApiInvalid => 'Gelbooru 認証情報が無効です';
+
+  @override
+  String get onlineGallery_gelbooruCredentialsRequired =>
+      'ウェブサイトのお気に入りを表示するには、Gelbooru の User ID と API Key を設定してください。';
+
+  @override
+  String get onlineGallery_gelbooruCredentialsInvalid =>
+      'Gelbooru 認証情報が無効になりました。再設定してください。';
+
+  @override
+  String get onlineGallery_gelbooruRateLimited =>
+      'Gelbooru のリクエスト回数が多すぎます。しばらくしてから再試行してください。';
+
+  @override
+  String get onlineGallery_gelbooruTimeout =>
+      'Gelbooru リクエストがタイムアウトしました。ネットワーク接続を確認してください。';
+
+  @override
+  String get onlineGallery_gelbooruServerError => 'Gelbooru サーバーは一時的に利用できません。';
+
+  @override
+  String get onlineGallery_gelbooruNetworkError =>
+      'Gelbooru に接続できません。ネットワークまたはプロキシ設定を確認してください。';
+
+  @override
+  String get onlineGallery_gelbooruMalformedResponse =>
+      'Gelbooru から解析できないデータが返されました。';
+
+  @override
+  String get onlineGallery_gelbooruRequestFailed =>
+      'Gelbooru リクエストに失敗しました。しばらくしてから再試行してください。';
+
+  @override
+  String get onlineGallery_gelbooruReadOnly => '読み取り専用のお気に入り';
+
+  @override
+  String get onlineGallery_gelbooruFavoritesSortHint =>
+      '投稿 ID の新しい順です。ウェブサイトのお気に入り登録時刻順とは異なる場合があります。';
+
+  @override
   String get tooltip_randomPrompt => 'ランダムプロンプト (長押しして設定)';
 
   @override
@@ -3505,6 +3622,69 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get danbooru_loginSuccess => 'ログインに成功しました';
+
+  @override
+  String get gelbooru_configureTitle => 'Gelbooru API を設定';
+
+  @override
+  String get gelbooru_configureHint =>
+      'Gelbooru のアカウント設定に表示される User ID と API Key を入力してください。パスワードやブラウザー Cookie は収集しません。';
+
+  @override
+  String get gelbooru_userId => 'User ID';
+
+  @override
+  String get gelbooru_userIdHint => '正の整数の User ID を入力';
+
+  @override
+  String get gelbooru_userIdRequired => '有効な正の整数の User ID を入力してください';
+
+  @override
+  String get gelbooru_apiKeyHint => 'API Key を入力';
+
+  @override
+  String get gelbooru_apiKeyRequired => 'API Key を入力してください';
+
+  @override
+  String get gelbooru_openAccountSettings => 'Gelbooru のアカウント設定を開く';
+
+  @override
+  String get gelbooru_save => '検証して保存';
+
+  @override
+  String get gelbooru_saved => 'Gelbooru 認証情報を保存しました';
+
+  @override
+  String get gelbooru_removeCredentials => '認証情報を削除';
+
+  @override
+  String get gelbooru_invalidInput => '有効な User ID と API Key を入力してください。';
+
+  @override
+  String get gelbooru_invalidCredentials =>
+      'Gelbooru に認証情報を拒否されました。User ID と API Key を確認してください。';
+
+  @override
+  String get gelbooru_rateLimited => 'リクエスト回数が多すぎます。しばらくしてから再試行してください。';
+
+  @override
+  String get gelbooru_timeout => '検証がタイムアウトしました。ネットワーク接続を確認してください。';
+
+  @override
+  String get gelbooru_serverError => 'Gelbooru サーバーは一時的に利用できません。';
+
+  @override
+  String get gelbooru_networkError =>
+      'Gelbooru に接続できません。ネットワークまたはプロキシ設定を確認してください。';
+
+  @override
+  String get gelbooru_malformedResponse => 'Gelbooru から解析できないデータが返されました。';
+
+  @override
+  String get gelbooru_storageError => 'Gelbooru 認証情報を安全に保存または読み取れませんでした。';
+
+  @override
+  String get gelbooru_unknownError => 'Gelbooru の検証に失敗しました。しばらくしてから再試行してください。';
 
   @override
   String get weight_title => 'ウェイト';
@@ -4393,15 +4573,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get characterEditor_close => '閉じる';
 
   @override
-  String get characterEditor_dock => 'ドック';
-
-  @override
-  String get characterEditor_undock => 'ドッキング解除';
-
-  @override
-  String get characterEditor_dockedHint => 'キャラクターパネルが画像領域にドッキングされています';
-
-  @override
   String get characterEditor_confirm => '確認';
 
   @override
@@ -4441,12 +4612,6 @@ class AppLocalizationsJa extends AppLocalizations {
       'キャラクターを追加するには上のボタンをクリックしてください';
 
   @override
-  String get characterEditor_deleteTitle => 'キャラクターの削除';
-
-  @override
-  String get characterEditor_deleteConfirm => 'このキャラクターを削除しますか？この操作は元に戻せません。';
-
-  @override
   String get characterEditor_name => '名前';
 
   @override
@@ -4464,6 +4629,21 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get characterEditor_position => '位置';
+
+  @override
+  String get characterCanvas_title => 'キャラクター位置';
+
+  @override
+  String get characterCanvas_aiChoice => 'AIにおまかせ';
+
+  @override
+  String get characterCanvas_custom => 'カスタム';
+
+  @override
+  String get characterCanvas_aiHint => 'AIがすべてのキャラクターの位置を自動で決めます';
+
+  @override
+  String get characterCanvas_dragHint => 'アンカーをドラッグして位置を設定し、離すと反映されます';
 
   @override
   String get characterEditor_genderFemale => '女性';
@@ -10124,6 +10304,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get shortcut_action_generate_image => '画像の生成';
 
   @override
+  String get shortcut_action_generation_prev_image => '前のプレビュー（履歴連動）';
+
+  @override
+  String get shortcut_action_generation_next_image => '次のプレビュー（履歴連動）';
+
+  @override
   String get shortcut_action_cancel_generation => '生成のキャンセル';
 
   @override
@@ -11490,6 +11676,26 @@ class AppLocalizationsJa extends AppLocalizations {
       'プロンプトと設定を左端に固定、NovelAI 公式サイト風';
 
   @override
+  String get settings_historyClickBehavior => '履歴クリックの動作';
+
+  @override
+  String get settings_historyClickBehavior_classic => 'クラシック';
+
+  @override
+  String get settings_historyClickBehavior_classicDescription =>
+      '履歴画像をクリックして詳細を開きます';
+
+  @override
+  String get settings_historyClickBehavior_linked => 'プレビュー連動';
+
+  @override
+  String get settings_historyClickBehavior_linkedDescription =>
+      'クリックで中央プレビューを切り替え、ダブルクリックまたは長押しで詳細を開き、左右キーで移動します';
+
+  @override
+  String get image_viewDetail => '詳細を表示';
+
+  @override
   String get settings_defaultImagesPath =>
       'デフォルト (Documents/NAI_Launcher/images/)';
 
@@ -11506,7 +11712,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settings_protectionModeSubtitle =>
-      '以下のオプションを通じて、ローカル資産、共有コピー、および高コストの操作を保護します。これをオフにすると、オプションの値は保持されますが、無効になります。';
+      '以下のオプションを通じて、ローカル資産、共有コピー、高コストおよび高頻度の画像生成操作を保護します。オフにしても各設定値は保持されますが、機能は無効になります。';
 
   @override
   String get settings_protectionFeatures => '保護機能';
@@ -11559,6 +11765,28 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get settings_highAnlasCostThresholdHelper =>
       '1 回の生成にかかる推定コストがこの値以上になった場合に確認を表示します。';
+
+  @override
+  String get settings_limitGenerationIntervalTitle => '画像生成の頻度を制限';
+
+  @override
+  String get settings_limitGenerationIntervalSubtitle =>
+      '画像生成の開始間隔を設定値以上に制限します。クールダウン中は生成ボタンを使用できません。';
+
+  @override
+  String get settings_generationIntervalTitle => '画像生成の間隔';
+
+  @override
+  String settings_generationIntervalValue(Object seconds) {
+    return '$seconds 秒';
+  }
+
+  @override
+  String get settings_setGenerationIntervalTitle => '画像生成の間隔を設定';
+
+  @override
+  String get settings_generationIntervalHelper =>
+      '1～3600 秒で設定できます。画像生成の開始時から計測します。';
 
   @override
   String get settings_selectLocalOnnxTaggerFolder =>

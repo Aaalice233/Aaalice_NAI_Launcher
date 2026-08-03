@@ -6,6 +6,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../models/gallery/daily_trend_statistics.dart';
+import '../models/gallery/gallery_dashboard_snapshot.dart';
 import '../models/gallery/gallery_statistics.dart';
 import '../models/gallery/local_image_record.dart';
 import '../models/gallery/nai_image_metadata.dart';
@@ -22,6 +23,92 @@ part 'statistics_service.g.dart';
 /// - 文件大小分布
 /// - 收藏和标签统计
 class StatisticsService {
+  /// Builds dashboard statistics from database-side aggregate counts.
+  GalleryStatistics fromDashboardSnapshot(
+    GalleryDashboardSnapshot snapshot, {
+    DateTime? calculatedAt,
+  }) {
+    final totalImages = snapshot.totalImages;
+    final dailyTrends = <DailyTrendStatistics>[];
+    final sortedDailyCounts = snapshot.dailyCounts.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+
+    for (final entry in sortedDailyCounts) {
+      final date = _dateFromYmd(entry.key);
+      if (date == null) continue;
+      dailyTrends.add(
+        DailyTrendStatistics(
+          date: date,
+          count: entry.value,
+          percentage: totalImages > 0 ? entry.value / totalImages * 100 : 0.0,
+        ),
+      );
+    }
+
+    return GalleryStatistics(
+      totalImages: totalImages,
+      totalSizeBytes: snapshot.totalSizeBytes,
+      averageFileSizeBytes: totalImages > 0
+          ? snapshot.totalSizeBytes / totalImages
+          : 0.0,
+      favoriteCount: snapshot.favoriteCount,
+      taggedImageCount: snapshot.taggedImageCount,
+      imagesWithMetadata: snapshot.imagesWithMetadata,
+      resolutionDistribution: _sortedStatistics<ResolutionStatistics>(
+        snapshot.resolutionCounts,
+        totalImages,
+        (label, count, percentage) => ResolutionStatistics(
+          label: label,
+          count: count,
+          percentage: percentage,
+        ),
+      ),
+      modelDistribution: _sortedStatistics<ModelStatistics>(
+        snapshot.modelCounts,
+        totalImages,
+        (label, count, percentage) => ModelStatistics(
+          modelName: label,
+          count: count,
+          percentage: percentage,
+        ),
+      ),
+      samplerDistribution: _sortedStatistics<SamplerStatistics>(
+        snapshot.samplerCounts,
+        totalImages,
+        (label, count, percentage) => SamplerStatistics(
+          samplerName: _formatSamplerName(label),
+          count: count,
+          percentage: percentage,
+        ),
+      ),
+      sizeDistribution: _sortedStatistics<SizeDistributionStatistics>(
+        snapshot.sizeCounts,
+        totalImages,
+        (label, count, percentage) => SizeDistributionStatistics(
+          label: label,
+          count: count,
+          percentage: percentage,
+        ),
+      ),
+      tagDistribution: _sortedStatistics<TagStatistics>(
+        snapshot.tagCounts,
+        totalImages,
+        (label, count, percentage) =>
+            TagStatistics(tagName: label, count: count, percentage: percentage),
+      ),
+      dailyTrends: dailyTrends,
+      hourlyDistribution: snapshot.hourlyCounts,
+      weekdayDistribution: snapshot.weekdayCounts,
+      favoritesStatistics: {
+        'favoriteCount': snapshot.favoriteCount,
+        'percentage': totalImages > 0
+            ? snapshot.favoriteCount / totalImages * 100
+            : 0.0,
+      },
+      calculatedAt: calculatedAt ?? DateTime.now(),
+    );
+  }
+
   /// 计算画廊统计数据
   ///
   /// [records] - 图片记录列表
@@ -38,8 +125,9 @@ class StatisticsService {
       0,
       (sum, record) => sum + record.size,
     );
-    final averageFileSizeBytes =
-        totalImages > 0 ? totalSizeBytes / totalImages : 0.0;
+    final averageFileSizeBytes = totalImages > 0
+        ? totalSizeBytes / totalImages
+        : 0.0;
 
     // 收藏和标签统计
     final favoriteCount = records.where((r) => r.isFavorite).length;
@@ -47,15 +135,19 @@ class StatisticsService {
     final imagesWithMetadata = records.where((r) => r.hasMetadata).length;
 
     // 分辨率分布统计
-    final resolutionDistribution =
-        _calculateResolutionDistribution(records, totalImages);
+    final resolutionDistribution = _calculateResolutionDistribution(
+      records,
+      totalImages,
+    );
 
     // 模型分布统计
     final modelDistribution = _calculateModelDistribution(records, totalImages);
 
     // 采样器分布统计
-    final samplerDistribution =
-        _calculateSamplerDistribution(records, totalImages);
+    final samplerDistribution = _calculateSamplerDistribution(
+      records,
+      totalImages,
+    );
 
     // 文件大小分布统计
     final sizeDistribution = _calculateSizeDistribution(records, totalImages);
@@ -189,6 +281,18 @@ class StatisticsService {
               word.isNotEmpty ? word[0].toUpperCase() + word.substring(1) : '',
         )
         .join(' ');
+  }
+
+  DateTime? _dateFromYmd(int value) {
+    if (value <= 0) return null;
+    final year = value ~/ 10000;
+    final month = (value ~/ 100) % 100;
+    final day = value % 100;
+    final date = DateTime(year, month, day);
+    if (date.year != year || date.month != month || date.day != day) {
+      return null;
+    }
+    return date;
   }
 
   /// 计算文件大小分布统计
@@ -354,9 +458,7 @@ class StatisticsService {
 // ============================================================================
 
 /// 在 isolate 中计算完整统计数据
-GalleryStatistics _computeAllStatisticsIsolate(
-  List<LocalImageRecord> records,
-) {
+GalleryStatistics _computeAllStatisticsIsolate(List<LocalImageRecord> records) {
   final service = StatisticsService();
   return service.calculateStatistics(records);
 }
@@ -432,15 +534,15 @@ DateTime _parseTimeKey(String key, String groupBy) {
   return switch (groupBy) {
     'monthly' => DateTime(int.parse(parts[0]), int.parse(parts[1])),
     'weekly' => DateTime(
-        int.parse(parts[0]),
-        1,
-        1 + (int.parse(parts[1].substring(1)) - 1) * 7,
-      ),
+      int.parse(parts[0]),
+      1,
+      1 + (int.parse(parts[1].substring(1)) - 1) * 7,
+    ),
     _ => DateTime(
-        int.parse(parts[0]),
-        int.parse(parts[1]),
-        int.parse(parts[2]),
-      ),
+      int.parse(parts[0]),
+      int.parse(parts[1]),
+      int.parse(parts[2]),
+    ),
   };
 }
 
@@ -568,8 +670,9 @@ Map<String, dynamic> _computeFavoritesStatisticsIsolate(
     'totalSizeBytes': totalSize,
     'averageSizeBytes': averageSize,
     'favoriteByDate': favoriteByDate,
-    'percentage':
-        records.isNotEmpty ? (favoriteCount / records.length) * 100 : 0.0,
+    'percentage': records.isNotEmpty
+        ? (favoriteCount / records.length) * 100
+        : 0.0,
   };
 }
 
@@ -588,10 +691,9 @@ List<Map<String, dynamic>> _computeRecentActivityIsolate(
 
   final cutoffDate = DateTime.now().subtract(Duration(days: days));
 
-  final recentRecords = records
-      .where((r) => r.modifiedAt.isAfter(cutoffDate))
-      .toList()
-    ..sort((a, b) => b.modifiedAt.compareTo(a.modifiedAt));
+  final recentRecords =
+      records.where((r) => r.modifiedAt.isAfter(cutoffDate)).toList()
+        ..sort((a, b) => b.modifiedAt.compareTo(a.modifiedAt));
 
   return recentRecords.map((record) {
     final meta = record.metadata;

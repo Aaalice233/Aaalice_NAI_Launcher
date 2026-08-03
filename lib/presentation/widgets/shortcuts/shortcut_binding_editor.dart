@@ -43,9 +43,7 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(
-      text: widget.binding.effectiveShortcut,
-    );
+    _controller = TextEditingController(text: widget.binding.effectiveShortcut);
   }
 
   @override
@@ -167,8 +165,8 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
                 color: _isRecording
                     ? theme.colorScheme.primary
                     : _conflictId != null
-                        ? theme.colorScheme.error
-                        : theme.colorScheme.outline.withValues(alpha: 0.3),
+                    ? theme.colorScheme.error
+                    : theme.colorScheme.outline.withValues(alpha: 0.3),
                 width: _isRecording || _conflictId != null ? 2 : 1,
               ),
             ),
@@ -208,25 +206,24 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
                               ],
                             )
                           : _controller.text.isEmpty
-                              ? Text(
-                                  l10n.shortcut_editor_clickToRecord,
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    color: theme.colorScheme.outline,
-                                  ),
-                                )
-                              : Text(
-                                  AppShortcutManager.getDisplayLabel(
-                                    _controller.text,
-                                  ),
-                                  style:
-                                      theme.textTheme.headlineSmall?.copyWith(
-                                    fontFamily: 'monospace',
-                                    fontWeight: FontWeight.bold,
-                                    color: widget.binding.hasCustomShortcut
-                                        ? theme.colorScheme.primary
-                                        : theme.colorScheme.onSurface,
-                                  ),
-                                ),
+                          ? Text(
+                              l10n.shortcut_editor_clickToRecord,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: theme.colorScheme.outline,
+                              ),
+                            )
+                          : Text(
+                              AppShortcutManager.getDisplayLabel(
+                                _controller.text,
+                              ),
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                fontFamily: 'monospace',
+                                fontWeight: FontWeight.bold,
+                                color: widget.binding.hasCustomShortcut
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurface,
+                              ),
+                            ),
                     ),
                   ),
                 ),
@@ -377,11 +374,16 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
     if (modifiers.isEmpty || mainKey == null) {
       // 允许单独的功能键
       if (mainKey != null) {
-        final isFunctionKey = mainKey.logicalKey.startsWith('f') ||
+        final isFunctionKey =
+            mainKey.logicalKey.startsWith('f') ||
             mainKey == ShortcutKey.escape ||
             mainKey == ShortcutKey.delete ||
             mainKey == ShortcutKey.space ||
-            mainKey == ShortcutKey.enter;
+            mainKey == ShortcutKey.enter ||
+            mainKey == ShortcutKey.arrowup ||
+            mainKey == ShortcutKey.arrowdown ||
+            mainKey == ShortcutKey.arrowleft ||
+            mainKey == ShortcutKey.arrowright;
 
         if (!isFunctionKey) return;
       } else {
@@ -402,7 +404,11 @@ class _ShortcutBindingEditorState extends ConsumerState<ShortcutBindingEditor> {
     // 检查冲突
     final conflicts = ref
         .read(shortcutConfigNotifierProvider.notifier)
-        .findConflicts(shortcutString, excludeId: widget.binding.id);
+        .findConflicts(
+          shortcutString,
+          context: widget.binding.context,
+          excludeId: widget.binding.id,
+        );
 
     setState(() {
       _controller.text = shortcutString;

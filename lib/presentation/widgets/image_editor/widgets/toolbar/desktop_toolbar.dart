@@ -49,77 +49,79 @@ class DesktopToolbar extends StatelessWidget {
       width: 48,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        border: Border(
-          right: BorderSide(
-            color: theme.dividerColor,
-            width: 1,
-          ),
-        ),
+        border: Border(right: BorderSide(color: theme.dividerColor, width: 1)),
       ),
       child: Column(
         children: [
           const SizedBox(height: 8),
-
-          // 工具按钮 - 监听工具切换
-          ValueListenableBuilder<String?>(
-            valueListenable: state.toolNotifier,
-            builder: (context, currentToolId, _) {
-              return Column(
-                children: _visibleTools
-                    .map(
-                      (tool) => _ToolButton(
-                        tool: tool,
-                        isSelected: tool.id == currentToolId,
-                        onTap: () => state.setTool(tool),
-                      ),
-                    )
-                    .toList(),
-              );
-            },
-          ),
-
-          const ThemedDivider(height: 16),
-
-          // 撤销/重做/清空 - 监听历史管理器和图层管理器
-          ListenableBuilder(
-            listenable:
-                Listenable.merge([state.historyManager, state.layerManager]),
-            builder: (context, _) {
-              return Column(
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
                 children: [
-                  _ActionButton(
-                    icon: Icons.undo,
-                    tooltip: context.l10n.editor_shortcutUndo,
-                    enabled: state.canUndo,
-                    onTap: onUndo ?? () => state.undo(),
+                  // 工具按钮 - 监听工具切换
+                  ValueListenableBuilder<String?>(
+                    valueListenable: state.toolNotifier,
+                    builder: (context, currentToolId, _) {
+                      return Column(
+                        children: _visibleTools
+                            .map(
+                              (tool) => _ToolButton(
+                                tool: tool,
+                                isSelected: tool.id == currentToolId,
+                                onTap: () => state.setTool(tool),
+                              ),
+                            )
+                            .toList(),
+                      );
+                    },
                   ),
-                  _ActionButton(
-                    icon: Icons.redo,
-                    tooltip: context.l10n.editor_shortcutRedo,
-                    enabled: state.canRedo,
-                    onTap: onRedo ?? () => state.redo(),
+                  const ThemedDivider(height: 16),
+                  // 撤销/重做/清空 - 监听历史管理器和图层管理器
+                  ListenableBuilder(
+                    listenable: Listenable.merge([
+                      state.historyManager,
+                      state.layerManager,
+                    ]),
+                    builder: (context, _) {
+                      return Column(
+                        children: [
+                          _ActionButton(
+                            icon: Icons.undo,
+                            tooltip: context.l10n.editor_shortcutUndo,
+                            enabled: state.canUndo,
+                            onTap: onUndo ?? () => state.undo(),
+                          ),
+                          _ActionButton(
+                            icon: Icons.redo,
+                            tooltip: context.l10n.editor_shortcutRedo,
+                            enabled: state.canRedo,
+                            onTap: onRedo ?? () => state.redo(),
+                          ),
+                          _ActionButton(
+                            icon: Icons.delete_outline,
+                            tooltip: onClear != null
+                                ? context.l10n.editor_resetMask
+                                : context.l10n.editor_clearLayer,
+                            enabled: _canClearActiveLayer(state),
+                            onTap:
+                                onClear ??
+                                () => state.clearActiveLayerWithHistory(),
+                          ),
+                          if (onFillMask != null)
+                            _ActionButton(
+                              icon: Icons.format_color_fill,
+                              tooltip: context.l10n.editor_fillClosedRegion,
+                              enabled: canFillMask?.call() ?? false,
+                              onTap: onFillMask!,
+                            ),
+                        ],
+                      );
+                    },
                   ),
-                  _ActionButton(
-                    icon: Icons.delete_outline,
-                    tooltip: onClear != null
-                        ? context.l10n.editor_resetMask
-                        : context.l10n.editor_clearLayer,
-                    enabled: _canClearActiveLayer(state),
-                    onTap: onClear ?? () => state.clearActiveLayerWithHistory(),
-                  ),
-                  if (onFillMask != null)
-                    _ActionButton(
-                      icon: Icons.format_color_fill,
-                      tooltip: context.l10n.editor_fillClosedRegion,
-                      enabled: canFillMask?.call() ?? false,
-                      onTap: onFillMask!,
-                    ),
                 ],
-              );
-            },
+              ),
+            ),
           ),
-
-          const Spacer(),
 
           // 缩放控制 - 监听画布控制器
           ListenableBuilder(
@@ -216,8 +218,9 @@ class _ToolButton extends StatelessWidget {
   }
 
   String _buildTooltipMessage(BuildContext context) {
-    final shortcut =
-        tool.shortcutKey != null ? ' (${_getShortcutLabel(tool)})' : '';
+    final shortcut = tool.shortcutKey != null
+        ? ' (${_getShortcutLabel(tool)})'
+        : '';
     final base = '${_localizedToolName(context)}$shortcut';
 
     if (tool.id == 'color_picker') {
@@ -232,6 +235,7 @@ class _ToolButton extends StatelessWidget {
       'brush' => context.l10n.editor_toolBrush,
       'eraser' => context.l10n.editor_toolEraser,
       'fill' => context.l10n.editor_toolFill,
+      'magic_wand' => context.l10n.editor_toolMagicWand,
       'line' => context.l10n.editor_toolLine,
       'rect_selection' => context.l10n.editor_toolRectSelect,
       'ellipse_selection' => context.l10n.editor_toolEllipseSelect,

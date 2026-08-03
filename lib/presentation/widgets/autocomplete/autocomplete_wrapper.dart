@@ -365,6 +365,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
 
   void _onFocusChanged() {
     if (!_focusNode.hasFocus) {
+      _searchDebounceTimer?.cancel();
       // 延迟隐藏，给点击事件处理留出时间
       // 如果点击的是 Overlay 中的建议项，点击事件会在失去焦点后处理
       Future.delayed(const Duration(milliseconds: 150), () {
@@ -398,7 +399,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
 
     // 使用防抖延迟搜索，避免快速连续变化（如长按滑动选择文本）时频繁触发
     _searchDebounceTimer = Timer(_searchDebounceDelay, () {
-      if (!mounted) return;
+      if (!mounted || !_focusNode.hasFocus) return;
       // 委托给策略处理搜索
       _effectiveStrategy?.search(text, cursorPosition);
     });
@@ -414,6 +415,14 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
 
     final strategy = _effectiveStrategy;
     if (strategy == null) return;
+
+    // 异步搜索可能在输入框失焦后才返回，失焦时不得重新打开浮层。
+    if (!_focusNode.hasFocus) {
+      if (_showSuggestions) {
+        _hideSuggestions(force: true);
+      }
+      return;
+    }
 
     if (strategy.hasSuggestions) {
       // 有建议时确保取消隐藏计时器
@@ -446,6 +455,10 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   }
 
   void _showSuggestionsOverlay() {
+    if (!_focusNode.hasFocus) {
+      return;
+    }
+
     if (_showSuggestions) {
       _overlayEntry?.markNeedsBuild();
       return;
@@ -497,7 +510,11 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
         final size = renderBox.size;
 
         // 对于多行文本框，使用光标位置；否则使用文本框底部
-        final isMultiline = widget.expands || (widget.maxLines ?? 1) > 1;
+        final isMultiline = AutocompleteUtils.isMultilineTextInput(
+          context: this.context,
+          maxLines: widget.maxLines,
+          expands: widget.expands,
+        );
         final cursorOffset = isMultiline
             ? AutocompleteUtils.getCursorOffset(
                 context: this.context,

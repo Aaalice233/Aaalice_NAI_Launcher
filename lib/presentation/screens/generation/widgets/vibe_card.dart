@@ -513,12 +513,19 @@ class _VibeCardState extends ConsumerState<VibeCard> {
     required ValueChanged<double> onChanged,
   }) {
     final isInfoExtracted = label == context.l10n.vibe_infoExtraction;
-    final fieldMin = isInfoExtracted
+    final double? fieldMin = isInfoExtracted
         ? VibeReference.minInfoExtracted
-        : VibeReference.minStrength;
-    final sliderMin = isInfoExtracted ? VibeReference.minInfoExtracted : 0.0;
-    const max = 1.0;
-    final sliderValue = value.clamp(sliderMin, max).toDouble();
+        : null;
+    final double? fieldMax = isInfoExtracted
+        ? VibeReference.maxInfoExtracted
+        : null;
+    final sliderMin = isInfoExtracted
+        ? VibeReference.minInfoExtracted
+        : VibeReference.minSliderStrength;
+    final sliderMax = isInfoExtracted
+        ? VibeReference.maxInfoExtracted
+        : VibeReference.maxSliderStrength;
+    final sliderValue = value.clamp(sliderMin, sliderMax).toDouble();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -537,8 +544,8 @@ class _VibeCardState extends ConsumerState<VibeCard> {
             EditableDoubleField(
               value: value,
               min: fieldMin,
-              max: max,
-              decimals: 1,
+              max: fieldMax,
+              decimals: 2,
               width: 60,
               onChanged: onChanged,
               textStyle: theme.textTheme.bodySmall?.copyWith(
@@ -557,8 +564,8 @@ class _VibeCardState extends ConsumerState<VibeCard> {
           child: Slider(
             value: sliderValue,
             min: sliderMin,
-            max: max,
-            divisions: 100,
+            max: sliderMax,
+            divisions: 99,
             onChanged: onChanged,
           ),
         ),

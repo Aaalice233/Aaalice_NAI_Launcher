@@ -800,6 +800,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get generation_generate => '生成';
 
   @override
+  String generation_cooldownRemaining(Object seconds) {
+    return '等待 $seconds 秒';
+  }
+
+  @override
   String get generation_cancel => '取消';
 
   @override
@@ -1690,6 +1695,13 @@ class AppLocalizationsZh extends AppLocalizations {
       '同时控制 SeedVR2TilingUpscaler 的 tile_width / tile_height。';
 
   @override
+  String get img2img_seedvr2BlocksToSwap => '内存卸载层数';
+
+  @override
+  String get img2img_seedvr2BlocksToSwapHint =>
+      '把多少 DiT 层放在内存里、推理时再逐层送入显存。调高更省显存但更吃内存也更慢；显存充裕可调低甚至设为 0。显存不足报错时请调高。';
+
+  @override
   String img2img_regularModelDescription(Object name) {
     return '普通模型 · $name';
   }
@@ -1798,6 +1810,31 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get editor_toolFill => '填充';
+
+  @override
+  String get editor_toolMagicWand => '魔棒';
+
+  @override
+  String get editor_magicWandHelp => '点击颜色相近的连续区域。编辑图像时将其抠除为透明区域；重绘时将其加入蒙版。';
+
+  @override
+  String get editor_magicWandMode => '选择方式';
+
+  @override
+  String get editor_magicWandSmartObject => '智能对象（EfficientViT）';
+
+  @override
+  String get editor_magicWandColorArea => '颜色区域（洪水填充）';
+
+  @override
+  String get editor_magicWandSmartHelp =>
+      '点击要选择的对象。首次使用会从 MIT Han Lab 下载约 133 MiB 的 EfficientViT-SAM L0 模型（Apache-2.0），之后保存在本地。';
+
+  @override
+  String get editor_magicWandColorHelp => '点击颜色相近的连续区域。适合边界清晰的纯色图像，无需下载模型。';
+
+  @override
+  String get editor_magicWandInvert => '反选结果';
 
   @override
   String get editor_toolLine => '直线';
@@ -2166,6 +2203,37 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String editor_fillMaskFailed(Object error) {
     return '填充蒙版失败: $error';
+  }
+
+  @override
+  String get editor_magicWandNoSource => '没有可供魔棒取样的图像图层。';
+
+  @override
+  String get editor_magicWandNothingChanged => '选中的区域已经透明或已在蒙版中。';
+
+  @override
+  String get editor_magicWandModelPreparing => '正在检查 EfficientViT-SAM 模型…';
+
+  @override
+  String editor_magicWandModelDownloading(int percent) {
+    return '正在下载 EfficientViT-SAM 模型：$percent%';
+  }
+
+  @override
+  String get editor_magicWandModelLoading => '正在加载 EfficientViT-SAM 模型…';
+
+  @override
+  String get editor_magicWandEncoding => '正在分析图像对象…';
+
+  @override
+  String get editor_magicWandSegmenting => '正在根据点击位置分割对象…';
+
+  @override
+  String get editor_magicWandPostprocessing => '正在生成选区…';
+
+  @override
+  String editor_magicWandFailed(Object error) {
+    return '魔棒处理失败: $error';
   }
 
   @override
@@ -3325,6 +3393,49 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_last30Days => '最近30天';
 
   @override
+  String get onlineGallery_configureGelbooruApi => '配置 Gelbooru API';
+
+  @override
+  String get onlineGallery_gelbooruApiReady => 'Gelbooru API 已验证';
+
+  @override
+  String get onlineGallery_gelbooruApiInvalid => 'Gelbooru 凭据已失效';
+
+  @override
+  String get onlineGallery_gelbooruCredentialsRequired =>
+      '请先配置 Gelbooru User ID 和 API Key 以查看网站收藏。';
+
+  @override
+  String get onlineGallery_gelbooruCredentialsInvalid =>
+      'Gelbooru 凭据已失效，请重新配置。';
+
+  @override
+  String get onlineGallery_gelbooruRateLimited => 'Gelbooru 请求过于频繁，请稍后再试。';
+
+  @override
+  String get onlineGallery_gelbooruTimeout => 'Gelbooru 请求超时，请检查网络连接。';
+
+  @override
+  String get onlineGallery_gelbooruServerError => 'Gelbooru 服务器暂时不可用，请稍后再试。';
+
+  @override
+  String get onlineGallery_gelbooruNetworkError =>
+      '无法连接 Gelbooru，请检查网络设置或代理配置。';
+
+  @override
+  String get onlineGallery_gelbooruMalformedResponse => 'Gelbooru 返回了无法解析的数据。';
+
+  @override
+  String get onlineGallery_gelbooruRequestFailed => 'Gelbooru 请求失败，请稍后重试。';
+
+  @override
+  String get onlineGallery_gelbooruReadOnly => '只读收藏';
+
+  @override
+  String get onlineGallery_gelbooruFavoritesSortHint =>
+      '按帖子 ID 从新到旧排列，不保证与网站收藏时间顺序一致。';
+
+  @override
   String get tooltip_randomPrompt => '随机提示词 (长按配置)';
 
   @override
@@ -3466,6 +3577,68 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get danbooru_loginSuccess => '登录成功';
+
+  @override
+  String get gelbooru_configureTitle => '配置 Gelbooru API';
+
+  @override
+  String get gelbooru_configureHint =>
+      '输入 Gelbooru 账户设置页提供的 User ID 和 API Key。应用不会收集密码或浏览器 Cookie。';
+
+  @override
+  String get gelbooru_userId => 'User ID';
+
+  @override
+  String get gelbooru_userIdHint => '输入正整数 User ID';
+
+  @override
+  String get gelbooru_userIdRequired => '请输入有效的正整数 User ID';
+
+  @override
+  String get gelbooru_apiKeyHint => '输入 API Key';
+
+  @override
+  String get gelbooru_apiKeyRequired => '请输入 API Key';
+
+  @override
+  String get gelbooru_openAccountSettings => '打开 Gelbooru 账户设置';
+
+  @override
+  String get gelbooru_save => '验证并保存';
+
+  @override
+  String get gelbooru_saved => 'Gelbooru 凭据已保存';
+
+  @override
+  String get gelbooru_removeCredentials => '移除凭据';
+
+  @override
+  String get gelbooru_invalidInput => '请输入有效的 User ID 和 API Key。';
+
+  @override
+  String get gelbooru_invalidCredentials =>
+      'Gelbooru 拒绝了这些凭据，请检查 User ID 和 API Key。';
+
+  @override
+  String get gelbooru_rateLimited => '请求过于频繁，请稍后再试。';
+
+  @override
+  String get gelbooru_timeout => '验证超时，请检查网络连接。';
+
+  @override
+  String get gelbooru_serverError => 'Gelbooru 服务器暂时不可用。';
+
+  @override
+  String get gelbooru_networkError => '无法连接 Gelbooru，请检查网络设置或代理配置。';
+
+  @override
+  String get gelbooru_malformedResponse => 'Gelbooru 返回了无法解析的数据。';
+
+  @override
+  String get gelbooru_storageError => '无法安全保存或读取 Gelbooru 凭据。';
+
+  @override
+  String get gelbooru_unknownError => 'Gelbooru 验证失败，请稍后重试。';
 
   @override
   String get weight_title => '权重';
@@ -4336,15 +4509,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get characterEditor_close => '关闭';
 
   @override
-  String get characterEditor_dock => '停靠';
-
-  @override
-  String get characterEditor_undock => '取消停靠';
-
-  @override
-  String get characterEditor_dockedHint => '角色面板已停靠到图像区域';
-
-  @override
   String get characterEditor_confirm => '确定';
 
   @override
@@ -4381,12 +4545,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get characterEditor_addCharacterHint => '点击上方按钮添加角色';
 
   @override
-  String get characterEditor_deleteTitle => '删除角色';
-
-  @override
-  String get characterEditor_deleteConfirm => '确定要删除这个角色吗？此操作无法撤销。';
-
-  @override
   String get characterEditor_name => '名称';
 
   @override
@@ -4403,6 +4561,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get characterEditor_position => '位置';
+
+  @override
+  String get characterCanvas_title => '角色位置';
+
+  @override
+  String get characterCanvas_aiChoice => 'AI 选择';
+
+  @override
+  String get characterCanvas_custom => '自定义';
+
+  @override
+  String get characterCanvas_aiHint => 'AI 将自动安排角色位置';
+
+  @override
+  String get characterCanvas_dragHint => '拖动锚点设置角色位置，松开即生效';
 
   @override
   String get characterEditor_genderFemale => '女性';
@@ -10011,6 +10184,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get shortcut_action_generate_image => '生成图像';
 
   @override
+  String get shortcut_action_generation_prev_image => '预览上一张（历史联动）';
+
+  @override
+  String get shortcut_action_generation_next_image => '预览下一张（历史联动）';
+
+  @override
   String get shortcut_action_cancel_generation => '取消生成';
 
   @override
@@ -11353,6 +11532,25 @@ class AppLocalizationsZh extends AppLocalizations {
       '提示词与设置固定在最左栏，类似 NovelAI 官网';
 
   @override
+  String get settings_historyClickBehavior => '历史记录点击行为';
+
+  @override
+  String get settings_historyClickBehavior_classic => '经典';
+
+  @override
+  String get settings_historyClickBehavior_classicDescription => '单击历史图片直接打开详情';
+
+  @override
+  String get settings_historyClickBehavior_linked => '官网式联动';
+
+  @override
+  String get settings_historyClickBehavior_linkedDescription =>
+      '单击切换中央预览，双击或长按打开详情，并支持左右方向键浏览';
+
+  @override
+  String get image_viewDetail => '查看详情';
+
+  @override
   String get settings_defaultImagesPath =>
       '默认 (Documents/NAI_Launcher/images/)';
 
@@ -11369,7 +11567,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_protectionModeSubtitle =>
-      '开启后按下方子项保护本地资产、分享副本和高消耗操作；关闭时保留子项配置但不生效。';
+      '开启后按下方子项保护本地资产、分享副本、高消耗和高频生图操作；关闭时保留子项配置但不生效。';
 
   @override
   String get settings_protectionFeatures => '保护功能';
@@ -11420,6 +11618,27 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_highAnlasCostThresholdHelper => '当单次生成预计消耗达到或超过该值时弹出确认。';
+
+  @override
+  String get settings_limitGenerationIntervalTitle => '限制生图频率';
+
+  @override
+  String get settings_limitGenerationIntervalSubtitle =>
+      '开启后，两次生图开始时间必须至少间隔设定秒数；冷却期间生图按钮不可点击。';
+
+  @override
+  String get settings_generationIntervalTitle => '生图间隔';
+
+  @override
+  String settings_generationIntervalValue(Object seconds) {
+    return '$seconds 秒';
+  }
+
+  @override
+  String get settings_setGenerationIntervalTitle => '设置生图间隔';
+
+  @override
+  String get settings_generationIntervalHelper => '可设置 1–3600 秒，从开始执行生图时计时。';
 
   @override
   String get settings_selectLocalOnnxTaggerFolder => '选择 ONNX tagger 模型文件夹';

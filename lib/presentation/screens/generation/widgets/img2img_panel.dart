@@ -508,6 +508,8 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
   ) {
     return resolveSourcePreviewDimensions(
       sourceBytes: sourceBytes,
+      sourceWidth: workflow.sourceImageWidth,
+      sourceHeight: workflow.sourceImageHeight,
       fallbackWidth: workflow.sourceWidth,
       fallbackHeight: workflow.sourceHeight,
     );
@@ -1149,6 +1151,16 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       children: [
         _buildIntegerSliderSection(
           theme,
+          label: context.l10n.img2img_seedvr2BlocksToSwap,
+          value: upscale.seedvr2BlocksToSwap,
+          min: UpscaleWorkflowSettings.minSeedvr2BlocksToSwap,
+          max: UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap,
+          step: 1,
+          onChanged: controller.updateSeedvr2BlocksToSwap,
+          hint: context.l10n.img2img_seedvr2BlocksToSwapHint,
+        ),
+        _buildIntegerSliderSection(
+          theme,
           label: 'VAE Tile Size',
           value: upscale.seedvr2VaeTileSize,
           min: UpscaleWorkflowSettings.minSeedvr2VaeTileSize,
@@ -1271,6 +1283,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
         'seedvr2Tiled=${upscale.seedvr2Tiled}, '
         'seedvr2VaeTileSize=${upscale.seedvr2VaeTileSize}, '
         'seedvr2TileSize=${upscale.seedvr2TileSize}, '
+        'seedvr2BlocksToSwap=${upscale.seedvr2BlocksToSwap}, '
         'fileLogging=${AppLogger.fileLoggingEnabled}';
   }
 
@@ -1446,6 +1459,10 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
             'dit_model': model,
             'vae_encode_tile_size': wf.upscale.seedvr2VaeTileSize,
             'vae_decode_tile_size': wf.upscale.seedvr2VaeTileSize,
+            'blocks_to_swap': wf.upscale.seedvr2BlocksToSwap,
+            'swap_io_components': resolveSeedvr2SwapIoComponents(
+              wf.upscale.seedvr2BlocksToSwap,
+            ),
             if (wf.upscale.seedvr2Tiled) ...{
               'tile_size': wf.upscale.seedvr2TileSize,
               'tile_upscale_resolution': tileUpscaleResolution,

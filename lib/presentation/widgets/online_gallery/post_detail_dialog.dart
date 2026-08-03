@@ -79,7 +79,14 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
     final isWide = screenSize.width > 800;
     final authState = ref.watch(danbooruAuthProvider);
     final galleryState = ref.watch(onlineGalleryNotifierProvider);
-    final isFavorited = galleryState.favoritedPostIds.contains(widget.post.id);
+    final isFavorited = galleryState.favoritedPostKeys.contains(
+      onlineGalleryPostKey(widget.post),
+    );
+    final canWriteFavorite = widget.post.site == 'danbooru';
+    final favoriteReadOnly =
+        widget.post.site == 'gelbooru' &&
+        galleryState.viewMode == GalleryViewMode.favorites &&
+        galleryState.favoritesSource == 'gelbooru';
 
     return AnimatedBuilder(
       animation: _animationController,
@@ -109,8 +116,20 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
           child: ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: isWide
-                ? _buildWideLayout(theme, authState, isFavorited)
-                : _buildNarrowLayout(theme, authState, isFavorited),
+                ? _buildWideLayout(
+                    theme,
+                    authState,
+                    isFavorited,
+                    canWriteFavorite,
+                    favoriteReadOnly,
+                  )
+                : _buildNarrowLayout(
+                    theme,
+                    authState,
+                    isFavorited,
+                    canWriteFavorite,
+                    favoriteReadOnly,
+                  ),
           ),
         ),
       ),
@@ -122,6 +141,8 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
     ThemeData theme,
     DanbooruAuthState authState,
     bool isFavorited,
+    bool canWriteFavorite,
+    bool favoriteReadOnly,
   ) {
     return Row(
       children: [
@@ -137,7 +158,13 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
               ),
             ),
           ),
-          child: _buildInfoPanel(theme, authState, isFavorited),
+          child: _buildInfoPanel(
+            theme,
+            authState,
+            isFavorited,
+            canWriteFavorite,
+            favoriteReadOnly,
+          ),
         ),
       ],
     );
@@ -148,6 +175,8 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
     ThemeData theme,
     DanbooruAuthState authState,
     bool isFavorited,
+    bool canWriteFavorite,
+    bool favoriteReadOnly,
   ) {
     return Column(
       children: [
@@ -156,7 +185,13 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
         // 信息面板
         Expanded(
           flex: 3,
-          child: _buildInfoPanel(theme, authState, isFavorited),
+          child: _buildInfoPanel(
+            theme,
+            authState,
+            isFavorited,
+            canWriteFavorite,
+            favoriteReadOnly,
+          ),
         ),
       ],
     );
@@ -305,12 +340,20 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
     ThemeData theme,
     DanbooruAuthState authState,
     bool isFavorited,
+    bool canWriteFavorite,
+    bool favoriteReadOnly,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 标题栏
-        _buildTitleBar(theme, authState, isFavorited),
+        _buildTitleBar(
+          theme,
+          authState,
+          isFavorited,
+          canWriteFavorite,
+          favoriteReadOnly,
+        ),
         const ThemedDivider(height: 1),
         // 图片信息
         Padding(
@@ -332,6 +375,8 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
     ThemeData theme,
     DanbooruAuthState authState,
     bool isFavorited,
+    bool canWriteFavorite,
+    bool favoriteReadOnly,
   ) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
@@ -361,26 +406,37 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
             ),
           ),
           const Spacer(),
-          // 收藏按钮
-          IconButton(
-            onPressed: () {
-              if (!authState.isLoggedIn) {
-                AppToast.info(context, context.l10n.onlineGallery_pleaseLogin);
-                return;
-              }
-              ref
-                  .read(onlineGalleryNotifierProvider.notifier)
-                  .toggleFavorite(widget.post.id);
-            },
-            icon: Icon(
-              isFavorited ? Icons.favorite : Icons.favorite_border,
-              color: isFavorited ? Colors.red : null,
+          if (canWriteFavorite)
+            IconButton(
+              onPressed: () {
+                if (!authState.isLoggedIn) {
+                  AppToast.info(
+                    context,
+                    context.l10n.onlineGallery_pleaseLogin,
+                  );
+                  return;
+                }
+                ref
+                    .read(onlineGalleryNotifierProvider.notifier)
+                    .toggleFavorite(widget.post);
+              },
+              icon: Icon(
+                isFavorited ? Icons.favorite : Icons.favorite_border,
+                color: isFavorited ? Colors.red : null,
+              ),
+              iconSize: 22,
+              tooltip: isFavorited
+                  ? context.l10n.common_unfavorite
+                  : context.l10n.common_favorite,
+            )
+          else if (favoriteReadOnly)
+            Tooltip(
+              message: context.l10n.onlineGallery_gelbooruReadOnly,
+              child: const Padding(
+                padding: EdgeInsets.all(8),
+                child: Icon(Icons.favorite, color: Colors.redAccent, size: 22),
+              ),
             ),
-            iconSize: 22,
-            tooltip: isFavorited
-                ? context.l10n.common_unfavorite
-                : context.l10n.common_favorite,
-          ),
         ],
       ),
     );
@@ -429,6 +485,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   /// 标签区域
   Widget _buildTagsSection(ThemeData theme) {
     final translationService = ref.watch(tagTranslationServiceProvider);
+    final generalTags = _generalDisplayTags(widget.post);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -470,10 +527,10 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
               onTagTap: _handleTagTap,
             ),
           // 通用标签
-          if (widget.post.generalTags.isNotEmpty)
+          if (generalTags.isNotEmpty)
             _TagSection(
               title: context.l10n.onlineGallery_general,
-              tags: widget.post.generalTags,
+              tags: generalTags,
               color: TagColors.general,
               translationService: translationService,
               onTagTap: _handleTagTap,
@@ -727,6 +784,19 @@ class _InfoRow extends StatelessWidget {
       ],
     );
   }
+}
+
+List<String> _generalDisplayTags(DanbooruPost post) {
+  final categorizedTags = <String>{
+    ...post.artistTags,
+    ...post.characterTags,
+    ...post.copyrightTags,
+    ...post.generalTags,
+    ...post.metaTags,
+  };
+  final displayTags = <String>{...post.generalTags};
+  displayTags.addAll(post.tags.where((tag) => !categorizedTags.contains(tag)));
+  return displayTags.toList();
 }
 
 /// 标签分类组件

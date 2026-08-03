@@ -35,10 +35,10 @@ class PreciseReference with _$PreciseReference {
     /// Precise Reference 类型
     required PreciseRefType type,
 
-    /// 参考强度 (0-1)，越高越强烈模仿视觉线索
+    /// 参考强度（数值输入不设前端上下限，滑条范围 0-1）
     @Default(1.0) double strength,
 
-    /// 保真度 (0-1)，越高越忠实于原图
+    /// 保真度（数值输入不设前端上下限，滑条范围 0-1）
     @Default(1.0) double fidelity,
 
     /// 是否参与下一次生成请求。

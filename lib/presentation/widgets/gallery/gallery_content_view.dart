@@ -8,6 +8,7 @@ import 'package:visibility_detector/visibility_detector.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
+import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
 import '../../router/app_router.dart';
@@ -22,6 +23,7 @@ import '../common/image_detail/image_detail_data.dart';
 import '../common/shimmer_skeleton.dart';
 import 'gallery_grid.dart';
 import 'gallery_state_views.dart';
+import 'local_image_context_menu.dart';
 
 /// 画廊项目构建函数类型
 typedef GalleryItemBuilder<T> = Widget Function(
@@ -94,8 +96,12 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
   final void Function(int page)? onLoadPage;
   final GlobalKey<GroupedGridViewState>? groupedGridViewKey;
   final Gallery3DViewConfig<T>? view3DConfig;
-  final void Function(LocalImageRecord record)? onSendToHome;
-  final void Function(LocalImageRecord record)? onSendToImg2Img;
+  final Future<void> Function(
+    LocalImageRecord record,
+    LocalImageContextAction action,
+  )?
+  onSendAction;
+  final bool isKritaConnected;
   final String? emptyTitle;
   final String? emptySubtitle;
   final IconData? emptyIcon;
@@ -122,8 +128,8 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
     this.onLoadPage,
     this.groupedGridViewKey,
     this.view3DConfig,
-    this.onSendToHome,
-    this.onSendToImg2Img,
+    this.onSendAction,
+    this.isKritaConnected = false,
     this.emptyTitle,
     this.emptySubtitle,
     this.emptyIcon,
@@ -309,12 +315,10 @@ class _GenericGalleryContentViewState<T>
             onFavoriteToggle: () {
               widget.onFavoriteToggle?.call(record as T);
             },
-            onSendToHome: widget.onSendToHome != null
-                ? () => widget.onSendToHome!(record)
+            onSendAction: widget.onSendAction != null
+                ? (action) => widget.onSendAction!(record, action)
                 : null,
-            onSendToImg2Img: widget.onSendToImg2Img != null
-                ? () => widget.onSendToImg2Img!(record)
-                : null,
+            isKritaConnected: widget.isKritaConnected,
           ),
         );
       },
@@ -446,12 +450,10 @@ class _GenericGalleryContentViewState<T>
       onFavoriteToggle: (record, index) {
         widget.onFavoriteToggle?.call(state.currentImages[index]);
       },
-      onSendToHome: widget.onSendToHome != null
-          ? (record, index) => widget.onSendToHome!(record)
+      onSendAction: widget.onSendAction != null
+          ? (record, index, action) => widget.onSendAction!(record, action)
           : null,
-      onSendToImg2Img: widget.onSendToImg2Img != null
-          ? (record, index) => widget.onSendToImg2Img!(record)
-          : null,
+      isKritaConnected: widget.isKritaConnected,
     );
   }
 
@@ -516,9 +518,12 @@ class LocalGalleryContentView extends ConsumerWidget {
   final int columns;
   final double itemWidth;
   final void Function(LocalImageRecord record)? onReuseMetadata;
-  final void Function(LocalImageRecord record)? onSendToImg2Img;
   final void Function(LocalImageRecord record, Offset position)? onContextMenu;
-  final void Function(LocalImageRecord record)? onSendToHome;
+  final Future<void> Function(
+    LocalImageRecord record,
+    LocalImageContextAction action,
+  )?
+  onSendAction;
   final VoidCallback? onDeleted;
   final GlobalKey<GroupedGridViewState>? groupedGridViewKey;
 
@@ -528,9 +533,8 @@ class LocalGalleryContentView extends ConsumerWidget {
     required this.columns,
     required this.itemWidth,
     this.onReuseMetadata,
-    this.onSendToImg2Img,
     this.onContextMenu,
-    this.onSendToHome,
+    this.onSendAction,
     this.onDeleted,
     this.groupedGridViewKey,
   });
@@ -539,6 +543,11 @@ class LocalGalleryContentView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(localGalleryNotifierProvider);
     final selectionState = ref.watch(localGallerySelectionNotifierProvider);
+    final isKritaConnected = ref.watch(
+      kritaBridgeNotifierProvider.select(
+        (state) => state.status == KritaBridgeStatus.connected,
+      ),
+    );
 
     void showImageDetailViewer(
       List<LocalImageRecord> images,
@@ -627,10 +636,10 @@ class LocalGalleryContentView extends ConsumerWidget {
         onFavoriteToggle: () => ref
             .read(localGalleryNotifierProvider.notifier)
             .toggleFavorite(record.path),
-        onSendToHome:
-            onReuseMetadata != null ? () => onReuseMetadata!(record) : null,
-        onSendToImg2Img:
-            onSendToImg2Img != null ? () => onSendToImg2Img!(record) : null,
+        onSendAction: onSendAction != null
+            ? (action) => onSendAction!(record, action)
+            : null,
+        isKritaConnected: isKritaConnected,
       ),
       onSelectionToggle: (record) => ref
           .read(localGallerySelectionNotifierProvider.notifier)
@@ -654,8 +663,8 @@ class LocalGalleryContentView extends ConsumerWidget {
         images: state.currentImages,
         showDetailViewer: showImageDetailViewer,
       ),
-      onSendToHome: onReuseMetadata,
-      onSendToImg2Img: onSendToImg2Img,
+      onSendAction: onSendAction,
+      isKritaConnected: isKritaConnected,
     );
   }
 }

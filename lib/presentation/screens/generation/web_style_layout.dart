@@ -9,6 +9,7 @@ import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
+import '../../providers/generation/preview_selection_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/layout_state_provider.dart';
 import '../../providers/replication_queue_provider.dart';
@@ -54,6 +55,7 @@ class _WebStyleGenerationLayoutState
   Widget build(BuildContext context) {
     final layoutState = ref.watch(layoutStateNotifierProvider);
     final generationState = ref.watch(imageGenerationNotifierProvider);
+    final cooldownState = ref.watch(generationCooldownProvider);
     final kritaBridgeState = ref.watch(kritaBridgeNotifierProvider);
     final isLauncherGenerating = generationState.isGenerating;
     final isGenerating =
@@ -61,13 +63,15 @@ class _WebStyleGenerationLayoutState
 
     final shortcuts = <String, VoidCallback>{
       ShortcutIds.generateImage: () {
-        if (!isGenerating) {
+        if (!isGenerating && !cooldownState.isActive) {
           unawaited(generateWithProtection(context, ref));
         }
       },
       ShortcutIds.cancelGeneration: () {
         if (isLauncherGenerating) {
           ref.read(imageGenerationNotifierProvider.notifier).cancel();
+        } else if (ref.read(generationPreviewSelectionProvider) != null) {
+          ref.read(generationPreviewSelectionProvider.notifier).clear();
         }
       },
       ShortcutIds.addToQueue: () {
@@ -144,9 +148,7 @@ class _WebStyleGenerationLayoutState
           const FixedTagsSidebarSlot(),
 
           // 中间 - 纯图像预览
-          const Expanded(
-            child: ImagePreviewWidget(),
-          ),
+          const Expanded(child: ImagePreviewWidget()),
 
           if (layoutState.rightPanelExpanded)
             ResizeHandle(

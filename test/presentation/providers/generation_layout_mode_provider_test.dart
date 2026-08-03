@@ -5,26 +5,24 @@ import 'package:nai_launcher/presentation/providers/generation_layout_mode_provi
 
 void main() {
   group('GenerationLayoutModeNotifier', () {
-    test('storage 为空时默认 classic', () {
+    test('真实 storage 缺少布局键时默认 web_style', () {
+      final storage = LocalStorageService();
       final container = ProviderContainer(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => _FakeStorage()),
-        ],
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
       );
       addTearDown(container.dispose);
 
+      expect(storage.getGenerationLayoutMode(), 'web_style');
       expect(
         container.read(generationLayoutModeNotifierProvider),
-        GenerationLayoutMode.classic,
+        GenerationLayoutMode.webStyle,
       );
     });
 
     test('从 storage 读取 web_style', () {
       final storage = _FakeStorage()..mode = 'web_style';
       final container = ProviderContainer(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
       );
       addTearDown(container.dispose);
 
@@ -37,9 +35,7 @@ void main() {
     test('未知 storage 值回落到 classic', () {
       final storage = _FakeStorage()..mode = 'bogus_value';
       final container = ProviderContainer(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
       );
       addTearDown(container.dispose);
 
@@ -50,16 +46,15 @@ void main() {
     });
 
     test('setMode 更新状态并写回 storage', () async {
-      final storage = _FakeStorage();
+      final storage = _FakeStorage()..mode = 'classic';
       final container = ProviderContainer(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
       );
       addTearDown(container.dispose);
 
-      final notifier =
-          container.read(generationLayoutModeNotifierProvider.notifier);
+      final notifier = container.read(
+        generationLayoutModeNotifierProvider.notifier,
+      );
       await notifier.setMode(GenerationLayoutMode.webStyle);
 
       expect(
@@ -72,7 +67,7 @@ void main() {
 }
 
 class _FakeStorage extends LocalStorageService {
-  String mode = 'classic';
+  String mode = 'web_style';
 
   @override
   String getGenerationLayoutMode() => mode;

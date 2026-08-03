@@ -96,10 +96,7 @@ class _ShortcutSettingsPanelState extends ConsumerState<ShortcutSettingsPanel> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(
-                    Icons.keyboard,
-                    color: theme.colorScheme.primary,
-                  ),
+                  Icon(Icons.keyboard, color: theme.colorScheme.primary),
                   const SizedBox(width: 12),
                   Text(
                     context.l10n.shortcut_settings_title,
@@ -174,18 +171,15 @@ class _ShortcutSettingsPanelState extends ConsumerState<ShortcutSettingsPanel> {
                 children: [
                   // 显示在Tooltip中
                   FilterChip(
-                    label:
-                        Text(context.l10n.shortcut_settings_show_in_tooltips),
+                    label: Text(
+                      context.l10n.shortcut_settings_show_in_tooltips,
+                    ),
                     selected: config.showShortcutInTooltip,
                     onSelected: config.enableShortcuts
                         ? (value) {
                             ref
-                                .read(
-                                  shortcutConfigNotifierProvider.notifier,
-                                )
-                                .updateSettings(
-                                  showShortcutInTooltip: value,
-                                );
+                                .read(shortcutConfigNotifierProvider.notifier)
+                                .updateSettings(showShortcutInTooltip: value);
                           }
                         : null,
                   ),
@@ -197,12 +191,8 @@ class _ShortcutSettingsPanelState extends ConsumerState<ShortcutSettingsPanel> {
                     onSelected: config.enableShortcuts
                         ? (value) {
                             ref
-                                .read(
-                                  shortcutConfigNotifierProvider.notifier,
-                                )
-                                .updateSettings(
-                                  showShortcutBadges: value,
-                                );
+                                .read(shortcutConfigNotifierProvider.notifier)
+                                .updateSettings(showShortcutBadges: value);
                           }
                         : null,
                   ),
@@ -214,9 +204,7 @@ class _ShortcutSettingsPanelState extends ConsumerState<ShortcutSettingsPanel> {
                     onSelected: config.enableShortcuts
                         ? (value) {
                             ref
-                                .read(
-                                  shortcutConfigNotifierProvider.notifier,
-                                )
+                                .read(shortcutConfigNotifierProvider.notifier)
                                 .updateSettings(showInMenus: value);
                           }
                         : null,
@@ -430,8 +418,8 @@ class _ShortcutSettingsPanelState extends ConsumerState<ShortcutSettingsPanel> {
             Text(
               context.l10n.shortcut_settings_no_matches,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
+                color: Theme.of(context).colorScheme.outline,
+              ),
             ),
           ],
         ),
@@ -495,6 +483,10 @@ class _ShortcutSettingsPanelState extends ConsumerState<ShortcutSettingsPanel> {
         return l10n.shortcut_action_navigate_to_settings;
       case 'shortcut_action_generate_image':
         return l10n.shortcut_action_generate_image;
+      case 'shortcut_action_generation_prev_image':
+        return l10n.shortcut_action_generation_prev_image;
+      case 'shortcut_action_generation_next_image':
+        return l10n.shortcut_action_generation_next_image;
       case 'shortcut_action_cancel_generation':
         return l10n.shortcut_action_cancel_generation;
       case 'shortcut_action_add_to_queue':

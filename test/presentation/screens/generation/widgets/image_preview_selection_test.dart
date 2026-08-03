@@ -1,0 +1,152 @@
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/providers/generation/preview_selection_provider.dart';
+import 'package:nai_launcher/presentation/providers/history_click_behavior_provider.dart';
+import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
+import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/image_preview.dart';
+import 'package:nai_launcher/presentation/widgets/common/selectable_image_card.dart';
+
+class _SelectionImageGenerationNotifier extends ImageGenerationNotifier {
+  _SelectionImageGenerationNotifier(this.initialState);
+
+  final ImageGenerationState initialState;
+
+  @override
+  ImageGenerationState build() => initialState;
+
+  void replace(ImageGenerationState value) => state = value;
+}
+
+class _LinkedHistoryBehaviorNotifier extends HistoryClickBehaviorNotifier {
+  @override
+  HistoryClickBehavior build() => HistoryClickBehavior.selectPreview;
+}
+
+class _DefaultShortcutConfigNotifier extends ShortcutConfigNotifier {
+  @override
+  Future<ShortcutConfig> build() async => ShortcutConfig.createDefault();
+}
+
+void main() {
+  testWidgets(
+    'selected history image replaces display grid and missing id falls back',
+    (tester) async {
+      final displayA = _image('display-a', 20);
+      final displayB = _image('display-b', 40);
+      final history = _image('history', 80);
+      final initialState = ImageGenerationState(
+        history: [history],
+        displayImages: [displayA, displayB],
+      );
+      final container = ProviderContainer(
+        overrides: [
+          imageGenerationNotifierProvider.overrideWith(
+            () => _SelectionImageGenerationNotifier(initialState),
+          ),
+          historyClickBehaviorNotifierProvider.overrideWith(
+            _LinkedHistoryBehaviorNotifier.new,
+          ),
+          shortcutConfigNotifierProvider.overrideWith(
+            _DefaultShortcutConfigNotifier.new,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container
+          .read(generationPreviewSelectionProvider.notifier)
+          .select(history.id);
+
+      await tester.pumpWidget(_app(container));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SelectableImageCard), findsOneWidget);
+      expect(
+        tester
+            .widget<SelectableImageCard>(find.byType(SelectableImageCard))
+            .imageBytes,
+        same(history.bytes),
+      );
+
+      container
+          .read(generationPreviewSelectionProvider.notifier)
+          .select('missing');
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SelectableImageCard), findsNWidgets(2));
+    },
+  );
+
+  testWidgets('generating state keeps priority over linked selection', (
+    tester,
+  ) async {
+    final history = _image('history', 80);
+    late _SelectionImageGenerationNotifier generationNotifier;
+    final container = ProviderContainer(
+      overrides: [
+        imageGenerationNotifierProvider.overrideWith(
+          () => generationNotifier = _SelectionImageGenerationNotifier(
+            ImageGenerationState(history: [history]),
+          ),
+        ),
+        historyClickBehaviorNotifierProvider.overrideWith(
+          _LinkedHistoryBehaviorNotifier.new,
+        ),
+        shortcutConfigNotifierProvider.overrideWith(
+          _DefaultShortcutConfigNotifier.new,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container
+        .read(generationPreviewSelectionProvider.notifier)
+        .select(history.id);
+    generationNotifier.replace(
+      const ImageGenerationState(
+        status: GenerationStatus.generating,
+        currentImage: 1,
+        totalImages: 1,
+        batchWidth: 64,
+        batchHeight: 64,
+      ),
+    );
+
+    await tester.pumpWidget(_app(container));
+    await tester.pump();
+
+    final card = tester.widget<SelectableImageCard>(
+      find.byType(SelectableImageCard),
+    );
+    expect(card.isGenerating, isTrue);
+  });
+}
+
+Widget _app(ProviderContainer container) {
+  return UncontrolledProviderScope(
+    container: container,
+    child: const MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(
+        body: SizedBox(width: 640, height: 480, child: ImagePreviewWidget()),
+      ),
+    ),
+  );
+}
+
+GeneratedImage _image(String id, int red) {
+  final image = img.Image(width: 4, height: 4);
+  image.clear(img.ColorRgba8(red, 20, 30, 255));
+  return GeneratedImage(
+    id: id,
+    bytes: Uint8List.fromList(img.encodePng(image)),
+    width: 4,
+    height: 4,
+  );
+}

@@ -1,9 +1,11 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/storage/secure_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../datasources/remote/danbooru_api_service.dart';
 import '../models/danbooru/danbooru_user.dart';
@@ -84,77 +86,130 @@ class DanbooruAuthState {
       user: clearUser ? null : (user ?? this.user),
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
-      lastVerifiedAt:
-          clearVerifiedAt ? null : (lastVerifiedAt ?? this.lastVerifiedAt),
+      lastVerifiedAt: clearVerifiedAt
+          ? null
+          : (lastVerifiedAt ?? this.lastVerifiedAt),
     );
   }
+}
+
+class DanbooruCredentialVerifier {
+  const DanbooruCredentialVerifier();
+
+  Future<(DanbooruUser?, bool isNetworkError)> verify(
+    DanbooruCredentials credentials,
+  ) async {
+    final apiService = DanbooruApiService(
+      Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 15),
+          sendTimeout: const Duration(seconds: 15),
+        ),
+      ),
+    );
+    return apiService.verifyCredentialsWithErrorType(credentials);
+  }
+}
+
+@Riverpod(keepAlive: true)
+DanbooruCredentialVerifier danbooruCredentialVerifier(Ref ref) {
+  return const DanbooruCredentialVerifier();
 }
 
 /// Danbooru 认证服务
 @Riverpod(keepAlive: true)
 class DanbooruAuth extends _$DanbooruAuth {
-  static const _credentialsKey = 'danbooru_credentials';
+  static const legacyCredentialsKey = 'danbooru_credentials';
+  late final Future<void> _initialization;
 
   @override
   DanbooruAuthState build() {
-    // 初始化时加载保存的凭据
-    _loadSavedCredentials();
+    _initialization = _loadSavedCredentials();
     return const DanbooruAuthState();
   }
+
+  Future<void> ensureInitialized() => _initialization;
 
   /// 加载保存的凭据
   Future<void> _loadSavedCredentials() async {
     try {
+      final storage = ref.read(secureStorageServiceProvider);
       final prefs = await SharedPreferences.getInstance();
-      final credentialsJson = prefs.getString(_credentialsKey);
+      final secureJson = await storage.getDanbooruCredentials();
+      DanbooruCredentials? credentials = _decodeCredentials(secureJson);
+      var hasDurableSecureCopy = credentials != null;
 
-      if (credentialsJson != null) {
-        final credentials = DanbooruCredentials.fromJson(
-          jsonDecode(credentialsJson) as Map<String, dynamic>,
-        );
-        state = state.copyWith(credentials: credentials, isLoading: true);
-
-        // 验证凭据
-        final result = await _verifyCredentialsWithResult(credentials);
-
-        switch (result) {
-          case CredentialVerifyResult.success:
-            // 验证成功，状态已在 _verifyCredentialsWithResult 中更新
-            AppLogger.i(
-              'Saved credentials verified successfully',
-              'DanbooruAuth',
+      if (credentials == null) {
+        final legacyJson = prefs.getString(legacyCredentialsKey);
+        credentials = _decodeCredentials(legacyJson);
+        if (credentials != null && legacyJson != null) {
+          try {
+            await storage.saveDanbooruCredentials(legacyJson);
+            final readBack = _decodeCredentials(
+              await storage.getDanbooruCredentials(),
             );
-            break;
-
-          case CredentialVerifyResult.invalidCredentials:
-            // 凭据无效（如401错误），清除已保存的凭据
-            await prefs.remove(_credentialsKey);
-            state = state.copyWith(
-              clearCredentials: true,
-              clearUser: true,
-              isLoading: false,
-              error: '凭据已失效，请重新登录',
-            );
+            hasDurableSecureCopy =
+                readBack != null && _sameCredentials(credentials, readBack);
+            if (hasDurableSecureCopy) {
+              await prefs.remove(legacyCredentialsKey);
+              AppLogger.i(
+                'Migrated Danbooru credentials to secure storage',
+                'DanbooruAuth',
+              );
+            }
+          } catch (_) {
+            // Keep the legacy value as the durable copy and continue this login.
+            hasDurableSecureCopy = false;
             AppLogger.w(
-              'Saved credentials invalid (401), cleared',
+              'Danbooru credential migration deferred',
               'DanbooruAuth',
             );
-            break;
-
-          case CredentialVerifyResult.networkError:
-            // 网络错误，保留凭据但标记为未验证状态
-            // 允许离线使用，下次网络恢复时重试验证
-            state = state.copyWith(
-              credentials: credentials,
-              isLoading: false,
-              clearVerifiedAt: true, // 清除验证时间，标记为需要重新验证
-            );
-            AppLogger.w(
-              'Network error during credential verification, keeping credentials for retry',
-              'DanbooruAuth',
-            );
-            break;
+          }
         }
+      } else if (prefs.containsKey(legacyCredentialsKey)) {
+        await prefs.remove(legacyCredentialsKey);
+      }
+
+      if (credentials == null) return;
+
+      state = state.copyWith(credentials: credentials, isLoading: true);
+      final result = await _verifyCredentialsWithResult(credentials);
+
+      switch (result) {
+        case CredentialVerifyResult.success:
+          AppLogger.i(
+            'Saved credentials verified successfully',
+            'DanbooruAuth',
+          );
+          break;
+        case CredentialVerifyResult.invalidCredentials:
+          if (hasDurableSecureCopy) {
+            await storage.deleteDanbooruCredentials();
+          }
+          await prefs.remove(legacyCredentialsKey);
+          state = state.copyWith(
+            clearCredentials: true,
+            clearUser: true,
+            isLoading: false,
+            error: '凭据已失效，请重新登录',
+          );
+          AppLogger.w(
+            'Saved credentials invalid (401), cleared',
+            'DanbooruAuth',
+          );
+          break;
+        case CredentialVerifyResult.networkError:
+          state = state.copyWith(
+            credentials: credentials,
+            isLoading: false,
+            clearVerifiedAt: true,
+          );
+          AppLogger.w(
+            'Network error during credential verification, keeping credentials for retry',
+            'DanbooruAuth',
+          );
+          break;
       }
     } catch (e, stack) {
       AppLogger.e(
@@ -166,6 +221,26 @@ class DanbooruAuth extends _$DanbooruAuth {
     }
   }
 
+  DanbooruCredentials? _decodeCredentials(String? encoded) {
+    if (encoded == null || encoded.isEmpty) return null;
+    try {
+      final credentials = DanbooruCredentials.fromJson(
+        jsonDecode(encoded) as Map<String, dynamic>,
+      );
+      if (credentials.username.trim().isEmpty ||
+          credentials.apiKey.trim().isEmpty) {
+        return null;
+      }
+      return credentials;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool _sameCredentials(DanbooruCredentials first, DanbooruCredentials second) {
+    return first.username == second.username && first.apiKey == second.apiKey;
+  }
+
   /// 验证凭据并获取用户信息（返回详细结果）
   ///
   /// 区分网络错误和凭据无效，避免网络问题导致凭据被误删
@@ -175,8 +250,9 @@ class DanbooruAuth extends _$DanbooruAuth {
     try {
       state = state.copyWith(isLoading: true, clearError: true);
 
-      final (user, isNetworkError) =
-          await _fetchUserProfileWithErrorType(credentials);
+      final (user, isNetworkError) = await _fetchUserProfileWithErrorType(
+        credentials,
+      );
 
       if (user != null) {
         state = state.copyWith(
@@ -188,10 +264,7 @@ class DanbooruAuth extends _$DanbooruAuth {
         return CredentialVerifyResult.success;
       } else if (isNetworkError) {
         // 网络错误，保留凭据
-        state = state.copyWith(
-          isLoading: false,
-          error: '网络连接失败，将在网络恢复后重试',
-        );
+        state = state.copyWith(isLoading: false, error: '网络连接失败，将在网络恢复后重试');
         return CredentialVerifyResult.networkError;
       } else {
         // 凭据无效
@@ -202,10 +275,7 @@ class DanbooruAuth extends _$DanbooruAuth {
         return CredentialVerifyResult.invalidCredentials;
       }
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: '验证失败: $e',
-      );
+      state = state.copyWith(isLoading: false, error: '验证失败: $e');
       // 未知异常视为网络错误，不删除凭据
       return CredentialVerifyResult.networkError;
     }
@@ -235,15 +305,13 @@ class DanbooruAuth extends _$DanbooruAuth {
       // 先验证凭据是否有效
       AppLogger.i('Verifying Danbooru credentials...', 'DanbooruAuth');
 
-      final (user, isNetworkError) =
-          await _fetchUserProfileWithErrorType(credentials);
+      final (user, isNetworkError) = await _fetchUserProfileWithErrorType(
+        credentials,
+      );
 
       if (user == null) {
         if (isNetworkError) {
-          state = state.copyWith(
-            isLoading: false,
-            error: '网络连接失败，请检查网络连接',
-          );
+          state = state.copyWith(isLoading: false, error: '网络连接失败，请检查网络连接');
         } else {
           state = state.copyWith(
             isLoading: false,
@@ -255,11 +323,17 @@ class DanbooruAuth extends _$DanbooruAuth {
       }
 
       // 验证成功，保存凭据
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        _credentialsKey,
-        jsonEncode(credentials.toJson()),
+      final storage = ref.read(secureStorageServiceProvider);
+      final encoded = jsonEncode(credentials.toJson());
+      await storage.saveDanbooruCredentials(encoded);
+      final readBack = _decodeCredentials(
+        await storage.getDanbooruCredentials(),
       );
+      if (readBack == null || !_sameCredentials(credentials, readBack)) {
+        throw const FormatException('Credential read-back failed');
+      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(legacyCredentialsKey);
 
       state = state.copyWith(
         credentials: credentials,
@@ -273,10 +347,7 @@ class DanbooruAuth extends _$DanbooruAuth {
       return true;
     } catch (e, stack) {
       AppLogger.e('Danbooru login failed', e, stack, 'DanbooruAuth');
-      state = state.copyWith(
-        isLoading: false,
-        error: '登录失败，请检查网络连接',
-      );
+      state = state.copyWith(isLoading: false, error: '登录失败，请检查网络连接');
       return false;
     }
   }
@@ -296,19 +367,9 @@ class DanbooruAuth extends _$DanbooruAuth {
         'DanbooruAuth',
       );
 
-      // 使用 DanbooruApiService 验证凭据
-      final apiService = DanbooruApiService(
-        Dio(
-          BaseOptions(
-            connectTimeout: const Duration(seconds: 15),
-            receiveTimeout: const Duration(seconds: 15),
-            sendTimeout: const Duration(seconds: 15),
-          ),
-        ),
-      );
-
-      final (user, isNetworkError) =
-          await apiService.verifyCredentialsWithErrorType(credentials);
+      final (user, isNetworkError) = await ref
+          .read(danbooruCredentialVerifierProvider)
+          .verify(credentials);
 
       if (user != null) {
         AppLogger.i(
@@ -344,7 +405,10 @@ class DanbooruAuth extends _$DanbooruAuth {
   Future<void> logout() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_credentialsKey);
+      await Future.wait([
+        ref.read(secureStorageServiceProvider).deleteDanbooruCredentials(),
+        prefs.remove(legacyCredentialsKey),
+      ]);
 
       state = const DanbooruAuthState();
       AppLogger.i('Danbooru logout successful', 'DanbooruAuth');
@@ -363,8 +427,9 @@ class DanbooruAuth extends _$DanbooruAuth {
     final creds = state.credentials;
     if (creds == null) return null;
 
-    final encoded =
-        base64Encode(utf8.encode('${creds.username}:${creds.apiKey}'));
+    final encoded = base64Encode(
+      utf8.encode('${creds.username}:${creds.apiKey}'),
+    );
     return 'Basic $encoded';
   }
 }

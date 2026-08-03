@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/utils/novelai_vibe_codec.dart';
 import 'package:nai_launcher/core/utils/vibe_export_utils.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
@@ -31,10 +32,8 @@ void main() {
               as Map<String, dynamic>;
       expect(json['identifier'], 'novelai-vibe-transfer');
       expect(json['name'], 'Same');
-      expect(
-        json['encodings']['nai-diffusion-4-full']['vibe']['encoding'],
-        'encoded-a',
-      );
+      expect(NovelAiVibeCodec.validateSingleMap(json), isTrue);
+      expect(json['encodings']['v4full']['unknown']['encoding'], 'encoded-a');
     },
   );
 }

@@ -68,7 +68,7 @@ class _EntryListItemState extends State<EntryListItem> {
     final borderColor =
         widget.isSelected ? theme.colorScheme.primary : Colors.transparent;
 
-    Widget itemContent = MouseRegion(
+    final itemContent = MouseRegion(
       onEnter: (_) {
         if (!_isDragging && !widget.isSelectionMode) {
           setState(() => _isHovering = true);
@@ -172,32 +172,31 @@ class _EntryListItemState extends State<EntryListItem> {
       ),
     );
 
-    // 如果启用拖拽，包装为 Draggable
-    if (widget.enableDrag) {
-      itemContent = Draggable<TagLibraryEntry>(
-        data: entry,
-        feedback: _buildDragFeedback(theme, entry),
-        childWhenDragging: Opacity(
-          opacity: 0.4,
-          child: itemContent,
-        ),
-        onDragStarted: () {
-          HapticFeedback.mediumImpact();
-          setState(() {
-            _isDragging = true;
-            _isHovering = false;
-          });
-        },
-        onDragEnd: (_) {
-          setState(() {
-            _isDragging = false;
-          });
-        },
+    // 保持根节点稳定，避免切换多选模式时重建缩略图子树。
+    return Draggable<TagLibraryEntry>(
+      data: entry,
+      maxSimultaneousDrags: widget.enableDrag ? null : 0,
+      feedback: widget.enableDrag
+          ? _buildDragFeedback(theme, entry)
+          : const SizedBox.shrink(),
+      childWhenDragging: Opacity(
+        opacity: 0.4,
         child: itemContent,
-      );
-    }
-
-    return itemContent;
+      ),
+      onDragStarted: () {
+        HapticFeedback.mediumImpact();
+        setState(() {
+          _isDragging = true;
+          _isHovering = false;
+        });
+      },
+      onDragEnd: (_) {
+        setState(() {
+          _isDragging = false;
+        });
+      },
+      child: itemContent,
+    );
   }
 
   /// 构建拖拽反馈UI

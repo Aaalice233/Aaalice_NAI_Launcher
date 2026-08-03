@@ -53,6 +53,10 @@ String? onlineGalleryImageCacheKeyForUrl(String url) {
   return 'gelbooru-image-v2:$url';
 }
 
+bool shouldPrefetchOnlineGalleryImage(String url) {
+  return !_isGelbooruMediaHost(Uri.tryParse(url));
+}
+
 bool _isGelbooruMediaHost(Uri? uri) {
   if (uri == null || uri.host.isEmpty) return false;
 

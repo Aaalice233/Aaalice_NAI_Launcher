@@ -407,10 +407,7 @@ void main() {
         expect(params.maskImage, isNotNull);
         expect(params.isOutpaint, isFalse);
         expect(params.action, ImageGenerationAction.infill);
-        expect(
-          params.model,
-          equals(ImageModels.animeDiffusionV45FullInpainting),
-        );
+        expect(params.model, equals(ImageModels.animeDiffusionV45Full));
       },
     );
 
@@ -585,7 +582,7 @@ void main() {
     );
 
     test(
-      'enterInpaintMode should switch v4.5 full to inpainting model and restore base model on exit',
+      'enterInpaintMode should keep the settings model stable across inpaint',
       () {
         final controller = container.read(
           imageWorkflowControllerProvider.notifier,
@@ -606,15 +603,17 @@ void main() {
         controller.onMaskChanged(Uint8List.fromList([9, 9, 9]));
 
         var params = container.read(generationParamsNotifierProvider);
-        expect(
-          params.model,
-          equals(ImageModels.animeDiffusionV45FullInpainting),
+        expect(params.model, equals(ImageModels.animeDiffusionV45Full));
+
+        paramsNotifier.updateModel(
+          ImageModels.animeDiffusionV45Curated,
+          persist: false,
         );
 
         controller.enterBaseMode();
 
         params = container.read(generationParamsNotifierProvider);
-        expect(params.model, equals(ImageModels.animeDiffusionV45Full));
+        expect(params.model, equals(ImageModels.animeDiffusionV45Curated));
       },
     );
 
@@ -657,7 +656,7 @@ void main() {
     );
 
     test(
-      'onMaskChanged should keep model and action aligned while toggling inpaint mode',
+      'onMaskChanged should keep the settings model while toggling inpaint mode',
       () {
         final controller = container.read(
           imageWorkflowControllerProvider.notifier,
@@ -684,7 +683,7 @@ void main() {
 
         params = container.read(generationParamsNotifierProvider);
         expect(params.action, ImageGenerationAction.infill);
-        expect(params.model, ImageModels.animeDiffusionV4FullInpainting);
+        expect(params.model, ImageModels.animeDiffusionV4Full);
 
         controller.onMaskChanged(null);
 
@@ -742,6 +741,45 @@ void main() {
         expect(workflow.upscale.seedvr2TileSize, equals(1280));
       },
     );
+
+    test(
+      'upscale settings should persist SeedVR2 blocks to swap across rebuilds',
+      () async {
+        final controller = container.read(
+          imageWorkflowControllerProvider.notifier,
+        );
+
+        controller.updateSeedvr2BlocksToSwap(28);
+        await Hive.box(StorageKeys.settingsBox).flush();
+
+        container.dispose();
+        container = ProviderContainer();
+
+        final workflow = container.read(imageWorkflowControllerProvider);
+
+        expect(workflow.upscale.seedvr2BlocksToSwap, equals(28));
+      },
+    );
+
+    test('updateSeedvr2BlocksToSwap should clamp values to the valid range', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+
+      controller.updateSeedvr2BlocksToSwap(-8);
+      expect(
+        container.read(imageWorkflowControllerProvider).upscale
+            .seedvr2BlocksToSwap,
+        equals(UpscaleWorkflowSettings.minSeedvr2BlocksToSwap),
+      );
+
+      controller.updateSeedvr2BlocksToSwap(120);
+      expect(
+        container.read(imageWorkflowControllerProvider).upscale
+            .seedvr2BlocksToSwap,
+        equals(UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap),
+      );
+    });
 
     test('build should default upscale settings to safe local defaults', () {
       final workflow = container.read(imageWorkflowControllerProvider);
@@ -849,6 +887,46 @@ void main() {
         expect(workflow.enhance.noise, equals(0.12));
       },
     );
+  });
+
+  group('resolveSeedvr2SwapIoComponents', () {
+    test('should keep IO components on the GPU at low swap levels', () {
+      expect(resolveSeedvr2SwapIoComponents(0), isFalse);
+      expect(
+        resolveSeedvr2SwapIoComponents(
+          UpscaleWorkflowSettings.defaultSeedvr2BlocksToSwap,
+        ),
+        isFalse,
+      );
+      expect(
+        resolveSeedvr2SwapIoComponents(seedvr2SwapIoComponentsThreshold - 1),
+        isFalse,
+      );
+    });
+
+    test('should offload IO components once swapping gets aggressive', () {
+      expect(
+        resolveSeedvr2SwapIoComponents(seedvr2SwapIoComponentsThreshold),
+        isTrue,
+      );
+      expect(
+        resolveSeedvr2SwapIoComponents(
+          UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap,
+        ),
+        isTrue,
+      );
+    });
+
+    test('should stay within the slider range exposed by the UI', () {
+      expect(
+        seedvr2SwapIoComponentsThreshold,
+        greaterThan(UpscaleWorkflowSettings.defaultSeedvr2BlocksToSwap),
+      );
+      expect(
+        seedvr2SwapIoComponentsThreshold,
+        lessThanOrEqualTo(UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap),
+      );
+    });
   });
 }
 

@@ -212,6 +212,25 @@ class InpaintMaskUtils {
     return _encodeBinaryMask(binaryMask, width, height);
   }
 
+  static Future<Uint8List> encodeEditorOverlayFromBinaryMaskAsync(
+    Uint8List binaryMask, {
+    required int width,
+    required int height,
+    int overlayAlpha = 140,
+  }) {
+    if (binaryMask.length != width * height) {
+      throw ArgumentError('Binary mask length does not match dimensions.');
+    }
+    return ComputeGate().runIsolate(
+      () => _encodeEditorOverlay(
+        binaryMask,
+        width,
+        height,
+        overlayAlpha.clamp(0, 255).toInt(),
+      ),
+    );
+  }
+
   static bool hasMaskedPixels(Uint8List bytes) {
     img.Image? decoded;
     try {

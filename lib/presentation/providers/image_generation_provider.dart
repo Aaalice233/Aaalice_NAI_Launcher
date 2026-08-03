@@ -17,6 +17,7 @@ import '../../core/utils/nai_prompt_formatter.dart';
 import '../../core/utils/nai_resolution_adapter.dart';
 import '../../core/utils/pica_lanczos_resizer.dart';
 import '../../core/utils/prompt_preset_resolution.dart';
+import '../../core/services/character_conversion_service.dart';
 import '../../data/services/image_metadata_service.dart';
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
@@ -38,11 +39,13 @@ import 'subscription_provider.dart';
 import 'uc_preset_provider.dart';
 
 import 'generation/generation_models.dart';
+import 'generation/generation_cooldown_provider.dart';
 import 'generation/generation_params_notifier.dart';
 import 'generation/generation_settings_notifiers.dart';
 import 'generation/image_workflow_controller.dart';
 
 export 'generation/generation_models.dart';
+export 'generation/generation_cooldown_provider.dart';
 export 'generation/generation_params_notifier.dart';
 export 'generation/generation_auxiliary_notifiers.dart';
 export 'generation/generation_settings_notifiers.dart';
@@ -427,16 +430,20 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final charNegCaptions = <Map<String, dynamic>>[];
 
     for (final char in params.characters) {
+      final useCharacterPosition =
+          params.useCoords && char.positionX != null && char.positionY != null;
+      final x = useCharacterPosition ? char.positionX!.clamp(0.0, 1.0) : 0.5;
+      final y = useCharacterPosition ? char.positionY!.clamp(0.0, 1.0) : 0.5;
       charCaptions.add({
         'char_caption': char.prompt,
         'centers': [
-          {'x': 0.5, 'y': 0.5},
+          {'x': x, 'y': y},
         ],
       });
       charNegCaptions.add({
         'char_caption': char.negativePrompt,
         'centers': [
-          {'x': 0.5, 'y': 0.5},
+          {'x': x, 'y': y},
         ],
       });
     }
@@ -513,6 +520,13 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   }
 
   Future<void> generate(ImageParams params) async {
+    final canStart = ref
+        .read(generationCooldownProvider.notifier)
+        .tryStartGeneration();
+    if (!canStart) {
+      return;
+    }
+
     final generationRunId = _startGenerationRun();
 
     // 获取抽卡模式设置
@@ -1955,34 +1969,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   List<CharacterPrompt> _convertCharactersToApiFormat(
     ui_character.CharacterPromptConfig config,
   ) {
-    // 过滤出启用且有提示词的角色
-    final enabledCharacters = config.characters
-        .where((c) => c.enabled && c.prompt.isNotEmpty)
-        .toList();
-
-    if (enabledCharacters.isEmpty) {
-      return [];
-    }
-
-    // 获取别名解析器统一解析角色提示词
     final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
-
-    return enabledCharacters.map((uiChar) {
-      // 计算位置字符串
-      String? position;
-      if (!config.globalAiChoice &&
-          uiChar.positionMode == ui_character.CharacterPositionMode.custom &&
-          uiChar.customPosition != null) {
-        position = uiChar.customPosition!.toNaiString();
-      }
-
-      // 解析角色提示词中的别名
-      return CharacterPrompt(
-        prompt: aliasResolver.resolveAliases(uiChar.prompt),
-        negativePrompt: aliasResolver.resolveAliases(uiChar.negativePrompt),
-        position: position,
-      );
-    }).toList();
+    return CharacterConversionService(
+      aliasResolver: aliasResolver.resolveAliases,
+    ).convert(config).characters;
   }
 
   /// 统一随机提示词生成并应用方法

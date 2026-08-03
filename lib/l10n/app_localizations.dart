@@ -1624,6 +1624,12 @@ abstract class AppLocalizations {
   /// **'Generate'**
   String get generation_generate;
 
+  /// No description provided for @generation_cooldownRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait {seconds}s'**
+  String generation_cooldownRemaining(Object seconds);
+
   /// No description provided for @generation_cancel.
   ///
   /// In en, this message translates to:
@@ -3226,6 +3232,18 @@ abstract class AppLocalizations {
   /// **'Also controls SeedVR2TilingUpscaler tile_width / tile_height.'**
   String get img2img_seedvr2TileSizeHint;
 
+  /// No description provided for @img2img_seedvr2BlocksToSwap.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocks Offloaded To RAM'**
+  String get img2img_seedvr2BlocksToSwap;
+
+  /// No description provided for @img2img_seedvr2BlocksToSwapHint.
+  ///
+  /// In en, this message translates to:
+  /// **'How many DiT blocks stay in system RAM and are streamed to VRAM during inference. Higher saves VRAM but uses more RAM and runs slower; lower it (even to 0) when VRAM is plentiful. Raise it if you hit out-of-memory errors.'**
+  String get img2img_seedvr2BlocksToSwapHint;
+
   /// No description provided for @img2img_regularModelDescription.
   ///
   /// In en, this message translates to:
@@ -3441,6 +3459,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Fill'**
   String get editor_toolFill;
+
+  /// No description provided for @editor_toolMagicWand.
+  ///
+  /// In en, this message translates to:
+  /// **'Magic Wand'**
+  String get editor_toolMagicWand;
+
+  /// No description provided for @editor_magicWandHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Click a contiguous region of similar color. Image editing erases it to transparency; inpainting adds it to the mask.'**
+  String get editor_magicWandHelp;
+
+  /// No description provided for @editor_magicWandMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Selection method'**
+  String get editor_magicWandMode;
+
+  /// No description provided for @editor_magicWandSmartObject.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart object (EfficientViT)'**
+  String get editor_magicWandSmartObject;
+
+  /// No description provided for @editor_magicWandColorArea.
+  ///
+  /// In en, this message translates to:
+  /// **'Color area (flood fill)'**
+  String get editor_magicWandColorArea;
+
+  /// No description provided for @editor_magicWandSmartHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Click the object to select. The first use downloads the approximately 133 MiB EfficientViT-SAM L0 model from MIT Han Lab (Apache-2.0), then keeps it locally.'**
+  String get editor_magicWandSmartHelp;
+
+  /// No description provided for @editor_magicWandColorHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Click a contiguous region of similar color. This works best on flat, clean boundaries and requires no model download.'**
+  String get editor_magicWandColorHelp;
+
+  /// No description provided for @editor_magicWandInvert.
+  ///
+  /// In en, this message translates to:
+  /// **'Invert result'**
+  String get editor_magicWandInvert;
 
   /// No description provided for @editor_toolLine.
   ///
@@ -4137,6 +4203,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to fill mask: {error}'**
   String editor_fillMaskFailed(Object error);
+
+  /// No description provided for @editor_magicWandNoSource.
+  ///
+  /// In en, this message translates to:
+  /// **'No editable image layer is available for sampling.'**
+  String get editor_magicWandNoSource;
+
+  /// No description provided for @editor_magicWandNothingChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected region is already transparent or masked.'**
+  String get editor_magicWandNothingChanged;
+
+  /// No description provided for @editor_magicWandModelPreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking the EfficientViT-SAM model…'**
+  String get editor_magicWandModelPreparing;
+
+  /// No description provided for @editor_magicWandModelDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading the EfficientViT-SAM model: {percent}%'**
+  String editor_magicWandModelDownloading(int percent);
+
+  /// No description provided for @editor_magicWandModelLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading the EfficientViT-SAM model…'**
+  String get editor_magicWandModelLoading;
+
+  /// No description provided for @editor_magicWandEncoding.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing image objects…'**
+  String get editor_magicWandEncoding;
+
+  /// No description provided for @editor_magicWandSegmenting.
+  ///
+  /// In en, this message translates to:
+  /// **'Segmenting the object at the clicked point…'**
+  String get editor_magicWandSegmenting;
+
+  /// No description provided for @editor_magicWandPostprocessing.
+  ///
+  /// In en, this message translates to:
+  /// **'Building the selection…'**
+  String get editor_magicWandPostprocessing;
+
+  /// No description provided for @editor_magicWandFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Magic Wand failed: {error}'**
+  String editor_magicWandFailed(Object error);
 
   /// No description provided for @editor_focusInactiveHint.
   ///
@@ -6224,6 +6344,84 @@ abstract class AppLocalizations {
   /// **'Last 30 Days'**
   String get onlineGallery_last30Days;
 
+  /// No description provided for @onlineGallery_configureGelbooruApi.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure Gelbooru API'**
+  String get onlineGallery_configureGelbooruApi;
+
+  /// No description provided for @onlineGallery_gelbooruApiReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru API verified'**
+  String get onlineGallery_gelbooruApiReady;
+
+  /// No description provided for @onlineGallery_gelbooruApiInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru credentials expired'**
+  String get onlineGallery_gelbooruApiInvalid;
+
+  /// No description provided for @onlineGallery_gelbooruCredentialsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure your Gelbooru User ID and API Key to view website favorites.'**
+  String get onlineGallery_gelbooruCredentialsRequired;
+
+  /// No description provided for @onlineGallery_gelbooruCredentialsInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Gelbooru credentials are no longer valid. Configure them again.'**
+  String get onlineGallery_gelbooruCredentialsInvalid;
+
+  /// No description provided for @onlineGallery_gelbooruRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru is rate limiting requests. Try again later.'**
+  String get onlineGallery_gelbooruRateLimited;
+
+  /// No description provided for @onlineGallery_gelbooruTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'The Gelbooru request timed out. Check your network connection.'**
+  String get onlineGallery_gelbooruTimeout;
+
+  /// No description provided for @onlineGallery_gelbooruServerError.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru is temporarily unavailable. Try again later.'**
+  String get onlineGallery_gelbooruServerError;
+
+  /// No description provided for @onlineGallery_gelbooruNetworkError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not connect to Gelbooru. Check your network or proxy settings.'**
+  String get onlineGallery_gelbooruNetworkError;
+
+  /// No description provided for @onlineGallery_gelbooruMalformedResponse.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru returned data that could not be parsed.'**
+  String get onlineGallery_gelbooruMalformedResponse;
+
+  /// No description provided for @onlineGallery_gelbooruRequestFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The Gelbooru request failed. Try again later.'**
+  String get onlineGallery_gelbooruRequestFailed;
+
+  /// No description provided for @onlineGallery_gelbooruReadOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-only favorites'**
+  String get onlineGallery_gelbooruReadOnly;
+
+  /// No description provided for @onlineGallery_gelbooruFavoritesSortHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Sorted by post ID, newest first. This may differ from website favorite-time order.'**
+  String get onlineGallery_gelbooruFavoritesSortHint;
+
   /// No description provided for @tooltip_randomPrompt.
   ///
   /// In en, this message translates to:
@@ -6493,6 +6691,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Login successful'**
   String get danbooru_loginSuccess;
+
+  /// No description provided for @gelbooru_configureTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure Gelbooru API'**
+  String get gelbooru_configureTitle;
+
+  /// No description provided for @gelbooru_configureHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the User ID and API Key shown in your Gelbooru account settings. The app does not collect your password or browser cookies.'**
+  String get gelbooru_configureHint;
+
+  /// No description provided for @gelbooru_userId.
+  ///
+  /// In en, this message translates to:
+  /// **'User ID'**
+  String get gelbooru_userId;
+
+  /// No description provided for @gelbooru_userIdHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a positive numeric User ID'**
+  String get gelbooru_userIdHint;
+
+  /// No description provided for @gelbooru_userIdRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid positive numeric User ID'**
+  String get gelbooru_userIdRequired;
+
+  /// No description provided for @gelbooru_apiKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter API Key'**
+  String get gelbooru_apiKeyHint;
+
+  /// No description provided for @gelbooru_apiKeyRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an API Key'**
+  String get gelbooru_apiKeyRequired;
+
+  /// No description provided for @gelbooru_openAccountSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Gelbooru account settings'**
+  String get gelbooru_openAccountSettings;
+
+  /// No description provided for @gelbooru_save.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify and Save'**
+  String get gelbooru_save;
+
+  /// No description provided for @gelbooru_saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru credentials saved'**
+  String get gelbooru_saved;
+
+  /// No description provided for @gelbooru_removeCredentials.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Credentials'**
+  String get gelbooru_removeCredentials;
+
+  /// No description provided for @gelbooru_invalidInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid User ID and API Key.'**
+  String get gelbooru_invalidInput;
+
+  /// No description provided for @gelbooru_invalidCredentials.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru rejected these credentials. Check the User ID and API Key.'**
+  String get gelbooru_invalidCredentials;
+
+  /// No description provided for @gelbooru_rateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many requests. Try again later.'**
+  String get gelbooru_rateLimited;
+
+  /// No description provided for @gelbooru_timeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification timed out. Check your network connection.'**
+  String get gelbooru_timeout;
+
+  /// No description provided for @gelbooru_serverError.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru is temporarily unavailable.'**
+  String get gelbooru_serverError;
+
+  /// No description provided for @gelbooru_networkError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not connect to Gelbooru. Check your network or proxy settings.'**
+  String get gelbooru_networkError;
+
+  /// No description provided for @gelbooru_malformedResponse.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru returned data that could not be parsed.'**
+  String get gelbooru_malformedResponse;
+
+  /// No description provided for @gelbooru_storageError.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru credentials could not be stored or read securely.'**
+  String get gelbooru_storageError;
+
+  /// No description provided for @gelbooru_unknownError.
+  ///
+  /// In en, this message translates to:
+  /// **'Gelbooru verification failed. Try again later.'**
+  String get gelbooru_unknownError;
 
   /// No description provided for @weight_title.
   ///
@@ -8126,24 +8444,6 @@ abstract class AppLocalizations {
   /// **'Close'**
   String get characterEditor_close;
 
-  /// No description provided for @characterEditor_dock.
-  ///
-  /// In en, this message translates to:
-  /// **'Dock'**
-  String get characterEditor_dock;
-
-  /// No description provided for @characterEditor_undock.
-  ///
-  /// In en, this message translates to:
-  /// **'Undock'**
-  String get characterEditor_undock;
-
-  /// No description provided for @characterEditor_dockedHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Character panel is docked to image area'**
-  String get characterEditor_dockedHint;
-
   /// No description provided for @characterEditor_confirm.
   ///
   /// In en, this message translates to:
@@ -8216,18 +8516,6 @@ abstract class AppLocalizations {
   /// **'Click buttons above to add characters'**
   String get characterEditor_addCharacterHint;
 
-  /// No description provided for @characterEditor_deleteTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete Character'**
-  String get characterEditor_deleteTitle;
-
-  /// No description provided for @characterEditor_deleteConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete this character? This action cannot be undone.'**
-  String get characterEditor_deleteConfirm;
-
   /// No description provided for @characterEditor_name.
   ///
   /// In en, this message translates to:
@@ -8263,6 +8551,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Position'**
   String get characterEditor_position;
+
+  /// No description provided for @characterCanvas_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Character Positions'**
+  String get characterCanvas_title;
+
+  /// No description provided for @characterCanvas_aiChoice.
+  ///
+  /// In en, this message translates to:
+  /// **'AI\'s Choice'**
+  String get characterCanvas_aiChoice;
+
+  /// No description provided for @characterCanvas_custom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get characterCanvas_custom;
+
+  /// No description provided for @characterCanvas_aiHint.
+  ///
+  /// In en, this message translates to:
+  /// **'AI will place all characters automatically'**
+  String get characterCanvas_aiHint;
+
+  /// No description provided for @characterCanvas_dragHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag anchors to position characters; release to apply'**
+  String get characterCanvas_dragHint;
 
   /// No description provided for @characterEditor_genderFemale.
   ///
@@ -18482,6 +18800,18 @@ abstract class AppLocalizations {
   /// **'Generate Image'**
   String get shortcut_action_generate_image;
 
+  /// No description provided for @shortcut_action_generation_prev_image.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous preview (linked history)'**
+  String get shortcut_action_generation_prev_image;
+
+  /// No description provided for @shortcut_action_generation_next_image.
+  ///
+  /// In en, this message translates to:
+  /// **'Next preview (linked history)'**
+  String get shortcut_action_generation_next_image;
+
   /// No description provided for @shortcut_action_cancel_generation.
   ///
   /// In en, this message translates to:
@@ -20906,6 +21236,42 @@ abstract class AppLocalizations {
   /// **'Prompt and settings docked on the far left, like the NovelAI website'**
   String get settings_generationLayout_webStyleDescription;
 
+  /// No description provided for @settings_historyClickBehavior.
+  ///
+  /// In en, this message translates to:
+  /// **'History click behavior'**
+  String get settings_historyClickBehavior;
+
+  /// No description provided for @settings_historyClickBehavior_classic.
+  ///
+  /// In en, this message translates to:
+  /// **'Classic'**
+  String get settings_historyClickBehavior_classic;
+
+  /// No description provided for @settings_historyClickBehavior_classicDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Click a history image to open its details'**
+  String get settings_historyClickBehavior_classicDescription;
+
+  /// No description provided for @settings_historyClickBehavior_linked.
+  ///
+  /// In en, this message translates to:
+  /// **'Linked preview'**
+  String get settings_historyClickBehavior_linked;
+
+  /// No description provided for @settings_historyClickBehavior_linkedDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Click to switch the central preview, double-click or hold for details, and browse with Left/Right'**
+  String get settings_historyClickBehavior_linkedDescription;
+
+  /// No description provided for @image_viewDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'View details'**
+  String get image_viewDetail;
+
   /// No description provided for @settings_defaultImagesPath.
   ///
   /// In en, this message translates to:
@@ -20933,7 +21299,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_protectionModeSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Protect local assets, shared copies, and high-cost operations through the options below. Turning this off keeps the option values but disables them.'**
+  /// **'Protect local assets, shared copies, and high-cost or high-frequency generation operations through the options below. Turning this off keeps the option values but disables them.'**
   String get settings_protectionModeSubtitle;
 
   /// No description provided for @settings_protectionFeatures.
@@ -21025,6 +21391,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show a confirmation when the estimated single generation cost reaches or exceeds this value.'**
   String get settings_highAnlasCostThresholdHelper;
+
+  /// No description provided for @settings_limitGenerationIntervalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Limit generation frequency'**
+  String get settings_limitGenerationIntervalTitle;
+
+  /// No description provided for @settings_limitGenerationIntervalSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Require the configured minimum time between generation starts. The Generate button is disabled during the cooldown.'**
+  String get settings_limitGenerationIntervalSubtitle;
+
+  /// No description provided for @settings_generationIntervalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Generation interval'**
+  String get settings_generationIntervalTitle;
+
+  /// No description provided for @settings_generationIntervalValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{seconds} seconds'**
+  String settings_generationIntervalValue(Object seconds);
+
+  /// No description provided for @settings_setGenerationIntervalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set Generation Interval'**
+  String get settings_setGenerationIntervalTitle;
+
+  /// No description provided for @settings_generationIntervalHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter 1–3600 seconds. The cooldown starts when generation begins.'**
+  String get settings_generationIntervalHelper;
 
   /// No description provided for @settings_selectLocalOnnxTaggerFolder.
   ///

@@ -386,16 +386,19 @@ class _ThemedInputState extends State<ThemedInput> {
 
     Widget content = textField;
 
-    // 如果需要显示清空按钮，使用 Stack 包装
-    if (widget.showClearButton && _hasContent) {
+    // 需要清空按钮时恒用 Stack 包装、仅切换按钮显隐：
+    // 若按「空/非空」增删 Stack 层，输入框会在删空瞬间因父链结构变化
+    // 而整体重建，焦点与键盘输入连接被打断（光标消失、需重新点击）
+    if (widget.showClearButton) {
       content = Stack(
         children: [
           textField,
-          Positioned(
-            top: 4,
-            right: 4,
-            child: _ClearButton(onPressed: _handleClear),
-          ),
+          if (_hasContent)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: _ClearButton(onPressed: _handleClear),
+            ),
         ],
       );
     }

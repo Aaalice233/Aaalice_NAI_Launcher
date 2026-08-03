@@ -5,17 +5,22 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/services/anlas_calculator.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/contiguous_region_selector.dart';
 import '../../../core/utils/editor_compression_utils.dart';
 import '../../../core/utils/focused_inpaint_utils.dart';
 import '../../../core/utils/inpaint_mask_utils.dart';
 import '../../../core/utils/inpaint_outpaint_utils.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
+import '../../../data/services/efficient_vit_sam_service.dart';
 import '../../utils/dropped_file_reader.dart';
+import '../../utils/internal_drag_protocol.dart';
+import '../../providers/image_generation_provider.dart';
 import '../../widgets/common/app_toast.dart';
 import 'core/canvas_controller.dart';
 import 'core/editor_state.dart';
@@ -41,6 +46,7 @@ part 'image_editor_screen_compression.dart';
 part 'image_editor_screen_effects.dart';
 part 'image_editor_screen_focused.dart';
 part 'image_editor_screen_layout.dart';
+part 'image_editor_screen_magic_wand.dart';
 part 'image_editor_screen_types.dart';
 
 /// 图像编辑器主界面
@@ -90,6 +96,9 @@ class ImageEditorScreen extends StatefulWidget {
   @visibleForTesting
   final bool debugDisableDropRegion;
 
+  @visibleForTesting
+  final EfficientVitSamSelector? debugEfficientVitSamSelector;
+
   const ImageEditorScreen({
     super.key,
     this.initialImage,
@@ -107,6 +116,7 @@ class ImageEditorScreen extends StatefulWidget {
     this.debugFailOutpaintSourceReplacement = false,
     this.debugFailOutpaintAfterFocusedDisable = false,
     this.debugDisableDropRegion = false,
+    this.debugEfficientVitSamSelector,
   });
 
   /// 显示编辑器
@@ -153,6 +163,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     'brush',
     'eraser',
     'fill',
+    'magic_wand',
     'rect_selection',
     'ellipse_selection',
     'lasso_selection',
@@ -183,9 +194,39 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   // ignore: prefer_final_fields
   bool _hasOutpaintChanges = false;
   bool _isImportingDroppedImage = false;
+  bool _isMagicWandProcessing = false;
+  EfficientVitSamProgress? _magicWandProgress;
+  bool _hasTransparentCutout = false;
+  late final EfficientVitSamService _efficientVitSamService;
 
   bool get _isInpaintMode => widget.mode == ImageEditorMode.inpaint;
   bool get _canExportAndClose => !_isOutpaintCommitPending;
+
+  void _setMagicWandProcessing(bool value) {
+    if (!mounted) {
+      _isMagicWandProcessing = value;
+      if (!value) {
+        _magicWandProgress = null;
+      }
+      return;
+    }
+    setState(() {
+      _isMagicWandProcessing = value;
+      if (!value) {
+        _magicWandProgress = null;
+      }
+    });
+  }
+
+  void _setMagicWandProgress(EfficientVitSamProgress progress) {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _magicWandProgress = progress;
+    });
+  }
+
   OutpaintVirtualFrame get _effectiveOutpaintFrame {
     return _virtualOutpaintFrame ??
         OutpaintVirtualFrame.fromSource(
@@ -260,6 +301,27 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
 
   @visibleForTesting
   bool get debugHasMaskContent => _hasMaskContent();
+
+  @visibleForTesting
+  bool get debugMagicWandProcessing => _isMagicWandProcessing;
+
+  @visibleForTesting
+  Future<void> debugApplyMagicWand(
+    Offset canvasPoint, {
+    MagicWandSelectionMode mode = MagicWandSelectionMode.colorArea,
+    int tolerance = 32,
+    bool invert = false,
+  }) {
+    return _applyMagicWandAt(
+      canvasPoint,
+      mode: mode,
+      tolerance: tolerance,
+      invert: invert,
+    );
+  }
+
+  @visibleForTesting
+  bool debugUndo() => _state.undo();
 
   @visibleForTesting
   Offset debugCanvasToScreen(Offset point) {
@@ -371,7 +433,9 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
   @override
   void initState() {
     super.initState();
+    _efficientVitSamService = EfficientVitSamService();
     _state = EditorState();
+    _state.setMagicWandHandler(_applyMagicWandAt);
     _state.selectionManager.selectionNotifier.addListener(
       _consumeFocusedSelection,
     );
@@ -629,6 +693,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     _state.selectionManager.selectionNotifier.removeListener(
       _consumeFocusedSelection,
     );
+    _state.setMagicWandHandler(null);
+    _efficientVitSamService.dispose();
     _state.dispose();
     super.dispose();
   }
@@ -1483,7 +1549,7 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
         }
 
         final isInternalDrag = event.session.items.any(
-          (item) => item.localData != null,
+          (item) => isGalleryInternalDragLocalData(item.localData),
         );
         if (isInternalDrag) {
           return DropOperation.none;
@@ -1508,7 +1574,24 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
     setState(() => _isImportingDroppedImage = true);
     try {
       var handledAny = false;
+      final generationState = ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(imageGenerationNotifierProvider);
       for (final item in event.session.items) {
+        final internalPayload = resolveInternalHistoryDropPayload(
+          item.localData,
+          generationState,
+        );
+        if (internalPayload != null) {
+          handledAny = true;
+          await _importDroppedImageLayer(
+            internalPayload.fileName,
+            internalPayload.bytes,
+          );
+          continue;
+        }
+
         final reader = item.dataReader;
         if (reader == null) {
           continue;
@@ -1689,7 +1772,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           child: RepaintBoundary(
             child: EditorCanvas(
               state: _state,
-              showTransparentCanvasBackground: _isInpaintMode,
+              showTransparentCanvasBackground:
+                  _isInpaintMode || _hasTransparentCutout,
               shouldSuppressPointerInput: _shouldSuppressCanvasPointerInput,
               suppressSelectionOverlay: _focusedSelectionState
                   .shouldSuppressSelectionOverlay(
@@ -1758,6 +1842,8 @@ class _ImageEditorScreenState extends State<ImageEditorScreen> {
           ),
         if (_isInpaintMode)
           Positioned(top: 16, left: 16, child: _buildFocusedSelectionCard()),
+        if (_isMagicWandProcessing)
+          Positioned.fill(child: _buildMagicWandProgressOverlay()),
       ],
     );
   }

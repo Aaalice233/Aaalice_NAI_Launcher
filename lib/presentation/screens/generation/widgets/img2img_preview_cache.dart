@@ -1,10 +1,9 @@
 import 'dart:typed_data';
 import 'dart:ui';
 
-import 'package:image/image.dart' as img;
-
 import '../../../../core/utils/focused_inpaint_utils.dart';
 import '../../../../core/utils/inpaint_mask_utils.dart';
+import '../../../../core/utils/nai_resolution_adapter.dart';
 
 typedef FocusedPreviewFrameResolver =
     FocusedInpaintFrame? Function({
@@ -24,22 +23,28 @@ typedef SelectionPreviewFrameResolver =
 
 typedef MaskOverlayBuilder = Uint8List Function(Uint8List maskImage);
 
-typedef SourcePreviewImageDecoder = img.Image? Function(Uint8List sourceImage);
+typedef SourcePreviewSizeReader = (int, int)? Function(Uint8List sourceImage);
 
 (int, int) resolveSourcePreviewDimensions({
   required Uint8List sourceBytes,
+  int? sourceWidth,
+  int? sourceHeight,
   int? fallbackWidth,
   int? fallbackHeight,
-  SourcePreviewImageDecoder? imageDecoder,
+  SourcePreviewSizeReader? imageSizeReader,
 }) {
-  img.Image? decoded;
-  try {
-    decoded = (imageDecoder ?? img.decodeImage)(sourceBytes);
-  } catch (_) {
-    decoded = null;
+  if (sourceWidth != null &&
+      sourceHeight != null &&
+      sourceWidth > 0 &&
+      sourceHeight > 0) {
+    return (sourceWidth, sourceHeight);
   }
-  if (decoded != null) {
-    return (decoded.width, decoded.height);
+
+  final encodedSize = (imageSizeReader ?? NaiResolutionAdapter.readImageSize)(
+    sourceBytes,
+  );
+  if (encodedSize != null && encodedSize.$1 > 0 && encodedSize.$2 > 0) {
+    return encodedSize;
   }
 
   if (fallbackWidth != null &&

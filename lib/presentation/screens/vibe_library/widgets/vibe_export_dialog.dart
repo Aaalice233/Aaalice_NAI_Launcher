@@ -13,6 +13,7 @@ import '../../../../data/models/vibe/vibe_library_category.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 
+import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../widgets/common/app_toast.dart';
 
 /// Vibe 导出格式枚举
@@ -85,6 +86,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
   bool _isExporting = false;
   double _progress = 0;
   String _progressMessage = '';
+
+  String get _defaultModel => ref.read(generationParamsNotifierProvider).model;
   String? _selectedCarrierImageId;
   Uint8List? _selectedExternalCarrierImageBytes;
   String? _selectedExternalCarrierImagePath;
@@ -131,9 +134,7 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
     if (entry == null) {
       return const <VibeExportImageCandidate>[];
     }
-    return VibeExportUtils.collectImageCandidates(
-      entry,
-    )
+    return VibeExportUtils.collectImageCandidates(entry)
         .where((candidate) => _isPngBytes(candidate.bytes))
         .toList(growable: false);
   }
@@ -183,10 +184,7 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
               // 标题
               Row(
                 children: [
-                  Icon(
-                    Icons.waves_outlined,
-                    color: theme.colorScheme.primary,
-                  ),
+                  Icon(Icons.waves_outlined, color: theme.colorScheme.primary),
                   const SizedBox(width: 12),
                   Text(
                     context.l10n.vibe_export_title,
@@ -283,8 +281,9 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
 
   /// 构建统计信息栏
   Widget _buildStatsBar(ThemeData theme) {
-    final exportableCount =
-        widget.entries.where((e) => _canExportEntry(e)).length;
+    final exportableCount = widget.entries
+        .where((e) => _canExportEntry(e))
+        .length;
     final unexportableCount = widget.entries.length - exportableCount;
 
     return Container(
@@ -409,8 +408,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
     final options = _carrierImageOptions;
     final selectedId =
         options.any((option) => option.id == _selectedCarrierImageId)
-            ? _selectedCarrierImageId
-            : (options.isNotEmpty ? options.first.id : null);
+        ? _selectedCarrierImageId
+        : (options.isNotEmpty ? options.first.id : null);
     final colorScheme = theme.colorScheme;
 
     return Column(
@@ -430,10 +429,7 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
                 .map(
                   (option) => DropdownMenuItem<String>(
                     value: option.id,
-                    child: Text(
-                      option.label,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    child: Text(option.label, overflow: TextOverflow.ellipsis),
                   ),
                 )
                 .toList(growable: false),
@@ -537,7 +533,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
       }
 
       final file = result.files.single;
-      final bytes = file.bytes ??
+      final bytes =
+          file.bytes ??
           (file.path != null ? await File(file.path!).readAsBytes() : null);
 
       if (bytes == null || !_isPngBytes(bytes)) {
@@ -558,8 +555,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
       AppLogger.e('选择 PNG 载体图失败', e, stack, 'VibeExportDialog');
       if (mounted) {
         setState(
-          () => _carrierImageErrorMessage =
-              context.l10n.vibe_export_selectPngImageFailed(e.toString()),
+          () => _carrierImageErrorMessage = context.l10n
+              .vibe_export_selectPngImageFailed(e.toString()),
         );
       }
     }
@@ -606,16 +603,18 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
   }
 
   String _embeddedPngFileName(VibeLibraryEntry entry) {
-    final baseName =
-        entry.displayName.trim().isEmpty ? 'vibe' : entry.displayName.trim();
+    final baseName = entry.displayName.trim().isEmpty
+        ? 'vibe'
+        : entry.displayName.trim();
     final safeBaseName = FileNameSanitizer.sanitize(baseName, fallback: 'vibe');
     return '${safeBaseName}_vibe.png';
   }
 
   /// 构建选择操作按钮
   Widget _buildSelectionActions(ThemeData theme) {
-    final exportableEntries =
-        widget.entries.where((e) => _canExportEntry(e)).toList();
+    final exportableEntries = widget.entries
+        .where((e) => _canExportEntry(e))
+        .toList();
     final allEntriesSelected =
         _selectedEntryIds.length == exportableEntries.length;
     final allCategoriesSelected =
@@ -692,8 +691,9 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
   /// 构建选择列表
   Widget _buildSelectionList(ThemeData theme) {
     // 构建分类树结构
-    final rootCategories =
-        widget.categories.where((c) => c.parentId == null).toList();
+    final rootCategories = widget.categories
+        .where((c) => c.parentId == null)
+        .toList();
 
     // 获取无分类的条目（且可导出）
     final uncategorizedEntries = widget.entries
@@ -722,8 +722,9 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
     List<VibeLibraryEntry> entries,
   ) {
     final isExpanded = _expandedCategories.contains('__uncategorized__');
-    final selectedCount =
-        entries.where((e) => _selectedEntryIds.contains(e.id)).length;
+    final selectedCount = entries
+        .where((e) => _selectedEntryIds.contains(e.id))
+        .length;
 
     if (entries.isEmpty) return const SizedBox.shrink();
 
@@ -763,10 +764,7 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
                   });
                 },
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
-                ),
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),
               SizedBox(
                 width: 40,
@@ -774,8 +772,8 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
                   value: selectedCount == 0
                       ? false
                       : selectedCount == entries.length
-                          ? true
-                          : null,
+                      ? true
+                      : null,
                   tristate: true,
                   onChanged: (value) {
                     setState(() {
@@ -828,8 +826,9 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
     final isExpanded = _expandedCategories.contains(category.id);
 
     // 获取子分类
-    final childCategories =
-        widget.categories.where((c) => c.parentId == category.id).toList();
+    final childCategories = widget.categories
+        .where((c) => c.parentId == category.id)
+        .toList();
 
     // 获取该分类下的条目（且可导出）
     final categoryEntries = widget.entries
@@ -844,16 +843,17 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
     final childSelectedCount = childCategories
         .where((c) => _selectedCategoryIds.contains(c.id))
         .length;
-    final entrySelectedCount =
-        categoryEntries.where((e) => _selectedEntryIds.contains(e.id)).length;
+    final entrySelectedCount = categoryEntries
+        .where((e) => _selectedEntryIds.contains(e.id))
+        .length;
     final totalChildren = childCategories.length + categoryEntries.length;
     final totalSelected = childSelectedCount + entrySelectedCount;
 
     final bool? checkboxValue = totalSelected == 0
         ? false
         : totalSelected == totalChildren && isSelected
-            ? true
-            : null;
+        ? true
+        : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -977,8 +977,9 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
         // 子项
         if (isExpanded) ...[
           // 子分类
-          ...childCategories
-              .map((child) => _buildCategoryTile(child, depth + 1)),
+          ...childCategories.map(
+            (child) => _buildCategoryTile(child, depth + 1),
+          ),
 
           // 条目
           ...categoryEntries.map((entry) => _buildEntryTile(entry, depth + 1)),
@@ -1120,8 +1121,9 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
 
   Future<void> _export() async {
     // 过滤选中的条目
-    final selectedEntries =
-        widget.entries.where((e) => _selectedEntryIds.contains(e.id)).toList();
+    final selectedEntries = widget.entries
+        .where((e) => _selectedEntryIds.contains(e.id))
+        .toList();
 
     if (selectedEntries.isEmpty) {
       AppToast.warning(context, context.l10n.toast_selectVibeToExport);
@@ -1173,6 +1175,7 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
       final exportedPath = await VibeExportUtils.exportToNaiv4Vibe(
         entry.toVibeReference(),
         name: entry.displayName,
+        defaultModel: _defaultModel,
       );
 
       if (exportedPath == null) {
@@ -1218,6 +1221,7 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
       final exportedPath = await VibeExportUtils.exportToNaiv4Vibe(
         vibeRef,
         name: entry.displayName,
+        defaultModel: _defaultModel,
         outputDirectory: result,
       );
 
@@ -1270,6 +1274,7 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
       [entry.toVibeReference()],
       carrierImageBytes: carrierImageBytes,
       fileName: _embeddedPngFileName(entry),
+      defaultModel: _defaultModel,
     );
 
     if (exportedPath == null) {
@@ -1290,9 +1295,7 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
   Future<bool> _exportAsBundle(List<VibeLibraryEntry> entries) async {
     setState(() {
       _progress = 0.3;
-      _progressMessage = context.l10n.vibe_export_packingVibes(
-        entries.length,
-      );
+      _progressMessage = context.l10n.vibe_export_packingVibes(entries.length);
     });
 
     // 转换为 VibeReference 列表
@@ -1308,6 +1311,7 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
     final exportedPath = await VibeExportUtils.exportToNaiv4VibeBundle(
       vibes,
       bundleName,
+      defaultModel: _defaultModel,
     );
 
     if (exportedPath == null) {

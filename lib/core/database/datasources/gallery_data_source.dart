@@ -5,6 +5,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../../../data/models/gallery/local_image_record.dart'
     show MetadataStatus;
+import '../../../data/models/gallery/gallery_dashboard_snapshot.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/services/image_metadata_service.dart';
 import '../../utils/app_logger.dart';
@@ -16,6 +17,7 @@ import '../utils/lru_cache.dart';
 
 part 'gallery_data_source_records.dart';
 part 'gallery_data_source_schema.dart';
+part 'gallery_data_source_statistics.dart';
 
 /// 画廊数据源
 ///

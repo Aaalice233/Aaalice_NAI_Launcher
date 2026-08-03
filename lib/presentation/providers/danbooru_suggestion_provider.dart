@@ -160,8 +160,9 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
       return;
     }
 
-    // 设置加载状态
-    state = state.copyWith(
+    // 查询变化后立即移除旧结果，避免加载期间显示上一个标签的建议。
+    state = TagSuggestionState(
+      suggestions: const [],
       isLoading: true,
       currentQuery: trimmedQuery,
     );
@@ -183,6 +184,7 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
       if (!_cacheInitialized) {
         await _initCache();
       }
+      if (!_isCurrentQuery(query)) return;
 
       // L1/L2: 先查缓存
       final cachedTags = _cacheService.get(query);
@@ -201,6 +203,7 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
           AppLogger.d('Cache missing translations, injecting...', 'Provider');
           final tagsWithTranslation = await _injectTranslations(cachedTags);
           await _cacheService.set(query, tagsWithTranslation);
+          if (!_isCurrentQuery(query)) return;
           state = TagSuggestionState(
             suggestions: tagsWithTranslation,
             isLoading: false,
@@ -208,6 +211,7 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
             source: TagSuggestionSource.memoryCache,
           );
         } else {
+          if (!_isCurrentQuery(query)) return;
           state = TagSuggestionState(
             suggestions: cachedTags,
             isLoading: false,
@@ -221,6 +225,7 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
       // L3: 从 Danbooru API 获取
       AppLogger.d('Fetching from Danbooru API: $query', 'Provider');
       final tags = await _apiService.suggestTags(query, limit: 20);
+      if (!_isCurrentQuery(query)) return;
 
       if (tags.isNotEmpty) {
         // 注入翻译
@@ -228,6 +233,7 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
 
         // 缓存结果（包含翻译）
         await _cacheService.set(query, tagsWithTranslation);
+        if (!_isCurrentQuery(query)) return;
 
         state = TagSuggestionState(
           suggestions: tagsWithTranslation,
@@ -245,6 +251,7 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
         );
       }
     } catch (e, stack) {
+      if (!_isCurrentQuery(query)) return;
       AppLogger.e('Tag suggestion error: $e', e, stack, 'Provider');
       state = TagSuggestionState(
         suggestions: [],
@@ -255,6 +262,8 @@ class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
       );
     }
   }
+
+  bool _isCurrentQuery(String query) => state.currentQuery == query;
 
   /// 获取统一翻译服务（等待初始化完成）
   Future<UnifiedTranslationService?> _getTranslationService() async {

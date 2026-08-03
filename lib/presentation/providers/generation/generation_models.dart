@@ -233,3 +233,43 @@ class ImageGenerationState {
       (streamPreview != null && streamPreview!.isNotEmpty) ||
       streamPreviewSlots.any((slot) => slot.previewBytes?.isNotEmpty == true);
 }
+
+extension ImageGenerationStateImages on ImageGenerationState {
+  /// Images in the same order as the history panel: current batch first, then
+  /// newest-to-oldest history, with duplicate ids removed.
+  List<GeneratedImage> get mergedPanelImages {
+    final seen = <String>{};
+    return [
+      for (final image in [...currentImages, ...history])
+        if (seen.add(image.id)) image,
+    ];
+  }
+
+  List<GeneratedImage> get selectableMergedImages =>
+      mergedPanelImages.where((image) => image.canBulkSelect).toList();
+
+  /// Resolves all state-backed drag/preview sources. [displayImages] must be
+  /// checked separately because clearing history intentionally preserves it.
+  GeneratedImage? findImageById(String? id) {
+    if (id == null || id.isEmpty) return null;
+    final seen = <String>{};
+    for (final image in [...currentImages, ...history, ...displayImages]) {
+      if (!seen.add(image.id)) continue;
+      if (image.id == id) return image;
+    }
+    return null;
+  }
+
+  List<GeneratedImage> detailSequenceFor(GeneratedImage target) {
+    final merged = mergedPanelImages;
+    if (merged.any((image) => image.id == target.id)) return merged;
+
+    final display = <GeneratedImage>[];
+    final seen = <String>{};
+    for (final image in displayImages) {
+      if (seen.add(image.id)) display.add(image);
+    }
+    if (display.any((image) => image.id == target.id)) return display;
+    return [target];
+  }
+}

@@ -21,6 +21,13 @@ import '../services/prompt_assistant_service.dart';
 import 'prompt_assistant_custom_dialog.dart';
 
 class PromptAssistantOverlay extends ConsumerStatefulWidget {
+  /// Bottom inset the prompt editor reserves while this overlay is visible.
+  ///
+  /// The expanded toolbar is 32 logical pixels tall before hover scaling and
+  /// sits 8 pixels above the input edge. The remaining clearance keeps prompt
+  /// text and selection highlights out from underneath the toolbar.
+  static const double contentBottomClearance = 48;
+
   const PromptAssistantOverlay({
     super.key,
     required this.sessionId,
@@ -527,6 +534,9 @@ class _PromptAssistantOverlayState extends ConsumerState<PromptAssistantOverlay>
                 duration: const Duration(milliseconds: 140),
                 scale: state.hovering ? 1.05 : 1.01,
                 child: AnimatedContainer(
+                  key: ValueKey<String>(
+                    'prompt_assistant_toolbar_${widget.sessionId}',
+                  ),
                   duration: const Duration(milliseconds: 160),
                   padding: isExpanded
                       ? const EdgeInsets.symmetric(horizontal: 6, vertical: 4)

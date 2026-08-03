@@ -49,6 +49,7 @@ class StorageKeys {
   static const String promptAreaHeight = 'prompt_area_height';
   static const String promptMaximized = 'prompt_maximized';
   static const String generationLayoutMode = 'generation_layout_mode';
+  static const String historyClickBehavior = 'history_click_behavior';
   static const String webLeftPanelWidth = 'web_left_panel_width';
   static const String webLeftPanelExpanded = 'web_left_panel_expanded';
   static const String fixedTagsSidebarExpanded = 'fixed_tags_sidebar_expanded';
@@ -61,10 +62,6 @@ class StorageKeys {
   static const String img2imgExpanded = 'img2img_expanded';
   static const String vibeTransferExpanded = 'vibe_transfer_expanded';
   static const String preciseRefExpanded = 'precise_ref_expanded';
-  static const String characterPanelExpanded = 'character_panel_expanded';
-
-  // Character Panel Dock State (多角色面板停靠状态)
-  static const String characterPanelDocked = 'character_panel_docked';
 
   // Panel Width Keys (面板宽度)
   static const String historyPanelWidth = 'history_panel_width';
@@ -220,6 +217,12 @@ class StorageKeys {
       'prompt_assistant_config_json';
   static const String promptAssistantApiKeyPrefix = 'prompt_assistant_api_key_';
 
+  // 在线画廊凭据（系统安全存储）
+  static const String onlineGalleryDanbooruCredentialsV1 =
+      'online_gallery_danbooru_credentials_v1';
+  static const String onlineGalleryGelbooruCredentialsV1 =
+      'online_gallery_gelbooru_credentials_v1';
+
   // Danbooru 画师同步设置
   // 分类阈值配置（V2新增）
   static const String danbooruCategoryThresholds =
@@ -268,6 +271,8 @@ class StorageKeys {
       'comfyui_seedvr2_vae_tile_size';
   static const String comfyuiSeedvr2Tiled = 'comfyui_seedvr2_tiled';
   static const String comfyuiSeedvr2TileSize = 'comfyui_seedvr2_tile_size';
+  static const String comfyuiSeedvr2BlocksToSwap =
+      'comfyui_seedvr2_blocks_to_swap';
 
   // Krita Bridge 设置
   static const String kritaBridgeEnabled = 'krita_bridge_enabled';
@@ -299,6 +304,12 @@ class StorageKeys {
       'protection_warn_high_anlas_cost';
   static const String protectionHighAnlasCostThreshold =
       'protection_high_anlas_cost_threshold';
+  static const String protectionLimitGenerationInterval =
+      'protection_limit_generation_interval';
+  static const String protectionGenerationIntervalSeconds =
+      'protection_generation_interval_seconds';
+  static const String protectionLastGenerationStartedAt =
+      'protection_last_generation_started_at';
 
   // 旧版资产保护 key，保留读取兼容。
   static const String assetProtectionMode = 'asset_protection_mode';

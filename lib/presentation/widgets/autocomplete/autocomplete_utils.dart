@@ -296,6 +296,19 @@ class AutocompleteUtils {
     return '${suffix.substring(0, insertIndex)}::${suffix.substring(insertIndex)}';
   }
 
+  /// 判断实际文本输入组件是否支持多行。
+  static bool isMultilineTextInput({
+    required BuildContext context,
+    int? maxLines,
+    bool expands = false,
+  }) {
+    final renderEditable = _findRenderEditable(context);
+    if (renderEditable != null) {
+      return renderEditable.maxLines != 1;
+    }
+    return expands || (maxLines ?? 1) > 1;
+  }
+
   /// 计算光标在文本框内的位置
   /// 用于多行文本框的浮层定位
   static Offset getCursorOffset({
@@ -315,32 +328,22 @@ class AutocompleteUtils {
     }
 
     // 尝试找到 RenderEditable 以获取精确的光标位置
-    RenderEditable? renderEditable;
-    void findRenderEditable(Element element) {
-      if (renderEditable != null) return;
-      if (element.renderObject is RenderEditable) {
-        renderEditable = element.renderObject as RenderEditable;
-        return;
-      }
-      element.visitChildren(findRenderEditable);
-    }
-
-    (context as Element).visitChildren(findRenderEditable);
+    final renderEditable = _findRenderEditable(context);
 
     if (renderEditable != null) {
       // 使用 RenderEditable 获取精确的光标位置
-      final caretRect = renderEditable!.getLocalRectForCaret(
+      final caretRect = renderEditable.getLocalRectForCaret(
         TextPosition(offset: cursorPosition),
       );
 
       // 获取 RenderEditable 相对于 renderBox 的位置
-      final editableBox = renderEditable!;
+      final editableBox = renderEditable;
       final editableOffset = editableBox.localToGlobal(
         Offset.zero,
         ancestor: renderBox,
       );
 
-      final lineHeight = renderEditable!.preferredLineHeight;
+      final lineHeight = renderEditable.preferredLineHeight;
 
       // 返回光标位置（在光标下方显示补全框）
       return Offset(
@@ -394,6 +397,23 @@ class AutocompleteUtils {
       leftPadding + cursorOffset.dx,
       topPadding + visibleCursorY + lineHeight,
     );
+  }
+
+  static RenderEditable? _findRenderEditable(BuildContext context) {
+    RenderEditable? result;
+
+    void visit(Element element) {
+      if (result != null) return;
+      final renderObject = element.renderObject;
+      if (renderObject is RenderEditable) {
+        result = renderObject;
+        return;
+      }
+      element.visitChildren(visit);
+    }
+
+    (context as Element).visitChildren(visit);
+    return result;
   }
 }
 

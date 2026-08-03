@@ -18,6 +18,7 @@ import '../../themed_divider.dart';
 import '../file_image_detail_data.dart';
 import '../image_detail_data.dart';
 import 'prompt_section.dart';
+import 'selection_copy_shortcuts.dart';
 import 'vibe_section.dart';
 
 /// 元数据面板组件
@@ -876,11 +877,13 @@ class _InfoRow extends StatelessWidget {
         ),
         const SizedBox(width: 4),
         Flexible(
-          child: SelectableText(
-            value,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w500,
-              fontSize: 11,
+          child: SelectionCopyShortcuts(
+            child: SelectableText(
+              value,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w500,
+                fontSize: 11,
+              ),
             ),
           ),
         ),

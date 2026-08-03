@@ -388,7 +388,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
         AppLogger.i('Vibe 编码缓存命中: ${vibe.displayName}', 'VibeCache');
 
         // 更新 vibe 使用缓存的编码
-        vibeToAdd = vibe.withEncodedVibe(cachedEncoding);
+        vibeToAdd = vibe.withEncodedVibe(cachedEncoding, model: state.model);
 
         // 显示缓存命中通知
         _showCacheHitNotification(vibe.displayName);
@@ -444,7 +444,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
     final cacheKey = _buildVibeEncodingCacheKey(
       rawImageData,
-      model: model ?? state.model,
+      model: model ?? vibe.encodingModel ?? state.model,
       informationExtracted: vibe.infoExtracted,
     );
     _vibeEncodingCache.putIfAbsent(cacheKey, () => vibe.vibeEncoding);
@@ -588,7 +588,9 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
         informationExtracted: vibe.infoExtracted,
       );
       if (cachedEncoding != null && cachedEncoding.isNotEmpty) {
-        encodedVibes.add(vibe.withEncodedVibe(cachedEncoding));
+        encodedVibes.add(
+          vibe.withEncodedVibe(cachedEncoding, model: resolvedModel),
+        );
         changed = true;
         continue;
       }
@@ -600,7 +602,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
         vibeName: vibe.displayName,
       );
       if (encoding != null && encoding.isNotEmpty) {
-        encodedVibes.add(vibe.withEncodedVibe(encoding));
+        encodedVibes.add(vibe.withEncodedVibe(encoding, model: resolvedModel));
         changed = true;
       } else {
         encodedVibes.add(vibe);
@@ -669,7 +671,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       return null;
     }
 
-    return nextVibe.withEncodedVibe(encoding);
+    return nextVibe.withEncodedVibe(encoding, model: resolvedModel);
   }
 
   /// 清空编码缓存
@@ -818,8 +820,10 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
         : current.infoExtracted;
     final infoChanged = nextInfoExtracted != current.infoExtracted;
     String nextEncoding;
+    String? nextEncodingModel = current.encodingModel;
     if (vibeEncoding != null) {
       nextEncoding = vibeEncoding;
+      nextEncodingModel = vibeEncoding.isEmpty ? null : state.model;
     } else if (infoChanged && current.canReencodeFromRawSource) {
       final rawImageData = current.rawImageData;
       final cachedEncoding = rawImageData == null
@@ -829,6 +833,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
               informationExtracted: nextInfoExtracted,
             );
       nextEncoding = cachedEncoding ?? '';
+      nextEncodingModel = cachedEncoding == null ? null : state.model;
     } else {
       nextEncoding = current.vibeEncoding;
     }
@@ -836,6 +841,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       strength: nextStrength,
       infoExtracted: nextInfoExtracted,
       vibeEncoding: nextEncoding,
+      encodingModel: nextEncodingModel,
       enabled: enabled ?? current.enabled,
     );
     if (nextEncoding.isNotEmpty) {
@@ -1280,6 +1286,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
             strength: (refData['strength'] as num?)?.toDouble() ?? 0.6,
             infoExtracted:
                 (refData['infoExtracted'] as num?)?.toDouble() ?? 0.7,
+            encodingModel: refData['encodingModel'] as String?,
             sourceType: sourceType,
             enabled: refData['enabled'] as bool? ?? true,
             bundleSource: refData['bundleSource'] as String?,
@@ -1496,6 +1503,7 @@ Map<String, Object?> _buildGenerationStateSaveInput({
             'vibeEncoding': vibe.vibeEncoding,
             'strength': vibe.strength,
             'infoExtracted': vibe.infoExtracted,
+            'encodingModel': vibe.encodingModel,
             'sourceType': vibe.sourceType.name,
             'enabled': vibe.enabled,
             'bundleSource': vibe.bundleSource,
@@ -1541,6 +1549,7 @@ String _encodeGenerationStateJson(Map<String, Object?> input) {
           'vibeEncoding': raw['vibeEncoding'],
           'strength': raw['strength'],
           'infoExtracted': raw['infoExtracted'],
+          'encodingModel': raw['encodingModel'],
           'sourceType': raw['sourceType'],
           'enabled': raw['enabled'] as bool? ?? true,
           'bundleSource': raw['bundleSource'],
@@ -1605,6 +1614,7 @@ Map<String, Object?> _decodeGenerationStateJson(String jsonString) {
         'rawImageData': rawImageBytes,
         'strength': (refData['strength'] as num?)?.toDouble() ?? 0.6,
         'infoExtracted': (refData['infoExtracted'] as num?)?.toDouble() ?? 0.7,
+        'encodingModel': refData['encodingModel'] as String?,
         'sourceType': refData['sourceType'] as String?,
         'enabled': refData['enabled'] as bool? ?? true,
         'bundleSource': refData['bundleSource'] as String?,

@@ -13,10 +13,10 @@ class VibeImageEncodeConfig {
   /// Vibe 名称
   final String name;
 
-  /// Strength 参数（-1.0-1.0）
+  /// Strength 参数（数值输入不设前端上下限）
   final double strength;
 
-  /// Info Extracted 参数（0.0-1.0）
+  /// Info Extracted 参数（0.01-1.0）
   final double infoExtracted;
 
   const VibeImageEncodeConfig({
@@ -298,7 +298,9 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
 
   /// 构建 Strength 滑块
   Widget _buildStrengthSlider(ThemeData theme) {
-    final sliderValue = _strength.clamp(0.0, 1.0).toDouble();
+    final sliderValue = _strength
+        .clamp(VibeReference.minSliderStrength, VibeReference.maxSliderStrength)
+        .toDouble();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -317,8 +319,6 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
             ),
             EditableDoubleField(
               value: _strength,
-              min: VibeReference.minStrength,
-              max: 1.0,
               onChanged: (value) {
                 setState(() => _strength = value);
               },
@@ -335,9 +335,9 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
           onChanged: (value) {
             setState(() => _strength = value);
           },
-          min: 0.0,
-          max: 1.0,
-          divisions: 40,
+          min: VibeReference.minSliderStrength,
+          max: VibeReference.maxSliderStrength,
+          divisions: 99,
         ),
       ],
     );
@@ -385,8 +385,8 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
             setState(() => _infoExtracted = value);
           },
           min: VibeReference.minInfoExtracted,
-          max: 1.0,
-          divisions: 20,
+          max: VibeReference.maxInfoExtracted,
+          divisions: 99,
         ),
       ],
     );

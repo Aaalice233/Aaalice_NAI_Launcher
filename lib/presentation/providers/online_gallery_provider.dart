@@ -2,14 +2,17 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show compute;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/cache/danbooru_image_cache_manager.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/datasources/remote/danbooru_api_service.dart';
+import '../../data/datasources/remote/gelbooru_api_service.dart';
 import '../../data/models/online_gallery/danbooru_post.dart';
 import '../../data/models/online_gallery/gelbooru_post_parser.dart';
 import '../../data/services/danbooru_auth_service.dart';
+import '../../data/services/gelbooru_auth_service.dart';
 import 'online_gallery_blacklist_provider.dart';
 
 part 'online_gallery_provider.g.dart';
@@ -21,7 +24,7 @@ String buildOnlineGallerySearchQuery(String query, {required bool fuzzyMatch}) {
   if (trimmed.isEmpty) return '';
 
   final tags = trimmed
-      .split(RegExp(r'[,，]'))
+      .split(RegExp(r'[,，\s]+'))
       .map((tag) => tag.trim())
       .where((tag) => tag.isNotEmpty)
       .toList();
@@ -58,31 +61,7 @@ List<DanbooruPost> parsePostsInIsolate(Map<String, dynamic> data) {
 
         // Gelbooru 需要特殊字段映射
         if (source == 'gelbooru') {
-          return DanbooruPost(
-            id: parseBooruInt(json['id']) ?? 0,
-            site: 'gelbooru',
-            score: parseBooruInt(json['score']) ?? 0,
-            source: asBooruString(json['source']),
-            md5: asBooruString(json['md5']),
-            rating: normalizeBooruRating(json['rating']),
-            width: parseBooruInt(json['width']) ?? 0,
-            height: parseBooruInt(json['height']) ?? 0,
-            tagString: asBooruString(json['tags']),
-            fileExt: fileExtensionFromUrl(
-              asBooruString(json['image']).isNotEmpty
-                  ? asBooruString(json['image'])
-                  : asBooruString(json['file_url']),
-            ),
-            fileUrl: asBooruString(json['file_url']).isEmpty
-                ? null
-                : asBooruString(json['file_url']),
-            previewFileUrl: asBooruString(json['preview_url']).isEmpty
-                ? null
-                : asBooruString(json['preview_url']),
-            largeFileUrl: asBooruString(json['sample_url']).isEmpty
-                ? null
-                : asBooruString(json['sample_url']),
-          );
+          return parseGelbooruPostJson(json);
         }
 
         // Danbooru/Safebooru 使用标准字段
@@ -99,6 +78,31 @@ enum GalleryViewMode {
   search, // 搜索模式
   popular, // 排行榜模式
   favorites, // 收藏夹模式
+}
+
+enum OnlineGalleryErrorCode {
+  gelbooruCredentialsRequired,
+  gelbooruCredentialsInvalid,
+  gelbooruRateLimited,
+  gelbooruTimeout,
+  gelbooruServer,
+  gelbooruNetwork,
+  gelbooruMalformedResponse,
+  gelbooruRequestFailed,
+}
+
+enum OnlineGalleryNotice { gelbooruCredentialsInvalid }
+
+String onlineGalleryPostKey(DanbooruPost post) => '${post.site}:${post.id}';
+
+@Riverpod(keepAlive: true)
+Dio onlineGalleryHttpClient(Ref ref) {
+  return Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
+    ),
+  );
 }
 
 /// 单个模式的缓存状态
@@ -138,9 +142,12 @@ class ModeCache {
 class OnlineGalleryState {
   final bool isLoading;
   final String? error;
+  final OnlineGalleryErrorCode? errorCode;
+  final OnlineGalleryNotice? notice;
   final String searchQuery;
   final bool fuzzySearchEnabled;
   final String source;
+  final String favoritesSource;
   final Set<String> selectedRatings;
 
   /// 视图模式
@@ -149,7 +156,8 @@ class OnlineGalleryState {
   /// 各模式独立缓存
   final ModeCache searchCache;
   final ModeCache popularCache;
-  final ModeCache favoritesCache;
+  final ModeCache danbooruFavoritesCache;
+  final ModeCache gelbooruFavoritesCache;
 
   /// 排行榜时间范围
   final PopularScale popularScale;
@@ -157,11 +165,11 @@ class OnlineGalleryState {
   /// 排行榜日期
   final DateTime? popularDate;
 
-  /// 已收藏的帖子 ID 集合（用于快速查找）
-  final Set<int> favoritedPostIds;
+  /// 已收藏的站点限定帖子键集合（例如 danbooru:123）
+  final Set<String> favoritedPostKeys;
 
-  /// 正在执行收藏操作的帖子 ID 集合
-  final Set<int> favoriteLoadingPostIds;
+  /// 正在执行收藏操作的站点限定帖子键集合
+  final Set<String> favoriteLoadingPostKeys;
 
   /// 日期范围筛选（搜索模式）
   final DateTime? dateRangeStart;
@@ -170,18 +178,22 @@ class OnlineGalleryState {
   const OnlineGalleryState({
     this.isLoading = false,
     this.error,
+    this.errorCode,
+    this.notice,
     this.searchQuery = '',
     this.fuzzySearchEnabled = false,
     this.source = 'danbooru',
+    this.favoritesSource = 'danbooru',
     this.selectedRatings = kAllRatings,
     this.viewMode = GalleryViewMode.search,
     this.searchCache = const ModeCache(),
     this.popularCache = const ModeCache(),
-    this.favoritesCache = const ModeCache(),
+    this.danbooruFavoritesCache = const ModeCache(),
+    this.gelbooruFavoritesCache = const ModeCache(),
     this.popularScale = PopularScale.day,
     this.popularDate,
-    this.favoritedPostIds = const {},
-    this.favoriteLoadingPostIds = const {},
+    this.favoritedPostKeys = const {},
+    this.favoriteLoadingPostKeys = const {},
     this.dateRangeStart,
     this.dateRangeEnd,
   });
@@ -194,9 +206,17 @@ class OnlineGalleryState {
       case GalleryViewMode.popular:
         return popularCache;
       case GalleryViewMode.favorites:
-        return favoritesCache;
+        return favoritesCacheFor(favoritesSource);
     }
   }
+
+  ModeCache favoritesCacheFor(String source) {
+    return source == 'gelbooru'
+        ? gelbooruFavoritesCache
+        : danbooruFavoritesCache;
+  }
+
+  bool get hasError => error != null || errorCode != null;
 
   /// 当前模式的帖子列表
   List<DanbooruPost> get posts => currentCache.posts;
@@ -213,42 +233,53 @@ class OnlineGalleryState {
   OnlineGalleryState copyWith({
     bool? isLoading,
     String? error,
+    OnlineGalleryErrorCode? errorCode,
+    OnlineGalleryNotice? notice,
     String? searchQuery,
     bool? fuzzySearchEnabled,
     String? source,
+    String? favoritesSource,
     Set<String>? selectedRatings,
     GalleryViewMode? viewMode,
     ModeCache? searchCache,
     ModeCache? popularCache,
-    ModeCache? favoritesCache,
+    ModeCache? danbooruFavoritesCache,
+    ModeCache? gelbooruFavoritesCache,
     PopularScale? popularScale,
     DateTime? popularDate,
-    Set<int>? favoritedPostIds,
-    Set<int>? favoriteLoadingPostIds,
+    Set<String>? favoritedPostKeys,
+    Set<String>? favoriteLoadingPostKeys,
     DateTime? dateRangeStart,
     DateTime? dateRangeEnd,
     bool clearError = false,
+    bool clearNotice = false,
     bool clearPopularDate = false,
     bool clearDateRange = false,
   }) {
     return OnlineGalleryState(
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
+      errorCode: clearError ? null : (errorCode ?? this.errorCode),
+      notice: clearNotice ? null : (notice ?? this.notice),
       searchQuery: searchQuery ?? this.searchQuery,
       fuzzySearchEnabled: fuzzySearchEnabled ?? this.fuzzySearchEnabled,
       source: source ?? this.source,
+      favoritesSource: favoritesSource ?? this.favoritesSource,
       selectedRatings: Set.unmodifiable(
         selectedRatings ?? this.selectedRatings,
       ),
       viewMode: viewMode ?? this.viewMode,
       searchCache: searchCache ?? this.searchCache,
       popularCache: popularCache ?? this.popularCache,
-      favoritesCache: favoritesCache ?? this.favoritesCache,
+      danbooruFavoritesCache:
+          danbooruFavoritesCache ?? this.danbooruFavoritesCache,
+      gelbooruFavoritesCache:
+          gelbooruFavoritesCache ?? this.gelbooruFavoritesCache,
       popularScale: popularScale ?? this.popularScale,
       popularDate: clearPopularDate ? null : (popularDate ?? this.popularDate),
-      favoritedPostIds: favoritedPostIds ?? this.favoritedPostIds,
-      favoriteLoadingPostIds:
-          favoriteLoadingPostIds ?? this.favoriteLoadingPostIds,
+      favoritedPostKeys: favoritedPostKeys ?? this.favoritedPostKeys,
+      favoriteLoadingPostKeys:
+          favoriteLoadingPostKeys ?? this.favoriteLoadingPostKeys,
       dateRangeStart: clearDateRange
           ? null
           : (dateRangeStart ?? this.dateRangeStart),
@@ -264,8 +295,14 @@ class OnlineGalleryState {
       case GalleryViewMode.popular:
         return copyWith(popularCache: cache);
       case GalleryViewMode.favorites:
-        return copyWith(favoritesCache: cache);
+        return updateFavoritesCache(favoritesSource, cache);
     }
+  }
+
+  OnlineGalleryState updateFavoritesCache(String source, ModeCache cache) {
+    return source == 'gelbooru'
+        ? copyWith(gelbooruFavoritesCache: cache)
+        : copyWith(danbooruFavoritesCache: cache);
   }
 }
 
@@ -283,12 +320,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     // 保持状态在切换Tab时不被销毁
     ref.keepAlive();
 
-    _dio = Dio(
-      BaseOptions(
-        connectTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(seconds: 30),
-      ),
-    );
+    _dio = ref.read(onlineGalleryHttpClientProvider);
 
     return const OnlineGalleryState();
   }
@@ -306,6 +338,11 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   /// 获取认证状态
   DanbooruAuthState get _authState => ref.read(danbooruAuthProvider);
+
+  GelbooruApiService get _gelbooruApiService =>
+      ref.read(gelbooruApiServiceProvider);
+
+  GelbooruAuthState get _gelbooruAuthState => ref.read(gelbooruAuthProvider);
 
   // ==================== 视图模式切换 ====================
 
@@ -343,17 +380,25 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   /// 切换到收藏夹模式（保留缓存数据）
   Future<void> switchToFavorites() async {
-    if (!_authState.isLoggedIn) {
-      state = state.copyWith(error: '请先登录 Danbooru 账号');
-      return;
-    }
-    if (state.viewMode == GalleryViewMode.favorites) return;
-
-    // 只切换模式，不清空数据
     state = state.copyWith(viewMode: GalleryViewMode.favorites);
+    final cache = state.favoritesCacheFor(state.favoritesSource);
+    if (cache.posts.isEmpty) {
+      await _loadFavorites(refresh: true);
+    }
+  }
 
-    // 如果目标模式没有缓存数据，才加载
-    if (state.favoritesCache.posts.isEmpty) {
+  Future<void> setFavoritesSource(String source) async {
+    if (source != 'danbooru' && source != 'gelbooru') return;
+    if (state.favoritesSource == source) return;
+
+    _cancelCurrentRequest();
+    state = state.copyWith(
+      favoritesSource: source,
+      clearError: true,
+      clearNotice: true,
+    );
+    if (state.viewMode == GalleryViewMode.favorites &&
+        state.favoritesCacheFor(source).posts.isEmpty) {
       await _loadFavorites(refresh: true);
     }
   }
@@ -446,156 +491,249 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   /// 加载收藏夹
   Future<void> _loadFavorites({bool refresh = false}) async {
-    // 取消之前的请求，支持打断
-    _cancelCurrentRequest();
+    if (state.favoritesSource == 'gelbooru') {
+      await _loadGelbooruFavorites(refresh: refresh);
+    } else {
+      await _loadDanbooruFavorites(refresh: refresh);
+    }
+  }
 
+  Future<void> _loadDanbooruFavorites({required bool refresh}) async {
+    _cancelCurrentRequest();
     final authState = _authState;
     if (!authState.isLoggedIn || authState.user == null) {
       state = state.copyWith(error: '请先登录 Danbooru 账号');
       return;
     }
 
-    final currentCache = state.favoritesCache;
-
-    // 计算分页参数
-    final apiPage = _getNextPageParamForCache(refresh, currentCache);
-    final statePage = refresh ? 1 : currentCache.page + 1;
-
-    // 更新加载状态
-    state = state.copyWith(
-      isLoading: true,
-      clearError: true,
-      favoritesCache: refresh ? const ModeCache() : currentCache,
+    final currentCache = state.danbooruFavoritesCache;
+    final apiPage = _getNextPageParamForCache(
+      refresh,
+      currentCache,
+      source: 'danbooru',
+      viewMode: GalleryViewMode.favorites,
     );
+    final statePage = refresh ? 1 : currentCache.page + 1;
+    state = state
+        .copyWith(isLoading: true, clearError: true)
+        .updateFavoritesCache(
+          'danbooru',
+          refresh ? const ModeCache() : currentCache,
+        );
 
     try {
-      // 使用 ordfav:username 标签搜索收藏夹
       final (posts, rawCount) = await _fetchPosts(
-        source: state.source,
+        source: 'danbooru',
         query: 'ordfav:${authState.user!.name}',
         selectedRatings: state.selectedRatings,
         page: apiPage,
+        includeDateRange: false,
       );
-
-      // 更新收藏状态
-      final favoritedIds = {...state.favoritedPostIds};
-      for (final post in posts) {
-        favoritedIds.add(post.id);
-      }
-
-      // 更新缓存
+      final favoritedKeys = {...state.favoritedPostKeys};
+      favoritedKeys.addAll(posts.map(onlineGalleryPostKey));
       final newCache = ModeCache(
         posts: refresh ? posts : [...currentCache.posts, ...posts],
         page: statePage,
         hasMore: rawCount >= _pageSize,
         scrollOffset: refresh ? 0 : currentCache.scrollOffset,
       );
-
-      state = state.copyWith(
-        isLoading: false,
-        favoritesCache: newCache,
-        favoritedPostIds: favoritedIds,
-      );
-    } catch (e, stack) {
-      // 如果是取消请求，重置加载状态但不显示错误
-      if (e is DioException && e.type == DioExceptionType.cancel) {
+      state = state
+          .copyWith(isLoading: false, favoritedPostKeys: favoritedKeys)
+          .updateFavoritesCache('danbooru', newCache);
+    } catch (error, stack) {
+      if (_isCancelled(error)) {
         state = state.copyWith(isLoading: false);
         return;
       }
-      AppLogger.e('Failed to load favorites: $e', e, stack, 'OnlineGallery');
+      AppLogger.e(
+        'Failed to load Danbooru favorites',
+        error,
+        stack,
+        'OnlineGallery',
+      );
       state = state.copyWith(
         isLoading: false,
-        error: _getNetworkErrorMessage(e),
+        error: _getNetworkErrorMessage(error),
+      );
+    }
+  }
+
+  Future<void> _loadGelbooruFavorites({required bool refresh}) async {
+    _cancelCurrentRequest();
+    await ref.read(gelbooruAuthProvider.notifier).ensureInitialized();
+    final authState = _gelbooruAuthState;
+    if (!authState.isAuthenticated || authState.credentials == null) {
+      state = state.copyWith(
+        isLoading: false,
+        errorCode: authState.status == GelbooruAuthStatus.invalid
+            ? OnlineGalleryErrorCode.gelbooruCredentialsInvalid
+            : OnlineGalleryErrorCode.gelbooruCredentialsRequired,
+      );
+      return;
+    }
+
+    final currentCache = state.gelbooruFavoritesCache;
+    final pid = refresh ? 0 : currentCache.page;
+    final statePage = refresh ? 1 : currentCache.page + 1;
+    state = state
+        .copyWith(isLoading: true, clearError: true)
+        .updateFavoritesCache(
+          'gelbooru',
+          refresh ? const ModeCache() : currentCache,
+        );
+
+    try {
+      await ref
+          .read(onlineGalleryBlacklistNotifierProvider.notifier)
+          .ensureInitialized();
+      final blacklistTags = ref
+          .read(onlineGalleryBlacklistNotifierProvider)
+          .effectiveTags;
+      final result = await _gelbooruApiService.getFavorites(
+        credentials: authState.credentials!,
+        pid: pid,
+        limit: _pageSize,
+        cancelToken: _cancelToken,
+      );
+      final posts = _filterByBlacklist(
+        _filterByRatings(result.posts, state.selectedRatings),
+        blacklistTags,
+      );
+      final favoritedKeys = {...state.favoritedPostKeys};
+      favoritedKeys.addAll(posts.map(onlineGalleryPostKey));
+      final newCache = ModeCache(
+        posts: refresh ? posts : [...currentCache.posts, ...posts],
+        page: statePage,
+        hasMore: result.rawCount >= _pageSize,
+        scrollOffset: refresh ? 0 : currentCache.scrollOffset,
+      );
+      state = state
+          .copyWith(isLoading: false, favoritedPostKeys: favoritedKeys)
+          .updateFavoritesCache('gelbooru', newCache);
+    } on GelbooruApiException catch (error, stack) {
+      if (error.type == GelbooruApiErrorType.cancelled) {
+        state = state.copyWith(isLoading: false);
+        return;
+      }
+      if (error.type == GelbooruApiErrorType.invalidCredentials) {
+        ref.read(gelbooruAuthProvider.notifier).markInvalid();
+        invalidateGelbooruFavorites();
+      }
+      AppLogger.e(
+        'Failed to load Gelbooru favorites',
+        error,
+        stack,
+        'OnlineGallery',
+      );
+      state = state.copyWith(
+        isLoading: false,
+        errorCode: _gelbooruErrorCode(error.type),
       );
     }
   }
 
   /// 添加收藏
-  Future<bool> addFavorite(int postId) async {
-    if (!_authState.isLoggedIn) return false;
+  Future<bool> addFavorite(Object postOrId) async {
+    final postId = _danbooruFavoritePostId(postOrId);
+    if (postId == null || !_authState.isLoggedIn) return false;
+    final key = 'danbooru:$postId';
 
-    // 设置 loading 状态
     state = state.copyWith(
-      favoriteLoadingPostIds: {...state.favoriteLoadingPostIds, postId},
+      favoriteLoadingPostKeys: {...state.favoriteLoadingPostKeys, key},
     );
 
     final success = await _apiService.addFavorite(postId);
-
-    // 清除 loading 状态
-    final loadingIds = {...state.favoriteLoadingPostIds};
-    loadingIds.remove(postId);
+    final loadingKeys = {...state.favoriteLoadingPostKeys}..remove(key);
 
     if (success) {
       state = state.copyWith(
-        favoritedPostIds: {...state.favoritedPostIds, postId},
-        favoriteLoadingPostIds: loadingIds,
+        favoritedPostKeys: {...state.favoritedPostKeys, key},
+        favoriteLoadingPostKeys: loadingKeys,
       );
     } else {
-      state = state.copyWith(favoriteLoadingPostIds: loadingIds);
+      state = state.copyWith(favoriteLoadingPostKeys: loadingKeys);
     }
     return success;
   }
 
   /// 移除收藏
-  Future<bool> removeFavorite(int postId) async {
-    if (!_authState.isLoggedIn) return false;
+  Future<bool> removeFavorite(Object postOrId) async {
+    final postId = _danbooruFavoritePostId(postOrId);
+    if (postId == null || !_authState.isLoggedIn) return false;
+    final key = 'danbooru:$postId';
 
-    // 设置 loading 状态
     state = state.copyWith(
-      favoriteLoadingPostIds: {...state.favoriteLoadingPostIds, postId},
+      favoriteLoadingPostKeys: {...state.favoriteLoadingPostKeys, key},
     );
 
     final success = await _apiService.removeFavorite(postId);
-
-    // 清除 loading 状态
-    final loadingIds = {...state.favoriteLoadingPostIds};
-    loadingIds.remove(postId);
+    final loadingKeys = {...state.favoriteLoadingPostKeys}..remove(key);
 
     if (success) {
-      final newIds = {...state.favoritedPostIds};
-      newIds.remove(postId);
+      final newKeys = {...state.favoritedPostKeys}..remove(key);
       state = state.copyWith(
-        favoritedPostIds: newIds,
-        favoriteLoadingPostIds: loadingIds,
+        favoritedPostKeys: newKeys,
+        favoriteLoadingPostKeys: loadingKeys,
       );
 
-      // 如果在收藏夹视图中，从列表中移除
-      if (state.viewMode == GalleryViewMode.favorites) {
-        final currentCache = state.favoritesCache;
+      if (state.viewMode == GalleryViewMode.favorites &&
+          state.favoritesSource == 'danbooru') {
+        final currentCache = state.danbooruFavoritesCache;
         final newCache = currentCache.copyWith(
           posts: currentCache.posts.where((p) => p.id != postId).toList(),
         );
-        state = state.copyWith(favoritesCache: newCache);
+        state = state.updateFavoritesCache('danbooru', newCache);
       }
     } else {
-      state = state.copyWith(favoriteLoadingPostIds: loadingIds);
+      state = state.copyWith(favoriteLoadingPostKeys: loadingKeys);
     }
     return success;
   }
 
   /// 切换收藏状态
-  Future<bool> toggleFavorite(int postId) async {
-    if (state.favoritedPostIds.contains(postId)) {
-      return await removeFavorite(postId);
+  Future<bool> toggleFavorite(Object postOrId) async {
+    final postId = _danbooruFavoritePostId(postOrId);
+    if (postId == null) return false;
+    if (state.favoritedPostKeys.contains('danbooru:$postId')) {
+      return removeFavorite(postOrId);
     } else {
-      return await addFavorite(postId);
+      return addFavorite(postOrId);
     }
   }
 
   /// 检查是否已收藏
-  bool isFavorited(int postId) {
-    return state.favoritedPostIds.contains(postId);
+  bool isFavorited(Object postOrId) {
+    if (postOrId is DanbooruPost) {
+      return state.favoritedPostKeys.contains(onlineGalleryPostKey(postOrId));
+    }
+    if (postOrId is int) {
+      return state.favoritedPostKeys.contains('danbooru:$postOrId');
+    }
+    return false;
+  }
+
+  int? _danbooruFavoritePostId(Object postOrId) {
+    if (postOrId is DanbooruPost) {
+      if (postOrId.site != 'danbooru') return null;
+      return postOrId.id;
+    }
+    if (postOrId is int) return postOrId;
+    return null;
   }
 
   // ==================== 分页逻辑 ====================
 
   /// 获取下一页参数（基于缓存，Danbooru/Safebooru 使用 ID 分页，其他使用页码）
-  dynamic _getNextPageParamForCache(bool refresh, ModeCache cache) {
+  dynamic _getNextPageParamForCache(
+    bool refresh,
+    ModeCache cache, {
+    required String source,
+    required GalleryViewMode viewMode,
+  }) {
     if (refresh) return 1;
 
     // Gelbooru 和 Popular 模式必须使用页码分页
-    if (state.source == 'gelbooru' ||
-        state.viewMode == GalleryViewMode.popular) {
+    if (source == 'gelbooru' || viewMode == GalleryViewMode.popular) {
       return cache.page + 1;
     }
 
@@ -632,7 +770,12 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     final currentCache = state.searchCache;
 
     // 计算分页参数
-    final apiPage = _getNextPageParamForCache(refresh, currentCache);
+    final apiPage = _getNextPageParamForCache(
+      refresh,
+      currentCache,
+      source: state.source,
+      viewMode: GalleryViewMode.search,
+    );
     final statePage = refresh ? 1 : currentCache.page + 1;
 
     // 更新加载状态
@@ -666,14 +809,17 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       state = state.copyWith(isLoading: false, searchCache: newCache);
     } catch (e, stack) {
       // 如果是取消请求，重置加载状态但不显示错误
-      if (e is DioException && e.type == DioExceptionType.cancel) {
+      if (_isCancelled(e)) {
         state = state.copyWith(isLoading: false);
         return;
       }
-      AppLogger.e('Failed to load posts: $e', e, stack, 'OnlineGallery');
+      AppLogger.e('Failed to load posts', e, stack, 'OnlineGallery');
       state = state.copyWith(
         isLoading: false,
-        error: _getNetworkErrorMessage(e),
+        error: e is GelbooruApiException ? null : _getNetworkErrorMessage(e),
+        errorCode: e is GelbooruApiException
+            ? _gelbooruErrorCode(e.type)
+            : null,
       );
     }
   }
@@ -693,17 +839,38 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   Future<void> goToPage(int page) async {
     if (page < 1 || state.isLoading) return;
 
-    // 更新当前模式缓存的页码
-    final newCache = state.currentCache.copyWith(page: page - 1);
-    state = state.updateCurrentCache(newCache);
+    if (state.viewMode == GalleryViewMode.popular) {
+      state = state.copyWith(
+        popularCache: ModeCache(page: page, hasMore: true),
+      );
+      await _loadPopularPosts();
+      return;
+    }
 
+    final gelbooruSearch =
+        state.viewMode == GalleryViewMode.search && state.source == 'gelbooru';
+    final gelbooruFavorites =
+        state.viewMode == GalleryViewMode.favorites &&
+        state.favoritesSource == 'gelbooru';
+    if (gelbooruSearch || gelbooruFavorites) {
+      // Both Gelbooru endpoints use zero-based pid. Seed the cache with the
+      // preceding page so the regular non-refresh loader requests this page.
+      state = state.updateCurrentCache(
+        ModeCache(page: page - 1, hasMore: true),
+      );
+      await loadPosts();
+      return;
+    }
+
+    // Preserve the existing ID-based pagination behavior for Danbooru and
+    // Safebooru, whose next-page token depends on the current result set.
     await loadPosts(refresh: true);
   }
 
   /// 搜索
   ///
   /// 支持：
-  /// - 逗号分隔多个 tag（AND 逻辑，结果必须包含所有 tag）
+  /// - 逗号或空格分隔多个 tag（AND 逻辑，结果必须包含所有 tag）
   /// - 开启模糊匹配时自动添加通配符
   /// - 末尾逗号会被忽略
   Future<void> search(String query) async {
@@ -729,6 +896,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   /// 设置数据源
   Future<void> setSource(String source) async {
+    if (source != 'danbooru' && source != 'safebooru' && source != 'gelbooru') {
+      return;
+    }
     if (state.source == source) return;
     // 立即取消当前请求，确保快速响应
     _cancelCurrentRequest();
@@ -741,7 +911,11 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     final normalized = _normalizeRatings(selectedRatings);
     if (_setEquals(state.selectedRatings, normalized)) return;
     _cancelCurrentRequest();
-    state = state.copyWith(selectedRatings: normalized);
+    state = state.copyWith(
+      selectedRatings: normalized,
+      danbooruFavoritesCache: const ModeCache(),
+      gelbooruFavoritesCache: const ModeCache(),
+    );
     await loadPosts(refresh: true);
   }
 
@@ -834,6 +1008,48 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     return input.trim().toLowerCase().replaceAll(' ', '_');
   }
 
+  void clearNotice() {
+    state = state.copyWith(clearNotice: true);
+  }
+
+  void invalidateGelbooruFavorites() {
+    state = state.copyWith(
+      gelbooruFavoritesCache: const ModeCache(),
+      favoritedPostKeys: state.favoritedPostKeys
+          .where((key) => !key.startsWith('gelbooru:'))
+          .toSet(),
+      favoriteLoadingPostKeys: state.favoriteLoadingPostKeys
+          .where((key) => !key.startsWith('gelbooru:'))
+          .toSet(),
+    );
+  }
+
+  bool _isCancelled(Object error) {
+    return (error is DioException && error.type == DioExceptionType.cancel) ||
+        (error is GelbooruApiException &&
+            error.type == GelbooruApiErrorType.cancelled);
+  }
+
+  OnlineGalleryErrorCode _gelbooruErrorCode(GelbooruApiErrorType type) {
+    switch (type) {
+      case GelbooruApiErrorType.invalidCredentials:
+        return OnlineGalleryErrorCode.gelbooruCredentialsInvalid;
+      case GelbooruApiErrorType.rateLimited:
+        return OnlineGalleryErrorCode.gelbooruRateLimited;
+      case GelbooruApiErrorType.timeout:
+        return OnlineGalleryErrorCode.gelbooruTimeout;
+      case GelbooruApiErrorType.server:
+        return OnlineGalleryErrorCode.gelbooruServer;
+      case GelbooruApiErrorType.network:
+        return OnlineGalleryErrorCode.gelbooruNetwork;
+      case GelbooruApiErrorType.malformedResponse:
+        return OnlineGalleryErrorCode.gelbooruMalformedResponse;
+      case GelbooruApiErrorType.cancelled:
+      case GelbooruApiErrorType.unknown:
+        return OnlineGalleryErrorCode.gelbooruRequestFailed;
+    }
+  }
+
   /// 将网络错误转换为用户友好的提示信息
   String _getNetworkErrorMessage(dynamic error) {
     if (error is DioException) {
@@ -868,12 +1084,11 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     required String query,
     required Set<String> selectedRatings,
     required dynamic page,
+    bool includeDateRange = true,
   }) async {
     await ref
         .read(onlineGalleryBlacklistNotifierProvider.notifier)
         .ensureInitialized();
-    final baseUrl = _getBaseUrl(source);
-    final endpoint = _getEndpoint(source);
     final blacklistTags = ref
         .read(onlineGalleryBlacklistNotifierProvider)
         .effectiveTags;
@@ -889,22 +1104,37 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     }
 
     // 添加日期范围筛选（Danbooru 语法：date:start..end）
-    if (state.dateRangeStart != null && state.dateRangeEnd != null) {
+    if (includeDateRange &&
+        state.dateRangeStart != null &&
+        state.dateRangeEnd != null) {
       final startStr = _formatDateForQuery(state.dateRangeStart!);
       final endStr = _formatDateForQuery(state.dateRangeEnd!);
       final dateTag = 'date:$startStr..$endStr';
       tags = tags.isEmpty ? dateTag : '$tags $dateTag';
-    } else if (state.dateRangeStart != null) {
+    } else if (includeDateRange && state.dateRangeStart != null) {
       final startStr = _formatDateForQuery(state.dateRangeStart!);
       final dateTag = 'date:>=$startStr';
       tags = tags.isEmpty ? dateTag : '$tags $dateTag';
-    } else if (state.dateRangeEnd != null) {
+    } else if (includeDateRange && state.dateRangeEnd != null) {
       final endStr = _formatDateForQuery(state.dateRangeEnd!);
       final dateTag = 'date:<=$endStr';
       tags = tags.isEmpty ? dateTag : '$tags $dateTag';
     }
     final baseTags = tags;
     final tagsWithBlacklist = _appendBlacklistToQuery(baseTags, blacklistTags);
+
+    if (source == 'gelbooru') {
+      return _fetchGelbooruPosts(
+        tagsWithBlacklist: tagsWithBlacklist,
+        baseTags: baseTags,
+        normalizedRatings: normalizedRatings,
+        blacklistTags: blacklistTags,
+        page: page,
+      );
+    }
+
+    final baseUrl = _getBaseUrl(source);
+    final endpoint = _getEndpoint(source);
 
     AppLogger.d(
       'Fetching from $source: tags="$tagsWithBlacklist", page=$page',
@@ -913,16 +1143,10 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
     Future<Response<dynamic>> requestWithTags(String requestTags) {
       final queryParameters = <String, dynamic>{
-        'tags': source == 'gelbooru'
-            ? _formatGelbooruTagsForRequest(requestTags)
-            : requestTags,
+        'tags': requestTags,
         'limit': _pageSize,
+        'page': page,
       };
-      if (source == 'gelbooru') {
-        queryParameters['pid'] = _gelbooruApiPageToPid(page);
-      } else {
-        queryParameters['page'] = page;
-      }
 
       return _dio.get(
         '$baseUrl$endpoint',
@@ -943,19 +1167,6 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       response = await requestWithTags(tagsWithBlacklist);
     } on DioException catch (e) {
       final statusCode = e.response?.statusCode;
-      if (source == 'gelbooru' && statusCode == 401) {
-        AppLogger.w(
-          'Gelbooru API returned 401, fallback to public HTML post list',
-          'OnlineGallery',
-        );
-        return _fetchGelbooruHtmlPosts(
-          tagsWithBlacklist: tagsWithBlacklist,
-          baseTags: baseTags,
-          normalizedRatings: normalizedRatings,
-          blacklistTags: blacklistTags,
-          page: page,
-        );
-      }
       if (statusCode == 422 && blacklistTags.isNotEmpty) {
         AppLogger.w(
           '422 with blacklist query, fallback to request without blacklist and filter locally',
@@ -987,6 +1198,77 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     }
 
     return (<DanbooruPost>[], 0);
+  }
+
+  Future<(List<DanbooruPost>, int)> _fetchGelbooruPosts({
+    required String tagsWithBlacklist,
+    required String baseTags,
+    required Set<String> normalizedRatings,
+    required Set<String> blacklistTags,
+    required dynamic page,
+  }) async {
+    await ref.read(gelbooruAuthProvider.notifier).ensureInitialized();
+    final authState = _gelbooruAuthState;
+    if (!authState.isAuthenticated || authState.credentials == null) {
+      return _fetchGelbooruHtmlPosts(
+        tagsWithBlacklist: tagsWithBlacklist,
+        baseTags: baseTags,
+        normalizedRatings: normalizedRatings,
+        blacklistTags: blacklistTags,
+        page: page,
+      );
+    }
+
+    Future<GelbooruPostPage> request(String requestTags) {
+      return _gelbooruApiService.searchPosts(
+        credentials: authState.credentials!,
+        tags: _formatGelbooruTagsForRequest(requestTags),
+        pid: _gelbooruApiPageToPid(page),
+        limit: _pageSize,
+        cancelToken: _cancelToken,
+      );
+    }
+
+    try {
+      GelbooruPostPage result;
+      try {
+        result = await request(tagsWithBlacklist);
+      } on GelbooruApiException catch (error) {
+        if (error.statusCode == 422 && blacklistTags.isNotEmpty) {
+          result = await request(baseTags);
+        } else {
+          rethrow;
+        }
+      }
+      final filteredPosts = _filterByBlacklist(
+        _filterByRatings(result.posts, normalizedRatings),
+        blacklistTags,
+      );
+      AppLogger.d(
+        'Fetched ${result.rawCount} Gelbooru API posts, ${filteredPosts.length} after filter',
+        'OnlineGallery',
+      );
+      return (filteredPosts, result.rawCount);
+    } on GelbooruApiException catch (error) {
+      if (error.type != GelbooruApiErrorType.invalidCredentials) rethrow;
+
+      ref.read(gelbooruAuthProvider.notifier).markInvalid();
+      invalidateGelbooruFavorites();
+      state = state.copyWith(
+        notice: OnlineGalleryNotice.gelbooruCredentialsInvalid,
+      );
+      AppLogger.w(
+        'Gelbooru credentials were rejected; using public HTML for this search',
+        'OnlineGallery',
+      );
+      return _fetchGelbooruHtmlPosts(
+        tagsWithBlacklist: tagsWithBlacklist,
+        baseTags: baseTags,
+        normalizedRatings: normalizedRatings,
+        blacklistTags: blacklistTags,
+        page: page,
+      );
+    }
   }
 
   String _buildRatingExpression(String source, Set<String> normalizedRatings) {

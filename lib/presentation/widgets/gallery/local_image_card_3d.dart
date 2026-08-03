@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -11,11 +12,11 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/services/thumbnail_service.dart';
 import '../../providers/share_image_settings_provider.dart';
-import '../../services/image_workflow_launcher.dart';
 import '../../themes/theme_extension.dart';
 import '../../utils/clipboard_image.dart';
 import '../common/app_toast.dart';
 import '../common/floating_action_buttons.dart';
+import 'local_image_context_menu.dart';
 
 enum _ImageLoadState { idle, loading, loaded, error }
 
@@ -31,8 +32,8 @@ class LocalImageCard3D extends ConsumerStatefulWidget {
   final bool isSelected;
   final bool showFavoriteIndicator;
   final VoidCallback? onFavoriteToggle;
-  final VoidCallback? onSendToHome;
-  final VoidCallback? onSendToImg2Img;
+  final Future<void> Function(LocalImageContextAction action)? onSendAction;
+  final bool isKritaConnected;
   final bool isVisible;
   final int priority;
 
@@ -52,8 +53,8 @@ class LocalImageCard3D extends ConsumerStatefulWidget {
     this.isSelected = false,
     this.showFavoriteIndicator = true,
     this.onFavoriteToggle,
-    this.onSendToHome,
-    this.onSendToImg2Img,
+    this.onSendAction,
+    this.isKritaConnected = false,
     this.isVisible = false,
     this.priority = 5,
     this.dragWrapper,
@@ -190,20 +191,6 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
 
   void _onHoverExit(PointerEvent event) {
     setState(() => _isHovered = false);
-  }
-
-  Future<void> _openUpscale() async {
-    try {
-      final bytes = await File(widget.record.path).readAsBytes();
-      if (mounted) {
-        ImageWorkflowLauncher.openUpscale(ref, bytes);
-        AppToast.info(context, context.l10n.gallery_upscalePanelLoaded);
-      }
-    } catch (e) {
-      if (mounted) {
-        AppToast.error(context, context.l10n.gallery_readImageFailed('$e'));
-      }
-    }
   }
 
   Future<void> _copyImageToClipboard() async {
@@ -528,52 +515,32 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
         ),
         FloatingActionButtonData(
           icon: Icons.send,
-          onTap: () => _showSendToHomeMenu(context),
-          visible:
-              widget.onSendToHome != null || widget.onSendToImg2Img != null,
+          onTap: () => unawaited(_showSendMenu(context)),
+          visible: widget.onSendAction != null,
         ),
       ],
     );
   }
 
-  void _showSendToHomeMenu(BuildContext context) {
+  Future<void> _showSendMenu(BuildContext context) async {
     final RenderBox? button = context.findRenderObject() as RenderBox?;
     if (button == null) return;
 
     final offset = button.localToGlobal(Offset.zero);
-    final screenSize = MediaQuery.of(context).size;
-
-    const menuWidth = 160.0;
+    const menuWidth = 320.0;
     double left = offset.dx - menuWidth - 8;
-    double top = offset.dy;
+    final top = offset.dy;
 
     if (left < 8) left = offset.dx + button.size.width + 8;
-    if (top + 150 > screenSize.height) top = screenSize.height - 150;
 
-    showDialog<void>(
-      context: context,
-      barrierColor: Colors.transparent,
-      useRootNavigator: true,
-      builder: (dialogContext) => _SendToHomeMenu(
-        position: Offset(left, top),
-        onSendToTxt2Img: widget.onSendToHome != null
-            ? () {
-                Navigator.of(dialogContext).pop();
-                widget.onSendToHome!();
-              }
-            : null,
-        onSendToImg2Img: widget.onSendToImg2Img != null
-            ? () {
-                Navigator.of(dialogContext).pop();
-                widget.onSendToImg2Img!();
-              }
-            : null,
-        onUpscale: () {
-          Navigator.of(dialogContext).pop();
-          _openUpscale();
-        },
-      ),
+    final action = await LocalImageContextMenu.showSendActions(
+      context,
+      position: Offset(left, top),
+      isKritaConnected: widget.isKritaConnected,
     );
+    if (action == null || !mounted) return;
+
+    await widget.onSendAction?.call(action);
   }
 
   Widget _buildSelectionIndicator(ColorScheme colorScheme) {
@@ -836,149 +803,5 @@ class _GlossPainter extends CustomPainter {
   bool shouldRepaint(_GlossPainter oldDelegate) {
     return oldDelegate.progress != progress ||
         oldDelegate.intensity != intensity;
-  }
-}
-
-class _SendToHomeMenu extends StatelessWidget {
-  final Offset position;
-  final VoidCallback? onSendToTxt2Img;
-  final VoidCallback? onSendToImg2Img;
-  final VoidCallback? onUpscale;
-
-  const _SendToHomeMenu({
-    required this.position,
-    this.onSendToTxt2Img,
-    this.onSendToImg2Img,
-    this.onUpscale,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Material(
-      type: MaterialType.transparency,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: () => Navigator.of(context).pop(),
-              behavior: HitTestBehavior.translucent,
-              child: Container(color: Colors.transparent),
-            ),
-          ),
-          Positioned(
-            left: position.dx,
-            top: position.dy,
-            child: Container(
-              width: 160,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.text_fields,
-                    label: context.l10n.gallery_textToImage,
-                    subtitle: context.l10n.gallery_applyParams,
-                    onTap: onSendToTxt2Img,
-                  ),
-                  Divider(height: 1, color: theme.colorScheme.outlineVariant),
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.image,
-                    label: context.l10n.gallery_sendToImg2Img,
-                    subtitle: onSendToImg2Img == null
-                        ? context.l10n.gallery_unavailable
-                        : context.l10n.gallery_loadSourceImage,
-                    enabled: onSendToImg2Img != null,
-                    onTap: onSendToImg2Img,
-                  ),
-                  Divider(height: 1, color: theme.colorScheme.outlineVariant),
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.zoom_in,
-                    label: context.l10n.gallery_upscale,
-                    subtitle: context.l10n.gallery_superResolutionUpscale,
-                    onTap: onUpscale,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMenuItem(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required String subtitle,
-    required VoidCallback? onTap,
-    bool enabled = true,
-  }) {
-    final theme = Theme.of(context);
-    final color = enabled
-        ? theme.colorScheme.onSurface
-        : theme.colorScheme.onSurface.withValues(alpha: 0.38);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: enabled
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface.withValues(alpha: 0.38),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      label,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: color,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      subtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: enabled
-                            ? theme.colorScheme.onSurfaceVariant
-                            : color,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

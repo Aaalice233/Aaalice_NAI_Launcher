@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 
@@ -37,6 +38,11 @@ void main() {
       bundledVibeEncodings: const ['enc-1', 'enc-2'],
       bundledVibeStrengths: const [0.2, 0.8],
       bundledVibeInfoExtracted: const [0.3, 0.9],
+      encodingModel: ImageModels.animeDiffusionV45Full,
+      bundledVibeEncodingModels: const [
+        ImageModels.animeDiffusionV4Full,
+        ImageModels.animeDiffusionV45Full,
+      ],
     );
 
     final display = entry.toDisplayEntry();
@@ -52,6 +58,7 @@ void main() {
     expect(display.usedCount, entry.usedCount);
     expect(display.lastUsedAt, lastUsedAt);
     expect(display.bundledVibeNames, entry.bundledVibeNames);
+    expect(display.encodingModel, entry.encodingModel);
 
     expect(display.vibeEncoding, isEmpty);
     expect(display.rawImageData, isNull);
@@ -59,5 +66,26 @@ void main() {
     expect(display.bundledVibeEncodings, isNull);
     expect(display.bundledVibeStrengths, isNull);
     expect(display.bundledVibeInfoExtracted, isNull);
+    expect(display.bundledVibeEncodingModels, isNull);
+  });
+
+  test('VibeReference conversion preserves the encoding model', () {
+    const reference = VibeReference(
+      displayName: 'Model-aware Vibe',
+      vibeEncoding: 'encoded',
+      encodingModel: ImageModels.animeDiffusionV45Curated,
+      sourceType: VibeSourceType.naiv4vibe,
+    );
+
+    final entry = VibeLibraryEntry.fromVibeReference(
+      name: 'Model-aware Vibe',
+      vibeData: reference,
+    );
+
+    expect(entry.encodingModel, ImageModels.animeDiffusionV45Curated);
+    expect(
+      entry.toVibeReference().encodingModel,
+      ImageModels.animeDiffusionV45Curated,
+    );
   });
 }

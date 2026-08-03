@@ -15,17 +15,13 @@ import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/file_explorer_utils.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
-import '../../../core/utils/nai_prompt_formatter.dart';
 import '../../../core/utils/permission_utils.dart';
-import '../../../core/utils/sd_to_nai_converter.dart';
 import '../../../core/utils/zip_utils.dart';
-import '../../../data/models/character/character_prompt.dart' as char;
 import '../../../data/models/gallery/gallery_category.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../widgets/metadata/metadata_import_dialog.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../providers/bulk_operation_provider.dart';
-import '../../providers/character_prompt_provider.dart';
 import '../../providers/collection_provider.dart';
 import '../../providers/gallery_category_provider.dart';
 import '../../providers/gallery_folder_provider.dart';
@@ -39,9 +35,8 @@ import '../../services/image_workflow_launcher.dart';
 import '../../utils/asset_protection_guard.dart';
 import '../../utils/krita_send_helper.dart';
 import '../../utils/local_gallery_reference_factory.dart';
-import '../../utils/metadata_import_applier.dart';
+import '../../utils/local_gallery_metadata_resolver.dart';
 import '../../utils/metadata_import_coordinator.dart';
-import '../../utils/prompt_preset_import_utils.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../widgets/bulk_metadata_edit_dialog.dart';
 import '../../widgets/collection_select_dialog.dart';
@@ -560,8 +555,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       columns: columns,
       itemWidth: itemWidth,
       groupedGridViewKey: _groupedGridViewKey,
-      onReuseMetadata: _reuseMetadata,
-      onSendToImg2Img: _sendToImg2Img,
+      onReuseMetadata: _importImageMetadata,
+      onSendAction: (record, action) => _handleImageAction(record, action),
       onContextMenu: (record, position) =>
           _showImageContextMenu(record, position),
     );
@@ -946,139 +941,6 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     }
   }
 
-  Future<void> _reuseMetadata(LocalImageRecord record) async {
-    try {
-      final metadata = record.metadata;
-      if (metadata == null || !metadata.hasData) {
-        AppToast.warning(context, context.l10n.localGallery_noMetadata);
-        return;
-      }
-
-      final options = await MetadataImportDialog.show(
-        context,
-        metadata: metadata,
-      );
-      if (options == null || !mounted) return;
-
-      final paramsNotifier = ref.read(
-        generationParamsNotifierProvider.notifier,
-      );
-
-      // 安全获取角色提示词列表（防止 null）
-      final characterPrompts = metadata.characterPrompts;
-      final hasCharacters = characterPrompts.isNotEmpty;
-
-      if (options.importCharacterPrompts && hasCharacters) {
-        ref.read(characterPromptNotifierProvider.notifier).clearAllCharacters();
-      }
-
-      var appliedCount = 0;
-
-      final currentModel = ref.read(generationParamsNotifierProvider).model;
-      appliedCount += MetadataImportApplier.applyPromptAndGenerationParams(
-        metadata: metadata,
-        options: options,
-        currentModel: currentModel,
-        target: MetadataImportTarget(
-          updatePrompt: (value) =>
-              paramsNotifier.updatePrompt(_formatPrompt(value)),
-          updateNegativePrompt: (value) =>
-              paramsNotifier.updateNegativePrompt(_formatPrompt(value)),
-          updateSeed: paramsNotifier.updateSeed,
-          updateSteps: paramsNotifier.updateSteps,
-          updateScale: paramsNotifier.updateScale,
-          updateSize: paramsNotifier.updateSize,
-          updateSampler: paramsNotifier.updateSampler,
-          updateModel: paramsNotifier.updateModel,
-          updateSmea: paramsNotifier.updateSmea,
-          updateSmeaDyn: paramsNotifier.updateSmeaDyn,
-          updateVarietyPlus: paramsNotifier.updateVarietyPlus,
-          updateNoiseSchedule: paramsNotifier.updateNoiseSchedule,
-          updateCfgRescale: paramsNotifier.updateCfgRescale,
-          updateQualityToggle: (value) {
-            paramsNotifier.updateQualityToggle(value);
-            applyImportedQualityToggle(ref.read, value);
-          },
-          updateUcPreset: (value) {
-            paramsNotifier.updateUcPreset(value);
-            applyImportedUcPreset(ref.read, value);
-          },
-        ),
-      );
-
-      if (options.importCharacterPrompts && hasCharacters) {
-        _applyCharacterPrompts(metadata);
-        appliedCount++;
-      }
-
-      if (!mounted) return;
-
-      if (appliedCount > 0) {
-        AppToast.info(
-          context,
-          context.l10n.metadataImport_appliedToMain(appliedCount),
-        );
-      } else {
-        AppToast.warning(context, context.l10n.metadataImport_noParamsSelected);
-      }
-    } catch (e, stack) {
-      AppLogger.e('导入参数失败', e, stack, 'LocalGallery');
-      if (mounted) {
-        AppToast.error(
-          context,
-          context.l10n.localGallery_importParamsFailed('$e'),
-        );
-      }
-    }
-  }
-
-  String _formatPrompt(String prompt) {
-    return NaiPromptFormatter.format(SdToNaiConverter.convert(prompt));
-  }
-
-  void _applyCharacterPrompts(NaiImageMetadata metadata) {
-    final characterNotifier = ref.read(
-      characterPromptNotifierProvider.notifier,
-    );
-    final characters = <char.CharacterPrompt>[];
-
-    // 安全获取角色提示词列表
-    final characterPrompts = metadata.characterPrompts;
-    final characterNegativePrompts = metadata.characterNegativePrompts;
-
-    for (var i = 0; i < characterPrompts.length; i++) {
-      final prompt = _formatPrompt(characterPrompts[i]);
-      var negPrompt = i < characterNegativePrompts.length
-          ? characterNegativePrompts[i]
-          : '';
-      if (negPrompt.isNotEmpty) negPrompt = _formatPrompt(negPrompt);
-
-      characters.add(
-        char.CharacterPrompt.create(
-          name: 'Character ${i + 1}',
-          gender: _inferGenderFromPrompt(prompt),
-          prompt: prompt,
-          negativePrompt: negPrompt,
-        ),
-      );
-    }
-    characterNotifier.replaceAll(characters);
-  }
-
-  char.CharacterGender _inferGenderFromPrompt(String prompt) {
-    final lowerPrompt = prompt.toLowerCase();
-    if (lowerPrompt.contains('1girl') ||
-        lowerPrompt.contains('girl,') ||
-        lowerPrompt.startsWith('girl')) {
-      return char.CharacterGender.female;
-    } else if (lowerPrompt.contains('1boy') ||
-        lowerPrompt.contains('boy,') ||
-        lowerPrompt.startsWith('boy')) {
-      return char.CharacterGender.male;
-    }
-    return char.CharacterGender.other;
-  }
-
   Future<void> _sendToImg2Img(LocalImageRecord record) async {
     try {
       final file = File(record.path);
@@ -1099,6 +961,29 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     } catch (e) {
       if (mounted) {
         AppToast.error(context, context.l10n.localGallery_sendFailed('$e'));
+      }
+    }
+  }
+
+  Future<void> _sendToUpscale(LocalImageRecord record) async {
+    try {
+      final file = File(record.path);
+      if (!await file.exists()) {
+        if (mounted) {
+          AppToast.info(context, context.l10n.localGallery_imageFileMissing);
+        }
+        return;
+      }
+
+      ImageWorkflowLauncher.openUpscale(ref, await file.readAsBytes());
+
+      if (mounted) {
+        context.go(AppRoutes.home);
+        AppToast.info(context, context.l10n.gallery_upscalePanelLoaded);
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, context.l10n.gallery_readImageFailed('$e'));
       }
     }
   }
@@ -1198,8 +1083,9 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
   Future<void> _importImageMetadata(LocalImageRecord record) async {
     try {
-      final metadata = record.metadata;
-      if (metadata == null || !metadata.hasData) {
+      final metadata = await resolveLocalGalleryMetadata(record);
+      if (!mounted) return;
+      if (metadata == null) {
         AppToast.warning(context, context.l10n.metadataImport_noDataFound);
         return;
       }
@@ -1323,8 +1209,19 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     );
 
     if (action == null || !context.mounted) return;
+    await _handleImageAction(record, action, metadata: metadata);
+  }
+
+  Future<void> _handleImageAction(
+    LocalImageRecord record,
+    LocalImageContextAction action, {
+    NaiImageMetadata? metadata,
+  }) async {
+    final availableMetadata = metadata ?? record.metadata;
 
     switch (action) {
+      case LocalImageContextAction.sendToTextToImage:
+        await _importImageMetadata(record);
       case LocalImageContextAction.sendToImg2Img:
         await _sendToImg2Img(record);
       case LocalImageContextAction.sendToReversePrompt:
@@ -1335,19 +1232,23 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         await _sendToPreciseReference(record);
       case LocalImageContextAction.sendToKrita:
         await _sendToKrita(record);
+      case LocalImageContextAction.upscale:
+        await _sendToUpscale(record);
       case LocalImageContextAction.importMetadata:
         await _importImageMetadata(record);
       case LocalImageContextAction.copyPrompt:
-        if (metadata?.fullPrompt.isNotEmpty == true) {
-          await Clipboard.setData(ClipboardData(text: metadata!.fullPrompt));
+        if (availableMetadata?.fullPrompt.isNotEmpty == true) {
+          await Clipboard.setData(
+            ClipboardData(text: availableMetadata!.fullPrompt),
+          );
           if (mounted) {
             AppToast.success(context, context.l10n.localGallery_promptCopied);
           }
         }
       case LocalImageContextAction.copySeed:
-        if (metadata?.seed != null) {
+        if (availableMetadata?.seed != null) {
           await Clipboard.setData(
-            ClipboardData(text: metadata!.seed.toString()),
+            ClipboardData(text: availableMetadata!.seed.toString()),
           );
           if (mounted) {
             AppToast.success(context, context.l10n.localGallery_seedCopied);

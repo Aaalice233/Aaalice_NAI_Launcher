@@ -43,13 +43,14 @@ extension VibeSourceTypeExtension on VibeSourceType {
 /// 2. 原始图片模式: 需要服务端编码，消耗 2 Anlas/张
 @freezed
 class VibeReference with _$VibeReference {
-  static const double minStrength = -1.0;
-  static const double maxStrength = 1.0;
-  static const double minInfoExtracted = 0.0;
+  static const double defaultStrength = 0.6;
+  static const double minSliderStrength = 0.01;
+  static const double maxSliderStrength = 1.0;
+  static const double minInfoExtracted = 0.01;
   static const double maxInfoExtracted = 1.0;
 
   static double sanitizeStrength(double value) {
-    return value.clamp(minStrength, maxStrength).toDouble();
+    return value.isFinite ? value : defaultStrength;
   }
 
   static double sanitizeInfoExtracted(double value) {
@@ -71,13 +72,16 @@ class VibeReference with _$VibeReference {
     @JsonKey(includeFromJson: false, includeToJson: false)
     Uint8List? rawImageData,
 
-    /// Reference Strength (-1 到 1)
+    /// Reference Strength（数值输入不设前端上下限，滑条范围 0.01-1）
     /// 控制 vibe 对生成图像的影响强度
     @Default(0.6) double strength,
 
     /// Information Extracted (0 到 1)
     /// 对于可重新编码的 Vibe，控制从参考图中提取多少信息
     @Default(0.7) double infoExtracted,
+
+    /// 生成当前预编码数据时使用的 NovelAI 模型。
+    String? encodingModel,
 
     /// 数据来源类型
     @Default(VibeSourceType.rawImage) VibeSourceType sourceType,
@@ -101,13 +105,14 @@ class VibeReference with _$VibeReference {
 
   bool get hasVibeEncoding => vibeEncoding.isNotEmpty;
 
-  VibeReference withEncodedVibe(String encoding) {
+  VibeReference withEncodedVibe(String encoding, {String? model}) {
     if (encoding.isEmpty) {
       return copyWith(vibeEncoding: encoding);
     }
 
     return copyWith(
       vibeEncoding: encoding,
+      encodingModel: model ?? encodingModel,
       sourceType: VibeSourceType.naiv4vibe,
     );
   }

@@ -646,18 +646,33 @@ class LocalStorageService {
     await setSetting(StorageKeys.promptMaximized, maximized);
   }
 
-  /// 获取生成页布局模式 (默认 'classic')
+  /// 获取生成页布局模式 (默认 'web_style')
   String getGenerationLayoutMode() {
+    // 官网式布局体验更好，未主动设置过的用户默认使用官网式
     return getSetting<String>(
           StorageKeys.generationLayoutMode,
-          defaultValue: 'classic',
+          defaultValue: 'web_style',
         ) ??
-        'classic';
+        'web_style';
   }
 
   /// 保存生成页布局模式
   Future<void> setGenerationLayoutMode(String mode) async {
     await setSetting(StorageKeys.generationLayoutMode, mode);
+  }
+
+  /// 获取历史记录点击行为 (默认经典行为)
+  String getHistoryClickBehavior() {
+    return getSetting<String>(
+          StorageKeys.historyClickBehavior,
+          defaultValue: 'open_detail',
+        ) ??
+        'open_detail';
+  }
+
+  /// 保存历史记录点击行为
+  Future<void> setHistoryClickBehavior(String behavior) async {
+    await setSetting(StorageKeys.historyClickBehavior, behavior);
   }
 
   /// 获取官网式布局左栏宽度 (默认400)
@@ -743,22 +758,6 @@ class LocalStorageService {
   /// 保存负向固定词区域高度
   Future<void> setFixedTagsNegativeHeight(double height) async {
     await setSetting(StorageKeys.fixedTagsNegativeHeight, height);
-  }
-
-  // ==================== Character Panel Dock ====================
-
-  /// 获取角色面板停靠状态 (默认未停靠)
-  bool getCharacterPanelDocked() {
-    return getSetting<bool>(
-          StorageKeys.characterPanelDocked,
-          defaultValue: false,
-        ) ??
-        false;
-  }
-
-  /// 保存角色面板停靠状态
-  Future<void> setCharacterPanelDocked(bool docked) async {
-    await setSetting(StorageKeys.characterPanelDocked, docked);
   }
 
   // ==================== Lifecycle ====================

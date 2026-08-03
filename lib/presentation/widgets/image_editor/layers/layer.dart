@@ -459,14 +459,19 @@ class Layer {
   }
 
   /// 绘制图层内容到画布
-  void render(Canvas canvas, Size canvasSize) {
+  void render(
+    Canvas canvas,
+    Size canvasSize, {
+    FilterQuality filterQuality = FilterQuality.none,
+  }) {
     if (!visible) return;
 
     // 保存当前状态
     canvas.save();
 
     // 应用不透明度和混合模式
-    final layerPaint = Paint();
+    final layerPaint = Paint()..filterQuality = filterQuality;
+    final imagePaint = Paint()..filterQuality = filterQuality;
     if (opacity < 1.0) {
       layerPaint.color = Color.fromRGBO(255, 255, 255, opacity);
     }
@@ -495,21 +500,21 @@ class Layer {
 
     // 优先使用合成缓存
     if (_compositedCache != null && !_needsComposite) {
-      canvas.drawImage(_compositedCache!, Offset.zero, Paint());
+      canvas.drawImage(_compositedCache!, Offset.zero, imagePaint);
     } else if (hasAnyEraser && _baseImage != null) {
       // eraser + baseImage: 必须在 saveLayer 中先绘制 base 再绘制全部笔画，
       // 这样 BlendMode.clear 才能正确擦除 base 的像素。
-      _drawBaseImage(canvas, Paint());
+      _drawBaseImage(canvas, imagePaint);
       for (final stroke in _strokes) {
         _drawStroke(canvas, stroke);
       }
     } else {
       // 绘制基础图像
-      _drawBaseImage(canvas, Paint());
+      _drawBaseImage(canvas, imagePaint);
 
       // 使用光栅化缓存绘制已处理的笔画
       if (_rasterizedImage != null && _rasterizedStrokeCount > 0) {
-        canvas.drawImage(_rasterizedImage!, Offset.zero, Paint());
+        canvas.drawImage(_rasterizedImage!, Offset.zero, imagePaint);
       }
 
       // 绘制未光栅化的笔画
@@ -526,7 +531,12 @@ class Layer {
   }
 
   /// 使用缓存渲染（优先使用缓存，性能更好）
-  void renderWithCache(Canvas canvas, Size canvasSize, {Rect? viewportBounds}) {
+  void renderWithCache(
+    Canvas canvas,
+    Size canvasSize, {
+    Rect? viewportBounds,
+    FilterQuality filterQuality = FilterQuality.none,
+  }) {
     if (!visible) return;
 
     // 空间剔除优化：如果图层边界与视口不相交，则跳过渲染
@@ -543,7 +553,7 @@ class Layer {
 
     canvas.save();
 
-    final layerPaint = Paint();
+    final layerPaint = Paint()..filterQuality = filterQuality;
     if (opacity < 1.0) {
       layerPaint.color = Color.fromRGBO(255, 255, 255, opacity);
     }
@@ -556,7 +566,7 @@ class Layer {
       canvas.drawImage(_compositedCache!, Offset.zero, layerPaint);
     } else {
       // 否则走正常渲染流程
-      render(canvas, canvasSize);
+      render(canvas, canvasSize, filterQuality: filterQuality);
     }
 
     canvas.restore();

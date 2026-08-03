@@ -232,6 +232,16 @@ class ImageWorkflowLauncher {
       AppToast.warning(context, context.l10n.toast_kritaBusy);
       return;
     }
+    final cooldownState = ref.read(generationCooldownProvider);
+    if (cooldownState.isActive) {
+      AppToast.info(
+        context,
+        context.l10n.generation_cooldownRemaining(
+          cooldownState.remainingSeconds,
+        ),
+      );
+      return;
+    }
     AppToast.info(context, context.l10n.img2img_variationsStarted);
 
     final currentParams = ref.read(generationParamsNotifierProvider);

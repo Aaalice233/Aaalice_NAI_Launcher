@@ -68,6 +68,53 @@ class _PrivacySettingsSectionState
         .setHighAnlasCostThreshold(result);
   }
 
+  Future<void> _editGenerationInterval() async {
+    final settings = ref.read(shareImageSettingsProvider);
+    final controller = TextEditingController(
+      text: settings.generationIntervalSeconds.toString(),
+    );
+    final result = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.settings_setGenerationIntervalTitle),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: context.l10n.settings_generationIntervalTitle,
+            suffixText: context.l10n.unit_seconds,
+            helperText: context.l10n.settings_generationIntervalHelper,
+            border: const OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(context.l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = int.tryParse(controller.text.trim());
+              if (value != null && value >= 1 && value <= 3600) {
+                Navigator.of(dialogContext).pop(value);
+              }
+            },
+            child: Text(context.l10n.common_save),
+          ),
+        ],
+      ),
+    );
+
+    controller.dispose();
+    if (result == null) {
+      return;
+    }
+    await ref
+        .read(shareImageSettingsProvider.notifier)
+        .setGenerationIntervalSeconds(result);
+  }
+
   @override
   Widget build(BuildContext context) {
     final shareSettings = ref.watch(shareImageSettingsProvider);
@@ -177,6 +224,39 @@ class _PrivacySettingsSectionState
                     shareSettings.protectionMode &&
                         shareSettings.warnHighAnlasCost
                     ? _editHighAnlasThreshold
+                    : null,
+              ),
+              SwitchListTile(
+                secondary: const Icon(Icons.timer_outlined),
+                title: Text(context.l10n.settings_limitGenerationIntervalTitle),
+                subtitle: Text(
+                  context.l10n.settings_limitGenerationIntervalSubtitle,
+                ),
+                value: shareSettings.limitGenerationInterval,
+                onChanged: shareSettings.protectionMode
+                    ? (value) async {
+                        await ref
+                            .read(shareImageSettingsProvider.notifier)
+                            .setLimitGenerationInterval(value);
+                      }
+                    : null,
+              ),
+              ListTile(
+                enabled:
+                    shareSettings.protectionMode &&
+                    shareSettings.limitGenerationInterval,
+                leading: const Icon(Icons.hourglass_bottom_outlined),
+                title: Text(context.l10n.settings_generationIntervalTitle),
+                subtitle: Text(
+                  context.l10n.settings_generationIntervalValue(
+                    shareSettings.generationIntervalSeconds,
+                  ),
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap:
+                    shareSettings.protectionMode &&
+                        shareSettings.limitGenerationInterval
+                    ? _editGenerationInterval
                     : null,
               ),
             ],

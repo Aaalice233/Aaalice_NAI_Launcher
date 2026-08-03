@@ -5,6 +5,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/layout_state_provider.dart';
+import '../../../widgets/character/inline_character_section.dart';
 import 'collapsed_panel.dart';
 import 'generation_controls/generation_controls.dart';
 import 'generation_param_sections.dart';
@@ -184,12 +185,15 @@ class _WebLeftPanelState extends ConsumerState<WebLeftPanel>
                         const SizedBox(height: 10),
 
                         // 提示词：随内容自由增高（官网式）
-                        // 多角色编辑入口在提示词工具栏的「角色」按钮
                         PromptInputWidget(
                           autoGrow: true,
                           showMaximizeButton: false,
                           negativeModeNotifier: widget.negativeModeNotifier,
                         ),
+                        const SizedBox(height: 10),
+
+                        // 角色区：内联在主提示词正下方（官网式，内容常显）
+                        const InlineCharacterSection(),
                         const SizedBox(height: 10),
 
                         // 功能面板：反推 / 图生图 / 风格迁移 / 精准参考

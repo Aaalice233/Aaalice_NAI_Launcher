@@ -820,6 +820,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generation_generate => 'Generate';
 
   @override
+  String generation_cooldownRemaining(Object seconds) {
+    return 'Wait ${seconds}s';
+  }
+
+  @override
   String get generation_cancel => 'Cancel';
 
   @override
@@ -1746,6 +1751,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Also controls SeedVR2TilingUpscaler tile_width / tile_height.';
 
   @override
+  String get img2img_seedvr2BlocksToSwap => 'Blocks Offloaded To RAM';
+
+  @override
+  String get img2img_seedvr2BlocksToSwapHint =>
+      'How many DiT blocks stay in system RAM and are streamed to VRAM during inference. Higher saves VRAM but uses more RAM and runs slower; lower it (even to 0) when VRAM is plentiful. Raise it if you hit out-of-memory errors.';
+
+  @override
   String img2img_regularModelDescription(Object name) {
     return 'Regular Model · $name';
   }
@@ -1857,6 +1869,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editor_toolFill => 'Fill';
+
+  @override
+  String get editor_toolMagicWand => 'Magic Wand';
+
+  @override
+  String get editor_magicWandHelp =>
+      'Click a contiguous region of similar color. Image editing erases it to transparency; inpainting adds it to the mask.';
+
+  @override
+  String get editor_magicWandMode => 'Selection method';
+
+  @override
+  String get editor_magicWandSmartObject => 'Smart object (EfficientViT)';
+
+  @override
+  String get editor_magicWandColorArea => 'Color area (flood fill)';
+
+  @override
+  String get editor_magicWandSmartHelp =>
+      'Click the object to select. The first use downloads the approximately 133 MiB EfficientViT-SAM L0 model from MIT Han Lab (Apache-2.0), then keeps it locally.';
+
+  @override
+  String get editor_magicWandColorHelp =>
+      'Click a contiguous region of similar color. This works best on flat, clean boundaries and requires no model download.';
+
+  @override
+  String get editor_magicWandInvert => 'Invert result';
 
   @override
   String get editor_toolLine => 'Line';
@@ -2236,6 +2275,42 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String editor_fillMaskFailed(Object error) {
     return 'Failed to fill mask: $error';
+  }
+
+  @override
+  String get editor_magicWandNoSource =>
+      'No editable image layer is available for sampling.';
+
+  @override
+  String get editor_magicWandNothingChanged =>
+      'The selected region is already transparent or masked.';
+
+  @override
+  String get editor_magicWandModelPreparing =>
+      'Checking the EfficientViT-SAM model…';
+
+  @override
+  String editor_magicWandModelDownloading(int percent) {
+    return 'Downloading the EfficientViT-SAM model: $percent%';
+  }
+
+  @override
+  String get editor_magicWandModelLoading =>
+      'Loading the EfficientViT-SAM model…';
+
+  @override
+  String get editor_magicWandEncoding => 'Analyzing image objects…';
+
+  @override
+  String get editor_magicWandSegmenting =>
+      'Segmenting the object at the clicked point…';
+
+  @override
+  String get editor_magicWandPostprocessing => 'Building the selection…';
+
+  @override
+  String editor_magicWandFailed(Object error) {
+    return 'Magic Wand failed: $error';
   }
 
   @override
@@ -3435,6 +3510,54 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_last30Days => 'Last 30 Days';
 
   @override
+  String get onlineGallery_configureGelbooruApi => 'Configure Gelbooru API';
+
+  @override
+  String get onlineGallery_gelbooruApiReady => 'Gelbooru API verified';
+
+  @override
+  String get onlineGallery_gelbooruApiInvalid => 'Gelbooru credentials expired';
+
+  @override
+  String get onlineGallery_gelbooruCredentialsRequired =>
+      'Configure your Gelbooru User ID and API Key to view website favorites.';
+
+  @override
+  String get onlineGallery_gelbooruCredentialsInvalid =>
+      'Your Gelbooru credentials are no longer valid. Configure them again.';
+
+  @override
+  String get onlineGallery_gelbooruRateLimited =>
+      'Gelbooru is rate limiting requests. Try again later.';
+
+  @override
+  String get onlineGallery_gelbooruTimeout =>
+      'The Gelbooru request timed out. Check your network connection.';
+
+  @override
+  String get onlineGallery_gelbooruServerError =>
+      'Gelbooru is temporarily unavailable. Try again later.';
+
+  @override
+  String get onlineGallery_gelbooruNetworkError =>
+      'Could not connect to Gelbooru. Check your network or proxy settings.';
+
+  @override
+  String get onlineGallery_gelbooruMalformedResponse =>
+      'Gelbooru returned data that could not be parsed.';
+
+  @override
+  String get onlineGallery_gelbooruRequestFailed =>
+      'The Gelbooru request failed. Try again later.';
+
+  @override
+  String get onlineGallery_gelbooruReadOnly => 'Read-only favorites';
+
+  @override
+  String get onlineGallery_gelbooruFavoritesSortHint =>
+      'Sorted by post ID, newest first. This may differ from website favorite-time order.';
+
+  @override
   String get tooltip_randomPrompt => 'Random Prompt (long press to configure)';
 
   @override
@@ -3577,6 +3700,74 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get danbooru_loginSuccess => 'Login successful';
+
+  @override
+  String get gelbooru_configureTitle => 'Configure Gelbooru API';
+
+  @override
+  String get gelbooru_configureHint =>
+      'Enter the User ID and API Key shown in your Gelbooru account settings. The app does not collect your password or browser cookies.';
+
+  @override
+  String get gelbooru_userId => 'User ID';
+
+  @override
+  String get gelbooru_userIdHint => 'Enter a positive numeric User ID';
+
+  @override
+  String get gelbooru_userIdRequired =>
+      'Enter a valid positive numeric User ID';
+
+  @override
+  String get gelbooru_apiKeyHint => 'Enter API Key';
+
+  @override
+  String get gelbooru_apiKeyRequired => 'Enter an API Key';
+
+  @override
+  String get gelbooru_openAccountSettings => 'Open Gelbooru account settings';
+
+  @override
+  String get gelbooru_save => 'Verify and Save';
+
+  @override
+  String get gelbooru_saved => 'Gelbooru credentials saved';
+
+  @override
+  String get gelbooru_removeCredentials => 'Remove Credentials';
+
+  @override
+  String get gelbooru_invalidInput => 'Enter a valid User ID and API Key.';
+
+  @override
+  String get gelbooru_invalidCredentials =>
+      'Gelbooru rejected these credentials. Check the User ID and API Key.';
+
+  @override
+  String get gelbooru_rateLimited => 'Too many requests. Try again later.';
+
+  @override
+  String get gelbooru_timeout =>
+      'Verification timed out. Check your network connection.';
+
+  @override
+  String get gelbooru_serverError => 'Gelbooru is temporarily unavailable.';
+
+  @override
+  String get gelbooru_networkError =>
+      'Could not connect to Gelbooru. Check your network or proxy settings.';
+
+  @override
+  String get gelbooru_malformedResponse =>
+      'Gelbooru returned data that could not be parsed.';
+
+  @override
+  String get gelbooru_storageError =>
+      'Gelbooru credentials could not be stored or read securely.';
+
+  @override
+  String get gelbooru_unknownError =>
+      'Gelbooru verification failed. Try again later.';
 
   @override
   String get weight_title => 'Weight';
@@ -4482,16 +4673,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get characterEditor_close => 'Close';
 
   @override
-  String get characterEditor_dock => 'Dock';
-
-  @override
-  String get characterEditor_undock => 'Undock';
-
-  @override
-  String get characterEditor_dockedHint =>
-      'Character panel is docked to image area';
-
-  @override
   String get characterEditor_confirm => 'Confirm';
 
   @override
@@ -4532,13 +4713,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Click buttons above to add characters';
 
   @override
-  String get characterEditor_deleteTitle => 'Delete Character';
-
-  @override
-  String get characterEditor_deleteConfirm =>
-      'Are you sure you want to delete this character? This action cannot be undone.';
-
-  @override
   String get characterEditor_name => 'Name';
 
   @override
@@ -4556,6 +4730,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get characterEditor_position => 'Position';
+
+  @override
+  String get characterCanvas_title => 'Character Positions';
+
+  @override
+  String get characterCanvas_aiChoice => 'AI\'s Choice';
+
+  @override
+  String get characterCanvas_custom => 'Custom';
+
+  @override
+  String get characterCanvas_aiHint =>
+      'AI will place all characters automatically';
+
+  @override
+  String get characterCanvas_dragHint =>
+      'Drag anchors to position characters; release to apply';
 
   @override
   String get characterEditor_genderFemale => 'Female';
@@ -10356,6 +10547,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shortcut_action_generate_image => 'Generate Image';
 
   @override
+  String get shortcut_action_generation_prev_image =>
+      'Previous preview (linked history)';
+
+  @override
+  String get shortcut_action_generation_next_image =>
+      'Next preview (linked history)';
+
+  @override
   String get shortcut_action_cancel_generation => 'Cancel Generation';
 
   @override
@@ -11743,6 +11942,26 @@ class AppLocalizationsEn extends AppLocalizations {
       'Prompt and settings docked on the far left, like the NovelAI website';
 
   @override
+  String get settings_historyClickBehavior => 'History click behavior';
+
+  @override
+  String get settings_historyClickBehavior_classic => 'Classic';
+
+  @override
+  String get settings_historyClickBehavior_classicDescription =>
+      'Click a history image to open its details';
+
+  @override
+  String get settings_historyClickBehavior_linked => 'Linked preview';
+
+  @override
+  String get settings_historyClickBehavior_linkedDescription =>
+      'Click to switch the central preview, double-click or hold for details, and browse with Left/Right';
+
+  @override
+  String get image_viewDetail => 'View details';
+
+  @override
   String get settings_defaultImagesPath =>
       'Default (Documents/NAI_Launcher/images/)';
 
@@ -11760,7 +11979,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_protectionModeSubtitle =>
-      'Protect local assets, shared copies, and high-cost operations through the options below. Turning this off keeps the option values but disables them.';
+      'Protect local assets, shared copies, and high-cost or high-frequency generation operations through the options below. Turning this off keeps the option values but disables them.';
 
   @override
   String get settings_protectionFeatures => 'Protection Features';
@@ -11818,6 +12037,29 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settings_highAnlasCostThresholdHelper =>
       'Show a confirmation when the estimated single generation cost reaches or exceeds this value.';
+
+  @override
+  String get settings_limitGenerationIntervalTitle =>
+      'Limit generation frequency';
+
+  @override
+  String get settings_limitGenerationIntervalSubtitle =>
+      'Require the configured minimum time between generation starts. The Generate button is disabled during the cooldown.';
+
+  @override
+  String get settings_generationIntervalTitle => 'Generation interval';
+
+  @override
+  String settings_generationIntervalValue(Object seconds) {
+    return '$seconds seconds';
+  }
+
+  @override
+  String get settings_setGenerationIntervalTitle => 'Set Generation Interval';
+
+  @override
+  String get settings_generationIntervalHelper =>
+      'Enter 1–3600 seconds. The cooldown starts when generation begins.';
 
   @override
   String get settings_selectLocalOnnxTaggerFolder =>

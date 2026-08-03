@@ -549,7 +549,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
         ClipRRect(
           borderRadius: BorderRadius.circular(3),
           child: LinearProgressIndicator(
-            value: value,
+            value: value.clamp(0.0, 1.0).toDouble(),
             backgroundColor: Colors.white.withValues(alpha: 0.2),
             valueColor: AlwaysStoppedAnimation<Color>(color),
             minHeight: 5,

@@ -59,6 +59,22 @@ void main() {
       expect(metadata, isNull);
     });
 
+    test('only gallery internal drags bypass the global drop handler', () {
+      expect(
+        isGalleryInternalDragLocalData({'source': 'gallery_internal'}),
+        isTrue,
+      );
+      expect(
+        isGalleryInternalDragLocalData({'source': 'history_internal'}),
+        isFalse,
+      );
+      expect(
+        isGalleryInternalDragLocalData({'source': 'other_internal'}),
+        isFalse,
+      );
+      expect(isGalleryInternalDragLocalData(null), isFalse);
+    });
+
     test(
       'dropped character reference appends to existing precise references',
       () async {

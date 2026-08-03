@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import '../../../core/utils/localization_extension.dart';
 
 enum LocalImageContextAction {
+  sendToTextToImage,
   sendToImg2Img,
   sendToReversePrompt,
   sendToStyleTransfer,
   sendToPreciseReference,
   sendToKrita,
+  upscale,
   importMetadata,
   copyPrompt,
   copySeed,
@@ -45,6 +47,24 @@ class LocalImageContextMenu {
     );
   }
 
+  static Future<LocalImageContextAction?> showSendActions(
+    BuildContext context, {
+    required Offset position,
+    required bool isKritaConnected,
+  }) {
+    return showMenu<LocalImageContextAction>(
+      context: context,
+      constraints: const BoxConstraints(minWidth: 320, maxWidth: 420),
+      position: RelativeRect.fromLTRB(
+        position.dx,
+        position.dy,
+        position.dx + 1,
+        position.dy + 1,
+      ),
+      items: buildSendEntries(context, isKritaConnected: isKritaConnected),
+    );
+  }
+
   static List<PopupMenuEntry<LocalImageContextAction>> buildEntries(
     BuildContext context, {
     required bool hasImportableMetadata,
@@ -55,37 +75,7 @@ class LocalImageContextMenu {
     final hasImageInfoActions = hasImportableMetadata || hasPrompt || hasSeed;
 
     return [
-      _item(
-        context,
-        value: LocalImageContextAction.sendToImg2Img,
-        icon: Icons.image_outlined,
-        label: context.l10n.localGallery_sendToImg2Img,
-      ),
-      _item(
-        context,
-        value: LocalImageContextAction.sendToReversePrompt,
-        icon: Icons.manage_search_rounded,
-        label: context.l10n.localGallery_sendToReversePrompt,
-      ),
-      _item(
-        context,
-        value: LocalImageContextAction.sendToStyleTransfer,
-        icon: Icons.palette_outlined,
-        label: context.l10n.localGallery_sendToStyleTransfer,
-      ),
-      _item(
-        context,
-        value: LocalImageContextAction.sendToPreciseReference,
-        icon: Icons.center_focus_strong,
-        label: context.l10n.localGallery_sendToPreciseReference,
-      ),
-      _item(
-        context,
-        value: LocalImageContextAction.sendToKrita,
-        icon: Icons.brush_outlined,
-        label: context.l10n.localGallery_sendToKrita,
-        enabled: isKritaConnected,
-      ),
+      ...buildSendEntries(context, isKritaConnected: isKritaConnected),
       if (hasImageInfoActions) const PopupMenuDivider(),
       if (hasImportableMetadata)
         _item(
@@ -121,6 +111,57 @@ class LocalImageContextMenu {
         icon: Icons.delete_outline,
         label: context.l10n.common_delete,
         destructive: true,
+      ),
+    ];
+  }
+
+  static List<PopupMenuEntry<LocalImageContextAction>> buildSendEntries(
+    BuildContext context, {
+    required bool isKritaConnected,
+  }) {
+    return [
+      _item(
+        context,
+        value: LocalImageContextAction.sendToTextToImage,
+        icon: Icons.text_fields,
+        label: context.l10n.onlineGallery_sendToTextToImage,
+      ),
+      _item(
+        context,
+        value: LocalImageContextAction.sendToImg2Img,
+        icon: Icons.image_outlined,
+        label: context.l10n.localGallery_sendToImg2Img,
+      ),
+      _item(
+        context,
+        value: LocalImageContextAction.sendToReversePrompt,
+        icon: Icons.manage_search_rounded,
+        label: context.l10n.localGallery_sendToReversePrompt,
+      ),
+      _item(
+        context,
+        value: LocalImageContextAction.sendToStyleTransfer,
+        icon: Icons.palette_outlined,
+        label: context.l10n.localGallery_sendToStyleTransfer,
+      ),
+      _item(
+        context,
+        value: LocalImageContextAction.sendToPreciseReference,
+        icon: Icons.center_focus_strong,
+        label: context.l10n.localGallery_sendToPreciseReference,
+      ),
+      _item(
+        context,
+        value: LocalImageContextAction.sendToKrita,
+        icon: Icons.brush_outlined,
+        label: context.l10n.localGallery_sendToKrita,
+        enabled: isKritaConnected,
+      ),
+      _item(
+        context,
+        value: LocalImageContextAction.upscale,
+        icon: Icons.zoom_in,
+        label: context.l10n.gallery_upscale,
       ),
     ];
   }

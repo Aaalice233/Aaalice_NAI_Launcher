@@ -2,12 +2,15 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
+import '../../constants/api_constants.dart';
 import '../../enums/precise_ref_type.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/inpaint_mask_utils.dart';
 import '../../utils/nai_resolution_adapter.dart';
 import '../../utils/nai_api_utils.dart';
 import '../../utils/prompt_semantics_utils.dart';
+import '../../../data/models/character/character_prompt.dart'
+    show CharacterPositionLayout;
 import '../../../data/models/image/image_params.dart';
 
 typedef EncodeVibeFn =
@@ -132,18 +135,18 @@ class NAIImageRequestBuilder {
     final negativeCharCaptions = <Map<String, dynamic>>[];
     final characterPrompts = <Map<String, dynamic>>[];
 
-    for (final char in params.characters) {
-      double x = 0, y = 0;
-      if (char.position != null && char.position!.length >= 2) {
-        final letter = char.position![0].toUpperCase();
-        final digit = char.position![1];
-        x = 0.5 + 0.2 * (letter.codeUnitAt(0) - 'C'.codeUnitAt(0));
-        y = 0.5 + 0.2 * (int.tryParse(digit) ?? 3) - 0.5 - 0.4;
-        x = x.clamp(0.1, 0.9);
-        y = y.clamp(0.1, 0.9);
-      } else if (char.positionX != null && char.positionY != null) {
-        x = char.positionX!;
-        y = char.positionY!;
+    for (var index = 0; index < params.characters.length; index++) {
+      final char = params.characters[index];
+      // 连续坐标直传（0-1），与位置画布所见即所得
+      final fallbackPosition = CharacterPositionLayout.positionForIndex(
+        index,
+        params.characters.length,
+      );
+      var x = fallbackPosition.column;
+      var y = fallbackPosition.row;
+      if (char.positionX != null && char.positionY != null) {
+        x = char.positionX!.clamp(0.0, 1.0);
+        y = char.positionY!.clamp(0.0, 1.0);
       }
 
       charCaptions.add({
@@ -403,10 +406,14 @@ class NAIImageRequestBuilder {
 
     final seed = params.seed == -1 ? Random().nextInt(4294967295) : params.seed;
 
+    final baseModel = ImageModels.resolveBaseModel(params.model);
+    final requestModel = params.action == ImageGenerationAction.infill
+        ? ImageModels.resolveInpaintingModel(baseModel)
+        : params.model;
     final promptSemantics = buildPromptSemanticsSnapshot(
       prompt: params.prompt,
       negativePrompt: params.negativePrompt,
-      model: params.model,
+      model: baseModel,
       qualityToggle: params.qualityToggle,
       ucPreset: params.ucPreset,
     );
@@ -464,6 +471,13 @@ class NAIImageRequestBuilder {
       );
       requestParameters['strength'] = NAIApiUtils.toJsonNumber(params.strength);
       requestParameters['noise'] = NAIApiUtils.toJsonNumber(params.noise);
+      if (ImageModels.supportsImg2ImgInpainting(requestModel) &&
+          params.inpaintStrength != 1.0) {
+        requestParameters['img2img'] = {
+          'strength': NAIApiUtils.toJsonNumber(params.inpaintStrength),
+          'color_correct': true,
+        };
+      }
     }
 
     final vibeEncodingMap = await buildVibeTransferParameters(
@@ -475,7 +489,7 @@ class NAIImageRequestBuilder {
 
     final requestData = <String, dynamic>{
       'input': effectivePrompt,
-      'model': params.model,
+      'model': requestModel,
       'action': params.action.value,
       'parameters': requestParameters,
       'use_new_shared_trial': true,

@@ -11,8 +11,10 @@ import '../../../../core/utils/vibe_encoding_utils.dart';
 import '../../../../core/utils/vibe_export_utils.dart';
 import '../../../../core/utils/vibe_image_embedder.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
+import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../../data/services/vibe_file_storage_service.dart';
 import '../../../../data/services/vibe_library_storage_service.dart';
+import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../widgets/common/app_toast.dart';
 
 /// Vibe 导出对话框（高级版）
@@ -70,6 +72,8 @@ class _VibeExportDialogAdvancedState
   String? _errorMessage;
 
   List<VibeLibraryEntry>? _resolvedEntries;
+
+  String get _defaultModel => ref.read(generationParamsNotifierProvider).model;
 
   /// 是否为单选 bundle
   bool get _isSingleBundle {
@@ -1166,20 +1170,28 @@ class _VibeExportDialogAdvancedState
       return _exportSelectedInternalVibes(entries);
     }
 
-    final vibes = entries.map((e) => e.toVibeReference()).toList();
+    final vibes = <VibeReference>[];
+    for (final entry in entries) {
+      vibes.addAll(await _resolveEntryVibes(entry));
+    }
 
     if (vibes.isEmpty) return null;
 
-    if (vibes.length == 1) {
+    if (vibes.length == 1 && !(_isSingleBundle && _exportWholeBundle)) {
       // 单个导出为 .naiv4vibe
       return VibeExportUtils.exportToNaiv4Vibe(
         vibes.first,
         name: entries.first.displayName,
+        defaultModel: _defaultModel,
       );
     } else {
       // 多个导出为 .naiv4vibebundle
       final bundleName = 'vibe_bundle_${vibes.length}';
-      return VibeExportUtils.exportToNaiv4VibeBundle(vibes, bundleName);
+      return VibeExportUtils.exportToNaiv4VibeBundle(
+        vibes,
+        bundleName,
+        defaultModel: _defaultModel,
+      );
     }
   }
 
@@ -1194,6 +1206,7 @@ class _VibeExportDialogAdvancedState
       name: zipName,
       includeThumbnails: _bundleIncludeThumbnail,
       compress: _bundleCompress,
+      defaultModel: _defaultModel,
     );
   }
 
@@ -1249,6 +1262,7 @@ class _VibeExportDialogAdvancedState
       final path = await VibeExportUtils.exportToNaiv4Vibe(
         vibe,
         name: vibe.displayName,
+        defaultModel: _defaultModel,
         outputDirectory: outputDirectory,
       );
 
@@ -1268,6 +1282,7 @@ class _VibeExportDialogAdvancedState
     if (entries.length > 1) {
       return null;
     }
+    final l10n = context.l10n;
 
     final carrierImageBytes = _currentCarrierImageBytes();
     if (carrierImageBytes == null) {
@@ -1275,27 +1290,78 @@ class _VibeExportDialogAdvancedState
     }
 
     try {
-      final vibes = entries.map((entry) => entry.toVibeReference()).toList();
-      final fileName = entries.length == 1
+      final vibes = await _resolveEntryVibes(entries.first);
+      if (vibes.isEmpty) {
+        return null;
+      }
+      final fileName = vibes.length == 1
           ? '${entries.first.displayName}_vibe.png'
-          : 'vibe_bundle_${entries.length}.png';
+          : 'vibe_bundle_${vibes.length}.png';
 
       return VibeExportUtils.exportToEmbeddedPng(
         vibes,
         carrierImageBytes: carrierImageBytes,
         fileName: fileName,
+        defaultModel: _defaultModel,
       );
     } on InvalidImageFormatException catch (e) {
-      throw Exception(
-        context.l10n.vibe_export_invalidImageFormatWithError(e.message),
-      );
+      throw Exception(l10n.vibe_export_invalidImageFormatWithError(e.message));
     } on VibeEmbedException catch (e) {
-      throw Exception(context.l10n.vibe_export_embedFailedWithError(e.message));
+      throw Exception(l10n.vibe_export_embedFailedWithError(e.message));
     } catch (e) {
-      throw Exception(
-        context.l10n.vibe_export_embedImageFailedWithError(e.toString()),
-      );
+      throw Exception(l10n.vibe_export_embedImageFailedWithError(e.toString()));
     }
+  }
+
+  Future<List<VibeReference>> _resolveEntryVibes(VibeLibraryEntry entry) async {
+    if (!entry.isBundle) {
+      return [entry.toVibeReference()];
+    }
+
+    final filePath = entry.filePath;
+    if (filePath != null && filePath.isNotEmpty) {
+      final storedVibes = await VibeFileStorageService().extractVibesFromBundle(
+        filePath,
+      );
+      if (storedVibes.isNotEmpty) {
+        return storedVibes;
+      }
+    }
+
+    final names = entry.bundledVibeNames;
+    final encodings = entry.bundledVibeEncodings;
+    if (names == null ||
+        names.isEmpty ||
+        encodings == null ||
+        encodings.isEmpty) {
+      return const <VibeReference>[];
+    }
+
+    final previews = entry.bundledVibePreviews;
+    final strengths = entry.bundledVibeStrengths;
+    final informationExtracted = entry.bundledVibeInfoExtracted;
+    final encodingModels = entry.bundledVibeEncodingModels;
+    return [
+      for (var i = 0; i < names.length && i < encodings.length; i++)
+        VibeReference(
+          displayName: names[i],
+          vibeEncoding: encodings[i],
+          thumbnail: previews != null && i < previews.length
+              ? previews[i]
+              : null,
+          strength: strengths != null && i < strengths.length
+              ? strengths[i]
+              : entry.strength,
+          infoExtracted:
+              informationExtracted != null && i < informationExtracted.length
+              ? informationExtracted[i]
+              : entry.infoExtracted,
+          encodingModel: encodingModels != null && i < encodingModels.length
+              ? encodingModels[i]
+              : entry.encodingModel,
+          sourceType: VibeSourceType.naiv4vibebundle,
+        ),
+    ];
   }
 
   /// 导出编码文件

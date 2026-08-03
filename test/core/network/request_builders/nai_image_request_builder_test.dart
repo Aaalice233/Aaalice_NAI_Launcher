@@ -86,6 +86,48 @@ void main() {
     });
 
     test(
+      'should keep explicit centers and give all six characters a fallback',
+      () async {
+        final params = ImageParams(
+          model: ImageModels.animeDiffusionV45Full,
+          useCoords: true,
+          characters: [
+            const CharacterPrompt(
+              prompt: 'explicit',
+              negativePrompt: 'explicit negative',
+              positionX: 0.37,
+              positionY: 0.64,
+            ),
+            for (var index = 1; index < 6; index++)
+              CharacterPrompt(prompt: 'character $index'),
+          ],
+        );
+        final result = await NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler');
+
+        final v4Prompt =
+            result.requestParameters['v4_prompt'] as Map<String, dynamic>;
+        final caption = v4Prompt['caption'] as Map<String, dynamic>;
+        final captions = caption['char_captions'] as List<dynamic>;
+        final explicitCenter =
+            (captions.first as Map<String, dynamic>)['centers']
+                as List<dynamic>;
+        final lastCenter =
+            (captions.last as Map<String, dynamic>)['centers'] as List<dynamic>;
+
+        expect(explicitCenter.single, equals({'x': 0.37, 'y': 0.64}));
+        expect(lastCenter.single, equals({'x': 0.8, 'y': 0.75}));
+        expect(
+          result
+              .requestParameters['v4_negative_prompt']['caption']['char_captions'][0]['centers'][0],
+          equals({'x': 0.37, 'y': 0.64}),
+        );
+      },
+    );
+
+    test(
       'should apply native quality and UC presets only at request boundary',
       () async {
         final params = ImageParams(
@@ -211,6 +253,30 @@ void main() {
       },
     );
 
+    test('should forward uncapped vibe strength', () async {
+      const params = ImageParams(
+        model: 'nai-diffusion-4-full',
+        vibeReferencesV4: [
+          VibeReference(
+            displayName: 'uncapped',
+            vibeEncoding: 'encoded-vibe',
+            sourceType: VibeSourceType.png,
+            strength: 3.25,
+          ),
+        ],
+      );
+
+      final result = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler');
+
+      expect(
+        result.requestParameters['reference_strength_multiple'],
+        equals([3.25]),
+      );
+    });
+
     test(
       'should not let disabled precise references block enabled vibe transfer',
       () async {
@@ -303,6 +369,35 @@ void main() {
         );
       },
     );
+
+    test('should forward uncapped precise strength and fidelity', () async {
+      final params = ImageParams(
+        model: 'nai-diffusion-4-5-full',
+        preciseReferences: [
+          PreciseReference(
+            image: _validPngBytes(),
+            type: PreciseRefType.character,
+            strength: 2.5,
+            fidelity: -1.25,
+          ),
+        ],
+      );
+
+      final result = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler');
+
+      expect(
+        result.requestParameters['director_reference_strength_values'],
+        equals([2.5]),
+      );
+      expect(
+        result
+            .requestParameters['director_reference_secondary_strength_values'],
+        equals([2.25]),
+      );
+    });
 
     test('should ignore precise references for non-v4.5 model', () async {
       final params = ImageParams(
@@ -459,11 +554,11 @@ void main() {
     );
 
     test(
-      'should forward infill strength and noise to request parameters',
+      'should build official V4 inpaint model and img2img strength parameters',
       () async {
         final params = ImageParams(
           action: ImageGenerationAction.infill,
-          model: 'nai-diffusion-4-full',
+          model: ImageModels.animeDiffusionV4Full,
           sourceImage: Uint8List.fromList([1, 2, 3]),
           maskImage: Uint8List.fromList([4, 5, 6]),
           strength: 0.42,
@@ -484,9 +579,66 @@ void main() {
           result.requestParameters['inpaintImg2ImgStrength'],
           equals(0.55),
         );
+        expect(
+          result.requestParameters['img2img'],
+          equals({'strength': 0.55, 'color_correct': true}),
+        );
         expect(result.requestParameters['mask'], isNotNull);
+        expect(
+          result.requestData['model'],
+          ImageModels.animeDiffusionV4FullInpainting,
+        );
+        expect(params.model, ImageModels.animeDiffusionV4Full);
       },
     );
+
+    test(
+      'should omit nested img2img config at full inpaint strength',
+      () async {
+        final params = ImageParams(
+          action: ImageGenerationAction.infill,
+          model: ImageModels.animeDiffusionV45Curated,
+          sourceImage: Uint8List.fromList([1, 2, 3]),
+          maskImage: Uint8List.fromList([4, 5, 6]),
+        );
+
+        final result = await NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler', isStream: true);
+
+        expect(result.requestParameters.containsKey('img2img'), isFalse);
+        expect(
+          result.requestData['model'],
+          ImageModels.animeDiffusionV45CuratedInpainting,
+        );
+        expect(result.requestParameters['stream'], 'msgpack');
+      },
+    );
+
+    test('should send supported inpaint strength config to V3', () async {
+      final params = ImageParams(
+        action: ImageGenerationAction.infill,
+        model: ImageModels.animeDiffusionV3,
+        sourceImage: Uint8List.fromList([1, 2, 3]),
+        maskImage: Uint8List.fromList([4, 5, 6]),
+        inpaintStrength: 0.55,
+      );
+
+      final result = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler');
+
+      expect(
+        result.requestParameters['img2img'],
+        equals({'strength': 0.55, 'color_correct': true}),
+      );
+      expect(
+        result.requestData['model'],
+        ImageModels.animeDiffusionV3Inpainting,
+      );
+    });
 
     test('should omit vibe transfer payload for infill requests', () async {
       final params = ImageParams(

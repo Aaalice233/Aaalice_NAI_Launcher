@@ -14,6 +14,7 @@ import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../utils/dropped_file_reader.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/editable_double_field.dart';
 import '../../../widgets/common/hover_image_preview.dart';
 import '../../../widgets/common/precise_reference_type_dialog.dart';
 import '../../../widgets/common/themed_divider.dart';
@@ -664,6 +665,8 @@ class _PreciseReferenceCard extends StatelessWidget {
     required double value,
     required ValueChanged<double> onChanged,
   }) {
+    final sliderValue = value.clamp(0.0, 1.0).toDouble();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -678,9 +681,12 @@ class _PreciseReferenceCard extends StatelessWidget {
                 ),
               ),
             ),
-            Text(
-              value.toStringAsFixed(2),
-              style: theme.textTheme.bodySmall?.copyWith(
+            EditableDoubleField(
+              value: value,
+              decimals: 2,
+              width: 64,
+              onChanged: onChanged,
+              textStyle: theme.textTheme.bodySmall?.copyWith(
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
@@ -694,10 +700,10 @@ class _PreciseReferenceCard extends StatelessWidget {
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
           ),
           child: Slider(
-            value: value,
+            value: sliderValue,
             min: 0.0,
             max: 1.0,
-            divisions: 100,
+            divisions: 20,
             onChanged: onChanged,
           ),
         ),

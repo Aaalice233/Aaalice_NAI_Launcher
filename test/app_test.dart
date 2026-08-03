@@ -19,6 +19,7 @@ import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/services/danbooru_tags_lazy_service.dart';
 import 'package:nai_launcher/core/shortcuts/default_shortcuts.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/utils/file_explorer_utils.dart';
 import 'package:nai_launcher/core/utils/nai_resolution_adapter.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
@@ -26,6 +27,7 @@ import 'package:nai_launcher/data/models/gallery/gallery_statistics.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/tag/local_tag.dart';
+import 'package:nai_launcher/data/models/tag/tag_suggestion.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/local_onnx_tagger_service.dart';
@@ -42,6 +44,7 @@ import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/providers/tag_library_page_provider.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_screen.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/prompt_assistant_models.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/prompt_assistant_adapter.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/prompt_assistant_api_client.dart';
@@ -67,6 +70,8 @@ class _MockDio extends Mock implements Dio {}
 
 class _MockDanbooruTagsLazyService extends Mock
     implements DanbooruTagsLazyService {}
+
+class _MockLocalStorageService extends Mock implements LocalStorageService {}
 
 /// 简单的 Widget 测试示例
 ///
@@ -445,6 +450,51 @@ void main() {
       );
     });
 
+    test('treats spaces as tag separators in fuzzy searches', () {
+      expect(
+        buildOnlineGallerySearchQuery(
+          'foot_focus lo',
+          fuzzyMatch: true,
+        ),
+        '*foot_focus* *lo*',
+      );
+    });
+
+    testWidgets('updates autocomplete for a space separated second tag', (
+      tester,
+    ) async {
+      await _pumpOnlineGalleryScreen(tester);
+      await tester.pump();
+
+      final searchField = find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField &&
+            widget.decoration?.hintText == 'Search tags...',
+      );
+
+      await tester.tap(searchField);
+      await tester.enterText(searchField, 'foot_focus');
+      await tester.pump(const Duration(milliseconds: 80));
+      expect(
+        tester
+            .widget<GenericSuggestionTile>(find.byType(GenericSuggestionTile))
+            .data
+            .tag,
+        'foot_focus',
+      );
+
+      await tester.enterText(searchField, 'foot_focus lo');
+      await tester.pump(const Duration(milliseconds: 80));
+
+      expect(
+        tester
+            .widget<GenericSuggestionTile>(find.byType(GenericSuggestionTile))
+            .data
+            .tag,
+        'long_hair',
+      );
+    });
+
     testWidgets('shows a fuzzy matching toggle in the search toolbar', (
       tester,
     ) async {
@@ -547,6 +597,113 @@ void main() {
 
       await tester.pump(const Duration(milliseconds: 350));
       expect(find.byType(GenericSuggestionTile), findsNothing);
+    });
+
+    testWidgets('does not show suggestions after the input loses focus', (
+      tester,
+    ) async {
+      final controller = TextEditingController();
+      final focusNode = FocusNode();
+      final strategy = _FakeAutocompleteStrategy();
+      addTearDown(controller.dispose);
+      addTearDown(focusNode.dispose);
+      addTearDown(strategy.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: AutocompleteWrapper(
+                controller: controller,
+                focusNode: focusNode,
+                strategy: strategy,
+                child: TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byType(TextField));
+      await tester.enterText(find.byType(TextField), 'kan');
+      await tester.pump(const Duration(milliseconds: 80));
+      await tester.pump();
+
+      expect(find.byType(GenericSuggestionTile), findsOneWidget);
+
+      focusNode.unfocus();
+      await tester.pump(const Duration(milliseconds: 160));
+
+      expect(focusNode.hasFocus, isFalse);
+      expect(find.byType(GenericSuggestionTile), findsNothing);
+
+      await strategy.search('kan', 3);
+      await tester.pump();
+
+      expect(find.byType(GenericSuggestionTile), findsNothing);
+    });
+
+    testWidgets('positions unlimited multiline suggestions below the caret', (
+      tester,
+    ) async {
+      final controller = TextEditingController();
+      final focusNode = FocusNode();
+      final strategy = _FakeAutocompleteStrategy();
+      addTearDown(controller.dispose);
+      addTearDown(focusNode.dispose);
+      addTearDown(strategy.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: 400,
+                  child: AutocompleteWrapper(
+                    controller: controller,
+                    focusNode: focusNode,
+                    strategy: strategy,
+                    maxLines: null,
+                    expands: false,
+                    child: TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      maxLines: null,
+                      minLines: 4,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byType(TextField));
+      await tester.enterText(find.byType(TextField), 'kan');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 80));
+      await tester.pump();
+
+      final inputRect = tester.getRect(find.byType(TextField));
+      final follower = tester.widget<CompositedTransformFollower>(
+        find.ancestor(
+          of: find.byType(GenericSuggestionTile),
+          matching: find.byType(CompositedTransformFollower),
+        ),
+      );
+
+      expect(follower.offset.dy, lessThan(inputRect.height));
+      expect(follower.offset.dx, greaterThan(12));
     });
 
     Future<void> pumpAutocompleteWrapper(
@@ -845,6 +1002,37 @@ void main() {
 
       expect(executable['7']['inputs']['encode_tile_size'], 768);
       expect(executable['7']['inputs']['decode_tile_size'], 768);
+    });
+
+    test('injects SeedVR2 block swap settings into the DiT loader node', () {
+      final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
+      final workflow = manager.getById(comfySeedvr2UpscaleTemplateId)!;
+
+      final executable = manager.buildExecutableWorkflow(
+        template: workflow,
+        paramValues: const {
+          'blocks_to_swap': 28,
+          'swap_io_components': true,
+        },
+      );
+
+      expect(executable['6']['inputs']['blocks_to_swap'], 28);
+      expect(executable['6']['inputs']['swap_io_components'], isTrue);
+      // sageattn / flash_attn 需要额外安装，发行默认值必须是 PyTorch 内置后端。
+      expect(executable['6']['inputs']['attention_mode'], 'sdpa');
+    });
+
+    test('injects SeedVR2 block swap settings into the tiled workflow', () {
+      final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
+      final workflow = manager.getById(comfySeedvr2TiledUpscaleTemplateId)!;
+
+      final executable = manager.buildExecutableWorkflow(
+        template: workflow,
+        paramValues: const {'blocks_to_swap': 0, 'swap_io_components': false},
+      );
+
+      expect(executable['6']['inputs']['blocks_to_swap'], 0);
+      expect(executable['6']['inputs']['swap_io_components'], isFalse);
     });
 
     test('includes RTX upscale workflow using Nvidia RTX nodes', () {
@@ -1174,6 +1362,8 @@ void main() {
         preventOverwrite: true,
         warnHighAnlasCost: true,
         highAnlasCostThreshold: 50,
+        limitGenerationInterval: true,
+        generationIntervalSeconds: 15,
       );
 
       expect(disabled.effectiveStripMetadataForCopyAndDrag, isFalse);
@@ -1181,6 +1371,7 @@ void main() {
       expect(disabled.effectiveWarnExternalImageSend, isFalse);
       expect(disabled.effectivePreventOverwrite, isFalse);
       expect(disabled.effectiveWarnHighAnlasCost, isFalse);
+      expect(disabled.effectiveGenerationIntervalSeconds, 0);
 
       final enabled = disabled.copyWith(protectionMode: true);
       expect(enabled.effectiveStripMetadataForCopyAndDrag, isTrue);
@@ -1188,6 +1379,7 @@ void main() {
       expect(enabled.effectiveWarnExternalImageSend, isTrue);
       expect(enabled.effectivePreventOverwrite, isTrue);
       expect(enabled.effectiveWarnHighAnlasCost, isTrue);
+      expect(enabled.effectiveGenerationIntervalSeconds, 15);
     });
 
     test('allows each protection feature to be disabled independently', () {
@@ -1199,6 +1391,8 @@ void main() {
         preventOverwrite: false,
         warnHighAnlasCost: false,
         highAnlasCostThreshold: 50,
+        limitGenerationInterval: false,
+        generationIntervalSeconds: 15,
       );
 
       expect(settings.effectiveStripMetadataForCopyAndDrag, isFalse);
@@ -1206,6 +1400,7 @@ void main() {
       expect(settings.effectiveWarnExternalImageSend, isFalse);
       expect(settings.effectivePreventOverwrite, isFalse);
       expect(settings.effectiveWarnHighAnlasCost, isFalse);
+      expect(settings.effectiveGenerationIntervalSeconds, 0);
     });
   });
 
@@ -1483,6 +1678,119 @@ void main() {
         expect(models.first.name, modelName);
         expect(decoded.routing.modelFor(taskType), modelName);
       }
+    });
+
+    test('migrates legacy model sources without deleting default models', () {
+      final pulledModel = ModelConfig.fromJson({
+        'providerId': 'openai_custom',
+        'name': 'old-api-model',
+        'displayName': 'old-api-model',
+        'forTask': AssistantTaskType.llm.name,
+        'isDefault': false,
+      });
+      final defaultModel = ModelConfig.fromJson({
+        'providerId': 'openai_custom',
+        'name': 'default-model',
+        'displayName': 'default-model',
+        'forTask': AssistantTaskType.llm.name,
+        'isDefault': true,
+      });
+
+      expect(pulledModel.source, ModelSource.api);
+      expect(defaultModel.source, ModelSource.manual);
+    });
+
+    test('refresh replaces stale API models and keeps manual models', () async {
+      final localStorage = _MockLocalStorageService();
+      when(
+        () => localStorage.getSetting<String>(
+          StorageKeys.promptAssistantConfigJson,
+        ),
+      ).thenReturn(null);
+      when(
+        () => localStorage.setSetting<String>(
+          StorageKeys.promptAssistantConfigJson,
+          any(),
+        ),
+      ).thenAnswer((_) async {});
+
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(localStorage),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(promptAssistantConfigProvider.notifier);
+      const providerId = 'openai_custom';
+      await notifier.upsertProvider(
+        const ProviderConfig(
+          id: providerId,
+          name: 'OpenAI Compatible',
+          type: ProviderType.openaiCompatible,
+          baseUrl: 'https://example.invalid/v1',
+          enabled: true,
+        ),
+      );
+      await notifier.upsertModel(
+        const ModelConfig(
+          providerId: providerId,
+          name: 'old-api-model',
+          displayName: 'old-api-model',
+          forTask: AssistantTaskType.llm,
+          source: ModelSource.api,
+        ),
+      );
+      await notifier.upsertModel(
+        const ModelConfig(
+          providerId: providerId,
+          name: 'manual-model',
+          displayName: 'manual-model',
+          forTask: AssistantTaskType.llm,
+        ),
+      );
+      await notifier.setRouting(
+        container
+            .read(promptAssistantConfigProvider)
+            .routing
+            .copyWithTask(
+              taskType: AssistantTaskType.llm,
+              providerId: providerId,
+              model: 'old-api-model',
+            ),
+      );
+
+      final removed = await notifier.syncProviderModels(
+        providerId,
+        const ['new-api-model'],
+      );
+      final state = container.read(promptAssistantConfigProvider);
+
+      expect(removed, ['old-api-model']);
+      expect(
+        state.models.any((model) => model.name == 'old-api-model'),
+        isFalse,
+      );
+      expect(
+        state.models.any((model) => model.name == 'manual-model'),
+        isTrue,
+      );
+      for (final taskType in AssistantTaskType.values) {
+        expect(
+          state.models.any(
+            (model) =>
+                model.providerId == providerId &&
+                model.forTask == taskType &&
+                model.name == 'new-api-model' &&
+                model.source == ModelSource.api,
+          ),
+          isTrue,
+        );
+      }
+      expect(
+        state.routing.modelFor(AssistantTaskType.llm),
+        'new-api-model',
+      );
     });
   });
 
@@ -2308,7 +2616,19 @@ class _FakeDanbooruSuggestionNotifier extends DanbooruSuggestionNotifier {
   TagSuggestionState build() => const TagSuggestionState();
 
   @override
-  void search(String query, {bool immediate = false}) {}
+  void search(String query, {bool immediate = false}) {
+    final suggestion = switch (query) {
+      'foot_focus' => const TagSuggestion(tag: 'foot_focus'),
+      'lo' => const TagSuggestion(tag: 'long_hair'),
+      _ => null,
+    };
+    if (suggestion == null) return;
+
+    state = TagSuggestionState(
+      suggestions: [suggestion],
+      currentQuery: query,
+    );
+  }
 
   @override
   void clear() {

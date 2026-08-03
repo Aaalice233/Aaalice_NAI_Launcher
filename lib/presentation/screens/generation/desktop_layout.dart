@@ -7,9 +7,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/queue/replication_task.dart';
-import '../../providers/character_panel_dock_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/image_generation_provider.dart';
+import '../../providers/generation/preview_selection_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/layout_state_provider.dart';
 import '../../providers/prompt_maximize_provider.dart';
@@ -50,19 +50,6 @@ class _DesktopGenerationLayoutState
   /// 切换提示词区域最大化状态
   void _togglePromptMaximize() {
     final newValue = !ref.read(promptMaximizeNotifierProvider);
-
-    // 如果即将最大化，自动退出停靠模式（两者互斥）
-    if (newValue) {
-      final isDocked = ref.read(characterPanelDockProvider);
-      if (isDocked) {
-        ref.read(characterPanelDockProvider.notifier).undock();
-        AppLogger.d(
-          'Auto-undocked character panel on maximize',
-          'DesktopLayout',
-        );
-      }
-    }
-
     ref.read(promptMaximizeNotifierProvider.notifier).setMaximized(newValue);
     AppLogger.d('Prompt area maximize toggled', 'DesktopLayout');
   }
@@ -73,6 +60,7 @@ class _DesktopGenerationLayoutState
     final layoutState = ref.watch(layoutStateNotifierProvider);
     // 从 Provider 读取生成状态（用于快捷键回调）
     final generationState = ref.watch(imageGenerationNotifierProvider);
+    final cooldownState = ref.watch(generationCooldownProvider);
     final kritaBridgeState = ref.watch(kritaBridgeNotifierProvider);
     final isLauncherGenerating = generationState.isGenerating;
     final isGenerating =
@@ -82,7 +70,7 @@ class _DesktopGenerationLayoutState
     final shortcuts = <String, VoidCallback>{
       // 生成图像
       ShortcutIds.generateImage: () {
-        if (!isGenerating) {
+        if (!isGenerating && !cooldownState.isActive) {
           unawaited(generateWithProtection(context, ref));
         }
       },
@@ -90,6 +78,8 @@ class _DesktopGenerationLayoutState
       ShortcutIds.cancelGeneration: () {
         if (isLauncherGenerating) {
           ref.read(imageGenerationNotifierProvider.notifier).cancel();
+        } else if (ref.read(generationPreviewSelectionProvider) != null) {
+          ref.read(generationPreviewSelectionProvider.notifier).clear();
         }
       },
       // 加入队列

@@ -216,8 +216,8 @@ class _EntryCardState extends State<EntryCard>
                         // 2. 轻微暗化遮罩（仅当有缩略图时显示）
                         if (entry.hasThumbnail) _buildDarkenOverlay(),
 
-                        // 3. 内容区域（仅显示名称，按钮移到外层）
-                        if (!widget.isSelectionMode && !_isHovering)
+                        // 3. 内容区域（悬浮操作态隐藏，多选时仍保留名称）
+                        if (widget.isSelectionMode || !_isHovering)
                           _buildNameArea(theme, entry),
 
                         // 4. 收藏图标（常驻显示在右上角，仅非选择模式、非悬浮且已收藏时）
@@ -262,7 +262,7 @@ class _EntryCardState extends State<EntryCard>
     );
 
     // 外层包装：MouseRegion + 悬浮按钮层
-    Widget cardContent = CompositedTransformTarget(
+    final cardContent = CompositedTransformTarget(
       link: _layerLink,
       child: MouseRegion(
         onEnter: (_) => _onEnter(),
@@ -289,34 +289,33 @@ class _EntryCardState extends State<EntryCard>
       ),
     );
 
-    // 如果启用拖拽，包装为 Draggable
-    if (widget.enableDrag) {
-      cardContent = Draggable<TagLibraryEntry>(
-        data: entry,
-        feedback: _buildDragFeedback(theme, entry),
-        childWhenDragging: Opacity(
-          opacity: 0.4,
-          child: cardContent,
-        ),
-        onDragStarted: () {
-          HapticFeedback.mediumImpact();
-          _hidePreviewOverlay();
-          setState(() {
-            _isDragging = true;
-            _isHovering = false;
-          });
-          _animationController.reverse();
-        },
-        onDragEnd: (_) {
-          setState(() {
-            _isDragging = false;
-          });
-        },
+    // 保持根节点稳定，避免切换多选模式时重建缩略图子树。
+    return Draggable<TagLibraryEntry>(
+      data: entry,
+      maxSimultaneousDrags: widget.enableDrag ? null : 0,
+      feedback: widget.enableDrag
+          ? _buildDragFeedback(theme, entry)
+          : const SizedBox.shrink(),
+      childWhenDragging: Opacity(
+        opacity: 0.4,
         child: cardContent,
-      );
-    }
-
-    return cardContent;
+      ),
+      onDragStarted: () {
+        HapticFeedback.mediumImpact();
+        _hidePreviewOverlay();
+        setState(() {
+          _isDragging = true;
+          _isHovering = false;
+        });
+        _animationController.reverse();
+      },
+      onDragEnd: (_) {
+        setState(() {
+          _isDragging = false;
+        });
+      },
+      child: cardContent,
+    );
   }
 
   /// 构建背景图片

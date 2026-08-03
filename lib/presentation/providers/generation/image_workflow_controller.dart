@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image/image.dart' as img;
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/storage_keys.dart';
@@ -158,6 +157,29 @@ bool shouldAutoPersistResolvedUpscaleModel({
   return resolvedModel != currentModel;
 }
 
+/// 决定 SeedVR2 是否把 DiT 的输入输出组件（embedding 与归一化层）也卸载到
+/// CPU 内存。
+///
+/// 上游把这个开关描述为「在 blocks_to_swap 之上进一步压低显存」的手段，默认
+/// 关闭，只在显存确实吃紧时才建议打开；它同样要求 offload_device 已设置。
+/// 启动器此前把它固定为 true，导致用户即使把 [blocksToSwap] 调到 0，仍有一部分
+/// 权重留在内存里、每次前向都要经 PCIe 往返。
+///
+/// [blocksToSwap] 为用户在界面上设定的层数，范围见
+/// [UpscaleWorkflowSettings.minSeedvr2BlocksToSwap] 与
+/// [UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap]。
+bool resolveSeedvr2SwapIoComponents(int blocksToSwap) {
+  return blocksToSwap >= seedvr2SwapIoComponentsThreshold;
+}
+
+/// [resolveSeedvr2SwapIoComponents] 启用输入输出组件卸载的层数阈值。
+///
+/// 取值落在默认档（[UpscaleWorkflowSettings.defaultSeedvr2BlocksToSwap]）与
+/// 上游给 8GB 显存的推荐档（32）之间：停在中低档位说明显存尚有余量，不值得
+/// 为有限的显存收益换来每次前向都要付的 PCIe 往返；用户主动调到该档位以上，
+/// 才说明显存确实吃紧、需要这个额外手段。
+const int seedvr2SwapIoComponentsThreshold = 24;
+
 /// 图生图「超分」子模式设置
 class UpscaleWorkflowSettings {
   const UpscaleWorkflowSettings({
@@ -170,6 +192,7 @@ class UpscaleWorkflowSettings {
     this.seedvr2VaeTileSize = defaultSeedvr2VaeTileSize,
     this.seedvr2Tiled = false,
     this.seedvr2TileSize = defaultSeedvr2TileSize,
+    this.seedvr2BlocksToSwap = defaultSeedvr2BlocksToSwap,
   });
 
   static const UpscaleBackend defaultBackend = UpscaleBackend.comfyui;
@@ -181,6 +204,13 @@ class UpscaleWorkflowSettings {
   static const int defaultSeedvr2VaeTileSize = 1024;
   static const int defaultSeedvr2TileSize = 1024;
 
+  /// SeedVR2 DiT 主干中放在 CPU 内存、推理时再逐层搬进显存的层数。
+  ///
+  /// 这个值决定权重在显存和内存之间怎么切分：调高省显存但吃内存并变慢，
+  /// 调低反之。默认取上游建议的起步值，保证 8GB 显存搭配默认的 3B 量化模型
+  /// 可以直接跑起来；显存充裕的用户可以在界面上调低以释放内存。
+  static const int defaultSeedvr2BlocksToSwap = 16;
+
   final UpscaleBackend backend;
   final ComfyUpscaleModule comfyModule;
   final double comfyScale;
@@ -190,6 +220,7 @@ class UpscaleWorkflowSettings {
   final int seedvr2VaeTileSize;
   final bool seedvr2Tiled;
   final int seedvr2TileSize;
+  final int seedvr2BlocksToSwap;
 
   static const double minScale = 1.0;
   static const double maxScale = 2.0;
@@ -197,6 +228,10 @@ class UpscaleWorkflowSettings {
   static const int maxSeedvr2VaeTileSize = 4096;
   static const int minSeedvr2TileSize = 256;
   static const int maxSeedvr2TileSize = 4096;
+  static const int minSeedvr2BlocksToSwap = 0;
+
+  /// 上游节点对 7B 模型的上限即为 36；更小的模型层数不足时会自行截断。
+  static const int maxSeedvr2BlocksToSwap = 36;
 
   UpscaleWorkflowSettings copyWith({
     UpscaleBackend? backend,
@@ -208,6 +243,7 @@ class UpscaleWorkflowSettings {
     int? seedvr2VaeTileSize,
     bool? seedvr2Tiled,
     int? seedvr2TileSize,
+    int? seedvr2BlocksToSwap,
   }) {
     return UpscaleWorkflowSettings(
       backend: backend ?? this.backend,
@@ -219,6 +255,7 @@ class UpscaleWorkflowSettings {
       seedvr2VaeTileSize: seedvr2VaeTileSize ?? this.seedvr2VaeTileSize,
       seedvr2Tiled: seedvr2Tiled ?? this.seedvr2Tiled,
       seedvr2TileSize: seedvr2TileSize ?? this.seedvr2TileSize,
+      seedvr2BlocksToSwap: seedvr2BlocksToSwap ?? this.seedvr2BlocksToSwap,
     );
   }
 
@@ -293,7 +330,6 @@ class ImageWorkflowState {
     this.baseHeight,
     this.baseStrength,
     this.baseNoise,
-    this.baseModel,
     this.enhance = const EnhanceWorkflowSettings(),
     this.upscale = const UpscaleWorkflowSettings(),
     this.isPanelExpanded = false,
@@ -312,7 +348,6 @@ class ImageWorkflowState {
   final int? baseHeight;
   final double? baseStrength;
   final double? baseNoise;
-  final String? baseModel;
   final EnhanceWorkflowSettings enhance;
   final UpscaleWorkflowSettings upscale;
   final bool isPanelExpanded;
@@ -335,7 +370,6 @@ class ImageWorkflowState {
     int? baseHeight,
     double? baseStrength,
     double? baseNoise,
-    String? baseModel,
     EnhanceWorkflowSettings? enhance,
     UpscaleWorkflowSettings? upscale,
     bool? isPanelExpanded,
@@ -365,7 +399,6 @@ class ImageWorkflowState {
           ? null
           : (baseStrength ?? this.baseStrength),
       baseNoise: clearBaseSnapshot ? null : (baseNoise ?? this.baseNoise),
-      baseModel: clearBaseSnapshot ? null : (baseModel ?? this.baseModel),
       enhance: enhance ?? this.enhance,
       upscale: upscale ?? this.upscale,
       isPanelExpanded: isPanelExpanded ?? this.isPanelExpanded,
@@ -455,6 +488,12 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       min: UpscaleWorkflowSettings.minSeedvr2TileSize,
       max: UpscaleWorkflowSettings.maxSeedvr2TileSize,
     );
+    final persistedSeedvr2BlocksToSwap = _readPersistedIntSetting(
+      StorageKeys.comfyuiSeedvr2BlocksToSwap,
+      defaultValue: UpscaleWorkflowSettings.defaultSeedvr2BlocksToSwap,
+      min: UpscaleWorkflowSettings.minSeedvr2BlocksToSwap,
+      max: UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap,
+    );
     final persistedEnhance = _readPersistedEnhanceSettings();
 
     return _buildDefaultState(
@@ -469,6 +508,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
         seedvr2VaeTileSize: persistedSeedvr2VaeTileSize,
         seedvr2Tiled: persistedSeedvr2Tiled,
         seedvr2TileSize: persistedSeedvr2TileSize,
+        seedvr2BlocksToSwap: persistedSeedvr2BlocksToSwap,
       ),
     );
   }
@@ -682,6 +722,12 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
         settings.seedvr2TileSize,
       ),
     );
+    unawaited(
+      _storage.setSetting(
+        StorageKeys.comfyuiSeedvr2BlocksToSwap,
+        settings.seedvr2BlocksToSwap,
+      ),
+    );
   }
 
   void _persistEnhanceSettings(EnhanceWorkflowSettings settings) {
@@ -854,13 +900,11 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
   }
 
   void clearSourceImage() {
-    if (state.baseWidth != null ||
-        state.baseHeight != null ||
-        state.baseModel != null) {
+    if (state.baseWidth != null || state.baseHeight != null) {
       _restoreBaseParams();
     } else if (ImageModels.isInpaintingModel(_params.model)) {
       _paramsNotifier.updateModel(
-        _resolveBaseModel(_params.model),
+        ImageModels.resolveBaseModel(_params.model),
         persist: false,
       );
     }
@@ -985,6 +1029,20 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
           .clamp(
             UpscaleWorkflowSettings.minSeedvr2TileSize,
             UpscaleWorkflowSettings.maxSeedvr2TileSize,
+          )
+          .toInt(),
+    );
+    state = state.copyWith(upscale: nextSettings);
+    _persistUpscaleSettings(nextSettings);
+  }
+
+  void updateSeedvr2BlocksToSwap(double value) {
+    final nextSettings = state.upscale.copyWith(
+      seedvr2BlocksToSwap: value
+          .round()
+          .clamp(
+            UpscaleWorkflowSettings.minSeedvr2BlocksToSwap,
+            UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap,
           )
           .toInt(),
     );
@@ -1302,7 +1360,6 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       baseHeight: _params.height,
       baseStrength: _params.strength,
       baseNoise: _params.noise,
-      baseModel: _resolveBaseModel(_params.model),
     );
   }
 
@@ -1319,9 +1376,6 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     }
     if (state.baseNoise != null) {
       _paramsNotifier.updateNoise(state.baseNoise!);
-    }
-    if (state.baseModel != null) {
-      _paramsNotifier.updateModel(state.baseModel!, persist: false);
     }
   }
 
@@ -1358,76 +1412,19 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     _paramsNotifier.updateSize(width, height, persist: false);
   }
 
-  void _applyInpaintModel() {
-    final sourceModel = state.baseModel ?? _params.model;
-    _paramsNotifier.updateModel(
-      _resolveInpaintModel(sourceModel),
-      persist: false,
-    );
-  }
-
-  void _restoreBaseModel() {
-    final baseModel = state.baseModel ?? _resolveBaseModel(_params.model);
-    _paramsNotifier.updateModel(baseModel, persist: false);
-  }
-
   void _syncInpaintRequestState() {
     if (state.mode != ImageWorkflowMode.inpaint) {
       return;
     }
 
     if (_params.maskImage != null) {
-      _applyInpaintModel();
       _paramsNotifier.updateIsOutpaint(state.isOutpaint);
       _paramsNotifier.updateAction(ImageGenerationAction.infill);
       return;
     }
 
-    _restoreBaseModel();
     _paramsNotifier.updateIsOutpaint(false);
     _paramsNotifier.updateAction(ImageGenerationAction.img2img);
-  }
-
-  String _resolveInpaintModel(String model) {
-    if (ImageModels.isInpaintingModel(model)) {
-      return model;
-    }
-
-    switch (model) {
-      case ImageModels.animeDiffusionV45Full:
-        return ImageModels.animeDiffusionV45FullInpainting;
-      case ImageModels.animeDiffusionV45Curated:
-        return ImageModels.animeDiffusionV45CuratedInpainting;
-      case ImageModels.animeDiffusionV4Full:
-        return ImageModels.animeDiffusionV4FullInpainting;
-      case ImageModels.animeDiffusionV4Curated:
-        return ImageModels.animeDiffusionV4CuratedInpainting;
-      case ImageModels.furryDiffusion:
-      case ImageModels.furryDiffusionV3:
-        return ImageModels.furryDiffusionV3Inpainting;
-      case ImageModels.animeDiffusionV3:
-      default:
-        return ImageModels.animeDiffusionV3Inpainting;
-    }
-  }
-
-  String _resolveBaseModel(String model) {
-    switch (model) {
-      case ImageModels.animeDiffusionV45FullInpainting:
-        return ImageModels.animeDiffusionV45Full;
-      case ImageModels.animeDiffusionV45CuratedInpainting:
-        return ImageModels.animeDiffusionV45Curated;
-      case ImageModels.animeDiffusionV4FullInpainting:
-        return ImageModels.animeDiffusionV4Full;
-      case ImageModels.animeDiffusionV4CuratedInpainting:
-        return ImageModels.animeDiffusionV4Curated;
-      case ImageModels.furryDiffusionV3Inpainting:
-        return ImageModels.furryDiffusionV3;
-      case ImageModels.animeDiffusionV3Inpainting:
-        return ImageModels.animeDiffusionV3;
-      default:
-        return model;
-    }
   }
 
   (double, double) _resolveMagnitude(double magnitude) {
@@ -1443,7 +1440,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
   }
 
   bool _usesStableDiffusionImportBounds(String model) {
-    final baseModel = _resolveBaseModel(model);
+    final baseModel = ImageModels.resolveBaseModel(model);
     return baseModel == ImageModels.animeCurated ||
         baseModel == ImageModels.animeFull ||
         baseModel == ImageModels.furry;
@@ -1458,10 +1455,6 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       return (width, height);
     }
 
-    final decoded = img.decodeImage(imageBytes);
-    if (decoded == null) {
-      return null;
-    }
-    return (decoded.width, decoded.height);
+    return NaiResolutionAdapter.readImageSize(imageBytes);
   }
 }

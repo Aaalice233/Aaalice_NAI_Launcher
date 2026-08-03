@@ -28,28 +28,38 @@ void main() {
       );
     });
 
-    test('should preserve tag qualifiers while converting standalone emphasis',
-        () {
-      expect(
-        SdToNaiConverter.convert(
-          'summer dress (blue archive), (cinematic lighting)',
-        ),
-        equals('summer dress (blue archive), 1.1::cinematic lighting::'),
-      );
-    });
+    test(
+      'should preserve bare brackets while converting explicit SD weights',
+      () {
+        expect(
+          SdToNaiConverter.convert(
+            'summer dress (blue archive), (cinematic lighting), '
+            '[bad anatomy], (dramatic shadows:1.25)',
+          ),
+          equals(
+            'summer dress (blue archive), (cinematic lighting), '
+            '[bad anatomy], 1.25::dramatic shadows::',
+          ),
+        );
+      },
+    );
 
-    test('should still convert standalone emphasis brackets', () {
+    test('should preserve standalone NAI-compatible brackets', () {
       expect(
         SdToNaiConverter.convert('(masterpiece)'),
-        equals('1.1::masterpiece::'),
+        equals('(masterpiece)'),
+      );
+      expect(
+        SdToNaiConverter.convert('[bad anatomy]'),
+        equals('[bad anatomy]'),
+      );
+      expect(
+        SdToNaiConverter.convert('((masterpiece))'),
+        equals('((masterpiece))'),
       );
     });
 
     test('should preserve spaces when only converting SD syntax', () {
-      expect(
-        SdToNaiConverter.convert('(long hair)'),
-        equals('1.1::long hair::'),
-      );
       expect(
         SdToNaiConverter.convert('(cinematic lighting:1.3)'),
         equals('1.3::cinematic lighting::'),
@@ -73,11 +83,9 @@ void main() {
     test('should convert SD weights when NAI numeric syntax is present', () {
       expect(
         SdToNaiConverter.convert(
-          '1.2::masterpiece::, (cinematic lighting), [bad anatomy]',
+          '1.2::masterpiece::, (cinematic lighting:1.3), [bad anatomy]',
         ),
-        equals(
-          '1.2::masterpiece::, 1.1::cinematic lighting::, 0.90909::bad anatomy::',
-        ),
+        equals('1.2::masterpiece::, 1.3::cinematic lighting::, [bad anatomy]'),
       );
     });
 
@@ -90,8 +98,37 @@ void main() {
 
     test('should unescape escaped parentheses while converting SD weights', () {
       expect(
-        SdToNaiConverter.convert(r'\(literal\), (cinematic lighting)'),
-        equals('(literal), 1.1::cinematic lighting::'),
+        SdToNaiConverter.convert(r'\(literal\), (cinematic lighting:1.3)'),
+        equals('(literal), 1.3::cinematic lighting::'),
+      );
+    });
+
+    test('should only detect explicit bracket weights as SD syntax', () {
+      expect(SdToNaiConverter.hasSDWeightSyntax('(masterpiece)'), isFalse);
+      expect(SdToNaiConverter.hasSDWeightSyntax('[bad anatomy]'), isFalse);
+      expect(SdToNaiConverter.hasSDWeightSyntax('(masterpiece:1.2)'), isTrue);
+      expect(SdToNaiConverter.hasSDWeightSyntax('[bad anatomy:0.8]'), isTrue);
+      expect(SdToNaiConverter.hasSDWeightSyntax('(red hair:.5)'), isTrue);
+      expect(SdToNaiConverter.hasSDWeightSyntax('(tag:-.5)'), isTrue);
+      expect(SdToNaiConverter.hasSDWeightSyntax('((red hair):1.2)'), isTrue);
+    });
+
+    test('should convert leading-decimal and nested explicit weights', () {
+      expect(
+        SdToNaiConverter.convert('(red hair:.5)'),
+        equals('0.5::red hair::'),
+      );
+      expect(SdToNaiConverter.convert('(tag:-.5)'), equals('-0.5::tag::'));
+      expect(
+        SdToNaiConverter.convert('((red hair):1.2)'),
+        equals('1.2::(red hair)::'),
+      );
+    });
+
+    test('should convert explicit square-bracket weights', () {
+      expect(
+        SdToNaiConverter.convert('[bad anatomy:0.8]'),
+        equals('0.8::bad anatomy::'),
       );
     });
   });

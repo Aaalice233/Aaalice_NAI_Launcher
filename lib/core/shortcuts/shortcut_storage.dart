@@ -14,10 +14,25 @@ class ShortcutStorage {
 
   factory ShortcutStorage() => _instance;
 
-  ShortcutStorage._internal();
+  ShortcutStorage._internal({
+    Future<String?> Function()? readConfigOverride,
+    Future<void> Function(String value)? writeConfigOverride,
+  }) : _readConfigOverride = readConfigOverride,
+       _writeConfigOverride = writeConfigOverride;
+
+  @visibleForTesting
+  ShortcutStorage.forTesting({
+    required Future<String?> Function() readConfig,
+    required Future<void> Function(String value) writeConfig,
+  }) : this._internal(
+         readConfigOverride: readConfig,
+         writeConfigOverride: writeConfig,
+       );
 
   Box? _box;
   bool _initialized = false;
+  final Future<String?> Function()? _readConfigOverride;
+  final Future<void> Function(String value)? _writeConfigOverride;
 
   /// 初始化存储
   Future<void> init() async {
@@ -48,28 +63,37 @@ class ShortcutStorage {
   /// 加载快捷键配置
   /// 如果没有保存的配置，返回默认配置
   Future<ShortcutConfig> loadConfig() async {
+    late final ShortcutConfig loaded;
     try {
-      final box = await _safeBox;
-      final jsonString = box.get(_configKey) as String?;
+      final jsonString = await _readConfigString();
       if (jsonString == null || jsonString.isEmpty) {
         return ShortcutConfig.createDefault();
       }
 
       final json = jsonDecode(jsonString) as Map<String, dynamic>;
-      return ShortcutConfig.fromJson(json);
+      loaded = ShortcutConfig.fromJson(json);
     } catch (e) {
       debugPrint('Failed to load shortcut config: $e');
       return ShortcutConfig.createDefault();
     }
+
+    final merged = loaded.mergedWithDefaults();
+    if (merged != loaded) {
+      try {
+        await saveConfig(merged);
+      } catch (e) {
+        debugPrint('Failed to persist merged shortcut config: $e');
+      }
+    }
+    return merged;
   }
 
   /// 保存快捷键配置
   Future<void> saveConfig(ShortcutConfig config) async {
     try {
-      final box = await _safeBox;
       final json = config.toJson();
       final jsonString = jsonEncode(json);
-      await box.put(_configKey, jsonString);
+      await _writeConfigString(jsonString);
     } catch (e) {
       debugPrint('Failed to save shortcut config: $e');
       rethrow;
@@ -94,7 +118,7 @@ class ShortcutStorage {
   Future<ShortcutConfig> importConfig(String jsonString) async {
     try {
       final json = jsonDecode(jsonString) as Map<String, dynamic>;
-      final config = ShortcutConfig.fromJson(json);
+      final config = ShortcutConfig.fromJson(json).mergedWithDefaults();
       await saveConfig(config);
       return config;
     } catch (e) {
@@ -116,6 +140,20 @@ class ShortcutStorage {
   Future<void> clear() async {
     final box = await _safeBox;
     await box.clear();
+  }
+
+  Future<String?> _readConfigString() async {
+    final override = _readConfigOverride;
+    if (override != null) return override();
+    final box = await _safeBox;
+    return box.get(_configKey) as String?;
+  }
+
+  Future<void> _writeConfigString(String value) async {
+    final override = _writeConfigOverride;
+    if (override != null) return override(value);
+    final box = await _safeBox;
+    await box.put(_configKey, value);
   }
 }
 

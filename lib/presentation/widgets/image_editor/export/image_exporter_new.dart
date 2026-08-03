@@ -15,9 +15,13 @@ class ImageExporterNew {
   /// Renders the merged editor canvas once and returns unencoded RGBA pixels.
   static Future<EditorRawRgbaImage> exportMergedRgba(
     LayerManager layerManager,
-    Size canvasSize,
-  ) async {
-    final image = await layerManager.exportMergedImage(canvasSize);
+    Size canvasSize, {
+    bool transparentBackground = false,
+  }) async {
+    final image = await layerManager.exportMergedImage(
+      canvasSize,
+      transparentBackground: transparentBackground,
+    );
     final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
     final width = image.width;
     final height = image.height;

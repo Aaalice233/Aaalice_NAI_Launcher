@@ -14,4 +14,13 @@ void main() {
       expect(lineCount, lessThanOrEqualTo(2300));
     },
   );
+
+  test('dashboard statistics queries never select full metadata rows', () {
+    final source = File(
+      'lib/core/database/datasources/gallery_data_source_statistics.dart',
+    ).readAsStringSync();
+
+    expect(source.toUpperCase(), isNot(contains('SELECT *')));
+    expect(source, isNot(contains('raw_json')));
+  });
 }

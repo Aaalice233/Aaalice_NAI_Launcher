@@ -3,7 +3,6 @@
 // 此文件导出所有桌面端布局相关的组件。
 
 // export 'batch_settings_sheet.dart';  // 文件不存在，暂时注释
-export 'character_panel.dart';
 export 'collapsed_panel.dart';
 export 'drag_target_wrapper.dart';
 export 'empty_state_card.dart';

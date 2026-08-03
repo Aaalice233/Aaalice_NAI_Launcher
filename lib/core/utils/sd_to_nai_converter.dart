@@ -1,85 +1,44 @@
 import 'tag_normalizer.dart';
 
-/// 括号条目，记录开括号时的位置和对应的闭括号位置
-class _BracketEntry {
-  final int startPosition;
-  final int closeIndex;
-
-  _BracketEntry(
-    this.startPosition,
-    this.closeIndex,
-  );
-}
-
 /// SD权重语法到NAI V4数值语法的转换工具
 ///
 /// 转换规则：
-/// - SD格式: (text:1.5) 或 (text) 或 [text]
+/// - SD格式: (text:1.5) 或 [text:0.8]
 /// - NAI V4格式: 1.5::text::
+/// - 不带数值权重的 `(text)`、`[text]` 保持原样
 ///
 /// 参考: https://github.com/Metachs/sdwebui-nai-api
 class SdToNaiConverter {
   SdToNaiConverter._();
 
-  static final RegExp _whitespaceCharPattern = RegExp(r'\s');
-
-  /// SD圆括号默认权重倍数
-  static const double _roundBracketMultiplier = 1.1;
-
-  /// SD方括号默认权重倍数
-  static const double _squareBracketMultiplier = 1 / 1.1; // ≈ 0.909
-
-  /// 检测文本是否包含SD权重语法
+  /// 检测文本是否包含带数值的 SD 权重语法。
   ///
-  /// 使用启发式规则区分真正的 SD 权重括号和 Danbooru 标签中的括号：
-  /// - 标签名中的括号：前面是下划线，内部是标签名（无空格），如 `character_(series)`
-  /// - SD 权重括号：前后有空格/逗号，或内部有空格，或有明确的权重值，或多层嵌套
+  /// 普通圆括号和方括号也可用于 NAI 提示词，因此不据此推断 SD 权重。
   static bool hasSDWeightSyntax(String text) {
-    // 首先检查明确的 SD 权重语法：(text:weight)
-    if (_hasExplicitWeightSyntax(text)) {
-      return true;
-    }
-
-    // 然后检查可能的权重括号（排除标签名中的括号）
-    return _hasProbableWeightBrackets(text);
+    return _hasExplicitWeightSyntax(text);
   }
 
   /// 检测明确的权重语法：(text:weight) 或 [text:weight]
   static bool _hasExplicitWeightSyntax(String text) {
-    // 匹配 (text:1.5) 或 [text:0.8] 这种明确指定权重的格式
-    final explicitWeightPattern = RegExp(
-      r'[\(\[]\s*[^\(\)\[\]:]+\s*:\s*[+-]?\d+\.?\d*\s*[\)\]]',
-    );
-    return explicitWeightPattern.hasMatch(text);
-  }
-
-  /// 检测可能的权重括号（排除标签名中的括号）
-  static bool _hasProbableWeightBrackets(String text) {
-    for (var i = 0; i < text.length; i++) {
-      final char = text[i];
-
-      // 只处理开括号
-      if (char != '(' && char != '[') continue;
-
-      // 检查是否是转义字符（前面有奇数个反斜杠）
-      if (_isEscaped(text, i)) continue;
-
-      final isRound = char == '(';
-      final closeChar = isRound ? ')' : ']';
-
-      // 找到对应的闭括号
-      final closeIndex = _findMatchingCloseBracket(text, i, char, closeChar);
-      if (closeIndex == -1) continue; // 未闭合，跳过
-
-      final content = text.substring(i + 1, closeIndex);
-
-      // 判断这是否是标签名中的括号
-      if (_isTagNameBracket(text, i, closeIndex, content)) {
-        continue; // 是标签名括号，跳过
+    for (var index = 0; index < text.length; index++) {
+      final openChar = text[index];
+      if ((openChar != '(' && openChar != '[') || _isEscaped(text, index)) {
+        continue;
       }
 
-      // 是 SD 权重括号
-      return true;
+      final closeChar = openChar == '(' ? ')' : ']';
+      final closeIndex = _findMatchingCloseBracket(
+        text,
+        index,
+        openChar,
+        closeChar,
+      );
+      if (closeIndex < 0) continue;
+
+      final content = text.substring(index + 1, closeIndex);
+      if (_extractExplicitWeight(content) != null) {
+        return true;
+      }
     }
     return false;
   }
@@ -113,141 +72,6 @@ class SdToNaiConverter {
     return -1; // 未找到
   }
 
-  /// 判断括号是否是标签文本的一部分，而不是 SD 权重语法。
-  ///
-  /// 需要兼容两类常见情况：
-  /// 1. Danbooru 风格标签：`character_(series)`
-  /// 2. 用户手写的尾随限定词：`summer dress (blue archive)`
-  ///
-  /// 对于第 2 类，只有在括号前已经存在同一段标签文本时才视为限定词；
-  /// 这样仍然允许 `(masterpiece)` 这类独立括号被识别为 SD 权重。
-  static bool _isTagNameBracket(
-    String text,
-    int openIndex,
-    int closeIndex,
-    String content,
-  ) {
-    // 检查前面是否是下划线
-    final hasUnderscoreBefore = openIndex > 0 && text[openIndex - 1] == '_';
-
-    // 检查内部是否包含空格或逗号（标签名中通常不会有）
-    final hasSpaceOrComma = content.contains(RegExp(r'[\s,]'));
-
-    // 检查内部是否是合法的标签名格式
-    // 标签名通常由字母、数字、下划线、连字符组成
-    final isValidTagContent =
-        RegExp(r'^[a-zA-Z0-9_\-\.]+$').hasMatch(content.trim());
-
-    // 检查内部是否包含嵌套括号（标签名中不会有）
-    final hasNestedBrackets = content.contains('(') ||
-        content.contains(')') ||
-        content.contains('[') ||
-        content.contains(']');
-
-    // 标签名括号的判断：前面有下划线 + 内部是合法标签内容 + 无空格/逗号 + 无嵌套
-    if (hasUnderscoreBefore &&
-        isValidTagContent &&
-        !hasSpaceOrComma &&
-        !hasNestedBrackets) {
-      return true;
-    }
-
-    // 额外检查：即使前面没有下划线，如果内部明显是标签名格式（如 series_name）
-    // 且前后都是下划线或边界，也认为是标签名括号
-    final beforeChar = openIndex > 0 ? text[openIndex - 1] : '';
-    final afterChar = closeIndex < text.length - 1 ? text[closeIndex + 1] : '';
-
-    if ((beforeChar == '_' ||
-            beforeChar == '' ||
-            beforeChar == ' ' ||
-            beforeChar == ',') &&
-        (afterChar == '_' ||
-            afterChar == '' ||
-            afterChar == ' ' ||
-            afterChar == ',') &&
-        isValidTagContent &&
-        !hasSpaceOrComma &&
-        !hasNestedBrackets &&
-        content.contains('_')) {
-      // 内部包含下划线，说明可能是 series_name 或 copyright_name
-      return true;
-    }
-
-    final prevNonWhitespaceIndex =
-        _findPreviousNonWhitespaceIndex(text, openIndex);
-    if (prevNonWhitespaceIndex != -1 &&
-        isValidTagContent &&
-        !hasSpaceOrComma &&
-        !hasNestedBrackets &&
-        content.contains('_')) {
-      final previousChar = text[prevNonWhitespaceIndex];
-      final gap = text.substring(prevNonWhitespaceIndex + 1, openIndex);
-      final looksLikeInlineTagSuffix = gap.trim().isEmpty &&
-          RegExp(r'[a-zA-Z0-9_\-]$').hasMatch(previousChar) &&
-          previousChar != ',' &&
-          previousChar != '(' &&
-          previousChar != '[';
-      if (looksLikeInlineTagSuffix) {
-        return true;
-      }
-    }
-
-    if (_isInlineQualifierBracket(
-      text,
-      openIndex,
-      content,
-      hasNestedBrackets,
-    )) {
-      return true;
-    }
-
-    return false;
-  }
-
-  static bool _isInlineQualifierBracket(
-    String text,
-    int openIndex,
-    String content,
-    bool hasNestedBrackets,
-  ) {
-    if (content.trim().isEmpty || hasNestedBrackets || content.contains(',')) {
-      return false;
-    }
-
-    final segmentPrefix = _extractCurrentSegmentPrefix(text, openIndex);
-    if (segmentPrefix.trim().isEmpty) {
-      return false;
-    }
-
-    final previousCharIndex = _findPreviousNonWhitespaceIndex(text, openIndex);
-    if (previousCharIndex == -1) {
-      return false;
-    }
-
-    final previousChar = text[previousCharIndex];
-    return RegExp(r'[a-zA-Z0-9_\-\)\]]$').hasMatch(previousChar);
-  }
-
-  static String _extractCurrentSegmentPrefix(String text, int openIndex) {
-    var segmentStart = 0;
-    for (var i = openIndex - 1; i >= 0; i--) {
-      if (text[i] == ',') {
-        segmentStart = i + 1;
-        break;
-      }
-    }
-    return text.substring(segmentStart, openIndex);
-  }
-
-  static int _findPreviousNonWhitespaceIndex(String text, int startExclusive) {
-    for (var i = startExclusive - 1; i >= 0; i--) {
-      if (!_whitespaceCharPattern.hasMatch(text[i])) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
   /// 检测文本是否已经包含NAI语法
   static bool hasNAISyntax(String text) {
     // NAI V4数值语法: weight::text:: (数字后跟双冒号，支持 1.5:: 或 .5:: 格式)
@@ -276,15 +100,15 @@ class SdToNaiConverter {
   ///
   /// 示例:
   /// - `(text:1.5)` → `1.5::text::`
-  /// - `(long hair)` → `1.1::long hair::`
-  /// - `[ugly]` → `0.91::ugly::`
+  /// - `[text:0.8]` → `0.8::text::`
+  /// - `(long hair)` → `(long hair)` (保留 NAI 可用的括号)
+  /// - `[ugly]` → `[ugly]` (保留 NAI 弱化语法)
   /// - `\(text\)` → `(text)` (移除圆括号转义符)
   ///
   /// 注意：只负责 SD 语法转换，不做通用空格转换
   /// 是否将空格转换为下划线由 NaiPromptFormatter 统一负责
   static String convert(String text) {
-    // 按局部 SD 权重语法转换；已有 NAI 语法不应阻止同一提示词中
-    // 其它 `(tag)` / `[tag]` 片段被转换。
+    // 只转换带数值的 SD 权重；普通括号属于合法 NAI 提示词内容。
     if (hasSDWeightSyntax(text)) {
       final parsed = _parsePromptAttention(text);
       return _buildNaiV4(parsed);
@@ -296,18 +120,8 @@ class SdToNaiConverter {
 
   /// 解析SD权重语法
   /// 返回 List<[text, weight]>
-  ///
-  /// 注意：此方法会正确处理标签名中的括号（如 character_(series)）
   static List<List<dynamic>> _parsePromptAttention(String text) {
     final res = <List<dynamic>>[];
-    final roundBracketStack = <_BracketEntry>[];
-    final squareBracketStack = <_BracketEntry>[];
-
-    void multiplyRange(int startPosition, double multiplier) {
-      for (var p = startPosition; p < res.length; p++) {
-        res[p][1] = (res[p][1] as double) * multiplier;
-      }
-    }
 
     var i = 0;
     while (i < text.length) {
@@ -334,8 +148,7 @@ class SdToNaiConverter {
 
       // 处理开括号
       if (char == '(' || char == '[') {
-        final isRound = char == '(';
-        final closeChar = isRound ? ')' : ']';
+        final closeChar = char == '(' ? ')' : ']';
 
         // 找到对应的闭括号
         final closeIndex = _findMatchingCloseBracket(text, i, char, closeChar);
@@ -347,14 +160,6 @@ class SdToNaiConverter {
         }
 
         final content = text.substring(i + 1, closeIndex);
-
-        // 检查是否是标签名中的括号
-        if (_isTagNameBracket(text, i, closeIndex, content)) {
-          // 标签名括号：作为普通文本处理，内容会在后续循环中处理
-          res.add([char, 1.0]);
-          i++;
-          continue;
-        }
 
         // 检查是否是 (text:weight) 明确权重格式
         final explicitWeight = _extractExplicitWeight(content);
@@ -369,44 +174,8 @@ class SdToNaiConverter {
           continue;
         }
 
-        // SD 权重括号：记录位置，内容正常处理（权重在闭括号时应用）
-        final bracketList = isRound ? roundBracketStack : squareBracketStack;
-        bracketList.add(_BracketEntry(res.length, closeIndex));
-        i++;
-        continue;
-      }
-
-      // 处理闭括号
-      if (char == ')') {
-        // 检查是否是SD权重括号的闭括号
-        final matchingEntryIndex =
-            roundBracketStack.indexWhere((e) => e.closeIndex == i);
-        if (matchingEntryIndex != -1) {
-          // 移除该括号条目（以及可能嵌套在其内部的所有条目）
-          final entry = roundBracketStack.removeAt(matchingEntryIndex);
-          // 对从开括号位置到当前的所有内容应用权重
-          multiplyRange(entry.startPosition, _roundBracketMultiplier);
-        } else {
-          // 没有匹配的开括号，作为普通文本
-          res.add([char, 1.0]);
-        }
-        i++;
-        continue;
-      }
-
-      if (char == ']') {
-        // 检查是否是SD权重括号的闭括号
-        final matchingEntryIndex =
-            squareBracketStack.indexWhere((e) => e.closeIndex == i);
-        if (matchingEntryIndex != -1) {
-          // 移除该括号条目（以及可能嵌套在其内部的所有条目）
-          final entry = squareBracketStack.removeAt(matchingEntryIndex);
-          // 对从开括号位置到当前的所有内容应用权重
-          multiplyRange(entry.startPosition, _squareBracketMultiplier);
-        } else {
-          // 没有匹配的开括号，作为普通文本
-          res.add([char, 1.0]);
-        }
+        // 普通括号属于 NAI 提示词内容，逐字保留。
+        res.add([char, 1.0]);
         i++;
         continue;
       }
@@ -414,14 +183,6 @@ class SdToNaiConverter {
       // 普通文本字符
       res.add([char, 1.0]);
       i++;
-    }
-
-    // 处理未闭合的括号（对res中从记录位置开始的所有内容应用权重）
-    for (final entry in roundBracketStack) {
-      multiplyRange(entry.startPosition, _roundBracketMultiplier);
-    }
-    for (final entry in squareBracketStack) {
-      multiplyRange(entry.startPosition, _squareBracketMultiplier);
     }
 
     if (res.isEmpty) {

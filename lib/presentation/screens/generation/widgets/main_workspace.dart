@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/layout_state_provider.dart';
 import '../../../providers/prompt_maximize_provider.dart';
+import '../../../widgets/character/inline_character_row.dart';
 import 'generation_controls/generation_controls.dart';
 import 'image_preview.dart';
 import 'prompt_input.dart';
@@ -84,6 +85,9 @@ class MainWorkspace extends ConsumerWidget {
                       ),
                     ),
                   ),
+
+            // 角色行：紧贴提示词区下方，全屏/非全屏两种模式下都可见
+            const InlineCharacterRow(),
 
             // 提示词区域拖拽分隔条（最大化时隐藏）
             if (!isPromptMaximized)

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/presentation/screens/generation/handlers/vibe_import_handler.dart';
@@ -45,13 +46,10 @@ void main() {
       ),
     ];
 
-    final candidate = findOriginalLibraryEntryForOverwrite(
-      [
-        entries.first.toVibeReference(),
-        entries.first.toVibeReference().copyWith(displayName: 'Other'),
-      ],
-      entries,
-    );
+    final candidate = findOriginalLibraryEntryForOverwrite([
+      entries.first.toVibeReference(),
+      entries.first.toVibeReference().copyWith(displayName: 'Other'),
+    ], entries);
 
     expect(candidate, isNull);
   });
@@ -76,18 +74,12 @@ void main() {
       sourceType: VibeSourceType.naiv4vibe,
     );
 
-    expect(
-      shouldShowInfoExtractedForLibrarySave([withRaw]),
-      isTrue,
-    );
+    expect(shouldShowInfoExtractedForLibrarySave([withRaw]), isTrue);
     expect(
       shouldShowInfoExtractedForLibrarySave([withRaw, encodedOnly]),
       isFalse,
     );
-    expect(
-      shouldShowInfoExtractedForLibrarySave([encodedOnly]),
-      isFalse,
-    );
+    expect(shouldShowInfoExtractedForLibrarySave([encodedOnly]), isFalse);
   });
 
   test('外部图片立即编码后仍保留原图以支持后续信息提取调节', () {
@@ -102,13 +94,18 @@ void main() {
       sourceType: VibeSourceType.rawImage,
     );
 
-    final encoded = buildEncodedImportVibe(rawVibe, 'encoded-after');
+    final encoded = buildEncodedImportVibe(
+      rawVibe,
+      'encoded-after',
+      model: ImageModels.animeDiffusionV45Full,
+    );
 
     expect(encoded.vibeEncoding, 'encoded-after');
     expect(encoded.sourceType, VibeSourceType.naiv4vibe);
     expect(encoded.rawImageData, imageBytes);
     expect(encoded.canReencodeFromRawSource, isTrue);
     expect(encoded.infoExtracted, 0.33);
+    expect(encoded.encodingModel, ImageModels.animeDiffusionV45Full);
     expect(shouldShowInfoExtractedForLibrarySave([encoded]), isTrue);
   });
 }

@@ -61,6 +61,8 @@ void main() {
     expect(find.text('保护模式'), findsOneWidget);
     expect(find.text('保护功能'), findsOneWidget);
     expect(find.text('复制/拖拽时移除全部元数据'), findsOneWidget);
+    expect(find.text('限制生图频率'), findsOneWidget);
+    expect(find.text('生图间隔'), findsOneWidget);
     expect(find.byType(OnlineGalleryBlacklistSettingsPanel), findsOneWidget);
   });
 
@@ -74,6 +76,19 @@ void main() {
       ),
     );
     expect(stripTile.onChanged, isNull);
+
+    final intervalSwitch = tester.widget<SwitchListTile>(
+      find.ancestor(
+        of: find.text('限制生图频率'),
+        matching: find.byType(SwitchListTile),
+      ),
+    );
+    expect(intervalSwitch.onChanged, isNull);
+
+    final intervalTile = tester.widget<ListTile>(
+      find.ancestor(of: find.text('生图间隔'), matching: find.byType(ListTile)),
+    );
+    expect(intervalTile.onTap, isNull);
   });
 
   testWidgets('在线画廊黑名单与主设置卡片宽度一致', (tester) async {

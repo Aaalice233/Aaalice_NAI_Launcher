@@ -27,6 +27,7 @@ import '../../providers/reverse_prompt_provider.dart';
 import '../../providers/vibe_library_provider.dart';
 import '../../router/app_router.dart';
 import '../../utils/dropped_file_reader.dart';
+import '../../utils/internal_drag_protocol.dart' as internal_drag;
 import '../../utils/metadata_import_coordinator.dart';
 import '../common/app_toast.dart';
 import '../metadata/metadata_import_dialog.dart';
@@ -69,6 +70,10 @@ Future<NaiImageMetadata?> detectImportableDroppedImageMetadata(
     AppLogger.d('Failed to detect NovelAI metadata: $e', 'DropHandler');
   }
   return null;
+}
+
+bool isGalleryInternalDragLocalData(Object? localData) {
+  return internal_drag.isGalleryInternalDragLocalData(localData);
 }
 
 class _PasteImageIntent extends Intent {
@@ -191,14 +196,13 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
           formats: Formats.standardFormats,
           hitTestBehavior: HitTestBehavior.opaque,
           onDropOver: (event) {
-            // 检查是否是应用内部拖拽（本地画廊拖拽图片）
-            // 内部拖拽包含 localData，外部拖拽没有
-            final isInternalDrag = event.session.items.any(
-              (item) => item.localData != null,
+            // Gallery drags have category-specific targets. History drags must
+            // continue through the global image destination flow.
+            final isGalleryInternalDrag = event.session.items.any(
+              (item) => isGalleryInternalDragLocalData(item.localData),
             );
 
-            // 如果是内部拖拽，不显示全局覆盖层
-            if (isInternalDrag) {
+            if (isGalleryInternalDrag) {
               return DropOperation.none;
             }
 
@@ -333,6 +337,19 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     try {
       var handledAny = false;
       for (final item in event.session.items) {
+        final internalPayload = internal_drag.resolveInternalHistoryDropPayload(
+          item.localData,
+          ref.read(imageGenerationNotifierProvider),
+        );
+        if (internalPayload != null) {
+          handledAny = true;
+          await _processDroppedFile(
+            internalPayload.fileName,
+            internalPayload.bytes,
+          );
+          continue;
+        }
+
         final reader = item.dataReader;
         if (reader == null) continue;
 

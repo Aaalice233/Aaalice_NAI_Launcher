@@ -16,6 +16,16 @@ import 'selection_manager.dart';
 import 'stroke_manager.dart';
 import 'tool_manager.dart';
 
+enum MagicWandSelectionMode { colorArea, smartObject }
+
+typedef MagicWandHandler =
+    Future<void> Function(
+      Offset canvasPoint, {
+      required MagicWandSelectionMode mode,
+      required int tolerance,
+      required bool invert,
+    });
+
 /// 编辑器全局状态（协调器）
 /// 协调各 Manager 之间的交互，提供统一的 API 给 UI 层
 class EditorState extends ChangeNotifier {
@@ -70,6 +80,7 @@ class EditorState extends ChangeNotifier {
   Size _canvasSize = const Size(1024, 1024);
   Size get canvasSize => _canvasSize;
   Rect Function(Rect candidate, Offset fixedAnchor)? _rectSelectionConstraint;
+  MagicWandHandler? _magicWandHandler;
 
   // ===== 内部状态 =====
 
@@ -120,6 +131,24 @@ class EditorState extends ChangeNotifier {
 
   Rect constrainRectSelection(Rect candidate, Offset fixedAnchor) {
     return _rectSelectionConstraint?.call(candidate, fixedAnchor) ?? candidate;
+  }
+
+  void setMagicWandHandler(MagicWandHandler? handler) {
+    _magicWandHandler = handler;
+  }
+
+  Future<void> applyMagicWand(
+    Offset canvasPoint, {
+    required MagicWandSelectionMode mode,
+    required int tolerance,
+    required bool invert,
+  }) async {
+    await _magicWandHandler?.call(
+      canvasPoint,
+      mode: mode,
+      tolerance: tolerance,
+      invert: invert,
+    );
   }
 
   // 笔画代理
@@ -720,6 +749,7 @@ class EditorState extends ChangeNotifier {
   void dispose() {
     _isDisposed = true;
     _pendingStrokePreviewChange = false;
+    _magicWandHandler = null;
 
     // 移除监听器
     layerManager.removeListener(_onLayerChanged);

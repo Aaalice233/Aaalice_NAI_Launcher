@@ -26,11 +26,13 @@ void main() {
         .toList();
 
     expect(items.map((item) => item.value).toList(), const [
+      LocalImageContextAction.sendToTextToImage,
       LocalImageContextAction.sendToImg2Img,
       LocalImageContextAction.sendToReversePrompt,
       LocalImageContextAction.sendToStyleTransfer,
       LocalImageContextAction.sendToPreciseReference,
       LocalImageContextAction.sendToKrita,
+      LocalImageContextAction.upscale,
       LocalImageContextAction.importMetadata,
       LocalImageContextAction.copyPrompt,
       LocalImageContextAction.copySeed,
@@ -38,10 +40,12 @@ void main() {
       LocalImageContextAction.delete,
     ]);
     expect(find.text('Send to...'), findsNothing);
+    expect(find.text('Send to Text to Image'), findsOneWidget);
     expect(find.text('Send to Image2Image'), findsOneWidget);
     expect(find.text('Send to Reverse Prompt'), findsOneWidget);
     expect(find.text('Send to Vibe Transfer'), findsOneWidget);
     expect(find.text('Send to Precise Reference'), findsOneWidget);
+    expect(find.text('Upscale'), findsOneWidget);
     expect(find.text('Import Image Metadata'), findsOneWidget);
 
     final kritaItem = items.singleWhere(
@@ -89,6 +93,39 @@ void main() {
         );
     expect(kritaItem.enabled, isTrue);
   });
+
+  testWidgets('send button menu reuses the context menu send action group', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const _MenuHarness(isKritaConnected: true, sendOnly: true),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    final actions = tester
+        .widgetList<PopupMenuItem<LocalImageContextAction>>(
+          find.byWidgetPredicate(
+            (widget) => widget is PopupMenuItem<LocalImageContextAction>,
+          ),
+        )
+        .map((item) => item.value)
+        .toList();
+
+    expect(actions, const [
+      LocalImageContextAction.sendToTextToImage,
+      LocalImageContextAction.sendToImg2Img,
+      LocalImageContextAction.sendToReversePrompt,
+      LocalImageContextAction.sendToStyleTransfer,
+      LocalImageContextAction.sendToPreciseReference,
+      LocalImageContextAction.sendToKrita,
+      LocalImageContextAction.upscale,
+    ]);
+    expect(find.text('Import Image Metadata'), findsNothing);
+    expect(find.text('Show in Folder'), findsNothing);
+    expect(find.text('Delete'), findsNothing);
+  });
 }
 
 class _MenuHarness extends StatelessWidget {
@@ -97,6 +134,7 @@ class _MenuHarness extends StatelessWidget {
     this.hasPrompt = true,
     this.hasSeed = true,
     required this.isKritaConnected,
+    this.sendOnly = false,
     this.onSelected,
   });
 
@@ -104,6 +142,7 @@ class _MenuHarness extends StatelessWidget {
   final bool hasPrompt;
   final bool hasSeed;
   final bool isKritaConnected;
+  final bool sendOnly;
   final ValueChanged<LocalImageContextAction?>? onSelected;
 
   @override
@@ -116,14 +155,20 @@ class _MenuHarness extends StatelessWidget {
         body: Builder(
           builder: (context) => ElevatedButton(
             onPressed: () async {
-              final selected = await LocalImageContextMenu.show(
-                context,
-                position: const Offset(20, 20),
-                hasImportableMetadata: hasImportableMetadata,
-                hasPrompt: hasPrompt,
-                hasSeed: hasSeed,
-                isKritaConnected: isKritaConnected,
-              );
+              final selected = sendOnly
+                  ? await LocalImageContextMenu.showSendActions(
+                      context,
+                      position: const Offset(20, 20),
+                      isKritaConnected: isKritaConnected,
+                    )
+                  : await LocalImageContextMenu.show(
+                      context,
+                      position: const Offset(20, 20),
+                      hasImportableMetadata: hasImportableMetadata,
+                      hasPrompt: hasPrompt,
+                      hasSeed: hasSeed,
+                      isKritaConnected: isKritaConnected,
+                    );
               onSelected?.call(selected);
             },
             child: const Text('Open'),

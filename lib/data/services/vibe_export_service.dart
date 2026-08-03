@@ -8,17 +8,20 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/file_name_sanitizer.dart';
+import '../../core/utils/novelai_vibe_codec.dart';
 import '../models/vibe/vibe_export_format.dart';
 import '../models/vibe/vibe_library_entry.dart';
+import '../models/vibe/vibe_reference.dart';
 
 part 'vibe_export_service.g.dart';
 
 /// Vibe 导出进度回调
-typedef ExportProgressCallback = void Function({
-  required int current,
-  required int total,
-  required String currentItem,
-});
+typedef ExportProgressCallback =
+    void Function({
+      required int current,
+      required int total,
+      required String currentItem,
+    });
 
 /// Vibe 导出服务
 ///
@@ -57,11 +60,7 @@ class VibeExportService {
         _tag,
       );
 
-      final bundleData = await _buildBundleData(
-        entries,
-        options,
-        onProgress,
-      );
+      final bundleData = await _buildBundleData(entries, options, onProgress);
 
       final file = File(filePath);
       await file.writeAsString(
@@ -189,7 +188,7 @@ class VibeExportService {
     VibeExportOptions options,
     ExportProgressCallback? onProgress,
   ) async {
-    final vibeEntries = <Map<String, dynamic>>[];
+    final vibes = <VibeReference>[];
 
     for (var i = 0; i < entries.length; i++) {
       final entry = entries[i];
@@ -200,38 +199,21 @@ class VibeExportService {
         currentItem: entry.displayName,
       );
 
-      final entryData = <String, dynamic>{
-        'name': entry.displayName,
-      };
-
-      // 添加编码数据（如果启用）
-      if (options.includeEncoding && entry.vibeEncoding.isNotEmpty) {
-        entryData['encodings'] = {
-          'nai-diffusion-4-full': {
-            'vibe': {
-              'encoding': entry.vibeEncoding,
-            },
-          },
-        };
+      final source = entry.toVibeReference();
+      final vibe = options.includeEncoding
+          ? source
+          : source.copyWith(vibeEncoding: '');
+      final hasImage =
+          vibe.rawImageData?.isNotEmpty == true ||
+          vibe.thumbnail?.isNotEmpty == true;
+      if (vibe.vibeEncoding.isEmpty && !hasImage) {
+        AppLogger.w(
+          'Skipping entry without an image or encoding: ${entry.displayName}',
+          _tag,
+        );
+        continue;
       }
-
-      // 添加导入信息
-      entryData['importInfo'] = {
-        'strength': entry.strength,
-        'information_extracted': entry.infoExtracted,
-      };
-
-      // 添加缩略图（如果启用且存在）
-      if (options.includeThumbnail && entry.hasVibeThumbnail) {
-        entryData['thumbnail'] = base64Encode(entry.vibeThumbnail!);
-      }
-
-      // 添加原始图片数据（如果存在）
-      if (entry.rawImageData != null && entry.rawImageData!.isNotEmpty) {
-        entryData['image'] = base64Encode(entry.rawImageData!);
-      }
-
-      vibeEntries.add(entryData);
+      vibes.add(vibe);
 
       AppLogger.d(
         'Added to bundle: ${entry.displayName} (${i + 1}/${entries.length})',
@@ -239,13 +221,14 @@ class VibeExportService {
       );
     }
 
-    return {
-      'identifier': 'novelai-vibe-transfer-bundle',
-      'version': options.version,
-      'exportedAt': DateTime.now().toIso8601String(),
-      'entryCount': entries.length,
-      'vibes': vibeEntries,
-    };
+    if (vibes.isEmpty) {
+      throw StateError('No exportable Vibe entries');
+    }
+    return NovelAiVibeCodec.buildBundleMap(
+      vibes,
+      includeThumbnails: options.includeThumbnail,
+      includeEncoding: options.includeEncoding,
+    );
   }
 
   /// 获取导出目录

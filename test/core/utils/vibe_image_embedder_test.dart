@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/utils/vibe_image_embedder.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 
@@ -31,7 +32,10 @@ void main() {
       expect(extracted.vibes, hasLength(1));
       expect(
         extracted.vibes.single,
-        reference.copyWith(sourceType: VibeSourceType.png),
+        reference.copyWith(
+          encodingModel: ImageModels.animeDiffusionV4Full,
+          sourceType: VibeSourceType.png,
+        ),
       );
     });
 
@@ -56,9 +60,37 @@ void main() {
         );
 
         expect(extracted.isBundle, isTrue);
-        expect(extracted.vibes, [original]);
+        expect(extracted.vibes, [
+          original.copyWith(encodingModel: ImageModels.animeDiffusionV4Full),
+        ]);
       },
     );
+
+    test('embedded image Vibe preserves its raw image and model', () async {
+      final carrier = _createInMemoryPngBytes();
+      final rawImage = Uint8List.fromList(const [1, 2, 3, 4]);
+      final original = VibeReference(
+        displayName: 'Image Vibe',
+        vibeEncoding: 'image-vibe-encoding',
+        rawImageData: rawImage,
+        encodingModel: ImageModels.animeDiffusionV45Full,
+        sourceType: VibeSourceType.naiv4vibe,
+      );
+
+      final embeddedBytes = await VibeImageEmbedder.embedVibeToImage(
+        carrier,
+        original,
+      );
+      final extracted = await VibeImageEmbedder.extractVibeFromImage(
+        embeddedBytes,
+      );
+
+      expect(extracted.vibes.single.rawImageData, rawImage);
+      expect(
+        extracted.vibes.single.encodingModel,
+        ImageModels.animeDiffusionV45Full,
+      );
+    });
 
     test('embedVibeToImage should throw on non-PNG bytes', () async {
       final nonPngBytes = Uint8List.fromList(utf8.encode('not a png file'));
@@ -82,15 +114,17 @@ void main() {
       );
     });
 
-    test('extractVibeFromImage should throw when PNG has no vibe data',
-        () async {
-      final imageBytes = _createInMemoryPngBytes();
+    test(
+      'extractVibeFromImage should throw when PNG has no vibe data',
+      () async {
+        final imageBytes = _createInMemoryPngBytes();
 
-      await expectLater(
-        VibeImageEmbedder.extractVibeFromImage(imageBytes),
-        throwsA(isA<NoVibeDataException>()),
-      );
-    });
+        await expectLater(
+          VibeImageEmbedder.extractVibeFromImage(imageBytes),
+          throwsA(isA<NoVibeDataException>()),
+        );
+      },
+    );
   });
 }
 

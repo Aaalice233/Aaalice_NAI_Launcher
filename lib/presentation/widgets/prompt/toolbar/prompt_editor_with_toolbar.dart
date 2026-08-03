@@ -191,6 +191,9 @@ class _PromptEditorWithToolbarState
             maxLines: widget.maxLines,
             minLines: widget.minLines,
             expands: widget.expands,
+            // 非扩展模式高度由内容决定，避免在无界高度容器（滚动列）中
+            // StackFit.expand 触发 infinite height 布局异常
+            fitContent: !widget.expands,
             onComfyuiImport: widget.onComfyuiImport,
           ),
         ),

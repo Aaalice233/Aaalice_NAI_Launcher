@@ -12,6 +12,7 @@ import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../providers/share_image_settings_provider.dart';
+import '../../utils/internal_drag_protocol.dart';
 
 class DraggableMemoryImage extends ConsumerStatefulWidget {
   const DraggableMemoryImage({
@@ -19,6 +20,7 @@ class DraggableMemoryImage extends ConsumerStatefulWidget {
     required this.imageBytes,
     required this.child,
     this.fileName = 'history.png',
+    this.imageId,
     this.sourceFilePath,
     this.enabled = true,
     this.requirePreparedDragFile = false,
@@ -27,12 +29,16 @@ class DraggableMemoryImage extends ConsumerStatefulWidget {
     this.disabledReason,
     this.feedbackHint,
     this.feedbackWidth = 280,
+    this.feedbackPixelWidth,
+    this.feedbackPixelHeight,
+    this.feedbackFormat,
     this.dragOpacity = 0.3,
   });
 
   final Uint8List imageBytes;
   final Widget child;
   final String fileName;
+  final String? imageId;
   final String? sourceFilePath;
   final bool enabled;
   final bool requirePreparedDragFile;
@@ -41,6 +47,9 @@ class DraggableMemoryImage extends ConsumerStatefulWidget {
   final String? disabledReason;
   final String? feedbackHint;
   final double feedbackWidth;
+  final int? feedbackPixelWidth;
+  final int? feedbackPixelHeight;
+  final String? feedbackFormat;
   final double dragOpacity;
 
   @override
@@ -71,8 +80,9 @@ class _DraggableMemoryImageState extends ConsumerState<DraggableMemoryImage> {
         oldWidget.sourceFilePath != widget.sourceFilePath ||
         oldWidget.requirePreparedDragFile != widget.requirePreparedDragFile) {
       final previousCache = _transferCache;
-      _transferCache =
-          _shouldUsePreparedDragFile ? null : _createTransferCache();
+      _transferCache = _shouldUsePreparedDragFile
+          ? null
+          : _createTransferCache();
       if (previousCache != null) {
         unawaited(previousCache.dispose());
       }
@@ -99,9 +109,42 @@ class _DraggableMemoryImageState extends ConsumerState<DraggableMemoryImage> {
       if (reason == null || reason.isEmpty) {
         return widget.child;
       }
-      return Tooltip(
-        message: reason,
-        child: widget.child,
+      return Tooltip(message: reason, child: widget.child);
+    }
+
+    return Listener(
+      onPointerHover: (_) => _warmTransferCache(),
+      onPointerDown: (_) => setState(() => _isDragging = true),
+      onPointerUp: (_) => setState(() => _isDragging = false),
+      onPointerCancel: (_) => setState(() => _isDragging = false),
+      child: DragItemWidget(
+        allowedOperations: () => [DropOperation.copy],
+        dragItemProvider: (_) => _createDragItem(),
+        liftBuilder: (context, child) => _buildDragFeedback(context),
+        dragBuilder: (context, child) => _buildDragFeedback(context),
+        child: DraggableWidget(
+          child: Opacity(
+            opacity: _isDragging ? widget.dragOpacity : 1.0,
+            child: widget.child,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDragFeedback(BuildContext context) {
+    final hint = widget.feedbackHint ?? context.l10n.drop_dragToImg2ImgOrOther;
+    final stripMetadata = ref
+        .read(shareImageSettingsProvider)
+        .effectiveStripMetadataForCopyAndDrag;
+    if (stripMetadata) {
+      return buildProtectedImageDragFeedback(
+        Theme.of(context),
+        width: widget.feedbackWidth,
+        hintText: hint,
+        pixelWidth: widget.feedbackPixelWidth,
+        pixelHeight: widget.feedbackPixelHeight,
+        format: widget.feedbackFormat,
       );
     }
 
@@ -113,38 +156,12 @@ class _DraggableMemoryImageState extends ConsumerState<DraggableMemoryImage> {
       ),
       previewBytes: widget.imageBytes,
     );
-
-    return Listener(
-      onPointerHover: (_) => _warmTransferCache(),
-      onPointerDown: (_) => setState(() => _isDragging = true),
-      onPointerUp: (_) => setState(() => _isDragging = false),
-      onPointerCancel: (_) => setState(() => _isDragging = false),
-      child: DragItemWidget(
-        allowedOperations: () => [DropOperation.copy],
-        dragItemProvider: (_) => _createDragItem(),
-        liftBuilder: (context, child) => buildImageDragFeedback(
-          Theme.of(context),
-          dragData,
-          width: widget.feedbackWidth,
-          hintText:
-              widget.feedbackHint ?? context.l10n.drop_dragToImg2ImgOrOther,
-          previewProvider: _previewProvider,
-        ),
-        dragBuilder: (context, child) => buildImageDragFeedback(
-          Theme.of(context),
-          dragData,
-          width: widget.feedbackWidth,
-          hintText:
-              widget.feedbackHint ?? context.l10n.drop_dragToImg2ImgOrOther,
-          previewProvider: _previewProvider,
-        ),
-        child: DraggableWidget(
-          child: Opacity(
-            opacity: _isDragging ? widget.dragOpacity : 1.0,
-            child: widget.child,
-          ),
-        ),
-      ),
+    return buildImageDragFeedback(
+      Theme.of(context),
+      dragData,
+      width: widget.feedbackWidth,
+      hintText: hint,
+      previewProvider: _previewProvider,
     );
   }
 
@@ -155,7 +172,7 @@ class _DraggableMemoryImageState extends ConsumerState<DraggableMemoryImage> {
 
     final item = DragItem(
       suggestedName: widget.fileName,
-      localData: {'source': 'history_internal'},
+      localData: buildHistoryInternalDragLocalData(widget.imageId),
     );
 
     final preparedFile = widget.preparedDragFile;
@@ -179,7 +196,8 @@ class _DraggableMemoryImageState extends ConsumerState<DraggableMemoryImage> {
     }
 
     final sourceFilePath = widget.sourceFilePath?.trim();
-    final hasReusableSourceFile = !stripMetadata &&
+    final hasReusableSourceFile =
+        !stripMetadata &&
         sourceFilePath != null &&
         sourceFilePath.isNotEmpty &&
         await File(sourceFilePath).exists();
@@ -235,10 +253,7 @@ Future<SanitizedShareImage> prepareDragImageForTransfer({
   String? sourceFilePath,
 }) async {
   if (stripMetadata) {
-    return ImageShareSanitizer.sanitizeForShare(
-      imageBytes,
-      fileName: fileName,
-    );
+    return ImageShareSanitizer.sanitizeForShare(imageBytes, fileName: fileName);
   }
 
   final normalizedSourceFilePath = sourceFilePath?.trim();
