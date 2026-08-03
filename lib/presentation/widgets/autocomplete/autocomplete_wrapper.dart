@@ -510,7 +510,11 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
         final size = renderBox.size;
 
         // 对于多行文本框，使用光标位置；否则使用文本框底部
-        final isMultiline = widget.expands || (widget.maxLines ?? 1) > 1;
+        final isMultiline = AutocompleteUtils.isMultilineTextInput(
+          context: this.context,
+          maxLines: widget.maxLines,
+          expands: widget.expands,
+        );
         final cursorOffset = isMultiline
             ? AutocompleteUtils.getCursorOffset(
                 context: this.context,

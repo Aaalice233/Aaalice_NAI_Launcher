@@ -648,6 +648,64 @@ void main() {
       expect(find.byType(GenericSuggestionTile), findsNothing);
     });
 
+    testWidgets('positions unlimited multiline suggestions below the caret', (
+      tester,
+    ) async {
+      final controller = TextEditingController();
+      final focusNode = FocusNode();
+      final strategy = _FakeAutocompleteStrategy();
+      addTearDown(controller.dispose);
+      addTearDown(focusNode.dispose);
+      addTearDown(strategy.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: 400,
+                  child: AutocompleteWrapper(
+                    controller: controller,
+                    focusNode: focusNode,
+                    strategy: strategy,
+                    maxLines: null,
+                    expands: false,
+                    child: TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      maxLines: null,
+                      minLines: 4,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byType(TextField));
+      await tester.enterText(find.byType(TextField), 'kan');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 80));
+      await tester.pump();
+
+      final inputRect = tester.getRect(find.byType(TextField));
+      final follower = tester.widget<CompositedTransformFollower>(
+        find.ancestor(
+          of: find.byType(GenericSuggestionTile),
+          matching: find.byType(CompositedTransformFollower),
+        ),
+      );
+
+      expect(follower.offset.dy, lessThan(inputRect.height));
+      expect(follower.offset.dx, greaterThan(12));
+    });
+
     Future<void> pumpAutocompleteWrapper(
       WidgetTester tester,
       TextEditingController controller,
