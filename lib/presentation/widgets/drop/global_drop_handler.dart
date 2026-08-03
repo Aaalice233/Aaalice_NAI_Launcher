@@ -80,21 +80,6 @@ class _PasteImageIntent extends Intent {
   const _PasteImageIntent();
 }
 
-@visibleForTesting
-Map<ShortcutActivator, Intent> pasteShortcutsForPlatform(
-  TargetPlatform platform,
-) {
-  return <ShortcutActivator, Intent>{
-    const SingleActivator(LogicalKeyboardKey.keyV, control: true):
-        const _PasteImageIntent(),
-    // On Windows, Meta is the Windows logo key. Leaving Win+V unhandled lets
-    // the system clipboard-history picker open and paste its selected item.
-    if (platform == TargetPlatform.macOS || platform == TargetPlatform.iOS)
-      const SingleActivator(LogicalKeyboardKey.keyV, meta: true):
-          const _PasteImageIntent(),
-  };
-}
-
 /// 全局拖拽处理器
 ///
 /// 包装整个生成界面，监听拖拽事件
@@ -189,7 +174,12 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
   @override
   Widget build(BuildContext context) {
     return Shortcuts(
-      shortcuts: pasteShortcutsForPlatform(defaultTargetPlatform),
+      shortcuts: const <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.keyV, control: true):
+            _PasteImageIntent(),
+        SingleActivator(LogicalKeyboardKey.keyV, meta: true):
+            _PasteImageIntent(),
+      },
       child: Actions(
         actions: <Type, Action<Intent>>{
           _PasteImageIntent: CallbackAction<_PasteImageIntent>(
