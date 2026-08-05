@@ -100,7 +100,7 @@ class _VibeBulkCategoryDialogState
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      '选择目标分类',
+                      l10n.vibeBulkCategory_title,
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -117,7 +117,7 @@ class _VibeBulkCategoryDialogState
 
               // 提示文本
               Text(
-                '将 ${widget.entryCount} 个 Vibe 移动到:',
+                l10n.vibeBulkCategory_moveCount(widget.entryCount),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.outline,
                 ),
@@ -197,14 +197,13 @@ class _VibeBulkCategoryDialogState
               ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
               : null,
           borderRadius: BorderRadius.circular(8),
-          border:
-              isSelected ? Border.all(color: theme.colorScheme.primary) : null,
+          border: isSelected
+              ? Border.all(color: theme.colorScheme.primary)
+              : null,
         ),
         child: Row(
           children: [
-            const Radio<String?>(
-              value: '',
-            ),
+            const Radio<String?>(value: ''),
             const SizedBox(width: 8),
             Icon(
               Icons.folder_open_outlined,
@@ -214,7 +213,7 @@ class _VibeBulkCategoryDialogState
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                '未分类',
+                context.l10n.vibeLibrary_uncategorized,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w500,
                   color: isSelected ? theme.colorScheme.primary : null,
@@ -222,11 +221,7 @@ class _VibeBulkCategoryDialogState
               ),
             ),
             if (isSelected)
-              Icon(
-                Icons.check,
-                size: 20,
-                color: theme.colorScheme.primary,
-              ),
+              Icon(Icons.check, size: 20, color: theme.colorScheme.primary),
           ],
         ),
       ),
@@ -263,12 +258,15 @@ class _VibeBulkCategoryDialogState
             child: Opacity(
               opacity: isExcluded ? 0.5 : 1.0,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? theme.colorScheme.primaryContainer
-                          .withValues(alpha: 0.3)
+                      ? theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.3,
+                        )
                       : null,
                   borderRadius: BorderRadius.circular(8),
                   border: isSelected
@@ -306,10 +304,7 @@ class _VibeBulkCategoryDialogState
                       const SizedBox(width: 32),
 
                     // 单选按钮
-                    Radio<String?>(
-                      value: category.id,
-                      enabled: !isExcluded,
-                    ),
+                    Radio<String?>(value: category.id, enabled: !isExcluded),
 
                     const SizedBox(width: 8),
 
@@ -336,13 +331,13 @@ class _VibeBulkCategoryDialogState
                               color: isSelected
                                   ? theme.colorScheme.primary
                                   : isExcluded
-                                      ? theme.colorScheme.outline
-                                      : null,
+                                  ? theme.colorScheme.outline
+                                  : null,
                             ),
                           ),
                           if (isExcluded)
                             Text(
-                              '不能移动到当前所在分类',
+                              context.l10n.vibeBulkCategory_cannotMoveToCurrent,
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.error,
                               ),

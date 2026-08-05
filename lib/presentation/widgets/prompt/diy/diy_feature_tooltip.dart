@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../data/models/prompt/random_tag_group.dart';
 
@@ -42,7 +43,7 @@ class DiyFeatureTooltip extends StatelessWidget {
 
   Widget _buildCompactView(BuildContext context, List<String> icons) {
     return Tooltip(
-      message: _buildTooltipMessage(),
+      message: _buildTooltipMessage(context),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -66,40 +67,38 @@ class DiyFeatureTooltip extends StatelessWidget {
 
   Widget _buildExpandedView(BuildContext context, List<String> icons) {
     return Tooltip(
-      message: _buildTooltipMessage(),
+      message: _buildTooltipMessage(context),
       child: Wrap(
         spacing: 4,
         children: icons.map((icon) {
-          return Text(
-            icon,
-            style: TextStyle(fontSize: iconSize),
-          );
+          return Text(icon, style: TextStyle(fontSize: iconSize));
         }).toList(),
       ),
     );
   }
 
-  String _buildTooltipMessage() {
+  String _buildTooltipMessage(BuildContext context) {
+    final l10n = context.l10n;
     final features = <String>[];
 
     if (tagGroup.hasConditionalBranch) {
-      features.add('🔀 条件分支');
+      features.add('🔀 ${l10n.diy_conditionalTitle}');
     }
     if (tagGroup.hasDependency) {
-      features.add('🔗 依赖配置');
+      features.add('🔗 ${l10n.diy_dependencyTitle}');
     }
     if (tagGroup.hasVisibilityRules) {
-      features.add('👁️ 可见性规则');
+      features.add('👁️ ${l10n.diy_visibilityTitle}');
     }
     if (tagGroup.hasTimeCondition) {
-      features.add('📅 时间条件');
+      features.add('📅 ${l10n.diy_timeTitle}');
     }
     if (tagGroup.hasPostProcessRules) {
-      features.add('🔧 后处理规则');
+      features.add('🔧 ${l10n.diy_postProcessTitle}');
     }
     if (tagGroup.emphasisProbability > 0) {
       final percent = (tagGroup.emphasisProbability * 100).toStringAsFixed(0);
-      features.add('⚡ 强调 $percent%');
+      features.add('⚡ ${l10n.diy_emphasisPercent(percent)}');
     }
 
     return features.join('\n');
@@ -113,10 +112,7 @@ class DiyFeatureBadge extends StatelessWidget {
   /// 标签组
   final RandomTagGroup tagGroup;
 
-  const DiyFeatureBadge({
-    super.key,
-    required this.tagGroup,
-  });
+  const DiyFeatureBadge({super.key, required this.tagGroup});
 
   @override
   Widget build(BuildContext context) {

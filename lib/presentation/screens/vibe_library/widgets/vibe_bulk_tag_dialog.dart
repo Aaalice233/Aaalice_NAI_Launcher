@@ -11,10 +11,7 @@ class VibeBulkTagDialog extends ConsumerStatefulWidget {
   /// 选中的 Vibe 条目列表
   final List<VibeLibraryEntry> selectedEntries;
 
-  const VibeBulkTagDialog({
-    super.key,
-    required this.selectedEntries,
-  });
+  const VibeBulkTagDialog({super.key, required this.selectedEntries});
 
   @override
   ConsumerState<VibeBulkTagDialog> createState() => _VibeBulkTagDialogState();
@@ -69,14 +66,11 @@ class _VibeBulkTagDialogState extends ConsumerState<VibeBulkTagDialog> {
               // 标题
               Row(
                 children: [
-                  Icon(
-                    Icons.label_outlined,
-                    color: theme.colorScheme.primary,
-                  ),
+                  Icon(Icons.label_outlined, color: theme.colorScheme.primary),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      '批量编辑标签',
+                      l10n.vibeBulkTag_title,
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -93,7 +87,7 @@ class _VibeBulkTagDialogState extends ConsumerState<VibeBulkTagDialog> {
 
               // 统计信息
               Text(
-                '已选中 ${widget.selectedEntries.length} 个 Vibe',
+                l10n.vibeBulkTag_selectedCount(widget.selectedEntries.length),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.outline,
                 ),
@@ -107,9 +101,7 @@ class _VibeBulkTagDialogState extends ConsumerState<VibeBulkTagDialog> {
               const SizedBox(height: 16),
 
               // 标签列表
-              Expanded(
-                child: _buildTagList(theme, currentTags),
-              ),
+              Expanded(child: _buildTagList(theme, currentTags)),
 
               const Divider(height: 24),
 
@@ -129,7 +121,7 @@ class _VibeBulkTagDialogState extends ConsumerState<VibeBulkTagDialog> {
                   const SizedBox(width: 8),
                   FilledButton(
                     onPressed: _hasChanges ? _applyChanges : null,
-                    child: const Text('应用'),
+                    child: Text(l10n.common_apply),
                   ),
                 ],
               ),
@@ -148,7 +140,7 @@ class _VibeBulkTagDialogState extends ConsumerState<VibeBulkTagDialog> {
           child: TextField(
             controller: _tagInputController,
             decoration: InputDecoration(
-              hintText: '输入新标签...',
+              hintText: context.l10n.vibeBulkTag_inputHint,
               prefixIcon: const Icon(Icons.add),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -164,7 +156,7 @@ class _VibeBulkTagDialogState extends ConsumerState<VibeBulkTagDialog> {
         const SizedBox(width: 8),
         FilledButton.tonal(
           onPressed: () => _addNewTag(_tagInputController.text),
-          child: const Text('添加'),
+          child: Text(context.l10n.common_add),
         ),
       ],
     );
@@ -184,14 +176,14 @@ class _VibeBulkTagDialogState extends ConsumerState<VibeBulkTagDialog> {
             ),
             const SizedBox(height: 12),
             Text(
-              '暂无标签',
+              context.l10n.vibeBulkTag_noTags,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.outline,
               ),
             ),
             const SizedBox(height: 4),
             Text(
-              '添加标签以方便筛选和管理',
+              context.l10n.vibeBulkTag_noTagsHint,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.outline.withValues(alpha: 0.7),
               ),
@@ -205,15 +197,16 @@ class _VibeBulkTagDialogState extends ConsumerState<VibeBulkTagDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '当前标签 (${currentTags.length})',
+          context.l10n.vibeBulkTag_currentTags(currentTags.length),
           style: theme.textTheme.titleSmall,
         ),
         const SizedBox(height: 8),
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.5),
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.5,
+              ),
               borderRadius: BorderRadius.circular(8),
             ),
             child: ListView.builder(
@@ -232,7 +225,7 @@ class _VibeBulkTagDialogState extends ConsumerState<VibeBulkTagDialog> {
         if (_tagsToRemove.isNotEmpty) ...[
           const SizedBox(height: 12),
           Text(
-            '待移除标签 (${_tagsToRemove.length})',
+            context.l10n.vibeBulkTag_pendingRemoval(_tagsToRemove.length),
             style: theme.textTheme.titleSmall?.copyWith(
               color: theme.colorScheme.error,
             ),
@@ -256,11 +249,7 @@ class _VibeBulkTagDialogState extends ConsumerState<VibeBulkTagDialog> {
   }
 
   /// 构建单个标签项
-  Widget _buildTagItem(
-    ThemeData theme,
-    String tag, {
-    required bool isNew,
-  }) {
+  Widget _buildTagItem(ThemeData theme, String tag, {required bool isNew}) {
     return ListTile(
       dense: true,
       leading: Icon(
@@ -286,7 +275,7 @@ class _VibeBulkTagDialogState extends ConsumerState<VibeBulkTagDialog> {
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
-                '新增',
+                context.l10n.common_new,
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.onPrimaryContainer,
                   fontSize: 10,
@@ -298,12 +287,9 @@ class _VibeBulkTagDialogState extends ConsumerState<VibeBulkTagDialog> {
             icon: const Icon(Icons.remove_circle_outline, size: 20),
             color: theme.colorScheme.error,
             onPressed: () => _removeTag(tag),
-            tooltip: '移除标签',
+            tooltip: context.l10n.vibeBulkTag_removeTag,
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(
-              minWidth: 32,
-              minHeight: 32,
-            ),
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
           ),
         ],
       ),
@@ -314,11 +300,7 @@ class _VibeBulkTagDialogState extends ConsumerState<VibeBulkTagDialog> {
   Widget _buildRemovedTagItem(ThemeData theme, String tag) {
     return ListTile(
       dense: true,
-      leading: Icon(
-        Icons.label_off,
-        size: 18,
-        color: theme.colorScheme.error,
-      ),
+      leading: Icon(Icons.label_off, size: 18, color: theme.colorScheme.error),
       title: Text(
         tag,
         style: theme.textTheme.bodyMedium?.copyWith(
@@ -329,7 +311,7 @@ class _VibeBulkTagDialogState extends ConsumerState<VibeBulkTagDialog> {
       trailing: TextButton.icon(
         onPressed: () => _restoreTag(tag),
         icon: const Icon(Icons.undo, size: 16),
-        label: const Text('恢复'),
+        label: Text(context.l10n.common_undo),
         style: TextButton.styleFrom(
           foregroundColor: theme.colorScheme.primary,
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -358,7 +340,7 @@ class _VibeBulkTagDialogState extends ConsumerState<VibeBulkTagDialog> {
               ),
               const SizedBox(width: 8),
               Text(
-                '操作预览',
+                context.l10n.vibeBulkTag_actionPreview,
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.w500,
                 ),
@@ -371,18 +353,22 @@ class _VibeBulkTagDialogState extends ConsumerState<VibeBulkTagDialog> {
               theme,
               icon: Icons.add_circle_outline,
               color: theme.colorScheme.primary,
-              text: '添加标签: ${_tagsToAdd.join(', ')}',
+              text: context.l10n.vibeBulkTag_addTagsSummary(
+                _tagsToAdd.join(', '),
+              ),
             ),
           if (_tagsToRemove.isNotEmpty)
             _buildActionItem(
               theme,
               icon: Icons.remove_circle_outline,
               color: theme.colorScheme.error,
-              text: '移除标签: ${_tagsToRemove.join(', ')}',
+              text: context.l10n.vibeBulkTag_removeTagsSummary(
+                _tagsToRemove.join(', '),
+              ),
             ),
           if (!_hasChanges)
             Text(
-              '没有要应用的更改',
+              context.l10n.vibeBulkTag_noChanges,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.outline,
               ),
@@ -409,9 +395,7 @@ class _VibeBulkTagDialogState extends ConsumerState<VibeBulkTagDialog> {
           Expanded(
             child: Text(
               text,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: color,
-              ),
+              style: theme.textTheme.bodySmall?.copyWith(color: color),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -508,8 +492,6 @@ Future<VibeBulkTagResult?> showVibeBulkTagDialog({
 }) async {
   return showDialog<VibeBulkTagResult>(
     context: context,
-    builder: (context) => VibeBulkTagDialog(
-      selectedEntries: selectedEntries,
-    ),
+    builder: (context) => VibeBulkTagDialog(selectedEntries: selectedEntries),
   );
 }

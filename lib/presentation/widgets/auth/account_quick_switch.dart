@@ -175,7 +175,7 @@ class AccountQuickSwitch extends ConsumerWidget {
         ),
         subtitle: Text(
           isThirdParty
-              ? '第三方站点'
+              ? context.l10n.auth_thirdPartyLogin
               : account.accountType == AccountType.credentials
               ? context.l10n.auth_credentialsLogin
               : context.l10n.auth_tokenLogin,

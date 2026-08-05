@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -976,7 +977,7 @@ class _PositivePromptTooltip extends StatelessWidget {
   final String? qualityContent;
   final List<CharacterPrompt> characters;
   final bool globalAiChoice;
-  final dynamic l10n;
+  final AppLocalizations l10n;
   final AliasResolverService aliasResolver;
 
   const _PositivePromptTooltip({
@@ -1425,7 +1426,7 @@ class _NegativePromptTooltip extends StatelessWidget {
   final List<FixedTagEntry> prefixes;
   final List<FixedTagEntry> suffixes;
   final String ucPresetContent;
-  final dynamic l10n;
+  final AppLocalizations l10n;
   final AliasResolverService aliasResolver;
 
   const _NegativePromptTooltip({

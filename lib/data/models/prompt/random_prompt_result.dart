@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../character/character_prompt.dart';
@@ -38,15 +39,8 @@ class RandomPromptResult with _$RandomPromptResult {
       _$RandomPromptResultFromJson(json);
 
   /// 创建无人物场景结果
-  factory RandomPromptResult.noHuman({
-    required String prompt,
-    int? seed,
-  }) {
-    return RandomPromptResult(
-      mainPrompt: prompt,
-      noHumans: true,
-      seed: seed,
-    );
+  factory RandomPromptResult.noHuman({required String prompt, int? seed}) {
+    return RandomPromptResult(mainPrompt: prompt, noHumans: true, seed: seed);
   }
 
   /// 创建单角色场景结果
@@ -143,18 +137,12 @@ class GeneratedCharacter with _$GeneratedCharacter {
 
   /// 创建女性角色
   factory GeneratedCharacter.female(String prompt) {
-    return GeneratedCharacter(
-      prompt: prompt,
-      gender: CharacterGender.female,
-    );
+    return GeneratedCharacter(prompt: prompt, gender: CharacterGender.female);
   }
 
   /// 创建男性角色
   factory GeneratedCharacter.male(String prompt) {
-    return GeneratedCharacter(
-      prompt: prompt,
-      gender: CharacterGender.male,
-    );
+    return GeneratedCharacter(prompt: prompt, gender: CharacterGender.male);
   }
 }
 
@@ -177,22 +165,22 @@ enum RandomGenerationMode {
 extension RandomGenerationModeX on RandomGenerationMode {
   /// 获取图标
   IconData get icon => switch (this) {
-        RandomGenerationMode.naiOfficial => Icons.auto_awesome,
-        RandomGenerationMode.custom => Icons.tune,
-        RandomGenerationMode.hybrid => Icons.merge_type,
-      };
+    RandomGenerationMode.naiOfficial => Icons.auto_awesome,
+    RandomGenerationMode.custom => Icons.tune,
+    RandomGenerationMode.hybrid => Icons.merge_type,
+  };
 
   /// 获取名称
-  String getName(dynamic l10n) => switch (this) {
-        RandomGenerationMode.naiOfficial => l10n.randomMode_naiOfficial,
-        RandomGenerationMode.custom => l10n.randomMode_custom,
-        RandomGenerationMode.hybrid => l10n.randomMode_hybrid,
-      };
+  String getName(AppLocalizations l10n) => switch (this) {
+    RandomGenerationMode.naiOfficial => l10n.randomMode_naiOfficial,
+    RandomGenerationMode.custom => l10n.randomMode_custom,
+    RandomGenerationMode.hybrid => l10n.randomMode_hybrid,
+  };
 
   /// 获取描述
-  String getDescription(dynamic l10n) => switch (this) {
-        RandomGenerationMode.naiOfficial => l10n.randomMode_naiOfficialDesc,
-        RandomGenerationMode.custom => l10n.randomMode_customDesc,
-        RandomGenerationMode.hybrid => l10n.randomMode_hybridDesc,
-      };
+  String getDescription(AppLocalizations l10n) => switch (this) {
+    RandomGenerationMode.naiOfficial => l10n.randomMode_naiOfficialDesc,
+    RandomGenerationMode.custom => l10n.randomMode_customDesc,
+    RandomGenerationMode.hybrid => l10n.randomMode_hybridDesc,
+  };
 }

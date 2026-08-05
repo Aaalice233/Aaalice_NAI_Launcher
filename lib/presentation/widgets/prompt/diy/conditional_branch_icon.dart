@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../data/models/prompt/conditional_branch.dart';
 
@@ -28,7 +29,9 @@ class ConditionalBranchIcon extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Tooltip(
-      message: hasConfig ? _buildTooltipMessage() : '无条件分支配置',
+      message: hasConfig
+          ? _buildTooltipMessage(context)
+          : context.l10n.diy_noConditionalBranches,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(size / 2),
@@ -53,12 +56,12 @@ class ConditionalBranchIcon extends StatelessWidget {
     );
   }
 
-  String _buildTooltipMessage() {
+  String _buildTooltipMessage(BuildContext context) {
     if (config == null || config!.branches.isEmpty) {
-      return '无条件分支';
+      return context.l10n.diy_noConditionalBranches;
     }
 
-    final lines = <String>['条件分支:'];
+    final lines = <String>['${context.l10n.diy_conditionalTitle}:'];
     for (final branch in config!.branches) {
       lines.add('  ${branch.name}: ${branch.probability}%');
     }
@@ -122,14 +125,16 @@ class ConditionalBranchListTile extends StatelessWidget {
         children: [
           if (branch.conditions.isNotEmpty)
             Chip(
-              label: Text('${branch.conditions.length} 条件'),
+              label: Text(
+                context.l10n.diy_conditionCount(branch.conditions.length),
+              ),
               visualDensity: VisualDensity.compact,
             ),
           if (onDelete != null)
             IconButton(
               icon: const Icon(Icons.delete_outline),
               onPressed: onDelete,
-              tooltip: '删除',
+              tooltip: context.l10n.common_delete,
             ),
         ],
       ),

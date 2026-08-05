@@ -441,9 +441,12 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
 
   String _dragDisabledReason(ShareImagePreparationSnapshot snapshot) {
     return switch (snapshot.status) {
-      ShareImagePreparationStatus.failed => '拖拽文件准备失败，稍后重试',
-      ShareImagePreparationStatus.preparing => '正在准备拖拽文件...',
-      ShareImagePreparationStatus.notQueued => '拖拽文件尚未准备完成',
+      ShareImagePreparationStatus.failed =>
+        context.l10n.history_dragFilePreparationFailed,
+      ShareImagePreparationStatus.preparing =>
+        context.l10n.history_dragFilePreparing,
+      ShareImagePreparationStatus.notQueued =>
+        context.l10n.history_dragFileNotReady,
       ShareImagePreparationStatus.ready => '',
     };
   }
@@ -1225,6 +1228,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   }
 
   Future<String> _ensureHistoryImageSaved(GeneratedImage image) async {
+    final l10n = context.l10n;
     final existingPath = image.filePath;
     if (existingPath != null &&
         existingPath.isNotEmpty &&
@@ -1234,7 +1238,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
 
     final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
     if (saveDirPath == null || saveDirPath.isEmpty) {
-      throw StateError('未设置保存目录');
+      throw StateError(l10n.localGallery_saveDirectoryNotSet);
     }
 
     final saveDir = Directory(saveDirPath);
@@ -1375,7 +1379,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
             child: OutlinedButton.icon(
               onPressed: () => _packSelectedImages(context, state),
               icon: const Icon(Icons.archive_outlined, size: 20),
-              label: Text('打包 (${_selectedIds.length})'),
+              label: Text(
+                '${context.l10n.common_pack} (${_selectedIds.length})',
+              ),
               style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
             ),
           ),
@@ -1449,7 +1455,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     // 直接使用保存文件对话框，用户可以选择路径并输入文件名
     final defaultName = 'images_${DateTime.now().millisecondsSinceEpoch}';
     final outputPath = await FilePicker.platform.saveFile(
-      dialogTitle: '保存压缩包',
+      dialogTitle: context.l10n.localGallery_saveZipArchive,
       fileName: '$defaultName.zip',
       type: FileType.custom,
       allowedExtensions: ['zip'],

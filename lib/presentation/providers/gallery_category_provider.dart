@@ -4,6 +4,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/gallery_category.dart';
 import '../../data/repositories/gallery_category_repository.dart';
+import 'category_operation_error.dart';
 
 part 'gallery_category_provider.freezed.dart';
 part 'gallery_category_provider.g.dart';
@@ -25,7 +26,7 @@ class GalleryCategoryState with _$GalleryCategoryState {
     @Default(false) bool isSyncing,
 
     /// 错误信息
-    String? error,
+    CategoryOperationError? error,
   }) = _GalleryCategoryState;
 
   const GalleryCategoryState._();
@@ -78,15 +79,15 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
         updatedCategories.add(category.updateImageCount(count));
       }
 
-      state = state.copyWith(
-        categories: updatedCategories,
-        isLoading: false,
-      );
+      state = state.copyWith(categories: updatedCategories, isLoading: false);
     } catch (e) {
       AppLogger.e('加载分类失败', e);
       state = state.copyWith(
         isLoading: false,
-        error: 'Failed to load categories: $e',
+        error: CategoryOperationError(
+          CategoryOperationErrorCode.loadFailed,
+          details: e.toString(),
+        ),
       );
     }
   }
@@ -101,21 +102,22 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
     state = state.copyWith(isSyncing: true, error: null);
 
     try {
-      final syncedCategories =
-          await _repository.syncWithFileSystem(state.categories);
+      final syncedCategories = await _repository.syncWithFileSystem(
+        state.categories,
+      );
 
       // 保存同步后的分类
       await _repository.saveCategories(syncedCategories);
 
-      state = state.copyWith(
-        categories: syncedCategories,
-        isSyncing: false,
-      );
+      state = state.copyWith(categories: syncedCategories, isSyncing: false);
     } catch (e) {
       AppLogger.e('同步分类失败', e);
       state = state.copyWith(
         isSyncing: false,
-        error: 'Failed to sync categories: $e',
+        error: CategoryOperationError(
+          CategoryOperationErrorCode.syncFailed,
+          details: e.toString(),
+        ),
       );
     }
   }
@@ -148,7 +150,12 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
       return null;
     } catch (e) {
       AppLogger.e('创建分类失败', e);
-      state = state.copyWith(error: 'Failed to create category: $e');
+      state = state.copyWith(
+        error: CategoryOperationError(
+          CategoryOperationErrorCode.createFailed,
+          details: e.toString(),
+        ),
+      );
       return null;
     }
   }
@@ -160,7 +167,11 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
   ) async {
     final category = state.categories.findById(categoryId);
     if (category == null) {
-      state = state.copyWith(error: 'Category does not exist');
+      state = state.copyWith(
+        error: const CategoryOperationError(
+          CategoryOperationErrorCode.categoryNotFound,
+        ),
+      );
       return null;
     }
 
@@ -195,7 +206,12 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
       return null;
     } catch (e) {
       AppLogger.e('重命名分类失败', e);
-      state = state.copyWith(error: 'Failed to rename category: $e');
+      state = state.copyWith(
+        error: CategoryOperationError(
+          CategoryOperationErrorCode.renameFailed,
+          details: e.toString(),
+        ),
+      );
       return null;
     }
   }
@@ -207,7 +223,11 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
   ) async {
     final category = state.categories.findById(categoryId);
     if (category == null) {
-      state = state.copyWith(error: 'Category does not exist');
+      state = state.copyWith(
+        error: const CategoryOperationError(
+          CategoryOperationErrorCode.categoryNotFound,
+        ),
+      );
       return null;
     }
 
@@ -215,7 +235,9 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
     if (newParentId != null &&
         state.categories.wouldCreateCycle(categoryId, newParentId)) {
       state = state.copyWith(
-        error: 'Cannot move a category under its descendant',
+        error: const CategoryOperationError(
+          CategoryOperationErrorCode.invalidMove,
+        ),
       );
       return null;
     }
@@ -251,7 +273,12 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
       return null;
     } catch (e) {
       AppLogger.e('移动分类失败', e);
-      state = state.copyWith(error: 'Failed to move category: $e');
+      state = state.copyWith(
+        error: CategoryOperationError(
+          CategoryOperationErrorCode.moveFailed,
+          details: e.toString(),
+        ),
+      );
       return null;
     }
   }
@@ -264,7 +291,11 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
   }) async {
     final category = state.categories.findById(categoryId);
     if (category == null) {
-      state = state.copyWith(error: 'Category does not exist');
+      state = state.copyWith(
+        error: const CategoryOperationError(
+          CategoryOperationErrorCode.categoryNotFound,
+        ),
+      );
       return false;
     }
 
@@ -272,7 +303,9 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
     final children = state.categories.getChildren(categoryId);
     if (children.isNotEmpty && !recursive) {
       state = state.copyWith(
-        error: 'Category contains subcategories and cannot be deleted',
+        error: const CategoryOperationError(
+          CategoryOperationErrorCode.hasSubcategories,
+        ),
       );
       return false;
     }
@@ -293,13 +326,15 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
         };
 
         // 从列表中移除
-        final updatedCategories =
-            state.categories.where((c) => !categoryIds.contains(c.id)).toList();
+        final updatedCategories = state.categories
+            .where((c) => !categoryIds.contains(c.id))
+            .toList();
 
         await _repository.saveCategories(updatedCategories);
 
         // 如果删除的是当前选中的分类，切换到"全部"
-        final newSelectedId = state.selectedCategoryId == categoryId ||
+        final newSelectedId =
+            state.selectedCategoryId == categoryId ||
                 (state.selectedCategoryId != null &&
                     categoryIds.contains(state.selectedCategoryId))
             ? null
@@ -316,7 +351,12 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
       return false;
     } catch (e) {
       AppLogger.e('删除分类失败', e);
-      state = state.copyWith(error: 'Failed to delete category: $e');
+      state = state.copyWith(
+        error: CategoryOperationError(
+          CategoryOperationErrorCode.deleteFailed,
+          details: e.toString(),
+        ),
+      );
       return false;
     }
   }
@@ -345,7 +385,12 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
       return newPath;
     } catch (e) {
       AppLogger.e('移动图片失败', e);
-      state = state.copyWith(error: 'Failed to move image: $e');
+      state = state.copyWith(
+        error: CategoryOperationError(
+          CategoryOperationErrorCode.moveImageFailed,
+          details: e.toString(),
+        ),
+      );
       return null;
     }
   }
@@ -374,7 +419,12 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
       return count;
     } catch (e) {
       AppLogger.e('批量移动图片失败', e);
-      state = state.copyWith(error: 'Failed to move images: $e');
+      state = state.copyWith(
+        error: CategoryOperationError(
+          CategoryOperationErrorCode.moveImagesFailed,
+          details: e.toString(),
+        ),
+      );
       return 0;
     }
   }
@@ -419,10 +469,7 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
 
       // 更新排序顺序
       final updatedSiblings = reordered.asMap().entries.map((e) {
-        return e.value.copyWith(
-          sortOrder: e.key,
-          updatedAt: DateTime.now(),
-        );
+        return e.value.copyWith(sortOrder: e.key, updatedAt: DateTime.now());
       }).toList();
 
       // 更新完整分类列表
@@ -436,7 +483,12 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
       state = state.copyWith(categories: updatedCategories);
     } catch (e) {
       AppLogger.e('重新排序失败', e);
-      state = state.copyWith(error: 'Failed to reorder categories: $e');
+      state = state.copyWith(
+        error: CategoryOperationError(
+          CategoryOperationErrorCode.reorderFailed,
+          details: e.toString(),
+        ),
+      );
     }
   }
 
@@ -452,9 +504,6 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
 
   /// 获取分类及其所有子分类的ID
   Set<String> getCategoryWithDescendants(String categoryId) {
-    return {
-      categoryId,
-      ...state.categories.getDescendantIds(categoryId),
-    };
+    return {categoryId, ...state.categories.getDescendantIds(categoryId)};
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 /// Polar activity chart for 24-hour distribution
 /// Enhanced with animations and improved visual effects
@@ -58,7 +59,7 @@ class _PolarActivityChartState extends State<PolarActivityChart>
         height: widget.size,
         child: Center(
           child: Text(
-            'No activity data',
+            context.l10n.statistics_noData,
             style: theme.textTheme.bodySmall?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),
@@ -186,9 +187,7 @@ class _PolarChartPainter extends CustomPainter {
           color.withValues(alpha: isDark ? 0.6 : 0.5),
           color.withValues(alpha: isDark ? 0.3 : 0.2),
         ],
-      ).createShader(
-        Rect.fromCircle(center: center, radius: radius),
-      )
+      ).createShader(Rect.fromCircle(center: center, radius: radius))
       ..style = PaintingStyle.fill;
     canvas.drawPath(path, gradientPaint);
 
@@ -292,9 +291,10 @@ class _PeakTimeIndicatorState extends State<PeakTimeIndicator>
       duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _pulseAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.08,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
     _controller.repeat(reverse: true);
   }
 
@@ -393,11 +393,7 @@ class _PeakTimeIndicatorState extends State<PeakTimeIndicator>
                         ),
                       ],
                     ),
-                    child: Icon(
-                      timeIcon,
-                      color: primaryColor,
-                      size: 24,
-                    ),
+                    child: Icon(timeIcon, color: primaryColor, size: 24),
                   ),
                   const SizedBox(width: 14),
                   Column(
@@ -405,7 +401,7 @@ class _PeakTimeIndicatorState extends State<PeakTimeIndicator>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        widget.label ?? 'Peak Activity',
+                        widget.label ?? context.l10n.statistics_peakActivity,
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w500,

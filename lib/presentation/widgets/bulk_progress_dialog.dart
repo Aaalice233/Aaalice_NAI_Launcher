@@ -70,16 +70,10 @@ class _BulkProgressDialogState extends ConsumerState<BulkProgressDialog> {
     return AlertDialog(
       title: Row(
         children: [
-          Icon(
-            operationIcon,
-            color: theme.colorScheme.primary,
-          ),
+          Icon(operationIcon, color: theme.colorScheme.primary),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              operationTitle,
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: Text(operationTitle, overflow: TextOverflow.ellipsis),
           ),
           // Close button (only when not in progress)
           if (!state.isOperationInProgress)
@@ -199,7 +193,7 @@ class _BulkProgressDialogState extends ConsumerState<BulkProgressDialog> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        state.error ?? l10n.common_error,
+                        state.error?.localized(l10n) ?? l10n.common_error,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onErrorContainer,
                         ),
@@ -228,10 +222,7 @@ class _BulkProgressDialogState extends ConsumerState<BulkProgressDialog> {
   }
 
   /// Build result statistics widget
-  Widget _buildResultStats(
-    BuildContext context,
-    BulkOperationResult result,
-  ) {
+  Widget _buildResultStats(BuildContext context, BulkOperationResult result) {
     final theme = Theme.of(context);
     final l10n = context.l10n;
 
@@ -262,11 +253,7 @@ class _BulkProgressDialogState extends ConsumerState<BulkProgressDialog> {
               const SizedBox(width: 16),
               // Failed count
               if (result.failed > 0) ...[
-                Icon(
-                  Icons.error,
-                  color: theme.colorScheme.error,
-                  size: 16,
-                ),
+                Icon(Icons.error, color: theme.colorScheme.error, size: 16),
                 const SizedBox(width: 6),
                 Text(
                   l10n.bulkProgress_failed(result.failed),
@@ -287,7 +274,9 @@ class _BulkProgressDialogState extends ConsumerState<BulkProgressDialog> {
               ),
             ),
             const SizedBox(height: 4),
-            ...result.errors.take(3).map(
+            ...result.errors
+                .take(3)
+                .map(
                   (error) => Padding(
                     padding: const EdgeInsets.only(left: 8, bottom: 2),
                     child: Text(

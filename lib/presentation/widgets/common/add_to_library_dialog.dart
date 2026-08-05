@@ -193,8 +193,10 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
 
       // 合并新旧标签
       final updatedTags = [...currentTags, ...newTags];
-      final updatedLibrary =
-          currentLibrary.setCategory(targetCategory, updatedTags);
+      final updatedLibrary = currentLibrary.setCategory(
+        targetCategory,
+        updatedTags,
+      );
 
       // 保存词库
       await notifier.saveLibrary(updatedLibrary);
@@ -265,8 +267,9 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.5),
+                  color: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: colorScheme.outline.withValues(alpha: 0.2),
@@ -287,8 +290,8 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
               TextField(
                 controller: _nameController,
                 decoration: InputDecoration(
-                  labelText: 'Display name (optional)',
-                  hintText: 'Enter a name to identify it',
+                  labelText: l10n.addGroup_displayNameLabel,
+                  hintText: l10n.addToLibrary_displayNameHint,
                   prefixIcon: const Icon(Icons.label_outline),
                   border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
@@ -307,10 +310,10 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
 
                   return DropdownButtonFormField<String?>(
                     initialValue: _selectedCategoryId,
-                    decoration: const InputDecoration(
-                      labelText: 'Target Category',
-                      prefixIcon: Icon(Icons.folder_outlined),
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: l10n.addGroup_targetCategoryLabel,
+                      prefixIcon: const Icon(Icons.folder_outlined),
+                      border: const OutlineInputBorder(),
                     ),
                     items: [
                       DropdownMenuItem(
@@ -342,7 +345,7 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
                 controller: _tagController,
                 decoration: InputDecoration(
                   labelText: l10n.tag_addTag,
-                  hintText: 'Enter a tag and press Enter to add',
+                  hintText: l10n.addToLibrary_tagHint,
                   prefixIcon: const Icon(Icons.tag),
                   border: const OutlineInputBorder(),
                   suffixIcon: IconButton(

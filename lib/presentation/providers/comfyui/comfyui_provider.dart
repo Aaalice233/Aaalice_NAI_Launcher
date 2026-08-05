@@ -9,6 +9,7 @@ import '../../../core/comfyui/comfyui.dart';
 import '../../../core/comfyui/object_info_parser.dart';
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../l10n/app_localizations.dart';
 
 part 'comfyui_provider.g.dart';
 
@@ -19,10 +20,12 @@ class ComfyUISettings extends _$ComfyUISettings {
   @override
   ComfyUISettingsState build() {
     final box = Hive.box(StorageKeys.settingsBox);
-    final storedServerUrl = box.get(
-      StorageKeys.comfyuiServerUrl,
-      defaultValue: 'http://127.0.0.1:8188',
-    ) as String;
+    final storedServerUrl =
+        box.get(
+              StorageKeys.comfyuiServerUrl,
+              defaultValue: 'http://127.0.0.1:8188',
+            )
+            as String;
     final serverUrl = normalizeComfyUIBaseUrl(storedServerUrl);
     if (serverUrl != storedServerUrl) {
       box.put(StorageKeys.comfyuiServerUrl, serverUrl);
@@ -94,8 +97,9 @@ class ComfyUIConnection extends _$ComfyUIConnection {
 
     state = ComfyUIConnectionStatus.connecting;
     final ok = await _manager!.connect();
-    state =
-        ok ? ComfyUIConnectionStatus.connected : ComfyUIConnectionStatus.error;
+    state = ok
+        ? ComfyUIConnectionStatus.connected
+        : ComfyUIConnectionStatus.error;
 
     if (ok) {
       _manager!.statusStream.listen((s) {
@@ -211,7 +215,7 @@ class ComfyUITask extends _$ComfyUITask {
         AppLogger.w('Connection attempt failed before execute', _tag);
         state = state.copyWith(
           status: ComfyUITaskStatus.failed,
-          errorMessage: '无法连接到 ComfyUI 服务器',
+          errorCode: ComfyUITaskErrorCode.connectionFailed,
         );
         return null;
       }
@@ -226,7 +230,7 @@ class ComfyUITask extends _$ComfyUITask {
       );
       state = state.copyWith(
         status: ComfyUITaskStatus.failed,
-        errorMessage: 'ComfyUI 连接不可用',
+        errorCode: ComfyUITaskErrorCode.connectionUnavailable,
       );
       return null;
     }
@@ -236,14 +240,16 @@ class ComfyUITask extends _$ComfyUITask {
       AppLogger.w('Workflow template not found: $templateId', _tag);
       state = state.copyWith(
         status: ComfyUITaskStatus.failed,
-        errorMessage: '未找到工作流模板: $templateId',
+        errorCode: ComfyUITaskErrorCode.workflowNotFound,
+        errorDetails: templateId,
       );
       return null;
     }
 
     try {
-      final outputNodeIds =
-          template.outputSlots.map((slot) => slot.nodeId).toSet();
+      final outputNodeIds = template.outputSlots
+          .map((slot) => slot.nodeId)
+          .toSet();
 
       // 1. 上传图像
       state = state.copyWith(status: ComfyUITaskStatus.uploading, progress: 0);
@@ -312,22 +318,27 @@ class ComfyUITask extends _$ComfyUITask {
       state = state.copyWith(status: ComfyUITaskStatus.running);
 
       final images = template.usesWebSocketOutput
-          ? await _waitForWebSocketResult(
-              conn,
-              result.promptId,
-              outputNodeIds,
-            )
-          : await _waitForHttpResult(
-              conn,
-              result.promptId,
-              outputNodeIds,
-            );
+          ? await _waitForWebSocketResult(conn, result.promptId, outputNodeIds)
+          : await _waitForHttpResult(conn, result.promptId, outputNodeIds);
       AppLogger.i(
         'Workflow result collected: template=$templateId, '
         'promptId=${result.promptId}, ${_summarizeOutputImages(images)}',
         _tag,
       );
       return images;
+    } on _ComfyUITaskLocalizedException catch (e, stackTrace) {
+      AppLogger.e(
+        'Task execution failed: template=$templateId',
+        e,
+        stackTrace,
+        _tag,
+      );
+      state = state.copyWith(
+        status: ComfyUITaskStatus.failed,
+        errorCode: e.code,
+        errorDetails: e.details,
+      );
+      return null;
     } catch (e, stackTrace) {
       AppLogger.e(
         'Task execution failed: template=$templateId',
@@ -337,7 +348,8 @@ class ComfyUITask extends _$ComfyUITask {
       );
       state = state.copyWith(
         status: ComfyUITaskStatus.failed,
-        errorMessage: e.toString(),
+        errorCode: ComfyUITaskErrorCode.executionFailed,
+        errorDetails: e.toString(),
       );
       return null;
     }
@@ -383,7 +395,10 @@ class ComfyUITask extends _$ComfyUITask {
       } else if (progress.status == ComfyUITaskStatus.failed) {
         if (!completer.isCompleted) {
           completer.completeError(
-            ComfyUIApiException(progress.errorMessage ?? '执行失败'),
+            _ComfyUITaskLocalizedException(
+              ComfyUITaskErrorCode.executionFailed,
+              details: progress.errorMessage,
+            ),
           );
         }
       }
@@ -392,7 +407,9 @@ class ComfyUITask extends _$ComfyUITask {
     try {
       var result = await completer.future.timeout(
         const Duration(minutes: 10),
-        onTimeout: () => throw const ComfyUIApiException('超分超时（10分钟）'),
+        onTimeout: () => throw const _ComfyUITaskLocalizedException(
+          ComfyUITaskErrorCode.timeout,
+        ),
       );
       // SaveImageWebsocket 在部分版本/节点下可能未推送二进制帧，改从 history+view 拉取
       if (result.isEmpty) {
@@ -405,8 +422,10 @@ class ComfyUITask extends _$ComfyUITask {
           AppLogger.w('WS 无图像且 history 拉取失败: $e', _tag);
         }
       }
-      state =
-          state.copyWith(status: ComfyUITaskStatus.completed, progress: 1.0);
+      state = state.copyWith(
+        status: ComfyUITaskStatus.completed,
+        progress: 1.0,
+      );
       return result;
     } finally {
       await imageSub.cancel();
@@ -441,7 +460,10 @@ class ComfyUITask extends _$ComfyUITask {
       } else if (progress.status == ComfyUITaskStatus.failed) {
         if (!completer.isCompleted) {
           completer.completeError(
-            ComfyUIApiException(progress.errorMessage ?? '执行失败'),
+            _ComfyUITaskLocalizedException(
+              ComfyUITaskErrorCode.executionFailed,
+              details: progress.errorMessage,
+            ),
           );
         }
       }
@@ -450,7 +472,9 @@ class ComfyUITask extends _$ComfyUITask {
     try {
       await completer.future.timeout(
         const Duration(minutes: 10),
-        onTimeout: () => throw const ComfyUIApiException('任务超时（10分钟）'),
+        onTimeout: () => throw const _ComfyUITaskLocalizedException(
+          ComfyUITaskErrorCode.timeout,
+        ),
       );
 
       AppLogger.d(
@@ -465,8 +489,10 @@ class ComfyUITask extends _$ComfyUITask {
         'Got ${images.length} images from history (sizes: ${images.map((i) => i.length).toList()})',
         _tag,
       );
-      state =
-          state.copyWith(status: ComfyUITaskStatus.completed, progress: 1.0);
+      state = state.copyWith(
+        status: ComfyUITaskStatus.completed,
+        progress: 1.0,
+      );
       return images;
     } finally {
       await imageSub.cancel();
@@ -515,14 +541,14 @@ class ComfyUISeedvr2Models extends _$ComfyUISeedvr2Models {
       }
     });
 
-    ref.listen<ComfyUIConnectionStatus>(
-      comfyUIConnectionProvider,
-      (previous, next) {
-        if (next == ComfyUIConnectionStatus.connected) {
-          _scheduleAutoFetch();
-        }
-      },
-    );
+    ref.listen<ComfyUIConnectionStatus>(comfyUIConnectionProvider, (
+      previous,
+      next,
+    ) {
+      if (next == ComfyUIConnectionStatus.connected) {
+        _scheduleAutoFetch();
+      }
+    });
 
     if (ref.read(comfyUISettingsProvider).enabled) {
       _scheduleAutoFetch();
@@ -671,6 +697,21 @@ class ComfyUISeedvr2Models extends _$ComfyUISeedvr2Models {
       s.length <= maxLen ? s : '${s.substring(0, maxLen)}...';
 }
 
+enum ComfyUITaskErrorCode {
+  connectionFailed,
+  connectionUnavailable,
+  workflowNotFound,
+  executionFailed,
+  timeout,
+}
+
+class _ComfyUITaskLocalizedException implements Exception {
+  const _ComfyUITaskLocalizedException(this.code, {this.details});
+
+  final ComfyUITaskErrorCode code;
+  final String? details;
+}
+
 class ComfyUITaskState {
   final ComfyUITaskStatus status;
   final double progress;
@@ -678,6 +719,8 @@ class ComfyUITaskState {
   final int totalSteps;
   final String? promptId;
   final String? errorMessage;
+  final ComfyUITaskErrorCode? errorCode;
+  final String? errorDetails;
 
   /// WebSocket 推送的中间步骤预览图
   final Uint8List? previewImage;
@@ -689,6 +732,8 @@ class ComfyUITaskState {
     this.totalSteps = 0,
     this.promptId,
     this.errorMessage,
+    this.errorCode,
+    this.errorDetails,
     this.previewImage,
   });
 
@@ -699,6 +744,23 @@ class ComfyUITaskState {
 
   bool get hasPreview => previewImage != null && previewImage!.isNotEmpty;
 
+  String? localizedError(AppLocalizations l10n) {
+    return switch (errorCode) {
+      ComfyUITaskErrorCode.connectionFailed =>
+        l10n.comfyTask_errorConnectionFailed,
+      ComfyUITaskErrorCode.connectionUnavailable =>
+        l10n.comfyTask_errorConnectionUnavailable,
+      ComfyUITaskErrorCode.workflowNotFound =>
+        l10n.comfyTask_errorWorkflowNotFound(errorDetails ?? ''),
+      ComfyUITaskErrorCode.executionFailed =>
+        errorDetails == null || errorDetails!.isEmpty
+            ? l10n.comfyTask_errorExecutionFailedGeneric
+            : l10n.comfyTask_errorExecutionFailed(errorDetails!),
+      ComfyUITaskErrorCode.timeout => l10n.comfyTask_errorTimeout,
+      null => errorMessage,
+    };
+  }
+
   ComfyUITaskState copyWith({
     ComfyUITaskStatus? status,
     double? progress,
@@ -706,6 +768,8 @@ class ComfyUITaskState {
     int? totalSteps,
     String? promptId,
     String? errorMessage,
+    ComfyUITaskErrorCode? errorCode,
+    String? errorDetails,
     Uint8List? previewImage,
     bool clearPreview = false,
   }) {
@@ -716,6 +780,8 @@ class ComfyUITaskState {
       totalSteps: totalSteps ?? this.totalSteps,
       promptId: promptId ?? this.promptId,
       errorMessage: errorMessage,
+      errorCode: errorCode,
+      errorDetails: errorDetails,
       previewImage: clearPreview ? null : (previewImage ?? this.previewImage),
     );
   }

@@ -222,10 +222,7 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _EmojiPickerButton(
-            emoji: _selectedEmoji,
-            onTap: _pickEmoji,
-          ),
+          _EmojiPickerButton(emoji: _selectedEmoji, onTap: _pickEmoji),
           const SizedBox(width: 12),
           Expanded(
             child: TextFormField(
@@ -287,23 +284,23 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
               ],
             ),
           ),
-          const Tab(
+          Tab(
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.label_outline, size: 16),
-                SizedBox(width: 4),
-                Text('Tag Group'),
+                const Icon(Icons.label_outline, size: 16),
+                const SizedBox(width: 4),
+                Text(context.l10n.addGroup_tagGroupTab),
               ],
             ),
           ),
-          const Tab(
+          Tab(
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.photo_library_outlined, size: 16),
-                SizedBox(width: 4),
-                Text('Pool'),
+                const Icon(Icons.photo_library_outlined, size: 16),
+                const SizedBox(width: 4),
+                Text(context.l10n.addGroup_poolTab),
               ],
             ),
           ),
@@ -333,9 +330,7 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
                   },
                 )
               : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           filled: true,
           fillColor: colorScheme.surfaceContainerHighest,
           contentPadding: const EdgeInsets.symmetric(
@@ -371,14 +366,16 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
         children: [
           Text(
             context.l10n.randomManager_tagList,
-            style: theme.textTheme.labelLarge
-                ?.copyWith(fontWeight: FontWeight.bold),
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             context.l10n.randomManager_tagListHelp,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 8),
           Expanded(
@@ -415,14 +412,16 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
             children: [
               Text(
                 'Danbooru Tag Group',
-                style: theme.textTheme.labelLarge
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const Spacer(),
               Text(
                 context.l10n.randomManager_itemCount(filtered.length),
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -473,14 +472,16 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
             children: [
               Text(
                 'Danbooru Pool',
-                style: theme.textTheme.labelLarge
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const Spacer(),
               Text(
                 context.l10n.randomManager_itemCount(filtered.length),
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -625,8 +626,9 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
     final notifier = ref.read(randomPresetNotifierProvider.notifier);
     final state = ref.read(randomPresetNotifierProvider);
     final preset = state.presets.firstWhere((p) => p.id == widget.presetId);
-    final category =
-        preset.categories.firstWhere((c) => c.id == widget.category.id);
+    final category = preset.categories.firstWhere(
+      (c) => c.id == widget.category.id,
+    );
     final updatedCategory = category.addGroup(newGroup);
     notifier.updateCategory(updatedCategory);
 
@@ -767,12 +769,13 @@ class _DanbooruListTileState extends State<_DanbooruListTile> {
             color: widget.isSelected
                 ? colorScheme.primaryContainer
                 : _isHovered
-                    ? colorScheme.surfaceContainerHigh
-                    : colorScheme.surfaceContainerHighest,
+                ? colorScheme.surfaceContainerHigh
+                : colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color:
-                  widget.isSelected ? colorScheme.primary : Colors.transparent,
+              color: widget.isSelected
+                  ? colorScheme.primary
+                  : Colors.transparent,
               width: widget.isSelected ? 2 : 0,
             ),
           ),
@@ -802,8 +805,9 @@ class _DanbooruListTileState extends State<_DanbooruListTile> {
                     ),
                     Text(
                       widget.subtitle,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: colorScheme.onSurfaceVariant),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -824,9 +828,6 @@ class _DanbooruListTileState extends State<_DanbooruListTile> {
       ),
     );
 
-    return HoverPreviewCard(
-      previewBuilder: _buildPreviewContent,
-      child: tile,
-    );
+    return HoverPreviewCard(previewBuilder: _buildPreviewContent, child: tile);
   }
 }

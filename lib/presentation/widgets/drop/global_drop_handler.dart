@@ -696,7 +696,9 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          isBundle ? '保存 Vibe Bundle (${vibes.length} 个)' : '保存到 Vibe 库',
+          isBundle
+              ? '${l10n.vibe_saveToLibrary_saveAsBundle} (${vibes.length})'
+              : l10n.vibe_saveToLibrary_title,
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -706,16 +708,17 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
-                  '包含以下 Vibe：\n${vibes.map((v) => '• ${v.displayName}').join('\n')}',
+                  '${l10n.vibe_saveToLibrary_saveAsBundleDescription(vibes.length)}:\n'
+                  '${vibes.map((v) => '• ${v.displayName}').join('\n')}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(
-                labelText: '名称',
-                hintText: '输入保存名称',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.vibe_saveToLibrary_nameLabel,
+                hintText: l10n.vibe_saveToLibrary_nameHint,
+                border: const OutlineInputBorder(),
               ),
               autofocus: true,
             ),
@@ -816,6 +819,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         read: ref.read,
         metadata: metadata,
         options: options,
+        l10n: context.l10n,
       );
 
       if (!mounted) return;

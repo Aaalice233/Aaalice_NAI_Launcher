@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../common/themed_slider.dart';
 import '../../../common/elevated_card.dart';
@@ -87,13 +88,13 @@ class EmphasisConfigPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '全局强调配置',
+                context.l10n.diy_emphasisTitle,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
-                '调整标签强调效果',
+                context.l10n.diy_emphasisSubtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -136,7 +137,7 @@ class EmphasisConfigPanel extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Text(
-                '强调概率',
+                context.l10n.diy_emphasisProbability,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -144,8 +145,10 @@ class EmphasisConfigPanel extends StatelessWidget {
               const Spacer(),
               // 数值显示 - 带背景
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -175,7 +178,7 @@ class EmphasisConfigPanel extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '每个选中的标签有 $percent% 的概率被添加强调括号',
+            context.l10n.diy_emphasisProbabilityHint(percent),
             style: theme.textTheme.bodySmall?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),
@@ -215,7 +218,7 @@ class EmphasisConfigPanel extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Text(
-                '括号层数',
+                context.l10n.diy_bracketCount,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -223,8 +226,10 @@ class EmphasisConfigPanel extends StatelessWidget {
               const Spacer(),
               // 数值显示 - 带背景
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -235,7 +240,7 @@ class EmphasisConfigPanel extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  '$bracketCount 层',
+                  context.l10n.diy_bracketLayers(bracketCount),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: colorScheme.tertiary,
@@ -256,8 +261,9 @@ class EmphasisConfigPanel extends StatelessWidget {
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      onTap:
-                          readOnly ? null : () => onBracketCountChanged(count),
+                      onTap: readOnly
+                          ? null
+                          : () => onBracketCountChanged(count),
                       borderRadius: BorderRadius.circular(8),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
@@ -286,8 +292,9 @@ class EmphasisConfigPanel extends StatelessWidget {
                           boxShadow: isSelected
                               ? [
                                   BoxShadow(
-                                    color: colorScheme.primary
-                                        .withValues(alpha: 0.3),
+                                    color: colorScheme.primary.withValues(
+                                      alpha: 0.3,
+                                    ),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   ),
@@ -359,7 +366,7 @@ class EmphasisConfigPanel extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Text(
-                '效果预览',
+                context.l10n.diy_effectPreview,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -414,7 +421,7 @@ class EmphasisConfigPanel extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'example tag',
+                  context.l10n.diy_exampleTag,
                   style: TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 14,
@@ -435,7 +442,7 @@ class EmphasisConfigPanel extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            '强调括号会增加标签的权重，层数越多权重越高',
+            context.l10n.diy_emphasisExplanation,
             style: theme.textTheme.bodySmall?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),

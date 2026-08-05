@@ -95,7 +95,8 @@ class VibeDetailParamPanel extends StatelessWidget {
                         value: strength,
                         onChanged: onStrengthChanged,
                         enabled: parametersEditable,
-                        description: '控制 Vibe 对生成结果的影响强度',
+                        description:
+                            context.l10n.vibeDetail_strengthDescription,
                       ),
                       if (showInfoExtractedControl) ...[
                         const SizedBox(height: DesignTokens.spacingLg),
@@ -105,7 +106,8 @@ class VibeDetailParamPanel extends StatelessWidget {
                           value: infoExtracted,
                           onChanged: onInfoExtractedChanged,
                           enabled: parametersEditable,
-                          description: '控制从原始图片提取的信息量（消耗 2 Anlas）',
+                          description:
+                              context.l10n.vibeDetail_infoExtractedDescription,
                         ),
                       ],
                       if (parameterHint != null) ...[
@@ -128,14 +130,14 @@ class VibeDetailParamPanel extends StatelessWidget {
                       ],
                       const SizedBox(height: DesignTokens.spacingLg),
                       // 统计信息
-                      _buildStatsSection(theme),
+                      _buildStatsSection(context, theme),
                     ],
                   ),
                 ),
               ),
 
               // 操作按钮区域
-              _buildActionBar(theme),
+              _buildActionBar(context, theme),
             ],
           ),
         ),
@@ -300,7 +302,9 @@ class VibeDetailParamPanel extends StatelessWidget {
   }
 
   /// 统计信息
-  Widget _buildStatsSection(ThemeData theme) {
+  Widget _buildStatsSection(BuildContext context, ThemeData theme) {
+    final l10n = context.l10n;
+
     return Container(
       padding: const EdgeInsets.all(DesignTokens.spacingSm),
       decoration: BoxDecoration(
@@ -311,21 +315,29 @@ class VibeDetailParamPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '统计信息',
+            l10n.vibeDetail_statistics,
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: DesignTokens.spacingSm),
-          _buildStatRow(theme, '使用次数', '${entry.usedCount} 次'),
           _buildStatRow(
             theme,
-            '最后使用',
-            entry.lastUsedAt != null
-                ? _formatDateTime(entry.lastUsedAt!)
-                : '从未使用',
+            l10n.vibeDetail_usageCount,
+            l10n.vibeDetail_timesUsed(entry.usedCount),
           ),
-          _buildStatRow(theme, '创建时间', _formatDateTime(entry.createdAt)),
+          _buildStatRow(
+            theme,
+            l10n.vibeDetail_lastUsed,
+            entry.lastUsedAt != null
+                ? _formatDateTime(l10n, entry.lastUsedAt!)
+                : l10n.vibeDetail_neverUsed,
+          ),
+          _buildStatRow(
+            theme,
+            l10n.vibeDetail_createdAt,
+            _formatDateTime(l10n, entry.createdAt),
+          ),
         ],
       ),
     );
@@ -353,7 +365,9 @@ class VibeDetailParamPanel extends StatelessWidget {
   }
 
   /// 操作按钮区域
-  Widget _buildActionBar(ThemeData theme) {
+  Widget _buildActionBar(BuildContext context, ThemeData theme) {
+    final l10n = context.l10n;
+
     return Container(
       padding: const EdgeInsets.all(DesignTokens.spacingMd),
       decoration: BoxDecoration(
@@ -377,7 +391,7 @@ class VibeDetailParamPanel extends StatelessWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.save_outlined),
-              label: const Text('保存参数'),
+              label: Text(l10n.vibeDetail_saveParameters),
             ),
           ),
           const SizedBox(height: DesignTokens.spacingSm),
@@ -386,7 +400,7 @@ class VibeDetailParamPanel extends StatelessWidget {
             child: FilledButton.icon(
               onPressed: onSendToGeneration,
               icon: const Icon(Icons.send),
-              label: const Text('发送到生成'),
+              label: Text(l10n.vibeLibrary_sendToGeneration),
             ),
           ),
           const SizedBox(height: DesignTokens.spacingSm),
@@ -402,7 +416,7 @@ class VibeDetailParamPanel extends StatelessWidget {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.drive_file_rename_outline),
-                  label: const Text('重命名'),
+                  label: Text(l10n.common_rename),
                 ),
               ),
               const SizedBox(width: DesignTokens.spacingSm),
@@ -410,7 +424,7 @@ class VibeDetailParamPanel extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: onExport,
                   icon: const Icon(Icons.file_download_outlined),
-                  label: const Text('导出'),
+                  label: Text(l10n.common_export),
                 ),
               ),
               const SizedBox(width: DesignTokens.spacingSm),
@@ -418,7 +432,7 @@ class VibeDetailParamPanel extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: onDelete,
                   icon: const Icon(Icons.delete_outline),
-                  label: const Text('删除'),
+                  label: Text(l10n.common_delete),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: theme.colorScheme.error,
                   ),
@@ -431,15 +445,15 @@ class VibeDetailParamPanel extends StatelessWidget {
     );
   }
 
-  String _formatDateTime(DateTime dateTime) {
+  String _formatDateTime(AppLocalizations l10n, DateTime dateTime) {
     final diff = DateTime.now().difference(dateTime);
     if (diff.inDays > 6) {
       return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}';
     }
-    if (diff.inDays > 1) return '${diff.inDays} 天前';
-    if (diff.inDays == 1) return '昨天';
-    if (diff.inHours > 0) return '${diff.inHours} 小时前';
-    if (diff.inMinutes > 0) return '${diff.inMinutes} 分钟前';
-    return '刚刚';
+    if (diff.inDays > 1) return l10n.common_daysAgo(diff.inDays);
+    if (diff.inDays == 1) return l10n.common_yesterday;
+    if (diff.inHours > 0) return l10n.common_hoursAgo(diff.inHours);
+    if (diff.inMinutes > 0) return l10n.common_minutesAgo(diff.inMinutes);
+    return l10n.common_justNow;
   }
 }

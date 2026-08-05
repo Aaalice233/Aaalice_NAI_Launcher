@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '_internal/loading_overlay.dart';
@@ -68,7 +69,7 @@ class ImagePickerCard extends StatefulWidget {
   /// [fileName] 文件名
   /// [path] 文件路径（可能为空，如 Web 平台）
   final void Function(Uint8List bytes, String fileName, String? path)?
-      onImageSelected;
+  onImageSelected;
 
   /// 多文件选择回调
   final void Function(List<ImagePickerResult> files)? onMultipleSelected;
@@ -315,10 +316,7 @@ class _ImagePickerCardState extends State<ImagePickerCard> {
         decoration: BoxDecoration(
           color: theme.colorScheme.primary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: theme.colorScheme.primary,
-            width: 2,
-          ),
+          border: Border.all(color: theme.colorScheme.primary, width: 2),
         ),
         child: Center(
           child: Icon(
@@ -362,6 +360,7 @@ class _ImagePickerCardState extends State<ImagePickerCard> {
 
   /// 处理拖拽放置
   Future<void> _handleDrop(PerformDropEvent event) async {
+    final l10n = context.l10n;
     var handledAny = false;
     for (final item in event.session.items) {
       final reader = item.dataReader;
@@ -380,11 +379,11 @@ class _ImagePickerCardState extends State<ImagePickerCard> {
           }
         }
       } catch (e) {
-        widget.onError?.call('读取拖入图片失败: $e');
+        widget.onError?.call(l10n.imagePicker_dropReadFailed(e.toString()));
       }
     }
     if (!handledAny) {
-      widget.onError?.call('拖入源未提供可读取的图片文件或图片链接');
+      widget.onError?.call(l10n.imagePicker_dropNoReadableImage);
     }
   }
 
@@ -433,6 +432,7 @@ class _ImagePickerCardState extends State<ImagePickerCard> {
   Future<void> _pickImage() async {
     if (widget.allowMultiple) {
       final results = await PickerHandler.pickMultipleImages(
+        l10n: context.l10n,
         onError: widget.onError,
       );
       if (results.isNotEmpty) {
@@ -440,11 +440,15 @@ class _ImagePickerCardState extends State<ImagePickerCard> {
       }
     } else {
       final result = await PickerHandler.pickImage(
+        l10n: context.l10n,
         onError: widget.onError,
       );
       if (result != null) {
-        widget.onImageSelected
-            ?.call(result.bytes, result.fileName, result.path);
+        widget.onImageSelected?.call(
+          result.bytes,
+          result.fileName,
+          result.path,
+        );
       }
     }
   }
@@ -452,6 +456,7 @@ class _ImagePickerCardState extends State<ImagePickerCard> {
   Future<void> _pickFile() async {
     final extensions = widget.allowedExtensions ?? ['*'];
     final result = await PickerHandler.pickFile(
+      l10n: context.l10n,
       extensions: extensions,
       allowMultiple: widget.allowMultiple,
       onError: widget.onError,
@@ -463,6 +468,7 @@ class _ImagePickerCardState extends State<ImagePickerCard> {
 
   Future<void> _pickDirectory() async {
     final path = await PickerHandler.pickDirectory(
+      l10n: context.l10n,
       onError: widget.onError,
     );
     if (path != null) {

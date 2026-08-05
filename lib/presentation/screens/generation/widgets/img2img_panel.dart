@@ -712,6 +712,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           !taskState.isRunning &&
           hasRequiredComfyModel;
     }
+    final taskError = taskState.localizedError(context.l10n);
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -916,9 +917,9 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                 ],
                 const LinearProgressIndicator(),
               ] else if (taskState.status == ComfyUITaskStatus.failed &&
-                  taskState.errorMessage != null)
+                  taskError != null)
                 Text(
-                  taskState.errorMessage!,
+                  taskError,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.error,
                   ),

@@ -295,7 +295,7 @@ GoRouter appRouter(Ref ref) {
     // 错误页面
     errorBuilder: (context, state) => Scaffold(
       body: Center(
-        child: Text('Page not found: ${state.error}'),
+        child: Text(context.l10n.router_pageNotFound('${state.error}')),
       ),
     ),
   );

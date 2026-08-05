@@ -173,6 +173,14 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     final bulkOpState = ref.watch(bulkOperationNotifierProvider);
     final categoryState = ref.watch(galleryCategoryNotifierProvider);
     final screenWidth = MediaQuery.of(context).size.width;
+    ref.listen(galleryCategoryNotifierProvider.select((value) => value.error), (
+      previous,
+      error,
+    ) {
+      if (error == null) return;
+      AppToast.error(context, error.localized(context.l10n));
+      ref.read(galleryCategoryNotifierProvider.notifier).clearError();
+    });
     final theme = Theme.of(context);
 
     final contentWidth = _showCategoryPanel && screenWidth > 800
@@ -536,7 +544,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   Widget _buildBody(LocalGalleryState state, int columns, double itemWidth) {
     if (state.error != null) {
       return GalleryErrorView(
-        error: state.error,
+        error: state.error!.localized(context.l10n),
         onRetry: () =>
             ref.read(localGalleryNotifierProvider.notifier).refresh(),
       );
@@ -600,9 +608,15 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
 
   void _showFirstTimeIndexTipIfNeeded() {
     final state = ref.read(localGalleryNotifierProvider);
-    if (state.firstTimeIndexMessage != null && mounted) {
+    final imageCount = state.firstTimeIndexCount;
+    if (imageCount != null && mounted) {
       Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) AppToast.info(context, state.firstTimeIndexMessage!);
+        if (mounted) {
+          AppToast.info(
+            context,
+            context.l10n.localGallery_firstIndexHint(imageCount),
+          );
+        }
       });
     }
   }
@@ -1100,6 +1114,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         read: ref.read,
         metadata: metadata,
         options: options,
+        l10n: context.l10n,
       );
       if (!mounted) return;
 

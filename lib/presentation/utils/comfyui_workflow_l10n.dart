@@ -55,8 +55,11 @@ extension LocalizedWorkflowSlot on WorkflowSlot {
       ('target_resolution', 'new_resolution') =>
         l10n.comfyWorkflowSlot_targetLongSide,
       ('dit_model', _) ||
-      ('upscale_model', _) =>
-        l10n.comfyWorkflowSlot_upscaleModel,
+      ('upscale_model', _) => l10n.comfyWorkflowSlot_upscaleModel,
+      ('vae_encode_tile_size', _) => l10n.comfyWorkflowSlot_vaeEncodeTileSize,
+      ('vae_decode_tile_size', _) => l10n.comfyWorkflowSlot_vaeDecodeTileSize,
+      ('blocks_to_swap', _) => l10n.comfyWorkflowSlot_blocksToSwap,
+      ('swap_io_components', _) => l10n.comfyWorkflowSlot_swapIoComponents,
       ('seed', _) => l10n.comfyWorkflowSlot_randomSeed,
       ('output_image', _) => l10n.comfyWorkflowSlot_outputImage,
       ('tile_size', 'tile_width') => l10n.comfyWorkflowSlot_tileWidth,

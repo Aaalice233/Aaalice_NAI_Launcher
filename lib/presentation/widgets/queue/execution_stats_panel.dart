@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
@@ -68,8 +69,9 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
       margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color:
-            theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.35,
+        ),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: theme.colorScheme.outline.withValues(alpha: 0.08),
@@ -235,7 +237,7 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
   /// 构建交互式状态按钮
   Widget _buildStatusChip(
     BuildContext context,
-    dynamic l10n,
+    AppLocalizations l10n,
     QueueExecutionState executionState,
   ) {
     final queueState = ref.watch(replicationQueueNotifierProvider);
@@ -265,10 +267,8 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
               begin: 1.0,
               end: _isPressed ? 0.97 : (_isHovered && isClickable ? 1.02 : 1.0),
             ),
-            builder: (context, scale, child) => Transform.scale(
-              scale: scale,
-              child: child,
-            ),
+            builder: (context, scale, child) =>
+                Transform.scale(scale: scale, child: child),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOutCubic,
@@ -380,7 +380,7 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
 
   /// 获取状态提示
   String _getStatusTooltip(
-    dynamic l10n,
+    AppLocalizations l10n,
     QueueExecutionStatus status,
     ReplicationQueueState queueState,
   ) {
@@ -428,7 +428,7 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
 
   /// 获取状态信息
   (String, Color, IconData) _getStatusInfo(
-    dynamic l10n,
+    AppLocalizations l10n,
     QueueExecutionStatus status,
   ) {
     switch (status) {
@@ -436,13 +436,13 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
         return (
           l10n.queue_idle,
           Colors.grey,
-          Icons.pause_circle_outline_rounded
+          Icons.pause_circle_outline_rounded,
         );
       case QueueExecutionStatus.ready:
         return (
           l10n.queue_ready,
           Colors.blue,
-          Icons.play_circle_outline_rounded
+          Icons.play_circle_outline_rounded,
         );
       case QueueExecutionStatus.running:
         return (l10n.queue_running, Colors.blue, Icons.sync_rounded);
@@ -456,7 +456,7 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
   /// 估算剩余时间
   String _estimateRemainingTime(
     BuildContext context,
-    dynamic l10n,
+    AppLocalizations l10n,
     QueueExecutionState state,
     int remaining,
   ) {

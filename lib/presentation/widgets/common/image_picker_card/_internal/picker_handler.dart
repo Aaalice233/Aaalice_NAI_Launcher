@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../image_picker_result.dart';
 
@@ -14,6 +15,7 @@ class PickerHandler {
   /// [allowMultiple] 是否允许多选
   /// [onError] 错误回调
   static Future<ImagePickerResult?> pickImage({
+    required AppLocalizations l10n,
     bool allowMultiple = false,
     void Function(String)? onError,
   }) async {
@@ -29,7 +31,7 @@ class PickerHandler {
       final bytes = await _getFileBytes(file);
 
       if (bytes == null) {
-        onError?.call('无法读取文件数据');
+        onError?.call(l10n.imagePicker_fileDataUnavailable);
         return null;
       }
 
@@ -39,13 +41,14 @@ class PickerHandler {
         path: file.path,
       );
     } catch (e) {
-      onError?.call('选择文件失败: $e');
+      onError?.call(l10n.imagePicker_fileSelectionFailed(e.toString()));
       return null;
     }
   }
 
   /// 选择多个图像
   static Future<List<ImagePickerResult>> pickMultipleImages({
+    required AppLocalizations l10n,
     void Function(String)? onError,
   }) async {
     try {
@@ -72,7 +75,7 @@ class PickerHandler {
 
       return results;
     } catch (e) {
-      onError?.call('选择文件失败: $e');
+      onError?.call(l10n.imagePicker_fileSelectionFailed(e.toString()));
       return [];
     }
   }
@@ -83,6 +86,7 @@ class PickerHandler {
   /// [allowMultiple] 是否允许多选
   /// [onError] 错误回调
   static Future<ImagePickerResult?> pickFile({
+    required AppLocalizations l10n,
     required List<String> extensions,
     bool allowMultiple = false,
     void Function(String)? onError,
@@ -100,7 +104,7 @@ class PickerHandler {
       final bytes = await _getFileBytes(file);
 
       if (bytes == null) {
-        onError?.call('无法读取文件数据');
+        onError?.call(l10n.imagePicker_fileDataUnavailable);
         return null;
       }
 
@@ -110,13 +114,14 @@ class PickerHandler {
         path: file.path,
       );
     } catch (e) {
-      onError?.call('选择文件失败: $e');
+      onError?.call(l10n.imagePicker_fileSelectionFailed(e.toString()));
       return null;
     }
   }
 
   /// 选择目录
   static Future<String?> pickDirectory({
+    required AppLocalizations l10n,
     String? dialogTitle,
     void Function(String)? onError,
   }) async {
@@ -126,7 +131,7 @@ class PickerHandler {
       );
       return path;
     } catch (e) {
-      onError?.call('选择目录失败: $e');
+      onError?.call(l10n.imagePicker_directorySelectionFailed(e.toString()));
       return null;
     }
   }

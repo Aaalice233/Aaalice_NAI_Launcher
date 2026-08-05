@@ -10,6 +10,7 @@ import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/local_image_record.dart';
 import '../../data/services/bulk_operation_service.dart';
 import '../../core/utils/undo_redo_history.dart';
+import '../../l10n/app_localizations.dart';
 import 'collection_provider.dart';
 
 part 'bulk_operation_provider.freezed.dart';
@@ -23,6 +24,62 @@ enum BulkOperationType {
   addToCollection,
   removeFromCollection,
   toggleFavorite,
+}
+
+enum BulkOperationErrorCode {
+  deleteFailed,
+  noImagesToExport,
+  exportFailed,
+  noMetadataChanges,
+  metadataEditFailed,
+  favoriteFailed,
+  noImagesForCollection,
+  addToCollectionFailed,
+  nothingToUndo,
+  undoFailed,
+  nothingToRedo,
+  redoFailed,
+}
+
+class BulkOperationError {
+  const BulkOperationError(this.code, {this.details});
+
+  final BulkOperationErrorCode code;
+  final String? details;
+
+  String localized(AppLocalizations l10n) {
+    final errorDetails = details ?? '';
+    return switch (code) {
+      BulkOperationErrorCode.deleteFailed =>
+        l10n.bulkProgress_errorDeleteFailed(errorDetails),
+      BulkOperationErrorCode.noImagesToExport =>
+        l10n.bulkProgress_errorNoImagesToExport,
+      BulkOperationErrorCode.exportFailed =>
+        details == null
+            ? l10n.bulkProgress_errorExportFailed
+            : l10n.bulkProgress_errorExportFailedWithDetails(errorDetails),
+      BulkOperationErrorCode.noMetadataChanges =>
+        l10n.bulkProgress_errorNoMetadataChanges,
+      BulkOperationErrorCode.metadataEditFailed =>
+        l10n.bulkProgress_errorMetadataEditFailed(errorDetails),
+      BulkOperationErrorCode.favoriteFailed =>
+        l10n.bulkProgress_errorFavoriteFailed(errorDetails),
+      BulkOperationErrorCode.noImagesForCollection =>
+        l10n.bulkProgress_errorNoImagesForCollection,
+      BulkOperationErrorCode.addToCollectionFailed =>
+        l10n.bulkProgress_errorAddToCollectionFailed(errorDetails),
+      BulkOperationErrorCode.nothingToUndo =>
+        l10n.bulkProgress_errorNothingToUndo,
+      BulkOperationErrorCode.undoFailed => l10n.bulkProgress_errorUndoFailed(
+        errorDetails,
+      ),
+      BulkOperationErrorCode.nothingToRedo =>
+        l10n.bulkProgress_errorNothingToRedo,
+      BulkOperationErrorCode.redoFailed => l10n.bulkProgress_errorRedoFailed(
+        errorDetails,
+      ),
+    };
+  }
 }
 
 /// Bulk operation state
@@ -51,7 +108,7 @@ class BulkOperationState with _$BulkOperationState {
     @Default(false) bool isCompleted,
 
     /// Error message if operation failed
-    String? error,
+    BulkOperationError? error,
 
     /// Whether can undo
     @Default(false) bool canUndo,
@@ -79,10 +136,7 @@ class BulkOperationState with _$BulkOperationState {
 class _BulkDeleteCommand extends HistoryCommand {
   final List<String> _imagePaths;
 
-  _BulkDeleteCommand(
-    super.description,
-    this._imagePaths,
-  );
+  _BulkDeleteCommand(super.description, this._imagePaths);
 
   @override
   Future<void> execute() async {
@@ -390,19 +444,20 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
     try {
       final result = await _service.bulkDelete(
         imagePaths,
-        onProgress: ({
-          required current,
-          required total,
-          required currentItem,
-          required isComplete,
-        }) {
-          state = state.copyWith(
-            currentProgress: current,
-            totalItems: total,
-            currentItem: currentItem,
-            isCompleted: isComplete,
-          );
-        },
+        onProgress:
+            ({
+              required current,
+              required total,
+              required currentItem,
+              required isComplete,
+            }) {
+              state = state.copyWith(
+                currentProgress: current,
+                totalItems: total,
+                currentItem: currentItem,
+                isCompleted: isComplete,
+              );
+            },
       );
 
       // Add to history
@@ -427,10 +482,12 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
 
       return result;
     } catch (e) {
-      final error = 'Bulk delete failed: $e';
       state = state.copyWith(
         isOperationInProgress: false,
-        error: error,
+        error: BulkOperationError(
+          BulkOperationErrorCode.deleteFailed,
+          details: '$e',
+        ),
       );
       AppLogger.e('Bulk delete failed', e, null, 'BulkOperationNotifier');
       rethrow;
@@ -453,7 +510,9 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
   }) async {
     if (records.isEmpty) {
       state = state.copyWith(
-        error: 'No images to export',
+        error: const BulkOperationError(
+          BulkOperationErrorCode.noImagesToExport,
+        ),
       );
       return null;
     }
@@ -472,27 +531,25 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
         records,
         outputFormat: outputFormat,
         includeMetadata: includeMetadata,
-        onProgress: ({
-          required current,
-          required total,
-          required currentItem,
-          required isComplete,
-        }) {
-          state = state.copyWith(
-            currentProgress: current,
-            totalItems: total,
-            currentItem: currentItem,
-            isCompleted: isComplete,
-          );
-        },
+        onProgress:
+            ({
+              required current,
+              required total,
+              required currentItem,
+              required isComplete,
+            }) {
+              state = state.copyWith(
+                currentProgress: current,
+                totalItems: total,
+                currentItem: currentItem,
+                isCompleted: isComplete,
+              );
+            },
       );
 
       if (file != null) {
         // Export is not undoable - it creates a new file
-        state = state.copyWith(
-          isOperationInProgress: false,
-          isCompleted: true,
-        );
+        state = state.copyWith(isOperationInProgress: false, isCompleted: true);
 
         AppLogger.i(
           'Bulk export completed: ${records.length} images exported to ${file.path}',
@@ -501,16 +558,18 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
       } else {
         state = state.copyWith(
           isOperationInProgress: false,
-          error: 'Export failed',
+          error: const BulkOperationError(BulkOperationErrorCode.exportFailed),
         );
       }
 
       return file;
     } catch (e) {
-      final error = 'Bulk export failed: $e';
       state = state.copyWith(
         isOperationInProgress: false,
-        error: error,
+        error: BulkOperationError(
+          BulkOperationErrorCode.exportFailed,
+          details: '$e',
+        ),
       );
       AppLogger.e('Bulk export failed', e, null, 'BulkOperationNotifier');
       return null;
@@ -537,7 +596,9 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
 
     if (tagsToAdd.isEmpty && tagsToRemove.isEmpty) {
       state = state.copyWith(
-        error: 'No tags to add or remove',
+        error: const BulkOperationError(
+          BulkOperationErrorCode.noMetadataChanges,
+        ),
       );
       return (success: 0, failed: 0, errors: <String>[]);
     }
@@ -568,19 +629,20 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
         imagePaths,
         tagsToAdd: tagsToAdd,
         tagsToRemove: tagsToRemove,
-        onProgress: ({
-          required current,
-          required total,
-          required currentItem,
-          required isComplete,
-        }) {
-          state = state.copyWith(
-            currentProgress: current,
-            totalItems: total,
-            currentItem: currentItem,
-            isCompleted: isComplete,
-          );
-        },
+        onProgress:
+            ({
+              required current,
+              required total,
+              required currentItem,
+              required isComplete,
+            }) {
+              state = state.copyWith(
+                currentProgress: current,
+                totalItems: total,
+                currentItem: currentItem,
+                isCompleted: isComplete,
+              );
+            },
       );
 
       // Add to history
@@ -609,10 +671,12 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
 
       return result;
     } catch (e) {
-      final error = 'Bulk metadata edit failed: $e';
       state = state.copyWith(
         isOperationInProgress: false,
-        error: error,
+        error: BulkOperationError(
+          BulkOperationErrorCode.metadataEditFailed,
+          details: '$e',
+        ),
       );
       AppLogger.e(
         'Bulk metadata edit failed',
@@ -665,19 +729,20 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
       final result = await _service.bulkToggleFavorite(
         imagePaths,
         isFavorite: isFavorite,
-        onProgress: ({
-          required current,
-          required total,
-          required currentItem,
-          required isComplete,
-        }) {
-          state = state.copyWith(
-            currentProgress: current,
-            totalItems: total,
-            currentItem: currentItem,
-            isCompleted: isComplete,
-          );
-        },
+        onProgress:
+            ({
+              required current,
+              required total,
+              required currentItem,
+              required isComplete,
+            }) {
+              state = state.copyWith(
+                currentProgress: current,
+                totalItems: total,
+                currentItem: currentItem,
+                isCompleted: isComplete,
+              );
+            },
       );
 
       // Add to history
@@ -704,10 +769,12 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
 
       return result;
     } catch (e) {
-      final error = 'Bulk toggle favorite failed: $e';
       state = state.copyWith(
         isOperationInProgress: false,
-        error: error,
+        error: BulkOperationError(
+          BulkOperationErrorCode.favoriteFailed,
+          details: '$e',
+        ),
       );
       AppLogger.e(
         'Bulk toggle favorite failed',
@@ -733,7 +800,9 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
   ) async {
     if (imagePaths.isEmpty) {
       state = state.copyWith(
-        error: 'No images to add to collection',
+        error: const BulkOperationError(
+          BulkOperationErrorCode.noImagesForCollection,
+        ),
       );
       return 0;
     }
@@ -767,10 +836,12 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
 
       return addedCount;
     } catch (e) {
-      final error = 'Bulk add to collection failed: $e';
       state = state.copyWith(
         isOperationInProgress: false,
-        error: error,
+        error: BulkOperationError(
+          BulkOperationErrorCode.addToCollectionFailed,
+          details: '$e',
+        ),
       );
       AppLogger.e(
         'Bulk add to collection failed',
@@ -788,7 +859,7 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
   Future<void> undo() async {
     if (!_history.canUndo) {
       state = state.copyWith(
-        error: 'Cannot undo - no operation to undo',
+        error: const BulkOperationError(BulkOperationErrorCode.nothingToUndo),
       );
       return;
     }
@@ -804,8 +875,12 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
 
       AppLogger.i('Undo completed', 'BulkOperationNotifier');
     } catch (e) {
-      final error = 'Undo failed: $e';
-      state = state.copyWith(error: error);
+      state = state.copyWith(
+        error: BulkOperationError(
+          BulkOperationErrorCode.undoFailed,
+          details: '$e',
+        ),
+      );
       AppLogger.e('Undo failed', e, null, 'BulkOperationNotifier');
     }
   }
@@ -816,7 +891,7 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
   Future<void> redo() async {
     if (!_history.canRedo) {
       state = state.copyWith(
-        error: 'Cannot redo - no operation to redo',
+        error: const BulkOperationError(BulkOperationErrorCode.nothingToRedo),
       );
       return;
     }
@@ -832,8 +907,12 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
 
       AppLogger.i('Redo completed', 'BulkOperationNotifier');
     } catch (e) {
-      final error = 'Redo failed: $e';
-      state = state.copyWith(error: error);
+      state = state.copyWith(
+        error: BulkOperationError(
+          BulkOperationErrorCode.redoFailed,
+          details: '$e',
+        ),
+      );
       AppLogger.e('Redo failed', e, null, 'BulkOperationNotifier');
     }
   }
@@ -843,10 +922,7 @@ class BulkOperationNotifier extends _$BulkOperationNotifier {
   /// 清空操作历史
   void clearHistory() {
     _history.clear();
-    state = state.copyWith(
-      canUndo: false,
-      canRedo: false,
-    );
+    state = state.copyWith(canUndo: false, canRedo: false);
     AppLogger.d('Operation history cleared', 'BulkOperationNotifier');
   }
 

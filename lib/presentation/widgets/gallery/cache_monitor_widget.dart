@@ -96,10 +96,7 @@ class CacheMonitorController extends StateNotifier<CacheMonitorState> {
       AppLogger.i('所有缓存已清除', 'CacheMonitorController');
     } catch (e, stack) {
       AppLogger.e('清除缓存失败', e, stack, 'CacheMonitorController');
-      state = state.copyWith(
-        isLoading: false,
-        error: '清除缓存失败: $e',
-      );
+      state = state.copyWith(isLoading: false, error: '清除缓存失败: $e');
     }
   }
 
@@ -153,8 +150,8 @@ class CacheMonitorController extends StateNotifier<CacheMonitorState> {
 /// 缓存监控 Provider
 final cacheMonitorProvider =
     StateNotifierProvider<CacheMonitorController, CacheMonitorState>(
-  (ref) => CacheMonitorController(),
-);
+      (ref) => CacheMonitorController(),
+    );
 
 /// 缓存监控 Widget
 ///
@@ -164,11 +161,7 @@ class CacheMonitorWidget extends ConsumerWidget {
   final bool compact;
   final VoidCallback? onClose;
 
-  const CacheMonitorWidget({
-    super.key,
-    this.compact = false,
-    this.onClose,
-  });
+  const CacheMonitorWidget({super.key, this.compact = false, this.onClose});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -238,7 +231,7 @@ class CacheMonitorWidget extends ConsumerWidget {
                 ),
               ] else
                 Text(
-                  '点击刷新',
+                  context.l10n.common_clickToRefresh,
                   style: theme.textTheme.bodySmall,
                 ),
             ],
@@ -369,10 +362,7 @@ class _CacheStatisticsPanel extends StatelessWidget {
   final CacheStatistics statistics;
   final DateTime? lastRefreshTime;
 
-  const _CacheStatisticsPanel({
-    required this.statistics,
-    this.lastRefreshTime,
-  });
+  const _CacheStatisticsPanel({required this.statistics, this.lastRefreshTime});
 
   @override
   Widget build(BuildContext context) {
@@ -535,10 +525,7 @@ class _CacheLevelCard extends StatelessWidget {
             ),
             child: Text(
               level,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, color: color),
             ),
           ),
           const SizedBox(width: 12),
@@ -662,19 +649,10 @@ class _PerformanceStatsPanel extends StatelessWidget {
         Container(
           width: 6,
           height: 6,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 4),
-        Text(
-          '$count',
-          style: TextStyle(
-            fontSize: 11,
-            color: color,
-          ),
-        ),
+        Text('$count', style: TextStyle(fontSize: 11, color: color)),
       ],
     );
   }
@@ -760,9 +738,7 @@ class _ActionButtons extends StatelessWidget {
               Navigator.of(context).pop();
               controller.clearAllCache();
             },
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
             child: Text(context.l10n.common_clear),
           ),
         ],

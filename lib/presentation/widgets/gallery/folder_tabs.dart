@@ -17,10 +17,7 @@ class FolderTabs extends ConsumerWidget {
   /// 文件夹选择回调
   final void Function(String? folderId)? onFolderSelected;
 
-  const FolderTabs({
-    super.key,
-    this.onFolderSelected,
-  });
+  const FolderTabs({super.key, this.onFolderSelected});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -218,11 +215,9 @@ class FolderTabs extends ConsumerWidget {
     );
 
     if (confirmed && context.mounted) {
-      final success =
-          await ref.read(galleryFolderNotifierProvider.notifier).deleteFolder(
-                folder.path,
-                recursive: folder.imageCount > 0,
-              );
+      final success = await ref
+          .read(galleryFolderNotifierProvider.notifier)
+          .deleteFolder(folder.path, recursive: folder.imageCount > 0);
       if (success && context.mounted) {
         AppToast.success(context, context.l10n.localGallery_folderDeleted);
       } else if (context.mounted) {
@@ -354,17 +349,18 @@ class _FolderTabState extends State<_FolderTab> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
             color: widget.isActive
-                ? colorScheme.primaryContainer
-                    .withValues(alpha: isDark ? 0.4 : 0.3)
+                ? colorScheme.primaryContainer.withValues(
+                    alpha: isDark ? 0.4 : 0.3,
+                  )
                 : _isHovered
-                    ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
-                    : Colors.transparent,
+                ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+                : Colors.transparent,
             border: Border.all(
               color: widget.isActive
                   ? colorScheme.primary
                   : _isHovered
-                      ? colorScheme.outline.withValues(alpha: 0.3)
-                      : colorScheme.outline.withValues(alpha: 0.15),
+                  ? colorScheme.outline.withValues(alpha: 0.3)
+                  : colorScheme.outline.withValues(alpha: 0.15),
               width: widget.isActive ? 1.5 : 1,
             ),
             borderRadius: BorderRadius.circular(8),
@@ -375,8 +371,9 @@ class _FolderTabState extends State<_FolderTab> {
               Text(
                 widget.label,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight:
-                      widget.isActive ? FontWeight.w600 : FontWeight.normal,
+                  fontWeight: widget.isActive
+                      ? FontWeight.w600
+                      : FontWeight.normal,
                   color: widget.isActive
                       ? colorScheme.primary
                       : colorScheme.onSurface,
@@ -433,7 +430,7 @@ class _CreateFolderButtonState extends State<_CreateFolderButton> {
       onExit: (_) => setState(() => _isHovered = false),
       cursor: SystemMouseCursors.click,
       child: Tooltip(
-        message: '创建文件夹',
+        message: context.l10n.localGallery_createFolder,
         child: GestureDetector(
           onTap: widget.onPressed,
           child: AnimatedContainer(

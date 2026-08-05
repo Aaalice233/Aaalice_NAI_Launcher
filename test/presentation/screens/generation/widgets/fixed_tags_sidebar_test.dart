@@ -45,96 +45,97 @@ void main() {
   });
 
   testWidgets(
-      'renders enabled categorized entries without duplicate key errors',
-      (tester) async {
-    final category = TagLibraryCategory.create(name: '画师');
-    final enabled = FixedTagEntry.create(
-      name: 'artist enabled',
-      content: 'artist:fuzichoco',
-      categoryId: category.id,
-      enabled: true,
-    );
-    final quality = FixedTagEntry.create(
-      name: 'quality',
-      content: 'masterpiece',
-      categoryId: category.id,
-      enabled: false,
-    );
-    final negative = FixedTagEntry.create(
-      name: 'negative',
-      content: 'bad hands',
-      promptType: FixedTagPromptType.negative,
-    );
-    final storage = _SidebarTestStorage(
-      fixedEntries: [enabled, quality, negative],
-      categories: [category],
-      libraryEntries: [
-        TagLibraryEntry.create(
-          name: enabled.name,
-          content: enabled.content,
-          categoryId: category.id,
-        ),
-      ],
-    );
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
+    'renders enabled categorized entries without duplicate key errors',
+    (tester) async {
+      final category = TagLibraryCategory.create(name: '画师');
+      final enabled = FixedTagEntry.create(
+        name: 'artist enabled',
+        content: 'artist:fuzichoco',
+        categoryId: category.id,
+        enabled: true,
+      );
+      final quality = FixedTagEntry.create(
+        name: 'quality',
+        content: 'masterpiece',
+        categoryId: category.id,
+        enabled: false,
+      );
+      final negative = FixedTagEntry.create(
+        name: 'negative',
+        content: 'bad hands',
+        promptType: FixedTagPromptType.negative,
+      );
+      final storage = _SidebarTestStorage(
+        fixedEntries: [enabled, quality, negative],
+        categories: [category],
+        libraryEntries: [
+          TagLibraryEntry.create(
+            name: enabled.name,
+            content: enabled.content,
+            categoryId: category.id,
+          ),
         ],
-        child: const MaterialApp(
-          locale: Locale('zh'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SizedBox(
-              width: 340,
-              height: 620,
-              child: FixedTagsSidebar(),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: SizedBox(
+                width: 340,
+                height: 620,
+                child: FixedTagsSidebar(),
+              ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
 
-    expect(
-      find.descendant(
-        of: find.byType(SidebarEntryTile),
-        matching: find.text('artist enabled'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byType(SidebarEntryTile),
-        matching: find.text('quality'),
-      ),
-      findsOneWidget,
-    );
-    expect(tester.takeException(), isNull);
+      expect(
+        find.descendant(
+          of: find.byType(SidebarEntryTile),
+          matching: find.text('artist enabled'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(SidebarEntryTile),
+          matching: find.text('quality'),
+        ),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
 
-    await tester.enterText(find.byType(TextField), 'quality');
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+      await tester.enterText(find.byType(TextField), 'quality');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
 
-    expect(
-      find.descendant(
-        of: find.byType(SidebarEntryTile),
-        matching: find.text('quality'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byType(SidebarEntryTile),
-        matching: find.text('artist enabled'),
-      ),
-      findsNothing,
-    );
-    expect(tester.takeException(), isNull);
-  });
+      expect(
+        find.descendant(
+          of: find.byType(SidebarEntryTile),
+          matching: find.text('quality'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(SidebarEntryTile),
+          matching: find.text('artist enabled'),
+        ),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('category chips wrap when the sidebar is narrow', (tester) async {
     final categories = [
@@ -159,19 +160,13 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
         child: const MaterialApp(
           locale: Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: SizedBox(
-              width: 260,
-              height: 620,
-              child: FixedTagsSidebar(),
-            ),
+            body: SizedBox(width: 260, height: 620, child: FixedTagsSidebar()),
           ),
         ),
       ),
@@ -189,70 +184,70 @@ void main() {
   });
 
   testWidgets(
-      'FixedTagsButton long press toggles sidebar and tap keeps it open',
-      (tester) async {
-    final storage = _SidebarTestStorage(
-      fixedEntries: const [],
-      categories: const [],
-      libraryEntries: const [],
-    )..fixedSidebarExpanded = false;
+    'FixedTagsButton long press toggles sidebar and tap keeps it open',
+    (tester) async {
+      final storage = _SidebarTestStorage(
+        fixedEntries: const [],
+        categories: const [],
+        libraryEntries: const [],
+      )..fixedSidebarExpanded = false;
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
-        child: const MaterialApp(
-          locale: Locale('zh'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: Center(child: FixedTagsButton()),
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: Center(child: FixedTagsButton())),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(FixedTagsButton)),
-    );
-    expect(
-      container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
-      isFalse,
-    );
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(FixedTagsButton)),
+      );
+      expect(
+        container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
+        isFalse,
+      );
 
-    await tester.longPress(find.byType(FixedTagsButton));
-    await tester.pumpAndSettle();
+      await tester.longPress(find.byType(FixedTagsButton));
+      await tester.pumpAndSettle();
 
-    expect(
-      container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
-      isTrue,
-    );
-    expect(storage.fixedSidebarExpanded, isTrue);
+      expect(
+        container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
+        isTrue,
+      );
+      expect(storage.fixedSidebarExpanded, isTrue);
 
-    await tester.tap(find.byType(FixedTagsButton));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byType(FixedTagsButton));
+      await tester.pumpAndSettle();
 
-    expect(
-      container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
-      isTrue,
-    );
-    expect(storage.fixedSidebarExpanded, isTrue);
+      expect(
+        container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
+        isTrue,
+      );
+      expect(storage.fixedSidebarExpanded, isTrue);
 
-    await tester.longPress(find.byType(FixedTagsButton));
-    await tester.pumpAndSettle();
+      await tester.longPress(find.byType(FixedTagsButton));
+      await tester.pumpAndSettle();
 
-    expect(
-      container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
-      isFalse,
-    );
-    expect(storage.fixedSidebarExpanded, isFalse);
-    expect(tester.takeException(), isNull);
-  });
+      expect(
+        container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
+        isFalse,
+      );
+      expect(storage.fixedSidebarExpanded, isFalse);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('GenerationScreen shows sidebar in narrow layout when expanded',
-      (tester) async {
+  testWidgets('GenerationScreen shows sidebar in narrow layout when expanded', (
+    tester,
+  ) async {
     final storage = _SidebarTestStorage(
       fixedEntries: const [],
       categories: const [],
@@ -261,19 +256,13 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
         child: const MaterialApp(
           locale: Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: SizedBox(
-              width: 900,
-              height: 700,
-              child: GenerationScreen(),
-            ),
+            body: SizedBox(width: 900, height: 700, child: GenerationScreen()),
           ),
         ),
       ),
@@ -285,131 +274,135 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('list mode reorders from tile body without default drag handles',
-      (tester) async {
-    final first = FixedTagEntry.create(name: 'first', content: 'one');
-    final second = FixedTagEntry.create(name: 'second', content: 'two');
-    final storage = _SidebarTestStorage(
-      fixedEntries: [first, second],
-      categories: const [],
-      libraryEntries: const [],
-    );
+  testWidgets(
+    'list mode reorders from tile body without default drag handles',
+    (tester) async {
+      final first = FixedTagEntry.create(name: 'first', content: 'one');
+      final second = FixedTagEntry.create(name: 'second', content: 'two');
+      final storage = _SidebarTestStorage(
+        fixedEntries: [first, second],
+        categories: const [],
+        libraryEntries: const [],
+      );
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
-        child: const MaterialApp(
-          locale: Locale('zh'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SizedBox(
-              width: 340,
-              height: 620,
-              child: FixedTagsSidebar(),
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: SizedBox(
+                width: 340,
+                height: 620,
+                child: FixedTagsSidebar(),
+              ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.byIcon(Icons.drag_handle), findsNothing);
+      expect(find.byIcon(Icons.drag_handle), findsNothing);
 
-    final firstTileText = find.descendant(
-      of: find.byType(SidebarEntryTile),
-      matching: find.text('first'),
-    );
-    final secondTileText = find.descendant(
-      of: find.byType(SidebarEntryTile),
-      matching: find.text('second'),
-    );
-    final start = tester.getCenter(firstTileText);
-    final end = tester.getCenter(secondTileText);
-    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    await gesture.down(start);
-    await tester.pump();
-    await gesture.moveBy(end - start + const Offset(0, 64));
-    await gesture.up();
-    await tester.pumpAndSettle();
+      final firstTileText = find.descendant(
+        of: find.byType(SidebarEntryTile),
+        matching: find.text('first'),
+      );
+      final secondTileText = find.descendant(
+        of: find.byType(SidebarEntryTile),
+        matching: find.text('second'),
+      );
+      final start = tester.getCenter(firstTileText);
+      final end = tester.getCenter(secondTileText);
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.down(start);
+      await tester.pump();
+      await gesture.moveBy(end - start + const Offset(0, 64));
+      await gesture.up();
+      await tester.pumpAndSettle();
 
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(FixedTagsSidebar)),
-    );
-    expect(
-      container
-          .read(fixedTagsNotifierProvider)
-          .positiveEntries
-          .map((entry) => entry.id),
-      [second.id, first.id],
-    );
-    expect(tester.takeException(), isNull);
-  });
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(FixedTagsSidebar)),
+      );
+      expect(
+        container
+            .read(fixedTagsNotifierProvider)
+            .positiveEntries
+            .map((entry) => entry.id),
+        [second.id, first.id],
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
-      'dropping a positive link anchor on a negative tile creates a link',
-      (tester) async {
-    final positive = FixedTagEntry.create(
-      name: 'artist',
-      content: 'artist:fuzichoco',
-      enabled: true,
-    );
-    final negative = FixedTagEntry.create(
-      name: 'negative',
-      content: 'bad hands',
-      promptType: FixedTagPromptType.negative,
-    );
-    final storage = _SidebarTestStorage(
-      fixedEntries: [positive, negative],
-      categories: const [],
-      libraryEntries: const [],
-    );
+    'dropping a positive link anchor on a negative tile creates a link',
+    (tester) async {
+      final positive = FixedTagEntry.create(
+        name: 'artist',
+        content: 'artist:fuzichoco',
+        enabled: true,
+      );
+      final negative = FixedTagEntry.create(
+        name: 'negative',
+        content: 'bad hands',
+        promptType: FixedTagPromptType.negative,
+      );
+      final storage = _SidebarTestStorage(
+        fixedEntries: [positive, negative],
+        categories: const [],
+        libraryEntries: const [],
+      );
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
-        child: const MaterialApp(
-          locale: Locale('zh'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SizedBox(
-              width: 340,
-              height: 620,
-              child: FixedTagsSidebar(),
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: SizedBox(
+                width: 340,
+                height: 620,
+                child: FixedTagsSidebar(),
+              ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    final linkIcons = find.byIcon(Icons.link_rounded);
-    expect(linkIcons, findsNWidgets(2));
+      final linkIcons = find.byIcon(Icons.link_rounded);
+      expect(linkIcons, findsNWidgets(2));
 
-    final start = tester.getCenter(linkIcons.first);
-    final negativeTile = find.ancestor(
-      of: find.text('negative'),
-      matching: find.byType(SidebarEntryTile),
-    );
-    final end = tester.getCenter(negativeTile);
-    await tester.dragFrom(start, end - start);
-    await tester.pumpAndSettle();
+      final start = tester.getCenter(linkIcons.first);
+      final negativeTile = find.ancestor(
+        of: find.text('negative'),
+        matching: find.byType(SidebarEntryTile),
+      );
+      final end = tester.getCenter(negativeTile);
+      await tester.dragFrom(start, end - start);
+      await tester.pumpAndSettle();
 
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(FixedTagsSidebar)),
-    );
-    expect(container.read(fixedTagsNotifierProvider).links, hasLength(1));
-    expect(storage.linksJson, isNot('[]'));
-    expect(tester.takeException(), isNull);
-  });
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(FixedTagsSidebar)),
+      );
+      expect(container.read(fixedTagsNotifierProvider).links, hasLength(1));
+      expect(storage.linksJson, isNot('[]'));
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('dropping an existing link pair again removes the link',
-      (tester) async {
+  testWidgets('dropping an existing link pair again removes the link', (
+    tester,
+  ) async {
     final positive = FixedTagEntry.create(
       name: 'artist',
       content: 'artist:fuzichoco',
@@ -432,19 +425,13 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
         child: const MaterialApp(
           locale: Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: SizedBox(
-              width: 340,
-              height: 620,
-              child: FixedTagsSidebar(),
-            ),
+            body: SizedBox(width: 340, height: 620, child: FixedTagsSidebar()),
           ),
         ),
       ),
@@ -471,8 +458,9 @@ void main() {
   });
 
   for (final viewMode in ['list', 'grid']) {
-    testWidgets('link drag preview follows the cursor in $viewMode mode',
-        (tester) async {
+    testWidgets('link drag preview follows the cursor in $viewMode mode', (
+      tester,
+    ) async {
       final positive = FixedTagEntry.create(
         name: 'artist',
         content: 'artist:fuzichoco',
@@ -527,73 +515,76 @@ void main() {
     });
 
     testWidgets(
-        'dragging an existing link endpoint away removes the link in $viewMode mode',
-        (tester) async {
-      final positive = FixedTagEntry.create(
-        name: 'artist',
-        content: 'artist:fuzichoco',
-        enabled: true,
-      );
-      final negative = FixedTagEntry.create(
-        name: 'negative',
-        content: 'bad hands',
-        promptType: FixedTagPromptType.negative,
-      );
-      final existingLink = FixedTagLink.create(
-        positiveEntryId: positive.id,
-        negativeEntryId: negative.id,
-      );
-      final storage = _SidebarTestStorage(
-        fixedEntries: [positive, negative],
-        categories: const [],
-        libraryEntries: const [],
-      )
-        ..fixedSidebarViewMode = viewMode
-        ..linksJson = jsonEncode([existingLink.toJson()]);
+      'dragging an existing link endpoint away removes the link in $viewMode mode',
+      (tester) async {
+        final positive = FixedTagEntry.create(
+          name: 'artist',
+          content: 'artist:fuzichoco',
+          enabled: true,
+        );
+        final negative = FixedTagEntry.create(
+          name: 'negative',
+          content: 'bad hands',
+          promptType: FixedTagPromptType.negative,
+        );
+        final existingLink = FixedTagLink.create(
+          positiveEntryId: positive.id,
+          negativeEntryId: negative.id,
+        );
+        final storage =
+            _SidebarTestStorage(
+                fixedEntries: [positive, negative],
+                categories: const [],
+                libraryEntries: const [],
+              )
+              ..fixedSidebarViewMode = viewMode
+              ..linksJson = jsonEncode([existingLink.toJson()]);
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            localStorageServiceProvider.overrideWith((ref) => storage),
-          ],
-          child: const MaterialApp(
-            locale: Locale('zh'),
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SizedBox(
-                width: 340,
-                height: 620,
-                child: FixedTagsSidebar(),
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              localStorageServiceProvider.overrideWith((ref) => storage),
+            ],
+            child: const MaterialApp(
+              locale: Locale('zh'),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: Scaffold(
+                body: SizedBox(
+                  width: 340,
+                  height: 620,
+                  child: FixedTagsSidebar(),
+                ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(FixedTagsSidebar)),
-      );
-      expect(container.read(fixedTagsNotifierProvider).links, hasLength(1));
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(FixedTagsSidebar)),
+        );
+        expect(container.read(fixedTagsNotifierProvider).links, hasLength(1));
 
-      final endpoint = find.byIcon(Icons.link_rounded).last;
-      final endpointCenter = tester.getCenter(endpoint);
-      await tester.dragFrom(endpointCenter, const Offset(12, 0));
-      await tester.pumpAndSettle();
-      expect(container.read(fixedTagsNotifierProvider).links, hasLength(1));
+        final endpoint = find.byIcon(Icons.link_rounded).last;
+        final endpointCenter = tester.getCenter(endpoint);
+        await tester.dragFrom(endpointCenter, const Offset(12, 0));
+        await tester.pumpAndSettle();
+        expect(container.read(fixedTagsNotifierProvider).links, hasLength(1));
 
-      await tester.dragFrom(endpointCenter, const Offset(72, 0));
-      await tester.pumpAndSettle();
+        await tester.dragFrom(endpointCenter, const Offset(72, 0));
+        await tester.pumpAndSettle();
 
-      expect(container.read(fixedTagsNotifierProvider).links, isEmpty);
-      expect(storage.linksJson, '[]');
-      expect(tester.takeException(), isNull);
-    });
+        expect(container.read(fixedTagsNotifierProvider).links, isEmpty);
+        expect(storage.linksJson, '[]');
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
-  testWidgets('grid mode renders three tiles per row with library thumbnails',
-      (tester) async {
+  testWidgets('grid mode renders three tiles per row with library thumbnails', (
+    tester,
+  ) async {
     final libraryEntries = [
       TagLibraryEntry.create(
         name: 'thumb one',
@@ -627,19 +618,13 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
         child: const MaterialApp(
           locale: Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: SizedBox(
-              width: 360,
-              height: 620,
-              child: FixedTagsSidebar(),
-            ),
+            body: SizedBox(width: 360, height: 620, child: FixedTagsSidebar()),
           ),
         ),
       ),
@@ -669,8 +654,9 @@ void main() {
       await _pumpSidebar(tester, storage, textScale: 1.35);
 
       final positiveScrollView = find.byType(CustomScrollView);
-      final controller =
-          tester.widget<CustomScrollView>(positiveScrollView).controller!;
+      final controller = tester
+          .widget<CustomScrollView>(positiveScrollView)
+          .controller!;
       final initialMax = await _expectStableScrollMetrics(
         tester,
         controller: controller,
@@ -706,8 +692,9 @@ void main() {
       await _pumpSidebar(tester, storage);
 
       final positiveScrollView = find.byType(CustomScrollView);
-      final controller =
-          tester.widget<CustomScrollView>(positiveScrollView).controller!;
+      final controller = tester
+          .widget<CustomScrollView>(positiveScrollView)
+          .controller!;
       await _expectStableScrollMetrics(
         tester,
         controller: controller,
@@ -740,8 +727,9 @@ void main() {
 
     final negativeList = find.byType(ReorderableListView);
     expect(negativeList, findsOneWidget);
-    final controller =
-        tester.widget<ReorderableListView>(negativeList).scrollController!;
+    final controller = tester
+        .widget<ReorderableListView>(negativeList)
+        .scrollController!;
     await _expectStableScrollMetrics(
       tester,
       controller: controller,
@@ -781,8 +769,9 @@ void main() {
       await _pumpSidebar(tester, storage);
 
       final positiveScrollView = find.byType(CustomScrollView);
-      final controller =
-          tester.widget<CustomScrollView>(positiveScrollView).controller!;
+      final controller = tester
+          .widget<CustomScrollView>(positiveScrollView)
+          .controller!;
       final initialMax = controller.position.maxScrollExtent;
 
       await tester.tap(find.text('Far 1'));
@@ -800,13 +789,16 @@ void main() {
     },
   );
 
-  testWidgets('SidebarEntryTile triggers edit action after hover',
-      (tester) async {
+  testWidgets('SidebarEntryTile triggers edit action after hover', (
+    tester,
+  ) async {
     var edited = false;
     final entry = FixedTagEntry.create(name: 'tile', content: 'tag');
 
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: Center(
             child: SizedBox(
@@ -841,7 +833,7 @@ void main() {
 }
 
 ({List<TagLibraryCategory> categories, List<FixedTagEntry> entries})
-    _buildUnevenPositiveFixture() {
+_buildUnevenPositiveFixture() {
   const counts = [1, 18, 3, 24];
   final categories = [
     for (var index = 0; index < counts.length; index++)
@@ -1068,9 +1060,7 @@ class _SidebarTestStorage extends LocalStorageService {
 
   @override
   String? getTagLibraryCategoriesJson() {
-    return jsonEncode(
-      categories.map((category) => category.toJson()).toList(),
-    );
+    return jsonEncode(categories.map((category) => category.toJson()).toList());
   }
 
   @override

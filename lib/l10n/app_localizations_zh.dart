@@ -30,16 +30,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get common_deselectAll => '全不选';
 
   @override
-  String get common_expandAll => '展开全部';
-
-  @override
   String get common_collapseAll => '收起全部';
 
   @override
   String get common_save => '保存';
-
-  @override
-  String get common_saved => '已保存';
 
   @override
   String get common_delete => '删除';
@@ -49,9 +43,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get common_close => '关闭';
-
-  @override
-  String get common_back => '返回';
 
   @override
   String get common_clear => '清除';
@@ -127,9 +118,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get common_clearInputConfirm => '确定要清空输入内容吗？';
 
   @override
-  String get common_settings => '设置';
-
-  @override
   String get common_today => '今天';
 
   @override
@@ -162,9 +150,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get common_preview => '预览';
 
   @override
-  String get common_done => '完成';
-
-  @override
   String get common_view => '查看';
 
   @override
@@ -193,9 +178,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get common_share => '分享';
-
-  @override
-  String get common_open => '打开';
 
   @override
   String get common_ok => '确定';
@@ -252,10 +234,63 @@ class AppLocalizationsZh extends AppLocalizations {
   String get common_items => '项';
 
   @override
-  String get nav_canvas => '画布';
+  String get networkError_connectionTimeout => '连接超时，请检查网络连接。';
 
   @override
-  String get nav_gallery => '画廊';
+  String get networkError_sendTimeout => '发送超时，请重试。';
+
+  @override
+  String get networkError_receiveTimeout => '接收超时，图像生成可能需要更长时间。';
+
+  @override
+  String get networkError_requestCancelled => '请求已取消';
+
+  @override
+  String get networkError_connection => '网络连接错误，请检查网络连接。';
+
+  @override
+  String get networkError_unknown => '未知错误';
+
+  @override
+  String get networkError_noResponse => '服务器无响应';
+
+  @override
+  String get networkError_badRequest => '请求参数错误';
+
+  @override
+  String get networkError_authFailed => '认证失败，请重新登录。';
+
+  @override
+  String get networkError_insufficientAnlas => 'Anlas 不足';
+
+  @override
+  String get networkError_forbidden => '无权限访问该资源';
+
+  @override
+  String get networkError_notFound => '请求的资源不存在';
+
+  @override
+  String get networkError_conflict => '请求与当前状态冲突';
+
+  @override
+  String get networkError_rateLimited => '请求过于频繁，请稍后重试。';
+
+  @override
+  String get networkError_serverInternal => '服务器内部错误';
+
+  @override
+  String get networkError_badGateway => '服务器网关错误';
+
+  @override
+  String get networkError_unavailable => '服务暂时不可用';
+
+  @override
+  String networkError_requestFailed(int code) {
+    return '请求失败（$code）';
+  }
+
+  @override
+  String get nav_canvas => '画布';
 
   @override
   String get nav_onlineGallery => '画廊';
@@ -265,9 +300,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get nav_dictionary => '词库 (WIP)';
-
-  @override
-  String get nav_settings => '设置';
 
   @override
   String get nav_discordCommunity => 'Discord 社群';
@@ -319,9 +351,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get auth_pleaseLogin => '请登录以使用全部功能';
-
-  @override
-  String get auth_logoutConfirmTitle => '退出登录';
 
   @override
   String get auth_logoutConfirmContent => '确定要退出登录吗？';
@@ -438,9 +467,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get auth_cannotDeleteCurrent => '无法删除当前登录的账号';
-
-  @override
-  String get auth_changeAvatar => '更换头像';
 
   @override
   String get auth_removeAvatar => '移除头像';
@@ -646,9 +672,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_imageSavePath => '图片保存位置';
 
   @override
-  String get settings_default => '默认';
-
-  @override
   String get settings_autoSave => '自动保存';
 
   @override
@@ -733,9 +756,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_removeAvatar => '移除头像';
 
   @override
-  String get settings_nickname => '昵称';
-
-  @override
   String get settings_accountEmail => '账号邮箱';
 
   @override
@@ -752,6 +772,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_editNickname => '编辑昵称';
+
+  @override
+  String get settings_nickname => '昵称';
 
   @override
   String get settings_nicknameHint => '输入2-32个字符';
@@ -805,9 +828,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get generation_cancel => '取消';
-
-  @override
   String get generation_generating => '生成中...';
 
   @override
@@ -818,9 +838,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get generation_stopAllGeneration => '停止全部';
-
-  @override
-  String get generation_generateImage => '生成图像';
 
   @override
   String get generation_pleaseInputPrompt => '请输入提示词';
@@ -883,7 +900,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String generation_cfgScale(Object scale) {
-    return 'CFG Scale: $scale';
+    return 'CFG 强度：$scale';
   }
 
   @override
@@ -918,7 +935,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String generation_cfgRescale(Object value) {
-    return 'CFG Rescale: $value';
+    return 'CFG 重缩放：$value';
   }
 
   @override
@@ -993,11 +1010,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get prompt_finalNegative => '最终生效负面词';
-
-  @override
-  String prompt_tags(Object count) {
-    return '$count 个标签';
-  }
 
   @override
   String prompt_importedCharacters(int count) {
@@ -1079,13 +1091,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get prompt_unwantedContent => '不想出现在图像中的内容...';
 
   @override
-  String get prompt_addTagsHint => '添加标签来描述你想要的画面';
-
-  @override
   String get prompt_addUnwantedHint => '添加不想出现的元素';
-
-  @override
-  String get prompt_fullscreenEdit => '全屏编辑';
 
   @override
   String get prompt_randomPrompt => '随机提示词 (长按配置)';
@@ -1162,9 +1168,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get gallery_title => '画廊';
-
-  @override
   String gallery_selected(Object count) {
     return '已选择 $count 项';
   }
@@ -1174,9 +1177,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get gallery_clearGallery => '清除画廊';
-
-  @override
-  String get gallery_favorite => '收藏';
 
   @override
   String get gallery_sortNewest => '最新优先';
@@ -1193,16 +1193,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get config_title => '随机提示词配置';
-
-  @override
   String get config_presets => '预设';
-
-  @override
-  String get config_configGroups => '配置组';
-
-  @override
-  String get config_presetName => '预设名称';
 
   @override
   String get config_noPresets => '暂无预设';
@@ -1221,9 +1212,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get config_addConfigGroup => '添加配置组';
-
-  @override
-  String get config_saveChanges => '保存更改';
 
   @override
   String config_configGroupCount(Object count) {
@@ -1252,25 +1240,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get config_selectionMode => '选取方式';
 
   @override
-  String get config_singleRandom => '随机单选';
-
-  @override
-  String get config_singleSequential => '顺序单选';
-
-  @override
-  String get config_multipleCount => '指定数量';
-
-  @override
   String get config_multipleProbability => '按概率';
-
-  @override
-  String get config_all => '全部';
-
-  @override
-  String get config_selectCount => '选取数量';
-
-  @override
-  String get config_selectProbability => '选取概率';
 
   @override
   String get config_shuffleOrder => '打乱顺序';
@@ -1283,41 +1253,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get config_weightBracketsHint => '每层花括号增加约 5% 权重';
-
-  @override
-  String get config_min => '最少';
-
-  @override
-  String get config_max => '最多';
-
-  @override
-  String config_preview(Object preview) {
-    return '预览: $preview';
-  }
-
-  @override
-  String get config_tagContent => '标签内容';
-
-  @override
-  String config_tagContentHint(Object count) {
-    return '每行一个标签，当前 $count 项';
-  }
-
-  @override
-  String get config_format => '格式化';
-
-  @override
-  String get config_sort => '排序';
-
-  @override
-  String get config_inputTags =>
-      '输入标签，每行一个...\n例如：\n1girl\nbeautiful eyes\nlong hair';
-
-  @override
-  String get config_unsavedChanges => '未保存的更改';
-
-  @override
-  String get config_unsavedChangesContent => '有未保存的更改，确定要放弃吗？';
 
   @override
   String get config_discard => '放弃';
@@ -1337,18 +1272,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get config_importSuccess => '导入成功';
 
   @override
-  String config_importFailed(Object error) {
-    return '导入失败: $error';
-  }
-
-  @override
   String get config_restoreDefaultsConfirm => '确定要恢复默认预设吗？所有自定义配置将被删除。';
 
   @override
   String get config_restored => '已恢复默认';
-
-  @override
-  String get config_copiedToClipboard => '已复制到剪贴板';
 
   @override
   String get config_setAsCurrentSuccess => '已设为当前预设';
@@ -1366,26 +1293,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get config_newPresetCreated => '已创建新预设';
 
   @override
-  String config_itemCount(Object count) {
-    return '$count 项';
-  }
-
-  @override
   String config_subConfigCount(Object count) {
     return '$count 子配置';
   }
-
-  @override
-  String get config_random => '随机';
 
   @override
   String get config_sequential => '顺序';
 
   @override
   String get config_multiple => '多选';
-
-  @override
-  String get config_probability => '概率';
 
   @override
   String get config_moreActions => '更多操作';
@@ -1398,9 +1314,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get img2img_sourceImage => '源图像';
-
-  @override
-  String get img2img_selectImage => '选择图片';
 
   @override
   String get img2img_clickToSelectImage => '点击选择图片';
@@ -1430,9 +1343,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String img2img_selectFailed(Object error) {
     return '选择图片失败: $error';
   }
-
-  @override
-  String get img2img_edit => '编辑';
 
   @override
   String get img2img_editImage => '编辑图像';
@@ -1536,9 +1446,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get img2img_directorApplyAsSource => '设为源图';
-
-  @override
-  String get img2img_directorSave => '保存';
 
   @override
   String get img2img_directorSourceImage => '源图';
@@ -1731,12 +1638,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editor_closeWithoutSaving => '不保存关闭';
 
   @override
-  String get editor_close => '关闭';
-
-  @override
-  String get editor_save => '保存';
-
-  @override
   String get editor_modeImage => '涂鸦';
 
   @override
@@ -1747,12 +1648,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get editor_brushPresets => '笔刷预设';
-
-  @override
-  String get editor_color => '颜色';
-
-  @override
-  String get editor_brushSettings => '画笔设置';
 
   @override
   String get editor_actions => '操作';
@@ -1798,9 +1693,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get editor_paintTools => '绘画';
-
-  @override
-  String get editor_selectionTools => '选区';
 
   @override
   String get editor_toolBrush => '画笔';
@@ -1858,18 +1750,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editor_toolBlur => '模糊';
 
   @override
-  String get editor_presetDefault => '默认';
-
-  @override
-  String get editor_presetPencil => '铅笔';
-
-  @override
-  String get editor_presetMarker => '马克笔';
-
-  @override
-  String get editor_presetAirbrush => '喷枪';
-
-  @override
   String get editor_presetInkPen => '墨水笔';
 
   @override
@@ -1885,28 +1765,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editor_discard => '放弃';
 
   @override
-  String get editor_cancel => '取消';
-
-  @override
   String get editor_clearConfirm => '清除图层？';
 
   @override
   String get editor_clearConfirmMessage => '这将删除当前图层的所有内容。';
 
   @override
-  String get editor_clear => '清除';
-
-  @override
   String get editor_shortcutUndo => '撤销 (Ctrl+Z)';
 
   @override
   String get editor_shortcutRedo => '重做 (Ctrl+Y)';
-
-  @override
-  String get editor_selectionSettings => '选区';
-
-  @override
-  String get editor_shortcuts => '快捷键';
 
   @override
   String get editor_addToSelection => '添加到选区';
@@ -2388,7 +2256,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String editor_focusMinimumContextArea(Object value) {
-    return 'Minimum Context Area: $value';
+    return '最小上下文区域：$value';
   }
 
   @override
@@ -2473,6 +2341,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editor_colorPickerTitle => '选择颜色';
 
   @override
+  String get editor_brushSettings => '画笔设置';
+
+  @override
   String get editor_eraserSettings => '橡皮擦设置';
 
   @override
@@ -2536,9 +2407,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_title => '风格迁移';
 
   @override
-  String get vibe_hint => '添加参考图片来迁移其视觉风格和氛围（最多4张）';
-
-  @override
   String get vibe_description => '改变图像，保留视觉风格';
 
   @override
@@ -2565,18 +2433,10 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String vibe_referenceNumber(Object index) {
-    return '参考图 #$index';
-  }
-
-  @override
   String get vibe_referenceStrength => '参考强度';
 
   @override
   String get vibe_infoExtraction => '信息提取';
-
-  @override
-  String get vibe_adjustParams => '调整参数';
 
   @override
   String get vibe_remove => '移除';
@@ -2591,20 +2451,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get reference_disable => '禁用参考';
 
   @override
-  String get vibe_sliderHint => '强度: 越高越模仿视觉线索\n信息提取: 降低会减少纹理、保留构图';
-
-  @override
-  String vibe_strengthInfo(Object value, Object infoValue) {
-    return '强度: $value | 信息提取: $infoValue';
-  }
-
-  @override
   String get vibe_normalize => '标准化参考强度值';
-
-  @override
-  String vibe_encodingCost(int cost) {
-    return '需要编码。下次生成将消耗 $cost Anlas。';
-  }
 
   @override
   String get vibe_sourceType_png => 'PNG';
@@ -2643,21 +2490,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_shiftReplaceHint => 'Shift+点击 替换';
 
   @override
-  String get characterRef_title => '角色参考';
-
-  @override
-  String get characterRef_hint => '上传角色参考图来保持角色一致性（仅 V4+ 模型支持）';
-
-  @override
-  String get characterRef_v4Only => '角色参考仅支持 V4+ 模型，请切换模型后使用';
-
-  @override
-  String get characterRef_addReference => '添加参考图';
-
-  @override
-  String get characterRef_clearAll => '清除全部';
-
-  @override
   String characterRef_referenceNumber(Object index) {
     return '参考图 #$index';
   }
@@ -2667,21 +2499,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get characterRef_descriptionHint => '描述这个角色的特征（可选，但建议填写）...';
-
-  @override
-  String get characterRef_remove => '移除';
-
-  @override
-  String get characterRef_styleAware => '风格感知';
-
-  @override
-  String get characterRef_styleAwareHint => '传输角色相关的风格信息';
-
-  @override
-  String get characterRef_fidelity => '保真度';
-
-  @override
-  String get characterRef_fidelityHint => '0=旧版行为, 1=新版行为';
 
   @override
   String get unifiedRef_title => '图像参考';
@@ -2713,9 +2530,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get character_advancedOptions => '高级选项';
-
-  @override
   String get character_removeCharacter => '移除角色';
 
   @override
@@ -2737,9 +2551,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get character_positionHint => '位置坐标 (0-1)，用于指定角色在画面中的大致位置';
 
   @override
-  String get character_auto => '自动';
-
-  @override
   String get character_clearPosition => '清除位置';
 
   @override
@@ -2752,18 +2563,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gallery_searchHint => '搜索提示词... (支持中英文标签)';
 
   @override
-  String gallery_imageCount(Object count) {
-    return '$count 张';
-  }
-
-  @override
   String gallery_exportSuccess(Object count, Object path) {
     return '已导出 $count 张图像到 $path';
-  }
-
-  @override
-  String gallery_savedTo(Object path) {
-    return '已保存到 $path';
   }
 
   @override
@@ -2791,10 +2592,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gallery_metaSampler => '采样器';
 
   @override
-  String get gallery_metaCfgScale => 'CFG Scale';
+  String get gallery_metaCfgScale => 'CFG 强度';
 
   @override
-  String get gallery_metaSeed => 'Seed';
+  String get gallery_metaSeed => '种子';
 
   @override
   String get gallery_metaSmea => 'SMEA';
@@ -2809,28 +2610,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gallery_metaGenerationTime => '生成时间';
 
   @override
-  String get gallery_metaFileSize => '文件大小';
-
-  @override
-  String get gallery_positivePrompt => '正向提示词';
-
-  @override
-  String get gallery_negativePrompt => '负向提示词';
-
-  @override
   String get gallery_promptCopied => '已复制提示词';
 
   @override
   String get gallery_seedCopied => '已复制 Seed';
 
   @override
-  String get gallery_sendToImg2Img => '图生图';
-
-  @override
   String get gallery_useImageForGeneration => '使用此图片进行图像生成';
-
-  @override
-  String get gallery_sendToReversePromptTitle => '反推';
 
   @override
   String get gallery_addToReversePromptModule => '添加到画布反推模块';
@@ -2905,30 +2691,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preset_restoreDefault => '恢复默认';
 
   @override
-  String preset_configGroupCount(Object count) {
-    return '$count 个配置组';
-  }
-
-  @override
   String get preset_setAsCurrent => '设为当前';
 
   @override
   String get preset_duplicate => '复制';
-
-  @override
-  String get preset_export => '导出';
-
-  @override
-  String get preset_delete => '删除';
-
-  @override
-  String get preset_noConfigGroups => '还没有配置组';
-
-  @override
-  String get preset_addConfigGroup => '添加配置组';
-
-  @override
-  String get preset_selectPreset => '选择一个预设';
 
   @override
   String get preset_selectConfigToEdit => '选择一个配置组进行编辑';
@@ -2956,9 +2722,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get preset_byProbability => '按概率';
-
-  @override
-  String get preset_all => '全部';
 
   @override
   String get preset_selectCount => '选取数量';
@@ -3017,9 +2780,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preset_discard => '放弃';
 
   @override
-  String get preset_deletePreset => '删除预设';
-
-  @override
   String preset_deletePresetConfirm(Object name) {
     return '确定要删除 \"$name\" 吗？';
   }
@@ -3034,18 +2794,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preset_importSuccess => '导入成功';
 
   @override
-  String preset_importFailed(Object error) {
-    return '导入失败: $error';
-  }
-
-  @override
   String get preset_restoreDefaultConfirm => '确定要恢复默认预设吗？所有自定义配置将被删除。';
 
   @override
   String get preset_restored => '已恢复默认';
-
-  @override
-  String get preset_copiedToClipboard => '已复制到剪贴板';
 
   @override
   String get preset_setAsCurrentSuccess => '已设为当前预设';
@@ -3061,40 +2813,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get preset_newPresetCreated => '已创建新预设';
-
-  @override
-  String preset_itemCount(Object count) {
-    return '$count 项';
-  }
-
-  @override
-  String preset_subConfigCount(Object count) {
-    return '$count 子配置';
-  }
-
-  @override
-  String get preset_random => '随机';
-
-  @override
-  String get preset_sequential => '顺序';
-
-  @override
-  String get preset_multiple => '多选';
-
-  @override
-  String get preset_probability => '概率';
-
-  @override
-  String get preset_moreActions => '更多操作';
-
-  @override
-  String get preset_rename => '重命名';
-
-  @override
-  String get preset_moveUp => '上移';
-
-  @override
-  String get preset_moveDown => '下移';
 
   @override
   String get onlineGallery_search => '搜索';
@@ -3448,9 +3166,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tooltip_restoreLayout => '恢复正常布局';
 
   @override
-  String get tooltip_clear => '清空';
-
-  @override
   String get tooltip_promptSettings => '提示词设置';
 
   @override
@@ -3469,21 +3184,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tooltip_delete => '删除';
 
   @override
-  String get tooltip_changeImage => '更换图片';
-
-  @override
-  String get tooltip_removeImage => '移除图片';
-
-  @override
-  String get tooltip_previewGenerate => '预览生成';
-
-  @override
-  String get tooltip_help => '帮助';
-
-  @override
-  String get tooltip_addConfigGroup => '添加配置组';
-
-  @override
   String get tooltip_enable => '启用';
 
   @override
@@ -3496,13 +3196,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get upscale_title => '图片放大';
 
   @override
-  String get upscale_close => '关闭';
-
-  @override
   String get upscale_start => '开始放大';
-
-  @override
-  String get upscale_sourceImage => '源图像';
 
   @override
   String get upscale_clickToSelect => '点击选择要放大的图片';
@@ -3523,28 +3217,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get upscale_complete => '放大完成';
 
   @override
-  String get upscale_save => '保存';
-
-  @override
   String get upscale_share => '分享';
 
   @override
   String get upscale_failed => '放大失败';
-
-  @override
-  String upscale_selectFailed(Object error) {
-    return '选择图片失败: $error';
-  }
-
-  @override
-  String upscale_savedTo(Object path) {
-    return '已保存到: $path';
-  }
-
-  @override
-  String upscale_saveFailed(Object error) {
-    return '保存失败: $error';
-  }
 
   @override
   String upscale_shareFailed(Object error) {
@@ -3709,271 +3385,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tagCategory_general => '通用';
 
   @override
-  String get configEditor_newConfigGroup => '新建配置组';
-
-  @override
-  String get configEditor_editConfigGroup => '编辑配置组';
-
-  @override
-  String get configEditor_configName => '配置名称';
-
-  @override
-  String get configEditor_enableConfig => '启用此配置';
-
-  @override
-  String get configEditor_enableConfigHint => '禁用后不会参与生成';
-
-  @override
-  String get configEditor_contentType => '内容类型';
-
-  @override
-  String get configEditor_tagList => '标签列表';
-
-  @override
-  String get configEditor_nestedConfig => '嵌套配置';
-
-  @override
-  String get configEditor_selectionMode => '选取方式';
-
-  @override
-  String get configEditor_selectCount => '选取数量：';
-
-  @override
-  String get configEditor_selectProbability => '选取概率：';
-
-  @override
-  String get configEditor_shuffleOrder => '打乱顺序';
-
-  @override
-  String get configEditor_shuffleOrderHint => '随机排列选中的内容';
-
-  @override
-  String get configEditor_weightBrackets => '权重括号';
-
-  @override
-  String get configEditor_weightBracketsHint => '括号用于增加权重，每层花括号增加约 5% 权重';
-
-  @override
-  String configEditor_minBrackets(Object count) {
-    return '最少括号: $count';
-  }
-
-  @override
-  String configEditor_maxBrackets(Object count) {
-    return '最多括号: $count';
-  }
-
-  @override
-  String get configEditor_effectPreview => '效果预览：';
-
-  @override
-  String get configEditor_content => '内容';
-
-  @override
-  String configEditor_tagCountHint(Object count) {
-    return '每行一个标签，当前 $count 项';
-  }
-
-  @override
-  String get configEditor_format => '格式化';
-
-  @override
-  String get configEditor_sort => '排序';
-
-  @override
-  String get configEditor_dedupe => '去重';
-
-  @override
-  String get configEditor_nestedConfigHint => '嵌套配置可以创建复杂的分层随机逻辑';
-
-  @override
-  String get configEditor_noNestedConfig => '还没有嵌套配置';
-
-  @override
-  String configEditor_itemCount(Object count) {
-    return '$count 项';
-  }
-
-  @override
-  String configEditor_subConfigCount(Object count) {
-    return '$count 个子配置';
-  }
-
-  @override
-  String get configEditor_addNestedConfig => '添加嵌套配置';
-
-  @override
-  String get configEditor_subConfig => '子配置';
-
-  @override
-  String get configEditor_singleRandom => '单个 - 随机';
-
-  @override
-  String get configEditor_singleSequential => '单个 - 顺序';
-
-  @override
-  String get configEditor_singleProbability => '单个 - 概率出现';
-
-  @override
-  String get configEditor_multipleCount => '多个 - 指定数量';
-
-  @override
-  String get configEditor_multipleProbability => '多个 - 指定概率';
-
-  @override
-  String get configEditor_selectAll => '全部';
-
-  @override
-  String get configEditor_singleRandomHint => '每次随机选择一项';
-
-  @override
-  String get configEditor_singleSequentialHint => '按顺序循环选择一项';
-
-  @override
-  String get configEditor_singleProbabilityHint => '有X%的几率随机选一项，否则不出';
-
-  @override
-  String get configEditor_multipleCountHint => '随机选择指定数量的项';
-
-  @override
-  String get configEditor_multipleProbabilityHint => '每项按概率独立选择';
-
-  @override
-  String get configEditor_selectAllHint => '选择所有项';
-
-  @override
-  String get configEditor_or => ' 或 ';
-
-  @override
-  String get configEditor_enterConfigName => '请输入配置名称';
-
-  @override
-  String get configEditor_continueEditing => '继续编辑';
-
-  @override
-  String get configEditor_discardChanges => '放弃更改';
-
-  @override
-  String configEditor_randomCount(Object count) {
-    return '随机 $count 个';
-  }
-
-  @override
-  String configEditor_probabilityPercent(Object percent) {
-    return '$percent% 概率';
-  }
-
-  @override
-  String get presetEdit_newPreset => '新建预设';
-
-  @override
-  String get presetEdit_editPreset => '编辑预设';
-
-  @override
-  String get presetEdit_presetName => '预设名称';
-
-  @override
-  String presetEdit_configGroups(Object count) {
-    return '配置组 ($count)';
-  }
-
-  @override
-  String get presetEdit_noConfigGroups => '还没有配置组';
-
-  @override
-  String get presetEdit_addConfigGroupHint => '点击右上角 + 添加配置组';
-
-  @override
-  String get presetEdit_addConfigGroup => '添加配置组';
-
-  @override
-  String get presetEdit_newConfigGroup => '新配置组';
-
-  @override
-  String get presetEdit_enterPresetName => '请输入预设名称';
-
-  @override
-  String get presetEdit_saveSuccess => '保存成功';
-
-  @override
-  String get presetEdit_saveError => '保存预设失败';
-
-  @override
-  String presetEdit_deleteConfigConfirm(Object name) {
-    return '删除配置组 \"$name\"？';
-  }
-
-  @override
-  String get presetEdit_previewTitle => '预览生成结果';
-
-  @override
-  String get presetEdit_emptyResult => '(空结果，请检查配置)';
-
-  @override
-  String get presetEdit_regenerate => '重新生成';
-
-  @override
-  String get presetEdit_helpTitle => '帮助';
-
-  @override
-  String get presetEdit_helpConfigGroup => '配置组说明';
-
-  @override
-  String get presetEdit_helpConfigGroupContent => '每个配置组会按顺序生成内容，最终结果由逗号连接。';
-
-  @override
-  String get presetEdit_helpSelectionMode => '选取方式';
-
-  @override
-  String get presetEdit_helpSingleRandom => '• 单个-随机：随机选择一项';
-
-  @override
-  String get presetEdit_helpSingleSequential => '• 单个-顺序：按顺序循环选择';
-
-  @override
-  String get presetEdit_helpMultipleCount => '• 多个-数量：随机选择指定数量';
-
-  @override
-  String get presetEdit_helpMultipleProbability => '• 多个-概率：每项按概率独立选择';
-
-  @override
-  String get presetEdit_helpAll => '• 全部：选择所有项';
-
-  @override
-  String get presetEdit_helpWeightBrackets => '权重括号';
-
-  @override
-  String get presetEdit_helpWeightBracketsContent => '花括号用于增加权重，括号越多权重越高。';
-
-  @override
-  String get presetEdit_helpWeightBracketsExample =>
-      '例如：一层括号是 1.05 倍权重，两层括号是 1.1 倍。';
-
-  @override
-  String get presetEdit_helpNestedConfig => '嵌套配置';
-
-  @override
-  String get presetEdit_helpNestedConfigContent => '配置可以嵌套，用于创建复杂的分层随机逻辑。';
-
-  @override
-  String get presetEdit_gotIt => '知道了';
-
-  @override
-  String presetEdit_tagCount(Object count) {
-    return '$count 项标签';
-  }
-
-  @override
-  String presetEdit_bracketLayers(Object count) {
-    return '$count 层括号';
-  }
-
-  @override
-  String presetEdit_bracketRange(Object min, Object max) {
-    return '$min-$max 层括号';
-  }
-
-  @override
   String get qualityTags_label => '质量词';
 
   @override
@@ -4010,16 +3421,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ucPreset_light => '轻度';
 
   @override
-  String get ucPreset_furryFocus => 'Furry';
+  String get ucPreset_furryFocus => '兽人';
 
   @override
   String get ucPreset_humanFocus => '人物';
 
   @override
   String get ucPreset_none => '无';
-
-  @override
-  String get ucPreset_custom => '自定义';
 
   @override
   String get ucPreset_disabled => '负面提示词预设已关闭';
@@ -4123,23 +3531,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get download_cooccurrenceData => '共现标签数据';
 
   @override
-  String download_failed(Object name) {
-    return '$name下载失败';
-  }
-
-  @override
-  String download_downloading(Object name) {
-    return '正在下载 $name';
-  }
-
-  @override
   String download_complete(Object name) {
     return '$name下载完成';
-  }
-
-  @override
-  String download_downloadFailed(Object name) {
-    return '$name下载失败';
   }
 
   @override
@@ -4236,9 +3629,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get warmup_retryFailed => '重试失败任务';
 
   @override
-  String get warmup_errorDetail => '错误';
-
-  @override
   String get warmup_group_basicUI => '初始化基础 UI 服务...';
 
   @override
@@ -4307,22 +3697,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get warmup_fetchingMetaTags => '正在拉取元标签...';
 
   @override
-  String get performanceReport_title => '启动性能';
-
-  @override
-  String get performanceReport_export => '导出报告';
-
-  @override
-  String get performanceReport_taskStats => '任务统计';
-
-  @override
   String get performanceReport_averageDuration => '平均耗时';
-
-  @override
-  String get performanceReport_successRate => '成功率';
-
-  @override
-  String get performanceReport_exportSuccess => '报告导出成功';
 
   @override
   String get performanceReport_noDataTitle => '暂无性能数据';
@@ -4352,19 +3727,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get defaultPreset_quality => '质量';
 
   @override
-  String get defaultPreset_character => '角色';
-
-  @override
-  String get defaultPreset_expression => '表情';
-
-  @override
-  String get defaultPreset_clothing => '服装';
-
-  @override
   String get defaultPreset_action => '动作';
-
-  @override
-  String get defaultPreset_background => '背景';
 
   @override
   String get defaultPreset_shot => '镜头';
@@ -4451,65 +3814,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get api_error_network_hint => '无法连接到服务器，请检查网络';
 
   @override
-  String get api_error_unknown => '未知错误';
-
-  @override
   String api_error_unknown_hint(Object error) {
     return '发生未知错误: $error';
   }
 
   @override
-  String get drop_dialogTitle => '如何使用这张图片？';
-
-  @override
-  String get drop_hint => '拖拽图片到这里';
-
-  @override
   String get drop_processing => '正在解析图片...';
-
-  @override
-  String get drop_processingSubtitle => '请稍候';
-
-  @override
-  String get drop_img2img => '图生图';
-
-  @override
-  String get drop_reversePrompt => '反推';
-
-  @override
-  String get drop_vibeTransfer => '风格迁移';
-
-  @override
-  String get drop_characterReference => '精准参考';
-
-  @override
-  String get drop_unsupportedFormat => '不支持的文件格式';
-
-  @override
-  String get drop_addedToImg2Img => '已添加到图生图';
-
-  @override
-  String get drop_addedToReversePrompt => '已添加到反推';
-
-  @override
-  String get drop_addedToVibe => '已添加到风格迁移';
-
-  @override
-  String drop_addedMultipleToVibe(int count) {
-    return '已添加 $count 个风格参考';
-  }
-
-  @override
-  String get drop_addedToCharacterRef => '已添加到精准参考';
 
   @override
   String get characterEditor_title => '多人角色提示词';
 
   @override
   String get characterEditor_close => '关闭';
-
-  @override
-  String get characterEditor_confirm => '确定';
 
   @override
   String get characterEditor_clearAll => '清空所有';
@@ -4545,9 +3861,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get characterEditor_addCharacterHint => '点击上方按钮添加角色';
 
   @override
-  String get characterEditor_name => '名称';
-
-  @override
   String get characterEditor_nameHint => '输入角色名称';
 
   @override
@@ -4558,9 +3871,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get characterEditor_negativePromptHint => '输入角色的负面提示词...';
-
-  @override
-  String get characterEditor_position => '位置';
 
   @override
   String get characterCanvas_title => '角色位置';
@@ -4720,24 +4030,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tagLibrary_usingBuiltin => '使用内置词库';
 
   @override
-  String tagLibrary_lastSync(Object time) {
-    return '上次同步: $time';
-  }
-
-  @override
   String get tagLibrary_neverSynced => '尚未同步';
 
   @override
   String get tagLibrary_syncNow => '从 Danbooru 同步';
-
-  @override
-  String get tagLibrary_syncing => '同步中...';
-
-  @override
-  String get tagLibrary_syncSuccess => '词库同步成功';
-
-  @override
-  String get tagLibrary_syncFailed => '同步失败，请检查网络连接';
 
   @override
   String get tagLibrary_networkError => '无法连接 Danbooru，请检查网络或代理设置';
@@ -4809,31 +4105,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomMode_customIndicator => '自定义';
 
   @override
-  String get naiMode_title => '默认模式';
-
-  @override
-  String get naiMode_subtitle => '复刻 NovelAI 官方随机算法';
-
-  @override
-  String get naiMode_syncLibrary => '管理扩展词库';
-
-  @override
-  String get manageLibrary => '管理词库';
-
-  @override
-  String get naiMode_algorithmInfo => '算法说明';
-
-  @override
-  String naiMode_tagCountBadge(Object count) {
-    return '$count 个标签';
-  }
-
-  @override
-  String naiMode_totalTags(Object count) {
-    return '标签数: $count';
-  }
-
-  @override
   String naiMode_lastSync(Object time) {
     return '同步: $time';
   }
@@ -4865,101 +4136,15 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get naiMode_preview => '预览生成';
-
-  @override
-  String get naiMode_createCustom => '基于此创建自定义预设';
-
-  @override
-  String naiMode_categoryProbability(Object probability) {
-    return '$probability%';
-  }
-
-  @override
-  String naiMode_tagCount(Object count) {
-    return '$count个标签';
-  }
-
-  @override
-  String get naiMode_readOnlyHint => '基于官方算法的随机提示词配置';
-
-  @override
-  String promptConfig_confirmRemoveGroup(Object name) {
-    return '确定要移除分组「$name」吗？';
-  }
-
-  @override
   String promptConfig_confirmRemoveCategory(Object name) {
     return '确定要移除类别「$name」吗？移除后该类别将不再参与随机生成。';
   }
 
   @override
-  String get promptConfig_groupList => '词组列表';
-
-  @override
-  String promptConfig_groupCount(Object count) {
-    return '$count 个词组';
-  }
-
-  @override
-  String get promptConfig_addGroup => '添加词组';
-
-  @override
-  String get promptConfig_noGroups => '暂无词组，点击「添加词组」创建';
-
-  @override
-  String get promptConfig_builtinLibrary => 'NAI 内置词库';
-
-  @override
-  String get promptConfig_customGroup => '自定义分组';
-
-  @override
-  String get promptConfig_danbooruTagGroup => '标签词库';
-
-  @override
-  String get promptConfig_danbooruPool => '图集';
-
-  @override
   String get promptConfig_categorySettings => '类别设置';
 
   @override
-  String get promptConfig_enableCategory => '启用类别';
-
-  @override
-  String get promptConfig_disableCategory => '禁用类别';
-
-  @override
-  String get naiMode_noLibrary => '词库未加载';
-
-  @override
-  String get naiMode_noCategories => '暂无类别，请重置预设或添加新类别';
-
-  @override
   String get naiMode_noTags => '暂无标签';
-
-  @override
-  String get naiMode_previewResult => '生成预览';
-
-  @override
-  String get naiMode_characterPrompts => '角色提示词';
-
-  @override
-  String get naiMode_character => '角色';
-
-  @override
-  String get naiMode_createCustomTitle => '创建自定义预设';
-
-  @override
-  String get naiMode_createCustomDesc => '将创建一个包含所有NAI类别的新预设，您可以在此基础上进行自定义修改。';
-
-  @override
-  String get naiMode_featureComingSoon => '功能开发中...';
-
-  @override
-  String get naiMode_danbooruToggleTooltip => '切换此类别的扩展标签';
-
-  @override
-  String get naiMode_danbooruSupplementLabel => '扩展标签';
 
   @override
   String get naiMode_danbooruMasterToggleTooltip => '切换所有类别的扩展标签';
@@ -4970,115 +4155,16 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get naiAlgorithm_title => 'NAI随机算法说明';
-
-  @override
   String get naiAlgorithm_characterCount => '角色数量分布';
 
   @override
-  String get naiAlgorithm_categoryProbability => '类别选择概率';
-
-  @override
-  String get naiAlgorithm_weightedRandom => '加权随机算法';
-
-  @override
-  String get naiAlgorithm_weightedRandomDesc =>
-      '每个标签的权重基于 Danbooru 使用次数计算，权重越高被选中概率越大。';
-
-  @override
-  String get naiAlgorithm_v4MultiCharacter => 'V4多角色联动';
-
-  @override
-  String get naiAlgorithm_v4Desc => 'V4模型支持多角色独立提示词，主提示词和角色提示词分离。';
-
-  @override
   String get naiAlgorithm_mainPrompt => '主提示词';
-
-  @override
-  String get naiAlgorithm_mainPromptTags => '人数、背景、风格';
-
-  @override
-  String get naiAlgorithm_characterPrompt => '角色提示词';
-
-  @override
-  String get naiAlgorithm_characterPromptTags => '发色、瞳色、发型、表情、姿势';
-
-  @override
-  String get naiAlgorithm_noHuman => '无人物场景';
-
-  @override
-  String get naiAlgorithm_noHumanDesc => '5%概率生成无人物场景，仅包含背景、场景、风格标签。';
-
-  @override
-  String get naiAlgorithm_background => '背景';
-
-  @override
-  String get naiAlgorithm_hairColor => '发色';
-
-  @override
-  String get naiAlgorithm_eyeColor => '瞳色';
-
-  @override
-  String get naiAlgorithm_expression => '表情';
-
-  @override
-  String get naiAlgorithm_hairStyle => '发型';
-
-  @override
-  String get naiAlgorithm_pose => '姿势';
-
-  @override
-  String get naiAlgorithm_style => '风格';
-
-  @override
-  String get naiAlgorithm_clothing => '服装';
-
-  @override
-  String get naiAlgorithm_accessory => '配饰';
-
-  @override
-  String get naiAlgorithm_scene => '场景';
-
-  @override
-  String get naiAlgorithm_bodyFeature => '身体特征';
-
-  @override
-  String get importNai_title => '从NAI词库导入';
-
-  @override
-  String get importNai_selectCategories => '选择要导入的类别';
-
-  @override
-  String importNai_import(Object count) {
-    return '导入 $count 个类别';
-  }
-
-  @override
-  String importNai_tagCount(Object count) {
-    return '$count个标签';
-  }
-
-  @override
-  String get tagLibrary_rangePopular => '热门';
 
   @override
   String get tagLibrary_rangeMedium => '中等';
 
   @override
   String get tagLibrary_rangeFull => '完整';
-
-  @override
-  String tagLibrary_daysAgo(Object days) {
-    return '$days天前';
-  }
-
-  @override
-  String tagLibrary_hoursAgo(Object hours) {
-    return '$hours小时前';
-  }
-
-  @override
-  String get tagLibrary_justNow => '刚刚';
 
   @override
   String get tagLibrary_danbooruSupplement => 'Danbooru 补充';
@@ -5102,9 +4188,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get poolMapping_enableSyncDesc => '从图集中提取标签补充到分类';
 
   @override
-  String get poolMapping_addMapping => '添加图集映射';
-
-  @override
   String get poolMapping_noMappings => '暂无图集映射';
 
   @override
@@ -5114,22 +4197,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get poolMapping_searchPool => '搜索图集';
 
   @override
-  String get poolMapping_searchHint => '输入图集名称关键词';
-
-  @override
-  String get poolMapping_targetCategory => '目标分类';
-
-  @override
-  String get poolMapping_selectPool => '选择图集';
-
-  @override
   String get poolMapping_syncPools => '同步图集';
-
-  @override
-  String get poolMapping_syncing => '同步中...';
-
-  @override
-  String get poolMapping_neverSynced => '从未同步';
 
   @override
   String get poolMapping_syncSuccess => '图集同步成功';
@@ -5138,35 +4206,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get poolMapping_syncFailed => '图集同步失败';
 
   @override
-  String get poolMapping_noResults => '未找到匹配的图集';
-
-  @override
-  String get poolMapping_poolExists => '该图集已添加';
-
-  @override
-  String get poolMapping_addSuccess => '图集映射添加成功';
-
-  @override
   String get poolMapping_removeConfirm => '确定删除此图集映射？';
 
   @override
   String get poolMapping_removeSuccess => '图集映射已删除';
-
-  @override
-  String poolMapping_tagCount(Object count) {
-    return '$count 标签';
-  }
-
-  @override
-  String poolMapping_postCount(Object count) {
-    return '$count 帖子';
-  }
-
-  @override
-  String get poolMapping_alreadyAdded => '已添加';
-
-  @override
-  String get poolMapping_resetToDefault => '恢复默认';
 
   @override
   String get poolMapping_resetConfirm => '确定要恢复默认图集映射吗？当前配置将被覆盖。';
@@ -5199,16 +4242,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tagGroup_searchHint => '搜索标签词库...';
 
   @override
-  String get tagGroup_targetCategory => '目标分类';
-
-  @override
   String get tagGroup_selectGroup => '选择标签词库';
-
-  @override
-  String get tagGroup_neverSynced => '从未同步';
-
-  @override
-  String get tagGroup_noResults => '未找到匹配的标签词库';
 
   @override
   String get tagGroup_groupExists => '该标签词库已添加';
@@ -5233,12 +4267,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get tagGroup_alreadyAdded => '已添加';
-
-  @override
-  String get tagGroup_resetToDefault => '恢复默认';
-
-  @override
   String get tagGroup_resetConfirm => '确定要恢复默认标签词库映射吗？当前配置将被覆盖。';
 
   @override
@@ -5248,15 +4276,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tagGroup_minPostCount => '最小热度阈值';
 
   @override
-  String tagGroup_postCountValue(Object count) {
-    return '$count posts';
-  }
-
-  @override
   String get tagGroup_minPostCountHint => '只会同步帖子数量高于此阈值的标签';
-
-  @override
-  String get tagGroup_preview => '标签预览';
 
   @override
   String tagGroup_previewCount(Object count) {
@@ -5287,11 +4307,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tagGroup_syncPreparing => '准备同步...';
 
   @override
-  String tagGroup_syncFetching(Object name, Object current, Object total) {
-    return '正在获取 $name... ($current/$total)';
-  }
-
-  @override
   String tagGroup_syncFiltering(Object total, Object filtered) {
     return '筛选中: $total 标签, 保留 $filtered 标签';
   }
@@ -5299,11 +4314,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String tagGroup_syncCompleted(Object count) {
     return '同步完成, 共 $count 标签';
-  }
-
-  @override
-  String tagGroup_syncFailed(Object error) {
-    return '同步失败: $error';
   }
 
   @override
@@ -5321,11 +4331,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tagGroup_loadFailed => '无法加载标签词库，请检查网络连接';
 
   @override
-  String tagGroup_loadError(Object error) {
-    return '加载失败: $error';
-  }
-
-  @override
   String get tagGroup_reload => '重新加载';
 
   @override
@@ -5341,11 +4346,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tagGroup_manageGroupsHint => '选择要同步的标签词库';
 
   @override
-  String tagGroup_selectedCount(Object count) {
-    return '已选 $count 组';
-  }
-
-  @override
   String get naiMode_syncCategory => '补充此类别';
 
   @override
@@ -5353,48 +4353,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get naiMode_viewDetails => '查看详情';
-
-  @override
-  String get naiMode_tagListTitle => '标签列表';
-
-  @override
-  String get naiMode_desc_hairColor => '角色头发颜色相关标签，用于描述发色';
-
-  @override
-  String get naiMode_desc_eyeColor => '角色眼睛颜色相关标签，用于描述瞳色';
-
-  @override
-  String get naiMode_desc_hairStyle => '角色发型相关标签，用于描述发型样式';
-
-  @override
-  String get naiMode_desc_expression => '角色表情相关标签，用于描述面部表情';
-
-  @override
-  String get naiMode_desc_pose => '角色姿势相关标签，用于描述身体动作和姿态';
-
-  @override
-  String get naiMode_desc_clothing => '角色服装相关标签，用于描述衣着';
-
-  @override
-  String get naiMode_desc_accessory => '配饰相关标签，用于描述装饰品和配件';
-
-  @override
-  String get naiMode_desc_bodyFeature => '身体特征相关标签，用于描述体型特点';
-
-  @override
-  String get naiMode_desc_background => '背景相关标签，用于描述画面背景类型';
-
-  @override
-  String get naiMode_desc_scene => '场景相关标签，用于描述具体场景元素';
-
-  @override
-  String get naiMode_desc_style => '画风相关标签，用于描述艺术风格';
-
-  @override
-  String get naiMode_desc_characterCount => '角色数量相关标签，决定画面中的人物数量';
-
-  @override
-  String get tagGroup_builtin => '内置';
 
   @override
   String tagGroup_totalTagsTooltip(Object original, Object filtered) {
@@ -5408,93 +4366,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tagGroup_cachedCategories => '已缓存分类';
 
   @override
-  String get cache_title => '词组管理';
-
-  @override
-  String get cache_manage => '词组管理';
-
-  @override
-  String get cache_tabTagGroup => '标签词库';
-
-  @override
-  String get cache_tabPool => '图集';
-
-  @override
-  String get cache_noTagGroups => '暂无标签词库缓存';
-
-  @override
-  String get cache_noPools => '暂无图集缓存';
-
-  @override
-  String get cache_noBuiltin => '暂无内置词库';
-
-  @override
-  String get cache_probability => '概率';
-
-  @override
-  String get cache_tags => '标签';
-
-  @override
-  String get cache_posts => '张图片';
-
-  @override
-  String get cache_neverSynced => '从未同步';
-
-  @override
-  String get cache_refresh => '刷新';
-
-  @override
-  String cache_refreshFailed(String error) {
-    return '刷新失败: $error';
-  }
-
-  @override
-  String get cache_refreshAll => '刷新全部';
-
-  @override
-  String cache_refreshProgress(Object current, Object total, String name) {
-    return '正在同步 ($current/$total): $name';
-  }
-
-  @override
-  String cache_totalStats(Object count, Object tags) {
-    return '共 $count 个词组，$tags 个标签';
-  }
-
-  @override
-  String get addGroup_fetchingCache => '正在获取数据...';
-
-  @override
-  String get addGroup_fetchFailed => '获取数据失败，但仍可添加词组';
-
-  @override
   String get addGroup_syncFailed => '同步失败，请检查网络连接后重试';
 
   @override
-  String addGroup_addFailed(String error) {
-    return '添加失败: $error';
-  }
-
-  @override
   String get addGroup_addCustom => '添加自定义';
-
-  @override
-  String get addGroup_filterHint => '搜索已缓存的词组...';
-
-  @override
-  String get customGroup_title => '添加自定义词组';
-
-  @override
-  String get customGroup_searchHint => '输入关键词搜索 Danbooru...';
-
-  @override
-  String get customGroup_nameLabel => '显示名称';
-
-  @override
-  String get customGroup_add => '添加并缓存';
-
-  @override
-  String get customGroup_searchPrompt => '输入关键词并搜索';
 
   @override
   String get tagGroup_noCachedData => '无缓存数据';
@@ -5520,21 +4395,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String addGroup_dialogTitle(Object category) {
-    return '为「$category」添加词库';
-  }
-
-  @override
-  String get addGroup_builtinTab => '内置词库';
-
-  @override
   String get addGroup_tagGroupTab => '标签词库';
-
-  @override
-  String get addGroup_cancel => '取消';
-
-  @override
-  String get addGroup_submit => '添加';
 
   @override
   String get addGroup_builtinEnabled => '内置词库已启用';
@@ -5549,9 +4410,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get addGroup_enableBuiltinDesc => '使用应用内置的标签词库';
 
   @override
-  String get addGroup_enable => '启用';
-
-  @override
   String get addGroup_backToParent => '返回上级';
 
   @override
@@ -5559,9 +4417,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get addGroup_customMode => '添加其他';
-
-  @override
-  String get addGroup_allCategories => '全部分类';
 
   @override
   String get addGroup_noMoreSubcategories => '没有更多子分类';
@@ -5629,21 +4484,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get addGroup_noCachedTagGroups => '暂无缓存的标签词库';
-
-  @override
-  String get addGroup_noCachedTagGroupsHint => '请先在「词组管理」中同步标签词库数据';
-
-  @override
-  String get addGroup_noFilterResults => '没有找到匹配的结果';
-
-  @override
-  String get addGroup_noCachedPools => '暂无缓存的图集';
-
-  @override
-  String get addGroup_noCachedPoolsHint => '使用搜索框搜索并添加图集';
-
-  @override
   String get addGroup_sectionTagGroups => '标签词库 ☁️';
 
   @override
@@ -5653,22 +4493,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get globalSettings_title => '总览设置';
 
   @override
-  String get globalSettings_resetToDefault => '重置为默认';
-
-  @override
-  String get globalSettings_characterCountDistribution => '角色数量分布';
-
-  @override
   String get globalSettings_weightRandomOffset => '权重随机偏移';
 
   @override
   String get globalSettings_categoryProbabilityOverview => '类别概率总览';
-
-  @override
-  String get globalSettings_cancel => '取消';
-
-  @override
-  String get globalSettings_save => '保存';
 
   @override
   String globalSettings_saveFailed(Object error) {
@@ -5743,8 +4571,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get nav_generate => '生成';
 
   @override
+  String get nav_gallery => '画廊';
+
+  @override
+  String get nav_settings => '设置';
+
+  @override
+  String download_downloading(Object name) {
+    return '正在下载 $name';
+  }
+
+  @override
   String download_completed(Object name) {
     return '$name下载完成';
+  }
+
+  @override
+  String download_failed(Object name) {
+    return '$name下载失败';
   }
 
   @override
@@ -5835,62 +4679,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get time_never_synced => '从未同步';
 
   @override
-  String get selectionMode_single => '单选随机';
-
-  @override
-  String get selectionMode_multipleNum => '多选数量';
-
-  @override
-  String get selectionMode_multipleProb => '多选概率';
-
-  @override
-  String get selectionMode_all => '全选';
-
-  @override
-  String get selectionMode_sequential => '顺序轮替';
-
-  @override
-  String categorySettings_title(Object name) {
-    return '类别设置 - $name';
-  }
-
-  @override
-  String get categorySettings_probability => '类别选取概率';
-
-  @override
-  String get categorySettings_probabilityDesc => '该类别参与随机生成的概率';
-
-  @override
-  String get categorySettings_groupSelectionMode => '词组选取模式';
-
-  @override
-  String get categorySettings_groupSelectionModeDesc => '从下属词组中选取的方式';
-
-  @override
-  String get categorySettings_groupSelectCount => '选取数量：';
-
-  @override
-  String get categorySettings_shuffle => '打乱顺序';
-
-  @override
-  String get categorySettings_shuffleDesc => '随机排列选中的词组输出顺序';
-
-  @override
-  String get categorySettings_unifiedBracket => '统一权重括号';
-
-  @override
-  String get categorySettings_unifiedBracketDisabled => '未启用';
-
-  @override
-  String get categorySettings_enableUnifiedBracket => '启用统一设置';
-
-  @override
-  String get categorySettings_enableUnifiedBracketDesc => '启用后将覆盖各词组的独立括号设置';
-
-  @override
-  String get categorySettings_bracketRange => '括号层数范围';
-
-  @override
   String categorySettings_bracketMin(Object count) {
     return '最少: $count 层';
   }
@@ -5899,12 +4687,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String categorySettings_bracketMax(Object count) {
     return '最多: $count 层';
   }
-
-  @override
-  String get categorySettings_bracketPreview => '效果预览：';
-
-  @override
-  String get categorySettings_batchSettings => '批量操作';
 
   @override
   String get categorySettings_batchSettingsDesc => '对该类别下所有词组进行批量操作';
@@ -5928,38 +4710,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get categorySettings_batchResetSuccess => '已重置所有词组设置';
 
   @override
-  String tagGroupSettings_title(Object name) {
-    return '词组设置 - $name';
-  }
-
-  @override
-  String get tagGroupSettings_probability => '选取概率';
-
-  @override
-  String get tagGroupSettings_probabilityDesc => '该词组被选中的概率';
-
-  @override
-  String get tagGroupSettings_selectionMode => '选取模式';
-
-  @override
-  String get tagGroupSettings_selectionModeDesc => '从词组内标签中选取的方式';
-
-  @override
-  String get tagGroupSettings_selectCount => '选取数量：';
-
-  @override
-  String get tagGroupSettings_shuffle => '打乱顺序';
-
-  @override
-  String get tagGroupSettings_shuffleDesc => '随机排列选中的标签输出顺序';
-
-  @override
-  String get tagGroupSettings_bracket => '权重括号';
-
-  @override
-  String get tagGroupSettings_bracketDesc => '为选中的标签随机添加权重括号，每层花括号增加约5%权重';
-
-  @override
   String tagGroupSettings_bracketMin(Object count) {
     return '最少: $count 层';
   }
@@ -5968,18 +4718,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String tagGroupSettings_bracketMax(Object count) {
     return '最多: $count 层';
   }
-
-  @override
-  String get tagGroupSettings_bracketPreview => '效果预览：';
-
-  @override
-  String get categorySettings_settingsButton => '设置';
-
-  @override
-  String get tagGroupSettings_settingsButton => '设置';
-
-  @override
-  String get promptConfig_tagCountUnit => '个标签';
 
   @override
   String get promptConfig_removeGroup => '移除分组';
@@ -6013,18 +4751,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get newPresetDialog_templateDesc => '复制默认预设的所有设置作为起点';
 
   @override
-  String get category_addNew => '新增类别';
-
-  @override
-  String get category_dialogTitle => '创建新类别';
-
-  @override
-  String get category_name => '类别名称';
-
-  @override
-  String get category_nameHint => '输入类别名称';
-
-  @override
   String get category_key => '类别标识';
 
   @override
@@ -6037,13 +4763,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get category_selectEmoji => '选择 Emoji';
 
   @override
-  String get category_probability => '选中概率';
-
-  @override
   String get category_createSuccess => '类别创建成功';
-
-  @override
-  String get category_nameRequired => '请输入类别名称';
 
   @override
   String get category_keyRequired => '请输入类别标识';
@@ -6061,24 +4781,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get category_searchEmoji => '搜索 Emoji';
 
   @override
-  String get addGroup_customTab => '自定义';
-
-  @override
-  String get customGroup_groupName => '词组名称';
-
-  @override
   String get customGroup_entryPlaceholder => '输入词条并回车（支持多标签，逗号分隔）';
 
   @override
   String get customGroup_noEntries => '暂无词条，添加词条开始创建';
-
-  @override
-  String customGroup_entryCount(Object count) {
-    return '共 $count 个词条';
-  }
-
-  @override
-  String get customGroup_editEntry => '编辑词条';
 
   @override
   String get customGroup_aliasLabel => '备注名称（可选）';
@@ -6087,45 +4793,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get customGroup_aliasHint => '输入便于记忆的备注名称';
 
   @override
-  String get customGroup_contentLabel => '提示词内容';
-
-  @override
   String get customGroup_contentHint => '输入实际的提示词内容';
-
-  @override
-  String get customGroup_save => '保存';
-
-  @override
-  String get customGroup_confirm => '确定';
 
   @override
   String get customGroup_selectEmoji => '选择图标';
 
   @override
-  String get customGroup_nameRequired => '请输入词组名称';
-
-  @override
   String get customGroup_addEntry => '添加词条';
-
-  @override
-  String get customGroup_noCustomGroups => '暂无自定义词组';
-
-  @override
-  String get customGroup_createInCacheManager => '请在「词组管理」中创建自定义词组';
-
-  @override
-  String get cache_createCustomGroup => '创建自定义词组';
-
-  @override
-  String cache_confirmDeleteCustomGroup(Object name) {
-    return '确定要删除自定义词组「$name」吗？';
-  }
-
-  @override
-  String get cache_customTab => '自定义';
-
-  @override
-  String get cache_addFromDanbooru => '从 Danbooru 添加';
 
   @override
   String get customGroup_emptyStateTitle => '开始添加词条';
@@ -6135,12 +4809,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get common_comingSoon => '功能开发中...';
-
-  @override
-  String get common_openInBrowser => '在浏览器中打开';
-
-  @override
-  String get customGroup_tagsPlaceholder => '输入标签，用逗号分隔（支持补全）...';
 
   @override
   String get characterCountConfig_title => '人数类别配置';
@@ -6199,9 +4867,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get characterCountConfig_slot => '槽位';
-
-  @override
-  String get characterCountConfig_resetToDefault => '重置为默认';
 
   @override
   String get characterCountConfig_customSlots => '自定义槽位';
@@ -6733,26 +5398,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get randomManager_refreshOrSync => '刷新/同步';
 
   @override
-  String get genderRestriction_enabled => '性别限定';
-
-  @override
-  String get genderRestriction_enabledDesc => '未启用性别过滤';
-
-  @override
-  String genderRestriction_enabledActive(Object count) {
-    return '已启用，$count 种性别可用';
-  }
-
-  @override
-  String get genderRestriction_enable => '启用性别限定';
-
-  @override
-  String get genderRestriction_enableDesc => '仅对指定性别的角色生效';
-
-  @override
-  String get genderRestriction_applicableGenders => '适用性别';
-
-  @override
   String get gender_female => '女性';
 
   @override
@@ -6763,12 +5408,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get gender_futanari => '扶她';
-
-  @override
-  String get scope_title => '作用域';
-
-  @override
-  String get scope_titleDesc => '设置此类别/词组的适用范围';
 
   @override
   String get scope_global => '主提示词';
@@ -6788,15 +5427,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scope_allTooltip => '提示词同时出现在主提示词和角色提示词\n适合：姿势、互动等通用标签';
-
-  @override
-  String get tagGroupSettings_resetToCategory => '重置为类别设置';
-
-  @override
-  String get bracket_weaken => '降权';
-
-  @override
-  String get bracket_enhance => '增强';
 
   @override
   String get vibeNoEncodingWarning => '此图片没有预编码数据';
@@ -6932,13 +5562,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get tag_tabTags => '标签';
-
-  @override
   String get tag_tabGroups => '分组';
-
-  @override
-  String get tag_tabFavorites => '收藏';
 
   @override
   String get tag_tabTemplates => '模板';
@@ -7208,9 +5832,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get localGallery_packFailed => '打包失败';
-
-  @override
-  String get localGallery_noMetadata => '此图片没有元数据';
 
   @override
   String get localGallery_imageFileMissing => '图片文件不存在';
@@ -7506,9 +6127,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statistics_favorites => '收藏';
 
   @override
-  String get statistics_tagged => '已标记';
-
-  @override
   String get statistics_modelDistribution => '模型分布';
 
   @override
@@ -7587,19 +6205,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_markAsFavorite => '添加到收藏';
 
   @override
-  String get localGallery_removeFromFavorites => '取消收藏';
-
-  @override
-  String get localGallery_tags => '标签';
-
-  @override
-  String get localGallery_addTag => '添加标签';
-
-  @override
   String get localGallery_removeTag => '移除标签';
-
-  @override
-  String get localGallery_noTags => '暂无标签';
 
   @override
   String get localGallery_filterByTags => '按标签筛选';
@@ -7641,34 +6247,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_filterSubtitle => '精确筛选您的图片集合';
 
   @override
-  String get localGallery_model => '模型';
-
-  @override
   String get localGallery_modelHint => '输入模型名称...';
 
   @override
-  String get localGallery_sampler => '采样器';
-
-  @override
   String get localGallery_samplerHint => '输入采样器名称...';
-
-  @override
-  String get localGallery_steps => '步数';
-
-  @override
-  String get localGallery_cfgScale => 'CFG 强度';
-
-  @override
-  String get localGallery_resolution => '分辨率';
 
   @override
   String get localGallery_resolutionHint => '宽度x高度 (如: 1024x1024)';
 
   @override
   String get localGallery_any => '任意';
-
-  @override
-  String get localGallery_custom => '自定义';
 
   @override
   String get localGallery_to => '至';
@@ -7744,18 +6332,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_group_dateFormat => 'MM月dd日';
 
   @override
-  String get localGallery_jumpToDate => '跳转到日期';
-
-  @override
   String get localGallery_noImagesOnThisDate => '该日期没有图片';
 
   @override
   String get localGallery_selectedImagesNoPrompt => '选中的图片没有 Prompt 信息';
-
-  @override
-  String localGallery_addedTasksToQueue(Object count) {
-    return '已添加 $count 个任务到队列';
-  }
 
   @override
   String localGallery_cannotOpenFolder(Object error) {
@@ -7918,6 +6498,59 @@ class AppLocalizationsZh extends AppLocalizations {
   String get bulkProgress_title_default => '处理中';
 
   @override
+  String bulkProgress_errorDeleteFailed(String error) {
+    return '删除图片失败：$error';
+  }
+
+  @override
+  String get bulkProgress_errorNoImagesToExport => '没有可导出的图片';
+
+  @override
+  String get bulkProgress_errorExportFailed => '导出失败';
+
+  @override
+  String bulkProgress_errorExportFailedWithDetails(String error) {
+    return '导出失败：$error';
+  }
+
+  @override
+  String get bulkProgress_errorNoMetadataChanges => '请至少输入一个要添加或移除的标签';
+
+  @override
+  String bulkProgress_errorMetadataEditFailed(String error) {
+    return '编辑图片元数据失败：$error';
+  }
+
+  @override
+  String bulkProgress_errorFavoriteFailed(String error) {
+    return '更新收藏状态失败：$error';
+  }
+
+  @override
+  String get bulkProgress_errorNoImagesForCollection => '没有可添加到集合的图片';
+
+  @override
+  String bulkProgress_errorAddToCollectionFailed(String error) {
+    return '将图片添加到集合失败：$error';
+  }
+
+  @override
+  String get bulkProgress_errorNothingToUndo => '没有可撤销的操作';
+
+  @override
+  String bulkProgress_errorUndoFailed(String error) {
+    return '撤销失败：$error';
+  }
+
+  @override
+  String get bulkProgress_errorNothingToRedo => '没有可重做的操作';
+
+  @override
+  String bulkProgress_errorRedoFailed(String error) {
+    return '重做失败：$error';
+  }
+
+  @override
   String get collectionSelect_dialogTitle => '选择集合';
 
   @override
@@ -7944,12 +6577,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statistics_navModels => '模型';
 
   @override
-  String get statistics_navTags => '标签';
-
-  @override
-  String get statistics_navParameters => '参数';
-
-  @override
   String get statistics_navTrends => '趋势';
 
   @override
@@ -7965,22 +6592,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statistics_sectionActivityAnalysis => '活动分析';
 
   @override
-  String get statistics_chartUsageDistribution => '使用分布';
-
-  @override
-  String get statistics_chartModelRanking => '模型排行';
-
-  @override
-  String get statistics_chartModelUsageOverTime => '模型使用趋势';
-
-  @override
   String get statistics_chartTopTags => '热门标签';
-
-  @override
-  String get statistics_chartTagCloud => '标签云';
-
-  @override
-  String get statistics_chartParameterOverview => '参数概览';
 
   @override
   String get statistics_chartAspectRatio => '宽高比分布';
@@ -7993,66 +6605,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get statistics_chartWeekdayDistribution => '星期分布';
-
-  @override
-  String get statistics_filterTitle => '筛选';
-
-  @override
-  String get statistics_filterClear => '清除';
-
-  @override
-  String get statistics_filterDateRange => '日期范围';
-
-  @override
-  String get statistics_filterModel => '模型';
-
-  @override
-  String get statistics_filterAllModels => '全部模型';
-
-  @override
-  String get statistics_filterResolution => '分辨率';
-
-  @override
-  String get statistics_filterAllResolutions => '全部分辨率';
-
-  @override
-  String get statistics_granularity => '粒度';
-
-  @override
-  String get statistics_granularityDay => '日';
-
-  @override
-  String get statistics_granularityWeek => '周';
-
-  @override
-  String get statistics_granularityMonth => '月';
-
-  @override
-  String get statistics_labelTotalDays => '总天数';
-
-  @override
-  String get statistics_labelPeak => '峰值';
-
-  @override
-  String get statistics_labelAverage => '平均';
-
-  @override
-  String get statistics_labelSteps => '步数';
-
-  @override
-  String get statistics_labelCfg => 'CFG';
-
-  @override
-  String get statistics_labelWidth => '宽度';
-
-  @override
-  String get statistics_labelHeight => '高度';
-
-  @override
-  String get statistics_labelFavPercent => '收藏率';
-
-  @override
-  String get statistics_labelTagPercent => '标签率';
 
   @override
   String get statistics_aspectSquare => '方形';
@@ -8078,17 +6630,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get statistics_noMetadata => '无元数据';
-
-  @override
-  String get statistics_unknown => '未知';
-
-  @override
-  String statistics_weekLabel(Object week) {
-    return '第$week周';
-  }
-
-  @override
   String get statistics_peakHour => '高峰时段';
 
   @override
@@ -8099,15 +6640,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get statistics_morning => '早晨';
-
-  @override
-  String get statistics_afternoon => '下午';
-
-  @override
-  String get statistics_evening => '傍晚';
-
-  @override
-  String get statistics_night => '深夜';
 
   @override
   String get statistics_sunday => '周日';
@@ -9166,13 +7698,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get tagLibrary_removeFavorite => '取消收藏';
-
-  @override
   String get tagLibrary_addFavorite => '添加收藏';
-
-  @override
-  String get tagLibrary_pinned => '已收藏';
 
   @override
   String get tagLibrary_thumbnail => '预览图';
@@ -9321,9 +7847,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tagLibrary_verticalOffset => '垂直偏移';
 
   @override
-  String get tagLibrary_zoom => '缩放';
-
-  @override
   String get tagLibrary_zoomRatio => '缩放比例';
 
   @override
@@ -9466,9 +7989,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get queue_failureStrategyAutoRetryDesc => '达到最大重试次数后移至队列末尾';
 
   @override
-  String get queue_failureStrategySkip => '跳过';
-
-  @override
   String get queue_failureStrategySkipDesc => '将失败任务移入失败池，继续执行下一个';
 
   @override
@@ -9570,9 +8090,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String queue_selectedCount(Object count) {
     return '已选 $count 个';
   }
-
-  @override
-  String get queue_batchDelete => '删除选中';
 
   @override
   String get queue_batchPinToTop => '置顶选中';
@@ -9814,9 +8331,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get resetToDefaultTooltip => '重置为默认配置';
 
   @override
-  String get resetToDefaultConfirmTitle => '重置为默认配置';
-
-  @override
   String get resetToDefaultConfirmContent => '将恢复官方默认配置。您添加的自定义词组会被保留但禁用。';
 
   @override
@@ -9842,22 +8356,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get alias_hintText => '输入提示词，或使用 <词库名称> 引用词库内容';
-
-  @override
-  String get alias_libraryCategory => '词库';
-
-  @override
-  String alias_tagCount(Object count) {
-    return '$count 个标签';
-  }
-
-  @override
-  String alias_useCount(Object count) {
-    return '使用 $count 次';
-  }
-
-  @override
-  String get alias_favorited => '已收藏';
 
   @override
   String get statistics_heatmapLess => '少';
@@ -9963,13 +8461,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get metadataImport_generationSection => '生成参数';
 
   @override
-  String get metadataImport_advancedSection => '高级选项';
-
-  @override
   String get metadataImport_selectAll => '全选';
-
-  @override
-  String get metadataImport_deselectAll => '全不选';
 
   @override
   String get metadataImport_promptsOnly => '仅提示词';
@@ -10065,7 +8557,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get metadataImport_steps => '步数 (Steps)';
 
   @override
-  String get metadataImport_scale => 'CFG Scale';
+  String get metadataImport_scale => 'CFG 强度';
 
   @override
   String get metadataImport_size => '尺寸 (Size)';
@@ -10086,7 +8578,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get metadataImport_noiseSchedule => '噪声计划';
 
   @override
-  String get metadataImport_cfgRescale => 'CFG Rescale';
+  String get metadataImport_cfgRescale => 'CFG 重缩放';
 
   @override
   String get metadataImport_qualityToggle => '质量标签';
@@ -10121,11 +8613,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get metadataImport_charactersCount => '个角色';
-
-  @override
-  String metadataImport_extractFailed(String error) {
-    return '提取元数据失败: $error';
-  }
 
   @override
   String metadataImport_appliedToMain(int count) {
@@ -10396,9 +8883,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get shortcut_help_search => '搜索快捷键...';
 
   @override
-  String get shortcut_help_customize => '自定义快捷键';
-
-  @override
   String get shortcut_help_all => '全部';
 
   @override
@@ -10420,6 +8904,44 @@ class AppLocalizationsZh extends AppLocalizations {
   String shortcut_editor_conflictWith(Object action) {
     return '此快捷键与 \"$action\" 冲突';
   }
+
+  @override
+  String get drop_dialogTitle => '如何使用这张图片？';
+
+  @override
+  String get drop_hint => '拖拽图片到这里';
+
+  @override
+  String get drop_img2img => '图生图';
+
+  @override
+  String get drop_reversePrompt => '反推';
+
+  @override
+  String get drop_vibeTransfer => '风格迁移';
+
+  @override
+  String get drop_characterReference => '精准参考';
+
+  @override
+  String get drop_unsupportedFormat => '不支持的文件格式';
+
+  @override
+  String get drop_addedToImg2Img => '已添加到图生图';
+
+  @override
+  String get drop_addedToReversePrompt => '已添加到反推';
+
+  @override
+  String get drop_addedToVibe => '已添加到风格迁移';
+
+  @override
+  String drop_addedMultipleToVibe(int count) {
+    return '已添加 $count 个风格参考';
+  }
+
+  @override
+  String get drop_addedToCharacterRef => '已添加到精准参考';
 
   @override
   String get drop_extractMetadata => '提取元数据';
@@ -10524,9 +9046,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get vibeLibrary_categories => '分类';
-
-  @override
-  String get vibeLibrary_newCategoryShort => '新建';
 
   @override
   String get vibeLibrary_createCategoryTitle => '新建分类';
@@ -10731,6 +9250,282 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibeLibrary_bundleReadFailed => '读取 Bundle 文件失败，使用单文件模式';
 
   @override
+  String categoryError_loadFailed(String error) {
+    return '加载分类失败：$error';
+  }
+
+  @override
+  String categoryError_syncFailed(String error) {
+    return '同步分类失败：$error';
+  }
+
+  @override
+  String get categoryError_nameEmpty => '分类名称不能为空';
+
+  @override
+  String get categoryError_parentNotFound => '父分类不存在';
+
+  @override
+  String categoryError_createFailed(String error) {
+    return '创建分类失败：$error';
+  }
+
+  @override
+  String get categoryError_notFound => '分类不存在';
+
+  @override
+  String categoryError_renameFailed(String error) {
+    return '重命名分类失败：$error';
+  }
+
+  @override
+  String get categoryError_invalidMove => '不能将分类移动到它的子孙分类下';
+
+  @override
+  String categoryError_moveFailed(String error) {
+    return '移动分类失败：$error';
+  }
+
+  @override
+  String get categoryError_hasSubcategories => '该分类包含子分类，请先删除子分类。';
+
+  @override
+  String categoryError_deleteFailed(String error) {
+    return '删除分类失败：$error';
+  }
+
+  @override
+  String categoryError_moveImageFailed(String error) {
+    return '移动图片失败：$error';
+  }
+
+  @override
+  String categoryError_moveImagesFailed(String error) {
+    return '批量移动图片失败：$error';
+  }
+
+  @override
+  String categoryError_reorderFailed(String error) {
+    return '重新排序分类失败：$error';
+  }
+
+  @override
+  String get vibeBulk_titleDelete => '批量删除';
+
+  @override
+  String get vibeBulk_titleMove => '批量移动';
+
+  @override
+  String get vibeBulk_titleToggleFavorite => '批量更新收藏';
+
+  @override
+  String get vibeBulk_titleAddTags => '批量添加标签';
+
+  @override
+  String get vibeBulk_titleRemoveTags => '批量移除标签';
+
+  @override
+  String get vibeBulk_titleExport => '批量导出';
+
+  @override
+  String get vibeBulk_titleImport => '批量导入';
+
+  @override
+  String vibeBulk_processingProgress(int current, int total) {
+    return '正在处理：$current / $total';
+  }
+
+  @override
+  String get vibeBulk_completed => '操作完成';
+
+  @override
+  String get vibeBulk_completedWithFailures => '操作完成（部分失败）';
+
+  @override
+  String get vibeBulk_successful => '成功';
+
+  @override
+  String get vibeBulk_failed => '失败';
+
+  @override
+  String get vibeBulk_errorDetails => '错误详情：';
+
+  @override
+  String vibeBulk_moreErrors(int count) {
+    return '……另有 $count 个错误';
+  }
+
+  @override
+  String get vibeBulk_operationFailed => '操作失败';
+
+  @override
+  String get vibeBulk_operationFailedHint => '请检查操作设置后重试。';
+
+  @override
+  String vibeBulk_errorEntryNotFoundOrDeleteFailed(String item) {
+    return '未找到 $item 或删除失败';
+  }
+
+  @override
+  String vibeBulk_errorDeleteFailed(String item, String error) {
+    return '删除 $item 失败：$error';
+  }
+
+  @override
+  String vibeBulk_errorEntryNotFound(String item) {
+    return '未找到条目：$item';
+  }
+
+  @override
+  String vibeBulk_errorMoveFailed(String item, String error) {
+    return '移动 $item 失败：$error';
+  }
+
+  @override
+  String vibeBulk_errorFavoriteFailed(String item) {
+    return '更新收藏状态失败：$item';
+  }
+
+  @override
+  String vibeBulk_errorFavoriteFailedWithDetails(String item, String error) {
+    return '更新 $item 的收藏状态失败：$error';
+  }
+
+  @override
+  String vibeBulk_errorAddTagsFailed(String item) {
+    return '添加标签失败：$item';
+  }
+
+  @override
+  String vibeBulk_errorAddTagsFailedWithDetails(String item, String error) {
+    return '为 $item 添加标签失败：$error';
+  }
+
+  @override
+  String vibeBulk_errorRemoveTagsFailed(String item) {
+    return '移除标签失败：$item';
+  }
+
+  @override
+  String vibeBulk_errorRemoveTagsFailedWithDetails(String item, String error) {
+    return '从 $item 移除标签失败：$error';
+  }
+
+  @override
+  String get vibeBulk_errorExportNoFile => '导出失败：未创建文件';
+
+  @override
+  String vibeBulk_errorExportFailed(String error) {
+    return '导出失败：$error';
+  }
+
+  @override
+  String vibeBulk_errorFileNotFound(String item) {
+    return '未找到文件：$item';
+  }
+
+  @override
+  String vibeBulk_errorNoVibeData(String item) {
+    return '$item 中没有有效的 Vibe 数据';
+  }
+
+  @override
+  String vibeBulk_errorImportFailed(String item, String error) {
+    return '从 $item 导入 Vibe 失败：$error';
+  }
+
+  @override
+  String vibeBulk_errorProcessFileFailed(String item, String error) {
+    return '处理 $item 失败：$error';
+  }
+
+  @override
+  String get vibeBulkTag_title => '批量编辑标签';
+
+  @override
+  String vibeBulkTag_selectedCount(int count) {
+    return '已选中 $count 个 Vibe';
+  }
+
+  @override
+  String get vibeBulkTag_inputHint => '输入新标签……';
+
+  @override
+  String get vibeBulkTag_noTags => '暂无标签';
+
+  @override
+  String get vibeBulkTag_noTagsHint => '添加标签以方便筛选和管理';
+
+  @override
+  String vibeBulkTag_currentTags(int count) {
+    return '当前标签（$count）';
+  }
+
+  @override
+  String vibeBulkTag_pendingRemoval(int count) {
+    return '待移除标签（$count）';
+  }
+
+  @override
+  String get vibeBulkTag_removeTag => '移除标签';
+
+  @override
+  String get vibeBulkTag_actionPreview => '操作预览';
+
+  @override
+  String vibeBulkTag_addTagsSummary(String tags) {
+    return '添加标签：$tags';
+  }
+
+  @override
+  String vibeBulkTag_removeTagsSummary(String tags) {
+    return '移除标签：$tags';
+  }
+
+  @override
+  String get vibeBulkTag_noChanges => '没有要应用的更改';
+
+  @override
+  String get vibeBulkCategory_title => '选择目标分类';
+
+  @override
+  String vibeBulkCategory_moveCount(int count) {
+    return '将 $count 个 Vibe 移动到：';
+  }
+
+  @override
+  String get vibeBulkCategory_cannotMoveToCurrent => '不能移动到当前所在分类';
+
+  @override
+  String get vibeDetail_strengthDescription => '控制 Vibe 对生成结果的影响强度';
+
+  @override
+  String get vibeDetail_infoExtractedDescription => '控制从原图提取的信息量（消耗 2 Anlas）';
+
+  @override
+  String get vibeDetail_statistics => '统计信息';
+
+  @override
+  String get vibeDetail_usageCount => '使用次数';
+
+  @override
+  String vibeDetail_timesUsed(int count) {
+    return '$count 次';
+  }
+
+  @override
+  String get vibeDetail_lastUsed => '最后使用';
+
+  @override
+  String get vibeDetail_neverUsed => '从未使用';
+
+  @override
+  String get vibeDetail_createdAt => '创建时间';
+
+  @override
+  String get vibeDetail_saveParameters => '保存参数';
+
+  @override
   String get vibe_export_title => '导出 Vibe';
 
   @override
@@ -10750,9 +9545,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get drop_vibe_detected => '检测到 Vibe 图片';
-
-  @override
-  String get drop_reuse_vibe => '复用 Vibe';
 
   @override
   String drop_save_anlas(int cost) {
@@ -11335,16 +10127,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get shortcut_context_vibe_detail => 'Vibe 详情';
 
   @override
-  String get shortcut_action_vibe_detail_send_to_generation => '发送到生成';
-
-  @override
-  String get shortcut_action_vibe_detail_export => '导出';
-
-  @override
   String get shortcut_action_vibe_detail_rename => '重命名';
-
-  @override
-  String get shortcut_action_vibe_detail_delete => '删除';
 
   @override
   String get shortcut_action_vibe_detail_toggle_favorite => '切换收藏';
@@ -11354,15 +10137,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get shortcut_action_vibe_detail_next_sub_vibe => '下一个子 Vibe';
-
-  @override
-  String get shortcut_action_navigate_to_vibe_library => 'Vibe 库';
-
-  @override
-  String get shortcut_action_vibe_import => '导入 Vibe';
-
-  @override
-  String get shortcut_action_vibe_export => '导出 Vibe';
 
   @override
   String get vibeSelectorFilterFavorites => '收藏';
@@ -11413,11 +10187,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_goToLoginPage => '请前往登录页面';
-
-  @override
-  String settings_retryCountDisplay(int count) {
-    return '最多 $count 次';
-  }
 
   @override
   String settings_retryIntervalDisplay(String interval) {
@@ -11799,6 +10568,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_comfyUiConnectionSuccess => '连接成功';
+
+  @override
+  String get settings_comfyUiConnectionSuccessFull => 'ComfyUI 连接成功';
 
   @override
   String settings_comfyUiConnectionFailed(Object error) {
@@ -12287,9 +11059,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get performanceReport_clearSuccess => '性能数据已清空';
-
-  @override
-  String get performanceReport_clearAction => '清空';
 
   @override
   String get toast_previewUpdated => '预览图已更新';
@@ -13121,4 +11890,824 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get model3d_webview2Missing =>
       '3D 编辑器需要 Microsoft Edge WebView2 运行时。Windows 10/11 通常已自带;若缺失请从微软官网安装 Evergreen 版本后重试。';
+
+  @override
+  String get common_enabled => '已启用';
+
+  @override
+  String get common_disabled => '已禁用';
+
+  @override
+  String bulkAction_selectedCount(int count) {
+    return '已选择 $count 项';
+  }
+
+  @override
+  String get comfyTask_errorConnectionFailed => '无法连接到 ComfyUI 服务器';
+
+  @override
+  String get comfyTask_errorConnectionUnavailable => 'ComfyUI 连接不可用';
+
+  @override
+  String get comfyTask_errorExecutionFailedGeneric => 'ComfyUI 执行失败';
+
+  @override
+  String comfyTask_errorExecutionFailed(String error) {
+    return 'ComfyUI 执行失败：$error';
+  }
+
+  @override
+  String get comfyTask_errorTimeout => 'ComfyUI 任务已在 10 分钟后超时';
+
+  @override
+  String comfyTask_errorWorkflowNotFound(String workflowId) {
+    return '未找到工作流：$workflowId';
+  }
+
+  @override
+  String get comfyWorkflowSlot_vaeEncodeTileSize => 'VAE 编码分块大小';
+
+  @override
+  String get comfyWorkflowSlot_vaeDecodeTileSize => 'VAE 解码分块大小';
+
+  @override
+  String get comfyWorkflowSlot_blocksToSwap => '换出块数量';
+
+  @override
+  String get comfyWorkflowSlot_swapIoComponents => '换出输入输出组件';
+
+  @override
+  String localGallery_firstIndexHint(int count) {
+    return '检测到 $count 张图片。首次建立索引可能需要几分钟，期间仍可正常使用应用。';
+  }
+
+  @override
+  String get localGallery_errorPermissionDenied => '无法访问图片文件夹，请检查文件夹权限。';
+
+  @override
+  String localGallery_errorScanFailed(String error) {
+    return '扫描图片失败：$error';
+  }
+
+  @override
+  String localGallery_errorInitializationFailed(String error) {
+    return '初始化图库失败：$error';
+  }
+
+  @override
+  String get localGallery_errorServiceInitializing => '图库服务正在初始化，请稍后重试。';
+
+  @override
+  String localGallery_errorDatabaseFailed(String error) {
+    return '图库数据库错误：$error';
+  }
+
+  @override
+  String localGallery_errorRefreshFailed(String error) {
+    return '刷新图库失败：$error';
+  }
+
+  @override
+  String localGallery_errorFilterFailed(String error) {
+    return '应用图库筛选条件失败：$error';
+  }
+
+  @override
+  String localGallery_errorFavoriteFailed(String error) {
+    return '更新收藏状态失败：$error';
+  }
+
+  @override
+  String localGallery_errorRebuildFailed(String error) {
+    return '重建图库索引失败：$error';
+  }
+
+  @override
+  String get diy_editDependencyTitle => '编辑依赖配置';
+
+  @override
+  String get diy_dependencyTitle => '依赖配置';
+
+  @override
+  String get diy_dependencySubtitle => '配置标签选择之间的依赖关系';
+
+  @override
+  String get diy_dependencyType => '依赖类型';
+
+  @override
+  String get diy_sourceCategory => '源类别';
+
+  @override
+  String get diy_selectSourceCategory => '选择源类别';
+
+  @override
+  String get diy_sourceCategoryId => '源类别 ID';
+
+  @override
+  String get diy_enterCategoryId => '输入类别 ID';
+
+  @override
+  String get diy_mappingRules => '映射规则';
+
+  @override
+  String get diy_noMappingRules => '暂无映射规则';
+
+  @override
+  String get diy_deleteRule => '删除规则';
+
+  @override
+  String get diy_defaultValue => '默认值';
+
+  @override
+  String get diy_defaultValueHint => '没有匹配的映射规则时使用';
+
+  @override
+  String get diy_enableDependency => '启用依赖配置';
+
+  @override
+  String get diy_enableDependencyHint => '禁用后将忽略此依赖配置';
+
+  @override
+  String get diy_addMappingRule => '添加映射规则';
+
+  @override
+  String get diy_sourceValue => '源值';
+
+  @override
+  String get diy_sourceValueHint => '例如：1, 2, 3';
+
+  @override
+  String get diy_resultValue => '结果值';
+
+  @override
+  String get diy_resultValueHint => '例如：0-3, 0-2, 0-1';
+
+  @override
+  String get diy_dependencyCount => '数量';
+
+  @override
+  String get diy_dependencyExists => '存在';
+
+  @override
+  String get diy_dependencyValue => '值';
+
+  @override
+  String get diy_dependencyExcludes => '排斥';
+
+  @override
+  String get diy_dependencyCountDescription => '根据源类别的已选数量决定结果数量';
+
+  @override
+  String get diy_dependencyExistsDescription => '仅在源类别中存在已选标签时生效';
+
+  @override
+  String get diy_dependencyValueDescription => '依赖源类别中选定的特定标签值';
+
+  @override
+  String get diy_dependencyExcludesDescription => '源类别中存在已选标签时不生效';
+
+  @override
+  String get diy_editConditionalTitle => '编辑条件分支';
+
+  @override
+  String get diy_conditionalDefaultName => '条件分支配置';
+
+  @override
+  String diy_branchDefaultName(int index) {
+    return '分支 $index';
+  }
+
+  @override
+  String get diy_conditionalTitle => '条件分支配置';
+
+  @override
+  String get diy_conditionalSubtitle => '根据概率选择不同分支';
+
+  @override
+  String diy_branchCount(int count) {
+    return '$count 个分支';
+  }
+
+  @override
+  String get diy_noConditionalBranches => '暂无条件分支';
+
+  @override
+  String get diy_noConditionalBranchesHint => '添加分支以实现条件选择逻辑';
+
+  @override
+  String diy_conditionCount(int count) {
+    return '$count 个条件';
+  }
+
+  @override
+  String get diy_deleteBranch => '删除分支';
+
+  @override
+  String get diy_addBranch => '添加分支';
+
+  @override
+  String diy_editBranch(String name) {
+    return '编辑：$name';
+  }
+
+  @override
+  String get diy_branchName => '分支名称';
+
+  @override
+  String get diy_probability => '概率';
+
+  @override
+  String get diy_enableBranch => '启用此分支';
+
+  @override
+  String diy_ruleDefaultName(int index) {
+    return '规则 $index';
+  }
+
+  @override
+  String diy_ruleCount(int count) {
+    return '$count 条规则';
+  }
+
+  @override
+  String get diy_addRule => '添加规则';
+
+  @override
+  String get diy_editRule => '编辑规则';
+
+  @override
+  String get diy_ruleName => '规则名称';
+
+  @override
+  String get diy_enableRule => '启用此规则';
+
+  @override
+  String get diy_postProcessTitle => '后处理规则';
+
+  @override
+  String get diy_postProcessSubtitle => '自动处理标签冲突';
+
+  @override
+  String get diy_sleepingRule => '睡眠规则';
+
+  @override
+  String get diy_sleepingRuleDescription => '角色睡眠时移除眼睛颜色描述';
+
+  @override
+  String get diy_mermaidRule => '美人鱼规则';
+
+  @override
+  String get diy_mermaidRuleDescription => '移除美人鱼、半人马、蛇女等角色的腿部服装描述';
+
+  @override
+  String get diy_presetRules => '预设规则';
+
+  @override
+  String get diy_noPostProcessRules => '暂无后处理规则';
+
+  @override
+  String get diy_noPostProcessRulesHint => '添加规则以自动处理标签冲突';
+
+  @override
+  String get diy_actionType => '操作类型';
+
+  @override
+  String get diy_triggerTags => '触发标签';
+
+  @override
+  String get diy_commaSeparatedTagsHint => '用逗号分隔标签';
+
+  @override
+  String get diy_targetCategories => '目标类别';
+
+  @override
+  String get diy_commaSeparatedCategoryIdsHint => '用逗号分隔类别 ID';
+
+  @override
+  String get diy_targetTags => '目标标签';
+
+  @override
+  String get diy_actionRemoveTags => '移除标签';
+
+  @override
+  String get diy_actionReplaceTags => '替换标签';
+
+  @override
+  String get diy_actionAddTags => '添加标签';
+
+  @override
+  String get diy_actionRemoveCategories => '移除类别';
+
+  @override
+  String get diy_noTriggers => '无触发条件';
+
+  @override
+  String diy_actionSummary(String triggers, String action) {
+    return '当 [$triggers] 匹配时：$action';
+  }
+
+  @override
+  String get diy_characterPositionTitle => '角色位置';
+
+  @override
+  String get diy_characterPositionSubtitle => '可视化编辑角色位置';
+
+  @override
+  String get diy_addCharacterPosition => '添加角色位置';
+
+  @override
+  String get diy_addCharacterPositionHint => '点击下方按钮添加角色位置';
+
+  @override
+  String diy_characterIndex(int index) {
+    return '角色 $index';
+  }
+
+  @override
+  String get diy_aiPositionChoice => 'AI 自动选择';
+
+  @override
+  String diy_positionCoordinates(String row, String column) {
+    return '行：$row%，列：$column%';
+  }
+
+  @override
+  String get diy_customPosition => '自定义';
+
+  @override
+  String diy_emphasisPercent(String percent) {
+    return '强调 $percent%';
+  }
+
+  @override
+  String get diy_characterCountWeight => '角色数量权重';
+
+  @override
+  String diy_peopleCount(int count) {
+    return '$count 人';
+  }
+
+  @override
+  String get diy_genderProbability => '性别概率';
+
+  @override
+  String get diy_noWeightsConfigured => '未设置权重';
+
+  @override
+  String get diy_genderOther => '其他';
+
+  @override
+  String get diy_emphasisTitle => '全局强调配置';
+
+  @override
+  String get diy_emphasisSubtitle => '调整标签强调效果';
+
+  @override
+  String get diy_emphasisProbability => '强调概率';
+
+  @override
+  String diy_emphasisProbabilityHint(String percent) {
+    return '每个选中的标签有 $percent% 的概率被添加强调括号';
+  }
+
+  @override
+  String get diy_bracketCount => '括号层数';
+
+  @override
+  String diy_bracketLayers(int count) {
+    return '$count 层';
+  }
+
+  @override
+  String get diy_effectPreview => '效果预览';
+
+  @override
+  String get diy_exampleTag => '示例标签';
+
+  @override
+  String get diy_emphasisExplanation => '强调括号会增加标签的权重，层数越多权重越高';
+
+  @override
+  String diy_presetExportFailed(String error) {
+    return '导出预设失败：$error';
+  }
+
+  @override
+  String get diy_presetJsonRootObject => 'JSON 根节点必须是对象';
+
+  @override
+  String diy_presetInvalidData(String error) {
+    return '无效的预设数据：$error';
+  }
+
+  @override
+  String get diy_presetExportTitle => '导出预设';
+
+  @override
+  String get diy_presetImportTitle => '导入预设';
+
+  @override
+  String get diy_unknown => '未知';
+
+  @override
+  String get diy_presetShareHint => '复制以下内容分享给其他人';
+
+  @override
+  String get diy_presetPasteJsonHint => '在此粘贴预设 JSON 数据……';
+
+  @override
+  String get diy_presetPreview => '预设预览';
+
+  @override
+  String get diy_name => '名称';
+
+  @override
+  String get diy_description => '描述';
+
+  @override
+  String get diy_categoryCount => '类别数';
+
+  @override
+  String get diy_totalTagCount => '总标签数';
+
+  @override
+  String get diy_visibilityTitle => '可见性规则';
+
+  @override
+  String get diy_visibilitySubtitle => '根据条件控制类别可见性';
+
+  @override
+  String get diy_noVisibilityRules => '暂无可见性规则';
+
+  @override
+  String get diy_noVisibilityRulesHint => '添加规则以根据当前构图控制类别可见性';
+
+  @override
+  String get diy_notSet => '未设置';
+
+  @override
+  String get diy_targetCategory => '目标类别';
+
+  @override
+  String get diy_conditionType => '条件类型';
+
+  @override
+  String get diy_conditionValue => '条件值';
+
+  @override
+  String get diy_conditionValueHint => '标签名或值';
+
+  @override
+  String get diy_visibleWhenMatched => '条件匹配时可见';
+
+  @override
+  String get diy_conditionTagExists => '标签存在';
+
+  @override
+  String get diy_conditionTagNotExists => '标签不存在';
+
+  @override
+  String get diy_conditionValueEquals => '值等于';
+
+  @override
+  String get diy_conditionValueNotEquals => '值不等于';
+
+  @override
+  String get diy_conditionValueInList => '值在列表中';
+
+  @override
+  String get diy_conditionValueNotInList => '值不在列表中';
+
+  @override
+  String get diy_editTimeConditionTitle => '编辑时间条件';
+
+  @override
+  String get diy_timeDefaultName => '时间条件';
+
+  @override
+  String get diy_timeTitle => '时间条件';
+
+  @override
+  String get diy_timeSubtitle => '在指定日期范围内激活';
+
+  @override
+  String get diy_enableTimeCondition => '启用时间条件';
+
+  @override
+  String get diy_enableTimeConditionHint => '仅在设置的日期范围内生效';
+
+  @override
+  String get diy_christmas => '圣诞节';
+
+  @override
+  String get diy_christmasDescription => '圣诞节词库，在 12 月 1 日至 31 日启用';
+
+  @override
+  String get diy_halloween => '万圣节';
+
+  @override
+  String get diy_halloweenDescription => '万圣节词库，在 10 月 1 日至 31 日启用';
+
+  @override
+  String get diy_valentinesDay => '情人节';
+
+  @override
+  String get diy_valentinesDescription => '情人节词库，在 2 月 1 日至 14 日启用';
+
+  @override
+  String get diy_presetTemplates => '预设模板';
+
+  @override
+  String get diy_dateRange => '日期范围';
+
+  @override
+  String get diy_startDate => '开始日期';
+
+  @override
+  String get diy_endDate => '结束日期';
+
+  @override
+  String get diy_crossYearUnsupported => '暂不支持跨年的日期范围';
+
+  @override
+  String get diy_month => '月';
+
+  @override
+  String get diy_day => '日';
+
+  @override
+  String get diy_conditionName => '条件名称';
+
+  @override
+  String get diy_conditionNameHint => '输入条件名称';
+
+  @override
+  String get diy_repeatYearly => '每年重复';
+
+  @override
+  String get diy_repeatYearlyHint => '每年在相同日期范围内自动启用';
+
+  @override
+  String get diy_currentlyActive => '当前激活';
+
+  @override
+  String get diy_inactive => '未激活';
+
+  @override
+  String diy_daysRemaining(int count) {
+    return '剩余 $count 天';
+  }
+
+  @override
+  String diy_timeRangeSummary(
+    String name,
+    int startMonth,
+    int startDay,
+    int endMonth,
+    int endDay,
+  ) {
+    return '$name（$startMonth 月 $startDay 日至 $endMonth 月 $endDay 日）';
+  }
+
+  @override
+  String get diy_activeBadge => '生效中';
+
+  @override
+  String get common_optional => '可选';
+
+  @override
+  String get common_emptyValue => '（空）';
+
+  @override
+  String get common_previewLoadFailed => '无法加载预览';
+
+  @override
+  String get common_clickToRefresh => '点击刷新';
+
+  @override
+  String get common_clickToRetry => '点击重试';
+
+  @override
+  String get common_opening => '正在打开...';
+
+  @override
+  String get common_swap => '交换';
+
+  @override
+  String get common_prefix => '前缀';
+
+  @override
+  String get common_suffix => '后缀';
+
+  @override
+  String get common_cancelled => '已取消';
+
+  @override
+  String get common_minimum => '最小值';
+
+  @override
+  String get common_maximum => '最大值';
+
+  @override
+  String get addToLibrary_displayNameHint => '输入便于识别此条目的名称';
+
+  @override
+  String get addToLibrary_tagHint => '输入标签并按 Enter 添加';
+
+  @override
+  String get newPresetDialog_nameRequired => '请输入预设名称';
+
+  @override
+  String get newPresetDialog_nameLabel => '预设名称';
+
+  @override
+  String get newPresetDialog_nameHint => '输入新预设的名称';
+
+  @override
+  String get newPresetDialog_creationMode => '创建方式';
+
+  @override
+  String get drop_saveVibeBundle => '保存 Vibe Bundle';
+
+  @override
+  String drop_saveVibeBundleSubtitle(String name) {
+    return '将 $name 等 Vibe 保存到库中';
+  }
+
+  @override
+  String get drop_saveEncodedVibeSubtitle => '将预编码 Vibe 数据保存到库中';
+
+  @override
+  String get history_dragFilePreparationFailed => '拖拽文件准备失败，请稍后重试';
+
+  @override
+  String get history_dragFilePreparing => '正在准备拖拽文件...';
+
+  @override
+  String get history_dragFileNotReady => '拖拽文件尚未准备完成';
+
+  @override
+  String get vibe_import_overwriteOriginalParams => '直接替换原 Vibe 参数';
+
+  @override
+  String vibe_import_overwriteOriginalParamsHint(String name) {
+    return '仅覆盖 $name 的库内参数，默认不勾选';
+  }
+
+  @override
+  String vibe_import_reencodeFailed(String name) {
+    return 'Vibe 重新编码失败: $name';
+  }
+
+  @override
+  String get randomManager_releaseToDelete => '松开删除';
+
+  @override
+  String get randomManager_dragHereToDelete => '拖到这里删除';
+
+  @override
+  String get randomManager_keyboardShortcutsHint => '键盘快捷键（按 ? 查看）';
+
+  @override
+  String get localGallery_createFolder => '创建文件夹';
+
+  @override
+  String galleryScan_skipped(int count) {
+    return '跳过 $count';
+  }
+
+  @override
+  String galleryScan_withMetadata(int count) {
+    return '有元数据 $count';
+  }
+
+  @override
+  String galleryScan_failed(int count) {
+    return '失败 $count';
+  }
+
+  @override
+  String get galleryScan_processing => '处理中';
+
+  @override
+  String get galleryScan_pending => '待处理';
+
+  @override
+  String get vibeDetail_useAll => '使用全部';
+
+  @override
+  String get vibeDetail_longPressSetCover => '长按设为封面';
+
+  @override
+  String get vibeDetail_noPreviewImage => '无预览图像';
+
+  @override
+  String get vibeDetail_dropPreviewImage => '拖拽图片到此处设置预览图';
+
+  @override
+  String get vibeDetail_releasePreviewImage => '释放以设置预览图';
+
+  @override
+  String imagePicker_dropReadFailed(String error) {
+    return '读取拖入图片失败: $error';
+  }
+
+  @override
+  String get imagePicker_dropNoReadableImage => '拖入源未提供可读取的图片文件或图片链接';
+
+  @override
+  String get imagePicker_fileDataUnavailable => '无法读取文件数据';
+
+  @override
+  String imagePicker_fileSelectionFailed(String error) {
+    return '选择文件失败: $error';
+  }
+
+  @override
+  String imagePicker_directorySelectionFailed(String error) {
+    return '选择目录失败: $error';
+  }
+
+  @override
+  String get editor_effects => '效果';
+
+  @override
+  String get editor_shiftEdges => '扩展边缘';
+
+  @override
+  String editor_currentSize(int width, int height) {
+    return '当前: $width x $height';
+  }
+
+  @override
+  String get editor_edgeLeft => '左';
+
+  @override
+  String get editor_edgeRight => '右';
+
+  @override
+  String get editor_edgeTop => '上';
+
+  @override
+  String get editor_edgeBottom => '下';
+
+  @override
+  String get editor_enterNumber => '请输入数字';
+
+  @override
+  String get editor_nonNegativeNumber => '必须大于或等于 0';
+
+  @override
+  String editor_requestedSize(int width, int height) {
+    return '请求尺寸: $width x $height';
+  }
+
+  @override
+  String get editor_requestedSizeInvalid => '请求尺寸: 无效';
+
+  @override
+  String editor_appliedSize(int width, int height) {
+    return '应用尺寸: $width x $height';
+  }
+
+  @override
+  String get editor_appliedSizeInvalid => '应用尺寸: 无效';
+
+  @override
+  String editor_appliedEdges(int left, int top, int right, int bottom) {
+    return '应用边缘: 左 $left、上 $top、右 $right、下 $bottom';
+  }
+
+  @override
+  String get editor_appliedEdgesInvalid => '应用边缘: 无效';
+
+  @override
+  String editor_appliedDimensionLimit(int max) {
+    return '应用后的尺寸不能超过 $max。';
+  }
+
+  @override
+  String get savePreset_title => '另存为预设';
+
+  @override
+  String get savePreset_nameHint => '输入预设名称';
+
+  @override
+  String get savePreset_metadataDescription => '从图片元数据保存';
+
+  @override
+  String savePreset_vibeData(int count) {
+    return 'Vibe 数据（$count）';
+  }
+
+  @override
+  String get onlineGallery_videoLoadFailed => '视频加载失败';
+
+  @override
+  String get vibe_releaseToAddStyleReference => '松开后添加风格参考';
+
+  @override
+  String router_pageNotFound(String error) {
+    return '页面未找到: $error';
+  }
 }

@@ -63,7 +63,7 @@ class _NewPresetDialogState extends State<NewPresetDialog> {
   void _validateAndSubmit() {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      setState(() => _nameError = '请输入预设名称');
+      setState(() => _nameError = context.l10n.newPresetDialog_nameRequired);
       return;
     }
     Navigator.of(context).pop(NewPresetResult(name: name, mode: _selectedMode));
@@ -86,8 +86,9 @@ class _NewPresetDialogState extends State<NewPresetDialog> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainerHighest,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(12)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(12),
+                ),
               ),
               child: Row(
                 children: [
@@ -118,8 +119,8 @@ class _NewPresetDialogState extends State<NewPresetDialog> {
                     controller: _nameController,
                     focusNode: _nameFocusNode,
                     decoration: InputDecoration(
-                      labelText: '预设名称',
-                      hintText: '输入新预设的名称',
+                      labelText: l10n.newPresetDialog_nameLabel,
+                      hintText: l10n.newPresetDialog_nameHint,
                       errorText: _nameError,
                       border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.edit_outlined),
@@ -135,7 +136,7 @@ class _NewPresetDialogState extends State<NewPresetDialog> {
 
                   // 创建模式选择
                   Text(
-                    '创建方式',
+                    l10n.newPresetDialog_creationMode,
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -189,7 +190,7 @@ class _NewPresetDialogState extends State<NewPresetDialog> {
                   FilledButton.icon(
                     onPressed: _validateAndSubmit,
                     icon: const Icon(Icons.check, size: 18),
-                    label: const Text('创建'),
+                    label: Text(l10n.common_create),
                   ),
                 ],
               ),
@@ -271,10 +272,7 @@ class _ModeOptionCard extends StatelessWidget {
                 ),
               ),
               if (isSelected)
-                Icon(
-                  Icons.check_circle,
-                  color: colorScheme.primary,
-                ),
+                Icon(Icons.check_circle, color: colorScheme.primary),
             ],
           ),
         ),

@@ -186,6 +186,7 @@ Widget _wrapWithHost({
       ),
     ],
     child: MaterialApp(
+      locale: const Locale('zh'),
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       home: Builder(

@@ -84,6 +84,7 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final taskState = ref.watch(comfyUITaskProvider);
+    final taskError = taskState.localizedError(context.l10n);
 
     return Dialog(
       child: ConstrainedBox(
@@ -99,8 +100,9 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // 输入图像区
-                    ...widget.template.inputSlots
-                        .map((s) => _buildImageInput(theme, s)),
+                    ...widget.template.inputSlots.map(
+                      (s) => _buildImageInput(theme, s),
+                    ),
 
                     // 参数区
                     if (widget.template.parameterSlots.isNotEmpty) ...[
@@ -110,8 +112,9 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
                         style: theme.textTheme.titleSmall,
                       ),
                       const SizedBox(height: 8),
-                      ...widget.template.parameterSlots
-                          .map((s) => _buildParameterInput(theme, s)),
+                      ...widget.template.parameterSlots.map(
+                        (s) => _buildParameterInput(theme, s),
+                      ),
                     ],
 
                     // 状态/结果区
@@ -119,8 +122,8 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
                     if (taskState.isRunning)
                       _buildProgress(theme, taskState)
                     else if (taskState.status == ComfyUITaskStatus.failed &&
-                        taskState.errorMessage != null)
-                      _buildError(theme, taskState.errorMessage!)
+                        taskError != null)
+                      _buildError(theme, taskError)
                     else if (_results != null && _results!.isNotEmpty)
                       _buildResults(theme),
                   ],
@@ -247,10 +250,7 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
                 style: theme.textTheme.titleSmall,
               ),
               if (slot.required)
-                Text(
-                  ' *',
-                  style: TextStyle(color: theme.colorScheme.error),
-                ),
+                Text(' *', style: TextStyle(color: theme.colorScheme.error)),
             ],
           ),
           const SizedBox(height: 8),
@@ -279,9 +279,8 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
                       const SizedBox(width: 4),
                       _MiniButton(
                         icon: Icons.close,
-                        onPressed: () => setState(
-                          () => _inputImages.remove(slot.id),
-                        ),
+                        onPressed: () =>
+                            setState(() => _inputImages.remove(slot.id)),
                       ),
                     ],
                   ),
@@ -308,15 +307,17 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
                         slot.dataType == SlotDataType.mask
                             ? Icons.format_paint
                             : Icons.add_photo_alternate_outlined,
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.4,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         context.l10n.comfyWorkflow_selectImage,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.4),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.4,
+                          ),
                         ),
                       ),
                     ],
@@ -372,7 +373,8 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
 
   Widget _buildChoiceInput(ThemeData theme, WorkflowSlot slot) {
     final choices = slot.choices ?? [];
-    final current = _paramValues[slot.id]?.toString() ??
+    final current =
+        _paramValues[slot.id]?.toString() ??
         slot.defaultValue?.toString() ??
         (choices.isNotEmpty ? choices.first : '');
     return Column(
@@ -387,9 +389,7 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
               return ChoiceChip(
                 label: Text(c),
                 selected: current == c,
-                onSelected: (_) => setState(
-                  () => _paramValues[slot.id] = c,
-                ),
+                onSelected: (_) => setState(() => _paramValues[slot.id] = c),
               );
             }).toList(),
           )
@@ -429,8 +429,9 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
               ),
               Text(
                 val.toInt().toString(),
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(fontWeight: FontWeight.w600),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -477,8 +478,9 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
               ),
               Text(
                 val.toStringAsFixed(2),
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(fontWeight: FontWeight.w600),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -529,8 +531,8 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
     }
 
     return TextFormField(
-      initialValue:
-          (_paramValues[slot.id] ?? slot.defaultValue ?? '').toString(),
+      initialValue: (_paramValues[slot.id] ?? slot.defaultValue ?? '')
+          .toString(),
       decoration: InputDecoration(
         labelText: slot.localizedLabel(context),
         border: const OutlineInputBorder(),
@@ -546,12 +548,13 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
     final statusText = switch (taskState.status) {
       ComfyUITaskStatus.uploading => context.l10n.comfyWorkflow_uploadingImage,
       ComfyUITaskStatus.queued => context.l10n.comfyWorkflow_queued,
-      ComfyUITaskStatus.running => taskState.totalSteps > 0
-          ? context.l10n.comfyWorkflow_runningSteps(
-              taskState.currentStep,
-              taskState.totalSteps,
-            )
-          : context.l10n.comfyWorkflow_processing,
+      ComfyUITaskStatus.running =>
+        taskState.totalSteps > 0
+            ? context.l10n.comfyWorkflow_runningSteps(
+                taskState.currentStep,
+                taskState.totalSteps,
+              )
+            : context.l10n.comfyWorkflow_processing,
       _ => context.l10n.comfyWorkflow_processing,
     };
 
@@ -608,8 +611,9 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
           Expanded(
             child: Text(
               error,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.error),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.error,
+              ),
             ),
           ),
         ],
@@ -631,8 +635,9 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
             const SizedBox(width: 8),
             Text(
               context.l10n.comfyWorkflow_complete,
-              style: theme.textTheme.titleSmall
-                  ?.copyWith(color: theme.colorScheme.primary),
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: theme.colorScheme.primary,
+              ),
             ),
             const Spacer(),
             Text(
@@ -663,7 +668,9 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
   // ==================== 执行 ====================
 
   Future<void> _execute() async {
-    final results = await ref.read(comfyUITaskProvider.notifier).execute(
+    final results = await ref
+        .read(comfyUITaskProvider.notifier)
+        .execute(
           templateId: widget.template.id,
           inputImages: _inputImages,
           paramValues: _paramValues,

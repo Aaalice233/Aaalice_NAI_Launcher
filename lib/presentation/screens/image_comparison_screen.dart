@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/utils/localization_extension.dart';
@@ -13,10 +14,7 @@ class ImageComparisonScreen extends ConsumerStatefulWidget {
   /// 图片列表（2-4张）
   final List<LocalImageRecord> images;
 
-  const ImageComparisonScreen({
-    super.key,
-    required this.images,
-  });
+  const ImageComparisonScreen({super.key, required this.images});
 
   @override
   ConsumerState<ImageComparisonScreen> createState() =>
@@ -112,10 +110,7 @@ class _ImageComparisonScreenState extends ConsumerState<ImageComparisonScreen> {
                 shape: BoxShape.circle,
               ),
               child: IconButton(
-                icon: Icon(
-                  Icons.close,
-                  color: theme.colorScheme.onSurface,
-                ),
+                icon: Icon(Icons.close, color: theme.colorScheme.onSurface),
                 tooltip: l10n.comparison_close,
                 onPressed: () => Navigator.of(context).pop(),
               ),
@@ -129,8 +124,10 @@ class _ImageComparisonScreenState extends ConsumerState<ImageComparisonScreen> {
             right: 0,
             child: Center(
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface.withValues(alpha: 0.8),
                   borderRadius: BorderRadius.circular(20),
@@ -150,7 +147,7 @@ class _ImageComparisonScreenState extends ConsumerState<ImageComparisonScreen> {
   }
 
   /// 构建水平布局（2张图片）
-  Widget _buildHorizontalLayout(ThemeData theme, dynamic l10n) {
+  Widget _buildHorizontalLayout(ThemeData theme, AppLocalizations l10n) {
     return Row(
       children: widget.images.asMap().entries.map((entry) {
         final index = entry.key;
@@ -168,7 +165,7 @@ class _ImageComparisonScreenState extends ConsumerState<ImageComparisonScreen> {
   }
 
   /// 构建网格布局（3-4张图片）
-  Widget _buildGridLayout(ThemeData theme, dynamic l10n) {
+  Widget _buildGridLayout(ThemeData theme, AppLocalizations l10n) {
     final imageCount = widget.images.length;
     final int crossAxisCount = imageCount == 3 ? 2 : 2;
 

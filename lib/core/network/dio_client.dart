@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../data/services/token_refresh_service.dart';
+import '../../l10n/app_localizations.dart';
 import '../../presentation/providers/auth_provider.dart';
+import '../../presentation/providers/locale_provider.dart';
 import '../../presentation/providers/proxy_settings_provider.dart';
 import '../constants/api_constants.dart';
 import '../storage/secure_storage_service.dart';
@@ -34,7 +36,7 @@ Dio dioClient(Ref ref) {
   dio.interceptors.add(AuthInterceptor(ref));
 
   // 添加错误处理拦截器
-  dio.interceptors.add(ErrorInterceptor());
+  dio.interceptors.add(ErrorInterceptor(ref));
 
   // 根据代理设置选择适配器
   if (proxyAddress != null && proxyAddress.isNotEmpty) {
@@ -46,9 +48,7 @@ Dio dioClient(Ref ref) {
     // 无代理时：使用 HTTP/2 适配器以提升并发性能
     AppLogger.d('Dio using HTTP/2 adapter (no proxy)', 'NETWORK');
     dio.httpClientAdapter = Http2Adapter(
-      ConnectionManager(
-        idleTimeout: const Duration(seconds: 15),
-      ),
+      ConnectionManager(idleTimeout: const Duration(seconds: 15)),
     );
   }
 
@@ -81,7 +81,7 @@ Dio imageGenerationDioClient(Ref ref) {
   );
 
   dio.interceptors.add(AuthInterceptor(ref));
-  dio.interceptors.add(ErrorInterceptor());
+  dio.interceptors.add(ErrorInterceptor(ref));
 
   AppLogger.d(
     'Image generation Dio using HTTP/1.1 adapter (abortable)',
@@ -198,8 +198,9 @@ class AuthInterceptor extends Interceptor {
         try {
           // 尝试刷新 token
           AppLogger.d('[AuthInterceptor] Attempting token refresh...', 'DIO');
-          final tokenRefreshService =
-              _ref.read(tokenRefreshServiceProvider.notifier);
+          final tokenRefreshService = _ref.read(
+            tokenRefreshServiceProvider.notifier,
+          );
           final refreshed = await tokenRefreshService.refreshCurrentToken();
 
           if (refreshed) {
@@ -222,7 +223,8 @@ class AuthInterceptor extends Interceptor {
               }
 
               // 更新请求头（统一使用 Bearer 前缀）
-              err.requestOptions.headers['Authorization'] = 'Bearer $normalizedToken';
+              err.requestOptions.headers['Authorization'] =
+                  'Bearer $normalizedToken';
 
               try {
                 // 创建新的 Dio 实例来重试，避免循环
@@ -262,10 +264,9 @@ class AuthInterceptor extends Interceptor {
           '[AuthInterceptor] Token refresh failed, logging out...',
           'DIO',
         );
-        await _ref.read(authNotifierProvider.notifier).logout(
-              errorCode: AuthErrorCode.authFailed,
-              httpStatusCode: 401,
-            );
+        await _ref
+            .read(authNotifierProvider.notifier)
+            .logout(errorCode: AuthErrorCode.authFailed, httpStatusCode: 401);
         AppLogger.w('[AuthInterceptor] logout() completed', 'DIO');
       } else if (_isRefreshing) {
         AppLogger.w(
@@ -286,7 +287,7 @@ class AuthInterceptor extends Interceptor {
   String _normalizeToken(String token) {
     final trimmedToken = token.trim();
     final unquotedToken = _stripWrappingQuotes(trimmedToken);
-    
+
     // 循环移除所有 Bearer 前缀（处理重复添加的情况）
     var normalizedToken = unquotedToken;
     var previousToken = '';
@@ -296,7 +297,7 @@ class AuthInterceptor extends Interceptor {
           .replaceFirst(_bearerPrefixRegex, '')
           .trim();
     }
-    
+
     // 移除所有空白字符
     return normalizedToken.replaceAll(_allWhitespaceRegex, '');
   }
@@ -305,8 +306,7 @@ class AuthInterceptor extends Interceptor {
     if (value.length >= 2) {
       final first = value[0];
       final last = value[value.length - 1];
-      if ((first == '"' && last == '"') ||
-          (first == '\'' && last == '\'')) {
+      if ((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
         return value.substring(1, value.length - 1);
       }
     }
@@ -316,9 +316,14 @@ class AuthInterceptor extends Interceptor {
 
 /// 错误处理拦截器
 class ErrorInterceptor extends Interceptor {
+  ErrorInterceptor(this._ref);
+
+  final Ref _ref;
+
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    final message = 'DIO Error: ${err.type.name}\n'
+    final message =
+        'DIO Error: ${err.type.name}\n'
         'Status: ${err.response?.statusCode}\n'
         'URL: ${err.requestOptions.uri}\n'
         'Response Data: ${err.response?.data}';
@@ -340,14 +345,15 @@ class ErrorInterceptor extends Interceptor {
   }
 
   DioException _mapError(DioException err) {
+    final l10n = lookupAppLocalizations(_ref.read(localeNotifierProvider));
     final message = switch (err.type) {
-      DioExceptionType.connectionTimeout => '连接超时，请检查网络',
-      DioExceptionType.sendTimeout => '发送超时，请重试',
-      DioExceptionType.receiveTimeout => '接收超时，图像生成可能需要较长时间',
-      DioExceptionType.badResponse => _parseResponseError(err.response),
-      DioExceptionType.cancel => '请求已取消',
-      DioExceptionType.connectionError => '网络连接错误，请检查网络',
-      _ => err.message ?? '未知错误',
+      DioExceptionType.connectionTimeout => l10n.networkError_connectionTimeout,
+      DioExceptionType.sendTimeout => l10n.networkError_sendTimeout,
+      DioExceptionType.receiveTimeout => l10n.networkError_receiveTimeout,
+      DioExceptionType.badResponse => _parseResponseError(err.response, l10n),
+      DioExceptionType.cancel => l10n.networkError_requestCancelled,
+      DioExceptionType.connectionError => l10n.networkError_connection,
+      _ => err.message ?? l10n.networkError_unknown,
     };
 
     return DioException(
@@ -359,8 +365,8 @@ class ErrorInterceptor extends Interceptor {
     );
   }
 
-  String _parseResponseError(Response? response) {
-    if (response == null) return '服务器无响应';
+  String _parseResponseError(Response? response, AppLocalizations l10n) {
+    if (response == null) return l10n.networkError_noResponse;
 
     // 尝试从响应中提取错误信息
     final data = response.data;
@@ -371,17 +377,17 @@ class ErrorInterceptor extends Interceptor {
 
     // 根据状态码返回错误信息
     return switch (response.statusCode) {
-      400 => '请求参数错误',
-      401 => '认证失败，请重新登录',
-      402 => 'Anlas 不足',
-      403 => '无权限访问',
-      404 => '资源不存在',
-      409 => '请求冲突',
-      429 => '请求过于频繁，请稍后重试',
-      500 => '服务器内部错误',
-      502 => '服务器网关错误',
-      503 => '服务暂时不可用',
-      final code => '请求失败 ($code)',
+      400 => l10n.networkError_badRequest,
+      401 => l10n.networkError_authFailed,
+      402 => l10n.networkError_insufficientAnlas,
+      403 => l10n.networkError_forbidden,
+      404 => l10n.networkError_notFound,
+      409 => l10n.networkError_conflict,
+      429 => l10n.networkError_rateLimited,
+      500 => l10n.networkError_serverInternal,
+      502 => l10n.networkError_badGateway,
+      503 => l10n.networkError_unavailable,
+      final code => l10n.networkError_requestFailed(code ?? 0),
     };
   }
 }

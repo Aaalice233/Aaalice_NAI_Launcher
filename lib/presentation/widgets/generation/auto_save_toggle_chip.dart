@@ -101,15 +101,16 @@ class _AutoSaveToggleChipState extends ConsumerState<AutoSaveToggleChip>
                 color: isEnabled
                     ? null
                     : (_isHovering
-                        ? theme.colorScheme.surfaceContainerHighest
-                        : theme.colorScheme.surfaceContainerHigh),
+                          ? theme.colorScheme.surfaceContainerHighest
+                          : theme.colorScheme.surfaceContainerHigh),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: isEnabled
                       ? (_isHovering ? _cuteOrangeDark : _cuteOrange)
-                          .withValues(alpha: isDark ? 0.5 : 0.6)
-                      : theme.colorScheme.outline
-                          .withValues(alpha: _isHovering ? 0.3 : 0.15),
+                            .withValues(alpha: isDark ? 0.5 : 0.6)
+                      : theme.colorScheme.outline.withValues(
+                          alpha: _isHovering ? 0.3 : 0.15,
+                        ),
                   width: isEnabled ? 1.5 : 1,
                 ),
                 boxShadow: isEnabled && _isHovering
@@ -206,7 +207,9 @@ class _AutoSaveToggleChipState extends ConsumerState<AutoSaveToggleChip>
     BuildContext context,
     ImageSaveSettings settings,
   ) {
-    final statusText = settings.autoSave ? '已开启' : '已关闭';
+    final statusText = settings.autoSave
+        ? context.l10n.common_enabled
+        : context.l10n.common_disabled;
 
     if (settings.autoSave && settings.hasCustomPath) {
       return '${context.l10n.settings_autoSaveSubtitle}\n$statusText\n${context.l10n.settings_imageSavePath}: ${settings.customPath}';

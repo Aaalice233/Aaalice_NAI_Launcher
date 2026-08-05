@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/utils/localization_extension.dart';
+
 /// 动画爱心收藏按钮
 ///
 /// 统一的收藏按钮组件，包含：
@@ -75,13 +77,17 @@ class _AnimatedFavoriteButtonState extends State<AnimatedFavoriteButton>
 
     _scaleAnimation = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.0, end: 1.3)
-            .chain(CurveTween(curve: Curves.easeOut)),
+        tween: Tween<double>(
+          begin: 1.0,
+          end: 1.3,
+        ).chain(CurveTween(curve: Curves.easeOut)),
         weight: 50,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.3, end: 1.0)
-            .chain(CurveTween(curve: Curves.elasticOut)),
+        tween: Tween<double>(
+          begin: 1.3,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.elasticOut)),
         weight: 50,
       ),
     ]).animate(_controller);
@@ -130,8 +136,8 @@ class _AnimatedFavoriteButtonState extends State<AnimatedFavoriteButton>
     return widget.isFavorite
         ? _activeColor.withValues(alpha: 0.25)
         : (isDark
-            ? Colors.white.withValues(alpha: 0.15)
-            : Colors.black.withValues(alpha: 0.08));
+              ? Colors.white.withValues(alpha: 0.15)
+              : Colors.black.withValues(alpha: 0.08));
   }
 
   Color get _defaultBgColor {
@@ -140,8 +146,8 @@ class _AnimatedFavoriteButtonState extends State<AnimatedFavoriteButton>
         (widget.isFavorite
             ? _activeColor.withValues(alpha: 0.15)
             : (isDark
-                ? Colors.white.withValues(alpha: 0.1)
-                : Colors.black.withValues(alpha: 0.05)));
+                  ? Colors.white.withValues(alpha: 0.1)
+                  : Colors.black.withValues(alpha: 0.05)));
   }
 
   @override
@@ -188,12 +194,14 @@ class _AnimatedFavoriteButtonState extends State<AnimatedFavoriteButton>
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          padding:
-              widget.showBackground ? EdgeInsets.zero : const EdgeInsets.all(4),
+          padding: widget.showBackground
+              ? EdgeInsets.zero
+              : const EdgeInsets.all(4),
           decoration: !widget.showBackground && _isHovered
               ? BoxDecoration(
-                  color: (isDark ? Colors.white : Colors.black)
-                      .withValues(alpha: 0.1),
+                  color: (isDark ? Colors.white : Colors.black).withValues(
+                    alpha: 0.1,
+                  ),
                   borderRadius: BorderRadius.circular(widget.size * 0.4),
                 )
               : null,
@@ -203,7 +211,11 @@ class _AnimatedFavoriteButtonState extends State<AnimatedFavoriteButton>
     );
 
     return Tooltip(
-      message: widget.tooltip ?? (widget.isFavorite ? '取消收藏' : '收藏'),
+      message:
+          widget.tooltip ??
+          (widget.isFavorite
+              ? context.l10n.common_unfavorite
+              : context.l10n.common_favorite),
       child: button,
     );
   }
@@ -275,13 +287,17 @@ class _BaseFavoriteButtonState extends State<_BaseFavoriteButton>
     );
     _scaleAnimation = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.0, end: 1.3)
-            .chain(CurveTween(curve: Curves.easeOut)),
+        tween: Tween<double>(
+          begin: 1.0,
+          end: 1.3,
+        ).chain(CurveTween(curve: Curves.easeOut)),
         weight: 50,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.3, end: 1.0)
-            .chain(CurveTween(curve: Curves.elasticOut)),
+        tween: Tween<double>(
+          begin: 1.3,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.elasticOut)),
         weight: 50,
       ),
     ]).animate(_controller);
@@ -326,7 +342,9 @@ class _BaseFavoriteButtonState extends State<_BaseFavoriteButton>
         onTap: _handleTap,
         behavior: HitTestBehavior.opaque,
         child: Tooltip(
-          message: widget.isFavorite ? '取消收藏' : '收藏',
+          message: widget.isFavorite
+              ? context.l10n.common_unfavorite
+              : context.l10n.common_favorite,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             padding: const EdgeInsets.all(6),
@@ -365,8 +383,8 @@ class _BaseFavoriteButtonState extends State<_BaseFavoriteButton>
                     color: widget.isFavorite
                         ? activeColor
                         : (_isHovered
-                            ? Colors.white
-                            : Colors.white.withValues(alpha: 0.9)),
+                              ? Colors.white
+                              : Colors.white.withValues(alpha: 0.9)),
                   ),
                 );
               },

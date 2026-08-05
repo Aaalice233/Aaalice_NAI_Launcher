@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nai_launcher/core/cache/danbooru_image_cache_manager.dart';
@@ -334,7 +335,7 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
   }
 
   /// 构建状态行
-  Widget _buildStatusRow(ThemeData theme, dynamic l10n) {
+  Widget _buildStatusRow(ThemeData theme, AppLocalizations l10n) {
     final (icon, color) = _getStatusIconAndColor();
     final isRunning = widget.task.status == ReplicationTaskStatus.running;
 
@@ -437,7 +438,7 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
   }
 
   /// 构建操作按钮组（悬浮时显示）
-  Widget _buildActionButtons(ThemeData theme, dynamic l10n) {
+  Widget _buildActionButtons(ThemeData theme, AppLocalizations l10n) {
     return AnimatedOpacity(
       opacity: _isHovered ? 1.0 : 0.0,
       duration: const Duration(milliseconds: 150),
@@ -483,7 +484,7 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
   }
 
   /// 处理删除操作
-  Future<void> _handleDelete(dynamic l10n) async {
+  Future<void> _handleDelete(AppLocalizations l10n) async {
     final confirmed = await _confirmDelete(context, l10n);
     if (confirmed) {
       ref
@@ -508,7 +509,10 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
   }
 
   /// 确认删除对话框
-  Future<bool> _confirmDelete(BuildContext context, dynamic l10n) async {
+  Future<bool> _confirmDelete(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) async {
     return await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(

@@ -34,10 +34,8 @@ class AddToLibraryDialog extends ConsumerStatefulWidget {
   }) {
     return showDialog<bool>(
       context: context,
-      builder: (context) => AddToLibraryDialog(
-        defaultName: name,
-        content: content,
-      ),
+      builder: (context) =>
+          AddToLibraryDialog(defaultName: name, content: content),
     );
   }
 
@@ -71,7 +69,9 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
     setState(() => _isSaving = true);
 
     try {
-      await ref.read(tagLibraryPageNotifierProvider.notifier).addEntry(
+      await ref
+          .read(tagLibraryPageNotifierProvider.notifier)
+          .addEntry(
             name: name,
             content: widget.content,
             thumbnail: _thumbnailPath,
@@ -101,9 +101,7 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
 
     return Dialog(
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(6),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       child: Container(
         width: 480,
         constraints: const BoxConstraints(maxHeight: 500),
@@ -188,11 +186,7 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
               color: Colors.red.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              Icons.favorite,
-              size: 18,
-              color: Colors.red.shade400,
-            ),
+            child: Icon(Icons.favorite, size: 18, color: Colors.red.shade400),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -226,7 +220,7 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
       child: ImagePickerCard(
         icon: Icons.add_photo_alternate_outlined,
         label: l10n.tagLibrary_selectImage,
-        hintText: '(可选)',
+        hintText: '(${l10n.common_optional})',
         height: 100,
         selectedImage: _thumbnailBytes,
         selectedPath: _thumbnailPath,
@@ -321,11 +315,11 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
                   child: Text(l10n.tagLibrary_rootCategory),
                 ),
                 ...categories.rootCategories.sortedByOrder().map(
-                      (category) => DropdownMenuItem<String?>(
-                        value: category.id,
-                        child: Text(category.name),
-                      ),
-                    ),
+                  (category) => DropdownMenuItem<String?>(
+                    value: category.id,
+                    child: Text(category.name),
+                  ),
+                ),
               ],
               onChanged: (value) {
                 setState(() => _selectedCategoryId = value);
@@ -366,7 +360,9 @@ class _AddToLibraryDialogState extends ConsumerState<AddToLibraryDialog> {
           ),
           child: SingleChildScrollView(
             child: Text(
-              widget.content.isNotEmpty ? widget.content : '(空)',
+              widget.content.isNotEmpty
+                  ? widget.content
+                  : l10n.common_emptyValue,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: widget.content.isNotEmpty
                     ? colorScheme.onSurface

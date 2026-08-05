@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 /// Parameter distribution bar data
 class ParameterBarItem {
@@ -49,7 +50,7 @@ class _ParameterDistributionBarState extends State<ParameterDistributionBar> {
     if (widget.items.isEmpty) {
       return SizedBox(
         height: widget.height,
-        child: const Center(child: Text('No data')),
+        child: Center(child: Text(context.l10n.statistics_noData)),
       );
     }
 
@@ -176,7 +177,8 @@ class _ParameterDistributionBarState extends State<ParameterDistributionBar> {
             barRods: [
               BarChartRodData(
                 toY: item.count.toDouble(),
-                color: item.color ??
+                color:
+                    item.color ??
                     (isTouched
                         ? colorScheme.primary
                         : colorScheme.primary.withValues(alpha: 0.7)),
@@ -187,8 +189,9 @@ class _ParameterDistributionBarState extends State<ParameterDistributionBar> {
                 backDrawRodData: BackgroundBarChartRodData(
                   show: true,
                   toY: maxValue * 1.2,
-                  color: colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.3),
+                  color: colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.3,
+                  ),
                 ),
               ),
             ],
@@ -216,8 +219,9 @@ class _ParameterDistributionBarState extends State<ParameterDistributionBar> {
             item: item,
             maxValue: maxValue,
             color: item.color ?? colorScheme.primary,
-            onTap:
-                widget.onItemTap != null ? () => widget.onItemTap!(item) : null,
+            onTap: widget.onItemTap != null
+                ? () => widget.onItemTap!(item)
+                : null,
           );
         },
       ),
@@ -281,8 +285,9 @@ class _HorizontalBarRow extends StatelessWidget {
                 Container(
                   height: 20,
                   decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.3),
+                    color: colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.3,
+                    ),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),

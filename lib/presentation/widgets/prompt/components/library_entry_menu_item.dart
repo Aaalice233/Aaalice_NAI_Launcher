@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/localization_extension.dart';
+
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../common/thumbnail_display.dart';
 
@@ -111,7 +113,7 @@ class _LibraryEntryMenuItemState extends State<LibraryEntryMenuItem> {
                     size: 18,
                     color: theme.colorScheme.error,
                   ),
-                  tooltip: '删除',
+                  tooltip: context.l10n.common_delete,
                   visualDensity: VisualDensity.compact,
                 ),
               ),

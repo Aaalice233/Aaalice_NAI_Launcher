@@ -72,8 +72,10 @@ class _ComfyUISettingsSectionState
               ),
               if (settings.enabled) ...[
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: Row(
                     children: [
                       Expanded(
@@ -100,8 +102,9 @@ class _ComfyUISettingsSectionState
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : Text(context.l10n.settings_testConnection),
                       ),
@@ -185,15 +188,17 @@ class _ComfyUISettingsSectionState
                         Icon(
                           Icons.inventory_2,
                           size: 16,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.5),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Text(
                           context.l10n.settings_comfyUiBuiltinWorkflows,
                           style: theme.textTheme.labelMedium?.copyWith(
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.5),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.5,
+                            ),
                           ),
                         ),
                       ],
@@ -204,22 +209,26 @@ class _ComfyUISettingsSectionState
 
                 // 用户自定义工作流
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: Row(
                     children: [
                       Icon(
                         Icons.person,
                         size: 16,
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.5,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         context.l10n.settings_comfyUiCustomWorkflows,
                         style: theme.textTheme.labelMedium?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.5),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
                         ),
                       ),
                       const Spacer(),
@@ -240,8 +249,9 @@ class _ComfyUISettingsSectionState
                     child: Text(
                       context.l10n.settings_comfyUiNoCustomWorkflows,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.4,
+                        ),
                       ),
                     ),
                   )
@@ -339,8 +349,9 @@ class _ComfyUISettingsSectionState
     });
 
     try {
-      final ok =
-          await ref.read(comfyUIConnectionProvider.notifier).testConnection();
+      final ok = await ref
+          .read(comfyUIConnectionProvider.notifier)
+          .testConnection();
       if (mounted) {
         setState(() {
           _testResult = ok ? 'ok' : context.l10n.settings_comfyUiNoResponse;
@@ -349,14 +360,16 @@ class _ComfyUISettingsSectionState
         if (ok) {
           AppToast.success(
             context,
-            'ComfyUI ${context.l10n.settings_comfyUiConnectionSuccess}',
+            context.l10n.settings_comfyUiConnectionSuccessFull,
           );
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _testResult = e.toString();
+          _testResult = context.l10n.settings_comfyUiConnectionFailed(
+            e.toString(),
+          );
           _isTesting = false;
         });
       }

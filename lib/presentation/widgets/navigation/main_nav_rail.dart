@@ -62,7 +62,7 @@ class MainNavRail extends ConsumerWidget {
           // 本地画廊（App生成的图片）
           _NavIcon(
             icon: Icons.folder, // Local Generated Images
-            label: '本地画廊',
+            label: context.l10n.localGallery_title,
             isSelected: selectedIndex == 1,
             onTap: () => navigationShell.goBranch(1), // localGallery branch
           ),
@@ -78,7 +78,7 @@ class MainNavRail extends ConsumerWidget {
           // Vibe库
           _NavIcon(
             icon: Icons.auto_awesome, // Vibe Library
-            label: 'Vibe库',
+            label: context.l10n.vibeLibrary_title,
             isSelected: selectedIndex == 3,
             onTap: () => navigationShell.goBranch(7), // vibeLibrary branch
           ),

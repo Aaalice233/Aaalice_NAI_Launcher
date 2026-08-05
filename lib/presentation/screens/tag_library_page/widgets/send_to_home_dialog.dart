@@ -14,10 +14,7 @@ class SendOptions {
   final SendTargetType targetType;
   final bool sendAsAlias;
 
-  const SendOptions({
-    required this.targetType,
-    this.sendAsAlias = false,
-  });
+  const SendOptions({required this.targetType, this.sendAsAlias = false});
 }
 
 /// 发送到主页对话框
@@ -29,10 +26,7 @@ class SendOptions {
 class SendToHomeDialog extends ConsumerStatefulWidget {
   final TagLibraryEntry entry;
 
-  const SendToHomeDialog({
-    super.key,
-    required this.entry,
-  });
+  const SendToHomeDialog({super.key, required this.entry});
 
   static Future<SendOptions?> show(
     BuildContext context, {
@@ -108,10 +102,7 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
               // 标题
               Row(
                 children: [
-                  Icon(
-                    Icons.send_outlined,
-                    color: theme.colorScheme.primary,
-                  ),
+                  Icon(Icons.send_outlined, color: theme.colorScheme.primary),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -348,21 +339,22 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
     }
 
     return switch (_selectedTarget) {
-      SendTargetType.smartDecompose =>
-        _buildSmartDecomposePreview(theme, parsed),
+      SendTargetType.smartDecompose => _buildSmartDecomposePreview(
+        theme,
+        parsed,
+      ),
       SendTargetType.mainPrompt => _PreviewItem(
-          label: context.l10n.naiAlgorithm_mainPrompt,
-          content: _processedContent,
-          color: theme.colorScheme.primary,
-        ),
+        label: context.l10n.naiAlgorithm_mainPrompt,
+        content: _processedContent,
+        color: theme.colorScheme.primary,
+      ),
       SendTargetType.replaceCharacter ||
-      SendTargetType.appendCharacter =>
-        _buildCharacterPreview(parsed),
+      SendTargetType.appendCharacter => _buildCharacterPreview(parsed),
       SendTargetType.fixedTag => _PreviewItem(
-          label: context.l10n.fixedTags_label,
-          content: _processedContent,
-          color: Colors.orange,
-        ),
+        label: context.l10n.fixedTags_label,
+        content: _processedContent,
+        color: Colors.orange,
+      ),
     };
   }
 
@@ -370,17 +362,17 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
   Widget _buildAliasPreview(ThemeData theme) {
     final (label, color) = switch (_selectedTarget) {
       SendTargetType.mainPrompt => (
-          context.l10n.naiAlgorithm_mainPrompt,
-          theme.colorScheme.primary,
-        ),
+        context.l10n.naiAlgorithm_mainPrompt,
+        theme.colorScheme.primary,
+      ),
       SendTargetType.smartDecompose => (
-          context.l10n.sendToHome_smartDecompose,
-          theme.colorScheme.tertiary,
-        ),
+        context.l10n.sendToHome_smartDecompose,
+        theme.colorScheme.tertiary,
+      ),
       SendTargetType.replaceCharacter || SendTargetType.appendCharacter => (
-          context.l10n.sendToHome_characterPrompt,
-          theme.colorScheme.tertiary
-        ),
+        context.l10n.sendToHome_characterPrompt,
+        theme.colorScheme.tertiary,
+      ),
       SendTargetType.fixedTag => (context.l10n.fixedTags_label, Colors.orange),
     };
     return _PreviewItem(label: label, content: _processedContent, color: color);
@@ -397,12 +389,12 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
           color: theme.colorScheme.primary,
         ),
         ...parsed.characters.asMap().entries.map(
-              (e) => _PreviewItem(
-                label: context.l10n.sendToHome_characterIndex(e.key + 1),
-                content: e.value,
-                color: theme.colorScheme.secondary,
-              ),
-            ),
+          (e) => _PreviewItem(
+            label: context.l10n.sendToHome_characterIndex(e.key + 1),
+            content: e.value,
+            color: theme.colorScheme.secondary,
+          ),
+        ),
       ],
     );
   }
@@ -410,12 +402,11 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
   /// 构建角色预览
   Widget _buildCharacterPreview(ParsedResult parsed) {
     final hasCharacters = _isPipeFormat && parsed.characters.isNotEmpty;
-    final content =
-        hasCharacters ? parsed.characters.join('\n| ') : _processedContent;
+    final content = hasCharacters
+        ? parsed.characters.join('\n| ')
+        : _processedContent;
     final label = hasCharacters
-        ? context.l10n.sendToHome_characterPromptCount(
-            parsed.characters.length,
-          )
+        ? context.l10n.sendToHome_characterPromptCount(parsed.characters.length)
         : context.l10n.sendToHome_characterPrompt;
     return _PreviewItem(
       label: label,
@@ -430,10 +421,7 @@ class ParsedResult {
   final String mainPrompt;
   final List<String> characters;
 
-  ParsedResult({
-    required this.mainPrompt,
-    required this.characters,
-  });
+  ParsedResult({required this.mainPrompt, required this.characters});
 }
 
 /// 目标选项卡片
@@ -486,11 +474,7 @@ class _TargetOptionTile extends StatelessWidget {
                       color: iconColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(
-                      icon,
-                      color: iconColor,
-                      size: 20,
-                    ),
+                    child: Icon(icon, color: iconColor, size: 20),
                   ),
                   if (isRecommended)
                     Positioned(
@@ -580,9 +564,7 @@ class _PreviewItem extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: color.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -592,10 +574,7 @@ class _PreviewItem extends StatelessWidget {
               Container(
                 width: 8,
                 height: 8,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                ),
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
               const SizedBox(width: 6),
               Text(
@@ -609,7 +588,7 @@ class _PreviewItem extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            content.isEmpty ? '(空)' : content,
+            content.isEmpty ? context.l10n.common_emptyValue : content,
             style: theme.textTheme.bodySmall?.copyWith(
               color: content.isEmpty
                   ? theme.colorScheme.outline

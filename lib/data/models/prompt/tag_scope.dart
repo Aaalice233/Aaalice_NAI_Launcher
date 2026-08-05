@@ -19,20 +19,6 @@ enum TagScope {
 
 /// TagScope 扩展方法
 extension TagScopeExtension on TagScope {
-  /// 获取显示名称的键（用于国际化）
-  String get l10nKey => switch (this) {
-        TagScope.global => 'scope_global',
-        TagScope.character => 'scope_character',
-        TagScope.all => 'scope_all',
-      };
-
-  /// 获取描述的键（用于国际化）
-  String get descL10nKey => switch (this) {
-        TagScope.global => 'scope_globalDesc',
-        TagScope.character => 'scope_characterDesc',
-        TagScope.all => 'scope_allDesc',
-      };
-
   /// 检查是否适用于目标作用域
   ///
   /// 逻辑规则：

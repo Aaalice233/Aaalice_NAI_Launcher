@@ -19,6 +19,7 @@ class MetadataImportCoordinator {
     required ProviderReader read,
     required NaiImageMetadata metadata,
     required MetadataImportOptions options,
+    required AppLocalizations l10n,
   }) async {
     final notifier = read(generationParamsNotifierProvider.notifier);
     final characterPrompts = metadata.characterPrompts;
@@ -63,7 +64,7 @@ class MetadataImportCoordinator {
     }
 
     appliedCount += _applyReferenceParams(read, metadata, options);
-    appliedCount += await _applyFixedTags(read, metadata, options);
+    appliedCount += await _applyFixedTags(read, metadata, options, l10n);
 
     return appliedCount;
   }
@@ -112,6 +113,7 @@ class MetadataImportCoordinator {
     ProviderReader read,
     NaiImageMetadata metadata,
     MetadataImportOptions options,
+    AppLocalizations l10n,
   ) async {
     if (!options.importFixedTags) {
       return 0;
@@ -124,7 +126,7 @@ class MetadataImportCoordinator {
       List<String> tags, {
       required FixedTagPosition position,
       required FixedTagPromptType promptType,
-      required String prefix,
+      required String Function(String content) buildName,
     }) async {
       for (final tag in tags) {
         final content = tag.trim();
@@ -132,7 +134,7 @@ class MetadataImportCoordinator {
           continue;
         }
         await fixedTagsNotifier.addEntry(
-          name: '$prefix$content',
+          name: buildName(content),
           content: content,
           position: position,
           promptType: promptType,
@@ -147,13 +149,13 @@ class MetadataImportCoordinator {
         metadata.fixedPrefixTags,
         position: FixedTagPosition.prefix,
         promptType: FixedTagPromptType.positive,
-        prefix: '导入前缀: ',
+        buildName: l10n.metadataImport_fixedPrefix,
       );
       await addTags(
         metadata.fixedNegativePrefixTags,
         position: FixedTagPosition.prefix,
         promptType: FixedTagPromptType.negative,
-        prefix: '导入负向前缀: ',
+        buildName: l10n.metadataImport_negativeFixedPrefix,
       );
     }
 
@@ -162,13 +164,13 @@ class MetadataImportCoordinator {
         metadata.fixedSuffixTags,
         position: FixedTagPosition.suffix,
         promptType: FixedTagPromptType.positive,
-        prefix: '导入后缀: ',
+        buildName: l10n.metadataImport_fixedSuffix,
       );
       await addTags(
         metadata.fixedNegativeSuffixTags,
         position: FixedTagPosition.suffix,
         promptType: FixedTagPromptType.negative,
-        prefix: '导入负向后缀: ',
+        buildName: l10n.metadataImport_negativeFixedSuffix,
       );
     }
 

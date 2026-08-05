@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/app_logger.dart';
+import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/services/vibe_bulk_operation_service.dart';
+import '../../../utils/vibe_bulk_operation_l10n.dart';
 
 /// Vibe 批量操作进度对话框
 ///
@@ -158,7 +160,7 @@ class _VibeBulkOperationDialogState
       AppLogger.e('Bulk operation failed', e, stack, _tag);
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = context.l10n.vibeBulk_operationFailedHint;
           _isProcessing = false;
         });
       }
@@ -233,10 +235,7 @@ class _VibeBulkOperationDialogState
   Widget _buildHeader(ThemeData theme) {
     return Row(
       children: [
-        Icon(
-          _getOperationIcon(),
-          color: _getOperationColor(theme),
-        ),
+        Icon(_getOperationIcon(), color: _getOperationColor(theme)),
         const SizedBox(width: 12),
         Expanded(
           child: Text(
@@ -250,7 +249,7 @@ class _VibeBulkOperationDialogState
           IconButton(
             icon: const Icon(Icons.close),
             onPressed: _close,
-            tooltip: '关闭',
+            tooltip: context.l10n.common_close,
           ),
       ],
     );
@@ -285,7 +284,10 @@ class _VibeBulkOperationDialogState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '正在处理: $_currentProgress / $_totalCount',
+                    context.l10n.vibeBulk_processingProgress(
+                      _currentProgress,
+                      _totalCount,
+                    ),
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.primary,
                       fontWeight: FontWeight.w500,
@@ -352,7 +354,9 @@ class _VibeBulkOperationDialogState
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                isSuccess ? '操作完成' : '操作完成（部分失败）',
+                isSuccess
+                    ? context.l10n.vibeBulk_completed
+                    : context.l10n.vibeBulk_completedWithFailures,
                 style: theme.textTheme.titleMedium?.copyWith(
                   color: isSuccess ? theme.colorScheme.primary : Colors.orange,
                   fontWeight: FontWeight.w600,
@@ -367,8 +371,9 @@ class _VibeBulkOperationDialogState
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest
-                .withValues(alpha: 0.5),
+            color: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.5,
+            ),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
@@ -380,7 +385,7 @@ class _VibeBulkOperationDialogState
                   _buildStatItem(
                     theme,
                     icon: Icons.check_circle,
-                    label: '成功',
+                    label: context.l10n.vibeBulk_successful,
                     value: '${result.successCount}',
                     color: theme.colorScheme.primary,
                   ),
@@ -390,7 +395,7 @@ class _VibeBulkOperationDialogState
                     _buildStatItem(
                       theme,
                       icon: Icons.error,
-                      label: '失败',
+                      label: context.l10n.vibeBulk_failed,
                       value: '${result.failedCount}',
                       color: theme.colorScheme.error,
                     ),
@@ -403,13 +408,15 @@ class _VibeBulkOperationDialogState
                 Divider(color: theme.dividerColor.withValues(alpha: 0.5)),
                 const SizedBox(height: 8),
                 Text(
-                  '错误信息:',
+                  context.l10n.vibeBulk_errorDetails,
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.outline,
                   ),
                 ),
                 const SizedBox(height: 4),
-                ...result.errors.take(3).map(
+                ...result.errors
+                    .take(3)
+                    .map(
                       (error) => Padding(
                         padding: const EdgeInsets.only(left: 8, bottom: 4),
                         child: Row(
@@ -423,7 +430,7 @@ class _VibeBulkOperationDialogState
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
-                                error,
+                                error.localized(context.l10n),
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.error,
                                 ),
@@ -439,7 +446,9 @@ class _VibeBulkOperationDialogState
                   Padding(
                     padding: const EdgeInsets.only(left: 8),
                     child: Text(
-                      '...还有 ${result.errors.length - 3} 个错误',
+                      context.l10n.vibeBulk_moreErrors(
+                        result.errors.length - 3,
+                      ),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.outline,
                       ),
@@ -497,18 +506,14 @@ class _VibeBulkOperationDialogState
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.error_outline,
-            color: theme.colorScheme.error,
-            size: 24,
-          ),
+          Icon(Icons.error_outline, color: theme.colorScheme.error, size: 24),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '操作失败',
+                  context.l10n.vibeBulk_operationFailed,
                   style: theme.textTheme.titleSmall?.copyWith(
                     color: theme.colorScheme.onErrorContainer,
                     fontWeight: FontWeight.w600,
@@ -516,7 +521,7 @@ class _VibeBulkOperationDialogState
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _error ?? '未知错误',
+                  _error ?? context.l10n.vibeLibrary_unknownError,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onErrorContainer,
                   ),
@@ -537,12 +542,12 @@ class _VibeBulkOperationDialogState
         if (_isProcessing)
           TextButton(
             onPressed: _cancel,
-            child: const Text('取消'),
+            child: Text(context.l10n.common_cancel),
           )
         else
           FilledButton(
             onPressed: _close,
-            child: const Text('确定'),
+            child: Text(context.l10n.common_confirm),
           ),
       ],
     );
@@ -552,19 +557,19 @@ class _VibeBulkOperationDialogState
   String _getOperationTitle() {
     switch (widget.operationType) {
       case VibeBulkOperationType.delete:
-        return '批量删除';
+        return context.l10n.vibeBulk_titleDelete;
       case VibeBulkOperationType.move:
-        return '批量移动';
+        return context.l10n.vibeBulk_titleMove;
       case VibeBulkOperationType.toggleFavorite:
-        return '批量切换收藏';
+        return context.l10n.vibeBulk_titleToggleFavorite;
       case VibeBulkOperationType.addTags:
-        return '批量添加标签';
+        return context.l10n.vibeBulk_titleAddTags;
       case VibeBulkOperationType.removeTags:
-        return '批量移除标签';
+        return context.l10n.vibeBulk_titleRemoveTags;
       case VibeBulkOperationType.export:
-        return '批量导出';
+        return context.l10n.vibeBulk_titleExport;
       case VibeBulkOperationType.import:
-        return '批量导入';
+        return context.l10n.vibeBulk_titleImport;
     }
   }
 

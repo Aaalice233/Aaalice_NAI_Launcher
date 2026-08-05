@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../data/models/prompt/algorithm_config.dart';
 import '../../common/themed_slider.dart';
@@ -80,7 +81,14 @@ class _MultiCharacterConfigPanelState
   Widget _buildCharacterCountSection() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final labels = ['无人物', '单人', '双人', '三人', '多人'];
+    final l10n = context.l10n;
+    final labels = [
+      l10n.characterCountConfig_noHumans,
+      l10n.characterCountConfig_solo,
+      l10n.characterCountConfig_duo,
+      l10n.characterCountConfig_trio,
+      l10n.characterCountConfig_multiPerson,
+    ];
 
     // 渐变色组合
     final gradients = [
@@ -124,7 +132,7 @@ class _MultiCharacterConfigPanelState
               ),
               const SizedBox(width: 12),
               Text(
-                '角色数量权重',
+                l10n.diy_characterCountWeight,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -139,7 +147,9 @@ class _MultiCharacterConfigPanelState
           ...List.generate(_characterCountWeights.length, (index) {
             final count = _characterCountWeights[index][0];
             final weight = _characterCountWeights[index][1];
-            final label = count < labels.length ? labels[count] : '$count人';
+            final label = count < labels.length
+                ? labels[count]
+                : l10n.diy_peopleCount(count);
             final colors = gradients[index % gradients.length];
 
             return _buildWeightSlider(
@@ -166,9 +176,14 @@ class _MultiCharacterConfigPanelState
     final colorScheme = theme.colorScheme;
 
     final genderData = [
-      ('male', '男性', Colors.blue, Icons.male_rounded),
-      ('female', '女性', Colors.pink, Icons.female_rounded),
-      ('other', '其他', Colors.purple, Icons.transgender_rounded),
+      ('male', _genderLabel('male'), Colors.blue, Icons.male_rounded),
+      ('female', _genderLabel('female'), Colors.pink, Icons.female_rounded),
+      (
+        'other',
+        _genderLabel('other'),
+        Colors.purple,
+        Icons.transgender_rounded,
+      ),
     ];
 
     return ElevatedCard(
@@ -204,7 +219,7 @@ class _MultiCharacterConfigPanelState
               ),
               const SizedBox(width: 12),
               Text(
-                '性别概率',
+                context.l10n.diy_genderProbability,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -240,10 +255,7 @@ class _MultiCharacterConfigPanelState
     );
   }
 
-  Widget _buildWeightBar(
-    List<List<int>> weights,
-    List<List<Color>> gradients,
-  ) {
+  Widget _buildWeightBar(List<List<int>> weights, List<List<Color>> gradients) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final total = weights.fold<int>(0, (sum, w) => sum + w[1]);
@@ -257,7 +269,7 @@ class _MultiCharacterConfigPanelState
         ),
         child: Center(
           child: Text(
-            '未设置权重',
+            context.l10n.diy_noWeightsConfigured,
             style: theme.textTheme.labelSmall?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),
@@ -332,7 +344,7 @@ class _MultiCharacterConfigPanelState
         ),
         child: Center(
           child: Text(
-            '未设置权重',
+            context.l10n.diy_noWeightsConfigured,
             style: theme.textTheme.labelSmall?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),
@@ -366,7 +378,7 @@ class _MultiCharacterConfigPanelState
               return Expanded(
                 flex: weight,
                 child: Tooltip(
-                  message: '${entry.key}: $percent%',
+                  message: '${_genderLabel(entry.key)}: $percent%',
                   child: Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -396,6 +408,14 @@ class _MultiCharacterConfigPanelState
         ),
       ),
     );
+  }
+
+  String _genderLabel(String key) {
+    return switch (key) {
+      'male' => context.l10n.gender_male,
+      'female' => context.l10n.gender_female,
+      _ => context.l10n.diy_genderOther,
+    };
   }
 
   Widget _buildWeightSlider({

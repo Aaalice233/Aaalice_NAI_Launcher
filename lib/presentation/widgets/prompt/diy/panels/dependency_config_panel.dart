@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../data/models/prompt/dependency_config.dart';
 import '../../../../widgets/common/elevated_card.dart';
@@ -117,13 +118,13 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '依赖配置',
+                context.l10n.diy_dependencyTitle,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
-                '配置标签选择的依赖关系',
+                context.l10n.diy_dependencySubtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -138,8 +139,10 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
               onTap: () => widget.onConfigChanged(null),
               borderRadius: BorderRadius.circular(8),
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   border: Border.all(
                     color: colorScheme.error.withValues(alpha: 0.5),
@@ -156,7 +159,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '清除',
+                      context.l10n.common_clear,
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: colorScheme.error,
                       ),
@@ -214,7 +217,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
               ),
               const SizedBox(width: 10),
               Text(
-                '依赖类型',
+                context.l10n.diy_dependencyType,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -362,7 +365,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
               ),
               const SizedBox(width: 10),
               Text(
-                '源类别',
+                context.l10n.diy_sourceCategory,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -376,7 +379,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                   ? _config.sourceCategoryId
                   : null,
               decoration: InputDecoration(
-                hintText: '选择源类别',
+                hintText: context.l10n.diy_selectSourceCategory,
                 prefixIcon: Icon(
                   Icons.folder_outlined,
                   color: colorScheme.onSurfaceVariant,
@@ -392,10 +395,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                 ),
               ),
               items: widget.availableCategories.map((category) {
-                return DropdownMenuItem(
-                  value: category,
-                  child: Text(category),
-                );
+                return DropdownMenuItem(value: category, child: Text(category));
               }).toList(),
               onChanged: widget.readOnly
                   ? null
@@ -411,8 +411,8 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
             ThemedFormInput(
               initialValue: _config.sourceCategoryId,
               decoration: InputDecoration(
-                labelText: '源类别 ID',
-                hintText: '输入类别 ID',
+                labelText: context.l10n.diy_sourceCategoryId,
+                hintText: context.l10n.diy_enterCategoryId,
                 prefixIcon: Icon(
                   Icons.folder_outlined,
                   color: colorScheme.onSurfaceVariant,
@@ -458,7 +458,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
               ),
               const SizedBox(width: 10),
               Text(
-                '映射规则',
+                context.l10n.diy_mappingRules,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -491,7 +491,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '添加',
+                            context.l10n.common_add,
                             style: theme.textTheme.labelMedium?.copyWith(
                               color: colorScheme.primary,
                               fontWeight: FontWeight.w600,
@@ -525,7 +525,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '暂无映射规则',
+                      context.l10n.diy_noMappingRules,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),
@@ -563,8 +563,9 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: colorScheme.primaryContainer
-                              .withValues(alpha: 0.5),
+                          color: colorScheme.primaryContainer.withValues(
+                            alpha: 0.5,
+                          ),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -589,8 +590,9 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: colorScheme.secondaryContainer
-                              .withValues(alpha: 0.5),
+                          color: colorScheme.secondaryContainer.withValues(
+                            alpha: 0.5,
+                          ),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -610,7 +612,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                             color: colorScheme.error.withValues(alpha: 0.7),
                           ),
                           onPressed: () => _removeMappingRule(entry.key),
-                          tooltip: '删除规则',
+                          tooltip: context.l10n.diy_deleteRule,
                         ),
                     ],
                   ),
@@ -651,7 +653,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
               ),
               const SizedBox(width: 10),
               Text(
-                '默认值',
+                context.l10n.diy_defaultValue,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -662,7 +664,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
           ThemedFormInput(
             initialValue: _config.defaultValue ?? '',
             decoration: InputDecoration(
-              hintText: '当没有匹配规则时使用',
+              hintText: context.l10n.diy_defaultValueHint,
               prefixIcon: Icon(
                 Icons.edit_note_rounded,
                 color: colorScheme.onSurfaceVariant,
@@ -680,9 +682,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
             readOnly: widget.readOnly,
             onChanged: (value) {
               _updateConfig(
-                _config.copyWith(
-                  defaultValue: value.isEmpty ? null : value,
-                ),
+                _config.copyWith(defaultValue: value.isEmpty ? null : value),
               );
             },
           ),
@@ -712,13 +712,13 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '启用依赖配置',
+                  context.l10n.diy_enableDependency,
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
-                  '禁用后此配置不会生效',
+                  context.l10n.diy_enableDependencyHint,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -750,9 +750,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
         String value = '';
 
         return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(6),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
           title: Row(
             children: [
               Container(
@@ -761,13 +759,10 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
                   color: colorScheme.primaryContainer.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  Icons.add_link_rounded,
-                  color: colorScheme.primary,
-                ),
+                child: Icon(Icons.add_link_rounded, color: colorScheme.primary),
               ),
               const SizedBox(width: 12),
-              const Text('添加映射规则'),
+              Text(context.l10n.diy_addMappingRule),
             ],
           ),
           content: Column(
@@ -775,8 +770,8 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
             children: [
               ThemedInput(
                 decoration: InputDecoration(
-                  labelText: '源值',
-                  hintText: '例如: 1, 2, 3',
+                  labelText: context.l10n.diy_sourceValue,
+                  hintText: context.l10n.diy_sourceValueHint,
                   prefixIcon: Icon(
                     Icons.input_rounded,
                     color: colorScheme.onSurfaceVariant,
@@ -790,8 +785,8 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
               const SizedBox(height: 16),
               ThemedInput(
                 decoration: InputDecoration(
-                  labelText: '结果值',
-                  hintText: '例如: 0-3, 0-2, 0-1',
+                  labelText: context.l10n.diy_resultValue,
+                  hintText: context.l10n.diy_resultValueHint,
                   prefixIcon: Icon(
                     Icons.output_rounded,
                     color: colorScheme.onSurfaceVariant,
@@ -807,19 +802,20 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
+              child: Text(context.l10n.common_cancel),
             ),
             FilledButton(
               onPressed: () {
                 if (key.isNotEmpty && value.isNotEmpty) {
-                  final newRules =
-                      Map<String, String>.from(_config.mappingRules);
+                  final newRules = Map<String, String>.from(
+                    _config.mappingRules,
+                  );
                   newRules[key] = value;
                   _updateConfig(_config.copyWith(mappingRules: newRules));
                 }
                 Navigator.pop(context);
               },
-              child: const Text('添加'),
+              child: Text(context.l10n.common_add),
             ),
           ],
         );
@@ -836,26 +832,26 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
   String _getDependencyTypeLabel(DependencyType type) {
     switch (type) {
       case DependencyType.count:
-        return '数量';
+        return context.l10n.diy_dependencyCount;
       case DependencyType.exists:
-        return '存在';
+        return context.l10n.diy_dependencyExists;
       case DependencyType.value:
-        return '值';
+        return context.l10n.diy_dependencyValue;
       case DependencyType.excludes:
-        return '排斥';
+        return context.l10n.diy_dependencyExcludes;
     }
   }
 
   String _getDependencyTypeDescription(DependencyType type) {
     switch (type) {
       case DependencyType.count:
-        return '选择数量依赖源类别的结果数量';
+        return context.l10n.diy_dependencyCountDescription;
       case DependencyType.exists:
-        return '只有当源类别有选中标签时才生效';
+        return context.l10n.diy_dependencyExistsDescription;
       case DependencyType.value:
-        return '依赖源类别的特定标签值';
+        return context.l10n.diy_dependencyValueDescription;
       case DependencyType.excludes:
-        return '当源类别有选中标签时不生效';
+        return context.l10n.diy_dependencyExcludesDescription;
     }
   }
 }

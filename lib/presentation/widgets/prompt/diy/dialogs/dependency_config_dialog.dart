@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../data/models/prompt/dependency_config.dart';
 import '../panels/dependency_config_panel.dart';
@@ -14,13 +15,13 @@ class DependencyConfigDialog extends StatefulWidget {
   final List<String> availableCategories;
 
   /// 标题
-  final String title;
+  final String? title;
 
   const DependencyConfigDialog({
     super.key,
     this.initialConfig,
     this.availableCategories = const [],
-    this.title = '编辑依赖配置',
+    this.title,
   });
 
   /// 显示弹窗
@@ -28,7 +29,7 @@ class DependencyConfigDialog extends StatefulWidget {
     BuildContext context, {
     DependencyConfig? initialConfig,
     List<String> availableCategories = const [],
-    String title = '编辑依赖配置',
+    String? title,
   }) {
     return showDialog<DependencyConfig>(
       context: context,
@@ -61,7 +62,7 @@ class _DependencyConfigDialogState extends State<DependencyConfigDialog> {
         children: [
           const Icon(Icons.link),
           const SizedBox(width: 8),
-          Text(widget.title),
+          Text(widget.title ?? context.l10n.diy_editDependencyTitle),
         ],
       ),
       content: SizedBox(
@@ -82,7 +83,7 @@ class _DependencyConfigDialogState extends State<DependencyConfigDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
+          child: Text(context.l10n.common_cancel),
         ),
         if (_config != null)
           TextButton(
@@ -92,11 +93,11 @@ class _DependencyConfigDialogState extends State<DependencyConfigDialog> {
                 _hasChanges = true;
               });
             },
-            child: const Text('清除'),
+            child: Text(context.l10n.common_clear),
           ),
         FilledButton(
           onPressed: _hasChanges ? () => Navigator.pop(context, _config) : null,
-          child: const Text('保存'),
+          child: Text(context.l10n.common_save),
         ),
       ],
     );

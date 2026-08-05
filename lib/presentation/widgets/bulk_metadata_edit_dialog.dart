@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../providers/bulk_operation_provider.dart';
@@ -334,7 +335,7 @@ class _BulkMetadataEditDialogState
                   child: ElevatedButton.icon(
                     onPressed: _applyEdit,
                     icon: const Icon(Icons.check, size: 18),
-                    label: const Text('Apply Changes'),
+                    label: Text(context.l10n.common_apply),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -363,11 +364,7 @@ class _BulkMetadataEditDialogState
       children: [
         Row(
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
             const SizedBox(width: 6),
             Text(
               label,
@@ -401,10 +398,12 @@ class _BulkMetadataEditDialogState
             height: 40,
             decoration: BoxDecoration(
               color: isDark
-                  ? theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.6)
-                  : theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.4),
+                  ? theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.6,
+                    )
+                  : theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.4,
+                    ),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: theme.dividerColor.withValues(alpha: isDark ? 0.2 : 0.1),
@@ -451,7 +450,7 @@ class _BulkMetadataEditDialogState
         IconButton(
           onPressed: onAdd,
           icon: const Icon(Icons.add, size: 20),
-          tooltip: 'Add tag',
+          tooltip: context.l10n.tag_addTag,
           style: IconButton.styleFrom(
             backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
             foregroundColor: theme.colorScheme.primary,
@@ -486,9 +485,7 @@ class _BulkMetadataEditDialogState
           deleteIconColor: color,
           onDeleted: () => onRemove(tag),
           backgroundColor: color.withValues(alpha: 0.1),
-          side: BorderSide(
-            color: color.withValues(alpha: 0.3),
-          ),
+          side: BorderSide(color: color.withValues(alpha: 0.3)),
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         );
       }).toList(),
