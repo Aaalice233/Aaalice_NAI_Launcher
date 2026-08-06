@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
@@ -8,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/image_save_utils.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/image/image_stream_chunk.dart';
@@ -1425,17 +1425,17 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
         return;
       }
 
-      final saveDir = Directory(rootPath);
-      if (!await saveDir.exists()) {
-        await saveDir.create(recursive: true);
-      }
-
-      final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File('${saveDir.path}/$fileName');
-      await file.writeAsBytes(widget.imageBytes!);
+      // 统一解析 seed 并原子保存：日期分类路径 + 独占防冲突 + 失败清理
+      await ImageSaveUtils.saveBytesToDatedPath(
+        rootPath: rootPath,
+        bytes: widget.imageBytes!,
+        seed: await ImageSaveUtils.resolveSeed(
+          bytes: widget.imageBytes!,
+        ),
+      );
 
       if (context.mounted) {
-        AppToast.success(context, l10n.toast_savedTo(saveDir.path));
+        AppToast.success(context, l10n.toast_savedTo(rootPath));
       }
     } catch (e) {
       if (context.mounted) {

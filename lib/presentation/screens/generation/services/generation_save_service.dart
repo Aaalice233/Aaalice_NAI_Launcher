@@ -1,9 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/image_save_utils.dart';
@@ -96,35 +94,36 @@ class GenerationSaveService {
       final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
       if (saveDirPath == null) return;
 
-      final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-      final filePath = p.join(saveDirPath, fileName);
-
       // 获取已有元数据（如果图像已包含）
       final existingMetadata = image.metadata;
+      // 构建最终字节：已嵌入 NAI 元数据则原样保留；
+      // 否则用已有元数据重新嵌入；两者都没有则原样保存
+      final finalBytes =
+          ImageSaveUtils.hasEmbeddedNovelAiMetadata(imageBytes)
+              ? imageBytes
+              : existingMetadata != null
+                  ? await ImageSaveUtils.buildPrebuiltMetadataBytes(
+                      imageBytes: imageBytes,
+                      metadata: {
+                        'Description': existingMetadata.prompt,
+                        'Software': 'NovelAI',
+                        'Source': existingMetadata.source ?? 'NovelAI Diffusion',
+                        'Comment': jsonEncode(
+                          buildCommentJsonFromMetadata(existingMetadata),
+                        ),
+                      },
+                    )
+                  : imageBytes;
 
-      if (existingMetadata != null) {
-        if (ImageSaveUtils.hasEmbeddedNovelAiMetadata(imageBytes)) {
-          final file = File(filePath);
-          await file.writeAsBytes(imageBytes);
-        } else {
-          // 使用已有元数据重新嵌入（保持完整性）
-          await ImageSaveUtils.saveWithPrebuiltMetadata(
-            imageBytes: imageBytes,
-            filePath: filePath,
-            metadata: {
-              'Description': existingMetadata.prompt,
-              'Software': 'NovelAI',
-              'Source': existingMetadata.source ?? 'NovelAI Diffusion',
-              'Comment':
-                  jsonEncode(buildCommentJsonFromMetadata(existingMetadata)),
-            },
-          );
-        }
-      } else {
-        // 没有元数据，直接保存原始字节
-        final file = File(filePath);
-        await file.writeAsBytes(imageBytes);
-      }
+      // 原子保存：日期分类路径 + 独占防冲突 + 失败清理，全部在工具内完成
+      await ImageSaveUtils.saveBytesToDatedPath(
+        rootPath: saveDirPath,
+        bytes: finalBytes,
+        seed: await ImageSaveUtils.resolveSeed(
+          metadata: existingMetadata,
+          bytes: imageBytes,
+        ),
+      );
 
       ref.read(localGalleryNotifierProvider.notifier).refresh();
 
