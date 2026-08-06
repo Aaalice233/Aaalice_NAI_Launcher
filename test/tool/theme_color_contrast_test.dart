@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:nai_launcher/presentation/providers/font_provider.dart';
 import 'package:nai_launcher/presentation/themes/app_theme.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_text_selection_toolbar.dart';
 
 /// 主题配色对比度守卫。
 ///
@@ -156,6 +158,73 @@ void main() {
         );
       }
       expect(offenders, isEmpty, reason: _fontFailureHint(offenders));
+    });
+
+    // 右键菜单（文本选择工具栏）比一般组件更隐蔽：Flutter 各平台的工具栏
+    // 按钮都绕开了主题字体——桌面端与 macOS 用带 `inherit: false` 的常量
+    // 样式，Android 则整体替换 TextButton 的 textStyle，都不带 fontFamily。
+    // 项目用 buildThemedTextSelectionToolbar 接管按钮把字体补回来。
+    testWidgets('右键菜单必须跟随用户字体', (tester) async {
+      const fontConfig = FontConfig(
+        displayName: 'LXGW ZhenKai GB',
+        fontFamily: 'LXGW ZhenKai GB',
+        source: FontSource.system,
+      );
+      final theme = AppTheme.getTheme(
+        AppStyle.grungeCollage,
+        Brightness.dark,
+        fontConfig: fontConfig,
+      );
+      final expected = theme.textTheme.labelLarge?.fontFamily;
+
+      final offenders = <String>[];
+      for (final platform in [
+        TargetPlatform.windows,
+        TargetPlatform.linux,
+        TargetPlatform.macOS,
+      ]) {
+        debugDefaultTargetPlatformOverride = platform;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: theme,
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => buildThemedTextSelectionToolbar(
+                  context,
+                  anchors: const TextSelectionToolbarAnchors(
+                    primaryAnchor: Offset(100, 100),
+                  ),
+                  buttonItems: [
+                    ContextMenuButtonItem(onPressed: () {}, label: '保存到词库'),
+                    ContextMenuButtonItem(onPressed: () {}, label: '复制'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final fonts = tester
+            .widgetList<RichText>(find.byType(RichText))
+            .map((rt) => rt.text.style?.fontFamily)
+            .where((f) => f != 'MaterialIcons')
+            .toSet();
+        if (fonts.any((f) => f != expected)) {
+          offenders.add('  ${platform.name}: 期望 $expected，实际 $fonts');
+        }
+      }
+      debugDefaultTargetPlatformOverride = null;
+
+      expect(
+        offenders,
+        isEmpty,
+        reason:
+            '右键菜单没跟随用户字体。检查是否误用了\n'
+            'AdaptiveTextSelectionToolbar.buttonItems——它内部走各平台的\n'
+            '.text() 命名构造，那些构造用的是 inherit: false 的常量样式：\n'
+            '${offenders.join('\n')}',
+      );
     });
 
     // 运行时守卫只覆盖得到 Flutter 自带组件的默认行为，覆盖不到项目代码里

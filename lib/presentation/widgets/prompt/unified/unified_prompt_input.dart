@@ -31,6 +31,7 @@ import '../comfyui_import_wrapper.dart';
 import '../nai_syntax_controller.dart';
 import 'unified_prompt_config.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_text_selection_toolbar.dart';
 
 /// 统一提示词输入组件
 ///
@@ -766,9 +767,10 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       );
     }
 
-    return AdaptiveTextSelectionToolbar.buttonItems(
-      buttonItems: buttonItems,
+    return buildThemedTextSelectionToolbar(
+      context,
       anchors: editableTextState.contextMenuAnchors,
+      buttonItems: buttonItems,
     );
   }
 

@@ -493,8 +493,8 @@ class _CategoryItemState extends State<_CategoryItem> {
         onSecondaryTapUp: widget.onRename != null
             ? (details) => _showContextMenu(context, details.globalPosition)
             : null,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+        // 悬停色立即切换，避免鼠标快速移动时前后两行同时残留高亮。
+        child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
           decoration: BoxDecoration(
             color: widget.isSelected
@@ -506,6 +506,7 @@ class _CategoryItemState extends State<_CategoryItem> {
           ),
           child: InkWell(
             onTap: widget.onTap,
+            hoverColor: Colors.transparent,
             borderRadius: BorderRadius.circular(8),
             child: Padding(
               padding: EdgeInsets.only(
