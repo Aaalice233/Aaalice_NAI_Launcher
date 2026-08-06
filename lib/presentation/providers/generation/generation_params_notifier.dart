@@ -1375,7 +1375,6 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
   /// 添加角色
   void addCharacter(CharacterPrompt character) {
-    if (state.characters.length >= 6) return; // 最多6个角色
     state = state.copyWith(characters: [...state.characters, character]);
   }
 

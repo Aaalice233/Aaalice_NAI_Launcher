@@ -2611,10 +2611,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get character_title => 'Multi-Character (V4 Only)';
 
   @override
-  String get character_hint =>
-      'Define independent prompts and positions for each character (max 6)';
-
-  @override
   String get character_addCharacter => 'Add Character';
 
   @override

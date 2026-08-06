@@ -1063,7 +1063,6 @@
 
   "character_buttonLabel": "角色",
   "character_title": "多角色 (V4 专属)",
-  "character_hint": "为每个角色定义独立的提示词和位置（最多6个角色）",
   "character_addCharacter": "添加角色",
   "character_clearAll": "清除全部角色",
   "character_number": "角色 {index}",

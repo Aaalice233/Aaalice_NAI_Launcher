@@ -83,30 +83,81 @@ class InlineCharacterRow extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 位置模式常驻在角色行上方（行仅在有角色时渲染）
-          const Padding(
-            padding: EdgeInsets.only(bottom: 6),
-            child: Row(children: [CharacterPositionModeSegments()]),
-          ),
-          // Wrap 换行：角色多时排到第二排，不再横向滚动到不可见区域
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (var i = 0; i < characters.length; i++)
-                SizedBox(
-                  width: _cardWidth,
-                  child: InlineCharacterCard(
-                    key: ValueKey(characters[i].id),
-                    character: characters[i],
-                    index: i,
-                    total: characters.length,
-                    compact: true,
-                    inlineEditor: false,
+          // 头部：位置模式分段 + 计数徽章 + 清空全部
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              children: [
+                const CharacterPositionModeSegments(),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${characters.length}',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
                   ),
                 ),
-              if (characters.length < 6) const _AddCharacterChip(),
-            ],
+                const SizedBox(width: 8),
+                Tooltip(
+                  message: AppLocalizations.of(context)!.characterEditor_clearAll,
+                  waitDuration: const Duration(milliseconds: 500),
+                  child: InkWell(
+                    onTap: () => confirmClearAllCharacters(context, ref),
+                    borderRadius: BorderRadius.circular(4),
+                    child: Padding(
+                      padding: const EdgeInsets.all(2),
+                      child: Icon(
+                        Icons.delete_sweep,
+                        size: 16,
+                        color: theme.colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // 等宽占满网格：每排卡片等分行宽（含尾部添加卡），排列整齐
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const spacing = 6.0;
+              final maxW = constraints.maxWidth;
+              final itemCount = characters.length + 1;
+              var columns =
+                  ((maxW + spacing) / (_cardWidth + spacing)).floor();
+              columns = columns.clamp(1, itemCount);
+              final cellWidth = (maxW - (columns - 1) * spacing) / columns;
+
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: [
+                  for (var i = 0; i < characters.length; i++)
+                    SizedBox(
+                      width: cellWidth,
+                      child: InlineCharacterCard(
+                        key: ValueKey(characters[i].id),
+                        character: characters[i],
+                        index: i,
+                        total: characters.length,
+                        compact: true,
+                        inlineEditor: false,
+                      ),
+                    ),
+                  SizedBox(
+                    width: cellWidth,
+                    child: const _AddCharacterChip(),
+                  ),
+                ],
+              );
+            },
           ),
           // 面板展开/收起用高度生长 + 交叉淡化，切换角色时两面板淡化过渡
           AnimatedSize(
@@ -379,19 +430,21 @@ class _AddCharacterChip extends ConsumerWidget {
           ),
         ),
       ],
+      // 与角色卡同宽的添加卡（宽度由外部网格单元给定）
       child: Container(
-        width: 34,
-        constraints: const BoxConstraints(minHeight: 60),
+        constraints: const BoxConstraints(minHeight: 72),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: theme.colorScheme.outline.withValues(alpha: 0.4),
           ),
         ),
-        child: Icon(
-          Icons.add,
-          size: 16,
-          color: theme.colorScheme.onSurfaceVariant,
+        child: Center(
+          child: Icon(
+            Icons.add,
+            size: 18,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
       ),
     );

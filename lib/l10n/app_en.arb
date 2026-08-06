@@ -1208,7 +1208,6 @@
 
   "character_buttonLabel": "Characters",
   "character_title": "Multi-Character (V4 Only)",
-  "character_hint": "Define independent prompts and positions for each character (max 6)",
   "character_addCharacter": "Add Character",
   "character_clearAll": "Clear All Characters",
   "character_number": "Character {index}",

@@ -4736,12 +4736,6 @@ abstract class AppLocalizations {
   /// **'Multi-Character (V4 Only)'**
   String get character_title;
 
-  /// No description provided for @character_hint.
-  ///
-  /// In en, this message translates to:
-  /// **'Define independent prompts and positions for each character (max 6)'**
-  String get character_hint;
-
   /// No description provided for @character_addCharacter.
   ///
   /// In en, this message translates to:

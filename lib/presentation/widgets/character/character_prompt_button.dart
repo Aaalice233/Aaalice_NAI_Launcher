@@ -80,18 +80,9 @@ class CharacterPromptButton extends ConsumerWidget {
         children: [
           Material(
             color: Colors.transparent,
-            child: hasCharacters
-                ? InkWell(
-                    onTap: () {
-                      // 角色区常显在布局中，点击选中第一个角色进入编辑
-                      ref
-                          .read(selectedCharacterIdProvider.notifier)
-                          .select(config.characters.first.id);
-                    },
-                    borderRadius: BorderRadius.circular(8),
-                    child: buttonContent,
-                  )
-                : _AddCharacterMenu(child: buttonContent),
+            // 无论是否已有角色都弹添加菜单：角色区常显在布局中，
+            // 按钮不再需要「定位」职能
+            child: _AddCharacterMenu(child: buttonContent),
           ),
           // 按钮右上角角标
           if (hasCharacters)

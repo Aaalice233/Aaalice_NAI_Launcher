@@ -2554,9 +2554,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get character_title => 'マルチキャラクター (V4 のみ)';
 
   @override
-  String get character_hint => 'キャラクターごとに独立したプロンプトと位置を定義します (最大 6 つ)';
-
-  @override
   String get character_addCharacter => 'キャラクターを追加';
 
   @override

@@ -49,10 +49,17 @@ final characterPositionCanvasAvailableProvider = Provider<bool>((ref) {
 /// 保证画布可见。
 @riverpod
 class CharacterPositionCanvas extends _$CharacterPositionCanvas {
+  /// 打开画布时是否临时退出了提示词全屏编辑
+  ///
+  /// 用户主动关闭画布时恢复全屏；因不可用（如开始生成）自动关闭时
+  /// 不恢复——全屏会挡住生成过程的预览。
+  bool _restoreMaximizeOnClose = false;
+
   @override
   bool build() {
     ref.listen<bool>(characterPositionCanvasAvailableProvider, (_, available) {
       if (!available && state) {
+        _restoreMaximizeOnClose = false;
         state = false;
       }
     });
@@ -67,7 +74,9 @@ class CharacterPositionCanvas extends _$CharacterPositionCanvas {
 
     final layoutMode = ref.read(generationLayoutModeNotifierProvider);
     final promptMaximized = ref.read(promptMaximizeNotifierProvider);
-    if (layoutMode == GenerationLayoutMode.classic && promptMaximized) {
+    _restoreMaximizeOnClose =
+        layoutMode == GenerationLayoutMode.classic && promptMaximized;
+    if (_restoreMaximizeOnClose) {
       unawaited(
         ref.read(promptMaximizeNotifierProvider.notifier).setMaximized(false),
       );
@@ -77,6 +86,13 @@ class CharacterPositionCanvas extends _$CharacterPositionCanvas {
 
   void close() {
     state = false;
+    // 从全屏编辑进入画布的，主动退出画布后回到全屏编辑
+    if (_restoreMaximizeOnClose) {
+      _restoreMaximizeOnClose = false;
+      unawaited(
+        ref.read(promptMaximizeNotifierProvider.notifier).setMaximized(true),
+      );
+    }
   }
 
   void toggle() {

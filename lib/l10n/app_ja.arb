@@ -1193,7 +1193,6 @@
   "unifiedRef_switchContent": "モードを切り替えると、現在の参照がクリアされます。続行しますか？",
   "character_buttonLabel": "キャラクター",
   "character_title": "マルチキャラクター (V4 のみ)",
-  "character_hint": "キャラクターごとに独立したプロンプトと位置を定義します (最大 6 つ)",
   "character_addCharacter": "キャラクターを追加",
   "character_clearAll": "すべてのキャラクターをクリア",
   "character_number": "キャラクター {index}",

@@ -2516,9 +2516,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get character_title => '多角色 (V4 专属)';
 
   @override
-  String get character_hint => '为每个角色定义独立的提示词和位置（最多6个角色）';
-
-  @override
   String get character_addCharacter => '添加角色';
 
   @override
