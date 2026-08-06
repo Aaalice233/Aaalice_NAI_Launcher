@@ -11,6 +11,7 @@ import 'package:path/path.dart' as p;
 import '../../../../core/enums/precise_ref_type.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/file_explorer_utils.dart';
+import '../../../../core/utils/image_save_utils.dart';
 import '../../../../core/utils/image_share_sanitizer.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
 import '../../../../core/utils/zip_utils.dart';
@@ -1237,23 +1238,24 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       throw StateError('未设置保存目录');
     }
 
-    final saveDir = Directory(saveDirPath);
-    if (!await saveDir.exists()) {
-      await saveDir.create(recursive: true);
-    }
-
-    final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-    final file = File(p.join(saveDir.path, fileName));
-    await file.writeAsBytes(image.bytes);
+    // 原子保存：日期分类路径 + 独占防冲突 + 失败清理，全部在工具内完成
+    final filePath = await ImageSaveUtils.saveBytesToDatedPath(
+      rootPath: saveDirPath,
+      bytes: image.bytes,
+      seed: await ImageSaveUtils.resolveSeed(
+        metadata: image.metadata,
+        bytes: image.bytes,
+      ),
+    );
 
     ref
         .read(imageGenerationNotifierProvider.notifier)
-        .updateImageFilePath(image.id, file.path);
+        .updateImageFilePath(image.id, filePath);
     await ref.read(localGalleryNotifierProvider.notifier).addNewlySavedImages([
-      file.path,
+      filePath,
     ]);
 
-    return file.path;
+    return filePath;
   }
 
   String _historyImageFileName(GeneratedImage image) {
@@ -1405,12 +1407,6 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     try {
       final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
       if (saveDirPath == null) return;
-      final saveDir = Directory(saveDirPath);
-      if (!await saveDir.exists()) {
-        await saveDir.create(recursive: true);
-      }
-
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
 
       // 从所有可选图像中查找选中的图像
       final allImages = _getAllSelectableImages(state);
@@ -1418,10 +1414,17 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
           .where((img) => _selectedIds.contains(img.id))
           .toList();
 
+      // 原子保存：日期分类路径 + 独占防冲突 + 失败清理，全部在工具内完成
       for (int i = 0; i < selectedImages.length; i++) {
-        final fileName = 'NAI_${timestamp}_${i + 1}.png';
-        final file = File(p.join(saveDirPath, fileName));
-        await file.writeAsBytes(selectedImages[i].bytes);
+        final image = selectedImages[i];
+        await ImageSaveUtils.saveBytesToDatedPath(
+          rootPath: saveDirPath,
+          bytes: image.bytes,
+          seed: await ImageSaveUtils.resolveSeed(
+            metadata: image.metadata,
+            bytes: image.bytes,
+          ),
+        );
       }
 
       ref.read(localGalleryNotifierProvider.notifier).refresh();
@@ -1531,20 +1534,21 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
 
       final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
       if (saveDirPath == null) return;
-      final saveDir = Directory(saveDirPath);
-      if (!await saveDir.exists()) {
-        await saveDir.create(recursive: true);
-      }
 
-      // 保存图片
-      final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File(p.join(saveDirPath, fileName));
-      await file.writeAsBytes(image.bytes);
+      // 原子保存：日期分类路径 + 独占防冲突 + 失败清理，全部在工具内完成
+      final filePath = await ImageSaveUtils.saveBytesToDatedPath(
+        rootPath: saveDirPath,
+        bytes: image.bytes,
+        seed: await ImageSaveUtils.resolveSeed(
+          metadata: image.metadata,
+          bytes: image.bytes,
+        ),
+      );
 
       ref.read(localGalleryNotifierProvider.notifier).refresh();
 
       // 在文件夹中打开并选中文件
-      await FileExplorerUtils.revealFile(file.path);
+      await FileExplorerUtils.revealFile(filePath);
 
       if (context.mounted) {
         AppToast.success(context, context.l10n.image_imageSaved(saveDirPath));

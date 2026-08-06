@@ -3,9 +3,11 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
 
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/image/image_params.dart';
+import '../../data/services/image_metadata_service.dart';
 import '../../data/services/metadata/unified_metadata_parser.dart';
 import '../constants/api_constants.dart';
 import '../enums/precise_ref_type.dart';
@@ -293,19 +295,32 @@ class ImageSaveUtils {
   /// [filePath] - 目标文件路径
   /// [metadata] - 预构建的元数据Map
   /// [useStealth] - 是否使用stealth编码
+  /// 仅构建嵌入预置元数据的字节（不写文件），供原子保存接口使用。
+  static Future<Uint8List> buildPrebuiltMetadataBytes({
+    required Uint8List imageBytes,
+    required Map<String, dynamic> metadata,
+    bool useStealth = false,
+  }) async {
+    final normalized = _normalizePrebuiltMetadata(metadata);
+    return _embedNaiAlignedMetadata(
+      imageBytes: imageBytes,
+      commentJson: normalized.commentJson,
+      description: normalized.description,
+      software: normalized.software,
+      source: normalized.source,
+      useStealth: useStealth,
+    );
+  }
+
   static Future<File> saveWithPrebuiltMetadata({
     required Uint8List imageBytes,
     required String filePath,
     required Map<String, dynamic> metadata,
     bool useStealth = false,
   }) async {
-    final normalized = _normalizePrebuiltMetadata(metadata);
-    final embeddedBytes = await _embedNaiAlignedMetadata(
+    final embeddedBytes = await buildPrebuiltMetadataBytes(
       imageBytes: imageBytes,
-      commentJson: normalized.commentJson,
-      description: normalized.description,
-      software: normalized.software,
-      source: normalized.source,
+      metadata: metadata,
       useStealth: useStealth,
     );
 
@@ -556,6 +571,85 @@ class ImageSaveUtils {
       }
     } catch (_) {
       // noop
+    }
+    return null;
+  }
+
+  /// 原子保存图片到日期分类目录：<根目录>/yyyy-MM-dd/HH-mm-ss-<seed>.png
+  ///
+  /// 所有图库保存入口必须走这里：路径选择、独占防冲突、写入、
+  /// 失败清理都在一个方法内完成，调用方无需感知占位文件。
+  /// - [seed] 为 null 或小于 0（未确定）时用毫秒时间戳代替，保证文件名唯一
+  /// - 独占创建原子保留路径，并发保存不会拿到同一路径后相互覆盖
+  /// - 写入失败时删除占位文件后重新抛出，不留空 PNG 进图库扫描
+  /// - 仅名称冲突（候选已存在）才追加 -2、-3 序号；目录只读、磁盘满等
+  ///   不可恢复错误直接抛出，避免无限循环
+  static Future<String> saveBytesToDatedPath({
+    required String rootPath,
+    required Uint8List bytes,
+    int? seed,
+    DateTime? now,
+  }) async {
+    final time = now ?? DateTime.now();
+    String two(int v) => v.toString().padLeft(2, '0');
+    final dateFolder = '${time.year}-${two(time.month)}-${two(time.day)}';
+    final dir = Directory(p.join(rootPath, dateFolder));
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    final seedPart = (seed != null && seed >= 0)
+        ? '$seed'
+        : '${time.millisecondsSinceEpoch}';
+    final baseName =
+        '${two(time.hour)}-${two(time.minute)}-${two(time.second)}-$seedPart';
+    var candidate = p.join(dir.path, '$baseName.png');
+    var suffix = 2;
+    File file;
+    while (true) {
+      try {
+        // 阶段一：独占创建。仅此阶段捕获“路径已存在”，
+        // 其他 FileSystemException（权限、只读等）直接抛出，避免无限循环。
+        file = await File(candidate).create(exclusive: true);
+        break;
+      } on FileSystemException {
+        if (!await File(candidate).exists()) rethrow;
+        candidate = p.join(dir.path, '$baseName-$suffix.png');
+        suffix++;
+      }
+    }
+    // 阶段二：写入。失败时尽力删除占位文件，再抛出原始写入异常。
+    // 写入异常不进入创建阶段的冲突重试，避免清理失败时误判为名称冲突而循环。
+    try {
+      await file.writeAsBytes(bytes);
+    } catch (e) {
+      try {
+        await file.delete();
+      } catch (_) {
+        // 清理失败不掩盖原始写入异常
+      }
+      rethrow;
+    }
+    return candidate;
+  }
+
+  /// 解析图片的真实 seed：优先用已有元数据，否则从 PNG 字节解析。
+  ///
+  /// 用于保存入口的日期分类文件名，保证非自动保存路径（详情页保存、
+  /// 历史补存、批量保存、定位前补存等）也能拿到真实 seed。
+  /// 解析不到时返回 null，由调用方决定文件名兜底。
+  static Future<int?> resolveSeed({
+    NaiImageMetadata? metadata,
+    Uint8List? bytes,
+  }) async {
+    if (metadata?.seed != null && metadata!.seed! >= 0) {
+      return metadata.seed;
+    }
+    if (bytes != null) {
+      final extracted = await ImageMetadataService()
+          .getMetadataFromBytes(bytes);
+      if (extracted?.seed != null && extracted!.seed! >= 0) {
+        return extracted.seed;
+      }
     }
     return null;
   }
