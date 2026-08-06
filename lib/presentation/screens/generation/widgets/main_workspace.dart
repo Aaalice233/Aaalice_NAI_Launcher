@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../providers/character_position_canvas_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/layout_state_provider.dart';
 import '../../../providers/prompt_maximize_provider.dart';
@@ -36,6 +37,9 @@ class MainWorkspace extends ConsumerWidget {
     final theme = Theme.of(context);
     final layoutState = ref.watch(layoutStateNotifierProvider);
     final isPromptMaximized = ref.watch(promptMaximizeNotifierProvider);
+    // 位置画布打开时临时收起提示词区与角色行，画布独占中间区域；
+    // 摆位置是短暂的专注操作，关闭画布即恢复
+    final canvasOpen = ref.watch(characterPositionCanvasProvider);
     final promptTexts = ref.watch(
       generationParamsNotifierProvider.select(
         (params) => (
@@ -58,44 +62,52 @@ class MainWorkspace extends ConsumerWidget {
 
         return Column(
           children: [
-            // 顶部 Prompt 输入区（最大化时占满空间）
-            isPromptMaximized
-                ? Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface.withValues(alpha: 0.5),
-                      ),
-                      child: PromptInputWidget(
-                        onToggleMaximize: onToggleMaximize,
-                        isMaximized: isPromptMaximized,
-                      ),
-                    ),
-                  )
-                : SizedBox(
-                    height: promptAreaHeight,
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface.withValues(alpha: 0.5),
-                      ),
-                      child: PromptInputWidget(
-                        onToggleMaximize: onToggleMaximize,
-                        isMaximized: isPromptMaximized,
-                      ),
-                    ),
+            // 顶部 Prompt 输入区（最大化时占满空间；画布模式收起）
+            if (canvasOpen)
+              const SizedBox.shrink()
+            else if (isPromptMaximized)
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface.withValues(alpha: 0.5),
                   ),
+                  child: PromptInputWidget(
+                    onToggleMaximize: onToggleMaximize,
+                    isMaximized: isPromptMaximized,
+                  ),
+                ),
+              )
+            else
+              SizedBox(
+                height: promptAreaHeight,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface.withValues(alpha: 0.5),
+                  ),
+                  child: PromptInputWidget(
+                    onToggleMaximize: onToggleMaximize,
+                    isMaximized: isPromptMaximized,
+                  ),
+                ),
+              ),
 
-            // 角色行：紧贴提示词区下方，全屏/非全屏两种模式下都可见
-            const InlineCharacterRow(),
+            // 角色行：紧贴提示词区下方（画布模式收起，画布内有芯片条）
+            if (!canvasOpen) const InlineCharacterRow(),
 
-            // 提示词区域拖拽分隔条（最大化时隐藏）
-            if (!isPromptMaximized)
+            // 提示词区域拖拽分隔条（最大化/画布模式隐藏）
+            if (!isPromptMaximized && !canvasOpen)
               VerticalResizeHandle(
                 onDrag: (dy) {
                   final maxHeight =
                       _resolvePromptAreaHeightCap(constraints.maxHeight);
-                  final newHeight = (promptAreaHeight + dy)
+                  // 拖动调整的是「高度上限」，以存储值为基准；
+                  // 若基于显示高度（内容少时贴内容），一拖就会把上限意外缩小
+                  final storedHeight = ref
+                      .read(layoutStateNotifierProvider)
+                      .promptAreaHeight;
+                  final newHeight = (storedHeight + dy)
                       .clamp(
                         _minPromptAreaHeight,
                         maxHeight,
@@ -155,7 +167,9 @@ class MainWorkspace extends ConsumerWidget {
       negativePrompt,
     ).clamp(_minPromptAreaHeight, heightCap).toDouble();
 
-    return storedHeight > adaptiveHeight ? storedHeight : adaptiveHeight;
+    // 内容自适应为主，用户拖动的高度作为上限：
+    // 内容少时框贴内容收缩（不再留大片空白），超过上限时框内滚动
+    return storedHeight < adaptiveHeight ? storedHeight : adaptiveHeight;
   }
 
   double _resolvePromptAreaHeightCap(double availableHeight) {

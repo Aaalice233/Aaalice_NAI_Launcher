@@ -508,6 +508,21 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     );
 
     if (widget.autoGrow) {
+      // 官网布局工具栏不放「角色」与「随机」按钮：角色区常驻提示词下方、
+      // 随机在生成条与快捷键均有入口；行更短后 FittedBox 缩放更小，
+      // 其余按钮字号更大
+      final webToolbar = PromptEditorToolbar(
+        config: PromptEditorToolbarConfig.mainEditor.copyWith(
+          showRandomButton: false,
+          showFullscreenButton: widget.showMaximizeButton,
+        ),
+        onFullscreenPressed:
+            widget.onToggleMaximize ??
+            () => ref.read(promptMaximizeNotifierProvider.notifier).toggle(),
+        onClearPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
+        onSettingsPressed: () => _showSettingsMenu(context, theme),
+      );
+
       // 一体式布局：顶栏压成单行，宽度不足时整行等比缩小而非换行
       return FittedBox(
         fit: BoxFit.scaleDown,
@@ -522,10 +537,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             QualityTagsSelector(model: model),
             const SizedBox(width: 6),
             UcPresetSelector(model: model),
-            const SizedBox(width: 6),
-            const CharacterPromptButton(),
             const SizedBox(width: 2),
-            toolbar,
+            webToolbar,
           ],
         ),
       );

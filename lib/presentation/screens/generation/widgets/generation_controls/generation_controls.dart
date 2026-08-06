@@ -100,33 +100,24 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
       builder: (context, constraints) {
         final isNarrow = widget.compact || constraints.maxWidth < 500;
 
+        // 生成按钮几何居中：左右两个等宽弹性区吸收其余控件，
+        // 按钮位置不随随机工具等元素的显隐漂移
+        final generateButton = _buildGenerateButtonWithHover(
+          context: context,
+          ref: ref,
+          isGenerating: isGenerating,
+          showCancel: showCancel,
+          generationState: generationState,
+          cooldownRemainingSeconds: cooldownState.remainingSeconds,
+          randomMode: randomMode,
+          shouldShowFloatingButton: shouldShowFloatingButton,
+        );
+
         if (isNarrow) {
-          // 窄屏布局：只显示核心组件
-          final children = <Widget>[
-            // 官网式布局：剩余额度（Anlas 余额）常驻钉底行
-            if (widget.compact) ...[
-              const AnlasBalanceChip(),
-              const SizedBox(width: 8),
-            ],
-            if (showRandomTools) ...[
-              RandomModeToggle(enabled: randomMode),
-              const SizedBox(width: 8),
-            ],
-            // 生成按钮区域 - 悬浮球存在时hover显示"加入队列"
-            _buildGenerateButtonWithHover(
-              context: context,
-              ref: ref,
-              isGenerating: isGenerating,
-              showCancel: showCancel,
-              generationState: generationState,
-              cooldownRemainingSeconds: cooldownState.remainingSeconds,
-              randomMode: randomMode,
-              shouldShowFloatingButton: shouldShowFloatingButton,
-            ),
+          final rightGroup = <Widget>[
             // 紧凑模式生成中隐藏批量调节（此时批量参数不可变更），
             // 为跳过/停止按钮腾出宽度
-            if (!(widget.compact && showCancel)) ...[
-              const SizedBox(width: 8),
+            if (!(widget.compact && showCancel))
               DraggableNumberInput(
                 value: nSamples,
                 min: 1,
@@ -137,7 +128,6 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
                       .updateNSamples(value);
                 },
               ),
-            ],
             // 紧凑模式补上第二种批量控制：批次大小（每次请求张数）
             if (widget.compact && !showCancel) ...[
               const SizedBox(width: 4),
@@ -146,67 +136,134 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
           ];
 
           if (widget.compact) {
-            // 极窄宽度下整体等比缩小，杜绝溢出条纹
-            return Center(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Row(mainAxisSize: MainAxisSize.min, children: children),
-              ),
+            // 官网钉底条单行：自动保存放右侧空位，左组只剩点数与骰子，
+            // 两侧内容变均衡后不再需要把字缩小
+            return Row(
+              children: [
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const AnlasBalanceChip(compact: true),
+                          if (showRandomTools) ...[
+                            const SizedBox(width: 8),
+                            RandomModeToggle(enabled: randomMode),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                generateButton,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ...rightGroup,
+                          const SizedBox(width: 8),
+                          const AutoSaveToggleChip(compact: true),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             );
           }
+
+          // 经典布局窄宽：单行三段，生成按钮居中
           return Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: children,
+            children: [
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: showRandomTools
+                      ? RandomModeToggle(enabled: randomMode)
+                      : const SizedBox.shrink(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              generateButton,
+              const SizedBox(width: 8),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child:
+                      Row(mainAxisSize: MainAxisSize.min, children: rightGroup),
+                ),
+              ),
+            ],
           );
         }
 
-        // 正常布局 - 自动保存靠左，其他元素居中
+        // 正常布局 - 自动保存锚最左，点数/随机贴按钮左，批量控件贴按钮右；
+        // 左右组空间不足时内部等比缩小，避免溢出叠到生成按钮上
         return Row(
           children: [
-            // 左侧 - 自动保存靠左
-            const AutoSaveToggleChip(),
-
-            const SizedBox(width: 16),
-
-            // 中间 - 其他元素居中
             Expanded(
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const AnlasBalanceChip(),
-                  const SizedBox(width: 16),
-
-                  // 生成按钮区域 - 悬浮球存在时hover显示"加入队列"
-                  if (showRandomTools) ...[
-                    RandomModeToggle(enabled: randomMode),
-                    const SizedBox(width: 12),
-                  ],
-                  _buildGenerateButtonWithHover(
-                    context: context,
-                    ref: ref,
-                    isGenerating: isGenerating,
-                    showCancel: showCancel,
-                    generationState: generationState,
-                    cooldownRemainingSeconds: cooldownState.remainingSeconds,
-                    randomMode: randomMode,
-                    shouldShowFloatingButton: shouldShowFloatingButton,
+                  const AutoSaveToggleChip(),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const AnlasBalanceChip(),
+                            const SizedBox(width: 16),
+                            if (showRandomTools) ...[
+                              RandomModeToggle(enabled: randomMode),
+                              const SizedBox(width: 12),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                  const SizedBox(width: 12),
-                  DraggableNumberInput(
-                    value: nSamples,
-                    min: 1,
-                    prefix: '×',
-                    onChanged: (value) {
-                      ref
-                          .read(generationParamsNotifierProvider.notifier)
-                          .updateNSamples(value);
-                    },
-                  ),
-                  const SizedBox(width: 16),
-
-                  // 批量设置
-                  const BatchSettingsButton(),
                 ],
+              ),
+            ),
+            generateButton,
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(width: 12),
+                      DraggableNumberInput(
+                        value: nSamples,
+                        min: 1,
+                        prefix: '×',
+                        onChanged: (value) {
+                          ref
+                              .read(generationParamsNotifierProvider.notifier)
+                              .updateNSamples(value);
+                        },
+                      ),
+                      const SizedBox(width: 16),
+                      const BatchSettingsButton(),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],

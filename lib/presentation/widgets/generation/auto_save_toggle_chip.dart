@@ -10,7 +10,10 @@ import '../../providers/image_save_settings_provider.dart';
 /// Q萌可爱的胶囊样式，显示在生成控制栏左侧
 /// 勾选后自动保存每次生成的图像到设置的保存路径
 class AutoSaveToggleChip extends ConsumerStatefulWidget {
-  const AutoSaveToggleChip({super.key});
+  /// 官网式布局的窄栏会压缩内边距和字号，但保留文字以便识别。
+  final bool compact;
+
+  const AutoSaveToggleChip({super.key, this.compact = false});
 
   @override
   ConsumerState<AutoSaveToggleChip> createState() => _AutoSaveToggleChipState();
@@ -84,7 +87,10 @@ class _AutoSaveToggleChipState extends ConsumerState<AutoSaveToggleChip>
             duration: const Duration(milliseconds: 100),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              padding: EdgeInsets.symmetric(
+                horizontal: widget.compact ? 8 : 12,
+                vertical: widget.compact ? 5 : 7,
+              ),
               decoration: BoxDecoration(
                 gradient: isEnabled
                     ? LinearGradient(
@@ -127,8 +133,13 @@ class _AutoSaveToggleChipState extends ConsumerState<AutoSaveToggleChip>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Q萌复选框
-                  _buildCuteCheckbox(theme, isEnabled, isDark),
-                  const SizedBox(width: 7),
+                  _buildCuteCheckbox(
+                    theme,
+                    isEnabled,
+                    isDark,
+                    compact: widget.compact,
+                  ),
+                  SizedBox(width: widget.compact ? 5 : 7),
                   // 文字
                   Text(
                     context.l10n.settings_autoSave,
@@ -137,8 +148,8 @@ class _AutoSaveToggleChipState extends ConsumerState<AutoSaveToggleChip>
                           ? (isDark ? _cuteOrange : _cuteOrangeDark)
                           : theme.colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w600,
-                      fontSize: 12.5,
-                      letterSpacing: 0.3,
+                      fontSize: widget.compact ? 11.5 : 12.5,
+                      letterSpacing: widget.compact ? 0.1 : 0.3,
                     ),
                   ),
                 ],
@@ -150,13 +161,18 @@ class _AutoSaveToggleChipState extends ConsumerState<AutoSaveToggleChip>
     );
   }
 
-  Widget _buildCuteCheckbox(ThemeData theme, bool isEnabled, bool isDark) {
+  Widget _buildCuteCheckbox(
+    ThemeData theme,
+    bool isEnabled,
+    bool isDark, {
+    required bool compact,
+  }) {
     return AnimatedBuilder(
       animation: _checkAnimation,
       builder: (context, child) {
         return Container(
-          width: 18,
-          height: 18,
+          width: compact ? 16 : 18,
+          height: compact ? 16 : 18,
           decoration: BoxDecoration(
             gradient: isEnabled
                 ? const LinearGradient(
