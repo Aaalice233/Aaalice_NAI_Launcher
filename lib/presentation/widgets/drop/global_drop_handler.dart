@@ -24,6 +24,7 @@ import '../../../data/services/vibe_metadata_service.dart';
 import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/replication_queue_provider.dart';
+import '../../providers/precise_ref_library_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
 import '../../providers/vibe_library_provider.dart';
 import '../../router/app_router.dart';
@@ -435,6 +436,8 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         context,
         bytes,
         suggestedName: p.basenameWithoutExtension(fileName),
+        // 正处于某个类型分类下时，粘贴入库跟随该分类
+        type: ref.read(preciseRefLibraryNotifierProvider).typeFilter,
       );
       return;
     }

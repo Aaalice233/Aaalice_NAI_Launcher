@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../../core/enums/precise_ref_type.dart';
 import '../providers/precise_ref_library_provider.dart';
 import '../widgets/common/app_toast.dart';
 
@@ -11,11 +12,13 @@ import '../widgets/common/app_toast.dart';
 ///
 /// 不弹对话框：自动命名 + 默认参数直接入库，toast 提示可在库中编辑。
 /// [suggestedName] 为空时使用时间戳命名（Ref_yyyyMMdd_HHmmss）。
+/// [type] 为空时使用默认类型（角色+风格）。
 Future<void> saveBytesToPreciseRefLibrary(
   WidgetRef ref,
   BuildContext context,
   Uint8List bytes, {
   String? suggestedName,
+  PreciseRefType? type,
 }) async {
   final name = (suggestedName == null || suggestedName.trim().isEmpty)
       ? defaultPreciseRefName()
@@ -24,7 +27,11 @@ Future<void> saveBytesToPreciseRefLibrary(
   try {
     final entry = await ref
         .read(preciseRefLibraryNotifierProvider.notifier)
-        .importFromBytes(bytes, name: name);
+        .importFromBytes(
+          bytes,
+          name: name,
+          type: type ?? PreciseRefType.characterAndStyle,
+        );
 
     if (!context.mounted) return;
     final l10n = context.l10n;

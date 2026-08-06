@@ -9,6 +9,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:path/path.dart' as p;
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
+import '../../../core/enums/precise_ref_type.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/precise_ref/precise_ref_library_entry.dart';
 import '../../../data/services/precise_ref_library_storage_service.dart';
@@ -69,6 +70,11 @@ class _PreciseRefLibraryScreenState
   // 入库
   // ============================================================
 
+  /// 导入时套用的类型：正处于某个类型分类下时跟随该分类，否则用默认
+  PreciseRefType get _importType =>
+      ref.read(preciseRefLibraryNotifierProvider).typeFilter ??
+      PreciseRefType.characterAndStyle;
+
   Future<void> _importImages() async {
     if (_isPickingFile) return;
     setState(() => _isPickingFile = true);
@@ -80,6 +86,7 @@ class _PreciseRefLibraryScreenState
       );
       if (result == null || !mounted) return;
 
+      final importType = _importType;
       var imported = 0;
       var failed = 0;
       for (final file in result.files) {
@@ -97,6 +104,7 @@ class _PreciseRefLibraryScreenState
               .importFromBytes(
                 bytes,
                 name: p.basenameWithoutExtension(file.name),
+                type: importType,
               );
           imported++;
         } catch (_) {
@@ -139,6 +147,7 @@ class _PreciseRefLibraryScreenState
     final results = await Future.wait(futures);
     if (!mounted) return;
 
+    final importType = _importType;
     var imported = 0;
     var failed = 0;
     for (final dropped in results) {
@@ -149,6 +158,7 @@ class _PreciseRefLibraryScreenState
             .importFromBytes(
               dropped.bytes,
               name: p.basenameWithoutExtension(dropped.fileName),
+              type: importType,
             );
         imported++;
       } catch (_) {
