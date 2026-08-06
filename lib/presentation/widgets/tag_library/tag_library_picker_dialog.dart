@@ -138,6 +138,7 @@ class _TagLibraryPickerDialogState
           flex: 1,
           child: DropdownButtonFormField<String?>(
             initialValue: selectedCategoryId,
+            isExpanded: true,
             decoration: InputDecoration(
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
