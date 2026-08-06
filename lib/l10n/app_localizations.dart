@@ -21709,6 +21709,234 @@ abstract class AppLocalizations {
   /// **'The 3D editor requires the Microsoft Edge WebView2 Runtime. It ships with Windows 10/11; if missing, install the Evergreen runtime from Microsoft and retry.'**
   String get model3d_webview2Missing;
 
+  /// No description provided for @nav_preciseRefLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Precise Ref Library'**
+  String get nav_preciseRefLibrary;
+
+  /// No description provided for @preciseRefLib_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Precise Reference Library'**
+  String get preciseRefLib_title;
+
+  /// No description provided for @preciseRefLib_searchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search references...'**
+  String get preciseRefLib_searchHint;
+
+  /// No description provided for @preciseRefLib_empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop or paste images here to build your library'**
+  String get preciseRefLib_empty;
+
+  /// No description provided for @preciseRefLib_emptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'You can also right-click images in preview, history, or gallery to save them here'**
+  String get preciseRefLib_emptyHint;
+
+  /// No description provided for @preciseRefLib_import.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Images'**
+  String get preciseRefLib_import;
+
+  /// No description provided for @preciseRefLib_entryCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items'**
+  String preciseRefLib_entryCount(int count);
+
+  /// No description provided for @preciseRefLib_sendToPreciseRef.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to Precise Reference'**
+  String get preciseRefLib_sendToPreciseRef;
+
+  /// No description provided for @preciseRefLib_sendToImg2Img.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to Image to Image'**
+  String get preciseRefLib_sendToImg2Img;
+
+  /// No description provided for @preciseRefLib_editEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Parameters'**
+  String get preciseRefLib_editEntry;
+
+  /// No description provided for @preciseRefLib_deleteEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get preciseRefLib_deleteEntry;
+
+  /// No description provided for @preciseRefLib_confirmDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Entry'**
+  String get preciseRefLib_confirmDeleteTitle;
+
+  /// No description provided for @preciseRefLib_confirmDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{name}\"? The image file will also be removed.'**
+  String preciseRefLib_confirmDelete(String name);
+
+  /// No description provided for @preciseRefLib_saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved \"{name}\" to Precise Ref Library'**
+  String preciseRefLib_saved(String name);
+
+  /// No description provided for @preciseRefLib_savedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'You can edit parameters in the library'**
+  String get preciseRefLib_savedHint;
+
+  /// No description provided for @preciseRefLib_sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent \"{name}\" to Precise Reference'**
+  String preciseRefLib_sent(String name);
+
+  /// No description provided for @preciseRefLib_sentToImg2Img.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent \"{name}\" to Image to Image'**
+  String preciseRefLib_sentToImg2Img(String name);
+
+  /// No description provided for @preciseRefLib_imageMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Image file is missing'**
+  String get preciseRefLib_imageMissing;
+
+  /// No description provided for @preciseRefLib_favoritesOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites only'**
+  String get preciseRefLib_favoritesOnly;
+
+  /// No description provided for @preciseRefLib_sortBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort by'**
+  String get preciseRefLib_sortBy;
+
+  /// No description provided for @preciseRefLib_sortCreatedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Created'**
+  String get preciseRefLib_sortCreatedAt;
+
+  /// No description provided for @preciseRefLib_sortLastUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Last used'**
+  String get preciseRefLib_sortLastUsed;
+
+  /// No description provided for @preciseRefLib_sortUsedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Most used'**
+  String get preciseRefLib_sortUsedCount;
+
+  /// No description provided for @preciseRefLib_sortName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get preciseRefLib_sortName;
+
+  /// No description provided for @preciseRefLib_importedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {count} images'**
+  String preciseRefLib_importedCount(int count);
+
+  /// No description provided for @preciseRefLib_loadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load the Precise Reference Library: {error}'**
+  String preciseRefLib_loadFailed(String error);
+
+  /// No description provided for @preciseRefLib_importFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save to the Precise Reference Library: {error}'**
+  String preciseRefLib_importFailed(String error);
+
+  /// No description provided for @preciseRefLib_importFailedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} images could not be imported into the Precise Reference Library'**
+  String preciseRefLib_importFailedCount(int count);
+
+  /// No description provided for @preciseRefLib_fromLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'From Library'**
+  String get preciseRefLib_fromLibrary;
+
+  /// No description provided for @preciseRefLib_saveCurrentToLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to Library'**
+  String get preciseRefLib_saveCurrentToLibrary;
+
+  /// No description provided for @preciseRefLib_saveCurrentCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {count} references to library'**
+  String preciseRefLib_saveCurrentCount(int count);
+
+  /// No description provided for @preciseRefLib_selectorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select from Precise Ref Library'**
+  String get preciseRefLib_selectorTitle;
+
+  /// No description provided for @preciseRefLib_selectorConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Selected ({count})'**
+  String preciseRefLib_selectorConfirm(int count);
+
+  /// No description provided for @preciseRefLib_nameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get preciseRefLib_nameLabel;
+
+  /// No description provided for @preciseRefLib_typeFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get preciseRefLib_typeFilterAll;
+
+  /// No description provided for @img2img_fromPreciseRefLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'From Precise Ref Library'**
+  String get img2img_fromPreciseRefLibrary;
+
+  /// No description provided for @localGallery_saveToPreciseRefLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to Precise Ref Library'**
+  String get localGallery_saveToPreciseRefLibrary;
+
+  /// No description provided for @drop_saveToPreciseRefLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to Precise Ref Library'**
+  String get drop_saveToPreciseRefLibrary;
+
   /// No description provided for @common_enabled.
   ///
   /// In en, this message translates to:

@@ -5900,6 +5900,60 @@
   "model3d_addLayerTooltip": "添加 3D 模型图层",
   "model3d_webview2Missing": "3D 编辑器需要 Microsoft Edge WebView2 运行时。Windows 10/11 通常已自带;若缺失请从微软官网安装 Evergreen 版本后重试。",
 
+  "nav_preciseRefLibrary": "精准参考库",
+  "preciseRefLib_title": "精准参考库",
+  "preciseRefLib_searchHint": "搜索参考图...",
+  "preciseRefLib_empty": "拖拽或粘贴图片到此处建立库",
+  "preciseRefLib_emptyHint": "也可以在生成结果、历史记录或本地图库中右键保存",
+  "preciseRefLib_import": "导入图片",
+  "preciseRefLib_entryCount": "{count} 个条目",
+  "preciseRefLib_sendToPreciseRef": "发送到精准参考",
+  "preciseRefLib_sendToImg2Img": "发送到图生图",
+  "preciseRefLib_editEntry": "编辑参数",
+  "preciseRefLib_deleteEntry": "删除",
+  "preciseRefLib_confirmDeleteTitle": "删除条目",
+  "preciseRefLib_confirmDelete": "确定删除“{name}”？图片文件将一并删除。",
+  "preciseRefLib_saved": "已存入精准参考库：{name}",
+  "preciseRefLib_savedHint": "可在精准参考库中编辑参数",
+  "preciseRefLib_sent": "已发送到精准参考：{name}",
+  "preciseRefLib_sentToImg2Img": "已发送到图生图：{name}",
+  "preciseRefLib_imageMissing": "原图文件丢失",
+  "preciseRefLib_favoritesOnly": "只看收藏",
+  "preciseRefLib_sortBy": "排序方式",
+  "preciseRefLib_sortCreatedAt": "创建时间",
+  "preciseRefLib_sortLastUsed": "最近使用",
+  "preciseRefLib_sortUsedCount": "使用次数",
+  "preciseRefLib_sortName": "名称",
+  "preciseRefLib_importedCount": "已导入 {count} 张图片",
+  "preciseRefLib_loadFailed": "加载精准参考库失败：{error}",
+  "@preciseRefLib_loadFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "preciseRefLib_importFailed": "保存到精准参考库失败：{error}",
+  "@preciseRefLib_importFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "preciseRefLib_importFailedCount": "{count} 张图片未能导入精准参考库",
+  "@preciseRefLib_importFailedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "preciseRefLib_fromLibrary": "从库导入",
+  "preciseRefLib_saveCurrentToLibrary": "保存到库",
+  "preciseRefLib_saveCurrentCount": "已保存 {count} 张到精准参考库",
+  "preciseRefLib_selectorTitle": "从精准参考库选择",
+  "preciseRefLib_selectorConfirm": "添加所选 ({count})",
+  "preciseRefLib_nameLabel": "名称",
+  "preciseRefLib_typeFilterAll": "全部",
+  "img2img_fromPreciseRefLibrary": "从精准参考库导入",
+  "localGallery_saveToPreciseRefLibrary": "保存到精准参考库",
+  "drop_saveToPreciseRefLibrary": "存入精准参考库",
+
   "common_enabled": "已启用",
   "common_disabled": "已禁用",
   "bulkAction_selectedCount": "已选择 {count} 项",
@@ -6364,6 +6418,62 @@
   "@onlineGallery_imageCount": {
     "placeholders": {
       "count": {}
+    }
+  },
+  "@preciseRefLib_confirmDelete": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@preciseRefLib_entryCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@preciseRefLib_importedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@preciseRefLib_saveCurrentCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@preciseRefLib_saved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@preciseRefLib_selectorConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@preciseRefLib_sent": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@preciseRefLib_sentToImg2Img": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
     }
   },
   "@preset_deletePresetConfirm": {

@@ -15,12 +15,14 @@ import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/datasources/remote/nai_image_enhancement_api_service.dart';
 import '../../../../data/models/image/image_params.dart';
+import '../../../../data/services/precise_ref_library_storage_service.dart';
 import '../../../providers/comfyui/comfyui_provider.dart';
 import '../../../providers/cost_estimate_provider.dart';
 import '../../../providers/generation/generation_params_selectors.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/image_save_settings_provider.dart';
 import '../../../providers/generation/image_workflow_controller.dart';
+import '../../../providers/precise_ref_library_provider.dart';
 import '../../../services/image_workflow_launcher.dart';
 import '../../../utils/comfyui_workflow_l10n.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -31,6 +33,7 @@ import '../../../widgets/common/image_picker_card/image_picker_card.dart';
 import '../../../widgets/common/themed_divider.dart';
 import '../../../widgets/image_editor/painters/focused_overlay_painter.dart';
 import '../../../widgets/image_editor/image_editor_screen.dart';
+import '../../precise_ref_library/widgets/precise_ref_selector_dialog.dart';
 import 'img2img_preview_cache.dart';
 import 'comfyui_workflow_dialog.dart';
 
@@ -161,10 +164,6 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                 onPressed: _clearImg2Img,
                 icon: const Icon(Icons.clear, size: 18),
                 label: Text(context.l10n.img2img_clearSettings),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: const BorderSide(color: Colors.white38),
-                ),
               ),
             ],
           ],
@@ -196,7 +195,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           children: [
             Text(
               context.l10n.img2img_sourceImage,
-              style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
+              style: theme.textTheme.bodyMedium,
             ),
             const Spacer(),
             _IconButton(
@@ -343,17 +342,68 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
             ),
           ],
         ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          key: const Key('img2img-from-precise-ref-library'),
+          onPressed: _importSourceFromPreciseRefLibrary,
+          icon: const Icon(Icons.photo_library_outlined, size: 16),
+          label: Text(
+            context.l10n.img2img_fromPreciseRefLibrary,
+            style: const TextStyle(fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ],
     );
   }
 
+  /// 从精准参考库选一张图作为图生图底图
+  Future<void> _importSourceFromPreciseRefLibrary() async {
+    final selected = await PreciseRefSelectorDialog.show(
+      context,
+      multiSelect: false,
+    );
+    if (selected == null || selected.isEmpty || !mounted) return;
+
+    final entry = selected.first;
+    final bytes = await ref
+        .read(preciseRefLibraryStorageServiceProvider)
+        .readImageBytes(entry.id);
+    if (!mounted) return;
+    if (bytes == null) {
+      AppToast.error(context, context.l10n.preciseRefLib_imageMissing);
+      return;
+    }
+
+    unawaited(
+      ref
+          .read(imageWorkflowControllerProvider.notifier)
+          .replaceSourceImageAsync(bytes),
+    );
+    unawaited(
+      ref
+          .read(preciseRefLibraryNotifierProvider.notifier)
+          .recordUsage(entry.id),
+    );
+  }
+
   Widget _buildInpaintStatus(ThemeData theme, bool isReady) {
+    // 就绪用 primary、待处理用 tertiary：两组 container/onContainer 配对由
+    // Material 3 保证对比度，在浅色与深色主题下都可读。
+    final background = isReady
+        ? theme.colorScheme.primaryContainer
+        : theme.colorScheme.tertiaryContainer;
+    final foreground = isReady
+        ? theme.colorScheme.onPrimaryContainer
+        : theme.colorScheme.onTertiaryContainer;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.orange.withValues(alpha: 0.18),
+        color: background,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+        border: Border.all(color: foreground.withValues(alpha: 0.24)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -361,7 +411,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           Icon(
             isReady ? Icons.check_circle : Icons.info_outline,
             size: 16,
-            color: Colors.orangeAccent,
+            color: foreground,
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -370,7 +420,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                   ? context.l10n.img2img_inpaintReadyHint
                   : context.l10n.img2img_inpaintPendingHint,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.orangeAccent,
+                color: foreground,
                 height: 1.4,
               ),
             ),
@@ -434,11 +484,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
 
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.black26,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white12),
-      ),
+      decoration: _subPanelDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -458,7 +504,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
             contentPadding: EdgeInsets.zero,
             title: Text(
               context.l10n.img2img_focusedInpaint,
-              style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
+              style: theme.textTheme.bodyMedium,
             ),
             subtitle: Text(
               workflow.focusedInpaintEnabled && focusGeometry != null
@@ -468,7 +514,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                   ? context.l10n.img2img_focusedInpaintEnabledHint
                   : context.l10n.img2img_focusedInpaintDisabledHint,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.white70,
+                color: theme.colorScheme.onSurfaceVariant,
                 height: 1.4,
               ),
             ),
@@ -476,13 +522,15 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: workflow.focusedInpaintEnabled
-                    ? Colors.cyanAccent.withValues(alpha: 0.16)
-                    : Colors.white.withValues(alpha: 0.06),
+                    ? theme.colorScheme.primaryContainer
+                    : theme.colorScheme.surfaceContainerHighest.withValues(
+                        alpha: 0.5,
+                      ),
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(
                   color: workflow.focusedInpaintEnabled
-                      ? Colors.cyanAccent.withValues(alpha: 0.35)
-                      : Colors.white.withValues(alpha: 0.14),
+                      ? theme.colorScheme.primary.withValues(alpha: 0.35)
+                      : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               child: Text(
@@ -491,8 +539,8 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                     : context.l10n.img2img_disabled,
                 style: theme.textTheme.labelMedium?.copyWith(
                   color: workflow.focusedInpaintEnabled
-                      ? Colors.cyanAccent
-                      : Colors.white70,
+                      ? theme.colorScheme.onPrimaryContainer
+                      : theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -515,6 +563,20 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
     );
   }
 
+  /// 重绘 / 增强 / 放大三个子面板共用的容器装饰。
+  ///
+  /// 原先写死 `Colors.black26` + `Colors.white12`，在浅色主题下会变成
+  /// 灰底配白字。改用主题槽位后两种亮度下都保持层次。
+  BoxDecoration _subPanelDecoration(ThemeData theme) {
+    return BoxDecoration(
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(
+        color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+      ),
+    );
+  }
+
   Widget _buildSliderSection(
     ThemeData theme, {
     required String label,
@@ -531,39 +593,29 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       children: [
         Row(
           children: [
-            Text(
-              label,
-              style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
-            ),
+            Text(label, style: theme.textTheme.bodyMedium),
             const Spacer(),
             Text(
               valueLabelBuilder?.call(value) ?? value.toStringAsFixed(2),
               style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.white,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ],
         ),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            activeTrackColor: Colors.white,
-            inactiveTrackColor: Colors.white24,
-            thumbColor: Colors.white,
-            overlayColor: Colors.white24,
-          ),
-          child: Slider(
-            value: value,
-            min: min,
-            max: max,
-            divisions: divisions ?? ((max - min) * 100).round(),
-            onChanged: onChanged,
-          ),
+        Slider(
+          value: value,
+          min: min,
+          max: max,
+          divisions: divisions ?? ((max - min) * 100).round(),
+          onChanged: onChanged,
         ),
         if (hint != null)
           Text(
             hint,
-            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
       ],
     );
@@ -575,18 +627,13 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
 
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.black26,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white12),
-      ),
+      decoration: _subPanelDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             context.l10n.img2img_enhance,
             style: theme.textTheme.titleSmall?.copyWith(
-              color: Colors.white,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -594,7 +641,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           Text(
             context.l10n.img2img_enhanceHint,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.white70,
+              color: theme.colorScheme.onSurfaceVariant,
               height: 1.4,
             ),
           ),
@@ -605,19 +652,24 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
             value: enhance.magnitude,
             onChanged: controller.updateEnhanceMagnitude,
           ),
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              context.l10n.img2img_enhanceShowIndividualSettings,
-              style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
+          // 子面板容器带背景色，ListTile 的水波纹会被它遮住，
+          // 需要自带一层透明 Material（与放大面板中的开关保持一致）。
+          Material(
+            type: MaterialType.transparency,
+            child: SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                context.l10n.img2img_enhanceShowIndividualSettings,
+                style: theme.textTheme.bodyMedium,
+              ),
+              value: enhance.showIndividualSettings,
+              onChanged: controller.toggleEnhanceIndividualSettings,
             ),
-            value: enhance.showIndividualSettings,
-            onChanged: controller.toggleEnhanceIndividualSettings,
           ),
           const SizedBox(height: 8),
           Text(
             context.l10n.img2img_enhanceUpscaleAmount,
-            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
+            style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -660,6 +712,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       comfyUISettingsProvider.select((s) => s.enabled),
     );
     final taskState = ref.watch(comfyUITaskProvider);
+    final taskError = taskState.localizedError(context.l10n);
     final hasSourceImage = ref.watch(
       generationParamsNotifierProvider.select(
         (params) => params.sourceImage != null,
@@ -712,22 +765,16 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           !taskState.isRunning &&
           hasRequiredComfyModel;
     }
-    final taskError = taskState.localizedError(context.l10n);
 
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.black26,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white12),
-      ),
+      decoration: _subPanelDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             context.l10n.image_upscale,
             style: theme.textTheme.titleSmall?.copyWith(
-              color: Colors.white,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -758,22 +805,22 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           if (isNai) ...[
             Text(
               context.l10n.img2img_novelAiCloudUpscale,
-              style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ] else ...[
             if (!comfyEnabled)
               Text(
                 context.l10n.img2img_comfyuiEnableHint,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.orangeAccent,
+                  color: theme.colorScheme.error,
                 ),
               )
             else ...[
               Text(
                 context.l10n.img2img_upscaleMode,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: Colors.white,
-                ),
+                style: theme.textTheme.bodyMedium,
               ),
               const SizedBox(height: 6),
               SegmentedButton<ComfyUpscaleModule>(
@@ -809,9 +856,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
               if (!isComfyRtx) ...[
                 Text(
                   context.l10n.img2img_upscaleModel,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.white,
-                  ),
+                  style: theme.textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
@@ -856,7 +901,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                         ? context.l10n.img2img_noSeedvr2Models
                         : context.l10n.img2img_noRegularUpscaleModels,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.orangeAccent,
+                      color: theme.colorScheme.error,
                     ),
                   ),
                 ],
@@ -874,7 +919,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                     context.l10n.img2img_useRtxUpscaleWorkflow,
                 },
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.white70,
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
               if (!isComfyRtx)
@@ -958,9 +1003,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
             Expanded(
               child: Text(
                 context.l10n.upscale_scale,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: Colors.white,
-                ),
+                style: theme.textTheme.bodyMedium,
               ),
             ),
             EditableDoubleField(
@@ -1006,8 +1049,12 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
         borderRadius: borderRadius,
-        border: Border.all(color: Colors.white12),
-        color: Colors.white.withValues(alpha: 0.03),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.25,
+        ),
       ),
       child: Column(
         children: [
@@ -1064,7 +1111,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           child: Text(
             label,
             style: theme.textTheme.labelSmall?.copyWith(
-              color: Colors.white70,
+              color: theme.colorScheme.onSurfaceVariant,
               height: 1,
               fontWeight: FontWeight.w600,
             ),
@@ -1085,7 +1132,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                     Container(
                       height: 8,
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.32),
+                        color: theme.colorScheme.surfaceContainerHighest,
                       ),
                     ),
                     FractionallySizedBox(
@@ -1176,12 +1223,12 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
             contentPadding: EdgeInsets.zero,
             title: Text(
               context.l10n.img2img_seedvr2UseTiledUpscale,
-              style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
+              style: theme.textTheme.bodyMedium,
             ),
             subtitle: Text(
               context.l10n.img2img_seedvr2UseTiledUpscaleHint,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.white70,
+                color: theme.colorScheme.onSurfaceVariant,
                 height: 1.35,
               ),
             ),
@@ -1220,14 +1267,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       children: [
         Row(
           children: [
-            Expanded(
-              child: Text(
-                label,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: Colors.white,
-                ),
-              ),
-            ),
+            Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
             EditableDoubleField(
               value: clamped.toDouble(),
               min: min.toDouble(),
@@ -1258,7 +1298,9 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
         if (hint != null)
           Text(
             hint,
-            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
       ],
     );
@@ -1957,7 +1999,8 @@ class _SourceImagePreviewState extends State<_SourceImagePreview> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.black26,
+      // 图片 letterbox 底色：跟随主题，浅色主题下不再是突兀的深灰块
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final containedSize = _resolveContainedSize(
@@ -2102,8 +2145,9 @@ class _IconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Material(
-      color: Colors.black54,
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
       borderRadius: BorderRadius.circular(4),
       child: InkWell(
         onTap: onPressed,
@@ -2112,7 +2156,11 @@ class _IconButton extends StatelessWidget {
           message: tooltip,
           child: Padding(
             padding: const EdgeInsets.all(4),
-            child: Icon(icon, size: 16, color: Colors.white),
+            child: Icon(
+              icon,
+              size: 16,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
       ),

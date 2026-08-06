@@ -106,6 +106,9 @@ class SelectableImageCard extends ConsumerStatefulWidget {
   /// 发送到精准参考回调
   final VoidCallback? onPreciseReference;
 
+  /// 保存到精准参考库回调
+  final VoidCallback? onSaveToPreciseRefLibrary;
+
   /// 编辑图像回调
   final VoidCallback? onEditImage;
 
@@ -197,6 +200,7 @@ class SelectableImageCard extends ConsumerStatefulWidget {
     this.onImageToImage,
     this.onVibeTransfer,
     this.onPreciseReference,
+    this.onSaveToPreciseRefLibrary,
     this.onEditImage,
     this.onInpaint,
     this.onGenerateVariations,
@@ -1310,6 +1314,12 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
                 tooltip: context.l10n.drop_characterReference,
                 onTap: widget.onPreciseReference,
               ),
+            if (widget.onSaveToPreciseRefLibrary != null)
+              _HoverActionButton(
+                icon: Icons.bookmark_add_outlined,
+                tooltip: context.l10n.drop_saveToPreciseRefLibrary,
+                onTap: widget.onSaveToPreciseRefLibrary,
+              ),
             if (widget.onEditImage != null)
               _HoverActionButton(
                 icon: Icons.edit_outlined,
@@ -1371,6 +1381,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       widget.onImageToImage != null ||
       widget.onVibeTransfer != null ||
       widget.onPreciseReference != null ||
+      widget.onSaveToPreciseRefLibrary != null ||
       widget.onEditImage != null ||
       widget.onInpaint != null ||
       widget.onGenerateVariations != null ||
@@ -1588,7 +1599,8 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
     if (widget.onReversePrompt != null ||
         widget.onImageToImage != null ||
         widget.onVibeTransfer != null ||
-        widget.onPreciseReference != null) {
+        widget.onPreciseReference != null ||
+        widget.onSaveToPreciseRefLibrary != null) {
       addDividerIfNeeded();
       if (widget.onReversePrompt != null) {
         items.add(
@@ -1627,6 +1639,16 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
             label: context.l10n.drop_characterReference,
             icon: Icons.center_focus_strong,
             onTap: widget.onPreciseReference!,
+          ),
+        );
+      }
+      if (widget.onSaveToPreciseRefLibrary != null) {
+        items.add(
+          ProMenuItem(
+            id: 'save_to_precise_ref_library',
+            label: context.l10n.drop_saveToPreciseRefLibrary,
+            icon: Icons.bookmark_add_outlined,
+            onTap: widget.onSaveToPreciseRefLibrary!,
           ),
         );
       }

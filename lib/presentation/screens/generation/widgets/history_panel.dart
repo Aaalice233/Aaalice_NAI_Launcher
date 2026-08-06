@@ -37,6 +37,7 @@ import '../../../widgets/common/selectable_image_card.dart';
 import '../../../widgets/image_editor/image_editor_screen.dart';
 import '../../../utils/image_detail_opener.dart';
 import '../../../utils/krita_send_helper.dart';
+import '../../../utils/precise_ref_library_import_helper.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../services/generation_save_service.dart';
 import '../../../widgets/common/themed_divider.dart';
@@ -743,6 +744,16 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                                     ),
                                   )
                                 : null,
+                            onSaveToPreciseRefLibrary:
+                                historyImage.canUseAsGenerationInput
+                                ? () => unawaited(
+                                    saveBytesToPreciseRefLibrary(
+                                      ref,
+                                      context,
+                                      historyImage.bytes,
+                                    ),
+                                  )
+                                : null,
                             onEditImage: historyImage.canUseAsGenerationInput
                                 ? () => ImageWorkflowLauncher.openEditor(
                                     context,
@@ -941,6 +952,11 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
               : null,
           onVibeTransfer: image.canUseAsGenerationInput
               ? () => unawaited(_sendHistoryImageToVibeTransfer(context, image))
+              : null,
+          onSaveToPreciseRefLibrary: image.canUseAsGenerationInput
+              ? () => unawaited(
+                  saveBytesToPreciseRefLibrary(ref, context, image.bytes),
+                )
               : null,
           onPreciseReference: image.canUseAsGenerationInput
               ? () => unawaited(

@@ -12061,6 +12061,142 @@ class AppLocalizationsJa extends AppLocalizations {
       '3DエディタにはMicrosoft Edge WebView2ランタイムが必要です。Windows 10/11には通常同梱されています。無い場合はMicrosoftからEvergreen版をインストールして再試行してください。';
 
   @override
+  String get nav_preciseRefLibrary => '精密参照ライブラリ';
+
+  @override
+  String get preciseRefLib_title => '精密参照ライブラリ';
+
+  @override
+  String get preciseRefLib_searchHint => '参照画像を検索...';
+
+  @override
+  String get preciseRefLib_empty => 'ここに画像をドロップまたは貼り付けてライブラリを作成';
+
+  @override
+  String get preciseRefLib_emptyHint => 'プレビュー・履歴・ギャラリーで右クリックして保存もできます';
+
+  @override
+  String get preciseRefLib_import => '画像をインポート';
+
+  @override
+  String preciseRefLib_entryCount(int count) {
+    return '$count 件';
+  }
+
+  @override
+  String get preciseRefLib_sendToPreciseRef => '精密参照へ送る';
+
+  @override
+  String get preciseRefLib_sendToImg2Img => '画像から画像へ送る';
+
+  @override
+  String get preciseRefLib_editEntry => 'パラメータを編集';
+
+  @override
+  String get preciseRefLib_deleteEntry => '削除';
+
+  @override
+  String get preciseRefLib_confirmDeleteTitle => 'エントリを削除';
+
+  @override
+  String preciseRefLib_confirmDelete(String name) {
+    return '「$name」を削除しますか？画像ファイルも削除されます。';
+  }
+
+  @override
+  String preciseRefLib_saved(String name) {
+    return '精密参照ライブラリに保存しました：$name';
+  }
+
+  @override
+  String get preciseRefLib_savedHint => 'ライブラリでパラメータを編集できます';
+
+  @override
+  String preciseRefLib_sent(String name) {
+    return '精密参照へ送信しました：$name';
+  }
+
+  @override
+  String preciseRefLib_sentToImg2Img(String name) {
+    return '画像から画像へ送信しました：$name';
+  }
+
+  @override
+  String get preciseRefLib_imageMissing => '元画像ファイルが見つかりません';
+
+  @override
+  String get preciseRefLib_favoritesOnly => 'お気に入りのみ';
+
+  @override
+  String get preciseRefLib_sortBy => '並び替え';
+
+  @override
+  String get preciseRefLib_sortCreatedAt => '作成日時';
+
+  @override
+  String get preciseRefLib_sortLastUsed => '最終使用';
+
+  @override
+  String get preciseRefLib_sortUsedCount => '使用回数';
+
+  @override
+  String get preciseRefLib_sortName => '名前';
+
+  @override
+  String preciseRefLib_importedCount(int count) {
+    return '$count 枚の画像をインポートしました';
+  }
+
+  @override
+  String preciseRefLib_loadFailed(String error) {
+    return '精密参照ライブラリを読み込めませんでした：$error';
+  }
+
+  @override
+  String preciseRefLib_importFailed(String error) {
+    return '精密参照ライブラリへの保存に失敗しました：$error';
+  }
+
+  @override
+  String preciseRefLib_importFailedCount(int count) {
+    return '$count 枚の画像を精密参照ライブラリにインポートできませんでした';
+  }
+
+  @override
+  String get preciseRefLib_fromLibrary => 'ライブラリから';
+
+  @override
+  String get preciseRefLib_saveCurrentToLibrary => 'ライブラリへ保存';
+
+  @override
+  String preciseRefLib_saveCurrentCount(int count) {
+    return '$count 件をライブラリへ保存しました';
+  }
+
+  @override
+  String get preciseRefLib_selectorTitle => '精密参照ライブラリから選択';
+
+  @override
+  String preciseRefLib_selectorConfirm(int count) {
+    return '選択を追加 ($count)';
+  }
+
+  @override
+  String get preciseRefLib_nameLabel => '名前';
+
+  @override
+  String get preciseRefLib_typeFilterAll => 'すべて';
+
+  @override
+  String get img2img_fromPreciseRefLibrary => '精密参照ライブラリから';
+
+  @override
+  String get localGallery_saveToPreciseRefLibrary => '精密参照ライブラリへ保存';
+
+  @override
+  String get drop_saveToPreciseRefLibrary => '精密参照ライブラリへ保存';
+
+  @override
   String get common_enabled => '有効';
 
   @override

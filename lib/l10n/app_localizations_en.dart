@@ -12334,6 +12334,146 @@ class AppLocalizationsEn extends AppLocalizations {
       'The 3D editor requires the Microsoft Edge WebView2 Runtime. It ships with Windows 10/11; if missing, install the Evergreen runtime from Microsoft and retry.';
 
   @override
+  String get nav_preciseRefLibrary => 'Precise Ref Library';
+
+  @override
+  String get preciseRefLib_title => 'Precise Reference Library';
+
+  @override
+  String get preciseRefLib_searchHint => 'Search references...';
+
+  @override
+  String get preciseRefLib_empty =>
+      'Drop or paste images here to build your library';
+
+  @override
+  String get preciseRefLib_emptyHint =>
+      'You can also right-click images in preview, history, or gallery to save them here';
+
+  @override
+  String get preciseRefLib_import => 'Import Images';
+
+  @override
+  String preciseRefLib_entryCount(int count) {
+    return '$count items';
+  }
+
+  @override
+  String get preciseRefLib_sendToPreciseRef => 'Send to Precise Reference';
+
+  @override
+  String get preciseRefLib_sendToImg2Img => 'Send to Image to Image';
+
+  @override
+  String get preciseRefLib_editEntry => 'Edit Parameters';
+
+  @override
+  String get preciseRefLib_deleteEntry => 'Delete';
+
+  @override
+  String get preciseRefLib_confirmDeleteTitle => 'Delete Entry';
+
+  @override
+  String preciseRefLib_confirmDelete(String name) {
+    return 'Delete \"$name\"? The image file will also be removed.';
+  }
+
+  @override
+  String preciseRefLib_saved(String name) {
+    return 'Saved \"$name\" to Precise Ref Library';
+  }
+
+  @override
+  String get preciseRefLib_savedHint =>
+      'You can edit parameters in the library';
+
+  @override
+  String preciseRefLib_sent(String name) {
+    return 'Sent \"$name\" to Precise Reference';
+  }
+
+  @override
+  String preciseRefLib_sentToImg2Img(String name) {
+    return 'Sent \"$name\" to Image to Image';
+  }
+
+  @override
+  String get preciseRefLib_imageMissing => 'Image file is missing';
+
+  @override
+  String get preciseRefLib_favoritesOnly => 'Favorites only';
+
+  @override
+  String get preciseRefLib_sortBy => 'Sort by';
+
+  @override
+  String get preciseRefLib_sortCreatedAt => 'Created';
+
+  @override
+  String get preciseRefLib_sortLastUsed => 'Last used';
+
+  @override
+  String get preciseRefLib_sortUsedCount => 'Most used';
+
+  @override
+  String get preciseRefLib_sortName => 'Name';
+
+  @override
+  String preciseRefLib_importedCount(int count) {
+    return 'Imported $count images';
+  }
+
+  @override
+  String preciseRefLib_loadFailed(String error) {
+    return 'Failed to load the Precise Reference Library: $error';
+  }
+
+  @override
+  String preciseRefLib_importFailed(String error) {
+    return 'Failed to save to the Precise Reference Library: $error';
+  }
+
+  @override
+  String preciseRefLib_importFailedCount(int count) {
+    return '$count images could not be imported into the Precise Reference Library';
+  }
+
+  @override
+  String get preciseRefLib_fromLibrary => 'From Library';
+
+  @override
+  String get preciseRefLib_saveCurrentToLibrary => 'Save to Library';
+
+  @override
+  String preciseRefLib_saveCurrentCount(int count) {
+    return 'Saved $count references to library';
+  }
+
+  @override
+  String get preciseRefLib_selectorTitle => 'Select from Precise Ref Library';
+
+  @override
+  String preciseRefLib_selectorConfirm(int count) {
+    return 'Add Selected ($count)';
+  }
+
+  @override
+  String get preciseRefLib_nameLabel => 'Name';
+
+  @override
+  String get preciseRefLib_typeFilterAll => 'All';
+
+  @override
+  String get img2img_fromPreciseRefLibrary => 'From Precise Ref Library';
+
+  @override
+  String get localGallery_saveToPreciseRefLibrary =>
+      'Save to Precise Ref Library';
+
+  @override
+  String get drop_saveToPreciseRefLibrary => 'Save to Precise Ref Library';
+
+  @override
   String get common_enabled => 'Enabled';
 
   @override

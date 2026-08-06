@@ -11,8 +11,11 @@ import '../../../../../core/enums/precise_ref_type.dart';
 import '../../../../../core/extensions/precise_ref_type_extensions.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
+import '../../../../data/services/precise_ref_library_storage_service.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../providers/precise_ref_library_provider.dart';
 import '../../../utils/dropped_file_reader.dart';
+import '../../../utils/precise_ref_library_import_helper.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/editable_double_field.dart';
 import '../../../widgets/common/hover_image_preview.dart';
@@ -20,6 +23,7 @@ import '../../../widgets/common/precise_reference_type_dialog.dart';
 import '../../../widgets/common/themed_divider.dart';
 import '../../../widgets/common/collapsible_image_panel.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
+import '../../precise_ref_library/widgets/precise_ref_selector_dialog.dart';
 
 const double _disabledPreciseReferenceCardOpacity = 0.48;
 
@@ -235,6 +239,40 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
               ),
             ),
 
+            // 库操作：从库导入 / 保存到库
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: const Key('precise-ref-panel-from-library'),
+                    onPressed: isV4Model ? _importFromLibrary : null,
+                    icon: const Icon(Icons.photo_library_outlined, size: 16),
+                    label: Text(
+                      context.l10n.preciseRefLib_fromLibrary,
+                      style: const TextStyle(fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: const Key('precise-ref-panel-save-to-library'),
+                    onPressed: hasReferences ? _saveReferencesToLibrary : null,
+                    icon: const Icon(Icons.bookmark_add_outlined, size: 16),
+                    label: Text(
+                      context.l10n.preciseRefLib_saveCurrentToLibrary,
+                      style: const TextStyle(fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
             // 清除全部按钮
             if (hasReferences) ...[
               const SizedBox(height: 8),
@@ -299,6 +337,86 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
         child: child,
       ),
     );
+  }
+
+  /// 从精准参考库导入条目（套用条目记住的类型与参数）
+  Future<void> _importFromLibrary() async {
+    final selected = await PreciseRefSelectorDialog.show(context);
+    if (selected == null || selected.isEmpty || !mounted) return;
+
+    final storage = ref.read(preciseRefLibraryStorageServiceProvider);
+    final notifier = ref.read(generationParamsNotifierProvider.notifier);
+    final libraryNotifier = ref.read(
+      preciseRefLibraryNotifierProvider.notifier,
+    );
+
+    final futures = <Future<void>>[];
+    var added = 0;
+    for (final entry in selected) {
+      final bytes = await storage.readImageBytes(entry.id);
+      if (bytes == null) continue;
+      futures.add(
+        notifier.addPreciseReferenceFromImage(
+          bytes,
+          type: entry.type,
+          strength: entry.strength,
+          fidelity: entry.fidelity,
+        ),
+      );
+      unawaited(libraryNotifier.recordUsage(entry.id));
+      added++;
+    }
+    await Future.wait(futures);
+
+    if (!mounted) return;
+    if (added > 0) {
+      AppToast.success(context, context.l10n.preciseRef_addedCount(added));
+    }
+    if (added < selected.length) {
+      AppToast.warning(context, context.l10n.preciseRefLib_imageMissing);
+    }
+  }
+
+  /// 把当前参考图（含各自类型与参数）保存到精准参考库
+  Future<void> _saveReferencesToLibrary() async {
+    final references = ref
+        .read(generationParamsNotifierProvider)
+        .preciseReferences;
+    if (references.isEmpty) return;
+
+    final libraryNotifier = ref.read(
+      preciseRefLibraryNotifierProvider.notifier,
+    );
+    var saved = 0;
+    var failed = 0;
+    for (final reference in references) {
+      try {
+        await libraryNotifier.importFromBytes(
+          reference.image,
+          name: defaultPreciseRefName(),
+          type: reference.type,
+          strength: reference.strength,
+          fidelity: reference.fidelity,
+        );
+        saved++;
+      } catch (_) {
+        failed++;
+      }
+    }
+
+    if (!mounted) return;
+    if (saved > 0) {
+      AppToast.success(
+        context,
+        context.l10n.preciseRefLib_saveCurrentCount(saved),
+      );
+    }
+    if (failed > 0) {
+      AppToast.error(
+        context,
+        context.l10n.preciseRefLib_importFailedCount(failed),
+      );
+    }
   }
 
   Future<void> _addReference() async {

@@ -42,6 +42,7 @@ import '../../widgets/bulk_metadata_edit_dialog.dart';
 import '../../widgets/collection_select_dialog.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/pagination_bar.dart';
+import '../../utils/precise_ref_library_import_helper.dart';
 import '../../widgets/common/precise_reference_type_dialog.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
@@ -172,7 +173,6 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     final state = ref.watch(localGalleryNotifierProvider);
     final bulkOpState = ref.watch(bulkOperationNotifierProvider);
     final categoryState = ref.watch(galleryCategoryNotifierProvider);
-    final screenWidth = MediaQuery.of(context).size.width;
     ref.listen(galleryCategoryNotifierProvider.select((value) => value.error), (
       previous,
       error,
@@ -181,6 +181,7 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       AppToast.error(context, error.localized(context.l10n));
       ref.read(galleryCategoryNotifierProvider.notifier).clearError();
     });
+    final screenWidth = MediaQuery.of(context).size.width;
     final theme = Theme.of(context);
 
     final contentWidth = _showCategoryPanel && screenWidth > 800
@@ -1095,6 +1096,31 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     }
   }
 
+  Future<void> _saveToPreciseRefLibrary(LocalImageRecord record) async {
+    try {
+      final file = File(record.path);
+      if (!await file.exists()) {
+        if (mounted) {
+          AppToast.info(context, context.l10n.localGallery_imageFileMissing);
+        }
+        return;
+      }
+
+      final imageBytes = await file.readAsBytes();
+      if (!mounted) return;
+      await saveBytesToPreciseRefLibrary(
+        ref,
+        context,
+        imageBytes,
+        suggestedName: path.basenameWithoutExtension(record.path),
+      );
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, context.l10n.localGallery_sendFailed('$e'));
+      }
+    }
+  }
+
   Future<void> _importImageMetadata(LocalImageRecord record) async {
     try {
       final metadata = await resolveLocalGalleryMetadata(record);
@@ -1245,6 +1271,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         await _sendToStyleTransfer(record);
       case LocalImageContextAction.sendToPreciseReference:
         await _sendToPreciseReference(record);
+      case LocalImageContextAction.saveToPreciseRefLibrary:
+        await _saveToPreciseRefLibrary(record);
       case LocalImageContextAction.sendToKrita:
         await _sendToKrita(record);
       case LocalImageContextAction.upscale:

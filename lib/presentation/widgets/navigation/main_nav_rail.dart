@@ -24,19 +24,20 @@ class MainNavRail extends ConsumerWidget {
     final theme = Theme.of(context);
 
     // 使用 navigationShell.currentIndex 获取当前选中索引
-    // Branches: 0=home, 1=localGallery, 2=onlineGallery, 3=settings, 4=promptConfig, 5=statistics, 6=tagLibraryPage, 7=vibeLibrary
+    // Branches: 0=home, 1=localGallery, 2=onlineGallery, 3=settings, 4=promptConfig, 5=statistics, 6=tagLibraryPage, 7=vibeLibrary, 8=preciseRefLibrary
     final currentIndex = navigationShell.currentIndex;
 
     // 映射 branch index 到 nav rail index
-    // Nav rail: 0=home, 1=localGallery, 2=onlineGallery, 3=vibeLibrary, 4=promptConfig, 5=tagLibraryPage, 6=statistics, 7=settings
+    // Nav rail: 0=home, 1=localGallery, 2=onlineGallery, 3=vibeLibrary, 4=preciseRefLibrary, 5=promptConfig, 6=tagLibraryPage, 7=statistics, 8=settings
     int selectedIndex = 0;
     if (currentIndex == 1) selectedIndex = 1; // localGallery
     if (currentIndex == 2) selectedIndex = 2; // onlineGallery
     if (currentIndex == 7) selectedIndex = 3; // vibeLibrary
-    if (currentIndex == 4) selectedIndex = 4; // promptConfig
-    if (currentIndex == 6) selectedIndex = 5; // tagLibraryPage
-    if (currentIndex == 5) selectedIndex = 6; // statistics
-    if (currentIndex == 3) selectedIndex = 7; // settings
+    if (currentIndex == 8) selectedIndex = 4; // preciseRefLibrary
+    if (currentIndex == 4) selectedIndex = 5; // promptConfig
+    if (currentIndex == 6) selectedIndex = 6; // tagLibraryPage
+    if (currentIndex == 5) selectedIndex = 7; // statistics
+    if (currentIndex == 3) selectedIndex = 8; // settings
 
     return Container(
       width: 60,
@@ -51,63 +52,84 @@ class MainNavRail extends ConsumerWidget {
           // 账户头像区域
           _AccountAvatarButton(ref: ref),
 
-          // Navigation Items
-          _NavIcon(
-            icon: Icons.brush, // Canvas/Edit
-            label: context.l10n.nav_canvas,
-            isSelected: selectedIndex == 0,
-            onTap: () => navigationShell.goBranch(0), // home branch
-          ),
+          Expanded(
+            child: SingleChildScrollView(
+              key: const Key('main-nav-primary-scroll'),
+              child: Column(
+                children: [
+                  // Navigation Items
+                  _NavIcon(
+                    icon: Icons.brush, // Canvas/Edit
+                    label: context.l10n.nav_canvas,
+                    isSelected: selectedIndex == 0,
+                    onTap: () => navigationShell.goBranch(0), // home branch
+                  ),
 
-          // 本地画廊（App生成的图片）
-          _NavIcon(
-            icon: Icons.folder, // Local Generated Images
-            label: context.l10n.localGallery_title,
-            isSelected: selectedIndex == 1,
-            onTap: () => navigationShell.goBranch(1), // localGallery branch
-          ),
+                  // 本地画廊（App生成的图片）
+                  _NavIcon(
+                    icon: Icons.folder, // Local Generated Images
+                    label: context.l10n.localGallery_title,
+                    isSelected: selectedIndex == 1,
+                    onTap: () =>
+                        navigationShell.goBranch(1), // localGallery branch
+                  ),
 
-          // 在线画廊
-          _NavIcon(
-            icon: Icons.photo_library, // Online Gallery
-            label: context.l10n.nav_onlineGallery,
-            isSelected: selectedIndex == 2,
-            onTap: () => navigationShell.goBranch(2), // onlineGallery branch
-          ),
+                  // 在线画廊
+                  _NavIcon(
+                    icon: Icons.photo_library, // Online Gallery
+                    label: context.l10n.nav_onlineGallery,
+                    isSelected: selectedIndex == 2,
+                    onTap: () =>
+                        navigationShell.goBranch(2), // onlineGallery branch
+                  ),
 
-          // Vibe库
-          _NavIcon(
-            icon: Icons.auto_awesome, // Vibe Library
-            label: context.l10n.vibeLibrary_title,
-            isSelected: selectedIndex == 3,
-            onTap: () => navigationShell.goBranch(7), // vibeLibrary branch
-          ),
+                  // Vibe库
+                  _NavIcon(
+                    icon: Icons.auto_awesome, // Vibe Library
+                    label: context.l10n.vibeLibrary_title,
+                    isSelected: selectedIndex == 3,
+                    onTap: () =>
+                        navigationShell.goBranch(7), // vibeLibrary branch
+                  ),
 
-          // 随机配置
-          _NavIcon(
-            icon: Icons.casino, // Random prompt config
-            label: context.l10n.nav_randomConfig,
-            isSelected: selectedIndex == 4,
-            onTap: () => navigationShell.goBranch(4), // promptConfig branch
-          ),
+                  // 精准参考库
+                  _NavIcon(
+                    icon: Icons.center_focus_strong,
+                    label: context.l10n.nav_preciseRefLibrary,
+                    isSelected: selectedIndex == 4,
+                    onTap: () => navigationShell.goBranch(8),
+                  ),
 
-          // 词库
-          _NavIcon(
-            icon: Icons.book,
-            label: context.l10n.nav_dictionary,
-            isSelected: selectedIndex == 5,
-            onTap: () => navigationShell.goBranch(6), // tagLibraryPage branch
-          ),
+                  // 随机配置
+                  _NavIcon(
+                    icon: Icons.casino, // Random prompt config
+                    label: context.l10n.nav_randomConfig,
+                    isSelected: selectedIndex == 5,
+                    onTap: () =>
+                        navigationShell.goBranch(4), // promptConfig branch
+                  ),
 
-          // 画廊统计
-          _NavIcon(
-            icon: Icons.bar_chart, // Gallery Statistics
-            label: context.l10n.statistics_title,
-            isSelected: selectedIndex == 6,
-            onTap: () => navigationShell.goBranch(5), // statistics branch
-          ),
+                  // 词库
+                  _NavIcon(
+                    icon: Icons.book,
+                    label: context.l10n.nav_dictionary,
+                    isSelected: selectedIndex == 6,
+                    onTap: () =>
+                        navigationShell.goBranch(6), // tagLibraryPage branch
+                  ),
 
-          const Spacer(),
+                  // 画廊统计
+                  _NavIcon(
+                    icon: Icons.bar_chart, // Gallery Statistics
+                    label: context.l10n.statistics_title,
+                    isSelected: selectedIndex == 7,
+                    onTap: () =>
+                        navigationShell.goBranch(5), // statistics branch
+                  ),
+                ],
+              ),
+            ),
+          ),
 
           // Discord 社群
           _ExternalLinkIcon(
@@ -127,7 +149,7 @@ class MainNavRail extends ConsumerWidget {
           _NavIcon(
             icon: Icons.settings,
             label: context.l10n.nav_settings,
-            isSelected: selectedIndex == 7,
+            isSelected: selectedIndex == 8,
             onTap: () => navigationShell.goBranch(3), // settings branch
           ),
           const SizedBox(height: 16),

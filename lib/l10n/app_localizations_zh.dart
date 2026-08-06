@@ -11892,6 +11892,142 @@ class AppLocalizationsZh extends AppLocalizations {
       '3D 编辑器需要 Microsoft Edge WebView2 运行时。Windows 10/11 通常已自带;若缺失请从微软官网安装 Evergreen 版本后重试。';
 
   @override
+  String get nav_preciseRefLibrary => '精准参考库';
+
+  @override
+  String get preciseRefLib_title => '精准参考库';
+
+  @override
+  String get preciseRefLib_searchHint => '搜索参考图...';
+
+  @override
+  String get preciseRefLib_empty => '拖拽或粘贴图片到此处建立库';
+
+  @override
+  String get preciseRefLib_emptyHint => '也可以在生成结果、历史记录或本地图库中右键保存';
+
+  @override
+  String get preciseRefLib_import => '导入图片';
+
+  @override
+  String preciseRefLib_entryCount(int count) {
+    return '$count 个条目';
+  }
+
+  @override
+  String get preciseRefLib_sendToPreciseRef => '发送到精准参考';
+
+  @override
+  String get preciseRefLib_sendToImg2Img => '发送到图生图';
+
+  @override
+  String get preciseRefLib_editEntry => '编辑参数';
+
+  @override
+  String get preciseRefLib_deleteEntry => '删除';
+
+  @override
+  String get preciseRefLib_confirmDeleteTitle => '删除条目';
+
+  @override
+  String preciseRefLib_confirmDelete(String name) {
+    return '确定删除“$name”？图片文件将一并删除。';
+  }
+
+  @override
+  String preciseRefLib_saved(String name) {
+    return '已存入精准参考库：$name';
+  }
+
+  @override
+  String get preciseRefLib_savedHint => '可在精准参考库中编辑参数';
+
+  @override
+  String preciseRefLib_sent(String name) {
+    return '已发送到精准参考：$name';
+  }
+
+  @override
+  String preciseRefLib_sentToImg2Img(String name) {
+    return '已发送到图生图：$name';
+  }
+
+  @override
+  String get preciseRefLib_imageMissing => '原图文件丢失';
+
+  @override
+  String get preciseRefLib_favoritesOnly => '只看收藏';
+
+  @override
+  String get preciseRefLib_sortBy => '排序方式';
+
+  @override
+  String get preciseRefLib_sortCreatedAt => '创建时间';
+
+  @override
+  String get preciseRefLib_sortLastUsed => '最近使用';
+
+  @override
+  String get preciseRefLib_sortUsedCount => '使用次数';
+
+  @override
+  String get preciseRefLib_sortName => '名称';
+
+  @override
+  String preciseRefLib_importedCount(int count) {
+    return '已导入 $count 张图片';
+  }
+
+  @override
+  String preciseRefLib_loadFailed(String error) {
+    return '加载精准参考库失败：$error';
+  }
+
+  @override
+  String preciseRefLib_importFailed(String error) {
+    return '保存到精准参考库失败：$error';
+  }
+
+  @override
+  String preciseRefLib_importFailedCount(int count) {
+    return '$count 张图片未能导入精准参考库';
+  }
+
+  @override
+  String get preciseRefLib_fromLibrary => '从库导入';
+
+  @override
+  String get preciseRefLib_saveCurrentToLibrary => '保存到库';
+
+  @override
+  String preciseRefLib_saveCurrentCount(int count) {
+    return '已保存 $count 张到精准参考库';
+  }
+
+  @override
+  String get preciseRefLib_selectorTitle => '从精准参考库选择';
+
+  @override
+  String preciseRefLib_selectorConfirm(int count) {
+    return '添加所选 ($count)';
+  }
+
+  @override
+  String get preciseRefLib_nameLabel => '名称';
+
+  @override
+  String get preciseRefLib_typeFilterAll => '全部';
+
+  @override
+  String get img2img_fromPreciseRefLibrary => '从精准参考库导入';
+
+  @override
+  String get localGallery_saveToPreciseRefLibrary => '保存到精准参考库';
+
+  @override
+  String get drop_saveToPreciseRefLibrary => '存入精准参考库';
+
+  @override
   String get common_enabled => '已启用';
 
   @override

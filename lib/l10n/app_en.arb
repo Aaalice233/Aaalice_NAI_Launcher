@@ -6210,6 +6210,100 @@
   "model3d_addLayerTooltip": "Add 3D Model Layer",
   "model3d_webview2Missing": "The 3D editor requires the Microsoft Edge WebView2 Runtime. It ships with Windows 10/11; if missing, install the Evergreen runtime from Microsoft and retry.",
 
+  "nav_preciseRefLibrary": "Precise Ref Library",
+  "preciseRefLib_title": "Precise Reference Library",
+  "preciseRefLib_searchHint": "Search references...",
+  "preciseRefLib_empty": "Drop or paste images here to build your library",
+  "preciseRefLib_emptyHint": "You can also right-click images in preview, history, or gallery to save them here",
+  "preciseRefLib_import": "Import Images",
+  "preciseRefLib_entryCount": "{count} items",
+  "@preciseRefLib_entryCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "preciseRefLib_sendToPreciseRef": "Send to Precise Reference",
+  "preciseRefLib_sendToImg2Img": "Send to Image to Image",
+  "preciseRefLib_editEntry": "Edit Parameters",
+  "preciseRefLib_deleteEntry": "Delete",
+  "preciseRefLib_confirmDeleteTitle": "Delete Entry",
+  "preciseRefLib_confirmDelete": "Delete \"{name}\"? The image file will also be removed.",
+  "@preciseRefLib_confirmDelete": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "preciseRefLib_saved": "Saved \"{name}\" to Precise Ref Library",
+  "@preciseRefLib_saved": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "preciseRefLib_savedHint": "You can edit parameters in the library",
+  "preciseRefLib_sent": "Sent \"{name}\" to Precise Reference",
+  "@preciseRefLib_sent": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "preciseRefLib_sentToImg2Img": "Sent \"{name}\" to Image to Image",
+  "@preciseRefLib_sentToImg2Img": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "preciseRefLib_imageMissing": "Image file is missing",
+  "preciseRefLib_favoritesOnly": "Favorites only",
+  "preciseRefLib_sortBy": "Sort by",
+  "preciseRefLib_sortCreatedAt": "Created",
+  "preciseRefLib_sortLastUsed": "Last used",
+  "preciseRefLib_sortUsedCount": "Most used",
+  "preciseRefLib_sortName": "Name",
+  "preciseRefLib_importedCount": "Imported {count} images",
+  "@preciseRefLib_importedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "preciseRefLib_loadFailed": "Failed to load the Precise Reference Library: {error}",
+  "@preciseRefLib_loadFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "preciseRefLib_importFailed": "Failed to save to the Precise Reference Library: {error}",
+  "@preciseRefLib_importFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "preciseRefLib_importFailedCount": "{count} images could not be imported into the Precise Reference Library",
+  "@preciseRefLib_importFailedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "preciseRefLib_fromLibrary": "From Library",
+  "preciseRefLib_saveCurrentToLibrary": "Save to Library",
+  "preciseRefLib_saveCurrentCount": "Saved {count} references to library",
+  "@preciseRefLib_saveCurrentCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "preciseRefLib_selectorTitle": "Select from Precise Ref Library",
+  "preciseRefLib_selectorConfirm": "Add Selected ({count})",
+  "@preciseRefLib_selectorConfirm": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "preciseRefLib_nameLabel": "Name",
+  "preciseRefLib_typeFilterAll": "All",
+  "img2img_fromPreciseRefLibrary": "From Precise Ref Library",
+  "localGallery_saveToPreciseRefLibrary": "Save to Precise Ref Library",
+  "drop_saveToPreciseRefLibrary": "Save to Precise Ref Library",
+
   "common_enabled": "Enabled",
   "common_disabled": "Disabled",
   "bulkAction_selectedCount": "{count} selected",

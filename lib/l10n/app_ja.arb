@@ -6187,6 +6187,60 @@
   "model3d_addLayerTooltip": "3Dモデルレイヤーを追加",
   "model3d_webview2Missing": "3DエディタにはMicrosoft Edge WebView2ランタイムが必要です。Windows 10/11には通常同梱されています。無い場合はMicrosoftからEvergreen版をインストールして再試行してください。",
 
+  "nav_preciseRefLibrary": "精密参照ライブラリ",
+  "preciseRefLib_title": "精密参照ライブラリ",
+  "preciseRefLib_searchHint": "参照画像を検索...",
+  "preciseRefLib_empty": "ここに画像をドロップまたは貼り付けてライブラリを作成",
+  "preciseRefLib_emptyHint": "プレビュー・履歴・ギャラリーで右クリックして保存もできます",
+  "preciseRefLib_import": "画像をインポート",
+  "preciseRefLib_entryCount": "{count} 件",
+  "preciseRefLib_sendToPreciseRef": "精密参照へ送る",
+  "preciseRefLib_sendToImg2Img": "画像から画像へ送る",
+  "preciseRefLib_editEntry": "パラメータを編集",
+  "preciseRefLib_deleteEntry": "削除",
+  "preciseRefLib_confirmDeleteTitle": "エントリを削除",
+  "preciseRefLib_confirmDelete": "「{name}」を削除しますか？画像ファイルも削除されます。",
+  "preciseRefLib_saved": "精密参照ライブラリに保存しました：{name}",
+  "preciseRefLib_savedHint": "ライブラリでパラメータを編集できます",
+  "preciseRefLib_sent": "精密参照へ送信しました：{name}",
+  "preciseRefLib_sentToImg2Img": "画像から画像へ送信しました：{name}",
+  "preciseRefLib_imageMissing": "元画像ファイルが見つかりません",
+  "preciseRefLib_favoritesOnly": "お気に入りのみ",
+  "preciseRefLib_sortBy": "並び替え",
+  "preciseRefLib_sortCreatedAt": "作成日時",
+  "preciseRefLib_sortLastUsed": "最終使用",
+  "preciseRefLib_sortUsedCount": "使用回数",
+  "preciseRefLib_sortName": "名前",
+  "preciseRefLib_importedCount": "{count} 枚の画像をインポートしました",
+  "preciseRefLib_loadFailed": "精密参照ライブラリを読み込めませんでした：{error}",
+  "@preciseRefLib_loadFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "preciseRefLib_importFailed": "精密参照ライブラリへの保存に失敗しました：{error}",
+  "@preciseRefLib_importFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "preciseRefLib_importFailedCount": "{count} 枚の画像を精密参照ライブラリにインポートできませんでした",
+  "@preciseRefLib_importFailedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "preciseRefLib_fromLibrary": "ライブラリから",
+  "preciseRefLib_saveCurrentToLibrary": "ライブラリへ保存",
+  "preciseRefLib_saveCurrentCount": "{count} 件をライブラリへ保存しました",
+  "preciseRefLib_selectorTitle": "精密参照ライブラリから選択",
+  "preciseRefLib_selectorConfirm": "選択を追加 ({count})",
+  "preciseRefLib_nameLabel": "名前",
+  "preciseRefLib_typeFilterAll": "すべて",
+  "img2img_fromPreciseRefLibrary": "精密参照ライブラリから",
+  "localGallery_saveToPreciseRefLibrary": "精密参照ライブラリへ保存",
+  "drop_saveToPreciseRefLibrary": "精密参照ライブラリへ保存",
+
   "common_enabled": "有効",
   "common_disabled": "無効",
   "bulkAction_selectedCount": "{count} 件を選択中",
@@ -6515,6 +6569,63 @@
     }
   },
   "diy_activeBadge": "有効",
+"@preciseRefLib_confirmDelete": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@preciseRefLib_entryCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@preciseRefLib_importedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@preciseRefLib_saveCurrentCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@preciseRefLib_saved": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@preciseRefLib_selectorConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@preciseRefLib_sent": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@preciseRefLib_sentToImg2Img": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+
   "common_optional": "任意",
   "common_emptyValue": "（空）",
   "common_previewLoadFailed": "プレビューを読み込めませんでした",
