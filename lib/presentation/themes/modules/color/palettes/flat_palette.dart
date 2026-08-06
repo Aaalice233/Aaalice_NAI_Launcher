@@ -21,11 +21,11 @@ class FlatPalette extends BaseColorModule {
   @override
   ColorScheme get lightScheme => const ColorScheme.light(
         primary: _primary,
-        onPrimary: Colors.white,
+        onPrimary: Color(0xFF03183B),
         primaryContainer: Color(0xFFDCE7FF), // Light blue for contrast
         onPrimaryContainer: Color(0xFF0C3170), // Dark blue for text/icons
         secondary: _secondary,
-        onSecondary: Colors.white,
+        onSecondary: Color(0xFF053827),
         tertiary: _tertiary,
         onTertiary: Colors.black,
         surface: _surface,
@@ -33,12 +33,13 @@ class FlatPalette extends BaseColorModule {
         surfaceContainerHighest: Color(0xFFF3F4F6),
         outline: Color(0xFFD1D5DB),
         error: _error,
+        onError: Color(0xFF380505),
       );
 
   @override
   ColorScheme get darkScheme => const ColorScheme.dark(
         primary: Color(0xFF60A5FA),
-        onPrimary: Color(0xFF1E3A8A),
+        onPrimary: Color(0xFF03336D),
         primaryContainer: Color(0xFF1A3A6E), // Dark blue for contrast
         onPrimaryContainer: Color(0xFFDCE7FF), // Light blue for text/icons
         secondary: Color(0xFF34D399),

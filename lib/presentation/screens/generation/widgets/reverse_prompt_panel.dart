@@ -220,7 +220,13 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     padding: const EdgeInsets.all(2),
-                    child: const Icon(Icons.close, size: 14),
+                    // 底色是写死的半透明黑，图标也必须写死浅色，
+                    // 否则浅色主题下会继承成近黑色，变成黑底黑图标。
+                    child: const Icon(
+                      Icons.close,
+                      size: 14,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -313,7 +319,7 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
             Text(
               context.l10n.reversePrompt_taggerFilterHint,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.white70,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
             ),
           ],
@@ -336,7 +342,7 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
           Text(
             context.l10n.reversePrompt_replacementEmptyHint,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.white70,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
           ),
           const SizedBox(height: 8),
@@ -385,7 +391,9 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
             selectedCharacter.prompt,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 8),
           Wrap(

@@ -22,12 +22,13 @@ class EditorialPalette extends BaseColorModule {
   @override
   ColorScheme get lightScheme => const ColorScheme.light(
         primary: Color(0xFFDC4A30),
-        onPrimary: Colors.white,
+        onPrimary: Color(0xFF160604),
         primaryContainer: Color(0xFFFFE6DE), // Light coral for contrast
         onPrimaryContainer: Color(0xFF5C1A10), // Dark coral for text/icons
         secondary: Color(0xFF2563EB),
         onSecondary: Colors.white,
         tertiary: Color(0xFFD97706),
+        onTertiary: Color(0xFF3C2102),
         surface: Color(0xFFFAFAFA),
         onSurface: Color(0xFF171717),
       );

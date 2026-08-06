@@ -29,12 +29,13 @@ class ZenPalette extends BaseColorModule {
   @override
   ColorScheme get lightScheme => const ColorScheme.light(
         primary: Color(0xFF3B82F6),
-        onPrimary: Colors.white,
+        onPrimary: Color(0xFF03183B),
         primaryContainer: Color(0xFFDCE7FF), // Light blue for contrast
         onPrimaryContainer: Color(0xFF0C3170), // Dark blue for text/icons
         secondary: Color(0xFF64748B),
         onSecondary: Colors.white,
         tertiary: Color(0xFF8B5CF6),
+        onTertiary: Color(0xFF0F022B),
         surface: Color(0xFFFAFAFA),
         onSurface: Color(0xFF27272A),
         surfaceContainerHighest: Color(0xFFF4F4F5),

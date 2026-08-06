@@ -201,7 +201,13 @@ class _ColorPreview extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Icon(Icons.swap_horiz, size: 14),
+                // 底色写死为白，图标也必须写死深色，
+                // 否则在深色主题下会继承成近白色，变成白底白图标。
+                child: const Icon(
+                  Icons.swap_horiz,
+                  size: 14,
+                  color: Colors.black87,
+                ),
               ),
             ),
           ),

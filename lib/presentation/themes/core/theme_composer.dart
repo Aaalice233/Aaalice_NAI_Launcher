@@ -295,6 +295,11 @@ class ThemeComposer {
       ),
 
       // 深度层叠风格：Chip 配置
+      //
+      // 背景既然改用 primary 系，前景必须同族取 onPrimaryContainer。
+      // Material 3 给 ChoiceChip 的默认标签色是 onSecondaryContainer，
+      // 跨族之后对比度失去保证——多数预设并未认真配 secondary 系，
+      // onSecondaryContainer 常直接是纯白或纯黑，会变成浅底白字。
       chipTheme: ChipThemeData(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(shape.smallRadius),
@@ -303,6 +308,20 @@ class ThemeComposer {
         backgroundColor: colorScheme.surfaceContainerHighest,
         selectedColor: colorScheme.primaryContainer,
         surfaceTintColor: Colors.transparent,
+        // 两项都必须从 textTheme 派生：Chip 对 labelStyle 是"有则取之"而非
+        // 合并，传裸 TextStyle 会把默认的 labelLarge 整个顶掉，字体随之丢失。
+        // 用户自定义字体由 AppTheme._applyFontConfig 再同步进来。
+        //
+        // labelStyle 不能省：ChoiceChip 选中时走 secondaryLabelStyle，但
+        // FilterChip 选中时仍走 labelStyle，省掉会让它回退到 M3 默认的
+        // onSecondaryContainer，与这里的背景不同族。
+        labelStyle: textTheme.labelLarge?.copyWith(
+          color: colorScheme.onSurfaceVariant,
+        ),
+        secondaryLabelStyle: textTheme.labelLarge?.copyWith(
+          color: colorScheme.onPrimaryContainer,
+        ),
+        checkmarkColor: colorScheme.onPrimaryContainer,
       ),
 
       // 深度层叠风格：Tooltip 配置

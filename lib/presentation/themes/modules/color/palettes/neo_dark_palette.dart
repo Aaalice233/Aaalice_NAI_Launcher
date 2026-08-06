@@ -27,9 +27,9 @@ class NeoDarkPalette extends BaseColorModule {
         primaryContainer: Color(0xFF2A2855), // Dark indigo for contrast
         onPrimaryContainer: Color(0xFFE0E0FF), // Light indigo for text/icons
         secondary: _secondary,
-        onSecondary: Colors.white,
+        onSecondary: Color(0xFF0F022B),
         tertiary: Color(0xFFF472B6),
-        onTertiary: Colors.white,
+        onTertiary: Color(0xFF68083A),
         surface: _surface,
         onSurface: Color(0xFFEDEDEF),
         onSurfaceVariant: Color(0xFFA1A1AA), // Zinc-400 for secondary text

@@ -27,7 +27,7 @@ class MinimalGlassPalette extends BaseColorModule {
         primaryContainer: Color(0xFF3D3220), // Dark gold/brown for contrast
         onPrimaryContainer: Color(0xFFFFECC0), // Light gold for text/icons
         secondary: _secondary,
-        onSecondary: Colors.white,
+        onSecondary: Color(0xFF04212A),
         tertiary: Color(0xFFE1E6EB),
         onTertiary: Color(0xFF1A1A1A),
         surface: _surface,
@@ -36,6 +36,7 @@ class MinimalGlassPalette extends BaseColorModule {
         surfaceContainerHighest: _card,
         outline: Color(0xFF3D5A6C), // Cyan-tinted border
         error: Color(0xFFC62828),
+        onError: Color(0xFFFAE6E6),
       );
 
   @override

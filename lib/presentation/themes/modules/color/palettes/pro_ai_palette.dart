@@ -23,11 +23,11 @@ class ProAiPalette extends BaseColorModule {
   @override
   ColorScheme get darkScheme => const ColorScheme.dark(
         primary: _primary,
-        onPrimary: Colors.white,
+        onPrimary: Color(0xFF160099),
         primaryContainer: Color(0xFF3D3A6E), // Dark purple for contrast
         onPrimaryContainer: Color(0xFFE2E0FF), // Light purple for text/icons
         secondary: _secondary,
-        onSecondary: Colors.white,
+        onSecondary: Color(0xFF020317),
         tertiary: Color(0xFF22D3EE),
         onTertiary: Color(0xFF1A1A1A),
         surface: _surface,

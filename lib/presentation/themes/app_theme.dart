@@ -238,6 +238,26 @@ class AppTheme {
       textTheme: textTheme,
       primaryTextTheme: primaryTextTheme,
       tooltipTheme: _buildTooltipTheme(baseTheme, tooltipFontFamily),
+      chipTheme: _applyFontToChipTheme(baseTheme.chipTheme, textTheme),
+    );
+  }
+
+  /// 把用户字体同步到 Chip 的标签样式。
+  ///
+  /// Chip 对 `labelStyle` / `secondaryLabelStyle` 是"有则取之"而非合并：
+  /// 主题一旦设了这两项，就不会再回退到 `textTheme.labelLarge`，
+  /// 因此仅更新 textTheme 不足以让 Chip 跟随用户选择的字体。
+  static ChipThemeData _applyFontToChipTheme(
+    ChipThemeData chipTheme,
+    TextTheme textTheme,
+  ) {
+    final fontFamily = textTheme.labelLarge?.fontFamily;
+    if (fontFamily == null) return chipTheme;
+    return chipTheme.copyWith(
+      labelStyle: chipTheme.labelStyle?.copyWith(fontFamily: fontFamily),
+      secondaryLabelStyle: chipTheme.secondaryLabelStyle?.copyWith(
+        fontFamily: fontFamily,
+      ),
     );
   }
 

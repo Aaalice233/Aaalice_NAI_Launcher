@@ -25,8 +25,10 @@ class FluidPalette extends BaseColorModule {
         primaryContainer: Color(0xFFFFF8DC), // Light yellow for contrast
         onPrimaryContainer: Color(0xFF5C4A00), // Dark yellow for text/icons
         secondary: Color(0xFF0891B2),
-        onSecondary: Colors.white,
+        onSecondary: Color(0xFF011418),
         tertiary: Color(0xFFDB2777),
+        // 必须显式指定：否则会回退到 onSecondary 的深青，配不上这里的品红。
+        onTertiary: Colors.white,
         surface: Colors.white,
         onSurface: Colors.black87,
         onSurfaceVariant: Color(0xFF6B7280), // Gray-500

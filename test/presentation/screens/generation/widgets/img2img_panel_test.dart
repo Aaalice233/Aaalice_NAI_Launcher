@@ -10,6 +10,8 @@ import 'package:nai_launcher/presentation/providers/comfyui/comfyui_provider.dar
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/img2img_panel.dart';
 
+import '../../../../helpers/light_theme_contrast.dart';
+
 void main() {
   group('Img2ImgPanel', () {
     testWidgets('点击导演工具会导航到独立页面而不抛异常', (tester) async {
@@ -118,6 +120,28 @@ void main() {
 
       expect(find.text('4x-UltraSharpV2'), findsOneWidget);
       expect(find.textContaining('普通模型 ·'), findsNothing);
+    });
+
+    testWidgets('浅色主题下展开面板不应出现贴在面板底色上的近白色文字', (tester) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      controller.replaceSourceImage(_testImageBytes);
+      controller.enterInpaintMode();
+      // 展开后背景图不再渲染，内容直接贴在 Card 表面上，
+      // 此时任何白色文字在浅色主题下都不可读。
+      controller.setPanelExpanded(true);
+
+      await pumpPanelInLightTheme(
+        tester,
+        container: container,
+        panel: const Img2ImgPanel(),
+      );
+
+      expectNoUnreadableLightText(tester, panelName: 'Img2ImgPanel（重绘模式）');
     });
   });
 }
