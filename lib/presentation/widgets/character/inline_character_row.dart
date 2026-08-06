@@ -14,6 +14,17 @@ import 'character_position_canvas.dart';
 import 'inline_character_card.dart';
 import 'inline_character_editor.dart';
 
+enum _CharacterAddAction {
+  female(CharacterGender.female),
+  male(CharacterGender.male),
+  other(CharacterGender.other),
+  library(null);
+
+  const _CharacterAddAction(this.gender);
+
+  final CharacterGender? gender;
+}
+
 /// 内联角色行（经典布局用，横排）
 ///
 /// 位于提示词横条正下方，与主提示词同屏相邻：
@@ -330,13 +341,13 @@ class _AddCharacterChip extends ConsumerWidget {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
 
-    return PopupMenuButton<CharacterGender?>(
+    return PopupMenuButton<_CharacterAddAction>(
       tooltip: l10n.character_addCharacter,
       padding: EdgeInsets.zero,
-      onSelected: (gender) => _handleAdd(context, ref, gender),
+      onSelected: (action) => _handleAdd(context, ref, action),
       itemBuilder: (context) => [
         PopupMenuItem(
-          value: CharacterGender.female,
+          value: _CharacterAddAction.female,
           child: _menuRow(
             Icons.female,
             l10n.characterEditor_addFemale,
@@ -344,7 +355,7 @@ class _AddCharacterChip extends ConsumerWidget {
           ),
         ),
         PopupMenuItem(
-          value: CharacterGender.male,
+          value: _CharacterAddAction.male,
           child: _menuRow(
             Icons.male,
             l10n.characterEditor_addMale,
@@ -352,7 +363,7 @@ class _AddCharacterChip extends ConsumerWidget {
           ),
         ),
         PopupMenuItem(
-          value: CharacterGender.other,
+          value: _CharacterAddAction.other,
           child: _menuRow(
             Icons.transgender,
             l10n.characterEditor_addOther,
@@ -360,7 +371,7 @@ class _AddCharacterChip extends ConsumerWidget {
           ),
         ),
         PopupMenuItem(
-          value: null,
+          value: _CharacterAddAction.library,
           child: _menuRow(
             Icons.library_books_outlined,
             l10n.characterEditor_addFromLibrary,
@@ -399,9 +410,10 @@ class _AddCharacterChip extends ConsumerWidget {
   Future<void> _handleAdd(
     BuildContext context,
     WidgetRef ref,
-    CharacterGender? gender,
+    _CharacterAddAction action,
   ) async {
     final notifier = ref.read(characterPromptNotifierProvider.notifier);
+    final gender = action.gender;
 
     if (gender != null) {
       notifier.addCharacter(gender);

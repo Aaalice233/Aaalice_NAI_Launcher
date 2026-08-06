@@ -8,6 +8,17 @@ import '../../providers/tag_library_page_provider.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
 import 'character_tooltip_content.dart';
 
+enum _CharacterAddAction {
+  female(CharacterGender.female),
+  male(CharacterGender.male),
+  other(CharacterGender.other),
+  library(null);
+
+  const _CharacterAddAction(this.gender);
+
+  final CharacterGender? gender;
+}
+
 /// 多人角色提示词触发按钮
 ///
 /// 显示在提示词区域工具栏中，作为内联角色区的状态指示器：
@@ -106,13 +117,13 @@ class _AddCharacterMenu extends ConsumerWidget {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
 
-    return PopupMenuButton<CharacterGender?>(
+    return PopupMenuButton<_CharacterAddAction>(
       tooltip: '',
       padding: EdgeInsets.zero,
-      onSelected: (gender) => _handleAdd(context, ref, gender),
+      onSelected: (action) => _handleAdd(context, ref, action),
       itemBuilder: (context) => [
         PopupMenuItem(
-          value: CharacterGender.female,
+          value: _CharacterAddAction.female,
           child: _menuRow(
             Icons.female,
             l10n.characterEditor_addFemale,
@@ -120,7 +131,7 @@ class _AddCharacterMenu extends ConsumerWidget {
           ),
         ),
         PopupMenuItem(
-          value: CharacterGender.male,
+          value: _CharacterAddAction.male,
           child: _menuRow(
             Icons.male,
             l10n.characterEditor_addMale,
@@ -128,7 +139,7 @@ class _AddCharacterMenu extends ConsumerWidget {
           ),
         ),
         PopupMenuItem(
-          value: CharacterGender.other,
+          value: _CharacterAddAction.other,
           child: _menuRow(
             Icons.transgender,
             l10n.characterEditor_addOther,
@@ -136,7 +147,7 @@ class _AddCharacterMenu extends ConsumerWidget {
           ),
         ),
         PopupMenuItem(
-          value: null,
+          value: _CharacterAddAction.library,
           child: _menuRow(
             Icons.library_books_outlined,
             l10n.characterEditor_addFromLibrary,
@@ -161,9 +172,10 @@ class _AddCharacterMenu extends ConsumerWidget {
   Future<void> _handleAdd(
     BuildContext context,
     WidgetRef ref,
-    CharacterGender? gender,
+    _CharacterAddAction action,
   ) async {
     final notifier = ref.read(characterPromptNotifierProvider.notifier);
+    final gender = action.gender;
 
     if (gender != null) {
       notifier.addCharacter(gender);
