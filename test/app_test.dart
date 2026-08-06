@@ -1064,6 +1064,7 @@ void main() {
       expect(executable['8']['inputs']['tile_width'], 1280);
       expect(executable['8']['inputs']['tile_height'], 1280);
       expect(executable['8']['inputs']['tile_upscale_resolution'], 1536);
+      expect(executable['8']['inputs']['resolution_target'], 'longest');
     });
 
     test('detects missing ComfyUI node types before queueing workflow', () {

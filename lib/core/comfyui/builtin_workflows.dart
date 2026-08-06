@@ -551,6 +551,7 @@ class BuiltinWorkflows {
         'anti_aliasing_strength': 0.1,
         'blending_method': 'content_aware',
         'color_correction': 'lab',
+        'resolution_target': 'longest',
       },
       'class_type': 'SeedVR2TilingUpscaler',
       '_meta': {'title': 'SeedVR2 Tiling Upscaler'},
