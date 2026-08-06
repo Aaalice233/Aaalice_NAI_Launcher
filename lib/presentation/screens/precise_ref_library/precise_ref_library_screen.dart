@@ -181,20 +181,23 @@ class _PreciseRefLibraryScreenState
       return;
     }
 
-    await ref
-        .read(generationParamsNotifierProvider.notifier)
-        .addPreciseReferenceFromImage(
-          bytes,
-          type: entry.type,
-          strength: entry.strength,
-          fidelity: entry.fidelity,
-        );
+    // 不等待：方法在第一个 await 前已把原图塞进状态，
+    // Director PNG 规范化在后台完成后自动替换（与拖拽/图库发送路径一致）
+    unawaited(
+      ref
+          .read(generationParamsNotifierProvider.notifier)
+          .addPreciseReferenceFromImage(
+            bytes,
+            type: entry.type,
+            strength: entry.strength,
+            fidelity: entry.fidelity,
+          ),
+    );
     unawaited(
       ref
           .read(preciseRefLibraryNotifierProvider.notifier)
           .recordUsage(entry.id),
     );
-    if (!mounted) return;
     AppToast.success(context, l10n.preciseRefLib_sent(entry.name));
     context.go(AppRoutes.home);
   }
