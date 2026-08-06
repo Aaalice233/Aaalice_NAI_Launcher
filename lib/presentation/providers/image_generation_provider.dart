@@ -688,13 +688,21 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             'Batch ${batch + 1}/$batchCount - Random before generation: $randomPrompt',
             'RandomMode',
           );
+          // 随机提示词是原始文本，必须重跑开头对第一批做过的正面词管线
+          //（别名展开 → 固定词 → 质量词），否则第二批起会丢固定词和质量词
+          var preparedPrompt = aliasResolver.resolveAliases(randomPrompt);
+          preparedPrompt = fixedTagsState.applyToPrompt(preparedPrompt);
+          preparedPrompt = _resolvePromptPresets(
+            currentParams.copyWith(prompt: preparedPrompt, negativePrompt: ''),
+          ).prompt;
+
           // 重新读取角色配置并更新参数
           final newCharacterConfig = ref.read(characterPromptNotifierProvider);
           final newApiCharacters = _convertCharactersToApiFormat(
             newCharacterConfig,
           );
           currentParams = currentParams.copyWith(
-            prompt: randomPrompt,
+            prompt: preparedPrompt,
             characters: newApiCharacters,
             useCoords:
                 newApiCharacters.isNotEmpty &&
