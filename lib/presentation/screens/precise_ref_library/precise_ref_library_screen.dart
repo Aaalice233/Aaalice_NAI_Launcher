@@ -123,17 +123,26 @@ class _PreciseRefLibraryScreenState
   }
 
   Future<void> _handleDrop(PerformDropEvent event) async {
-    var imported = 0;
-    var failed = 0;
+    // 在拖放会话仍存活时并发发起全部读取；逐个串行读取会导致
+    // 后续 item 的 reader 随会话释放而失效（platform reader not found）
+    final futures = <Future<DroppedFileData?>>[];
     for (final item in event.session.items) {
       final reader = item.dataReader;
       if (reader == null) continue;
-      final dropped = await DroppedFileReader.read(
-        reader,
-        logTag: 'PreciseRefLibraryDrop',
+      futures.add(
+        DroppedFileReader.read(
+          reader,
+          logTag: 'PreciseRefLibraryDrop',
+        ).catchError((Object _) => null),
       );
+    }
+    final results = await Future.wait(futures);
+    if (!mounted) return;
+
+    var imported = 0;
+    var failed = 0;
+    for (final dropped in results) {
       if (dropped == null || dropped.bytes.isEmpty) continue;
-      if (!mounted) return;
       try {
         await ref
             .read(preciseRefLibraryNotifierProvider.notifier)
@@ -145,6 +154,7 @@ class _PreciseRefLibraryScreenState
       } catch (_) {
         failed++;
       }
+      if (!mounted) return;
     }
     if (mounted && imported > 0) {
       AppToast.success(
@@ -542,6 +552,83 @@ class _PreciseRefLibraryScreenState
   Widget _buildEmptyView(PreciseRefLibraryState state) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
+
+    // 加载失败：显示错误与重试按钮，不再伪装成空库
+    if (state.error != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 48,
+              color: theme.colorScheme.error,
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                l10n.preciseRefLib_loadFailed(state.error!),
+                textAlign: TextAlign.center,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              key: const Key('precise-ref-library-retry'),
+              onPressed: () {
+                ref
+                    .read(preciseRefLibraryNotifierProvider.notifier)
+                    .reload(showLoading: true);
+              },
+              icon: const Icon(Icons.refresh, size: 18),
+              label: Text(l10n.common_retry),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // 过滤后无结果：给出条目总数与一键清除过滤
+    if (state.hasFilters) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.filter_alt_off_outlined,
+              size: 48,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '${l10n.localGallery_noMatchingResults} '
+              '(${l10n.preciseRefLib_entryCount(state.totalCount)})',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              key: const Key('precise-ref-library-clear-filters'),
+              onPressed: () {
+                _searchController.clear();
+                ref
+                    .read(preciseRefLibraryNotifierProvider.notifier)
+                    .clearFilters();
+              },
+              icon: const Icon(Icons.filter_alt_off, size: 18),
+              label: Text(l10n.localGallery_clearFilters),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -553,9 +640,7 @@ class _PreciseRefLibraryScreenState
           ),
           const SizedBox(height: 12),
           Text(
-            state.hasFilters
-                ? l10n.localGallery_noMatchingResults
-                : l10n.preciseRefLib_empty,
+            l10n.preciseRefLib_empty,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),

@@ -115,6 +115,16 @@ class PreciseRefLibraryNotifier extends _$PreciseRefLibraryNotifier {
     _applyFilters();
   }
 
+  /// 一键清除全部过滤条件（搜索、收藏、类型）
+  void clearFilters() {
+    state = state.copyWith(
+      searchQuery: '',
+      favoritesOnly: false,
+      typeFilter: null,
+    );
+    _applyFilters();
+  }
+
   /// 设置排序方式
   void setSortOrder(PreciseRefLibrarySortOrder order, {bool? descending}) {
     final sameOrder = state.sortOrder == order;
