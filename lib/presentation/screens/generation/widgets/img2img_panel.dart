@@ -25,6 +25,7 @@ import '../../../providers/generation/image_workflow_controller.dart';
 import '../../../providers/precise_ref_library_provider.dart';
 import '../../../services/image_workflow_launcher.dart';
 import '../../../utils/comfyui_workflow_l10n.dart';
+import '../../../utils/precise_ref_library_import_helper.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/collapsible_image_panel.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
@@ -199,6 +200,13 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
             ),
             const Spacer(),
             _IconButton(
+              key: const Key('img2img-save-source-to-library'),
+              icon: Icons.bookmark_add_outlined,
+              onPressed: _saveSourceToPreciseRefLibrary,
+              tooltip: context.l10n.preciseRefLib_saveCurrentToLibrary,
+            ),
+            const SizedBox(width: 8),
+            _IconButton(
               icon: Icons.refresh,
               onPressed: _pickImage,
               tooltip: context.l10n.img2img_changeImage,
@@ -356,6 +364,13 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
         ),
       ],
     );
+  }
+
+  /// 把当前底图保存到精准参考库
+  Future<void> _saveSourceToPreciseRefLibrary() async {
+    final sourceImage = ref.read(generationParamsNotifierProvider).sourceImage;
+    if (sourceImage == null) return;
+    await saveBytesToPreciseRefLibrary(ref, context, sourceImage);
   }
 
   /// 从精准参考库选一张图作为图生图底图
@@ -2134,6 +2149,7 @@ class _FocusedCropOverlayPainter extends CustomPainter {
 /// 小型图标按钮
 class _IconButton extends StatelessWidget {
   const _IconButton({
+    super.key,
     required this.icon,
     required this.onPressed,
     required this.tooltip,

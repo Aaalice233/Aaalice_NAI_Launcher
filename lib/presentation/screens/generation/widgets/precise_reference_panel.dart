@@ -210,6 +210,8 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
                   index: index,
                   reference: references[index],
                   onRemove: () => _removeReference(index),
+                  onSaveToLibrary: () =>
+                      _saveSingleReferenceToLibrary(references[index]),
                   onEnabledChanged: (value) =>
                       _updateReferenceEnabled(index, value),
                   onTypeChanged: (type) => _updateReferenceType(index, type),
@@ -374,6 +376,26 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
     }
     if (added < selected.length) {
       AppToast.warning(context, context.l10n.preciseRefLib_imageMissing);
+    }
+  }
+
+  /// 把单张参考图（含类型与参数）保存到精准参考库
+  Future<void> _saveSingleReferenceToLibrary(PreciseReference reference) async {
+    try {
+      final entry = await ref
+          .read(preciseRefLibraryNotifierProvider.notifier)
+          .importFromBytes(
+            reference.image,
+            name: defaultPreciseRefName(),
+            type: reference.type,
+            strength: reference.strength,
+            fidelity: reference.fidelity,
+          );
+      if (!mounted) return;
+      AppToast.success(context, context.l10n.preciseRefLib_saved(entry.name));
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.error(context, context.l10n.preciseRefLib_importFailed('$e'));
     }
   }
 
@@ -592,6 +614,7 @@ class _PreciseReferenceCard extends StatelessWidget {
   final int index;
   final PreciseReference reference;
   final VoidCallback onRemove;
+  final VoidCallback onSaveToLibrary;
   final ValueChanged<bool> onEnabledChanged;
   final ValueChanged<PreciseRefType> onTypeChanged;
   final ValueChanged<double> onStrengthChanged;
@@ -601,6 +624,7 @@ class _PreciseReferenceCard extends StatelessWidget {
     required this.index,
     required this.reference,
     required this.onRemove,
+    required this.onSaveToLibrary,
     required this.onEnabledChanged,
     required this.onTypeChanged,
     required this.onStrengthChanged,
@@ -646,7 +670,22 @@ class _PreciseReferenceCard extends StatelessWidget {
                   ),
                 ),
 
-                // 右侧：删除按钮
+                // 右侧：保存到库 + 删除按钮
+                SizedBox(
+                  height: 28,
+                  width: 28,
+                  child: IconButton(
+                    key: Key('precise-reference-save-to-library-$index'),
+                    padding: EdgeInsets.zero,
+                    icon: Icon(
+                      Icons.bookmark_add_outlined,
+                      size: 18,
+                      color: theme.colorScheme.primary,
+                    ),
+                    onPressed: onSaveToLibrary,
+                    tooltip: context.l10n.preciseRefLib_saveCurrentToLibrary,
+                  ),
+                ),
                 SizedBox(
                   height: 28,
                   width: 28,
