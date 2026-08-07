@@ -498,6 +498,16 @@
   "prompt_searchPrevious": "Previous match",
   "prompt_searchNext": "Next match",
   "prompt_searchClose": "Close search",
+  "prompt_replaceHint": "Replace with",
+  "prompt_replaceToggle": "Toggle replace",
+  "prompt_replaceCurrent": "Replace current match (Enter)",
+  "prompt_replaceAll": "Replace all (Ctrl+Enter)",
+  "prompt_replaceAllDone": "Replaced {count} matches",
+  "@prompt_replaceAllDone": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "promptAssistant_needPrompt": "Enter a prompt before using the assistant",
   "promptAssistant_requestFailed": "Assistant request failed: {error}",
   "@promptAssistant_requestFailed": {

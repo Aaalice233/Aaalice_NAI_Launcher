@@ -2080,6 +2080,36 @@ abstract class AppLocalizations {
   /// **'Close search'**
   String get prompt_searchClose;
 
+  /// No description provided for @prompt_replaceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace with'**
+  String get prompt_replaceHint;
+
+  /// No description provided for @prompt_replaceToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle replace'**
+  String get prompt_replaceToggle;
+
+  /// No description provided for @prompt_replaceCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace current match (Enter)'**
+  String get prompt_replaceCurrent;
+
+  /// No description provided for @prompt_replaceAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace all (Ctrl+Enter)'**
+  String get prompt_replaceAll;
+
+  /// No description provided for @prompt_replaceAllDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Replaced {count} matches'**
+  String prompt_replaceAllDone(Object count);
+
   /// No description provided for @promptAssistant_needPrompt.
   ///
   /// In en, this message translates to:

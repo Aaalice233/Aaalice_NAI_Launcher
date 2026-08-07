@@ -490,6 +490,16 @@
   "prompt_searchPrevious": "前の一致",
   "prompt_searchNext": "次の一致",
   "prompt_searchClose": "検索を閉じる",
+  "prompt_replaceHint": "置換後の文字列",
+  "prompt_replaceToggle": "置換欄の表示切り替え",
+  "prompt_replaceCurrent": "現在の一致を置換（Enter）",
+  "prompt_replaceAll": "すべて置換（Ctrl+Enter）",
+  "prompt_replaceAllDone": "{count} 件を置換しました",
+  "@prompt_replaceAllDone": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "promptAssistant_needPrompt": "アシスタントを使用する前にプロンプトを入力してください",
   "promptAssistant_requestFailed": "アシスタントのリクエストが失敗しました: {error}",
   "@promptAssistant_requestFailed": {

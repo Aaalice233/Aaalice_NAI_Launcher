@@ -1065,6 +1065,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get prompt_searchClose => '关闭搜索';
 
   @override
+  String get prompt_replaceHint => '替换为';
+
+  @override
+  String get prompt_replaceToggle => '显示/隐藏替换';
+
+  @override
+  String get prompt_replaceCurrent => '替换当前命中（Enter）';
+
+  @override
+  String get prompt_replaceAll => '全部替换（Ctrl+Enter）';
+
+  @override
+  String prompt_replaceAllDone(Object count) {
+    return '已替换 $count 处';
+  }
+
+  @override
   String get promptAssistant_needPrompt => '请输入提示词后再操作';
 
   @override

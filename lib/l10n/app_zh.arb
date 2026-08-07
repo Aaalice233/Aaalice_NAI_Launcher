@@ -421,6 +421,16 @@
   "prompt_searchPrevious": "上一个命中",
   "prompt_searchNext": "下一个命中",
   "prompt_searchClose": "关闭搜索",
+  "prompt_replaceHint": "替换为",
+  "prompt_replaceToggle": "显示/隐藏替换",
+  "prompt_replaceCurrent": "替换当前命中（Enter）",
+  "prompt_replaceAll": "全部替换（Ctrl+Enter）",
+  "prompt_replaceAllDone": "已替换 {count} 处",
+  "@prompt_replaceAllDone": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "promptAssistant_needPrompt": "请输入提示词后再操作",
   "promptAssistant_requestFailed": "助手请求失败: {error}",
   "@promptAssistant_requestFailed": {

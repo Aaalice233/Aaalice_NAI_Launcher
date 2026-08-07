@@ -1096,6 +1096,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get prompt_searchClose => 'Close search';
 
   @override
+  String get prompt_replaceHint => 'Replace with';
+
+  @override
+  String get prompt_replaceToggle => 'Toggle replace';
+
+  @override
+  String get prompt_replaceCurrent => 'Replace current match (Enter)';
+
+  @override
+  String get prompt_replaceAll => 'Replace all (Ctrl+Enter)';
+
+  @override
+  String prompt_replaceAllDone(Object count) {
+    return 'Replaced $count matches';
+  }
+
+  @override
   String get promptAssistant_needPrompt =>
       'Enter a prompt before using the assistant';
 

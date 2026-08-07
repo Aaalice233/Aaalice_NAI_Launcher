@@ -1080,6 +1080,23 @@ class AppLocalizationsJa extends AppLocalizations {
   String get prompt_searchClose => '検索を閉じる';
 
   @override
+  String get prompt_replaceHint => '置換後の文字列';
+
+  @override
+  String get prompt_replaceToggle => '置換欄の表示切り替え';
+
+  @override
+  String get prompt_replaceCurrent => '現在の一致を置換（Enter）';
+
+  @override
+  String get prompt_replaceAll => 'すべて置換（Ctrl+Enter）';
+
+  @override
+  String prompt_replaceAllDone(Object count) {
+    return '$count 件を置換しました';
+  }
+
+  @override
   String get promptAssistant_needPrompt => 'アシスタントを使用する前にプロンプトを入力してください';
 
   @override

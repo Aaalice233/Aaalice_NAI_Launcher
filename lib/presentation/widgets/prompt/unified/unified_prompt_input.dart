@@ -138,10 +138,16 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   late String _sessionId;
   late final TextEditingController _searchController;
   late final FocusNode _searchFocusNode;
+  late final TextEditingController _replaceController;
+  late final FocusNode _replaceFocusNode;
   bool _searchVisible = false;
+  bool _replaceVisible = false;
   List<TextRange> _searchMatches = const [];
   int _activeSearchMatchIndex = -1;
   String _lastSearchSourceText = '';
+
+  /// 替换功能是否可用（只读模式下禁用）
+  bool get _canReplace => !widget.config.readOnly;
 
   bool get _isDesktop {
     switch (defaultTargetPlatform) {
@@ -161,7 +167,8 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
     final promptFocused = _effectiveFocusNode.hasFocus;
     final searchFocused = _searchFocusNode.hasFocus;
-    if (!promptFocused && !searchFocused) {
+    final replaceFocused = _replaceFocusNode.hasFocus;
+    if (!promptFocused && !searchFocused && !replaceFocused) {
       return false;
     }
 
@@ -178,18 +185,36 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       return true;
     }
 
-    if (_searchVisible && searchFocused) {
+    if ((isCtrl || isMeta) &&
+        !isShift &&
+        _canReplace &&
+        logicalKey == LogicalKeyboardKey.keyH) {
+      _openSearch(showReplace: true);
+      return true;
+    }
+
+    if (_searchVisible && (searchFocused || replaceFocused)) {
       if (logicalKey == LogicalKeyboardKey.escape) {
         _closeSearch();
         return true;
       }
       if (logicalKey == LogicalKeyboardKey.enter) {
-        _goToSearchMatch(previous: isShift);
+        // 搜索框回车跳转命中，替换框回车替换当前命中；
+        // 替换框上叠加 Ctrl/Cmd 则执行全部替换（对齐常见编辑器）。
+        if (replaceFocused) {
+          if (isCtrl || isMeta) {
+            _replaceAllMatches();
+          } else {
+            _replaceActiveMatch();
+          }
+        } else {
+          _goToSearchMatch(previous: isShift);
+        }
         return true;
       }
     }
 
-    if (!promptFocused || searchFocused) {
+    if (!promptFocused || searchFocused || replaceFocused) {
       return false;
     }
 
@@ -275,6 +300,8 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     _searchController = TextEditingController();
     _searchFocusNode = FocusNode();
     _searchController.addListener(_onSearchQueryChanged);
+    _replaceController = TextEditingController();
+    _replaceFocusNode = FocusNode();
 
     // 监听外部控制器变化
     widget.controller?.addListener(_syncFromExternalController);
@@ -337,6 +364,8 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     _internalFocusNode?.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _replaceController.dispose();
+    _replaceFocusNode.dispose();
     super.dispose();
   }
 
@@ -567,13 +596,24 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     widget.config.onClearPressed?.call();
   }
 
-  void _openSearch() {
+  void _openSearch({bool showReplace = false}) {
+    final shouldShowReplace = showReplace && _canReplace;
     final selectedText = _selectedPromptText();
     final shouldUseSelection = !_searchVisible && selectedText.isNotEmpty;
+    // 搜索栏已展开且已有查询词时，Ctrl+H 直接把焦点交给替换框，
+    // 避免用户还要再点一次输入框。
+    final focusReplaceField =
+        shouldShowReplace &&
+        _searchVisible &&
+        !shouldUseSelection &&
+        _searchController.text.trim().isNotEmpty;
 
-    if (!_searchVisible) {
+    if (!_searchVisible || (shouldShowReplace && !_replaceVisible)) {
       setState(() {
         _searchVisible = true;
+        if (shouldShowReplace) {
+          _replaceVisible = true;
+        }
       });
     }
 
@@ -585,6 +625,14 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      if (focusReplaceField) {
+        _replaceFocusNode.requestFocus();
+        _replaceController.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _replaceController.text.length,
+        );
+        return;
+      }
       _searchFocusNode.requestFocus();
       _searchController.selection = TextSelection(
         baseOffset: 0,
@@ -604,6 +652,23 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     });
     _clearSearchHighlights();
     _effectiveFocusNode.requestFocus();
+  }
+
+  void _toggleReplaceVisible() {
+    if (!_canReplace) {
+      return;
+    }
+    final nextVisible = !_replaceVisible;
+    setState(() {
+      _replaceVisible = nextVisible;
+    });
+    if (!nextVisible) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _replaceFocusNode.requestFocus();
+    });
   }
 
   String _selectedPromptText() {
@@ -719,6 +784,134 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     _effectiveController.selection = TextSelection(
       baseOffset: match.start,
       extentOffset: match.end,
+    );
+  }
+
+  bool get _canRunReplace =>
+      _canReplace && _searchMatches.isNotEmpty && _searchQueryIsValid;
+
+  bool get _searchQueryIsValid => _searchController.text.trim().isNotEmpty;
+
+  /// 替换当前命中，并把光标折叠到替换文本末尾。
+  ///
+  /// 光标位置决定了 [_resolveActiveSearchIndex] 选中的下一个命中，
+  /// 因此替换后会自然跳到后一处，替换文本本身包含查询词时也不会自我循环。
+  void _replaceActiveMatch() {
+    if (!_canRunReplace) {
+      return;
+    }
+    if (_activeSearchMatchIndex < 0 ||
+        _activeSearchMatchIndex >= _searchMatches.length) {
+      return;
+    }
+
+    final source = _effectiveController.text;
+    final match = _searchMatches[_activeSearchMatchIndex];
+    if (match.start < 0 || match.end > source.length) {
+      return;
+    }
+
+    final replacement = _replaceController.text;
+    final newText = source.replaceRange(match.start, match.end, replacement);
+    _applyReplacedText(
+      newText,
+      caretOffset: match.start + replacement.length,
+      selectNextMatch: true,
+    );
+  }
+
+  /// 全部替换。
+  ///
+  /// 命中区间由 [_findSearchMatches] 保证互不重叠且按升序排列，
+  /// 因此可以一次线性拼接，不必反向逐个 replaceRange。
+  void _replaceAllMatches() {
+    if (!_canRunReplace) {
+      return;
+    }
+
+    final source = _effectiveController.text;
+    final replacement = _replaceController.text;
+    final buffer = StringBuffer();
+    var cursor = 0;
+    var replacedCount = 0;
+    var caretOffset = 0;
+
+    for (final match in _searchMatches) {
+      if (match.start < cursor || match.end > source.length) {
+        continue;
+      }
+      buffer.write(source.substring(cursor, match.start));
+      buffer.write(replacement);
+      cursor = match.end;
+      caretOffset = buffer.length;
+      replacedCount++;
+    }
+    if (replacedCount == 0) {
+      return;
+    }
+    buffer.write(source.substring(cursor));
+
+    final newText = _postProcessReplacedText(buffer.toString());
+    _applyReplacedText(
+      newText,
+      caretOffset: caretOffset,
+      selectNextMatch: false,
+      // 全部替换是一次性的批量改写，纳入外部历史栈后可用助手浮层撤销。
+      recordHistory: true,
+    );
+
+    if (mounted) {
+      AppToast.info(context, context.l10n.prompt_replaceAllDone(replacedCount));
+    }
+  }
+
+  /// 全部替换后的文本清理。
+  ///
+  /// 提示词是逗号分隔的标签串，把某个标签整体替换为空串后会残留
+  /// `alpha, , beta` 这样的空位。这里决定要不要以及如何收拾残局。
+  ///
+  /// TODO(用户实现)：见下方说明，可选择保持原样、收敛空标签，或整体格式化。
+  String _postProcessReplacedText(String text) {
+    return text;
+  }
+
+  /// 写回替换结果，并保持内部/外部控制器与搜索高亮一致。
+  void _applyReplacedText(
+    String newText, {
+    required int caretOffset,
+    required bool selectNextMatch,
+    bool recordHistory = false,
+  }) {
+    final beforeText = _effectiveController.text;
+    if (newText == beforeText) {
+      return;
+    }
+
+    final value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(
+        offset: caretOffset.clamp(0, newText.length),
+      ),
+    );
+    _effectiveController.value = value;
+    // 与 _handleClear 一致：外部控制器不是同一实例时显式同步。
+    if (widget.controller != null &&
+        !identical(widget.controller, _effectiveController)) {
+      widget.controller!.value = value;
+    }
+
+    // 程序化改写不会触发 TextField.onChanged，需要手动通知外部。
+    widget.onChanged?.call(newText);
+
+    if (recordHistory) {
+      ref
+          .read(promptAssistantHistoryProvider.notifier)
+          .recordExternalChange(_sessionId, before: beforeText, after: newText);
+    }
+
+    _refreshSearchMatches(
+      preserveActive: false,
+      selectActiveMatch: selectNextMatch,
     );
   }
 
@@ -849,13 +1042,12 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   Widget _buildSearchToolbar(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final total = _searchMatches.length;
-    final current = total == 0 ? 0 : _activeSearchMatchIndex + 1;
+    final showReplaceRow = _canReplace && _replaceVisible;
 
     return Align(
       alignment: Alignment.centerRight,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 360),
+        constraints: BoxConstraints(maxWidth: _canReplace ? 400 : 360),
         child: Material(
           elevation: 0,
           color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.72),
@@ -870,69 +1062,175 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 34,
-                    child: TextField(
-                      key: const ValueKey('prompt_input_search_field'),
-                      controller: _searchController,
-                      focusNode: _searchFocusNode,
-                      textInputAction: TextInputAction.search,
-                      style: theme.textTheme.bodyMedium,
-                      decoration: InputDecoration(
-                        hintText: context.l10n.prompt_searchHint,
-                        prefixIcon: const Icon(Icons.search, size: 18),
-                        isDense: true,
-                        filled: true,
-                        fillColor: colorScheme.surface.withValues(alpha: 0.86),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(9),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
-                        ),
-                      ),
-                      onSubmitted: (_) => _goToSearchMatch(previous: false),
+                if (_canReplace)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: _PromptSearchIconButton(
+                      key: const ValueKey('prompt_input_replace_toggle'),
+                      icon: _replaceVisible
+                          ? Icons.keyboard_arrow_down
+                          : Icons.keyboard_arrow_right,
+                      tooltip: context.l10n.prompt_replaceToggle,
+                      onPressed: _toggleReplaceVisible,
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  context.l10n.prompt_searchMatchCount(current, total),
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: total == 0 && _searchController.text.isNotEmpty
-                        ? colorScheme.error
-                        : colorScheme.onSurfaceVariant,
-                    fontFeatures: const [FontFeature.tabularFigures()],
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildSearchRow(context, theme, colorScheme),
+                      if (showReplaceRow) ...[
+                        const SizedBox(height: 6),
+                        _buildReplaceRow(context, theme, colorScheme),
+                      ],
+                    ],
                   ),
-                ),
-                const SizedBox(width: 2),
-                _PromptSearchIconButton(
-                  icon: Icons.keyboard_arrow_up,
-                  tooltip: context.l10n.prompt_searchPrevious,
-                  onPressed: total == 0
-                      ? null
-                      : () => _goToSearchMatch(previous: true),
-                ),
-                _PromptSearchIconButton(
-                  icon: Icons.keyboard_arrow_down,
-                  tooltip: context.l10n.prompt_searchNext,
-                  onPressed: total == 0
-                      ? null
-                      : () => _goToSearchMatch(previous: false),
-                ),
-                _PromptSearchIconButton(
-                  icon: Icons.close,
-                  tooltip: context.l10n.prompt_searchClose,
-                  onPressed: _closeSearch,
                 ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSearchRow(
+    BuildContext context,
+    ThemeData theme,
+    ColorScheme colorScheme,
+  ) {
+    final total = _searchMatches.length;
+    final current = total == 0 ? 0 : _activeSearchMatchIndex + 1;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Expanded(
+          child: _buildToolbarField(
+            context: context,
+            theme: theme,
+            colorScheme: colorScheme,
+            fieldKey: const ValueKey('prompt_input_search_field'),
+            controller: _searchController,
+            focusNode: _searchFocusNode,
+            hintText: context.l10n.prompt_searchHint,
+            prefixIcon: Icons.search,
+            textInputAction: TextInputAction.search,
+            onSubmitted: (_) => _goToSearchMatch(previous: false),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          context.l10n.prompt_searchMatchCount(current, total),
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: total == 0 && _searchController.text.isNotEmpty
+                ? colorScheme.error
+                : colorScheme.onSurfaceVariant,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+        const SizedBox(width: 2),
+        _PromptSearchIconButton(
+          icon: Icons.keyboard_arrow_up,
+          tooltip: context.l10n.prompt_searchPrevious,
+          onPressed: total == 0 ? null : () => _goToSearchMatch(previous: true),
+        ),
+        _PromptSearchIconButton(
+          icon: Icons.keyboard_arrow_down,
+          tooltip: context.l10n.prompt_searchNext,
+          onPressed: total == 0
+              ? null
+              : () => _goToSearchMatch(previous: false),
+        ),
+        _PromptSearchIconButton(
+          icon: Icons.close,
+          tooltip: context.l10n.prompt_searchClose,
+          onPressed: _closeSearch,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReplaceRow(
+    BuildContext context,
+    ThemeData theme,
+    ColorScheme colorScheme,
+  ) {
+    final canRun = _canRunReplace;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Expanded(
+          child: _buildToolbarField(
+            context: context,
+            theme: theme,
+            colorScheme: colorScheme,
+            fieldKey: const ValueKey('prompt_input_replace_field'),
+            controller: _replaceController,
+            focusNode: _replaceFocusNode,
+            hintText: context.l10n.prompt_replaceHint,
+            prefixIcon: Icons.find_replace,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _replaceActiveMatch(),
+          ),
+        ),
+        const SizedBox(width: 2),
+        _PromptSearchIconButton(
+          key: const ValueKey('prompt_input_replace_current'),
+          icon: Icons.find_replace,
+          tooltip: context.l10n.prompt_replaceCurrent,
+          onPressed: canRun ? _replaceActiveMatch : null,
+        ),
+        _PromptSearchIconButton(
+          key: const ValueKey('prompt_input_replace_all'),
+          icon: Icons.done_all,
+          tooltip: context.l10n.prompt_replaceAll,
+          onPressed: canRun ? _replaceAllMatches : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildToolbarField({
+    required BuildContext context,
+    required ThemeData theme,
+    required ColorScheme colorScheme,
+    required Key fieldKey,
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required String hintText,
+    required IconData prefixIcon,
+    required TextInputAction textInputAction,
+    required ValueChanged<String> onSubmitted,
+  }) {
+    return SizedBox(
+      height: 34,
+      child: TextField(
+        key: fieldKey,
+        controller: controller,
+        focusNode: focusNode,
+        textInputAction: textInputAction,
+        style: theme.textTheme.bodyMedium,
+        decoration: InputDecoration(
+          hintText: hintText,
+          prefixIcon: Icon(prefixIcon, size: 18),
+          isDense: true,
+          filled: true,
+          fillColor: colorScheme.surface.withValues(alpha: 0.86),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(9),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 8,
+          ),
+        ),
+        onSubmitted: onSubmitted,
       ),
     );
   }
@@ -1069,6 +1367,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
 class _PromptSearchIconButton extends StatelessWidget {
   const _PromptSearchIconButton({
+    super.key,
     required this.icon,
     required this.tooltip,
     required this.onPressed,
