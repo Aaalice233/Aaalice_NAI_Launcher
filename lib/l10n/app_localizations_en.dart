@@ -3549,6 +3549,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'Copy all settings from default preset as starting point';
 
   @override
+  String get category_dialogTitle => 'Create Category';
+
+  @override
+  String get category_nameHint => 'Enter category name';
+
+  @override
+  String get category_nameRequired => 'Name is required';
+
+  @override
   String get category_selectEmoji => 'Select Emoji';
 
   @override

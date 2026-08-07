@@ -1618,6 +1618,9 @@
   "newPresetDialog_template": "基于默认预设",
   "newPresetDialog_templateDesc": "复制默认预设的所有设置作为起点",
 
+  "category_dialogTitle": "创建新类别",
+  "category_nameHint": "输入类别名称",
+  "category_nameRequired": "请输入类别名称",
   "category_selectEmoji": "选择 Emoji",
   "category_noRecentEmoji": "暂无最近使用的 Emoji",
   "category_searchEmoji": "搜索 Emoji",

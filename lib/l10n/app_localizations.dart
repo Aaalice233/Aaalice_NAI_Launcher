@@ -6434,6 +6434,24 @@ abstract class AppLocalizations {
   /// **'Copy all settings from default preset as starting point'**
   String get newPresetDialog_templateDesc;
 
+  /// No description provided for @category_dialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Category'**
+  String get category_dialogTitle;
+
+  /// No description provided for @category_nameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter category name'**
+  String get category_nameHint;
+
+  /// No description provided for @category_nameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Name is required'**
+  String get category_nameRequired;
+
   /// No description provided for @category_selectEmoji.
   ///
   /// In en, this message translates to:

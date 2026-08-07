@@ -1632,6 +1632,9 @@
   "newPresetDialog_template": "Based on Default Preset",
   "newPresetDialog_templateDesc": "Copy all settings from default preset as starting point",
 
+  "category_dialogTitle": "Create Category",
+  "category_nameHint": "Enter category name",
+  "category_nameRequired": "Name is required",
   "category_selectEmoji": "Select Emoji",
   "category_noRecentEmoji": "No recent emojis",
   "category_searchEmoji": "Search emoji",

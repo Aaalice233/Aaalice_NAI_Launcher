@@ -3422,6 +3422,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get newPresetDialog_templateDesc => '复制默认预设的所有设置作为起点';
 
   @override
+  String get category_dialogTitle => '创建新类别';
+
+  @override
+  String get category_nameHint => '输入类别名称';
+
+  @override
+  String get category_nameRequired => '请输入类别名称';
+
+  @override
   String get category_selectEmoji => '选择 Emoji';
 
   @override

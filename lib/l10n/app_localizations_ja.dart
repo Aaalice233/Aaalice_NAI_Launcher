@@ -3473,6 +3473,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get newPresetDialog_templateDesc => 'デフォルトのプリセットからすべての設定を開始点としてコピーします';
 
   @override
+  String get category_dialogTitle => 'カテゴリの作成';
+
+  @override
+  String get category_nameHint => 'カテゴリ名を入力してください';
+
+  @override
+  String get category_nameRequired => '名前は必須です';
+
+  @override
   String get category_selectEmoji => '絵文字を選択してください';
 
   @override
