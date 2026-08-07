@@ -261,7 +261,9 @@ void main() {
           .controller;
 
       // 替换当前命中后应跳到后一处命中。
-      await tester.tap(find.byKey(const ValueKey('prompt_input_replace_current')));
+      await tester.tap(
+        find.byKey(const ValueKey('prompt_input_replace_current')),
+      );
       await tester.pump();
       expect(promptController.text, 'omega, beta, Alpha');
       expect(
@@ -275,7 +277,9 @@ void main() {
       expect(promptController.text, 'omega, beta, omega');
 
       // 替换栏可折叠。
-      await tester.tap(find.byKey(const ValueKey('prompt_input_replace_toggle')));
+      await tester.tap(
+        find.byKey(const ValueKey('prompt_input_replace_toggle')),
+      );
       await tester.pump();
       expect(
         find.byKey(const ValueKey('prompt_input_replace_field')),

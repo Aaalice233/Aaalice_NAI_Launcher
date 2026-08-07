@@ -1440,9 +1440,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
       await ImageSaveUtils.saveBytesToDatedPath(
         rootPath: rootPath,
         bytes: widget.imageBytes!,
-        seed: await ImageSaveUtils.resolveSeed(
-          bytes: widget.imageBytes!,
-        ),
+        seed: await ImageSaveUtils.resolveSeed(bytes: widget.imageBytes!),
       );
 
       if (context.mounted) {
