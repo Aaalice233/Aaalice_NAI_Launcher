@@ -665,12 +665,17 @@ Future<void> _bootstrapApplication() async {
         await windowManager.focus();
       });
 
-      // 初始化系统托盘（仅 Windows）
-      if (Platform.isWindows) {
+      // 初始化系统托盘（Windows + macOS）
+      if (Platform.isWindows || Platform.isMacOS) {
         try {
           // 设置托盘图标和提示
           // tray_manager 使用 Flutter 资源路径格式（相对于 data/flutter_assets/）
-          await trayManager.setIcon('assets/icons/app_icon.ico');
+          // macOS 菜单栏不支持 .ico，使用 png
+          await trayManager.setIcon(
+            Platform.isWindows
+                ? 'assets/icons/app_icon.ico'
+                : 'assets/icons/tray_icon.png',
+          );
           await trayManager.setToolTip('NAI Launcher');
 
           // 获取本地化字符串
