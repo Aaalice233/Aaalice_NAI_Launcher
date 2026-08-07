@@ -25,6 +25,7 @@ import '../widgets/queue/queue_management_page.dart';
 
 import '../widgets/shortcuts/shortcut_aware_widget.dart';
 import '../widgets/shortcuts/shortcut_help_dialog.dart';
+import 'app_branch.dart';
 
 part 'app_router.g.dart';
 
@@ -389,28 +390,8 @@ class _MainShellState extends ConsumerState<MainShell> {
 
     // 定义全局快捷键动作映射（使用 ShortcutIds 常量）
     final globalShortcuts = <String, VoidCallback>{
-      // 页面导航
-      ShortcutIds.navigateToGeneration: () {
-        widget.navigationShell.goBranch(0);
-      },
-      ShortcutIds.navigateToLocalGallery: () {
-        widget.navigationShell.goBranch(2);
-      },
-      ShortcutIds.navigateToOnlineGallery: () {
-        widget.navigationShell.goBranch(3);
-      },
-      ShortcutIds.navigateToSettings: () {
-        widget.navigationShell.goBranch(4);
-      },
-      ShortcutIds.navigateToRandomConfig: () {
-        widget.navigationShell.goBranch(5);
-      },
-      ShortcutIds.navigateToStatistics: () {
-        widget.navigationShell.goBranch(6);
-      },
-      ShortcutIds.navigateToTagLibrary: () {
-        widget.navigationShell.goBranch(7);
-      },
+      for (final entry in globalNavigationShortcutBranches.entries)
+        entry.key: () => widget.navigationShell.goBranch(entry.value.index),
       // 显示快捷键帮助
       ShortcutIds.showShortcutHelp: () {
         ShortcutHelpDialog.show(context);
@@ -551,7 +532,9 @@ class MobileShell extends ConsumerWidget {
         },
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _getSelectedIndex(),
+        selectedIndex: mobileNavigationIndexForBranch(
+          navigationShell.currentIndex,
+        ),
         onDestinationSelected: (index) => _onNavigate(index),
         destinations: [
           NavigationDestination(
@@ -574,32 +557,13 @@ class MobileShell extends ConsumerWidget {
     );
   }
 
-  /// 映射 branch index 到 mobile navigation index
-  /// Branches: 0=home, 1=gallery, 2=localGallery, 3=onlineGallery, 4=settings, 5=promptConfig
-  /// Mobile nav: 0=home, 1=gallery, 2=settings
-  int _getSelectedIndex() {
-    final branchIndex = navigationShell.currentIndex;
-    if (branchIndex == 4) return 2; // settings
-    if (branchIndex >= 1 && branchIndex <= 3) return 1; // any gallery
-    return 0; // home
-  }
-
   /// 映射 mobile navigation index 到 branch index
   void _onNavigate(int mobileIndex) {
-    // Mobile nav: 0=home, 1=gallery, 2=settings
-    // Map to branches: 0=home, 1=gallery, 4=settings
-    int branchIndex;
-    switch (mobileIndex) {
-      case 1:
-        branchIndex = 1; // gallery (本地生成历史)
-        break;
-      case 2:
-        branchIndex = 4; // settings
-        break;
-      default:
-        branchIndex = 0; // home
-    }
-    navigationShell.goBranch(branchIndex);
+    final branch =
+        mobileIndex >= 0 && mobileIndex < mobileNavigationBranches.length
+        ? mobileNavigationBranches[mobileIndex]
+        : AppBranch.generation;
+    navigationShell.goBranch(branch.index);
   }
 }
 
