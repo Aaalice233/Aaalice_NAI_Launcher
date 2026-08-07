@@ -421,6 +421,22 @@ class LocalStorageService {
     await setSetting(StorageKeys.sdSyntaxAutoConvert, value);
   }
 
+  // ==================== Resolve Alias On Copy ====================
+
+  /// 获取复制时是否展开词库别名 (默认关闭)
+  bool getResolveAliasOnCopy() {
+    return getSetting<bool>(
+          StorageKeys.resolveAliasOnCopy,
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// 保存复制时是否展开词库别名
+  Future<void> setResolveAliasOnCopy(bool value) async {
+    await setSetting(StorageKeys.resolveAliasOnCopy, value);
+  }
+
   // ==================== Prompt Weight Scroll ====================
 
   /// 获取是否启用滚轮调整提示词权重（默认开启）

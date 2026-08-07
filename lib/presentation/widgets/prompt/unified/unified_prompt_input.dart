@@ -9,6 +9,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_prompt_formatter.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/character/character_prompt.dart';
+import '../../../../data/services/alias_resolver_service.dart';
 import '../../../../presentation/utils/text_selection_utils.dart';
 import '../../../providers/generation/generation_settings_notifiers.dart';
 import '../../../providers/tag_library_page_provider.dart';
@@ -148,6 +149,17 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
   /// 替换功能是否可用（只读模式下禁用）
   bool get _canReplace => !widget.config.readOnly;
+
+  /// 复制/剪切时展开词库别名的 Action 映射
+  ///
+  /// 常量化持有，避免每帧新建 Map 触发 [Actions] 的无谓通知。
+  /// 开关状态在 Action 内部按需读取，因此这里始终挂载，
+  /// 切换开关不会改变 widget 树结构（不会导致输入框重建丢焦点）。
+  late final Map<Type, Action<Intent>> _clipboardActions = {
+    CopySelectionTextIntent: _AliasExpandingCopyAction(
+      _handleExpandedClipboardAction,
+    ),
+  };
 
   bool get _isDesktop {
     switch (defaultTargetPlatform) {
@@ -933,6 +945,54 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   }
 
   /// 构建自定义上下文菜单，添加"保存到词库"选项
+  /// 接管复制/剪切，把选区里的 `<词库名>` 展开后写入剪贴板
+  ///
+  /// 返回 true 表示已完全接管，调用方**不得**再执行系统默认的复制实现。
+  ///
+  /// 必须完全接管而不是"先默认、后覆盖"：Windows 剪贴板是全局独占资源，
+  /// 紧挨着的第二次写入可能因 `OpenClipboard` 被上一次的锁或剪贴板管理器
+  /// 抢占而静默失败，结果剪贴板里留下的是未展开的原文。
+  /// 只写一次才能保证结果确定。
+  ///
+  /// 以下情况返回 false，交回默认行为（此时默认行为是唯一的一次写入）：
+  /// 开关关闭、没有选区、选区里不含可解析的 `<词库名>`。
+  /// 未在词库中找到的引用由 [AliasResolverService] 原样保留，同样走默认路径。
+  bool _handleExpandedClipboardAction({required bool isCut}) {
+    if (!ref.read(resolveAliasOnCopySettingsProvider)) return false;
+
+    final controller = _effectiveController;
+    final selection = controller.selection;
+    if (!selection.isValid || selection.isCollapsed) return false;
+
+    final text = controller.text;
+    final selectedText = selection.textInside(text);
+    if (selectedText.isEmpty) return false;
+
+    final expanded = ref
+        .read(aliasResolverServiceProvider.notifier)
+        .resolveAliases(selectedText);
+    if (expanded == selectedText) return false;
+
+    unawaited(Clipboard.setData(ClipboardData(text: expanded)));
+
+    // 剪切需要自行删除选中文本：默认实现会连带再写一次剪贴板，不能复用
+    if (isCut && !widget.config.readOnly) {
+      final newValue = TextEditingValue(
+        text: selection.textBefore(text) + selection.textAfter(text),
+        selection: TextSelection.collapsed(offset: selection.start),
+      );
+      controller.value = newValue;
+      // 同步到外部控制器（与 _handleClear 保持一致）
+      if (widget.controller != null &&
+          !identical(widget.controller, controller)) {
+        widget.controller!.value = newValue;
+      }
+      _handleTextChanged(newValue.text);
+    }
+
+    return true;
+  }
+
   Widget _buildContextMenu(
     BuildContext context,
     EditableTextState editableTextState,
@@ -945,6 +1005,29 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     // 获取默认的上下文菜单项
     final List<ContextMenuButtonItem> buttonItems =
         editableTextState.contextMenuButtonItems;
+
+    // 右键菜单的复制/剪切直接调用 EditableTextState，不经过 Actions 系统，
+    // 因此需要在这里单独接管，保证与 Ctrl+C / Ctrl+X 行为一致
+    for (var i = 0; i < buttonItems.length; i++) {
+      final item = buttonItems[i];
+      if (item.type != ContextMenuButtonType.copy &&
+          item.type != ContextMenuButtonType.cut) {
+        continue;
+      }
+      final defaultOnPressed = item.onPressed;
+      final isCut = item.type == ContextMenuButtonType.cut;
+      buttonItems[i] = ContextMenuButtonItem(
+        type: item.type,
+        label: item.label,
+        onPressed: () {
+          if (_handleExpandedClipboardAction(isCut: isCut)) {
+            editableTextState.hideToolbar();
+            return;
+          }
+          defaultOnPressed?.call();
+        },
+      );
+    }
 
     // 如果有选中文本，添加"保存到词库"选项
     if (hasSelection) {
@@ -1321,12 +1404,18 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       contextMenuBuilder: _buildContextMenu,
     );
 
+    // 接管 Ctrl+C / Ctrl+X：覆盖 EditableText 内置的 CopySelectionTextIntent
+    final clipboardAwareInput = Actions(
+      actions: _clipboardActions,
+      child: baseInput,
+    );
+
     // 包装权重调整工具条
     Widget result = WeightAdjustToolbarWrapper(
       controller: _effectiveController,
       focusNode: _effectiveFocusNode,
       enableWheelAdjustment: enableWheelAdjustment,
-      child: baseInput,
+      child: clipboardAwareInput,
     );
 
     // 如果启用自动补全，使用 AutocompleteWrapper 包装
@@ -1363,6 +1452,38 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       bottom: PromptAssistantOverlay.contentBottomClearance,
     );
   }
+}
+
+/// 复制/剪切时把 `<词库名>` 展开为词库内容的 Action
+///
+/// [EditableText] 的内置编辑 Action 均由 [Action.overridable] 注册，
+/// 祖先节点提供同类型 Action 即可合法覆盖，并通过 [callingAction]
+/// 回调到默认实现。
+///
+/// 需要展开时完全接管（默认实现一次都不调用），否则剪贴板会被写两次，
+/// 而 Windows 上第二次写入可能静默失败；不需要展开时原样交回默认实现，
+/// 平台相关的选区折叠、工具栏隐藏等行为保持不变。
+class _AliasExpandingCopyAction extends Action<CopySelectionTextIntent> {
+  _AliasExpandingCopyAction(this.handleExpanded);
+
+  /// 返回 true 表示已接管本次复制/剪切
+  final bool Function({required bool isCut}) handleExpanded;
+
+  @override
+  Object? invoke(CopySelectionTextIntent intent) {
+    // collapseSelection 为 true 即剪切
+    if (handleExpanded(isCut: intent.collapseSelection)) {
+      return null;
+    }
+    return callingAction?.invoke(intent);
+  }
+
+  @override
+  bool get isActionEnabled => callingAction?.isActionEnabled ?? false;
+
+  @override
+  bool consumesKey(CopySelectionTextIntent intent) =>
+      callingAction?.consumesKey(intent) ?? false;
 }
 
 class _PromptSearchIconButton extends StatelessWidget {

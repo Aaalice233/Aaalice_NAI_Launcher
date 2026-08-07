@@ -1146,6 +1146,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get prompt_sdSyntaxAutoConvertSubtitle => '失焦时将SD权重语法转换为NAI格式';
 
   @override
+  String get prompt_resolveAliasOnCopy => '复制时展开词库';
+
+  @override
+  String get prompt_resolveAliasOnCopySubtitle => '复制或剪切时把 <词库名> 替换为词库内容';
+
+  @override
   String get prompt_cooccurrenceRecommendation => '共现标签推荐';
 
   @override

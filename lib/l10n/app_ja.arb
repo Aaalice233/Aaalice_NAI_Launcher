@@ -530,6 +530,8 @@
   "prompt_highlightEmphasisSubtitle": "括弧と重みの構文を強調表示します",
   "prompt_sdSyntaxAutoConvert": "SD 構文自動変換",
   "prompt_sdSyntaxAutoConvertSubtitle": "フォーカスが外れたときに SD ウェイト構文を NAI 形式に変換します",
+  "prompt_resolveAliasOnCopy": "コピー時に単語ライブラリを展開",
+  "prompt_resolveAliasOnCopySubtitle": "コピーまたは切り取り時に <ライブラリ名> をその内容に置き換えます",
   "prompt_cooccurrenceRecommendation": "共起タグの推奨事項",
   "prompt_cooccurrenceRecommendationSubtitle": "タグを入力すると、関連するタグが自動的に推奨されます",
   "prompt_formatted": "フォーマット済み",

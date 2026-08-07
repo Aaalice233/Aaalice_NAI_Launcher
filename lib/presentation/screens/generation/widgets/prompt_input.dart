@@ -586,6 +586,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     final enableSdSyntaxAutoConvert = ref.read(
       sdSyntaxAutoConvertSettingsProvider,
     );
+    final enableResolveAliasOnCopy = ref.read(
+      resolveAliasOnCopySettingsProvider,
+    );
     final enableCooccurrence = ref.read(cooccurrenceSettingsProvider);
 
     // 使用工具栏提供的按钮位置
@@ -623,6 +626,13 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           isEnabled: enableSdSyntaxAutoConvert,
           title: context.l10n.prompt_sdSyntaxAutoConvert,
           subtitle: context.l10n.prompt_sdSyntaxAutoConvertSubtitle,
+          theme: theme,
+        ),
+        _buildSettingsMenuItem(
+          value: 'resolve_alias_on_copy',
+          isEnabled: enableResolveAliasOnCopy,
+          title: context.l10n.prompt_resolveAliasOnCopy,
+          subtitle: context.l10n.prompt_resolveAliasOnCopySubtitle,
           theme: theme,
         ),
         _buildSettingsMenuItem(
@@ -829,6 +839,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         ref.read(highlightEmphasisSettingsProvider.notifier).toggle();
       case 'sd_syntax_convert':
         ref.read(sdSyntaxAutoConvertSettingsProvider.notifier).toggle();
+      case 'resolve_alias_on_copy':
+        ref.read(resolveAliasOnCopySettingsProvider.notifier).toggle();
       case 'cooccurrence':
         ref.read(cooccurrenceSettingsProvider.notifier).toggle();
     }

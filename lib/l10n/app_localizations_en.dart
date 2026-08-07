@@ -1186,6 +1186,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Convert SD weight syntax to NAI format on blur';
 
   @override
+  String get prompt_resolveAliasOnCopy => 'Expand Library On Copy';
+
+  @override
+  String get prompt_resolveAliasOnCopySubtitle =>
+      'Replace <library name> with its content when copying or cutting';
+
+  @override
   String get prompt_cooccurrenceRecommendation =>
       'Co-occurrence Tag Recommendation';
 

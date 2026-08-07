@@ -69,6 +69,22 @@ class SdSyntaxAutoConvertSettings extends _$SdSyntaxAutoConvertSettings {
   }
 }
 
+/// 复制时展开词库别名设置 Notifier
+@Riverpod(keepAlive: true)
+class ResolveAliasOnCopySettings extends _$ResolveAliasOnCopySettings {
+  LocalStorageService get _storage => ref.read(localStorageServiceProvider);
+
+  @override
+  bool build() => _storage.getResolveAliasOnCopy();
+
+  void toggle() => set(!state);
+
+  void set(bool value) {
+    state = value;
+    _storage.setResolveAliasOnCopy(value);
+  }
+}
+
 /// 滚轮调整提示词权重设置 Notifier
 @Riverpod(keepAlive: true)
 class PromptWeightScrollSettings extends _$PromptWeightScrollSettings {

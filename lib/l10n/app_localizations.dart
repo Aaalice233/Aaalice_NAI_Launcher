@@ -2230,6 +2230,18 @@ abstract class AppLocalizations {
   /// **'Convert SD weight syntax to NAI format on blur'**
   String get prompt_sdSyntaxAutoConvertSubtitle;
 
+  /// No description provided for @prompt_resolveAliasOnCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand Library On Copy'**
+  String get prompt_resolveAliasOnCopy;
+
+  /// No description provided for @prompt_resolveAliasOnCopySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace <library name> with its content when copying or cutting'**
+  String get prompt_resolveAliasOnCopySubtitle;
+
   /// No description provided for @prompt_cooccurrenceRecommendation.
   ///
   /// In en, this message translates to:

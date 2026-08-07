@@ -1163,6 +1163,13 @@ class AppLocalizationsJa extends AppLocalizations {
       'フォーカスが外れたときに SD ウェイト構文を NAI 形式に変換します';
 
   @override
+  String get prompt_resolveAliasOnCopy => 'コピー時に単語ライブラリを展開';
+
+  @override
+  String get prompt_resolveAliasOnCopySubtitle =>
+      'コピーまたは切り取り時に <ライブラリ名> をその内容に置き換えます';
+
+  @override
   String get prompt_cooccurrenceRecommendation => '共起タグの推奨事項';
 
   @override
