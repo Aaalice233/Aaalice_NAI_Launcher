@@ -81,6 +81,7 @@ void main() {
       'lib/presentation/screens/generation/widgets/history_panel.dart',
       'lib/presentation/screens/generation/handlers/vibe_import_handler.dart',
       'lib/presentation/widgets/prompt/new_preset_dialog.dart',
+      'lib/presentation/widgets/prompt/regex_rules_dialog.dart',
       'lib/presentation/widgets/prompt/random_manager/category_card.dart',
       'lib/presentation/widgets/prompt/random_manager/add_tag_group_dialog.dart',
       'lib/presentation/widgets/prompt/random_manager/keyboard_shortcuts.dart',

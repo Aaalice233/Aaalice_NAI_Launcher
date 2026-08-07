@@ -52,6 +52,18 @@ void main() {
         }
       });
     }
+
+    test('template does not contain unreferenced message keys', () {
+      final references = _productionLocalizationReferences();
+      final unused = _messageKeys(english).difference(references).toList()
+        ..sort();
+
+      expect(
+        unused,
+        isEmpty,
+        reason: 'Remove ARB messages with no production reference: $unused',
+      );
+    });
   });
 
   group('localized provider errors', () {
@@ -260,4 +272,40 @@ Set<String> _placeholders(String message) {
   return RegExp(
     r'\{([A-Za-z0-9_]+)\}',
   ).allMatches(message).map((match) => match.group(1)!).toSet();
+}
+
+Set<String> _productionLocalizationReferences() {
+  final references = <String>{};
+  final memberAccess = RegExp(r'\.\s*([A-Za-z_][A-Za-z0-9_]*)');
+  final identifier = RegExp(r'[A-Za-z_][A-Za-z0-9_]*');
+  final localizationExtension = RegExp(
+    r'extension\s+\w+\s+on\s+AppLocalizations\b',
+  );
+  final generatedLocalization = RegExp(
+    r'(?:^|/)lib/l10n/app_localizations(?:_[a-z]+)?\.dart$',
+  );
+
+  for (final entity in Directory('lib').listSync(recursive: true)) {
+    if (entity is! File || !entity.path.endsWith('.dart')) continue;
+
+    final normalizedPath = entity.path.replaceAll('\\', '/');
+    if (generatedLocalization.hasMatch(normalizedPath)) continue;
+
+    final content = entity.readAsStringSync();
+    references.addAll(
+      memberAccess
+          .allMatches(content)
+          .map((match) => match.group(1)!)
+          .where((name) => name.isNotEmpty),
+    );
+
+    // AppLocalizations extensions can access generated getters without a dot.
+    if (localizationExtension.hasMatch(content)) {
+      references.addAll(
+        identifier.allMatches(content).map((match) => match.group(0)!),
+      );
+    }
+  }
+
+  return references;
 }

@@ -16,6 +16,7 @@ import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/fixed_tags_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/prompt_maximize_provider.dart';
+import '../../../providers/prompt_regex_rules_provider.dart';
 import '../../../providers/prompt_token_counter_provider.dart';
 import '../../../providers/quality_preset_provider.dart';
 import '../../../providers/queue_execution_provider.dart';
@@ -28,6 +29,7 @@ import '../../../widgets/prompt/nai_syntax_controller.dart';
 import '../../../widgets/prompt/prompt_token_count_bar.dart';
 import '../../../widgets/prompt/quality_tags_selector.dart';
 import '../../../widgets/prompt/random_mode_selector.dart';
+import '../../../widgets/prompt/regex_rules_dialog.dart';
 import '../../../widgets/prompt/toolbar/toolbar.dart';
 import '../../../widgets/prompt/uc_preset_selector.dart';
 import '../../../widgets/character/character_prompt_button.dart';
@@ -590,6 +592,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       resolveAliasOnCopySettingsProvider,
     );
     final enableCooccurrence = ref.read(cooccurrenceSettingsProvider);
+    final regexRuleCount = ref.read(promptRegexRulesProvider).length;
 
     // 使用工具栏提供的按钮位置
     final position = PromptEditorToolbar.getSettingsButtonPosition(context);
@@ -626,6 +629,13 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           isEnabled: enableSdSyntaxAutoConvert,
           title: context.l10n.prompt_sdSyntaxAutoConvert,
           subtitle: context.l10n.prompt_sdSyntaxAutoConvertSubtitle,
+          theme: theme,
+        ),
+        _buildSettingsActionMenuItem(
+          value: 'regex_rules',
+          icon: Icons.find_replace,
+          title: context.l10n.prompt_regexRulesManage,
+          subtitle: context.l10n.prompt_regexRulesCount(regexRuleCount),
           theme: theme,
         ),
         _buildSettingsMenuItem(
@@ -829,6 +839,40 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     );
   }
 
+  /// 构造「点击后打开子界面」的菜单项（区别于勾选式开关项）
+  PopupMenuItem<String> _buildSettingsActionMenuItem({
+    required String value,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required ThemeData theme,
+  }) {
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title),
+                Text(
+                  subtitle,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right, size: 18, color: theme.colorScheme.outline),
+        ],
+      ),
+    );
+  }
+
   void _handleSettingsMenuResult(String? value) {
     switch (value) {
       case 'autocomplete':
@@ -839,6 +883,11 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         ref.read(highlightEmphasisSettingsProvider.notifier).toggle();
       case 'sd_syntax_convert':
         ref.read(sdSyntaxAutoConvertSettingsProvider.notifier).toggle();
+      case 'regex_rules':
+        // 菜单关闭后才回调到这里，需要重新确认 State 仍然挂载
+        if (mounted) {
+          RegexRulesDialog.show(context);
+        }
       case 'resolve_alias_on_copy':
         ref.read(resolveAliasOnCopySettingsProvider.notifier).toggle();
       case 'cooccurrence':

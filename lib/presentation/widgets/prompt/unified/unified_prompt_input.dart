@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../core/utils/nai_prompt_formatter.dart';
+import '../../../../core/utils/prompt_regex_replacer.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../../data/services/alias_resolver_service.dart';
@@ -28,6 +29,7 @@ import '../../../prompt_assistant/providers/prompt_assistant_state_provider.dart
 import '../../../prompt_assistant/services/prompt_assistant_service.dart';
 import '../../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import '../../../providers/fixed_tags_provider.dart';
+import '../../../providers/prompt_regex_rules_provider.dart';
 import '../comfyui_import_wrapper.dart';
 import '../nai_syntax_controller.dart';
 import 'unified_prompt_config.dart';
@@ -468,7 +470,8 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   /// 失焦时格式化提示词
   void _formatOnBlur() {
     if (!widget.config.enableAutoFormat &&
-        !widget.config.enableSdSyntaxAutoConvert) {
+        !widget.config.enableSdSyntaxAutoConvert &&
+        !widget.config.enableRegexReplace) {
       return;
     }
 
@@ -477,6 +480,27 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
     var changed = false;
     final messages = <String>[];
+
+    // 正则替换（最先执行，规则匹配的是用户原样输入的文本）
+    if (widget.config.enableRegexReplace) {
+      final rules = ref.read(promptRegexRulesProvider);
+      final result = PromptRegexReplacer.apply(text, rules);
+      if (result.changed) {
+        text = result.text;
+        changed = true;
+        messages.add(
+          context.l10n.prompt_regexReplaceApplied(result.appliedRules.length),
+        );
+      }
+      if (mounted && result.invalidRules.isNotEmpty) {
+        AppToast.warning(
+          context,
+          context.l10n.prompt_regexInvalidRules(
+            result.invalidRules.map((rule) => rule.displayLabel).join(', '),
+          ),
+        );
+      }
+    }
 
     // SD 语法自动转换（优先于格式化，因为格式化可能会影响转换结果）
     if (widget.config.enableSdSyntaxAutoConvert) {
