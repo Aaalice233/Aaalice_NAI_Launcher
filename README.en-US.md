@@ -1,6 +1,8 @@
-
-
 # NAI Launcher
+
+<p align="center">
+  <a href="README.md">简体中文</a> | English
+</p>
 
 <p align="center">
   <img src="assets/icons/Icon.png" alt="NAI Launcher Logo" width="120">
@@ -198,10 +200,10 @@ flutter test
 Commit messages should follow the format:
 
 ```text
-type(scope): Description in English
+type(scope): 中文描述
 ```
 
-Common types: `feat`, `fix`, `refactor`, `perf`, `style`, `docs`, `test`, `chore`.
+Descriptions are written in Chinese, consistent with the repository history. Common types: `feat`, `fix`, `refactor`, `perf`, `style`, `docs`, `test`, `chore`.
 
 ## 🤝 Contributing
 

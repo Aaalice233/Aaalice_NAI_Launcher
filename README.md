@@ -1,6 +1,10 @@
 # NAI Launcher
 
 <p align="center">
+  简体中文 | <a href="README.en-US.md">English</a>
+</p>
+
+<p align="center">
   <img src="assets/icons/Icon.png" alt="NAI Launcher Logo" width="120">
 </p>
 

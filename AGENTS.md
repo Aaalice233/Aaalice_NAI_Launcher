@@ -46,6 +46,10 @@ Changelog 条目应面向用户描述结果，不要只写内部实现名。常�
 - 新功能开发期间顺手修掉的问题，如果用户从未用过损坏版本，可以合并进新功能描述，不必拆成多条。
 - `CHANGELOG.md` 中不要重复自动生成的下载文件表；Release 页面会自动附带文件说明、校验文件和更新内容。
 
+## README 双语同步规范
+
+`README.md`（简体中文）与 `README.en-US.md`（English）内容必须保持同步：新增功能、平台支持、构建步骤、发布流程、项目结构等任一变化涉及 README 时，两份文件在同一提交中一起更新，不允许只改一份。两份文件顶部均保留指向对方的语言切换链接。仓库约定（如提交消息格式）以中文版表述为准，英文版只做翻译说明，不得改写约定本身。
+
 ## 提交与 Pull Request 规范
 
 Git 历史使用 Conventional Commits，例如 `fix(generation): cancel stale results`、`feat(prompt): add random mode`。提交应保持范围清晰、标题简洁。Pull Request 需要说明用户可见变化，列出已运行的验证命令，标注生成文件、LFS 资源或 assets 变更；涉及界面变化时附截图。
