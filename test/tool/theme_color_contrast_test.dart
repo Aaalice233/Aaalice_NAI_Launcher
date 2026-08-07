@@ -153,8 +153,10 @@ void main() {
         final theme = AppTheme.getTheme(style, Brightness.dark);
         if (theme.textTheme.labelLarge?.fontFamily == null) continue;
         offenders.addAll(
-          (await _findFontMismatches(tester, theme))
-              .map((line) => '  ${style.name}:$line'),
+          (await _findFontMismatches(
+            tester,
+            theme,
+          )).map((line) => '  ${style.name}:$line'),
         );
       }
       expect(offenders, isEmpty, reason: _fontFailureHint(offenders));
@@ -244,10 +246,11 @@ void main() {
       );
 
       final offenders = <String>[];
-      for (final file in Directory('lib')
-          .listSync(recursive: true)
-          .whereType<File>()
-          .where((f) => f.path.endsWith('.dart'))) {
+      for (final file
+          in Directory('lib')
+              .listSync(recursive: true)
+              .whereType<File>()
+              .where((f) => f.path.endsWith('.dart'))) {
         final lines = file.readAsLinesSync();
         for (var i = 0; i < lines.length; i++) {
           if (!pattern.hasMatch(lines[i])) continue;
@@ -288,10 +291,7 @@ final _componentProbes = <String, Widget>{
     selected: true,
     onSelected: _noop,
   ),
-  'FilledButton': const FilledButton(
-    onPressed: _noopVoid,
-    child: Text('开始'),
-  ),
+  'FilledButton': const FilledButton(onPressed: _noopVoid, child: Text('开始')),
   // showSelectedIcon: false 与项目里的实际用法一致，也避免选中勾
   // （MaterialIcons 字体的 RichText）被当成标签量到。
   'SegmentedButton选中': SegmentedButton<int>(
@@ -354,7 +354,10 @@ _Measurement? _measure(WidgetTester tester, ThemeData theme) {
   final surface = theme.colorScheme.surface;
   final materials = tester
       .widgetList<Material>(
-        find.descendant(of: find.byType(Center), matching: find.byType(Material)),
+        find.descendant(
+          of: find.byType(Center),
+          matching: find.byType(Material),
+        ),
       )
       .where((m) => m.color != null && m.color!.a > 0.01)
       .map((m) => m.color!)
@@ -409,7 +412,8 @@ Color _flatten(Color foreground, Color background) {
 }
 
 String hexOf(Color color) {
-  final rgb = (color.r * 255).round() << 16 |
+  final rgb =
+      (color.r * 255).round() << 16 |
       (color.g * 255).round() << 8 |
       (color.b * 255).round();
   return '#${rgb.toRadixString(16).padLeft(6, '0').toUpperCase()}';

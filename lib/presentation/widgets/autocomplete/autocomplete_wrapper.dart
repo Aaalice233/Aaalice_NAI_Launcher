@@ -95,9 +95,9 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
     this.maxLines,
     this.expands = false,
   }) : assert(
-          strategy != null || asyncStrategy != null,
-          'A strategy or asyncStrategy must be provided',
-        );
+         strategy != null || asyncStrategy != null,
+         'A strategy or asyncStrategy must be provided',
+       );
 
   /// 便捷构造：使用本地标签策略
   factory AutocompleteWrapper.localTag({
@@ -152,10 +152,7 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
       controller: controller,
       asyncStrategy: LocalTagStrategy.create(ref, config).then(
         (localTagStrategy) => CompositeStrategy(
-          strategies: [
-            localTagStrategy,
-            AliasStrategy.create(ref),
-          ],
+          strategies: [localTagStrategy, AliasStrategy.create(ref)],
           strategySelector: defaultStrategySelector,
         ),
       ),
@@ -188,8 +185,10 @@ AutocompleteStrategy? defaultStrategySelector(
   int cursorPosition,
 ) {
   // 1. 优先检测别名模式
-  final (isTypingAlias, _, _) =
-      AliasParser.detectPartialAlias(text, cursorPosition);
+  final (isTypingAlias, _, _) = AliasParser.detectPartialAlias(
+    text,
+    cursorPosition,
+  );
   if (isTypingAlias) {
     return _findStrategyByType<AliasStrategy>(strategies);
   }
@@ -594,13 +593,17 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
                   // 到边界即停（不循环），避免滚到底后突然跳回顶部
                   if (event.scrollDelta.dy > 0) {
                     setState(() {
-                      _selectedIndex = (_selectedIndex + 1)
-                          .clamp(0, suggestionsLength - 1);
+                      _selectedIndex = (_selectedIndex + 1).clamp(
+                        0,
+                        suggestionsLength - 1,
+                      );
                     });
                   } else if (event.scrollDelta.dy < 0) {
                     setState(() {
-                      _selectedIndex =
-                          (_selectedIndex - 1).clamp(0, suggestionsLength - 1);
+                      _selectedIndex = (_selectedIndex - 1).clamp(
+                        0,
+                        suggestionsLength - 1,
+                      );
                     });
                   }
                   _overlayEntry?.markNeedsBuild();
@@ -725,8 +728,9 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
         return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
         setState(() {
-          _selectedIndex =
-              _selectedIndex <= 0 ? suggestionsLength - 1 : _selectedIndex - 1;
+          _selectedIndex = _selectedIndex <= 0
+              ? suggestionsLength - 1
+              : _selectedIndex - 1;
         });
         _overlayEntry?.markNeedsBuild();
         _scrollToSelected();

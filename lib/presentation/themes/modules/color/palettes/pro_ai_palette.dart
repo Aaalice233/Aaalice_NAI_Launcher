@@ -22,21 +22,21 @@ class ProAiPalette extends BaseColorModule {
 
   @override
   ColorScheme get darkScheme => const ColorScheme.dark(
-        primary: _primary,
-        onPrimary: Color(0xFF160099),
-        primaryContainer: Color(0xFF3D3A6E), // Dark purple for contrast
-        onPrimaryContainer: Color(0xFFE2E0FF), // Light purple for text/icons
-        secondary: _secondary,
-        onSecondary: Color(0xFF020317),
-        tertiary: Color(0xFF22D3EE),
-        onTertiary: Color(0xFF1A1A1A),
-        surface: _surface,
-        onSurface: Colors.white,
-        onSurfaceVariant: Color(0xFF9B9BC0), // Purple-tinted light gray
-        surfaceContainerHighest: _card,
-        outline: Color(0xFF4B4B6E), // Purple-tinted border
-        error: Color(0xFFEF4444),
-      );
+    primary: _primary,
+    onPrimary: Color(0xFF160099),
+    primaryContainer: Color(0xFF3D3A6E), // Dark purple for contrast
+    onPrimaryContainer: Color(0xFFE2E0FF), // Light purple for text/icons
+    secondary: _secondary,
+    onSecondary: Color(0xFF020317),
+    tertiary: Color(0xFF22D3EE),
+    onTertiary: Color(0xFF1A1A1A),
+    surface: _surface,
+    onSurface: Colors.white,
+    onSurfaceVariant: Color(0xFF9B9BC0), // Purple-tinted light gray
+    surfaceContainerHighest: _card,
+    outline: Color(0xFF4B4B6E), // Purple-tinted border
+    error: Color(0xFFEF4444),
+  );
 
   @override
   bool get supportsDarkMode => true;

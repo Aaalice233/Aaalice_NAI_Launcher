@@ -176,7 +176,8 @@ Widget _wrapWithHost({
     VibeLibraryEntry entry,
     double strength,
     double infoExtracted,
-  ) onSaveParams,
+  )
+  onSaveParams,
 }) {
   return ProviderScope(
     overrides: [
@@ -238,10 +239,7 @@ Uint8List _pngBytes(int r, int g, int b) {
 }
 
 class _FakeVibeLibraryStorageService extends VibeLibraryStorageService {
-  _FakeVibeLibraryStorageService(
-    this.entry, {
-    this.bundleChildren = const [],
-  });
+  _FakeVibeLibraryStorageService(this.entry, {this.bundleChildren = const []});
 
   final VibeLibraryEntry entry;
   final List<VibeReference> bundleChildren;

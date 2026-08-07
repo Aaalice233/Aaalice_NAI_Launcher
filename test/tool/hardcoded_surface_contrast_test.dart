@@ -55,9 +55,7 @@ final _darkBackground = RegExp(
 );
 
 /// 写死浅色背景。
-final _lightBackground = RegExp(
-  r'color:\s*Colors\.(white|grey\.shade[12]00),',
-);
+final _lightBackground = RegExp(r'color:\s*Colors\.(white|grey\.shade[12]00),');
 
 /// 低于此不透明度的黑色压不暗前景，通常只是轻微阴影或分隔，忽略。
 const double _minOpaqueAlpha = 0.25;
@@ -106,7 +104,10 @@ List<String> _scanFile(String path, String source) {
     final holder = _enclosingHolder(source, match.start);
     if (holder == null) continue;
 
-    var subtree = source.substring(holder.start, _matchClose(source, holder.open));
+    var subtree = source.substring(
+      holder.start,
+      _matchClose(source, holder.open),
+    );
     // 子树里若又嵌了主题化容器，从那里起前景跟随主题是对的。
     var cut = subtree.length;
     for (final themed in _themedContainers) {
@@ -120,7 +121,8 @@ List<String> _scanFile(String path, String source) {
       final body = subtree.substring(open, _matchClose(subtree, open));
       if (body.contains('color:') || body.contains('style:')) continue;
 
-      final line = '\n'.allMatches(source.substring(0, holder.start)).length +
+      final line =
+          '\n'.allMatches(source.substring(0, holder.start)).length +
           '\n'.allMatches(subtree.substring(0, fg.start)).length +
           1;
       if (!seen.add(line)) continue;

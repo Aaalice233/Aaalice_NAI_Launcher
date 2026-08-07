@@ -200,8 +200,10 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child:
-                      Row(mainAxisSize: MainAxisSize.min, children: rightGroup),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: rightGroup,
+                  ),
                 ),
               ),
             ],

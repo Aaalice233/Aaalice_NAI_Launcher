@@ -24,21 +24,21 @@ class RetroWavePalette extends BaseColorModule {
 
   @override
   ColorScheme get darkScheme => const ColorScheme.dark(
-        primary: _primary,
-        onPrimary: Color(0xFF5C1600),
-        primaryContainer: Color(0xFF5C3A30), // Dark orange for contrast
-        onPrimaryContainer: Color(0xFFFFCCBC), // Light orange for text/icons
-        secondary: _secondary,
-        onSecondary: Color(0xFF0B322E),
-        tertiary: _tertiary,
-        onTertiary: Color(0xFF1A1A1A),
-        surface: _surface,
-        onSurface: Color(0xFFEEEEEE),
-        onSurfaceVariant: Color(0xFFBDBDBD), // Warm light gray
-        surfaceContainerHighest: _card,
-        outline: Color(0xFF6B6B6B), // Warm border gray
-        error: Color(0xFFEF5350),
-      );
+    primary: _primary,
+    onPrimary: Color(0xFF5C1600),
+    primaryContainer: Color(0xFF5C3A30), // Dark orange for contrast
+    onPrimaryContainer: Color(0xFFFFCCBC), // Light orange for text/icons
+    secondary: _secondary,
+    onSecondary: Color(0xFF0B322E),
+    tertiary: _tertiary,
+    onTertiary: Color(0xFF1A1A1A),
+    surface: _surface,
+    onSurface: Color(0xFFEEEEEE),
+    onSurfaceVariant: Color(0xFFBDBDBD), // Warm light gray
+    surfaceContainerHighest: _card,
+    outline: Color(0xFF6B6B6B), // Warm border gray
+    error: Color(0xFFEF5350),
+  );
 
   @override
   bool get supportsDarkMode => true;

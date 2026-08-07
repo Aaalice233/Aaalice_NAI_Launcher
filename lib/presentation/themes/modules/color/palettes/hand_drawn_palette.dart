@@ -22,22 +22,21 @@ class HandDrawnPalette extends BaseColorModule {
 
   @override
   ColorScheme get lightScheme => ColorScheme.light(
-        primary: _primary,
-        onPrimary: Colors.white,
-        primaryContainer:
-            const Color(0xFFE8E4DC), // Light warm gray for contrast
-        onPrimaryContainer: const Color(0xFF2D2D2D), // Dark gray for text/icons
-        secondary: _secondary,
-        onSecondary: const Color(0xFF4D0000),
-        tertiary: _tertiary,
-        onTertiary: const Color(0xFF00134D),
-        surface: _surface,
-        onSurface: _primary,
-        surfaceContainerHighest: _background,
-        outline: const Color(0xFF2D2D2D).withValues(alpha: 0.3),
-        error: _secondary,
-        onError: const Color(0xFF4D0000),
-      );
+    primary: _primary,
+    onPrimary: Colors.white,
+    primaryContainer: const Color(0xFFE8E4DC), // Light warm gray for contrast
+    onPrimaryContainer: const Color(0xFF2D2D2D), // Dark gray for text/icons
+    secondary: _secondary,
+    onSecondary: const Color(0xFF4D0000),
+    tertiary: _tertiary,
+    onTertiary: const Color(0xFF00134D),
+    surface: _surface,
+    onSurface: _primary,
+    surfaceContainerHighest: _background,
+    outline: const Color(0xFF2D2D2D).withValues(alpha: 0.3),
+    error: _secondary,
+    onError: const Color(0xFF4D0000),
+  );
 
   @override
   ColorScheme get darkScheme => lightScheme; // Light mode only

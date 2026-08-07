@@ -91,8 +91,10 @@ class InlineCharacterRow extends ConsumerWidget {
                 const CharacterPositionModeSegments(),
                 const Spacer(),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(10),
@@ -106,7 +108,9 @@ class InlineCharacterRow extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
                 Tooltip(
-                  message: AppLocalizations.of(context)!.characterEditor_clearAll,
+                  message: AppLocalizations.of(
+                    context,
+                  )!.characterEditor_clearAll,
                   waitDuration: const Duration(milliseconds: 500),
                   child: InkWell(
                     onTap: () => confirmClearAllCharacters(context, ref),
@@ -130,8 +134,7 @@ class InlineCharacterRow extends ConsumerWidget {
               const spacing = 6.0;
               final maxW = constraints.maxWidth;
               final itemCount = characters.length + 1;
-              var columns =
-                  ((maxW + spacing) / (_cardWidth + spacing)).floor();
+              var columns = ((maxW + spacing) / (_cardWidth + spacing)).floor();
               columns = columns.clamp(1, itemCount);
               final cellWidth = (maxW - (columns - 1) * spacing) / columns;
 
@@ -151,10 +154,7 @@ class InlineCharacterRow extends ConsumerWidget {
                         inlineEditor: false,
                       ),
                     ),
-                  SizedBox(
-                    width: cellWidth,
-                    child: const _AddCharacterChip(),
-                  ),
+                  SizedBox(width: cellWidth, child: const _AddCharacterChip()),
                 ],
               );
             },

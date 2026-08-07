@@ -28,37 +28,36 @@ class ZenPalette extends BaseColorModule {
 
   @override
   ColorScheme get lightScheme => const ColorScheme.light(
-        primary: Color(0xFF3B82F6),
-        onPrimary: Color(0xFF03183B),
-        primaryContainer: Color(0xFFDCE7FF), // Light blue for contrast
-        onPrimaryContainer: Color(0xFF0C3170), // Dark blue for text/icons
-        secondary: Color(0xFF64748B),
-        onSecondary: Colors.white,
-        tertiary: Color(0xFF8B5CF6),
-        onTertiary: Color(0xFF0F022B),
-        surface: Color(0xFFFAFAFA),
-        onSurface: Color(0xFF27272A),
-        surfaceContainerHighest: Color(0xFFF4F4F5),
-        outline: Color(0xFFE4E4E7),
-      );
+    primary: Color(0xFF3B82F6),
+    onPrimary: Color(0xFF03183B),
+    primaryContainer: Color(0xFFDCE7FF), // Light blue for contrast
+    onPrimaryContainer: Color(0xFF0C3170), // Dark blue for text/icons
+    secondary: Color(0xFF64748B),
+    onSecondary: Colors.white,
+    tertiary: Color(0xFF8B5CF6),
+    onTertiary: Color(0xFF0F022B),
+    surface: Color(0xFFFAFAFA),
+    onSurface: Color(0xFF27272A),
+    surfaceContainerHighest: Color(0xFFF4F4F5),
+    outline: Color(0xFFE4E4E7),
+  );
 
   @override
   ColorScheme get darkScheme => const ColorScheme.dark(
-        primary: _primary,
-        onPrimary: Colors.black,
-        primaryContainer: Color(0xFF1A3A6E), // Dark blue for contrast
-        onPrimaryContainer: Color(0xFFDCE7FF), // Light blue for text/icons
-        secondary: _secondary,
-        onSecondary: Colors.black,
-        tertiary: _tertiary,
-        surface: _surface,
-        onSurface: _onSurface,
-        onSurfaceVariant: Color(0xFF9CA3AF), // Gray-400 for better contrast
-        surfaceContainerHighest: _surfaceElevated,
-        surfaceContainerLowest:
-            _background, // Use background for lowest container
-        outline: Color(0xFF52525B), // Zinc-600 for better visibility
-      );
+    primary: _primary,
+    onPrimary: Colors.black,
+    primaryContainer: Color(0xFF1A3A6E), // Dark blue for contrast
+    onPrimaryContainer: Color(0xFFDCE7FF), // Light blue for text/icons
+    secondary: _secondary,
+    onSecondary: Colors.black,
+    tertiary: _tertiary,
+    surface: _surface,
+    onSurface: _onSurface,
+    onSurfaceVariant: Color(0xFF9CA3AF), // Gray-400 for better contrast
+    surfaceContainerHighest: _surfaceElevated,
+    surfaceContainerLowest: _background, // Use background for lowest container
+    outline: Color(0xFF52525B), // Zinc-600 for better visibility
+  );
 
   @override
   bool get supportsDarkMode => true;

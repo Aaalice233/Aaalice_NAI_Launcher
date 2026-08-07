@@ -24,7 +24,7 @@ class CategoryTreeView extends StatefulWidget {
 
   /// 分类在同级内重排序
   final void Function(String? parentId, int oldIndex, int newIndex)?
-      onCategoryReorder;
+  onCategoryReorder;
 
   /// 词条拖拽到分类
   final void Function(String entryId, String? categoryId)? onEntryDrop;
@@ -119,8 +119,8 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
 
           // 分类树
           ...widget.categories.rootCategories.sortedByOrder().map(
-                (category) => _buildCategoryNode(theme, category, 0),
-              ),
+            (category) => _buildCategoryNode(theme, category, 0),
+          ),
         ],
       ),
     );
@@ -198,25 +198,25 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
 
     // 包装为拖拽目标（接收分类和词条）
     categoryItem = _buildCategoryDragTarget(theme, category, categoryItem);
-    categoryItem =
-        _buildEntryDropTarget(categoryId: category.id, child: categoryItem);
+    categoryItem = _buildEntryDropTarget(
+      categoryId: category.id,
+      child: categoryItem,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         categoryItem,
         if (hasChildren && isExpanded)
-          ...children
-              .map((child) => _buildCategoryNode(theme, child, depth + 1)),
+          ...children.map(
+            (child) => _buildCategoryNode(theme, child, depth + 1),
+          ),
       ],
     );
   }
 
   /// 构建可拖拽的分类节点
-  Widget _buildDraggableCategory(
-    TagLibraryCategory category,
-    Widget child,
-  ) {
+  Widget _buildDraggableCategory(TagLibraryCategory category, Widget child) {
     if (widget.onCategoryMove == null && widget.onCategoryReorder == null) {
       return child;
     }
@@ -243,11 +243,7 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.folder,
-                size: 18,
-                color: theme.colorScheme.primary,
-              ),
+              Icon(Icons.folder, size: 18, color: theme.colorScheme.primary),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -263,10 +259,7 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
           ),
         ),
       ),
-      childWhenDragging: Opacity(
-        opacity: 0.4,
-        child: child,
-      ),
+      childWhenDragging: Opacity(opacity: 0.4, child: child),
       onDragStarted: () {
         HapticFeedback.mediumImpact();
       },
@@ -296,8 +289,10 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
         // 不能拖到自己
         if (draggedCategory.id == targetCategory.id) return false;
         // 检查循环引用
-        if (widget.categories
-            .wouldCreateCycle(draggedCategory.id, targetCategory.id)) {
+        if (widget.categories.wouldCreateCycle(
+          draggedCategory.id,
+          targetCategory.id,
+        )) {
           return false;
         }
         // 已经是子分类则不接受
@@ -320,8 +315,9 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
             _hoveredCategoryId = targetCategory.id;
           });
           // 如果有子分类，启动自动展开定时器
-          final hasChildren =
-              widget.categories.getChildren(targetCategory.id).isNotEmpty;
+          final hasChildren = widget.categories
+              .getChildren(targetCategory.id)
+              .isNotEmpty;
           if (hasChildren && !_expandedIds.contains(targetCategory.id)) {
             _startAutoExpandTimer(targetCategory.id);
           }
@@ -346,16 +342,13 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
                 ? theme.colorScheme.primary.withValues(alpha: 0.1)
                 : Colors.transparent,
             border: isAccepting
-                ? Border.all(
-                    color: theme.colorScheme.primary,
-                    width: 2,
-                  )
+                ? Border.all(color: theme.colorScheme.primary, width: 2)
                 : isRejected
-                    ? Border.all(
-                        color: theme.colorScheme.error.withValues(alpha: 0.5),
-                        width: 1,
-                      )
-                    : null,
+                ? Border.all(
+                    color: theme.colorScheme.error.withValues(alpha: 0.5),
+                    width: 1,
+                  )
+                : null,
             borderRadius: BorderRadius.circular(8),
           ),
           child: child,
@@ -400,12 +393,7 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
                   )
                 : null,
             border: isAccepting
-                ? const Border(
-                    left: BorderSide(
-                      color: Colors.green,
-                      width: 4,
-                    ),
-                  )
+                ? const Border(left: BorderSide(color: Colors.green, width: 4))
                 : null,
             borderRadius: isAccepting ? BorderRadius.circular(8) : null,
           ),
@@ -500,8 +488,8 @@ class _CategoryItemState extends State<_CategoryItem> {
             color: widget.isSelected
                 ? theme.colorScheme.primaryContainer
                 : (_isHovering
-                    ? theme.colorScheme.surfaceContainerHighest
-                    : Colors.transparent),
+                      ? theme.colorScheme.surfaceContainerHighest
+                      : Colors.transparent),
             borderRadius: BorderRadius.circular(8),
           ),
           child: InkWell(
@@ -539,7 +527,8 @@ class _CategoryItemState extends State<_CategoryItem> {
                   Icon(
                     widget.icon,
                     size: 18,
-                    color: widget.iconColor ??
+                    color:
+                        widget.iconColor ??
                         (widget.isSelected
                             ? theme.colorScheme.primary
                             : theme.colorScheme.onSurfaceVariant),

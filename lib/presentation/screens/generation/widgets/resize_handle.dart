@@ -25,8 +25,9 @@ class ResizeHandle extends StatelessWidget {
       cursor: SystemMouseCursors.resizeColumn,
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
-        onHorizontalDragStart:
-            onDragStart != null ? (_) => onDragStart!() : null,
+        onHorizontalDragStart: onDragStart != null
+            ? (_) => onDragStart!()
+            : null,
         onHorizontalDragEnd: onDragEnd != null ? (_) => onDragEnd!() : null,
         onHorizontalDragUpdate: (details) {
           final delta = details.primaryDelta ?? details.delta.dx;

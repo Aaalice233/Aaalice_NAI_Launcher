@@ -26,40 +26,40 @@ class SystemPalette extends BaseColorModule {
 
   @override
   ColorScheme get lightScheme => const ColorScheme.light(
-        primary: _lightPrimary,
-        onPrimary: Color(0xFF00162E),
-        primaryContainer: Color(0xFFD1E2FF), // Light iOS blue for contrast
-        onPrimaryContainer: Color(0xFF00256A), // Dark blue for text/icons
-        secondary: _lightSecondary,
-        onSecondary: Color(0xFF134921),
-        tertiary: Color(0xFFFF9500),
-        onTertiary: Color(0xFF5C3600),
-        surface: _lightSurface,
-        onSurface: Color(0xFF1D1D1F),
-        onSurfaceVariant: Color(0xFF667080), // Gray-500 调深，保证对 surface 达 AA
-        surfaceContainerHighest: _lightCard,
-        outline: Color(0xFFD1D5DB), // Gray-300 for borders
-        error: Color(0xFFFF3B30),
-        onError: Color(0xFF3D0300),
-      );
+    primary: _lightPrimary,
+    onPrimary: Color(0xFF00162E),
+    primaryContainer: Color(0xFFD1E2FF), // Light iOS blue for contrast
+    onPrimaryContainer: Color(0xFF00256A), // Dark blue for text/icons
+    secondary: _lightSecondary,
+    onSecondary: Color(0xFF134921),
+    tertiary: Color(0xFFFF9500),
+    onTertiary: Color(0xFF5C3600),
+    surface: _lightSurface,
+    onSurface: Color(0xFF1D1D1F),
+    onSurfaceVariant: Color(0xFF667080), // Gray-500 调深，保证对 surface 达 AA
+    surfaceContainerHighest: _lightCard,
+    outline: Color(0xFFD1D5DB), // Gray-300 for borders
+    error: Color(0xFFFF3B30),
+    onError: Color(0xFF3D0300),
+  );
 
   @override
   ColorScheme get darkScheme => const ColorScheme.dark(
-        primary: _darkPrimary,
-        onPrimary: Color(0xFF020317),
-        primaryContainer: Color(0xFF2A2A5E), // Dark indigo for contrast
-        onPrimaryContainer: Color(0xFFE0E0FF), // Light indigo for text/icons
-        secondary: _darkSecondary,
-        onSecondary: Color(0xFF0F022B),
-        tertiary: Color(0xFF22D3EE),
-        onTertiary: Color(0xFF1A1A1A),
-        surface: _darkSurface,
-        onSurface: Color(0xFFA2AFB9),
-        onSurfaceVariant: Color(0xFFA1A1AA), // Zinc-400 for secondary text
-        surfaceContainerHighest: _darkCard,
-        outline: Color(0xFF52525B), // Zinc-600 for borders
-        error: Color(0xFFEF4444),
-      );
+    primary: _darkPrimary,
+    onPrimary: Color(0xFF020317),
+    primaryContainer: Color(0xFF2A2A5E), // Dark indigo for contrast
+    onPrimaryContainer: Color(0xFFE0E0FF), // Light indigo for text/icons
+    secondary: _darkSecondary,
+    onSecondary: Color(0xFF0F022B),
+    tertiary: Color(0xFF22D3EE),
+    onTertiary: Color(0xFF1A1A1A),
+    surface: _darkSurface,
+    onSurface: Color(0xFFA2AFB9),
+    onSurfaceVariant: Color(0xFFA1A1AA), // Zinc-400 for secondary text
+    surfaceContainerHighest: _darkCard,
+    outline: Color(0xFF52525B), // Zinc-600 for borders
+    error: Color(0xFFEF4444),
+  );
 
   @override
   bool get supportsDarkMode => true;

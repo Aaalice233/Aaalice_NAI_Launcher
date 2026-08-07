@@ -588,7 +588,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           ? () => unawaited(_sendPreviewImageToPreciseReference(context, image))
           : null,
       onSaveToPreciseRefLibrary: canUseAsInput
-          ? () => unawaited(saveBytesToPreciseRefLibrary(ref, context, image.bytes))
+          ? () => unawaited(
+              saveBytesToPreciseRefLibrary(ref, context, image.bytes),
+            )
           : null,
       onEditImage: canUseAsInput
           ? () => ImageWorkflowLauncher.openEditor(

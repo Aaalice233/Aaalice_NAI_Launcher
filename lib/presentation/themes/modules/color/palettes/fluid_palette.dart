@@ -20,36 +20,36 @@ class FluidPalette extends BaseColorModule {
 
   @override
   ColorScheme get lightScheme => const ColorScheme.light(
-        primary: Color(0xFFEAB308), // Darker yellow for light mode
-        onPrimary: Colors.black,
-        primaryContainer: Color(0xFFFFF8DC), // Light yellow for contrast
-        onPrimaryContainer: Color(0xFF5C4A00), // Dark yellow for text/icons
-        secondary: Color(0xFF0891B2),
-        onSecondary: Color(0xFF011418),
-        tertiary: Color(0xFFDB2777),
-        // 必须显式指定：否则会回退到 onSecondary 的深青，配不上这里的品红。
-        onTertiary: Colors.white,
-        surface: Colors.white,
-        onSurface: Colors.black87,
-        onSurfaceVariant: Color(0xFF6B7280), // Gray-500
-        outline: Color(0xFFD1D5DB), // Gray-300
-      );
+    primary: Color(0xFFEAB308), // Darker yellow for light mode
+    onPrimary: Colors.black,
+    primaryContainer: Color(0xFFFFF8DC), // Light yellow for contrast
+    onPrimaryContainer: Color(0xFF5C4A00), // Dark yellow for text/icons
+    secondary: Color(0xFF0891B2),
+    onSecondary: Color(0xFF011418),
+    tertiary: Color(0xFFDB2777),
+    // 必须显式指定：否则会回退到 onSecondary 的深青，配不上这里的品红。
+    onTertiary: Colors.white,
+    surface: Colors.white,
+    onSurface: Colors.black87,
+    onSurfaceVariant: Color(0xFF6B7280), // Gray-500
+    outline: Color(0xFFD1D5DB), // Gray-300
+  );
 
   @override
   ColorScheme get darkScheme => const ColorScheme.dark(
-        primary: _primary,
-        onPrimary: Colors.black,
-        primaryContainer: Color(0xFF5C4A00), // Dark yellow for contrast
-        onPrimaryContainer: Color(0xFFFFF8DC), // Light yellow for text/icons
-        secondary: _secondary,
-        onSecondary: Colors.black,
-        tertiary: _tertiary,
-        surface: _surface,
-        onSurface: Colors.white,
-        onSurfaceVariant: Color(0xFFA1A1AA), // Zinc-400
-        surfaceContainerHighest: _background,
-        outline: Color(0xFF525252), // Neutral-600
-      );
+    primary: _primary,
+    onPrimary: Colors.black,
+    primaryContainer: Color(0xFF5C4A00), // Dark yellow for contrast
+    onPrimaryContainer: Color(0xFFFFF8DC), // Light yellow for text/icons
+    secondary: _secondary,
+    onSecondary: Colors.black,
+    tertiary: _tertiary,
+    surface: _surface,
+    onSurface: Colors.white,
+    onSurfaceVariant: Color(0xFFA1A1AA), // Zinc-400
+    surfaceContainerHighest: _background,
+    outline: Color(0xFF525252), // Neutral-600
+  );
 
   @override
   bool get supportsDarkMode => true;

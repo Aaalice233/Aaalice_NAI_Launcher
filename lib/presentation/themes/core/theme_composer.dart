@@ -109,10 +109,7 @@ class ThemeComposer {
 
       // Icon theme - ensures icons have good visibility by default
       // Uses onSurface for proper contrast on surface backgrounds
-      iconTheme: IconThemeData(
-        color: colorScheme.onSurface,
-        size: 24,
-      ),
+      iconTheme: IconThemeData(color: colorScheme.onSurface, size: 24),
 
       // Apply divider module colors to Flutter's built-in divider
       dividerColor: divider.dividerColor,
@@ -203,18 +200,14 @@ class ThemeComposer {
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: _extractBorderRadius(shape.inputShape),
-          borderSide: BorderSide(
-            color: colorScheme.error,
-            width: 1.5,
-          ),
+          borderSide: BorderSide(color: colorScheme.error, width: 1.5),
         ),
         // 显式设置 hintStyle，确保在所有主题下都有足够的对比度
-        hintStyle: TextStyle(
-          color: colorScheme.outline,
-          fontSize: 16,
+        hintStyle: TextStyle(color: colorScheme.outline, fontSize: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       ),
 
       // 深度层叠风格：下拉菜单使用阴影 + 小圆角
@@ -225,11 +218,13 @@ class ThemeComposer {
               borderRadius: BorderRadius.circular(shape.menuRadius),
             ),
           ),
-          backgroundColor:
-              WidgetStatePropertyAll(colorScheme.surfaceContainerHigh),
+          backgroundColor: WidgetStatePropertyAll(
+            colorScheme.surfaceContainerHigh,
+          ),
           elevation: const WidgetStatePropertyAll(0), // 使用自定义阴影
-          shadowColor:
-              WidgetStatePropertyAll(Colors.black.withValues(alpha: 0.15)),
+          shadowColor: WidgetStatePropertyAll(
+            Colors.black.withValues(alpha: 0.15),
+          ),
           surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
         ),
       ),
@@ -251,11 +246,13 @@ class ThemeComposer {
               borderRadius: BorderRadius.circular(shape.menuRadius),
             ),
           ),
-          backgroundColor:
-              WidgetStatePropertyAll(colorScheme.surfaceContainerHigh),
+          backgroundColor: WidgetStatePropertyAll(
+            colorScheme.surfaceContainerHigh,
+          ),
           elevation: const WidgetStatePropertyAll(8),
-          shadowColor:
-              WidgetStatePropertyAll(Colors.black.withValues(alpha: 0.15)),
+          shadowColor: WidgetStatePropertyAll(
+            Colors.black.withValues(alpha: 0.15),
+          ),
           surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
         ),
       ),
@@ -393,10 +390,7 @@ class ThemeComposer {
 
   /// Applies the given color to all text styles in the theme.
   TextTheme _applyColorToTextTheme(TextTheme textTheme, Color color) {
-    return textTheme.apply(
-      bodyColor: color,
-      displayColor: color,
-    );
+    return textTheme.apply(bodyColor: color, displayColor: color);
   }
 
   /// Extracts BorderRadius from a ShapeBorder.

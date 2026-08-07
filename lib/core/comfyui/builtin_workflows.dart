@@ -5,11 +5,11 @@ class BuiltinWorkflows {
   BuiltinWorkflows._();
 
   static List<WorkflowTemplate> get all => [
-        seedvr2Upscale,
-        seedvr2TiledUpscale,
-        modelUpscale,
-        rtxUpscale,
-      ];
+    seedvr2Upscale,
+    seedvr2TiledUpscale,
+    modelUpscale,
+    rtxUpscale,
+  ];
 
   /// SeedVR2 超分工作流
   ///
@@ -483,9 +483,7 @@ class BuiltinWorkflows {
       '_meta': {'title': 'SeedVR2 Load VAE Model'},
     },
     '15': {
-      'inputs': {
-        'image': 'placeholder.png',
-      },
+      'inputs': {'image': 'placeholder.png'},
       'class_type': 'LoadImage',
       '_meta': {'title': 'Load Image'},
     },
@@ -557,9 +555,7 @@ class BuiltinWorkflows {
       '_meta': {'title': 'SeedVR2 Tiling Upscaler'},
     },
     '15': {
-      'inputs': {
-        'image': 'placeholder.png',
-      },
+      'inputs': {'image': 'placeholder.png'},
       'class_type': 'LoadImage',
       '_meta': {'title': 'Load Image'},
     },
@@ -577,16 +573,12 @@ class BuiltinWorkflows {
 
   static const Map<String, dynamic> _modelUpscaleWorkflowJson = {
     '1': {
-      'inputs': {
-        'image': 'placeholder.png',
-      },
+      'inputs': {'image': 'placeholder.png'},
       'class_type': 'LoadImage',
       '_meta': {'title': 'Load Image'},
     },
     '2': {
-      'inputs': {
-        'model_name': 'realesrganX4plusAnime_v1.pt',
-      },
+      'inputs': {'model_name': 'realesrganX4plusAnime_v1.pt'},
       'class_type': 'UpscaleModelLoader',
       '_meta': {'title': 'Upscale Model Loader'},
     },
@@ -623,9 +615,7 @@ class BuiltinWorkflows {
 
   static const Map<String, dynamic> _rtxUpscaleWorkflowJson = {
     '1': {
-      'inputs': {
-        'image': 'placeholder.png',
-      },
+      'inputs': {'image': 'placeholder.png'},
       'class_type': 'LoadImage',
       '_meta': {'title': 'Load Image'},
     },

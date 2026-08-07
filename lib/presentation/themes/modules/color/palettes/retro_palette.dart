@@ -21,21 +21,21 @@ class RetroPalette extends BaseColorModule {
 
   @override
   ColorScheme get lightScheme => const ColorScheme.light(
-        primary: _primary,
-        onPrimary: Colors.white,
-        primaryContainer: Color(0xFFFFE6E6), // Light red for contrast
-        onPrimaryContainer: Color(0xFF5C1616), // Dark red for text/icons
-        secondary: _secondary,
-        onSecondary: Color(0xFF173545),
-        tertiary: _tertiary,
-        onTertiary: Colors.black,
-        surface: _surface,
-        onSurface: Color(0xFF1A1A1A),
-        onSurfaceVariant: Color(0xFF6D572C), // Warm gray (Stone-500)
-        surfaceContainerHighest: _background,
-        outline: Color(0xFFD6D3D1), // Stone-300
-        error: Color(0xFFBA1A1A),
-      );
+    primary: _primary,
+    onPrimary: Colors.white,
+    primaryContainer: Color(0xFFFFE6E6), // Light red for contrast
+    onPrimaryContainer: Color(0xFF5C1616), // Dark red for text/icons
+    secondary: _secondary,
+    onSecondary: Color(0xFF173545),
+    tertiary: _tertiary,
+    onTertiary: Colors.black,
+    surface: _surface,
+    onSurface: Color(0xFF1A1A1A),
+    onSurfaceVariant: Color(0xFF6D572C), // Warm gray (Stone-500)
+    surfaceContainerHighest: _background,
+    outline: Color(0xFFD6D3D1), // Stone-300
+    error: Color(0xFFBA1A1A),
+  );
 
   @override
   ColorScheme get darkScheme => lightScheme; // Retro is light-only
