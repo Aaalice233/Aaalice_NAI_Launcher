@@ -770,17 +770,19 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
 
       final saveDirPath = await GalleryFolderRepository.instance.getRootPath();
       if (saveDirPath == null) return;
-      final saveDir = Directory(saveDirPath);
-      if (!await saveDir.exists()) {
-        await saveDir.create(recursive: true);
-      }
 
-      final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File(p.join(saveDirPath, fileName));
-      await file.writeAsBytes(image.bytes);
+      // 原子保存：日期分类路径 + 独占防冲突 + 失败清理，全部在工具内完成
+      final filePath = await ImageSaveUtils.saveBytesToDatedPath(
+        rootPath: saveDirPath,
+        bytes: image.bytes,
+        seed: await ImageSaveUtils.resolveSeed(
+          metadata: image.metadata,
+          bytes: image.bytes,
+        ),
+      );
 
       ref.read(localGalleryNotifierProvider.notifier).refresh();
-      await FileExplorerUtils.revealFile(file.path);
+      await FileExplorerUtils.revealFile(filePath);
 
       if (context.mounted) {
         AppToast.success(context, context.l10n.image_imageSaved(saveDirPath));
@@ -955,13 +957,25 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       final imageBytes = await image.getImageBytes();
       final saveDir = await _getSaveDirectory();
       if (saveDir == null) return;
-      final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-      final filePath = '${saveDir.path}/$fileName';
 
+      // 统一解析真实 seed：文件名与元数据嵌入共用同一结果
+      final resolvedSeed = await ImageSaveUtils.resolveSeed(
+        metadata: image.metadata,
+        bytes: imageBytes,
+      );
+      final params = ref.read(generationParamsNotifierProvider);
+      // 最终 seed：解析结果优先，回退当前参数，仍未知则随机。
+      // 在生成文件名前确定，保证文件名与嵌入元数据完全一致。
+      final finalSeed = resolvedSeed ?? params.seed;
+      final actualSeed = finalSeed < 0
+          ? Random().nextInt(4294967295)
+          : finalSeed;
+
+      // 构建最终字节：已有 NAI 元数据则原样保留，否则按当前参数重建
+      final Uint8List finalBytes;
       if (ImageSaveUtils.hasEmbeddedNovelAiMetadata(imageBytes)) {
-        await File(filePath).writeAsBytes(imageBytes);
+        finalBytes = imageBytes;
       } else {
-        final params = ref.read(generationParamsNotifierProvider);
         final characterConfig = ref.read(characterPromptNotifierProvider);
         final fixedTagsState = ref.read(fixedTagsNotifierProvider);
 
@@ -994,20 +1008,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           useCustomUcPreset: ucState.isCustom,
         );
 
-        // 尝试从图片元数据中提取实际的 seed
-        int actualSeed = params.seed;
-        if (actualSeed == -1) {
-          final extractedMeta = await ImageMetadataService()
-              .getMetadataFromBytes(imageBytes);
-          if (extractedMeta != null &&
-              extractedMeta.seed != null &&
-              extractedMeta.seed! > 0) {
-            actualSeed = extractedMeta.seed!;
-          } else {
-            actualSeed = Random().nextInt(4294967295);
-          }
-        }
-
         // 构建 V4 多角色提示词结构（解析别名）
         final charCaptions = <Map<String, dynamic>>[];
         final charNegCaptions = <Map<String, dynamic>>[];
@@ -1038,9 +1038,8 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           width: encodedSize?.$1 ?? params.width,
           height: encodedSize?.$2 ?? params.height,
         );
-        await ImageSaveUtils.saveImageWithMetadata(
+        finalBytes = await ImageSaveUtils.rebuildImageBytesWithMetadata(
           imageBytes: imageBytes,
-          filePath: filePath,
           params: paramsForSave,
           actualSeed: actualSeed,
           fixedPrefixTags: fixedTagsState.enabledPrefixes
@@ -1064,6 +1063,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           useCoords: !characterConfig.globalAiChoice,
         );
       }
+
+      // 原子保存：日期分类路径 + 独占防冲突 + 失败清理，全部在工具内完成
+      final filePath = await ImageSaveUtils.saveBytesToDatedPath(
+        rootPath: saveDir.path,
+        bytes: finalBytes,
+        seed: actualSeed,
+      );
 
       // 立即解析并缓存刚保存图像的元数据
       unawaited(

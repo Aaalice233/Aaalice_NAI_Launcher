@@ -6,7 +6,6 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:image/image.dart' as img;
-import 'package:path/path.dart' as p;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
@@ -689,13 +688,21 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             'Batch ${batch + 1}/$batchCount - Random before generation: $randomPrompt',
             'RandomMode',
           );
+          // 随机提示词是原始文本，必须重跑开头对第一批做过的正面词管线
+          //（别名展开 → 固定词 → 质量词），否则第二批起会丢固定词和质量词
+          var preparedPrompt = aliasResolver.resolveAliases(randomPrompt);
+          preparedPrompt = fixedTagsState.applyToPrompt(preparedPrompt);
+          preparedPrompt = _resolvePromptPresets(
+            currentParams.copyWith(prompt: preparedPrompt, negativePrompt: ''),
+          ).prompt;
+
           // 重新读取角色配置并更新参数
           final newCharacterConfig = ref.read(characterPromptNotifierProvider);
           final newApiCharacters = _convertCharactersToApiFormat(
             newCharacterConfig,
           );
           currentParams = currentParams.copyWith(
-            prompt: randomPrompt,
+            prompt: preparedPrompt,
             characters: newApiCharacters,
             useCoords:
                 newApiCharacters.isNotEmpty &&
@@ -1006,54 +1013,51 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
       for (final image in images) {
         try {
-          final fileName = 'NAI_${DateTime.now().millisecondsSinceEpoch}.png';
-          final filePath = p.join(saveDirPath, fileName);
-
-          if (ImageSaveUtils.hasEmbeddedNovelAiMetadata(image.bytes)) {
-            await File(filePath).writeAsBytes(image.bytes);
-            savedCount++;
-            savedFilePaths.add(filePath);
-
-            final updatedImage = image.copyWithFilePath(filePath);
-            _updateImageInState(image.id, updatedImage);
-            savedImages.add(updatedImage);
-
-            await Future.delayed(const Duration(milliseconds: 2));
-            continue;
-          }
-
-          // 从图片元数据中提取实际的 seed
+          // 从图片元数据中提取实际的 seed（文件名与元数据嵌入共用）
+          final hasEmbeddedMetadata =
+              ImageSaveUtils.hasEmbeddedNovelAiMetadata(image.bytes);
           int actualSeed = params.seed;
-          if (params.seed == -1) {
+          if (actualSeed < 0 || hasEmbeddedMetadata) {
             final extractedMeta = await ImageMetadataService()
                 .getMetadataFromBytes(image.bytes);
             if (extractedMeta != null &&
                 extractedMeta.seed != null &&
-                extractedMeta.seed! > 0) {
+                extractedMeta.seed! >= 0) {
               actualSeed = extractedMeta.seed!;
-            } else {
+            } else if (actualSeed < 0) {
               actualSeed = Random().nextInt(4294967295);
             }
           }
 
-          AppLogger.i(
-            '[ImageGeneration] Saving image with fixed_prefix=$fixedPrefixTags, fixed_suffix=$fixedSuffixTags, fixed_negative_prefix=$fixedNegativePrefixTags, fixed_negative_suffix=$fixedNegativeSuffixTags',
-            'ImageGeneration',
-          );
+          if (!hasEmbeddedMetadata) {
+            AppLogger.i(
+              '[ImageGeneration] Saving image with fixed_prefix=$fixedPrefixTags, fixed_suffix=$fixedSuffixTags, fixed_negative_prefix=$fixedNegativePrefixTags, fixed_negative_suffix=$fixedNegativeSuffixTags',
+              'ImageGeneration',
+            );
+          }
 
-          await ImageSaveUtils.saveImageWithMetadata(
-            imageBytes: image.bytes,
-            filePath: filePath,
-            params: params.copyWith(width: image.width, height: image.height),
-            actualSeed: actualSeed,
-            fixedPrefixTags: fixedPrefixTags,
-            fixedSuffixTags: fixedSuffixTags,
-            fixedNegativePrefixTags: fixedNegativePrefixTags,
-            fixedNegativeSuffixTags: fixedNegativeSuffixTags,
-            charCaptions: charCaptions,
-            charNegCaptions: charNegCaptions,
-            useCoords: !characterConfig.globalAiChoice,
-            useStealth: false,
+          // 原子保存：日期分类路径 + 独占防冲突 + 失败清理，全部在工具内完成
+          final filePath = await ImageSaveUtils.saveBytesToDatedPath(
+            rootPath: saveDirPath,
+            bytes: hasEmbeddedMetadata
+                ? image.bytes
+                : await ImageSaveUtils.rebuildImageBytesWithMetadata(
+                    imageBytes: image.bytes,
+                    params: params.copyWith(
+                      width: image.width,
+                      height: image.height,
+                    ),
+                    actualSeed: actualSeed,
+                    fixedPrefixTags: fixedPrefixTags,
+                    fixedSuffixTags: fixedSuffixTags,
+                    fixedNegativePrefixTags: fixedNegativePrefixTags,
+                    fixedNegativeSuffixTags: fixedNegativeSuffixTags,
+                    charCaptions: charCaptions,
+                    charNegCaptions: charNegCaptions,
+                    useCoords: !characterConfig.globalAiChoice,
+                    useStealth: false,
+                  ),
+            seed: actualSeed,
           );
           savedCount++;
           savedFilePaths.add(filePath);
@@ -1062,9 +1066,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           final updatedImage = image.copyWithFilePath(filePath);
           _updateImageInState(image.id, updatedImage);
           savedImages.add(updatedImage);
-
-          // 避免文件名冲突
-          await Future.delayed(const Duration(milliseconds: 2));
         } catch (e) {
           AppLogger.e('自动保存图像失败: $e');
         }
