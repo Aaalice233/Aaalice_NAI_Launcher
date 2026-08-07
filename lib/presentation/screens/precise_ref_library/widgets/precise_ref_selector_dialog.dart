@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -41,6 +42,11 @@ class _PreciseRefSelectorDialogState
   final Set<String> _selectedIds = {};
   String _query = '';
   PreciseRefType? _typeFilter;
+  Timer? _searchDebounceTimer;
+  List<PreciseRefLibraryEntry>? _cachedSourceEntries;
+  String? _cachedQuery;
+  PreciseRefType? _cachedTypeFilter;
+  List<PreciseRefLibraryEntry> _cachedVisibleEntries = const [];
 
   @override
   void initState() {
@@ -56,15 +62,47 @@ class _PreciseRefSelectorDialogState
   }
 
   @override
+  void dispose() {
+    _searchDebounceTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounceTimer?.cancel();
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 200), () {
+      if (mounted && _query != value) {
+        setState(() => _query = value);
+      }
+    });
+  }
+
+  List<PreciseRefLibraryEntry> _visibleEntries(
+    List<PreciseRefLibraryEntry> source,
+  ) {
+    if (identical(_cachedSourceEntries, source) &&
+        _cachedQuery == _query &&
+        _cachedTypeFilter == _typeFilter) {
+      return _cachedVisibleEntries;
+    }
+
+    var entries = source.search(_query);
+    final typeFilter = _typeFilter;
+    if (typeFilter != null) {
+      entries = entries.where((entry) => entry.type == typeFilter).toList();
+    }
+    _cachedSourceEntries = source;
+    _cachedQuery = _query;
+    _cachedTypeFilter = typeFilter;
+    _cachedVisibleEntries = entries.sortedByCreatedAt();
+    return _cachedVisibleEntries;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final state = ref.watch(preciseRefLibraryNotifierProvider);
-    var entries = state.entries.search(_query).sortedByCreatedAt();
-    final typeFilter = _typeFilter;
-    if (typeFilter != null) {
-      entries = entries.where((e) => e.type == typeFilter).toList();
-    }
+    final entries = _visibleEntries(state.entries);
 
     return AlertDialog(
       title: Text(l10n.preciseRefLib_selectorTitle),
@@ -81,7 +119,7 @@ class _PreciseRefSelectorDialogState
                 isDense: true,
                 border: const OutlineInputBorder(),
               ),
-              onChanged: (value) => setState(() => _query = value),
+              onChanged: _onSearchChanged,
             ),
             const SizedBox(height: 8),
             Align(

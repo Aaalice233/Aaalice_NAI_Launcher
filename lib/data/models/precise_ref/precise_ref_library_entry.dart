@@ -25,7 +25,7 @@ class PreciseRefLibraryEntry with _$PreciseRefLibraryEntry {
     /// 显示名称（仅元数据，不参与磁盘文件命名）
     @HiveField(1) required String name,
 
-    /// 原图 PNG 绝对路径（文件名固定为 {id}.png）
+    /// 原图绝对路径（文件名为 {id}.{实际图片扩展名}）
     @HiveField(2) required String imagePath,
 
     /// 参考类型索引 (PreciseRefType 的索引，默认 characterAndStyle)
@@ -52,20 +52,26 @@ class PreciseRefLibraryEntry with _$PreciseRefLibraryEntry {
 
   /// 创建新条目（自动生成 id 与创建时间）
   factory PreciseRefLibraryEntry.create({
+    String? id,
     required String name,
     required String imagePath,
     PreciseRefType type = PreciseRefType.characterAndStyle,
     double strength = 1.0,
     double fidelity = 1.0,
+    DateTime? createdAt,
   }) {
+    final resolvedId = id ?? const Uuid().v4();
+    final trimmedName = name.trim();
     return PreciseRefLibraryEntry(
-      id: const Uuid().v4(),
-      name: name.trim(),
+      id: resolvedId,
+      name: trimmedName.isEmpty
+          ? (resolvedId.length <= 8 ? resolvedId : resolvedId.substring(0, 8))
+          : trimmedName,
       imagePath: imagePath,
       typeIndex: type.index,
       strength: strength,
       fidelity: fidelity,
-      createdAt: DateTime.now(),
+      createdAt: createdAt ?? DateTime.now(),
     );
   }
 

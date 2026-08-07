@@ -12397,6 +12397,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preciseRefLib_imageMissing => 'Image file is missing';
 
   @override
+  String get preciseRefLib_invalidImage =>
+      'The image format is unsupported or the file is corrupt';
+
+  @override
+  String get preciseRefLib_deleteFailed =>
+      'Delete failed. The entry and original image were kept; try again later';
+
+  @override
   String get preciseRefLib_favoritesOnly => 'Favorites only';
 
   @override

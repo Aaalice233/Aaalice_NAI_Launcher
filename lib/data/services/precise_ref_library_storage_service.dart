@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -16,30 +15,70 @@ import '../models/precise_ref/precise_ref_library_entry.dart';
 
 part 'precise_ref_library_storage_service.g.dart';
 
+class InvalidPreciseRefImageException implements Exception {
+  const InvalidPreciseRefImageException();
+
+  @override
+  String toString() => 'Unsupported or corrupt image data';
+}
+
+/// Injectable filesystem boundary used by storage recovery tests.
+class PreciseRefLibraryFileSystem {
+  const PreciseRefLibraryFileSystem();
+
+  Future<void> writeBytes(String path, Uint8List bytes) async {
+    await File(path).writeAsBytes(bytes, flush: true);
+  }
+
+  Future<Uint8List> readBytes(String path) => File(path).readAsBytes();
+
+  Future<bool> exists(String path) => File(path).exists();
+
+  Future<void> delete(String path) => File(path).delete();
+
+  Future<void> rename(String from, String to) async {
+    await File(from).rename(to);
+  }
+
+  Stream<FileSystemEntity> list(String directory) =>
+      Directory(directory).list();
+}
+
 /// 精准参考库存储服务
 ///
-/// 双层存储：原图以 {id}.png 等文件形式落盘，Hive 仅保存轻量元数据
-/// 与展示缩略图缓存，避免大字节进 Hive 导致的性能问题。
+/// 原图以独立文件落盘，Hive 保存轻量元数据与按需读取的展示缩略图缓存。
 class PreciseRefLibraryStorageService {
-  PreciseRefLibraryStorageService({String? overrideDirectory})
-    : _overrideDirectory = overrideDirectory;
+  PreciseRefLibraryStorageService({
+    String? overrideDirectory,
+    PreciseRefLibraryFileSystem fileSystem =
+        const PreciseRefLibraryFileSystem(),
+  }) : _overrideDirectory = overrideDirectory,
+       _fileSystem = fileSystem;
 
   static const String _entriesBoxName = 'precise_ref_library_entries';
   static const String _thumbnailCacheBoxName =
       'precise_ref_library_thumbnails_v1';
+  static const String _importingMarker = '.importing-';
+  static const String _deletingMarker = '.deleting-';
   static const String _tag = 'PreciseRefLibrary';
+  static final RegExp _managedImageFileName = RegExp(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(png|jpe?g|webp|gif|bmp)$',
+    caseSensitive: false,
+  );
 
   final String? _overrideDirectory;
+  final PreciseRefLibraryFileSystem _fileSystem;
   Box<PreciseRefLibraryEntry>? _entriesBox;
-  Box<Uint8List>? _thumbnailCacheBox;
+  LazyBox<Uint8List>? _thumbnailCacheBox;
   Future<void>? _initFuture;
   final Map<String, Future<Uint8List?>> _thumbnailLoadsById = {};
+  final Set<String> _deletingIds = {};
 
-  /// 初始化（注册 Adapter 并打开 box，幂等且并发安全）
+  /// 初始化（注册 Adapter、打开 box 并修复中断操作留下的暂存文件）。
   Future<void> init() {
     return _initFuture ??= _doInit().catchError((Object e, StackTrace s) {
       _initFuture = null;
-      AppLogger.e('精准参考库存储初始化失败', _tag, s);
+      AppLogger.e('精准参考库存储初始化失败', e, s, _tag);
       throw e;
     });
   }
@@ -49,12 +88,13 @@ class PreciseRefLibraryStorageService {
       Hive.registerAdapter(PreciseRefLibraryEntryAdapter());
     }
     _entriesBox ??= await Hive.openBox<PreciseRefLibraryEntry>(_entriesBoxName);
-    _thumbnailCacheBox ??= await Hive.openBox<Uint8List>(
+    _thumbnailCacheBox ??= await Hive.openLazyBox<Uint8List>(
       _thumbnailCacheBoxName,
     );
+    await _reconcileStorage();
   }
 
-  /// 获取原图保存目录（确保存在）
+  /// 获取原图保存目录（确保存在）。
   Future<String> _resolveImageDirectory() async {
     final dir =
         _overrideDirectory ??
@@ -63,16 +103,23 @@ class PreciseRefLibraryStorageService {
     return dir;
   }
 
-  /// 按字节魔数检测图片扩展名（未知格式回退 .png）
+  /// 按字节魔数检测受支持的图片扩展名。
   static String detectImageExtension(Uint8List bytes) {
     if (bytes.length >= 8 &&
         bytes[0] == 0x89 &&
         bytes[1] == 0x50 &&
         bytes[2] == 0x4E &&
-        bytes[3] == 0x47) {
+        bytes[3] == 0x47 &&
+        bytes[4] == 0x0D &&
+        bytes[5] == 0x0A &&
+        bytes[6] == 0x1A &&
+        bytes[7] == 0x0A) {
       return '.png';
     }
-    if (bytes.length >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8) {
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xFF &&
+        bytes[1] == 0xD8 &&
+        bytes[2] == 0xFF) {
       return '.jpg';
     }
     if (bytes.length >= 12 &&
@@ -86,24 +133,31 @@ class PreciseRefLibraryStorageService {
         bytes[11] == 0x50) {
       return '.webp';
     }
-    return '.png';
+    if (bytes.length >= 6 &&
+        bytes[0] == 0x47 &&
+        bytes[1] == 0x49 &&
+        bytes[2] == 0x46 &&
+        bytes[3] == 0x38 &&
+        (bytes[4] == 0x37 || bytes[4] == 0x39) &&
+        bytes[5] == 0x61) {
+      return '.gif';
+    }
+    if (bytes.length >= 2 && bytes[0] == 0x42 && bytes[1] == 0x4D) {
+      return '.bmp';
+    }
+    throw const InvalidPreciseRefImageException();
   }
 
-  /// 获取全部条目
+  /// 获取全部条目。
   Future<List<PreciseRefLibraryEntry>> getAllEntries() async {
     await init();
     return _entriesBox!.values.toList();
   }
 
-  /// 获取单个条目
-  Future<PreciseRefLibraryEntry?> getEntry(String id) async {
-    await init();
-    return _entriesBox!.get(id);
-  }
-
-  /// 从图片字节导入新条目
+  /// 从图片字节导入新条目。
   ///
-  /// 原图写为 {目录}/{id}{扩展名}，生成展示缩略图并保存元数据。
+  /// 图片先写入带 importing 标记的暂存文件。元数据持久化成功后再原子重命名，
+  /// 启动对账可以恢复进程中断留下的任一阶段。
   Future<PreciseRefLibraryEntry> importFromBytes(
     Uint8List bytes, {
     required String name,
@@ -112,37 +166,60 @@ class PreciseRefLibraryStorageService {
     double fidelity = 1.0,
   }) async {
     await init();
+    final extension = detectImageExtension(bytes);
+    final thumbnail = await DisplayThumbnailUtils.normalize(bytes);
+    if (thumbnail == null || thumbnail.isEmpty) {
+      throw const InvalidPreciseRefImageException();
+    }
+
     final dir = await _resolveImageDirectory();
     final id = const Uuid().v4();
-    final filePath = p.join(dir, '$id${detectImageExtension(bytes)}');
-    await File(filePath).writeAsBytes(bytes, flush: true);
-
-    final trimmedName = name.trim();
-    final entry = PreciseRefLibraryEntry(
+    final filePath = p.join(dir, '$id$extension');
+    final stagingPath =
+        '$filePath$_importingMarker${DateTime.now().microsecondsSinceEpoch}';
+    final entry = PreciseRefLibraryEntry.create(
       id: id,
-      name: trimmedName.isEmpty ? id.substring(0, 8) : trimmedName,
+      name: name,
       imagePath: filePath,
-      typeIndex: type.index,
+      type: type,
       strength: strength,
       fidelity: fidelity,
-      createdAt: DateTime.now(),
     );
-    await _entriesBox!.put(id, entry);
+
+    var metadataWritten = false;
+    try {
+      await _fileSystem.writeBytes(stagingPath, bytes);
+      await _entriesBox!.put(id, entry);
+      metadataWritten = true;
+      await _fileSystem.rename(stagingPath, filePath);
+    } catch (e, s) {
+      var metadataRolledBack = !metadataWritten;
+      if (metadataWritten) {
+        try {
+          await _entriesBox!.delete(id);
+          metadataRolledBack = true;
+        } catch (rollbackError, rollbackStack) {
+          AppLogger.e('回滚精准参考元数据失败', rollbackError, rollbackStack, _tag);
+        }
+      }
+      if (metadataRolledBack) {
+        await _deleteIfExists(stagingPath);
+      }
+      AppLogger.e('精准参考入库失败', e, s, _tag);
+      rethrow;
+    }
 
     try {
-      final thumbnail = await DisplayThumbnailUtils.normalize(bytes);
-      if (thumbnail != null && thumbnail.isNotEmpty) {
-        await _thumbnailCacheBox!.put(id, thumbnail);
-      }
+      await _thumbnailCacheBox!.put(id, thumbnail);
     } catch (e) {
-      AppLogger.w('生成精准参考缩略图失败: $e', _tag);
+      AppLogger.w('保存精准参考缩略图失败: $e', _tag);
     }
 
     AppLogger.i('精准参考入库: ${entry.name} ($id)', _tag);
     return entry;
   }
 
-  /// 更新条目元数据（不触碰磁盘文件）
+  /// 更新条目元数据（不触碰磁盘文件）。
   Future<PreciseRefLibraryEntry?> updateEntry(
     String id, {
     String? name,
@@ -167,29 +244,53 @@ class PreciseRefLibraryStorageService {
     return updated;
   }
 
-  /// 删除条目（元数据 + 缩略图缓存 + 磁盘文件）
+  /// 删除条目（元数据 + 缩略图缓存 + 磁盘文件）。
   ///
-  /// 磁盘文件删除失败（如被占用）仅记录警告，不阻塞条目移除。
+  /// 原图先重命名为 deleting 暂存文件；若元数据删除失败则立即恢复。
+  /// 进程中断时，启动对账会根据元数据是否仍存在决定恢复或清理暂存文件。
   Future<bool> deleteEntry(String id) async {
     await init();
     final entry = _entriesBox!.get(id);
     if (entry == null) return false;
 
-    await _entriesBox!.delete(id);
-    await _thumbnailCacheBox!.delete(id);
-
+    _deletingIds.add(id);
+    String? tombstonePath;
     try {
-      final file = File(entry.imagePath);
-      if (await file.exists()) {
-        await file.delete();
+      if (await _fileSystem.exists(entry.imagePath)) {
+        tombstonePath =
+            '${entry.imagePath}$_deletingMarker'
+            '${DateTime.now().microsecondsSinceEpoch}';
+        try {
+          await _fileSystem.rename(entry.imagePath, tombstonePath);
+        } catch (e, s) {
+          AppLogger.e('暂存待删除精准参考原图失败', e, s, _tag);
+          return false;
+        }
       }
-    } catch (e) {
-      AppLogger.w('删除精准参考原图失败（条目已移除）: $e', _tag);
+
+      try {
+        await _entriesBox!.delete(id);
+      } catch (e, s) {
+        await _restoreStagedFile(entry.imagePath, tombstonePath);
+        AppLogger.e('删除精准参考元数据失败', e, s, _tag);
+        rethrow;
+      }
+
+      try {
+        await _thumbnailCacheBox!.delete(id);
+      } catch (e) {
+        AppLogger.w('删除精准参考缩略图缓存失败: $e', _tag);
+      }
+      if (tombstonePath != null) {
+        await _deleteIfExists(tombstonePath);
+      }
+      return true;
+    } finally {
+      _deletingIds.remove(id);
     }
-    return true;
   }
 
-  /// 切换收藏状态
+  /// 切换收藏状态。
   Future<PreciseRefLibraryEntry?> toggleFavorite(String id) async {
     await init();
     final entry = _entriesBox!.get(id);
@@ -199,7 +300,7 @@ class PreciseRefLibraryStorageService {
     return updated;
   }
 
-  /// 记录一次使用
+  /// 记录一次使用。
   Future<PreciseRefLibraryEntry?> recordUsage(String id) async {
     await init();
     final entry = _entriesBox!.get(id);
@@ -209,55 +310,156 @@ class PreciseRefLibraryStorageService {
     return updated;
   }
 
-  /// 获取展示缩略图（缓存优先，未命中时读原图压缩并回写缓存）
+  /// 获取展示缩略图（LazyBox 缓存优先，未命中时生成并回写）。
   Future<Uint8List?> getDisplayThumbnail(String id) async {
-    await init();
-    final cached = _thumbnailCacheBox!.get(id);
-    if (cached != null && cached.isNotEmpty) {
-      return cached;
-    }
-    return _thumbnailLoadsById.putIfAbsent(id, () async {
-      try {
-        final bytes = await readImageBytes(id);
-        if (bytes == null) return null;
-        final thumbnail = await DisplayThumbnailUtils.normalize(bytes);
-        if (thumbnail != null && thumbnail.isNotEmpty) {
-          await _thumbnailCacheBox!.put(id, thumbnail);
-        }
-        return thumbnail;
-      } catch (e) {
-        AppLogger.w('加载精准参考缩略图失败: $e', _tag);
-        return null;
-      } finally {
-        // 允许后续重试（成功时下次直接命中缓存）
-        unawaited(
-          Future<void>.delayed(Duration.zero).then((_) {
-            _thumbnailLoadsById.remove(id);
-          }),
-        );
+    try {
+      await init();
+      if (_deletingIds.contains(id)) return null;
+
+      final cached = await _thumbnailCacheBox!.get(id);
+      if (cached != null && cached.isNotEmpty) {
+        return cached;
       }
-    });
+
+      final activeLoad = _thumbnailLoadsById[id];
+      if (activeLoad != null) return activeLoad;
+
+      final load = _loadAndCacheDisplayThumbnail(id);
+      _thumbnailLoadsById[id] = load;
+      try {
+        return await load;
+      } finally {
+        if (identical(_thumbnailLoadsById[id], load)) {
+          _thumbnailLoadsById.remove(id);
+        }
+      }
+    } catch (e, s) {
+      AppLogger.e('加载精准参考缩略图失败', e, s, _tag);
+      return null;
+    }
   }
 
-  /// 读取原图字节（文件丢失返回 null）
+  Future<Uint8List?> _loadAndCacheDisplayThumbnail(String id) async {
+    if (_deletingIds.contains(id)) return null;
+    final bytes = await readImageBytes(id);
+    if (bytes == null) return null;
+    final thumbnail = await DisplayThumbnailUtils.normalize(bytes);
+    if (thumbnail == null || thumbnail.isEmpty) return null;
+    if (_deletingIds.contains(id) || _entriesBox!.get(id) == null) {
+      return null;
+    }
+    await _thumbnailCacheBox!.put(id, thumbnail);
+    return thumbnail;
+  }
+
+  /// 读取原图字节（文件丢失返回 null）。
   Future<Uint8List?> readImageBytes(String id) async {
     await init();
+    if (_deletingIds.contains(id)) return null;
     final entry = _entriesBox!.get(id);
     if (entry == null) return null;
     try {
-      final file = File(entry.imagePath);
-      if (!await file.exists()) {
+      if (!await _fileSystem.exists(entry.imagePath)) {
         AppLogger.w('精准参考原图文件丢失: ${entry.imagePath}', _tag);
         return null;
       }
-      return await file.readAsBytes();
+      return await _fileSystem.readBytes(entry.imagePath);
     } catch (e) {
       AppLogger.w('读取精准参考原图失败: $e', _tag);
       return null;
     }
   }
 
-  /// 关闭 box（测试用）
+  Future<void> _reconcileStorage() async {
+    try {
+      final directory = await _resolveImageDirectory();
+      final entries = _entriesBox!.values.toList();
+      final entryIds = entries.map((entry) => entry.id).toSet();
+      final referencedPaths = entries
+          .map((entry) => _pathKey(entry.imagePath))
+          .toSet();
+
+      final orphanCacheKeys = _thumbnailCacheBox!.keys
+          .where((key) => key is! String || !entryIds.contains(key))
+          .toList();
+      if (orphanCacheKeys.isNotEmpty) {
+        await _thumbnailCacheBox!.deleteAll(orphanCacheKeys);
+      }
+
+      await for (final entity in _fileSystem.list(directory)) {
+        if (entity is! File) continue;
+        await _reconcileFile(entity.path, referencedPaths);
+      }
+    } catch (e, s) {
+      AppLogger.e('精准参考库存储对账失败', e, s, _tag);
+    }
+  }
+
+  Future<void> _reconcileFile(
+    String filePath,
+    Set<String> referencedPaths,
+  ) async {
+    try {
+      final markerIndex = _stagingMarkerIndex(filePath);
+      if (markerIndex >= 0) {
+        final originalPath = filePath.substring(0, markerIndex);
+        final isReferenced = referencedPaths.contains(_pathKey(originalPath));
+        final originalExists = await _fileSystem.exists(originalPath);
+        if (isReferenced && !originalExists) {
+          await _fileSystem.rename(filePath, originalPath);
+        } else {
+          await _fileSystem.delete(filePath);
+        }
+        return;
+      }
+
+      if (_managedImageFileName.hasMatch(p.basename(filePath)) &&
+          !referencedPaths.contains(_pathKey(filePath))) {
+        await _fileSystem.delete(filePath);
+      }
+    } catch (e) {
+      AppLogger.w('清理精准参考孤立文件失败: $filePath ($e)', _tag);
+    }
+  }
+
+  static int _stagingMarkerIndex(String filePath) {
+    final importingIndex = filePath.lastIndexOf(_importingMarker);
+    final deletingIndex = filePath.lastIndexOf(_deletingMarker);
+    return importingIndex > deletingIndex ? importingIndex : deletingIndex;
+  }
+
+  static String _pathKey(String path) {
+    final normalized = p.normalize(p.absolute(path));
+    return Platform.isWindows ? normalized.toLowerCase() : normalized;
+  }
+
+  Future<void> _restoreStagedFile(
+    String originalPath,
+    String? stagedPath,
+  ) async {
+    if (stagedPath == null ||
+        !await _fileSystem.exists(stagedPath) ||
+        await _fileSystem.exists(originalPath)) {
+      return;
+    }
+    try {
+      await _fileSystem.rename(stagedPath, originalPath);
+    } catch (e, s) {
+      AppLogger.e('恢复精准参考原图失败', e, s, _tag);
+    }
+  }
+
+  Future<void> _deleteIfExists(String path) async {
+    try {
+      if (await _fileSystem.exists(path)) {
+        await _fileSystem.delete(path);
+      }
+    } catch (e) {
+      AppLogger.w('清理精准参考暂存文件失败: $path ($e)', _tag);
+    }
+  }
+
+  /// 关闭 box（测试用）。
   Future<void> close() async {
     await _entriesBox?.close();
     await _thumbnailCacheBox?.close();
@@ -265,6 +467,7 @@ class PreciseRefLibraryStorageService {
     _thumbnailCacheBox = null;
     _initFuture = null;
     _thumbnailLoadsById.clear();
+    _deletingIds.clear();
   }
 }
 

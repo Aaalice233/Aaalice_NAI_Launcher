@@ -6204,6 +6204,8 @@
   "preciseRefLib_sent": "精密参照へ送信しました：{name}",
   "preciseRefLib_sentToImg2Img": "画像から画像へ送信しました：{name}",
   "preciseRefLib_imageMissing": "元画像ファイルが見つかりません",
+  "preciseRefLib_invalidImage": "画像形式を認識できないか、ファイルが破損しています",
+  "preciseRefLib_deleteFailed": "削除に失敗しました。項目と元画像は保持されています。後でもう一度お試しください",
   "preciseRefLib_favoritesOnly": "お気に入りのみ",
   "preciseRefLib_sortBy": "並び替え",
   "preciseRefLib_sortCreatedAt": "作成日時",

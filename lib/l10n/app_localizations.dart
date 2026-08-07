@@ -21811,6 +21811,18 @@ abstract class AppLocalizations {
   /// **'Image file is missing'**
   String get preciseRefLib_imageMissing;
 
+  /// No description provided for @preciseRefLib_invalidImage.
+  ///
+  /// In en, this message translates to:
+  /// **'The image format is unsupported or the file is corrupt'**
+  String get preciseRefLib_invalidImage;
+
+  /// No description provided for @preciseRefLib_deleteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete failed. The entry and original image were kept; try again later'**
+  String get preciseRefLib_deleteFailed;
+
   /// No description provided for @preciseRefLib_favoritesOnly.
   ///
   /// In en, this message translates to:

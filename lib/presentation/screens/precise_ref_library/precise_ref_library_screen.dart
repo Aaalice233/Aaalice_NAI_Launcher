@@ -87,41 +87,37 @@ class _PreciseRefLibraryScreenState
       if (result == null || !mounted) return;
 
       final importType = _importType;
-      var imported = 0;
-      var failed = 0;
-      for (final file in result.files) {
-        try {
-          final filePath = file.path;
-          final bytes = filePath == null
-              ? file.bytes
-              : await File(filePath).readAsBytes();
-          if (bytes == null || bytes.isEmpty) {
-            failed++;
-            continue;
-          }
-          await ref
-              .read(preciseRefLibraryNotifierProvider.notifier)
-              .importFromBytes(
-                bytes,
-                name: p.basenameWithoutExtension(file.name),
-                type: importType,
-              );
-          imported++;
-        } catch (_) {
-          failed++;
-        }
-      }
-      if (mounted && imported > 0) {
+      final sources = [
+        for (final file in result.files)
+          PreciseRefLibraryImportSource(
+            name: p.basenameWithoutExtension(file.name),
+            type: importType,
+            loadBytes: () async {
+              final filePath = file.path;
+              return filePath == null
+                  ? file.bytes
+                  : File(filePath).readAsBytes();
+            },
+          ),
+      ];
+      final batch = await ref
+          .read(preciseRefLibraryNotifierProvider.notifier)
+          .importMany(sources);
+      if (mounted && batch.importedCount > 0) {
         AppToast.success(
           context,
-          context.l10n.preciseRefLib_importedCount(imported),
+          context.l10n.preciseRefLib_importedCount(batch.importedCount),
         );
       }
-      if (mounted && failed > 0) {
+      if (mounted && batch.failedCount > 0) {
         AppToast.error(
           context,
-          context.l10n.preciseRefLib_importFailedCount(failed),
+          context.l10n.preciseRefLib_importFailedCount(batch.failedCount),
         );
+      }
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, context.l10n.preciseRefLib_importFailed('$e'));
       }
     } finally {
       if (mounted) {
@@ -148,34 +144,42 @@ class _PreciseRefLibraryScreenState
     if (!mounted) return;
 
     final importType = _importType;
-    var imported = 0;
-    var failed = 0;
-    for (final dropped in results) {
-      if (dropped == null || dropped.bytes.isEmpty) continue;
-      try {
-        await ref
-            .read(preciseRefLibraryNotifierProvider.notifier)
-            .importFromBytes(
-              dropped.bytes,
-              name: p.basenameWithoutExtension(dropped.fileName),
-              type: importType,
-            );
-        imported++;
-      } catch (_) {
-        failed++;
+    final validDrops = results
+        .whereType<DroppedFileData>()
+        .where((dropped) => dropped.bytes.isNotEmpty)
+        .toList();
+    final readFailureCount = results.length - validDrops.length;
+    final sources = [
+      for (final dropped in validDrops)
+        PreciseRefLibraryImportSource(
+          name: p.basenameWithoutExtension(dropped.fileName),
+          type: importType,
+          loadBytes: () async => dropped.bytes,
+        ),
+    ];
+    final PreciseRefLibraryBatchImportResult batch;
+    try {
+      batch = await ref
+          .read(preciseRefLibraryNotifierProvider.notifier)
+          .importMany(sources);
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, context.l10n.preciseRefLib_importFailed('$e'));
       }
-      if (!mounted) return;
+      return;
     }
-    if (mounted && imported > 0) {
+    if (!mounted) return;
+    final failedCount = readFailureCount + batch.failedCount;
+    if (batch.importedCount > 0) {
       AppToast.success(
         context,
-        context.l10n.preciseRefLib_importedCount(imported),
+        context.l10n.preciseRefLib_importedCount(batch.importedCount),
       );
     }
-    if (mounted && failed > 0) {
+    if (failedCount > 0) {
       AppToast.error(
         context,
-        context.l10n.preciseRefLib_importFailedCount(failed),
+        context.l10n.preciseRefLib_importFailedCount(failedCount),
       );
     }
   }
@@ -285,9 +289,18 @@ class _PreciseRefLibraryScreenState
       ),
     );
     if (confirmed != true) return;
-    await ref
-        .read(preciseRefLibraryNotifierProvider.notifier)
-        .deleteEntry(entry.id);
+    try {
+      final removed = await ref
+          .read(preciseRefLibraryNotifierProvider.notifier)
+          .deleteEntry(entry.id);
+      if (mounted && !removed) {
+        AppToast.error(context, l10n.preciseRefLib_deleteFailed);
+      }
+    } catch (_) {
+      if (mounted) {
+        AppToast.error(context, l10n.preciseRefLib_deleteFailed);
+      }
+    }
   }
 
   // ============================================================
@@ -562,46 +575,6 @@ class _PreciseRefLibraryScreenState
   Widget _buildEmptyView(PreciseRefLibraryState state) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
-
-    // 加载失败：显示错误与重试按钮，不再伪装成空库
-    if (state.error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 48,
-              color: theme.colorScheme.error,
-            ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Text(
-                l10n.preciseRefLib_loadFailed(state.error!),
-                textAlign: TextAlign.center,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.error,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              key: const Key('precise-ref-library-retry'),
-              onPressed: () {
-                ref
-                    .read(preciseRefLibraryNotifierProvider.notifier)
-                    .reload(showLoading: true);
-              },
-              icon: const Icon(Icons.refresh, size: 18),
-              label: Text(l10n.common_retry),
-            ),
-          ],
-        ),
-      );
-    }
 
     // 过滤后无结果：给出条目总数与一键清除过滤
     if (state.hasFilters) {

@@ -5917,6 +5917,8 @@
   "preciseRefLib_sent": "已发送到精准参考：{name}",
   "preciseRefLib_sentToImg2Img": "已发送到图生图：{name}",
   "preciseRefLib_imageMissing": "原图文件丢失",
+  "preciseRefLib_invalidImage": "无法识别图片格式，或图片文件已经损坏",
+  "preciseRefLib_deleteFailed": "删除失败，条目与原图已保留，请稍后重试",
   "preciseRefLib_favoritesOnly": "只看收藏",
   "preciseRefLib_sortBy": "排序方式",
   "preciseRefLib_sortCreatedAt": "创建时间",

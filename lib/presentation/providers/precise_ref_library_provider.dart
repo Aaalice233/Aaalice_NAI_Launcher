@@ -14,6 +14,36 @@ part 'precise_ref_library_provider.g.dart';
 /// 精准参考库排序方式
 enum PreciseRefLibrarySortOrder { createdAt, lastUsed, usedCount, name }
 
+typedef PreciseRefLibraryBytesLoader = Future<Uint8List?> Function();
+
+class PreciseRefLibraryImportSource {
+  const PreciseRefLibraryImportSource({
+    required this.loadBytes,
+    required this.name,
+    this.type = PreciseRefType.characterAndStyle,
+    this.strength = 1.0,
+    this.fidelity = 1.0,
+  });
+
+  final PreciseRefLibraryBytesLoader loadBytes;
+  final String name;
+  final PreciseRefType type;
+  final double strength;
+  final double fidelity;
+}
+
+class PreciseRefLibraryBatchImportResult {
+  const PreciseRefLibraryBatchImportResult({
+    required this.entries,
+    required this.failedCount,
+  });
+
+  final List<PreciseRefLibraryEntry> entries;
+  final int failedCount;
+
+  int get importedCount => entries.length;
+}
+
 /// 精准参考库状态
 @freezed
 class PreciseRefLibraryState with _$PreciseRefLibraryState {
@@ -48,8 +78,6 @@ class PreciseRefLibraryState with _$PreciseRefLibraryState {
   const PreciseRefLibraryState._();
 
   int get totalCount => entries.length;
-  int get filteredCount => filteredEntries.length;
-  int get favoriteCount => entries.where((e) => e.isFavorite).length;
   bool get hasFilters =>
       searchQuery.isNotEmpty || favoritesOnly || typeFilter != null;
 }
@@ -61,6 +89,7 @@ class PreciseRefLibraryState with _$PreciseRefLibraryState {
 class PreciseRefLibraryNotifier extends _$PreciseRefLibraryNotifier {
   late final PreciseRefLibraryStorageService _storage;
   Future<void>? _activeLoadFuture;
+  bool _initialized = false;
 
   @override
   PreciseRefLibraryState build() {
@@ -68,9 +97,9 @@ class PreciseRefLibraryNotifier extends _$PreciseRefLibraryNotifier {
     return const PreciseRefLibraryState();
   }
 
-  /// 初始化（幂等：已有数据或正在加载时直接返回）
+  /// 初始化（成功加载过即返回；空库同样视为已初始化）。
   Future<void> initialize() async {
-    if (state.entries.isNotEmpty || state.isLoading) return;
+    if (_initialized) return;
     await reload(showLoading: true);
   }
 
@@ -88,6 +117,7 @@ class PreciseRefLibraryNotifier extends _$PreciseRefLibraryNotifier {
     try {
       final entries = await _storage.getAllEntries();
       state = state.copyWith(entries: entries, isLoading: false, error: null);
+      _initialized = true;
       _applyFilters();
     } catch (e, s) {
       AppLogger.e('加载精准参考库失败', e, s, 'PreciseRefLibrary');
@@ -170,6 +200,7 @@ class PreciseRefLibraryNotifier extends _$PreciseRefLibraryNotifier {
     double strength = 1.0,
     double fidelity = 1.0,
   }) async {
+    await _ensureInitialized();
     try {
       final entry = await _storage.importFromBytes(
         bytes,
@@ -187,6 +218,72 @@ class PreciseRefLibraryNotifier extends _$PreciseRefLibraryNotifier {
     }
   }
 
+  /// 有限并发导入，并在整批完成后只更新一次 entries 与过滤结果。
+  Future<PreciseRefLibraryBatchImportResult> importMany(
+    List<PreciseRefLibraryImportSource> sources, {
+    int maxConcurrent = 3,
+  }) async {
+    if (maxConcurrent <= 0) {
+      throw ArgumentError.value(maxConcurrent, 'maxConcurrent');
+    }
+    if (sources.isEmpty) {
+      return const PreciseRefLibraryBatchImportResult(
+        entries: [],
+        failedCount: 0,
+      );
+    }
+
+    await _ensureInitialized();
+    final importedByIndex = List<PreciseRefLibraryEntry?>.filled(
+      sources.length,
+      null,
+    );
+    var failedCount = 0;
+    var nextIndex = 0;
+
+    Future<void> worker() async {
+      while (nextIndex < sources.length) {
+        final index = nextIndex++;
+        final source = sources[index];
+        try {
+          final bytes = await source.loadBytes();
+          if (bytes == null || bytes.isEmpty) {
+            throw const InvalidPreciseRefImageException();
+          }
+          importedByIndex[index] = await _storage.importFromBytes(
+            bytes,
+            name: source.name,
+            type: source.type,
+            strength: source.strength,
+            fidelity: source.fidelity,
+          );
+        } catch (e, s) {
+          failedCount++;
+          AppLogger.e('批量导入精准参考失败', e, s, 'PreciseRefLibrary');
+        }
+      }
+    }
+
+    final workerCount = sources.length < maxConcurrent
+        ? sources.length
+        : maxConcurrent;
+    await Future.wait(List.generate(workerCount, (_) => worker()));
+    final imported = importedByIndex
+        .whereType<PreciseRefLibraryEntry>()
+        .toList();
+    if (imported.isNotEmpty) {
+      state = state.copyWith(
+        entries: [...state.entries, ...imported],
+        error: null,
+      );
+      _applyFilters();
+    }
+    return PreciseRefLibraryBatchImportResult(
+      entries: imported,
+      failedCount: failedCount,
+    );
+  }
+
   /// 更新条目元数据
   Future<PreciseRefLibraryEntry?> updateEntry(
     String id, {
@@ -195,6 +292,7 @@ class PreciseRefLibraryNotifier extends _$PreciseRefLibraryNotifier {
     double? strength,
     double? fidelity,
   }) async {
+    await _ensureInitialized();
     final updated = await _storage.updateEntry(
       id,
       name: name,
@@ -210,6 +308,7 @@ class PreciseRefLibraryNotifier extends _$PreciseRefLibraryNotifier {
 
   /// 删除条目
   Future<bool> deleteEntry(String id) async {
+    await _ensureInitialized();
     final removed = await _storage.deleteEntry(id);
     if (removed) {
       state = state.copyWith(
@@ -222,6 +321,7 @@ class PreciseRefLibraryNotifier extends _$PreciseRefLibraryNotifier {
 
   /// 切换收藏状态
   Future<void> toggleFavorite(String id) async {
+    await _ensureInitialized();
     final updated = await _storage.toggleFavorite(id);
     if (updated != null) {
       _replaceEntryInState(updated);
@@ -230,6 +330,7 @@ class PreciseRefLibraryNotifier extends _$PreciseRefLibraryNotifier {
 
   /// 记录一次使用
   Future<void> recordUsage(String id) async {
+    await _ensureInitialized();
     final updated = await _storage.recordUsage(id);
     if (updated != null) {
       _replaceEntryInState(updated);
@@ -244,5 +345,12 @@ class PreciseRefLibraryNotifier extends _$PreciseRefLibraryNotifier {
       ],
     );
     _applyFilters();
+  }
+
+  Future<void> _ensureInitialized() async {
+    await initialize();
+    if (!_initialized) {
+      throw StateError(state.error ?? 'Precise reference library unavailable');
+    }
   }
 }

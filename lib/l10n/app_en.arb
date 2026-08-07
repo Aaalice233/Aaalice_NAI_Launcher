@@ -6252,6 +6252,8 @@
     }
   },
   "preciseRefLib_imageMissing": "Image file is missing",
+  "preciseRefLib_invalidImage": "The image format is unsupported or the file is corrupt",
+  "preciseRefLib_deleteFailed": "Delete failed. The entry and original image were kept; try again later",
   "preciseRefLib_favoritesOnly": "Favorites only",
   "preciseRefLib_sortBy": "Sort by",
   "preciseRefLib_sortCreatedAt": "Created",

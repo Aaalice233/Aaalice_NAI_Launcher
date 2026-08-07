@@ -11953,6 +11953,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preciseRefLib_imageMissing => '原图文件丢失';
 
   @override
+  String get preciseRefLib_invalidImage => '无法识别图片格式，或图片文件已经损坏';
+
+  @override
+  String get preciseRefLib_deleteFailed => '删除失败，条目与原图已保留，请稍后重试';
+
+  @override
   String get preciseRefLib_favoritesOnly => '只看收藏';
 
   @override

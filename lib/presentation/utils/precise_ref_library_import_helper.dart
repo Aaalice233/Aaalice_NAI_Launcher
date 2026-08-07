@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../core/enums/precise_ref_type.dart';
+import '../../data/services/precise_ref_library_storage_service.dart';
 import '../providers/precise_ref_library_provider.dart';
 import '../widgets/common/app_toast.dart';
 
@@ -41,8 +42,15 @@ Future<void> saveBytesToPreciseRefLibrary(
     );
   } catch (e) {
     if (!context.mounted) return;
-    AppToast.error(context, context.l10n.preciseRefLib_importFailed('$e'));
+    AppToast.error(context, preciseRefImportErrorMessage(context, e));
   }
+}
+
+String preciseRefImportErrorMessage(BuildContext context, Object error) {
+  if (error is InvalidPreciseRefImageException) {
+    return context.l10n.preciseRefLib_invalidImage;
+  }
+  return context.l10n.preciseRefLib_importFailed('$error');
 }
 
 /// 默认时间戳命名（Ref_yyyyMMdd_HHmmss）

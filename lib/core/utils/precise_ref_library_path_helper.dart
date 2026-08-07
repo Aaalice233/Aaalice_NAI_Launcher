@@ -53,9 +53,4 @@ class PreciseRefLibraryPathHelper {
   Future<bool> ensurePathExists(String path) async {
     return FileSystemUtils.ensureDirectory(path, logTag: _tag);
   }
-
-  /// 清除缓存的默认路径（测试或刷新时使用）
-  void clearCache() {
-    _cachedDefaultPath = null;
-  }
 }

@@ -12122,6 +12122,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get preciseRefLib_imageMissing => '元画像ファイルが見つかりません';
 
   @override
+  String get preciseRefLib_invalidImage => '画像形式を認識できないか、ファイルが破損しています';
+
+  @override
+  String get preciseRefLib_deleteFailed =>
+      '削除に失敗しました。項目と元画像は保持されています。後でもう一度お試しください';
+
+  @override
   String get preciseRefLib_favoritesOnly => 'お気に入りのみ';
 
   @override

@@ -395,7 +395,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
       AppToast.success(context, context.l10n.preciseRefLib_saved(entry.name));
     } catch (e) {
       if (!mounted) return;
-      AppToast.error(context, context.l10n.preciseRefLib_importFailed('$e'));
+      AppToast.error(context, preciseRefImportErrorMessage(context, e));
     }
   }
 
@@ -406,37 +406,37 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
         .preciseReferences;
     if (references.isEmpty) return;
 
-    final libraryNotifier = ref.read(
-      preciseRefLibraryNotifierProvider.notifier,
-    );
-    var saved = 0;
-    var failed = 0;
-    for (final reference in references) {
-      try {
-        await libraryNotifier.importFromBytes(
-          reference.image,
-          name: defaultPreciseRefName(),
-          type: reference.type,
-          strength: reference.strength,
-          fidelity: reference.fidelity,
-        );
-        saved++;
-      } catch (_) {
-        failed++;
-      }
+    final PreciseRefLibraryBatchImportResult batch;
+    try {
+      batch = await ref
+          .read(preciseRefLibraryNotifierProvider.notifier)
+          .importMany([
+            for (final reference in references)
+              PreciseRefLibraryImportSource(
+                loadBytes: () async => reference.image,
+                name: defaultPreciseRefName(),
+                type: reference.type,
+                strength: reference.strength,
+                fidelity: reference.fidelity,
+              ),
+          ]);
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.error(context, preciseRefImportErrorMessage(context, e));
+      return;
     }
 
     if (!mounted) return;
-    if (saved > 0) {
+    if (batch.importedCount > 0) {
       AppToast.success(
         context,
-        context.l10n.preciseRefLib_saveCurrentCount(saved),
+        context.l10n.preciseRefLib_saveCurrentCount(batch.importedCount),
       );
     }
-    if (failed > 0) {
+    if (batch.failedCount > 0) {
       AppToast.error(
         context,
-        context.l10n.preciseRefLib_importFailedCount(failed),
+        context.l10n.preciseRefLib_importFailedCount(batch.failedCount),
       );
     }
   }

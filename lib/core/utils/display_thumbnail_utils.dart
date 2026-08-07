@@ -24,7 +24,12 @@ class DisplayThumbnailUtils {
   ///
   /// 解码失败返回 null；已满足尺寸与体积要求的原样返回。
   static Uint8List? resizeSync(Uint8List sourceBytes) {
-    final source = img.decodeImage(sourceBytes);
+    final img.Image? source;
+    try {
+      source = img.decodeImage(sourceBytes);
+    } catch (_) {
+      return null;
+    }
     if (source == null) {
       return null;
     }
@@ -48,14 +53,14 @@ class DisplayThumbnailUtils {
 
   /// 规范化为展示缩略图
   ///
-  /// 空数据返回 null；小图直接返回；大图走后台 Isolate 压缩。
+  /// 空数据或无法解码的图片返回 null；大图走后台 Isolate 压缩。
   static Future<Uint8List?> normalize(Uint8List sourceBytes) async {
     if (sourceBytes.isEmpty) {
       return null;
     }
 
     if (sourceBytes.length <= inlineLimitBytes) {
-      return sourceBytes;
+      return resizeSync(sourceBytes);
     }
 
     return Isolate.run(() => resizeSync(sourceBytes));
