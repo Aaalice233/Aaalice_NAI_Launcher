@@ -11,6 +11,7 @@ import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
 import '../../../widgets/common/editable_double_field.dart';
 import '../../../widgets/common/hover_image_preview.dart';
+import '../handlers/vibe_import_handler.dart';
 
 const double _disabledVibeCardOpacity = 0.48;
 
@@ -64,6 +65,12 @@ class _VibeCardState extends ConsumerState<VibeCard> {
   // 跟踪已经显示过编码对话框的 vibe（使用缩略图哈希作为 ID）
   // 使用 LinkedHashSet 保持插入顺序，便于实现 LRU 淘汰
   static final LinkedHashSet<String> _shownDialogs = LinkedHashSet<String>();
+
+  /// 把当前这一条 Vibe 保存到 Vibe 库（复用已有的命名/查重流程）
+  Future<void> _saveToLibrary() async {
+    final handler = VibeImportHandler(ref: ref, context: context);
+    await handler.saveToLibrary([widget.vibe]);
+  }
 
   @override
   void initState() {
@@ -149,6 +156,22 @@ class _VibeCardState extends ConsumerState<VibeCard> {
                       const Spacer(),
                       _buildEnabledSwitch(context),
                       const SizedBox(width: 4),
+                      // 保存到库按钮（右上角）
+                      SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: IconButton(
+                          key: Key('vibe-card-save-to-library-${widget.index}'),
+                          padding: EdgeInsets.zero,
+                          icon: Icon(
+                            Icons.bookmark_add_outlined,
+                            size: 18,
+                            color: theme.colorScheme.primary,
+                          ),
+                          onPressed: _saveToLibrary,
+                          tooltip: context.l10n.vibeLibrary_save,
+                        ),
+                      ),
                       // 删除按钮（右上角）
                       SizedBox(
                         width: 28,

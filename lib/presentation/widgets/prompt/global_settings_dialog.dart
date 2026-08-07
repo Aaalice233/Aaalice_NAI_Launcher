@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -65,8 +66,9 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
     final preset = ref.read(randomPresetNotifierProvider).selectedPreset;
     if (preset == null) return;
 
-    final updatedAlgorithmConfig =
-        preset.algorithmConfig.copyWith(characterCountConfig: _config);
+    final updatedAlgorithmConfig = preset.algorithmConfig.copyWith(
+      characterCountConfig: _config,
+    );
     await ref
         .read(randomPresetNotifierProvider.notifier)
         .updateAlgorithmConfig(updatedAlgorithmConfig);
@@ -106,11 +108,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
     });
   }
 
-  void _updateTagOptionWeight(
-    String categoryId,
-    String optionId,
-    int weight,
-  ) {
+  void _updateTagOptionWeight(String categoryId, String optionId, int weight) {
     setState(() {
       final categories = _config.categories.map((c) {
         if (c.id == categoryId) {
@@ -144,8 +142,9 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
     setState(() {
       final categories = _config.categories.map((c) {
         if (c.id == categoryId) {
-          final tagOptions =
-              c.tagOptions.where((t) => t.id != optionId).toList();
+          final tagOptions = c.tagOptions
+              .where((t) => t.id != optionId)
+              .toList();
           return c.copyWith(tagOptions: tagOptions);
         }
         return c;
@@ -189,7 +188,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
     );
   }
 
-  Widget _buildHeader(ThemeData theme, dynamic l10n) {
+  Widget _buildHeader(ThemeData theme, AppLocalizations l10n) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -232,7 +231,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
     );
   }
 
-  Widget _buildFooter(ThemeData theme, dynamic l10n) {
+  Widget _buildFooter(ThemeData theme, AppLocalizations l10n) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -243,10 +242,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
             child: Text(l10n.common_cancel),
           ),
           const SizedBox(width: 12),
-          FilledButton(
-            onPressed: _saveChanges,
-            child: Text(l10n.common_save),
-          ),
+          FilledButton(onPressed: _saveChanges, child: Text(l10n.common_save)),
         ],
       ),
     );
@@ -255,7 +251,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
   Widget _buildCategoryCard(
     CharacterCountCategory category,
     ThemeData theme,
-    dynamic l10n,
+    AppLocalizations l10n,
   ) {
     final isExpanded = _expandedCategories[category.id] ?? false;
 
@@ -384,13 +380,14 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
     String categoryId,
     CharacterTagOption option,
     ThemeData theme,
-    dynamic l10n,
+    AppLocalizations l10n,
   ) {
     // 构建角色提示词文本（如 "girl" 或 "girl + girl"）
     String? characterPromptText;
     if (option.slotTags.isNotEmpty) {
-      characterPromptText =
-          option.slotTags.map((slot) => slot.characterTag).join(' + ');
+      characterPromptText = option.slotTags
+          .map((slot) => slot.characterTag)
+          .join(' + ');
     }
 
     return Container(
@@ -482,7 +479,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
 
   String _getCategoryDisplayName(
     CharacterCountCategory category,
-    dynamic l10n,
+    AppLocalizations l10n,
   ) {
     return switch (category.id) {
       'solo' => l10n.characterCountConfig_solo,
@@ -497,7 +494,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
   Future<void> _showAddTagOptionDialog(
     CharacterCountCategory category,
     ThemeData theme,
-    dynamic l10n,
+    AppLocalizations l10n,
   ) async {
     final labelController = TextEditingController();
     final mainPromptController = TextEditingController();
@@ -562,8 +559,10 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
                                 if (value != null) {
                                   setDialogState(() {
                                     slotCount = value;
-                                    slotTags =
-                                        List.filled(slotCount, defaultSlotTag);
+                                    slotTags = List.filled(
+                                      slotCount,
+                                      defaultSlotTag,
+                                    );
                                   });
                                 }
                               },
@@ -674,7 +673,10 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
   }
 
   /// 显示自定义槽位管理对话框
-  Future<void> _showCustomSlotsDialog(ThemeData theme, dynamic l10n) async {
+  Future<void> _showCustomSlotsDialog(
+    ThemeData theme,
+    AppLocalizations l10n,
+  ) async {
     final controller = TextEditingController();
     const builtinSlots = defaultSlotOptions;
 

@@ -226,6 +226,39 @@ class _EditorTab extends StatelessWidget {
   }
 }
 
+/// 清空全部角色（带确认框），官网布局区块头与经典布局角色行共用
+Future<void> confirmClearAllCharacters(
+  BuildContext context,
+  WidgetRef ref,
+) async {
+  final l10n = AppLocalizations.of(context)!;
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(l10n.characterEditor_clearAllTitle),
+      content: Text(l10n.characterEditor_clearAllConfirm),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(l10n.common_cancel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          style: FilledButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+          child: Text(l10n.common_clear),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmed == true) {
+    ref.read(selectedCharacterIdProvider.notifier).clear();
+    ref.read(characterPromptNotifierProvider.notifier).clearAllCharacters();
+  }
+}
+
 /// 角色名称就地编辑框
 ///
 /// 嵌在卡片/编辑面板头部的名字位置，点击即可直接改名，

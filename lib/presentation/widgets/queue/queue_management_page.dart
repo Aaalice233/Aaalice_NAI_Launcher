@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
@@ -165,7 +166,7 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
   /// 构建Tab栏
   Widget _buildTabBar(
     ThemeData theme,
-    dynamic l10n,
+    AppLocalizations l10n,
     ReplicationQueueState queueState,
   ) {
     return Container(
@@ -245,7 +246,7 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
   /// 构建批量操作栏
   Widget _buildBatchOperationBar(
     ThemeData theme,
-    dynamic l10n,
+    AppLocalizations l10n,
     ReplicationQueueState queueState,
   ) {
     return Container(
@@ -345,7 +346,7 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
   /// 构建等待中Tab
   Widget _buildPendingTab(
     ThemeData theme,
-    dynamic l10n,
+    AppLocalizations l10n,
     ReplicationQueueState queueState,
   ) {
     if (queueState.isEmpty) {
@@ -399,7 +400,7 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
   /// 构建已完成Tab
   Widget _buildCompletedTab(
     ThemeData theme,
-    dynamic l10n,
+    AppLocalizations l10n,
     ReplicationQueueState queueState,
   ) {
     if (queueState.completedTasks.isEmpty) {
@@ -428,7 +429,7 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
   /// 构建失败Tab
   Widget _buildFailedTab(
     ThemeData theme,
-    dynamic l10n,
+    AppLocalizations l10n,
     ReplicationQueueState queueState,
   ) {
     if (queueState.failedTasks.isEmpty) {

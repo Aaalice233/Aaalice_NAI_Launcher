@@ -212,7 +212,7 @@ class ImageParams with _$ImageParams {
 
     // ========== 多角色参数 (仅 V4 模型) ==========
 
-    /// 角色列表 (最多6个)
+    /// 角色列表
     @Default([])
     @JsonKey(includeFromJson: false, includeToJson: false)
     List<CharacterPrompt> characters,

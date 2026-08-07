@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../data/models/prompt/post_process_rule.dart';
 import '../../../../widgets/common/themed_divider.dart';
@@ -40,7 +41,7 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
   void _addRule() {
     final newRule = PostProcessRule(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: '规则 ${widget.rules.length + 1}',
+      name: context.l10n.diy_ruleDefaultName(widget.rules.length + 1),
     );
     widget.onRulesChanged([...widget.rules, newRule]);
     setState(() {
@@ -128,13 +129,13 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '后处理规则',
+                context.l10n.diy_postProcessTitle,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
-                '自动处理标签冲突',
+                context.l10n.diy_postProcessSubtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -150,7 +151,7 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              '${widget.rules.length} 条规则',
+              context.l10n.diy_ruleCount(widget.rules.length),
               style: theme.textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: colorScheme.tertiary,
@@ -166,8 +167,24 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
     final colorScheme = theme.colorScheme;
 
     final presets = [
-      ('😴', '睡眠规则', PostProcessRule.sleepingRule, Colors.indigo),
-      ('🧜', '美人鱼规则', PostProcessRule.mermaidRule, Colors.teal),
+      (
+        '😴',
+        context.l10n.diy_sleepingRule,
+        () => PostProcessRule.sleepingRule().copyWith(
+          name: context.l10n.diy_sleepingRule,
+          description: context.l10n.diy_sleepingRuleDescription,
+        ),
+        Colors.indigo,
+      ),
+      (
+        '🧜',
+        context.l10n.diy_mermaidRule,
+        () => PostProcessRule.mermaidRule().copyWith(
+          name: context.l10n.diy_mermaidRule,
+          description: context.l10n.diy_mermaidRuleDescription,
+        ),
+        Colors.teal,
+      ),
     ];
 
     return ElevatedCard(
@@ -193,7 +210,7 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
               ),
               const SizedBox(width: 10),
               Text(
-                '预设规则',
+                context.l10n.diy_presetRules,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -227,10 +244,7 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
-                              emoji,
-                              style: const TextStyle(fontSize: 18),
-                            ),
+                            Text(emoji, style: const TextStyle(fontSize: 18)),
                             const SizedBox(width: 8),
                             Text(
                               label,
@@ -278,14 +292,14 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
               ),
               const SizedBox(height: 12),
               Text(
-                '暂无后处理规则',
+                context.l10n.diy_noPostProcessRules,
                 style: theme.textTheme.titleSmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                '添加规则以自动处理标签冲突',
+                context.l10n.diy_noPostProcessRulesHint,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.outline,
                 ),
@@ -402,12 +416,13 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color:
-                              colorScheme.errorContainer.withValues(alpha: 0.5),
+                          color: colorScheme.errorContainer.withValues(
+                            alpha: 0.5,
+                          ),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          '已禁用',
+                          context.l10n.common_disabled,
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: colorScheme.error,
                           ),
@@ -421,7 +436,7 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
                           color: colorScheme.error.withValues(alpha: 0.7),
                         ),
                         onPressed: () => _removeRule(index),
-                        tooltip: '删除规则',
+                        tooltip: context.l10n.diy_deleteRule,
                       ),
                     ],
                   ],
@@ -456,14 +471,10 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.add_rounded,
-                  size: 18,
-                  color: colorScheme.primary,
-                ),
+                Icon(Icons.add_rounded, size: 18, color: colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
-                  '添加规则',
+                  context.l10n.diy_addRule,
                   style: theme.textTheme.labelLarge?.copyWith(
                     color: colorScheme.primary,
                     fontWeight: FontWeight.w600,
@@ -515,7 +526,7 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
               ),
               const SizedBox(width: 10),
               Text(
-                '编辑规则',
+                context.l10n.diy_editRule,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -527,7 +538,7 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
                   color: colorScheme.onSurfaceVariant,
                 ),
                 onPressed: () => setState(() => _selectedIndex = null),
-                tooltip: '关闭',
+                tooltip: context.l10n.common_close,
               ),
             ],
           ),
@@ -538,7 +549,7 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
           ThemedFormInput(
             initialValue: rule.name,
             decoration: InputDecoration(
-              labelText: '规则名称',
+              labelText: context.l10n.diy_ruleName,
               prefixIcon: Icon(
                 Icons.label_outline_rounded,
                 color: colorScheme.onSurfaceVariant,
@@ -557,7 +568,7 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
           DropdownButtonFormField<PostProcessAction>(
             initialValue: rule.action,
             decoration: InputDecoration(
-              labelText: '操作类型',
+              labelText: context.l10n.diy_actionType,
               prefixIcon: Icon(
                 _getActionIcon(rule.action),
                 color: colorScheme.onSurfaceVariant,
@@ -591,8 +602,8 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
           ThemedFormInput(
             initialValue: rule.triggerTags.join(', '),
             decoration: InputDecoration(
-              labelText: '触发标签',
-              hintText: '逗号分隔的标签列表',
+              labelText: context.l10n.diy_triggerTags,
+              hintText: context.l10n.diy_commaSeparatedTagsHint,
               prefixIcon: Icon(
                 Icons.play_circle_outline_rounded,
                 color: colorScheme.onSurfaceVariant,
@@ -617,8 +628,8 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
             ThemedFormInput(
               initialValue: rule.targetCategoryIds.join(', '),
               decoration: InputDecoration(
-                labelText: '目标类别',
-                hintText: '逗号分隔的类别 ID 列表',
+                labelText: context.l10n.diy_targetCategories,
+                hintText: context.l10n.diy_commaSeparatedCategoryIdsHint,
                 prefixIcon: Icon(
                   Icons.folder_outlined,
                   color: colorScheme.onSurfaceVariant,
@@ -641,8 +652,8 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
             ThemedFormInput(
               initialValue: rule.targetTags.join(', '),
               decoration: InputDecoration(
-                labelText: '目标标签',
-                hintText: '逗号分隔的标签列表',
+                labelText: context.l10n.diy_targetTags,
+                hintText: context.l10n.diy_commaSeparatedTagsHint,
                 prefixIcon: Icon(
                   Icons.label_outline_rounded,
                   color: colorScheme.onSurfaceVariant,
@@ -674,13 +685,14 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
                       ? Icons.check_circle_rounded
                       : Icons.cancel_rounded,
                   size: 20,
-                  color:
-                      rule.enabled ? colorScheme.primary : colorScheme.outline,
+                  color: rule.enabled
+                      ? colorScheme.primary
+                      : colorScheme.outline,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    '启用此规则',
+                    context.l10n.diy_enableRule,
                     style: theme.textTheme.titleSmall,
                   ),
                 ),
@@ -716,19 +728,23 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
   String _getActionLabel(PostProcessAction action) {
     switch (action) {
       case PostProcessAction.remove:
-        return '移除标签';
+        return context.l10n.diy_actionRemoveTags;
       case PostProcessAction.replace:
-        return '替换标签';
+        return context.l10n.diy_actionReplaceTags;
       case PostProcessAction.add:
-        return '添加标签';
+        return context.l10n.diy_actionAddTags;
       case PostProcessAction.removeCategory:
-        return '移除类别';
+        return context.l10n.diy_actionRemoveCategories;
     }
   }
 
   String _getActionDescription(PostProcessRule rule) {
-    final triggers =
-        rule.triggerTags.isNotEmpty ? rule.triggerTags.join(', ') : '无触发条件';
-    return '当 [$triggers] 时 ${_getActionLabel(rule.action)}';
+    final triggers = rule.triggerTags.isNotEmpty
+        ? rule.triggerTags.join(', ')
+        : context.l10n.diy_noTriggers;
+    return context.l10n.diy_actionSummary(
+      triggers,
+      _getActionLabel(rule.action),
+    );
   }
 }

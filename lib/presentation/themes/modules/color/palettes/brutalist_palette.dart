@@ -19,21 +19,21 @@ class BrutalistPalette extends BaseColorModule {
 
   @override
   ColorScheme get lightScheme => const ColorScheme.light(
-        primary: _primary,
-        onPrimary: Colors.white,
-        primaryContainer: Color(0xFF9AA99A), // Light LCD green for contrast
-        onPrimaryContainer: Color(0xFF0F1F0F), // Dark green for text/icons
-        secondary: _secondary,
-        onSecondary: Colors.white,
-        tertiary: Color(0xFF37474F),
-        onTertiary: Colors.white,
-        surface: _surface,
-        onSurface: _primary,
-        onSurfaceVariant: Color(0xFF455A64), // Blue-gray 700
-        surfaceContainerHighest: _card,
-        outline: Color(0xFF607060), // LCD border green
-        error: Color(0xFFB71C1C),
-      );
+    primary: _primary,
+    onPrimary: Colors.white,
+    primaryContainer: Color(0xFF9AA99A), // Light LCD green for contrast
+    onPrimaryContainer: Color(0xFF0F1F0F), // Dark green for text/icons
+    secondary: _secondary,
+    onSecondary: Colors.white,
+    tertiary: Color(0xFF37474F),
+    onTertiary: Colors.white,
+    surface: _surface,
+    onSurface: _primary,
+    onSurfaceVariant: Color(0xFF232A23), // Blue-gray 700
+    surfaceContainerHighest: _card,
+    outline: Color(0xFF607060), // LCD border green
+    error: Color(0xFFB71C1C),
+  );
 
   @override
   ColorScheme get darkScheme => lightScheme; // Light-only theme

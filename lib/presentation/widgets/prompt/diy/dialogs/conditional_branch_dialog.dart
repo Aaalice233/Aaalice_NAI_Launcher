@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../data/models/prompt/conditional_branch.dart';
 import '../panels/conditional_branch_panel.dart';
@@ -11,26 +12,20 @@ class ConditionalBranchDialog extends StatefulWidget {
   final ConditionalBranchConfig? initialConfig;
 
   /// 标题
-  final String title;
+  final String? title;
 
-  const ConditionalBranchDialog({
-    super.key,
-    this.initialConfig,
-    this.title = '编辑条件分支',
-  });
+  const ConditionalBranchDialog({super.key, this.initialConfig, this.title});
 
   /// 显示弹窗
   static Future<ConditionalBranchConfig?> show(
     BuildContext context, {
     ConditionalBranchConfig? initialConfig,
-    String title = '编辑条件分支',
+    String? title,
   }) {
     return showDialog<ConditionalBranchConfig>(
       context: context,
-      builder: (context) => ConditionalBranchDialog(
-        initialConfig: initialConfig,
-        title: title,
-      ),
+      builder: (context) =>
+          ConditionalBranchDialog(initialConfig: initialConfig, title: title),
     );
   }
 
@@ -56,7 +51,7 @@ class _ConditionalBranchDialogState extends State<ConditionalBranchDialog> {
         children: [
           const Icon(Icons.call_split),
           const SizedBox(width: 8),
-          Text(widget.title),
+          Text(widget.title ?? context.l10n.diy_editConditionalTitle),
         ],
       ),
       content: SizedBox(
@@ -76,7 +71,7 @@ class _ConditionalBranchDialogState extends State<ConditionalBranchDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
+          child: Text(context.l10n.common_cancel),
         ),
         if (_config != null)
           TextButton(
@@ -86,11 +81,11 @@ class _ConditionalBranchDialogState extends State<ConditionalBranchDialog> {
                 _hasChanges = true;
               });
             },
-            child: const Text('清除'),
+            child: Text(context.l10n.common_clear),
           ),
         FilledButton(
           onPressed: _hasChanges ? () => Navigator.pop(context, _config) : null,
-          child: const Text('保存'),
+          child: Text(context.l10n.common_save),
         ),
       ],
     );

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:path/path.dart' as p;
 import 'package:super_clipboard/super_clipboard.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
@@ -23,12 +24,14 @@ import '../../../data/services/vibe_metadata_service.dart';
 import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/replication_queue_provider.dart';
+import '../../providers/precise_ref_library_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
 import '../../providers/vibe_library_provider.dart';
 import '../../router/app_router.dart';
 import '../../utils/dropped_file_reader.dart';
 import '../../utils/internal_drag_protocol.dart' as internal_drag;
 import '../../utils/metadata_import_coordinator.dart';
+import '../../utils/precise_ref_library_import_helper.dart';
 import '../common/app_toast.dart';
 import '../metadata/metadata_import_dialog.dart';
 import 'image_destination_dialog.dart';
@@ -384,6 +387,20 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
     setState(() => _isProcessing = false);
   }
 
+  static const Set<String> _plainImageExtensions = {
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.webp',
+    '.gif',
+    '.bmp',
+  };
+
+  static bool _isPlainImageFile(String fileName) {
+    final lower = fileName.toLowerCase();
+    return _plainImageExtensions.any(lower.endsWith);
+  }
+
   Future<void> _processDroppedFile(String fileName, Uint8List bytes) async {
     if (!mounted) return;
 
@@ -406,6 +423,21 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         ref: ref,
         fileName: fileName,
         bytes: bytes,
+      );
+      return;
+    }
+
+    // 如果是精准参考库页面，普通图片直接入库（服务 Ctrl+V 粘贴，
+    // 同时兜底拖拽被外层接住的情况）；.naiv4vibe 等仍走通用对话框
+    final isPreciseRefLibraryPage = currentPath == AppRoutes.preciseRefLibrary;
+    if (isPreciseRefLibraryPage && _isPlainImageFile(fileName)) {
+      await saveBytesToPreciseRefLibrary(
+        ref,
+        context,
+        bytes,
+        suggestedName: p.basenameWithoutExtension(fileName),
+        // 正处于某个类型分类下时，粘贴入库跟随该分类
+        type: ref.read(preciseRefLibraryNotifierProvider).typeFilter,
       );
       return;
     }
@@ -696,7 +728,9 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          isBundle ? '保存 Vibe Bundle (${vibes.length} 个)' : '保存到 Vibe 库',
+          isBundle
+              ? '${l10n.vibe_saveToLibrary_saveAsBundle} (${vibes.length})'
+              : l10n.vibe_saveToLibrary_title,
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -706,16 +740,17 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
-                  '包含以下 Vibe：\n${vibes.map((v) => '• ${v.displayName}').join('\n')}',
+                  '${l10n.vibe_saveToLibrary_saveAsBundleDescription(vibes.length)}:\n'
+                  '${vibes.map((v) => '• ${v.displayName}').join('\n')}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(
-                labelText: '名称',
-                hintText: '输入保存名称',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.vibe_saveToLibrary_nameLabel,
+                hintText: l10n.vibe_saveToLibrary_nameHint,
+                border: const OutlineInputBorder(),
               ),
               autofocus: true,
             ),
@@ -816,6 +851,7 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
         read: ref.read,
         metadata: metadata,
         options: options,
+        l10n: context.l10n,
       );
 
       if (!mounted) return;

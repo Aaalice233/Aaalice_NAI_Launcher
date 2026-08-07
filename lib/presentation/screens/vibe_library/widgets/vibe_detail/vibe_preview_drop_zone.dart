@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../../../core/utils/app_logger.dart';
@@ -85,6 +86,7 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
 
   Future<void> _pickImage() async {
     final result = await PickerHandler.pickImage(
+      l10n: context.l10n,
       onError: (msg) => AppLogger.w(msg, 'VibePreviewDropZone'),
     );
     if (result == null) return;
@@ -241,26 +243,26 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
                 _buildIconButton(
                   icon: Icons.add,
                   onPressed: _zoomIn,
-                  tooltip: '放大',
+                  tooltip: context.l10n.editor_zoomIn,
                 ),
                 const SizedBox(height: DesignTokens.spacingXs),
                 _buildIconButton(
                   icon: Icons.remove,
                   onPressed: _zoomOut,
-                  tooltip: '缩小',
+                  tooltip: context.l10n.editor_zoomOut,
                 ),
                 const SizedBox(height: DesignTokens.spacingXs),
                 _buildIconButton(
                   icon: Icons.fit_screen,
                   onPressed: _resetZoom,
-                  tooltip: '重置缩放',
+                  tooltip: context.l10n.editor_shortcut100Zoom,
                 ),
                 const SizedBox(height: DesignTokens.spacingMd),
                 if (widget.onThumbnailChanged != null)
                   _buildIconButton(
                     icon: Icons.image_outlined,
                     onPressed: _pickImage,
-                    tooltip: '更换预览图',
+                    tooltip: context.l10n.vibeBulkTag_actionPreview,
                   ),
               ],
             ),
@@ -271,19 +273,19 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
   }
 
   Widget _buildPlaceholder() {
-    return const Column(
+    return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.auto_awesome, size: 64, color: Colors.white54),
-        SizedBox(height: DesignTokens.spacingMd),
+        const Icon(Icons.auto_awesome, size: 64, color: Colors.white54),
+        const SizedBox(height: DesignTokens.spacingMd),
         Text(
-          '无预览图像',
-          style: TextStyle(color: Colors.white54, fontSize: 16),
+          context.l10n.vibeDetail_noPreviewImage,
+          style: const TextStyle(color: Colors.white54, fontSize: 16),
         ),
-        SizedBox(height: DesignTokens.spacingXs),
+        const SizedBox(height: DesignTokens.spacingXs),
         Text(
-          '拖拽图片到此处设置预览图',
-          style: TextStyle(color: Colors.white38, fontSize: 13),
+          context.l10n.vibeDetail_dropPreviewImage,
+          style: const TextStyle(color: Colors.white38, fontSize: 13),
         ),
       ],
     );
@@ -302,19 +304,19 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
           ),
           color: Colors.white.withValues(alpha: 0.08),
         ),
-        child: const Center(
+        child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
+              const Icon(
                 Icons.file_download_outlined,
                 size: 48,
                 color: Colors.white70,
               ),
-              SizedBox(height: DesignTokens.spacingSm),
+              const SizedBox(height: DesignTokens.spacingSm),
               Text(
-                '释放以设置预览图',
-                style: TextStyle(
+                context.l10n.vibeDetail_releasePreviewImage,
+                style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -350,11 +352,9 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
   }
 
   /// 构建左上角圆形关闭按钮
-  Widget _buildCircularCloseButton({
-    required VoidCallback onPressed,
-  }) {
+  Widget _buildCircularCloseButton({required VoidCallback onPressed}) {
     return Tooltip(
-      message: '关闭 (Esc)',
+      message: '${context.l10n.common_close} (Esc)',
       child: Material(
         color: Colors.black.withValues(alpha: 0.5),
         shape: const CircleBorder(),

@@ -901,9 +901,14 @@ class VibeImportHandler {
                             value: overwriteOriginal,
                             dense: true,
                             contentPadding: EdgeInsets.zero,
-                            title: const Text('直接替换原 Vibe 参数'),
+                            title: Text(
+                              context.l10n.vibe_import_overwriteOriginalParams,
+                            ),
                             subtitle: Text(
-                              '仅覆盖 ${overwriteCandidate.displayName} 的库内参数，默认不勾选',
+                              context.l10n
+                                  .vibe_import_overwriteOriginalParamsHint(
+                                    overwriteCandidate.displayName,
+                                  ),
                             ),
                             onChanged: (value) => setState(
                               () => overwriteOriginal = value ?? false,
@@ -962,7 +967,7 @@ class VibeImportHandler {
                 model: generationParams.model,
               );
           if (preparedVibe == null) {
-            throw StateError('Vibe 重新编码失败: ${vibe.displayName}');
+            throw StateError(l10n.vibe_import_reencodeFailed(vibe.displayName));
           }
 
           // 使用用户设置的参数创建新的 vibe

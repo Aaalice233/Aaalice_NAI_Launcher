@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../core/cache/danbooru_image_cache_manager.dart';
@@ -142,7 +143,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
               const Icon(Icons.error_outline, color: Colors.white54, size: 48),
               const SizedBox(height: 12),
               Text(
-                '视频加载失败',
+                context.l10n.onlineGallery_videoLoadFailed,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.7),
                   fontSize: 14,

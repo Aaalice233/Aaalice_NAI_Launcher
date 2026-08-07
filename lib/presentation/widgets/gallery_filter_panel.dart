@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../providers/local_gallery_provider.dart';
@@ -71,15 +72,10 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
       curve: Curves.easeOut,
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _animController,
-        curve: Curves.easeOutCubic,
-      ),
-    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+          CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
+        );
 
     _animController.forward();
 
@@ -199,8 +195,9 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
           width: 460,
           constraints: const BoxConstraints(maxHeight: 600),
           decoration: BoxDecoration(
-            color:
-                isDark ? colorScheme.surfaceContainerHigh : colorScheme.surface,
+            color: isDark
+                ? colorScheme.surfaceContainerHigh
+                : colorScheme.surface,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isDark
@@ -452,8 +449,9 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
             },
             tooltip: l10n.common_close,
             style: IconButton.styleFrom(
-              backgroundColor:
-                  colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              backgroundColor: colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.5,
+              ),
             ),
           ),
         ],
@@ -494,11 +492,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
                   color: iconColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  icon,
-                  size: 16,
-                  color: iconColor,
-                ),
+                child: Icon(icon, size: 16, color: iconColor),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -589,7 +583,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
         Expanded(
           child: _buildCompactTextField(
             controller: minController,
-            hintText: 'Min',
+            hintText: context.l10n.common_minimum,
             theme: theme,
             isDark: isDark,
             colorScheme: colorScheme,
@@ -608,7 +602,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
         Expanded(
           child: _buildCompactTextField(
             controller: maxController,
-            hintText: 'Max',
+            hintText: context.l10n.common_maximum,
             theme: theme,
             isDark: isDark,
             colorScheme: colorScheme,
@@ -756,11 +750,7 @@ class _GalleryFilterPanelState extends ConsumerState<GalleryFilterPanel>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.filter_alt,
-                    size: 14,
-                    color: colorScheme.tertiary,
-                  ),
+                  Icon(Icons.filter_alt, size: 14, color: colorScheme.tertiary),
                   const SizedBox(width: 4),
                   Text(
                     l10n.localGallery_activeFiltersSet,
@@ -821,10 +811,7 @@ void showGalleryFilterPanel(BuildContext context) {
     context: context,
     barrierColor: Colors.black54,
     builder: (context) => const Center(
-      child: Material(
-        color: Colors.transparent,
-        child: GalleryFilterPanel(),
-      ),
+      child: Material(color: Colors.transparent, child: GalleryFilterPanel()),
     ),
   );
 }

@@ -162,7 +162,7 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
               ),
               label: Text(
                 _isFileDraggingOver
-                    ? '松开后添加风格参考'
+                    ? context.l10n.vibe_releaseToAddStyleReference
                     : context.l10n.vibe_addReference,
               ),
               style: showBackground
@@ -382,7 +382,7 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
                     ? Icons.file_download_rounded
                     : Icons.add_photo_alternate_outlined,
                 title: _isFileDraggingOver
-                    ? '松开后添加风格参考'
+                    ? context.l10n.vibe_releaseToAddStyleReference
                     : context.l10n.vibe_addFromFileTitle,
                 subtitle: context.l10n.vibe_addFromFileSubtitle,
                 onTap: widget.onAddVibe,

@@ -109,10 +109,7 @@ class ThemeComposer {
 
       // Icon theme - ensures icons have good visibility by default
       // Uses onSurface for proper contrast on surface backgrounds
-      iconTheme: IconThemeData(
-        color: colorScheme.onSurface,
-        size: 24,
-      ),
+      iconTheme: IconThemeData(color: colorScheme.onSurface, size: 24),
 
       // Apply divider module colors to Flutter's built-in divider
       dividerColor: divider.dividerColor,
@@ -203,18 +200,14 @@ class ThemeComposer {
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: _extractBorderRadius(shape.inputShape),
-          borderSide: BorderSide(
-            color: colorScheme.error,
-            width: 1.5,
-          ),
+          borderSide: BorderSide(color: colorScheme.error, width: 1.5),
         ),
         // 显式设置 hintStyle，确保在所有主题下都有足够的对比度
-        hintStyle: TextStyle(
-          color: colorScheme.outline,
-          fontSize: 16,
+        hintStyle: TextStyle(color: colorScheme.outline, fontSize: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       ),
 
       // 深度层叠风格：下拉菜单使用阴影 + 小圆角
@@ -225,11 +218,13 @@ class ThemeComposer {
               borderRadius: BorderRadius.circular(shape.menuRadius),
             ),
           ),
-          backgroundColor:
-              WidgetStatePropertyAll(colorScheme.surfaceContainerHigh),
+          backgroundColor: WidgetStatePropertyAll(
+            colorScheme.surfaceContainerHigh,
+          ),
           elevation: const WidgetStatePropertyAll(0), // 使用自定义阴影
-          shadowColor:
-              WidgetStatePropertyAll(Colors.black.withValues(alpha: 0.15)),
+          shadowColor: WidgetStatePropertyAll(
+            Colors.black.withValues(alpha: 0.15),
+          ),
           surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
         ),
       ),
@@ -251,11 +246,13 @@ class ThemeComposer {
               borderRadius: BorderRadius.circular(shape.menuRadius),
             ),
           ),
-          backgroundColor:
-              WidgetStatePropertyAll(colorScheme.surfaceContainerHigh),
+          backgroundColor: WidgetStatePropertyAll(
+            colorScheme.surfaceContainerHigh,
+          ),
           elevation: const WidgetStatePropertyAll(8),
-          shadowColor:
-              WidgetStatePropertyAll(Colors.black.withValues(alpha: 0.15)),
+          shadowColor: WidgetStatePropertyAll(
+            Colors.black.withValues(alpha: 0.15),
+          ),
           surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
         ),
       ),
@@ -295,6 +292,11 @@ class ThemeComposer {
       ),
 
       // 深度层叠风格：Chip 配置
+      //
+      // 背景既然改用 primary 系，前景必须同族取 onPrimaryContainer。
+      // Material 3 给 ChoiceChip 的默认标签色是 onSecondaryContainer，
+      // 跨族之后对比度失去保证——多数预设并未认真配 secondary 系，
+      // onSecondaryContainer 常直接是纯白或纯黑，会变成浅底白字。
       chipTheme: ChipThemeData(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(shape.smallRadius),
@@ -303,6 +305,20 @@ class ThemeComposer {
         backgroundColor: colorScheme.surfaceContainerHighest,
         selectedColor: colorScheme.primaryContainer,
         surfaceTintColor: Colors.transparent,
+        // 两项都必须从 textTheme 派生：Chip 对 labelStyle 是"有则取之"而非
+        // 合并，传裸 TextStyle 会把默认的 labelLarge 整个顶掉，字体随之丢失。
+        // 用户自定义字体由 AppTheme._applyFontConfig 再同步进来。
+        //
+        // labelStyle 不能省：ChoiceChip 选中时走 secondaryLabelStyle，但
+        // FilterChip 选中时仍走 labelStyle，省掉会让它回退到 M3 默认的
+        // onSecondaryContainer，与这里的背景不同族。
+        labelStyle: textTheme.labelLarge?.copyWith(
+          color: colorScheme.onSurfaceVariant,
+        ),
+        secondaryLabelStyle: textTheme.labelLarge?.copyWith(
+          color: colorScheme.onPrimaryContainer,
+        ),
+        checkmarkColor: colorScheme.onPrimaryContainer,
       ),
 
       // 深度层叠风格：Tooltip 配置
@@ -374,10 +390,7 @@ class ThemeComposer {
 
   /// Applies the given color to all text styles in the theme.
   TextTheme _applyColorToTextTheme(TextTheme textTheme, Color color) {
-    return textTheme.apply(
-      bodyColor: color,
-      displayColor: color,
-    );
+    return textTheme.apply(bodyColor: color, displayColor: color);
   }
 
   /// Extracts BorderRadius from a ShapeBorder.

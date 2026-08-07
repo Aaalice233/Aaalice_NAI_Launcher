@@ -110,55 +110,6 @@ enum ShortcutContext {
   vibeDetail, // Vibe 详情页
 }
 
-/// 快捷键上下文扩展
-extension ShortcutContextExtension on ShortcutContext {
-  String get displayName {
-    switch (this) {
-      case ShortcutContext.global:
-        return 'Global';
-      case ShortcutContext.generation:
-        return 'Generation';
-      case ShortcutContext.gallery:
-        return 'Gallery List';
-      case ShortcutContext.viewer:
-        return 'Image Viewer';
-      case ShortcutContext.tagLibrary:
-        return 'Tag Library';
-      case ShortcutContext.randomConfig:
-        return 'Random Config';
-      case ShortcutContext.settings:
-        return 'Settings';
-      case ShortcutContext.input:
-        return 'Input Field';
-      case ShortcutContext.vibeDetail:
-        return 'Vibe Detail';
-    }
-  }
-
-  String get i18nKey {
-    switch (this) {
-      case ShortcutContext.global:
-        return 'shortcut_context_global';
-      case ShortcutContext.generation:
-        return 'shortcut_context_generation';
-      case ShortcutContext.gallery:
-        return 'shortcut_context_gallery';
-      case ShortcutContext.viewer:
-        return 'shortcut_context_viewer';
-      case ShortcutContext.tagLibrary:
-        return 'shortcut_context_tag_library';
-      case ShortcutContext.randomConfig:
-        return 'shortcut_context_random_config';
-      case ShortcutContext.settings:
-        return 'shortcut_context_settings';
-      case ShortcutContext.input:
-        return 'shortcut_context_input';
-      case ShortcutContext.vibeDetail:
-        return 'shortcut_context_vibe_detail';
-    }
-  }
-}
-
 /// 默认快捷键配置
 class DefaultShortcuts {
   /// 获取所有默认快捷键配置

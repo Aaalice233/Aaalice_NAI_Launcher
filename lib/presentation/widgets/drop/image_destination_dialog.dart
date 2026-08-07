@@ -96,20 +96,16 @@ class ImageDestinationDialog extends ConsumerWidget {
     // 判断悬浮球是否可见（队列有任务或正在执行）
     final queueState = ref.watch(replicationQueueNotifierProvider);
     final queueExecutionState = ref.watch(queueExecutionNotifierProvider);
-    final shouldShowAddToQueue = !(queueState.isEmpty &&
-        queueState.failedTasks.isEmpty &&
-        queueExecutionState.isIdle &&
-        !queueExecutionState.hasFailedTasks);
+    final shouldShowAddToQueue =
+        !(queueState.isEmpty &&
+            queueState.failedTasks.isEmpty &&
+            queueExecutionState.isIdle &&
+            !queueExecutionState.hasFailedTasks);
 
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(6),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 400,
-          maxHeight: 600,
-        ),
+        constraints: const BoxConstraints(maxWidth: 400, maxHeight: 600),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -195,8 +191,9 @@ class ImageDestinationDialog extends ConsumerWidget {
                       label: context.l10n.drop_extractMetadata,
                       subtitle: context.l10n.drop_extractMetadataSubtitle,
                       isPrimary: true,
-                      onTap: () => Navigator.of(context)
-                          .pop(ImageDestination.extractMetadata),
+                      onTap: () => Navigator.of(
+                        context,
+                      ).pop(ImageDestination.extractMetadata),
                     ),
                     const SizedBox(height: 12),
                     // 加入队列选项（仅在悬浮球可见且是PNG时显示）
@@ -207,8 +204,9 @@ class ImageDestinationDialog extends ConsumerWidget {
                           icon: Icons.playlist_add,
                           label: context.l10n.drop_addToQueue,
                           subtitle: context.l10n.drop_addToQueueSubtitle,
-                          onTap: () => Navigator.of(context)
-                              .pop(ImageDestination.addToQueue),
+                          onTap: () => Navigator.of(
+                            context,
+                          ).pop(ImageDestination.addToQueue),
                         ),
                       ),
                     if (shouldShowAddToQueue) const SizedBox(height: 16),
@@ -219,8 +217,9 @@ class ImageDestinationDialog extends ConsumerWidget {
                   _DestinationButton(
                     icon: Icons.manage_search_rounded,
                     label: context.l10n.drop_reversePrompt,
-                    onTap: () => Navigator.of(context)
-                        .pop(ImageDestination.reversePrompt),
+                    onTap: () => Navigator.of(
+                      context,
+                    ).pop(ImageDestination.reversePrompt),
                   ),
                   const SizedBox(height: 12),
                   _DestinationButton(
@@ -235,15 +234,17 @@ class ImageDestinationDialog extends ConsumerWidget {
                     _DestinationButton(
                       icon: Icons.auto_awesome,
                       label: context.l10n.drop_vibeTransfer,
-                      onTap: () => Navigator.of(context)
-                          .pop(ImageDestination.vibeTransfer),
+                      onTap: () => Navigator.of(
+                        context,
+                      ).pop(ImageDestination.vibeTransfer),
                     ),
                   const SizedBox(height: 12),
                   _DestinationButton(
                     icon: Icons.person_outline,
                     label: context.l10n.drop_characterReference,
-                    onTap: () => Navigator.of(context)
-                        .pop(ImageDestination.characterReference),
+                    onTap: () => Navigator.of(
+                      context,
+                    ).pop(ImageDestination.characterReference),
                   ),
                 ],
               ),
@@ -326,10 +327,7 @@ class ImageDestinationDialog extends ConsumerWidget {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.memory(
-                        vibe.thumbnail!,
-                        fit: BoxFit.cover,
-                      ),
+                      child: Image.memory(vibe.thumbnail!, fit: BoxFit.cover),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -382,8 +380,9 @@ class ImageDestinationDialog extends ConsumerWidget {
                   label: context.l10n.drop_reuseVibe,
                   subtitle: context.l10n.drop_reuseVibeSubtitle,
                   isPrimary: true,
-                  onTap: () => Navigator.of(context)
-                      .pop(ImageDestination.vibeTransferReuse),
+                  onTap: () => Navigator.of(
+                    context,
+                  ).pop(ImageDestination.vibeTransferReuse),
                 ),
                 const SizedBox(height: 8),
                 // 作为原始图片按钮
@@ -391,19 +390,25 @@ class ImageDestinationDialog extends ConsumerWidget {
                   icon: Icons.refresh,
                   label: context.l10n.drop_useAsRawImage,
                   subtitle: context.l10n.drop_useAsRawImageSubtitle,
-                  onTap: () => Navigator.of(context)
-                      .pop(ImageDestination.vibeTransferRaw),
+                  onTap: () => Navigator.of(
+                    context,
+                  ).pop(ImageDestination.vibeTransferRaw),
                 ),
                 const SizedBox(height: 8),
                 // 保存到库按钮（仅当 Vibe 已编码时显示）
                 _DestinationButton(
                   icon: Icons.save_outlined,
-                  label: isBundle ? '保存 Vibe Bundle' : '保存到 Vibe 库',
+                  label: isBundle
+                      ? context.l10n.drop_saveVibeBundle
+                      : context.l10n.vibe_saveToLibrary_title,
                   subtitle: isBundle
-                      ? '将 ${detectedVibe?.displayName ?? ""} 等保存到库中'
-                      : '将预编码 Vibe 数据保存到库中',
-                  onTap: () => Navigator.of(context)
-                      .pop(ImageDestination.saveToVibeLibrary),
+                      ? context.l10n.drop_saveVibeBundleSubtitle(
+                          detectedVibe?.displayName ?? '',
+                        )
+                      : context.l10n.drop_saveEncodedVibeSubtitle,
+                  onTap: () => Navigator.of(
+                    context,
+                  ).pop(ImageDestination.saveToVibeLibrary),
                 ),
               ],
             ),
@@ -443,10 +448,7 @@ class _DestinationButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 12,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
               Icon(
@@ -476,8 +478,9 @@ class _DestinationButton extends StatelessWidget {
                         subtitle!,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: isPrimary
-                              ? theme.colorScheme.onPrimaryContainer
-                                  .withValues(alpha: 0.7)
+                              ? theme.colorScheme.onPrimaryContainer.withValues(
+                                  alpha: 0.7,
+                                )
                               : theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
@@ -489,8 +492,9 @@ class _DestinationButton extends StatelessWidget {
                 Icons.chevron_right,
                 size: 20,
                 color: isPrimary
-                    ? theme.colorScheme.onPrimaryContainer
-                        .withValues(alpha: 0.5)
+                    ? theme.colorScheme.onPrimaryContainer.withValues(
+                        alpha: 0.5,
+                      )
                     : theme.colorScheme.outline,
               ),
             ],

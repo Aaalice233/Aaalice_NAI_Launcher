@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 /// 通用批量操作工具栏
 ///
@@ -27,19 +28,13 @@ class BulkActionBar extends StatelessWidget {
   /// 操作按钮列表
   final List<BulkActionItem> actions;
 
-  /// 是否为Vibe库模式（启用Vibe特有的操作布局）
-  final bool isVibeLibrary;
-
-  /// 项目单位名称（如"项"、"Vibe"、"图片"）
-  final String itemName;
-
   /// 当前范围选择标签
-  final String selectAllLabel;
-  final String deselectAllLabel;
+  final String? selectAllLabel;
+  final String? deselectAllLabel;
 
   /// 全部可用项目选择标签
-  final String selectAllAvailableLabel;
-  final String deselectAllAvailableLabel;
+  final String? selectAllAvailableLabel;
+  final String? deselectAllAvailableLabel;
 
   const BulkActionBar({
     super.key,
@@ -50,17 +45,16 @@ class BulkActionBar extends StatelessWidget {
     this.onSelectAll,
     this.onSelectAllAvailable,
     this.actions = const [],
-    this.isVibeLibrary = false,
-    this.itemName = 'items',
-    this.selectAllLabel = 'Select all',
-    this.deselectAllLabel = 'Deselect all',
-    this.selectAllAvailableLabel = 'Select all',
-    this.deselectAllAvailableLabel = 'Deselect all',
+    this.selectAllLabel,
+    this.deselectAllLabel,
+    this.selectAllAvailableLabel,
+    this.deselectAllAvailableLabel,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     final isDark = theme.brightness == Brightness.dark;
     final hasSelection = selectedCount > 0;
 
@@ -75,8 +69,9 @@ class BulkActionBar extends StatelessWidget {
                 : theme.colorScheme.surface.withValues(alpha: 0.95),
             border: Border(
               bottom: BorderSide(
-                color:
-                    theme.dividerColor.withValues(alpha: isDark ? 0.15 : 0.2),
+                color: theme.dividerColor.withValues(
+                  alpha: isDark ? 0.15 : 0.2,
+                ),
               ),
             ),
           ),
@@ -89,7 +84,7 @@ class BulkActionBar extends StatelessWidget {
                   // 退出按钮
                   _ActionButton(
                     icon: Icons.close,
-                    label: 'Exit',
+                    label: l10n.common_exit,
                     onPressed: onExit,
                     compact: true,
                   ),
@@ -103,12 +98,13 @@ class BulkActionBar extends StatelessWidget {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer
-                            .withValues(alpha: 0.8),
+                        color: theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.8,
+                        ),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        'Selected $selectedCount $itemName',
+                        l10n.bulkAction_selectedCount(selectedCount),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.labelLarge?.copyWith(
@@ -123,7 +119,9 @@ class BulkActionBar extends StatelessWidget {
                   // 全选/取消全选按钮
                   _ActionButton(
                     icon: isAllSelected ? Icons.deselect : Icons.select_all,
-                    label: isAllSelected ? deselectAllLabel : selectAllLabel,
+                    label: isAllSelected
+                        ? deselectAllLabel ?? l10n.common_deselectAll
+                        : selectAllLabel ?? l10n.common_selectAll,
                     onPressed: onSelectAll,
                     compact: true,
                   ),
@@ -134,8 +132,8 @@ class BulkActionBar extends StatelessWidget {
                           ? Icons.deselect
                           : Icons.library_add_check_outlined,
                       label: isAllAvailableSelected
-                          ? deselectAllAvailableLabel
-                          : selectAllAvailableLabel,
+                          ? deselectAllAvailableLabel ?? l10n.common_deselectAll
+                          : selectAllAvailableLabel ?? l10n.common_selectAll,
                       onPressed: onSelectAllAvailable,
                       compact: true,
                     ),
@@ -202,90 +200,6 @@ class BulkActionItem {
   });
 }
 
-/// Vibe库批量操作项预置
-class VibeBulkActions {
-  /// 发送到生成
-  static BulkActionItem sendToGeneration({
-    required VoidCallback onPressed,
-    Color? color,
-  }) {
-    return BulkActionItem(
-      icon: Icons.send,
-      label: 'Send to Generation',
-      onPressed: onPressed,
-      color: color,
-    );
-  }
-
-  /// 移动到分类
-  static BulkActionItem moveToCategory({
-    required VoidCallback onPressed,
-    Color? color,
-  }) {
-    return BulkActionItem(
-      icon: Icons.drive_file_move_outline,
-      label: 'Move',
-      onPressed: onPressed,
-      color: color,
-    );
-  }
-
-  /// 编辑标签
-  static BulkActionItem editTags({
-    required VoidCallback onPressed,
-    Color? color,
-  }) {
-    return BulkActionItem(
-      icon: Icons.edit_note,
-      label: 'Edit Tags',
-      onPressed: onPressed,
-      color: color,
-    );
-  }
-
-  /// 导出为Bundle
-  static BulkActionItem exportBundle({
-    required VoidCallback onPressed,
-    Color? color,
-  }) {
-    return BulkActionItem(
-      icon: Icons.inventory_2_outlined,
-      label: 'Export Bundle',
-      onPressed: onPressed,
-      color: color,
-    );
-  }
-
-  /// 切换收藏
-  static BulkActionItem toggleFavorite({
-    required VoidCallback onPressed,
-    Color? color,
-  }) {
-    return BulkActionItem(
-      icon: Icons.favorite_border,
-      label: 'Favorite',
-      onPressed: onPressed,
-      color: color,
-    );
-  }
-
-  /// 删除（危险操作）
-  static BulkActionItem delete({
-    required VoidCallback onPressed,
-    Color? color,
-    bool showDividerBefore = true,
-  }) {
-    return BulkActionItem(
-      icon: Icons.delete_outline,
-      label: 'Delete',
-      onPressed: onPressed,
-      color: color,
-      isDanger: true,
-      showDividerBefore: showDividerBefore,
-    );
-  }
-}
-
 /// Action button with icon and optional label
 /// 带图标和可选标签的操作按钮
 class _ActionButton extends StatefulWidget {
@@ -318,8 +232,9 @@ class _ActionButtonState extends State<_ActionButton> {
     final isDark = theme.brightness == Brightness.dark;
     final isEnabled = widget.onPressed != null;
     final effectiveColor = widget.color ?? theme.colorScheme.onSurface;
-    final displayColor =
-        isEnabled ? effectiveColor : effectiveColor.withValues(alpha: 0.4);
+    final displayColor = isEnabled
+        ? effectiveColor
+        : effectiveColor.withValues(alpha: 0.4);
 
     return MouseRegion(
       onEnter: isEnabled ? (_) => setState(() => _isHovered = true) : null,
@@ -339,8 +254,10 @@ class _ActionButtonState extends State<_ActionButton> {
             decoration: BoxDecoration(
               color: _isHovered
                   ? (widget.isDanger
-                      ? effectiveColor.withValues(alpha: isDark ? 0.2 : 0.12)
-                      : effectiveColor.withValues(alpha: isDark ? 0.15 : 0.08))
+                        ? effectiveColor.withValues(alpha: isDark ? 0.2 : 0.12)
+                        : effectiveColor.withValues(
+                            alpha: isDark ? 0.15 : 0.08,
+                          ))
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
               border: _isHovered
@@ -348,27 +265,21 @@ class _ActionButtonState extends State<_ActionButton> {
                       color: effectiveColor.withValues(alpha: 0.3),
                       width: 1,
                     )
-                  : Border.all(
-                      color: Colors.transparent,
-                      width: 1,
-                    ),
+                  : Border.all(color: Colors.transparent, width: 1),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  widget.icon,
-                  size: 18,
-                  color: displayColor,
-                ),
+                Icon(widget.icon, size: 18, color: displayColor),
                 if (!widget.compact) ...[
                   const SizedBox(width: 6),
                   Text(
                     widget.label,
                     style: theme.textTheme.labelMedium?.copyWith(
                       color: displayColor,
-                      fontWeight:
-                          _isHovered ? FontWeight.w600 : FontWeight.w500,
+                      fontWeight: _isHovered
+                          ? FontWeight.w600
+                          : FontWeight.w500,
                     ),
                   ),
                 ],

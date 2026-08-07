@@ -46,6 +46,7 @@ import '../../../widgets/common/selectable_image_card.dart';
 import '../../../widgets/image_editor/image_editor_screen.dart';
 import '../../../utils/image_detail_opener.dart';
 import '../../../utils/krita_send_helper.dart';
+import '../../../utils/precise_ref_library_import_helper.dart';
 import '../../tag_library_page/widgets/entry_add_dialog.dart';
 
 class PreviewNavShortcuts extends ConsumerWidget {
@@ -585,6 +586,11 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           : null,
       onPreciseReference: canUseAsInput
           ? () => unawaited(_sendPreviewImageToPreciseReference(context, image))
+          : null,
+      onSaveToPreciseRefLibrary: canUseAsInput
+          ? () => unawaited(
+              saveBytesToPreciseRefLibrary(ref, context, image.bytes),
+            )
           : null,
       onEditImage: canUseAsInput
           ? () => ImageWorkflowLauncher.openEditor(

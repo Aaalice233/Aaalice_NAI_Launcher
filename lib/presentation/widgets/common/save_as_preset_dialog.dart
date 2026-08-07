@@ -16,10 +16,7 @@ class SaveAsPresetDialog extends ConsumerStatefulWidget {
   /// 要保存的元数据
   final NaiImageMetadata metadata;
 
-  const SaveAsPresetDialog({
-    super.key,
-    required this.metadata,
-  });
+  const SaveAsPresetDialog({super.key, required this.metadata});
 
   /// 显示对话框
   static Future<bool> show(
@@ -211,8 +208,9 @@ class _SaveAsPresetDialogState extends ConsumerState<SaveAsPresetDialog> {
         name: name,
         configs: configs,
       );
-      final preset = RandomPromptLegacyAdapter.fromPreset(legacyPreset)
-          .copyWith(description: 'Saved from image metadata');
+      final preset = RandomPromptLegacyAdapter.fromPreset(
+        legacyPreset,
+      ).copyWith(description: context.l10n.savePreset_metadataDescription);
 
       // 保存预设
       await notifier.addPreset(preset);
@@ -279,7 +277,7 @@ class _SaveAsPresetDialogState extends ConsumerState<SaveAsPresetDialog> {
         children: [
           Icon(Icons.bookmark_add, color: colorScheme.primary),
           const SizedBox(width: 8),
-          const Text('Save as Preset'),
+          Text(l10n.savePreset_title),
         ],
       ),
       content: SizedBox(
@@ -292,7 +290,7 @@ class _SaveAsPresetDialogState extends ConsumerState<SaveAsPresetDialog> {
               controller: _nameController,
               decoration: InputDecoration(
                 labelText: l10n.preset_presetName,
-                hintText: 'Enter preset name',
+                hintText: l10n.savePreset_nameHint,
                 prefixIcon: const Icon(Icons.edit),
                 border: const OutlineInputBorder(),
               ),
@@ -341,10 +339,13 @@ class _SaveAsPresetDialogState extends ConsumerState<SaveAsPresetDialog> {
                       _buildCheckbox(
                         label: l10n.metadataImport_fixedTags,
                         value: _includeFixedTags,
-                        hasData: widget.metadata.fixedPrefixTags.isNotEmpty ||
+                        hasData:
+                            widget.metadata.fixedPrefixTags.isNotEmpty ||
                             widget.metadata.fixedSuffixTags.isNotEmpty ||
                             widget
-                                .metadata.fixedNegativePrefixTags.isNotEmpty ||
+                                .metadata
+                                .fixedNegativePrefixTags
+                                .isNotEmpty ||
                             widget.metadata.fixedNegativeSuffixTags.isNotEmpty,
                         onChanged: (v) => setState(() => _includeFixedTags = v),
                       ),
@@ -399,7 +400,8 @@ class _SaveAsPresetDialogState extends ConsumerState<SaveAsPresetDialog> {
                         _buildCompactCheckbox(
                           label: l10n.queue_size,
                           value: _includeSize,
-                          hasData: widget.metadata.width != null &&
+                          hasData:
+                              widget.metadata.width != null &&
                               widget.metadata.height != null,
                           onChanged: (v) => setState(() => _includeSize = v),
                         ),
@@ -418,7 +420,8 @@ class _SaveAsPresetDialogState extends ConsumerState<SaveAsPresetDialog> {
                         _buildCompactCheckbox(
                           label: 'SMEA',
                           value: _includeSmea,
-                          hasData: widget.metadata.smea == true ||
+                          hasData:
+                              widget.metadata.smea == true ||
                               widget.metadata.smeaDyn == true,
                           onChanged: (v) => setState(() => _includeSmea = v),
                         ),
@@ -430,8 +433,9 @@ class _SaveAsPresetDialogState extends ConsumerState<SaveAsPresetDialog> {
                       Divider(color: colorScheme.outlineVariant),
                       const SizedBox(height: 8),
                       _buildCheckbox(
-                        label:
-                            'Vibe Data (${widget.metadata.vibeReferences.length})',
+                        label: l10n.savePreset_vibeData(
+                          widget.metadata.vibeReferences.length,
+                        ),
                         value: _includeVibe,
                         hasData: true,
                         onChanged: (v) => setState(() => _includeVibe = v),
@@ -518,8 +522,8 @@ class _SaveAsPresetDialogState extends ConsumerState<SaveAsPresetDialog> {
         style: theme.textTheme.bodySmall?.copyWith(
           color: hasData
               ? value
-                  ? colorScheme.onPrimaryContainer
-                  : colorScheme.onSurface
+                    ? colorScheme.onPrimaryContainer
+                    : colorScheme.onSurface
               : colorScheme.onSurfaceVariant,
         ),
       ),

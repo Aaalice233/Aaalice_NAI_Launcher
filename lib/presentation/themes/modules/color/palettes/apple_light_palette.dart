@@ -19,21 +19,21 @@ class AppleLightPalette extends BaseColorModule {
 
   @override
   ColorScheme get lightScheme => const ColorScheme.light(
-        primary: _primary,
-        onPrimary: Colors.white,
-        primaryContainer: Color(0xFFD1E2FF), // Light blue for contrast
-        onPrimaryContainer: Color(0xFF002D6F), // Dark blue for text/icons
-        secondary: _secondary,
-        onSecondary: Colors.white,
-        tertiary: Color(0xFFFF6D00),
-        onTertiary: Colors.white,
-        surface: _surface,
-        onSurface: Color(0xFF1A1A1A),
-        onSurfaceVariant: Color(0xFF6B7280), // Gray-500
-        surfaceContainerHighest: _card,
-        outline: Color(0xFFD1D5DB), // Gray-300
-        error: Color(0xFFD32F2F),
-      );
+    primary: _primary,
+    onPrimary: Colors.white,
+    primaryContainer: Color(0xFFD1E2FF), // Light blue for contrast
+    onPrimaryContainer: Color(0xFF002D6F), // Dark blue for text/icons
+    secondary: _secondary,
+    onSecondary: Color(0xFF004D20),
+    tertiary: Color(0xFFFF6D00),
+    onTertiary: Color(0xFF4D2100),
+    surface: _surface,
+    onSurface: Color(0xFF1A1A1A),
+    onSurfaceVariant: Color(0xFF667080), // Gray-500 调深，保证对 surface 达 AA
+    surfaceContainerHighest: _card,
+    outline: Color(0xFFD1D5DB), // Gray-300
+    error: Color(0xFFD32F2F),
+  );
 
   @override
   ColorScheme get darkScheme => lightScheme; // Light-only theme

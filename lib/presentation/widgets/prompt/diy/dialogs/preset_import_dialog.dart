@@ -36,10 +36,8 @@ class PresetImportDialog extends StatefulWidget {
   static Future<void> showExport(BuildContext context, RandomPreset preset) {
     return showDialog(
       context: context,
-      builder: (context) => PresetImportDialog(
-        isExport: true,
-        presetToExport: preset,
-      ),
+      builder: (context) =>
+          PresetImportDialog(isExport: true, presetToExport: preset),
     );
   }
 
@@ -51,6 +49,7 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
   final TextEditingController _controller = TextEditingController();
   RandomPreset? _previewPreset;
   String? _error;
+  bool _isExportError = false;
 
   @override
   void initState() {
@@ -62,7 +61,8 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
         const encoder = JsonEncoder.withIndent('  ');
         _controller.text = encoder.convert(jsonMap);
       } catch (e) {
-        _error = '导出失败: $e';
+        _error = e.toString();
+        _isExportError = true;
       }
     }
   }
@@ -87,17 +87,24 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
     try {
       final jsonMap = jsonDecode(value);
       if (jsonMap is! Map<String, dynamic>) {
-        throw const FormatException('JSON 根节点必须是对象');
+        setState(() {
+          _previewPreset = null;
+          _error = context.l10n.diy_presetJsonRootObject;
+          _isExportError = false;
+        });
+        return;
       }
       final preset = RandomPreset.fromExportJson(jsonMap);
       setState(() {
         _previewPreset = preset;
         _error = null;
+        _isExportError = false;
       });
     } catch (e) {
       setState(() {
         _previewPreset = null;
-        _error = '无效的预设数据: ${e.toString()}';
+        _error = context.l10n.diy_presetInvalidData(e.toString());
+        _isExportError = false;
       });
     }
   }
@@ -114,6 +121,12 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = context.l10n;
+    final errorMessage = _error == null
+        ? null
+        : _isExportError
+        ? l10n.diy_presetExportFailed(_error!)
+        : _error;
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -159,8 +172,9 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
                           colorScheme.secondaryContainer.withValues(alpha: 0.2),
                         ],
                 ),
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
                 border: Border(
                   bottom: BorderSide(
                     color: colorScheme.outlineVariant.withValues(alpha: 0.2),
@@ -172,10 +186,11 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: (widget.isExport
-                              ? colorScheme.tertiary
-                              : colorScheme.primary)
-                          .withValues(alpha: 0.1),
+                      color:
+                          (widget.isExport
+                                  ? colorScheme.tertiary
+                                  : colorScheme.primary)
+                              .withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
@@ -190,7 +205,9 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    widget.isExport ? '导出预设' : '导入预设',
+                    widget.isExport
+                        ? l10n.diy_presetExportTitle
+                        : l10n.diy_presetImportTitle,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -234,13 +251,14 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    widget.presetToExport?.name ?? "未知",
+                                    widget.presetToExport?.name ??
+                                        l10n.diy_unknown,
                                     style: theme.textTheme.titleSmall?.copyWith(
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                   Text(
-                                    '复制以下内容分享给其他人',
+                                    l10n.diy_presetShareHint,
                                     style: theme.textTheme.bodySmall?.copyWith(
                                       color: colorScheme.onSurfaceVariant,
                                     ),
@@ -260,8 +278,9 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
                         border: Border.all(
                           color: _error != null
                               ? colorScheme.error.withValues(alpha: 0.5)
-                              : colorScheme.outlineVariant
-                                  .withValues(alpha: 0.3),
+                              : colorScheme.outlineVariant.withValues(
+                                  alpha: 0.3,
+                                ),
                         ),
                       ),
                       child: ClipRRect(
@@ -272,8 +291,9 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
                           readOnly: widget.isExport,
                           onChanged: _onTextChanged,
                           decoration: InputDecoration(
-                            hintText:
-                                widget.isExport ? '' : '在此粘贴预设 JSON 数据...',
+                            hintText: widget.isExport
+                                ? ''
+                                : l10n.diy_presetPasteJsonHint,
                             border: InputBorder.none,
                             filled: true,
                             fillColor: colorScheme.surfaceContainerLow,
@@ -287,13 +307,14 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
                         ),
                       ),
                     ),
-                    if (_error != null) ...[
+                    if (errorMessage != null) ...[
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color:
-                              colorScheme.errorContainer.withValues(alpha: 0.3),
+                          color: colorScheme.errorContainer.withValues(
+                            alpha: 0.3,
+                          ),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
@@ -306,7 +327,7 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                _error!,
+                                errorMessage,
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: colorScheme.error,
                                 ),
@@ -335,7 +356,7 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  '预设预览',
+                                  l10n.diy_presetPreview,
                                   style: theme.textTheme.titleSmall?.copyWith(
                                     color: colorScheme.primary,
                                     fontWeight: FontWeight.bold,
@@ -347,7 +368,7 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
                             _buildInfoRow(
                               context,
                               Icons.label_outline,
-                              '名称',
+                              l10n.diy_name,
                               _previewPreset!.name,
                             ),
                             if (_previewPreset!.description != null &&
@@ -355,19 +376,19 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
                               _buildInfoRow(
                                 context,
                                 Icons.description_outlined,
-                                '描述',
+                                l10n.diy_description,
                                 _previewPreset!.description!,
                               ),
                             _buildInfoRow(
                               context,
                               Icons.category_outlined,
-                              '类别数',
+                              l10n.diy_categoryCount,
                               '${_previewPreset!.categories.length}',
                             ),
                             _buildInfoRow(
                               context,
                               Icons.tag,
-                              '总标签数',
+                              l10n.diy_totalTagCount,
                               '${_previewPreset!.totalTagCount}',
                             ),
                           ],
@@ -383,8 +404,9 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainerLow,
-                borderRadius:
-                    const BorderRadius.vertical(bottom: Radius.circular(20)),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(20),
+                ),
                 border: Border(
                   top: BorderSide(
                     color: colorScheme.outlineVariant.withValues(alpha: 0.2),
@@ -396,14 +418,14 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
                 children: [
                   OutlinedButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('取消'),
+                    child: Text(l10n.common_cancel),
                   ),
                   const SizedBox(width: 12),
                   if (widget.isExport)
                     FilledButton.icon(
                       onPressed: _copyToClipboard,
                       icon: const Icon(Icons.copy, size: 18),
-                      label: const Text('复制'),
+                      label: Text(l10n.common_copy),
                     )
                   else
                     FilledButton.icon(
@@ -411,7 +433,7 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
                           ? () => Navigator.pop(context, _previewPreset)
                           : null,
                       icon: const Icon(Icons.check, size: 18),
-                      label: const Text('导入'),
+                      label: Text(l10n.common_import),
                     ),
                 ],
               ),
@@ -436,11 +458,7 @@ class _PresetImportDialogState extends State<PresetImportDialog> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            size: 14,
-            color: colorScheme.onSurfaceVariant,
-          ),
+          Icon(icon, size: 14, color: colorScheme.onSurfaceVariant),
           const SizedBox(width: 8),
           SizedBox(
             width: 60,

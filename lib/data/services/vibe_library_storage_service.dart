@@ -1,19 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
-import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/display_thumbnail_utils.dart';
 import '../../core/utils/vibe_performance_diagnostics.dart';
 import '../models/vibe/vibe_library_category.dart';
 import '../models/vibe/vibe_library_entry.dart';
@@ -39,9 +37,6 @@ class VibeLibraryStorageService
   static const String _categoriesBoxName = 'vibe_library_categories';
   static const String _displayCacheReadyKey =
       'vibe_library_display_cache_ready_v2';
-  static const int _displayThumbnailMaxDimension = 256;
-  static const int _displayThumbnailInlineLimitBytes = 64 * 1024;
-  static const int _displayThumbnailJpegQuality = 78;
   static const String _tag = 'VibeLibrary';
 
   VibeLibraryStorageService({VibeFileStorageService? fileStorage})
@@ -50,7 +45,7 @@ class VibeLibraryStorageService
   Box<VibeLibraryEntry>? _entriesBox;
   LazyBox<VibeLibraryEntry>? _lazyEntriesBox;
   Box<VibeLibraryEntry>? _displayEntriesBox;
-  Box<Uint8List>? _thumbnailCacheBox;
+  LazyBox<Uint8List>? _thumbnailCacheBox;
   Box<VibeLibraryCategory>? _categoriesBox;
   Future<void>? _entriesInitFuture;
   Future<void>? _lazyEntriesInitFuture;
@@ -60,44 +55,6 @@ class VibeLibraryStorageService
   Future<void> _thumbnailLoadQueue = Future.value();
   final Map<String, Future<Uint8List?>> _thumbnailLoadsById = {};
   final VibeFileStorageService _fileStorage;
-
-  static Uint8List? _resizeDisplayThumbnailSync(Uint8List sourceBytes) {
-    final source = img.decodeImage(sourceBytes);
-    if (source == null) {
-      return null;
-    }
-
-    final longestSide = math.max(source.width, source.height);
-    if (longestSide <= _displayThumbnailMaxDimension &&
-        sourceBytes.length <= _displayThumbnailInlineLimitBytes) {
-      return sourceBytes;
-    }
-
-    final scale = _displayThumbnailMaxDimension / longestSide;
-    final width = math.max(1, (source.width * scale).round());
-    final height = math.max(1, (source.height * scale).round());
-    final resized = img.copyResize(
-      source,
-      width: width,
-      height: height,
-      interpolation: img.Interpolation.average,
-    );
-    return Uint8List.fromList(
-      img.encodeJpg(resized, quality: _displayThumbnailJpegQuality),
-    );
-  }
-
-  Future<Uint8List?> _normalizeDisplayThumbnail(Uint8List sourceBytes) async {
-    if (sourceBytes.isEmpty) {
-      return null;
-    }
-
-    if (sourceBytes.length <= _displayThumbnailInlineLimitBytes) {
-      return sourceBytes;
-    }
-
-    return Isolate.run(() => _resizeDisplayThumbnailSync(sourceBytes));
-  }
 
   Uint8List? _pickDisplayThumbnailSource(VibeLibraryEntry entry) {
     final thumbnail = entry.thumbnail;
@@ -134,7 +91,7 @@ class VibeLibraryStorageService
     var resultBytes = 0;
     try {
       await _ensureThumbnailCacheBox();
-      final existing = _thumbnailCacheBox!.get(id);
+      final existing = await _thumbnailCacheBox!.get(id);
       if (existing != null && existing.isNotEmpty) {
         cached = true;
         resultBytes = existing.length;
@@ -153,7 +110,7 @@ class VibeLibraryStorageService
       }
       sourceBytes = source.length;
 
-      final thumbnail = await _normalizeDisplayThumbnail(source);
+      final thumbnail = await DisplayThumbnailUtils.normalize(source);
       if (thumbnail == null || thumbnail.isEmpty) {
         return null;
       }
@@ -190,7 +147,7 @@ class VibeLibraryStorageService
   /// 大量缩略图。卡片可调用该方法串行生成/读取小缩略图缓存。
   Future<Uint8List?> getDisplayThumbnail(String id) async {
     await _ensureThumbnailCacheBox();
-    final cached = _thumbnailCacheBox!.get(id);
+    final cached = await _thumbnailCacheBox!.get(id);
     if (cached != null && cached.isNotEmpty) {
       return cached;
     }

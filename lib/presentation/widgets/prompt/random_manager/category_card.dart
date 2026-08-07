@@ -111,20 +111,19 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
           Row(
             children: [
               if (category.emoji.isNotEmpty)
-                Text(
-                  category.emoji,
-                  style: const TextStyle(fontSize: 18),
-                ),
+                Text(category.emoji, style: const TextStyle(fontSize: 18)),
               if (category.emoji.isNotEmpty) const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   l10n.randomCategoryName(category),
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    decoration:
-                        category.enabled ? null : TextDecoration.lineThrough,
-                    color:
-                        category.enabled ? null : colorScheme.onSurfaceVariant,
+                    decoration: category.enabled
+                        ? null
+                        : TextDecoration.lineThrough,
+                    color: category.enabled
+                        ? null
+                        : colorScheme.onSurfaceVariant,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -259,15 +258,9 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
                           feedback: Material(
                             elevation: 8,
                             borderRadius: BorderRadius.circular(8),
-                            child: Opacity(
-                              opacity: 0.9,
-                              child: card,
-                            ),
+                            child: Opacity(opacity: 0.9, child: card),
                           ),
-                          childWhenDragging: Opacity(
-                            opacity: 0.3,
-                            child: card,
-                          ),
+                          childWhenDragging: Opacity(opacity: 0.3, child: card),
                           child: card,
                         );
                       }
@@ -323,10 +316,9 @@ class _CategoryCardState extends ConsumerState<CategoryCard>
     );
 
     if (confirmed) {
-      ref.read(randomPresetNotifierProvider.notifier).removeGroupFromCategory(
-            data.categoryKey,
-            data.group.id,
-          );
+      ref
+          .read(randomPresetNotifierProvider.notifier)
+          .removeGroupFromCategory(data.categoryKey, data.group.id);
     }
   }
 }
@@ -336,17 +328,12 @@ class _DragData {
   final RandomTagGroup group;
   final String categoryKey;
 
-  _DragData({
-    required this.group,
-    required this.categoryKey,
-  });
+  _DragData({required this.group, required this.categoryKey});
 }
 
 /// 垃圾桶拖放区域
 class _TrashDropZone extends StatefulWidget {
-  const _TrashDropZone({
-    required this.onAccept,
-  });
+  const _TrashDropZone({required this.onAccept});
 
   final void Function(_DragData data) onAccept;
 
@@ -439,7 +426,9 @@ class _TrashDropZoneState extends State<_TrashDropZone>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _isHovering ? '松开删除' : '拖到这里删除',
+                  _isHovering
+                      ? context.l10n.randomManager_releaseToDelete
+                      : context.l10n.randomManager_dragHereToDelete,
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: _isHovering
                         ? colorScheme.error

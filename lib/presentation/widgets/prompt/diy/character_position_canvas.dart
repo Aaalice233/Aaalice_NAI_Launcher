@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../widgets/common/elevated_card.dart';
@@ -105,13 +106,13 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '角色位置',
+                context.l10n.diy_characterPositionTitle,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
-                '可视化编辑角色位置',
+                context.l10n.diy_characterPositionSubtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -196,7 +197,7 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              '添加角色位置',
+                              context.l10n.diy_addCharacterPosition,
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 color: colorScheme.outline,
                               ),
@@ -261,10 +262,7 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                color,
-                color.withValues(alpha: 0.7),
-              ],
+              colors: [color, color.withValues(alpha: 0.7)],
             ),
             shape: BoxShape.circle,
             border: Border.all(
@@ -288,9 +286,7 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
-                shadows: [
-                  Shadow(color: Colors.black38, blurRadius: 2),
-                ],
+                shadows: [Shadow(color: Colors.black38, blurRadius: 2)],
               ),
             ),
           ),
@@ -312,10 +308,7 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
     final newRow = (current.row + details.delta.dy / constraints.maxHeight)
         .clamp(0.0, 1.0);
 
-    newPositions[index] = current.copyWith(
-      row: newRow,
-      column: newColumn,
-    );
+    newPositions[index] = current.copyWith(row: newRow, column: newColumn);
 
     widget.onPositionsChanged(newPositions);
   }
@@ -339,7 +332,7 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
               ),
               const SizedBox(height: 8),
               Text(
-                '点击下方按钮添加角色位置',
+                context.l10n.diy_addCharacterPositionHint,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -415,7 +408,7 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '角色 ${index + 1}',
+                            context.l10n.diy_characterIndex(index + 1),
                             style: theme.textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
@@ -423,8 +416,11 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
                           const SizedBox(height: 2),
                           Text(
                             position.mode == CharacterPositionMode.aiChoice
-                                ? 'AI 自动选择'
-                                : '行: ${(position.row * 100).toStringAsFixed(0)}%, 列: ${(position.column * 100).toStringAsFixed(0)}%',
+                                ? context.l10n.diy_aiPositionChoice
+                                : context.l10n.diy_positionCoordinates(
+                                    (position.row * 100).toStringAsFixed(0),
+                                    (position.column * 100).toStringAsFixed(0),
+                                  ),
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),
@@ -447,14 +443,12 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
                       ),
                       const SizedBox(width: 6),
                       _buildModeChip(
-                        label: '自定义',
+                        label: context.l10n.diy_customPosition,
                         isSelected:
                             position.mode == CharacterPositionMode.custom,
                         onTap: () => _updatePosition(
                           index,
-                          position.copyWith(
-                            mode: CharacterPositionMode.custom,
-                          ),
+                          position.copyWith(mode: CharacterPositionMode.custom),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -464,7 +458,7 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
                           color: colorScheme.error.withValues(alpha: 0.7),
                         ),
                         onPressed: () => _removePosition(index),
-                        tooltip: '删除',
+                        tooltip: context.l10n.common_delete,
                       ),
                     ],
                   ],
@@ -546,14 +540,10 @@ class _CharacterPositionCanvasState extends State<CharacterPositionCanvas> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.add_rounded,
-                    size: 18,
-                    color: colorScheme.primary,
-                  ),
+                  Icon(Icons.add_rounded, size: 18, color: colorScheme.primary),
                   const SizedBox(width: 8),
                   Text(
-                    '添加角色位置',
+                    context.l10n.diy_addCharacterPosition,
                     style: theme.textTheme.labelLarge?.copyWith(
                       color: colorScheme.primary,
                       fontWeight: FontWeight.w600,
@@ -599,11 +589,7 @@ class _GridPainter extends CustomPainter {
   final int cols;
   final Color color;
 
-  _GridPainter({
-    required this.rows,
-    required this.cols,
-    required this.color,
-  });
+  _GridPainter({required this.rows, required this.cols, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {

@@ -27,9 +27,9 @@ class ParamSectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       title,
-      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+      style: Theme.of(
+        context,
+      ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
     );
   }
 }
@@ -148,10 +148,8 @@ class NoiseScheduleSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final data = ref.watch(
       generationParamsNotifierProvider.select(
-        (params) => (
-          noiseSchedule: params.noiseSchedule,
-          isV4Model: params.isV4Model,
-        ),
+        (params) =>
+            (noiseSchedule: params.noiseSchedule, isV4Model: params.isV4Model),
       ),
     );
     return Column(
@@ -359,8 +357,9 @@ class _SeedSectionState extends ConsumerState<SeedSection> {
                 keyboardType: TextInputType.number,
                 onChanged: (value) {
                   // 清空输入框时自动变成随机 (-1)
-                  final newSeed =
-                      value.isEmpty ? -1 : (int.tryParse(value) ?? -1);
+                  final newSeed = value.isEmpty
+                      ? -1
+                      : (int.tryParse(value) ?? -1);
                   if (newSeed != seed) {
                     ref
                         .read(generationParamsNotifierProvider.notifier)
@@ -418,8 +417,9 @@ class _SeedSectionState extends ConsumerState<SeedSection> {
               onPressed: () {
                 // 先同步输入框的值到 state（防止用户输入后 state 未更新）
                 final inputText = _seedController.text.trim();
-                final inputSeed =
-                    inputText.isEmpty ? -1 : (int.tryParse(inputText) ?? -1);
+                final inputSeed = inputText.isEmpty
+                    ? -1
+                    : (int.tryParse(inputText) ?? -1);
                 if (inputSeed !=
                     ref.read(generationParamsNotifierProvider).seed) {
                   ref
@@ -437,13 +437,15 @@ class _SeedSectionState extends ConsumerState<SeedSection> {
                 // select 重建，需手动刷新图标/背景
                 setState(() {});
               },
-              tooltip: ref
+              tooltip:
+                  ref
                       .watch(generationParamsNotifierProvider.notifier)
                       .isSeedLocked
                   ? context.l10n.generation_seedUnlock
                   : context.l10n.generation_seedLock,
               style: IconButton.styleFrom(
-                backgroundColor: ref
+                backgroundColor:
+                    ref
                         .watch(generationParamsNotifierProvider.notifier)
                         .isSeedLocked
                     ? theme.colorScheme.primary.withValues(alpha: 0.15)
@@ -503,7 +505,7 @@ class AdvancedSamplingOptions extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '高分辨率采样优化',
+                    context.l10n.generation_smeaSubtitle,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
@@ -606,10 +608,7 @@ class _SmeaAutoButton extends StatelessWidget {
   final bool isAuto;
   final ValueChanged<bool> onChanged;
 
-  const _SmeaAutoButton({
-    required this.isAuto,
-    required this.onChanged,
-  });
+  const _SmeaAutoButton({required this.isAuto, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -719,8 +718,8 @@ class _SmeaOptions extends StatelessWidget {
     final color = isDisabled
         ? theme.colorScheme.onSurface.withValues(alpha: 0.3)
         : (value
-            ? theme.colorScheme.primary
-            : theme.colorScheme.onSurface.withValues(alpha: 0.7));
+              ? theme.colorScheme.primary
+              : theme.colorScheme.onSurface.withValues(alpha: 0.7));
 
     return InkWell(
       onTap: isDisabled ? null : () => onChanged(!value),
@@ -734,13 +733,7 @@ class _SmeaOptions extends StatelessWidget {
             color: color,
           ),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: color,
-            ),
-          ),
+          Text(label, style: TextStyle(fontSize: 13, color: color)),
         ],
       ),
     );
@@ -783,8 +776,8 @@ class _ToggleButtonState extends State<_ToggleButton> {
           : Colors.black.withValues(alpha: 0.05);
       backgroundColor = _isHovered
           ? (isDark
-              ? Colors.white.withValues(alpha: 0.15)
-              : Colors.black.withValues(alpha: 0.1))
+                ? Colors.white.withValues(alpha: 0.15)
+                : Colors.black.withValues(alpha: 0.1))
           : baseColor;
     }
 
@@ -805,8 +798,8 @@ class _ToggleButtonState extends State<_ToggleButton> {
               color: widget.isEnabled
                   ? theme.colorScheme.primary
                   : (_isHovered
-                      ? theme.colorScheme.outline.withValues(alpha: 0.4)
-                      : theme.colorScheme.outline.withValues(alpha: 0.2)),
+                        ? theme.colorScheme.outline.withValues(alpha: 0.4)
+                        : theme.colorScheme.outline.withValues(alpha: 0.2)),
               width: 1,
             ),
           ),
@@ -828,8 +821,9 @@ class _ToggleButtonState extends State<_ToggleButton> {
                   fontWeight: FontWeight.w500,
                   color: widget.isEnabled
                       ? theme.colorScheme.onPrimary
-                      : theme.colorScheme.onSurface
-                          .withValues(alpha: _isHovered ? 0.8 : 0.6),
+                      : theme.colorScheme.onSurface.withValues(
+                          alpha: _isHovered ? 0.8 : 0.6,
+                        ),
                 ),
               ),
             ],

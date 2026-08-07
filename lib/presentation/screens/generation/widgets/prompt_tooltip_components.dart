@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/localization_extension.dart';
+
 /// Tooltip 头部组件
 class TooltipHeader extends StatelessWidget {
   final ThemeData theme;
@@ -140,14 +142,14 @@ class TooltipFinalPromptSection extends StatelessWidget {
   final ThemeData theme;
   final String prompt;
   final bool isDark;
-  final String label;
+  final String? label;
 
   const TooltipFinalPromptSection({
     super.key,
     required this.theme,
     required this.prompt,
     required this.isDark,
-    this.label = '最终发送给 NAI 的提示词',
+    this.label,
   });
 
   @override
@@ -160,10 +162,12 @@ class TooltipFinalPromptSection extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            theme.colorScheme.primaryContainer
-                .withValues(alpha: isDark ? 0.3 : 0.4),
-            theme.colorScheme.secondaryContainer
-                .withValues(alpha: isDark ? 0.2 : 0.3),
+            theme.colorScheme.primaryContainer.withValues(
+              alpha: isDark ? 0.3 : 0.4,
+            ),
+            theme.colorScheme.secondaryContainer.withValues(
+              alpha: isDark ? 0.2 : 0.3,
+            ),
           ],
         ),
         borderRadius: BorderRadius.circular(10),
@@ -184,7 +188,7 @@ class TooltipFinalPromptSection extends StatelessWidget {
               ),
               const SizedBox(width: 4),
               Text(
-                label,
+                label ?? context.l10n.prompt_finalPrompt,
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,

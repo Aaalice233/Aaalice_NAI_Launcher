@@ -15,6 +15,7 @@ import '../screens/settings/settings_screen.dart';
 import '../screens/slideshow_screen.dart';
 import '../screens/image_comparison_screen.dart';
 import '../screens/statistics/statistics_screen.dart';
+import '../screens/precise_ref_library/precise_ref_library_screen.dart';
 import '../screens/tag_library_page/tag_library_page_screen.dart';
 import '../screens/vibe_library/vibe_library_screen.dart';
 import '../widgets/drop/global_drop_handler.dart';
@@ -24,6 +25,7 @@ import '../widgets/queue/queue_management_page.dart';
 
 import '../widgets/shortcuts/shortcut_aware_widget.dart';
 import '../widgets/shortcuts/shortcut_help_dialog.dart';
+import 'app_branch.dart';
 
 part 'app_router.g.dart';
 
@@ -39,14 +41,19 @@ final floatingButtonClosedProvider = StateProvider<bool>((ref) => false);
 /// Navigator Keys for StatefulShellRoute branches
 final _homeKey = GlobalKey<NavigatorState>(debugLabel: 'home');
 final _localGalleryKey = GlobalKey<NavigatorState>(debugLabel: 'localGallery');
-final _onlineGalleryKey =
-    GlobalKey<NavigatorState>(debugLabel: 'onlineGallery');
+final _onlineGalleryKey = GlobalKey<NavigatorState>(
+  debugLabel: 'onlineGallery',
+);
 final _settingsKey = GlobalKey<NavigatorState>(debugLabel: 'settings');
 final _promptConfigKey = GlobalKey<NavigatorState>(debugLabel: 'promptConfig');
 final _statisticsKey = GlobalKey<NavigatorState>(debugLabel: 'statistics');
-final _tagLibraryPageKey =
-    GlobalKey<NavigatorState>(debugLabel: 'tagLibraryPage');
+final _tagLibraryPageKey = GlobalKey<NavigatorState>(
+  debugLabel: 'tagLibraryPage',
+);
 final _vibeLibraryKey = GlobalKey<NavigatorState>(debugLabel: 'vibeLibrary');
+final _preciseRefLibraryKey = GlobalKey<NavigatorState>(
+  debugLabel: 'preciseRefLibrary',
+);
 
 /// 路由路径常量
 class AppRoutes {
@@ -64,6 +71,7 @@ class AppRoutes {
   static const String statistics = '/statistics';
   static const String tagLibraryPage = '/tag-library';
   static const String vibeLibrary = '/vibe-library';
+  static const String preciseRefLibrary = '/precise-ref-library';
 }
 
 /// 应用路由 Provider
@@ -77,13 +85,13 @@ GoRouter appRouter(Ref ref) {
   final authStateNotifier = ValueNotifier<int>(0);
 
   // 监听认证状态变化 (status 或 isAuthenticated)
-  ref.listen(
-    authNotifierProvider.select((value) => value.status),
-    (previous, next) {
-      // 触发 GoRouter 刷新
-      authStateNotifier.value++;
-    },
-  );
+  ref.listen(authNotifierProvider.select((value) => value.status), (
+    previous,
+    next,
+  ) {
+    // 触发 GoRouter 刷新
+    authStateNotifier.value++;
+  });
 
   // 当 provider 被销毁时清理
   ref.onDispose(() {
@@ -101,7 +109,8 @@ GoRouter appRouter(Ref ref) {
     redirect: (context, state) {
       // 在 redirect 内部使用 ref.read 获取最新状态
       final authState = ref.read(authNotifierProvider);
-      final isLoading = authState.status == AuthStatus.loading ||
+      final isLoading =
+          authState.status == AuthStatus.loading ||
           authState.status == AuthStatus.initial;
       final isLoggedIn = authState.isAuthenticated;
       final isLoggingIn = state.matchedLocation == AppRoutes.login;
@@ -185,7 +194,8 @@ GoRouter appRouter(Ref ref) {
                     name: 'slideshow',
                     pageBuilder: (context, state) {
                       // 从查询参数获取初始索引
-                      final initialIndex = int.tryParse(
+                      final initialIndex =
+                          int.tryParse(
                             state.uri.queryParameters['initialIndex'] ?? '0',
                           ) ??
                           0;
@@ -206,9 +216,7 @@ GoRouter appRouter(Ref ref) {
                     pageBuilder: (context, state) {
                       return MaterialPage(
                         key: state.pageKey,
-                        child: const ImageComparisonScreen(
-                          images: [],
-                        ),
+                        child: const ImageComparisonScreen(images: []),
                       );
                     },
                   ),
@@ -288,6 +296,18 @@ GoRouter appRouter(Ref ref) {
               ),
             ],
           ),
+
+          // Branch 8: 精准参考库页 - 保活
+          StatefulShellBranch(
+            navigatorKey: _preciseRefLibraryKey,
+            routes: [
+              GoRoute(
+                path: AppRoutes.preciseRefLibrary,
+                name: 'preciseRefLibrary',
+                builder: (context, state) => const PreciseRefLibraryScreen(),
+              ),
+            ],
+          ),
         ],
       ),
     ],
@@ -295,7 +315,7 @@ GoRouter appRouter(Ref ref) {
     // 错误页面
     errorBuilder: (context, state) => Scaffold(
       body: Center(
-        child: Text('Page not found: ${state.error}'),
+        child: Text(context.l10n.router_pageNotFound('${state.error}')),
       ),
     ),
   );
@@ -342,7 +362,7 @@ class _MainShellState extends ConsumerState<MainShell> {
 
     // 构建混合保活内容栈
     // - 索引 1 (localGallery) 和 2 (onlineGallery) 使用 Offstage 保活
-    // - 索引 7 (vibeLibrary) 使用 Offstage 保活
+    // - 索引 7 (vibeLibrary) 和 8 (preciseRefLibrary) 使用 Offstage 保活
     // - 其他索引不保活，切换时销毁重建
     final contentStack = IndexedStack(
       index: currentIndex,
@@ -351,13 +371,10 @@ class _MainShellState extends ConsumerState<MainShell> {
         final child = entry.value;
         final isActive = index == currentIndex;
 
-        // 保活页面：画廊（1, 2）和 Vibe 库（7）
+        // 保活页面：画廊（1, 2）、Vibe 库（7）和精准参考库（8）
         // 始终保持在树中，通过 TickerMode 控制动画
-        if (index == 1 || index == 2 || index == 7) {
-          return TickerMode(
-            enabled: isActive,
-            child: child,
-          );
+        if (index == 1 || index == 2 || index == 7 || index == 8) {
+          return TickerMode(enabled: isActive, child: child);
         }
 
         // 其他索引：非活动时显示空容器（不保活）
@@ -369,34 +386,12 @@ class _MainShellState extends ConsumerState<MainShell> {
     );
 
     // 使用 GlobalDropHandler 包装内容，支持拖拽图片到任意页面
-    final dropEnabledContent = GlobalDropHandler(
-      child: contentStack,
-    );
+    final dropEnabledContent = GlobalDropHandler(child: contentStack);
 
     // 定义全局快捷键动作映射（使用 ShortcutIds 常量）
     final globalShortcuts = <String, VoidCallback>{
-      // 页面导航
-      ShortcutIds.navigateToGeneration: () {
-        widget.navigationShell.goBranch(0);
-      },
-      ShortcutIds.navigateToLocalGallery: () {
-        widget.navigationShell.goBranch(2);
-      },
-      ShortcutIds.navigateToOnlineGallery: () {
-        widget.navigationShell.goBranch(3);
-      },
-      ShortcutIds.navigateToSettings: () {
-        widget.navigationShell.goBranch(4);
-      },
-      ShortcutIds.navigateToRandomConfig: () {
-        widget.navigationShell.goBranch(5);
-      },
-      ShortcutIds.navigateToStatistics: () {
-        widget.navigationShell.goBranch(6);
-      },
-      ShortcutIds.navigateToTagLibrary: () {
-        widget.navigationShell.goBranch(7);
-      },
+      for (final entry in globalNavigationShortcutBranches.entries)
+        entry.key: () => widget.navigationShell.goBranch(entry.value.index),
       // 显示快捷键帮助
       ShortcutIds.showShortcutHelp: () {
         ShortcutHelpDialog.show(context);
@@ -467,11 +462,15 @@ class DesktopShell extends ConsumerWidget {
                     content,
                     // 队列悬浮球 - 传入实际可用区域大小
                     FloatingQueueButton(
-                      onTap: () => ref
-                          .read(queueManagementVisibleProvider.notifier)
-                          .state = !isQueueVisible,
-                      containerSize:
-                          Size(constraints.maxWidth, constraints.maxHeight),
+                      onTap: () =>
+                          ref
+                                  .read(queueManagementVisibleProvider.notifier)
+                                  .state =
+                              !isQueueVisible,
+                      containerSize: Size(
+                        constraints.maxWidth,
+                        constraints.maxHeight,
+                      ),
                     ),
                     // 队列管理面板
                     _QueuePanel(
@@ -514,11 +513,13 @@ class MobileShell extends ConsumerWidget {
               content,
               // 队列悬浮球 - 传入实际可用区域大小
               FloatingQueueButton(
-                onTap: () => ref
-                    .read(queueManagementVisibleProvider.notifier)
-                    .state = !isQueueVisible,
-                containerSize:
-                    Size(constraints.maxWidth, constraints.maxHeight),
+                onTap: () =>
+                    ref.read(queueManagementVisibleProvider.notifier).state =
+                        !isQueueVisible,
+                containerSize: Size(
+                  constraints.maxWidth,
+                  constraints.maxHeight,
+                ),
               ),
               // 队列管理面板
               _QueuePanel(
@@ -531,7 +532,9 @@ class MobileShell extends ConsumerWidget {
         },
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _getSelectedIndex(),
+        selectedIndex: mobileNavigationIndexForBranch(
+          navigationShell.currentIndex,
+        ),
         onDestinationSelected: (index) => _onNavigate(index),
         destinations: [
           NavigationDestination(
@@ -554,32 +557,13 @@ class MobileShell extends ConsumerWidget {
     );
   }
 
-  /// 映射 branch index 到 mobile navigation index
-  /// Branches: 0=home, 1=gallery, 2=localGallery, 3=onlineGallery, 4=settings, 5=promptConfig
-  /// Mobile nav: 0=home, 1=gallery, 2=settings
-  int _getSelectedIndex() {
-    final branchIndex = navigationShell.currentIndex;
-    if (branchIndex == 4) return 2; // settings
-    if (branchIndex >= 1 && branchIndex <= 3) return 1; // any gallery
-    return 0; // home
-  }
-
   /// 映射 mobile navigation index 到 branch index
   void _onNavigate(int mobileIndex) {
-    // Mobile nav: 0=home, 1=gallery, 2=settings
-    // Map to branches: 0=home, 1=gallery, 4=settings
-    int branchIndex;
-    switch (mobileIndex) {
-      case 1:
-        branchIndex = 1; // gallery (本地生成历史)
-        break;
-      case 2:
-        branchIndex = 4; // settings
-        break;
-      default:
-        branchIndex = 0; // home
-    }
-    navigationShell.goBranch(branchIndex);
+    final branch =
+        mobileIndex >= 0 && mobileIndex < mobileNavigationBranches.length
+        ? mobileNavigationBranches[mobileIndex]
+        : AppBranch.generation;
+    navigationShell.goBranch(branch.index);
   }
 }
 
@@ -621,8 +605,9 @@ CustomTransitionPage<void> _buildFadeSlidePage({
     child: child,
     transitionDuration: duration,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      final curvedAnimation =
-          CurveTween(curve: _defaultCurve).animate(animation);
+      final curvedAnimation = CurveTween(
+        curve: _defaultCurve,
+      ).animate(animation);
       return FadeTransition(
         opacity: curvedAnimation,
         child: SlideTransition(
@@ -667,9 +652,9 @@ class _QueuePanel extends ConsumerWidget {
             if (isVisible)
               Positioned.fill(
                 child: GestureDetector(
-                  onTap: () => ref
-                      .read(queueManagementVisibleProvider.notifier)
-                      .state = false,
+                  onTap: () =>
+                      ref.read(queueManagementVisibleProvider.notifier).state =
+                          false,
                   child: Container(color: Colors.black54),
                 ),
               ),
@@ -696,8 +681,9 @@ class _QueuePanel extends ConsumerWidget {
                   constraints: BoxConstraints(maxWidth: maxWidth),
                   child: Material(
                     color: theme.scaffoldBackgroundColor,
-                    borderRadius:
-                        const BorderRadius.vertical(top: Radius.circular(16)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
                     clipBehavior: Clip.antiAlias,
                     child: SafeArea(
                       top: false,

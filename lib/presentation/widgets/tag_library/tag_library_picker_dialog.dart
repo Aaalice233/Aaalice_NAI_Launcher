@@ -18,10 +18,7 @@ class TagLibraryPickerDialog extends ConsumerStatefulWidget {
   /// 对话框标题
   final String? title;
 
-  const TagLibraryPickerDialog({
-    super.key,
-    this.title,
-  });
+  const TagLibraryPickerDialog({super.key, this.title});
 
   @override
   ConsumerState<TagLibraryPickerDialog> createState() =>
@@ -67,9 +64,7 @@ class _TagLibraryPickerDialogState
             const SizedBox(height: 16),
 
             // 条目网格
-            Expanded(
-              child: _buildEntryGrid(theme, state),
-            ),
+            Expanded(child: _buildEntryGrid(theme, state)),
 
             const SizedBox(height: 16),
 
@@ -138,6 +133,7 @@ class _TagLibraryPickerDialogState
           flex: 1,
           child: DropdownButtonFormField<String?>(
             initialValue: selectedCategoryId,
+            isExpanded: true,
             decoration: InputDecoration(
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
@@ -157,10 +153,7 @@ class _TagLibraryPickerDialogState
               ...state.categories.map(
                 (category) => DropdownMenuItem<String?>(
                   value: category.id,
-                  child: Text(
-                    category.name,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  child: Text(category.name, overflow: TextOverflow.ellipsis),
                 ),
               ),
             ],
@@ -182,8 +175,9 @@ class _TagLibraryPickerDialogState
         selectedCategoryId,
         ...state.categories.getDescendantIds(selectedCategoryId),
       };
-      entries =
-          entries.where((e) => categoryIds.contains(e.categoryId)).toList();
+      entries = entries
+          .where((e) => categoryIds.contains(e.categoryId))
+          .toList();
     }
 
     // 搜索过滤
@@ -207,10 +201,7 @@ class _TagLibraryPickerDialogState
               _searchQuery.isNotEmpty
                   ? context.l10n.tagLibrary_noSearchResults
                   : context.l10n.tagLibrary_empty,
-              style: TextStyle(
-                color: theme.colorScheme.outline,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: theme.colorScheme.outline, fontSize: 14),
             ),
           ],
         ),
@@ -289,10 +280,7 @@ class _EntrySelectCard extends StatefulWidget {
   final TagLibraryEntry entry;
   final VoidCallback onTap;
 
-  const _EntrySelectCard({
-    required this.entry,
-    required this.onTap,
-  });
+  const _EntrySelectCard({required this.entry, required this.onTap});
 
   @override
   State<_EntrySelectCard> createState() => _EntrySelectCardState();
@@ -337,16 +325,10 @@ class _EntrySelectCardState extends State<_EntrySelectCard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 预览图区域
-              Expanded(
-                flex: 3,
-                child: _buildThumbnail(theme, entry),
-              ),
+              Expanded(flex: 3, child: _buildThumbnail(theme, entry)),
 
               // 信息区域
-              Expanded(
-                flex: 2,
-                child: _buildInfo(theme, entry),
-              ),
+              Expanded(flex: 2, child: _buildInfo(theme, entry)),
             ],
           ),
         ),
@@ -370,8 +352,9 @@ class _EntrySelectCardState extends State<_EntrySelectCard> {
                 scale: entry.thumbnailScale,
                 width: constraints.maxWidth,
                 height: constraints.maxHeight,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(11)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(11),
+                ),
               );
             },
           )
@@ -382,8 +365,9 @@ class _EntrySelectCardState extends State<_EntrySelectCard> {
         if (_isHovering)
           Positioned.fill(
             child: ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(11)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(11),
+              ),
               child: Container(
                 color: theme.colorScheme.primary.withValues(alpha: 0.1),
                 child: Center(
@@ -399,11 +383,7 @@ class _EntrySelectCardState extends State<_EntrySelectCard> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.check,
-                          size: 16,
-                          color: Colors.white,
-                        ),
+                        const Icon(Icons.check, size: 16, color: Colors.white),
                         const SizedBox(width: 6),
                         Text(
                           context.l10n.common_select,
@@ -432,11 +412,7 @@ class _EntrySelectCardState extends State<_EntrySelectCard> {
                 color: Colors.red.shade400,
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: const Icon(
-                Icons.favorite,
-                size: 12,
-                color: Colors.white,
-              ),
+              child: const Icon(Icons.favorite, size: 12, color: Colors.white),
             ),
           ),
       ],

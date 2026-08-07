@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/utils/inpaint_outpaint_utils.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/widgets/panels/shift_edges_dialog.dart';
 
 Widget _wrapDialog({
@@ -10,6 +11,8 @@ Widget _wrapDialog({
   ValueChanged<ShiftEdgesResult?>? onResult,
 }) {
   return MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     home: Builder(
       builder: (context) => Scaffold(
         body: Center(
@@ -84,14 +87,8 @@ void main() {
     expect(result!.appliedEdges.bottom, 248);
     expect(result!.width, 1472);
     expect(result!.height, 1664);
-    expect(
-      result!.horizontalSnapTarget,
-      OutpaintHorizontalSnapTarget.right,
-    );
-    expect(
-      result!.verticalSnapTarget,
-      OutpaintVerticalSnapTarget.bottom,
-    );
+    expect(result!.horizontalSnapTarget, OutpaintHorizontalSnapTarget.right);
+    expect(result!.verticalSnapTarget, OutpaintVerticalSnapTarget.bottom);
   });
 
   testWidgets('disables confirm for empty or oversized applied dimensions', (

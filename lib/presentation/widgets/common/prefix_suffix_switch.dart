@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 
 /// 精致的前缀/后缀切换开关
@@ -73,8 +74,8 @@ class _PrefixSuffixSwitchState extends State<PrefixSuffixSwitch>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isPrefix = widget.value == FixedTagPosition.prefix;
-    final prefixLabel = widget.prefixLabel ?? '前缀';
-    final suffixLabel = widget.suffixLabel ?? '后缀';
+    final prefixLabel = widget.prefixLabel ?? context.l10n.common_prefix;
+    final suffixLabel = widget.suffixLabel ?? context.l10n.common_suffix;
 
     return GestureDetector(
       onTap: _toggle,
@@ -107,23 +108,26 @@ class _PrefixSuffixSwitchState extends State<PrefixSuffixSwitch>
                         gradient: LinearGradient(
                           colors: isPrefix
                               ? [
-                                  theme.colorScheme.primary
-                                      .withValues(alpha: 0.85),
+                                  theme.colorScheme.primary.withValues(
+                                    alpha: 0.85,
+                                  ),
                                   theme.colorScheme.primary,
                                 ]
                               : [
-                                  theme.colorScheme.tertiary
-                                      .withValues(alpha: 0.85),
+                                  theme.colorScheme.tertiary.withValues(
+                                    alpha: 0.85,
+                                  ),
                                   theme.colorScheme.tertiary,
                                 ],
                         ),
                         borderRadius: BorderRadius.circular(19),
                         boxShadow: [
                           BoxShadow(
-                            color: (isPrefix
-                                    ? theme.colorScheme.primary
-                                    : theme.colorScheme.tertiary)
-                                .withValues(alpha: 0.3),
+                            color:
+                                (isPrefix
+                                        ? theme.colorScheme.primary
+                                        : theme.colorScheme.tertiary)
+                                    .withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),

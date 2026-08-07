@@ -40,8 +40,8 @@ mixin VibeLibraryStorageLifecycle {
     );
   }
 
-  Future<Box<Uint8List>> _openThumbnailCacheBox() async {
-    return Hive.openBox<Uint8List>(
+  Future<LazyBox<Uint8List>> _openThumbnailCacheBox() async {
+    return Hive.openLazyBox<Uint8List>(
       VibeLibraryStorageService._thumbnailCacheBoxName,
     );
   }

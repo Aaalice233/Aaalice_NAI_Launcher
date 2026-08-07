@@ -62,8 +62,9 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
       horizontal: widget.isListMode ? 10 : 8,
       vertical: widget.isListMode ? 8 : 10,
     );
-    final contentForeground =
-        hasThumbnailBackground ? Colors.white : foreground;
+    final contentForeground = hasThumbnailBackground
+        ? Colors.white
+        : foreground;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
@@ -119,10 +120,12 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
   Widget _buildThumbnailBackground(TagLibraryEntry libraryEntry) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width =
-            constraints.maxWidth.isFinite ? constraints.maxWidth : 220.0;
-        final height =
-            constraints.maxHeight.isFinite ? constraints.maxHeight : 130.0;
+        final width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : 220.0;
+        final height = constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : 130.0;
         return ThumbnailDisplay(
           imagePath: libraryEntry.thumbnail!,
           offsetX: libraryEntry.thumbnailOffsetX,
@@ -194,17 +197,10 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
   Widget _buildDragRegion(Widget child) {
     final builder = widget.dragHandleBuilder;
     if (builder == null) return child;
-    return MouseRegion(
-      cursor: SystemMouseCursors.grab,
-      child: builder(child),
-    );
+    return MouseRegion(cursor: SystemMouseCursors.grab, child: builder(child));
   }
 
-  Widget _buildText(
-    ThemeData theme,
-    Color foreground, {
-    int maxLines = 1,
-  }) {
+  Widget _buildText(ThemeData theme, Color foreground, {int maxLines = 1}) {
     final entry = widget.entry;
     final hasThumbnailBackground = _hasThumbnailBackground;
     final secondaryColor = hasThumbnailBackground
@@ -228,9 +224,7 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
           entry.content,
           maxLines: maxLines,
           overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: secondaryColor,
-          ),
+          style: theme.textTheme.bodySmall?.copyWith(color: secondaryColor),
         ),
         if (widget.categoryName != null && !widget.isListMode) ...[
           const SizedBox(height: 6),
@@ -288,17 +282,17 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
       children: [
         _ActionButton(
           icon: Icons.copy_rounded,
-          tooltip: '复制内容',
+          tooltip: context.l10n.common_copy,
           onPressed: _copyContent,
         ),
         _ActionButton(
           icon: Icons.edit_rounded,
-          tooltip: '编辑',
+          tooltip: context.l10n.common_edit,
           onPressed: widget.onEdit,
         ),
         _ActionButton(
           icon: Icons.delete_outline_rounded,
-          tooltip: '删除',
+          tooltip: context.l10n.common_delete,
           color: theme.colorScheme.error,
           onPressed: widget.onDelete,
         ),

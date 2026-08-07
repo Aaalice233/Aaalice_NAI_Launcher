@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../data/models/prompt/time_condition.dart';
 import '../../../../widgets/common/elevated_card.dart';
@@ -32,15 +33,18 @@ class TimeConditionPanel extends StatefulWidget {
 class _TimeConditionPanelState extends State<TimeConditionPanel> {
   late TimeCondition _condition;
   bool _hasCondition = false;
+  bool _usesDefaultCondition = false;
 
   @override
   void initState() {
     super.initState();
     _hasCondition = widget.condition != null;
-    _condition = widget.condition ??
+    _usesDefaultCondition = widget.condition == null;
+    _condition =
+        widget.condition ??
         TimeCondition(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
-          name: '时间条件',
+          name: '',
           startMonth: 12,
           startDay: 1,
           endMonth: 12,
@@ -49,12 +53,25 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_usesDefaultCondition && _condition.name.isEmpty) {
+      _condition = _condition.copyWith(name: context.l10n.diy_timeDefaultName);
+    }
+  }
+
+  @override
   void didUpdateWidget(TimeConditionPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.condition != widget.condition) {
       _hasCondition = widget.condition != null;
+      _usesDefaultCondition = widget.condition == null;
       if (widget.condition != null) {
         _condition = widget.condition!;
+      } else {
+        _condition = _condition.copyWith(
+          name: context.l10n.diy_timeDefaultName,
+        );
       }
     }
   }
@@ -129,13 +146,13 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '时间条件',
+                context.l10n.diy_timeTitle,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
-                '在特定日期范围内激活',
+                context.l10n.diy_timeSubtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -168,13 +185,13 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '启用时间条件',
+                  context.l10n.diy_enableTimeCondition,
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
-                  '只在特定日期范围内生效',
+                  context.l10n.diy_enableTimeConditionHint,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -203,9 +220,33 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
     final colorScheme = theme.colorScheme;
 
     final presets = [
-      ('🎄', '圣诞节', TimeCondition.christmas(), Colors.green),
-      ('🎃', '万圣节', TimeCondition.halloween(), Colors.orange),
-      ('💕', '情人节', TimeCondition.valentines(), Colors.pink),
+      (
+        '🎄',
+        context.l10n.diy_christmas,
+        TimeCondition.christmas().copyWith(
+          name: context.l10n.diy_christmas,
+          description: context.l10n.diy_christmasDescription,
+        ),
+        Colors.green,
+      ),
+      (
+        '🎃',
+        context.l10n.diy_halloween,
+        TimeCondition.halloween().copyWith(
+          name: context.l10n.diy_halloween,
+          description: context.l10n.diy_halloweenDescription,
+        ),
+        Colors.orange,
+      ),
+      (
+        '💕',
+        context.l10n.diy_valentinesDay,
+        TimeCondition.valentines().copyWith(
+          name: context.l10n.diy_valentinesDay,
+          description: context.l10n.diy_valentinesDescription,
+        ),
+        Colors.pink,
+      ),
     ];
 
     return ElevatedCard(
@@ -231,7 +272,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
               ),
               const SizedBox(width: 10),
               Text(
-                '预设模板',
+                context.l10n.diy_presetTemplates,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -270,10 +311,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
                         ),
                         child: Column(
                           children: [
-                            Text(
-                              emoji,
-                              style: const TextStyle(fontSize: 24),
-                            ),
+                            Text(emoji, style: const TextStyle(fontSize: 24)),
                             const SizedBox(height: 4),
                             Text(
                               label,
@@ -322,7 +360,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
               ),
               const SizedBox(width: 10),
               Text(
-                '日期范围',
+                context.l10n.diy_dateRange,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -334,7 +372,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
             children: [
               Expanded(
                 child: _buildMonthDaySelector(
-                  label: '开始日期',
+                  label: context.l10n.diy_startDate,
                   month: _condition.startMonth,
                   day: _condition.startDay,
                   color: colorScheme.primary,
@@ -363,7 +401,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
               ),
               Expanded(
                 child: _buildMonthDaySelector(
-                  label: '结束日期',
+                  label: context.l10n.diy_endDate,
                   month: _condition.endMonth,
                   day: _condition.endDay,
                   color: colorScheme.secondary,
@@ -395,14 +433,11 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.warning_amber_rounded,
-                    color: colorScheme.error,
-                  ),
+                  Icon(Icons.warning_amber_rounded, color: colorScheme.error),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      '首版不支持跨年日期范围',
+                      context.l10n.diy_crossYearUnsupported,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: colorScheme.onErrorContainer,
                         fontWeight: FontWeight.w500,
@@ -434,9 +469,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: color.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -446,10 +479,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
               Container(
                 width: 8,
                 height: 8,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                ),
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
               const SizedBox(width: 6),
               Text(
@@ -468,7 +498,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
                 child: DropdownButtonFormField<int>(
                   initialValue: month,
                   decoration: InputDecoration(
-                    labelText: '月',
+                    labelText: context.l10n.diy_month,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -486,7 +516,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
                 child: DropdownButtonFormField<int>(
                   initialValue: day,
                   decoration: InputDecoration(
-                    labelText: '日',
+                    labelText: context.l10n.diy_day,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -526,8 +556,9 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color:
-                            colorScheme.primaryContainer.withValues(alpha: 0.5),
+                        color: colorScheme.primaryContainer.withValues(
+                          alpha: 0.5,
+                        ),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Icon(
@@ -538,7 +569,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      '条件名称',
+                      context.l10n.diy_conditionName,
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -549,7 +580,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
                 ThemedFormInput(
                   initialValue: _condition.name,
                   decoration: InputDecoration(
-                    hintText: '输入条件名称',
+                    hintText: context.l10n.diy_conditionNameHint,
                     prefixIcon: Icon(
                       Icons.edit_rounded,
                       color: colorScheme.onSurfaceVariant,
@@ -585,11 +616,11 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '每年重复',
+                        context.l10n.diy_repeatYearly,
                         style: theme.textTheme.titleSmall,
                       ),
                       Text(
-                        '每年相同日期范围自动启用',
+                        context.l10n.diy_repeatYearlyHint,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colorScheme.onSurfaceVariant,
                         ),
@@ -628,7 +659,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    '启用',
+                    context.l10n.common_enabled,
                     style: theme.textTheme.titleSmall,
                   ),
                 ),
@@ -708,7 +739,9 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isActive ? '当前激活' : '未激活',
+                  isActive
+                      ? context.l10n.diy_currentlyActive
+                      : context.l10n.diy_inactive,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: isActive
@@ -719,8 +752,14 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
                 const SizedBox(height: 2),
                 Text(
                   isActive && remaining != null
-                      ? '剩余 $remaining 天'
-                      : _condition.displayText,
+                      ? context.l10n.diy_daysRemaining(remaining)
+                      : context.l10n.diy_timeRangeSummary(
+                          _condition.name,
+                          _condition.startMonth,
+                          _condition.startDay,
+                          _condition.endMonth,
+                          _condition.endDay,
+                        ),
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -750,7 +789,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    'ACTIVE',
+                    context.l10n.diy_activeBadge,
                     style: theme.textTheme.labelSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: colorScheme.primary,

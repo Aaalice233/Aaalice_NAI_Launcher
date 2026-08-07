@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/localization_extension.dart';
+
 /// 悬浮预览卡片组件
 ///
 /// 鼠标悬浮一段时间后显示预览内容
@@ -66,9 +68,7 @@ class _HoverPreviewCardState extends State<HoverPreviewCard> {
   void _showOverlay() {
     if (_overlayEntry != null) return;
 
-    _overlayEntry = OverlayEntry(
-      builder: (context) => _buildOverlay(),
-    );
+    _overlayEntry = OverlayEntry(builder: (context) => _buildOverlay());
 
     Overlay.of(context).insert(_overlayEntry!);
   }
@@ -95,9 +95,7 @@ class _HoverPreviewCardState extends State<HoverPreviewCard> {
               maxWidth: widget.maxWidth,
               maxHeight: 320,
             ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
             child: widget.previewBuilder(context),
           ),
         ),
@@ -128,13 +126,13 @@ class PreviewCardSkeleton extends StatelessWidget {
     final skeletonColor = colorScheme.surfaceContainerHighest;
 
     Widget skeletonLine(double width, double height) => Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            color: skeletonColor,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        );
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: skeletonColor,
+        borderRadius: BorderRadius.circular(4),
+      ),
+    );
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -169,12 +167,9 @@ class PreviewCardSkeleton extends StatelessWidget {
 
 /// 预览卡片错误状态
 class PreviewCardError extends StatelessWidget {
-  final String message;
+  final String? message;
 
-  const PreviewCardError({
-    super.key,
-    this.message = '无法加载预览',
-  });
+  const PreviewCardError({super.key, this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -186,14 +181,10 @@ class PreviewCardError extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 32,
-            color: colorScheme.error,
-          ),
+          Icon(Icons.error_outline, size: 32, color: colorScheme.error),
           const SizedBox(height: 8),
           Text(
-            message,
+            message ?? context.l10n.common_previewLoadFailed,
             style: theme.textTheme.bodySmall?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),

@@ -25,14 +25,6 @@ enum TagGender {
 
 /// TagGender 扩展方法
 extension TagGenderExtension on TagGender {
-  /// 获取显示名称的键（用于国际化）
-  String get l10nKey => switch (this) {
-        TagGender.female => 'gender_female',
-        TagGender.male => 'gender_male',
-        TagGender.trap => 'gender_trap',
-        TagGender.futanari => 'gender_futanari',
-      };
-
   /// 检查是否与 CharacterGender 兼容
   ///
   /// - female: 仅匹配 CharacterGender.female

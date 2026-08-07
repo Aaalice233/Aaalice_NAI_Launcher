@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 /// Aspect ratio item data
 class AspectRatioItem {
@@ -55,7 +56,7 @@ class _AspectRatioChartState extends State<AspectRatioChart> {
     if (widget.items.isEmpty) {
       return SizedBox(
         height: widget.height,
-        child: const Center(child: Text('No aspect ratio data')),
+        child: Center(child: Text(context.l10n.statistics_noData)),
       );
     }
 
@@ -89,7 +90,8 @@ class _AspectRatioChartState extends State<AspectRatioChart> {
                       final index = entry.key;
                       final item = entry.value;
                       final isTouched = _touchedIndex == index;
-                      final color = item.color ??
+                      final color =
+                          item.color ??
                           _defaultColors[index % _defaultColors.length];
 
                       return PieChartSectionData(
@@ -111,10 +113,7 @@ class _AspectRatioChartState extends State<AspectRatioChart> {
               // Aspect ratio preview cards
               if (widget.showLegend) ...[
                 const SizedBox(width: 12),
-                SizedBox(
-                  width: 140,
-                  child: _buildLegend(context),
-                ),
+                SizedBox(width: 140, child: _buildLegend(context)),
               ],
             ],
           ),
@@ -187,11 +186,7 @@ class _AspectRatioLegendItem extends StatelessWidget {
         child: Row(
           children: [
             // Aspect ratio preview box
-            _AspectRatioPreview(
-              ratio: item.ratio,
-              color: color,
-              size: 20,
-            ),
+            _AspectRatioPreview(ratio: item.ratio, color: color, size: 20),
             const SizedBox(width: 6),
             // Info
             Expanded(

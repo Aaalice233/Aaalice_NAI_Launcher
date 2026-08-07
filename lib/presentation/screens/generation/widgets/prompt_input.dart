@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -15,6 +16,7 @@ import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/fixed_tags_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/prompt_maximize_provider.dart';
+import '../../../providers/prompt_regex_rules_provider.dart';
 import '../../../providers/prompt_token_counter_provider.dart';
 import '../../../providers/quality_preset_provider.dart';
 import '../../../providers/queue_execution_provider.dart';
@@ -27,6 +29,7 @@ import '../../../widgets/prompt/nai_syntax_controller.dart';
 import '../../../widgets/prompt/prompt_token_count_bar.dart';
 import '../../../widgets/prompt/quality_tags_selector.dart';
 import '../../../widgets/prompt/random_mode_selector.dart';
+import '../../../widgets/prompt/regex_rules_dialog.dart';
 import '../../../widgets/prompt/toolbar/toolbar.dart';
 import '../../../widgets/prompt/uc_preset_selector.dart';
 import '../../../widgets/character/character_prompt_button.dart';
@@ -507,6 +510,21 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     );
 
     if (widget.autoGrow) {
+      // 官网布局工具栏不放「角色」与「随机」按钮：角色区常驻提示词下方、
+      // 随机在生成条与快捷键均有入口；行更短后 FittedBox 缩放更小，
+      // 其余按钮字号更大
+      final webToolbar = PromptEditorToolbar(
+        config: PromptEditorToolbarConfig.mainEditor.copyWith(
+          showRandomButton: false,
+          showFullscreenButton: widget.showMaximizeButton,
+        ),
+        onFullscreenPressed:
+            widget.onToggleMaximize ??
+            () => ref.read(promptMaximizeNotifierProvider.notifier).toggle(),
+        onClearPressed: _isNegativeMode ? _clearNegative : _clearPrompt,
+        onSettingsPressed: () => _showSettingsMenu(context, theme),
+      );
+
       // 一体式布局：顶栏压成单行，宽度不足时整行等比缩小而非换行
       return FittedBox(
         fit: BoxFit.scaleDown,
@@ -521,10 +539,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             QualityTagsSelector(model: model),
             const SizedBox(width: 6),
             UcPresetSelector(model: model),
-            const SizedBox(width: 6),
-            const CharacterPromptButton(),
             const SizedBox(width: 2),
-            toolbar,
+            webToolbar,
           ],
         ),
       );
@@ -572,7 +588,11 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     final enableSdSyntaxAutoConvert = ref.read(
       sdSyntaxAutoConvertSettingsProvider,
     );
+    final enableResolveAliasOnCopy = ref.read(
+      resolveAliasOnCopySettingsProvider,
+    );
     final enableCooccurrence = ref.read(cooccurrenceSettingsProvider);
+    final regexRuleCount = ref.read(promptRegexRulesProvider).length;
 
     // 使用工具栏提供的按钮位置
     final position = PromptEditorToolbar.getSettingsButtonPosition(context);
@@ -609,6 +629,20 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           isEnabled: enableSdSyntaxAutoConvert,
           title: context.l10n.prompt_sdSyntaxAutoConvert,
           subtitle: context.l10n.prompt_sdSyntaxAutoConvertSubtitle,
+          theme: theme,
+        ),
+        _buildSettingsActionMenuItem(
+          value: 'regex_rules',
+          icon: Icons.find_replace,
+          title: context.l10n.prompt_regexRulesManage,
+          subtitle: context.l10n.prompt_regexRulesCount(regexRuleCount),
+          theme: theme,
+        ),
+        _buildSettingsMenuItem(
+          value: 'resolve_alias_on_copy',
+          isEnabled: enableResolveAliasOnCopy,
+          title: context.l10n.prompt_resolveAliasOnCopy,
+          subtitle: context.l10n.prompt_resolveAliasOnCopySubtitle,
           theme: theme,
         ),
         _buildSettingsMenuItem(
@@ -805,6 +839,40 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     );
   }
 
+  /// 构造「点击后打开子界面」的菜单项（区别于勾选式开关项）
+  PopupMenuItem<String> _buildSettingsActionMenuItem({
+    required String value,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required ThemeData theme,
+  }) {
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title),
+                Text(
+                  subtitle,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right, size: 18, color: theme.colorScheme.outline),
+        ],
+      ),
+    );
+  }
+
   void _handleSettingsMenuResult(String? value) {
     switch (value) {
       case 'autocomplete':
@@ -815,6 +883,13 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         ref.read(highlightEmphasisSettingsProvider.notifier).toggle();
       case 'sd_syntax_convert':
         ref.read(sdSyntaxAutoConvertSettingsProvider.notifier).toggle();
+      case 'regex_rules':
+        // 菜单关闭后才回调到这里，需要重新确认 State 仍然挂载
+        if (mounted) {
+          RegexRulesDialog.show(context);
+        }
+      case 'resolve_alias_on_copy':
+        ref.read(resolveAliasOnCopySettingsProvider.notifier).toggle();
       case 'cooccurrence':
         ref.read(cooccurrenceSettingsProvider.notifier).toggle();
     }
@@ -976,7 +1051,7 @@ class _PositivePromptTooltip extends StatelessWidget {
   final String? qualityContent;
   final List<CharacterPrompt> characters;
   final bool globalAiChoice;
-  final dynamic l10n;
+  final AppLocalizations l10n;
   final AliasResolverService aliasResolver;
 
   const _PositivePromptTooltip({
@@ -1425,7 +1500,7 @@ class _NegativePromptTooltip extends StatelessWidget {
   final List<FixedTagEntry> prefixes;
   final List<FixedTagEntry> suffixes;
   final String ucPresetContent;
-  final dynamic l10n;
+  final AppLocalizations l10n;
   final AliasResolverService aliasResolver;
 
   const _NegativePromptTooltip({

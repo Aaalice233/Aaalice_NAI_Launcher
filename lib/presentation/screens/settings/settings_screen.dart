@@ -212,14 +212,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       minExtendedWidth: 180,
       backgroundColor: theme.colorScheme.surface,
       selectedIconTheme: IconThemeData(color: theme.colorScheme.primary),
-      selectedLabelTextStyle: TextStyle(
+      // 必须从 textTheme 派生：NavigationRail 对这两项是整体替换而非合并，
+      // 传裸 TextStyle 会把默认的 labelMedium 连同用户字体一起顶掉。
+      selectedLabelTextStyle: theme.textTheme.labelMedium?.copyWith(
         color: theme.colorScheme.primary,
         fontWeight: FontWeight.w600,
       ),
       unselectedIconTheme: IconThemeData(
         color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
       ),
-      unselectedLabelTextStyle: TextStyle(
+      unselectedLabelTextStyle: theme.textTheme.labelMedium?.copyWith(
         color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
       ),
       destinations: sections.map((section) {

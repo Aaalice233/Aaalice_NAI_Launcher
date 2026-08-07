@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
+
 import '../../utils/chart_colors.dart';
 
 /// Tag cloud data item
@@ -8,11 +10,7 @@ class TagCloudItem {
   final int count;
   final double? weight; // 0.0 to 1.0, calculated from count if not provided
 
-  const TagCloudItem({
-    required this.tag,
-    required this.count,
-    this.weight,
-  });
+  const TagCloudItem({required this.tag, required this.count, this.weight});
 }
 
 /// Tag cloud widget for visualizing tag frequency
@@ -72,7 +70,7 @@ class _TagCloudWidgetState extends State<TagCloudWidget>
     if (widget.tags.isEmpty) {
       return Center(
         child: Text(
-          'No tags available',
+          context.l10n.statistics_noTagData,
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -81,10 +79,12 @@ class _TagCloudWidgetState extends State<TagCloudWidget>
     }
 
     // Calculate weights
-    final maxCount =
-        widget.tags.map((t) => t.count).reduce((a, b) => a > b ? a : b);
-    final minCount =
-        widget.tags.map((t) => t.count).reduce((a, b) => a < b ? a : b);
+    final maxCount = widget.tags
+        .map((t) => t.count)
+        .reduce((a, b) => a > b ? a : b);
+    final minCount = widget.tags
+        .map((t) => t.count)
+        .reduce((a, b) => a < b ? a : b);
     final countRange = maxCount - minCount;
 
     // Shuffle tags for random placement
@@ -98,9 +98,11 @@ class _TagCloudWidgetState extends State<TagCloudWidget>
           runSpacing: 8,
           alignment: WrapAlignment.center,
           children: shuffledTags.map((tag) {
-            final weight = tag.weight ??
+            final weight =
+                tag.weight ??
                 (countRange > 0 ? (tag.count - minCount) / countRange : 0.5);
-            final fontSize = widget.minFontSize +
+            final fontSize =
+                widget.minFontSize +
                 (widget.maxFontSize - widget.minFontSize) * weight;
             final color = widget.useRandomColors
                 ? ChartColors.getColorForIndex(shuffledTags.indexOf(tag))
@@ -108,9 +110,10 @@ class _TagCloudWidgetState extends State<TagCloudWidget>
 
             return AnimatedOpacity(
               duration: Duration(
-                milliseconds: (widget.animationDuration.inMilliseconds *
-                        (0.5 + 0.5 * _random.nextDouble()))
-                    .toInt(),
+                milliseconds:
+                    (widget.animationDuration.inMilliseconds *
+                            (0.5 + 0.5 * _random.nextDouble()))
+                        .toInt(),
               ),
               opacity: _animation.value,
               child: Transform.scale(
@@ -222,7 +225,7 @@ class TopTagsRanking extends StatelessWidget {
     if (displayTags.isEmpty) {
       return Center(
         child: Text(
-          'No tags available',
+          context.l10n.statistics_noTagData,
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),

@@ -40,6 +40,30 @@ enum VibeBulkOperationType {
   import,
 }
 
+enum VibeBulkOperationErrorCode {
+  entryNotFoundOrDeleteFailed,
+  deleteFailed,
+  entryNotFound,
+  moveFailed,
+  favoriteFailed,
+  addTagsFailed,
+  removeTagsFailed,
+  exportNoFile,
+  exportFailed,
+  fileNotFound,
+  noVibeData,
+  importFailed,
+  processFileFailed,
+}
+
+class VibeBulkOperationError {
+  const VibeBulkOperationError(this.code, {this.itemName, this.details});
+
+  final VibeBulkOperationErrorCode code;
+  final String? itemName;
+  final String? details;
+}
+
 /// Vibe 批量操作结果
 class VibeBulkOperationResult {
   const VibeBulkOperationResult({
@@ -56,7 +80,7 @@ class VibeBulkOperationResult {
   final int failedCount;
 
   /// 错误信息列表
-  final List<String> errors;
+  final List<VibeBulkOperationError> errors;
 
   /// 导出文件路径（仅在导出操作时有值）
   final String? exportedFilePath;
@@ -84,7 +108,7 @@ class VibeBulkOperationResult {
   factory VibeBulkOperationResult.fromResult({
     required int success,
     required int failed,
-    required List<String> errors,
+    required List<VibeBulkOperationError> errors,
     String? exportedFilePath,
   }) {
     return VibeBulkOperationResult(
@@ -103,13 +127,14 @@ class VibeBulkOperationResult {
 /// [currentItem] - 当前处理的条目名称
 /// [operationType] - 当前操作类型
 /// [isComplete] - 是否完成
-typedef VibeBulkProgressCallback = void Function({
-  required int current,
-  required int total,
-  required String currentItem,
-  required VibeBulkOperationType operationType,
-  required bool isComplete,
-});
+typedef VibeBulkProgressCallback =
+    void Function({
+      required int current,
+      required int total,
+      required String currentItem,
+      required VibeBulkOperationType operationType,
+      required bool isComplete,
+    });
 
 /// Vibe 批量操作服务
 ///
@@ -127,8 +152,8 @@ class VibeBulkOperationService {
   VibeBulkOperationService({
     VibeLibraryStorageService? storageService,
     VibeExportService? exportService,
-  })  : _storageService = storageService ?? VibeLibraryStorageService(),
-        _exportService = exportService ?? VibeExportService();
+  }) : _storageService = storageService ?? VibeLibraryStorageService(),
+       _exportService = exportService ?? VibeExportService();
 
   static const String _tag = 'VibeBulkOperation';
 
@@ -143,7 +168,7 @@ class VibeBulkOperationService {
     final stopwatch = Stopwatch()..start();
     var successCount = 0;
     var failedCount = 0;
-    final errors = <String>[];
+    final errors = <VibeBulkOperationError>[];
 
     AppLogger.i('Starting bulk delete: ${entryIds.length} entries', _tag);
 
@@ -170,12 +195,23 @@ class VibeBulkOperationService {
           );
         } else {
           failedCount++;
-          errors.add('Entry not found or delete failed: $entryName');
+          errors.add(
+            VibeBulkOperationError(
+              VibeBulkOperationErrorCode.entryNotFoundOrDeleteFailed,
+              itemName: entryName,
+            ),
+          );
           AppLogger.w('Delete failed: $entryName', _tag);
         }
       } catch (e) {
         failedCount++;
-        errors.add('Failed to delete $entryName: $e');
+        errors.add(
+          VibeBulkOperationError(
+            VibeBulkOperationErrorCode.deleteFailed,
+            itemName: entryName,
+            details: e.toString(),
+          ),
+        );
         AppLogger.e('Delete failed for $entryName', e, null, _tag);
       }
     }
@@ -214,7 +250,7 @@ class VibeBulkOperationService {
     final stopwatch = Stopwatch()..start();
     var successCount = 0;
     var failedCount = 0;
-    final errors = <String>[];
+    final errors = <VibeBulkOperationError>[];
 
     AppLogger.i(
       'Starting bulk move: ${entryIds.length} entries to category ${targetCategoryId ?? "root"}',
@@ -247,12 +283,23 @@ class VibeBulkOperationService {
           );
         } else {
           failedCount++;
-          errors.add('Entry not found: $entryName');
+          errors.add(
+            VibeBulkOperationError(
+              VibeBulkOperationErrorCode.entryNotFound,
+              itemName: entryName,
+            ),
+          );
           AppLogger.w('Move failed - entry not found: $entryName', _tag);
         }
       } catch (e) {
         failedCount++;
-        errors.add('Failed to move $entryName: $e');
+        errors.add(
+          VibeBulkOperationError(
+            VibeBulkOperationErrorCode.moveFailed,
+            itemName: entryName,
+            details: e.toString(),
+          ),
+        );
         AppLogger.e('Move failed for $entryName', e, null, _tag);
       }
     }
@@ -291,7 +338,7 @@ class VibeBulkOperationService {
     final stopwatch = Stopwatch()..start();
     var successCount = 0;
     var failedCount = 0;
-    final errors = <String>[];
+    final errors = <VibeBulkOperationError>[];
 
     AppLogger.i(
       'Starting bulk favorite toggle: ${entryIds.length} entries -> $isFavorite',
@@ -315,7 +362,12 @@ class VibeBulkOperationService {
         final currentEntry = await _storageService.getEntry(entryId);
         if (currentEntry == null) {
           failedCount++;
-          errors.add('Entry not found: $entryName');
+          errors.add(
+            VibeBulkOperationError(
+              VibeBulkOperationErrorCode.entryNotFound,
+              itemName: entryName,
+            ),
+          );
           continue;
         }
 
@@ -334,11 +386,22 @@ class VibeBulkOperationService {
           );
         } else {
           failedCount++;
-          errors.add('Failed to toggle favorite: $entryName');
+          errors.add(
+            VibeBulkOperationError(
+              VibeBulkOperationErrorCode.favoriteFailed,
+              itemName: entryName,
+            ),
+          );
         }
       } catch (e) {
         failedCount++;
-        errors.add('Failed to toggle favorite for $entryName: $e');
+        errors.add(
+          VibeBulkOperationError(
+            VibeBulkOperationErrorCode.favoriteFailed,
+            itemName: entryName,
+            details: e.toString(),
+          ),
+        );
         AppLogger.e('Toggle favorite failed for $entryName', e, null, _tag);
       }
     }
@@ -377,7 +440,7 @@ class VibeBulkOperationService {
     final stopwatch = Stopwatch()..start();
     var successCount = 0;
     var failedCount = 0;
-    final errors = <String>[];
+    final errors = <VibeBulkOperationError>[];
 
     if (tags.isEmpty) {
       AppLogger.w('No tags to add, skipping bulk add tags', _tag);
@@ -406,7 +469,12 @@ class VibeBulkOperationService {
         final currentEntry = await _storageService.getEntry(entryId);
         if (currentEntry == null) {
           failedCount++;
-          errors.add('Entry not found: $entryName');
+          errors.add(
+            VibeBulkOperationError(
+              VibeBulkOperationErrorCode.entryNotFound,
+              itemName: entryName,
+            ),
+          );
           continue;
         }
 
@@ -425,11 +493,22 @@ class VibeBulkOperationService {
           );
         } else {
           failedCount++;
-          errors.add('Failed to add tags: $entryName');
+          errors.add(
+            VibeBulkOperationError(
+              VibeBulkOperationErrorCode.addTagsFailed,
+              itemName: entryName,
+            ),
+          );
         }
       } catch (e) {
         failedCount++;
-        errors.add('Failed to add tags for $entryName: $e');
+        errors.add(
+          VibeBulkOperationError(
+            VibeBulkOperationErrorCode.addTagsFailed,
+            itemName: entryName,
+            details: e.toString(),
+          ),
+        );
         AppLogger.e('Add tags failed for $entryName', e, null, _tag);
       }
     }
@@ -468,7 +547,7 @@ class VibeBulkOperationService {
     final stopwatch = Stopwatch()..start();
     var successCount = 0;
     var failedCount = 0;
-    final errors = <String>[];
+    final errors = <VibeBulkOperationError>[];
 
     if (tags.isEmpty) {
       AppLogger.w('No tags to remove, skipping bulk remove tags', _tag);
@@ -497,13 +576,19 @@ class VibeBulkOperationService {
         final currentEntry = await _storageService.getEntry(entryId);
         if (currentEntry == null) {
           failedCount++;
-          errors.add('Entry not found: $entryName');
+          errors.add(
+            VibeBulkOperationError(
+              VibeBulkOperationErrorCode.entryNotFound,
+              itemName: entryName,
+            ),
+          );
           continue;
         }
 
         // 移除指定标签
-        final updatedTags =
-            currentEntry.tags.where((t) => !tags.contains(t)).toList();
+        final updatedTags = currentEntry.tags
+            .where((t) => !tags.contains(t))
+            .toList();
         final updatedEntry = await _storageService.updateEntryTags(
           entryId,
           updatedTags,
@@ -517,11 +602,22 @@ class VibeBulkOperationService {
           );
         } else {
           failedCount++;
-          errors.add('Failed to remove tags: $entryName');
+          errors.add(
+            VibeBulkOperationError(
+              VibeBulkOperationErrorCode.removeTagsFailed,
+              itemName: entryName,
+            ),
+          );
         }
       } catch (e) {
         failedCount++;
-        errors.add('Failed to remove tags for $entryName: $e');
+        errors.add(
+          VibeBulkOperationError(
+            VibeBulkOperationErrorCode.removeTagsFailed,
+            itemName: entryName,
+            details: e.toString(),
+          ),
+        );
         AppLogger.e('Remove tags failed for $entryName', e, null, _tag);
       }
     }
@@ -573,19 +669,20 @@ class VibeBulkOperationService {
           exportedFilePath = await _exportService.exportAsBundle(
             entries,
             options: options,
-            onProgress: ({
-              required int current,
-              required int total,
-              required String currentItem,
-            }) {
-              onProgress?.call(
-                current: current,
-                total: total,
-                currentItem: currentItem,
-                operationType: VibeBulkOperationType.export,
-                isComplete: false,
-              );
-            },
+            onProgress:
+                ({
+                  required int current,
+                  required int total,
+                  required String currentItem,
+                }) {
+                  onProgress?.call(
+                    current: current,
+                    total: total,
+                    currentItem: currentItem,
+                    operationType: VibeBulkOperationType.export,
+                    isComplete: false,
+                  );
+                },
           );
           break;
         case VibeExportFormat.embeddedImage:
@@ -601,19 +698,20 @@ class VibeBulkOperationService {
           exportedFilePath = await _exportService.exportAsEncoding(
             entries,
             options: options,
-            onProgress: ({
-              required int current,
-              required int total,
-              required String currentItem,
-            }) {
-              onProgress?.call(
-                current: current,
-                total: total,
-                currentItem: currentItem,
-                operationType: VibeBulkOperationType.export,
-                isComplete: false,
-              );
-            },
+            onProgress:
+                ({
+                  required int current,
+                  required int total,
+                  required String currentItem,
+                }) {
+                  onProgress?.call(
+                    current: current,
+                    total: total,
+                    currentItem: currentItem,
+                    operationType: VibeBulkOperationType.export,
+                    isComplete: false,
+                  );
+                },
           );
           break;
       }
@@ -649,7 +747,9 @@ class VibeBulkOperationService {
         return VibeBulkOperationResult.fromResult(
           success: 0,
           failed: entries.length,
-          errors: ['Export failed: no file was created'],
+          errors: const [
+            VibeBulkOperationError(VibeBulkOperationErrorCode.exportNoFile),
+          ],
         );
       }
     } catch (e) {
@@ -658,7 +758,12 @@ class VibeBulkOperationService {
       return VibeBulkOperationResult.fromResult(
         success: 0,
         failed: entries.length,
-        errors: ['Export failed: $e'],
+        errors: [
+          VibeBulkOperationError(
+            VibeBulkOperationErrorCode.exportFailed,
+            details: e.toString(),
+          ),
+        ],
       );
     }
   }
@@ -679,7 +784,7 @@ class VibeBulkOperationService {
     final stopwatch = Stopwatch()..start();
     var successCount = 0;
     var failedCount = 0;
-    final errors = <String>[];
+    final errors = <VibeBulkOperationError>[];
 
     AppLogger.i(
       'Starting bulk import: ${filePaths.length} files to category ${targetCategoryId ?? "root"}',
@@ -704,7 +809,12 @@ class VibeBulkOperationService {
         final file = File(filePath);
         if (!await file.exists()) {
           failedCount++;
-          errors.add('File not found: $fileName');
+          errors.add(
+            VibeBulkOperationError(
+              VibeBulkOperationErrorCode.fileNotFound,
+              itemName: fileName,
+            ),
+          );
           AppLogger.w('Import failed - file not found: $filePath', _tag);
           continue;
         }
@@ -717,7 +827,12 @@ class VibeBulkOperationService {
 
         if (references.isEmpty) {
           failedCount++;
-          errors.add('No valid vibe data found in: $fileName');
+          errors.add(
+            VibeBulkOperationError(
+              VibeBulkOperationErrorCode.noVibeData,
+              itemName: fileName,
+            ),
+          );
           AppLogger.w('Import failed - no valid vibe data: $filePath', _tag);
           continue;
         }
@@ -752,13 +867,25 @@ class VibeBulkOperationService {
             );
           } catch (e) {
             failedCount++;
-            errors.add('Failed to import vibe from $fileName: $e');
+            errors.add(
+              VibeBulkOperationError(
+                VibeBulkOperationErrorCode.importFailed,
+                itemName: fileName,
+                details: e.toString(),
+              ),
+            );
             AppLogger.e('Import failed for vibe in $fileName', e, null, _tag);
           }
         }
       } catch (e, stackTrace) {
         failedCount++;
-        errors.add('Failed to process file $fileName: $e');
+        errors.add(
+          VibeBulkOperationError(
+            VibeBulkOperationErrorCode.processFileFailed,
+            itemName: fileName,
+            details: e.toString(),
+          ),
+        );
         AppLogger.e('Import failed for $filePath', e, stackTrace, _tag);
       }
     }
@@ -800,7 +927,7 @@ class VibeBulkOperationService {
     final stopwatch = Stopwatch()..start();
     var successCount = 0;
     var failedCount = 0;
-    final errors = <String>[];
+    final errors = <VibeBulkOperationError>[];
 
     AppLogger.i(
       'Starting bulk import from platform files: ${files.length} files to category ${targetCategoryId ?? "root"}',
@@ -830,7 +957,12 @@ class VibeBulkOperationService {
 
         if (references.isEmpty) {
           failedCount++;
-          errors.add('No valid vibe data found in: $fileName');
+          errors.add(
+            VibeBulkOperationError(
+              VibeBulkOperationErrorCode.noVibeData,
+              itemName: fileName,
+            ),
+          );
           AppLogger.w('Import failed - no valid vibe data: $fileName', _tag);
           continue;
         }
@@ -865,13 +997,25 @@ class VibeBulkOperationService {
             );
           } catch (e) {
             failedCount++;
-            errors.add('Failed to import vibe from $fileName: $e');
+            errors.add(
+              VibeBulkOperationError(
+                VibeBulkOperationErrorCode.importFailed,
+                itemName: fileName,
+                details: e.toString(),
+              ),
+            );
             AppLogger.e('Import failed for vibe in $fileName', e, null, _tag);
           }
         }
       } catch (e, stackTrace) {
         failedCount++;
-        errors.add('Failed to process file $fileName: $e');
+        errors.add(
+          VibeBulkOperationError(
+            VibeBulkOperationErrorCode.processFileFailed,
+            itemName: fileName,
+            details: e.toString(),
+          ),
+        );
         AppLogger.e('Import failed for $fileName', e, stackTrace, _tag);
       }
     }
@@ -962,7 +1106,7 @@ class VibeBulkOperationService {
   Future<List<VibeBulkOperationResult>> executeMultiple(
     List<BulkOperationConfig> operations, {
     void Function(int current, int total, VibeBulkOperationType type)?
-        onOperationStart,
+    onOperationStart,
   }) async {
     final results = <VibeBulkOperationResult>[];
 
@@ -973,27 +1117,27 @@ class VibeBulkOperationService {
       final result = switch (config.type) {
         VibeBulkOperationType.delete => await bulkDelete(config.entryIds),
         VibeBulkOperationType.move => await bulkMoveToCategory(
-            config.entryIds,
-            targetCategoryId: config.targetCategoryId,
-          ),
+          config.entryIds,
+          targetCategoryId: config.targetCategoryId,
+        ),
         VibeBulkOperationType.toggleFavorite => await bulkToggleFavorite(
-            config.entryIds,
-            isFavorite: config.boolValue ?? true,
-          ),
+          config.entryIds,
+          isFavorite: config.boolValue ?? true,
+        ),
         VibeBulkOperationType.addTags => await bulkAddTags(
-            config.entryIds,
-            tags: config.tags ?? [],
-          ),
+          config.entryIds,
+          tags: config.tags ?? [],
+        ),
         VibeBulkOperationType.removeTags => await bulkRemoveTags(
-            config.entryIds,
-            tags: config.tags ?? [],
-          ),
+          config.entryIds,
+          tags: config.tags ?? [],
+        ),
         VibeBulkOperationType.export => throw UnsupportedError(
-            'Export operation is not supported in executeMultiple, use bulkExport instead',
-          ),
+          'Export operation is not supported in executeMultiple, use bulkExport instead',
+        ),
         VibeBulkOperationType.import => throw UnsupportedError(
-            'Import operation is not supported in executeMultiple, use bulkImport or bulkImportFromPlatformFiles instead',
-          ),
+          'Import operation is not supported in executeMultiple, use bulkImport or bulkImportFromPlatformFiles instead',
+        ),
       };
 
       results.add(result);

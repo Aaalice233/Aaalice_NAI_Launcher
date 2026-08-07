@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
+
 import '../../utils/chart_colors.dart';
 
 /// Funnel chart data item
@@ -7,11 +9,7 @@ class FunnelDataItem {
   final double value;
   final Color? color;
 
-  const FunnelDataItem({
-    required this.label,
-    required this.value,
-    this.color,
-  });
+  const FunnelDataItem({required this.label, required this.value, this.color});
 }
 
 /// Funnel chart widget for showing conversion flow
@@ -75,7 +73,7 @@ class _FunnelChartState extends State<FunnelChart>
         height: widget.height,
         child: Center(
           child: Text(
-            'No data available',
+            context.l10n.statistics_noData,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -108,10 +106,7 @@ class _FunnelChartState extends State<FunnelChart>
               ),
               // Labels and values
               if (widget.showLabels || widget.showValues)
-                Expanded(
-                  flex: 2,
-                  child: _buildLabels(theme),
-                ),
+                Expanded(flex: 2, child: _buildLabels(theme)),
             ],
           ),
         );
@@ -251,7 +246,8 @@ class _FunnelChartPainter extends CustomPainter {
       final color = item.color ?? ChartColors.getColorForIndex(i);
 
       // Calculate widths with animation
-      final topWidth = (i == 0
+      final topWidth =
+          (i == 0
               ? maxWidth
               : _getWidthForIndex(i - 1, maxValue, maxWidth, minWidth)) *
           animationValue;

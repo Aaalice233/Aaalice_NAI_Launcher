@@ -82,6 +82,25 @@ final sdSyntaxAutoConvertSettingsProvider =
 );
 
 typedef _$SdSyntaxAutoConvertSettings = Notifier<bool>;
+String _$resolveAliasOnCopySettingsHash() =>
+    r'9c8654b27b0c93ece1a13c7e67b9d7c5f3707142';
+
+/// 复制时展开词库别名设置 Notifier
+///
+/// Copied from [ResolveAliasOnCopySettings].
+@ProviderFor(ResolveAliasOnCopySettings)
+final resolveAliasOnCopySettingsProvider =
+    NotifierProvider<ResolveAliasOnCopySettings, bool>.internal(
+  ResolveAliasOnCopySettings.new,
+  name: r'resolveAliasOnCopySettingsProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$resolveAliasOnCopySettingsHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+typedef _$ResolveAliasOnCopySettings = Notifier<bool>;
 String _$promptWeightScrollSettingsHash() =>
     r'7d2c67313f9d3910f8dc228f990eab720f4bc084';
 

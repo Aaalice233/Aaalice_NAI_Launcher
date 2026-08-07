@@ -31,6 +31,7 @@ void main() {
       LocalImageContextAction.sendToReversePrompt,
       LocalImageContextAction.sendToStyleTransfer,
       LocalImageContextAction.sendToPreciseReference,
+      LocalImageContextAction.saveToPreciseRefLibrary,
       LocalImageContextAction.sendToKrita,
       LocalImageContextAction.upscale,
       LocalImageContextAction.importMetadata,
@@ -119,6 +120,7 @@ void main() {
       LocalImageContextAction.sendToReversePrompt,
       LocalImageContextAction.sendToStyleTransfer,
       LocalImageContextAction.sendToPreciseReference,
+      LocalImageContextAction.saveToPreciseRefLibrary,
       LocalImageContextAction.sendToKrita,
       LocalImageContextAction.upscale,
     ]);

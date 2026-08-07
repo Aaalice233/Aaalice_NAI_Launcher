@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 /// Tag ranking item data
 class TagRankItem {
@@ -34,9 +35,7 @@ class TopTagsRanking extends StatelessWidget {
   Widget build(BuildContext context) {
     final displayItems = items.take(maxItems).toList();
     if (displayItems.isEmpty) {
-      return const Center(
-        child: Text('No tag data available'),
-      );
+      return Center(child: Text(context.l10n.statistics_noTagData));
     }
 
     final screenWidth = MediaQuery.of(context).size.width;
@@ -151,14 +150,14 @@ class _TagRankRow extends StatelessWidget {
               // Tag chip
               Expanded(
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: rankColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: rankColor.withValues(alpha: 0.3),
-                    ),
+                    border: Border.all(color: rankColor.withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     item.tag,
@@ -213,14 +212,14 @@ class _MiniTrendIndicator extends StatelessWidget {
     final color = isPositive
         ? Colors.green
         : isNegative
-            ? Colors.red
-            : Colors.grey;
+        ? Colors.red
+        : Colors.grey;
 
     final icon = isPositive
         ? Icons.north
         : isNegative
-            ? Icons.south
-            : Icons.remove;
+        ? Icons.south
+        : Icons.remove;
 
     return Icon(icon, size: 14, color: color);
   }

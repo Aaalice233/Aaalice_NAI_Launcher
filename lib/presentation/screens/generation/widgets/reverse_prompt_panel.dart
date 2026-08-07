@@ -220,7 +220,13 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     padding: const EdgeInsets.all(2),
-                    child: const Icon(Icons.close, size: 14),
+                    // 底色是写死的半透明黑，图标也必须写死浅色，
+                    // 否则浅色主题下会继承成近黑色，变成黑底黑图标。
+                    child: const Icon(
+                      Icons.close,
+                      size: 14,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -250,8 +256,9 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
         FilterChip(
           label: Text(context.l10n.reversePrompt_characterReplace),
           selected: state.useCharacterReplace,
-          onSelected:
-              state.isProcessing ? null : notifier.setUseCharacterReplace,
+          onSelected: state.isProcessing
+              ? null
+              : notifier.setUseCharacterReplace,
         ),
       ],
     );
@@ -264,8 +271,8 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
         final models = snapshot.data ?? const <LocalOnnxModelDescriptor>[];
         final selected =
             models.any((m) => m.path == state.selectedTaggerModelPath)
-                ? state.selectedTaggerModelPath
-                : null;
+            ? state.selectedTaggerModelPath
+            : null;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -283,8 +290,8 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
               onChanged: state.isProcessing
                   ? null
                   : ref
-                      .read(reversePromptProvider.notifier)
-                      .setSelectedTaggerModelPath,
+                        .read(reversePromptProvider.notifier)
+                        .setSelectedTaggerModelPath,
               decoration: InputDecoration(
                 labelText: context.l10n.reversePrompt_localTaggerModel,
                 hintText: context.l10n.reversePrompt_localTaggerModelHint,
@@ -298,8 +305,8 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
               onChanged: state.isProcessing
                   ? null
                   : ref
-                      .read(reversePromptProvider.notifier)
-                      .setTaggerGeneralThreshold,
+                        .read(reversePromptProvider.notifier)
+                        .setTaggerGeneralThreshold,
             ),
             _ThresholdSlider(
               label: context.l10n.reversePrompt_characterThreshold,
@@ -307,14 +314,14 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
               onChanged: state.isProcessing
                   ? null
                   : ref
-                      .read(reversePromptProvider.notifier)
-                      .setTaggerCharacterThreshold,
+                        .read(reversePromptProvider.notifier)
+                        .setTaggerCharacterThreshold,
             ),
             Text(
               context.l10n.reversePrompt_taggerFilterHint,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.white70,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         );
@@ -336,8 +343,8 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
           Text(
             context.l10n.reversePrompt_replacementEmptyHint,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.white70,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 8),
           Align(
@@ -347,8 +354,9 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
                   ? null
                   : _selectReverseCharacterFromLibrary,
               icon: const Icon(Icons.library_books_outlined, size: 18),
-              label:
-                  Text(context.l10n.reversePrompt_selectReplacementCharacter),
+              label: Text(
+                context.l10n.reversePrompt_selectReplacementCharacter,
+              ),
             ),
           ),
         ],
@@ -385,7 +393,9 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
             selectedCharacter.prompt,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -403,8 +413,8 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
                 onPressed: state.isProcessing
                     ? null
                     : ref
-                        .read(reversePromptCharacterProvider.notifier)
-                        .clearReplacementCharacter,
+                          .read(reversePromptCharacterProvider.notifier)
+                          .clearReplacementCharacter,
                 icon: const Icon(Icons.close_rounded, size: 16),
                 label: Text(context.l10n.common_clear),
               ),
@@ -428,7 +438,9 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
     }
 
     ref.read(tagLibraryPageNotifierProvider.notifier).recordUsage(entry.id);
-    ref.read(reversePromptCharacterProvider.notifier).setReplacementCharacter(
+    ref
+        .read(reversePromptCharacterProvider.notifier)
+        .setReplacementCharacter(
           CharacterPrompt.create(
             name: entry.displayName,
             prompt: entry.content,
@@ -465,8 +477,9 @@ class _ReversePromptPanelState extends ConsumerState<ReversePromptPanel> {
               ? null
               : () {
                   final prompt = state.finalPrompt.trim();
-                  final currentPrompt =
-                      ref.read(generationParamsNotifierProvider).prompt;
+                  final currentPrompt = ref
+                      .read(generationParamsNotifierProvider)
+                      .prompt;
                   ref
                       .read(promptAssistantHistoryProvider.notifier)
                       .recordExternalChange(
@@ -590,10 +603,7 @@ class _ThresholdSlider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        SizedBox(
-          width: 104,
-          child: Text('$label ${value.toStringAsFixed(2)}'),
-        ),
+        SizedBox(width: 104, child: Text('$label ${value.toStringAsFixed(2)}')),
         Expanded(
           child: Slider(
             value: value,
@@ -609,10 +619,7 @@ class _ThresholdSlider extends StatelessWidget {
 }
 
 class _PromptOutputBlock extends StatelessWidget {
-  const _PromptOutputBlock({
-    required this.title,
-    required this.text,
-  });
+  const _PromptOutputBlock({required this.title, required this.text});
 
   final String title;
   final String text;
@@ -631,10 +638,7 @@ class _PromptOutputBlock extends StatelessWidget {
         children: [
           Text(title, style: theme.textTheme.labelMedium),
           const SizedBox(height: 4),
-          SelectableText(
-            text,
-            style: theme.textTheme.bodySmall,
-          ),
+          SelectableText(text, style: theme.textTheme.bodySmall),
         ],
       ),
     );

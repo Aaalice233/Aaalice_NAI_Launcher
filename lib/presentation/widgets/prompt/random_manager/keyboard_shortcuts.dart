@@ -43,10 +43,7 @@ class RandomManagerShortcuts extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return CallbackShortcuts(
       bindings: _buildBindings(context, ref),
-      child: Focus(
-        autofocus: true,
-        child: child,
-      ),
+      child: Focus(autofocus: true, child: child),
     );
   }
 
@@ -224,10 +221,7 @@ class ShortcutHelpDialog extends StatelessWidget {
 
 /// 快捷键分组
 class _ShortcutSection extends StatelessWidget {
-  const _ShortcutSection({
-    required this.title,
-    required this.shortcuts,
-  });
+  const _ShortcutSection({required this.title, required this.shortcuts});
 
   final String title;
   final List<_ShortcutItem> shortcuts;
@@ -255,10 +249,7 @@ class _ShortcutSection extends StatelessWidget {
               children: [
                 _KeyBadge(keys: s.keys),
                 const SizedBox(width: 12),
-                Text(
-                  s.description,
-                  style: theme.textTheme.bodySmall,
-                ),
+                Text(s.description, style: theme.textTheme.bodySmall),
               ],
             ),
           ),
@@ -358,7 +349,7 @@ class _ShortcutHelpButtonState extends State<ShortcutHelpButton> {
       child: GestureDetector(
         onTap: () => ShortcutHelpDialog.show(context),
         child: Tooltip(
-          message: '键盘快捷键 (按 ? 查看)',
+          message: context.l10n.randomManager_keyboardShortcutsHint,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             padding: const EdgeInsets.all(8),

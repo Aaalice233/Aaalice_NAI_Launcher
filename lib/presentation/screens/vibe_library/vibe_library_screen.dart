@@ -122,6 +122,14 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(vibeLibraryNotifierProvider);
     final categoryState = ref.watch(vibeLibraryCategoryNotifierProvider);
+    ref.listen(
+      vibeLibraryCategoryNotifierProvider.select((value) => value.error),
+      (previous, error) {
+        if (error == null) return;
+        AppToast.error(context, error.localized(context.l10n));
+        ref.read(vibeLibraryCategoryNotifierProvider.notifier).clearError();
+      },
+    );
     final selectionState = ref.watch(vibeLibrarySelectionNotifierProvider);
     final screenWidth = MediaQuery.of(context).size.width;
     final theme = Theme.of(context);

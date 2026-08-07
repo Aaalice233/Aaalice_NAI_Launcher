@@ -421,6 +421,38 @@ class LocalStorageService {
     await setSetting(StorageKeys.sdSyntaxAutoConvert, value);
   }
 
+  // ==================== Resolve Alias On Copy ====================
+
+  /// 获取复制时是否展开词库别名 (默认关闭)
+  bool getResolveAliasOnCopy() {
+    return getSetting<bool>(
+          StorageKeys.resolveAliasOnCopy,
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// 保存复制时是否展开词库别名
+  Future<void> setResolveAliasOnCopy(bool value) async {
+    await setSetting(StorageKeys.resolveAliasOnCopy, value);
+  }
+
+  // ==================== Prompt Regex Replace ====================
+
+  /// 获取正则替换规则（每项为一条规则的 JSON 字符串）
+  ///
+  /// 这里只存字符串，模型的序列化由调用方负责，避免存储层依赖数据模型。
+  List<String> getPromptRegexRules() {
+    final data = getSetting<List<dynamic>>(StorageKeys.promptRegexRules);
+    if (data == null) return const [];
+    return data.whereType<String>().toList();
+  }
+
+  /// 保存正则替换规则
+  Future<void> setPromptRegexRules(List<String> encodedRules) async {
+    await setSetting(StorageKeys.promptRegexRules, encodedRules);
+  }
+
   // ==================== Prompt Weight Scroll ====================
 
   /// 获取是否启用滚轮调整提示词权重（默认开启）

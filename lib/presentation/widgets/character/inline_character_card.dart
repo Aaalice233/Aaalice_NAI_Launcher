@@ -283,10 +283,9 @@ class _InlineCharacterCardState extends ConsumerState<InlineCharacterCard> {
                         },
                       ),
                     ),
-                    // 操作全部平铺一排；紧凑卡只留启用与删除，
-                    // 其余操作在全宽编辑面板的头部
-                    if (!widget.compact)
-                      ..._buildFullActions(context, l10n, onHeader),
+                    // 操作全部平铺一排（两种布局一致：上移/下移/收藏词库），
+                    // 名字用 Expanded 省略号吸收宽度，窄卡不会溢出
+                    ..._buildFullActions(context, l10n, onHeader),
                     _HeaderIconButton(
                       icon: character.enabled
                           ? Icons.check_circle

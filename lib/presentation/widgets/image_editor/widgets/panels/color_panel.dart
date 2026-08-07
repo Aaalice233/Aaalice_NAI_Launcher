@@ -9,10 +9,7 @@ import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 class ColorPanel extends StatelessWidget {
   final EditorState state;
 
-  const ColorPanel({
-    super.key,
-    required this.state,
-  });
+  const ColorPanel({super.key, required this.state});
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +62,8 @@ class ColorPanel extends StatelessWidget {
                       children: _quickColors.map((color) {
                         return _QuickColorButton(
                           color: color,
-                          isSelected: state.foregroundColor.toARGB32() ==
+                          isSelected:
+                              state.foregroundColor.toARGB32() ==
                               color.toARGB32(),
                           onTap: () => state.setForegroundColor(color),
                         );
@@ -201,7 +199,13 @@ class _ColorPreview extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Icon(Icons.swap_horiz, size: 14),
+                // 底色写死为白，图标也必须写死深色，
+                // 否则在深色主题下会继承成近白色，变成白底白图标。
+                child: const Icon(
+                  Icons.swap_horiz,
+                  size: 14,
+                  color: Colors.black87,
+                ),
               ),
             ),
           ),
@@ -319,12 +323,15 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
                                 height: 16,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  border:
-                                      Border.all(color: Colors.white, width: 2),
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
+                                  ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color:
-                                          Colors.black.withValues(alpha: 0.3),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.3,
+                                      ),
                                       blurRadius: 2,
                                     ),
                                   ],
@@ -357,8 +364,10 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
                               child: Container(
                                 height: 4,
                                 decoration: BoxDecoration(
-                                  border:
-                                      Border.all(color: Colors.white, width: 1),
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 1,
+                                  ),
                                 ),
                               ),
                             ),
@@ -421,21 +430,15 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
   void _updateSV(Offset position, Size size) {
     setState(() {
       _hsvColor = _hsvColor
-          .withSaturation(
-            (position.dx / size.width).clamp(0.0, 1.0),
-          )
-          .withValue(
-            (1 - position.dy / size.height).clamp(0.0, 1.0),
-          );
+          .withSaturation((position.dx / size.width).clamp(0.0, 1.0))
+          .withValue((1 - position.dy / size.height).clamp(0.0, 1.0));
       _updateHexController();
     });
   }
 
   void _updateHue(double y, double height) {
     setState(() {
-      _hsvColor = _hsvColor.withHue(
-        (y / height * 360).clamp(0.0, 360.0),
-      );
+      _hsvColor = _hsvColor.withHue((y / height * 360).clamp(0.0, 360.0));
       _updateHexController();
     });
   }

@@ -16,6 +16,9 @@ class GenericAutocompleteOverlay extends StatelessWidget {
   final ScrollController? scrollController;
   final String languageCode;
 
+  /// 弹层最大高度（由外部按屏幕可用空间压缩，避免超出窗口边界）
+  final double maxHeight;
+
   const GenericAutocompleteOverlay({
     super.key,
     required this.suggestions,
@@ -25,6 +28,7 @@ class GenericAutocompleteOverlay extends StatelessWidget {
     this.isLoading = false,
     this.scrollController,
     this.languageCode = 'zh',
+    this.maxHeight = 300,
   });
 
   @override
@@ -40,10 +44,7 @@ class GenericAutocompleteOverlay extends StatelessWidget {
       borderRadius: BorderRadius.circular(4),
       color: theme.colorScheme.surfaceContainerHigh,
       child: Container(
-        constraints: const BoxConstraints(
-          maxHeight: 300,
-          maxWidth: 400,
-        ),
+        constraints: BoxConstraints(maxHeight: maxHeight, maxWidth: 400),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(4),
           border: Border.all(
@@ -91,8 +92,9 @@ class GenericAutocompleteOverlay extends StatelessWidget {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.5),
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.5,
+                    ),
                     border: Border(
                       top: BorderSide(
                         color: theme.colorScheme.outline.withValues(alpha: 0.1),

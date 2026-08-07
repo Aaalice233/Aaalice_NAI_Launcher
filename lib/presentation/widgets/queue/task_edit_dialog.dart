@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nai_launcher/core/cache/danbooru_image_cache_manager.dart';
@@ -192,7 +193,7 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
   Widget _buildPromptEditor(
     BuildContext context,
     ThemeData theme,
-    dynamic l10n,
+    AppLocalizations l10n,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

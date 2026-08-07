@@ -95,9 +95,9 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
     this.maxLines,
     this.expands = false,
   }) : assert(
-          strategy != null || asyncStrategy != null,
-          'A strategy or asyncStrategy must be provided',
-        );
+         strategy != null || asyncStrategy != null,
+         'A strategy or asyncStrategy must be provided',
+       );
 
   /// 便捷构造：使用本地标签策略
   factory AutocompleteWrapper.localTag({
@@ -152,10 +152,7 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
       controller: controller,
       asyncStrategy: LocalTagStrategy.create(ref, config).then(
         (localTagStrategy) => CompositeStrategy(
-          strategies: [
-            localTagStrategy,
-            AliasStrategy.create(ref),
-          ],
+          strategies: [localTagStrategy, AliasStrategy.create(ref)],
           strategySelector: defaultStrategySelector,
         ),
       ),
@@ -188,8 +185,10 @@ AutocompleteStrategy? defaultStrategySelector(
   int cursorPosition,
 ) {
   // 1. 优先检测别名模式
-  final (isTypingAlias, _, _) =
-      AliasParser.detectPartialAlias(text, cursorPosition);
+  final (isTypingAlias, _, _) = AliasParser.detectPartialAlias(
+    text,
+    cursorPosition,
+  );
   if (isTypingAlias) {
     return _findStrategyByType<AliasStrategy>(strategies);
   }
@@ -526,13 +525,47 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
               )
             : null;
 
-        // 计算偏移量
+        // 计算偏移量（向下展开模式）
         final offset = isMultiline && cursorOffset != null
             ? Offset(
                 cursorOffset.dx.clamp(0, size.width - 300),
                 cursorOffset.dy + 4,
               )
             : Offset(0, size.height + 4);
+
+        // 屏幕边界感知：底部空间不足时向上翻转展开，
+        // 且把弹层最大高度压缩到实际可用空间内
+        const overlayMaxHeight = 300.0;
+        const edgeMargin = 8.0;
+        const cursorLineClearance = 24.0;
+        final screenHeight = MediaQuery.sizeOf(context).height;
+        final fieldGlobal = renderBox.localToGlobal(Offset.zero);
+        final downTop = fieldGlobal.dy + offset.dy;
+        final spaceBelow = screenHeight - downTop - edgeMargin;
+
+        var flipUp = false;
+        var effectiveMaxHeight = overlayMaxHeight;
+        if (spaceBelow < overlayMaxHeight) {
+          // 向上模式的锚点：单行贴输入框顶，多行贴光标行上方
+          final upAnchorLocalY = isMultiline && cursorOffset != null
+              ? cursorOffset.dy - cursorLineClearance
+              : -4.0;
+          final spaceAbove = fieldGlobal.dy + upAnchorLocalY - edgeMargin;
+          if (spaceAbove > spaceBelow) {
+            flipUp = true;
+            effectiveMaxHeight = spaceAbove.clamp(120.0, overlayMaxHeight);
+          } else {
+            effectiveMaxHeight = spaceBelow.clamp(120.0, overlayMaxHeight);
+          }
+        }
+        final effectiveOffset = flipUp
+            ? Offset(
+                offset.dx,
+                isMultiline && cursorOffset != null
+                    ? cursorOffset.dy - cursorLineClearance
+                    : -4.0,
+              )
+            : offset;
 
         // 获取当前建议列表
         final strategy = _effectiveStrategy;
@@ -550,21 +583,27 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
           child: CompositedTransformFollower(
             link: _layerLink,
             showWhenUnlinked: false,
-            offset: offset,
+            followerAnchor: flipUp ? Alignment.bottomLeft : Alignment.topLeft,
+            offset: effectiveOffset,
             // 包装 Listener 以支持滚轮选择
             child: Listener(
               onPointerSignal: (event) {
                 if (event is PointerScrollEvent && suggestionsLength > 0) {
-                  // 滚轮向下滚动（正值）选择下一个，向上滚动（负值）选择上一个
+                  // 滚轮向下选择下一个、向上选择上一个；
+                  // 到边界即停（不循环），避免滚到底后突然跳回顶部
                   if (event.scrollDelta.dy > 0) {
                     setState(() {
-                      _selectedIndex = (_selectedIndex + 1) % suggestionsLength;
+                      _selectedIndex = (_selectedIndex + 1).clamp(
+                        0,
+                        suggestionsLength - 1,
+                      );
                     });
                   } else if (event.scrollDelta.dy < 0) {
                     setState(() {
-                      _selectedIndex = _selectedIndex <= 0
-                          ? suggestionsLength - 1
-                          : _selectedIndex - 1;
+                      _selectedIndex = (_selectedIndex - 1).clamp(
+                        0,
+                        suggestionsLength - 1,
+                      );
                     });
                   }
                   _overlayEntry?.markNeedsBuild();
@@ -585,6 +624,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
                 isLoading: strategy.isLoading,
                 scrollController: _scrollController,
                 languageCode: locale.languageCode,
+                maxHeight: effectiveMaxHeight,
               ),
             ),
           ),
@@ -688,8 +728,9 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
         return KeyEventResult.handled;
       } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
         setState(() {
-          _selectedIndex =
-              _selectedIndex <= 0 ? suggestionsLength - 1 : _selectedIndex - 1;
+          _selectedIndex = _selectedIndex <= 0
+              ? suggestionsLength - 1
+              : _selectedIndex - 1;
         });
         _overlayEntry?.markNeedsBuild();
         _scrollToSelected();

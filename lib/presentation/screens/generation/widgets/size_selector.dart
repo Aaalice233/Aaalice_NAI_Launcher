@@ -82,8 +82,10 @@ class _SizeSelectorState extends State<SizeSelector> {
   }
 
   void _updateSelectedPreset() {
-    final matchedPreset =
-        ResolutionPreset.findBySize(widget.width, widget.height);
+    final matchedPreset = ResolutionPreset.findBySize(
+      widget.width,
+      widget.height,
+    );
     _selectedPresetId = matchedPreset?.id ?? 'custom';
   }
 
@@ -286,7 +288,7 @@ class _SizeSelectorState extends State<SizeSelector> {
                 _onManualSizeChanged();
               },
               icon: const Icon(Icons.swap_horiz, size: 20),
-              tooltip: 'Swap',
+              tooltip: context.l10n.common_swap,
               style: IconButton.styleFrom(
                 backgroundColor: theme.colorScheme.surfaceContainerHighest,
                 shape: RoundedRectangleBorder(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../data/models/prompt/conditional_branch.dart';
 import '../../../common/themed_slider.dart';
@@ -34,20 +35,34 @@ class ConditionalBranchPanel extends StatefulWidget {
 class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
   late ConditionalBranchConfig _config;
   int? _selectedIndex;
+  bool _usesDefaultConfig = false;
 
   @override
   void initState() {
     super.initState();
-    _config =
-        widget.config ?? const ConditionalBranchConfig(id: '', name: '条件分支配置');
+    _usesDefaultConfig = widget.config == null;
+    _config = widget.config ?? const ConditionalBranchConfig(id: '', name: '');
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_usesDefaultConfig && _config.name.isEmpty) {
+      _config = _config.copyWith(name: context.l10n.diy_conditionalDefaultName);
+    }
   }
 
   @override
   void didUpdateWidget(ConditionalBranchPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.config != widget.config) {
-      _config = widget.config ??
-          const ConditionalBranchConfig(id: '', name: '条件分支配置');
+      _usesDefaultConfig = widget.config == null;
+      _config =
+          widget.config ??
+          ConditionalBranchConfig(
+            id: '',
+            name: context.l10n.diy_conditionalDefaultName,
+          );
       _selectedIndex = null;
     }
   }
@@ -61,14 +76,10 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
 
   void _addBranch() {
     final newBranch = ConditionalBranch(
-      name: '分支 ${_config.branches.length + 1}',
+      name: context.l10n.diy_branchDefaultName(_config.branches.length + 1),
       probability: 10,
     );
-    _updateConfig(
-      _config.copyWith(
-        branches: [..._config.branches, newBranch],
-      ),
-    );
+    _updateConfig(_config.copyWith(branches: [..._config.branches, newBranch]));
   }
 
   void _removeBranch(int index) {
@@ -149,13 +160,13 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '条件分支配置',
+                context.l10n.diy_conditionalTitle,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
-                '根据概率选择不同分支',
+                context.l10n.diy_conditionalSubtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -171,7 +182,7 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              '${_config.branches.length} 个分支',
+              context.l10n.diy_branchCount(_config.branches.length),
               style: theme.textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: colorScheme.secondary,
@@ -196,8 +207,10 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
       [Colors.teal, Colors.teal.withValues(alpha: 0.7)],
     ];
 
-    final total =
-        _config.branches.fold<int>(0, (sum, b) => sum + b.probability);
+    final total = _config.branches.fold<int>(
+      0,
+      (sum, b) => sum + b.probability,
+    );
     if (total <= 0) return const SizedBox.shrink();
 
     return ElevatedCard(
@@ -213,8 +226,8 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
               final index = entry.key;
               final branch = entry.value;
               final colors = gradients[index % gradients.length];
-              final percent =
-                  (branch.probability / total * 100).toStringAsFixed(0);
+              final percent = (branch.probability / total * 100)
+                  .toStringAsFixed(0);
               final isSelected = _selectedIndex == index;
 
               return Expanded(
@@ -268,8 +281,9 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
                                     Text(
                                       '$percent%',
                                       style: TextStyle(
-                                        color:
-                                            Colors.white.withValues(alpha: 0.9),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.9,
+                                        ),
                                         fontSize: 9,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -316,14 +330,14 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
               ),
               const SizedBox(height: 12),
               Text(
-                '暂无条件分支',
+                context.l10n.diy_noConditionalBranches,
                 style: theme.textTheme.titleSmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                '添加分支以实现条件选择逻辑',
+                context.l10n.diy_noConditionalBranchesHint,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.outline,
                 ),
@@ -368,8 +382,10 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
             child: InkWell(
               onTap: () => setState(() => _selectedIndex = index),
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Row(
                   children: [
                     // 概率圆形指示器
@@ -428,7 +444,9 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
                           ),
                           if (branch.conditions.isNotEmpty)
                             Text(
-                              '${branch.conditions.length} 个条件',
+                              context.l10n.diy_conditionCount(
+                                branch.conditions.length,
+                              ),
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: colorScheme.onSurfaceVariant,
                               ),
@@ -444,12 +462,13 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color:
-                              colorScheme.errorContainer.withValues(alpha: 0.5),
+                          color: colorScheme.errorContainer.withValues(
+                            alpha: 0.5,
+                          ),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          '已禁用',
+                          context.l10n.common_disabled,
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: colorScheme.error,
                           ),
@@ -463,7 +482,7 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
                           color: colorScheme.error.withValues(alpha: 0.7),
                         ),
                         onPressed: () => _removeBranch(index),
-                        tooltip: '删除分支',
+                        tooltip: context.l10n.diy_deleteBranch,
                       ),
                     ],
                   ],
@@ -498,14 +517,10 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.add_rounded,
-                  size: 18,
-                  color: colorScheme.primary,
-                ),
+                Icon(Icons.add_rounded, size: 18, color: colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
-                  '添加分支',
+                  context.l10n.diy_addBranch,
                   style: theme.textTheme.labelLarge?.copyWith(
                     color: colorScheme.primary,
                     fontWeight: FontWeight.w600,
@@ -558,7 +573,7 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  '编辑: ${branch.name}',
+                  context.l10n.diy_editBranch(branch.name),
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -570,7 +585,7 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
                   color: colorScheme.onSurfaceVariant,
                 ),
                 onPressed: () => setState(() => _selectedIndex = null),
-                tooltip: '关闭',
+                tooltip: context.l10n.common_close,
               ),
             ],
           ),
@@ -580,9 +595,9 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
           // 分支名称
           ThemedFormInput(
             initialValue: branch.name,
-            decoration: const InputDecoration(
-              labelText: '分支名称',
-              prefixIcon: Icon(Icons.label_outline_rounded),
+            decoration: InputDecoration(
+              labelText: context.l10n.diy_branchName,
+              prefixIcon: const Icon(Icons.label_outline_rounded),
             ),
             readOnly: widget.readOnly,
             onChanged: (value) {
@@ -607,7 +622,7 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
               ),
               const SizedBox(width: 10),
               Text(
-                '概率',
+                context.l10n.diy_probability,
                 style: theme.textTheme.titleSmall,
               ),
               const SizedBox(width: 12),
@@ -629,8 +644,10 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
               ),
               const SizedBox(width: 8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -670,7 +687,7 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    '启用此分支',
+                    context.l10n.diy_enableBranch,
                     style: theme.textTheme.titleSmall,
                   ),
                 ),

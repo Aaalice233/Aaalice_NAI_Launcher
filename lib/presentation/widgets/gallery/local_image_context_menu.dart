@@ -8,6 +8,7 @@ enum LocalImageContextAction {
   sendToReversePrompt,
   sendToStyleTransfer,
   sendToPreciseReference,
+  saveToPreciseRefLibrary,
   sendToKrita,
   upscale,
   importMetadata,
@@ -149,6 +150,12 @@ class LocalImageContextMenu {
         value: LocalImageContextAction.sendToPreciseReference,
         icon: Icons.center_focus_strong,
         label: context.l10n.localGallery_sendToPreciseReference,
+      ),
+      _item(
+        context,
+        value: LocalImageContextAction.saveToPreciseRefLibrary,
+        icon: Icons.bookmark_add_outlined,
+        label: context.l10n.localGallery_saveToPreciseRefLibrary,
       ),
       _item(
         context,

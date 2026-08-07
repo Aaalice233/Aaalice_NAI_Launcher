@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../../data/models/prompt/time_condition.dart';
 import '../panels/time_condition_panel.dart';
@@ -11,26 +12,20 @@ class TimeConditionDialog extends StatefulWidget {
   final TimeCondition? initialCondition;
 
   /// 标题
-  final String title;
+  final String? title;
 
-  const TimeConditionDialog({
-    super.key,
-    this.initialCondition,
-    this.title = '编辑时间条件',
-  });
+  const TimeConditionDialog({super.key, this.initialCondition, this.title});
 
   /// 显示弹窗
   static Future<TimeCondition?> show(
     BuildContext context, {
     TimeCondition? initialCondition,
-    String title = '编辑时间条件',
+    String? title,
   }) {
     return showDialog<TimeCondition>(
       context: context,
-      builder: (context) => TimeConditionDialog(
-        initialCondition: initialCondition,
-        title: title,
-      ),
+      builder: (context) =>
+          TimeConditionDialog(initialCondition: initialCondition, title: title),
     );
   }
 
@@ -55,7 +50,7 @@ class _TimeConditionDialogState extends State<TimeConditionDialog> {
         children: [
           const Icon(Icons.calendar_month),
           const SizedBox(width: 8),
-          Text(widget.title),
+          Text(widget.title ?? context.l10n.diy_editTimeConditionTitle),
         ],
       ),
       content: SizedBox(
@@ -75,7 +70,7 @@ class _TimeConditionDialogState extends State<TimeConditionDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
+          child: Text(context.l10n.common_cancel),
         ),
         if (_condition != null)
           TextButton(
@@ -85,12 +80,13 @@ class _TimeConditionDialogState extends State<TimeConditionDialog> {
                 _hasChanges = true;
               });
             },
-            child: const Text('清除'),
+            child: Text(context.l10n.common_clear),
           ),
         FilledButton(
-          onPressed:
-              _hasChanges ? () => Navigator.pop(context, _condition) : null,
-          child: const Text('保存'),
+          onPressed: _hasChanges
+              ? () => Navigator.pop(context, _condition)
+              : null,
+          child: Text(context.l10n.common_save),
         ),
       ],
     );

@@ -30,16 +30,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get common_deselectAll => 'すべての選択を解除';
 
   @override
-  String get common_expandAll => 'すべて展開';
-
-  @override
   String get common_collapseAll => 'すべて折りたたむ';
 
   @override
   String get common_save => '保存';
-
-  @override
-  String get common_saved => '保存しました';
 
   @override
   String get common_delete => '削除';
@@ -49,9 +43,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get common_close => '閉じる';
-
-  @override
-  String get common_back => '戻る';
 
   @override
   String get common_clear => 'クリア';
@@ -81,9 +72,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get common_retry => '再試行';
 
   @override
-  String get common_more => 'その他';
-
-  @override
   String get common_select => '選択してください';
 
   @override
@@ -91,9 +79,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get common_search => '検索';
-
-  @override
-  String get common_featureInDev => '開発中の機能...';
 
   @override
   String get common_add => '追加';
@@ -127,9 +112,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get common_clearInputConfirm => '入力内容をクリアしますか?';
 
   @override
-  String get common_settings => '設定';
-
-  @override
   String get common_today => '今日';
 
   @override
@@ -153,37 +135,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get common_download => 'ダウンロード';
 
   @override
-  String get common_upload => 'アップロード';
-
-  @override
   String get common_apply => '適用する';
 
   @override
-  String get common_preview => 'プレビュー';
-
-  @override
-  String get common_done => '完了';
-
-  @override
-  String get common_view => '表示';
-
-  @override
-  String get common_info => '情報';
-
-  @override
-  String get common_warning => '警告';
-
-  @override
-  String get common_show => '表示';
-
-  @override
-  String get common_hide => '非表示';
-
-  @override
   String get common_move => '移動';
-
-  @override
-  String get common_duplicate => '複製';
 
   @override
   String get common_favorite => 'お気に入り';
@@ -192,34 +147,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get common_unfavorite => 'お気に入りから削除';
 
   @override
-  String get common_share => 'シェア';
-
-  @override
-  String get common_open => '開く';
-
-  @override
   String get common_ok => 'OK';
-
-  @override
-  String get common_submit => '送信';
-
-  @override
-  String get common_discard => '破棄';
-
-  @override
-  String get common_keep => '保持する';
 
   @override
   String get common_replace => '置換';
 
   @override
   String get common_skip => 'スキップ';
-
-  @override
-  String get common_yes => 'はい';
-
-  @override
-  String get common_no => 'いいえ';
 
   @override
   String get common_exit => '終了';
@@ -252,10 +186,65 @@ class AppLocalizationsJa extends AppLocalizations {
   String get common_items => 'アイテム';
 
   @override
-  String get nav_canvas => 'キャンバス';
+  String get networkError_connectionTimeout =>
+      '接続がタイムアウトしました。ネットワーク接続を確認してください。';
 
   @override
-  String get nav_gallery => 'ギャラリー';
+  String get networkError_sendTimeout => '送信がタイムアウトしました。もう一度お試しください。';
+
+  @override
+  String get networkError_receiveTimeout =>
+      '受信がタイムアウトしました。画像生成には時間がかかる場合があります。';
+
+  @override
+  String get networkError_requestCancelled => 'リクエストはキャンセルされました';
+
+  @override
+  String get networkError_connection => 'ネットワーク接続エラーです。接続を確認してください。';
+
+  @override
+  String get networkError_unknown => '不明なエラー';
+
+  @override
+  String get networkError_noResponse => 'サーバーから応答がありません';
+
+  @override
+  String get networkError_badRequest => 'リクエストパラメーターが無効です';
+
+  @override
+  String get networkError_authFailed => '認証に失敗しました。再度ログインしてください。';
+
+  @override
+  String get networkError_insufficientAnlas => 'Anlas が不足しています';
+
+  @override
+  String get networkError_forbidden => 'このリソースにアクセスする権限がありません';
+
+  @override
+  String get networkError_notFound => 'リクエストされたリソースが存在しません';
+
+  @override
+  String get networkError_conflict => 'リクエストが現在の状態と競合しています';
+
+  @override
+  String get networkError_rateLimited => 'リクエストが多すぎます。しばらくしてからもう一度お試しください。';
+
+  @override
+  String get networkError_serverInternal => 'サーバー内部エラー';
+
+  @override
+  String get networkError_badGateway => 'サーバーゲートウェイエラー';
+
+  @override
+  String get networkError_unavailable => 'サービスは一時的に利用できません';
+
+  @override
+  String networkError_requestFailed(int code) {
+    return 'リクエストに失敗しました ($code)';
+  }
+
+  @override
+  String get nav_canvas => 'キャンバス';
 
   @override
   String get nav_onlineGallery => 'オンライン ギャラリー';
@@ -265,9 +254,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get nav_dictionary => '辞書 (WIP)';
-
-  @override
-  String get nav_settings => '設定';
 
   @override
   String get nav_discordCommunity => 'Discord コミュニティ';
@@ -285,13 +271,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get auth_email => '電子メール';
 
   @override
-  String get auth_emailHint => 'NovelAI アカウントのメールアドレスを入力してください';
-
-  @override
   String get auth_password => 'パスワード';
-
-  @override
-  String get auth_passwordHint => 'パスワードを入力してください';
 
   @override
   String get auth_loginButton => 'サインイン';
@@ -300,32 +280,11 @@ class AppLocalizationsJa extends AppLocalizations {
   String get auth_loginFailed => 'ログインに失敗しました';
 
   @override
-  String get auth_rememberPassword => 'パスワードを記憶';
-
-  @override
   String get auth_loginTip =>
       'NovelAI アカウントでサインインしてください\nすべてのデータはローカルにのみ保存されます';
 
   @override
-  String get auth_checkingStatus => 'ログインステータスを確認しています';
-
-  @override
   String get auth_loggedIn => 'ログインしました';
-
-  @override
-  String get auth_tokenConfigured => 'トークンが構成されました';
-
-  @override
-  String get auth_notLoggedIn => 'ログインしていません';
-
-  @override
-  String get auth_pleaseLogin => 'すべての機能を使用するにはログインしてください';
-
-  @override
-  String get auth_logoutConfirmTitle => 'ログアウト';
-
-  @override
-  String get auth_logoutConfirmContent => 'ログアウトしてもよろしいですか?';
 
   @override
   String get auth_emailRequired => 'メールアドレスを入力してください';
@@ -348,9 +307,6 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get auth_credentialsLoginUnavailable =>
       'メールアドレス/パスワードでのログインは現在利用できません。Token ログインを使用してください。';
-
-  @override
-  String get auth_credentialsLoginTitle => '電子メールでログイン';
 
   @override
   String get auth_tokenHint => '永続 API トークンを入力してください';
@@ -393,9 +349,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get auth_thirdPartyApiSiteRequired => 'サードパーティ API サイトの URL を入力してください';
 
   @override
-  String get auth_saveAccount => 'このアカウントを保存します';
-
-  @override
   String get auth_validateAndLogin => '検証してログイン';
 
   @override
@@ -414,9 +367,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String auth_moreAccounts(Object count) {
     return 'ほか $count 件のアカウント';
   }
-
-  @override
-  String get auth_orAddNewAccount => 'または新しいアカウントを追加してください';
 
   @override
   String get auth_tokenNotFound => 'このアカウントのトークンが見つかりません';
@@ -439,12 +389,6 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get auth_cannotDeleteCurrent => '現在ログインしているアカウントは削除できません';
-
-  @override
-  String get auth_changeAvatar => 'アバターの変更';
-
-  @override
   String get auth_removeAvatar => 'アバターを削除';
 
   @override
@@ -465,11 +409,6 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String auth_error_loginFailed(Object error) {
-    return 'ログインに失敗しました: $error';
-  }
-
-  @override
   String get auth_error_networkTimeout => '接続タイムアウト';
 
   @override
@@ -477,10 +416,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get auth_error_authFailed => '認証に失敗しました';
-
-  @override
-  String get auth_error_authFailed_tokenExpired =>
-      'トークンの有効期限が切れました。もう一度ログインしてください。';
 
   @override
   String get auth_error_credentialsLoginUnavailable =>
@@ -548,27 +483,6 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get auth_troubleshoot_serverStatus_desc =>
       'NovelAI ステータス ページまたはコミュニティにアクセスして、停止を確認してください';
-
-  @override
-  String get auth_passwordResetHelp_title => 'パスワードのリセット';
-
-  @override
-  String get auth_passwordResetHelp_desc =>
-      '[パスワードをお忘れですか?] をクリックします。ブラウザで NovelAI のパスワード リセット ページが開き、パスワードをリセットできます。';
-
-  @override
-  String get auth_passwordResetAfterReset_title => 'パスワードのリセット後';
-
-  @override
-  String get auth_passwordResetAfterReset_desc =>
-      'NovelAI ウェブサイトでパスワードをリセットした後、このアプリに戻り、新しいパスワードでログインしてください';
-
-  @override
-  String get auth_passwordResetNoEmail_title => 'リセットメールを受信しませんでしたか?';
-
-  @override
-  String get auth_passwordResetNoEmail_desc =>
-      'スパム フォルダを確認するか、数分以内にパスワード リセット メールが届かない場合は NovelAI サポートにお問い合わせください。';
 
   @override
   String get common_paste => '貼り付け';
@@ -648,13 +562,7 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get settings_storage => 'ストレージ';
-
-  @override
   String get settings_imageSavePath => '画像の保存場所';
-
-  @override
-  String get settings_default => 'デフォルト';
 
   @override
   String get settings_autoSave => '自動保存';
@@ -705,18 +613,8 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_selectHiveFolder => 'データ保存フォルダーの選択';
 
   @override
-  String get settings_restartRequired => '再起動が必要です';
-
-  @override
-  String get settings_restartRequiredContent =>
-      '新しいストレージ パスを適用するには、アプリを再起動する必要があります。アプリを手動で再起動してください。';
-
-  @override
   String get settings_pathSavedRestartRequired =>
       'パスが更新されました。変更を適用するには再起動してください';
-
-  @override
-  String get settings_accountProfile => 'アカウント プロファイル';
 
   @override
   String get settings_accountType => 'アカウントの種類';
@@ -743,9 +641,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_removeAvatar => 'アバターを削除';
 
   @override
-  String get settings_nickname => 'ニックネーム';
-
-  @override
   String get settings_accountEmail => 'アカウントのメールアドレス';
 
   @override
@@ -764,23 +659,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_editNickname => 'ニックネームの編集';
 
   @override
+  String get settings_nickname => 'ニックネーム';
+
+  @override
   String get settings_nicknameHint => '2 ～ 32 文字を入力してください';
 
   @override
   String get settings_nicknameEmpty => 'ニックネームを入力してください';
 
   @override
-  String settings_nicknameTooShort(int minLength) {
-    return 'ニックネームは少なくとも $minLength 文字である必要があります';
-  }
-
-  @override
   String settings_nicknameTooLong(int maxLength) {
     return 'ニックネームは $maxLength 文字を超えることはできません';
   }
-
-  @override
-  String get settings_nicknameAllWhitespace => 'ニックネームをすべて空白にすることはできません';
 
   @override
   String get settings_nicknameUpdated => 'ニックネームが更新されました';
@@ -792,16 +682,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_avatarRemoved => 'アバターが削除されました';
 
   @override
-  String get settings_avatarFileMissing => 'アバター ファイルが見つかりません。もう一度選択しますか?';
-
-  @override
   String get settings_setAsDefaultSuccess => 'デフォルトのアカウントとして設定';
-
-  @override
-  String get settings_startupPerformance => '起動パフォーマンス';
-
-  @override
-  String get settings_startupPerformanceSubtitle => '起動時のパフォーマンス設定を構成する';
 
   @override
   String get generation_title => '生成';
@@ -815,9 +696,6 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get generation_cancel => 'キャンセル';
-
-  @override
   String get generation_generating => '生成中...';
 
   @override
@@ -828,9 +706,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get generation_stopAllGeneration => 'すべて停止';
-
-  @override
-  String get generation_generateImage => '画像の生成';
 
   @override
   String get generation_pleaseInputPrompt => 'プロンプトを入力してください';
@@ -922,9 +797,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get generation_smeaDyn => 'SMEA DYN';
 
   @override
-  String get generation_smeaDynSubtitle => 'SMEA 動的バリアント';
-
-  @override
   String get generation_smeaDescription =>
       '特定の画像サイズを超えると、高解像度サンプラーが自動的に使用されます。';
 
@@ -935,44 +807,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get generation_noiseSchedule => 'ノイズスケジュール';
-
-  @override
-  String get generation_resetParams => 'パラメータのリセット';
-
-  @override
-  String generation_sizePortrait(Object width, Object height) {
-    return 'ポートレート ($width×$height)';
-  }
-
-  @override
-  String generation_sizeLandscape(Object width, Object height) {
-    return '横長 ($width×$height)';
-  }
-
-  @override
-  String generation_sizeSquare(Object width, Object height) {
-    return '正方形 ($width×$height)';
-  }
-
-  @override
-  String generation_sizeSmallSquare(Object width, Object height) {
-    return '小さな正方形 ($width×$height)';
-  }
-
-  @override
-  String generation_sizeLargeSquare(Object width, Object height) {
-    return '大きな正方形 ($width×$height)';
-  }
-
-  @override
-  String generation_sizeTallPortrait(Object width, Object height) {
-    return '縦長ポートレート ($width×$height)';
-  }
-
-  @override
-  String generation_sizeWideLandscape(Object width, Object height) {
-    return 'ワイド横長 ($width×$height)';
-  }
 
   @override
   String get prompt_positive => 'プロンプト';
@@ -996,20 +830,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get prompt_characterPrompts => '複数キャラクターのプロンプト';
 
   @override
-  String prompt_characterPromptItem(Object name, Object content) {
-    return '$name: $content';
-  }
-
-  @override
   String get prompt_finalPrompt => '最終的な有効なプロンプト';
 
   @override
   String get prompt_finalNegative => '最終有効な除外したい要素';
-
-  @override
-  String prompt_tags(Object count) {
-    return '$count タグ';
-  }
 
   @override
   String prompt_importedCharacters(int count) {
@@ -1033,13 +857,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get prompt_appliedToMainPrompt => 'メイン プロンプトに適用されます';
 
   @override
-  String get prompt_editPrompt => 'プロンプトの編集';
-
-  @override
   String get prompt_inputPrompt => 'プロンプトを入力してください...';
-
-  @override
-  String get prompt_inputNegativePrompt => '除外したい要素を入力してください...';
 
   @override
   String get prompt_describeImage => '生成したい画像を説明してください...';
@@ -1064,6 +882,23 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get prompt_searchClose => '検索を閉じる';
+
+  @override
+  String get prompt_replaceHint => '置換後の文字列';
+
+  @override
+  String get prompt_replaceToggle => '置換欄の表示切り替え';
+
+  @override
+  String get prompt_replaceCurrent => '現在の一致を置換（Enter）';
+
+  @override
+  String get prompt_replaceAll => 'すべて置換（Ctrl+Enter）';
+
+  @override
+  String prompt_replaceAllDone(Object count) {
+    return '$count 件を置換しました';
+  }
 
   @override
   String get promptAssistant_needPrompt => 'アシスタントを使用する前にプロンプトを入力してください';
@@ -1093,26 +928,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get prompt_unwantedContent => '画像に含めたくないコンテンツ...';
 
   @override
-  String get prompt_addTagsHint => '希望の画像を説明するタグを追加します';
-
-  @override
-  String get prompt_addUnwantedHint => '除外したい要素を追加します';
-
-  @override
-  String get prompt_fullscreenEdit => 'フルスクリーン編集';
-
-  @override
-  String get prompt_randomPrompt => 'ランダムプロンプト (長押しして設定)';
-
-  @override
-  String prompt_clearConfirm(Object type) {
-    return '$type のクリアを確認します';
-  }
-
-  @override
-  String get prompt_promptSettings => 'プロンプト設定';
-
-  @override
   String get prompt_smartAutocomplete => 'スマート オートコンプリート';
 
   @override
@@ -1138,11 +953,110 @@ class AppLocalizationsJa extends AppLocalizations {
       'フォーカスが外れたときに SD ウェイト構文を NAI 形式に変換します';
 
   @override
+  String get prompt_resolveAliasOnCopy => 'コピー時に単語ライブラリを展開';
+
+  @override
+  String get prompt_resolveAliasOnCopySubtitle =>
+      'コピーまたは切り取り時に <ライブラリ名> をその内容に置き換えます';
+
+  @override
   String get prompt_cooccurrenceRecommendation => '共起タグの推奨事項';
 
   @override
   String get prompt_cooccurrenceRecommendationSubtitle =>
       'タグを入力すると、関連するタグが自動的に推奨されます';
+
+  @override
+  String get prompt_regexRulesManage => '正規表現置換ルール…';
+
+  @override
+  String prompt_regexRulesCount(int count) {
+    return '$count 件のルールを設定済み';
+  }
+
+  @override
+  String prompt_regexReplaceApplied(int count) {
+    return '正規表現置換 $count 件';
+  }
+
+  @override
+  String prompt_regexInvalidRules(Object names) {
+    return '無効な正規表現ルールをスキップしました: $names';
+  }
+
+  @override
+  String get regexRules_title => '正規表現置換ルール';
+
+  @override
+  String get regexRules_hint =>
+      'ルールはプロンプト全体に順番に適用され、SD 変換と自動フォーマットより先に実行されます。置換文字列では \$1、\$2 でキャプチャグループを参照できます。';
+
+  @override
+  String get regexRules_empty => 'ルールがありません。下のボタンから作成してください';
+
+  @override
+  String get regexRules_add => 'ルールを新規作成';
+
+  @override
+  String get regexRules_unnamed => '名称未設定のルール';
+
+  @override
+  String get regexRules_invalidBadge => '無効';
+
+  @override
+  String get regexRules_deleteConfirmTitle => 'ルールを削除';
+
+  @override
+  String regexRules_deleteConfirmMessage(Object name) {
+    return '「$name」を削除しますか？この操作は取り消せません。';
+  }
+
+  @override
+  String get regexRules_newTitle => 'ルールを新規作成';
+
+  @override
+  String get regexRules_editTitle => 'ルールを編集';
+
+  @override
+  String get regexRules_nameLabel => 'ルール名（任意）';
+
+  @override
+  String get regexRules_nameHint => '例: 髪色の表記を統一';
+
+  @override
+  String get regexRules_patternLabel => 'マッチ（正規表現）';
+
+  @override
+  String get regexRules_patternHint => '例: \\bblue[ _]hair\\b';
+
+  @override
+  String get regexRules_replacementLabel => '置換後';
+
+  @override
+  String get regexRules_replacementHint => '例: aqua hair';
+
+  @override
+  String get regexRules_caseSensitive => '大文字と小文字を区別する';
+
+  @override
+  String get regexRules_patternRequired => 'マッチ内容を空にはできません';
+
+  @override
+  String regexRules_patternInvalid(Object error) {
+    return '正規表現が無効です: $error';
+  }
+
+  @override
+  String get regexRules_testTitle => 'テスト';
+
+  @override
+  String get regexRules_testInputHint => 'プロンプトを貼り付けて結果を確認';
+
+  @override
+  String get regexRules_testNoChange => '変化なし';
+
+  @override
+  String get regexRules_testNoRules => '有効なルールがありません';
 
   @override
   String get prompt_formatted => 'フォーマット済み';
@@ -1178,234 +1092,10 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get gallery_title => 'ギャラリー';
-
-  @override
-  String gallery_selected(Object count) {
-    return '選択された $count アイテム';
-  }
-
-  @override
-  String get gallery_clearAll => 'すべてクリア';
-
-  @override
-  String get gallery_clearGallery => 'ギャラリーをクリア';
-
-  @override
-  String get gallery_favorite => 'お気に入り';
-
-  @override
-  String get gallery_sortNewest => '新しい順';
-
-  @override
-  String get gallery_sortOldest => '古い順';
-
-  @override
-  String get gallery_sortFavorite => '最初にお気に入り';
-
-  @override
-  String gallery_selectedCount(Object count) {
-    return '選択した $count 画像';
-  }
-
-  @override
-  String get config_title => 'ランダムプロンプト構成';
-
-  @override
-  String get config_presets => 'プリセット';
-
-  @override
-  String get config_configGroups => '構成グループ';
-
-  @override
-  String get config_presetName => 'プリセット名';
-
-  @override
-  String get config_noPresets => 'プリセットはありません';
-
-  @override
-  String get config_restoreDefaults => 'デフォルトに戻す';
-
-  @override
   String get config_newPreset => '新しいプリセット';
 
   @override
-  String get config_selectPreset => 'プリセットを選択してください';
-
-  @override
-  String get config_noConfigGroups => '構成グループがまだありません';
-
-  @override
-  String get config_addConfigGroup => '構成グループの追加';
-
-  @override
-  String get config_saveChanges => '変更を保存';
-
-  @override
-  String config_configGroupCount(Object count) {
-    return '$count 構成グループ';
-  }
-
-  @override
-  String get config_setAsCurrent => '現在として設定';
-
-  @override
-  String get config_duplicate => '重複';
-
-  @override
-  String get config_importConfig => '構成のインポート';
-
-  @override
-  String get config_selectConfigToEdit => '編集する構成グループを選択してください';
-
-  @override
-  String get config_editConfigGroup => '構成グループの編集';
-
-  @override
-  String get config_configName => '構成名';
-
-  @override
-  String get config_selectionMode => '選択モード';
-
-  @override
-  String get config_singleRandom => 'ランダムシングル';
-
-  @override
-  String get config_singleSequential => 'シーケンシャルシングル';
-
-  @override
-  String get config_multipleCount => '指定された数';
-
-  @override
-  String get config_multipleProbability => '確率による';
-
-  @override
-  String get config_all => 'すべて';
-
-  @override
-  String get config_selectCount => '数の選択';
-
-  @override
-  String get config_selectProbability => '確率の選択';
-
-  @override
-  String get config_shuffleOrder => 'シャッフル順序';
-
-  @override
-  String get config_shuffleOrderSubtitle => '選択したコンテンツをランダムに配置します';
-
-  @override
-  String get config_weightBrackets => 'ウェイト ブラケット';
-
-  @override
-  String get config_weightBracketsHint => '中括弧のペアごとに重みが最大 5% 増加します';
-
-  @override
-  String get config_min => '分';
-
-  @override
-  String get config_max => '最大';
-
-  @override
-  String config_preview(Object preview) {
-    return 'プレビュー: $preview';
-  }
-
-  @override
-  String get config_tagContent => 'タグの内容';
-
-  @override
-  String config_tagContentHint(Object count) {
-    return '1 行に 1 つのタグ、現在 $count 個のアイテム';
-  }
-
-  @override
-  String get config_format => '形式';
-
-  @override
-  String get config_sort => '並べ替え';
-
-  @override
-  String get config_inputTags =>
-      'タグを 1 行に 1 つずつ入力してください...\nたとえば:\n1女の子\n美しい目\n長い髪';
-
-  @override
-  String get config_unsavedChanges => '未保存の変更';
-
-  @override
-  String get config_unsavedChangesContent => '未保存の変更があります。本当に破棄してもよろしいですか?';
-
-  @override
-  String get config_discard => '破棄';
-
-  @override
   String get config_deletePreset => 'プリセットを削除';
-
-  @override
-  String config_deletePresetConfirm(Object name) {
-    return '「$name」を削除してもよろしいですか?';
-  }
-
-  @override
-  String get config_pasteJsonConfig => 'JSON 構成を貼り付けます...';
-
-  @override
-  String get config_importSuccess => 'インポートが成功しました';
-
-  @override
-  String config_importFailed(Object error) {
-    return 'インポートに失敗しました: $error';
-  }
-
-  @override
-  String get config_restoreDefaultsConfirm =>
-      'デフォルトのプリセットを復元してもよろしいですか?すべてのカスタム構成が削除されます。';
-
-  @override
-  String get config_restored => 'デフォルトに復元されました';
-
-  @override
-  String get config_copiedToClipboard => 'クリップボードにコピーされました';
-
-  @override
-  String get config_setAsCurrentSuccess => '現在のプリセットとして設定';
-
-  @override
-  String get config_duplicatedPreset => 'プリセットが複製されました';
-
-  @override
-  String get config_deletedSuccess => '削除されました';
-
-  @override
-  String get config_saveSuccess => '正常に保存されました';
-
-  @override
-  String get config_newPresetCreated => '新しいプリセットが作成されました';
-
-  @override
-  String config_itemCount(Object count) {
-    return '$count アイテム';
-  }
-
-  @override
-  String config_subConfigCount(Object count) {
-    return '$count サブ構成';
-  }
-
-  @override
-  String get config_random => 'ランダム';
-
-  @override
-  String get config_sequential => 'シーケンシャル';
-
-  @override
-  String get config_multiple => '複数';
-
-  @override
-  String get config_probability => '確率';
-
-  @override
-  String get config_moreActions => 'その他のアクション';
 
   @override
   String get img2img_title => 'Image2Image';
@@ -1415,12 +1105,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get img2img_sourceImage => 'ソース画像';
-
-  @override
-  String get img2img_selectImage => '画像を選択してください';
-
-  @override
-  String get img2img_clickToSelectImage => 'クリックして画像を選択してください';
 
   @override
   String get img2img_strength => '強度';
@@ -1449,29 +1133,16 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get img2img_edit => '編集';
-
-  @override
   String get img2img_editImage => '画像を編集';
 
   @override
   String get img2img_editApplied => '編集された画像が新しいソース画像になりました';
 
   @override
-  String get img2img_maskEnabled => 'インペイントマスク';
-
-  @override
   String get img2img_uploadImage => '画像をアップロード';
 
   @override
   String get img2img_drawSketch => 'スケッチを描く';
-
-  @override
-  String get img2img_maskTooltip => '白 = 変更、黒 = 保持';
-
-  @override
-  String get img2img_maskHelpText =>
-      'マスクでは、白い領域は生成中に変更されますが、黒い領域はソース イメージから保持されます。';
 
   @override
   String get img2img_inpaint => 'インペイント';
@@ -1496,17 +1167,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get img2img_generateVariations => 'バリエーションの生成';
-
-  @override
-  String get img2img_variationsReady => '画像メタデータから作成したバリエーション設定';
-
-  @override
-  String get img2img_variationsPreparedHint =>
-      'バリエーションの設定が完了しました。メインの生成ボタンを使用して、現在の画像から新しい結果を作成します。';
-
-  @override
-  String get img2img_variationsFallbackHint =>
-      '再利用可能なメタデータが見つかりません。現在のプロンプトを維持し、基本バリエーションの設定に切り替えました';
 
   @override
   String get img2img_directorTools => 'ディレクターツール';
@@ -1559,13 +1219,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get img2img_directorApplyAsSource => 'ソースとして使用';
 
   @override
-  String get img2img_directorSave => '保存';
-
-  @override
   String get img2img_directorSourceImage => 'ソース画像';
-
-  @override
-  String get img2img_directorCompare => '比較';
 
   @override
   String get img2img_variationsStarted => 'バリエーションを生成しています...';
@@ -1726,15 +1380,7 @@ class AppLocalizationsJa extends AppLocalizations {
       'DiT ブロックのうち何個をシステムメモリに置き、推論時に VRAM へ順次転送するかを指定します。大きいほど VRAM を節約できますがメモリを消費し遅くなります。VRAM に余裕がある場合は 0 まで下げられます。メモリ不足エラーが出る場合は上げてください。';
 
   @override
-  String img2img_regularModelDescription(Object name) {
-    return '通常モデル · $name';
-  }
-
-  @override
   String get img2img_upscalePanelOpened => 'Image2Image の拡大パネルを開きました';
-
-  @override
-  String get editor_title => '画像エディター';
 
   @override
   String get editor_done => '完了';
@@ -1749,37 +1395,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editor_sourcePoint => 'Alt+クリックしてソースポイントを設定します';
 
   @override
-  String get editor_saveAndClose => '保存して閉じる';
-
-  @override
-  String get editor_closeWithoutSaving => '保存せずに閉じます';
-
-  @override
-  String get editor_close => '閉じる';
-
-  @override
-  String get editor_save => '保存';
-
-  @override
-  String get editor_modeImage => '画像';
-
-  @override
-  String get editor_modeMask => 'マスク';
-
-  @override
-  String get editor_toolSettings => 'ツール設定';
-
-  @override
   String get editor_brushPresets => 'ブラシ プリセット';
-
-  @override
-  String get editor_color => 'カラー';
-
-  @override
-  String get editor_brushSettings => 'ブラシ設定';
-
-  @override
-  String get editor_actions => 'アクション';
 
   @override
   String get editor_size => 'サイズ';
@@ -1800,31 +1416,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editor_clearLayer => 'クリアレイヤー';
 
   @override
-  String get editor_clearImageLayer => 'クリアペイント';
-
-  @override
-  String get editor_clearImageLayerMessage => 'これにより、すべてのペイント ストロークが削除されます。';
-
-  @override
   String get editor_clearSelection => '選択をクリア';
-
-  @override
-  String get editor_clearSelectionMessage => 'これにより、現在の選択マスクが削除されます。';
 
   @override
   String get editor_resetView => 'ビューをリセット';
 
   @override
-  String get editor_currentColor => '現在の色';
-
-  @override
   String get editor_zoom => 'ズーム';
-
-  @override
-  String get editor_paintTools => 'ペイント';
-
-  @override
-  String get editor_selectionTools => '選択';
 
   @override
   String get editor_toolBrush => 'ブラシ';
@@ -1837,10 +1435,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get editor_toolMagicWand => 'マジックワンド';
-
-  @override
-  String get editor_magicWandHelp =>
-      '近い色の連続領域をクリックします。画像編集ではその領域を透明にし、インペイントではマスクに追加します。';
 
   @override
   String get editor_magicWandMode => '選択方法';
@@ -1884,64 +1478,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editor_toolBlur => 'ぼかし';
 
   @override
-  String get editor_presetDefault => 'デフォルト';
-
-  @override
-  String get editor_presetPencil => '鉛筆';
-
-  @override
-  String get editor_presetMarker => 'マーカー';
-
-  @override
-  String get editor_presetAirbrush => 'エアブラシ';
-
-  @override
-  String get editor_presetInkPen => 'インクペン';
-
-  @override
-  String get editor_presetPixel => 'ピクセル';
-
-  @override
-  String get editor_unsavedChanges => '未保存の変更';
-
-  @override
-  String get editor_unsavedChangesMessage => '未保存の変更があります。閉じてもよろしいですか?';
-
-  @override
-  String get editor_discard => '破棄';
-
-  @override
-  String get editor_cancel => 'キャンセル';
-
-  @override
-  String get editor_clearConfirm => 'クリアしますか？';
-
-  @override
-  String get editor_clearConfirmMessage => 'これにより、現在のレイヤーからすべてのコンテンツが削除されます。';
-
-  @override
-  String get editor_clear => 'クリア';
-
-  @override
   String get editor_shortcutUndo => '元に戻す (Ctrl+Z)';
 
   @override
   String get editor_shortcutRedo => 'やり直し (Ctrl+Y)';
-
-  @override
-  String get editor_selectionSettings => '選択';
-
-  @override
-  String get editor_shortcuts => 'ショートカット';
-
-  @override
-  String get editor_addToSelection => '選択に追加';
-
-  @override
-  String get editor_subtractFromSelection => '選択範囲から減算';
-
-  @override
-  String get editor_selectionHint => 'インペイントマスク用の選択範囲を描画します';
 
   @override
   String get editor_back => '戻る';
@@ -2287,11 +1827,6 @@ class AppLocalizationsJa extends AppLocalizations {
       '外側の長方形は Focused インペイントに送信される領域です。内側の長方形が主な再描画領域です。その間の帯が最小コンテキスト領域です。';
 
   @override
-  String editor_focusAnlasWarning(int width, int height, int cost) {
-    return '実際に送信する範囲は $width×$height です。現在の生成設定では $cost Anlas を消費します。';
-  }
-
-  @override
   String get editor_compressionTitle => '出力解像度';
 
   @override
@@ -2506,6 +2041,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editor_colorPickerTitle => '色を選択してください';
 
   @override
+  String get editor_brushSettings => 'ブラシ設定';
+
+  @override
   String get editor_eraserSettings => '消しゴムの設定';
 
   @override
@@ -2571,9 +2109,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get vibe_title => 'バイブストランスファー';
 
   @override
-  String get vibe_hint => 'ビジュアル スタイルを転送するための参照画像を追加します (最大 4 つ)';
-
-  @override
   String get vibe_description => 'イメージを変えて、ビジョンを維持します。';
 
   @override
@@ -2600,18 +2135,10 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String vibe_referenceNumber(Object index) {
-    return '参照番号$index';
-  }
-
-  @override
   String get vibe_referenceStrength => '参照強度';
 
   @override
   String get vibe_infoExtraction => '抽出情報';
-
-  @override
-  String get vibe_adjustParams => 'パラメータを調整する';
 
   @override
   String get vibe_remove => '削除';
@@ -2626,21 +2153,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get reference_disable => '参照を無効化';
 
   @override
-  String get vibe_sliderHint =>
-      '参照強度: 高いほど視覚的な特徴をまねします\n抽出情報: 低くするとテクスチャが減少し、構成が維持されます。';
-
-  @override
-  String vibe_strengthInfo(Object value, Object infoValue) {
-    return '参照強度: $value | 抽出情報: $infoValue';
-  }
-
-  @override
   String get vibe_normalize => '基準強度値の正規化';
-
-  @override
-  String vibe_encodingCost(int cost) {
-    return 'エンコードが必要です。次回の生成時に $cost Anlas を消費します。';
-  }
 
   @override
   String get vibe_sourceType_png => 'PNG';
@@ -2661,9 +2174,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get vibe_reuseButton => '再利用';
 
   @override
-  String get vibe_reuseSuccess => 'Vibe が生成パラメータに追加されました';
-
-  @override
   String get vibe_info => 'Vibe 情報';
 
   @override
@@ -2679,138 +2189,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get vibe_shiftReplaceHint => 'Shift+クリックして置換';
 
   @override
-  String get characterRef_title => 'キャラ参照';
-
-  @override
-  String get characterRef_hint => '一貫性を維持するためにキャラ参照画像をアップロードします (V4+ のみ)';
-
-  @override
-  String get characterRef_v4Only => 'キャラ参照は V4+ モデルのみをサポートしています。モデルを切り替えてください。';
-
-  @override
-  String get characterRef_addReference => '参照の追加';
-
-  @override
-  String get characterRef_clearAll => 'すべてクリア';
-
-  @override
-  String characterRef_referenceNumber(Object index) {
-    return '参照番号$index';
-  }
-
-  @override
-  String get characterRef_description => 'キャラクターの説明';
-
-  @override
-  String get characterRef_descriptionHint =>
-      'このキャラクターの特徴を説明してください (オプションですが推奨)...';
-
-  @override
-  String get characterRef_remove => '削除';
-
-  @override
-  String get characterRef_styleAware => 'スタイルを意識';
-
-  @override
-  String get characterRef_styleAwareHint => 'キャラクター関連のスタイル情報を転送します';
-
-  @override
-  String get characterRef_fidelity => '忠実度';
-
-  @override
-  String get characterRef_fidelityHint => '0=古いバージョンの動作、1=新しいバージョンの動作';
-
-  @override
-  String get unifiedRef_title => '画像参照';
-
-  @override
-  String get unifiedRef_switchTitle => 'モードの切り替え';
-
-  @override
-  String get unifiedRef_switchContent => 'モードを切り替えると、現在の参照がクリアされます。続行しますか？';
-
-  @override
   String get character_buttonLabel => 'キャラクター';
-
-  @override
-  String get character_title => 'マルチキャラクター (V4 のみ)';
-
-  @override
-  String get character_hint => 'キャラクターごとに独立したプロンプトと位置を定義します (最大 6 つ)';
 
   @override
   String get character_addCharacter => 'キャラクターを追加';
 
   @override
-  String get character_clearAll => 'すべてのキャラクターをクリア';
-
-  @override
   String character_number(Object index) {
     return 'キャラクター $index';
   }
-
-  @override
-  String get character_advancedOptions => '詳細オプション';
-
-  @override
-  String get character_removeCharacter => 'キャラクターを削除';
-
-  @override
-  String get character_description => 'キャラクターの説明';
-
-  @override
-  String get character_descriptionHint => 'このキャラクターの特徴を説明してください...';
-
-  @override
-  String get character_negativeOptional => '除外したい要素 (オプション)';
-
-  @override
-  String get character_negativeHint => 'このキャラクターには望ましくない機能があります...';
-
-  @override
-  String get character_positionOptional => 'キャラクター位置 (オプション)';
-
-  @override
-  String get character_positionHint => '位置 (0-1)、画像内のおおよその位置を指定します';
-
-  @override
-  String get character_auto => '自動';
-
-  @override
-  String get character_clearPosition => 'ポジションをクリア';
-
-  @override
-  String get gallery_empty => 'ギャラリーは空です';
-
-  @override
-  String get gallery_emptyHint => '生成された画像がここに表示されます';
-
-  @override
-  String get gallery_searchHint => '検索プロンプト... (タグをサポート)';
-
-  @override
-  String gallery_imageCount(Object count) {
-    return '$count 画像';
-  }
-
-  @override
-  String gallery_exportSuccess(Object count, Object path) {
-    return '$count の画像を $path にエクスポートしました';
-  }
-
-  @override
-  String gallery_savedTo(Object path) {
-    return '$path に保存されました';
-  }
-
-  @override
-  String get gallery_saveFailed => '保存に失敗しました';
-
-  @override
-  String get gallery_deleteImage => '画像を削除';
-
-  @override
-  String get gallery_deleteImageConfirm => 'この画像を削除してもよろしいですか?';
 
   @override
   String get gallery_generationParams => '生成パラメータ';
@@ -2837,55 +2224,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get gallery_metaSmea => 'SMEA';
 
   @override
-  String get gallery_metaSmeaOn => 'オン';
-
-  @override
-  String get gallery_metaSmeaOff => 'オフ';
-
-  @override
-  String get gallery_metaGenerationTime => '生成時間';
-
-  @override
-  String get gallery_metaFileSize => 'ファイルサイズ';
-
-  @override
-  String get gallery_positivePrompt => 'プロンプト';
-
-  @override
-  String get gallery_negativePrompt => '除外したい要素';
-
-  @override
   String get gallery_promptCopied => 'プロンプトがコピーされました';
 
   @override
   String get gallery_seedCopied => 'シードがコピーされました';
 
   @override
-  String get gallery_sendToImg2Img => 'Image2Image';
-
-  @override
-  String get gallery_useImageForGeneration => 'この画像を画像生成に使用します';
-
-  @override
-  String get gallery_sendToReversePromptTitle => '逆プロンプト';
-
-  @override
-  String get gallery_addToReversePromptModule => 'キャンバスのリバースプロンプトモジュールに追加します';
-
-  @override
-  String get gallery_applyVibeFromImage => '画像のスタイル/キャラクターを抽出して適用します';
-
-  @override
-  String get gallery_noVibeData => 'この画像には Vibe データが含まれていません';
-
-  @override
-  String get gallery_sendToKrita => 'クリタ';
-
-  @override
   String get gallery_sendToKritaAction => 'Krita に送信';
-
-  @override
-  String get gallery_sendToConnectedKrita => '接続されている Krita プラグインに送信します';
 
   @override
   String get gallery_upscalePanelLoaded => 'Image2Image の拡大パネルを読み込みました';
@@ -2907,22 +2252,7 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get gallery_textToImage => 'テキストから画像へ';
-
-  @override
-  String get gallery_applyParams => 'パラメータを適用';
-
-  @override
-  String get gallery_unavailable => '利用できません';
-
-  @override
-  String get gallery_loadSourceImage => 'ソース画像をロードします';
-
-  @override
   String get gallery_upscale => '拡大';
-
-  @override
-  String get gallery_superResolutionUpscale => '超解像度拡大';
 
   @override
   String get gallery_sentToImg2Img => '画像を Image2Image に送信しました';
@@ -2936,203 +2266,7 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get preset_noPresets => 'プリセットはありません';
-
-  @override
-  String get preset_restoreDefault => 'デフォルトに戻す';
-
-  @override
-  String preset_configGroupCount(Object count) {
-    return '$count 構成グループ';
-  }
-
-  @override
-  String get preset_setAsCurrent => '現在として設定';
-
-  @override
-  String get preset_duplicate => '重複';
-
-  @override
-  String get preset_export => 'エクスポート';
-
-  @override
-  String get preset_delete => '削除';
-
-  @override
-  String get preset_noConfigGroups => '構成グループはまだありません';
-
-  @override
-  String get preset_addConfigGroup => '構成グループの追加';
-
-  @override
-  String get preset_selectPreset => 'プリセットを選択してください';
-
-  @override
-  String get preset_selectConfigToEdit => '編集する構成グループを選択してください';
-
-  @override
-  String get preset_editConfigGroup => '構成グループの編集';
-
-  @override
-  String get preset_configName => '構成名';
-
-  @override
   String get preset_presetName => 'プリセット名';
-
-  @override
-  String get preset_selectionMode => '選択モード';
-
-  @override
-  String get preset_randomSingle => 'ランダムシングル';
-
-  @override
-  String get preset_sequentialSingle => 'シーケンシャルシングル';
-
-  @override
-  String get preset_specifiedCount => '指定された数';
-
-  @override
-  String get preset_byProbability => '確率による';
-
-  @override
-  String get preset_all => 'すべて';
-
-  @override
-  String get preset_selectCount => 'カウントの選択';
-
-  @override
-  String get preset_selectProbability => '確率の選択';
-
-  @override
-  String get preset_shuffleOrder => 'シャッフル順序';
-
-  @override
-  String get preset_shuffleOrderHint => '選択したコンテンツをランダムに配置します';
-
-  @override
-  String get preset_weightBrackets => 'ウェイト ブラケット';
-
-  @override
-  String get preset_weightBracketsHint => '各中括弧でウェイトが約 5% 増加します';
-
-  @override
-  String get preset_min => '分';
-
-  @override
-  String get preset_max => '最大';
-
-  @override
-  String preset_preview(Object preview) {
-    return 'プレビュー: $preview';
-  }
-
-  @override
-  String get preset_tagContent => 'タグの内容';
-
-  @override
-  String preset_tagContentHint(Object count) {
-    return '1 行に 1 つのタグ、現在 $count 項目';
-  }
-
-  @override
-  String get preset_format => '形式';
-
-  @override
-  String get preset_sort => '並べ替え';
-
-  @override
-  String get preset_inputHint =>
-      'タグを 1 行に 1 つずつ入力してください...\nたとえば:\n1女の子\n美しい目\n長い髪';
-
-  @override
-  String get preset_unsavedChanges => '未保存の変更';
-
-  @override
-  String get preset_unsavedChangesConfirm => '未保存の変更があります。破棄？';
-
-  @override
-  String get preset_discard => '破棄';
-
-  @override
-  String get preset_deletePreset => 'プリセットを削除';
-
-  @override
-  String preset_deletePresetConfirm(Object name) {
-    return '「$name」を削除してもよろしいですか?';
-  }
-
-  @override
-  String get preset_importConfig => '構成のインポート';
-
-  @override
-  String get preset_pasteJson => 'JSON 構成を貼り付けます...';
-
-  @override
-  String get preset_importSuccess => 'インポートが成功しました';
-
-  @override
-  String preset_importFailed(Object error) {
-    return 'インポートに失敗しました: $error';
-  }
-
-  @override
-  String get preset_restoreDefaultConfirm =>
-      'デフォルトのプリセットを復元しますか?すべてのカスタム構成が削除されます。';
-
-  @override
-  String get preset_restored => 'デフォルトに復元されました';
-
-  @override
-  String get preset_copiedToClipboard => 'クリップボードにコピーされました';
-
-  @override
-  String get preset_setAsCurrentSuccess => '現在のプリセットとして設定';
-
-  @override
-  String get preset_duplicated => 'プリセットが複製されました';
-
-  @override
-  String get preset_deleted => '削除されました';
-
-  @override
-  String get preset_saveSuccess => '正常に保存されました';
-
-  @override
-  String get preset_newPresetCreated => '新しいプリセットが作成されました';
-
-  @override
-  String preset_itemCount(Object count) {
-    return '$count アイテム';
-  }
-
-  @override
-  String preset_subConfigCount(Object count) {
-    return '$count サブ構成';
-  }
-
-  @override
-  String get preset_random => 'ランダム';
-
-  @override
-  String get preset_sequential => 'シーケンシャル';
-
-  @override
-  String get preset_multiple => '複数';
-
-  @override
-  String get preset_probability => '確率';
-
-  @override
-  String get preset_moreActions => 'その他のアクション';
-
-  @override
-  String get preset_rename => '名前の変更';
-
-  @override
-  String get preset_moveUp => '上に移動';
-
-  @override
-  String get preset_moveDown => '下に移動';
 
   @override
   String get onlineGallery_search => '検索';
@@ -3192,9 +2326,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get onlineGallery_favCount => 'お気に入り';
-
-  @override
-  String get onlineGallery_rating => '評価';
 
   @override
   String get onlineGallery_type => 'タイプ';
@@ -3481,22 +2612,7 @@ class AppLocalizationsJa extends AppLocalizations {
       '投稿 ID の新しい順です。ウェブサイトのお気に入り登録時刻順とは異なる場合があります。';
 
   @override
-  String get tooltip_randomPrompt => 'ランダムプロンプト (長押しして設定)';
-
-  @override
   String get tooltip_fullscreenEdit => 'フルスクリーン編集';
-
-  @override
-  String get tooltip_maximizePrompt => 'プロンプト領域を最大化';
-
-  @override
-  String get tooltip_restoreLayout => 'レイアウトを復元';
-
-  @override
-  String get tooltip_clear => 'クリア';
-
-  @override
-  String get tooltip_promptSettings => 'プロンプト設定';
 
   @override
   String get tooltip_decreaseWeight => 'ウェイトを下げる [-5%]';
@@ -3514,21 +2630,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get tooltip_delete => '削除';
 
   @override
-  String get tooltip_changeImage => '画像の変更';
-
-  @override
-  String get tooltip_removeImage => '画像を削除';
-
-  @override
-  String get tooltip_previewGenerate => 'プレビュー生成';
-
-  @override
-  String get tooltip_help => 'ヘルプ';
-
-  @override
-  String get tooltip_addConfigGroup => '構成グループの追加';
-
-  @override
   String get tooltip_enable => '有効にする';
 
   @override
@@ -3538,63 +2639,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get tooltip_resetWeight => 'クリックして 100% にリセットします';
 
   @override
-  String get upscale_title => '画像の拡大';
-
-  @override
-  String get upscale_close => '閉じる';
-
-  @override
-  String get upscale_start => '拡大を開始';
-
-  @override
-  String get upscale_sourceImage => 'ソース画像';
-
-  @override
-  String get upscale_clickToSelect => 'クリックして拡大する画像を選択してください';
-
-  @override
   String get upscale_scale => 'スケール係数';
-
-  @override
-  String get upscale_2xHint => '元のサイズの 2 倍に拡大 (推奨)';
-
-  @override
-  String get upscale_4xHint => '元のサイズの 4 倍に拡大 (Anlas のコストが高くなります)';
-
-  @override
-  String get upscale_processing => '画像を拡大しています...';
-
-  @override
-  String get upscale_complete => '拡大完了';
-
-  @override
-  String get upscale_save => '保存';
-
-  @override
-  String get upscale_share => 'シェア';
-
-  @override
-  String get upscale_failed => '拡大に失敗しました';
-
-  @override
-  String upscale_selectFailed(Object error) {
-    return '画像の選択に失敗しました: $error';
-  }
-
-  @override
-  String upscale_savedTo(Object path) {
-    return '保存先: $path';
-  }
-
-  @override
-  String upscale_saveFailed(Object error) {
-    return '保存に失敗しました: $error';
-  }
-
-  @override
-  String upscale_shareFailed(Object error) {
-    return '共有に失敗しました: $error';
-  }
 
   @override
   String get danbooru_loginTitle => 'ログイン Danbooru';
@@ -3631,7 +2676,7 @@ class AppLocalizationsJa extends AppLocalizations {
       'Gelbooru のアカウント設定に表示される User ID と API Key を入力してください。パスワードやブラウザー Cookie は収集しません。';
 
   @override
-  String get gelbooru_userId => 'User ID';
+  String get gelbooru_userId => 'ユーザー ID';
 
   @override
   String get gelbooru_userIdHint => '正の整数の User ID を入力';
@@ -3755,280 +2800,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get tagCategory_general => '一般';
 
   @override
-  String get configEditor_newConfigGroup => '新しい構成グループ';
-
-  @override
-  String get configEditor_editConfigGroup => '構成グループの編集';
-
-  @override
-  String get configEditor_configName => '構成名';
-
-  @override
-  String get configEditor_enableConfig => 'この構成を有効にする';
-
-  @override
-  String get configEditor_enableConfigHint => '無効な構成は生成に参加しません';
-
-  @override
-  String get configEditor_contentType => 'コンテンツ タイプ';
-
-  @override
-  String get configEditor_tagList => 'タグリスト';
-
-  @override
-  String get configEditor_nestedConfig => 'ネストされた構成';
-
-  @override
-  String get configEditor_selectionMode => '選択モード';
-
-  @override
-  String get configEditor_selectCount => '数を選択:';
-
-  @override
-  String get configEditor_selectProbability => '確率を選択:';
-
-  @override
-  String get configEditor_shuffleOrder => 'シャッフル順序';
-
-  @override
-  String get configEditor_shuffleOrderHint => '選択したコンテンツをランダムに配置します';
-
-  @override
-  String get configEditor_weightBrackets => 'ウェイト ブラケット';
-
-  @override
-  String get configEditor_weightBracketsHint =>
-      '括弧により重みが増加し、中括弧ごとに最大 5% 追加されます';
-
-  @override
-  String configEditor_minBrackets(Object count) {
-    return '最小ブラケット: $count';
-  }
-
-  @override
-  String configEditor_maxBrackets(Object count) {
-    return '最大括弧数: $count';
-  }
-
-  @override
-  String get configEditor_effectPreview => '効果のプレビュー:';
-
-  @override
-  String get configEditor_content => 'コンテンツ';
-
-  @override
-  String configEditor_tagCountHint(Object count) {
-    return '1 行に 1 つのタグ、現在 $count 個のアイテム';
-  }
-
-  @override
-  String get configEditor_format => '形式';
-
-  @override
-  String get configEditor_sort => '並べ替え';
-
-  @override
-  String get configEditor_dedupe => '重複排除';
-
-  @override
-  String get configEditor_nestedConfigHint =>
-      'ネストされた構成により、複雑な階層化されたランダム ロジックが作成されます';
-
-  @override
-  String get configEditor_noNestedConfig => 'ネストされた構成はまだありません';
-
-  @override
-  String configEditor_itemCount(Object count) {
-    return '$count アイテム';
-  }
-
-  @override
-  String configEditor_subConfigCount(Object count) {
-    return '$count サブ構成';
-  }
-
-  @override
-  String get configEditor_addNestedConfig => 'ネストされた構成の追加';
-
-  @override
-  String get configEditor_subConfig => 'サブ構成';
-
-  @override
-  String get configEditor_singleRandom => 'シングル - ランダム';
-
-  @override
-  String get configEditor_singleSequential => 'シングル - シーケンシャル';
-
-  @override
-  String get configEditor_singleProbability => 'シングル - 確率';
-
-  @override
-  String get configEditor_multipleCount => '複数 - カウント';
-
-  @override
-  String get configEditor_multipleProbability => '複数 - 確率';
-
-  @override
-  String get configEditor_selectAll => 'すべて';
-
-  @override
-  String get configEditor_singleRandomHint => '毎回ランダムに 1 つのアイテムを選択します';
-
-  @override
-  String get configEditor_singleSequentialHint => '項目を順番に循環します';
-
-  @override
-  String get configEditor_singleProbabilityHint =>
-      'X% の確率でランダムに 1 つが選択され、それ以外の場合はスキップされます。';
-
-  @override
-  String get configEditor_multipleCountHint => '指定された数のアイテムをランダムに選択します';
-
-  @override
-  String get configEditor_multipleProbabilityHint => '確率で選択される各アイテム';
-
-  @override
-  String get configEditor_selectAllHint => 'すべてのアイテムを選択';
-
-  @override
-  String get configEditor_or => ' または ';
-
-  @override
-  String get configEditor_enterConfigName => '構成名を入力してください';
-
-  @override
-  String get configEditor_continueEditing => '編集を続ける';
-
-  @override
-  String get configEditor_discardChanges => '変更を破棄';
-
-  @override
-  String configEditor_randomCount(Object count) {
-    return 'ランダム $count';
-  }
-
-  @override
-  String configEditor_probabilityPercent(Object percent) {
-    return '$percent% の確率';
-  }
-
-  @override
-  String get presetEdit_newPreset => '新しいプリセット';
-
-  @override
-  String get presetEdit_editPreset => 'プリセットの編集';
-
-  @override
-  String get presetEdit_presetName => 'プリセット名';
-
-  @override
-  String presetEdit_configGroups(Object count) {
-    return '構成グループ ($count)';
-  }
-
-  @override
-  String get presetEdit_noConfigGroups => '構成グループがまだありません';
-
-  @override
-  String get presetEdit_addConfigGroupHint => '右上の + をクリックして構成グループを追加します';
-
-  @override
-  String get presetEdit_addConfigGroup => '構成グループの追加';
-
-  @override
-  String get presetEdit_newConfigGroup => '新しい構成グループ';
-
-  @override
-  String get presetEdit_enterPresetName => 'プリセット名を入力してください';
-
-  @override
-  String get presetEdit_saveSuccess => '正常に保存されました';
-
-  @override
-  String get presetEdit_saveError => 'プリセットの保存に失敗しました';
-
-  @override
-  String presetEdit_deleteConfigConfirm(Object name) {
-    return '構成グループ「$name」を削除しますか?';
-  }
-
-  @override
-  String get presetEdit_previewTitle => 'プレビュー生成結果';
-
-  @override
-  String get presetEdit_emptyResult => '(結果は空です。設定を確認してください)';
-
-  @override
-  String get presetEdit_regenerate => '再生成';
-
-  @override
-  String get presetEdit_helpTitle => 'ヘルプ';
-
-  @override
-  String get presetEdit_helpConfigGroup => '構成グループの説明';
-
-  @override
-  String get presetEdit_helpConfigGroupContent =>
-      '各構成グループはコンテンツを順番に生成し、最終結果はカンマで結合されます。';
-
-  @override
-  String get presetEdit_helpSelectionMode => '選択モード';
-
-  @override
-  String get presetEdit_helpSingleRandom =>
-      '• Single-Random: 1 つのアイテムをランダムに選択します';
-
-  @override
-  String get presetEdit_helpSingleSequential => '• シングルシーケンシャル: 順番に循環します。';
-
-  @override
-  String get presetEdit_helpMultipleCount =>
-      '• Multiple-Count: 指定されたカウントをランダムに選択します';
-
-  @override
-  String get presetEdit_helpMultipleProbability =>
-      '• 複数の確率: 各アイテムは確率によって独立して選択されます。';
-
-  @override
-  String get presetEdit_helpAll => '• すべて: すべての項目を選択します。';
-
-  @override
-  String get presetEdit_helpWeightBrackets => 'ウェイト ブラケット';
-
-  @override
-  String get presetEdit_helpWeightBracketsContent =>
-      '中括弧は重みを増加させます。括弧が多いほど重みが高くなります。';
-
-  @override
-  String get presetEdit_helpWeightBracketsExample =>
-      '例: ブラケット 1 個でウェイト 1.05 倍、ブラケット 2 個でウェイト 1.1 倍です。';
-
-  @override
-  String get presetEdit_helpNestedConfig => 'ネストされた構成';
-
-  @override
-  String get presetEdit_helpNestedConfigContent =>
-      '構成は、複雑な階層化されたランダム ロジック用にネストできます。';
-
-  @override
-  String get presetEdit_gotIt => 'わかりました';
-
-  @override
-  String presetEdit_tagCount(Object count) {
-    return '$count タグ';
-  }
-
-  @override
-  String presetEdit_bracketLayers(Object count) {
-    return '$count ブラケット レイヤ';
-  }
-
-  @override
-  String presetEdit_bracketRange(Object min, Object max) {
-    return '$min-$max ブラケット レイヤ';
-  }
-
-  @override
   String get qualityTags_label => '品質';
 
   @override
@@ -4072,9 +2843,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get ucPreset_none => 'なし';
-
-  @override
-  String get ucPreset_custom => 'カスタム';
 
   @override
   String get ucPreset_disabled => '除外したい要素プリセットが無効です';
@@ -4123,83 +2891,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get batchSize_costWarning => '⚠️ バッチサイズ > 1 には追加の Anlas 費用がかかります';
 
   @override
-  String get font_systemDefault => 'システムのデフォルト';
-
-  @override
-  String get font_sourceHanSans => 'ソース・ハン・サンズ';
-
-  @override
-  String get font_sourceHanSerif => 'ソース ハン セリフ';
-
-  @override
-  String get font_sourceHanSansHK => 'ソース Han Sans HK';
-
-  @override
-  String get font_sourceHanMono => 'ソースハンモノ';
-
-  @override
-  String get font_zcoolXiaowei => 'ZCOOL シャオウェイ';
-
-  @override
-  String get font_zcoolKuaile => 'ZCOOL クアイレ';
-
-  @override
-  String get font_mashan => '馬山鄭';
-
-  @override
-  String get font_longcang => 'ロン・カン';
-
-  @override
-  String get font_liujian => '劉建毛操';
-
-  @override
-  String get font_zhimang => '志曼興';
-
-  @override
-  String get font_codeFont => 'コードフォント';
-
-  @override
-  String get font_modernNarrow => 'モダンナロー';
-
-  @override
-  String get font_classicSerif => 'クラシックセリフ';
-
-  @override
-  String get font_sciFi => 'SF';
-
-  @override
-  String get font_techStyle => 'テックスタイル';
-
-  @override
-  String get font_systemFonts => 'システム フォント';
-
-  @override
-  String get download_tagsData => 'タグ データ';
-
-  @override
-  String get download_cooccurrenceData => '共起タグデータ';
-
-  @override
-  String download_failed(Object name) {
-    return '$name ダウンロードに失敗しました';
-  }
-
-  @override
-  String download_downloading(Object name) {
-    return '$name をダウンロードしています';
-  }
-
-  @override
-  String download_complete(Object name) {
-    return '$name ダウンロードが完了しました';
-  }
-
-  @override
-  String download_downloadFailed(Object name) {
-    return '$name ダウンロードに失敗しました';
-  }
-
-  @override
   String get warmup_networkCheck => 'ネットワーク接続を確認しています...';
 
   @override
@@ -4219,11 +2910,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get warmup_networkCheck_testingProxy => 'プロキシ経由でネットワークをテストしています...';
-
-  @override
-  String warmup_networkCheck_failed(Object error) {
-    return 'ネットワーク接続に失敗しました: $error、VPN を確認してください';
-  }
 
   @override
   String warmup_networkCheck_success(Object latency) {
@@ -4294,12 +2980,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get warmup_cooccurrenceData => 'タグ共起データをロードしています...';
 
   @override
-  String get warmup_retryFailed => '失敗したタスクを再試行します';
-
-  @override
-  String get warmup_errorDetail => 'エラー';
-
-  @override
   String get warmup_group_basicUI => '基本的な UI サービスを初期化しています...';
 
   @override
@@ -4368,75 +3048,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get warmup_fetchingMetaTags => 'メタタグを取得しています...';
-
-  @override
-  String get performanceReport_title => '起動パフォーマンス';
-
-  @override
-  String get performanceReport_export => 'レポートのエクスポート';
-
-  @override
-  String get performanceReport_taskStats => 'タスク統計';
-
-  @override
-  String get performanceReport_averageDuration => '平均継続時間';
-
-  @override
-  String get performanceReport_successRate => '成功率';
-
-  @override
-  String get performanceReport_exportSuccess => 'レポートは正常にエクスポートされました';
-
-  @override
-  String get performanceReport_noDataTitle => 'パフォーマンス データがありません';
-
-  @override
-  String get performanceReport_noDataSubtitle => 'ウォームアップが完了すると、統計がここに表示されます';
-
-  @override
-  String get performanceReport_overallStats => '全体的な統計';
-
-  @override
-  String get performanceReport_warmupCount => 'ウォームアップの実行';
-
-  @override
-  String get performanceReport_totalTasks => '合計タスク数';
-
-  @override
-  String get performanceReport_averageTotalDuration => '平均合計所要時間';
-
-  @override
-  String get copyName => ' (コピー)';
-
-  @override
-  String get defaultPreset_name => 'デフォルトのプリセット';
-
-  @override
-  String get defaultPreset_quality => '品質';
-
-  @override
-  String get defaultPreset_character => 'キャラクター';
-
-  @override
-  String get defaultPreset_expression => '式';
-
-  @override
-  String get defaultPreset_clothing => '衣類';
-
-  @override
-  String get defaultPreset_action => 'アクション';
-
-  @override
-  String get defaultPreset_background => '背景';
-
-  @override
-  String get defaultPreset_shot => 'ショット';
-
-  @override
-  String get defaultPreset_composition => '構成';
-
-  @override
-  String get defaultPreset_specialStyle => '特別なスタイル';
 
   @override
   String get resolution_groupNormal => '正常';
@@ -4515,65 +3126,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get api_error_network_hint => 'サーバーに接続できません。ネットワークを確認してください';
 
   @override
-  String get api_error_unknown => '不明なエラー';
-
-  @override
-  String api_error_unknown_hint(Object error) {
-    return '不明なエラーが発生しました: $error';
-  }
-
-  @override
-  String get drop_dialogTitle => 'この画像はどのように使用しますか?';
-
-  @override
-  String get drop_hint => 'ここに画像をドロップしてください';
-
-  @override
   String get drop_processing => '画像を処理しています...';
 
   @override
-  String get drop_processingSubtitle => 'お待ちください';
-
-  @override
-  String get drop_img2img => 'Image2Image';
-
-  @override
-  String get drop_reversePrompt => '逆プロンプト';
-
-  @override
-  String get drop_vibeTransfer => 'バイブストランスファー';
-
-  @override
-  String get drop_characterReference => '精密参照';
-
-  @override
-  String get drop_unsupportedFormat => 'サポートされていないファイル形式です';
-
-  @override
-  String get drop_addedToImg2Img => 'Image2Image に追加しました';
-
-  @override
-  String get drop_addedToReversePrompt => 'リバースプロンプトに追加されました';
-
-  @override
-  String get drop_addedToVibe => 'バイブストランスファーに追加しました';
-
-  @override
-  String drop_addedMultipleToVibe(int count) {
-    return '$count 件のバイブストランスファー参照を追加しました';
-  }
-
-  @override
-  String get drop_addedToCharacterRef => '精密参照に追加しました';
-
-  @override
-  String get characterEditor_title => '複数キャラクタープロンプト';
-
-  @override
   String get characterEditor_close => '閉じる';
-
-  @override
-  String get characterEditor_confirm => '確認';
 
   @override
   String get characterEditor_clearAll => 'すべてクリア';
@@ -4584,35 +3140,6 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get characterEditor_clearAllConfirm =>
       'すべてのキャラクターを削除しますか？この操作は元に戻せません。';
-
-  @override
-  String get characterEditor_tabList => 'キャラクターリスト';
-
-  @override
-  String get characterEditor_tabDetail => 'キャラクター詳細';
-
-  @override
-  String get characterEditor_globalAiChoice => 'AI のグローバルな地位';
-
-  @override
-  String get characterEditor_globalAiChoiceHint =>
-      '有効にすると、AI がすべてのキャラクターの位置を自動的に決定します';
-
-  @override
-  String get characterEditor_emptyTitle => 'キャラクターを選択してください';
-
-  @override
-  String get characterEditor_emptyHint => 'リストから選択するか、新しいキャラクターを追加してください';
-
-  @override
-  String get characterEditor_noCharacters => 'キャラクターなし';
-
-  @override
-  String get characterEditor_addCharacterHint =>
-      'キャラクターを追加するには上のボタンをクリックしてください';
-
-  @override
-  String get characterEditor_name => '名前';
 
   @override
   String get characterEditor_nameHint => 'キャラクター名を入力してください';
@@ -4626,9 +3153,6 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get characterEditor_negativePromptHint =>
       'このキャラクターの除外したい要素を入力してください...';
-
-  @override
-  String get characterEditor_position => '位置';
 
   @override
   String get characterCanvas_title => 'キャラクター位置';
@@ -4655,15 +3179,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get characterEditor_genderOther => 'その他';
 
   @override
-  String get characterEditor_genderFemaleHint => '女性 (追加時に選択)';
-
-  @override
-  String get characterEditor_genderMaleHint => '男性(追加時に選択)';
-
-  @override
-  String get characterEditor_genderOtherHint => 'その他（追加時に選択）';
-
-  @override
   String get characterEditor_addFemale => 'F';
 
   @override
@@ -4676,49 +3191,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get characterEditor_addFromLibrary => 'ライブラリ';
 
   @override
-  String get characterEditor_editCharacter => 'キャラクターの編集';
-
-  @override
   String get characterEditor_moveUp => '上に移動';
 
   @override
   String get characterEditor_moveDown => '下に移動';
-
-  @override
-  String get characterEditor_aiChoice => 'AI';
-
-  @override
-  String get characterEditor_positionLabel => '位置:';
-
-  @override
-  String get characterEditor_positionHint => '画像内のキャラクター位置を選択してください';
-
-  @override
-  String get characterEditor_promptLabel => 'プロンプト:';
-
-  @override
-  String get characterEditor_disabled => '[無効]';
-
-  @override
-  String characterEditor_characterCount(Object count) {
-    return '$count キャラクター';
-  }
-
-  @override
-  String characterEditor_characterCountWithEnabled(
-    Object enabled,
-    Object total,
-  ) {
-    return '$enabled/$total キャラクター';
-  }
-
-  @override
-  String characterEditor_tooltipWithCount(Object count) {
-    return '複数キャラクタープロンプト ($count キャラクター)';
-  }
-
-  @override
-  String get characterEditor_clickToEdit => 'クリックして複数キャラクタープロンプトを編集します';
 
   @override
   String get toolbar_randomPrompt => 'ランダムなプロンプト';
@@ -4777,70 +3253,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get characterTooltip_viewFullConfig => 'クリックすると完全な構成が表示されます';
 
   @override
-  String get tagLibrary_title => 'タグ ライブラリ';
-
-  @override
-  String tagLibrary_tagCount(Object count) {
-    return '$count タグが読み込まれました';
-  }
-
-  @override
-  String get tagLibrary_usingBuiltin => '組み込みライブラリの使用';
-
-  @override
-  String tagLibrary_lastSync(Object time) {
-    return '最終同期: $time';
-  }
-
-  @override
-  String get tagLibrary_neverSynced => '同期されていません';
-
-  @override
-  String get tagLibrary_syncNow => 'Danbooru から同期';
-
-  @override
-  String get tagLibrary_syncing => '同期中...';
-
-  @override
-  String get tagLibrary_syncSuccess => 'ライブラリは正常に同期されました';
-
-  @override
-  String get tagLibrary_syncFailed => '同期に失敗しました。ネットワーク接続を確認してください';
-
-  @override
-  String get tagLibrary_networkError =>
-      'Danbooru に接続できません。ネットワークまたはプロキシ設定を確認してください。';
-
-  @override
-  String get tagLibrary_autoSync => '自動同期';
-
-  @override
-  String get tagLibrary_autoSyncHint => 'Danbooru から定期的に更新します';
-
-  @override
-  String get tagLibrary_syncInterval => '同期間隔';
-
-  @override
-  String get tagLibrary_dataRange => 'データ範囲';
-
-  @override
-  String get tagLibrary_dataRangeHint => '範囲が広いほど同期時間は長くなりますが、タグの数も多くなります';
-
-  @override
-  String get tagLibrary_dataRangePopular => '人気 (>1000)';
-
-  @override
-  String get tagLibrary_dataRangeMedium => '中 (>500)';
-
-  @override
-  String get tagLibrary_dataRangeFull => 'フル (>100)';
-
-  @override
-  String tagLibrary_syncIntervalDays(Object days) {
-    return '$days 日';
-  }
-
-  @override
   String tagLibrary_generatedCharacters(Object count) {
     return '$count キャラクターを生成しました';
   }
@@ -4878,425 +3290,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomMode_customIndicator => 'カスタム';
 
   @override
-  String get naiMode_title => 'デフォルトモード';
-
-  @override
-  String get naiMode_subtitle => 'NovelAI の公式ランダム アルゴリズムを複製する';
-
-  @override
-  String get naiMode_syncLibrary => '拡張ライブラリの管理';
-
-  @override
-  String get manageLibrary => 'ライブラリの管理';
-
-  @override
-  String get naiMode_algorithmInfo => 'アルゴリズム情報';
-
-  @override
-  String naiMode_tagCountBadge(Object count) {
-    return '$count タグ';
-  }
-
-  @override
-  String naiMode_totalTags(Object count) {
-    return 'タグ: $count';
-  }
-
-  @override
-  String naiMode_lastSync(Object time) {
-    return '同期しました: $time';
-  }
-
-  @override
-  String get naiMode_lastSyncLabel => '最終同期';
-
-  @override
-  String get timeAgo_justNow => 'たった今';
-
-  @override
-  String timeAgo_minutes(Object count) {
-    return '$count 分前';
-  }
-
-  @override
-  String timeAgo_hours(Object count) {
-    return '$count時間前';
-  }
-
-  @override
-  String timeAgo_days(Object count) {
-    return '$count日前';
-  }
-
-  @override
-  String naiMode_dataRange(Object range) {
-    return '範囲: $range';
-  }
-
-  @override
-  String get naiMode_preview => 'プレビュー';
-
-  @override
-  String get naiMode_createCustom => 'カスタム プリセットの作成';
-
-  @override
-  String naiMode_categoryProbability(Object probability) {
-    return '$probability%';
-  }
-
-  @override
-  String naiMode_tagCount(Object count) {
-    return '$count タグ';
-  }
-
-  @override
-  String get naiMode_readOnlyHint => '公式アルゴリズムに基づくランダムなプロンプト構成';
-
-  @override
-  String promptConfig_confirmRemoveGroup(Object name) {
-    return 'グループ「$name」を削除してもよろしいですか?';
-  }
-
-  @override
-  String promptConfig_confirmRemoveCategory(Object name) {
-    return 'カテゴリ「$name」を削除してもよろしいですか?ランダム生成には参加しなくなります。';
-  }
-
-  @override
-  String get promptConfig_groupList => 'グループリスト';
-
-  @override
-  String promptConfig_groupCount(Object count) {
-    return '$count グループ';
-  }
-
-  @override
-  String get promptConfig_addGroup => 'グループを追加';
-
-  @override
-  String get promptConfig_noGroups => 'まだグループがありません。[グループを追加] をクリックして作成します';
-
-  @override
-  String get promptConfig_builtinLibrary => 'NAI 組み込みライブラリ';
-
-  @override
-  String get promptConfig_customGroup => 'カスタム グループ';
-
-  @override
-  String get promptConfig_danbooruTagGroup => 'Danbooru タググループ';
-
-  @override
-  String get promptConfig_danbooruPool => 'Danbooru プール';
-
-  @override
-  String get promptConfig_categorySettings => 'カテゴリ設定';
-
-  @override
-  String get promptConfig_enableCategory => 'カテゴリを有効にする';
-
-  @override
-  String get promptConfig_disableCategory => 'カテゴリを無効にする';
-
-  @override
-  String get naiMode_noLibrary => 'ライブラリがロードされていません';
-
-  @override
-  String get naiMode_noCategories =>
-      'カテゴリがありません。プリセットをリセットするか、新しいカテゴリを追加してください。';
-
-  @override
   String get naiMode_noTags => 'タグがありません';
-
-  @override
-  String get naiMode_previewResult => 'プレビュー結果';
-
-  @override
-  String get naiMode_characterPrompts => 'キャラクタープロンプト';
-
-  @override
-  String get naiMode_character => 'キャラクター';
-
-  @override
-  String get naiMode_createCustomTitle => 'カスタム プリセットの作成';
-
-  @override
-  String get naiMode_createCustomDesc =>
-      'これにより、すべての NAI カテゴリを含む新しいプリセットが作成され、カスタマイズできます。';
-
-  @override
-  String get naiMode_featureComingSoon => '機能は近日公開予定です...';
-
-  @override
-  String get naiMode_danbooruToggleTooltip => 'このカテゴリの拡張タグを切り替えます';
-
-  @override
-  String get naiMode_danbooruSupplementLabel => '拡張タグ';
-
-  @override
-  String get naiMode_danbooruMasterToggleTooltip => 'すべてのカテゴリの拡張タグを切り替えます';
-
-  @override
-  String naiMode_entrySubtitle(Object count) {
-    return '$count タグ · 公式アルゴリズムを複製';
-  }
-
-  @override
-  String get naiAlgorithm_title => 'NAI ランダム アルゴリズム';
 
   @override
   String get naiAlgorithm_characterCount => 'キャラクター数の分布';
 
   @override
-  String get naiAlgorithm_categoryProbability => 'カテゴリ選択確率';
-
-  @override
-  String get naiAlgorithm_weightedRandom => '加重ランダム アルゴリズム';
-
-  @override
-  String get naiAlgorithm_weightedRandomDesc =>
-      '各タグの重みは、Danbooru の使用数に基づいています。重みが大きいほど、選択確率が高くなります。';
-
-  @override
-  String get naiAlgorithm_v4MultiCharacter => 'V4 マルチキャラクター';
-
-  @override
-  String get naiAlgorithm_v4Desc =>
-      'V4 モデルは、メイン プロンプトとキャラクター プロンプトを分離し、各キャラクターの独立したプロンプトをサポートします。';
-
-  @override
   String get naiAlgorithm_mainPrompt => 'メイン プロンプト';
-
-  @override
-  String get naiAlgorithm_mainPromptTags => 'キャラクター数、背景、スタイル';
-
-  @override
-  String get naiAlgorithm_characterPrompt => 'キャラクタープロンプト';
-
-  @override
-  String get naiAlgorithm_characterPromptTags => '髪の色、目の色、髪型、表情、ポーズ';
-
-  @override
-  String get naiAlgorithm_noHuman => '人間のシーンはありません';
-
-  @override
-  String get naiAlgorithm_noHumanDesc =>
-      '5% の確率で人間のいない、背景、シーン、スタイル タグのみを含むシーンが生成されます。';
-
-  @override
-  String get naiAlgorithm_background => '背景';
-
-  @override
-  String get naiAlgorithm_hairColor => '髪の色';
-
-  @override
-  String get naiAlgorithm_eyeColor => '目の色';
-
-  @override
-  String get naiAlgorithm_expression => '式';
-
-  @override
-  String get naiAlgorithm_hairStyle => 'ヘアスタイル';
-
-  @override
-  String get naiAlgorithm_pose => 'ポーズ';
-
-  @override
-  String get naiAlgorithm_style => 'スタイル';
-
-  @override
-  String get naiAlgorithm_clothing => '衣類';
-
-  @override
-  String get naiAlgorithm_accessory => 'アクセサリ';
-
-  @override
-  String get naiAlgorithm_scene => 'シーン';
-
-  @override
-  String get naiAlgorithm_bodyFeature => 'ボディの特徴';
-
-  @override
-  String get importNai_title => 'NAI ライブラリからインポート';
-
-  @override
-  String get importNai_selectCategories => 'インポートするカテゴリを選択してください';
-
-  @override
-  String importNai_import(Object count) {
-    return '$count カテゴリをインポートします';
-  }
-
-  @override
-  String importNai_tagCount(Object count) {
-    return '$count タグ';
-  }
-
-  @override
-  String get tagLibrary_rangePopular => '人気';
-
-  @override
-  String get tagLibrary_rangeMedium => '中';
-
-  @override
-  String get tagLibrary_rangeFull => 'フル';
-
-  @override
-  String tagLibrary_daysAgo(Object days) {
-    return '$days 日前';
-  }
-
-  @override
-  String tagLibrary_hoursAgo(Object hours) {
-    return '$hours 時間前';
-  }
-
-  @override
-  String get tagLibrary_justNow => 'たった今';
-
-  @override
-  String get tagLibrary_danbooruSupplement => 'Danbooru 補足';
-
-  @override
-  String get tagLibrary_danbooruSupplementHint =>
-      'Danbooru から追加のタグを取得してライブラリを補足します';
-
-  @override
-  String get tagLibrary_libraryComposition => 'ライブラリ構成';
-
-  @override
-  String get tagLibrary_libraryCompositionDesc =>
-      'NAI 公式固定ライブラリ + 拡張タグ (オプション)';
-
-  @override
-  String get poolMapping_title => 'プールのマッピング';
-
-  @override
-  String get poolMapping_enableSync => 'プールの同期を有効にする';
-
-  @override
-  String get poolMapping_enableSyncDesc => 'Danbooru プールからタグを抽出してカテゴリを補完します';
-
-  @override
-  String get poolMapping_addMapping => 'プール マッピングの追加';
-
-  @override
-  String get poolMapping_noMappings => 'プール マッピングがありません';
-
-  @override
-  String get poolMapping_noMappingsHint => '上のボタンをクリックして Danbooru プールを追加します';
-
-  @override
-  String get poolMapping_searchPool => '検索プール';
-
-  @override
-  String get poolMapping_searchHint => 'プール名のキーワードを入力してください';
-
-  @override
-  String get poolMapping_targetCategory => '対象カテゴリ';
-
-  @override
-  String get poolMapping_selectPool => 'プールの選択';
-
-  @override
-  String get poolMapping_syncPools => '同期プール';
-
-  @override
-  String get poolMapping_syncing => '同期中...';
-
-  @override
-  String get poolMapping_neverSynced => '同期されていません';
-
-  @override
-  String get poolMapping_syncSuccess => 'プールの同期が成功しました';
-
-  @override
-  String get poolMapping_syncFailed => 'プールの同期に失敗しました';
-
-  @override
-  String get poolMapping_noResults => '一致するプールが見つかりませんでした';
-
-  @override
-  String get poolMapping_poolExists => 'このプールはすでに追加されています';
-
-  @override
-  String get poolMapping_addSuccess => 'プール マッピングが正常に追加されました';
-
-  @override
-  String get poolMapping_removeConfirm => 'このプール マッピングを削除してもよろしいですか?';
-
-  @override
-  String get poolMapping_removeSuccess => 'プール マッピングが削除されました';
-
-  @override
-  String poolMapping_tagCount(Object count) {
-    return '$count タグ';
-  }
-
-  @override
-  String poolMapping_postCount(Object count) {
-    return '$count 投稿';
-  }
-
-  @override
-  String get poolMapping_alreadyAdded => '追加';
-
-  @override
-  String get poolMapping_resetToDefault => 'デフォルトにリセット';
-
-  @override
-  String get poolMapping_resetConfirm =>
-      'デフォルトのプール マッピングにリセットしてもよろしいですか?現在の設定は上書きされます。';
-
-  @override
-  String get poolMapping_resetSuccess => 'デフォルト構成にリセット';
-
-  @override
-  String get tagGroup_title => 'タググループの同期';
-
-  @override
-  String get tagGroup_enableSync => 'タググループの同期を有効にする';
-
-  @override
-  String get tagGroup_enableSyncDesc => 'Danbooru タグ グループからタグ データを取得します';
-
-  @override
-  String get tagGroup_mappingTitle => 'タググループのマッピング';
-
-  @override
-  String get tagGroup_addMapping => 'マッピングを追加';
-
-  @override
-  String get tagGroup_noMappings => 'タググループマッピングがありません';
-
-  @override
-  String get tagGroup_noMappingsHint => '上のボタンをクリックしてタグ グループを参照して追加します';
-
-  @override
-  String get tagGroup_searchHint => 'タグ グループを検索...';
-
-  @override
-  String get tagGroup_targetCategory => '対象カテゴリ';
-
-  @override
-  String get tagGroup_selectGroup => 'タググループの選択';
-
-  @override
-  String get tagGroup_neverSynced => '同期されていません';
-
-  @override
-  String get tagGroup_noResults => '一致するタグ グループが見つかりませんでした';
-
-  @override
-  String get tagGroup_groupExists => 'このタググループはすでに追加されています';
-
-  @override
-  String get tagGroup_addSuccess => 'タグ グループ マッピングが正常に追加されました';
-
-  @override
-  String get tagGroup_removeConfirm => 'このタグ グループ マッピングを削除してもよろしいですか?';
-
-  @override
-  String get tagGroup_removeSuccess => 'タググループマッピングが削除されました';
 
   @override
   String tagGroup_tagCount(Object count) {
@@ -5304,484 +3304,20 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String tagGroup_childCount(Object count) {
-    return '$count サブグループ';
-  }
-
-  @override
-  String get tagGroup_alreadyAdded => '追加';
-
-  @override
-  String get tagGroup_resetToDefault => 'デフォルトにリセット';
-
-  @override
-  String get tagGroup_resetConfirm =>
-      'デフォルトのタググループマッピングにリセットしてもよろしいですか?現在の設定は上書きされます。';
-
-  @override
-  String get tagGroup_resetSuccess => 'デフォルト構成にリセット';
-
-  @override
-  String get tagGroup_minPostCount => '最小投稿数';
-
-  @override
-  String tagGroup_postCountValue(Object count) {
-    return '$count 件の投稿';
-  }
-
-  @override
-  String get tagGroup_minPostCountHint => 'このしきい値を超える投稿数を持つタグのみを同期します';
-
-  @override
-  String get tagGroup_preview => 'タグのプレビュー';
-
-  @override
-  String tagGroup_previewCount(Object count) {
-    return '$count タグをプレビューする';
-  }
-
-  @override
-  String get tagGroup_selectToPreview => 'プレビューを表示するにはタグ グループを選択してください';
-
-  @override
-  String get tagGroup_noTagsInGroup => 'このグループにはタグがありません';
-
-  @override
-  String tagGroup_andMore(Object count) {
-    return 'および $count その他...';
-  }
-
-  @override
-  String get tagGroup_options => 'オプション';
-
-  @override
-  String get tagGroup_includeChildren => 'サブグループタグを含める';
-
-  @override
-  String get tagGroup_includesChildren => 'サブグループを含む';
-
-  @override
-  String get tagGroup_syncPreparing => '同期を準備しています...';
-
-  @override
-  String tagGroup_syncFetching(Object name, Object current, Object total) {
-    return '$name を取得中... ($current/$total)';
-  }
-
-  @override
-  String tagGroup_syncFiltering(Object total, Object filtered) {
-    return 'フィルタリング: $total タグ、$filtered タグを保持';
-  }
-
-  @override
-  String tagGroup_syncCompleted(Object count) {
-    return '同期が完了しました。タグの合計は $count 個です';
-  }
-
-  @override
-  String tagGroup_syncFailed(Object error) {
-    return '同期に失敗しました: $error';
-  }
-
-  @override
-  String tagGroup_addTo(Object category) {
-    return '追加先: $category';
-  }
-
-  @override
-  String get tagGroup_refresh => 'リストを更新';
-
-  @override
-  String get tagGroup_loadingFromDanbooru => 'Danbooru からタグ グループをロードしています...';
-
-  @override
-  String get tagGroup_loadFailed => 'タグ グループのロードに失敗しました。ネットワーク接続を確認してください。';
-
-  @override
-  String tagGroup_loadError(Object error) {
-    return 'ロードに失敗しました: $error';
-  }
-
-  @override
-  String get tagGroup_reload => 'リロード';
-
-  @override
-  String get tagGroup_searchHintAlt => 'または、検索を使用して特定のグループを見つけます';
-
-  @override
-  String get tagGroup_selected => '選択済み';
-
-  @override
-  String get tagGroup_manageGroups => 'グループの管理';
-
-  @override
-  String get tagGroup_manageGroupsHint => '同期するタグ グループを選択してください';
-
-  @override
-  String tagGroup_selectedCount(Object count) {
-    return '選択された $count グループ';
-  }
-
-  @override
-  String get naiMode_syncCategory => '同期カテゴリ';
-
-  @override
-  String get naiMode_syncCategoryTooltip => 'このカテゴリのみの拡張タグを同期します';
-
-  @override
-  String get naiMode_viewDetails => '詳細を見る';
-
-  @override
-  String get naiMode_tagListTitle => 'タグリスト';
-
-  @override
-  String get naiMode_desc_hairColor => 'キャラクターの髪の色を記述するための髪色タグ';
-
-  @override
-  String get naiMode_desc_eyeColor => 'キャラクターの目の色を記述するための目の色タグ';
-
-  @override
-  String get naiMode_desc_hairStyle => 'キャラクターの髪型を記述するための髪型タグ';
-
-  @override
-  String get naiMode_desc_expression => '表情を記述するための式タグ';
-
-  @override
-  String get naiMode_desc_pose => '体の姿勢と動作を説明するためのポーズタグ';
-
-  @override
-  String get naiMode_desc_clothing => '服装を説明するための衣類タグ';
-
-  @override
-  String get naiMode_desc_accessory => '装飾やアクセサリーを説明するためのアクセサリータグ';
-
-  @override
-  String get naiMode_desc_bodyFeature => '身体の特徴を記述するための身体特徴タグ';
-
-  @override
-  String get naiMode_desc_background => '背景の種類を記述するための背景タグ';
-
-  @override
-  String get naiMode_desc_scene => 'シーン要素を記述するためのシーンタグ';
-
-  @override
-  String get naiMode_desc_style => 'アート スタイルを記述するためのスタイル タグ';
-
-  @override
-  String get naiMode_desc_characterCount => 'キャラクター数を決定するためのキャラクター数タグ';
-
-  @override
-  String get tagGroup_builtin => '内蔵';
-
-  @override
-  String tagGroup_totalTagsTooltip(Object original, Object filtered) {
-    return '元: $original / フィルタ済み: $filtered';
-  }
-
-  @override
-  String get tagGroup_cacheDetails => 'キャッシュの詳細';
-
-  @override
-  String get tagGroup_cachedCategories => 'キャッシュされたカテゴリ';
-
-  @override
-  String get cache_title => '単語グループ';
-
-  @override
-  String get cache_manage => '単語グループ';
-
-  @override
-  String get cache_tabTagGroup => 'タググループ';
-
-  @override
-  String get cache_tabPool => 'プール';
-
-  @override
-  String get cache_noTagGroups => 'タグ グループ キャッシュがありません';
-
-  @override
-  String get cache_noPools => 'プール キャッシュがありません';
-
-  @override
-  String get cache_noBuiltin => '内蔵辞書はありません';
-
-  @override
-  String get cache_probability => '確率';
-
-  @override
-  String get cache_tags => 'タグ';
-
-  @override
-  String get cache_posts => '投稿';
-
-  @override
-  String get cache_neverSynced => '同期されていません';
-
-  @override
-  String get cache_refresh => '更新';
-
-  @override
-  String cache_refreshFailed(String error) {
-    return '更新に失敗しました: $error';
-  }
-
-  @override
-  String get cache_refreshAll => 'すべて更新';
-
-  @override
-  String cache_refreshProgress(Object current, Object total, String name) {
-    return '同期中 ($current/$total): $name';
-  }
-
-  @override
-  String cache_totalStats(Object count, Object tags) {
-    return '$count グループ、合計 $tags タグ';
-  }
-
-  @override
-  String get addGroup_fetchingCache => 'データを取得しています...';
-
-  @override
-  String get addGroup_fetchFailed => 'データの取得に失敗しましたが、グループを追加することはできます';
-
-  @override
-  String get addGroup_syncFailed => '同期に失敗しました。ネットワーク接続を確認して再試行してください。';
-
-  @override
-  String addGroup_addFailed(String error) {
-    return '追加に失敗しました: $error';
-  }
-
-  @override
-  String get addGroup_addCustom => 'カスタムを追加';
-
-  @override
-  String get addGroup_filterHint => 'キャッシュされたグループを検索します...';
-
-  @override
-  String get customGroup_title => 'カスタム グループの追加';
-
-  @override
-  String get customGroup_searchHint => '検索するキーワードを入力してください Danbooru...';
-
-  @override
-  String get customGroup_nameLabel => '表示名';
-
-  @override
-  String get customGroup_add => '追加とキャッシュ';
-
-  @override
-  String get customGroup_searchPrompt => 'キーワードを入力して検索してください';
-
-  @override
-  String get tagGroup_noCachedData => 'キャッシュされたデータがありません';
-
-  @override
-  String get tagGroup_syncRequired => '同期が必要です';
-
-  @override
-  String get tagGroup_notSynced => '同期されていません';
-
-  @override
-  String get tagGroup_lastSyncTime => '最終同期';
-
-  @override
-  String get tagGroup_heatThreshold => '熱閾値';
-
-  @override
-  String get tagGroup_totalStats => '合計';
-
-  @override
-  String tagGroup_syncedCount(Object synced, Object total) {
-    return '$synced/$total 同期しました';
-  }
-
-  @override
-  String addGroup_dialogTitle(Object category) {
-    return '「$category」の辞書を追加';
-  }
-
-  @override
-  String get addGroup_builtinTab => '内蔵';
-
-  @override
   String get addGroup_tagGroupTab => 'タググループ';
-
-  @override
-  String get addGroup_cancel => 'キャンセル';
-
-  @override
-  String get addGroup_submit => '追加';
-
-  @override
-  String get addGroup_builtinEnabled => '内蔵辞書が有効になりました';
-
-  @override
-  String get addGroup_builtinEnabledDesc => 'このカテゴリの組み込み辞書はすでに使用されています';
-
-  @override
-  String get addGroup_enableBuiltin => '内蔵辞書を有効にする';
-
-  @override
-  String get addGroup_enableBuiltinDesc => 'アプリの組み込みタグ辞書を使用する';
-
-  @override
-  String get addGroup_enable => '有効にする';
-
-  @override
-  String get addGroup_backToParent => '戻る';
-
-  @override
-  String get addGroup_browseMode => 'キャッシュされたリスト';
-
-  @override
-  String get addGroup_customMode => 'その他を追加';
-
-  @override
-  String get addGroup_allCategories => 'すべてのカテゴリ';
-
-  @override
-  String get addGroup_noMoreSubcategories => 'サブカテゴリはもうありません';
-
-  @override
-  String addGroup_tagGroupCount(Object count) {
-    return '$count タグ グループ';
-  }
-
-  @override
-  String get addGroup_customInputHint =>
-      'Danbooru タググループのタイトルを入力します。例: Hair_color';
-
-  @override
-  String get addGroup_groupTitleLabel => 'タググループのタイトル *';
-
-  @override
-  String get addGroup_groupTitleHint => '例:hair_color または tag_group:hair_color';
 
   @override
   String get addGroup_displayNameLabel => '表示名 (オプション)';
 
   @override
-  String get addGroup_displayNameHint => 'タイトルを使用するには空のままにしてください';
-
-  @override
   String get addGroup_targetCategoryLabel => '対象カテゴリ';
-
-  @override
-  String get addGroup_includeChildren => 'サブグループを含める';
-
-  @override
-  String get addGroup_includeChildrenDesc => 'このタグ グループのすべてのサブグループからもタグを取得します';
-
-  @override
-  String get addGroup_errorEmptyTitle => 'タググループのタイトルを入力してください';
-
-  @override
-  String get addGroup_errorGroupExists => 'このタグ グループはすでに存在します';
-
-  @override
-  String get addGroup_sourceTypeLabel => 'データ ソース';
 
   @override
   String get addGroup_poolTab => 'Danbooru プール';
 
   @override
-  String get addGroup_poolSearchLabel => '検索プール';
-
-  @override
-  String get addGroup_poolSearchHint => '検索するプール名を入力してください';
-
-  @override
-  String get addGroup_poolSearchEmpty => 'キーワードを入力して Danbooru プールを検索してください';
-
-  @override
-  String get addGroup_poolSearchError => '検索に失敗しました';
-
-  @override
-  String get addGroup_poolNoResults => '一致するプールが見つかりませんでした';
-
-  @override
-  String addGroup_poolPostCount(Object count) {
-    return '$count 投稿';
-  }
-
-  @override
-  String get addGroup_noCachedTagGroups => 'キャッシュされたタグ グループがありません';
-
-  @override
-  String get addGroup_noCachedTagGroupsHint => 'まずキャッシュ管理でタグ グループ データを同期してください';
-
-  @override
-  String get addGroup_noFilterResults => '一致する結果が見つかりませんでした';
-
-  @override
-  String get addGroup_noCachedPools => 'キャッシュされたプールがありません';
-
-  @override
-  String get addGroup_noCachedPoolsHint => '検索ボックスを使用して Danbooru プールを検索して追加します';
-
-  @override
-  String get addGroup_sectionTagGroups => 'タググループ ☁️';
-
-  @override
-  String get addGroup_sectionPools => 'プール 🖼️';
-
-  @override
-  String get globalSettings_title => '概要設定';
-
-  @override
-  String get globalSettings_resetToDefault => 'デフォルトにリセット';
-
-  @override
-  String get globalSettings_characterCountDistribution => 'キャラクター数の分布';
-
-  @override
-  String get globalSettings_weightRandomOffset => 'ウェイトのランダムオフセット';
-
-  @override
-  String get globalSettings_categoryProbabilityOverview => 'カテゴリ確率の概要';
-
-  @override
-  String get globalSettings_cancel => 'キャンセル';
-
-  @override
-  String get globalSettings_save => '保存';
-
-  @override
   String globalSettings_saveFailed(Object error) {
     return '保存に失敗しました: $error';
-  }
-
-  @override
-  String get globalSettings_noCharacter => 'なし';
-
-  @override
-  String globalSettings_characterCount(Object count) {
-    return '$count キャラクター';
-  }
-
-  @override
-  String get globalSettings_enableWeightRandomOffset => 'ウェイトのランダムオフセットを有効にする';
-
-  @override
-  String get globalSettings_enableWeightRandomOffsetDesc =>
-      '人間による微調整をシミュレートするために、生成中にブラケットをランダムに追加します';
-
-  @override
-  String get globalSettings_bracketType => 'ブラケットのタイプ';
-
-  @override
-  String get globalSettings_bracketEnhance => '中括弧の強化';
-
-  @override
-  String get globalSettings_bracketWeaken => '[] 弱体化';
-
-  @override
-  String get globalSettings_layerRange => 'レイヤー範囲';
-
-  @override
-  String globalSettings_layerRangeValue(Object min, Object max) {
-    return '$min - $max レイヤー';
   }
 
   @override
@@ -5821,13 +3357,19 @@ class AppLocalizationsJa extends AppLocalizations {
   String get nav_generate => '生成';
 
   @override
+  String get nav_gallery => 'ギャラリー';
+
+  @override
+  String get nav_settings => '設定';
+
+  @override
   String download_completed(Object name) {
     return '$name ダウンロードが完了しました';
   }
 
   @override
-  String import_completed(Object name) {
-    return '$name インポートが完了しました';
+  String download_failed(Object name) {
+    return '$name ダウンロードに失敗しました';
   }
 
   @override
@@ -5913,169 +3455,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get time_never_synced => '同期されていません';
 
   @override
-  String get selectionMode_single => '単一のランダム';
-
-  @override
-  String get selectionMode_multipleNum => '複数のカウント';
-
-  @override
-  String get selectionMode_multipleProb => '複数の問題';
-
-  @override
-  String get selectionMode_all => 'すべて';
-
-  @override
-  String get selectionMode_sequential => 'シーケンシャル';
-
-  @override
-  String categorySettings_title(Object name) {
-    return 'カテゴリ設定 - $name';
-  }
-
-  @override
-  String get categorySettings_probability => 'カテゴリの確率';
-
-  @override
-  String get categorySettings_probabilityDesc => 'このカテゴリがランダム生成に参加する確率';
-
-  @override
-  String get categorySettings_groupSelectionMode => 'グループ選択モード';
-
-  @override
-  String get categorySettings_groupSelectionModeDesc => 'サブグループから選択する方法';
-
-  @override
-  String get categorySettings_groupSelectCount => '数を選択:';
-
-  @override
-  String get categorySettings_shuffle => 'シャッフル順序';
-
-  @override
-  String get categorySettings_shuffleDesc => '選択したグループの出力順序をランダムに配置します';
-
-  @override
-  String get categorySettings_unifiedBracket => '統合ブラケット';
-
-  @override
-  String get categorySettings_unifiedBracketDisabled => '無効';
-
-  @override
-  String get categorySettings_enableUnifiedBracket => '統合設定を有効にする';
-
-  @override
-  String get categorySettings_enableUnifiedBracketDesc =>
-      '有効にすると、各グループの個別のブラケット設定が上書きされます。';
-
-  @override
-  String get categorySettings_bracketRange => 'ブラケット層の範囲';
-
-  @override
-  String categorySettings_bracketMin(Object count) {
-    return '最小: $count レイヤー';
-  }
-
-  @override
-  String categorySettings_bracketMax(Object count) {
-    return '最大: $count レイヤー';
-  }
-
-  @override
-  String get categorySettings_bracketPreview => 'プレビュー:';
-
-  @override
-  String get categorySettings_batchSettings => 'バッチ操作';
-
-  @override
-  String get categorySettings_batchSettingsDesc => 'このカテゴリのすべてのグループに対するバッチ操作';
-
-  @override
-  String get categorySettings_enableAllGroups => 'すべて有効にする';
-
-  @override
-  String get categorySettings_disableAllGroups => 'すべて無効にする';
-
-  @override
-  String get categorySettings_resetGroupSettings => 'グループ設定をリセット';
-
-  @override
-  String get categorySettings_batchEnableSuccess => 'すべてのグループが有効になりました';
-
-  @override
-  String get categorySettings_batchDisableSuccess => 'すべてのグループが無効になりました';
-
-  @override
-  String get categorySettings_batchResetSuccess => 'すべてのグループ設定がリセットされました';
-
-  @override
-  String tagGroupSettings_title(Object name) {
-    return 'グループ設定 - $name';
-  }
-
-  @override
-  String get tagGroupSettings_probability => '選択確率';
-
-  @override
-  String get tagGroupSettings_probabilityDesc => 'このグループが選択される確率';
-
-  @override
-  String get tagGroupSettings_selectionMode => '選択モード';
-
-  @override
-  String get tagGroupSettings_selectionModeDesc => 'このグループからタグを選択する方法';
-
-  @override
-  String get tagGroupSettings_selectCount => '数を選択:';
-
-  @override
-  String get tagGroupSettings_shuffle => 'シャッフル順序';
-
-  @override
-  String get tagGroupSettings_shuffleDesc => '選択したタグの出力順序をランダムに並べます';
-
-  @override
-  String get tagGroupSettings_bracket => 'ウェイト ブラケット';
-
-  @override
-  String get tagGroupSettings_bracketDesc =>
-      '選択したタグにウェイトブラケットをランダムに追加します。各中括弧でウェイトが約 5% 増加します';
-
-  @override
-  String tagGroupSettings_bracketMin(Object count) {
-    return '最小: $count レイヤー';
-  }
-
-  @override
-  String tagGroupSettings_bracketMax(Object count) {
-    return '最大: $count レイヤー';
-  }
-
-  @override
-  String get tagGroupSettings_bracketPreview => 'プレビュー:';
-
-  @override
-  String get categorySettings_settingsButton => '設定';
-
-  @override
-  String get tagGroupSettings_settingsButton => '設定';
-
-  @override
-  String get promptConfig_tagCountUnit => 'タグ';
-
-  @override
-  String get promptConfig_removeGroup => 'グループを削除';
-
-  @override
   String get preset_resetToDefault => 'デフォルトにリセット';
-
-  @override
-  String get preset_resetConfirmTitle => 'プリセットをリセット';
-
-  @override
-  String get preset_resetConfirmMessage =>
-      '現在のプリセット内のすべてのカテゴリとグループをデフォルトにリセットしてもよろしいですか?この操作は元に戻すことができません。';
-
-  @override
-  String get preset_resetSuccess => 'プリセットがデフォルトにリセットされました';
 
   @override
   String get newPresetDialog_title => '新しいプリセットを作成';
@@ -6093,136 +3473,22 @@ class AppLocalizationsJa extends AppLocalizations {
   String get newPresetDialog_templateDesc => 'デフォルトのプリセットからすべての設定を開始点としてコピーします';
 
   @override
-  String get category_addNew => 'カテゴリを追加';
-
-  @override
   String get category_dialogTitle => 'カテゴリの作成';
-
-  @override
-  String get category_name => '名前';
 
   @override
   String get category_nameHint => 'カテゴリ名を入力してください';
 
   @override
-  String get category_key => 'キー';
-
-  @override
-  String get category_keyHint => '内部識別子';
-
-  @override
-  String get category_emoji => 'アイコン';
-
-  @override
-  String get category_selectEmoji => '絵文字を選択してください';
-
-  @override
-  String get category_probability => '確率';
-
-  @override
-  String get category_createSuccess => 'カテゴリが作成されました';
-
-  @override
   String get category_nameRequired => '名前は必須です';
 
   @override
-  String get category_keyRequired => 'キーが必要です';
-
-  @override
-  String get category_keyExists => 'このキーはすでに存在します';
-
-  @override
-  String get group_selectEmoji => 'アイコンを選択';
+  String get category_selectEmoji => '絵文字を選択してください';
 
   @override
   String get category_noRecentEmoji => '最近の絵文字はありません';
 
   @override
   String get category_searchEmoji => '絵文字を検索';
-
-  @override
-  String get addGroup_customTab => 'カスタム';
-
-  @override
-  String get customGroup_groupName => 'グループ名';
-
-  @override
-  String get customGroup_entryPlaceholder =>
-      'エントリを入力して Enter キーを押します (複数のタグをサポート、カンマ区切り)';
-
-  @override
-  String get customGroup_noEntries => 'エントリがまだありません。開始するにはエントリを追加してください';
-
-  @override
-  String customGroup_entryCount(Object count) {
-    return '$count エントリ';
-  }
-
-  @override
-  String get customGroup_editEntry => 'エントリーの編集';
-
-  @override
-  String get customGroup_aliasLabel => 'エイリアス (オプション)';
-
-  @override
-  String get customGroup_aliasHint => '覚えやすいエイリアスを入力してください';
-
-  @override
-  String get customGroup_contentLabel => 'プロンプトの内容';
-
-  @override
-  String get customGroup_contentHint => '実際のプロンプトの内容を入力してください';
-
-  @override
-  String get customGroup_save => '保存';
-
-  @override
-  String get customGroup_confirm => '確認';
-
-  @override
-  String get customGroup_selectEmoji => 'アイコンを選択';
-
-  @override
-  String get customGroup_nameRequired => 'グループ名を入力してください';
-
-  @override
-  String get customGroup_addEntry => 'エントリの追加';
-
-  @override
-  String get customGroup_noCustomGroups => 'カスタム グループはまだありません';
-
-  @override
-  String get customGroup_createInCacheManager => '「グループ マネージャー」でカスタム グループを作成する';
-
-  @override
-  String get cache_createCustomGroup => 'カスタム グループの作成';
-
-  @override
-  String cache_confirmDeleteCustomGroup(Object name) {
-    return 'カスタム グループ「$name」を削除してもよろしいですか?';
-  }
-
-  @override
-  String get cache_customTab => 'カスタム';
-
-  @override
-  String get cache_addFromDanbooru => 'Danbooru から追加';
-
-  @override
-  String get customGroup_emptyStateTitle => 'エントリの追加を開始します';
-
-  @override
-  String get customGroup_emptyStateHint => '上の入力フィールドに入力し、Enter キーを押して追加します';
-
-  @override
-  String get common_comingSoon => '近日公開予定...';
-
-  @override
-  String get common_openInBrowser => 'ブラウザで開く';
-
-  @override
-  String get customGroup_tagsPlaceholder =>
-      'カンマで区切ってタグを入力してください (オートコンプリートがサポートされています)...';
 
   @override
   String get characterCountConfig_title => 'キャラクター数設定';
@@ -6283,9 +3549,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get characterCountConfig_slot => 'スロット';
 
   @override
-  String get characterCountConfig_resetToDefault => 'デフォルトにリセット';
-
-  @override
   String get characterCountConfig_customSlots => 'カスタム スロット';
 
   @override
@@ -6296,16 +3559,10 @@ class AppLocalizationsJa extends AppLocalizations {
       '利用可能なキャラクター スロット オプションを追加または削除します';
 
   @override
-  String get characterCountConfig_addSlot => 'スロットを追加';
-
-  @override
   String get characterCountConfig_addSlotHint => '例: トラップ 1 つ、フタナリ 1 つ';
 
   @override
   String get characterCountConfig_slotExists => 'このスロットはすでに存在します';
-
-  @override
-  String get characterCountConfig_cannotDeleteBuiltin => '内蔵スロットは削除できません';
 
   @override
   String get randomManager_algorithmConfig => 'アルゴリズム構成';
@@ -6821,42 +4078,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get randomManager_refreshOrSync => '更新/同期';
 
   @override
-  String get genderRestriction_enabled => '性別制限';
-
-  @override
-  String get genderRestriction_enabledDesc => '性別フィルターが有効になっていません';
-
-  @override
-  String genderRestriction_enabledActive(Object count) {
-    return '有効、$count 性別が利用可能';
-  }
-
-  @override
-  String get genderRestriction_enable => '性別制限を有効にする';
-
-  @override
-  String get genderRestriction_enableDesc => '指定された性別のキャラクターにのみ適用されます';
-
-  @override
-  String get genderRestriction_applicableGenders => '該当する性別';
-
-  @override
   String get gender_female => '女性';
 
   @override
   String get gender_male => '男性';
-
-  @override
-  String get gender_trap => 'トラップ';
-
-  @override
-  String get gender_futanari => 'ふたなり';
-
-  @override
-  String get scope_title => '範囲';
-
-  @override
-  String get scope_titleDesc => 'このカテゴリ/グループの適用範囲を設定します';
 
   @override
   String get scope_global => 'メイン';
@@ -6878,15 +4103,6 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get scope_allTooltip =>
       'プロンプトはメイン プロンプトとキャラクター プロンプトの両方に表示されます\n用途: ポーズ、インタラクション、その他の汎用タグ';
-
-  @override
-  String get tagGroupSettings_resetToCategory => 'カテゴリ設定にリセット';
-
-  @override
-  String get bracket_weaken => '弱体化';
-
-  @override
-  String get bracket_enhance => '強化';
 
   @override
   String get vibeNoEncodingWarning => 'この画像には事前にエンコードされたデータがありません';
@@ -7022,18 +4238,6 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get tag_tabTags => 'タグ';
-
-  @override
-  String get tag_tabGroups => 'グループ';
-
-  @override
-  String get tag_tabFavorites => 'お気に入り';
-
-  @override
-  String get tag_tabTemplates => 'テンプレート';
-
-  @override
   String get tag_categoryGeneral => '一般';
 
   @override
@@ -7049,42 +4253,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get tag_categoryMeta => 'メタ';
 
   @override
-  String tag_countBadgeTooltip(Object total) {
-    return '合計 $total タグ';
-  }
-
-  @override
   String get tag_countBadgeBreakdown => 'タグの内訳';
-
-  @override
-  String tag_countEnabled(Object count) {
-    return '$count が有効になりました';
-  }
-
-  @override
-  String get localGallery_searchIndexing => '検索インデックスを構築しています...';
-
-  @override
-  String get localGallery_searchIndexComplete => '検索インデックスの準備ができました';
-
-  @override
-  String get localGallery_searchIndexFailed => '検索インデックス エラー';
-
-  @override
-  String localGallery_cacheStatus(Object current, Object max) {
-    return 'キャッシュ: $current/$max 画像';
-  }
-
-  @override
-  String localGallery_cacheHitRate(Object rate) {
-    return 'ヒット率: $rate%';
-  }
-
-  @override
-  String get localGallery_preloading => '画像をプリロードしています...';
-
-  @override
-  String get localGallery_preloadComplete => 'プリロードが完了しました';
 
   @override
   String get localGallery_progressiveLoadError => '画像のロードに失敗しました';
@@ -7119,9 +4288,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String localGallery_jumpedToMonth(Object year, Object month) {
     return '$year-$month にジャンプしました';
   }
-
-  @override
-  String get localGallery_searchPlaceholder => 'プロンプト、モデル、サンプラーを検索...';
 
   @override
   String get localGallery_title => 'ローカル ギャラリー';
@@ -7303,9 +4469,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_packFailed => '画像のパックに失敗しました';
 
   @override
-  String get localGallery_noMetadata => 'この画像にはメタデータがありません';
-
-  @override
   String get localGallery_imageFileMissing => '画像ファイルが存在しません';
 
   @override
@@ -7317,28 +4480,12 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get localGallery_noVibeData => 'この画像には Vibe データが含まれていません';
-
-  @override
-  String localGallery_vibeAddedToParams(Object name) {
-    return 'Vibe「$name」が生成パラメータに追加されました';
-  }
-
-  @override
-  String localGallery_addVibeFailed(Object error) {
-    return 'Vibe の追加に失敗しました: $error';
-  }
-
-  @override
   String get localGallery_sentToReversePrompt => '画像がリバース プロンプトに送信されました';
 
   @override
   String localGallery_sendToKritaFailed(Object error) {
     return 'Krita への送信に失敗しました: $error';
   }
-
-  @override
-  String get localGallery_sendTo => '送信先...';
 
   @override
   String get localGallery_sendToImg2Img => 'Image2Image に送信';
@@ -7492,13 +4639,7 @@ class AppLocalizationsJa extends AppLocalizations {
       'すべてのキャッシュをクリアしますか?これにより、すべての画像が再スキャンされます。';
 
   @override
-  String get localGallery_filterByDate => '日付でフィルターする';
-
-  @override
   String get localGallery_clearFilters => 'フィルターをクリア';
-
-  @override
-  String get slideshow_title => 'スライドショー';
 
   @override
   String get slideshow_of => '件中';
@@ -7526,14 +4667,6 @@ class AppLocalizationsJa extends AppLocalizations {
       '← → を使用して移動し、Space を使用して再生/一時停止し、Esc を使用して終了します';
 
   @override
-  String slideshow_autoPlayInterval(Object seconds) {
-    return '自動再生間隔: ${seconds}s';
-  }
-
-  @override
-  String get comparison_title => '画像の比較';
-
-  @override
   String get comparison_noImages => '表示する画像がありません';
 
   @override
@@ -7553,15 +4686,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get statistics_title => '統計';
-
-  @override
-  String get statistics_tabOverview => '概要';
-
-  @override
-  String get statistics_tabTrends => 'トレンド';
-
-  @override
-  String get statistics_tabDetails => '詳細';
 
   @override
   String get statistics_noData => '利用可能な統計はありません';
@@ -7589,9 +4713,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get statistics_generateFirst => '最初にいくつかの画像を生成します';
 
   @override
-  String get statistics_overview => '概要';
-
-  @override
   String get statistics_totalImages => '合計画像数';
 
   @override
@@ -7601,19 +4722,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get statistics_favorites => 'お気に入り';
 
   @override
-  String get statistics_tagged => 'タグ付き';
-
-  @override
-  String get statistics_modelDistribution => 'モデル分布';
-
-  @override
-  String get statistics_resolutionDistribution => '解像度の分布';
-
-  @override
   String get statistics_samplerDistribution => 'サンプラー分布';
-
-  @override
-  String get statistics_sizeDistribution => 'ファイル サイズの分布';
 
   @override
   String get statistics_additionalStats => '追加の統計';
@@ -7623,9 +4732,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get statistics_withMetadata => 'メタデータ付きの画像';
-
-  @override
-  String get statistics_calculatedAt => '計算日時';
 
   @override
   String get statistics_justNow => 'たった今';
@@ -7673,48 +4779,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get statistics_timeNight => '夜';
 
   @override
-  String get localGallery_favoritesOnly => 'お気に入りのみ';
-
-  @override
-  String get localGallery_noFavorites => 'お気に入りはまだありません';
-
-  @override
-  String get localGallery_markAsFavorite => 'お気に入りとしてマーク';
-
-  @override
-  String get localGallery_removeFromFavorites => 'お気に入りから削除';
-
-  @override
-  String get localGallery_tags => 'タグ';
-
-  @override
-  String get localGallery_addTag => 'タグを追加';
-
-  @override
-  String get localGallery_removeTag => 'タグを削除';
-
-  @override
-  String get localGallery_noTags => 'タグがありません';
-
-  @override
-  String get localGallery_filterByTags => 'タグによるフィルター';
-
-  @override
-  String get localGallery_selectTags => 'タグの選択';
-
-  @override
-  String get localGallery_tagFilterMatchAll => 'すべてのタグに一致';
-
-  @override
-  String get localGallery_tagFilterMatchAny => '任意のタグに一致';
-
-  @override
-  String get localGallery_clearTagFilter => 'タグフィルターをクリア';
-
-  @override
-  String get localGallery_noTagsFound => 'タグが見つかりませんでした';
-
-  @override
   String get localGallery_advancedFilters => '高度なフィルター';
 
   @override
@@ -7736,37 +4800,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_filterSubtitle => '画像コレクションを正確にフィルタリングします';
 
   @override
-  String get localGallery_model => 'モデル';
-
-  @override
   String get localGallery_modelHint => 'モデル名を入力してください...';
-
-  @override
-  String get localGallery_sampler => 'サンプラー';
 
   @override
   String get localGallery_samplerHint => 'サンプラー名を入力してください...';
 
   @override
-  String get localGallery_steps => 'ステップ';
-
-  @override
-  String get localGallery_cfgScale => 'CFG スケール';
-
-  @override
-  String get localGallery_resolution => '解像度';
-
-  @override
   String get localGallery_resolutionHint => '幅 x 高さ (例: 1024x1024)';
-
-  @override
-  String get localGallery_any => '任意';
-
-  @override
-  String get localGallery_custom => 'カスタム';
-
-  @override
-  String get localGallery_to => 'へ';
 
   @override
   String get localGallery_activeFiltersSet => 'フィルターセット';
@@ -7778,32 +4818,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_resetAdvancedFilters => '詳細フィルターをリセット';
 
   @override
-  String get localGallery_exportMetadata => 'メタデータのエクスポート';
-
-  @override
-  String get localGallery_exportSelected => '選択項目をエクスポート';
-
-  @override
   String get localGallery_exportFailed => 'エクスポートに失敗しました';
-
-  @override
-  String get localGallery_exporting => 'エクスポートしています...';
-
-  @override
-  String get localGallery_selectToExport => 'エクスポートする画像を選択してください';
-
-  @override
-  String get localGallery_noImagesSelected => '画像が選択されていません';
-
-  @override
-  String localGallery_exportSuccessDetail(Object count) {
-    return 'メタデータ付きの $count 画像をエクスポートしました';
-  }
-
-  @override
-  String bulkExport_title(Object count) {
-    return '$count 画像をエクスポート';
-  }
 
   @override
   String get bulkExport_format => '形式';
@@ -7813,12 +4828,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get bulkExport_csvFormat => 'CSV';
-
-  @override
-  String get bulkExport_metadataOptions => 'メタデータ オプション';
-
-  @override
-  String get bulkExport_includeMetadata => 'メタデータを含める';
 
   @override
   String get bulkExport_includeMetadataHint => '生成パラメータを画像付きでエクスポート';
@@ -7836,30 +4845,8 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_group_earlier => '以前';
 
   @override
-  String get localGallery_group_dateFormat => 'MMM dd';
-
-  @override
-  String get localGallery_jumpToDate => '日付に移動';
-
-  @override
-  String get localGallery_noImagesOnThisDate => 'この日付には画像がありません';
-
-  @override
-  String get localGallery_selectedImagesNoPrompt => '選択した画像にはプロンプト情報がありません';
-
-  @override
-  String localGallery_addedTasksToQueue(Object count) {
-    return '$count タスクをキューに追加しました';
-  }
-
-  @override
   String localGallery_cannotOpenFolder(Object error) {
     return 'フォルダーを開けません: $error';
-  }
-
-  @override
-  String localGallery_jumpedToDate(Object date) {
-    return '$date にジャンプしました';
   }
 
   @override
@@ -7931,9 +4918,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get brushPreset_selectHint => 'ダブルタップしてこのブラシ プリセットを選択します';
-
-  @override
-  String get brushPreset_selected => '選択済み';
 
   @override
   String get brushPreset_pencil => '鉛筆';
@@ -8014,6 +4998,59 @@ class AppLocalizationsJa extends AppLocalizations {
   String get bulkProgress_title_default => '処理中';
 
   @override
+  String bulkProgress_errorDeleteFailed(String error) {
+    return '画像の削除に失敗しました: $error';
+  }
+
+  @override
+  String get bulkProgress_errorNoImagesToExport => 'エクスポートする画像がありません';
+
+  @override
+  String get bulkProgress_errorExportFailed => 'エクスポートに失敗しました';
+
+  @override
+  String bulkProgress_errorExportFailedWithDetails(String error) {
+    return 'エクスポートに失敗しました: $error';
+  }
+
+  @override
+  String get bulkProgress_errorNoMetadataChanges => '追加または削除するタグを入力してください';
+
+  @override
+  String bulkProgress_errorMetadataEditFailed(String error) {
+    return '画像メタデータの編集に失敗しました: $error';
+  }
+
+  @override
+  String bulkProgress_errorFavoriteFailed(String error) {
+    return 'お気に入りの更新に失敗しました: $error';
+  }
+
+  @override
+  String get bulkProgress_errorNoImagesForCollection => 'コレクションに追加する画像がありません';
+
+  @override
+  String bulkProgress_errorAddToCollectionFailed(String error) {
+    return 'コレクションへの画像追加に失敗しました: $error';
+  }
+
+  @override
+  String get bulkProgress_errorNothingToUndo => '元に戻す操作がありません';
+
+  @override
+  String bulkProgress_errorUndoFailed(String error) {
+    return '元に戻せませんでした: $error';
+  }
+
+  @override
+  String get bulkProgress_errorNothingToRedo => 'やり直す操作がありません';
+
+  @override
+  String bulkProgress_errorRedoFailed(String error) {
+    return 'やり直せませんでした: $error';
+  }
+
+  @override
   String get collectionSelect_dialogTitle => 'コレクションを選択してください';
 
   @override
@@ -8034,49 +5071,7 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get statistics_navOverview => '概要';
-
-  @override
-  String get statistics_navModels => 'モデル';
-
-  @override
-  String get statistics_navTags => 'タグ';
-
-  @override
-  String get statistics_navParameters => 'パラメータ';
-
-  @override
-  String get statistics_navTrends => 'トレンド';
-
-  @override
-  String get statistics_navActivity => 'アクティビティ';
-
-  @override
-  String get statistics_sectionTagAnalysis => 'タグ分析';
-
-  @override
-  String get statistics_sectionParameterPrefs => 'パラメータの設定';
-
-  @override
-  String get statistics_sectionActivityAnalysis => 'アクティビティ分析';
-
-  @override
-  String get statistics_chartUsageDistribution => '使用状況の分布';
-
-  @override
-  String get statistics_chartModelRanking => 'モデルランキング';
-
-  @override
-  String get statistics_chartModelUsageOverTime => 'モデルの経時的な使用状況';
-
-  @override
   String get statistics_chartTopTags => 'トップのタグ';
-
-  @override
-  String get statistics_chartTagCloud => 'タグクラウド';
-
-  @override
-  String get statistics_chartParameterOverview => 'パラメータの概要';
 
   @override
   String get statistics_chartAspectRatio => 'アスペクト比の分布';
@@ -8089,66 +5084,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get statistics_chartWeekdayDistribution => '曜日別分布';
-
-  @override
-  String get statistics_filterTitle => 'フィルター';
-
-  @override
-  String get statistics_filterClear => 'クリア';
-
-  @override
-  String get statistics_filterDateRange => '日付範囲';
-
-  @override
-  String get statistics_filterModel => 'モデル';
-
-  @override
-  String get statistics_filterAllModels => 'すべてのモデル';
-
-  @override
-  String get statistics_filterResolution => '解像度';
-
-  @override
-  String get statistics_filterAllResolutions => 'すべての解像度';
-
-  @override
-  String get statistics_granularity => '粒度';
-
-  @override
-  String get statistics_granularityDay => '日';
-
-  @override
-  String get statistics_granularityWeek => '週';
-
-  @override
-  String get statistics_granularityMonth => '月';
-
-  @override
-  String get statistics_labelTotalDays => '合計日数';
-
-  @override
-  String get statistics_labelPeak => 'ピーク';
-
-  @override
-  String get statistics_labelAverage => '平均';
-
-  @override
-  String get statistics_labelSteps => 'ステップ';
-
-  @override
-  String get statistics_labelCfg => 'CFG';
-
-  @override
-  String get statistics_labelWidth => '幅';
-
-  @override
-  String get statistics_labelHeight => '高さ';
-
-  @override
-  String get statistics_labelFavPercent => 'お気に入り%';
-
-  @override
-  String get statistics_labelTagPercent => 'タグ%';
 
   @override
   String get statistics_aspectSquare => 'スクエア';
@@ -8174,36 +5109,10 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get statistics_noMetadata => '利用可能なメタデータがありません';
-
-  @override
-  String get statistics_unknown => '不明';
-
-  @override
-  String statistics_weekLabel(Object week) {
-    return 'W$week';
-  }
-
-  @override
-  String get statistics_peakHour => 'ピーク時間';
-
-  @override
   String get statistics_mostActiveDay => '最もアクティブな日';
 
   @override
   String get statistics_leastActiveDay => '最も活動的でない日';
-
-  @override
-  String get statistics_morning => '朝';
-
-  @override
-  String get statistics_afternoon => '午後';
-
-  @override
-  String get statistics_evening => '夕方';
-
-  @override
-  String get statistics_night => '夜';
 
   @override
   String get statistics_sunday => '日';
@@ -8239,9 +5148,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get fixedTags_emptyHint => '下のボタンをクリックして固定タグを追加すると、プロンプトに自動的に適用されます';
 
   @override
-  String get fixedTags_clickToManage => 'クリックして固定タグを管理します';
-
-  @override
   String get fixedTags_manage => '固定タグの管理';
 
   @override
@@ -8258,12 +5164,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get fixedTags_suffix => 'サフィックス';
-
-  @override
-  String get fixedTags_prefixDesc => 'プロンプトの前に追加';
-
-  @override
-  String get fixedTags_suffixDesc => 'プロンプトの後に追加';
 
   @override
   String get fixedTags_disabled => '無効';
@@ -8966,12 +5866,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get tagLibrary_searchHint => 'エントリを検索...';
 
   @override
-  String get tagLibrary_cardView => 'カードビュー';
-
-  @override
-  String get tagLibrary_listView => 'リストビュー';
-
-  @override
   String get tagLibrary_import => 'インポート';
 
   @override
@@ -9264,9 +6158,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get tagLibraryPicker_allCategories => 'すべてのカテゴリ';
 
   @override
-  String get tagLibrary_addToFixed => '固定タグに追加';
-
-  @override
   String get tagLibrary_addedToFixed => '固定タグに追加';
 
   @override
@@ -9278,13 +6169,7 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get tagLibrary_removeFavorite => 'お気に入りから削除';
-
-  @override
   String get tagLibrary_addFavorite => 'お気に入りに追加';
-
-  @override
-  String get tagLibrary_pinned => 'お気に入りに登録しました';
 
   @override
   String get tagLibrary_thumbnail => 'サムネイル';
@@ -9424,24 +6309,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get tagLibrary_dragToMove => 'ドラッグして移動、スクロールまたはピンチしてズームします';
 
   @override
-  String get tagLibrary_livePreview => 'ライブ プレビュー';
-
-  @override
-  String get tagLibrary_horizontalOffset => '水平オフセット';
-
-  @override
-  String get tagLibrary_verticalOffset => '垂直オフセット';
-
-  @override
-  String get tagLibrary_zoom => 'ズーム';
-
-  @override
-  String get tagLibrary_zoomRatio => 'ズーム率';
-
-  @override
-  String get queue_title => 'キュー';
-
-  @override
   String get queue_management => 'キュー管理';
 
   @override
@@ -9466,9 +6333,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get queue_failed => '失敗しました';
-
-  @override
-  String get queue_skipped => 'スキップされました';
 
   @override
   String get queue_paused => '一時停止しました';
@@ -9551,12 +6415,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get queue_autoExecuteOff => '生成するには手動でクリックする必要があります';
 
   @override
-  String get queue_taskInterval => 'タスク間隔';
-
-  @override
-  String get queue_taskIntervalHint => 'タスク間の待機時間 (0 ～ 10 秒)';
-
-  @override
   String get queue_clearQueue => 'キューをクリアします';
 
   @override
@@ -9570,27 +6428,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get queue_confirmClear => 'クリアの確認';
 
   @override
-  String get queue_failureStrategy => '失敗戦略';
-
-  @override
-  String get queue_failureStrategyAutoRetry => '自動再試行';
-
-  @override
-  String get queue_failureStrategyAutoRetryDesc => '最大再試行後にタスクをキューの最後に移動します';
-
-  @override
-  String get queue_failureStrategySkip => 'スキップ';
-
-  @override
-  String get queue_failureStrategySkipDesc => '失敗したタスクを失敗したプールに移動し、次へ続行します';
-
-  @override
-  String get queue_failureStrategyPause => '一時停止して待ちます';
-
-  @override
-  String get queue_failureStrategyPauseDesc => 'キューを一時停止し、手動処理を待ちます';
-
-  @override
   String queue_retryCount(Object current, Object max) {
     return '再試行 $current/$max';
   }
@@ -9600,9 +6437,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get queue_requeue => '再キューイング';
-
-  @override
-  String get queue_requeueToEnd => 'キューの最後に移動';
 
   @override
   String get queue_clearFailedTasks => 'すべてクリア';
@@ -9683,12 +6517,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String queue_selectedCount(Object count) {
     return '$count が選択されました';
   }
-
-  @override
-  String get queue_batchDelete => '選択したものを削除';
-
-  @override
-  String get queue_batchPinToTop => '選択項目を先頭に固定';
 
   @override
   String queue_confirmDeleteSelected(Object count) {
@@ -9787,19 +6615,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get queue_noValidTasks => 'ファイル内に有効なタスクがありません';
 
   @override
-  String get queue_settings => 'キュー設定';
-
-  @override
   String get settings_queueRetryCount => '再試行回数';
 
   @override
   String get settings_queueRetryInterval => '再試行間隔';
-
-  @override
-  String get settings_queueRetryCountSubtitle => '失敗したタスクの最大再試行回数';
-
-  @override
-  String get settings_queueRetryIntervalSubtitle => '再試行間の待機時間';
 
   @override
   String get settings_showRandomPromptTools => 'ランダムプロンプトツールを表示';
@@ -9899,9 +6718,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get queue_statusCompleted => 'ステータス: 完了';
 
   @override
-  String get settings_notification => 'サウンド';
-
-  @override
   String get settings_notificationSound => '完了音';
 
   @override
@@ -9909,10 +6725,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settings_notificationCustomSound => 'カスタムサウンド';
-
-  @override
-  String get settings_notificationCustomSoundSubtitle =>
-      'カスタムサウンドファイルを選択してください';
 
   @override
   String get settings_notificationSelectSound => 'サウンドの選択';
@@ -9930,19 +6742,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get resetToDefaultTooltip => 'デフォルト構成にリセット';
 
   @override
-  String get resetToDefaultConfirmTitle => 'デフォルトにリセット';
-
-  @override
-  String get resetToDefaultConfirmContent =>
-      'これにより、公式のデフォルト構成が復元されます。カスタム グループは保持されますが、無効になります。';
-
-  @override
-  String get groupEnabled => 'グループが有効になりました';
-
-  @override
-  String get groupDisabled => 'グループが無効になりました';
-
-  @override
   String get toggleGroupEnabled => 'グループ有効状態の切り替え';
 
   @override
@@ -9952,38 +6751,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get diyNotAvailableHint => '編集するにはカスタム プリセットにコピーしてください';
 
   @override
-  String get customGroupDisabledAfterReset => 'カスタム グループ (無効)';
-
-  @override
-  String get confirmReset => 'リセットの確認';
-
-  @override
-  String get alias_hintText => 'プロンプトを入力するか、<ライブラリ名> を使用してライブラリのコンテンツを参照してください';
-
-  @override
-  String get alias_libraryCategory => 'ライブラリ';
-
-  @override
-  String alias_tagCount(Object count) {
-    return '$count タグ';
-  }
-
-  @override
-  String alias_useCount(Object count) {
-    return '$count 回使用されました';
-  }
-
-  @override
-  String get alias_favorited => 'お気に入りに登録しました';
-
-  @override
   String get statistics_heatmapLess => '少ない';
 
   @override
   String get statistics_heatmapMore => '多い';
-
-  @override
-  String get statistics_heatmapWeekLabel => '週';
 
   @override
   String statistics_heatmapActivities(Object count) {
@@ -10082,13 +6853,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get metadataImport_generationSection => '生成パラメータ';
 
   @override
-  String get metadataImport_advancedSection => '詳細オプション';
-
-  @override
   String get metadataImport_selectAll => 'すべて選択';
-
-  @override
-  String get metadataImport_deselectAll => 'すべての選択を解除';
 
   @override
   String get metadataImport_promptsOnly => 'プロンプトのみ';
@@ -10240,20 +7005,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get metadataImport_charactersCount => 'キャラクター';
-
-  @override
-  String metadataImport_extractFailed(String error) {
-    return 'メタデータの抽出に失敗しました: $error';
-  }
-
-  @override
-  String metadataImport_appliedToMain(int count) {
-    return '$count パラメータをメイン画面に適用しました';
-  }
-
-  @override
-  String get metadataImport_quickSelectHint =>
-      '上のボタンをクリックしてパラメータ タイプをすばやく選択してください';
 
   @override
   String get shortcut_context_global => 'グローバル';
@@ -10481,10 +7232,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get shortcut_settings_title => 'キーボード ショートカット';
 
   @override
-  String get shortcut_settings_description =>
-      'キーボード ショートカットをカスタマイズしてすばやくアクセスできるようにする';
-
-  @override
   String get shortcut_settings_enable => 'ショートカットを有効にする';
 
   @override
@@ -10500,24 +7247,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get shortcut_settings_search => 'ショートカットを検索...';
 
   @override
-  String get shortcut_settings_no_results => 'ショートカットが見つかりませんでした';
-
-  @override
   String get shortcut_settings_press_key => 'キーの組み合わせを押してください...';
-
-  @override
-  String shortcut_settings_conflict(Object action) {
-    return '次と競合します: $action';
-  }
 
   @override
   String get shortcut_help_title => 'キーボード ショートカットのヘルプ';
 
   @override
   String get shortcut_help_search => 'ショートカットを検索...';
-
-  @override
-  String get shortcut_help_customize => 'ショートカットをカスタマイズする';
 
   @override
   String get shortcut_help_all => 'すべて';
@@ -10542,6 +7278,44 @@ class AppLocalizationsJa extends AppLocalizations {
   String shortcut_editor_conflictWith(Object action) {
     return 'このショートカットは「$action」と競合します';
   }
+
+  @override
+  String get drop_dialogTitle => 'この画像はどのように使用しますか?';
+
+  @override
+  String get drop_hint => 'ここに画像をドロップしてください';
+
+  @override
+  String get drop_img2img => 'Image2Image';
+
+  @override
+  String get drop_reversePrompt => '逆プロンプト';
+
+  @override
+  String get drop_vibeTransfer => 'バイブストランスファー';
+
+  @override
+  String get drop_characterReference => '精密参照';
+
+  @override
+  String get drop_unsupportedFormat => 'サポートされていないファイル形式です';
+
+  @override
+  String get drop_addedToImg2Img => 'Image2Image に追加しました';
+
+  @override
+  String get drop_addedToReversePrompt => 'リバースプロンプトに追加されました';
+
+  @override
+  String get drop_addedToVibe => 'バイブストランスファーに追加しました';
+
+  @override
+  String drop_addedMultipleToVibe(int count) {
+    return '$count 件のバイブストランスファー参照を追加しました';
+  }
+
+  @override
+  String get drop_addedToCharacterRef => '精密参照に追加しました';
 
   @override
   String get drop_extractMetadata => 'メタデータの抽出';
@@ -10648,9 +7422,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get vibeLibrary_categories => 'カテゴリ';
-
-  @override
-  String get vibeLibrary_newCategoryShort => '新規';
 
   @override
   String get vibeLibrary_createCategoryTitle => '新しいカテゴリ';
@@ -10856,6 +7627,284 @@ class AppLocalizationsJa extends AppLocalizations {
       'バンドルファイルの読み取りに失敗したため、単一ファイルモードを使用します';
 
   @override
+  String categoryError_loadFailed(String error) {
+    return 'カテゴリの読み込みに失敗しました: $error';
+  }
+
+  @override
+  String categoryError_syncFailed(String error) {
+    return 'カテゴリの同期に失敗しました: $error';
+  }
+
+  @override
+  String get categoryError_nameEmpty => 'カテゴリ名を入力してください';
+
+  @override
+  String get categoryError_parentNotFound => '親カテゴリが存在しません';
+
+  @override
+  String categoryError_createFailed(String error) {
+    return 'カテゴリの作成に失敗しました: $error';
+  }
+
+  @override
+  String get categoryError_notFound => 'カテゴリが存在しません';
+
+  @override
+  String categoryError_renameFailed(String error) {
+    return 'カテゴリ名の変更に失敗しました: $error';
+  }
+
+  @override
+  String get categoryError_invalidMove => '子孫カテゴリの下には移動できません';
+
+  @override
+  String categoryError_moveFailed(String error) {
+    return 'カテゴリの移動に失敗しました: $error';
+  }
+
+  @override
+  String get categoryError_hasSubcategories =>
+      'このカテゴリにはサブカテゴリがあります。先に削除してください。';
+
+  @override
+  String categoryError_deleteFailed(String error) {
+    return 'カテゴリの削除に失敗しました: $error';
+  }
+
+  @override
+  String categoryError_moveImageFailed(String error) {
+    return '画像の移動に失敗しました: $error';
+  }
+
+  @override
+  String categoryError_moveImagesFailed(String error) {
+    return '画像の一括移動に失敗しました: $error';
+  }
+
+  @override
+  String categoryError_reorderFailed(String error) {
+    return 'カテゴリの並べ替えに失敗しました: $error';
+  }
+
+  @override
+  String get vibeBulk_titleDelete => 'Vibe を削除';
+
+  @override
+  String get vibeBulk_titleMove => 'Vibe を移動';
+
+  @override
+  String get vibeBulk_titleToggleFavorite => 'お気に入りを更新';
+
+  @override
+  String get vibeBulk_titleAddTags => 'タグを追加';
+
+  @override
+  String get vibeBulk_titleRemoveTags => 'タグを削除';
+
+  @override
+  String get vibeBulk_titleExport => 'Vibe をエクスポート';
+
+  @override
+  String get vibeBulk_titleImport => 'Vibe をインポート';
+
+  @override
+  String vibeBulk_processingProgress(int current, int total) {
+    return '処理中: $current / $total';
+  }
+
+  @override
+  String get vibeBulk_completed => '操作が完了しました';
+
+  @override
+  String get vibeBulk_completedWithFailures => '一部失敗して操作が完了しました';
+
+  @override
+  String get vibeBulk_successful => '成功';
+
+  @override
+  String get vibeBulk_failed => '失敗';
+
+  @override
+  String get vibeBulk_errorDetails => 'エラー詳細:';
+
+  @override
+  String vibeBulk_moreErrors(int count) {
+    return '...他 $count 件のエラー';
+  }
+
+  @override
+  String get vibeBulk_operationFailed => '操作に失敗しました';
+
+  @override
+  String get vibeBulk_operationFailedHint => '操作設定を確認して、もう一度お試しください。';
+
+  @override
+  String vibeBulk_errorEntryNotFoundOrDeleteFailed(String item) {
+    return '$item が見つからないか、削除できませんでした';
+  }
+
+  @override
+  String vibeBulk_errorDeleteFailed(String item, String error) {
+    return '$item の削除に失敗しました: $error';
+  }
+
+  @override
+  String vibeBulk_errorEntryNotFound(String item) {
+    return 'エントリが見つかりません: $item';
+  }
+
+  @override
+  String vibeBulk_errorMoveFailed(String item, String error) {
+    return '$item の移動に失敗しました: $error';
+  }
+
+  @override
+  String vibeBulk_errorFavoriteFailed(String item) {
+    return 'お気に入り状態の更新に失敗しました: $item';
+  }
+
+  @override
+  String vibeBulk_errorFavoriteFailedWithDetails(String item, String error) {
+    return '$item のお気に入り状態の更新に失敗しました: $error';
+  }
+
+  @override
+  String vibeBulk_errorAddTagsFailed(String item) {
+    return 'タグの追加に失敗しました: $item';
+  }
+
+  @override
+  String vibeBulk_errorAddTagsFailedWithDetails(String item, String error) {
+    return '$item へのタグ追加に失敗しました: $error';
+  }
+
+  @override
+  String vibeBulk_errorRemoveTagsFailed(String item) {
+    return 'タグの削除に失敗しました: $item';
+  }
+
+  @override
+  String vibeBulk_errorRemoveTagsFailedWithDetails(String item, String error) {
+    return '$item からのタグ削除に失敗しました: $error';
+  }
+
+  @override
+  String get vibeBulk_errorExportNoFile => 'ファイルが作成されなかったため、エクスポートに失敗しました';
+
+  @override
+  String vibeBulk_errorExportFailed(String error) {
+    return 'エクスポートに失敗しました: $error';
+  }
+
+  @override
+  String vibeBulk_errorFileNotFound(String item) {
+    return 'ファイルが見つかりません: $item';
+  }
+
+  @override
+  String vibeBulk_errorNoVibeData(String item) {
+    return '$item に有効な Vibe データが見つかりません';
+  }
+
+  @override
+  String vibeBulk_errorImportFailed(String item, String error) {
+    return '$item からの Vibe インポートに失敗しました: $error';
+  }
+
+  @override
+  String vibeBulk_errorProcessFileFailed(String item, String error) {
+    return '$item の処理に失敗しました: $error';
+  }
+
+  @override
+  String get vibeBulkTag_title => 'タグを一括編集';
+
+  @override
+  String vibeBulkTag_selectedCount(int count) {
+    return '$count 件の Vibe を選択中';
+  }
+
+  @override
+  String get vibeBulkTag_inputHint => '新しいタグを入力...';
+
+  @override
+  String get vibeBulkTag_noTags => 'タグがありません';
+
+  @override
+  String get vibeBulkTag_noTagsHint => 'タグを追加すると、絞り込みや管理が簡単になります';
+
+  @override
+  String vibeBulkTag_currentTags(int count) {
+    return '現在のタグ ($count)';
+  }
+
+  @override
+  String vibeBulkTag_pendingRemoval(int count) {
+    return '削除予定のタグ ($count)';
+  }
+
+  @override
+  String get vibeBulkTag_removeTag => 'タグを削除';
+
+  @override
+  String get vibeBulkTag_actionPreview => '変更内容';
+
+  @override
+  String vibeBulkTag_addTagsSummary(String tags) {
+    return '追加するタグ: $tags';
+  }
+
+  @override
+  String vibeBulkTag_removeTagsSummary(String tags) {
+    return '削除するタグ: $tags';
+  }
+
+  @override
+  String get vibeBulkTag_noChanges => '適用する変更はありません';
+
+  @override
+  String get vibeBulkCategory_title => '移動先カテゴリを選択';
+
+  @override
+  String vibeBulkCategory_moveCount(int count) {
+    return '$count 件の Vibe の移動先:';
+  }
+
+  @override
+  String get vibeBulkCategory_cannotMoveToCurrent => '現在のカテゴリには移動できません';
+
+  @override
+  String get vibeDetail_strengthDescription => 'この Vibe が生成結果に与える影響の強さを調整します';
+
+  @override
+  String get vibeDetail_infoExtractedDescription =>
+      '元画像から抽出する情報量を調整します（2 Anlas を消費）';
+
+  @override
+  String get vibeDetail_statistics => '統計情報';
+
+  @override
+  String get vibeDetail_usageCount => '使用回数';
+
+  @override
+  String vibeDetail_timesUsed(int count) {
+    return '$count 回';
+  }
+
+  @override
+  String get vibeDetail_lastUsed => '最終使用';
+
+  @override
+  String get vibeDetail_neverUsed => '未使用';
+
+  @override
+  String get vibeDetail_createdAt => '作成日時';
+
+  @override
+  String get vibeDetail_saveParameters => 'パラメーターを保存';
+
+  @override
   String get vibe_export_title => 'Vibe をエクスポート';
 
   @override
@@ -10866,23 +7915,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get vibe_selector_recent => '最近の';
-
-  @override
-  String get vibe_category_add => 'カテゴリを追加';
-
-  @override
-  String get vibe_category_rename => 'カテゴリの名前を変更';
-
-  @override
-  String get drop_vibe_detected => 'Vibe 画像を検出しました';
-
-  @override
-  String get drop_reuse_vibe => 'バイブを再利用';
-
-  @override
-  String drop_save_anlas(int cost) {
-    return '$cost Anlas を節約';
-  }
 
   @override
   String get vibe_export_include_thumbnails => 'サムネイルを含める';
@@ -11428,13 +8460,7 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get bundle_internalVibes => '内部 Vibe';
-
-  @override
   String get shortcuts_customize => 'ショートカットをカスタマイズする';
-
-  @override
-  String get gallery_send_to => '送信先';
 
   @override
   String get image_editor_select_tool => 'ツールの選択';
@@ -11476,34 +8502,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get shortcut_context_vibe_detail => 'Vibe 詳細';
 
   @override
-  String get shortcut_action_vibe_detail_send_to_generation => '生成に送信';
-
-  @override
-  String get shortcut_action_vibe_detail_export => 'エクスポート';
-
-  @override
   String get shortcut_action_vibe_detail_rename => '名前の変更';
-
-  @override
-  String get shortcut_action_vibe_detail_delete => '削除';
-
-  @override
-  String get shortcut_action_vibe_detail_toggle_favorite => 'お気に入りの切り替え';
-
-  @override
-  String get shortcut_action_vibe_detail_prev_sub_vibe => '前の Sub Vibe';
-
-  @override
-  String get shortcut_action_vibe_detail_next_sub_vibe => '次の Sub Vibe';
-
-  @override
-  String get shortcut_action_navigate_to_vibe_library => 'バイブライブラリ';
-
-  @override
-  String get shortcut_action_vibe_import => 'Vibe をインポート';
-
-  @override
-  String get shortcut_action_vibe_export => 'Vibe をエクスポート';
 
   @override
   String get vibeSelectorFilterFavorites => 'お気に入り';
@@ -11544,9 +8543,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_openFolderFailed => 'フォルダーを開けませんでした';
 
   @override
-  String get settings_dataSourceCacheTitle => 'データ ソース キャッシュ管理';
-
-  @override
   String get settings_pleaseLoginFirst => 'まずログインしてください';
 
   @override
@@ -11554,16 +8550,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settings_goToLoginPage => 'ログインページに移動';
-
-  @override
-  String settings_retryCountDisplay(int count) {
-    return '最大 $count 回';
-  }
-
-  @override
-  String settings_retryIntervalDisplay(String interval) {
-    return '$interval 秒';
-  }
 
   @override
   String get settings_vibePathSaved => 'バイブライブラリのパスを保存しました';
@@ -11951,6 +8937,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settings_comfyUiConnectionSuccess => '接続に成功しました';
+
+  @override
+  String get settings_comfyUiConnectionSuccessFull => 'ComfyUI への接続に成功しました';
 
   @override
   String settings_comfyUiConnectionFailed(Object error) {
@@ -12426,32 +9415,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get shortcut_settings_reset_to_default => 'デフォルトにリセット';
 
   @override
-  String get performanceReport_noTaskStats => 'タスク統計がまだありません';
-
-  @override
-  String performanceReport_taskStatsLine(
-    Object count,
-    Object average,
-    Object min,
-    Object max,
-  ) {
-    return 'カウント: $count |平均: $average |最小: $min |最大: $max';
-  }
-
-  @override
-  String get performanceReport_clearTitle => 'パフォーマンス データのクリア';
-
-  @override
-  String get performanceReport_clearContent =>
-      'すべてのパフォーマンス統計をクリアしますか?これを元に戻すことはできません。';
-
-  @override
-  String get performanceReport_clearSuccess => 'パフォーマンス データがクリアされました';
-
-  @override
-  String get performanceReport_clearAction => 'クリア';
-
-  @override
   String get toast_previewUpdated => 'プレビュー画像が更新されました';
 
   @override
@@ -12523,11 +9486,6 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get toast_dropNoReadableImageOrVibe =>
       'ドロップ ソースは読み取り可能な画像または Vibe ファイルを提供しませんでした';
-
-  @override
-  String toast_importedTasks(Object count) {
-    return '$count 件のタスクをインポートしました';
-  }
 
   @override
   String get toast_contentCannotBeEmpty => 'コンテンツを空にすることはできません';
@@ -12634,9 +9592,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get toast_imageDataUnavailable => '画像データが利用できないため、コピーできません';
 
   @override
-  String get toast_tempFileCreateFailed => '一時ファイルの作成に失敗しました';
-
-  @override
   String get toast_vibeDataCopied => 'Vibe データをコピーしました';
 
   @override
@@ -12695,9 +9650,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String toast_savedBundle(Object count) {
     return 'バンドルを保存しました ($count 件の Vibe)';
   }
-
-  @override
-  String get toast_replacedCharacterReference => 'キャラクター参照を置換しました';
 
   @override
   String toast_extractMetadataFailed(Object error) {
@@ -13303,4 +10255,968 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get model3d_webview2Missing =>
       '3DエディタにはMicrosoft Edge WebView2ランタイムが必要です。Windows 10/11には通常同梱されています。無い場合はMicrosoftからEvergreen版をインストールして再試行してください。';
+
+  @override
+  String get nav_preciseRefLibrary => '精密参照ライブラリ';
+
+  @override
+  String get preciseRefLib_title => '精密参照ライブラリ';
+
+  @override
+  String get preciseRefLib_searchHint => '参照画像を検索...';
+
+  @override
+  String get preciseRefLib_empty => 'ここに画像をドロップまたは貼り付けてライブラリを作成';
+
+  @override
+  String get preciseRefLib_emptyHint => 'プレビュー・履歴・ギャラリーで右クリックして保存もできます';
+
+  @override
+  String get preciseRefLib_import => '画像をインポート';
+
+  @override
+  String preciseRefLib_entryCount(int count) {
+    return '$count 件';
+  }
+
+  @override
+  String get preciseRefLib_sendToPreciseRef => '精密参照へ送る';
+
+  @override
+  String get preciseRefLib_sendToImg2Img => '画像から画像へ送る';
+
+  @override
+  String get preciseRefLib_editEntry => 'パラメータを編集';
+
+  @override
+  String get preciseRefLib_deleteEntry => '削除';
+
+  @override
+  String get preciseRefLib_confirmDeleteTitle => 'エントリを削除';
+
+  @override
+  String preciseRefLib_confirmDelete(String name) {
+    return '「$name」を削除しますか？画像ファイルも削除されます。';
+  }
+
+  @override
+  String preciseRefLib_saved(String name) {
+    return '精密参照ライブラリに保存しました：$name';
+  }
+
+  @override
+  String get preciseRefLib_savedHint => 'ライブラリでパラメータを編集できます';
+
+  @override
+  String preciseRefLib_sent(String name) {
+    return '精密参照へ送信しました：$name';
+  }
+
+  @override
+  String preciseRefLib_sentToImg2Img(String name) {
+    return '画像から画像へ送信しました：$name';
+  }
+
+  @override
+  String get preciseRefLib_imageMissing => '元画像ファイルが見つかりません';
+
+  @override
+  String get preciseRefLib_invalidImage => '画像形式を認識できないか、ファイルが破損しています';
+
+  @override
+  String get preciseRefLib_deleteFailed =>
+      '削除に失敗しました。項目と元画像は保持されています。後でもう一度お試しください';
+
+  @override
+  String get preciseRefLib_favoritesOnly => 'お気に入りのみ';
+
+  @override
+  String get preciseRefLib_sortBy => '並び替え';
+
+  @override
+  String get preciseRefLib_sortCreatedAt => '作成日時';
+
+  @override
+  String get preciseRefLib_sortLastUsed => '最終使用';
+
+  @override
+  String get preciseRefLib_sortUsedCount => '使用回数';
+
+  @override
+  String get preciseRefLib_sortName => '名前';
+
+  @override
+  String preciseRefLib_importedCount(int count) {
+    return '$count 枚の画像をインポートしました';
+  }
+
+  @override
+  String preciseRefLib_loadFailed(String error) {
+    return '精密参照ライブラリを読み込めませんでした：$error';
+  }
+
+  @override
+  String preciseRefLib_importFailed(String error) {
+    return '精密参照ライブラリへの保存に失敗しました：$error';
+  }
+
+  @override
+  String preciseRefLib_importFailedCount(int count) {
+    return '$count 枚の画像を精密参照ライブラリにインポートできませんでした';
+  }
+
+  @override
+  String get preciseRefLib_fromLibrary => 'ライブラリから';
+
+  @override
+  String get preciseRefLib_saveCurrentToLibrary => 'ライブラリへ保存';
+
+  @override
+  String preciseRefLib_saveCurrentCount(int count) {
+    return '$count 件をライブラリへ保存しました';
+  }
+
+  @override
+  String get preciseRefLib_selectorTitle => '精密参照ライブラリから選択';
+
+  @override
+  String preciseRefLib_selectorConfirm(int count) {
+    return '選択を追加 ($count)';
+  }
+
+  @override
+  String get preciseRefLib_nameLabel => '名前';
+
+  @override
+  String get preciseRefLib_typeFilterAll => 'すべて';
+
+  @override
+  String get img2img_fromPreciseRefLibrary => '精密参照ライブラリから';
+
+  @override
+  String get localGallery_saveToPreciseRefLibrary => '精密参照ライブラリへ保存';
+
+  @override
+  String get drop_saveToPreciseRefLibrary => '精密参照ライブラリへ保存';
+
+  @override
+  String get common_enabled => '有効';
+
+  @override
+  String get common_disabled => '無効';
+
+  @override
+  String bulkAction_selectedCount(int count) {
+    return '$count 件を選択中';
+  }
+
+  @override
+  String get comfyTask_errorConnectionFailed => 'ComfyUI サーバーに接続できません';
+
+  @override
+  String get comfyTask_errorConnectionUnavailable => 'ComfyUI 接続を利用できません';
+
+  @override
+  String get comfyTask_errorExecutionFailedGeneric => 'ComfyUI の実行に失敗しました';
+
+  @override
+  String comfyTask_errorExecutionFailed(String error) {
+    return 'ComfyUI の実行に失敗しました: $error';
+  }
+
+  @override
+  String get comfyTask_errorTimeout => 'ComfyUI タスクが 10 分でタイムアウトしました';
+
+  @override
+  String comfyTask_errorWorkflowNotFound(String workflowId) {
+    return 'ワークフローが見つかりません: $workflowId';
+  }
+
+  @override
+  String get comfyWorkflowSlot_vaeEncodeTileSize => 'VAE エンコードのタイルサイズ';
+
+  @override
+  String get comfyWorkflowSlot_vaeDecodeTileSize => 'VAE デコードのタイルサイズ';
+
+  @override
+  String get comfyWorkflowSlot_blocksToSwap => 'スワップするブロック数';
+
+  @override
+  String get comfyWorkflowSlot_swapIoComponents => 'I/O コンポーネントをスワップ';
+
+  @override
+  String localGallery_firstIndexHint(int count) {
+    return '$count 枚の画像を検出しました。初回のインデックス作成には数分かかる場合がありますが、アプリはそのまま使用できます。';
+  }
+
+  @override
+  String get localGallery_errorPermissionDenied =>
+      '画像フォルダーにアクセスできません。フォルダーの権限を確認してください。';
+
+  @override
+  String localGallery_errorScanFailed(String error) {
+    return '画像のスキャンに失敗しました: $error';
+  }
+
+  @override
+  String localGallery_errorInitializationFailed(String error) {
+    return 'ギャラリーの初期化に失敗しました: $error';
+  }
+
+  @override
+  String get localGallery_errorServiceInitializing =>
+      'ギャラリーサービスを初期化しています。しばらくしてから再試行してください。';
+
+  @override
+  String localGallery_errorDatabaseFailed(String error) {
+    return 'ギャラリーデータベースエラー: $error';
+  }
+
+  @override
+  String localGallery_errorRefreshFailed(String error) {
+    return 'ギャラリーの更新に失敗しました: $error';
+  }
+
+  @override
+  String localGallery_errorFilterFailed(String error) {
+    return 'ギャラリーフィルターの適用に失敗しました: $error';
+  }
+
+  @override
+  String localGallery_errorFavoriteFailed(String error) {
+    return 'お気に入り状態の更新に失敗しました: $error';
+  }
+
+  @override
+  String localGallery_errorRebuildFailed(String error) {
+    return 'ギャラリーインデックスの再構築に失敗しました: $error';
+  }
+
+  @override
+  String get diy_editDependencyTitle => '依存関係を編集';
+
+  @override
+  String get diy_dependencyTitle => '依存関係設定';
+
+  @override
+  String get diy_dependencySubtitle => 'タグ選択間の依存関係を設定します';
+
+  @override
+  String get diy_dependencyType => '依存タイプ';
+
+  @override
+  String get diy_sourceCategory => 'ソースカテゴリ';
+
+  @override
+  String get diy_selectSourceCategory => 'ソースカテゴリを選択';
+
+  @override
+  String get diy_sourceCategoryId => 'ソースカテゴリ ID';
+
+  @override
+  String get diy_enterCategoryId => 'カテゴリ ID を入力';
+
+  @override
+  String get diy_mappingRules => 'マッピングルール';
+
+  @override
+  String get diy_noMappingRules => 'マッピングルールはありません';
+
+  @override
+  String get diy_deleteRule => 'ルールを削除';
+
+  @override
+  String get diy_defaultValue => 'デフォルト値';
+
+  @override
+  String get diy_defaultValueHint => '一致するマッピングルールがない場合に使用します';
+
+  @override
+  String get diy_enableDependency => '依存関係を有効化';
+
+  @override
+  String get diy_enableDependencyHint => '無効にすると、この依存関係は適用されません';
+
+  @override
+  String get diy_addMappingRule => 'マッピングルールを追加';
+
+  @override
+  String get diy_sourceValue => 'ソース値';
+
+  @override
+  String get diy_sourceValueHint => '例: 1, 2, 3';
+
+  @override
+  String get diy_resultValue => '結果値';
+
+  @override
+  String get diy_resultValueHint => '例: 0-3, 0-2, 0-1';
+
+  @override
+  String get diy_dependencyCount => '数量';
+
+  @override
+  String get diy_dependencyExists => '存在';
+
+  @override
+  String get diy_dependencyValue => '値';
+
+  @override
+  String get diy_dependencyExcludes => '除外';
+
+  @override
+  String get diy_dependencyCountDescription => 'ソースカテゴリの選択数から結果数を決定します';
+
+  @override
+  String get diy_dependencyExistsDescription => 'ソースカテゴリでタグが選択されている場合のみ適用します';
+
+  @override
+  String get diy_dependencyValueDescription => 'ソースカテゴリで選択された特定のタグ値に依存します';
+
+  @override
+  String get diy_dependencyExcludesDescription => 'ソースカテゴリでタグが選択されている場合は適用しません';
+
+  @override
+  String get diy_editConditionalTitle => '条件分岐を編集';
+
+  @override
+  String get diy_conditionalDefaultName => '条件分岐';
+
+  @override
+  String diy_branchDefaultName(int index) {
+    return '分岐 $index';
+  }
+
+  @override
+  String get diy_conditionalTitle => '条件分岐';
+
+  @override
+  String get diy_conditionalSubtitle => '確率に基づいて分岐を選択します';
+
+  @override
+  String diy_branchCount(int count) {
+    return '$count 件の分岐';
+  }
+
+  @override
+  String get diy_noConditionalBranches => '条件分岐はありません';
+
+  @override
+  String get diy_noConditionalBranchesHint => '分岐を追加して条件選択ロジックを作成します';
+
+  @override
+  String diy_conditionCount(int count) {
+    return '$count 件の条件';
+  }
+
+  @override
+  String get diy_deleteBranch => '分岐を削除';
+
+  @override
+  String get diy_addBranch => '分岐を追加';
+
+  @override
+  String diy_editBranch(String name) {
+    return '編集: $name';
+  }
+
+  @override
+  String get diy_branchName => '分岐名';
+
+  @override
+  String get diy_probability => '確率';
+
+  @override
+  String get diy_enableBranch => 'この分岐を有効化';
+
+  @override
+  String diy_ruleDefaultName(int index) {
+    return 'ルール $index';
+  }
+
+  @override
+  String diy_ruleCount(int count) {
+    return '$count 件のルール';
+  }
+
+  @override
+  String get diy_addRule => 'ルールを追加';
+
+  @override
+  String get diy_editRule => 'ルールを編集';
+
+  @override
+  String get diy_ruleName => 'ルール名';
+
+  @override
+  String get diy_enableRule => 'このルールを有効化';
+
+  @override
+  String get diy_postProcessTitle => '後処理ルール';
+
+  @override
+  String get diy_postProcessSubtitle => 'タグの競合を自動的に解決します';
+
+  @override
+  String get diy_sleepingRule => '睡眠ルール';
+
+  @override
+  String get diy_sleepingRuleDescription => 'キャラクターが眠っているときに目の色の記述を削除します';
+
+  @override
+  String get diy_mermaidRule => '人魚ルール';
+
+  @override
+  String get diy_mermaidRuleDescription => '人魚、ケンタウロス、ラミアなどから脚部衣装の記述を削除します';
+
+  @override
+  String get diy_presetRules => 'プリセットルール';
+
+  @override
+  String get diy_noPostProcessRules => '後処理ルールはありません';
+
+  @override
+  String get diy_noPostProcessRulesHint => 'ルールを追加してタグの競合を自動的に解決します';
+
+  @override
+  String get diy_actionType => 'アクションタイプ';
+
+  @override
+  String get diy_triggerTags => 'トリガータグ';
+
+  @override
+  String get diy_commaSeparatedTagsHint => 'カンマ区切りのタグリスト';
+
+  @override
+  String get diy_targetCategories => '対象カテゴリ';
+
+  @override
+  String get diy_commaSeparatedCategoryIdsHint => 'カンマ区切りのカテゴリ ID リスト';
+
+  @override
+  String get diy_targetTags => '対象タグ';
+
+  @override
+  String get diy_actionRemoveTags => 'タグを削除';
+
+  @override
+  String get diy_actionReplaceTags => 'タグを置換';
+
+  @override
+  String get diy_actionAddTags => 'タグを追加';
+
+  @override
+  String get diy_actionRemoveCategories => 'カテゴリを削除';
+
+  @override
+  String get diy_noTriggers => 'トリガーなし';
+
+  @override
+  String diy_actionSummary(String triggers, String action) {
+    return '[$triggers] に一致した場合: $action';
+  }
+
+  @override
+  String get diy_characterPositionTitle => 'キャラクター位置';
+
+  @override
+  String get diy_characterPositionSubtitle => 'キャラクター位置を視覚的に編集';
+
+  @override
+  String get diy_addCharacterPosition => 'キャラクター位置を追加';
+
+  @override
+  String get diy_addCharacterPositionHint => '下のボタンでキャラクター位置を追加します';
+
+  @override
+  String diy_characterIndex(int index) {
+    return 'キャラクター $index';
+  }
+
+  @override
+  String get diy_aiPositionChoice => 'AI が自動選択';
+
+  @override
+  String diy_positionCoordinates(String row, String column) {
+    return '行: $row%、列: $column%';
+  }
+
+  @override
+  String get diy_customPosition => 'カスタム';
+
+  @override
+  String diy_emphasisPercent(String percent) {
+    return '強調 $percent%';
+  }
+
+  @override
+  String get diy_characterCountWeight => 'キャラクター数の重み';
+
+  @override
+  String diy_peopleCount(int count) {
+    return '$count 人';
+  }
+
+  @override
+  String get diy_genderProbability => '性別の確率';
+
+  @override
+  String get diy_noWeightsConfigured => '重みが設定されていません';
+
+  @override
+  String get diy_genderOther => 'その他';
+
+  @override
+  String get diy_emphasisTitle => 'グローバル強調';
+
+  @override
+  String get diy_emphasisSubtitle => 'タグの強調効果を調整';
+
+  @override
+  String get diy_emphasisProbability => '強調確率';
+
+  @override
+  String diy_emphasisProbabilityHint(String percent) {
+    return '選択された各タグに $percent% の確率で強調括弧が追加されます';
+  }
+
+  @override
+  String get diy_bracketCount => '括弧の階層数';
+
+  @override
+  String diy_bracketLayers(int count) {
+    return '$count 層';
+  }
+
+  @override
+  String get diy_effectPreview => '効果プレビュー';
+
+  @override
+  String get diy_exampleTag => 'タグの例';
+
+  @override
+  String get diy_emphasisExplanation => '強調括弧はタグの重みを増やし、階層が多いほど重みが高くなります';
+
+  @override
+  String diy_presetExportFailed(String error) {
+    return 'プリセットのエクスポートに失敗しました: $error';
+  }
+
+  @override
+  String get diy_presetJsonRootObject => 'JSON のルートはオブジェクトである必要があります';
+
+  @override
+  String diy_presetInvalidData(String error) {
+    return '無効なプリセットデータ: $error';
+  }
+
+  @override
+  String get diy_presetExportTitle => 'プリセットをエクスポート';
+
+  @override
+  String get diy_presetImportTitle => 'プリセットをインポート';
+
+  @override
+  String get diy_unknown => '不明';
+
+  @override
+  String get diy_presetShareHint => '以下の内容をコピーして共有できます';
+
+  @override
+  String get diy_presetPasteJsonHint => 'プリセットの JSON データをここに貼り付け...';
+
+  @override
+  String get diy_presetPreview => 'プリセットのプレビュー';
+
+  @override
+  String get diy_name => '名前';
+
+  @override
+  String get diy_description => '説明';
+
+  @override
+  String get diy_categoryCount => 'カテゴリ数';
+
+  @override
+  String get diy_totalTagCount => 'タグ総数';
+
+  @override
+  String get diy_visibilityTitle => '表示ルール';
+
+  @override
+  String get diy_visibilitySubtitle => '条件に基づいてカテゴリの表示を制御します';
+
+  @override
+  String get diy_noVisibilityRules => '表示ルールはありません';
+
+  @override
+  String get diy_noVisibilityRulesHint => 'ルールを追加して現在の構成からカテゴリの表示を制御します';
+
+  @override
+  String get diy_notSet => '未設定';
+
+  @override
+  String get diy_targetCategory => '対象カテゴリ';
+
+  @override
+  String get diy_conditionType => '条件タイプ';
+
+  @override
+  String get diy_conditionValue => '条件値';
+
+  @override
+  String get diy_conditionValueHint => 'タグ名または値';
+
+  @override
+  String get diy_visibleWhenMatched => '一致した場合に表示';
+
+  @override
+  String get diy_conditionTagExists => 'タグが存在する';
+
+  @override
+  String get diy_conditionTagNotExists => 'タグが存在しない';
+
+  @override
+  String get diy_conditionValueEquals => '値が等しい';
+
+  @override
+  String get diy_conditionValueNotEquals => '値が等しくない';
+
+  @override
+  String get diy_conditionValueInList => '値がリストに含まれる';
+
+  @override
+  String get diy_conditionValueNotInList => '値がリストに含まれない';
+
+  @override
+  String get diy_editTimeConditionTitle => '時間条件を編集';
+
+  @override
+  String get diy_timeDefaultName => '時間条件';
+
+  @override
+  String get diy_timeTitle => '時間条件';
+
+  @override
+  String get diy_timeSubtitle => '指定した日付範囲内で有効化します';
+
+  @override
+  String get diy_enableTimeCondition => '時間条件を有効化';
+
+  @override
+  String get diy_enableTimeConditionHint => '設定した日付範囲内でのみ適用します';
+
+  @override
+  String get diy_christmas => 'クリスマス';
+
+  @override
+  String get diy_christmasDescription => '12月1日から31日まで有効になるクリスマスタグ';
+
+  @override
+  String get diy_halloween => 'ハロウィン';
+
+  @override
+  String get diy_halloweenDescription => '10月1日から31日まで有効になるハロウィンタグ';
+
+  @override
+  String get diy_valentinesDay => 'バレンタインデー';
+
+  @override
+  String get diy_valentinesDescription => '2月1日から14日まで有効になるバレンタインタグ';
+
+  @override
+  String get diy_presetTemplates => 'プリセットテンプレート';
+
+  @override
+  String get diy_dateRange => '日付範囲';
+
+  @override
+  String get diy_startDate => '開始日';
+
+  @override
+  String get diy_endDate => '終了日';
+
+  @override
+  String get diy_crossYearUnsupported => '年をまたぐ日付範囲はまだサポートされていません';
+
+  @override
+  String get diy_month => '月';
+
+  @override
+  String get diy_day => '日';
+
+  @override
+  String get diy_conditionName => '条件名';
+
+  @override
+  String get diy_conditionNameHint => '条件名を入力';
+
+  @override
+  String get diy_repeatYearly => '毎年繰り返す';
+
+  @override
+  String get diy_repeatYearlyHint => '毎年同じ日付範囲で自動的に有効化します';
+
+  @override
+  String get diy_currentlyActive => '現在有効';
+
+  @override
+  String get diy_inactive => '無効';
+
+  @override
+  String diy_daysRemaining(int count) {
+    return '残り $count 日';
+  }
+
+  @override
+  String diy_timeRangeSummary(
+    String name,
+    int startMonth,
+    int startDay,
+    int endMonth,
+    int endDay,
+  ) {
+    return '$name（$startMonth月$startDay日～$endMonth月$endDay日）';
+  }
+
+  @override
+  String get diy_activeBadge => '有効';
+
+  @override
+  String get common_optional => '任意';
+
+  @override
+  String get common_emptyValue => '（空）';
+
+  @override
+  String get common_previewLoadFailed => 'プレビューを読み込めませんでした';
+
+  @override
+  String get common_clickToRefresh => 'クリックして更新';
+
+  @override
+  String get common_clickToRetry => 'クリックして再試行';
+
+  @override
+  String get common_opening => '開いています...';
+
+  @override
+  String get common_swap => '入れ替え';
+
+  @override
+  String get common_prefix => 'プレフィックス';
+
+  @override
+  String get common_suffix => 'サフィックス';
+
+  @override
+  String get common_minimum => '最小';
+
+  @override
+  String get common_maximum => '最大';
+
+  @override
+  String get addToLibrary_displayNameHint => 'この項目を識別する名前を入力';
+
+  @override
+  String get addToLibrary_tagHint => 'タグを入力して Enter キーで追加';
+
+  @override
+  String get newPresetDialog_nameRequired => 'プリセット名を入力してください';
+
+  @override
+  String get newPresetDialog_nameLabel => 'プリセット名';
+
+  @override
+  String get newPresetDialog_nameHint => '新しいプリセットの名前を入力';
+
+  @override
+  String get newPresetDialog_creationMode => '作成方法';
+
+  @override
+  String get drop_saveVibeBundle => 'Vibe Bundleを保存';
+
+  @override
+  String drop_saveVibeBundleSubtitle(String name) {
+    return '$name などのVibeをライブラリに保存';
+  }
+
+  @override
+  String get drop_saveEncodedVibeSubtitle => 'エンコード済みVibeデータをライブラリに保存';
+
+  @override
+  String get history_dragFilePreparationFailed =>
+      'ドラッグ用ファイルの準備に失敗しました。後でもう一度お試しください。';
+
+  @override
+  String get history_dragFilePreparing => 'ドラッグ用ファイルを準備しています...';
+
+  @override
+  String get history_dragFileNotReady => 'ドラッグ用ファイルはまだ準備できていません';
+
+  @override
+  String get vibe_import_overwriteOriginalParams => '元のVibeパラメータを置換';
+
+  @override
+  String vibe_import_overwriteOriginalParamsHint(String name) {
+    return '$name のライブラリ内パラメータのみ置換します。初期状態では無効です';
+  }
+
+  @override
+  String vibe_import_reencodeFailed(String name) {
+    return 'Vibeの再エンコードに失敗しました: $name';
+  }
+
+  @override
+  String get randomManager_releaseToDelete => '離すと削除';
+
+  @override
+  String get randomManager_dragHereToDelete => 'ここにドラッグして削除';
+
+  @override
+  String get randomManager_keyboardShortcutsHint => 'キーボードショートカット（? キーで表示）';
+
+  @override
+  String get localGallery_createFolder => 'フォルダーを作成';
+
+  @override
+  String galleryScan_skipped(int count) {
+    return 'スキップ $count';
+  }
+
+  @override
+  String galleryScan_withMetadata(int count) {
+    return 'メタデータあり $count';
+  }
+
+  @override
+  String galleryScan_failed(int count) {
+    return '失敗 $count';
+  }
+
+  @override
+  String get galleryScan_processing => '処理中';
+
+  @override
+  String get galleryScan_pending => '処理待ち';
+
+  @override
+  String get vibeDetail_useAll => 'すべて使用';
+
+  @override
+  String get vibeDetail_longPressSetCover => '長押ししてカバーに設定';
+
+  @override
+  String get vibeDetail_noPreviewImage => 'プレビュー画像がありません';
+
+  @override
+  String get vibeDetail_dropPreviewImage => 'ここに画像をドロップしてプレビューを設定';
+
+  @override
+  String get vibeDetail_releasePreviewImage => '離すとプレビュー画像を設定';
+
+  @override
+  String imagePicker_dropReadFailed(String error) {
+    return 'ドロップした画像を読み込めませんでした: $error';
+  }
+
+  @override
+  String get imagePicker_dropNoReadableImage =>
+      'ドロップされたデータに読み取り可能な画像ファイルまたは画像URLがありません';
+
+  @override
+  String get imagePicker_fileDataUnavailable => 'ファイルデータを読み込めません';
+
+  @override
+  String imagePicker_fileSelectionFailed(String error) {
+    return 'ファイルの選択に失敗しました: $error';
+  }
+
+  @override
+  String imagePicker_directorySelectionFailed(String error) {
+    return 'フォルダーの選択に失敗しました: $error';
+  }
+
+  @override
+  String get editor_effects => 'エフェクト';
+
+  @override
+  String get editor_shiftEdges => 'エッジをシフト';
+
+  @override
+  String editor_currentSize(int width, int height) {
+    return '現在: $width x $height';
+  }
+
+  @override
+  String get editor_edgeLeft => '左';
+
+  @override
+  String get editor_edgeRight => '右';
+
+  @override
+  String get editor_edgeTop => '上';
+
+  @override
+  String get editor_edgeBottom => '下';
+
+  @override
+  String get editor_enterNumber => '数値を入力してください';
+
+  @override
+  String get editor_nonNegativeNumber => '0以上の値を入力してください';
+
+  @override
+  String editor_requestedSize(int width, int height) {
+    return '指定: $width x $height';
+  }
+
+  @override
+  String get editor_requestedSizeInvalid => '指定: 無効';
+
+  @override
+  String editor_appliedSize(int width, int height) {
+    return '適用: $width x $height';
+  }
+
+  @override
+  String get editor_appliedSizeInvalid => '適用: 無効';
+
+  @override
+  String editor_appliedEdges(int left, int top, int right, int bottom) {
+    return '適用エッジ: 左 $left、上 $top、右 $right、下 $bottom';
+  }
+
+  @override
+  String get editor_appliedEdgesInvalid => '適用エッジ: 無効';
+
+  @override
+  String editor_appliedDimensionLimit(int max) {
+    return '適用後の寸法は $max 以下である必要があります。';
+  }
+
+  @override
+  String get savePreset_title => 'プリセットとして保存';
+
+  @override
+  String get savePreset_nameHint => 'プリセット名を入力';
+
+  @override
+  String get savePreset_metadataDescription => '画像メタデータから保存';
+
+  @override
+  String savePreset_vibeData(int count) {
+    return 'Vibeデータ（$count）';
+  }
+
+  @override
+  String get onlineGallery_videoLoadFailed => '動画を読み込めませんでした';
+
+  @override
+  String get vibe_releaseToAddStyleReference => '離すとスタイル参照を追加';
+
+  @override
+  String router_pageNotFound(String error) {
+    return 'ページが見つかりません: $error';
+  }
 }

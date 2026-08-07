@@ -10,6 +10,7 @@ import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/metadata/metadata_import_options.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
+import 'package:nai_launcher/l10n/app_localizations_en.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_params_notifier.dart';
 import 'package:nai_launcher/presentation/utils/metadata_import_coordinator.dart';
@@ -85,6 +86,7 @@ void main() {
         read: container.read,
         metadata: metadata,
         options: options,
+        l10n: AppLocalizationsEn(),
       );
 
       final params = container.read(generationParamsNotifierProvider);
@@ -143,6 +145,7 @@ void main() {
           importQualityTags: false,
           selectedCharacterIndices: [0],
         ),
+        l10n: AppLocalizationsEn(),
       );
 
       final characters = container.read(characterPromptNotifierProvider);

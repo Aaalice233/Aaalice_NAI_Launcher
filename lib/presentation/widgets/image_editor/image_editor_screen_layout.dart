@@ -86,13 +86,13 @@ extension _ImageEditorScreenLayout on _ImageEditorScreenState {
             IconButton(
               icon: const Icon(Icons.open_in_full),
               onPressed: _showShiftEdgesDialog,
-              tooltip: 'Shift Edges',
+              tooltip: context.l10n.editor_shiftEdges,
             ),
           if (!_isInpaintMode)
             IconButton(
               icon: const Icon(Icons.tune_rounded),
               onPressed: _showEffectsDialog,
-              tooltip: 'Effects',
+              tooltip: context.l10n.editor_effects,
             ),
           // 导出按钮
           IconButton(
@@ -160,14 +160,14 @@ extension _ImageEditorScreenLayout on _ImageEditorScreenState {
             if (MediaQuery.sizeOf(context).width >= 1280)
               TextButton.icon(
                 icon: const Icon(Icons.tune_rounded, size: 18),
-                label: const Text('Effects'),
+                label: Text(context.l10n.editor_effects),
                 onPressed: _showEffectsDialog,
               )
             else
               IconButton(
                 icon: const Icon(Icons.tune_rounded, size: 20),
                 onPressed: _showEffectsDialog,
-                tooltip: 'Effects',
+                tooltip: context.l10n.editor_effects,
               ),
 
           // 画布尺寸按钮（使用细粒度监听）
@@ -193,14 +193,14 @@ extension _ImageEditorScreenLayout on _ImageEditorScreenState {
             if (MediaQuery.sizeOf(context).width >= 1280)
               TextButton.icon(
                 icon: const Icon(Icons.open_in_full, size: 18),
-                label: const Text('Shift Edges'),
+                label: Text(context.l10n.editor_shiftEdges),
                 onPressed: _showShiftEdgesDialog,
               )
             else
               IconButton(
                 icon: const Icon(Icons.open_in_full, size: 20),
                 onPressed: _showShiftEdgesDialog,
-                tooltip: 'Shift Edges',
+                tooltip: context.l10n.editor_shiftEdges,
               ),
 
           const ThemedDivider(

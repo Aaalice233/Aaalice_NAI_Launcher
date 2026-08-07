@@ -89,7 +89,7 @@ class GalleryScanProgressPanel extends ConsumerWidget {
           _buildSegmentedProgressBar(theme, scanState),
           const SizedBox(height: 6),
           // 进度条图例
-          _buildProgressLegend(theme, scanState),
+          _buildProgressLegend(context, theme, scanState),
           const SizedBox(height: 8),
           // 当前阶段标签
           Row(
@@ -98,8 +98,9 @@ class GalleryScanProgressPanel extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color:
-                      theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                  color: theme.colorScheme.primaryContainer.withValues(
+                    alpha: 0.5,
+                  ),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -300,9 +301,7 @@ class GalleryScanProgressPanel extends ConsumerWidget {
           value: null, // 不确定进度
           minHeight: 8,
           backgroundColor: theme.colorScheme.surfaceContainerHighest,
-          valueColor: AlwaysStoppedAnimation<Color>(
-            theme.colorScheme.primary,
-          ),
+          valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
         ),
       );
     }
@@ -315,8 +314,10 @@ class GalleryScanProgressPanel extends ConsumerWidget {
 
     // 当前正在处理的部分 = 已处理 - 已分类
     final processingRatio =
-        (processedRatio - skippedRatio - withMetadataRatio - failedRatio)
-            .clamp(0.0, 1.0);
+        (processedRatio - skippedRatio - withMetadataRatio - failedRatio).clamp(
+          0.0,
+          1.0,
+        );
 
     // 待处理的部分
     final pendingRatio = (1.0 - processedRatio).clamp(0.0, 1.0);
@@ -358,8 +359,9 @@ class GalleryScanProgressPanel extends ConsumerWidget {
             if (pendingRatio > 0)
               Expanded(
                 flex: (pendingRatio * 1000).round(),
-                child:
-                    Container(color: theme.colorScheme.surfaceContainerHighest),
+                child: Container(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                ),
               ),
           ],
         ),
@@ -368,21 +370,41 @@ class GalleryScanProgressPanel extends ConsumerWidget {
   }
 
   /// 构建进度条图例
-  Widget _buildProgressLegend(ThemeData theme, ScanProgressState scanState) {
+  Widget _buildProgressLegend(
+    BuildContext context,
+    ThemeData theme,
+    ScanProgressState scanState,
+  ) {
     final stats = scanState.cacheStats;
+    final l10n = context.l10n;
 
     return Wrap(
       spacing: 12,
       runSpacing: 4,
       children: [
         if (stats.skipped > 0)
-          _buildLegendItem(Colors.green.shade400, '跳过 ${stats.skipped}'),
+          _buildLegendItem(
+            Colors.green.shade400,
+            l10n.galleryScan_skipped(stats.skipped),
+          ),
         if (stats.withMetadata > 0)
-          _buildLegendItem(Colors.blue.shade400, '有元数据 ${stats.withMetadata}'),
+          _buildLegendItem(
+            Colors.blue.shade400,
+            l10n.galleryScan_withMetadata(stats.withMetadata),
+          ),
         if (stats.failedMetadata > 0)
-          _buildLegendItem(Colors.red.shade400, '失败 ${stats.failedMetadata}'),
-        _buildLegendItem(theme.colorScheme.primary, '处理中'),
-        _buildLegendItem(theme.colorScheme.surfaceContainerHighest, '待处理'),
+          _buildLegendItem(
+            Colors.red.shade400,
+            l10n.galleryScan_failed(stats.failedMetadata),
+          ),
+        _buildLegendItem(
+          theme.colorScheme.primary,
+          l10n.galleryScan_processing,
+        ),
+        _buildLegendItem(
+          theme.colorScheme.surfaceContainerHighest,
+          l10n.galleryScan_pending,
+        ),
       ],
     );
   }
@@ -403,10 +425,7 @@ class GalleryScanProgressPanel extends ConsumerWidget {
         const SizedBox(width: 4),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.grey.shade600,
-          ),
+          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
         ),
       ],
     );
@@ -475,9 +494,11 @@ class _StripesPainter extends CustomPainter {
     const gap = 8.0;
     final offset = progress * (stripeWidth + gap);
 
-    for (double x = -stripeWidth;
-        x < size.width + stripeWidth;
-        x += stripeWidth + gap) {
+    for (
+      double x = -stripeWidth;
+      x < size.width + stripeWidth;
+      x += stripeWidth + gap
+    ) {
       canvas.drawLine(
         Offset(x + offset, 0),
         Offset(x + offset - stripeWidth / 2, size.height),

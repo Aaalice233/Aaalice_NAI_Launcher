@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/utils/localization_extension.dart';
 import '../../providers/cost_estimate_provider.dart';
 import '../../providers/subscription_provider.dart';
 
@@ -13,10 +14,7 @@ class AnlasBalanceChip extends ConsumerWidget {
   /// 紧凑模式（移动端使用）
   final bool compact;
 
-  const AnlasBalanceChip({
-    super.key,
-    this.compact = false,
-  });
+  const AnlasBalanceChip({super.key, this.compact = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -142,11 +140,12 @@ class AnlasBalanceChip extends ConsumerWidget {
       },
       borderRadius: BorderRadius.circular(8),
       child: Tooltip(
-        message: '点击重试',
+        message: context.l10n.common_clickToRetry,
         child: _ChipContainer(
           compact: compact,
-          backgroundColor:
-              theme.colorScheme.errorContainer.withValues(alpha: 0.3),
+          backgroundColor: theme.colorScheme.errorContainer.withValues(
+            alpha: 0.3,
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [

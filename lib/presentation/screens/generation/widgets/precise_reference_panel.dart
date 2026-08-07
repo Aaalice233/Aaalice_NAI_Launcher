@@ -11,8 +11,11 @@ import '../../../../../core/enums/precise_ref_type.dart';
 import '../../../../../core/extensions/precise_ref_type_extensions.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
+import '../../../../data/services/precise_ref_library_storage_service.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../providers/precise_ref_library_provider.dart';
 import '../../../utils/dropped_file_reader.dart';
+import '../../../utils/precise_ref_library_import_helper.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/editable_double_field.dart';
 import '../../../widgets/common/hover_image_preview.dart';
@@ -20,6 +23,7 @@ import '../../../widgets/common/precise_reference_type_dialog.dart';
 import '../../../widgets/common/themed_divider.dart';
 import '../../../widgets/common/collapsible_image_panel.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
+import '../../precise_ref_library/widgets/precise_ref_selector_dialog.dart';
 
 const double _disabledPreciseReferenceCardOpacity = 0.48;
 
@@ -206,6 +210,8 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
                   index: index,
                   reference: references[index],
                   onRemove: () => _removeReference(index),
+                  onSaveToLibrary: () =>
+                      _saveSingleReferenceToLibrary(references[index]),
                   onEnabledChanged: (value) =>
                       _updateReferenceEnabled(index, value),
                   onTypeChanged: (type) => _updateReferenceType(index, type),
@@ -233,6 +239,40 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
                       : context.l10n.preciseRef_addReference,
                 ),
               ),
+            ),
+
+            // 库操作：从库导入 / 保存到库
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: const Key('precise-ref-panel-from-library'),
+                    onPressed: isV4Model ? _importFromLibrary : null,
+                    icon: const Icon(Icons.photo_library_outlined, size: 16),
+                    label: Text(
+                      context.l10n.preciseRefLib_fromLibrary,
+                      style: const TextStyle(fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: const Key('precise-ref-panel-save-to-library'),
+                    onPressed: hasReferences ? _saveReferencesToLibrary : null,
+                    icon: const Icon(Icons.bookmark_add_outlined, size: 16),
+                    label: Text(
+                      context.l10n.preciseRefLib_saveCurrentToLibrary,
+                      style: const TextStyle(fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ],
             ),
 
             // 清除全部按钮
@@ -299,6 +339,106 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
         child: child,
       ),
     );
+  }
+
+  /// 从精准参考库导入条目（套用条目记住的类型与参数）
+  Future<void> _importFromLibrary() async {
+    final selected = await PreciseRefSelectorDialog.show(context);
+    if (selected == null || selected.isEmpty || !mounted) return;
+
+    final storage = ref.read(preciseRefLibraryStorageServiceProvider);
+    final notifier = ref.read(generationParamsNotifierProvider.notifier);
+    final libraryNotifier = ref.read(
+      preciseRefLibraryNotifierProvider.notifier,
+    );
+
+    final futures = <Future<void>>[];
+    var added = 0;
+    for (final entry in selected) {
+      final bytes = await storage.readImageBytes(entry.id);
+      if (bytes == null) continue;
+      futures.add(
+        notifier.addPreciseReferenceFromImage(
+          bytes,
+          type: entry.type,
+          strength: entry.strength,
+          fidelity: entry.fidelity,
+        ),
+      );
+      unawaited(libraryNotifier.recordUsage(entry.id));
+      added++;
+    }
+    await Future.wait(futures);
+
+    if (!mounted) return;
+    if (added > 0) {
+      AppToast.success(context, context.l10n.preciseRef_addedCount(added));
+    }
+    if (added < selected.length) {
+      AppToast.warning(context, context.l10n.preciseRefLib_imageMissing);
+    }
+  }
+
+  /// 把单张参考图（含类型与参数）保存到精准参考库
+  Future<void> _saveSingleReferenceToLibrary(PreciseReference reference) async {
+    try {
+      final entry = await ref
+          .read(preciseRefLibraryNotifierProvider.notifier)
+          .importFromBytes(
+            reference.image,
+            name: defaultPreciseRefName(),
+            type: reference.type,
+            strength: reference.strength,
+            fidelity: reference.fidelity,
+          );
+      if (!mounted) return;
+      AppToast.success(context, context.l10n.preciseRefLib_saved(entry.name));
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.error(context, preciseRefImportErrorMessage(context, e));
+    }
+  }
+
+  /// 把当前参考图（含各自类型与参数）保存到精准参考库
+  Future<void> _saveReferencesToLibrary() async {
+    final references = ref
+        .read(generationParamsNotifierProvider)
+        .preciseReferences;
+    if (references.isEmpty) return;
+
+    final PreciseRefLibraryBatchImportResult batch;
+    try {
+      batch = await ref
+          .read(preciseRefLibraryNotifierProvider.notifier)
+          .importMany([
+            for (final reference in references)
+              PreciseRefLibraryImportSource(
+                loadBytes: () async => reference.image,
+                name: defaultPreciseRefName(),
+                type: reference.type,
+                strength: reference.strength,
+                fidelity: reference.fidelity,
+              ),
+          ]);
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.error(context, preciseRefImportErrorMessage(context, e));
+      return;
+    }
+
+    if (!mounted) return;
+    if (batch.importedCount > 0) {
+      AppToast.success(
+        context,
+        context.l10n.preciseRefLib_saveCurrentCount(batch.importedCount),
+      );
+    }
+    if (batch.failedCount > 0) {
+      AppToast.error(
+        context,
+        context.l10n.preciseRefLib_importFailedCount(batch.failedCount),
+      );
+    }
   }
 
   Future<void> _addReference() async {
@@ -474,6 +614,7 @@ class _PreciseReferenceCard extends StatelessWidget {
   final int index;
   final PreciseReference reference;
   final VoidCallback onRemove;
+  final VoidCallback onSaveToLibrary;
   final ValueChanged<bool> onEnabledChanged;
   final ValueChanged<PreciseRefType> onTypeChanged;
   final ValueChanged<double> onStrengthChanged;
@@ -483,6 +624,7 @@ class _PreciseReferenceCard extends StatelessWidget {
     required this.index,
     required this.reference,
     required this.onRemove,
+    required this.onSaveToLibrary,
     required this.onEnabledChanged,
     required this.onTypeChanged,
     required this.onStrengthChanged,
@@ -528,7 +670,22 @@ class _PreciseReferenceCard extends StatelessWidget {
                   ),
                 ),
 
-                // 右侧：删除按钮
+                // 右侧：保存到库 + 删除按钮
+                SizedBox(
+                  height: 28,
+                  width: 28,
+                  child: IconButton(
+                    key: Key('precise-reference-save-to-library-$index'),
+                    padding: EdgeInsets.zero,
+                    icon: Icon(
+                      Icons.bookmark_add_outlined,
+                      size: 18,
+                      color: theme.colorScheme.primary,
+                    ),
+                    onPressed: onSaveToLibrary,
+                    tooltip: context.l10n.preciseRefLib_saveCurrentToLibrary,
+                  ),
+                ),
                 SizedBox(
                   height: 28,
                   width: 28,

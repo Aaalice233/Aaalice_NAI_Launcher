@@ -8,6 +8,7 @@ import '../../providers/image_generation_provider.dart';
 import 'add_character_buttons.dart';
 import 'character_position_canvas.dart';
 import 'inline_character_card.dart';
+import 'inline_character_editor.dart';
 
 /// 内联角色区块（官网布局左栏用，竖排）
 ///
@@ -73,7 +74,7 @@ class InlineCharacterSection extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    '${characters.length}/6',
+                    '${characters.length}',
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.onPrimaryContainer,
                     ),
@@ -91,7 +92,7 @@ class InlineCharacterSection extends ConsumerWidget {
                   message: l10n.characterEditor_clearAll,
                   waitDuration: const Duration(milliseconds: 500),
                   child: InkWell(
-                    onTap: () => _confirmClearAll(context, ref),
+                    onTap: () => confirmClearAllCharacters(context, ref),
                     borderRadius: BorderRadius.circular(4),
                     child: Padding(
                       padding: const EdgeInsets.all(2),
@@ -116,37 +117,8 @@ class InlineCharacterSection extends ConsumerWidget {
               total: characters.length,
             ),
           ),
-        if (characters.length < 6) const AddCharacterButtons(),
+        const AddCharacterButtons(),
       ],
     );
-  }
-
-  Future<void> _confirmClearAll(BuildContext context, WidgetRef ref) async {
-    final l10n = AppLocalizations.of(context)!;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.characterEditor_clearAllTitle),
-        content: Text(l10n.characterEditor_clearAllConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l10n.common_cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(l10n.common_clear),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      ref.read(selectedCharacterIdProvider.notifier).clear();
-      ref.read(characterPromptNotifierProvider.notifier).clearAllCharacters();
-    }
   }
 }

@@ -14,6 +14,17 @@ import 'character_position_canvas.dart';
 import 'inline_character_card.dart';
 import 'inline_character_editor.dart';
 
+enum _CharacterAddAction {
+  female(CharacterGender.female),
+  male(CharacterGender.male),
+  other(CharacterGender.other),
+  library(null);
+
+  const _CharacterAddAction(this.gender);
+
+  final CharacterGender? gender;
+}
+
 /// 内联角色行（经典布局用，横排）
 ///
 /// 位于提示词横条正下方，与主提示词同屏相邻：
@@ -72,30 +83,81 @@ class InlineCharacterRow extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 位置模式常驻在角色行上方（行仅在有角色时渲染）
-          const Padding(
-            padding: EdgeInsets.only(bottom: 6),
-            child: Row(children: [CharacterPositionModeSegments()]),
-          ),
-          // Wrap 换行：角色多时排到第二排，不再横向滚动到不可见区域
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (var i = 0; i < characters.length; i++)
-                SizedBox(
-                  width: _cardWidth,
-                  child: InlineCharacterCard(
-                    key: ValueKey(characters[i].id),
-                    character: characters[i],
-                    index: i,
-                    total: characters.length,
-                    compact: true,
-                    inlineEditor: false,
+          // 头部：位置模式分段 + 计数徽章 + 清空全部
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              children: [
+                const CharacterPositionModeSegments(),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${characters.length}',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
                   ),
                 ),
-              if (characters.length < 6) const _AddCharacterChip(),
-            ],
+                const SizedBox(width: 8),
+                Tooltip(
+                  message: AppLocalizations.of(
+                    context,
+                  )!.characterEditor_clearAll,
+                  waitDuration: const Duration(milliseconds: 500),
+                  child: InkWell(
+                    onTap: () => confirmClearAllCharacters(context, ref),
+                    borderRadius: BorderRadius.circular(4),
+                    child: Padding(
+                      padding: const EdgeInsets.all(2),
+                      child: Icon(
+                        Icons.delete_sweep,
+                        size: 16,
+                        color: theme.colorScheme.error,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // 等宽占满网格：每排卡片等分行宽（含尾部添加卡），排列整齐
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const spacing = 6.0;
+              final maxW = constraints.maxWidth;
+              final itemCount = characters.length + 1;
+              var columns = ((maxW + spacing) / (_cardWidth + spacing)).floor();
+              columns = columns.clamp(1, itemCount);
+              final cellWidth = (maxW - (columns - 1) * spacing) / columns;
+
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: [
+                  for (var i = 0; i < characters.length; i++)
+                    SizedBox(
+                      width: cellWidth,
+                      child: InlineCharacterCard(
+                        key: ValueKey(characters[i].id),
+                        character: characters[i],
+                        index: i,
+                        total: characters.length,
+                        compact: true,
+                        inlineEditor: false,
+                      ),
+                    ),
+                  SizedBox(width: cellWidth, child: const _AddCharacterChip()),
+                ],
+              );
+            },
           ),
           // 面板展开/收起用高度生长 + 交叉淡化，切换角色时两面板淡化过渡
           AnimatedSize(
@@ -330,13 +392,13 @@ class _AddCharacterChip extends ConsumerWidget {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
 
-    return PopupMenuButton<CharacterGender?>(
+    return PopupMenuButton<_CharacterAddAction>(
       tooltip: l10n.character_addCharacter,
       padding: EdgeInsets.zero,
-      onSelected: (gender) => _handleAdd(context, ref, gender),
+      onSelected: (action) => _handleAdd(context, ref, action),
       itemBuilder: (context) => [
         PopupMenuItem(
-          value: CharacterGender.female,
+          value: _CharacterAddAction.female,
           child: _menuRow(
             Icons.female,
             l10n.characterEditor_addFemale,
@@ -344,7 +406,7 @@ class _AddCharacterChip extends ConsumerWidget {
           ),
         ),
         PopupMenuItem(
-          value: CharacterGender.male,
+          value: _CharacterAddAction.male,
           child: _menuRow(
             Icons.male,
             l10n.characterEditor_addMale,
@@ -352,7 +414,7 @@ class _AddCharacterChip extends ConsumerWidget {
           ),
         ),
         PopupMenuItem(
-          value: CharacterGender.other,
+          value: _CharacterAddAction.other,
           child: _menuRow(
             Icons.transgender,
             l10n.characterEditor_addOther,
@@ -360,7 +422,7 @@ class _AddCharacterChip extends ConsumerWidget {
           ),
         ),
         PopupMenuItem(
-          value: null,
+          value: _CharacterAddAction.library,
           child: _menuRow(
             Icons.library_books_outlined,
             l10n.characterEditor_addFromLibrary,
@@ -368,19 +430,21 @@ class _AddCharacterChip extends ConsumerWidget {
           ),
         ),
       ],
+      // 与角色卡同宽的添加卡（宽度由外部网格单元给定）
       child: Container(
-        width: 34,
-        constraints: const BoxConstraints(minHeight: 60),
+        constraints: const BoxConstraints(minHeight: 72),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: theme.colorScheme.outline.withValues(alpha: 0.4),
           ),
         ),
-        child: Icon(
-          Icons.add,
-          size: 16,
-          color: theme.colorScheme.onSurfaceVariant,
+        child: Center(
+          child: Icon(
+            Icons.add,
+            size: 18,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
       ),
     );
@@ -399,9 +463,10 @@ class _AddCharacterChip extends ConsumerWidget {
   Future<void> _handleAdd(
     BuildContext context,
     WidgetRef ref,
-    CharacterGender? gender,
+    _CharacterAddAction action,
   ) async {
     final notifier = ref.read(characterPromptNotifierProvider.notifier);
+    final gender = action.gender;
 
     if (gender != null) {
       notifier.addCharacter(gender);
