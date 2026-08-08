@@ -27,8 +27,9 @@ void main() {
       });
 
       expect(windowsAsset.type, ReleaseAssetType.windowsPortable);
-      expect(windowsAsset.supportsInAppInstall, isFalse);
+      expect(windowsAsset.supportsInAppInstall, isTrue);
       expect(macosAsset.type, ReleaseAssetType.macosPortable);
+      expect(macosAsset.supportsInAppInstall, isFalse);
       expect(macosAsset.platform, 'macos');
     });
 

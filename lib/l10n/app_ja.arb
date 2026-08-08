@@ -5254,9 +5254,28 @@
       "percent": {}
     }
   },
+  "updateDownloadSizeSpeed": "{received} / {total} · {speed}",
+  "@updateDownloadSizeSpeed": {
+    "placeholders": {
+      "received": {},
+      "total": {},
+      "speed": {}
+    }
+  },
+  "updateDownloaded": "更新パッケージの準備ができました",
+  "updateDownloadedHint": "v{version} をダウンロードし、検証が完了しました。インストールするとアプリが終了し、自動的に再起動します。",
+  "@updateDownloadedHint": {
+    "placeholders": {
+      "version": {}
+    }
+  },
+  "updateInstallAndRestart": "インストールして再起動",
+  "updateInstallLater": "後でインストール",
+  "updateDownloadCancelled": "ダウンロードをキャンセルしました",
+  "updateDownloadFailed": "更新のダウンロードに失敗しました",
   "updateInstalling": "インストーラーを起動しています...",
-  "updateInstallingHint": "インストーラーが起動しました。アプリはまもなく終了します。",
-  "updatePortableManualHint": "ポータブル版では Release ページを開いて手動でダウンロードします。",
+  "updateInstallingHint": "インストーラーが起動しました。アプリは終了し、自動的に更新が完了します。",
+  "updatePortableManualHint": "このビルドはアプリ内更新に対応していません。Release ページから新しいバージョンを手動でダウンロードしてください。",
   "versionSkipped": "バージョンがスキップされました",
   "cannotOpenUrl": "リンクを開けません",
 

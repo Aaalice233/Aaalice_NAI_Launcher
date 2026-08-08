@@ -5236,14 +5236,33 @@
   "currentVersion": "Current Version",
   "latestVersion": "Latest Version",
   "releaseNotes": "Release Notes",
-  "updatePortableManualHint": "Portable builds open the Release page for manual download.",
+  "updatePortableManualHint": "This build cannot update in-app. Please download the new version from the Release page.",
   "updateDownloadingProgress": "Downloading update package: {percent}%",
   "@updateDownloadingProgress": {
     "placeholders": {
       "percent": {}
     }
   },
-  "updateInstallingHint": "The installer has started. The app will close shortly.",
+  "updateDownloadSizeSpeed": "{received} / {total} · {speed}",
+  "@updateDownloadSizeSpeed": {
+    "placeholders": {
+      "received": {},
+      "total": {},
+      "speed": {}
+    }
+  },
+  "updateDownloaded": "Update Package Ready",
+  "updateDownloadedHint": "v{version} has been downloaded and verified. Installing will close the app and restart it automatically.",
+  "@updateDownloadedHint": {
+    "placeholders": {
+      "version": {}
+    }
+  },
+  "updateInstallAndRestart": "Install and Restart",
+  "updateInstallLater": "Install Later",
+  "updateDownloadCancelled": "Download cancelled",
+  "updateDownloadFailed": "Failed to download the update",
+  "updateInstallingHint": "The installer has started. The app will close and finish updating automatically.",
   "remindMeLater": "Remind Me Later",
   "skipThisVersion": "Skip This Version",
   "updateDownloadAndInstall": "Download and Install",

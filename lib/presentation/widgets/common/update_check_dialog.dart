@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/utils/byte_format.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/version/version_info.dart';
 import '../../providers/update_provider.dart';
@@ -35,9 +36,12 @@ class UpdateCheckDialog extends ConsumerWidget {
       UpdateStatus.checking => context.l10n.updateChecking,
       UpdateStatus.available => context.l10n.updateAvailable,
       UpdateStatus.downloading => context.l10n.updateDownloading,
+      UpdateStatus.downloaded => context.l10n.updateDownloaded,
       UpdateStatus.installing => context.l10n.updateInstalling,
       UpdateStatus.upToDate => context.l10n.updateUpToDate,
-      UpdateStatus.error => context.l10n.updateError,
+      UpdateStatus.error => state.versionInfo != null
+          ? context.l10n.updateDownloadFailed
+          : context.l10n.updateError,
       UpdateStatus.idle => context.l10n.updateChecking,
     };
   }
@@ -51,6 +55,7 @@ class UpdateCheckDialog extends ConsumerWidget {
         state.versionInfo!,
       ),
       UpdateStatus.downloading => _buildDownloadContent(context, state),
+      UpdateStatus.downloaded => _buildDownloadedContent(context, state),
       UpdateStatus.installing => _buildInstallingContent(context),
       UpdateStatus.upToDate => _buildUpToDateContent(context),
       UpdateStatus.error => _buildErrorContent(context, state.errorMessage),
@@ -159,9 +164,10 @@ class UpdateCheckDialog extends ConsumerWidget {
   Widget _buildDownloadContent(BuildContext context, UpdateState state) {
     final progress = state.downloadProgress.clamp(0.0, 1.0);
     final percent = (progress * 100).round();
+    final theme = Theme.of(context);
 
     return SizedBox(
-      height: 120,
+      height: 140,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -169,6 +175,53 @@ class UpdateCheckDialog extends ConsumerWidget {
             LinearProgressIndicator(value: progress == 0 ? null : progress),
             const SizedBox(height: 16),
             Text(context.l10n.updateDownloadingProgress(percent)),
+            if (state.totalBytes > 0) ...[
+              const SizedBox(height: 6),
+              Text(
+                context.l10n.updateDownloadSizeSpeed(
+                  formatBytes(state.downloadedBytes),
+                  formatBytes(state.totalBytes),
+                  formatBytesPerSecond(state.downloadSpeedBytesPerSecond),
+                ),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 构建下载完成、等待安装确认的内容
+  Widget _buildDownloadedContent(BuildContext context, UpdateState state) {
+    final theme = Theme.of(context);
+
+    return SizedBox(
+      height: 140,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.check_circle_outline,
+              size: 48,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                context.l10n.updateDownloadedHint(
+                  state.versionInfo?.version ?? '',
+                ),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
           ],
         ),
       ),
@@ -339,9 +392,7 @@ class UpdateCheckDialog extends ConsumerWidget {
           onPressed: () async {
             final versionInfo = state.versionInfo;
             if (versionInfo?.supportsInAppInstall == true) {
-              await ref
-                  .read(updateStateProvider.notifier)
-                  .downloadAndInstallUpdate();
+              await ref.read(updateStateProvider.notifier).downloadUpdate();
               return;
             }
             await _openDownloadUrl(context, versionInfo);
@@ -356,7 +407,30 @@ class UpdateCheckDialog extends ConsumerWidget {
           ),
         ),
       ],
-      UpdateStatus.downloading || UpdateStatus.installing => const [],
+      UpdateStatus.downloading => [
+        TextButton(
+          onPressed: () {
+            ref.read(updateStateProvider.notifier).cancelDownload();
+            AppToast.info(context, context.l10n.updateDownloadCancelled);
+          },
+          child: Text(context.l10n.common_cancel),
+        ),
+      ],
+      UpdateStatus.downloaded => [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(context.l10n.updateInstallLater),
+        ),
+        FilledButton(
+          onPressed: () async {
+            await ref
+                .read(updateStateProvider.notifier)
+                .installDownloadedUpdate();
+          },
+          child: Text(context.l10n.updateInstallAndRestart),
+        ),
+      ],
+      UpdateStatus.installing => const [],
       UpdateStatus.upToDate => [
         FilledButton(
           onPressed: () => Navigator.of(context).pop(),
@@ -368,9 +442,23 @@ class UpdateCheckDialog extends ConsumerWidget {
           onPressed: () => Navigator.of(context).pop(),
           child: Text(context.l10n.common_close),
         ),
+        // 下载失败时提供浏览器手动下载的退路
+        if (state.versionInfo != null)
+          TextButton(
+            onPressed: () => _openDownloadUrl(context, state.versionInfo),
+            child: Text(context.l10n.goToDownload),
+          ),
         FilledButton(
           onPressed: () {
-            ref.read(updateStateProvider.notifier).checkForUpdates();
+            final notifier = ref.read(updateStateProvider.notifier);
+            // 已有版本信息说明是下载/安装阶段出错，直接重试下载；
+            // 否则重新走检查更新流程。
+            if (state.versionInfo != null &&
+                state.versionInfo!.supportsInAppInstall) {
+              notifier.downloadUpdate();
+            } else {
+              notifier.checkForUpdates();
+            }
           },
           child: Text(context.l10n.common_retry),
         ),

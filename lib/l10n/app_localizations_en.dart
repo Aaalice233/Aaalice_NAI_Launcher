@@ -10373,7 +10373,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get updatePortableManualHint =>
-      'Portable builds open the Release page for manual download.';
+      'This build cannot update in-app. Please download the new version from the Release page.';
 
   @override
   String updateDownloadingProgress(Object percent) {
@@ -10381,8 +10381,33 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String updateDownloadSizeSpeed(Object received, Object total, Object speed) {
+    return '$received / $total · $speed';
+  }
+
+  @override
+  String get updateDownloaded => 'Update Package Ready';
+
+  @override
+  String updateDownloadedHint(Object version) {
+    return 'v$version has been downloaded and verified. Installing will close the app and restart it automatically.';
+  }
+
+  @override
+  String get updateInstallAndRestart => 'Install and Restart';
+
+  @override
+  String get updateInstallLater => 'Install Later';
+
+  @override
+  String get updateDownloadCancelled => 'Download cancelled';
+
+  @override
+  String get updateDownloadFailed => 'Failed to download the update';
+
+  @override
   String get updateInstallingHint =>
-      'The installer has started. The app will close shortly.';
+      'The installer has started. The app will close and finish updating automatically.';
 
   @override
   String get remindMeLater => 'Remind Me Later';

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/services/update_installer_service.dart';
+import 'package:nai_launcher/data/models/version/release_asset_info.dart';
 
 void main() {
   group('UpdateInstallerService', () {
@@ -32,6 +33,38 @@ void main() {
         isTrue,
       );
       expect(UpdateInstallerService.equalsSha256(hash, 'bad'), isFalse);
+    });
+
+    test('DownloadedUpdate identifies portable zip packages', () {
+      const portableAsset = ReleaseAssetInfo(
+        type: ReleaseAssetType.windowsPortable,
+        platform: 'windows',
+        fileName: 'update.zip',
+        downloadUrl: 'https://example.com/update.zip',
+      );
+      const installerAsset = ReleaseAssetInfo(
+        type: ReleaseAssetType.windowsInstaller,
+        platform: 'windows',
+        fileName: 'setup.exe',
+        downloadUrl: 'https://example.com/setup.exe',
+      );
+
+      expect(
+        DownloadedUpdate(
+          file: File('update.zip'),
+          asset: portableAsset,
+          version: '1.0.0',
+        ).isPortableZip,
+        isTrue,
+      );
+      expect(
+        DownloadedUpdate(
+          file: File('setup.exe'),
+          asset: installerAsset,
+          version: '1.0.0',
+        ).isPortableZip,
+        isFalse,
+      );
     });
   });
 }

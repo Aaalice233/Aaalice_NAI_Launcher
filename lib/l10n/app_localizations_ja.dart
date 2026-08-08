@@ -10161,7 +10161,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get updatePortableManualHint =>
-      'ポータブル版では Release ページを開いて手動でダウンロードします。';
+      'このビルドはアプリ内更新に対応していません。Release ページから新しいバージョンを手動でダウンロードしてください。';
 
   @override
   String updateDownloadingProgress(Object percent) {
@@ -10169,7 +10169,32 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get updateInstallingHint => 'インストーラーが起動しました。アプリはまもなく終了します。';
+  String updateDownloadSizeSpeed(Object received, Object total, Object speed) {
+    return '$received / $total · $speed';
+  }
+
+  @override
+  String get updateDownloaded => '更新パッケージの準備ができました';
+
+  @override
+  String updateDownloadedHint(Object version) {
+    return 'v$version をダウンロードし、検証が完了しました。インストールするとアプリが終了し、自動的に再起動します。';
+  }
+
+  @override
+  String get updateInstallAndRestart => 'インストールして再起動';
+
+  @override
+  String get updateInstallLater => '後でインストール';
+
+  @override
+  String get updateDownloadCancelled => 'ダウンロードをキャンセルしました';
+
+  @override
+  String get updateDownloadFailed => '更新のダウンロードに失敗しました';
+
+  @override
+  String get updateInstallingHint => 'インストーラーが起動しました。アプリは終了し、自動的に更新が完了します。';
 
   @override
   String get remindMeLater => '後で通知する';

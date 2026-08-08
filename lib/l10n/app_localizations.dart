@@ -18248,7 +18248,7 @@ abstract class AppLocalizations {
   /// No description provided for @updatePortableManualHint.
   ///
   /// In en, this message translates to:
-  /// **'Portable builds open the Release page for manual download.'**
+  /// **'This build cannot update in-app. Please download the new version from the Release page.'**
   String get updatePortableManualHint;
 
   /// No description provided for @updateDownloadingProgress.
@@ -18257,10 +18257,52 @@ abstract class AppLocalizations {
   /// **'Downloading update package: {percent}%'**
   String updateDownloadingProgress(Object percent);
 
+  /// No description provided for @updateDownloadSizeSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'{received} / {total} · {speed}'**
+  String updateDownloadSizeSpeed(Object received, Object total, Object speed);
+
+  /// No description provided for @updateDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Package Ready'**
+  String get updateDownloaded;
+
+  /// No description provided for @updateDownloadedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'v{version} has been downloaded and verified. Installing will close the app and restart it automatically.'**
+  String updateDownloadedHint(Object version);
+
+  /// No description provided for @updateInstallAndRestart.
+  ///
+  /// In en, this message translates to:
+  /// **'Install and Restart'**
+  String get updateInstallAndRestart;
+
+  /// No description provided for @updateInstallLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Install Later'**
+  String get updateInstallLater;
+
+  /// No description provided for @updateDownloadCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Download cancelled'**
+  String get updateDownloadCancelled;
+
+  /// No description provided for @updateDownloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to download the update'**
+  String get updateDownloadFailed;
+
   /// No description provided for @updateInstallingHint.
   ///
   /// In en, this message translates to:
-  /// **'The installer has started. The app will close shortly.'**
+  /// **'The installer has started. The app will close and finish updating automatically.'**
   String get updateInstallingHint;
 
   /// No description provided for @remindMeLater.

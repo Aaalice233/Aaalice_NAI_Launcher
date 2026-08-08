@@ -10013,7 +10013,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get releaseNotes => '更新日志';
 
   @override
-  String get updatePortableManualHint => '便携版需要前往 Release 页面手动下载新版。';
+  String get updatePortableManualHint => '当前构建不支持应用内更新，请前往 Release 页面手动下载新版。';
 
   @override
   String updateDownloadingProgress(Object percent) {
@@ -10021,7 +10021,32 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get updateInstallingHint => '安装器已启动，应用即将关闭。';
+  String updateDownloadSizeSpeed(Object received, Object total, Object speed) {
+    return '$received / $total · $speed';
+  }
+
+  @override
+  String get updateDownloaded => '更新包已就绪';
+
+  @override
+  String updateDownloadedHint(Object version) {
+    return '新版本 v$version 已下载并通过校验。安装将关闭应用，完成后会自动重启。';
+  }
+
+  @override
+  String get updateInstallAndRestart => '安装并重启';
+
+  @override
+  String get updateInstallLater => '稍后安装';
+
+  @override
+  String get updateDownloadCancelled => '已取消下载';
+
+  @override
+  String get updateDownloadFailed => '下载更新失败';
+
+  @override
+  String get updateInstallingHint => '安装程序已启动，应用即将关闭并自动完成更新。';
 
   @override
   String get remindMeLater => '稍后提醒';

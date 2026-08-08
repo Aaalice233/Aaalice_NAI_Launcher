@@ -28,7 +28,10 @@ class ReleaseAssetInfo {
     this.description,
   });
 
-  bool get supportsInAppInstall => type == ReleaseAssetType.windowsInstaller;
+  /// Windows 安装版与便携版均支持应用内自动更新；macOS 需手动替换。
+  bool get supportsInAppInstall =>
+      type == ReleaseAssetType.windowsInstaller ||
+      type == ReleaseAssetType.windowsPortable;
 
   String get typeId => switch (type) {
     ReleaseAssetType.windowsInstaller => 'windows-installer',
@@ -157,7 +160,7 @@ class ReleaseAssetInfo {
   static String defaultDescription(ReleaseAssetType type) {
     return switch (type) {
       ReleaseAssetType.windowsInstaller => '推荐普通用户使用，支持应用内一键更新。',
-      ReleaseAssetType.windowsPortable => '解压即用，不会自动覆盖更新。',
+      ReleaseAssetType.windowsPortable => '解压即用，支持应用内自动更新。',
       ReleaseAssetType.macosPortable => '解压后打开应用，更新时需要手动替换。',
       ReleaseAssetType.unknown => '请查看 Release 页面说明。',
     };

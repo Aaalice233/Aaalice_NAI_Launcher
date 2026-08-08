@@ -39,8 +39,14 @@ class AppInstallationService {
     };
   }
 
-  bool get supportsInAppInstall =>
-      getInstallationType() == AppInstallationType.windowsInstaller;
+  /// Windows 安装版与便携版都支持应用内自动更新：
+  /// 安装版运行 NSIS 静默安装，便携版由辅助脚本解压覆盖并重启。
+  /// macOS 涉及签名与隔离属性，暂不支持自动替换。
+  bool get supportsInAppInstall {
+    final type = getInstallationType();
+    return type == AppInstallationType.windowsInstaller ||
+        type == AppInstallationType.windowsPortable;
+  }
 
   bool _isInstalledWindowsApp() {
     final installLocation = readWindowsInstallLocation();
