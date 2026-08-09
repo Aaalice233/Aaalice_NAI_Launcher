@@ -12,6 +12,7 @@ class LayoutState {
   final double rightPanelWidth;
   final double promptAreaHeight;
   final bool promptMaximized;
+  final bool mainNavRailExpanded;
   final bool fixedTagsSidebarExpanded;
   final double fixedTagsSidebarWidth;
   final String fixedTagsSidebarViewMode;
@@ -26,6 +27,7 @@ class LayoutState {
     this.rightPanelWidth = 280.0,
     this.promptAreaHeight = 200.0,
     this.promptMaximized = false,
+    this.mainNavRailExpanded = false,
     this.fixedTagsSidebarExpanded = false,
     this.fixedTagsSidebarWidth = 280.0,
     this.fixedTagsSidebarViewMode = 'list',
@@ -42,6 +44,7 @@ class LayoutState {
     double? rightPanelWidth,
     double? promptAreaHeight,
     bool? promptMaximized,
+    bool? mainNavRailExpanded,
     bool? fixedTagsSidebarExpanded,
     double? fixedTagsSidebarWidth,
     String? fixedTagsSidebarViewMode,
@@ -56,6 +59,7 @@ class LayoutState {
       rightPanelWidth: rightPanelWidth ?? this.rightPanelWidth,
       promptAreaHeight: promptAreaHeight ?? this.promptAreaHeight,
       promptMaximized: promptMaximized ?? this.promptMaximized,
+      mainNavRailExpanded: mainNavRailExpanded ?? this.mainNavRailExpanded,
       fixedTagsSidebarExpanded:
           fixedTagsSidebarExpanded ?? this.fixedTagsSidebarExpanded,
       fixedTagsSidebarWidth:
@@ -85,6 +89,7 @@ class LayoutStateNotifier extends _$LayoutStateNotifier {
       rightPanelWidth: storage.getRightPanelWidth(),
       promptAreaHeight: storage.getPromptAreaHeight(),
       promptMaximized: storage.getPromptMaximized(),
+      mainNavRailExpanded: storage.getMainNavRailExpanded(),
       fixedTagsSidebarExpanded: storage.getFixedTagsSidebarExpanded(),
       fixedTagsSidebarWidth: storage.getFixedTagsSidebarWidth(),
       fixedTagsSidebarViewMode: storage.getFixedTagsSidebarViewMode(),
@@ -158,6 +163,19 @@ class LayoutStateNotifier extends _$LayoutStateNotifier {
     await storage.setPromptMaximized(maximized);
   }
 
+  /// 设置桌面主导航栏展开状态
+  Future<void> setMainNavRailExpanded(bool expanded) async {
+    state = state.copyWith(mainNavRailExpanded: expanded);
+
+    final storage = ref.read(localStorageServiceProvider);
+    await storage.setMainNavRailExpanded(expanded);
+  }
+
+  /// 切换桌面主导航栏展开状态
+  Future<void> toggleMainNavRail() async {
+    await setMainNavRailExpanded(!state.mainNavRailExpanded);
+  }
+
   /// 设置固定词侧边栏展开状态
   Future<void> setFixedTagsSidebarExpanded(bool expanded) async {
     state = state.copyWith(fixedTagsSidebarExpanded: expanded);
@@ -214,5 +232,4 @@ class LayoutStateNotifier extends _$LayoutStateNotifier {
     final storage = ref.read(localStorageServiceProvider);
     await storage.setWebLeftPanelExpanded(expanded);
   }
-
 }

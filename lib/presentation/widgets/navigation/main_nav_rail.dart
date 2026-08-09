@@ -9,6 +9,7 @@ import '../../../data/models/auth/saved_account.dart';
 import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_mode_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/layout_state_provider.dart';
 import '../../router/app_branch.dart';
 import '../auth/account_avatar.dart';
 import '../auth/login_form_container.dart';
@@ -16,6 +17,10 @@ import '../auth/login_form_container.dart';
 import '../common/app_toast.dart';
 
 class MainNavRail extends ConsumerWidget {
+  static const double collapsedWidth = 60;
+  static const double expandedWidth = 196;
+  static const Duration animationDuration = Duration(milliseconds: 240);
+
   static const List<AppBranch> _railBranches = [
     AppBranch.generation,
     AppBranch.localGallery,
@@ -35,130 +40,242 @@ class MainNavRail extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final isExpanded = ref.watch(
+      layoutStateNotifierProvider.select((state) => state.mainNavRailExpanded),
+    );
 
     final currentIndex = navigationShell.currentIndex;
     final selectedIndex = _railBranches.indexWhere(
       (branch) => branch.index == currentIndex,
     );
 
-    return Container(
-      width: 60,
-      height: double.infinity,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(right: BorderSide(color: theme.dividerColor, width: 1)),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 16),
-          // 账户头像区域
-          _AccountAvatarButton(ref: ref),
+    return _NavRailExpansionScope(
+      isExpanded: isExpanded,
+      child: AnimatedContainer(
+        key: const Key('main-nav-rail'),
+        duration: animationDuration,
+        curve: Curves.easeInOutCubic,
+        width: isExpanded ? expandedWidth : collapsedWidth,
+        height: double.infinity,
+        clipBehavior: Clip.hardEdge,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          border: Border(
+            right: BorderSide(color: theme.dividerColor, width: 1),
+          ),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 16),
+            // 账户头像区域
+            _AccountAvatarButton(ref: ref),
 
-          Expanded(
-            child: SingleChildScrollView(
-              key: const Key('main-nav-primary-scroll'),
-              child: Column(
-                children: [
-                  // Navigation Items
-                  _NavIcon(
-                    icon: Icons.brush, // Canvas/Edit
-                    label: context.l10n.nav_canvas,
-                    isSelected: selectedIndex == 0,
-                    onTap: () =>
-                        navigationShell.goBranch(AppBranch.generation.index),
-                  ),
-
-                  // 本地画廊（App生成的图片）
-                  _NavIcon(
-                    icon: Icons.folder, // Local Generated Images
-                    label: context.l10n.localGallery_title,
-                    isSelected: selectedIndex == 1,
-                    onTap: () =>
-                        navigationShell.goBranch(AppBranch.localGallery.index),
-                  ),
-
-                  // 在线画廊
-                  _NavIcon(
-                    icon: Icons.photo_library, // Online Gallery
-                    label: context.l10n.nav_onlineGallery,
-                    isSelected: selectedIndex == 2,
-                    onTap: () =>
-                        navigationShell.goBranch(AppBranch.onlineGallery.index),
-                  ),
-
-                  // Vibe库
-                  _NavIcon(
-                    icon: Icons.auto_awesome, // Vibe Library
-                    label: context.l10n.vibeLibrary_title,
-                    isSelected: selectedIndex == 3,
-                    onTap: () =>
-                        navigationShell.goBranch(AppBranch.vibeLibrary.index),
-                  ),
-
-                  // 精准参考库
-                  _NavIcon(
-                    icon: Icons.center_focus_strong,
-                    label: context.l10n.nav_preciseRefLibrary,
-                    isSelected: selectedIndex == 4,
-                    onTap: () => navigationShell.goBranch(
-                      AppBranch.preciseRefLibrary.index,
+            Expanded(
+              child: SingleChildScrollView(
+                key: const Key('main-nav-primary-scroll'),
+                child: Column(
+                  children: [
+                    // Navigation Items
+                    _NavIcon(
+                      icon: Icons.brush, // Canvas/Edit
+                      label: context.l10n.nav_canvas,
+                      isSelected: selectedIndex == 0,
+                      onTap: () =>
+                          navigationShell.goBranch(AppBranch.generation.index),
                     ),
-                  ),
 
-                  // 随机配置
-                  _NavIcon(
-                    icon: Icons.casino, // Random prompt config
-                    label: context.l10n.nav_randomConfig,
-                    isSelected: selectedIndex == 5,
-                    onTap: () =>
-                        navigationShell.goBranch(AppBranch.promptConfig.index),
-                  ),
+                    // 本地画廊（App生成的图片）
+                    _NavIcon(
+                      icon: Icons.folder, // Local Generated Images
+                      label: context.l10n.localGallery_title,
+                      isSelected: selectedIndex == 1,
+                      onTap: () => navigationShell.goBranch(
+                        AppBranch.localGallery.index,
+                      ),
+                    ),
 
-                  // 词库
-                  _NavIcon(
-                    icon: Icons.book,
-                    label: context.l10n.nav_dictionary,
-                    isSelected: selectedIndex == 6,
-                    onTap: () =>
-                        navigationShell.goBranch(AppBranch.tagLibrary.index),
-                  ),
+                    // 在线画廊
+                    _NavIcon(
+                      icon: Icons.photo_library, // Online Gallery
+                      label: context.l10n.nav_onlineGallery,
+                      isSelected: selectedIndex == 2,
+                      onTap: () => navigationShell.goBranch(
+                        AppBranch.onlineGallery.index,
+                      ),
+                    ),
 
-                  // 画廊统计
-                  _NavIcon(
-                    icon: Icons.bar_chart, // Gallery Statistics
-                    label: context.l10n.statistics_title,
-                    isSelected: selectedIndex == 7,
-                    onTap: () =>
-                        navigationShell.goBranch(AppBranch.statistics.index),
-                  ),
-                ],
+                    // Vibe库
+                    _NavIcon(
+                      icon: Icons.auto_awesome, // Vibe Library
+                      label: context.l10n.vibeLibrary_title,
+                      isSelected: selectedIndex == 3,
+                      onTap: () =>
+                          navigationShell.goBranch(AppBranch.vibeLibrary.index),
+                    ),
+
+                    // 精准参考库
+                    _NavIcon(
+                      icon: Icons.center_focus_strong,
+                      label: context.l10n.nav_preciseRefLibrary,
+                      isSelected: selectedIndex == 4,
+                      onTap: () => navigationShell.goBranch(
+                        AppBranch.preciseRefLibrary.index,
+                      ),
+                    ),
+
+                    // 随机配置
+                    _NavIcon(
+                      icon: Icons.casino, // Random prompt config
+                      label: context.l10n.nav_randomConfig,
+                      isSelected: selectedIndex == 5,
+                      onTap: () => navigationShell.goBranch(
+                        AppBranch.promptConfig.index,
+                      ),
+                    ),
+
+                    // 词库
+                    _NavIcon(
+                      icon: Icons.book,
+                      label: context.l10n.nav_dictionary,
+                      isSelected: selectedIndex == 6,
+                      onTap: () =>
+                          navigationShell.goBranch(AppBranch.tagLibrary.index),
+                    ),
+
+                    // 画廊统计
+                    _NavIcon(
+                      icon: Icons.bar_chart, // Gallery Statistics
+                      label: context.l10n.statistics_title,
+                      isSelected: selectedIndex == 7,
+                      onTap: () =>
+                          navigationShell.goBranch(AppBranch.statistics.index),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
 
-          // Discord 社群
-          _ExternalLinkIcon(
-            icon: Icons.discord,
-            label: context.l10n.nav_discordCommunity,
-            color: const Color(0xFF5865F2), // Discord 紫色
-            url: 'https://discord.gg/R48n6GwXzD',
-          ),
+            // Discord 社群
+            _ExternalLinkIcon(
+              icon: Icons.discord,
+              label: context.l10n.nav_discordCommunity,
+              color: const Color(0xFF5865F2), // Discord 紫色
+              url: 'https://discord.gg/R48n6GwXzD',
+            ),
 
-          // GitHub 仓库
-          _GitHubIcon(
-            url: 'https://github.com/Aaalice233/Aaalice_NAI_Launcher',
-            label: context.l10n.nav_githubRepo,
-          ),
+            // GitHub 仓库
+            _GitHubIcon(
+              url: 'https://github.com/Aaalice233/Aaalice_NAI_Launcher',
+              label: context.l10n.nav_githubRepo,
+            ),
 
-          // Bottom Settings
-          _NavIcon(
-            icon: Icons.settings,
-            label: context.l10n.nav_settings,
-            isSelected: selectedIndex == 8,
-            onTap: () => navigationShell.goBranch(AppBranch.settings.index),
-          ),
-          const SizedBox(height: 16),
-        ],
+            // Bottom Settings
+            _NavIcon(
+              icon: Icons.settings,
+              label: context.l10n.nav_settings,
+              isSelected: selectedIndex == 8,
+              onTap: () => navigationShell.goBranch(AppBranch.settings.index),
+            ),
+            const SizedBox(height: 2),
+            _NavRailToggle(
+              isExpanded: isExpanded,
+              onTap: () {
+                ref
+                    .read(layoutStateNotifierProvider.notifier)
+                    .toggleMainNavRail();
+              },
+            ),
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NavRailExpansionScope extends InheritedWidget {
+  const _NavRailExpansionScope({
+    required this.isExpanded,
+    required super.child,
+  });
+
+  final bool isExpanded;
+
+  static bool isExpandedOf(BuildContext context) {
+    return context
+            .dependOnInheritedWidgetOfExactType<_NavRailExpansionScope>()
+            ?.isExpanded ??
+        false;
+  }
+
+  @override
+  bool updateShouldNotify(_NavRailExpansionScope oldWidget) {
+    return isExpanded != oldWidget.isExpanded;
+  }
+}
+
+class _NavRailToggle extends StatelessWidget {
+  const _NavRailToggle({required this.isExpanded, required this.onTap});
+
+  final bool isExpanded;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final label = isExpanded
+        ? context.l10n.nav_collapseSidebar
+        : context.l10n.nav_expandSidebar;
+
+    return SizedBox(
+      height: 40,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 160),
+          transitionBuilder: (child, animation) =>
+              FadeTransition(opacity: animation, child: child),
+          child: isExpanded
+              ? Align(
+                  key: const ValueKey('expanded-nav-toggle'),
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    key: const Key('main-nav-toggle'),
+                    onPressed: onTap,
+                    style: TextButton.styleFrom(
+                      foregroundColor: theme.colorScheme.onSurfaceVariant,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      minimumSize: const Size(0, 36),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(
+                      Icons.keyboard_double_arrow_left,
+                      size: 18,
+                    ),
+                    label: Text(label),
+                  ),
+                )
+              : Center(
+                  key: const ValueKey('collapsed-nav-toggle'),
+                  child: IconButton(
+                    key: const Key('main-nav-toggle'),
+                    onPressed: onTap,
+                    tooltip: label,
+                    visualDensity: VisualDensity.compact,
+                    style: IconButton.styleFrom(
+                      foregroundColor: theme.colorScheme.onSurfaceVariant,
+                      hoverColor: theme.colorScheme.surfaceContainerHighest,
+                      highlightColor: theme.colorScheme.primary.withValues(
+                        alpha: 0.1,
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.keyboard_double_arrow_right,
+                      size: 20,
+                    ),
+                  ),
+                ),
+        ),
       ),
     );
   }
@@ -193,45 +310,19 @@ class _GitHubIconState extends State<_GitHubIcon> {
         ? Colors.white
         : const Color(0xFF24292E);
 
-    return Tooltip(
-      message: widget.label,
-      preferBelow: false,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        width: 48,
-        height: 48,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: _launchUrl,
-            onHover: (val) => setState(() => _isHovering = val),
-            onTapDown: (_) => setState(() => _isPressed = true),
-            onTapUp: (_) => setState(() => _isPressed = false),
-            onTapCancel: () => setState(() => _isPressed = false),
-            borderRadius: BorderRadius.circular(8),
-            child: AnimatedScale(
-              scale: _isPressed ? 0.92 : (_isHovering ? 1.1 : 1.0),
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOutCubic,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                decoration: BoxDecoration(
-                  color: _isHovering
-                      ? color.withValues(alpha: 0.15)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: CustomPaint(
-                    size: const Size(24, 24),
-                    painter: _GitHubLogoPainter(
-                      color: color.withValues(alpha: _isHovering ? 1.0 : 0.7),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+    return _RailLinkItem(
+      label: widget.label,
+      color: color,
+      isHovering: _isHovering,
+      isPressed: _isPressed,
+      onTap: _launchUrl,
+      onHover: (value) => setState(() => _isHovering = value),
+      onTapDown: () => setState(() => _isPressed = true),
+      onTapEnd: () => setState(() => _isPressed = false),
+      icon: CustomPaint(
+        size: const Size(24, 24),
+        painter: _GitHubLogoPainter(
+          color: color.withValues(alpha: _isHovering ? 1.0 : 0.7),
         ),
       ),
     );
@@ -497,40 +588,110 @@ class _ExternalLinkIconState extends State<_ExternalLinkIcon> {
 
   @override
   Widget build(BuildContext context) {
+    return _RailLinkItem(
+      label: widget.label,
+      color: widget.color,
+      isHovering: _isHovering,
+      isPressed: _isPressed,
+      onTap: _launchUrl,
+      onHover: (value) => setState(() => _isHovering = value),
+      onTapDown: () => setState(() => _isPressed = true),
+      onTapEnd: () => setState(() => _isPressed = false),
+      icon: Icon(
+        widget.icon,
+        color: widget.color.withValues(alpha: _isHovering ? 1.0 : 0.7),
+        size: 24,
+      ),
+    );
+  }
+}
+
+class _RailLinkItem extends StatelessWidget {
+  const _RailLinkItem({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.isHovering,
+    required this.isPressed,
+    required this.onTap,
+    required this.onHover,
+    required this.onTapDown,
+    required this.onTapEnd,
+  });
+
+  final Widget icon;
+  final String label;
+  final Color color;
+  final bool isHovering;
+  final bool isPressed;
+  final VoidCallback onTap;
+  final ValueChanged<bool> onHover;
+  final VoidCallback onTapDown;
+  final VoidCallback onTapEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final isExpanded = _NavRailExpansionScope.isExpandedOf(context);
+    final theme = Theme.of(context);
+
     return Tooltip(
-      message: widget.label,
+      message: isExpanded ? '' : label,
       preferBelow: false,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        width: 48,
+        margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         height: 48,
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: _launchUrl,
-            onHover: (val) => setState(() => _isHovering = val),
-            onTapDown: (_) => setState(() => _isPressed = true),
-            onTapUp: (_) => setState(() => _isPressed = false),
-            onTapCancel: () => setState(() => _isPressed = false),
+            onTap: onTap,
+            onHover: onHover,
+            onTapDown: (_) => onTapDown(),
+            onTapUp: (_) => onTapEnd(),
+            onTapCancel: onTapEnd,
             borderRadius: BorderRadius.circular(8),
             child: AnimatedScale(
-              scale: _isPressed ? 0.92 : (_isHovering ? 1.1 : 1.0),
-              duration: const Duration(milliseconds: 200),
+              scale: isPressed ? 0.97 : 1.0,
+              duration: const Duration(milliseconds: 140),
               curve: Curves.easeOutCubic,
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
+                duration: const Duration(milliseconds: 180),
                 decoration: BoxDecoration(
-                  color: _isHovering
-                      ? widget.color.withValues(alpha: 0.15)
+                  color: isHovering
+                      ? color.withValues(alpha: 0.15)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  widget.icon,
-                  color: widget.color.withValues(
-                    alpha: _isHovering ? 1.0 : 0.7,
-                  ),
-                  size: 24,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final showLabel = constraints.maxWidth > 60;
+                    final labelOpacity = ((constraints.maxWidth - 60) / 48)
+                        .clamp(0.0, 1.0);
+                    return Row(
+                      children: [
+                        SizedBox(
+                          width: constraints.maxWidth.clamp(0.0, 48.0),
+                          height: 48,
+                          child: Center(child: icon),
+                        ),
+                        if (showLabel)
+                          Expanded(
+                            child: Opacity(
+                              opacity: labelOpacity,
+                              child: Text(
+                                label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurface,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (showLabel) const SizedBox(width: 12),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -565,6 +726,7 @@ class _NavIconState extends State<_NavIcon> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isExpanded = _NavRailExpansionScope.isExpandedOf(context);
     final color = widget.isSelected
         ? theme.colorScheme.primary
         : theme.iconTheme.color?.withValues(alpha: 0.7);
@@ -580,11 +742,10 @@ class _NavIconState extends State<_NavIcon> {
     }
 
     return Tooltip(
-      message: widget.label,
+      message: isExpanded ? '' : widget.label,
       preferBelow: false,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        width: 48,
+        margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         height: 48,
         child: Material(
           color: Colors.transparent,
@@ -596,11 +757,11 @@ class _NavIconState extends State<_NavIcon> {
             onTapCancel: () => setState(() => _isPressed = false),
             borderRadius: BorderRadius.circular(8),
             child: AnimatedScale(
-              scale: _isPressed ? 0.92 : (_isHovering ? 1.1 : 1.0),
-              duration: const Duration(milliseconds: 200),
+              scale: _isPressed ? 0.97 : 1.0,
+              duration: const Duration(milliseconds: 140),
               curve: Curves.easeOutCubic,
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
+                duration: const Duration(milliseconds: 180),
                 decoration: BoxDecoration(
                   color: backgroundColor,
                   borderRadius: BorderRadius.circular(8),
@@ -613,7 +774,42 @@ class _NavIconState extends State<_NavIcon> {
                         )
                       : null,
                 ),
-                child: Icon(widget.icon, color: color, size: 24),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final showLabel = constraints.maxWidth > 60;
+                    final labelOpacity = ((constraints.maxWidth - 60) / 48)
+                        .clamp(0.0, 1.0);
+                    return Row(
+                      children: [
+                        SizedBox(
+                          width: constraints.maxWidth.clamp(0.0, 48.0),
+                          height: 48,
+                          child: Icon(widget.icon, color: color, size: 24),
+                        ),
+                        if (showLabel)
+                          Expanded(
+                            child: Opacity(
+                              opacity: labelOpacity,
+                              child: Text(
+                                widget.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: widget.isSelected
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.onSurface,
+                                  fontWeight: widget.isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (showLabel) const SizedBox(width: 12),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           ),
@@ -657,10 +853,25 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
       currentAccount = accounts.first;
     }
 
+    final avatar = currentAccount != null
+        ? AccountAvatarSmall(account: currentAccount, size: 40)
+        : Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.person,
+              color: theme.colorScheme.primary,
+              size: 24,
+            ),
+          );
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      width: 40,
-      height: 40,
+      margin: const EdgeInsets.fromLTRB(10, 0, 10, 12),
+      height: 44,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -669,24 +880,66 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
           onTapDown: (_) => setState(() => _isPressed = true),
           onTapUp: (_) => setState(() => _isPressed = false),
           onTapCancel: () => setState(() => _isPressed = false),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(22),
           child: AnimatedScale(
-            scale: _isPressed ? 0.92 : (_isHovering ? 1.1 : 1.0),
-            duration: const Duration(milliseconds: 200),
+            scale: _isPressed ? 0.97 : 1.0,
+            duration: const Duration(milliseconds: 140),
             curve: Curves.easeOutCubic,
-            child: currentAccount != null
-                ? AccountAvatarSmall(account: currentAccount, size: 40)
-                : Container(
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.person,
-                      color: theme.colorScheme.primary,
-                      size: 24,
-                    ),
-                  ),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              decoration: BoxDecoration(
+                color: _isHovering
+                    ? theme.colorScheme.surfaceContainerHighest.withValues(
+                        alpha: 0.5,
+                      )
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final showLabel = constraints.maxWidth > 80;
+                  final labelOpacity = ((constraints.maxWidth - 80) / 48).clamp(
+                    0.0,
+                    1.0,
+                  );
+                  return Row(
+                    children: [
+                      SizedBox(
+                        width: constraints.maxWidth.clamp(0.0, 40.0),
+                        height: 44,
+                        child: Center(child: avatar),
+                      ),
+                      if (showLabel) ...[
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Opacity(
+                            opacity: labelOpacity,
+                            child: Text(
+                              currentAccount?.displayName ??
+                                  context.l10n.settings_account,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Opacity(
+                          opacity: labelOpacity,
+                          child: Icon(
+                            Icons.expand_more,
+                            size: 18,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ),
           ),
         ),
       ),
@@ -708,8 +961,11 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
     final screenSize = MediaQuery.of(context).size;
 
     // 使用 Rect 定义菜单弹出的锚点位置
+    final railWidth = _NavRailExpansionScope.isExpandedOf(context)
+        ? MainNavRail.expandedWidth
+        : MainNavRail.collapsedWidth;
     final menuAnchor = Rect.fromLTWH(
-      68, // 侧边栏宽度(60) + 间距(8)
+      railWidth + 8,
       offset.dy,
       1,
       button.size.height,

@@ -4,6 +4,40 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/presentation/providers/layout_state_provider.dart';
 
 void main() {
+  group('LayoutState main navigation rail persistence', () {
+    test('defaults to collapsed and copyWith preserves other fields', () {
+      const state = LayoutState();
+
+      expect(state.mainNavRailExpanded, isFalse);
+
+      final updated = state.copyWith(
+        mainNavRailExpanded: true,
+        leftPanelWidth: 360.0,
+      );
+      expect(updated.mainNavRailExpanded, isTrue);
+      expect(updated.leftPanelWidth, 360.0);
+    });
+
+    test('build reads and setter writes expansion state', () async {
+      final storage = _FakeLayoutStorage()..mainNavExpanded = true;
+      final container = ProviderContainer(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+      );
+      addTearDown(container.dispose);
+
+      expect(
+        container.read(layoutStateNotifierProvider).mainNavRailExpanded,
+        isTrue,
+      );
+
+      await container
+          .read(layoutStateNotifierProvider.notifier)
+          .setMainNavRailExpanded(false);
+
+      expect(storage.mainNavExpanded, isFalse);
+    });
+  });
+
   group('LayoutState fixed tags sidebar fields', () {
     test('defaults to collapsed list mode with safe dimensions', () {
       const state = LayoutState();
@@ -14,22 +48,24 @@ void main() {
       expect(state.fixedTagsNegativeHeight, 180.0);
     });
 
-    test('copyWith updates sidebar fields without resetting existing fields',
-        () {
-      final state = const LayoutState().copyWith(leftPanelWidth: 400.0);
-      final updated = state.copyWith(
-        fixedTagsSidebarExpanded: true,
-        fixedTagsSidebarWidth: 320.0,
-        fixedTagsSidebarViewMode: 'grid',
-        fixedTagsNegativeHeight: 240.0,
-      );
+    test(
+      'copyWith updates sidebar fields without resetting existing fields',
+      () {
+        final state = const LayoutState().copyWith(leftPanelWidth: 400.0);
+        final updated = state.copyWith(
+          fixedTagsSidebarExpanded: true,
+          fixedTagsSidebarWidth: 320.0,
+          fixedTagsSidebarViewMode: 'grid',
+          fixedTagsNegativeHeight: 240.0,
+        );
 
-      expect(updated.leftPanelWidth, 400.0);
-      expect(updated.fixedTagsSidebarExpanded, isTrue);
-      expect(updated.fixedTagsSidebarWidth, 320.0);
-      expect(updated.fixedTagsSidebarViewMode, 'grid');
-      expect(updated.fixedTagsNegativeHeight, 240.0);
-    });
+        expect(updated.leftPanelWidth, 400.0);
+        expect(updated.fixedTagsSidebarExpanded, isTrue);
+        expect(updated.fixedTagsSidebarWidth, 320.0);
+        expect(updated.fixedTagsSidebarViewMode, 'grid');
+        expect(updated.fixedTagsNegativeHeight, 240.0);
+      },
+    );
   });
 
   group('LayoutStateNotifier fixed tags sidebar persistence', () {
@@ -40,9 +76,7 @@ void main() {
         ..viewMode = 'grid'
         ..negativeHeight = 260.0;
       final container = ProviderContainer(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
       );
       addTearDown(container.dispose);
 
@@ -57,9 +91,7 @@ void main() {
     test('setters write sidebar state back to storage', () async {
       final storage = _FakeLayoutStorage();
       final container = ProviderContainer(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
       );
       addTearDown(container.dispose);
 
@@ -103,9 +135,7 @@ void main() {
         ..webWidth = 500.0
         ..webExpanded = false;
       final container = ProviderContainer(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
       );
       addTearDown(container.dispose);
 
@@ -118,9 +148,7 @@ void main() {
     test('setter 写回 storage 并 clamp', () async {
       final storage = _FakeLayoutStorage();
       final container = ProviderContainer(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => storage),
-        ],
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
       );
       addTearDown(container.dispose);
 
@@ -145,6 +173,7 @@ class _FakeLayoutStorage extends LocalStorageService {
   double rightWidth = 280.0;
   double promptHeight = 200.0;
   bool promptMaximized = false;
+  bool mainNavExpanded = false;
   bool expanded = false;
   double width = 280.0;
   String viewMode = 'list';
@@ -169,6 +198,14 @@ class _FakeLayoutStorage extends LocalStorageService {
 
   @override
   bool getPromptMaximized() => promptMaximized;
+
+  @override
+  bool getMainNavRailExpanded() => mainNavExpanded;
+
+  @override
+  Future<void> setMainNavRailExpanded(bool value) async {
+    mainNavExpanded = value;
+  }
 
   @override
   bool getFixedTagsSidebarExpanded() => expanded;
@@ -217,5 +254,4 @@ class _FakeLayoutStorage extends LocalStorageService {
   Future<void> setWebLeftPanelExpanded(bool value) async {
     webExpanded = value;
   }
-
 }

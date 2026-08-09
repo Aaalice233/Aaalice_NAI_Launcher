@@ -262,6 +262,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get nav_githubRepo => 'GitHub リポジトリ';
 
   @override
+  String get nav_expandSidebar => 'サイドバーを展開';
+
+  @override
+  String get nav_collapseSidebar => 'サイドバーを折りたたむ';
+
+  @override
   String get auth_login => 'ログイン';
 
   @override

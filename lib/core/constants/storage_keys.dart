@@ -50,6 +50,7 @@ class StorageKeys {
   static const String promptMaximized = 'prompt_maximized';
   static const String generationLayoutMode = 'generation_layout_mode';
   static const String historyClickBehavior = 'history_click_behavior';
+  static const String mainNavRailExpanded = 'main_nav_rail_expanded';
   static const String webLeftPanelWidth = 'web_left_panel_width';
   static const String webLeftPanelExpanded = 'web_left_panel_expanded';
   static const String fixedTagsSidebarExpanded = 'fixed_tags_sidebar_expanded';

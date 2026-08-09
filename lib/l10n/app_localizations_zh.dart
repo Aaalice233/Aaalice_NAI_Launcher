@@ -260,6 +260,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get nav_githubRepo => 'GitHub 仓库';
 
   @override
+  String get nav_expandSidebar => '展开侧边栏';
+
+  @override
+  String get nav_collapseSidebar => '收起侧边栏';
+
+  @override
   String get auth_login => '登录';
 
   @override

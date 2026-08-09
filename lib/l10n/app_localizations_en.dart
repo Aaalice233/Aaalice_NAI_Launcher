@@ -266,6 +266,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nav_githubRepo => 'GitHub Repository';
 
   @override
+  String get nav_expandSidebar => 'Expand sidebar';
+
+  @override
+  String get nav_collapseSidebar => 'Collapse sidebar';
+
+  @override
   String get auth_login => 'Login';
 
   @override

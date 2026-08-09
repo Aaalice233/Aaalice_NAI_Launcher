@@ -101,6 +101,8 @@
   "nav_dictionary": "辞書 (WIP)",
   "nav_discordCommunity": "Discord コミュニティ",
   "nav_githubRepo": "GitHub リポジトリ",
+  "nav_expandSidebar": "サイドバーを展開",
+  "nav_collapseSidebar": "サイドバーを折りたたむ",
   "auth_login": "ログイン",
   "auth_logout": "ログアウト",
   "auth_email": "電子メール",

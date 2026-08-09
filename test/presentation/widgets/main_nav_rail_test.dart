@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/account_manager_provider.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
@@ -24,17 +25,31 @@ class _FakeAccountManagerNotifier extends AccountManagerNotifier {
   AccountManagerState build() => const AccountManagerState();
 }
 
+class _FakeMainNavStorage extends LocalStorageService {
+  bool isExpanded = false;
+
+  @override
+  bool getMainNavRailExpanded() => isExpanded;
+
+  @override
+  Future<void> setMainNavRailExpanded(bool expanded) async {
+    isExpanded = expanded;
+  }
+}
+
 void main() {
   testWidgets('600px 高度下主导航可滚动且不溢出', (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final navigationShell = _MockNavigationShell();
+    final storage = _FakeMainNavStorage();
     when(() => navigationShell.currentIndex).thenReturn(0);
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          localStorageServiceProvider.overrideWith((ref) => storage),
           authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
           accountManagerNotifierProvider.overrideWith(
             _FakeAccountManagerNotifier.new,
@@ -52,6 +67,41 @@ void main() {
 
     expect(find.byKey(const Key('main-nav-primary-scroll')), findsOneWidget);
     expect(find.byIcon(Icons.settings), findsOneWidget);
+    expect(find.byIcon(Icons.keyboard_double_arrow_right), findsOneWidget);
+    expect(
+      tester.getCenter(find.byKey(const Key('main-nav-toggle'))).dy,
+      greaterThan(tester.getCenter(find.byIcon(Icons.settings)).dy),
+    );
+    expect(
+      tester.getSize(find.byKey(const Key('main-nav-rail'))).width,
+      MainNavRail.collapsedWidth,
+    );
+    expect(find.text('画布'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('main-nav-toggle')));
+    await tester.pumpAndSettle();
+
+    expect(storage.isExpanded, isTrue);
+    expect(
+      tester.getSize(find.byKey(const Key('main-nav-rail'))).width,
+      MainNavRail.expandedWidth,
+    );
+    expect(find.text('画布'), findsOneWidget);
+    expect(find.text('本地画廊'), findsOneWidget);
+    expect(find.text('Discord 社群'), findsOneWidget);
+    expect(find.text('GitHub 仓库'), findsOneWidget);
+    expect(find.text('收起侧边栏'), findsOneWidget);
+    expect(find.byIcon(Icons.keyboard_double_arrow_left), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('main-nav-toggle')));
+    await tester.pumpAndSettle();
+
+    expect(storage.isExpanded, isFalse);
+    expect(
+      tester.getSize(find.byKey(const Key('main-nav-rail'))).width,
+      MainNavRail.collapsedWidth,
+    );
+    expect(find.text('画布'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

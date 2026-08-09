@@ -92,6 +92,22 @@ class LocalStorageService {
     await setSetting(StorageKeys.locale, code);
   }
 
+  // ==================== Navigation ====================
+
+  /// 获取桌面主导航栏展开状态（默认收起）
+  bool getMainNavRailExpanded() {
+    return getSetting<bool>(
+          StorageKeys.mainNavRailExpanded,
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// 保存桌面主导航栏展开状态
+  Future<void> setMainNavRailExpanded(bool expanded) async {
+    await setSetting(StorageKeys.mainNavRailExpanded, expanded);
+  }
+
   // ==================== Diagnostics ====================
 
   /// 获取是否记录文件日志 (默认关闭)

@@ -105,6 +105,8 @@
   "nav_dictionary": "词库 (WIP)",
   "nav_discordCommunity": "Discord 社群",
   "nav_githubRepo": "GitHub 仓库",
+  "nav_expandSidebar": "展开侧边栏",
+  "nav_collapseSidebar": "收起侧边栏",
 
   "auth_login": "登录",
   "auth_logout": "退出登录",

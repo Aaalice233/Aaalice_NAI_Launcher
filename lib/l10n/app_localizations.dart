@@ -586,6 +586,18 @@ abstract class AppLocalizations {
   /// **'GitHub Repository'**
   String get nav_githubRepo;
 
+  /// No description provided for @nav_expandSidebar.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand sidebar'**
+  String get nav_expandSidebar;
+
+  /// No description provided for @nav_collapseSidebar.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse sidebar'**
+  String get nav_collapseSidebar;
+
   /// No description provided for @auth_login.
   ///
   /// In en, this message translates to:

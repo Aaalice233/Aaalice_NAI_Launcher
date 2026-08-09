@@ -105,6 +105,8 @@
   "nav_dictionary": "Dictionary (WIP)",
   "nav_discordCommunity": "Discord Community",
   "nav_githubRepo": "GitHub Repository",
+  "nav_expandSidebar": "Expand sidebar",
+  "nav_collapseSidebar": "Collapse sidebar",
 
   "auth_login": "Login",
   "auth_logout": "Logout",
