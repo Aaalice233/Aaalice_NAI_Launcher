@@ -5,7 +5,6 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/storage_keys.dart';
-import '../../core/services/danbooru_tags_lazy_service.dart';
 import '../../core/services/lazy_data_source_service.dart';
 import '../../core/utils/app_logger.dart';
 
@@ -60,7 +59,8 @@ class BackgroundRefreshState {
       activeRefreshes: activeRefreshes ?? this.activeRefreshes,
       completedRefreshes: completedRefreshes ?? this.completedRefreshes,
       failedRefreshes: failedRefreshes ?? this.failedRefreshes,
-      showProgressIndicator: showProgressIndicator ?? this.showProgressIndicator,
+      showProgressIndicator:
+          showProgressIndicator ?? this.showProgressIndicator,
       overallProgress: overallProgress ?? this.overallProgress,
       currentPhase: currentPhase ?? this.currentPhase,
     );
@@ -68,7 +68,7 @@ class BackgroundRefreshState {
 }
 
 /// 后台刷新管理器
-/// 
+///
 /// 负责在进入主界面后检查并执行数据源的后台刷新
 /// 非阻塞执行，不影响用户使用
 @riverpod
@@ -94,10 +94,14 @@ class BackgroundRefreshNotifier extends _$BackgroundRefreshNotifier {
 
     // 检查是否有待处理的刷新标记
     final prefs = await SharedPreferences.getInstance();
-    final hasPendingRefresh = prefs.getBool(StorageKeys.pendingDataSourceRefresh) ?? false;
+    final hasPendingRefresh =
+        prefs.getBool(StorageKeys.pendingDataSourceRefresh) ?? false;
 
     if (hasPendingRefresh) {
-      AppLogger.i('Pending refresh detected, starting background refresh', 'BackgroundRefresh');
+      AppLogger.i(
+        'Pending refresh detected, starting background refresh',
+        'BackgroundRefresh',
+      );
       // 清除标记
       await prefs.setBool(StorageKeys.pendingDataSourceRefresh, false);
     }
@@ -144,11 +148,9 @@ class BackgroundRefreshNotifier extends _$BackgroundRefreshNotifier {
       servicesToRefresh.map((service) async {
         await _refreshService(service);
         completedCount++;
-        
+
         // 更新总体进度
-        state = state.copyWith(
-          overallProgress: completedCount / totalServices,
-        );
+        state = state.copyWith(overallProgress: completedCount / totalServices);
       }),
     );
 
@@ -159,24 +161,14 @@ class BackgroundRefreshNotifier extends _$BackgroundRefreshNotifier {
     // 记录刷新结果
     AppLogger.i(
       'Background refresh completed: ${state.completedRefreshes.length} succeeded, '
-      '${state.failedRefreshes.length} failed',
+          '${state.failedRefreshes.length} failed',
       'BackgroundRefresh',
     );
   }
 
-  /// 注册所有数据源服务
-  Future<void> _registerAllServices() async {
-    // 异步获取服务实例
-    try {
-      final danbooruTagsService = await ref.read(danbooruTagsLazyServiceProvider.future);
-
-      registerServices([
-        danbooruTagsService,
-      ]);
-    } catch (e) {
-      AppLogger.w('Failed to register some services: $e', 'BackgroundRefresh');
-    }
-  }
+  /// Full Danbooru catalog refreshes were retired in favor of the bundled
+  /// read-only catalog and token-scoped online supplement.
+  Future<void> _registerAllServices() async {}
 
   /// 刷新单个数据源
   Future<void> _refreshService(LazyDataSourceService service) async {
@@ -187,7 +179,10 @@ class BackgroundRefreshNotifier extends _$BackgroundRefreshNotifier {
     );
 
     try {
-      AppLogger.i('Background refreshing: ${service.serviceName}', 'BackgroundRefresh');
+      AppLogger.i(
+        'Background refreshing: ${service.serviceName}',
+        'BackgroundRefresh',
+      );
 
       // 设置进度回调
       service.onProgress = (progress, message) {
@@ -206,7 +201,10 @@ class BackgroundRefreshNotifier extends _$BackgroundRefreshNotifier {
         completedRefreshes: [...state.completedRefreshes, service.serviceName],
       );
 
-      AppLogger.i('Background refresh completed: ${service.serviceName}', 'BackgroundRefresh');
+      AppLogger.i(
+        'Background refresh completed: ${service.serviceName}',
+        'BackgroundRefresh',
+      );
     } catch (e) {
       // 刷新失败
       state = state.copyWith(
@@ -245,10 +243,7 @@ class BackgroundRefreshNotifier extends _$BackgroundRefreshNotifier {
     final failedServices = state.failedRefreshes.keys.toList();
     if (failedServices.isEmpty) return;
 
-    state = state.copyWith(
-      failedRefreshes: {},
-      showProgressIndicator: true,
-    );
+    state = state.copyWith(failedRefreshes: {}, showProgressIndicator: true);
 
     // 找到对应的服务实例并重试
     for (final serviceName in failedServices) {
@@ -264,7 +259,7 @@ class BackgroundRefreshNotifier extends _$BackgroundRefreshNotifier {
 }
 
 /// 后台刷新状态监听 Provider
-/// 
+///
 /// 用于在 UI 中显示后台刷新状态
 @riverpod
 Stream<BackgroundRefreshState> backgroundRefreshStateStream(Ref ref) {

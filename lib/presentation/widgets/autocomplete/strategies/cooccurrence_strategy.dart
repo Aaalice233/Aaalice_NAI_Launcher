@@ -28,15 +28,16 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
     required Future<SmartTagRecommendationService> recommendationServiceFuture,
     required AutocompleteConfig config,
     required WidgetRef ref,
-  })  : _recommendationServiceFuture = recommendationServiceFuture,
-        _config = config,
-        _ref = ref;
+  }) : _recommendationServiceFuture = recommendationServiceFuture,
+       _config = config,
+       _ref = ref;
 
   /// 工厂方法：创建 CooccurrenceStrategy
   static CooccurrenceStrategy create(WidgetRef ref, AutocompleteConfig config) {
     return CooccurrenceStrategy._(
-      recommendationServiceFuture:
-          ref.watch(smartTagRecommendationServiceProvider.future),
+      recommendationServiceFuture: ref.watch(
+        smartTagRecommendationServiceProvider.future,
+      ),
       config: config,
       ref: ref,
     );
@@ -88,11 +89,12 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
 
     try {
       // 获取推荐标签
-      final recommendations =
-          await _recommendationService!.getRecommendationsForTag(
-        previousTag,
-        limit: _config.maxSuggestions * 2, // 获取更多以便过滤
-      );
+      final maxSuggestions = _config.maxSuggestions ?? 20;
+      final recommendations = await _recommendationService!
+          .getRecommendationsForTag(
+            previousTag,
+            limit: maxSuggestions * 2, // 获取更多以便过滤
+          );
 
       // 提取文本中已有的标签（用于去重）
       final existingTags = _extractExistingTags(text, cursorPosition);
@@ -104,12 +106,13 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
             final exists = existingTags.contains(normalizedRec);
             return !exists;
           })
-          .take(_config.maxSuggestions)
+          .take(maxSuggestions)
           .toList();
 
       _suggestions = filteredRecommendations;
       AppLogger.d(
-        () => 'CooccurrenceStrategy: showing ${filteredRecommendations.length} '
+        () =>
+            'CooccurrenceStrategy: showing ${filteredRecommendations.length} '
             'suggestions for "$previousTag": '
             '${filteredRecommendations.map((r) => '"${r.tag}"').join(', ')}',
         'CooccurrenceStrategy',
@@ -219,7 +222,8 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
     // 如果这段内容非空，说明用户正在输入新标签，不应该触发共现推荐
     final afterComma = beforeCursor.substring(lastCommaIndex + 1);
     AppLogger.d(
-      () => '_extractPreviousTag: afterComma="$afterComma", '
+      () =>
+          '_extractPreviousTag: afterComma="$afterComma", '
           'trim="${afterComma.trim()}"',
       'CooccurrenceStrategy',
     );
@@ -246,8 +250,10 @@ class CooccurrenceStrategy extends AutocompleteStrategy<RecommendedTag> {
       'CooccurrenceStrategy',
     );
 
-    final tagPart =
-        beforeCursor.substring(prevSeparatorIndex + 1, lastCommaIndex);
+    final tagPart = beforeCursor.substring(
+      prevSeparatorIndex + 1,
+      lastCommaIndex,
+    );
     AppLogger.d(
       () => '_extractPreviousTag: tagPart="$tagPart"',
       'CooccurrenceStrategy',

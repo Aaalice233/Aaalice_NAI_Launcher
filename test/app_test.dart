@@ -13,6 +13,8 @@ import 'package:nai_launcher/app.dart';
 import 'package:nai_launcher/core/comfyui/builtin_workflows.dart';
 import 'package:nai_launcher/core/comfyui/comfyui_url_utils.dart';
 import 'package:nai_launcher/core/comfyui/workflow_node_validator.dart';
+import 'package:nai_launcher/core/autocomplete/autocomplete_providers.dart';
+import 'package:nai_launcher/core/autocomplete/completion_models.dart';
 import 'package:nai_launcher/core/comfyui/workflow_template_manager.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
@@ -27,7 +29,8 @@ import 'package:nai_launcher/data/models/gallery/gallery_statistics.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/tag/local_tag.dart';
-import 'package:nai_launcher/data/models/tag/tag_suggestion.dart';
+import 'package:nai_launcher/data/models/tag/tag_suggestion.dart'
+    hide TagCategory;
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/local_onnx_tagger_service.dart';
@@ -465,22 +468,16 @@ void main() {
       await tester.enterText(searchField, 'foot_focus');
       await tester.pump(const Duration(milliseconds: 80));
       expect(
-        tester
-            .widget<GenericSuggestionTile>(find.byType(GenericSuggestionTile))
-            .data
-            .tag,
-        'foot_focus',
+        find.byKey(const ValueKey('autocomplete-candidate-foot_focus')),
+        findsOneWidget,
       );
 
       await tester.enterText(searchField, 'foot_focus lo');
       await tester.pump(const Duration(milliseconds: 80));
 
       expect(
-        tester
-            .widget<GenericSuggestionTile>(find.byType(GenericSuggestionTile))
-            .data
-            .tag,
-        'long_hair',
+        find.byKey(const ValueKey('autocomplete-candidate-long_hair')),
+        findsOneWidget,
       );
     });
 
@@ -793,6 +790,9 @@ void main() {
             danbooruTagsLazyServiceProvider.overrideWith((ref) async {
               return service;
             }),
+            autocompleteLocalSourcesProvider.overrideWithValue(const [
+              _FakeCompletionSource(),
+            ]),
           ],
           child: MaterialApp(
             localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -825,9 +825,12 @@ void main() {
       await tester.pump(const Duration(milliseconds: 250));
       await tester.pump();
 
-      expect(find.byType(GenericSuggestionTile), findsOneWidget);
+      final candidate = find.byKey(
+        const ValueKey('autocomplete-candidate-raiden_shogun'),
+      );
+      expect(candidate, findsOneWidget);
 
-      await tester.tap(find.text('raiden shogun', findRichText: true));
+      await tester.tap(candidate);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 350));
 
@@ -2550,6 +2553,9 @@ Future<void> _pumpOnlineGalleryScreen(WidgetTester tester) async {
         danbooruSuggestionNotifierProvider.overrideWith(
           _FakeDanbooruSuggestionNotifier.new,
         ),
+        autocompleteLocalSourcesProvider.overrideWithValue(const [
+          _FakeCompletionSource(),
+        ]),
       ],
       child: const MaterialApp(
         locale: Locale('en'),
@@ -2559,6 +2565,31 @@ Future<void> _pumpOnlineGalleryScreen(WidgetTester tester) async {
       ),
     ),
   );
+}
+
+class _FakeCompletionSource implements CompletionSource {
+  const _FakeCompletionSource();
+
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) async {
+    final canonicalTag = switch (query.token) {
+      'rai' => 'raiden_shogun',
+      'lo' => 'long_hair',
+      _ => query.token,
+    };
+    if (canonicalTag.isEmpty) return const [];
+    return [
+      CompletionCandidate(
+        canonicalTag: canonicalTag,
+        category: canonicalTag == 'raiden_shogun'
+            ? TagCategory.character
+            : TagCategory.general,
+        postCount: 1000,
+        matchKind: CompletionMatchKind.englishPrefix,
+        sources: const {CompletionSourceKind.base},
+      ),
+    ];
+  }
 }
 
 class _FakeOnlineGalleryNotifier extends OnlineGalleryNotifier {

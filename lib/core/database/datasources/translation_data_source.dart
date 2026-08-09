@@ -1,33 +1,28 @@
+import 'dart:io';
+
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../../utils/app_logger.dart';
-import '../asset_database_manager.dart';
 import '../data_source.dart';
 import '../utils/lru_cache.dart';
 
-/// 翻译记录
 class TranslationRecord {
+  const TranslationRecord({
+    required this.enTag,
+    required this.zhTranslation,
+    this.source = 'ffdkj',
+    this.lastAccessed,
+  });
+
   final String enTag;
   final String zhTranslation;
   final String source;
   final int? lastAccessed;
-
-  const TranslationRecord({
-    required this.enTag,
-    required this.zhTranslation,
-    this.source = 'unknown',
-    this.lastAccessed,
-  });
 }
 
-/// 翻译匹配结果
 class TranslationMatch {
-  final String tag;
-  final String translation;
-  final int score;
-  final int category;
-  final int count;
-
   const TranslationMatch({
     required this.tag,
     required this.translation,
@@ -35,360 +30,199 @@ class TranslationMatch {
     this.category = 0,
     this.count = 0,
   });
+
+  final String tag;
+  final String translation;
+  final int score;
+  final int category;
+  final int count;
 }
 
-/// 翻译数据源（V2 - 使用预打包数据库）
-///
-/// 从预打包的 SQLite 数据库读取翻译数据，不再支持写入。
-/// 使用 LRU 缓存策略，最大缓存 2000 条翻译记录。
+/// Compatibility facade for callers not yet migrated to the autocomplete
+/// orchestrator. It reads the optional user-installed ffdkj database and never
+/// falls back to the removed bundled translation database.
 class TranslationDataSource {
+  TranslationDataSource({Database? database})
+    : _database = database,
+      _initialized = database != null;
+
   static const int _maxCacheSize = 2000;
-
   final LRUCache<String, String> _cache = LRUCache(maxSize: _maxCacheSize);
-
-  Database? _db;
+  Database? _database;
+  String? _path;
   bool _initialized = false;
 
-  TranslationDataSource({Database? database})
-      : _db = database,
-        _initialized = database != null;
-
-  /// 数据源名称
   String get name => 'translation';
 
-  /// 初始化数据源
-  ///
-  /// 打开预打包的翻译数据库（只读）
   Future<void> initialize() async {
     if (_initialized) return;
-
-    AppLogger.i('Initializing TranslationDataSource...', 'TranslationDS');
-
-    try {
-      _db = await AssetDatabaseManager.instance.openTranslationDatabase();
-      _initialized = true;
-
-      // 验证数据
-      final count = await getCount();
-      AppLogger.i(
-        'Translation data source initialized with $count records',
-        'TranslationDS',
-      );
-    } catch (e, stack) {
-      AppLogger.e(
-        'Failed to initialize TranslationDataSource',
-        e,
-        stack,
-        'TranslationDS',
-      );
-      rethrow;
-    }
+    final support = await getApplicationSupportDirectory();
+    _path = p.join(support.path, 'autocomplete', 'ffdkj', 'tag.sqlite');
+    _initialized = true;
+    await _ensureOpen();
   }
 
-  /// 查询单个翻译
-  ///
-  /// 1. 检查 LRU 缓存
-  /// 2. 查询数据库
-  /// 3. 写入缓存
   Future<String?> query(String enTag) async {
-    if (enTag.isEmpty) return null;
-    if (!_initialized) await initialize();
-
-    final normalizedTag = enTag.toLowerCase().trim();
-
-    // 1. 检查缓存
-    final cached = _cache.get(normalizedTag);
-    if (cached != null) {
-      AppLogger.d('Translation cache hit: $normalizedTag', 'TranslationDS');
-      return cached;
-    }
-
-    // 2. 查询数据库（预打包数据库使用 tags + translations 表结构）
-    final translation = await _queryFromDb(normalizedTag);
-
-    // 3. 写入缓存
-    if (translation != null) {
-      _cache.put(normalizedTag, translation);
-    }
-
-    return translation;
+    final normalized = _normalize(enTag);
+    if (normalized.isEmpty) return null;
+    final cached = _cache.get(normalized);
+    if (cached != null) return cached;
+    if (!await _ensureOpen()) return null;
+    final rows = await _database!.rawQuery(
+      'SELECT cn_name FROM tags WHERE name = ? AND cn_name IS NOT NULL AND TRIM(cn_name) <> \'\' LIMIT 1',
+      [normalized],
+    );
+    if (rows.isEmpty) return null;
+    final value = (rows.first['cn_name'] as String).trim();
+    _cache.put(normalized, value);
+    return value;
   }
 
-  /// 批量查询翻译
-  ///
-  /// 优先从缓存获取，缓存未命中则查询数据库
   Future<Map<String, String>> queryBatch(List<String> enTags) async {
-    // 空列表直接返回空结果，无需初始化
-    if (enTags.isEmpty) return {};
-    if (!_initialized) await initialize();
-
+    if (enTags.isEmpty || !await _ensureOpen()) return const {};
     final result = <String, String>{};
-    final missingTags = <String>[];
-
-    // 1. 从缓存获取
+    final missing = <String>[];
     for (final tag in enTags) {
-      final normalizedTag = tag.toLowerCase().trim();
-      final cached = _cache.get(normalizedTag);
-      if (cached != null) {
-        result[normalizedTag] = cached;
+      final normalized = _normalize(tag);
+      final cached = _cache.get(normalized);
+      if (cached == null) {
+        missing.add(normalized);
       } else {
-        missingTags.add(normalizedTag);
+        result[normalized] = cached;
       }
     }
-
-    // 2. 查询缺失的标签
-    if (missingTags.isNotEmpty) {
-      final dbResults = await _queryBatchFromDb(missingTags);
-      result.addAll(dbResults);
-
-      // 3. 写入缓存
-      for (final entry in dbResults.entries) {
-        _cache.put(entry.key, entry.value);
+    for (var offset = 0; offset < missing.length; offset += 400) {
+      final chunk = missing.skip(offset).take(400).toList();
+      final placeholders = List.filled(chunk.length, '?').join(',');
+      final rows = await _database!.rawQuery(
+        'SELECT name, cn_name FROM tags WHERE name IN ($placeholders) AND cn_name IS NOT NULL AND TRIM(cn_name) <> \'\'',
+        chunk,
+      );
+      for (final row in rows) {
+        final tag = row['name'] as String;
+        final value = (row['cn_name'] as String).trim();
+        result[tag] = value;
+        _cache.put(tag, value);
       }
     }
-
     return result;
   }
 
-  /// 搜索翻译（支持部分匹配）
-  ///
-  /// [query] 搜索关键词
-  /// [limit] 返回结果数量限制
-  /// [matchTag] 是否匹配标签名
-  /// [matchTranslation] 是否匹配翻译文本
   Future<List<TranslationMatch>> search(
     String query, {
     int limit = 20,
     bool matchTag = true,
     bool matchTranslation = true,
   }) async {
-    if (query.isEmpty) return [];
-    if (!_initialized) await initialize();
-
-    final results = <TranslationMatch>[];
-    final lowerQuery = query.toLowerCase();
-
-    // 从 tags 表和 translations 表联合查询
+    final token = query.trim().toLowerCase();
+    if (token.isEmpty || !await _ensureOpen()) return const [];
+    final conditions = <String>[];
+    final args = <Object?>[];
+    final escaped = _escapeLike(token);
     if (matchTag) {
-      final tagResults = await _db!.rawQuery(
-        '''
-        SELECT t.name as tag, t.type as category, t.count as count, tr.translation
-        FROM tags t 
-        LEFT JOIN translations tr ON t.id = tr.tag_id AND tr.language = 'zh'
-        WHERE t.name LIKE ? 
-        ORDER BY t.count DESC 
-        LIMIT ?
-        ''',
-        ['%$lowerQuery%', limit],
-      );
-
-      for (final row in tagResults) {
-        results.add(
-          TranslationMatch(
-            tag: row['tag'] as String,
-            translation: (row['translation'] ?? '') as String,
-            score: _calculateMatchScore(
-              row['tag'] as String,
-              lowerQuery,
-              isTagMatch: true,
-            ),
-            category: (row['category'] as num?)?.toInt() ?? 0,
-            count: (row['count'] as num?)?.toInt() ?? 0,
-          ),
-        );
-      }
+      conditions.add('name LIKE ? ESCAPE \'\\\'');
+      args.add('%$escaped%');
     }
-
     if (matchTranslation) {
-      final transResults = await _db!.rawQuery(
-        '''
-        SELECT t.name as tag, t.type as category, t.count as count, tr.translation
-        FROM tags t
-        JOIN translations tr ON t.id = tr.tag_id
-        WHERE tr.language = 'zh' AND tr.translation LIKE ?
-        ORDER BY t.count DESC
-        LIMIT ?
-        ''',
-        ['%$query%', limit],
-      );
-
-      for (final row in transResults) {
-        final tag = row['tag'] as String;
-        // 避免重复
-        if (!results.any((r) => r.tag == tag)) {
-          results.add(
-            TranslationMatch(
-              tag: tag,
-              translation: row['translation'] as String,
-              score: _calculateMatchScore(
-                row['translation'] as String,
-                query,
-                isTagMatch: false,
-              ),
-              category: (row['category'] as num?)?.toInt() ?? 0,
-              count: (row['count'] as num?)?.toInt() ?? 0,
-            ),
-          );
-        }
-      }
+      conditions.add('cn_name LIKE ? ESCAPE \'\\\'');
+      args.add('%$escaped%');
     }
-
-    // 按相关度排序
-    results.sort((a, b) {
-      final scoreCompare = b.score.compareTo(a.score);
-      if (scoreCompare != 0) return scoreCompare;
-      return b.count.compareTo(a.count);
-    });
-
-    return results.take(limit).toList();
-  }
-
-  /// 获取翻译总数
-  Future<int> getCount() async {
-    if (!_initialized) await initialize();
-
-    final result = await _db!.rawQuery(
-      'SELECT COUNT(*) as count FROM translations WHERE language = ?',
-      ['zh'],
+    if (conditions.isEmpty) return const [];
+    final rows = await _database!.rawQuery(
+      '''
+      SELECT name, category, cn_name, post_count FROM tags
+      WHERE ${conditions.join(' OR ')}
+      ORDER BY
+        CASE WHEN name = ? OR cn_name = ? THEN 0
+             WHEN name LIKE ? ESCAPE '\\' OR cn_name LIKE ? ESCAPE '\\' THEN 1
+             ELSE 2 END,
+        post_count DESC, name ASC
+      LIMIT ?
+      ''',
+      [...args, token, token, '$escaped%', '$escaped%', limit.clamp(1, 100)],
     );
-    return (result.first['count'] as num?)?.toInt() ?? 0;
+    return rows
+        .map((row) {
+          final name = row['name'] as String;
+          final translation = (row['cn_name'] as String? ?? '').trim();
+          return TranslationMatch(
+            tag: name,
+            translation: translation,
+            score: name == token || translation == token
+                ? 100
+                : name.startsWith(token) || translation.startsWith(token)
+                ? 50
+                : 25,
+            category: (row['category'] as num?)?.toInt() ?? 0,
+            count: (row['post_count'] as num?)?.toInt() ?? 0,
+          );
+        })
+        .toList(growable: false);
   }
 
-  /// 获取标签总数
-  Future<int> getTagCount() async {
-    if (!_initialized) await initialize();
-
-    final result = await _db!.rawQuery('SELECT COUNT(*) as count FROM tags');
-    return (result.first['count'] as num?)?.toInt() ?? 0;
+  Future<int> getCount() async {
+    if (!await _ensureOpen()) return 0;
+    final rows = await _database!.rawQuery(
+      'SELECT COUNT(*) AS count FROM tags',
+    );
+    return (rows.first['count'] as num).toInt();
   }
 
-  /// 获取缓存统计信息
+  Future<int> getTagCount() => getCount();
+
   Map<String, dynamic> getCacheStatistics() => _cache.statistics;
 
-  /// 健康检查
   Future<DataSourceHealth> checkHealth() async {
-    try {
-      if (!_initialized) {
-        return DataSourceHealth(
-          status: HealthStatus.corrupted,
-          message: 'Translation data source not initialized',
-          timestamp: DateTime.now(),
-        );
-      }
-
-      // 尝试查询
-      await _db!.rawQuery('SELECT 1 FROM tags LIMIT 1');
-      final count = await getCount();
-
-      return DataSourceHealth(
-        status: HealthStatus.healthy,
-        message: 'Translation data source is healthy',
-        details: {
-          'translationCount': count,
-          'cacheSize': _cache.size,
-          'cacheHitRate': _cache.hitRate,
-        },
-        timestamp: DateTime.now(),
-      );
-    } catch (e) {
-      return DataSourceHealth(
-        status: HealthStatus.corrupted,
-        message: 'Health check failed: $e',
-        details: {'error': e.toString()},
-        timestamp: DateTime.now(),
-      );
-    }
+    final available = await _ensureOpen();
+    return DataSourceHealth(
+      status: available ? HealthStatus.healthy : HealthStatus.degraded,
+      message: available
+          ? 'ffdkj dictionary is available'
+          : 'ffdkj dictionary is not installed',
+      details: {'translationCount': available ? await getCount() : 0},
+      timestamp: DateTime.now(),
+    );
   }
 
-  /// 清除缓存
-  Future<void> clear() async {
-    _cache.clear();
-    AppLogger.i('Translation cache cleared', 'TranslationDS');
-  }
+  Future<void> clear() async => _cache.clear();
 
-  /// 释放资源
   Future<void> dispose() async {
     _cache.clear();
-    if (_db != null) {
-      await _db!.close();
-      _db = null;
-    }
+    await _database?.close();
+    _database = null;
     _initialized = false;
-    AppLogger.i('Translation data source disposed', 'TranslationDS');
   }
 
-  // 私有辅助方法
-
-  /// 从数据库查询单个翻译
-  Future<String?> _queryFromDb(String normalizedTag) async {
-    final result = await _db!.rawQuery(
-      '''
-      SELECT tr.translation 
-      FROM tags t
-      JOIN translations tr ON t.id = tr.tag_id
-      WHERE t.name = ? AND tr.language = ?
-      LIMIT 1
-      ''',
-      [normalizedTag, 'zh'],
-    );
-
-    if (result.isNotEmpty) {
-      return result.first['translation'] as String?;
+  Future<bool> _ensureOpen() async {
+    if (!_initialized) await initialize();
+    if (_database != null) return true;
+    final path = _path;
+    if (path == null || !await File(path).exists()) return false;
+    try {
+      _database = await databaseFactoryFfi.openDatabase(
+        path,
+        options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
+      );
+      final columns = await _database!.rawQuery('PRAGMA table_info(tags)');
+      final names = columns.map((row) => row['name'] as String).toSet();
+      if (!names.containsAll({'name', 'category', 'cn_name', 'post_count'})) {
+        await _database!.close();
+        _database = null;
+        return false;
+      }
+      return true;
+    } catch (error) {
+      AppLogger.w('Unable to open optional ffdkj dictionary: $error');
+      _database = null;
+      return false;
     }
-    return null;
   }
 
-  /// 从数据库批量查询翻译
-  Future<Map<String, String>> _queryBatchFromDb(List<String> tags) async {
-    if (tags.isEmpty) return {};
+  static String _normalize(String value) =>
+      value.trim().toLowerCase().replaceAll(' ', '_');
 
-    final placeholders = tags.map((_) => '?').join(',');
-    // Use GROUP_CONCAT to get all translations, then take the first one
-    // Or use MIN(tr.id) to get the first translation for each tag
-    final result = await _db!.rawQuery(
-      '''
-      SELECT t.name as tag, tr.translation
-      FROM tags t
-      JOIN translations tr ON t.id = tr.tag_id
-      WHERE t.name IN ($placeholders) AND tr.language = ?
-      GROUP BY t.name
-      ORDER BY MIN(tr.id)
-      ''',
-      [...tags, 'zh'],
-    );
-
-    return {
-      for (final row in result)
-        row['tag'] as String: row['translation'] as String,
-    };
-  }
-
-  int _calculateMatchScore(
-    String text,
-    String query, {
-    required bool isTagMatch,
-  }) {
-    final lowerText = text.toLowerCase();
-    int score = 0;
-
-    // 完全匹配得分最高
-    if (lowerText == query) {
-      score += 100;
-    }
-    // 开头匹配得分较高
-    else if (lowerText.startsWith(query)) {
-      score += 50;
-    }
-    // 包含匹配
-    else if (lowerText.contains(query)) {
-      score += 25;
-    }
-
-    // 标签匹配权重更高
-    if (isTagMatch) {
-      score += 10;
-    }
-
-    return score;
-  }
+  static String _escapeLike(String value) => value
+      .replaceAll('\\', '\\\\')
+      .replaceAll('%', '\\%')
+      .replaceAll('_', '\\_');
 }

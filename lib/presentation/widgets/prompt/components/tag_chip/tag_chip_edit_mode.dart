@@ -75,9 +75,10 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode>
       duration: const Duration(milliseconds: 150),
       vsync: this,
     );
-    _glowAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _glowController, curve: Curves.easeOut),
-    );
+    _glowAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _glowController, curve: Curves.easeOut));
 
     // 自动获取焦点并全选
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -151,8 +152,9 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode>
       widget.category,
       isDark: theme.brightness == Brightness.dark,
     );
-    final gradientColor =
-        CategoryGradient.getGradientStartColor(widget.category);
+    final gradientColor = CategoryGradient.getGradientStartColor(
+      widget.category,
+    );
 
     return KeyboardListener(
       focusNode: FocusNode(),
@@ -207,7 +209,6 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode>
                 ref: ref,
                 enabled: enableAutocomplete,
                 config: const AutocompleteConfig(
-                  maxSuggestions: 10,
                   showTranslation: true,
                   autoInsertComma: false,
                 ),
@@ -235,7 +236,8 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode>
                             : TagChipSizes.normalBorderRadius,
                       ),
                       borderSide: BorderSide(
-                        color: widget.borderColor ??
+                        color:
+                            widget.borderColor ??
                             gradientColor.withValues(alpha: 0.3),
                         width: borderWidth,
                       ),
@@ -247,7 +249,8 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode>
                             : TagChipSizes.normalBorderRadius,
                       ),
                       borderSide: BorderSide(
-                        color: widget.borderColor ??
+                        color:
+                            widget.borderColor ??
                             gradientColor.withValues(alpha: 0.3),
                         width: borderWidth,
                       ),

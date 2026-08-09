@@ -31,8 +31,8 @@ class LocalTagStrategy extends AutocompleteStrategy<LocalTag> {
   LocalTagStrategy._({
     required DanbooruTagsLazyService danbooruService,
     required AutocompleteConfig config,
-  })  : _danbooruService = danbooruService,
-        _config = config;
+  }) : _danbooruService = danbooruService,
+       _config = config;
 
   /// 工厂方法：创建 LocalTagStrategy
   static Future<LocalTagStrategy> create(
@@ -40,10 +40,7 @@ class LocalTagStrategy extends AutocompleteStrategy<LocalTag> {
     AutocompleteConfig config,
   ) async {
     final service = await ref.read(danbooruTagsLazyServiceProvider.future);
-    return LocalTagStrategy._(
-      danbooruService: service,
-      config: config,
-    );
+    return LocalTagStrategy._(danbooruService: service, config: config);
   }
 
   /// 获取配置
@@ -100,7 +97,7 @@ class LocalTagStrategy extends AutocompleteStrategy<LocalTag> {
     try {
       _suggestions = await _danbooruService.searchTags(
         query,
-        limit: _config.maxSuggestions,
+        limit: _config.maxSuggestions ?? 20,
       );
     } catch (e) {
       _suggestions = [];

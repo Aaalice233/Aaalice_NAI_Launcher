@@ -8,14 +8,14 @@ enum TagCategory {
   /// 通用标签
   general(0),
 
-  /// 角色标签
-  character(1),
+  /// 艺术家标签
+  artist(1),
 
   /// 版权标签
   copyright(3),
 
-  /// 艺术家标签
-  artist(4),
+  /// 角色标签
+  character(4),
 
   /// 元数据标签
   meta(5);
@@ -56,7 +56,7 @@ class TagSuggestion with _$TagSuggestion {
     /// 使用频率/计数
     @Default(0) int count,
 
-    /// 标签分类 (0=通用, 1=角色, 3=版权, 4=艺术家)
+    /// 标签分类 (0=通用, 1=艺术家, 3=版权, 4=角色, 5=元数据)
     @Default(0) int category,
 
     /// 标签别名（如果有）
@@ -95,9 +95,8 @@ extension TagSuggestionExtension on TagSuggestion {
 /// 标签建议响应模型
 @freezed
 class TagSuggestionResponse with _$TagSuggestionResponse {
-  const factory TagSuggestionResponse({
-    @Default([]) List<TagSuggestion> tags,
-  }) = _TagSuggestionResponse;
+  const factory TagSuggestionResponse({@Default([]) List<TagSuggestion> tags}) =
+      _TagSuggestionResponse;
 
   factory TagSuggestionResponse.fromJson(Map<String, dynamic> json) =>
       _$TagSuggestionResponseFromJson(json);

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/services/tag_translation_service.dart';
+import '../../core/autocomplete/tag_translation_lookup.dart';
 
 /// 简单标签芯片组件
 ///
@@ -52,7 +52,7 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
   }
 
   Future<void> _fetchTranslation() async {
-    final translationService = ref.read(tagTranslationServiceProvider);
+    final translationService = ref.read(tagTranslationLookupProvider);
     _autoTranslation = await translationService.translate(widget.tag);
     if (mounted) {
       setState(() {});
@@ -63,7 +63,8 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final displayText = widget.tag.replaceAll('_', ' ');
-    final chipColor = widget.color ??
+    final chipColor =
+        widget.color ??
         (widget.category != null
             ? TagColors.fromCategory(widget.category!)
             : theme.colorScheme.primary);
@@ -153,10 +154,7 @@ class SimpleTagChipWithTooltip extends StatelessWidget {
     );
 
     if (tooltipMessage != null) {
-      return Tooltip(
-        message: tooltipMessage!,
-        child: chip,
-      );
+      return Tooltip(message: tooltipMessage!, child: chip);
     }
 
     return chip;

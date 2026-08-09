@@ -187,7 +187,6 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                       focusNode: _contentFocusNode,
                       ref: ref,
                       config: const AutocompleteConfig(
-                        maxSuggestions: 15,
                         showTranslation: true,
                         showCategory: true,
                         autoInsertComma: true,

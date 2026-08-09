@@ -1,5 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../autocomplete/autocomplete_cache_database.dart';
+import '../autocomplete/autocomplete_providers.dart';
 import '../constants/storage_keys.dart';
 import '../database/providers/database_state_providers.dart';
 import '../utils/app_logger.dart';
@@ -48,12 +50,11 @@ class CacheClearService {
   /// 4. 返回结果
   ///
   /// [serviceClearCallback] 可选的服务层清除回调，用于清除内存缓存和元数据文件
-  Future<ClearResult> clearAllCache({ServiceClearCallback? serviceClearCallback}) async {
+  Future<ClearResult> clearAllCache({
+    ServiceClearCallback? serviceClearCallback,
+  }) async {
     if (_isClearing) {
-      return ClearResult(
-        success: false,
-        error: '清除操作正在进行中',
-      );
+      return ClearResult(success: false, error: '清除操作正在进行中');
     }
 
     if (_ref == null) {
@@ -64,11 +65,17 @@ class CacheClearService {
     }
 
     _isClearing = true;
-    AppLogger.i('[CacheClearService] Starting cache clear process', 'CacheClearService');
+    AppLogger.i(
+      '[CacheClearService] Starting cache clear process',
+      'CacheClearService',
+    );
 
     try {
       // 使用原子清除操作
-      AppLogger.i('[CacheClearService] Using atomic clear operation', 'CacheClearService');
+      AppLogger.i(
+        '[CacheClearService] Using atomic clear operation',
+        'CacheClearService',
+      );
       final result = await _performAtomicClear(serviceClearCallback);
 
       if (result.success) {
@@ -78,28 +85,48 @@ class CacheClearService {
 
       return result;
     } catch (e, stack) {
-      AppLogger.e('[CacheClearService] Cache clear failed', e, stack, 'CacheClearService');
-      return ClearResult(
-        success: false,
-        error: e.toString(),
+      AppLogger.e(
+        '[CacheClearService] Cache clear failed',
+        e,
+        stack,
+        'CacheClearService',
       );
+      return ClearResult(success: false, error: e.toString());
     } finally {
       _isClearing = false;
     }
   }
 
   /// 使用新架构执行原子清除
-  Future<ClearResult> _performAtomicClear(ServiceClearCallback? serviceClearCallback) async {
+  Future<ClearResult> _performAtomicClear(
+    ServiceClearCallback? serviceClearCallback,
+  ) async {
     final notifier = _ref!.read(databaseStatusNotifierProvider.notifier);
+    final autocompleteCache =
+        _ref!.read(autocompleteCacheDatabaseProvider)
+            as AutocompleteCacheDatabase;
+    var danbooruRemoved = 0;
+    var aiRemoved = 0;
     final result = await notifier.clearCache(
-      serviceClearCallback: serviceClearCallback,
+      serviceClearCallback: () async {
+        await serviceClearCallback?.call();
+        // The shipped catalog and user-installed ffdkj dictionary are data
+        // sources, not caches, so a global cache clear must not remove them.
+        danbooruRemoved = await autocompleteCache.clearDanbooruCache();
+        aiRemoved = await autocompleteCache.clearAiTranslationCache();
+      },
     );
+    final tableStats = <String, int>{
+      ...Map<String, int>.from(result.tableStats as Map),
+      'autocomplete_remote_queries': danbooruRemoved,
+      'autocomplete_ai_translations': aiRemoved,
+    };
 
     return ClearResult(
       success: result.success,
       error: result.error,
-      totalRemoved: result.totalRemoved,
-      tableStats: result.tableStats,
+      totalRemoved: result.totalRemoved + danbooruRemoved + aiRemoved,
+      tableStats: tableStats,
     );
   }
 
@@ -137,7 +164,10 @@ class CacheClearService {
       await prefs.remove(key);
     }
 
-    AppLogger.i('[CacheClearService] SharedPreferences cleared: ${keysToRemove.length} keys', 'CacheClearService');
+    AppLogger.i(
+      '[CacheClearService] SharedPreferences cleared: ${keysToRemove.length} keys',
+      'CacheClearService',
+    );
   }
 }
 

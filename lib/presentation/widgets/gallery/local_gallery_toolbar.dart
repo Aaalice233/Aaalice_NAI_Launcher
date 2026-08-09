@@ -16,9 +16,8 @@ import '../gallery_filter_panel.dart';
 import '../grouped_grid_view.dart' show ImageDateGroup;
 
 import '../common/app_toast.dart';
+import '../autocomplete/autocomplete_config.dart';
 import '../autocomplete/autocomplete_wrapper.dart';
-import '../autocomplete/autocomplete_controller.dart';
-import '../autocomplete/strategies/local_tag_strategy.dart';
 
 /// Local gallery toolbar with search, filter and actions
 /// 本地画廊工具栏（搜索、过滤、操作按钮）
@@ -114,7 +113,6 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
   final TextEditingController _searchController = TextEditingController();
   late final FocusNode _searchFocusNode;
   Timer? _debounceTimer;
-  Future<LocalTagStrategy>? _searchStrategyFuture;
 
   @override
   void initState() {
@@ -179,14 +177,19 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
     // Show bulk action bar when in selection mode
     // 选择模式时显示批量操作栏
     if (selectionState.isActive) {
-      final currentPageImagePaths =
-          state.currentImages.map((r) => r.path).toList();
-      final isCurrentPageSelected = currentPageImagePaths.isNotEmpty &&
-          currentPageImagePaths
-              .every((p) => selectionState.selectedIds.contains(p));
-      final selectableResultCount =
-          state.hasFilters ? state.filteredCount : state.totalCount;
-      final isAllResultSelected = selectableResultCount > 0 &&
+      final currentPageImagePaths = state.currentImages
+          .map((r) => r.path)
+          .toList();
+      final isCurrentPageSelected =
+          currentPageImagePaths.isNotEmpty &&
+          currentPageImagePaths.every(
+            (p) => selectionState.selectedIds.contains(p),
+          );
+      final selectableResultCount = state.hasFilters
+          ? state.filteredCount
+          : state.totalCount;
+      final isAllResultSelected =
+          selectableResultCount > 0 &&
           selectionState.selectedIds.length == selectableResultCount;
 
       return BulkActionBar(
@@ -299,10 +302,12 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
                       ),
                       decoration: BoxDecoration(
                         color: isDark
-                            ? theme.colorScheme.primaryContainer
-                                .withValues(alpha: 0.4)
-                            : theme.colorScheme.primaryContainer
-                                .withValues(alpha: 0.3),
+                            ? theme.colorScheme.primaryContainer.withValues(
+                                alpha: 0.4,
+                              )
+                            : theme.colorScheme.primaryContainer.withValues(
+                                alpha: 0.3,
+                              ),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -319,9 +324,7 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
                     ),
                   const SizedBox(width: 12),
                   // Search field (expanded)
-                  Expanded(
-                    child: _buildSearchField(theme, state),
-                  ),
+                  Expanded(child: _buildSearchField(theme, state)),
                   const SizedBox(width: 8),
                   // Filter button group
                   _buildDateRangeButton(theme, state),
@@ -484,8 +487,9 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
                   icon: Icon(
                     Icons.close,
                     size: 16,
-                    color: theme.colorScheme.onSurfaceVariant
-                        .withValues(alpha: 0.6),
+                    color: theme.colorScheme.onSurfaceVariant.withValues(
+                      alpha: 0.6,
+                    ),
                   ),
                   onPressed: () {
                     _searchController.clear();
@@ -515,22 +519,16 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
       return searchField;
     }
 
-    // 缓存策略 Future，避免每次build都创建新的
-    _searchStrategyFuture ??= LocalTagStrategy.create(
-      ref,
-      const AutocompleteConfig(
-        minQueryLength: 2,
-        maxSuggestions: 8,
-        showTranslation: true,
-        showCategory: true,
-        showCount: true,
-      ),
-    );
-
     return AutocompleteWrapper(
       controller: _searchController,
       focusNode: _searchFocusNode,
-      asyncStrategy: _searchStrategyFuture!,
+      config: const AutocompleteConfig(
+        minQueryLength: 2,
+        showTranslation: true,
+        showCategory: true,
+        showCount: true,
+        autoInsertComma: false,
+      ),
       onSuggestionSelected: (value) {
         // 选择补全建议后仍然作为搜索框文本处理，不转为标签 chip。
         _debounceTimer?.cancel();
@@ -583,7 +581,8 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
   /// Build date range button
   /// 构建日期范围按钮
   Widget _buildDateRangeButton(ThemeData theme, LocalGalleryState state) {
-    final hasDateRange = state.filterCriteria.dateStart != null ||
+    final hasDateRange =
+        state.filterCriteria.dateStart != null ||
         state.filterCriteria.dateEnd != null;
 
     return OutlinedButton.icon(
@@ -608,8 +607,9 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         visualDensity: VisualDensity.compact,
-        side:
-            hasDateRange ? BorderSide(color: theme.colorScheme.primary) : null,
+        side: hasDateRange
+            ? BorderSide(color: theme.colorScheme.primary)
+            : null,
       ),
     );
   }
@@ -639,7 +639,8 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
       context: context,
       firstDate: DateTime(2020),
       lastDate: now,
-      initialDateRange: state.filterCriteria.dateStart != null &&
+      initialDateRange:
+          state.filterCriteria.dateStart != null &&
               state.filterCriteria.dateEnd != null
           ? DateTimeRange(
               start: state.filterCriteria.dateStart!,
@@ -664,10 +665,9 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
     );
 
     if (picked != null) {
-      ref.read(localGalleryNotifierProvider.notifier).setDateRange(
-            picked.start,
-            picked.end,
-          );
+      ref
+          .read(localGalleryNotifierProvider.notifier)
+          .setDateRange(picked.start, picked.end);
     }
   }
 
@@ -729,8 +729,9 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
 
       // Jump to corresponding group using the key
       if (widget.groupedGridViewKey?.currentState != null) {
-        (widget.groupedGridViewKey!.currentState as dynamic)
-            .scrollToGroup(targetGroup);
+        (widget.groupedGridViewKey!.currentState as dynamic).scrollToGroup(
+          targetGroup,
+        );
       }
 
       // Show hint message

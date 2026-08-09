@@ -3,6 +3,8 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/autocomplete/autocomplete_settings.dart'
+    as completion_settings;
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
@@ -591,7 +593,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     final enableResolveAliasOnCopy = ref.read(
       resolveAliasOnCopySettingsProvider,
     );
-    final enableCooccurrence = ref.read(cooccurrenceSettingsProvider);
+    final enableCooccurrence = ref
+        .read(completion_settings.autocompleteSettingsProvider)
+        .relatedTagsEnabled;
     final regexRuleCount = ref.read(promptRegexRulesProvider).length;
 
     // 使用工具栏提供的按钮位置
@@ -766,7 +770,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
         enableComfyuiImport: true,
         autocompleteConfig: const AutocompleteConfig(
-          maxSuggestions: 20,
           showTranslation: true,
           showCategory: true,
           showCount: true,
@@ -891,7 +894,9 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       case 'resolve_alias_on_copy':
         ref.read(resolveAliasOnCopySettingsProvider.notifier).toggle();
       case 'cooccurrence':
-        ref.read(cooccurrenceSettingsProvider.notifier).toggle();
+        final provider = completion_settings.autocompleteSettingsProvider;
+        final current = ref.read(provider).relatedTagsEnabled;
+        ref.read(provider.notifier).setRelatedTagsEnabled(!current);
     }
   }
 
@@ -916,7 +921,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
         enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
         enableComfyuiImport: false,
         autocompleteConfig: const AutocompleteConfig(
-          maxSuggestions: 15,
           showTranslation: true,
           showCategory: false,
           autoInsertComma: true,
@@ -957,7 +961,6 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
               enableAutocomplete: enableAutocomplete,
               enableComfyuiImport: true,
               autocompleteConfig: const AutocompleteConfig(
-                maxSuggestions: 15,
                 showTranslation: true,
                 autoInsertComma: true,
               ),

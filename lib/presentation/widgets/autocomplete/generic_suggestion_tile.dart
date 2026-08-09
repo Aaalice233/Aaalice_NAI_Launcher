@@ -101,8 +101,9 @@ class GenericSuggestionTile extends StatelessWidget {
       if (trimmed.isEmpty) continue;
 
       // 检查是否包含日语假名（平假名、片假名）
-      final hasJapanese =
-          RegExp(r'[\u3040-\u309F\u30A0-\u30FF]').hasMatch(trimmed);
+      final hasJapanese = RegExp(
+        r'[\u3040-\u309F\u30A0-\u30FF]',
+      ).hasMatch(trimmed);
       // 检查是否包含韩语
       final hasKorean = RegExp(r'[\uAC00-\uD7AF]').hasMatch(trimmed);
 
@@ -144,8 +145,10 @@ class GenericSuggestionTile extends StatelessWidget {
               // 分类标签
               if (config.showCategory) ...[
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 1,
+                  ),
                   decoration: BoxDecoration(
                     color: categoryColor.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(3),

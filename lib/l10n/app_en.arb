@@ -416,7 +416,7 @@
   "prompt_resolveAliasOnCopy": "Expand Library On Copy",
   "prompt_resolveAliasOnCopySubtitle": "Replace <library name> with its content when copying or cutting",
   "prompt_cooccurrenceRecommendation": "Co-occurrence Tag Recommendation",
-  "prompt_cooccurrenceRecommendationSubtitle": "Automatically recommend related tags after entering a tag",
+  "prompt_cooccurrenceRecommendationSubtitle": "Suggest after accepting a tag; Ctrl+Shift+Space or Ctrl+click also opens related tags",
   "prompt_regexRulesManage": "Regex Replace Rules...",
   "prompt_regexRulesCount": "{count} rule(s) configured",
   "@prompt_regexRulesCount": {
@@ -4530,75 +4530,7 @@
   },
   "settings_continueGeneration": "Continue Generation",
 
-  "dataSource_clearingData": "Clearing data...",
-  "dataSource_clearTitle": "Clear Tag Data Source",
-  "dataSource_clearContent": "Clear Danbooru tag autocomplete data?\n\nThis will clear:\n- Danbooru tag autocomplete data\n\nThis will be preserved:\n- Chinese/English tag translations\n- Tag co-occurrence data\n\nTag data will be loaded again automatically on the next startup.",
-  "dataSource_confirmClear": "Clear",
-  "dataSource_clearSuccess": "Cleared {count} rows. Data will be restored automatically on the next startup.",
-  "@dataSource_clearSuccess": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "dataSource_clearFailed": "Clear failed",
-  "dataSource_clearFailedWithError": "Clear failed: {error}",
-  "@dataSource_clearFailedWithError": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "dataSource_clearTagAutocompleteData": "Clear tag autocomplete data",
-  "dataSource_ready": "Data Source Ready",
-  "dataSource_notLoaded": "Data Source Not Loaded",
-  "dataSource_cachedTagCount": "Cached {count} tags",
-  "@dataSource_cachedTagCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "dataSource_clickSyncToDownload": "Click \"Sync Now\" to download tag data",
-  "dataSource_translationCount": "{count} translations",
-  "@dataSource_translationCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "dataSource_cooccurrenceCount": "{count} co-occurrences",
-  "@dataSource_cooccurrenceCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "dataSource_lastUpdated": "Last updated: {time}",
-  "@dataSource_lastUpdated": {
-    "placeholders": {
-      "time": {}
-    }
-  },
-  "dataSource_heatThresholdTitle": "Heat Threshold",
-  "dataSource_heatThresholdSubtitle": "Choose heat thresholds for each tag category",
-  "dataSource_autoRefreshInterval": "Auto Refresh Interval",
   "dataSource_syncNow": "Sync Now",
-  "dataSource_cancelSync": "Cancel Sync",
-  "dataSource_syncingTags": "Syncing tag data...",
-  "dataSource_loadFailed": "Load failed: {error}",
-  "@dataSource_loadFailed": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "dataSource_hotAll": "All",
-  "dataSource_hot10k": "Hot >10K",
-  "dataSource_common1k": "Common >1K",
-  "dataSource_common500": "Common >500",
-  "dataSource_normal100": "Normal >100",
-  "dataSource_minimal50": "Minimal >50",
-  "dataSource_custom": "Custom",
-  "dataSource_refresh7Days": "7 days",
-  "dataSource_refresh15Days": "15 days",
-  "dataSource_refresh30Days": "30 days",
-  "dataSource_refreshNever": "Never",
-
   "settings_comfyUiEnable": "Enable ComfyUI Integration",
   "settings_comfyUiDisabledSubtitle": "When disabled, local upscale and other ComfyUI features are hidden",
   "settings_comfyUiServerUrl": "Server URL",
@@ -5885,6 +5817,80 @@
     "placeholders": {
       "error": {"type": "String"}
     }
-  }
+  },
+
+  "autocomplete_translating": "Translating…",
+  "autocomplete_missingTranslation": "Not translated",
+  "autocomplete_translationCoverage": "Translation coverage: {translated}/{total}",
+  "@autocomplete_translationCoverage": {"placeholders": {"translated": {"type": "int"}, "total": {"type": "int"}}},
+  "autocomplete_aliasMatch": "Alias: {alias}",
+  "@autocomplete_aliasMatch": {"placeholders": {"alias": {"type": "String"}}},
+  "autocomplete_settingsTitle": "Autocomplete",
+  "autocomplete_enable": "Enable autocomplete",
+  "autocomplete_resultLimit": "Result count",
+  "autocomplete_allResults": "All",
+  "autocomplete_showAliases": "Show matched aliases",
+  "autocomplete_showTranslations": "Show Chinese translations",
+  "autocomplete_autoComma": "Add a comma after insertion",
+  "autocomplete_replaceUnderscores": "Replace underscores with spaces on insertion",
+  "autocomplete_dataSourcesTitle": "Data Sources & Cache",
+  "autocomplete_relatedTagsTitle": "Co-occurrence and related tags",
+  "autocomplete_relatedTagsSubtitle": "Suggest after accepting a tag; also use Ctrl+Shift+Space or Ctrl+click on a tag",
+  "autocomplete_danbooruApi": "Danbooru online supplement",
+  "autocomplete_danbooruPrivacy": "Only the current English tag is sent; the full prompt is never uploaded",
+  "autocomplete_llmTranslation": "Use Prompt Assistant for missing translations",
+  "autocomplete_llmRouteMissing": "Configure a Translate route in Prompt Assistant first",
+  "autocomplete_llmRoute": "Current route: {route}. Model usage may incur fees.",
+  "@autocomplete_llmRoute": {"placeholders": {"route": {"type": "String"}}},
+  "autocomplete_cooccurrence": "Offline related-tag database",
+  "autocomplete_entryCount": "{count} entries",
+  "@autocomplete_entryCount": {"placeholders": {"count": {"type": "int"}}},
+  "autocomplete_cacheTitle": "Online & AI Cache",
+  "autocomplete_clearDanbooruCache": "Clear Danbooru cache",
+  "autocomplete_clearAiCache": "Clear AI translation cache",
+  "autocomplete_cacheCleared": "Cleared {count} cached entries",
+  "@autocomplete_cacheCleared": {"placeholders": {"count": {"type": "int"}}},
+  "autocomplete_baseCatalog": "Base Danbooru catalog",
+  "autocomplete_catalogStatus": "{count} tags · data version {version}",
+  "@autocomplete_catalogStatus": {"placeholders": {"count": {"type": "String"}, "version": {"type": "String"}}},
+  "autocomplete_zhDictionary": "ffdkj Simplified Chinese dictionary",
+  "autocomplete_zhInstalled": "Installed: {count} entries · version {version}",
+  "@autocomplete_zhInstalled": {"placeholders": {"count": {"type": "int"}, "version": {"type": "String"}}},
+  "autocomplete_zhNotInstalled": "Not installed; English autocomplete remains available",
+  "autocomplete_zhInstallPrompt": "Install the ffdkj dictionary for Chinese labels and reverse lookup. It is downloaded directly from upstream.",
+  "autocomplete_checkUpdate": "Check for updates",
+  "autocomplete_update": "Update",
+  "autocomplete_repair": "Repair",
+  "autocomplete_install": "Install",
+  "autocomplete_remove": "Remove",
+  "autocomplete_removeConfirm": "Remove the installed Chinese translation dictionary? You can install it again later.",
+  "autocomplete_sourceBase": "Bundled base catalog",
+  "autocomplete_sourceZh": "ffdkj Chinese dictionary",
+  "autocomplete_sourceApi": "Danbooru API",
+  "autocomplete_sourceRelated": "Offline related tags",
+  "autocomplete_sourceAi": "Prompt Assistant translation",
+  "autocomplete_headerTitle": "Tag autocomplete",
+  "autocomplete_relatedHeaderTitle": "Related tags",
+  "autocomplete_relatedLoading": "Querying offline co-occurrences and online related tags…",
+  "autocomplete_relatedEmpty": "No related tags are available",
+  "autocomplete_relatedMetric": "{count} co-occurrences · Jaccard {score}",
+  "@autocomplete_relatedMetric": {"placeholders": {"count": {"type": "int"}, "score": {"type": "String"}}},
+  "autocomplete_relatedPin": "Pin this tag to insert multiple related tags",
+  "autocomplete_relatedUnpin": "Unpin and resume chained recommendations",
+  "autocomplete_statusBase": "Local",
+  "autocomplete_statusRelated": "Related",
+  "autocomplete_statusDictionary": "Translation",
+  "autocomplete_statusOnline": "Online",
+  "autocomplete_statusAi": "AI",
+  "autocomplete_statusReady": "Ready",
+  "autocomplete_statusNotInstalled": "Not installed",
+  "autocomplete_statusDownloading": "Downloading {progress}%",
+  "@autocomplete_statusDownloading": {"placeholders": {"progress": {"type": "int"}}},
+  "autocomplete_statusUpdateAvailable": "Update",
+  "autocomplete_statusError": "Error",
+  "autocomplete_statusDisabled": "Off",
+  "autocomplete_statusSearching": "Searching",
+  "autocomplete_statusTranslating": "Translating",
+  "autocomplete_openSettings": "Open autocomplete and data source settings"
 
 }

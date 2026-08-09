@@ -970,7 +970,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get prompt_cooccurrenceRecommendationSubtitle =>
-      'タグを入力すると、関連するタグが自動的に推奨されます';
+      'タグ確定後に自動表示。Ctrl+Shift+Space または Ctrl+クリックでも表示できます';
 
   @override
   String get prompt_regexRulesManage => '正規表現置換ルール…';
@@ -8817,119 +8817,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_continueGeneration => '生成を続行';
 
   @override
-  String get dataSource_clearingData => 'データを消去しています...';
-
-  @override
-  String get dataSource_clearTitle => 'タグ データ ソースのクリア';
-
-  @override
-  String get dataSource_clearContent =>
-      'Danbooru タグのオートコンプリート データをクリアしますか?\n\nこれでクリアされます:\n- Danbooru タグのオートコンプリート データ\n\nこれは保存されます:\n- 中国語/英語タグ翻訳\n- タグ共起データ\n\nタグデータは次回起動時に自動的に再読み込みされます。';
-
-  @override
-  String get dataSource_confirmClear => 'クリア';
-
-  @override
-  String dataSource_clearSuccess(Object count) {
-    return '$count 行をクリアしました。次回起動時にデータが自動的に復元されます。';
-  }
-
-  @override
-  String get dataSource_clearFailed => 'クリアに失敗しました';
-
-  @override
-  String dataSource_clearFailedWithError(Object error) {
-    return 'クリアに失敗しました: $error';
-  }
-
-  @override
-  String get dataSource_clearTagAutocompleteData => 'タグのオートコンプリート データをクリアします';
-
-  @override
-  String get dataSource_ready => 'データ ソースの準備ができました';
-
-  @override
-  String get dataSource_notLoaded => 'データ ソースがロードされていません';
-
-  @override
-  String dataSource_cachedTagCount(Object count) {
-    return 'キャッシュされた $count タグ';
-  }
-
-  @override
-  String get dataSource_clickSyncToDownload =>
-      '[今すぐ同期] をクリックしてタグ データをダウンロードします';
-
-  @override
-  String dataSource_translationCount(Object count) {
-    return '$count 翻訳';
-  }
-
-  @override
-  String dataSource_cooccurrenceCount(Object count) {
-    return '$count 共起';
-  }
-
-  @override
-  String dataSource_lastUpdated(Object time) {
-    return '最終更新日: $time';
-  }
-
-  @override
-  String get dataSource_heatThresholdTitle => '人気度しきい値';
-
-  @override
-  String get dataSource_heatThresholdSubtitle => '各タグカテゴリの人気度しきい値を選択します';
-
-  @override
-  String get dataSource_autoRefreshInterval => '自動リフレッシュ間隔';
-
-  @override
   String get dataSource_syncNow => '今すぐ同期';
-
-  @override
-  String get dataSource_cancelSync => '同期のキャンセル';
-
-  @override
-  String get dataSource_syncingTags => 'タグ データを同期しています...';
-
-  @override
-  String dataSource_loadFailed(Object error) {
-    return 'ロードに失敗しました: $error';
-  }
-
-  @override
-  String get dataSource_hotAll => 'すべて';
-
-  @override
-  String get dataSource_hot10k => 'ホット >10K';
-
-  @override
-  String get dataSource_common1k => '共通 >1K';
-
-  @override
-  String get dataSource_common500 => 'コモン >500';
-
-  @override
-  String get dataSource_normal100 => '通常 >100';
-
-  @override
-  String get dataSource_minimal50 => '最小 >50';
-
-  @override
-  String get dataSource_custom => 'カスタム';
-
-  @override
-  String get dataSource_refresh7Days => '7 日間';
-
-  @override
-  String get dataSource_refresh15Days => '15 日';
-
-  @override
-  String get dataSource_refresh30Days => '30 日';
-
-  @override
-  String get dataSource_refreshNever => '更新しない';
 
   @override
   String get settings_comfyUiEnable => 'ComfyUI 統合を有効にする';
@@ -11250,4 +11138,218 @@ class AppLocalizationsJa extends AppLocalizations {
   String router_pageNotFound(String error) {
     return 'ページが見つかりません: $error';
   }
+
+  @override
+  String get autocomplete_translating => '翻訳中…';
+
+  @override
+  String get autocomplete_missingTranslation => '未翻訳';
+
+  @override
+  String autocomplete_translationCoverage(int translated, int total) {
+    return '翻訳カバー率：$translated/$total';
+  }
+
+  @override
+  String autocomplete_aliasMatch(String alias) {
+    return '別名：$alias';
+  }
+
+  @override
+  String get autocomplete_settingsTitle => 'オートコンプリート';
+
+  @override
+  String get autocomplete_enable => 'オートコンプリートを有効にする';
+
+  @override
+  String get autocomplete_resultLimit => '結果数';
+
+  @override
+  String get autocomplete_allResults => 'すべて';
+
+  @override
+  String get autocomplete_showAliases => '一致した別名を表示';
+
+  @override
+  String get autocomplete_showTranslations => '中国語訳を表示';
+
+  @override
+  String get autocomplete_autoComma => '挿入後にカンマを追加';
+
+  @override
+  String get autocomplete_replaceUnderscores => '挿入時にアンダースコアを空白に置換';
+
+  @override
+  String get autocomplete_dataSourcesTitle => 'データソースとキャッシュ';
+
+  @override
+  String get autocomplete_relatedTagsTitle => '共起・関連タグ候補';
+
+  @override
+  String get autocomplete_relatedTagsSubtitle =>
+      'タグ確定後に自動表示。タグ上で Ctrl+Shift+Space または Ctrl+クリックでも表示できます';
+
+  @override
+  String get autocomplete_danbooruApi => 'Danbooru オンライン補完';
+
+  @override
+  String get autocomplete_danbooruPrivacy => '現在の英語タグのみ送信し、プロンプト全体は送信しません';
+
+  @override
+  String get autocomplete_llmTranslation => '不足する翻訳に Prompt Assistant を使用';
+
+  @override
+  String get autocomplete_llmRouteMissing =>
+      '先に Prompt Assistant で Translate ルートを設定してください';
+
+  @override
+  String autocomplete_llmRoute(String route) {
+    return '現在のルート：$route。モデル利用料が発生する場合があります。';
+  }
+
+  @override
+  String get autocomplete_cooccurrence => 'オフライン関連タグデータベース';
+
+  @override
+  String autocomplete_entryCount(int count) {
+    return '$count 件';
+  }
+
+  @override
+  String get autocomplete_cacheTitle => 'オンライン・AI キャッシュ';
+
+  @override
+  String get autocomplete_clearDanbooruCache => 'Danbooru キャッシュを消去';
+
+  @override
+  String get autocomplete_clearAiCache => 'AI 翻訳キャッシュを消去';
+
+  @override
+  String autocomplete_cacheCleared(int count) {
+    return 'キャッシュを $count 件消去しました';
+  }
+
+  @override
+  String get autocomplete_baseCatalog => '基本 Danbooru カタログ';
+
+  @override
+  String autocomplete_catalogStatus(String count, String version) {
+    return '$count タグ · データ版 $version';
+  }
+
+  @override
+  String get autocomplete_zhDictionary => 'ffdkj 簡体字中国語辞書';
+
+  @override
+  String autocomplete_zhInstalled(int count, String version) {
+    return '$count 件インストール済み · バージョン $version';
+  }
+
+  @override
+  String get autocomplete_zhNotInstalled => '未インストール（英語補完は利用できます）';
+
+  @override
+  String get autocomplete_zhInstallPrompt =>
+      '中国語表示と逆引き用の ffdkj 辞書を上流から直接インストールできます。';
+
+  @override
+  String get autocomplete_checkUpdate => '更新を確認';
+
+  @override
+  String get autocomplete_update => '更新';
+
+  @override
+  String get autocomplete_repair => '修復';
+
+  @override
+  String get autocomplete_install => 'インストール';
+
+  @override
+  String get autocomplete_remove => '削除';
+
+  @override
+  String get autocomplete_removeConfirm =>
+      'インストール済みの中国語翻訳辞書を削除しますか？後で再インストールできます。';
+
+  @override
+  String get autocomplete_sourceBase => '同梱の基本カタログ';
+
+  @override
+  String get autocomplete_sourceZh => 'ffdkj 中国語辞書';
+
+  @override
+  String get autocomplete_sourceApi => 'Danbooru API';
+
+  @override
+  String get autocomplete_sourceRelated => 'オフライン関連タグ';
+
+  @override
+  String get autocomplete_sourceAi => 'Prompt Assistant 翻訳';
+
+  @override
+  String get autocomplete_headerTitle => 'タグ補完';
+
+  @override
+  String get autocomplete_relatedHeaderTitle => '関連タグ';
+
+  @override
+  String get autocomplete_relatedLoading => 'ローカル共起データとオンライン関連タグを検索中…';
+
+  @override
+  String get autocomplete_relatedEmpty => '利用可能な関連タグがありません';
+
+  @override
+  String autocomplete_relatedMetric(int count, String score) {
+    return '共起 $count 回 · Jaccard $score';
+  }
+
+  @override
+  String get autocomplete_relatedPin => 'このタグを固定して関連タグを連続挿入';
+
+  @override
+  String get autocomplete_relatedUnpin => '固定を解除して連鎖候補に戻す';
+
+  @override
+  String get autocomplete_statusBase => 'ローカル';
+
+  @override
+  String get autocomplete_statusRelated => '共起';
+
+  @override
+  String get autocomplete_statusDictionary => '翻訳';
+
+  @override
+  String get autocomplete_statusOnline => 'オンライン';
+
+  @override
+  String get autocomplete_statusAi => 'AI';
+
+  @override
+  String get autocomplete_statusReady => '準備完了';
+
+  @override
+  String get autocomplete_statusNotInstalled => '未導入';
+
+  @override
+  String autocomplete_statusDownloading(int progress) {
+    return 'DL $progress%';
+  }
+
+  @override
+  String get autocomplete_statusUpdateAvailable => '更新あり';
+
+  @override
+  String get autocomplete_statusError => 'エラー';
+
+  @override
+  String get autocomplete_statusDisabled => 'オフ';
+
+  @override
+  String get autocomplete_statusSearching => '検索中';
+
+  @override
+  String get autocomplete_statusTranslating => '翻訳中';
+
+  @override
+  String get autocomplete_openSettings => '補完とデータソース設定を開く';
 }

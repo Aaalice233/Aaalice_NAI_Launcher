@@ -180,7 +180,8 @@ class _TagFavoritePanelState extends ConsumerState<TagFavoritePanel> {
     final isLoading = favoritesState.isLoading;
     final danbooruState = ref.watch(danbooruSuggestionNotifierProvider);
 
-    final showDanbooruSuggestions = _showSearchResults &&
+    final showDanbooruSuggestions =
+        _showSearchResults &&
         danbooruState.suggestions.isNotEmpty &&
         danbooruState.currentQuery == _searchController.text.trim();
 
@@ -204,12 +205,10 @@ class _TagFavoritePanelState extends ConsumerState<TagFavoritePanel> {
             child: showDanbooruSuggestions
                 ? _buildDanbooruSuggestions(context, danbooruState.suggestions)
                 : isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(),
-                      )
-                    : favorites.isEmpty
-                        ? _buildEmptyState(context)
-                        : _buildFavoritesList(context, favorites),
+                ? const Center(child: CircularProgressIndicator())
+                : favorites.isEmpty
+                ? _buildEmptyState(context)
+                : _buildFavoritesList(context, favorites),
           ),
         ],
       ),
@@ -222,11 +221,7 @@ class _TagFavoritePanelState extends ConsumerState<TagFavoritePanel> {
 
     return Row(
       children: [
-        Icon(
-          Icons.favorite_border,
-          size: 20,
-          color: theme.colorScheme.primary,
-        ),
+        Icon(Icons.favorite_border, size: 20, color: theme.colorScheme.primary),
         const SizedBox(width: 8),
         Text(
           context.l10n.tag_favoritesTitle,
@@ -293,8 +288,9 @@ class _TagFavoritePanelState extends ConsumerState<TagFavoritePanel> {
           borderSide: BorderSide.none,
         ),
         filled: true,
-        fillColor:
-            theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.5,
+        ),
       ),
       style: const TextStyle(fontSize: 14),
     );
@@ -381,8 +377,9 @@ class _TagFavoritePanelState extends ConsumerState<TagFavoritePanel> {
             ),
             color: isInCurrent
                 ? theme.colorScheme.primary.withValues(alpha: 0.08)
-                : theme.colorScheme.surfaceContainerHighest
-                    .withValues(alpha: 0.3),
+                : theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.3,
+                  ),
           ),
           child: Row(
             children: [
@@ -416,8 +413,9 @@ class _TagFavoritePanelState extends ConsumerState<TagFavoritePanel> {
                       Text(
                         '${suggestion.categoryEnum.displayName} • ${suggestion.formattedCount}',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.6),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.6,
+                          ),
                         ),
                       ),
                     ],
@@ -530,8 +528,9 @@ class _TagFavoritePanelState extends ConsumerState<TagFavoritePanel> {
             ),
             color: isInCurrent
                 ? theme.colorScheme.primary.withValues(alpha: 0.08)
-                : theme.colorScheme.surfaceContainerHighest
-                    .withValues(alpha: 0.3),
+                : theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.3,
+                  ),
           ),
           child: Row(
             children: [
@@ -567,8 +566,9 @@ class _TagFavoritePanelState extends ConsumerState<TagFavoritePanel> {
                       Text(
                         favorite.notes!,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.6),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.6,
+                          ),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

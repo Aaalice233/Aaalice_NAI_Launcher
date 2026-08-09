@@ -8,12 +8,9 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/replication_queue_provider.dart';
-import '../autocomplete/autocomplete_controller.dart';
+import '../autocomplete/autocomplete_config.dart';
 import '../common/app_toast.dart';
 import '../autocomplete/autocomplete_wrapper.dart';
-import '../autocomplete/autocomplete_strategy.dart';
-import '../autocomplete/strategies/local_tag_strategy.dart';
-import '../autocomplete/strategies/alias_strategy.dart';
 import '../common/inset_shadow_container.dart';
 import '../prompt/prompt_formatter_wrapper.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
@@ -33,9 +30,6 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
   late FocusNode _promptFocusNode;
   bool _showParameters = false;
 
-  /// 自动补全策略 Future（异步初始化）
-  Future<AutocompleteStrategy>? _autocompleteStrategyFuture;
-
   @override
   void initState() {
     super.initState();
@@ -48,26 +42,6 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
     _promptController.dispose();
     _promptFocusNode.dispose();
     super.dispose();
-  }
-
-  /// 确保自动补全策略 Future 已创建
-  Future<AutocompleteStrategy> _ensureAutocompleteStrategyFuture() {
-    _autocompleteStrategyFuture ??=
-        LocalTagStrategy.create(
-          ref,
-          const AutocompleteConfig(
-            maxSuggestions: 15,
-            showTranslation: true,
-            showCategory: true,
-            autoInsertComma: true,
-          ),
-        ).then((localTagStrategy) {
-          return CompositeStrategy(
-            strategies: [localTagStrategy, AliasStrategy.create(ref)],
-            strategySelector: defaultStrategySelector,
-          );
-        });
-    return _autocompleteStrategyFuture!;
   }
 
   @override
@@ -211,7 +185,7 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
             child: AutocompleteWrapper(
               controller: _promptController,
               focusNode: _promptFocusNode,
-              asyncStrategy: _ensureAutocompleteStrategyFuture(),
+              config: const AutocompleteConfig(autoInsertComma: true),
               maxLines: 6,
               expands: false,
               contentPadding: const EdgeInsets.all(12),

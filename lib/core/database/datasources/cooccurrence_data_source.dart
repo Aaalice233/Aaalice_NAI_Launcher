@@ -46,6 +46,10 @@ class CooccurrenceRecord {
 /// 从预打包的 SQLite 数据库读取共现数据，不再支持写入。
 /// 使用内存缓存热点查询结果。
 class CooccurrenceDataSource {
+  CooccurrenceDataSource({Database? database})
+    : _db = database,
+      _initialized = database != null;
+
   static const int _maxCacheSize = 1000;
 
   // 缓存相关标签查询结果
@@ -116,23 +120,43 @@ class CooccurrenceDataSource {
       return cached;
     }
 
-    final results = await _db!.query(
-      'cooccurrences',
-      columns: ['tag2', 'count', 'cooccurrence_score'],
-      where: 'tag1 = ? AND count >= ?',
-      whereArgs: [normalizedTag, minCount],
-      orderBy: 'count DESC',
-      limit: limit,
+    // The CSV stores each unordered tag pair only once. A tag can therefore
+    // be in either column; querying tag1 alone silently drops a large part of
+    // the graph (for example, most `solo` relationships are stored in tag2).
+    final queryLimit = (limit * 2).clamp(limit, 50000);
+    final results = await _db!.rawQuery(
+      '''
+      SELECT related_tag, count, cooccurrence_score
+      FROM (
+        SELECT tag2 AS related_tag, count, cooccurrence_score
+        FROM cooccurrences
+        WHERE tag1 = ? AND count >= ?
+        UNION ALL
+        SELECT tag1 AS related_tag, count, cooccurrence_score
+        FROM cooccurrences
+        WHERE tag2 = ? AND count >= ?
+      )
+      ORDER BY count DESC, related_tag ASC
+      LIMIT ?
+      ''',
+      [normalizedTag, minCount, normalizedTag, minCount, queryLimit],
     );
 
-    final relatedTags = results.map<RelatedTag>((row) {
-      return RelatedTag(
-        tag: row['tag2'] as String,
-        count: (row['count'] as num?)?.toInt() ?? 0,
-        cooccurrenceScore:
-            (row['cooccurrence_score'] as num?)?.toDouble() ?? 0.0,
+    final relatedTags = <RelatedTag>[];
+    final seen = <String>{normalizedTag};
+    for (final row in results) {
+      final relatedTag = row['related_tag'] as String;
+      if (!seen.add(relatedTag)) continue;
+      relatedTags.add(
+        RelatedTag(
+          tag: relatedTag,
+          count: (row['count'] as num?)?.toInt() ?? 0,
+          cooccurrenceScore:
+              (row['cooccurrence_score'] as num?)?.toDouble() ?? 0.0,
+        ),
       );
-    }).toList();
+      if (relatedTags.length == limit) break;
+    }
 
     // 添加到缓存
     _addToCache(cacheKey, relatedTags);
@@ -157,31 +181,49 @@ class CooccurrenceDataSource {
     final result = <String, List<RelatedTag>>{};
 
     final rows = await _db!.rawQuery(
-      'SELECT tag1, tag2, count, cooccurrence_score '
-      'FROM cooccurrences '
-      'WHERE tag1 IN ($placeholders) '
-      'ORDER BY tag1, count DESC',
-      normalizedTags,
+      '''
+      SELECT source_tag, related_tag, count, cooccurrence_score
+      FROM (
+        SELECT tag1 AS source_tag, tag2 AS related_tag,
+               count, cooccurrence_score
+        FROM cooccurrences
+        WHERE tag1 IN ($placeholders)
+        UNION ALL
+        SELECT tag2 AS source_tag, tag1 AS related_tag,
+               count, cooccurrence_score
+        FROM cooccurrences
+        WHERE tag2 IN ($placeholders)
+      )
+      ORDER BY source_tag ASC, count DESC, related_tag ASC
+      ''',
+      [...normalizedTags, ...normalizedTags],
     );
 
-    // 按 tag1 分组
     final groups = <String, List<RelatedTag>>{};
+    final seenBySource = <String, Set<String>>{};
     for (final row in rows) {
-      final tag1 = row['tag1'] as String;
-      groups.putIfAbsent(tag1, () => []).add(
-            RelatedTag(
-              tag: row['tag2'] as String,
-              count: (row['count'] as num?)?.toInt() ?? 0,
-              cooccurrenceScore:
-                  (row['cooccurrence_score'] as num?)?.toDouble() ?? 0.0,
-            ),
-          );
+      final sourceTag = row['source_tag'] as String;
+      final relatedTag = row['related_tag'] as String;
+      final related = groups.putIfAbsent(sourceTag, () => []);
+      if (related.length >= limit ||
+          !(seenBySource.putIfAbsent(
+            sourceTag,
+            () => {sourceTag},
+          )).add(relatedTag)) {
+        continue;
+      }
+      related.add(
+        RelatedTag(
+          tag: relatedTag,
+          count: (row['count'] as num?)?.toInt() ?? 0,
+          cooccurrenceScore:
+              (row['cooccurrence_score'] as num?)?.toDouble() ?? 0.0,
+        ),
+      );
     }
 
-    // 限制每个标签的结果数量并填充结果
     for (final tag in normalizedTags) {
-      final related = groups[tag] ?? [];
-      final limited = related.take(limit).toList();
+      final limited = groups[tag] ?? const <RelatedTag>[];
       result[tag] = limited;
 
       // 更新缓存
@@ -224,10 +266,7 @@ class CooccurrenceDataSource {
   ///
   /// 使用 Jaccard 相似度系数
   /// Jaccard(A, B) = |A ∩ B| / |A ∪ B|
-  Future<double> calculateCooccurrenceScore(
-    String tag1,
-    String tag2,
-  ) async {
+  Future<double> calculateCooccurrenceScore(String tag1, String tag2) async {
     final t1 = tag1.toLowerCase().trim();
     final t2 = tag2.toLowerCase().trim();
     if (t1.isEmpty || t2.isEmpty) return 0.0;
@@ -247,12 +286,14 @@ class CooccurrenceDataSource {
 
     // 获取两个标签的独立计数（近似值，从共现表中获取）
     final count1Result = await _db!.rawQuery(
-      'SELECT SUM(count) as total FROM cooccurrences WHERE tag1 = ?',
-      [t1],
+      'SELECT SUM(count) as total FROM cooccurrences '
+      'WHERE tag1 = ? OR tag2 = ?',
+      [t1, t1],
     );
     final count2Result = await _db!.rawQuery(
-      'SELECT SUM(count) as total FROM cooccurrences WHERE tag1 = ?',
-      [t2],
+      'SELECT SUM(count) as total FROM cooccurrences '
+      'WHERE tag1 = ? OR tag2 = ?',
+      [t2, t2],
     );
 
     final count1 = (count1Result.first['total'] as num?)?.toInt() ?? 0;
@@ -269,8 +310,9 @@ class CooccurrenceDataSource {
   Future<int> getCount() async {
     if (!_initialized) await initialize();
 
-    final result =
-        await _db!.rawQuery('SELECT COUNT(*) as count FROM cooccurrences');
+    final result = await _db!.rawQuery(
+      'SELECT COUNT(*) as count FROM cooccurrences',
+    );
     return (result.first['count'] as num?)?.toInt() ?? 0;
   }
 
@@ -279,9 +321,11 @@ class CooccurrenceDataSource {
     if (tag.isEmpty) return 0;
     if (!_initialized) await initialize();
 
+    final normalizedTag = tag.toLowerCase().trim();
     final result = await _db!.rawQuery(
-      'SELECT COUNT(*) as count FROM cooccurrences WHERE tag1 = ?',
-      [tag.toLowerCase().trim()],
+      'SELECT COUNT(*) as count FROM cooccurrences '
+      'WHERE tag1 = ? OR tag2 = ?',
+      [normalizedTag, normalizedTag],
     );
     return (result.first['count'] as num?)?.toInt() ?? 0;
   }
@@ -304,10 +348,7 @@ class CooccurrenceDataSource {
       return DataSourceHealth(
         status: HealthStatus.healthy,
         message: 'Cooccurrence data source is healthy',
-        details: {
-          'recordCount': count,
-          'cacheSize': _relatedCache.length,
-        },
+        details: {'recordCount': count, 'cacheSize': _relatedCache.length},
         timestamp: DateTime.now(),
       );
     } catch (e) {
@@ -339,9 +380,9 @@ class CooccurrenceDataSource {
 
   /// 获取缓存统计信息
   Map<String, dynamic> getCacheStatistics() => {
-        'cacheSize': _relatedCache.length,
-        'maxCacheSize': _maxCacheSize,
-      };
+    'cacheSize': _relatedCache.length,
+    'maxCacheSize': _maxCacheSize,
+  };
 
   // 私有辅助方法
 
@@ -358,6 +399,6 @@ class CooccurrenceDataSource {
     required int minCount,
     required int limit,
   }) {
-    return '$tag|$minCount|$limit';
+    return 'bidirectional-v1|$tag|$minCount|$limit';
   }
 }

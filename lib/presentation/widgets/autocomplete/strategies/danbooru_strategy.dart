@@ -40,18 +40,16 @@ class DanbooruStrategy extends AutocompleteStrategy<TagSuggestion> {
   /// Provider 订阅
   ProviderSubscription<TagSuggestionState>? _subscription;
 
-  DanbooruStrategy._({
-    required WidgetRef ref,
-    required DanbooruConfig config,
-  })  : _ref = ref,
-        _config = config {
+  DanbooruStrategy._({required WidgetRef ref, required DanbooruConfig config})
+    : _ref = ref,
+      _config = config {
     // 监听 Provider 状态变化
-    _subscription = _ref.listenManual(
-      danbooruSuggestionNotifierProvider,
-      (previous, next) {
-        notifyListeners();
-      },
-    );
+    _subscription = _ref.listenManual(danbooruSuggestionNotifierProvider, (
+      previous,
+      next,
+    ) {
+      notifyListeners();
+    });
   }
 
   /// 工厂方法：创建 DanbooruStrategy

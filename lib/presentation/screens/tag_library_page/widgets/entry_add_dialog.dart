@@ -294,7 +294,6 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                       focusNode: _contentFocusNode,
                       ref: ref,
                       config: const AutocompleteConfig(
-                        maxSuggestions: 15,
                         showTranslation: true,
                         showCategory: true,
                         autoInsertComma: true,
@@ -498,14 +497,10 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
         AutocompleteWrapper(
           controller: _tagsController,
           focusNode: _tagsFocusNode,
-          asyncStrategy: LocalTagStrategy.create(
-            ref,
-            const AutocompleteConfig(
-              maxSuggestions: 10,
-              showTranslation: true,
-              showCategory: true,
-              autoInsertComma: true,
-            ),
+          config: const AutocompleteConfig(
+            showTranslation: true,
+            showCategory: true,
+            autoInsertComma: true,
           ),
           child: ThemedInput(
             controller: _tagsController,

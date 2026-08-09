@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import '../../../widgets/autocomplete/autocomplete_controller.dart';
+import '../../../widgets/autocomplete/autocomplete_config.dart';
 
 /// 统一提示词输入配置
 ///
@@ -117,7 +117,6 @@ class UnifiedPromptConfig {
     compact: false,
     readOnly: false,
     autocompleteConfig: AutocompleteConfig(
-      maxSuggestions: 15,
       showTranslation: true,
       showCategory: true,
       autoInsertComma: true,
@@ -135,7 +134,6 @@ class UnifiedPromptConfig {
     compact: true,
     readOnly: false,
     autocompleteConfig: AutocompleteConfig(
-      maxSuggestions: 10,
       showTranslation: true,
       autoInsertComma: true,
     ),
@@ -154,7 +152,6 @@ class UnifiedPromptConfig {
     compact: false,
     readOnly: false,
     autocompleteConfig: AutocompleteConfig(
-      maxSuggestions: 15,
       showTranslation: true,
       showCategory: true,
       autoInsertComma: true,

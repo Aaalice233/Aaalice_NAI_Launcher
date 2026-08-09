@@ -29,21 +29,32 @@ class _SettingsSection {
 
 /// 设置页面 - 使用 NavigationRail 侧边栏导航布局
 class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({super.key, this.initialSectionIndex = 0});
+
+  final int initialSectionIndex;
 
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  int _selectedIndex = 0;
+  late int _selectedIndex;
   final _contentScrollController = ScrollController();
   bool _isContentScrolled = false;
 
   @override
   void initState() {
     super.initState();
+    _selectedIndex = widget.initialSectionIndex.clamp(0, 8);
     _contentScrollController.addListener(_onContentScroll);
+  }
+
+  @override
+  void didUpdateWidget(covariant SettingsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialSectionIndex != widget.initialSectionIndex) {
+      _selectedIndex = widget.initialSectionIndex.clamp(0, 8);
+    }
   }
 
   List<_SettingsSection> _buildSections(BuildContext context) {

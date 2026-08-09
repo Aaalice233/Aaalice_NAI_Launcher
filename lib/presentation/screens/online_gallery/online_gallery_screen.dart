@@ -30,8 +30,8 @@ import '../../widgets/online_gallery/blacklist_settings_panel.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/bulk_action_bar.dart';
 import '../../widgets/common/themed_input.dart';
+import '../../widgets/autocomplete/autocomplete_config.dart';
 import '../../widgets/autocomplete/autocomplete_wrapper.dart';
-import '../../widgets/autocomplete/strategies/danbooru_strategy.dart';
 
 /// 在线画廊页面
 class OnlineGalleryScreen extends ConsumerStatefulWidget {
@@ -51,7 +51,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   final FocusNode _pageFocusNode = FocusNode();
   final _dateFormattingService = DateFormattingService();
   final LayerLink _dateRangeLayerLink = LayerLink();
-  late final DanbooruStrategy _searchAutocompleteStrategy;
 
   Timer? _searchDebounceTimer;
   OverlayEntry? _dateRangeOverlayEntry;
@@ -73,12 +72,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   @override
   void initState() {
     super.initState();
-    _searchAutocompleteStrategy = DanbooruStrategy.create(
-      ref,
-      replaceAll: false,
-      separator: ',',
-      appendSeparator: false,
-    );
     // 添加滚动监听 - 无限滚动
     _scrollController.addListener(_onScroll);
     // 添加页码焦点监听
@@ -139,7 +132,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     _scrollController.dispose();
     _pageController.dispose();
     _pageFocusNode.dispose();
-    _searchAutocompleteStrategy.dispose();
     super.dispose();
   }
 
@@ -415,7 +407,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 1200;
+          final compact = constraints.maxWidth < 1750;
 
           return Column(
             children: [
@@ -542,7 +534,10 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     return AutocompleteWrapper(
       controller: _searchController,
       focusNode: _searchFocusNode,
-      strategy: _searchAutocompleteStrategy,
+      config: const AutocompleteConfig(
+        autoInsertComma: false,
+        treatSpacesAsSeparators: true,
+      ),
       onSuggestionSelected: (value) {
         // 选择补全建议后立即触发搜索
         _searchDebounceTimer?.cancel();

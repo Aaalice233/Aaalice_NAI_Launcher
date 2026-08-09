@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import '../../../core/services/danbooru_tags_lazy_service.dart';
 import '../../../data/models/tag/local_tag.dart';
 
+export 'autocomplete_config.dart';
+
 /// 自动补全控制器
 /// 管理搜索状态和建议列表
 class AutocompleteController extends ChangeNotifier {
@@ -115,46 +117,4 @@ class AutocompleteController extends ChangeNotifier {
     _debounceTimer?.cancel();
     super.dispose();
   }
-}
-
-/// 自动补全配置
-class AutocompleteConfig {
-  /// 最大建议数量
-  final int maxSuggestions;
-
-  /// 是否显示翻译
-  final bool showTranslation;
-
-  /// 是否显示分类
-  final bool showCategory;
-
-  /// 是否显示计数
-  final bool showCount;
-
-  /// 是否启用中文搜索
-  final bool enableChineseSearch;
-
-  /// 防抖延迟
-  final Duration debounceDelay;
-
-  /// 最小触发字符数
-  final int minQueryLength;
-
-  /// 是否自动插入逗号
-  final bool autoInsertComma;
-
-  /// 是否将下划线替换为空格
-  final bool replaceUnderscoreWithSpace;
-
-  const AutocompleteConfig({
-    this.maxSuggestions = 20,
-    this.showTranslation = true,
-    this.showCategory = true,
-    this.showCount = true,
-    this.enableChineseSearch = true,
-    this.debounceDelay = const Duration(milliseconds: 150),
-    this.minQueryLength = 2,
-    this.autoInsertComma = true,
-    this.replaceUnderscoreWithSpace = false,
-  });
 }

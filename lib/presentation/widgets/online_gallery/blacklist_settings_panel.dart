@@ -4,10 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/services/danbooru_auth_service.dart';
 import '../../providers/online_gallery_blacklist_provider.dart';
-import '../autocomplete/autocomplete_controller.dart';
-import '../autocomplete/autocomplete_strategy.dart';
+import '../autocomplete/autocomplete_config.dart';
 import '../autocomplete/autocomplete_wrapper.dart';
-import '../autocomplete/strategies/local_tag_strategy.dart';
 import '../danbooru_login_dialog.dart';
 
 class OnlineGalleryBlacklistSettingsPanel extends ConsumerStatefulWidget {
@@ -29,19 +27,6 @@ class _OnlineGalleryBlacklistSettingsPanelState
     extends ConsumerState<OnlineGalleryBlacklistSettingsPanel> {
   final TextEditingController _tagController = TextEditingController();
   final FocusNode _tagFocusNode = FocusNode();
-  late final Future<AutocompleteStrategy> _autocompleteStrategyFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _autocompleteStrategyFuture = LocalTagStrategy.create(
-      ref,
-      const AutocompleteConfig(
-        minQueryLength: 1,
-        autoInsertComma: false,
-      ),
-    );
-  }
 
   @override
   void dispose() {
@@ -76,11 +61,7 @@ class _OnlineGalleryBlacklistSettingsPanelState
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.block,
-                  size: 20,
-                  color: theme.colorScheme.primary,
-                ),
+                Icon(Icons.block, size: 20, color: theme.colorScheme.primary),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -121,7 +102,10 @@ class _OnlineGalleryBlacklistSettingsPanelState
                   child: AutocompleteWrapper(
                     controller: _tagController,
                     focusNode: _tagFocusNode,
-                    asyncStrategy: _autocompleteStrategyFuture,
+                    config: const AutocompleteConfig(
+                      minQueryLength: 1,
+                      autoInsertComma: false,
+                    ),
                     onSuggestionSelected: (_) => _addTag(),
                     child: TextField(
                       controller: _tagController,

@@ -63,7 +63,8 @@ class CompositeStrategy extends AutocompleteStrategy<dynamic> {
     List<AutocompleteStrategy> strategies,
     String text,
     int cursorPosition,
-  ) _strategySelector;
+  )
+  _strategySelector;
 
   CompositeStrategy({
     required List<AutocompleteStrategy> strategies,
@@ -71,9 +72,10 @@ class CompositeStrategy extends AutocompleteStrategy<dynamic> {
       List<AutocompleteStrategy> strategies,
       String text,
       int cursorPosition,
-    ) strategySelector,
-  })  : _strategies = strategies,
-        _strategySelector = strategySelector {
+    )
+    strategySelector,
+  }) : _strategies = strategies,
+       _strategySelector = strategySelector {
     // 监听所有策略的变化
     for (final strategy in _strategies) {
       strategy.addListener(_onStrategyChanged);
@@ -105,8 +107,11 @@ class CompositeStrategy extends AutocompleteStrategy<dynamic> {
     bool immediate = false,
   }) async {
     // 使用选择器选择活跃策略
-    final selectedStrategy =
-        _strategySelector(_strategies, text, cursorPosition);
+    final selectedStrategy = _strategySelector(
+      _strategies,
+      text,
+      cursorPosition,
+    );
 
     // 如果策略发生变化，清空之前策略的建议
     if (_activeStrategy != selectedStrategy) {
@@ -147,11 +152,7 @@ class CompositeStrategy extends AutocompleteStrategy<dynamic> {
   }
 
   @override
-  (String, int) applySuggestion(
-    dynamic item,
-    String text,
-    int cursorPosition,
-  ) {
+  (String, int) applySuggestion(dynamic item, String text, int cursorPosition) {
     if (_activeStrategy == null) {
       throw StateError('No active strategy to apply suggestion');
     }

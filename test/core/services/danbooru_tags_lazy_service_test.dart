@@ -22,41 +22,23 @@ void main() {
       db = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath);
       await db.execute('''
         CREATE TABLE tags (
-          id INTEGER PRIMARY KEY,
-          name TEXT NOT NULL UNIQUE,
-          type INTEGER NOT NULL DEFAULT 0,
-          count INTEGER NOT NULL DEFAULT 0
-        )
-      ''');
-      await db.execute('''
-        CREATE TABLE translations (
-          tag_id INTEGER NOT NULL,
-          language TEXT NOT NULL,
-          translation TEXT NOT NULL,
-          PRIMARY KEY (tag_id, language)
+          name TEXT PRIMARY KEY,
+          category INTEGER NOT NULL,
+          cn_name TEXT,
+          post_count INTEGER NOT NULL
         )
       ''');
       await db.insert('tags', {
-        'id': 1,
         'name': 'white_hair',
-        'type': 0,
-        'count': 956400,
-      });
-      await db.insert('translations', {
-        'tag_id': 1,
-        'language': 'zh',
-        'translation': '白发',
+        'category': 0,
+        'cn_name': '白发',
+        'post_count': 956400,
       });
       await db.insert('tags', {
-        'id': 2,
         'name': 'red_eyes',
-        'type': 0,
-        'count': 1047308,
-      });
-      await db.insert('translations', {
-        'tag_id': 2,
-        'language': 'zh',
-        'translation': '白发红眼',
+        'category': 0,
+        'cn_name': '白发红眼',
+        'post_count': 1047308,
       });
       dataSource = TranslationDataSource(database: db);
     });
@@ -283,8 +265,9 @@ void main() {
       });
 
       test('从null天数（默认值）返回30天', () {
-        final result =
-            AutoRefreshInterval.fromDays(30); // 模拟 prefs.getInt 返回默认值30
+        final result = AutoRefreshInterval.fromDays(
+          30,
+        ); // 模拟 prefs.getInt 返回默认值30
         expect(result, equals(AutoRefreshInterval.days30));
       });
     });

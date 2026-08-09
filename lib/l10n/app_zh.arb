@@ -438,7 +438,7 @@
   "regexRules_testNoRules": "没有启用中的规则",
   "prompt_formatted": "已格式化",
   "prompt_cooccurrenceRecommendation": "共现标签推荐",
-  "prompt_cooccurrenceRecommendationSubtitle": "输入标签后自动推荐相关标签",
+  "prompt_cooccurrenceRecommendationSubtitle": "选中标签后自动推荐，也可按 Ctrl+Shift+Space 或 Ctrl+单击",
 
   "image_save": "保存",
   "image_copy": "复制",
@@ -4333,75 +4333,7 @@
   },
   "settings_continueGeneration": "继续生成",
 
-  "dataSource_clearingData": "正在清除数据...",
-  "dataSource_clearTitle": "清除标签数据源",
-  "dataSource_clearContent": "确定要清除 Danbooru 标签补全数据吗？\n\n这将清空以下数据：\n- Danbooru 标签补全数据\n\n以下数据将保留：\n- 中英文标签翻译\n- 标签共现关系\n\n清除后下次启动时将自动重新加载标签数据。",
-  "dataSource_confirmClear": "确认清除",
-  "dataSource_clearSuccess": "已清除 {count} 条数据，下次启动时将自动恢复",
-  "@dataSource_clearSuccess": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "dataSource_clearFailed": "清除失败",
-  "dataSource_clearFailedWithError": "清除失败: {error}",
-  "@dataSource_clearFailedWithError": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "dataSource_clearTagAutocompleteData": "清除标签补全数据",
-  "dataSource_ready": "数据源已就绪",
-  "dataSource_notLoaded": "数据源未加载",
-  "dataSource_cachedTagCount": "已缓存 {count} 个标签",
-  "@dataSource_cachedTagCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "dataSource_clickSyncToDownload": "点击“立即同步”下载标签数据",
-  "dataSource_translationCount": "{count} 翻译",
-  "@dataSource_translationCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "dataSource_cooccurrenceCount": "{count} 共现",
-  "@dataSource_cooccurrenceCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "dataSource_lastUpdated": "上次更新: {time}",
-  "@dataSource_lastUpdated": {
-    "placeholders": {
-      "time": {}
-    }
-  },
-  "dataSource_heatThresholdTitle": "热度阈值",
-  "dataSource_heatThresholdSubtitle": "选择不同类别标签的热度阈值",
-  "dataSource_autoRefreshInterval": "自动刷新间隔",
   "dataSource_syncNow": "立即同步",
-  "dataSource_cancelSync": "取消同步",
-  "dataSource_syncingTags": "正在同步标签数据...",
-  "dataSource_loadFailed": "加载失败: {error}",
-  "@dataSource_loadFailed": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "dataSource_hotAll": "全部",
-  "dataSource_hot10k": "热门 >10K",
-  "dataSource_common1k": "常用 >1K",
-  "dataSource_common500": "常用 >500",
-  "dataSource_normal100": "一般 >100",
-  "dataSource_minimal50": "少量 >50",
-  "dataSource_custom": "自定义",
-  "dataSource_refresh7Days": "7天",
-  "dataSource_refresh15Days": "15天",
-  "dataSource_refresh30Days": "30天",
-  "dataSource_refreshNever": "不自动刷新",
-
   "settings_comfyUiEnable": "启用 ComfyUI 集成",
   "settings_comfyUiDisabledSubtitle": "关闭后将隐藏本地超分等 ComfyUI 功能",
   "settings_comfyUiServerUrl": "服务器地址",
@@ -5954,6 +5886,80 @@
     "placeholders": {
       "error": {"type": "String"}
     }
-  }
+  },
+
+  "autocomplete_translating": "翻译中…",
+  "autocomplete_missingTranslation": "未汉化",
+  "autocomplete_translationCoverage": "汉化覆盖：{translated}/{total}",
+  "@autocomplete_translationCoverage": {"placeholders": {"translated": {"type": "int"}, "total": {"type": "int"}}},
+  "autocomplete_aliasMatch": "别名：{alias}",
+  "@autocomplete_aliasMatch": {"placeholders": {"alias": {"type": "String"}}},
+  "autocomplete_settingsTitle": "自动补全",
+  "autocomplete_enable": "启用自动补全",
+  "autocomplete_resultLimit": "结果数量",
+  "autocomplete_allResults": "全部",
+  "autocomplete_showAliases": "显示命中的别名",
+  "autocomplete_showTranslations": "显示中文汉化",
+  "autocomplete_autoComma": "插入后自动添加逗号",
+  "autocomplete_replaceUnderscores": "插入时将下划线替换为空格",
+  "autocomplete_dataSourcesTitle": "数据源与缓存",
+  "autocomplete_relatedTagsTitle": "共现与相关标签推荐",
+  "autocomplete_relatedTagsSubtitle": "选中补全后自动推荐；也可在标签上按 Ctrl+Shift+Space 或 Ctrl+单击",
+  "autocomplete_danbooruApi": "Danbooru 在线补充",
+  "autocomplete_danbooruPrivacy": "仅发送当前英文标签，不会上传完整提示词",
+  "autocomplete_llmTranslation": "使用 Prompt Assistant 补译缺失汉化",
+  "autocomplete_llmRouteMissing": "请先在 Prompt Assistant 中配置 Translate 路由",
+  "autocomplete_llmRoute": "当前路由：{route}。调用模型可能产生费用。",
+  "@autocomplete_llmRoute": {"placeholders": {"route": {"type": "String"}}},
+  "autocomplete_cooccurrence": "离线相关标签库",
+  "autocomplete_entryCount": "{count} 条记录",
+  "@autocomplete_entryCount": {"placeholders": {"count": {"type": "int"}}},
+  "autocomplete_cacheTitle": "在线与 AI 缓存",
+  "autocomplete_clearDanbooruCache": "清除 Danbooru 缓存",
+  "autocomplete_clearAiCache": "清除 AI 汉化缓存",
+  "autocomplete_cacheCleared": "已清除 {count} 条缓存",
+  "@autocomplete_cacheCleared": {"placeholders": {"count": {"type": "int"}}},
+  "autocomplete_baseCatalog": "基础 Danbooru 词库",
+  "autocomplete_catalogStatus": "{count} 个标签 · 数据版本 {version}",
+  "@autocomplete_catalogStatus": {"placeholders": {"count": {"type": "String"}, "version": {"type": "String"}}},
+  "autocomplete_zhDictionary": "ffdkj 简体中文汉化库",
+  "autocomplete_zhInstalled": "已安装 {count} 条 · 版本 {version}",
+  "@autocomplete_zhInstalled": {"placeholders": {"count": {"type": "int"}, "version": {"type": "String"}}},
+  "autocomplete_zhNotInstalled": "未安装；英文补全仍可正常使用",
+  "autocomplete_zhInstallPrompt": "可安装 ffdkj 汉化库以显示中文并支持中文反查；词库将直接从上游下载。",
+  "autocomplete_checkUpdate": "检查更新",
+  "autocomplete_update": "更新",
+  "autocomplete_repair": "修复",
+  "autocomplete_install": "安装",
+  "autocomplete_remove": "移除",
+  "autocomplete_removeConfirm": "移除已安装的中文汉化词库？之后仍可重新安装。",
+  "autocomplete_sourceBase": "随应用提供的基础词库",
+  "autocomplete_sourceZh": "ffdkj 中文汉化库",
+  "autocomplete_sourceApi": "Danbooru API",
+  "autocomplete_sourceRelated": "离线相关标签",
+  "autocomplete_sourceAi": "Prompt Assistant 汉化",
+  "autocomplete_headerTitle": "标签补全",
+  "autocomplete_relatedHeaderTitle": "相关标签",
+  "autocomplete_relatedLoading": "正在查询本地共现库与在线相关标签…",
+  "autocomplete_relatedEmpty": "没有找到可用的相关标签",
+  "autocomplete_relatedMetric": "共现 {count} 次 · Jaccard {score}",
+  "@autocomplete_relatedMetric": {"placeholders": {"count": {"type": "int"}, "score": {"type": "String"}}},
+  "autocomplete_relatedPin": "固定当前标签，可连续插入相关标签",
+  "autocomplete_relatedUnpin": "取消固定并继续链式推荐",
+  "autocomplete_statusBase": "本地",
+  "autocomplete_statusRelated": "共现",
+  "autocomplete_statusDictionary": "汉化",
+  "autocomplete_statusOnline": "在线",
+  "autocomplete_statusAi": "AI",
+  "autocomplete_statusReady": "就绪",
+  "autocomplete_statusNotInstalled": "未安装",
+  "autocomplete_statusDownloading": "下载 {progress}%",
+  "@autocomplete_statusDownloading": {"placeholders": {"progress": {"type": "int"}}},
+  "autocomplete_statusUpdateAvailable": "可更新",
+  "autocomplete_statusError": "异常",
+  "autocomplete_statusDisabled": "已关闭",
+  "autocomplete_statusSearching": "查询中",
+  "autocomplete_statusTranslating": "翻译中",
+  "autocomplete_openSettings": "打开补全与数据源设置"
 
 }

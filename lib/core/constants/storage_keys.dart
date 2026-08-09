@@ -94,6 +94,21 @@ class StorageKeys {
   static const String randomGenerationMode = 'random_generation_mode';
   static const String imagesPerRequest = 'images_per_request';
   static const String enableAutocomplete = 'enable_autocomplete';
+  static const String autocompleteResultLimit = 'autocomplete_result_limit';
+  static const String autocompleteShowAliases = 'autocomplete_show_aliases';
+  static const String autocompleteShowTranslations =
+      'autocomplete_show_translations';
+  static const String autocompleteAutoComma = 'autocomplete_auto_comma';
+  static const String autocompleteReplaceUnderscores =
+      'autocomplete_replace_underscores';
+  static const String autocompleteDanbooruEnabled =
+      'autocomplete_danbooru_enabled';
+  static const String autocompleteLlmTranslationEnabled =
+      'autocomplete_llm_translation_enabled';
+  static const String autocompleteZhInstallPromptDismissed =
+      'autocomplete_zh_install_prompt_dismissed';
+  static const String autocompleteMigrationVersion =
+      'autocomplete_migration_version';
   static const String autoFormatPrompt = 'auto_format_prompt';
   static const String highlightEmphasis = 'highlight_emphasis';
   static const String sdSyntaxAutoConvert = 'sd_syntax_auto_convert';

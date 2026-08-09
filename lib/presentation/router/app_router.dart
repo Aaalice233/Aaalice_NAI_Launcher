@@ -244,7 +244,10 @@ GoRouter appRouter(Ref ref) {
               GoRoute(
                 path: AppRoutes.settings,
                 name: 'settings',
-                builder: (context, state) => const SettingsScreen(),
+                builder: (context, state) => SettingsScreen(
+                  initialSectionIndex:
+                      state.uri.queryParameters['section'] == 'storage' ? 3 : 0,
+                ),
               ),
             ],
           ),

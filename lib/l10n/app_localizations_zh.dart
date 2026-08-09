@@ -953,7 +953,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get prompt_cooccurrenceRecommendation => '共现标签推荐';
 
   @override
-  String get prompt_cooccurrenceRecommendationSubtitle => '输入标签后自动推荐相关标签';
+  String get prompt_cooccurrenceRecommendationSubtitle =>
+      '选中标签后自动推荐，也可按 Ctrl+Shift+Space 或 Ctrl+单击';
 
   @override
   String get prompt_regexRulesManage => '正则替换规则…';
@@ -8700,118 +8701,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_continueGeneration => '继续生成';
 
   @override
-  String get dataSource_clearingData => '正在清除数据...';
-
-  @override
-  String get dataSource_clearTitle => '清除标签数据源';
-
-  @override
-  String get dataSource_clearContent =>
-      '确定要清除 Danbooru 标签补全数据吗？\n\n这将清空以下数据：\n- Danbooru 标签补全数据\n\n以下数据将保留：\n- 中英文标签翻译\n- 标签共现关系\n\n清除后下次启动时将自动重新加载标签数据。';
-
-  @override
-  String get dataSource_confirmClear => '确认清除';
-
-  @override
-  String dataSource_clearSuccess(Object count) {
-    return '已清除 $count 条数据，下次启动时将自动恢复';
-  }
-
-  @override
-  String get dataSource_clearFailed => '清除失败';
-
-  @override
-  String dataSource_clearFailedWithError(Object error) {
-    return '清除失败: $error';
-  }
-
-  @override
-  String get dataSource_clearTagAutocompleteData => '清除标签补全数据';
-
-  @override
-  String get dataSource_ready => '数据源已就绪';
-
-  @override
-  String get dataSource_notLoaded => '数据源未加载';
-
-  @override
-  String dataSource_cachedTagCount(Object count) {
-    return '已缓存 $count 个标签';
-  }
-
-  @override
-  String get dataSource_clickSyncToDownload => '点击“立即同步”下载标签数据';
-
-  @override
-  String dataSource_translationCount(Object count) {
-    return '$count 翻译';
-  }
-
-  @override
-  String dataSource_cooccurrenceCount(Object count) {
-    return '$count 共现';
-  }
-
-  @override
-  String dataSource_lastUpdated(Object time) {
-    return '上次更新: $time';
-  }
-
-  @override
-  String get dataSource_heatThresholdTitle => '热度阈值';
-
-  @override
-  String get dataSource_heatThresholdSubtitle => '选择不同类别标签的热度阈值';
-
-  @override
-  String get dataSource_autoRefreshInterval => '自动刷新间隔';
-
-  @override
   String get dataSource_syncNow => '立即同步';
-
-  @override
-  String get dataSource_cancelSync => '取消同步';
-
-  @override
-  String get dataSource_syncingTags => '正在同步标签数据...';
-
-  @override
-  String dataSource_loadFailed(Object error) {
-    return '加载失败: $error';
-  }
-
-  @override
-  String get dataSource_hotAll => '全部';
-
-  @override
-  String get dataSource_hot10k => '热门 >10K';
-
-  @override
-  String get dataSource_common1k => '常用 >1K';
-
-  @override
-  String get dataSource_common500 => '常用 >500';
-
-  @override
-  String get dataSource_normal100 => '一般 >100';
-
-  @override
-  String get dataSource_minimal50 => '少量 >50';
-
-  @override
-  String get dataSource_custom => '自定义';
-
-  @override
-  String get dataSource_refresh7Days => '7天';
-
-  @override
-  String get dataSource_refresh15Days => '15天';
-
-  @override
-  String get dataSource_refresh30Days => '30天';
-
-  @override
-  String get dataSource_refreshNever => '不自动刷新';
 
   @override
   String get settings_comfyUiEnable => '启用 ComfyUI 集成';
@@ -11097,4 +10987,217 @@ class AppLocalizationsZh extends AppLocalizations {
   String router_pageNotFound(String error) {
     return '页面未找到: $error';
   }
+
+  @override
+  String get autocomplete_translating => '翻译中…';
+
+  @override
+  String get autocomplete_missingTranslation => '未汉化';
+
+  @override
+  String autocomplete_translationCoverage(int translated, int total) {
+    return '汉化覆盖：$translated/$total';
+  }
+
+  @override
+  String autocomplete_aliasMatch(String alias) {
+    return '别名：$alias';
+  }
+
+  @override
+  String get autocomplete_settingsTitle => '自动补全';
+
+  @override
+  String get autocomplete_enable => '启用自动补全';
+
+  @override
+  String get autocomplete_resultLimit => '结果数量';
+
+  @override
+  String get autocomplete_allResults => '全部';
+
+  @override
+  String get autocomplete_showAliases => '显示命中的别名';
+
+  @override
+  String get autocomplete_showTranslations => '显示中文汉化';
+
+  @override
+  String get autocomplete_autoComma => '插入后自动添加逗号';
+
+  @override
+  String get autocomplete_replaceUnderscores => '插入时将下划线替换为空格';
+
+  @override
+  String get autocomplete_dataSourcesTitle => '数据源与缓存';
+
+  @override
+  String get autocomplete_relatedTagsTitle => '共现与相关标签推荐';
+
+  @override
+  String get autocomplete_relatedTagsSubtitle =>
+      '选中补全后自动推荐；也可在标签上按 Ctrl+Shift+Space 或 Ctrl+单击';
+
+  @override
+  String get autocomplete_danbooruApi => 'Danbooru 在线补充';
+
+  @override
+  String get autocomplete_danbooruPrivacy => '仅发送当前英文标签，不会上传完整提示词';
+
+  @override
+  String get autocomplete_llmTranslation => '使用 Prompt Assistant 补译缺失汉化';
+
+  @override
+  String get autocomplete_llmRouteMissing =>
+      '请先在 Prompt Assistant 中配置 Translate 路由';
+
+  @override
+  String autocomplete_llmRoute(String route) {
+    return '当前路由：$route。调用模型可能产生费用。';
+  }
+
+  @override
+  String get autocomplete_cooccurrence => '离线相关标签库';
+
+  @override
+  String autocomplete_entryCount(int count) {
+    return '$count 条记录';
+  }
+
+  @override
+  String get autocomplete_cacheTitle => '在线与 AI 缓存';
+
+  @override
+  String get autocomplete_clearDanbooruCache => '清除 Danbooru 缓存';
+
+  @override
+  String get autocomplete_clearAiCache => '清除 AI 汉化缓存';
+
+  @override
+  String autocomplete_cacheCleared(int count) {
+    return '已清除 $count 条缓存';
+  }
+
+  @override
+  String get autocomplete_baseCatalog => '基础 Danbooru 词库';
+
+  @override
+  String autocomplete_catalogStatus(String count, String version) {
+    return '$count 个标签 · 数据版本 $version';
+  }
+
+  @override
+  String get autocomplete_zhDictionary => 'ffdkj 简体中文汉化库';
+
+  @override
+  String autocomplete_zhInstalled(int count, String version) {
+    return '已安装 $count 条 · 版本 $version';
+  }
+
+  @override
+  String get autocomplete_zhNotInstalled => '未安装；英文补全仍可正常使用';
+
+  @override
+  String get autocomplete_zhInstallPrompt =>
+      '可安装 ffdkj 汉化库以显示中文并支持中文反查；词库将直接从上游下载。';
+
+  @override
+  String get autocomplete_checkUpdate => '检查更新';
+
+  @override
+  String get autocomplete_update => '更新';
+
+  @override
+  String get autocomplete_repair => '修复';
+
+  @override
+  String get autocomplete_install => '安装';
+
+  @override
+  String get autocomplete_remove => '移除';
+
+  @override
+  String get autocomplete_removeConfirm => '移除已安装的中文汉化词库？之后仍可重新安装。';
+
+  @override
+  String get autocomplete_sourceBase => '随应用提供的基础词库';
+
+  @override
+  String get autocomplete_sourceZh => 'ffdkj 中文汉化库';
+
+  @override
+  String get autocomplete_sourceApi => 'Danbooru API';
+
+  @override
+  String get autocomplete_sourceRelated => '离线相关标签';
+
+  @override
+  String get autocomplete_sourceAi => 'Prompt Assistant 汉化';
+
+  @override
+  String get autocomplete_headerTitle => '标签补全';
+
+  @override
+  String get autocomplete_relatedHeaderTitle => '相关标签';
+
+  @override
+  String get autocomplete_relatedLoading => '正在查询本地共现库与在线相关标签…';
+
+  @override
+  String get autocomplete_relatedEmpty => '没有找到可用的相关标签';
+
+  @override
+  String autocomplete_relatedMetric(int count, String score) {
+    return '共现 $count 次 · Jaccard $score';
+  }
+
+  @override
+  String get autocomplete_relatedPin => '固定当前标签，可连续插入相关标签';
+
+  @override
+  String get autocomplete_relatedUnpin => '取消固定并继续链式推荐';
+
+  @override
+  String get autocomplete_statusBase => '本地';
+
+  @override
+  String get autocomplete_statusRelated => '共现';
+
+  @override
+  String get autocomplete_statusDictionary => '汉化';
+
+  @override
+  String get autocomplete_statusOnline => '在线';
+
+  @override
+  String get autocomplete_statusAi => 'AI';
+
+  @override
+  String get autocomplete_statusReady => '就绪';
+
+  @override
+  String get autocomplete_statusNotInstalled => '未安装';
+
+  @override
+  String autocomplete_statusDownloading(int progress) {
+    return '下载 $progress%';
+  }
+
+  @override
+  String get autocomplete_statusUpdateAvailable => '可更新';
+
+  @override
+  String get autocomplete_statusError => '异常';
+
+  @override
+  String get autocomplete_statusDisabled => '已关闭';
+
+  @override
+  String get autocomplete_statusSearching => '查询中';
+
+  @override
+  String get autocomplete_statusTranslating => '翻译中';
+
+  @override
+  String get autocomplete_openSettings => '打开补全与数据源设置';
 }

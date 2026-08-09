@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
-import '../../../../../data/services/tag_translation_service.dart';
+import '../../../../../core/autocomplete/tag_translation_lookup.dart';
 import '../../app_toast.dart';
 import 'selection_copy_shortcuts.dart';
 
@@ -110,8 +110,9 @@ class _PromptSectionState extends State<PromptSection> {
     ThemeData theme,
     bool hasContent,
   ) {
-    final primaryColor =
-        hasContent ? colorScheme.primary : colorScheme.onSurfaceVariant;
+    final primaryColor = hasContent
+        ? colorScheme.primary
+        : colorScheme.onSurfaceVariant;
 
     return Row(
       children: [
@@ -143,8 +144,9 @@ class _PromptSectionState extends State<PromptSection> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color:
-                            colorScheme.primaryContainer.withValues(alpha: 0.5),
+                        color: colorScheme.primaryContainer.withValues(
+                          alpha: 0.5,
+                        ),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
@@ -171,8 +173,11 @@ class _PromptSectionState extends State<PromptSection> {
           const SizedBox(width: 4),
           IconButton(
             onPressed: _copyContent,
-            icon:
-                Icon(Icons.copy, size: 16, color: colorScheme.onSurfaceVariant),
+            icon: Icon(
+              Icons.copy,
+              size: 16,
+              color: colorScheme.onSurfaceVariant,
+            ),
             tooltip: context.l10n.detail_copyLabel(widget.title),
             style: IconButton.styleFrom(
               padding: const EdgeInsets.all(6),
@@ -203,7 +208,8 @@ class _PromptSectionState extends State<PromptSection> {
     ThemeData theme,
     List<String> tags,
   ) {
-    final borderColor = widget.borderColor?.withValues(alpha: 0.2) ??
+    final borderColor =
+        widget.borderColor?.withValues(alpha: 0.2) ??
         colorScheme.outline.withValues(alpha: 0.1);
 
     return Container(
@@ -214,7 +220,8 @@ class _PromptSectionState extends State<PromptSection> {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: borderColor),
       ),
-      child: widget.customContent ??
+      child:
+          widget.customContent ??
           (tags.isNotEmpty
               ? _TagChipGrid(
                   tags: tags,
@@ -305,7 +312,7 @@ class _TranslatedTagChipState extends ConsumerState<_TranslatedTagChip> {
 
   Future<void> _loadTranslation() async {
     if (!widget.showTranslation) return;
-    final service = ref.read(tagTranslationServiceProvider);
+    final service = ref.read(tagTranslationLookupProvider);
     // 提取基础标签（去除权重语法）
     final baseTag = _extractBaseTag(widget.tag);
     final result = await service.translate(baseTag);
@@ -320,8 +327,9 @@ class _TranslatedTagChipState extends ConsumerState<_TranslatedTagChip> {
     var text = tag.trim();
 
     // 1. 处理 NAI 数值权重语法: weight::text::
-    final weightMatch =
-        RegExp(r'^(-?\d+\.?\d*)::(.+?)(?:::)?$').firstMatch(text);
+    final weightMatch = RegExp(
+      r'^(-?\d+\.?\d*)::(.+?)(?:::)?$',
+    ).firstMatch(text);
     if (weightMatch != null) {
       text = weightMatch.group(2)!.trim();
       return text;
@@ -476,7 +484,7 @@ class CharacterPromptCard extends StatelessWidget {
           onPressed: () {
             final textToCopy = negativePrompt?.isNotEmpty == true
                 ? '${context.l10n.prompt_positivePrompt}: $prompt\n'
-                    '${context.l10n.prompt_negativePrompt}: $negativePrompt'
+                      '${context.l10n.prompt_negativePrompt}: $negativePrompt'
                 : prompt;
             Clipboard.setData(ClipboardData(text: textToCopy));
             AppToast.success(context, context.l10n.toast_characterPromptCopied);
@@ -540,7 +548,7 @@ class CharacterPromptCard extends StatelessWidget {
 class CharacterPromptSection extends StatelessWidget {
   final String title;
   final List<({String prompt, String? negativePrompt, String? position})>
-      characters;
+  characters;
   final bool initiallyExpanded;
 
   const CharacterPromptSection({

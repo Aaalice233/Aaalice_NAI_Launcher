@@ -31,7 +31,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 | 🎨 图像生成 | 支持 NovelAI Diffusion V1/V2/V3/V4/V4.5、Furry 系列、常用采样器、尺寸预设、多角色参数和 Anlas 估算。 |
 | 🖼️ 图生图与编辑 | 支持图生图、局部重绘、Focused Inpaint、Outpaint、虚拟画布扩图、硬边蒙版和点击式区域填充。 |
 | 🌈 参考与风格 | 支持 Vibe Transfer、Precise Reference、多图参考、Vibe 整包导入导出、PNG 元数据嵌入导出。 |
-| ✍️ Prompt 工具 | 支持 Danbooru 标签补全、中文搜索、NAI/SD 权重语法辅助、Token 统计、提示词框内搜索和固定词。 |
+| ✍️ Prompt 工具 | 内置离线 Danbooru 标签、别名及共现关系补全，支持 `Ctrl/⌘+Shift+Space` 查询光标前标签的相关词、固定来源标签后连续选词、Danbooru 在线相关标签补充、可选中文词库与 AI 缺失汉化，以及 NAI/SD 权重语法辅助、Token 统计、提示词框内搜索和固定词。 |
 | 📚 本地图库 | 支持递归扫描、SQLite 全文搜索、分类/收藏/集合、元数据解析、批量操作和大图预览。 |
 | 🌐 在线图库 | 支持 Danbooru / Safebooru / Gelbooru 浏览、搜索、标签复制、图片发送到生成页和批量下载。 |
 | 📦 生成队列 | 支持任务排序、批量生成、暂停/继续、失败策略、进度统计和队列导入导出。 |
@@ -90,6 +90,13 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 
 首次登录可以使用 NovelAI 账号密码或 API Token。账号数据仅保存在本地设备，桌面端使用系统安全存储保存敏感信息。
 
+### 补全数据与隐私
+
+- 基础 Danbooru 标签与别名 catalog 随应用提供，只在本机查询，不需要联网。
+- 简体中文汉化词库为可选组件。应用仅在用户确认后从 [ffdkj/ComfyUI_Danbooru_Tag_Assistant](https://github.com/ffdkj/ComfyUI_Danbooru_Tag_Assistant) 上游直接下载，项目不再分发该数据库。
+- Danbooru 在线补充默认开启，只发送光标所在的当前英文 token，不发送完整提示词；可在“设置 → 数据源与缓存”关闭并单独清除缓存。
+- AI 缺失汉化默认关闭。开启后会复用 Prompt Assistant 的 `Translate` 路由，向用户选择的模型服务发送最多 8 个待翻译标签，可能产生 API 费用；AI 翻译缓存可单独清除。
+
 ## 🛠️ 从源码构建
 
 ### 环境要求
@@ -130,6 +137,28 @@ flutter build windows --release
 build/windows/x64/runner/Release/
 ```
 
+Windows 桌面开发可启动独立热重载会话：
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/dev_hot_reload_window.ps1
+```
+
+代码修改后可从任意终端安全触发现有会话，不会启动第二个 `flutter attach`：
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/trigger_hot_reload.ps1
+# 需要重置应用状态时：
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/trigger_hot_reload.ps1 -Restart
+```
+
+需要检查实际桌面窗口时，可直接截图到项目临时目录（窗口被遮挡时也可直接渲染）：
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/capture_dev_window.ps1
+# 自定义输出路径或不激活窗口：
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/capture_dev_window.ps1 -OutputPath tool/.tmp/ui.png -NoActivate
+```
+
 ### macOS
 
 ```bash
@@ -163,7 +192,7 @@ git push origin v1.0.0
 
 - `pubspec.yaml` 版本号已更新；tag 必须匹配去掉 `+build` 后的版本，例如 `1.0.0+17` 对应 `v1.0.0`。
 - `CHANGELOG.md` 已按 `✨ 新增`、`🛠 改进`、`🐛 修复`、`📦 发布文件` 分类补好。
-- `assets/databases/translation.db` 与 `assets/databases/cooccurrence.db` 是真实 SQLite 文件，不是 Git LFS pointer。
+- `assets/databases/tag_catalog.db` 与 `assets/databases/cooccurrence.db` 是真实 SQLite 文件而不是 Git LFS pointer，并已通过 `dart run tool/tag_catalog/verify_bundled_databases.dart` 校验。
 - Windows 安装器依赖 NSIS；本地打包可运行 `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/package_windows_release.ps1`。
 
 ## 🗂️ 项目结构
@@ -176,7 +205,7 @@ nai_launcher/
 ├── lib/
 │   ├── core/               # 网络、数据库、缓存、加密、文件、快捷键等基础能力
 │   ├── data/               # API、模型、仓库和业务数据服务
-│   ├── l10n/               # 中英文界面文案与生成文件
+│   ├── l10n/               # 中/英/日界面文案与生成文件
 │   └── presentation/       # 页面、组件、状态管理、主题和路由
 ├── macos/                  # macOS runner
 ├── scripts/                # 构建、签名、数据库和测试辅助脚本

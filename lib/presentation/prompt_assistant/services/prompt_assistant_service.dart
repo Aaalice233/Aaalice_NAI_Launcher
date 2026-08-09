@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,12 +29,22 @@ final promptAssistantServiceProvider = Provider<PromptAssistantService>((ref) {
   );
 });
 
+class TagTranslationBatchResult {
+  const TagTranslationBatchResult({
+    required this.translations,
+    required this.routeFingerprint,
+  });
+
+  final Map<String, String> translations;
+  final String routeFingerprint;
+}
+
 class PromptAssistantService {
   PromptAssistantService({
     required Ref ref,
     required PromptAssistantApiClient apiClient,
-  })  : _ref = ref,
-        _apiClient = apiClient;
+  }) : _ref = ref,
+       _apiClient = apiClient;
 
   final Ref _ref;
   final PromptAssistantApiClient _apiClient;
@@ -81,6 +92,119 @@ class PromptAssistantService {
       userContent: input,
       userInstruction: instruction,
     );
+  }
+
+  static const int tagTranslationPromptVersion = 1;
+
+  Future<TagTranslationBatchResult> translateTags(
+    List<String> canonicalTags, {
+    required String sessionId,
+  }) async {
+    final tags = canonicalTags
+        .map((tag) => tag.trim().toLowerCase())
+        .where((tag) => RegExp(r'^[a-z0-9_():.!+\-]+$').hasMatch(tag))
+        .toSet()
+        .take(8)
+        .toList(growable: false);
+    if (tags.isEmpty) {
+      return const TagTranslationBatchResult(
+        translations: {},
+        routeFingerprint: '',
+      );
+    }
+
+    final execution = await _resolveTaskExecution(AssistantTaskType.translate);
+    final systemPrompt =
+        '''
+You translate Danbooru image-generation tags into concise Simplified Chinese labels.
+Return exactly one JSON object. Every key must be copied verbatim from the input array and every value must be a non-empty Simplified Chinese string.
+Do not add keys, Markdown, comments, explanations, or code fences.
+Prompt version: $tagTranslationPromptVersion
+'''
+            .trim();
+    final output = StringBuffer();
+    await for (final chunk in _apiClient.complete(
+      request: PromptAssistantRequest(
+        sessionId: sessionId,
+        provider: execution.provider,
+        model: execution.model.name,
+        systemPrompt: systemPrompt,
+        userParts: [PromptAssistantContentPart.text(jsonEncode(tags))],
+        apiKey: execution.apiKey,
+      ),
+    )) {
+      output.write(chunk.delta);
+    }
+
+    final translations = validateTagTranslationResponse(
+      output.toString(),
+      tags,
+    );
+    return TagTranslationBatchResult(
+      translations: translations,
+      routeFingerprint:
+          '${execution.provider.id}/${execution.model.name}/${execution.provider.protocol.name}',
+    );
+  }
+
+  static Map<String, String> validateTagTranslationResponse(
+    String raw,
+    List<String> canonicalTags,
+  ) {
+    final decoded = jsonDecode(raw.trim());
+    if (decoded is! Map<String, dynamic>) {
+      throw const FormatException(
+        'Tag translation response must be a JSON object',
+      );
+    }
+    final allowed = canonicalTags.toSet();
+    final translations = <String, String>{};
+    for (final entry in decoded.entries) {
+      if (!allowed.contains(entry.key) || entry.value is! String) {
+        throw const FormatException(
+          'Tag translation response contains an invalid entry',
+        );
+      }
+      final value = (entry.value as String).trim();
+      if (value.isEmpty ||
+          value.length > 64 ||
+          value.contains(RegExp(r'[\r\n]'))) {
+        throw const FormatException('Tag translation text is invalid');
+      }
+      translations[entry.key] = value;
+    }
+    if (translations.length != canonicalTags.length) {
+      throw const FormatException('Tag translation response is incomplete');
+    }
+    return translations;
+  }
+
+  String translateRouteFingerprint() {
+    final config = _ref.read(promptAssistantConfigProvider);
+    final providerId = config.routing.providerIdFor(
+      AssistantTaskType.translate,
+    );
+    final model = config.routing.modelFor(AssistantTaskType.translate).trim();
+    final provider = config.providers.cast<ProviderConfig?>().firstWhere(
+      (value) => value?.id == providerId && value?.enabled == true,
+      orElse: () => null,
+    );
+    if (provider == null || model.isEmpty) return '';
+    return '${provider.id}/$model/${provider.protocol.name}/${provider.baseUrl}';
+  }
+
+  String translateRouteLabel() {
+    final config = _ref.read(promptAssistantConfigProvider);
+    final providerId = config.routing.providerIdFor(
+      AssistantTaskType.translate,
+    );
+    final model = config.routing.modelFor(AssistantTaskType.translate);
+    final provider = config.providers.cast<ProviderConfig?>().firstWhere(
+      (value) => value?.id == providerId && value?.enabled == true,
+      orElse: () => null,
+    );
+    if (provider == null || model.trim().isEmpty) return '';
+    return '${provider.name} / $model';
   }
 
   Stream<StreamingChunk> reverseImagePrompt(
@@ -206,28 +330,51 @@ class PromptAssistantService {
     required String userInstruction,
   }) async* {
     final config = _ref.read(promptAssistantConfigProvider);
+    final execution = await _resolveTaskExecution(taskType);
 
+    final activeRules =
+        config.rules.where((r) => r.taskType == taskType && r.enabled).toList()
+          ..sort((a, b) => a.order.compareTo(b.order));
+
+    final systemPrompt = [
+      ...activeRules.map((e) => e.content.trim()).where((e) => e.isNotEmpty),
+      userInstruction,
+    ].join('\n\n');
+
+    yield* _apiClient.complete(
+      request: PromptAssistantRequest(
+        sessionId: sessionId,
+        provider: execution.provider,
+        model: execution.model.name,
+        systemPrompt: systemPrompt,
+        userParts: _toContentParts(userContent),
+        apiKey: execution.apiKey,
+      ),
+    );
+  }
+
+  Future<({ProviderConfig provider, ModelConfig model, String? apiKey})>
+  _resolveTaskExecution(AssistantTaskType taskType) async {
+    final config = _ref.read(promptAssistantConfigProvider);
     final routingProviderId = config.routing.providerIdFor(taskType);
     final routingModel = config.routing.modelFor(taskType);
-
     final enabledProviders = config.providers.where((p) => p.enabled).toList();
     if (enabledProviders.isEmpty) {
       throw StateError(
         'No prompt assistant provider is available. Add and enable OpenAI, Anthropic, Gemini, DeepSeek, LM Studio, or another compatible provider in Settings first.',
       );
     }
-
     final provider = enabledProviders.firstWhere(
       (p) => p.id == routingProviderId,
       orElse: () => enabledProviders.first,
     );
-
     final taskModels = config.modelsForProviderTask(
       providerId: provider.id,
       taskType: taskType,
     );
     final hasRealModel = taskModels.any((m) => !m.isPlaceholder);
-    final shouldIgnoreRoutedPlaceholder = (routingModel.trim().isEmpty ||
+    final shouldIgnoreRoutedPlaceholder =
+        (routingModel.trim().isEmpty ||
             routingModel.trim() == 'default-model') &&
         hasRealModel;
     final model = shouldIgnoreRoutedPlaceholder
@@ -242,31 +389,10 @@ class PromptAssistantService {
                     taskType: taskType,
                   ),
           );
-
     final apiKey = await _ref
         .read(promptAssistantConfigProvider.notifier)
         .getProviderApiKey(provider.id);
-
-    final activeRules = config.rules
-        .where((r) => r.taskType == taskType && r.enabled)
-        .toList()
-      ..sort((a, b) => a.order.compareTo(b.order));
-
-    final systemPrompt = [
-      ...activeRules.map((e) => e.content.trim()).where((e) => e.isNotEmpty),
-      userInstruction,
-    ].join('\n\n');
-
-    yield* _apiClient.complete(
-      request: PromptAssistantRequest(
-        sessionId: sessionId,
-        provider: provider,
-        model: model.name,
-        systemPrompt: systemPrompt,
-        userParts: _toContentParts(userContent),
-        apiKey: apiKey,
-      ),
-    );
+    return (provider: provider, model: model, apiKey: apiKey);
   }
 
   ModelConfig _fallbackModelForProvider({

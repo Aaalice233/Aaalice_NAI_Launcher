@@ -3,23 +3,16 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/cache/tag_cache_service.dart';
-import '../../core/services/danbooru_tags_lazy_service.dart';
-import '../../core/services/translation/translation_service.dart';
-import '../../core/utils/app_logger.dart';
-import '../../data/datasources/remote/danbooru_api_service.dart';
+import '../../core/autocomplete/autocomplete_providers.dart';
+import '../../core/autocomplete/autocomplete_settings.dart';
+import '../../core/autocomplete/completion_models.dart';
+import '../../core/autocomplete/completion_orchestrator.dart';
+import '../../core/autocomplete/prompt_token_parser.dart';
 import '../../data/models/tag/tag_suggestion.dart';
 
 part 'danbooru_suggestion_provider.g.dart';
 
-/// 标签建议状态
 class TagSuggestionState {
-  final List<TagSuggestion> suggestions;
-  final bool isLoading;
-  final String? error;
-  final String currentQuery;
-  final TagSuggestionSource source;
-
   const TagSuggestionState({
     this.suggestions = const [],
     this.isLoading = false,
@@ -28,346 +21,121 @@ class TagSuggestionState {
     this.source = TagSuggestionSource.none,
   });
 
-  TagSuggestionState copyWith({
-    List<TagSuggestion>? suggestions,
-    bool? isLoading,
-    String? error,
-    String? currentQuery,
-    TagSuggestionSource? source,
-  }) {
-    return TagSuggestionState(
-      suggestions: suggestions ?? this.suggestions,
-      isLoading: isLoading ?? this.isLoading,
-      error: error,
-      currentQuery: currentQuery ?? this.currentQuery,
-      source: source ?? this.source,
-    );
-  }
+  final List<TagSuggestion> suggestions;
+  final bool isLoading;
+  final String? error;
+  final String currentQuery;
+  final TagSuggestionSource source;
 }
 
-/// 标签建议数据来源
-enum TagSuggestionSource {
-  /// 无数据
-  none,
+enum TagSuggestionSource { none, memoryCache, storageCache, danbooru, novelai }
 
-  /// L1 内存缓存
-  memoryCache,
-
-  /// L2 本地存储缓存
-  storageCache,
-
-  /// Danbooru API
-  danbooru,
-
-  /// NovelAI API (降级)
-  novelai,
-}
-
-/// Danbooru 标签建议 Provider
+/// Compatibility facade for tag-library search surfaces.
 ///
-/// 集成三层缓存和 Danbooru API
-/// 如果 Danbooru 失败，可降级到 NovelAI API
+/// Prompt inputs and auxiliary tag browsers now share the same local-first
+/// orchestrator, cache, filtering, and translation pipeline.
 @riverpod
 class DanbooruSuggestionNotifier extends _$DanbooruSuggestionNotifier {
-  /// 防抖计时器
-  Timer? _debounceTimer;
+  static const _debounceDelay = Duration(milliseconds: 200);
 
-  /// 防抖延迟
-  static const Duration _debounceDelay = Duration(milliseconds: 200);
-
-  /// 缓存服务
-  late TagCacheService _cacheService;
-
-  /// Danbooru API 服务
-  late DanbooruApiService _apiService;
-
-  /// Danbooru 标签懒加载服务（用于获取翻译）
-  DanbooruTagsLazyService? _danbooruService;
-  
-  Future<DanbooruTagsLazyService> get _danbooruServiceAsync async {
-    _danbooruService ??= await ref.read(danbooruTagsLazyServiceProvider.future);
-    return _danbooruService!;
-  }
-
-  /// 统一翻译服务（异步初始化）
-  UnifiedTranslationService? _translationService;
-
-  /// 是否已初始化缓存
-  bool _cacheInitialized = false;
+  Timer? _debounce;
+  late CompletionOrchestrator _orchestrator;
+  var _activeQuery = '';
 
   @override
   TagSuggestionState build() {
-    _apiService = ref.watch(danbooruApiServiceProvider);
-    _cacheService = ref.watch(tagCacheServiceProvider);
-    // 异步初始化 DanbooruTagsLazyService
-    ref.listen(danbooruTagsLazyServiceProvider, (prev, next) {
-      next.whenData((service) {
-        _danbooruService = service;
-        AppLogger.d('[DanbooruSuggestion] DanbooruTagsLazyService initialized', 'DanbooruSuggestion');
-      });
-    });
-
-    // 监听翻译服务初始化
-    ref.listen(unifiedTranslationServiceProvider, (prev, next) {
-      next.whenData((service) {
-        _translationService = service;
-        AppLogger.d('[DanbooruSuggestion] Translation service initialized', 'DanbooruSuggestion');
-      });
-    });
-
-    // 初始化缓存
-    _initCache();
-
-    // 清理定时器
+    _orchestrator = ref
+        .watch(autocompleteServicesProvider)
+        .createOrchestrator();
+    _orchestrator.addListener(_onCompletionStateChanged);
     ref.onDispose(() {
-      _debounceTimer?.cancel();
+      _debounce?.cancel();
+      _orchestrator
+        ..removeListener(_onCompletionStateChanged)
+        ..dispose();
     });
-
     return const TagSuggestionState();
   }
 
-  /// 初始化缓存
-  Future<void> _initCache() async {
-    if (_cacheInitialized) return;
-
-    try {
-      await _cacheService.init();
-      _cacheInitialized = true;
-      AppLogger.d('DanbooruSuggestionNotifier cache initialized', 'Provider');
-    } catch (e) {
-      AppLogger.e('Failed to init cache: $e', 'Provider');
-    }
-  }
-
-  /// 搜索标签建议
-  ///
-  /// [query] 搜索词
-  /// [immediate] 是否立即搜索（跳过防抖）
   void search(String query, {bool immediate = false}) {
-    // 取消之前的防抖计时器
-    _debounceTimer?.cancel();
-
-    final trimmedQuery = query.trim();
-
-    // 空查询或太短，清空建议
-    if (trimmedQuery.length < 2) {
-      state = const TagSuggestionState();
+    _debounce?.cancel();
+    final normalized = query.trim();
+    if (normalized.length < 2) {
+      clear();
       return;
     }
-
-    // 如果查询相同，不重复搜索
-    if (trimmedQuery == state.currentQuery && state.suggestions.isNotEmpty) {
-      return;
-    }
-
-    // 查询变化后立即移除旧结果，避免加载期间显示上一个标签的建议。
-    state = TagSuggestionState(
-      suggestions: const [],
-      isLoading: true,
-      currentQuery: trimmedQuery,
-    );
-
+    if (normalized == _activeQuery && state.suggestions.isNotEmpty) return;
+    _activeQuery = normalized;
+    state = TagSuggestionState(currentQuery: normalized, isLoading: true);
     if (immediate) {
-      _performSearch(trimmedQuery);
+      unawaited(_run(normalized));
     } else {
-      // 防抖处理
-      _debounceTimer = Timer(_debounceDelay, () {
-        _performSearch(trimmedQuery);
-      });
+      _debounce = Timer(_debounceDelay, () => unawaited(_run(normalized)));
     }
   }
 
-  /// 执行搜索
-  Future<void> _performSearch(String query) async {
-    try {
-      // 确保缓存已初始化
-      if (!_cacheInitialized) {
-        await _initCache();
-      }
-      if (!_isCurrentQuery(query)) return;
-
-      // L1/L2: 先查缓存
-      final cachedTags = _cacheService.get(query);
-      if (cachedTags != null && cachedTags.isNotEmpty) {
-        AppLogger.d(
-          'Using cached tags for: $query (${cachedTags.length} tags)',
-          'Provider',
-        );
-        // 检查缓存数据是否缺少翻译，如果有需要则补充
-        final needsTranslation = cachedTags.any(
-          (t) => t.translation == null || t.translation!.isEmpty,
-        );
-        final danbooruService = await _danbooruServiceAsync;
-        if (needsTranslation &&
-            (_translationService?.isInitialized == true || danbooruService.isInitialized)) {
-          AppLogger.d('Cache missing translations, injecting...', 'Provider');
-          final tagsWithTranslation = await _injectTranslations(cachedTags);
-          await _cacheService.set(query, tagsWithTranslation);
-          if (!_isCurrentQuery(query)) return;
-          state = TagSuggestionState(
-            suggestions: tagsWithTranslation,
-            isLoading: false,
-            currentQuery: query,
-            source: TagSuggestionSource.memoryCache,
-          );
-        } else {
-          if (!_isCurrentQuery(query)) return;
-          state = TagSuggestionState(
-            suggestions: cachedTags,
-            isLoading: false,
-            currentQuery: query,
-            source: TagSuggestionSource.memoryCache,
-          );
-        }
-        return;
-      }
-
-      // L3: 从 Danbooru API 获取
-      AppLogger.d('Fetching from Danbooru API: $query', 'Provider');
-      final tags = await _apiService.suggestTags(query, limit: 20);
-      if (!_isCurrentQuery(query)) return;
-
-      if (tags.isNotEmpty) {
-        // 注入翻译
-        final tagsWithTranslation = await _injectTranslations(tags);
-
-        // 缓存结果（包含翻译）
-        await _cacheService.set(query, tagsWithTranslation);
-        if (!_isCurrentQuery(query)) return;
-
-        state = TagSuggestionState(
-          suggestions: tagsWithTranslation,
-          isLoading: false,
-          currentQuery: query,
-          source: TagSuggestionSource.danbooru,
-        );
-      } else {
-        // Danbooru 返回空结果
-        state = TagSuggestionState(
-          suggestions: [],
-          isLoading: false,
-          currentQuery: query,
-          source: TagSuggestionSource.danbooru,
-        );
-      }
-    } catch (e, stack) {
-      if (!_isCurrentQuery(query)) return;
-      AppLogger.e('Tag suggestion error: $e', e, stack, 'Provider');
-      state = TagSuggestionState(
-        suggestions: [],
-        isLoading: false,
-        error: e.toString(),
-        currentQuery: query,
-        source: TagSuggestionSource.none,
-      );
-    }
+  Future<void> _run(String query) async {
+    final locale = ref.read(autocompleteSettingsProvider).showTranslations
+        ? 'zh-CN'
+        : 'en';
+    final completionQuery = PromptTokenParser.parse(
+      text: query,
+      cursorPosition: query.length,
+      limit: ref.read(autocompleteSettingsProvider).resultLimit,
+      locale: locale,
+    );
+    final settings = ref
+        .read(autocompleteSettingsProvider)
+        .copyWith(enabled: true);
+    await _orchestrator.query(completionQuery, settings);
   }
 
-  bool _isCurrentQuery(String query) => state.currentQuery == query;
-
-  /// 获取统一翻译服务（等待初始化完成）
-  Future<UnifiedTranslationService?> _getTranslationService() async {
-    // 如果已经初始化，直接返回
-    if (_translationService?.isInitialized == true) {
-      return _translationService;
-    }
-
-    // 等待服务初始化完成
-    try {
-      final service = await ref.read(unifiedTranslationServiceProvider.future);
-      _translationService = service;
-      return service;
-    } catch (e) {
-      AppLogger.w('[_getTranslationService] Failed to get service: $e', 'DanbooruSuggestion');
-      return null;
-    }
+  void _onCompletionStateChanged() {
+    final completionState = _orchestrator.state;
+    if (completionState.query?.token != _activeQuery) return;
+    final candidates = completionState.candidates;
+    final usesApi = candidates.any(
+      (candidate) =>
+          candidate.sources.contains(CompletionSourceKind.danbooruApi),
+    );
+    state = TagSuggestionState(
+      suggestions: candidates.map(_toSuggestion).toList(growable: false),
+      isLoading: completionState.isRemoteLoading,
+      error: completionState.remoteError,
+      currentQuery: _activeQuery,
+      source: usesApi
+          ? TagSuggestionSource.danbooru
+          : TagSuggestionSource.storageCache,
+    );
   }
 
-  /// 为标签列表注入翻译
-  ///
-  /// 优先使用统一翻译服务（多数据源合并），
-  /// 如果统一服务没有翻译，则回退到 DanbooruTagsLazyService
-  Future<List<TagSuggestion>> _injectTranslations(List<TagSuggestion> tags) async {
-    AppLogger.d('[_injectTranslations] start, tags count: ${tags.length}', 'DanbooruSuggestion');
+  TagSuggestion _toSuggestion(CompletionCandidate candidate) => TagSuggestion(
+    tag: candidate.canonicalTag,
+    count: candidate.postCount,
+    category: candidate.category.value,
+    alias: candidate.matchedAlias,
+    translation: candidate.translation,
+  );
 
-    // 确保获取翻译服务（等待初始化完成）
-    final translationService = await _getTranslationService();
-    final danbooruService = await _danbooruServiceAsync;
-    AppLogger.d('[_injectTranslations] translationService ready: ${translationService?.isInitialized}', 'DanbooruSuggestion');
-    AppLogger.d('[_injectTranslations] danbooruService.isInitialized: ${danbooruService.isInitialized}', 'DanbooruSuggestion');
-
-    final results = <TagSuggestion>[];
-    for (final tag in tags) {
-      // 如果已有翻译，跳过
-      if (tag.translation != null && tag.translation!.isNotEmpty) {
-        AppLogger.d('[_injectTranslations] tag="${tag.tag}" already has translation', 'DanbooruSuggestion');
-        results.add(tag);
-        continue;
-      }
-
-      // 1. 优先使用统一翻译服务（合并多个数据源）
-      String? translation;
-
-      if (translationService != null) {
-        translation = await translationService.getTranslation(tag.tag);
-        if (translation != null && translation.isNotEmpty && translation != '0') {
-          AppLogger.d('[_injectTranslations] tag="${tag.tag}" found in unified service: "$translation"', 'DanbooruSuggestion');
-          results.add(tag.copyWith(translation: translation));
-          continue;
-        }
-      }
-
-      // 2. 回退到 DanbooruTagsLazyService
-      if (danbooruService.isInitialized) {
-        try {
-          AppLogger.d('[_injectTranslations] trying danbooru service for tag="${tag.tag}"', 'DanbooruSuggestion');
-          final localTag = await danbooruService.get(tag.tag);
-          if (localTag != null && localTag.translation != null) {
-            AppLogger.d('[_injectTranslations] tag="${tag.tag}" found in danbooru service: "${localTag.translation}"', 'DanbooruSuggestion');
-            results.add(tag.copyWith(translation: localTag.translation));
-            continue;
-          }
-        } catch (e) {
-          AppLogger.w('[_injectTranslations] error fetching translation for "${tag.tag}": $e', 'DanbooruSuggestion');
-        }
-      }
-
-      // 没有找到翻译
-      AppLogger.d('[_injectTranslations] tag="${tag.tag}" no translation found', 'DanbooruSuggestion');
-      results.add(tag);
-    }
-
-    return results;
-  }
-
-  /// 清空建议
   void clear() {
-    _debounceTimer?.cancel();
+    _debounce?.cancel();
+    _activeQuery = '';
     state = const TagSuggestionState();
   }
 
-  /// 获取缓存统计信息
-  Map<String, dynamic> getCacheStats() {
-    return _cacheService.getStats();
-  }
+  Map<String, dynamic> getCacheStats() => const {};
 
-  /// 清除所有缓存
   Future<void> clearCache() async {
-    await _cacheService.clear();
-    AppLogger.d('Tag cache cleared', 'Provider');
+    await ref.read(autocompleteCacheDatabaseProvider).clearDanbooruCache();
   }
 }
 
-/// 便捷方法：获取当前建议列表
 @riverpod
 List<TagSuggestion> currentTagSuggestions(Ref ref) {
-  final state = ref.watch(danbooruSuggestionNotifierProvider);
-  return state.suggestions;
+  return ref.watch(danbooruSuggestionNotifierProvider).suggestions;
 }
 
-/// 便捷方法：检查是否正在加载
 @riverpod
 bool isTagSuggestionLoading(Ref ref) {
-  final state = ref.watch(danbooruSuggestionNotifierProvider);
-  return state.isLoading;
+  return ref.watch(danbooruSuggestionNotifierProvider).isLoading;
 }

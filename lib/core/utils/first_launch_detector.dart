@@ -5,22 +5,15 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/storage_keys.dart';
-import '../services/danbooru_tags_lazy_service.dart';
 import 'app_logger.dart';
 
 part 'first_launch_detector.g.dart';
 
 /// 首次启动检测器
-/// 负责检测应用是否首次启动，并触发必要的后台数据同步
+/// 负责检测应用是否首次启动并记录当前应用版本。
 class FirstLaunchDetector {
-  final DanbooruTagsLazyService _tagsService;
-
   /// 是否正在执行初始同步
   bool _isInitialSyncing = false;
-
-  FirstLaunchDetector({
-    required DanbooruTagsLazyService tagsService,
-  }) : _tagsService = tagsService;
 
   /// 是否正在执行初始同步
   bool get isInitialSyncing => _isInitialSyncing;
@@ -59,35 +52,25 @@ class FirstLaunchDetector {
     }
   }
 
-  /// 检查并标记需要后台刷新
+  /// 完成首次启动记录。
   ///
-  /// 新的非阻塞实现：不再执行同步，而是标记需要刷新
-  /// 实际的数据下载将在进入主界面后通过后台刷新处理
+  /// 基础标签 catalog 已随应用发布，不在这里执行网络同步。
   Future<bool> checkAndMarkPendingRefresh() async {
     if (_isInitialSyncing) return false;
     _isInitialSyncing = true;
 
     try {
-      // 检查标签数据源是否需要刷新（翻译服务使用内置CSV，自动处理）
-      final needsTagsRefresh = await _tagsService.shouldRefresh();
-
-      // 设置标记，让主界面知道需要显示后台刷新提示
-      final prefs = await SharedPreferences.getInstance();
-
-      if (needsTagsRefresh) {
-        await prefs.setBool(StorageKeys.pendingDataSourceRefresh, true);
-        AppLogger.i(
-          'Marked pending refresh: tags=$needsTagsRefresh',
-          'FirstLaunch',
-        );
-      }
-
-      // 标记已完成首次启动
+      // 基础标签 catalog 随应用发布，首次启动不再触发全量网络同步。
       await markLaunched();
 
       return true;
     } catch (e, stack) {
-      AppLogger.e('Failed to check and mark pending refresh', e, stack, 'FirstLaunch');
+      AppLogger.e(
+        'Failed to check and mark pending refresh',
+        e,
+        stack,
+        'FirstLaunch',
+      );
       return false;
     } finally {
       _isInitialSyncing = false;
@@ -98,11 +81,7 @@ class FirstLaunchDetector {
 /// FirstLaunchDetector Provider
 @Riverpod(keepAlive: true)
 Future<FirstLaunchDetector> firstLaunchDetector(Ref ref) async {
-  final tagsService = await ref.watch(danbooruTagsLazyServiceProvider.future);
-
-  return FirstLaunchDetector(
-    tagsService: tagsService,
-  );
+  return FirstLaunchDetector();
 }
 
 /// 首次启动状态
@@ -142,9 +121,7 @@ class FirstLaunchNotifier extends _$FirstLaunchNotifier {
     return const FirstLaunchState();
   }
 
-  /// 检查并执行首次启动同步
-  ///
-  /// 新的非阻塞实现：只标记需要刷新，不执行实际同步
+  /// 检查并完成首次启动记录。
   Future<void> checkAndSync(BuildContext context) async {
     final detector = await ref.read(firstLaunchDetectorProvider.future);
 
@@ -155,21 +132,14 @@ class FirstLaunchNotifier extends _$FirstLaunchNotifier {
       state = state.copyWith(isSyncing: true);
 
       try {
-        // 新的非阻塞检测，只标记需要刷新
+        // 首次启动只记录版本，词库安装由用户在设置中主动管理。
         await detector.checkAndMarkPendingRefresh();
-        state = state.copyWith(
-          isSyncing: false,
-          hasSyncCompleted: true,
-        );
+        state = state.copyWith(isSyncing: false, hasSyncCompleted: true);
       } catch (e) {
-        state = state.copyWith(
-          isSyncing: false,
-          error: e.toString(),
-        );
+        state = state.copyWith(isSyncing: false, error: e.toString());
       }
     } else {
-      // 非首次启动，不需要额外处理
-      // 后台刷新由 BackgroundRefreshNotifier 处理
+      // 非首次启动不需要额外处理。
       AppLogger.d('Not first launch, skipping', 'FirstLaunch');
     }
   }

@@ -409,7 +409,7 @@
   "prompt_resolveAliasOnCopy": "コピー時に単語ライブラリを展開",
   "prompt_resolveAliasOnCopySubtitle": "コピーまたは切り取り時に <ライブラリ名> をその内容に置き換えます",
   "prompt_cooccurrenceRecommendation": "共起タグの推奨事項",
-  "prompt_cooccurrenceRecommendationSubtitle": "タグを入力すると、関連するタグが自動的に推奨されます",
+  "prompt_cooccurrenceRecommendationSubtitle": "タグ確定後に自動表示。Ctrl+Shift+Space または Ctrl+クリックでも表示できます",
   "prompt_regexRulesManage": "正規表現置換ルール…",
   "prompt_regexRulesCount": "{count} 件のルールを設定済み",
   "@prompt_regexRulesCount": {
@@ -4559,74 +4559,8 @@
     }
   },
   "settings_continueGeneration": "生成を続行",
-  "dataSource_clearingData": "データを消去しています...",
-  "dataSource_clearTitle": "タグ データ ソースのクリア",
-  "dataSource_clearContent": "Danbooru タグのオートコンプリート データをクリアしますか?\n\nこれでクリアされます:\n- Danbooru タグのオートコンプリート データ\n\nこれは保存されます:\n- 中国語/英語タグ翻訳\n- タグ共起データ\n\nタグデータは次回起動時に自動的に再読み込みされます。",
-  "dataSource_confirmClear": "クリア",
-  "dataSource_clearSuccess": "{count} 行をクリアしました。次回起動時にデータが自動的に復元されます。",
-  "@dataSource_clearSuccess": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "dataSource_clearFailed": "クリアに失敗しました",
-  "dataSource_clearFailedWithError": "クリアに失敗しました: {error}",
-  "@dataSource_clearFailedWithError": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "dataSource_clearTagAutocompleteData": "タグのオートコンプリート データをクリアします",
-  "dataSource_ready": "データ ソースの準備ができました",
-  "dataSource_notLoaded": "データ ソースがロードされていません",
-  "dataSource_cachedTagCount": "キャッシュされた {count} タグ",
-  "@dataSource_cachedTagCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "dataSource_clickSyncToDownload": "[今すぐ同期] をクリックしてタグ データをダウンロードします",
-  "dataSource_translationCount": "{count} 翻訳",
-  "@dataSource_translationCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "dataSource_cooccurrenceCount": "{count} 共起",
-  "@dataSource_cooccurrenceCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "dataSource_lastUpdated": "最終更新日: {time}",
-  "@dataSource_lastUpdated": {
-    "placeholders": {
-      "time": {}
-    }
-  },
-  "dataSource_heatThresholdTitle": "人気度しきい値",
-  "dataSource_heatThresholdSubtitle": "各タグカテゴリの人気度しきい値を選択します",
-  "dataSource_autoRefreshInterval": "自動リフレッシュ間隔",
+
   "dataSource_syncNow": "今すぐ同期",
-  "dataSource_cancelSync": "同期のキャンセル",
-  "dataSource_syncingTags": "タグ データを同期しています...",
-  "dataSource_loadFailed": "ロードに失敗しました: {error}",
-  "@dataSource_loadFailed": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "dataSource_hotAll": "すべて",
-  "dataSource_hot10k": "ホット >10K",
-  "dataSource_common1k": "共通 >1K",
-  "dataSource_common500": "コモン >500",
-  "dataSource_normal100": "通常 >100",
-  "dataSource_minimal50": "最小 >50",
-  "dataSource_custom": "カスタム",
-  "dataSource_refresh7Days": "7 日間",
-  "dataSource_refresh15Days": "15 日",
-  "dataSource_refresh30Days": "30 日",
-  "dataSource_refreshNever": "更新しない",
   "settings_comfyUiEnable": "ComfyUI 統合を有効にする",
   "settings_comfyUiDisabledSubtitle": "無効にすると、ローカル拡大およびその他の ComfyUI 機能が非表示になります",
   "settings_comfyUiServerUrl": "サーバー URL",
@@ -5910,5 +5844,79 @@
     "placeholders": {
       "error": {"type": "String"}
     }
-  }
+  },
+
+  "autocomplete_translating": "翻訳中…",
+  "autocomplete_missingTranslation": "未翻訳",
+  "autocomplete_translationCoverage": "翻訳カバー率：{translated}/{total}",
+  "@autocomplete_translationCoverage": {"placeholders": {"translated": {"type": "int"}, "total": {"type": "int"}}},
+  "autocomplete_aliasMatch": "別名：{alias}",
+  "@autocomplete_aliasMatch": {"placeholders": {"alias": {"type": "String"}}},
+  "autocomplete_settingsTitle": "オートコンプリート",
+  "autocomplete_enable": "オートコンプリートを有効にする",
+  "autocomplete_resultLimit": "結果数",
+  "autocomplete_allResults": "すべて",
+  "autocomplete_showAliases": "一致した別名を表示",
+  "autocomplete_showTranslations": "中国語訳を表示",
+  "autocomplete_autoComma": "挿入後にカンマを追加",
+  "autocomplete_replaceUnderscores": "挿入時にアンダースコアを空白に置換",
+  "autocomplete_dataSourcesTitle": "データソースとキャッシュ",
+  "autocomplete_relatedTagsTitle": "共起・関連タグ候補",
+  "autocomplete_relatedTagsSubtitle": "タグ確定後に自動表示。タグ上で Ctrl+Shift+Space または Ctrl+クリックでも表示できます",
+  "autocomplete_danbooruApi": "Danbooru オンライン補完",
+  "autocomplete_danbooruPrivacy": "現在の英語タグのみ送信し、プロンプト全体は送信しません",
+  "autocomplete_llmTranslation": "不足する翻訳に Prompt Assistant を使用",
+  "autocomplete_llmRouteMissing": "先に Prompt Assistant で Translate ルートを設定してください",
+  "autocomplete_llmRoute": "現在のルート：{route}。モデル利用料が発生する場合があります。",
+  "@autocomplete_llmRoute": {"placeholders": {"route": {"type": "String"}}},
+  "autocomplete_cooccurrence": "オフライン関連タグデータベース",
+  "autocomplete_entryCount": "{count} 件",
+  "@autocomplete_entryCount": {"placeholders": {"count": {"type": "int"}}},
+  "autocomplete_cacheTitle": "オンライン・AI キャッシュ",
+  "autocomplete_clearDanbooruCache": "Danbooru キャッシュを消去",
+  "autocomplete_clearAiCache": "AI 翻訳キャッシュを消去",
+  "autocomplete_cacheCleared": "キャッシュを {count} 件消去しました",
+  "@autocomplete_cacheCleared": {"placeholders": {"count": {"type": "int"}}},
+  "autocomplete_baseCatalog": "基本 Danbooru カタログ",
+  "autocomplete_catalogStatus": "{count} タグ · データ版 {version}",
+  "@autocomplete_catalogStatus": {"placeholders": {"count": {"type": "String"}, "version": {"type": "String"}}},
+  "autocomplete_zhDictionary": "ffdkj 簡体字中国語辞書",
+  "autocomplete_zhInstalled": "{count} 件インストール済み · バージョン {version}",
+  "@autocomplete_zhInstalled": {"placeholders": {"count": {"type": "int"}, "version": {"type": "String"}}},
+  "autocomplete_zhNotInstalled": "未インストール（英語補完は利用できます）",
+  "autocomplete_zhInstallPrompt": "中国語表示と逆引き用の ffdkj 辞書を上流から直接インストールできます。",
+  "autocomplete_checkUpdate": "更新を確認",
+  "autocomplete_update": "更新",
+  "autocomplete_repair": "修復",
+  "autocomplete_install": "インストール",
+  "autocomplete_remove": "削除",
+  "autocomplete_removeConfirm": "インストール済みの中国語翻訳辞書を削除しますか？後で再インストールできます。",
+  "autocomplete_sourceBase": "同梱の基本カタログ",
+  "autocomplete_sourceZh": "ffdkj 中国語辞書",
+  "autocomplete_sourceApi": "Danbooru API",
+  "autocomplete_sourceRelated": "オフライン関連タグ",
+  "autocomplete_sourceAi": "Prompt Assistant 翻訳",
+  "autocomplete_headerTitle": "タグ補完",
+  "autocomplete_relatedHeaderTitle": "関連タグ",
+  "autocomplete_relatedLoading": "ローカル共起データとオンライン関連タグを検索中…",
+  "autocomplete_relatedEmpty": "利用可能な関連タグがありません",
+  "autocomplete_relatedMetric": "共起 {count} 回 · Jaccard {score}",
+  "@autocomplete_relatedMetric": {"placeholders": {"count": {"type": "int"}, "score": {"type": "String"}}},
+  "autocomplete_relatedPin": "このタグを固定して関連タグを連続挿入",
+  "autocomplete_relatedUnpin": "固定を解除して連鎖候補に戻す",
+  "autocomplete_statusBase": "ローカル",
+  "autocomplete_statusRelated": "共起",
+  "autocomplete_statusDictionary": "翻訳",
+  "autocomplete_statusOnline": "オンライン",
+  "autocomplete_statusAi": "AI",
+  "autocomplete_statusReady": "準備完了",
+  "autocomplete_statusNotInstalled": "未導入",
+  "autocomplete_statusDownloading": "DL {progress}%",
+  "@autocomplete_statusDownloading": {"placeholders": {"progress": {"type": "int"}}},
+  "autocomplete_statusUpdateAvailable": "更新あり",
+  "autocomplete_statusError": "エラー",
+  "autocomplete_statusDisabled": "オフ",
+  "autocomplete_statusSearching": "検索中",
+  "autocomplete_statusTranslating": "翻訳中",
+  "autocomplete_openSettings": "補完とデータソース設定を開く"
 }

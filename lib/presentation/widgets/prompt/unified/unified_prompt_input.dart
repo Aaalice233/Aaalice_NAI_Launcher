@@ -16,10 +16,6 @@ import '../../../providers/generation/generation_settings_notifiers.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../screens/tag_library_page/widgets/entry_add_dialog.dart';
 import '../../autocomplete/autocomplete_wrapper.dart';
-import '../../autocomplete/autocomplete_strategy.dart';
-import '../../autocomplete/strategies/local_tag_strategy.dart';
-import '../../autocomplete/strategies/alias_strategy.dart';
-import '../../autocomplete/strategies/cooccurrence_strategy.dart';
 import '../../common/app_toast.dart';
 import '../../common/weight_adjust_toolbar.dart';
 import '../../../prompt_assistant/models/prompt_assistant_models.dart';
@@ -135,8 +131,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
   /// 焦点节点
   FocusNode? _internalFocusNode;
 
-  /// 自动补全策略 Future（异步初始化）
-  Future<AutocompleteStrategy>? _autocompleteStrategyFuture;
   StreamSubscription<StreamingChunk>? _assistantStreamSub;
   late String _sessionId;
   late final TextEditingController _searchController;
@@ -269,26 +263,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     return 'prompt_${identityHashCode(this)}';
   }
 
-  bool _shouldResetAutocompleteStrategy(UnifiedPromptInput oldWidget) {
-    final oldConfig = oldWidget.config;
-    final newConfig = widget.config;
-    final oldAutocomplete = oldConfig.autocompleteConfig;
-    final newAutocomplete = newConfig.autocompleteConfig;
-
-    return oldConfig.enableAutocomplete != newConfig.enableAutocomplete ||
-        oldAutocomplete.maxSuggestions != newAutocomplete.maxSuggestions ||
-        oldAutocomplete.showTranslation != newAutocomplete.showTranslation ||
-        oldAutocomplete.showCategory != newAutocomplete.showCategory ||
-        oldAutocomplete.showCount != newAutocomplete.showCount ||
-        oldAutocomplete.enableChineseSearch !=
-            newAutocomplete.enableChineseSearch ||
-        oldAutocomplete.debounceDelay != newAutocomplete.debounceDelay ||
-        oldAutocomplete.minQueryLength != newAutocomplete.minQueryLength ||
-        oldAutocomplete.autoInsertComma != newAutocomplete.autoInsertComma ||
-        oldAutocomplete.replaceUnderscoreWithSpace !=
-            newAutocomplete.replaceUnderscoreWithSpace;
-  }
-
   @override
   void initState() {
     super.initState();
@@ -359,10 +333,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     _syntaxController?.highlightEnabled = widget.config.enableSyntaxHighlight;
     _syntaxController?.numericEmphasisEnabled =
         widget.config.numericEmphasisEnabled;
-
-    if (_shouldResetAutocompleteStrategy(oldWidget)) {
-      _autocompleteStrategyFuture = null;
-    }
   }
 
   @override
@@ -531,27 +501,6 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
         AppToast.info(context, messages.join(' + '));
       }
     }
-  }
-
-  /// 确保自动补全策略 Future 已创建
-  Future<AutocompleteStrategy> _ensureAutocompleteStrategyFuture() {
-    _autocompleteStrategyFuture ??=
-        LocalTagStrategy.create(ref, widget.config.autocompleteConfig).then((
-          localTagStrategy,
-        ) {
-          return CompositeStrategy(
-            strategies: [
-              localTagStrategy,
-              AliasStrategy.create(ref),
-              CooccurrenceStrategy.create(
-                ref,
-                widget.config.autocompleteConfig,
-              ),
-            ],
-            strategySelector: defaultStrategySelector,
-          );
-        });
-    return _autocompleteStrategyFuture!;
   }
 
   /// 同步外部控制器变化到内部状态
@@ -1447,7 +1396,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       result = AutocompleteWrapper(
         controller: _effectiveController,
         focusNode: _effectiveFocusNode,
-        asyncStrategy: _ensureAutocompleteStrategyFuture(),
+        config: widget.config.autocompleteConfig,
         enabled: !widget.config.readOnly,
         onChanged: _handleTextChanged,
         contentPadding: effectiveDecoration.contentPadding,

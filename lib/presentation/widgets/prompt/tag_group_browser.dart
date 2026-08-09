@@ -124,7 +124,8 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
 
     final searchQuery = _searchController.text.trim();
     final hasSearch = searchQuery.isNotEmpty;
-    final showDanbooruSuggestions = hasSearch &&
+    final showDanbooruSuggestions =
+        hasSearch &&
         danbooruState.suggestions.isNotEmpty &&
         danbooruState.currentQuery == searchQuery;
 
@@ -158,8 +159,9 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
               }
 
               final isExpanded = _expandedCategories[category] ?? false;
-              final categoryName =
-                  TagSubCategoryHelper.getDisplayName(category);
+              final categoryName = TagSubCategoryHelper.getDisplayName(
+                category,
+              );
 
               return _buildCategoryTile(
                 theme: theme,
@@ -193,7 +195,6 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
         focusNode: _searchFocusNode,
         ref: ref,
         config: const AutocompleteConfig(
-          maxSuggestions: 10,
           showTranslation: true,
           autoInsertComma: false,
         ),
@@ -471,12 +472,7 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
     return SizedBox(
       width: 36,
       height: 36,
-      child: Center(
-        child: Text(
-          emoji,
-          style: const TextStyle(fontSize: 24),
-        ),
-      ),
+      child: Center(child: Text(emoji, style: const TextStyle(fontSize: 24))),
     );
   }
 

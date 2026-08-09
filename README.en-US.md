@@ -31,7 +31,7 @@ NAI Launcher is a third-party client for NovelAI built with Flutter. It integrat
 | 🎨 Image Generation | Supports NovelAI Diffusion V1/V2/V3/V4/V4.5, Furry series, common samplers, size presets, multi-character parameters, and Anlas estimation. |
 | 🖼️ Image-to-Image & Editing | Supports img2img, inpainting, Focused Inpaint, Outpaint, virtual canvas expansion, hard-edge masks, and click-to-fill region selection. |
 | 🌈 Reference & Style | Supports Vibe Transfer, Precise Reference, multi-image references, Vibe pack import/export, and PNG metadata embedding/export. |
-| ✍️ Prompt Tools | Supports Danbooru tag autocomplete, Chinese search, NAI/SD weight syntax assistance, token counting, in-box prompt search, and pinned words. |
+| ✍️ Prompt Tools | Includes offline Danbooru tags, aliases, and co-occurrence recommendations. Press `Ctrl/⌘+Shift+Space` for tags related to the tag before the cursor, pin the source tag for continuous insertion, and optionally merge Danbooru online relations, Chinese translations, and AI translations for missing entries. Also includes NAI/SD weight syntax assistance, token counting, in-box prompt search, and pinned words. |
 | 📚 Local Gallery | Supports recursive scanning, SQLite full-text search, categories/collections/favorites, metadata parsing, batch operations, and large image previews. |
 | 🌐 Online Gallery | Supports browsing, searching, tag copying, sending images to the generation page, and batch downloading from Danbooru / Safebooru / Gelbooru. |
 | 📦 Generation Queue | Supports task sorting, batch generation, pause/resume, failure handling strategies, progress statistics, and queue import/export. |
@@ -90,6 +90,13 @@ Download the latest version from [Releases](https://github.com/Aaalice233/Aaalic
 
 You can log in for the first time using your NovelAI account credentials or an API Token. Account data is stored locally on the device only. The desktop app uses the system's secure storage for sensitive information.
 
+### Autocomplete Data & Privacy
+
+- The base Danbooru tag and alias catalog ships with the app and is queried locally without a network connection.
+- The Simplified Chinese translation dictionary is optional. It is downloaded directly from the [ffdkj/ComfyUI_Danbooru_Tag_Assistant](https://github.com/ffdkj/ComfyUI_Danbooru_Tag_Assistant) upstream only after user confirmation; this project does not redistribute that database.
+- The Danbooru online supplement is enabled by default. It sends only the current English token under the cursor, never the complete prompt; it can be disabled and its cache cleared separately under Settings → Data Sources & Cache.
+- AI translation for missing entries is disabled by default. When enabled, it reuses the Prompt Assistant `Translate` route and sends at most 8 untranslated tags to the model service selected by the user, which may incur API charges. Its cache can be cleared separately.
+
 ## 🛠️ Build from Source
 
 ### Environment Requirements
@@ -130,6 +137,28 @@ Output directory:
 build/windows/x64/runner/Release/
 ```
 
+For Windows desktop development, start a dedicated hot-reload session:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/dev_hot_reload_window.ps1
+```
+
+After editing code, safely trigger that existing session from any terminal without starting a second `flutter attach`:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/trigger_hot_reload.ps1
+# To reset application state:
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/trigger_hot_reload.ps1 -Restart
+```
+
+To inspect the real desktop window, capture it directly into the project temp directory. Direct rendering also works when the window is covered:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/capture_dev_window.ps1
+# Custom output path or capture without activating the window:
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/capture_dev_window.ps1 -OutputPath tool/.tmp/ui.png -NoActivate
+```
+
 ### macOS
 
 ```bash
@@ -163,7 +192,7 @@ Before releasing, please ensure:
 
 - The version number in `pubspec.yaml` has been updated; the tag must match the version without the `+build` suffix, e.g., `1.0.0+17` corresponds to `v1.0.0`.
 - `CHANGELOG.md` has been updated and categorized under `✨ Added`, `🛠 Improved`, `🐛 Fixed`, and `📦 Release Files`.
-- `assets/databases/translation.db` and `assets/databases/cooccurrence.db` are actual SQLite files, not Git LFS pointers.
+- `assets/databases/tag_catalog.db` and `assets/databases/cooccurrence.db` are actual SQLite files rather than Git LFS pointers and pass `dart run tool/tag_catalog/verify_bundled_databases.dart`.
 - The Windows installer depends on NSIS; for local packaging, you can run `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/package_windows_release.ps1`.
 
 ## 🗂️ Project Structure
@@ -176,7 +205,7 @@ nai_launcher/
 ├── lib/
 │   ├── core/               # Core features: networking, database, caching, encryption, file I/O, shortcuts, etc.
 │   ├── data/               # API clients, models, repositories, and business data services
-│   ├── l10n/               # Chinese and English UI strings and generated files
+│   ├── l10n/               # Chinese, English, and Japanese UI strings and generated files
 │   └── presentation/       # Pages, components, state management, themes, and routing
 ├── macos/                  # macOS runner
 ├── scripts/                # Build, signing, database, and testing helper scripts

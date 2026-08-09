@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "dataset": "newtextdoc1111/danbooru-tag-csv",
+    "revision": "2dadc5bfcbcc7f255e68e9003ed543fb1b97904f",
+    "file": "danbooru_tags_cooccurrence.csv",
+    "url": "https://huggingface.co/datasets/newtextdoc1111/danbooru-tag-csv/resolve/2dadc5bfcbcc7f255e68e9003ed543fb1b97904f/danbooru_tags_cooccurrence.csv",
+    "sha256": "29bf95d3dd2f4b1038ac26b3fee371ebbe67d9b622b32d274c9486dbde56077a",
+    "size": 103263669,
+    "lastModified": "2025-05-09T05:07:59Z"
+  },
+  "output": {
+    "path": "assets/databases/cooccurrence.db",
+    "sha256": "d23335978b12f0cbbdb526e745e17985943f93fb53caafe7242f4948aa69bae9",
+    "size": 321454080,
+    "recordCount": 3236959
+  },
+  "buildScript": "tool/database/build_cooccurrence_only.dart",
+  "notes": "Only the co-occurrence CSV is used. The base tag catalog is sourced separately and does not use this dataset's danbooru_tags.csv."
+}

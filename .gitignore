@@ -171,6 +171,8 @@ cert_thumbprint.txt
 # 临时目录
 logs/
 logs/security/
+tool/tag_catalog/.cache/
+tool/tag_catalog/.tmp/
 
 
 # ===========================================================================

@@ -72,10 +72,7 @@ class AliasAutocompleteNotifier extends _$AliasAutocompleteNotifier {
           'AliasAutocomplete: query="$query", found ${entries.length} entries',
         );
 
-        state = AliasAutocompleteState(
-          suggestions: entries,
-          isLoading: false,
-        );
+        state = AliasAutocompleteState(suggestions: entries, isLoading: false);
       } catch (e) {
         debugPrint('AliasAutocomplete search error: $e');
         state = state.copyWith(isLoading: false);

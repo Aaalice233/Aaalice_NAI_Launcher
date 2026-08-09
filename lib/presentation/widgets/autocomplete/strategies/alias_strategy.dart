@@ -20,18 +20,16 @@ class AliasStrategy extends AutocompleteStrategy<TagLibraryEntry> {
   /// Provider 订阅
   ProviderSubscription<AliasAutocompleteState>? _subscription;
 
-  AliasStrategy._({
-    required WidgetRef ref,
-    bool autoInsertComma = true,
-  })  : _ref = ref,
-        _autoInsertComma = autoInsertComma {
+  AliasStrategy._({required WidgetRef ref, bool autoInsertComma = true})
+    : _ref = ref,
+      _autoInsertComma = autoInsertComma {
     // 监听 Provider 状态变化
-    _subscription = _ref.listenManual(
-      aliasAutocompleteNotifierProvider,
-      (previous, next) {
-        notifyListeners();
-      },
-    );
+    _subscription = _ref.listenManual(aliasAutocompleteNotifierProvider, (
+      previous,
+      next,
+    ) {
+      notifyListeners();
+    });
   }
 
   /// 工厂方法：创建 AliasStrategy
@@ -57,8 +55,10 @@ class AliasStrategy extends AutocompleteStrategy<TagLibraryEntry> {
   ///
   /// 返回 true 如果检测到 `<xxx` 模式
   bool shouldActivate(String text, int cursorPosition) {
-    final (isTypingAlias, _, _) =
-        AliasParser.detectPartialAlias(text, cursorPosition);
+    final (isTypingAlias, _, _) = AliasParser.detectPartialAlias(
+      text,
+      cursorPosition,
+    );
     return isTypingAlias;
   }
 
@@ -118,7 +118,8 @@ class AliasStrategy extends AutocompleteStrategy<TagLibraryEntry> {
     final suffix = text.substring(cursorPosition);
 
     // 添加逗号和空格（如果配置了自动插入且后面没有逗号）
-    final trailingComma = _autoInsertComma &&
+    final trailingComma =
+        _autoInsertComma &&
             (suffix.isEmpty || !suffix.trimLeft().startsWith(','))
         ? ', '
         : '';

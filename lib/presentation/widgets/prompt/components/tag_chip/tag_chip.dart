@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/utils/localization_extension.dart';
-import '../../../../../data/services/tag_translation_service.dart';
+import '../../../../../core/autocomplete/tag_translation_lookup.dart';
 import '../../../../widgets/common/app_toast.dart';
 
 import '../../../../../data/models/prompt/prompt_tag.dart';
@@ -118,23 +118,19 @@ class _TagChipState extends ConsumerState<TagChip>
       duration: const Duration(milliseconds: 150),
       vsync: this,
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
-      CurvedAnimation(parent: _scaleController, curve: Curves.easeOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.05,
+    ).animate(CurvedAnimation(parent: _scaleController, curve: Curves.easeOut));
 
     _weightController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _weightAnimation = Tween<double>(
-      begin: _currentWeight,
-      end: _currentWeight,
-    ).animate(
-      CurvedAnimation(
-        parent: _weightController,
-        curve: Curves.easeOut,
-      ),
-    );
+    _weightAnimation = Tween<double>(begin: _currentWeight, end: _currentWeight)
+        .animate(
+          CurvedAnimation(parent: _weightController, curve: Curves.easeOut),
+        );
 
     _weightAnimation.addListener(() {
       setState(() {
@@ -182,14 +178,8 @@ class _TagChipState extends ConsumerState<TagChip>
 
   /// Animate weight change from old value to new value
   void _animateWeightChange(double oldValue, double newValue) {
-    _weightAnimation = Tween<double>(
-      begin: oldValue,
-      end: newValue,
-    ).animate(
-      CurvedAnimation(
-        parent: _weightController,
-        curve: Curves.easeOut,
-      ),
+    _weightAnimation = Tween<double>(begin: oldValue, end: newValue).animate(
+      CurvedAnimation(parent: _weightController, curve: Curves.easeOut),
     );
 
     _weightController.forward(from: 0);
@@ -214,7 +204,7 @@ class _TagChipState extends ConsumerState<TagChip>
     }
 
     // 2. 从翻译服务获取
-    final translationService = ref.read(tagTranslationServiceProvider);
+    final translationService = ref.read(tagTranslationLookupProvider);
     final result = await translationService.translate(widget.tag.text);
 
     if (mounted) {
@@ -234,14 +224,11 @@ class _TagChipState extends ConsumerState<TagChip>
 
     if (!TagChip.isMobile && widget.showControls) {
       _menuHideTimer?.cancel();
-      _menuShowTimer = Timer(
-        const Duration(milliseconds: 100),
-        () {
-          if (mounted && _isHovering) {
-            setState(() => _showMenu = true);
-          }
-        },
-      );
+      _menuShowTimer = Timer(const Duration(milliseconds: 100), () {
+        if (mounted && _isHovering) {
+          setState(() => _showMenu = true);
+        }
+      });
     }
   }
 
@@ -255,14 +242,11 @@ class _TagChipState extends ConsumerState<TagChip>
 
     _menuShowTimer?.cancel();
     // 立即隐藏菜单，避免多个菜单同时显示
-    _menuHideTimer = Timer(
-      const Duration(milliseconds: 50),
-      () {
-        if (mounted && !_isHovering) {
-          setState(() => _showMenu = false);
-        }
-      },
-    );
+    _menuHideTimer = Timer(const Duration(milliseconds: 50), () {
+      if (mounted && !_isHovering) {
+        setState(() => _showMenu = false);
+      }
+    });
   }
 
   void _onLongPress() {
@@ -329,9 +313,9 @@ class _TagChipState extends ConsumerState<TagChip>
         final weightStr = weight == weight.truncateToDouble()
             ? weight.toInt().toString()
             : weight
-                .toStringAsFixed(2)
-                .replaceAll(RegExp(r'0+$'), '')
-                .replaceAll(RegExp(r'\.$'), '');
+                  .toStringAsFixed(2)
+                  .replaceAll(RegExp(r'0+$'), '')
+                  .replaceAll(RegExp(r'\.$'), '');
         return '$weightStr::$name::';
 
       case WeightSyntaxType.bracket:
@@ -385,9 +369,9 @@ class _TagChipState extends ConsumerState<TagChip>
         final weightStr = weight == weight.truncateToDouble()
             ? weight.toInt().toString()
             : weight
-                .toStringAsFixed(2)
-                .replaceAll(RegExp(r'0+$'), '')
-                .replaceAll(RegExp(r'\.$'), '');
+                  .toStringAsFixed(2)
+                  .replaceAll(RegExp(r'0+$'), '')
+                  .replaceAll(RegExp(r'\.$'), '');
 
         // 权重数字（等宽字体）
         spans.add(
@@ -563,9 +547,7 @@ class _TagChipState extends ConsumerState<TagChip>
         break;
     }
 
-    return Text.rich(
-      TextSpan(children: spans),
-    );
+    return Text.rich(TextSpan(children: spans));
   }
 
   @override
@@ -615,12 +597,12 @@ class _TagChipState extends ConsumerState<TagChip>
     final shadowBlur = widget.isDragging
         ? TagShadowConfig.draggingBlurRadius
         : _isHovering
-            ? TagShadowConfig.hoverBlurRadius
-            : isSelected
-                ? TagShadowConfig.selectedBlurRadius
-                : isEnabled
-                    ? TagShadowConfig.normalBlurRadius
-                    : TagShadowConfig.disabledBlurRadius;
+        ? TagShadowConfig.hoverBlurRadius
+        : isSelected
+        ? TagShadowConfig.selectedBlurRadius
+        : isEnabled
+        ? TagShadowConfig.normalBlurRadius
+        : TagShadowConfig.disabledBlurRadius;
 
     final shadowOffset = widget.isDragging
         ? const Offset(
@@ -628,34 +610,34 @@ class _TagChipState extends ConsumerState<TagChip>
             TagShadowConfig.draggingOffsetY,
           )
         : _isHovering
-            ? const Offset(
-                TagShadowConfig.hoverOffsetX,
-                TagShadowConfig.hoverOffsetY,
-              )
-            : isSelected
-                ? const Offset(
-                    TagShadowConfig.selectedOffsetX,
-                    TagShadowConfig.selectedOffsetY,
-                  )
-                : isEnabled
-                    ? const Offset(
-                        TagShadowConfig.normalOffsetX,
-                        TagShadowConfig.normalOffsetY,
-                      )
-                    : const Offset(
-                        TagShadowConfig.disabledOffsetX,
-                        TagShadowConfig.disabledOffsetY,
-                      );
+        ? const Offset(
+            TagShadowConfig.hoverOffsetX,
+            TagShadowConfig.hoverOffsetY,
+          )
+        : isSelected
+        ? const Offset(
+            TagShadowConfig.selectedOffsetX,
+            TagShadowConfig.selectedOffsetY,
+          )
+        : isEnabled
+        ? const Offset(
+            TagShadowConfig.normalOffsetX,
+            TagShadowConfig.normalOffsetY,
+          )
+        : const Offset(
+            TagShadowConfig.disabledOffsetX,
+            TagShadowConfig.disabledOffsetY,
+          );
 
     final shadowOpacity = widget.isDragging
         ? TagShadowConfig.draggingOpacity
         : _isHovering
-            ? TagShadowConfig.hoverOpacity
-            : isSelected
-                ? TagShadowConfig.selectedOpacity
-                : isEnabled
-                    ? TagShadowConfig.normalOpacity
-                    : TagShadowConfig.disabledOpacity;
+        ? TagShadowConfig.hoverOpacity
+        : isSelected
+        ? TagShadowConfig.selectedOpacity
+        : isEnabled
+        ? TagShadowConfig.normalOpacity
+        : TagShadowConfig.disabledOpacity;
 
     // 获取渐变色
     final gradient = isEnabled
@@ -667,8 +649,9 @@ class _TagChipState extends ConsumerState<TagChip>
 
     // 标签芯片（包含文本和删除按钮）- 使用 AnimatedContainer 实现平滑颜色过渡
     final tagChipContent = AnimatedContainer(
-      duration:
-          reducedMotion ? Duration.zero : const Duration(milliseconds: 200),
+      duration: reducedMotion
+          ? Duration.zero
+          : const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
       padding: EdgeInsets.only(
         left: widget.compact
@@ -677,8 +660,8 @@ class _TagChipState extends ConsumerState<TagChip>
         right: (widget.onDelete != null && !widget.compact)
             ? 4
             : (widget.compact
-                ? TagChipSizes.compactHorizontalPadding
-                : TagChipSizes.normalHorizontalPadding),
+                  ? TagChipSizes.compactHorizontalPadding
+                  : TagChipSizes.normalHorizontalPadding),
         top: widget.compact
             ? TagChipSizes.compactVerticalPadding
             : TagChipSizes.normalVerticalPadding,
@@ -701,10 +684,7 @@ class _TagChipState extends ConsumerState<TagChip>
               ? TagChipSizes.compactBorderRadius
               : TagChipSizes.normalBorderRadius,
         ),
-        border: Border.all(
-          color: borderColor,
-          width: isSelected ? 1.5 : 1,
-        ),
+        border: Border.all(color: borderColor, width: isSelected ? 1.5 : 1),
         boxShadow: [
           BoxShadow(
             color: effectiveColor.withValues(alpha: shadowOpacity),
@@ -732,10 +712,7 @@ class _TagChipState extends ConsumerState<TagChip>
             ),
           // 删除按钮（常驻显示，在标签内部）
           if (widget.onDelete != null && !widget.compact)
-            _DeleteButton(
-              onTap: widget.onDelete!,
-              theme: theme,
-            ),
+            _DeleteButton(onTap: widget.onDelete!, theme: theme),
         ],
       ),
     );
@@ -756,8 +733,9 @@ class _TagChipState extends ConsumerState<TagChip>
 
     // Apply brightness overlay on hover - 使用 200ms 实现平滑过渡
     final tagChip = AnimatedContainer(
-      duration:
-          reducedMotion ? Duration.zero : const Duration(milliseconds: 200),
+      duration: reducedMotion
+          ? Duration.zero
+          : const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
       foregroundDecoration: BoxDecoration(
         color: _isHovering && !TagChip.isMobile && !reducedMotion
@@ -779,10 +757,7 @@ class _TagChipState extends ConsumerState<TagChip>
         final scale = reducedMotion
             ? 1.0
             : (widget.isDragging ? 1.05 : _scaleAnimation.value);
-        return Transform.scale(
-          scale: scale,
-          child: child,
-        );
+        return Transform.scale(scale: scale, child: child);
       },
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -980,10 +955,7 @@ class _DeleteButton extends StatefulWidget {
   final VoidCallback onTap;
   final ThemeData theme;
 
-  const _DeleteButton({
-    required this.onTap,
-    required this.theme,
-  });
+  const _DeleteButton({required this.onTap, required this.theme});
 
   @override
   State<_DeleteButton> createState() => _DeleteButtonState();
@@ -1059,8 +1031,9 @@ class _DeleteButtonState extends State<_DeleteButton>
                       padding: const EdgeInsets.all(2),
                       decoration: BoxDecoration(
                         color: _isHovering
-                            ? widget.theme.colorScheme.error
-                                .withValues(alpha: 0.15)
+                            ? widget.theme.colorScheme.error.withValues(
+                                alpha: 0.15,
+                              )
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(4),
                       ),
@@ -1069,8 +1042,9 @@ class _DeleteButtonState extends State<_DeleteButton>
                         size: 12,
                         color: _isHovering
                             ? widget.theme.colorScheme.error
-                            : widget.theme.colorScheme.onSurface
-                                .withValues(alpha: 0.4),
+                            : widget.theme.colorScheme.onSurface.withValues(
+                                alpha: 0.4,
+                              ),
                       ),
                     ),
                   ),
@@ -1163,9 +1137,10 @@ class _FavoriteButtonState extends State<_FavoriteButton>
                     decoration: BoxDecoration(
                       color: _isHovering
                           ? (widget.isFavorite
-                              ? Colors.red.withValues(alpha: 0.15)
-                              : widget.theme.colorScheme.primary
-                                  .withValues(alpha: 0.15))
+                                ? Colors.red.withValues(alpha: 0.15)
+                                : widget.theme.colorScheme.primary.withValues(
+                                    alpha: 0.15,
+                                  ))
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(4),
                     ),
@@ -1176,12 +1151,13 @@ class _FavoriteButtonState extends State<_FavoriteButton>
                       size: 12,
                       color: widget.isFavorite
                           ? (_isHovering
-                              ? Colors.red.shade400
-                              : Colors.red.shade300)
+                                ? Colors.red.shade400
+                                : Colors.red.shade300)
                           : (_isHovering
-                              ? widget.theme.colorScheme.primary
-                              : widget.theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.4)),
+                                ? widget.theme.colorScheme.primary
+                                : widget.theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.4,
+                                  )),
                     ),
                   ),
                 );
@@ -1325,11 +1301,7 @@ class _BatchSelectionCheckbox extends StatelessWidget {
           ),
         ),
         child: isSelected
-            ? Icon(
-                Icons.check,
-                size: 12,
-                color: theme.colorScheme.onPrimary,
-              )
+            ? Icon(Icons.check, size: 12, color: theme.colorScheme.onPrimary)
             : null,
       ),
     );

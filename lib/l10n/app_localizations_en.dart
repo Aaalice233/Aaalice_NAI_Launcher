@@ -991,7 +991,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get prompt_cooccurrenceRecommendationSubtitle =>
-      'Automatically recommend related tags after entering a tag';
+      'Suggest after accepting a tag; Ctrl+Shift+Space or Ctrl+click also opens related tags';
 
   @override
   String get prompt_regexRulesManage => 'Regex Replace Rules...';
@@ -9004,121 +9004,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_continueGeneration => 'Continue Generation';
 
   @override
-  String get dataSource_clearingData => 'Clearing data...';
-
-  @override
-  String get dataSource_clearTitle => 'Clear Tag Data Source';
-
-  @override
-  String get dataSource_clearContent =>
-      'Clear Danbooru tag autocomplete data?\n\nThis will clear:\n- Danbooru tag autocomplete data\n\nThis will be preserved:\n- Chinese/English tag translations\n- Tag co-occurrence data\n\nTag data will be loaded again automatically on the next startup.';
-
-  @override
-  String get dataSource_confirmClear => 'Clear';
-
-  @override
-  String dataSource_clearSuccess(Object count) {
-    return 'Cleared $count rows. Data will be restored automatically on the next startup.';
-  }
-
-  @override
-  String get dataSource_clearFailed => 'Clear failed';
-
-  @override
-  String dataSource_clearFailedWithError(Object error) {
-    return 'Clear failed: $error';
-  }
-
-  @override
-  String get dataSource_clearTagAutocompleteData =>
-      'Clear tag autocomplete data';
-
-  @override
-  String get dataSource_ready => 'Data Source Ready';
-
-  @override
-  String get dataSource_notLoaded => 'Data Source Not Loaded';
-
-  @override
-  String dataSource_cachedTagCount(Object count) {
-    return 'Cached $count tags';
-  }
-
-  @override
-  String get dataSource_clickSyncToDownload =>
-      'Click \"Sync Now\" to download tag data';
-
-  @override
-  String dataSource_translationCount(Object count) {
-    return '$count translations';
-  }
-
-  @override
-  String dataSource_cooccurrenceCount(Object count) {
-    return '$count co-occurrences';
-  }
-
-  @override
-  String dataSource_lastUpdated(Object time) {
-    return 'Last updated: $time';
-  }
-
-  @override
-  String get dataSource_heatThresholdTitle => 'Heat Threshold';
-
-  @override
-  String get dataSource_heatThresholdSubtitle =>
-      'Choose heat thresholds for each tag category';
-
-  @override
-  String get dataSource_autoRefreshInterval => 'Auto Refresh Interval';
-
-  @override
   String get dataSource_syncNow => 'Sync Now';
-
-  @override
-  String get dataSource_cancelSync => 'Cancel Sync';
-
-  @override
-  String get dataSource_syncingTags => 'Syncing tag data...';
-
-  @override
-  String dataSource_loadFailed(Object error) {
-    return 'Load failed: $error';
-  }
-
-  @override
-  String get dataSource_hotAll => 'All';
-
-  @override
-  String get dataSource_hot10k => 'Hot >10K';
-
-  @override
-  String get dataSource_common1k => 'Common >1K';
-
-  @override
-  String get dataSource_common500 => 'Common >500';
-
-  @override
-  String get dataSource_normal100 => 'Normal >100';
-
-  @override
-  String get dataSource_minimal50 => 'Minimal >50';
-
-  @override
-  String get dataSource_custom => 'Custom';
-
-  @override
-  String get dataSource_refresh7Days => '7 days';
-
-  @override
-  String get dataSource_refresh15Days => '15 days';
-
-  @override
-  String get dataSource_refresh30Days => '30 days';
-
-  @override
-  String get dataSource_refreshNever => 'Never';
 
   @override
   String get settings_comfyUiEnable => 'Enable ComfyUI Integration';
@@ -11506,4 +11392,226 @@ class AppLocalizationsEn extends AppLocalizations {
   String router_pageNotFound(String error) {
     return 'Page not found: $error';
   }
+
+  @override
+  String get autocomplete_translating => 'Translating…';
+
+  @override
+  String get autocomplete_missingTranslation => 'Not translated';
+
+  @override
+  String autocomplete_translationCoverage(int translated, int total) {
+    return 'Translation coverage: $translated/$total';
+  }
+
+  @override
+  String autocomplete_aliasMatch(String alias) {
+    return 'Alias: $alias';
+  }
+
+  @override
+  String get autocomplete_settingsTitle => 'Autocomplete';
+
+  @override
+  String get autocomplete_enable => 'Enable autocomplete';
+
+  @override
+  String get autocomplete_resultLimit => 'Result count';
+
+  @override
+  String get autocomplete_allResults => 'All';
+
+  @override
+  String get autocomplete_showAliases => 'Show matched aliases';
+
+  @override
+  String get autocomplete_showTranslations => 'Show Chinese translations';
+
+  @override
+  String get autocomplete_autoComma => 'Add a comma after insertion';
+
+  @override
+  String get autocomplete_replaceUnderscores =>
+      'Replace underscores with spaces on insertion';
+
+  @override
+  String get autocomplete_dataSourcesTitle => 'Data Sources & Cache';
+
+  @override
+  String get autocomplete_relatedTagsTitle => 'Co-occurrence and related tags';
+
+  @override
+  String get autocomplete_relatedTagsSubtitle =>
+      'Suggest after accepting a tag; also use Ctrl+Shift+Space or Ctrl+click on a tag';
+
+  @override
+  String get autocomplete_danbooruApi => 'Danbooru online supplement';
+
+  @override
+  String get autocomplete_danbooruPrivacy =>
+      'Only the current English tag is sent; the full prompt is never uploaded';
+
+  @override
+  String get autocomplete_llmTranslation =>
+      'Use Prompt Assistant for missing translations';
+
+  @override
+  String get autocomplete_llmRouteMissing =>
+      'Configure a Translate route in Prompt Assistant first';
+
+  @override
+  String autocomplete_llmRoute(String route) {
+    return 'Current route: $route. Model usage may incur fees.';
+  }
+
+  @override
+  String get autocomplete_cooccurrence => 'Offline related-tag database';
+
+  @override
+  String autocomplete_entryCount(int count) {
+    return '$count entries';
+  }
+
+  @override
+  String get autocomplete_cacheTitle => 'Online & AI Cache';
+
+  @override
+  String get autocomplete_clearDanbooruCache => 'Clear Danbooru cache';
+
+  @override
+  String get autocomplete_clearAiCache => 'Clear AI translation cache';
+
+  @override
+  String autocomplete_cacheCleared(int count) {
+    return 'Cleared $count cached entries';
+  }
+
+  @override
+  String get autocomplete_baseCatalog => 'Base Danbooru catalog';
+
+  @override
+  String autocomplete_catalogStatus(String count, String version) {
+    return '$count tags · data version $version';
+  }
+
+  @override
+  String get autocomplete_zhDictionary => 'ffdkj Simplified Chinese dictionary';
+
+  @override
+  String autocomplete_zhInstalled(int count, String version) {
+    return 'Installed: $count entries · version $version';
+  }
+
+  @override
+  String get autocomplete_zhNotInstalled =>
+      'Not installed; English autocomplete remains available';
+
+  @override
+  String get autocomplete_zhInstallPrompt =>
+      'Install the ffdkj dictionary for Chinese labels and reverse lookup. It is downloaded directly from upstream.';
+
+  @override
+  String get autocomplete_checkUpdate => 'Check for updates';
+
+  @override
+  String get autocomplete_update => 'Update';
+
+  @override
+  String get autocomplete_repair => 'Repair';
+
+  @override
+  String get autocomplete_install => 'Install';
+
+  @override
+  String get autocomplete_remove => 'Remove';
+
+  @override
+  String get autocomplete_removeConfirm =>
+      'Remove the installed Chinese translation dictionary? You can install it again later.';
+
+  @override
+  String get autocomplete_sourceBase => 'Bundled base catalog';
+
+  @override
+  String get autocomplete_sourceZh => 'ffdkj Chinese dictionary';
+
+  @override
+  String get autocomplete_sourceApi => 'Danbooru API';
+
+  @override
+  String get autocomplete_sourceRelated => 'Offline related tags';
+
+  @override
+  String get autocomplete_sourceAi => 'Prompt Assistant translation';
+
+  @override
+  String get autocomplete_headerTitle => 'Tag autocomplete';
+
+  @override
+  String get autocomplete_relatedHeaderTitle => 'Related tags';
+
+  @override
+  String get autocomplete_relatedLoading =>
+      'Querying offline co-occurrences and online related tags…';
+
+  @override
+  String get autocomplete_relatedEmpty => 'No related tags are available';
+
+  @override
+  String autocomplete_relatedMetric(int count, String score) {
+    return '$count co-occurrences · Jaccard $score';
+  }
+
+  @override
+  String get autocomplete_relatedPin =>
+      'Pin this tag to insert multiple related tags';
+
+  @override
+  String get autocomplete_relatedUnpin =>
+      'Unpin and resume chained recommendations';
+
+  @override
+  String get autocomplete_statusBase => 'Local';
+
+  @override
+  String get autocomplete_statusRelated => 'Related';
+
+  @override
+  String get autocomplete_statusDictionary => 'Translation';
+
+  @override
+  String get autocomplete_statusOnline => 'Online';
+
+  @override
+  String get autocomplete_statusAi => 'AI';
+
+  @override
+  String get autocomplete_statusReady => 'Ready';
+
+  @override
+  String get autocomplete_statusNotInstalled => 'Not installed';
+
+  @override
+  String autocomplete_statusDownloading(int progress) {
+    return 'Downloading $progress%';
+  }
+
+  @override
+  String get autocomplete_statusUpdateAvailable => 'Update';
+
+  @override
+  String get autocomplete_statusError => 'Error';
+
+  @override
+  String get autocomplete_statusDisabled => 'Off';
+
+  @override
+  String get autocomplete_statusSearching => 'Searching';
+
+  @override
+  String get autocomplete_statusTranslating => 'Translating';
+
+  @override
+  String get autocomplete_openSettings =>
+      'Open autocomplete and data source settings';
 }

@@ -138,8 +138,10 @@ class _TagViewState extends ConsumerState<TagView>
   }
 
   void _handleWeightChanged(String id, double newWeight) {
-    final clampedWeight =
-        newWeight.clamp(PromptTag.minWeight, PromptTag.maxWeight);
+    final clampedWeight = newWeight.clamp(
+      PromptTag.minWeight,
+      PromptTag.maxWeight,
+    );
     final newTags = widget.tags.map((tag) {
       if (tag.id == id) {
         return tag.copyWith(weight: clampedWeight);
@@ -215,8 +217,10 @@ class _TagViewState extends ConsumerState<TagView>
       return;
     }
 
-    final parts =
-        text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty);
+    final parts = text
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty);
     var newTags = List<PromptTag>.from(widget.tags);
 
     for (final part in parts) {
@@ -339,13 +343,13 @@ class _TagViewState extends ConsumerState<TagView>
               child: widget.isLoading
                   ? _buildSkeletonLoading(theme)
                   : widget.tags.isEmpty && !_isAddingTag
-                      ? _buildEmptyState(theme)
-                      : widget.tags.isEmpty && _isAddingTag
-                          ? Center(child: _buildAddTagInput(theme))
-                          : AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 300),
-                              child: _buildTagsArea(theme),
-                            ),
+                  ? _buildEmptyState(theme)
+                  : widget.tags.isEmpty && _isAddingTag
+                  ? Center(child: _buildAddTagInput(theme))
+                  : AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: _buildTagsArea(theme),
+                    ),
             ),
           ],
         ),
@@ -467,11 +471,7 @@ class _TagViewState extends ConsumerState<TagView>
             ),
           ),
           child: allSelected
-              ? Icon(
-                  Icons.check,
-                  size: 14,
-                  color: theme.colorScheme.onPrimary,
-                )
+              ? Icon(Icons.check, size: 14, color: theme.colorScheme.onPrimary)
               : Icon(
                   Icons.check_box_outline_blank,
                   size: 18,
@@ -588,8 +588,9 @@ class _TagViewState extends ConsumerState<TagView>
                       widget.emptyHint ?? context.l10n.tag_emptyHint,
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.7,
+                        ),
                         fontSize: 14,
                         height: 1.5,
                       ),
@@ -602,8 +603,9 @@ class _TagViewState extends ConsumerState<TagView>
                       context.l10n.tag_emptyHintSub,
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.5,
+                        ),
                         fontSize: 12,
                         height: 1.4,
                       ),
@@ -755,8 +757,9 @@ class _TagViewState extends ConsumerState<TagView>
         final isTarget = _dragTargetIndex == index && candidateData.isNotEmpty;
 
         return AnimatedContainer(
-          duration:
-              reducedMotion ? Duration.zero : const Duration(milliseconds: 150),
+          duration: reducedMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 150),
           padding: EdgeInsets.only(left: isTarget ? 28 : 0),
           child: Stack(
             children: [
@@ -780,8 +783,9 @@ class _TagViewState extends ConsumerState<TagView>
                       borderRadius: BorderRadius.circular(2),
                       boxShadow: [
                         BoxShadow(
-                          color:
-                              theme.colorScheme.primary.withValues(alpha: 0.5),
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: 0.5,
+                          ),
                           blurRadius: 8,
                         ),
                       ],
@@ -945,8 +949,9 @@ class _TagViewState extends ConsumerState<TagView>
           constraints: const BoxConstraints(maxWidth: 220),
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest
-                .withValues(alpha: 0.5),
+            color: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.5,
+            ),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: theme.colorScheme.primary.withValues(alpha: 0.4),
@@ -963,7 +968,6 @@ class _TagViewState extends ConsumerState<TagView>
                   ref: ref,
                   enabled: enableAutocomplete,
                   config: const AutocompleteConfig(
-                    maxSuggestions: 10,
                     showTranslation: true,
                     autoInsertComma: false,
                   ),
@@ -973,8 +977,9 @@ class _TagViewState extends ConsumerState<TagView>
                       hintText: context.l10n.tag_inputHint,
                       hintStyle: TextStyle(
                         fontSize: 12,
-                        color:
-                            theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.4,
+                        ),
                       ),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 10,
@@ -1045,8 +1050,9 @@ class _TagViewState extends ConsumerState<TagView>
                 height: widget.compact ? 28.0 : 32.0,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.3),
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.3,
+                    ),
                     borderRadius: BorderRadius.circular(
                       widget.compact
                           ? TagBorderRadius.small
@@ -1205,8 +1211,9 @@ class _TagCountBadgeState extends State<_TagCountBadge> {
             ),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: widget.theme.colorScheme.primary
-                  .withValues(alpha: _isHovering ? 0.5 : 0.3),
+              color: widget.theme.colorScheme.primary.withValues(
+                alpha: _isHovering ? 0.5 : 0.3,
+              ),
               width: 1,
             ),
           ),
@@ -1229,8 +1236,9 @@ class _TagCountBadgeState extends State<_TagCountBadge> {
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w500,
-                    color: widget.theme.colorScheme.onSurface
-                        .withValues(alpha: 0.6),
+                    color: widget.theme.colorScheme.onSurface.withValues(
+                      alpha: 0.6,
+                    ),
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
@@ -1279,18 +1287,22 @@ class _BreakdownMenu extends StatelessWidget {
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                   child: Container(
-                    constraints:
-                        const BoxConstraints(minWidth: 180, maxWidth: 220),
+                    constraints: const BoxConstraints(
+                      minWidth: 180,
+                      maxWidth: 220,
+                    ),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          theme.colorScheme.surfaceContainerHighest
-                              .withValues(alpha: 0.9),
-                          theme.colorScheme.surfaceContainerHigh
-                              .withValues(alpha: 0.85),
+                          theme.colorScheme.surfaceContainerHighest.withValues(
+                            alpha: 0.9,
+                          ),
+                          theme.colorScheme.surfaceContainerHigh.withValues(
+                            alpha: 0.85,
+                          ),
                         ],
                       ),
                       borderRadius: BorderRadius.circular(12),
@@ -1300,8 +1312,9 @@ class _BreakdownMenu extends StatelessWidget {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color:
-                              theme.colorScheme.shadow.withValues(alpha: 0.2),
+                          color: theme.colorScheme.shadow.withValues(
+                            alpha: 0.2,
+                          ),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -1329,7 +1342,8 @@ class _BreakdownMenu extends StatelessWidget {
                         ...sortedCategories.map((entry) {
                           final categoryName = getCategoryName(entry.key);
                           final count = entry.value;
-                          final percentage = (count /
+                          final percentage =
+                              (count /
                               breakdown.values.reduce((a, b) => a + b) *
                               100);
 
@@ -1368,7 +1382,8 @@ class _BreakdownMenu extends StatelessWidget {
                                   height: 4,
                                   decoration: BoxDecoration(
                                     color: theme
-                                        .colorScheme.surfaceContainerHighest,
+                                        .colorScheme
+                                        .surfaceContainerHighest,
                                     borderRadius: BorderRadius.circular(2),
                                   ),
                                   child: FractionallySizedBox(

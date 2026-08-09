@@ -97,7 +97,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $files = @(
-            "assets/databases/translation.db",
+            "assets/databases/tag_catalog.db",
             "assets/databases/cooccurrence.db"
           )
           foreach ($file in $files) {
@@ -123,6 +123,9 @@ jobs:
 
       - name: Resolve dependencies
         run: flutter pub get
+
+      - name: Validate bundled autocomplete databases
+        run: dart run tool/tag_catalog/verify_bundled_databases.dart
 
       - name: Generate localizations
         run: flutter gen-l10n
@@ -179,7 +182,7 @@ jobs:
 
       - name: Verify bundled databases
         run: |
-          for file in assets/databases/translation.db assets/databases/cooccurrence.db; do
+          for file in assets/databases/tag_catalog.db assets/databases/cooccurrence.db; do
             test -f "$file"
             size="$(wc -c < "$file")"
             if [ "$size" -lt 1024 ]; then
@@ -195,6 +198,9 @@ jobs:
 
       - name: Resolve dependencies
         run: flutter pub get
+
+      - name: Validate bundled autocomplete databases
+        run: dart run tool/tag_catalog/verify_bundled_databases.dart
 
       - name: Generate localizations
         run: flutter gen-l10n

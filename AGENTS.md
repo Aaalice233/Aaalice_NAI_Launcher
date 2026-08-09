@@ -11,6 +11,8 @@
 ```powershell
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/dev_hot_reload_window.ps1
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/dev_hot_reload.ps1
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/trigger_hot_reload.ps1
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/capture_dev_window.ps1
 flutter pub get
 dart run build_runner build --delete-conflicting-outputs
 flutter run -d windows
@@ -19,7 +21,7 @@ flutter analyze
 flutter build windows --release
 ```
 
-Windows 桌面热重载优先使用 `scripts/dev_hot_reload_window.ps1`，它会打开独立 PowerShell 窗口并调用 `scripts/dev_hot_reload.ps1`。后者会先运行 `build_runner`，再进入 `flutter run -d windows`，之后可在该窗口按 `r` 热重载、`R` 热重启、`q` 退出。依赖变更后运行 `flutter pub get`。新增或修改 Riverpod providers、Freezed models、JSON models、Hive adapters 或生成路由后运行 `build_runner`。
+Windows 桌面热重载优先使用 `scripts/dev_hot_reload_window.ps1`，它会打开独立 PowerShell 窗口并调用 `scripts/dev_hot_reload.ps1`。后者会先运行 `build_runner`，再进入 `flutter run -d windows`，之后可在该窗口按 `r` 热重载、`R` 热重启、`q` 退出。已有该开发会话时，代码修改并完成最小验证后应自动运行 `scripts/trigger_hot_reload.ps1`；该脚本直接向现有 Flutter 控制台发送热重载，不启动第二个 `flutter attach`，需要完整状态重置时传入 `-Restart`。桌面 UI 改动可用 `scripts/capture_dev_window.ps1` 截取实际 Debug 窗口，默认输出到 `tool/.tmp/nai_launcher_window.png`；截图验证完需删除临时图片。依赖变更后运行 `flutter pub get`。新增或修改 Riverpod providers、Freezed models、JSON models、Hive adapters 或生成路由后运行 `build_runner`。
 
 ## 代码风格与命名约定
 

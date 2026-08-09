@@ -10,7 +10,6 @@ import '../../core/database/database.dart';
 import '../../core/database/datasources/gallery_data_source.dart';
 import '../../core/services/danbooru_tags_lazy_service.dart';
 import '../../core/services/data_migration_service.dart';
-import '../../core/services/translation/translation_providers.dart';
 import '../../core/services/warmup_task_scheduler.dart';
 
 import 'data_source_cache_provider.dart';
@@ -333,19 +332,7 @@ class WarmupNotifier extends _$WarmupNotifier {
       ),
     );
 
-    // 2. 翻译数据初始化（在预热阶段完成，不显示后台进度）
-    _scheduler.registerTask(
-      PhasedWarmupTask(
-        name: 'warmup_translationInit',
-        displayName: 'warmup_translationInit',
-        phase: WarmupPhase.quick,
-        weight: 1,
-        timeout: const Duration(seconds: 35),
-        task: _preloadTranslationInBackground,
-      ),
-    );
-
-    // 3. 共现数据初始化（轻量级检查，依赖数据库）
+    // 2. 共现数据初始化（轻量级检查，依赖数据库）
     _scheduler.registerTask(
       PhasedWarmupTask(
         name: 'warmup_cooccurrenceInit',
@@ -416,42 +403,7 @@ class WarmupNotifier extends _$WarmupNotifier {
       ),
     );
 
-    // 8. 一般标签和角色标签数据拉取（在预热阶段完成，进入主页后不再显示后台进度）
-    _scheduler.registerTask(
-      PhasedWarmupTask(
-        name: 'warmup_generalTagsFetch',
-        displayName: 'warmup_danbooruTagsInit',
-        phase: WarmupPhase.quick,
-        weight: 2,
-        timeout: const Duration(seconds: 90),
-        task: _fetchGeneralAndCharacterTags,
-      ),
-    );
-
-    // 9. 画师标签拉取（改为预热阶段执行，不再在后台执行）
-    _scheduler.registerTask(
-      PhasedWarmupTask(
-        name: 'warmup_artistTagsFetch',
-        displayName: 'warmup_artistsSync',
-        phase: WarmupPhase.quick,
-        weight: 2,
-        timeout: const Duration(seconds: 60),
-        task: _fetchArtistTagsInWarmup,
-      ),
-    );
-
-    // 注意：共现数据导入在 Background 阶段，避免阻塞主界面
-
-    // 9. 检查并恢复数据（处理清除缓存后的数据缺失）
-    _scheduler.registerTask(
-      PhasedWarmupTask(
-        name: 'warmup_checkAndRecoverData',
-        displayName: 'warmup_checkAndRecoverData',
-        phase: WarmupPhase.quick,
-        weight: 1,
-        task: _checkAndRecoverData,
-      ),
-    );
+    // 标签 catalog 随应用提供并按需只读查询；启动阶段不再下载全量标签。
   }
 
   void _registerBackgroundPhaseTasks() {
@@ -653,22 +605,8 @@ class WarmupNotifier extends _$WarmupNotifier {
     }
   }
 
-  Future<void> _preloadTranslationInBackground() async {
-    // 统一翻译服务在读取 provider 时自动初始化
-    // 增加超时时间，CSV加载可能需要较长时间
-    try {
-      await ref
-          .read(unifiedTranslationServiceProvider.future)
-          .timeout(const Duration(seconds: 30));
-    } on TimeoutException {
-      AppLogger.w(
-        'Translation initialization timeout, will retry later',
-        'Warmup',
-      );
-    }
-  }
-
-  /// 拉取一般标签和角色标签
+  // TODO: Remove with the retired dynamic tag-cache implementation.
+  // ignore: unused_element
   Future<void> _fetchGeneralAndCharacterTags() async {
     AppLogger.i('[_fetchGeneralAndCharacterTags] 开始检查并拉取标签...', 'Warmup');
 
@@ -859,6 +797,7 @@ class WarmupNotifier extends _$WarmupNotifier {
   ///
   /// 使用 Provider 的 syncArtists 方法，在预热阶段同步完成
   /// 由于有热度限制，数据量不大，不会阻塞太久
+  // ignore: unused_element
   Future<void> _fetchArtistTagsInWarmup() async {
     AppLogger.i('Starting artist tags fetch in warmup phase...', 'Warmup');
 
@@ -883,7 +822,7 @@ class WarmupNotifier extends _$WarmupNotifier {
     }
   }
 
-  /// 检查并恢复数据（处理清除缓存后的数据缺失）
+  // ignore: unused_element
   Future<void> _checkAndRecoverData() async {
     AppLogger.i('检查数据完整性...', 'Warmup');
 

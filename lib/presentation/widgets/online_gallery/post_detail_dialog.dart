@@ -11,7 +11,7 @@ import '../../router/app_router.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/services/danbooru_auth_service.dart';
-import '../../../data/services/tag_translation_service.dart';
+import '../../../core/autocomplete/tag_translation_lookup.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/online_gallery_provider.dart';
 import '../../providers/pending_prompt_provider.dart';
@@ -484,7 +484,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
 
   /// 标签区域
   Widget _buildTagsSection(ThemeData theme) {
-    final translationService = ref.watch(tagTranslationServiceProvider);
+    final translationService = ref.watch(tagTranslationLookupProvider);
     final generalTags = _generalDisplayTags(widget.post);
 
     return SingleChildScrollView(
@@ -804,7 +804,7 @@ class _TagSection extends StatelessWidget {
   final String title;
   final List<String> tags;
   final Color color;
-  final TagTranslationService translationService;
+  final TagTranslationLookup translationService;
   final Function(String) onTagTap;
 
   const _TagSection({

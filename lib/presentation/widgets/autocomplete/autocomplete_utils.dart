@@ -136,18 +136,21 @@ class AutocompleteUtils {
     // 添加前导空格（如果前面有内容）
     final needsInsertedLeadingSpace =
         leadingWhitespace.isEmpty && prefix.isNotEmpty && !prefix.endsWith(' ');
-    final effectiveLeadingWhitespace =
-        needsInsertedLeadingSpace ? ' ' : leadingWhitespace;
+    final effectiveLeadingWhitespace = needsInsertedLeadingSpace
+        ? ' '
+        : leadingWhitespace;
 
     // 添加逗号和空格（如果配置了自动插入）
-    final trailingComma = config.autoInsertComma &&
+    final trailingComma =
+        config.autoInsertComma &&
             (suffix.isEmpty || !suffix.trimLeft().startsWith(','))
         ? ', '
         : '';
 
     final newText =
         '$prefix$effectiveLeadingWhitespace$wrappedTagName$trailingComma$suffix';
-    final newCursorPosition = prefix.length +
+    final newCursorPosition =
+        prefix.length +
         effectiveLeadingWhitespace.length +
         wrappedTagName.length +
         trailingComma.length;
@@ -362,11 +365,13 @@ class AutocompleteUtils {
     final horizontalPadding = contentPadding is EdgeInsets
         ? contentPadding.left + contentPadding.right
         : 24.0;
-    final leftPadding =
-        contentPadding is EdgeInsets ? contentPadding.left : 12.0;
+    final leftPadding = contentPadding is EdgeInsets
+        ? contentPadding.left
+        : 12.0;
     final topPadding = contentPadding is EdgeInsets ? contentPadding.top : 12.0;
-    final bottomPadding =
-        contentPadding is EdgeInsets ? contentPadding.bottom : 12.0;
+    final bottomPadding = contentPadding is EdgeInsets
+        ? contentPadding.bottom
+        : 12.0;
 
     final availableWidth = renderBox.size.width - horizontalPadding;
 
@@ -390,8 +395,10 @@ class AutocompleteUtils {
       scrollOffset = cursorOffset.dy - visibleHeight + lineHeight;
     }
 
-    final visibleCursorY =
-        (cursorOffset.dy - scrollOffset).clamp(0.0, visibleHeight - lineHeight);
+    final visibleCursorY = (cursorOffset.dy - scrollOffset).clamp(
+      0.0,
+      visibleHeight - lineHeight,
+    );
 
     return Offset(
       leftPadding + cursorOffset.dx,

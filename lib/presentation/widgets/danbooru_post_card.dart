@@ -10,7 +10,7 @@ import '../../core/utils/localization_extension.dart';
 import '../../core/utils/file_picker_utils.dart';
 import '../../data/models/online_gallery/danbooru_post.dart';
 import '../../data/models/queue/replication_task.dart';
-import '../../data/services/tag_translation_service.dart';
+import '../../core/autocomplete/tag_translation_lookup.dart';
 import '../providers/character_prompt_provider.dart';
 import '../providers/pending_prompt_provider.dart';
 import '../providers/replication_queue_provider.dart';
@@ -674,7 +674,7 @@ class _HoverPreviewCardInner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final translationService = ref.watch(tagTranslationServiceProvider);
+    final translationService = ref.watch(tagTranslationLookupProvider);
 
     const maxWidth = 320.0;
     const maxHeight = 360.0;
@@ -923,7 +923,7 @@ class _TagRow extends StatefulWidget {
   final IconData icon;
   final Color color;
   final List<String> tags;
-  final TagTranslationService translationService;
+  final TagTranslationLookup translationService;
   final bool isCharacter;
 
   const _TagRow({

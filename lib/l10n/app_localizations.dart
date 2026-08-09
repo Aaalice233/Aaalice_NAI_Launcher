@@ -1897,7 +1897,7 @@ abstract class AppLocalizations {
   /// No description provided for @prompt_cooccurrenceRecommendationSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Automatically recommend related tags after entering a tag'**
+  /// **'Suggest after accepting a tag; Ctrl+Shift+Space or Ctrl+click also opens related tags'**
   String get prompt_cooccurrenceRecommendationSubtitle;
 
   /// No description provided for @prompt_regexRulesManage.
@@ -15911,203 +15911,11 @@ abstract class AppLocalizations {
   /// **'Continue Generation'**
   String get settings_continueGeneration;
 
-  /// No description provided for @dataSource_clearingData.
-  ///
-  /// In en, this message translates to:
-  /// **'Clearing data...'**
-  String get dataSource_clearingData;
-
-  /// No description provided for @dataSource_clearTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear Tag Data Source'**
-  String get dataSource_clearTitle;
-
-  /// No description provided for @dataSource_clearContent.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear Danbooru tag autocomplete data?\n\nThis will clear:\n- Danbooru tag autocomplete data\n\nThis will be preserved:\n- Chinese/English tag translations\n- Tag co-occurrence data\n\nTag data will be loaded again automatically on the next startup.'**
-  String get dataSource_clearContent;
-
-  /// No description provided for @dataSource_confirmClear.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear'**
-  String get dataSource_confirmClear;
-
-  /// No description provided for @dataSource_clearSuccess.
-  ///
-  /// In en, this message translates to:
-  /// **'Cleared {count} rows. Data will be restored automatically on the next startup.'**
-  String dataSource_clearSuccess(Object count);
-
-  /// No description provided for @dataSource_clearFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear failed'**
-  String get dataSource_clearFailed;
-
-  /// No description provided for @dataSource_clearFailedWithError.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear failed: {error}'**
-  String dataSource_clearFailedWithError(Object error);
-
-  /// No description provided for @dataSource_clearTagAutocompleteData.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear tag autocomplete data'**
-  String get dataSource_clearTagAutocompleteData;
-
-  /// No description provided for @dataSource_ready.
-  ///
-  /// In en, this message translates to:
-  /// **'Data Source Ready'**
-  String get dataSource_ready;
-
-  /// No description provided for @dataSource_notLoaded.
-  ///
-  /// In en, this message translates to:
-  /// **'Data Source Not Loaded'**
-  String get dataSource_notLoaded;
-
-  /// No description provided for @dataSource_cachedTagCount.
-  ///
-  /// In en, this message translates to:
-  /// **'Cached {count} tags'**
-  String dataSource_cachedTagCount(Object count);
-
-  /// No description provided for @dataSource_clickSyncToDownload.
-  ///
-  /// In en, this message translates to:
-  /// **'Click \"Sync Now\" to download tag data'**
-  String get dataSource_clickSyncToDownload;
-
-  /// No description provided for @dataSource_translationCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} translations'**
-  String dataSource_translationCount(Object count);
-
-  /// No description provided for @dataSource_cooccurrenceCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} co-occurrences'**
-  String dataSource_cooccurrenceCount(Object count);
-
-  /// No description provided for @dataSource_lastUpdated.
-  ///
-  /// In en, this message translates to:
-  /// **'Last updated: {time}'**
-  String dataSource_lastUpdated(Object time);
-
-  /// No description provided for @dataSource_heatThresholdTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Heat Threshold'**
-  String get dataSource_heatThresholdTitle;
-
-  /// No description provided for @dataSource_heatThresholdSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose heat thresholds for each tag category'**
-  String get dataSource_heatThresholdSubtitle;
-
-  /// No description provided for @dataSource_autoRefreshInterval.
-  ///
-  /// In en, this message translates to:
-  /// **'Auto Refresh Interval'**
-  String get dataSource_autoRefreshInterval;
-
   /// No description provided for @dataSource_syncNow.
   ///
   /// In en, this message translates to:
   /// **'Sync Now'**
   String get dataSource_syncNow;
-
-  /// No description provided for @dataSource_cancelSync.
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel Sync'**
-  String get dataSource_cancelSync;
-
-  /// No description provided for @dataSource_syncingTags.
-  ///
-  /// In en, this message translates to:
-  /// **'Syncing tag data...'**
-  String get dataSource_syncingTags;
-
-  /// No description provided for @dataSource_loadFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Load failed: {error}'**
-  String dataSource_loadFailed(Object error);
-
-  /// No description provided for @dataSource_hotAll.
-  ///
-  /// In en, this message translates to:
-  /// **'All'**
-  String get dataSource_hotAll;
-
-  /// No description provided for @dataSource_hot10k.
-  ///
-  /// In en, this message translates to:
-  /// **'Hot >10K'**
-  String get dataSource_hot10k;
-
-  /// No description provided for @dataSource_common1k.
-  ///
-  /// In en, this message translates to:
-  /// **'Common >1K'**
-  String get dataSource_common1k;
-
-  /// No description provided for @dataSource_common500.
-  ///
-  /// In en, this message translates to:
-  /// **'Common >500'**
-  String get dataSource_common500;
-
-  /// No description provided for @dataSource_normal100.
-  ///
-  /// In en, this message translates to:
-  /// **'Normal >100'**
-  String get dataSource_normal100;
-
-  /// No description provided for @dataSource_minimal50.
-  ///
-  /// In en, this message translates to:
-  /// **'Minimal >50'**
-  String get dataSource_minimal50;
-
-  /// No description provided for @dataSource_custom.
-  ///
-  /// In en, this message translates to:
-  /// **'Custom'**
-  String get dataSource_custom;
-
-  /// No description provided for @dataSource_refresh7Days.
-  ///
-  /// In en, this message translates to:
-  /// **'7 days'**
-  String get dataSource_refresh7Days;
-
-  /// No description provided for @dataSource_refresh15Days.
-  ///
-  /// In en, this message translates to:
-  /// **'15 days'**
-  String get dataSource_refresh15Days;
-
-  /// No description provided for @dataSource_refresh30Days.
-  ///
-  /// In en, this message translates to:
-  /// **'30 days'**
-  String get dataSource_refresh30Days;
-
-  /// No description provided for @dataSource_refreshNever.
-  ///
-  /// In en, this message translates to:
-  /// **'Never'**
-  String get dataSource_refreshNever;
 
   /// No description provided for @settings_comfyUiEnable.
   ///
@@ -20176,6 +19984,390 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Page not found: {error}'**
   String router_pageNotFound(String error);
+
+  /// No description provided for @autocomplete_translating.
+  ///
+  /// In en, this message translates to:
+  /// **'Translating…'**
+  String get autocomplete_translating;
+
+  /// No description provided for @autocomplete_missingTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'Not translated'**
+  String get autocomplete_missingTranslation;
+
+  /// No description provided for @autocomplete_translationCoverage.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation coverage: {translated}/{total}'**
+  String autocomplete_translationCoverage(int translated, int total);
+
+  /// No description provided for @autocomplete_aliasMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Alias: {alias}'**
+  String autocomplete_aliasMatch(String alias);
+
+  /// No description provided for @autocomplete_settingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Autocomplete'**
+  String get autocomplete_settingsTitle;
+
+  /// No description provided for @autocomplete_enable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable autocomplete'**
+  String get autocomplete_enable;
+
+  /// No description provided for @autocomplete_resultLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Result count'**
+  String get autocomplete_resultLimit;
+
+  /// No description provided for @autocomplete_allResults.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get autocomplete_allResults;
+
+  /// No description provided for @autocomplete_showAliases.
+  ///
+  /// In en, this message translates to:
+  /// **'Show matched aliases'**
+  String get autocomplete_showAliases;
+
+  /// No description provided for @autocomplete_showTranslations.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Chinese translations'**
+  String get autocomplete_showTranslations;
+
+  /// No description provided for @autocomplete_autoComma.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a comma after insertion'**
+  String get autocomplete_autoComma;
+
+  /// No description provided for @autocomplete_replaceUnderscores.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace underscores with spaces on insertion'**
+  String get autocomplete_replaceUnderscores;
+
+  /// No description provided for @autocomplete_dataSourcesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Data Sources & Cache'**
+  String get autocomplete_dataSourcesTitle;
+
+  /// No description provided for @autocomplete_relatedTagsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Co-occurrence and related tags'**
+  String get autocomplete_relatedTagsTitle;
+
+  /// No description provided for @autocomplete_relatedTagsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggest after accepting a tag; also use Ctrl+Shift+Space or Ctrl+click on a tag'**
+  String get autocomplete_relatedTagsSubtitle;
+
+  /// No description provided for @autocomplete_danbooruApi.
+  ///
+  /// In en, this message translates to:
+  /// **'Danbooru online supplement'**
+  String get autocomplete_danbooruApi;
+
+  /// No description provided for @autocomplete_danbooruPrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the current English tag is sent; the full prompt is never uploaded'**
+  String get autocomplete_danbooruPrivacy;
+
+  /// No description provided for @autocomplete_llmTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Prompt Assistant for missing translations'**
+  String get autocomplete_llmTranslation;
+
+  /// No description provided for @autocomplete_llmRouteMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure a Translate route in Prompt Assistant first'**
+  String get autocomplete_llmRouteMissing;
+
+  /// No description provided for @autocomplete_llmRoute.
+  ///
+  /// In en, this message translates to:
+  /// **'Current route: {route}. Model usage may incur fees.'**
+  String autocomplete_llmRoute(String route);
+
+  /// No description provided for @autocomplete_cooccurrence.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline related-tag database'**
+  String get autocomplete_cooccurrence;
+
+  /// No description provided for @autocomplete_entryCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} entries'**
+  String autocomplete_entryCount(int count);
+
+  /// No description provided for @autocomplete_cacheTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Online & AI Cache'**
+  String get autocomplete_cacheTitle;
+
+  /// No description provided for @autocomplete_clearDanbooruCache.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Danbooru cache'**
+  String get autocomplete_clearDanbooruCache;
+
+  /// No description provided for @autocomplete_clearAiCache.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear AI translation cache'**
+  String get autocomplete_clearAiCache;
+
+  /// No description provided for @autocomplete_cacheCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleared {count} cached entries'**
+  String autocomplete_cacheCleared(int count);
+
+  /// No description provided for @autocomplete_baseCatalog.
+  ///
+  /// In en, this message translates to:
+  /// **'Base Danbooru catalog'**
+  String get autocomplete_baseCatalog;
+
+  /// No description provided for @autocomplete_catalogStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tags · data version {version}'**
+  String autocomplete_catalogStatus(String count, String version);
+
+  /// No description provided for @autocomplete_zhDictionary.
+  ///
+  /// In en, this message translates to:
+  /// **'ffdkj Simplified Chinese dictionary'**
+  String get autocomplete_zhDictionary;
+
+  /// No description provided for @autocomplete_zhInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Installed: {count} entries · version {version}'**
+  String autocomplete_zhInstalled(int count, String version);
+
+  /// No description provided for @autocomplete_zhNotInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not installed; English autocomplete remains available'**
+  String get autocomplete_zhNotInstalled;
+
+  /// No description provided for @autocomplete_zhInstallPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Install the ffdkj dictionary for Chinese labels and reverse lookup. It is downloaded directly from upstream.'**
+  String get autocomplete_zhInstallPrompt;
+
+  /// No description provided for @autocomplete_checkUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates'**
+  String get autocomplete_checkUpdate;
+
+  /// No description provided for @autocomplete_update.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get autocomplete_update;
+
+  /// No description provided for @autocomplete_repair.
+  ///
+  /// In en, this message translates to:
+  /// **'Repair'**
+  String get autocomplete_repair;
+
+  /// No description provided for @autocomplete_install.
+  ///
+  /// In en, this message translates to:
+  /// **'Install'**
+  String get autocomplete_install;
+
+  /// No description provided for @autocomplete_remove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get autocomplete_remove;
+
+  /// No description provided for @autocomplete_removeConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove the installed Chinese translation dictionary? You can install it again later.'**
+  String get autocomplete_removeConfirm;
+
+  /// No description provided for @autocomplete_sourceBase.
+  ///
+  /// In en, this message translates to:
+  /// **'Bundled base catalog'**
+  String get autocomplete_sourceBase;
+
+  /// No description provided for @autocomplete_sourceZh.
+  ///
+  /// In en, this message translates to:
+  /// **'ffdkj Chinese dictionary'**
+  String get autocomplete_sourceZh;
+
+  /// No description provided for @autocomplete_sourceApi.
+  ///
+  /// In en, this message translates to:
+  /// **'Danbooru API'**
+  String get autocomplete_sourceApi;
+
+  /// No description provided for @autocomplete_sourceRelated.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline related tags'**
+  String get autocomplete_sourceRelated;
+
+  /// No description provided for @autocomplete_sourceAi.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt Assistant translation'**
+  String get autocomplete_sourceAi;
+
+  /// No description provided for @autocomplete_headerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag autocomplete'**
+  String get autocomplete_headerTitle;
+
+  /// No description provided for @autocomplete_relatedHeaderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Related tags'**
+  String get autocomplete_relatedHeaderTitle;
+
+  /// No description provided for @autocomplete_relatedLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Querying offline co-occurrences and online related tags…'**
+  String get autocomplete_relatedLoading;
+
+  /// No description provided for @autocomplete_relatedEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No related tags are available'**
+  String get autocomplete_relatedEmpty;
+
+  /// No description provided for @autocomplete_relatedMetric.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} co-occurrences · Jaccard {score}'**
+  String autocomplete_relatedMetric(int count, String score);
+
+  /// No description provided for @autocomplete_relatedPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin this tag to insert multiple related tags'**
+  String get autocomplete_relatedPin;
+
+  /// No description provided for @autocomplete_relatedUnpin.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin and resume chained recommendations'**
+  String get autocomplete_relatedUnpin;
+
+  /// No description provided for @autocomplete_statusBase.
+  ///
+  /// In en, this message translates to:
+  /// **'Local'**
+  String get autocomplete_statusBase;
+
+  /// No description provided for @autocomplete_statusRelated.
+  ///
+  /// In en, this message translates to:
+  /// **'Related'**
+  String get autocomplete_statusRelated;
+
+  /// No description provided for @autocomplete_statusDictionary.
+  ///
+  /// In en, this message translates to:
+  /// **'Translation'**
+  String get autocomplete_statusDictionary;
+
+  /// No description provided for @autocomplete_statusOnline.
+  ///
+  /// In en, this message translates to:
+  /// **'Online'**
+  String get autocomplete_statusOnline;
+
+  /// No description provided for @autocomplete_statusAi.
+  ///
+  /// In en, this message translates to:
+  /// **'AI'**
+  String get autocomplete_statusAi;
+
+  /// No description provided for @autocomplete_statusReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get autocomplete_statusReady;
+
+  /// No description provided for @autocomplete_statusNotInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not installed'**
+  String get autocomplete_statusNotInstalled;
+
+  /// No description provided for @autocomplete_statusDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading {progress}%'**
+  String autocomplete_statusDownloading(int progress);
+
+  /// No description provided for @autocomplete_statusUpdateAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get autocomplete_statusUpdateAvailable;
+
+  /// No description provided for @autocomplete_statusError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error'**
+  String get autocomplete_statusError;
+
+  /// No description provided for @autocomplete_statusDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get autocomplete_statusDisabled;
+
+  /// No description provided for @autocomplete_statusSearching.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching'**
+  String get autocomplete_statusSearching;
+
+  /// No description provided for @autocomplete_statusTranslating.
+  ///
+  /// In en, this message translates to:
+  /// **'Translating'**
+  String get autocomplete_statusTranslating;
+
+  /// No description provided for @autocomplete_openSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open autocomplete and data source settings'**
+  String get autocomplete_openSettings;
 }
 
 class _AppLocalizationsDelegate
