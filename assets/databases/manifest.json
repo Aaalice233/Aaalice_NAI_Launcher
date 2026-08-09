@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "databases": {
     "tag_catalog.db": {
-      "schemaVersion": 1,
+      "schemaVersion": 2,
       "dataVersion": "42f35be9d394",
-      "sha256": "7e3a03e7ec0d8d4b20570bc98258bba622694cd1454fa3357612b947f7a1a034",
-      "size": 30183424
+      "sha256": "270538fc623bb1a88acf1f347372568d51bf55510c53e0fb700cb370e0da798d",
+      "size": 46772224
     },
     "cooccurrence.db": {
       "sha256": "d23335978b12f0cbbdb526e745e17985943f93fb53caafe7242f4948aa69bae9",

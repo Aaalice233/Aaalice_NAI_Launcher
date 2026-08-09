@@ -5895,6 +5895,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get autocomplete_categoryMeta => 'メタ';
 
   @override
+  String get autocomplete_categoryContributor => '投稿者';
+
+  @override
+  String get autocomplete_categorySpecies => '種族';
+
+  @override
+  String get autocomplete_categoryLore => '設定';
+
+  @override
   String get autocomplete_categoryLibrary => 'ライブラリ';
 
   @override

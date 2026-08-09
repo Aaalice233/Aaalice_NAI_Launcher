@@ -5810,6 +5810,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autocomplete_categoryMeta => '元数据';
 
   @override
+  String get autocomplete_categoryContributor => '贡献者';
+
+  @override
+  String get autocomplete_categorySpecies => '物种';
+
+  @override
+  String get autocomplete_categoryLore => '设定';
+
+  @override
   String get autocomplete_categoryLibrary => '词库';
 
   @override

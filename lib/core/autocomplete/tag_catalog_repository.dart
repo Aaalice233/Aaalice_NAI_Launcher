@@ -71,7 +71,7 @@ class TagCatalogRepository implements CompletionSource {
     final aliasesById = await _loadAliases(byId.keys.toList());
     final candidates = byId.values
         .map((row) {
-          final category = TagCategory.fromDanbooru(row['category'] as int);
+          final category = TagCategory.fromCatalog(row['category'] as int);
           if (category == null) return null;
           final term = row['term'] as String;
           final kind = row['kind'] as int;
@@ -145,7 +145,7 @@ class TagCatalogRepository implements CompletionSource {
         chunk,
       );
       for (final row in rows) {
-        final category = TagCategory.fromDanbooru(
+        final category = TagCategory.fromCatalog(
           (row['category'] as num).toInt(),
         );
         if (category == null) continue;
@@ -173,11 +173,18 @@ class TagCatalogRepository implements CompletionSource {
     final rows = await _database!.rawQuery(
       'SELECT category, COUNT(*) AS count FROM tags GROUP BY category',
     );
-    return {
-      for (final row in rows)
-        if (TagCategory.fromDanbooru(row['category'] as int) case final value?)
-          value: row['count'] as int,
-    };
+    final counts = <TagCategory, int>{};
+    for (final row in rows) {
+      final category = TagCategory.fromCatalog(row['category'] as int);
+      if (category == null) continue;
+      final count = row['count'] as int;
+      counts.update(
+        category,
+        (current) => current + count,
+        ifAbsent: () => count,
+      );
+    }
+    return counts;
   }
 
   Future<void> dispose() async {

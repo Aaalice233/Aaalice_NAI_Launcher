@@ -27,11 +27,19 @@ void main() {
       INSERT INTO tags VALUES (1, 'blue_eyes', 0, 1000);
       INSERT INTO tags VALUES (2, 'blue_hair', 0, 2000);
       INSERT INTO tags VALUES (3, 'artist_blue', 1, 500);
+      INSERT INTO tags VALUES (4, 'anthro', 7, 3000);
+      INSERT INTO tags VALUES (5, 'species_wolf', 12, 2500);
+      INSERT INTO tags VALUES (6, 'story_contributor', 9, 100);
+      INSERT INTO tags VALUES (7, 'world_lore', 15, 80);
       INSERT INTO aliases VALUES (1, 1, 'aqua_eyes');
       INSERT INTO tag_search VALUES ('blue_eyes', 'blue eyes', 1, 0);
       INSERT INTO tag_search VALUES ('aqua_eyes', 'aqua eyes', 1, 1);
       INSERT INTO tag_search VALUES ('blue_hair', 'blue hair', 2, 0);
       INSERT INTO tag_search VALUES ('artist_blue', 'artist blue', 3, 0);
+      INSERT INTO tag_search VALUES ('anthro', 'anthro', 4, 0);
+      INSERT INTO tag_search VALUES ('species_wolf', 'species wolf', 5, 0);
+      INSERT INTO tag_search VALUES ('story_contributor', 'story contributor', 6, 0);
+      INSERT INTO tag_search VALUES ('world_lore', 'world lore', 7, 0);
       WITH RECURSIVE seq(i) AS (
         SELECT 1 UNION ALL SELECT i + 1 FROM seq WHERE i < 450
       )
@@ -67,6 +75,23 @@ void main() {
       expect(alias.single.aliases, ['aqua_eyes']);
     },
   );
+
+  test('maps e621 source categories without dropping their tags', () async {
+    final general = await repository.search(_query('anthro'));
+    final species = await repository.search(_query('species_wolf'));
+    final contributor = await repository.search(_query('story_contributor'));
+    final lore = await repository.search(_query('world_lore'));
+    final counts = await repository.categoryCounts();
+
+    expect(general.single.category, TagCategory.general);
+    expect(species.single.category, TagCategory.species);
+    expect(contributor.single.category, TagCategory.contributor);
+    expect(lore.single.category, TagCategory.lore);
+    expect(counts[TagCategory.general], 453);
+    expect(counts[TagCategory.species], 1);
+    expect(counts[TagCategory.contributor], 1);
+    expect(counts[TagCategory.lore], 1);
+  });
 
   test('escapes special input and respects the result limit', () async {
     final special = await repository.search(_query('blue" OR *', limit: 1));

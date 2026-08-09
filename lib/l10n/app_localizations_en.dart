@@ -6029,6 +6029,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autocomplete_categoryMeta => 'Meta';
 
   @override
+  String get autocomplete_categoryContributor => 'Contributor';
+
+  @override
+  String get autocomplete_categorySpecies => 'Species';
+
+  @override
+  String get autocomplete_categoryLore => 'Lore';
+
+  @override
   String get autocomplete_categoryLibrary => 'Library';
 
   @override

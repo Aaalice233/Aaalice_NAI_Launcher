@@ -2832,6 +2832,9 @@
   "autocomplete_categoryCopyright": "版权",
   "autocomplete_categoryArtist": "艺术家",
   "autocomplete_categoryMeta": "元数据",
+  "autocomplete_categoryContributor": "贡献者",
+  "autocomplete_categorySpecies": "物种",
+  "autocomplete_categoryLore": "设定",
   "autocomplete_categoryLibrary": "词库",
   "autocomplete_categoryGeneral": "通用",
 

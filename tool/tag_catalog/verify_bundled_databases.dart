@@ -5,6 +5,9 @@ import 'package:crypto/crypto.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 Future<void> main() async {
+  final sourceLock =
+      jsonDecode(await File('tool/tag_catalog/source_lock.json').readAsString())
+          as Map<String, dynamic>;
   final manifest =
       jsonDecode(await File('assets/databases/manifest.json').readAsString())
           as Map<String, dynamic>;
@@ -38,6 +41,42 @@ Future<void> main() async {
           ]).isEmpty) {
             throw StateError('Missing $table in ${file.path}');
           }
+        }
+        final metadata = {
+          for (final row in db.select('SELECT key, value FROM metadata'))
+            row['key'] as String: row['value'] as String,
+        };
+        final expectedTags = (sourceLock['expectedTagCount'] as num).toInt();
+        final expectedAliases = (sourceLock['expectedAliasCount'] as num)
+            .toInt();
+        final actualTags =
+            db.select('SELECT COUNT(*) AS count FROM tags').single['count']
+                as int;
+        final actualAliases =
+            db.select('SELECT COUNT(*) AS count FROM aliases').single['count']
+                as int;
+        if (actualTags != expectedTags || actualAliases != expectedAliases) {
+          throw StateError(
+            'Incomplete merged catalog: tags=$actualTags/$expectedTags '
+            'aliases=$actualAliases/$expectedAliases',
+          );
+        }
+        if (metadata['source_scope'] != 'danbooru_e621_full') {
+          throw StateError('Tag catalog is not the complete merged source');
+        }
+        final expectedCategories = (sourceLock['includedCategories'] as List)
+            .map((value) => (value as num).toInt())
+            .toSet();
+        final actualCategories = db
+            .select('SELECT DISTINCT category FROM tags')
+            .map((row) => row['category'] as int)
+            .toSet();
+        if (actualCategories.length != expectedCategories.length ||
+            !actualCategories.containsAll(expectedCategories)) {
+          throw StateError(
+            'Tag category mismatch: expected=$expectedCategories '
+            'actual=$actualCategories',
+          );
         }
       } else if (entry.key == 'cooccurrence.db') {
         final columns = db

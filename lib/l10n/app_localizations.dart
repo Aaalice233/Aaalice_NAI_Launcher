@@ -10800,6 +10800,24 @@ abstract class AppLocalizations {
   /// **'Meta'**
   String get autocomplete_categoryMeta;
 
+  /// No description provided for @autocomplete_categoryContributor.
+  ///
+  /// In en, this message translates to:
+  /// **'Contributor'**
+  String get autocomplete_categoryContributor;
+
+  /// No description provided for @autocomplete_categorySpecies.
+  ///
+  /// In en, this message translates to:
+  /// **'Species'**
+  String get autocomplete_categorySpecies;
+
+  /// No description provided for @autocomplete_categoryLore.
+  ///
+  /// In en, this message translates to:
+  /// **'Lore'**
+  String get autocomplete_categoryLore;
+
   /// No description provided for @autocomplete_categoryLibrary.
   ///
   /// In en, this message translates to:

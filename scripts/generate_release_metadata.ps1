@@ -33,7 +33,7 @@ function Get-AssetInfo {
       platform = 'windows'
       type = 'windows-portable'
       label = 'Windows 便携版'
-      description = '解压即用，不自动更新，适合放在自定义目录。'
+      description = '解压即用，支持应用内一键更新，适合放在自定义目录。'
     }
   }
   if ($name -match '_macOS_.*_Portable\.zip$') {

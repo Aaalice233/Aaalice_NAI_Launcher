@@ -3,31 +3,52 @@ enum TagCategory {
   artist(1),
   copyright(3),
   character(4),
-  meta(5);
+  meta(5),
+  contributor(9),
+  species(12),
+  lore(15);
 
   const TagCategory(this.value);
 
   final int value;
 
-  static TagCategory? fromDanbooru(int value) {
-    for (final category in values) {
-      if (category.value == value) return category;
-    }
-    return null;
-  }
+  static TagCategory? fromDanbooru(int value) => switch (value) {
+    0 => TagCategory.general,
+    1 => TagCategory.artist,
+    3 => TagCategory.copyright,
+    4 => TagCategory.character,
+    5 => TagCategory.meta,
+    _ => null,
+  };
+
+  /// The bundled LoRA Manager catalog preserves both Danbooru and e621's
+  /// source category IDs. Equivalent categories share the same presentation;
+  /// e621-only concepts retain their own identities.
+  static TagCategory? fromCatalog(int value) => switch (value) {
+    0 || 7 => TagCategory.general,
+    1 || 8 => TagCategory.artist,
+    3 || 10 => TagCategory.copyright,
+    4 || 11 => TagCategory.character,
+    5 || 14 => TagCategory.meta,
+    9 => TagCategory.contributor,
+    12 => TagCategory.species,
+    15 => TagCategory.lore,
+    _ => null,
+  };
 }
 
 abstract final class CompletionResultLimits {
-  /// A practical exhaustive target for a 200k-tag catalog.
+  /// A practical exhaustive target for the complete 221k-tag merged catalog.
   ///
   /// One-character queries remain separately bounded because they can match a
   /// large fraction of the catalog before the user has finished typing.
-  static const int all = 200000;
+  static const int all = 300000;
+  static const int _legacyAll = 200000;
   static const int oneCharacter = 100;
   static const int danbooruPageSize = 1000;
   static const int maxRelatedTags = 25000;
 
-  static bool isAll(int value) => value >= all;
+  static bool isAll(int value) => value >= _legacyAll;
 }
 
 enum CompletionSourceKind { base, zhDictionary, danbooruApi, cooccurrence, ai }

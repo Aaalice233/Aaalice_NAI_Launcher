@@ -7,5 +7,7 @@
   "sha256": "71297f7e4adaeae005cba1259b25a10374ed01e071cb4801a6195e709c32a9e5",
   "upstreamData": "https://github.com/DraconicDragon/dbr-e621-lists-archive",
   "upstreamLicense": "Unlicense",
-  "allowedCategories": [0, 1, 3, 4, 5]
+  "includedCategories": [0, 1, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14, 15],
+  "expectedTagCount": 221787,
+  "expectedAliasCount": 71504
 }

@@ -5,8 +5,8 @@ import 'package:crypto/crypto.dart';
 import 'package:csv/csv.dart';
 import 'package:sqlite3/sqlite3.dart';
 
-const catalogSchemaVersion = 1;
-const allowedCategories = {0, 1, 3, 4, 5};
+const catalogSchemaVersion = 2;
+const supportedSourceCategories = {0, 1, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14, 15};
 
 Future<void> main(List<String> args) async {
   final options = _Options.parse(args);
@@ -71,7 +71,7 @@ Future<void> main(List<String> args) async {
         if (name.isEmpty ||
             category == null ||
             postCount == null ||
-            !allowedCategories.contains(category) ||
+            !supportedSourceCategories.contains(category) ||
             !_isValidTag(name)) {
           skipped++;
           continue;
@@ -102,6 +102,18 @@ Future<void> main(List<String> args) async {
           }
         }
       }
+      final expectedTagCount = (lock['expectedTagCount'] as num?)?.toInt();
+      final expectedAliasCount = (lock['expectedAliasCount'] as num?)?.toInt();
+      if (expectedTagCount != null && imported != expectedTagCount) {
+        throw StateError(
+          'Imported tag count mismatch: expected=$expectedTagCount actual=$imported',
+        );
+      }
+      if (expectedAliasCount != null && aliases != expectedAliasCount) {
+        throw StateError(
+          'Imported alias count mismatch: expected=$expectedAliasCount actual=$aliases',
+        );
+      }
       db.execute('COMMIT');
     } catch (_) {
       db.execute('ROLLBACK');
@@ -119,6 +131,7 @@ Future<void> main(List<String> args) async {
       'data_version': ('${lock['commit']}').substring(0, 12),
       'source_url': '${lock['url']}',
       'source_format': 'tag_name,category,post_count,aliases',
+      'source_scope': 'danbooru_e621_full',
       'source_sha256': actualHash.toString(),
       'source_commit': '${lock['commit']}',
       'imported_at': importedAt,
@@ -175,7 +188,7 @@ void _createSchema(Database db) {
     CREATE TABLE tags(
       id INTEGER PRIMARY KEY,
       name TEXT NOT NULL COLLATE NOCASE UNIQUE,
-      category INTEGER NOT NULL CHECK(category IN (0, 1, 3, 4, 5)),
+      category INTEGER NOT NULL CHECK(category IN (0, 1, 3, 4, 5, 7, 8, 9, 10, 11, 12, 14, 15)),
       post_count INTEGER NOT NULL DEFAULT 0
     );
     CREATE TABLE aliases(

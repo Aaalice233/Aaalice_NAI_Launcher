@@ -2,11 +2,14 @@
 
 ## Danbooru/e621 Tag Data
 
-The bundled `assets/databases/tag_catalog.db` is generated from the Danbooru
-portion of the data maintained by
+The bundled `assets/databases/tag_catalog.db` is generated from the complete
+`danbooru_e621_merged.csv` snapshot distributed by
+[ComfyUI-Lora-Manager](https://github.com/willmiao/ComfyUI-Lora-Manager).
+The tag data originates from
 [DraconicDragon/dbr-e621-lists-archive](https://github.com/DraconicDragon/dbr-e621-lists-archive).
-Only Danbooru categories `0`, `1`, `3`, `4`, and `5` are imported; e621
-categories are excluded. The source snapshot, URL, and SHA256 are locked in
+Both Danbooru categories `0`, `1`, `3`, `4`, and `5` and e621 categories `7`
+through `12`, `14`, and `15` are imported. The source snapshot, URL, SHA256,
+expected record counts, and included category set are locked in
 `tool/tag_catalog/source_lock.json`.
 
 The source data is dedicated to the public domain under the Unlicense:
@@ -23,10 +26,9 @@ The source data is dedicated to the public domain under the Unlicense:
 > ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 > WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-[ComfyUI-Lora-Manager](https://github.com/willmiao/ComfyUI-Lora-Manager)
-(GPL-3.0) was used as a reference for the pinned merged-data layout. No Python,
-JavaScript, or other GPL implementation code from that project is included in
-this application.
+ComfyUI-Lora-Manager is GPL-3.0 licensed. Only its pinned copy of the
+Unlicense tag dataset is used here; no Python, JavaScript, or other GPL
+implementation code from that project is included in this application.
 
 ## Danbooru Co-occurrence Data
 

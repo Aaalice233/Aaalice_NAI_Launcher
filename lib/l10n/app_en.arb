@@ -2838,6 +2838,9 @@
   "autocomplete_categoryCopyright": "Copyright",
   "autocomplete_categoryArtist": "Artist",
   "autocomplete_categoryMeta": "Meta",
+  "autocomplete_categoryContributor": "Contributor",
+  "autocomplete_categorySpecies": "Species",
+  "autocomplete_categoryLore": "Lore",
   "autocomplete_categoryLibrary": "Library",
   "autocomplete_categoryGeneral": "General",
 

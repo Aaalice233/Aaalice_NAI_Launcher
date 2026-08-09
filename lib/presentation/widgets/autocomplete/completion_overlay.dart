@@ -579,6 +579,9 @@ class _CompletionTile extends StatelessWidget {
     TagCategory.copyright => Icons.copyright_rounded,
     TagCategory.character => Icons.person_rounded,
     TagCategory.meta => Icons.tune_rounded,
+    TagCategory.contributor => Icons.badge_rounded,
+    TagCategory.species => Icons.pets_rounded,
+    TagCategory.lore => Icons.auto_stories_rounded,
   };
 
   static String _categoryLabel(BuildContext context, TagCategory category) =>
@@ -588,6 +591,10 @@ class _CompletionTile extends StatelessWidget {
         TagCategory.copyright => context.l10n.autocomplete_categoryCopyright,
         TagCategory.character => context.l10n.autocomplete_categoryCharacter,
         TagCategory.meta => context.l10n.autocomplete_categoryMeta,
+        TagCategory.contributor =>
+          context.l10n.autocomplete_categoryContributor,
+        TagCategory.species => context.l10n.autocomplete_categorySpecies,
+        TagCategory.lore => context.l10n.autocomplete_categoryLore,
       };
 
   static Color _categoryColor(BuildContext context, TagCategory category) {
@@ -603,6 +610,12 @@ class _CompletionTile extends StatelessWidget {
       (TagCategory.character, false) => const Color(0xff2b7834),
       (TagCategory.meta, true) => const Color(0xffffb85c),
       (TagCategory.meta, false) => const Color(0xff925b08),
+      (TagCategory.contributor, true) => const Color(0xffff9d66),
+      (TagCategory.contributor, false) => const Color(0xffa84f1d),
+      (TagCategory.species, true) => const Color(0xff5ed6c4),
+      (TagCategory.species, false) => const Color(0xff167568),
+      (TagCategory.lore, true) => const Color(0xff9fa8ff),
+      (TagCategory.lore, false) => const Color(0xff4d56a8),
     };
   }
 
