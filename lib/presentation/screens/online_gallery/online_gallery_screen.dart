@@ -415,7 +415,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 1800;
+          final compact = constraints.maxWidth < 1200;
 
           return Column(
             children: [
@@ -432,7 +432,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                   const SizedBox(width: 16),
                   // 搜索框
                   if (state.viewMode == GalleryViewMode.search)
-                    Expanded(child: _buildSearchField(theme))
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: _buildSearchField(theme),
+                      ),
+                    )
                   else
                     const Spacer(),
                   if (!compact) ...[
