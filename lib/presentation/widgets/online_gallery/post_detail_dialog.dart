@@ -82,11 +82,11 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
     final isFavorited = galleryState.favoritedPostKeys.contains(
       onlineGalleryPostKey(widget.post),
     );
-    final canWriteFavorite = widget.post.site == 'danbooru';
+    final canWriteFavorite = widget.post.sourceId == GallerySourceId.danbooru;
     final favoriteReadOnly =
-        widget.post.site == 'gelbooru' &&
+        widget.post.sourceId == GallerySourceId.gelbooru &&
         galleryState.viewMode == GalleryViewMode.favorites &&
-        galleryState.favoritesSource == 'gelbooru';
+        galleryState.favoritesSourceId == GallerySourceId.gelbooru;
 
     return AnimatedBuilder(
       animation: _animationController,
@@ -389,22 +389,23 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
             ),
           ),
           const SizedBox(width: 8),
-          // 评级徽章
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: _getRatingColor(widget.post.rating),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              widget.post.rating.toUpperCase(),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
+          // 只有具备标准分级的数据源才显示评级徽章。
+          if (widget.post.rating != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: _getRatingColor(widget.post.rating!),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                widget.post.rating!.toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-          ),
           const Spacer(),
           if (canWriteFavorite)
             IconButton(
@@ -456,10 +457,10 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
         _InfoRow(
           icon: Icons.star,
           label: context.l10n.onlineGallery_score,
-          value: '${widget.post.score}',
-          valueColor: widget.post.score > 0
+          value: widget.post.score?.toString() ?? '—',
+          valueColor: (widget.post.score ?? 0) > 0
               ? Colors.green
-              : widget.post.score < 0
+              : (widget.post.score ?? 0) < 0
               ? Colors.red
               : null,
         ),

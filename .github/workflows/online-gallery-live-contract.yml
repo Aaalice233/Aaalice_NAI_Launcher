@@ -1,0 +1,30 @@
+name: Online gallery live source contract
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 2 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-live-sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.35.0'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify third-party gallery contracts
+        run: dart run tool/online_gallery/verify_live_sources.dart

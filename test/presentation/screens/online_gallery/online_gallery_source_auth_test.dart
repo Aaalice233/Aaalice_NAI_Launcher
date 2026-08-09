@@ -1,6 +1,8 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
 import 'package:nai_launcher/data/models/online_gallery/danbooru_post.dart';
 import 'package:nai_launcher/data/models/online_gallery/gelbooru_credentials.dart';
 import 'package:nai_launcher/data/services/danbooru_auth_service.dart';
@@ -9,6 +11,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/danbooru_suggestion_provider.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_screen.dart';
+import 'package:nai_launcher/presentation/widgets/danbooru_post_card.dart';
 
 void main() {
   for (final width in [1600.0, 700.0]) {
@@ -87,6 +90,34 @@ void main() {
     expect(find.text('Configure Gelbooru API'), findsNothing);
   });
 
+  for (final entry in {
+    GallerySourceId.safebooru: _SafebooruPopularGalleryNotifier.new,
+    GallerySourceId.aiTag: _AiTagPopularGalleryNotifier.new,
+  }.entries) {
+    testWidgets('${entry.key.label} popular mode has no account entry', (
+      tester,
+    ) async {
+      await _setViewSize(tester, 1600);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            onlineGalleryNotifierProvider.overrideWith(entry.value),
+            danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+            gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+            danbooruSuggestionNotifierProvider.overrideWith(
+              _EmptyDanbooruSuggestionNotifier.new,
+            ),
+          ],
+          child: const _TestApp(),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Login'), findsNothing);
+      expect(find.text('Configure Gelbooru API'), findsNothing);
+    });
+  }
+
   testWidgets(
     'Gelbooru favorites identify read-only ID ordering on narrow UI',
     (tester) async {
@@ -115,6 +146,120 @@ void main() {
     },
   );
 
+  for (final width in [1600.0, 700.0]) {
+    testWidgets('AI TAG controls adapt without overflow at width $width', (
+      tester,
+    ) async {
+      await _setViewSize(tester, width);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            onlineGalleryNotifierProvider.overrideWith(
+              _AiTagSearchGalleryNotifier.new,
+            ),
+            danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+            gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+            danbooruSuggestionNotifierProvider.overrideWith(
+              _EmptyDanbooruSuggestionNotifier.new,
+            ),
+          ],
+          child: const _TestApp(),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.widgetWithText(
+          TextField,
+          'Search works, artists, titles, tags, or models',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('AI Prompt search'), findsOneWidget);
+      expect(find.text('Login'), findsNothing);
+      expect(find.byIcon(Icons.tune), findsNothing);
+      expect(find.byIcon(Icons.blur_on), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('AI TAG detail exposes multi-image metadata actions', (
+    tester,
+  ) async {
+    await _setViewSize(tester, 1200);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onlineGalleryNotifierProvider.overrideWith(
+            _AiTagDetailGalleryNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+          danbooruSuggestionNotifierProvider.overrideWith(
+            _EmptyDanbooruSuggestionNotifier.new,
+          ),
+        ],
+        child: const _TestApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byType(DanbooruPostCard));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.text('AI TAG'), findsWidgets);
+    expect(find.text('3 images'), findsOneWidget);
+    expect(find.text('Copy Prompt'), findsOneWidget);
+    expect(find.text('Copy full metadata'), findsOneWidget);
+    expect(find.text('Download all images in this work'), findsOneWidget);
+    expect(find.byType(CachedNetworkImage), findsAtLeastNWidgets(4));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('page replacement renders the second page URL with stable keys', (
+    tester,
+  ) async {
+    await _setViewSize(tester, 1200);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onlineGalleryNotifierProvider.overrideWith(_PagedGalleryNotifier.new),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+          danbooruSuggestionNotifierProvider.overrideWith(
+            _EmptyDanbooruSuggestionNotifier.new,
+          ),
+        ],
+        child: const _TestApp(),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('danbooru:401')), findsOneWidget);
+    expect(
+      tester
+          .widget<CachedNetworkImage>(find.byType(CachedNetworkImage).first)
+          .imageUrl,
+      contains('page-1'),
+    );
+
+    await tester.tap(find.byIcon(Icons.chevron_right));
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('danbooru:401')), findsNothing);
+    expect(find.byKey(const ValueKey('danbooru:402')), findsOneWidget);
+    expect(
+      tester
+          .widget<CachedNetworkImage>(find.byType(CachedNetworkImage).first)
+          .imageUrl,
+      contains('page-2'),
+    );
+    expect(
+      tester.widget<DanbooruPostCard>(find.byType(DanbooruPostCard)).post.id,
+      402,
+    );
+  });
+
   testWidgets('favorites source selector switches back to Danbooru', (
     tester,
   ) async {
@@ -136,7 +281,7 @@ void main() {
     );
     await tester.pump();
 
-    await tester.tap(find.byType(PopupMenuButton<String>).first);
+    await tester.tap(find.byType(PopupMenuButton<GallerySourceId>).first);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('Danbooru').last);
@@ -190,11 +335,52 @@ const _danbooruPost = DanbooruPost(
   tagStringGeneral: 'solo',
 );
 
+const _aiTagPost = GalleryItem(
+  id: 801,
+  sourceId: GallerySourceId.aiTag,
+  createdAt: '2026-07-01',
+  uploaderId: 88,
+  title: 'AI work',
+  author: 'Alice',
+  aiType: 'NAI',
+  mediaCount: 3,
+  rank: 3,
+  tags: ['1girl'],
+  cover: GalleryMedia(
+    id: '801_p0',
+    previewUrl: 'https://cdn.example/NAI/88/801_p0.webp',
+    displayUrl: 'https://cdn.example/NAI/88/801_p0.webp',
+    downloadUrl: 'https://cdn.example/NAI/88/801_p0.webp',
+    width: 768,
+    height: 1024,
+  ),
+);
+
+const _pageOnePost = DanbooruPost(
+  id: 401,
+  site: 'danbooru',
+  width: 1200,
+  height: 800,
+  rating: 'g',
+  previewFileUrl: 'https://cdn.example/page-1.jpg',
+  tagStringGeneral: 'solo',
+);
+
+const _pageTwoPost = DanbooruPost(
+  id: 402,
+  site: 'danbooru',
+  width: 1200,
+  height: 800,
+  rating: 'g',
+  previewFileUrl: 'https://cdn.example/page-2.jpg',
+  tagStringGeneral: 'solo',
+);
+
 class _GelbooruSearchGalleryNotifier extends OnlineGalleryNotifier {
   @override
   OnlineGalleryState build() {
     return const OnlineGalleryState(
-      source: 'gelbooru',
+      sourceId: GallerySourceId.gelbooru,
       searchCache: ModeCache(posts: [_gelbooruPost], hasMore: false),
     );
   }
@@ -204,8 +390,87 @@ class _SafebooruSearchGalleryNotifier extends OnlineGalleryNotifier {
   @override
   OnlineGalleryState build() {
     return const OnlineGalleryState(
-      source: 'safebooru',
+      sourceId: GallerySourceId.safebooru,
       searchCache: ModeCache(posts: [_danbooruPost], hasMore: false),
+    );
+  }
+}
+
+class _AiTagSearchGalleryNotifier extends OnlineGalleryNotifier {
+  @override
+  OnlineGalleryState build() {
+    return OnlineGalleryState(
+      sourceId: GallerySourceId.aiTag,
+      aiTagConfig: AiTagSourceConfig(
+        assetBaseUrl: 'https://cdn.example/',
+        pageSize: 60,
+        availableYears: const [2026, 2025],
+        availableMonths: const ['2026-07'],
+        fetchedAt: DateTime(2026, 8, 9),
+      ),
+      searchCache: const ModeCache(posts: [_aiTagPost], hasMore: false),
+    );
+  }
+}
+
+class _AiTagDetailGalleryNotifier extends _AiTagSearchGalleryNotifier {
+  @override
+  Future<GalleryDetail> loadDetail(
+    GalleryItem item, {
+    bool forceRefresh = false,
+  }) async {
+    const media = [
+      GalleryMedia(
+        id: '801_p0',
+        previewUrl: 'https://cdn.example/NAI/88/801_p0.webp',
+        displayUrl: 'https://cdn.example/NAI/88/801_p0.webp',
+        downloadUrl: 'https://cdn.example/NAI/88/801_p0.webp',
+        prompt: '1girl, solo',
+        negativePrompt: 'lowres',
+        rawMetadata: '{"prompt":"1girl"}',
+      ),
+      GalleryMedia(
+        id: '801_p1',
+        previewUrl: 'https://cdn.example/NAI/88/801_p1.webp',
+        displayUrl: 'https://cdn.example/NAI/88/801_p1.webp',
+        downloadUrl: 'https://cdn.example/NAI/88/801_p1.webp',
+        prompt: 'landscape',
+      ),
+      GalleryMedia(
+        id: '801_p2',
+        previewUrl: 'https://cdn.example/NAI/88/801_p2.webp',
+        displayUrl: 'https://cdn.example/NAI/88/801_p2.webp',
+        downloadUrl: 'https://cdn.example/NAI/88/801_p2.webp',
+        prompt: 'portrait',
+      ),
+    ];
+    return const GalleryDetail(
+      item: _aiTagPost,
+      media: media,
+      prompt: '1girl, solo',
+      negativePrompt: 'lowres',
+      description: 'Description',
+    );
+  }
+}
+
+class _PagedGalleryNotifier extends OnlineGalleryNotifier {
+  @override
+  OnlineGalleryState build() {
+    return const OnlineGalleryState(
+      searchCache: ModeCache(posts: [_pageOnePost], page: 1, nextCursor: '2'),
+    );
+  }
+
+  @override
+  Future<void> goToPage(int page) async {
+    state = const OnlineGalleryState(
+      searchCache: ModeCache(
+        posts: [_pageTwoPost],
+        page: 2,
+        nextCursor: null,
+        hasMore: false,
+      ),
     );
   }
 }
@@ -220,12 +485,34 @@ class _PopularGalleryNotifier extends OnlineGalleryNotifier {
   }
 }
 
+class _SafebooruPopularGalleryNotifier extends OnlineGalleryNotifier {
+  @override
+  OnlineGalleryState build() {
+    return const OnlineGalleryState(
+      viewMode: GalleryViewMode.popular,
+      popularSourceId: GallerySourceId.safebooru,
+      popularCache: ModeCache(posts: [_danbooruPost], hasMore: false),
+    );
+  }
+}
+
+class _AiTagPopularGalleryNotifier extends OnlineGalleryNotifier {
+  @override
+  OnlineGalleryState build() {
+    return const OnlineGalleryState(
+      viewMode: GalleryViewMode.popular,
+      popularSourceId: GallerySourceId.aiTag,
+      popularCache: ModeCache(posts: [_aiTagPost], hasMore: false),
+    );
+  }
+}
+
 class _GelbooruFavoritesGalleryNotifier extends OnlineGalleryNotifier {
   @override
   OnlineGalleryState build() {
     return const OnlineGalleryState(
       viewMode: GalleryViewMode.favorites,
-      favoritesSource: 'gelbooru',
+      favoritesSourceId: GallerySourceId.gelbooru,
       gelbooruFavoritesCache: ModeCache(posts: [_gelbooruPost], hasMore: false),
       favoritedPostKeys: {'gelbooru:301'},
     );

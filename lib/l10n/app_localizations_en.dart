@@ -2665,6 +2665,88 @@ class AppLocalizationsEn extends AppLocalizations {
       'The Gelbooru request failed. Try again later.';
 
   @override
+  String get onlineGallery_aiTagQuery =>
+      'Search works, artists, titles, tags, or models';
+
+  @override
+  String get onlineGallery_aiTagPromptQuery =>
+      'AI Prompt search (raw syntax such as ::artist: is supported)';
+
+  @override
+  String get onlineGallery_aiTagTimeRange => 'Time range';
+
+  @override
+  String get onlineGallery_aiTagAllTime => 'All';
+
+  @override
+  String get onlineGallery_aiTagCurrentMonthly => 'Live monthly ranking';
+
+  @override
+  String get onlineGallery_aiTagOlderMonthly => 'Older archive';
+
+  @override
+  String get onlineGallery_aiTagRankingProcessing =>
+      'The ranking is being generated. Please try again shortly.';
+
+  @override
+  String get onlineGallery_sourceConfigUnavailable =>
+      'Could not load source configuration. Check your connection and retry.';
+
+  @override
+  String get onlineGallery_sourceRateLimited =>
+      'Too many requests. Please try again later.';
+
+  @override
+  String get onlineGallery_sourceTimeout =>
+      'The request timed out. Check your connection.';
+
+  @override
+  String get onlineGallery_sourceNetworkError =>
+      'Could not connect to this gallery source. Check your network or proxy.';
+
+  @override
+  String get onlineGallery_sourceMalformedResponse =>
+      'The source response format has changed and cannot be parsed.';
+
+  @override
+  String get onlineGallery_detailNotFound =>
+      'This work does not exist or has been removed.';
+
+  @override
+  String get onlineGallery_imageUnavailable =>
+      'This image is currently unavailable.';
+
+  @override
+  String get onlineGallery_loadedAll => 'All items loaded';
+
+  @override
+  String get onlineGallery_retryAppend => 'Load failed. Click to retry';
+
+  @override
+  String onlineGallery_rankNumber(Object rank) {
+    return 'Rank #$rank';
+  }
+
+  @override
+  String onlineGallery_multipleImages(Object count) {
+    return '$count images';
+  }
+
+  @override
+  String get onlineGallery_views => 'Views';
+
+  @override
+  String get onlineGallery_downloadAllMedia =>
+      'Download all images in this work';
+
+  @override
+  String get onlineGallery_copyFullMetadata => 'Copy full metadata';
+
+  @override
+  String get onlineGallery_metadataParseFailed =>
+      'Metadata parsing failed. The original content is preserved and can be copied.';
+
+  @override
   String get onlineGallery_gelbooruReadOnly => 'Read-only favorites';
 
   @override

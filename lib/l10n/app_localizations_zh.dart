@@ -2573,6 +2573,77 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_gelbooruRequestFailed => 'Gelbooru 请求失败，请稍后重试。';
 
   @override
+  String get onlineGallery_aiTagQuery => '搜索作品、作者、标题、标签或模型';
+
+  @override
+  String get onlineGallery_aiTagPromptQuery =>
+      'AI Prompt 搜索（支持 ::artist: 等原始语法）';
+
+  @override
+  String get onlineGallery_aiTagTimeRange => '时间范围';
+
+  @override
+  String get onlineGallery_aiTagAllTime => '全部';
+
+  @override
+  String get onlineGallery_aiTagCurrentMonthly => '实时月榜';
+
+  @override
+  String get onlineGallery_aiTagOlderMonthly => '更早归档';
+
+  @override
+  String get onlineGallery_aiTagRankingProcessing => '排行榜生成中，请稍后重试。';
+
+  @override
+  String get onlineGallery_sourceConfigUnavailable => '无法获取来源配置，请检查网络后重试。';
+
+  @override
+  String get onlineGallery_sourceRateLimited => '请求过于频繁，请稍后重试。';
+
+  @override
+  String get onlineGallery_sourceTimeout => '请求超时，请检查网络连接。';
+
+  @override
+  String get onlineGallery_sourceNetworkError => '无法连接当前画廊来源，请检查网络或代理。';
+
+  @override
+  String get onlineGallery_sourceMalformedResponse => '来源返回的数据结构已变化，暂时无法解析。';
+
+  @override
+  String get onlineGallery_detailNotFound => '作品不存在或已被删除。';
+
+  @override
+  String get onlineGallery_imageUnavailable => '图片当前不可用。';
+
+  @override
+  String get onlineGallery_loadedAll => '已加载全部';
+
+  @override
+  String get onlineGallery_retryAppend => '加载失败，点击重试';
+
+  @override
+  String onlineGallery_rankNumber(Object rank) {
+    return '第 $rank 名';
+  }
+
+  @override
+  String onlineGallery_multipleImages(Object count) {
+    return '$count 张图片';
+  }
+
+  @override
+  String get onlineGallery_views => '浏览';
+
+  @override
+  String get onlineGallery_downloadAllMedia => '下载作品全部图片';
+
+  @override
+  String get onlineGallery_copyFullMetadata => '复制完整元数据';
+
+  @override
+  String get onlineGallery_metadataParseFailed => '元数据解析失败，原始内容已保留，可直接复制。';
+
+  @override
   String get onlineGallery_gelbooruReadOnly => '只读收藏';
 
   @override

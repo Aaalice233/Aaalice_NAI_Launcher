@@ -4826,6 +4826,138 @@ abstract class AppLocalizations {
   /// **'The Gelbooru request failed. Try again later.'**
   String get onlineGallery_gelbooruRequestFailed;
 
+  /// No description provided for @onlineGallery_aiTagQuery.
+  ///
+  /// In en, this message translates to:
+  /// **'Search works, artists, titles, tags, or models'**
+  String get onlineGallery_aiTagQuery;
+
+  /// No description provided for @onlineGallery_aiTagPromptQuery.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Prompt search (raw syntax such as ::artist: is supported)'**
+  String get onlineGallery_aiTagPromptQuery;
+
+  /// No description provided for @onlineGallery_aiTagTimeRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Time range'**
+  String get onlineGallery_aiTagTimeRange;
+
+  /// No description provided for @onlineGallery_aiTagAllTime.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get onlineGallery_aiTagAllTime;
+
+  /// No description provided for @onlineGallery_aiTagCurrentMonthly.
+  ///
+  /// In en, this message translates to:
+  /// **'Live monthly ranking'**
+  String get onlineGallery_aiTagCurrentMonthly;
+
+  /// No description provided for @onlineGallery_aiTagOlderMonthly.
+  ///
+  /// In en, this message translates to:
+  /// **'Older archive'**
+  String get onlineGallery_aiTagOlderMonthly;
+
+  /// No description provided for @onlineGallery_aiTagRankingProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'The ranking is being generated. Please try again shortly.'**
+  String get onlineGallery_aiTagRankingProcessing;
+
+  /// No description provided for @onlineGallery_sourceConfigUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load source configuration. Check your connection and retry.'**
+  String get onlineGallery_sourceConfigUnavailable;
+
+  /// No description provided for @onlineGallery_sourceRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many requests. Please try again later.'**
+  String get onlineGallery_sourceRateLimited;
+
+  /// No description provided for @onlineGallery_sourceTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'The request timed out. Check your connection.'**
+  String get onlineGallery_sourceTimeout;
+
+  /// No description provided for @onlineGallery_sourceNetworkError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not connect to this gallery source. Check your network or proxy.'**
+  String get onlineGallery_sourceNetworkError;
+
+  /// No description provided for @onlineGallery_sourceMalformedResponse.
+  ///
+  /// In en, this message translates to:
+  /// **'The source response format has changed and cannot be parsed.'**
+  String get onlineGallery_sourceMalformedResponse;
+
+  /// No description provided for @onlineGallery_detailNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'This work does not exist or has been removed.'**
+  String get onlineGallery_detailNotFound;
+
+  /// No description provided for @onlineGallery_imageUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This image is currently unavailable.'**
+  String get onlineGallery_imageUnavailable;
+
+  /// No description provided for @onlineGallery_loadedAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All items loaded'**
+  String get onlineGallery_loadedAll;
+
+  /// No description provided for @onlineGallery_retryAppend.
+  ///
+  /// In en, this message translates to:
+  /// **'Load failed. Click to retry'**
+  String get onlineGallery_retryAppend;
+
+  /// No description provided for @onlineGallery_rankNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Rank #{rank}'**
+  String onlineGallery_rankNumber(Object rank);
+
+  /// No description provided for @onlineGallery_multipleImages.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} images'**
+  String onlineGallery_multipleImages(Object count);
+
+  /// No description provided for @onlineGallery_views.
+  ///
+  /// In en, this message translates to:
+  /// **'Views'**
+  String get onlineGallery_views;
+
+  /// No description provided for @onlineGallery_downloadAllMedia.
+  ///
+  /// In en, this message translates to:
+  /// **'Download all images in this work'**
+  String get onlineGallery_downloadAllMedia;
+
+  /// No description provided for @onlineGallery_copyFullMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy full metadata'**
+  String get onlineGallery_copyFullMetadata;
+
+  /// No description provided for @onlineGallery_metadataParseFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Metadata parsing failed. The original content is preserved and can be copied.'**
+  String get onlineGallery_metadataParseFailed;
+
   /// No description provided for @onlineGallery_gelbooruReadOnly.
   ///
   /// In en, this message translates to:

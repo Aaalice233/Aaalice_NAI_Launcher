@@ -227,11 +227,11 @@ void main() {
     );
 
     final state = const OnlineGalleryState()
-        .updateFavoritesCache('danbooru', danbooruCache)
-        .updateFavoritesCache('gelbooru', gelbooruCache)
+        .updateFavoritesCache(GallerySourceId.danbooru, danbooruCache)
+        .updateFavoritesCache(GallerySourceId.gelbooru, gelbooruCache)
         .copyWith(
           viewMode: GalleryViewMode.favorites,
-          favoritesSource: 'gelbooru',
+          favoritesSourceId: GallerySourceId.gelbooru,
           favoritedPostKeys: const {'danbooru:1', 'gelbooru:1'},
         );
 

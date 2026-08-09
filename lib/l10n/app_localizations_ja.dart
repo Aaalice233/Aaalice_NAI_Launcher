@@ -2611,6 +2611,83 @@ class AppLocalizationsJa extends AppLocalizations {
       'Gelbooru リクエストに失敗しました。しばらくしてから再試行してください。';
 
   @override
+  String get onlineGallery_aiTagQuery => '作品、作者、タイトル、タグ、モデルを検索';
+
+  @override
+  String get onlineGallery_aiTagPromptQuery =>
+      'AI Prompt 検索（::artist: などの原文構文に対応）';
+
+  @override
+  String get onlineGallery_aiTagTimeRange => '期間';
+
+  @override
+  String get onlineGallery_aiTagAllTime => 'すべて';
+
+  @override
+  String get onlineGallery_aiTagCurrentMonthly => 'リアルタイム月間ランキング';
+
+  @override
+  String get onlineGallery_aiTagOlderMonthly => '過去のアーカイブ';
+
+  @override
+  String get onlineGallery_aiTagRankingProcessing =>
+      'ランキングを生成中です。しばらくしてから再試行してください。';
+
+  @override
+  String get onlineGallery_sourceConfigUnavailable =>
+      'ソース設定を取得できません。接続を確認して再試行してください。';
+
+  @override
+  String get onlineGallery_sourceRateLimited =>
+      'リクエストが多すぎます。しばらくしてから再試行してください。';
+
+  @override
+  String get onlineGallery_sourceTimeout => 'リクエストがタイムアウトしました。接続を確認してください。';
+
+  @override
+  String get onlineGallery_sourceNetworkError =>
+      'ギャラリーソースに接続できません。ネットワークまたはプロキシを確認してください。';
+
+  @override
+  String get onlineGallery_sourceMalformedResponse =>
+      'ソースのレスポンス形式が変更され、解析できません。';
+
+  @override
+  String get onlineGallery_detailNotFound => '作品が存在しないか、削除されています。';
+
+  @override
+  String get onlineGallery_imageUnavailable => '画像は現在利用できません。';
+
+  @override
+  String get onlineGallery_loadedAll => 'すべて読み込み済み';
+
+  @override
+  String get onlineGallery_retryAppend => '読み込みに失敗しました。クリックして再試行';
+
+  @override
+  String onlineGallery_rankNumber(Object rank) {
+    return '第 $rank 位';
+  }
+
+  @override
+  String onlineGallery_multipleImages(Object count) {
+    return '$count 枚の画像';
+  }
+
+  @override
+  String get onlineGallery_views => '閲覧数';
+
+  @override
+  String get onlineGallery_downloadAllMedia => '作品の全画像をダウンロード';
+
+  @override
+  String get onlineGallery_copyFullMetadata => '完全なメタデータをコピー';
+
+  @override
+  String get onlineGallery_metadataParseFailed =>
+      'メタデータの解析に失敗しました。元の内容は保持され、コピーできます。';
+
+  @override
   String get onlineGallery_gelbooruReadOnly => '読み取り専用のお気に入り';
 
   @override

@@ -169,7 +169,7 @@ class _GelbooruFavoriteGalleryNotifier extends OnlineGalleryNotifier {
   OnlineGalleryState build() {
     return const OnlineGalleryState(
       viewMode: GalleryViewMode.favorites,
-      favoritesSource: 'gelbooru',
+      favoritesSourceId: GallerySourceId.gelbooru,
       gelbooruFavoritesCache: ModeCache(posts: [post]),
       favoritedPostKeys: {'gelbooru:203'},
     );

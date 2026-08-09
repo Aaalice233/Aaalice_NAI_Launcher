@@ -35,6 +35,8 @@ class DanbooruPostCard extends StatefulWidget {
   final bool selectionMode;
   final bool isSelected;
   final bool canSelect;
+  final String? promptOverride;
+  final String? negativePromptOverride;
   final VoidCallback onTap;
   final Function(String) onTagTap;
   final VoidCallback? onFavoriteToggle;
@@ -52,6 +54,8 @@ class DanbooruPostCard extends StatefulWidget {
     this.selectionMode = false,
     this.isSelected = false,
     this.canSelect = true,
+    this.promptOverride,
+    this.negativePromptOverride,
     required this.onTap,
     required this.onTagTap,
     this.onFavoriteToggle,
@@ -65,11 +69,79 @@ class DanbooruPostCard extends StatefulWidget {
 
 class _DanbooruPostCardState extends State<DanbooruPostCard> {
   bool _isHovering = false;
+  double? _resolvedAspectRatio;
+  String? _dimensionRequestUrl;
+  ImageStream? _dimensionStream;
+  ImageStreamListener? _dimensionListener;
   OverlayEntry? _overlayEntry;
   final _layerLink = LayerLink();
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _resolveUnknownDimensions();
+  }
+
+  @override
+  void didUpdateWidget(covariant DanbooruPostCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.post.stableKey != widget.post.stableKey) {
+      _removeOverlay();
+      _isHovering = false;
+    }
+    if (oldWidget.post.previewUrl != widget.post.previewUrl ||
+        oldWidget.post.width != widget.post.width ||
+        oldWidget.post.height != widget.post.height) {
+      _resolvedAspectRatio = null;
+      _resolveUnknownDimensions();
+    }
+  }
+
+  void _resolveUnknownDimensions() {
+    final post = widget.post;
+    if ((post.width > 0 && post.height > 0) ||
+        _resolvedAspectRatio != null ||
+        post.previewUrl.isEmpty) {
+      _detachDimensionListener();
+      return;
+    }
+    final url = post.previewUrl;
+    if (_dimensionRequestUrl == url) return;
+    _detachDimensionListener();
+    _dimensionRequestUrl = url;
+    final provider = CachedNetworkImageProvider(
+      url,
+      cacheManager: DanbooruImageCacheManager.instance,
+      cacheKey: onlineGalleryImageCacheKeyForUrl(url),
+      headers: onlineGalleryImageHeadersForUrl(url),
+    );
+    final stream = provider.resolve(createLocalImageConfiguration(context));
+    late final ImageStreamListener listener;
+    listener = ImageStreamListener((imageInfo, _) {
+      if (!mounted || widget.post.previewUrl != url) return;
+      final width = imageInfo.image.width;
+      final height = imageInfo.image.height;
+      if (width > 0 && height > 0) {
+        setState(() => _resolvedAspectRatio = width / height);
+      }
+      _detachDimensionListener();
+    }, onError: (_, __) => _detachDimensionListener());
+    _dimensionStream = stream;
+    _dimensionListener = listener;
+    stream.addListener(listener);
+  }
+
+  void _detachDimensionListener() {
+    final listener = _dimensionListener;
+    if (listener != null) _dimensionStream?.removeListener(listener);
+    _dimensionStream = null;
+    _dimensionListener = null;
+    _dimensionRequestUrl = null;
+  }
+
+  @override
   void dispose() {
+    _detachDimensionListener();
     _removeOverlay();
     super.dispose();
   }
@@ -142,13 +214,13 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    double itemHeight;
-    if (widget.post.width > 0 && widget.post.height > 0) {
-      itemHeight = widget.itemWidth * (widget.post.height / widget.post.width);
-      itemHeight = itemHeight.clamp(80.0, widget.itemWidth * 2.5);
-    } else {
-      itemHeight = widget.itemWidth;
-    }
+    final aspectRatio = widget.post.width > 0 && widget.post.height > 0
+        ? widget.post.width / widget.post.height
+        : _resolvedAspectRatio ?? 1.0;
+    final itemHeight = (widget.itemWidth / aspectRatio).clamp(
+      80.0,
+      widget.itemWidth * 2.5,
+    );
 
     final pixelRatio = MediaQuery.of(context).devicePixelRatio;
     final memCacheWidth = (widget.itemWidth * pixelRatio).toInt();
@@ -156,9 +228,6 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     // 根据图片宽高比决定按钮布局方向
     // 横图（宽高比大）：水平布局，因为高度小放不下垂直按钮
     // 竖图（宽高比小）：垂直布局
-    final aspectRatio = widget.post.width > 0 && widget.post.height > 0
-        ? widget.post.width / widget.post.height
-        : 1.0;
     final buttonDirection = aspectRatio > 1.3 ? Axis.horizontal : Axis.vertical;
 
     return RepaintBoundary(
@@ -339,9 +408,66 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                 ),
                               ),
                             ),
-                          if (widget.post.isVideo || widget.post.isAnimated)
+                          if (widget.post.rank != null)
                             Positioned(
                               top: 4,
+                              left: 4,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.72),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '#${widget.post.rank}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          if (widget.post.mediaCount > 1)
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.72),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.collections_outlined,
+                                      size: 11,
+                                      color: Colors.white,
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '${widget.post.mediaCount}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          if (widget.post.isVideo || widget.post.isAnimated)
+                            Positioned(
+                              top: widget.post.rank != null ? 30 : 4,
                               left: 4,
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -379,7 +505,10 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                 ),
                               ),
                             ),
-                          if (!_isHovering && !widget.favoriteReadOnly)
+                          if (!_isHovering &&
+                              !widget.favoriteReadOnly &&
+                              widget.post.rating != null &&
+                              widget.post.mediaCount <= 1)
                             Positioned(
                               top: 4,
                               right: 4,
@@ -418,32 +547,78 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                   ],
                                 ),
                               ),
-                              child: Row(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(
-                                    Icons.arrow_upward,
-                                    size: 10,
-                                    color: Colors.white70,
-                                  ),
-                                  Text(
-                                    '${widget.post.score}',
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 10,
+                                  if (widget.post.title?.isNotEmpty == true)
+                                    Text(
+                                      widget.post.title!,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Icon(
-                                    Icons.favorite,
-                                    size: 10,
-                                    color: Colors.white70,
-                                  ),
-                                  Text(
-                                    '${widget.post.favCount}',
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 10,
+                                  if (widget.post.author?.isNotEmpty == true)
+                                    Text(
+                                      widget.post.author!,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 9,
+                                      ),
                                     ),
+                                  Row(
+                                    children: [
+                                      if (widget.post.score != null) ...[
+                                        const Icon(
+                                          Icons.arrow_upward,
+                                          size: 10,
+                                          color: Colors.white70,
+                                        ),
+                                        Text(
+                                          '${widget.post.score}',
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                      ],
+                                      if (widget.post.viewCount != null) ...[
+                                        const Icon(
+                                          Icons.visibility_outlined,
+                                          size: 10,
+                                          color: Colors.white70,
+                                        ),
+                                        Text(
+                                          '${widget.post.viewCount}',
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                      ],
+                                      if (widget.post.favCount != null) ...[
+                                        const Icon(
+                                          Icons.favorite,
+                                          size: 10,
+                                          color: Colors.white70,
+                                        ),
+                                        Text(
+                                          '${widget.post.favCount}',
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ],
                               ),
@@ -495,7 +670,11 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                               tooltip: context.l10n.onlineGallery_addToQueue,
                               onPressed: () async {
                                 final task = ReplicationTask.create(
-                                  prompt: widget.post.tags.join(', '),
+                                  prompt:
+                                      widget.promptOverride ??
+                                      widget.post.tags.join(', '),
+                                  negativePrompt:
+                                      widget.negativePromptOverride ?? '',
                                   thumbnailUrl: widget.post.previewUrl,
                                   source: ReplicationTaskSource.online,
                                 );
@@ -533,7 +712,13 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                     .read(
                                       pendingPromptNotifierProvider.notifier,
                                     )
-                                    .set(prompt: widget.post.tags.join(', '));
+                                    .set(
+                                      prompt:
+                                          widget.promptOverride ??
+                                          widget.post.tags.join(', '),
+                                      negativePrompt:
+                                          widget.negativePromptOverride,
+                                    );
                                 context.go('/');
                                 AppToast.info(
                                   context,
@@ -602,12 +787,16 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                             ),
                             CardActionButtonConfig(
                               icon: Icons.copy,
-                              tooltip: context.l10n.onlineGallery_copyTags,
+                              tooltip: widget.promptOverride != null
+                                  ? context.l10n.localGallery_copyPrompt
+                                  : context.l10n.onlineGallery_copyTags,
                               onPressed: () async {
                                 try {
                                   await Clipboard.setData(
                                     ClipboardData(
-                                      text: widget.post.tags.join(', '),
+                                      text:
+                                          widget.promptOverride ??
+                                          widget.post.tags.join(', '),
                                     ),
                                   );
                                   if (context.mounted) {
@@ -634,7 +823,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     );
   }
 
-  Color _getRatingColor(String rating) {
+  Color _getRatingColor(String? rating) {
     switch (rating) {
       case 'g':
         return Colors.green;
@@ -649,7 +838,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     }
   }
 
-  String _getRatingLabel(BuildContext context, String rating) {
+  String _getRatingLabel(BuildContext context, String? rating) {
     switch (rating) {
       case 'g':
         return context.l10n.onlineGallery_ratingGeneral;
@@ -660,7 +849,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
       case 'e':
         return context.l10n.onlineGallery_ratingExplicit;
       default:
-        return rating.toUpperCase();
+        return rating?.toUpperCase() ?? '';
     }
   }
 }
@@ -797,31 +986,45 @@ class _HoverPreviewCardInner extends ConsumerWidget {
                           value: '${post.width}×${post.height}',
                         ),
                         const SizedBox(width: 12),
-                        _StatItem(icon: Icons.thumb_up, value: '${post.score}'),
-                        const SizedBox(width: 12),
-                        _StatItem(
-                          icon: Icons.favorite,
-                          value: '${post.favCount}',
-                        ),
+                        if (post.score != null) ...[
+                          _StatItem(
+                            icon: Icons.thumb_up,
+                            value: '${post.score}',
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        if (post.viewCount != null) ...[
+                          _StatItem(
+                            icon: Icons.visibility_outlined,
+                            value: '${post.viewCount}',
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        if (post.favCount != null)
+                          _StatItem(
+                            icon: Icons.favorite,
+                            value: '${post.favCount}',
+                          ),
                         const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getRatingColor(post.rating),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            _getRatingLabel(context, post.rating),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                        if (post.rating != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getRatingColor(post.rating),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              _getRatingLabel(context, post.rating),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -862,7 +1065,7 @@ class _HoverPreviewCardInner extends ConsumerWidget {
     );
   }
 
-  Color _getRatingColor(String rating) {
+  Color _getRatingColor(String? rating) {
     switch (rating) {
       case 'g':
         return Colors.green;
@@ -877,7 +1080,7 @@ class _HoverPreviewCardInner extends ConsumerWidget {
     }
   }
 
-  String _getRatingLabel(BuildContext context, String rating) {
+  String _getRatingLabel(BuildContext context, String? rating) {
     switch (rating) {
       case 'g':
         return context.l10n.onlineGallery_ratingGeneral;
@@ -888,7 +1091,7 @@ class _HoverPreviewCardInner extends ConsumerWidget {
       case 'e':
         return context.l10n.onlineGallery_ratingExplicit;
       default:
-        return rating.toUpperCase();
+        return rating?.toUpperCase() ?? '';
     }
   }
 }

@@ -92,9 +92,9 @@ class PostTooltip extends ConsumerWidget {
     );
 
     // 上传时间
-    if (post.createdAt != null) {
+    if (post.createdAt.isNotEmpty) {
       try {
-        final date = DateTime.parse(post.createdAt!);
+        final date = DateTime.parse(post.createdAt);
         spans.add(const TextSpan(text: '\n'));
         spans.add(
           const TextSpan(
