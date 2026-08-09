@@ -6097,7 +6097,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tagLibrary_selectImage => '选择图片';
 
   @override
-  String get tagLibrary_thumbnailHint => '支持 PNG/JPG/WEBP 格式';
+  String get tagLibrary_thumbnailHint => '支持 PNG、JPG、WEBP、GIF、BMP、TIFF 等格式';
 
   @override
   String get tagLibrary_name => '名称';

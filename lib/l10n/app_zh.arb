@@ -3042,7 +3042,7 @@
   "tagLibrary_addFavorite": "添加收藏",
   "tagLibrary_thumbnail": "预览图",
   "tagLibrary_selectImage": "选择图片",
-  "tagLibrary_thumbnailHint": "支持 PNG/JPG/WEBP 格式",
+  "tagLibrary_thumbnailHint": "支持 PNG、JPG、WEBP、GIF、BMP、TIFF 等格式",
   "tagLibrary_name": "名称",
   "tagLibrary_nameHint": "输入条目名称",
   "tagLibrary_category": "分类",

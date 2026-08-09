@@ -3048,7 +3048,7 @@
   "tagLibrary_addFavorite": "Add to Favorites",
   "tagLibrary_thumbnail": "Thumbnail",
   "tagLibrary_selectImage": "Select Image",
-  "tagLibrary_thumbnailHint": "Supports PNG/JPG/WEBP",
+  "tagLibrary_thumbnailHint": "Supports PNG, JPG, WEBP, GIF, BMP, TIFF, and more",
   "tagLibrary_name": "Name",
   "tagLibrary_nameHint": "Enter entry name",
   "tagLibrary_category": "Category",

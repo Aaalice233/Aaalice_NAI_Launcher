@@ -6314,7 +6314,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tagLibrary_selectImage => 'Select Image';
 
   @override
-  String get tagLibrary_thumbnailHint => 'Supports PNG/JPG/WEBP';
+  String get tagLibrary_thumbnailHint =>
+      'Supports PNG, JPG, WEBP, GIF, BMP, TIFF, and more';
 
   @override
   String get tagLibrary_name => 'Name';

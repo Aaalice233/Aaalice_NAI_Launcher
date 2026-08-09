@@ -11289,7 +11289,7 @@ abstract class AppLocalizations {
   /// No description provided for @tagLibrary_thumbnailHint.
   ///
   /// In en, this message translates to:
-  /// **'Supports PNG/JPG/WEBP'**
+  /// **'Supports PNG, JPG, WEBP, GIF, BMP, TIFF, and more'**
   String get tagLibrary_thumbnailHint;
 
   /// No description provided for @tagLibrary_name.

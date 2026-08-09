@@ -1,7 +1,8 @@
+import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
@@ -10,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/utils/thumbnail_image_normalizer.dart';
 import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../providers/image_generation_provider.dart';
@@ -85,6 +87,8 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
 
   String? _selectedCategoryId;
   String? _thumbnailPath;
+  final Set<String> _temporaryThumbnailPaths = {};
+  int _thumbnailImportRevision = 0;
 
   // 预览图显示范围调整参数
   double _thumbnailOffsetX = 0.0;
@@ -130,24 +134,60 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
 
     // 如果有初始图像字节数据，保存到临时文件
     if (widget.initialImageBytes != null && widget.entry == null) {
-      _saveImageBytesToTemp(widget.initialImageBytes!);
+      unawaited(_initializeThumbnail(widget.initialImageBytes!));
     }
   }
 
-  /// 将图像字节数据保存到临时文件
-  Future<void> _saveImageBytesToTemp(Uint8List bytes) async {
+  Future<void> _initializeThumbnail(Uint8List bytes) async {
     try {
-      final tempDir = await getTemporaryDirectory();
-      final fileName = 'temp_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File('${tempDir.path}/$fileName');
-      await file.writeAsBytes(bytes);
-      if (mounted) {
-        setState(() {
-          _thumbnailPath = file.path;
-        });
-      }
+      await _saveImageBytesToTemp(bytes);
     } catch (e) {
       debugPrint('保存临时图像失败: $e');
+    }
+  }
+
+  /// 统一转换为 PNG，避免 TIFF、TGA 等格式无法由 Flutter 直接预览。
+  Future<void> _saveImageBytesToTemp(Uint8List bytes) async {
+    final importRevision = ++_thumbnailImportRevision;
+    final normalizedBytes = await compute(normalizeThumbnailImageToPng, bytes);
+    final tempDir = await getTemporaryDirectory();
+    final fileName = 'temp_${const Uuid().v4()}.png';
+    final file = File(path.join(tempDir.path, fileName));
+    await file.writeAsBytes(normalizedBytes);
+
+    if (!mounted || importRevision != _thumbnailImportRevision) {
+      await _deleteTemporaryThumbnail(file.path);
+      return;
+    }
+
+    final previousPath = _thumbnailPath;
+    _temporaryThumbnailPaths.add(file.path);
+    setState(() {
+      _thumbnailPath = file.path;
+    });
+
+    if (previousPath != null && _temporaryThumbnailPaths.remove(previousPath)) {
+      unawaited(_deleteTemporaryThumbnail(previousPath));
+    }
+  }
+
+  void _clearThumbnail() {
+    final previousPath = _thumbnailPath;
+    _thumbnailImportRevision++;
+    setState(() => _thumbnailPath = null);
+    if (previousPath != null && _temporaryThumbnailPaths.remove(previousPath)) {
+      unawaited(_deleteTemporaryThumbnail(previousPath));
+    }
+  }
+
+  Future<void> _deleteTemporaryThumbnail(String thumbnailPath) async {
+    try {
+      final file = File(thumbnailPath);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (e) {
+      debugPrint('删除临时预览图失败: $e');
     }
   }
 
@@ -159,6 +199,11 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
 
   @override
   void dispose() {
+    _thumbnailImportRevision++;
+    for (final thumbnailPath in _temporaryThumbnailPaths) {
+      unawaited(_deleteTemporaryThumbnail(thumbnailPath));
+    }
+    _temporaryThumbnailPaths.clear();
     _contentController.removeListener(_onContentChanged);
     _nameController.dispose();
     _contentController.dispose();
@@ -347,9 +392,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                             minimumSize: const Size(24, 24),
                             padding: EdgeInsets.zero,
                           ),
-                          onPressed: () {
-                            setState(() => _thumbnailPath = null);
-                          },
+                          onPressed: _clearThumbnail,
                         ),
                       ),
                     ],
@@ -551,15 +594,32 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
   }
 
   Future<void> _selectThumbnail() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      allowMultiple: false,
-    );
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: supportedThumbnailImageExtensions,
+        allowMultiple: false,
+      );
+      if (result == null) return;
 
-    if (result != null && result.files.single.path != null) {
-      setState(() {
-        _thumbnailPath = result.files.single.path;
-      });
+      final selectedFile = result.files.single;
+      final bytes =
+          selectedFile.bytes ??
+          (selectedFile.path == null
+              ? null
+              : await File(selectedFile.path!).readAsBytes());
+      if (bytes == null) {
+        throw const FileSystemException('无法读取所选图像');
+      }
+
+      await _saveImageBytesToTemp(bytes);
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(
+          context,
+          context.l10n.imagePicker_fileSelectionFailed(e.toString()),
+        );
+      }
     }
   }
 
