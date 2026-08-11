@@ -23,6 +23,7 @@ import '../../../providers/image_generation_provider.dart';
 import '../../../providers/image_save_settings_provider.dart';
 import '../../../providers/generation/image_workflow_controller.dart';
 import '../../../providers/precise_ref_library_provider.dart';
+import '../../../providers/subscription_provider.dart';
 import '../../../services/image_workflow_launcher.dart';
 import '../../../utils/comfyui_workflow_l10n.dart';
 import '../../../utils/precise_ref_library_import_helper.dart';
@@ -1404,6 +1405,9 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       'NovelAI upscale begin: ${_sourceLogSummary(params, src)}',
       _upscaleLogTag,
     );
+    final subscriptionNotifier = ref.read(
+      subscriptionNotifierProvider.notifier,
+    );
     setState(() => _naiUpscaling = true);
     try {
       final apiService = ref.read(naiImageEnhancementApiServiceProvider);
@@ -1436,6 +1440,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       AppLogger.w('NovelAI upscale failed: $e', _upscaleLogTag);
       if (mounted) AppToast.error(context, e.toString());
     } finally {
+      subscriptionNotifier.schedulePostBillingRefresh();
       AppLogger.d('NovelAI upscale end', _upscaleLogTag);
       if (mounted) setState(() => _naiUpscaling = false);
     }

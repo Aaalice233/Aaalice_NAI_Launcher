@@ -233,7 +233,7 @@ class ImageParams with _$ImageParams {
 extension ImageParamsExtension on ImageParams {
   /// 检查是否为 V3 模型
   bool get isV3Model =>
-      model.contains('diffusion-3') && !model.contains('diffusion-4');
+      model.contains('diffusion-3') || model.contains('diffusion-furry-3');
 
   /// 检查是否为 V4+ 模型
   bool get isV4Model =>
@@ -244,6 +244,30 @@ extension ImageParamsExtension on ImageParams {
 
   /// 检查是否为 Inpainting 模型
   bool get isInpaintingModel => model.contains('inpainting');
+
+  /// 网页端在重绘、局部重绘、DDIM 和 V4+ 请求中禁用 SMEA。
+  /// V3 自动模式只在超过 1472×1472 时启用，旧模型阈值为 832×1280。
+  bool get effectiveSmea {
+    if (isV4Model ||
+        action != ImageGenerationAction.generate ||
+        sampler.contains('ddim')) {
+      return false;
+    }
+    if (!smeaAuto) return smea;
+
+    final autoThreshold = isV3Model ? 2166785 : 1064961;
+    return width * height >= autoThreshold;
+  }
+
+  bool get effectiveSmeaDyn {
+    if (isV4Model ||
+        action != ImageGenerationAction.generate ||
+        sampler.contains('ddim') ||
+        smeaAuto) {
+      return false;
+    }
+    return smea && smeaDyn;
+  }
 
   /// 检查是否启用了多角色
   bool get hasCharacters => characters.isNotEmpty;

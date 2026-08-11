@@ -1,39 +1,65 @@
 import 'dart:math' as math;
 
-import '../constants/api_constants.dart';
 import '../../data/models/image/image_params.dart';
 
 /// Anlas 消耗计算器
 ///
-/// 基于 NovelAI 官网实际价格校准 (2025-01-30)
-/// 所有 V3/V4/V4.5 模型使用相同的定价公式
-/// 验证数据: scripts/nai_pricing_data.json
+/// 当前 V3/V4 基础计费公式与 NovelAI 网页端一致；Vibe 与 Precise
+/// Reference 附加费遵循官方功能文档。服务端计费仍是最终依据。
 class AnlasCalculator {
   AnlasCalculator._();
 
   static const int opusTier = 3;
+  static const int invalidCost = -3;
+  static const int maximumPerSampleCost = 140;
   static const int novelAiUpscaleOpusFreeMaxInputPixels = 640 * 640;
 
-  /// V4/V4.5 模型标识
-  static const _v4Models = [
-    'nai-diffusion-4-full',
-    'nai-diffusion-4-curated',
-    'nai-diffusion-4-5-full',
-    'nai-diffusion-4-5-curated',
-  ];
+  static const double _areaCoefficient = 2.951823174884865e-6;
+  static const double _stepAreaCoefficient = 5.753298233447344e-7;
+  static const int _vibeCost = 2;
+  static const int _preciseReferenceCost = 5;
 
-  /// V3 模型标识
-  static const _v3Models = [
-    'nai-diffusion-3',
-    'nai-diffusion-3-inpainting',
-    'nai-diffusion-3-furry',
-  ];
+  static bool _usesPreciseReferences(ImageParams params) {
+    return params.isV45Model && params.hasPreciseReferences;
+  }
 
-  static int _resolvePreciseReferenceExtraCost(ImageParams params) {
-    if (!params.model.contains('diffusion-4-5')) {
+  static bool usesVibeReferences(ImageParams params) {
+    return params.isV4Model &&
+        params.hasVibeReferencesV4 &&
+        params.action != ImageGenerationAction.infill &&
+        !_usesPreciseReferences(params);
+  }
+
+  static int resolvePreciseReferenceExtraCost(ImageParams params) {
+    if (!_usesPreciseReferences(params)) {
       return 0;
     }
-    return params.preciseReferenceCount * 5;
+    return params.preciseReferenceCount * _preciseReferenceCost;
+  }
+
+  /// 尚未编码的启用 Vibe 每个只在生成前收取一次编码费。
+  static int resolveVibeEncodingCost(ImageParams params) {
+    if (!usesVibeReferences(params)) {
+      return 0;
+    }
+
+    final uncachedCount = params.enabledVibeReferencesV4.where((reference) {
+      return reference.needsEncodingForModel(params.model);
+    }).length;
+    return uncachedCount * _vibeCost;
+  }
+
+  /// 单次请求使用超过四个 Vibe 时，每个额外 Vibe 收取 2 Anlas。
+  static int resolveVibeReferenceExtraCost(ImageParams params) {
+    if (!usesVibeReferences(params)) {
+      return 0;
+    }
+
+    final extraReferenceCount = math.max(
+      params.enabledVibeReferencesV4.length - 4,
+      0,
+    );
+    return extraReferenceCount * _vibeCost;
   }
 
   /// 计算预估 Anlas 消耗
@@ -47,14 +73,20 @@ class AnlasCalculator {
       steps: params.steps,
       batchCount: params.nSamples,
       batchSize: 1,
-      smea: params.smea,
-      smeaDyn: params.smeaDyn,
+      smea: params.effectiveSmea,
+      smeaDyn: params.effectiveSmeaDyn,
       model: params.model,
       subscriptionTier: isOpus ? opusTier : 0,
-      strength: params.action == ImageGenerationAction.img2img
-          ? params.strength
-          : 1.0,
-      extraPerSampleCost: _resolvePreciseReferenceExtraCost(params),
+      hasBaseImage: params.action != ImageGenerationAction.generate,
+      hasCharacterReference: _usesPreciseReferences(params),
+      strength: switch (params.action) {
+        ImageGenerationAction.img2img => params.strength,
+        ImageGenerationAction.infill => params.inpaintStrength,
+        ImageGenerationAction.generate => 1.0,
+      },
+      extraPerSampleCost: resolvePreciseReferenceExtraCost(params),
+      extraPerRequestCost: resolveVibeReferenceExtraCost(params),
+      oneTimeCost: resolveVibeEncodingCost(params),
     );
   }
 
@@ -68,8 +100,12 @@ class AnlasCalculator {
     required bool smeaDyn,
     required String model,
     int subscriptionTier = 0,
+    bool hasBaseImage = false,
+    bool hasCharacterReference = false,
     double strength = 1.0,
     int extraPerSampleCost = 0,
+    int extraPerRequestCost = 0,
+    int oneTimeCost = 0,
   }) {
     if (batchCount <= 0 || batchSize <= 0) {
       return 0;
@@ -78,7 +114,7 @@ class AnlasCalculator {
     var singleRequestCost = 0;
     for (var index = 0; index < batchSize; index++) {
       final isFirstImageInRequest = index == 0;
-      singleRequestCost += calculateFromValues(
+      final sampleCost = calculateFromValues(
         width: width,
         height: height,
         steps: steps,
@@ -87,42 +123,45 @@ class AnlasCalculator {
         smeaDyn: smeaDyn,
         model: model,
         subscriptionTier: isFirstImageInRequest ? subscriptionTier : 0,
+        hasBaseImage: hasBaseImage,
+        hasCharacterReference: hasCharacterReference,
         strength: strength,
       );
-      singleRequestCost += extraPerSampleCost;
+      if (sampleCost == invalidCost) return invalidCost;
+      singleRequestCost += sampleCost;
+      singleRequestCost += math.max(extraPerSampleCost, 0);
     }
+    singleRequestCost += math.max(extraPerRequestCost, 0);
 
-    return singleRequestCost * batchCount;
+    return singleRequestCost * batchCount + math.max(oneTimeCost, 0);
   }
 
-  /// 估算 NovelAI 云端超分消耗。
+  /// 计算 NovelAI 云端超分消耗。
   ///
-  /// NovelAI 未公开独立的超分价格公式，这里按网页实测主生成价格系数估算输出面积，
-  /// 并套用当前已知的 Opus 免费输入阈值（<= 640x640）。
+  /// 当前网页端按输入面积分档计费，放大倍数不参与价格计算。Opus 用户输入不超过
+  /// 640×640 时免费；超过服务端支持的 1MP 输入范围时返回 [invalidCost]。
   static int calculateNovelAiUpscaleCost({
     required int inputWidth,
     required int inputHeight,
     required int scale,
     int subscriptionTier = 0,
   }) {
-    final normalizedScale = scale.clamp(1, 4);
+    if (inputWidth <= 0 || inputHeight <= 0 || scale <= 0) {
+      return invalidCost;
+    }
+
     final inputPixels = inputWidth * inputHeight;
-    if (subscriptionTier == opusTier &&
+    if (subscriptionTier >= opusTier &&
         inputPixels <= novelAiUpscaleOpusFreeMaxInputPixels) {
       return 0;
     }
 
-    return calculateFromValues(
-      width: inputWidth * normalizedScale,
-      height: inputHeight * normalizedScale,
-      steps: 28,
-      nSamples: 1,
-      smea: false,
-      smeaDyn: false,
-      model: ImageModels.animeDiffusionV45Full,
-      subscriptionTier: 0,
-      strength: 1.0,
-    );
+    if (inputPixels <= 512 * 512) return 1;
+    if (inputPixels <= 640 * 640) return 2;
+    if (inputPixels <= 512 * 1024) return 3;
+    if (inputPixels <= 768 * 1024) return 5;
+    if (inputPixels <= 1024 * 1024) return 7;
+    return invalidCost;
   }
 
   /// 根据具体参数值计算 Anlas 消耗
@@ -136,6 +175,8 @@ class AnlasCalculator {
     required String model,
     bool isOpus = false,
     int subscriptionTier = 0,
+    bool hasBaseImage = false,
+    bool hasCharacterReference = false,
     double strength = 1.0,
   }) {
     // 计算分辨率（像素数）
@@ -149,18 +190,14 @@ class AnlasCalculator {
     double perSample;
 
     if (version >= 3) {
-      // V3/V4/V4.5 使用相同公式 (2025-01-30 验证)
-      // 公式: ceil(pixels × steps × 6.8e-7 × smeaFactor)
-      // 验证:
-      //   512×768,  28步 → 8 Anlas  ✓ (calc: 7.49)
-      //   832×1216, 28步 → 20 Anlas ✓ (calc: 19.26)
-      //   1024×1536, 28步 → 30 Anlas ✓ (calc: 29.95)
-      //   1088×1920, 28步 → 40 Anlas ✓ (calc: 39.77)
-      // 注: SMEA 选项仅存在于 V3 模型，V4+ 已移除
+      // 网页端先对面积与步数公式向上取整，再应用 SMEA 与重绘强度。
+      final baseCost = (_areaCoefficient * r + _stepAreaCoefficient * r * steps)
+          .ceil();
       final smeaFactor = !smea ? 1.0 : (!smeaDyn ? 1.2 : 1.4);
-      perSample = (r * steps * 6.8e-7) * smeaFactor;
+      perSample = (baseCost * smeaFactor).ceilToDouble();
     } else {
-      // V1/V2 使用指数公式（简化版）
+      // 旧模型沿用已有的指数估算；本次计费更新只替换当前 V3/V4 路径，
+      // 避免用现代模型公式回算旧版请求。
       perSample =
           (15.266497014243718 * math.exp(r / 1024 / 1024 * 0.6326248927474729) -
               15.225164493059737) *
@@ -170,14 +207,16 @@ class AnlasCalculator {
 
     // 应用 img2img 强度系数
     final int cost = math.max((perSample * strength).ceil(), 2);
+    if (cost > maximumPerSampleCost) return invalidCost;
 
     // Opus 免费条件检查
     final opusDiscount =
         _isOpusFree(
-          isOpus: isOpus || subscriptionTier == opusTier,
+          isOpus: isOpus || subscriptionTier >= opusTier,
           steps: steps,
           resolution: r,
-          version: version,
+          hasBaseImage: hasBaseImage,
+          hasCharacterReference: hasCharacterReference,
         )
         ? 1
         : 0;
@@ -193,35 +232,24 @@ class AnlasCalculator {
     required bool isOpus,
     required int steps,
     required int resolution,
-    required int version,
+    required bool hasBaseImage,
+    required bool hasCharacterReference,
   }) {
-    if (!isOpus) return false;
-    if (steps > 28) return false;
-
-    // V1 分辨率限制更严格
-    if (version == 1) {
-      return resolution <= 640 * 640; // 409,600 像素
-    }
-
-    // V2+ 分辨率限制
-    return resolution <= 1024 * 1024; // 1,048,576 像素
+    return isOpus &&
+        !hasBaseImage &&
+        !hasCharacterReference &&
+        steps <= 28 &&
+        resolution <= 1024 * 1024;
   }
 
   /// 获取模型版本号
   static int _getModelVersion(String model) {
-    if (_v4Models.any((m) => model.contains(m.replaceAll('-', '')))) {
-      return 4;
-    }
-    if (_v4Models.contains(model)) return 4;
-    if (_v3Models.any((m) => model.contains(m.replaceAll('-', '')))) {
+    if (model.contains('diffusion-4')) return 4;
+    if (model.contains('diffusion-3') || model.contains('diffusion-furry-3')) {
       return 3;
     }
-    if (_v3Models.contains(model)) return 3;
-    if (model.contains('diffusion-3') || model.contains('diffusion-4')) {
-      return model.contains('4') ? 4 : 3;
-    }
-    // V2 及更早
-    return 2;
+    if (model.contains('diffusion-2')) return 2;
+    return 1;
   }
 
   /// 检查当前参数是否满足 Opus 免费条件
@@ -229,13 +257,10 @@ class AnlasCalculator {
     if (!isOpus) return false;
     if (params.steps > 28) return false;
     if (params.nSamples > 1) return false;
+    if (params.action != ImageGenerationAction.generate) return false;
+    if (_usesPreciseReferences(params)) return false;
 
     final resolution = params.width * params.height;
-    final version = _getModelVersion(params.model);
-
-    if (version == 1) {
-      return resolution <= 640 * 640;
-    }
     return resolution <= 1024 * 1024;
   }
 
@@ -256,10 +281,9 @@ class AnlasCalculator {
     if (pixels < 65536) pixels = 65536;
 
     const steps = 28;
-    const constantCoeff = 2.951823174884865e-6;
-    const stepCoeff = 5.753298233447344e-7;
     final cost = math.max(
-      (constantCoeff * pixels + stepCoeff * pixels * steps).ceil(),
+      (_areaCoefficient * pixels + _stepAreaCoefficient * pixels * steps)
+          .ceil(),
       2,
     );
 

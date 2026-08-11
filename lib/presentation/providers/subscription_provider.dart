@@ -19,10 +19,13 @@ part 'subscription_provider.g.dart';
 @riverpod
 class SubscriptionNotifier extends _$SubscriptionNotifier {
   AuthState? _previousAuthState;
+  SubscriptionState? _lastKnownState;
   bool _hasInitiallyLoaded = false;
   Timer? _refreshTimer;
   Future<void>? _inflightFetch;
-  bool _isRefreshingBalance = false;
+  Future<bool>? _inflightBalanceRefresh;
+  bool _balanceRefreshQueued = false;
+  Timer? _postBillingRefreshTimer;
   Timer? _networkRecoveryProbeTimer;
   bool _isNetworkRecoveryProbing = false;
   int _networkFailureCount = 0;
@@ -33,6 +36,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   static const Duration _maxBackoffInterval = Duration(minutes: 2);
   static const Duration _networkProbeInterval = Duration(seconds: 3);
   static const Duration _networkProbeTimeout = Duration(seconds: 2);
+  static const Duration postBillingRefreshDelay = Duration(milliseconds: 500);
 
   @override
   SubscriptionState build() {
@@ -40,26 +44,43 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
 
     // Watch authentication state changes
     final authState = ref.watch(authNotifierProvider);
+    final previousAuthState = _previousAuthState;
+    final loggedIn =
+        authState.isAuthenticated &&
+        previousAuthState != null &&
+        !previousAuthState.isAuthenticated;
+    final switchedAccount =
+        authState.isAuthenticated &&
+        previousAuthState?.isAuthenticated == true &&
+        authState.accountId != previousAuthState?.accountId;
+    final loggedOut =
+        !authState.isAuthenticated &&
+        previousAuthState?.isAuthenticated == true;
+
+    if (switchedAccount || loggedOut) {
+      // 旧请求无法取消，但会被 session 校验丢弃。切换账号时解除去重，
+      // 让新账号无需等待旧请求结束即可立即拉取自己的余额。
+      if (switchedAccount) _inflightFetch = null;
+      _lastKnownState = null;
+      _hasInitiallyLoaded = false;
+      _networkFailureCount = 0;
+      _stopAutoRefresh();
+      _stopNetworkRecoveryProbe();
+      _cancelPostBillingRefresh();
+    }
+
     final hydratedState = _hydrateFromAuthState(authState);
 
     // React to authentication state changes
-    if (_previousAuthState != null) {
-      if (authState.isAuthenticated && !_previousAuthState!.isAuthenticated) {
-        // Login succeeded - use the subscription info already fetched during
-        // token validation, then refresh in the background if needed.
-        if (hydratedState == null) {
-          Future.microtask(() => unawaited(fetchSubscription()));
-        }
-      } else if (!authState.isAuthenticated &&
-          _previousAuthState!.isAuthenticated) {
-        // Logged out - clear subscription info and stop auto refresh
-        state = const SubscriptionState.initial();
-        _hasInitiallyLoaded = false;
-        _networkFailureCount = 0;
-        _stopAutoRefresh();
-        _stopNetworkRecoveryProbe();
+    if (loggedIn || switchedAccount) {
+      // Login succeeded - use the subscription info already fetched during
+      // token validation, then refresh in the background if needed.
+      if (hydratedState == null) {
+        Future.microtask(() => unawaited(fetchSubscription()));
       }
-    } else if (authState.isAuthenticated && !_hasInitiallyLoaded) {
+    } else if (previousAuthState == null &&
+        authState.isAuthenticated &&
+        !_hasInitiallyLoaded) {
       // First build and already authenticated - fetch subscription
       // 使用 _hasInitiallyLoaded 标记避免重复加载（预热阶段可能已加载）
       if (hydratedState == null) {
@@ -74,13 +95,25 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     ref.onDispose(() {
       _stopAutoRefresh();
       _stopNetworkRecoveryProbe();
+      _cancelPostBillingRefresh();
     });
 
-    return hydratedState ?? const SubscriptionState.initial();
+    if (hydratedState != null) {
+      _lastKnownState = hydratedState;
+      return hydratedState;
+    }
+    return _lastKnownState ?? const SubscriptionState.initial();
+  }
+
+  void _updateState(SubscriptionState nextState) {
+    _lastKnownState = nextState;
+    state = nextState;
   }
 
   SubscriptionState? _hydrateFromAuthState(AuthState authState) {
-    if (!authState.isAuthenticated || authState.subscriptionInfo == null) {
+    if (!authState.isAuthenticated ||
+        authState.subscriptionInfo == null ||
+        _hasInitiallyLoaded) {
       return null;
     }
 
@@ -88,12 +121,10 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       final subscription = UserSubscription.fromJson(
         authState.subscriptionInfo!,
       );
-      if (!_hasInitiallyLoaded) {
-        _hasInitiallyLoaded = true;
-        _networkFailureCount = 0;
-        _startAutoRefresh();
-        Future.microtask(() => unawaited(refreshBalance()));
-      }
+      _hasInitiallyLoaded = true;
+      _networkFailureCount = 0;
+      _startAutoRefresh();
+      Future.microtask(() => unawaited(refreshBalance()));
       return SubscriptionState.loaded(subscription);
     } catch (e) {
       AppLogger.w(
@@ -230,11 +261,16 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     try {
       await fetchFuture;
     } finally {
-      _inflightFetch = null;
+      if (identical(_inflightFetch, fetchFuture)) {
+        _inflightFetch = null;
+      }
     }
   }
 
   Future<void> _doFetchSubscription() async {
+    final authSession = ref.read(authNotifierProvider);
+    if (!authSession.isAuthenticated) return;
+
     // 避免重复加载
     if (state.isLoading) return;
 
@@ -246,7 +282,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
 
     // 首次拉取保持 initial，避免 UI 进入阻塞式 loading 体验
     if (_hasInitiallyLoaded) {
-      state = const SubscriptionState.loading();
+      _updateState(const SubscriptionState.loading());
     }
 
     try {
@@ -254,8 +290,10 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       final data = await apiService.getUserSubscription(
         receiveTimeout: _initialFetchTimeout,
       );
+      if (!_isCurrentAuthSession(authSession)) return;
+
       final subscription = UserSubscription.fromJson(data);
-      state = SubscriptionState.loaded(subscription);
+      _updateState(SubscriptionState.loaded(subscription));
       _hasInitiallyLoaded = true;
       _startAutoRefresh();
 
@@ -265,13 +303,14 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
         'Subscription',
       );
     } catch (e) {
+      if (!_isCurrentAuthSession(authSession)) return;
       AppLogger.e('Failed to fetch subscription: $e', 'Subscription');
 
       // 首次加载失败时不进入 error 态，避免 UI 因网络抖动出现卡顿感
       if (_hasInitiallyLoaded) {
-        state = SubscriptionState.error(e.toString());
+        _updateState(SubscriptionState.error(e.toString()));
       } else {
-        state = const SubscriptionState.initial();
+        _updateState(const SubscriptionState.initial());
       }
 
       // 检查是否是网络连接错误，如果是则不标记为已加载，允许后续重试
@@ -301,30 +340,90 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     _hasInitiallyLoaded = false;
   }
 
-  /// 刷新余额（生成后调用）
-  Future<bool> refreshBalance() async {
-    if (_isRefreshingBalance) {
-      return false;
+  /// 在可能产生 Anlas 扣费的请求结束后刷新余额。
+  ///
+  /// 延迟窗口与 NovelAI 网页端保持一致，并合并短时间内连续完成的编码、生成
+  /// 等请求，避免在服务端余额尚未落库时读到旧值。
+  void schedulePostBillingRefresh({Duration delay = postBillingRefreshDelay}) {
+    if (!ref.read(authNotifierProvider).isAuthenticated) {
+      return;
     }
 
-    _isRefreshingBalance = true;
+    _postBillingRefreshTimer?.cancel();
+    _postBillingRefreshTimer = Timer(delay, () {
+      _postBillingRefreshTimer = null;
+      unawaited(refreshBalance());
+    });
+  }
 
+  void _cancelPostBillingRefresh() {
+    _postBillingRefreshTimer?.cancel();
+    _postBillingRefreshTimer = null;
+  }
+
+  /// 立即刷新余额。
+  ///
+  /// 刷新进行中收到的新请求不会被丢弃：当前请求结束后再拉取一次，确保生成
+  /// 完成时恰逢定时刷新也能拿到扣费后的余额。
+  Future<bool> refreshBalance() {
+    if (!ref.read(authNotifierProvider).isAuthenticated) {
+      return Future.value(false);
+    }
+
+    final inflightRefresh = _inflightBalanceRefresh;
+    if (inflightRefresh != null) {
+      _balanceRefreshQueued = true;
+      return inflightRefresh;
+    }
+
+    late final Future<bool> trackedRefresh;
+    trackedRefresh = _drainBalanceRefreshQueue().whenComplete(() {
+      if (identical(_inflightBalanceRefresh, trackedRefresh)) {
+        _inflightBalanceRefresh = null;
+      }
+    });
+    _inflightBalanceRefresh = trackedRefresh;
+    return trackedRefresh;
+  }
+
+  Future<bool> _drainBalanceRefreshQueue() async {
+    var latestRefreshSucceeded = false;
+    do {
+      _balanceRefreshQueued = false;
+      latestRefreshSucceeded = await _refreshBalanceOnce();
+    } while (_balanceRefreshQueued);
+    return latestRefreshSucceeded;
+  }
+
+  Future<bool> _refreshBalanceOnce() async {
     // 保持当前状态，静默刷新
+    final authSession = ref.read(authNotifierProvider);
+    if (!authSession.isAuthenticated) return false;
+
     try {
       final apiService = ref.read(naiUserInfoApiServiceProvider);
       final data = await apiService.getUserSubscription(
         receiveTimeout: _initialFetchTimeout,
       );
+      if (!_isCurrentAuthSession(authSession)) return false;
+
       final subscription = UserSubscription.fromJson(data);
-      state = SubscriptionState.loaded(subscription);
+      _updateState(SubscriptionState.loaded(subscription));
       return true;
     } catch (e) {
       AppLogger.w('Failed to refresh balance: $e', 'Subscription');
       // 刷新失败不更新状态，保持上次数据
       return false;
-    } finally {
-      _isRefreshingBalance = false;
     }
+  }
+
+  bool _isCurrentAuthSession(AuthState expected) {
+    final current = ref.read(authNotifierProvider);
+    if (!current.isAuthenticated) return false;
+    if (identical(current, expected)) return true;
+
+    final expectedAccountId = expected.accountId;
+    return expectedAccountId != null && current.accountId == expectedAccountId;
   }
 }
 

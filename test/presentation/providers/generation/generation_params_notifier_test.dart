@@ -10,9 +10,11 @@ import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/utils/nai_api_utils.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
+import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_params_notifier.dart';
+import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void main() {
@@ -70,6 +72,9 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
+        subscriptionNotifierProvider.overrideWith(
+          _TestSubscriptionNotifier.new,
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -275,6 +280,9 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
+        subscriptionNotifierProvider.overrideWith(
+          _TestSubscriptionNotifier.new,
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -306,6 +314,9 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
+        subscriptionNotifierProvider.overrideWith(
+          _TestSubscriptionNotifier.new,
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -333,6 +344,71 @@ void main() {
     expect(prepared.single.vibeEncoding, 'nai-diffusion-4-full|0.3|1');
     expect(prepared.single.sourceType, VibeSourceType.naiv4vibe);
     expect(prepared.single.rawImageData, raw);
+  });
+
+  test('切换模型后会重新编码仍有原图来源的 Vibe', () async {
+    final apiService = _FakeEnhancementApiService();
+    final container = ProviderContainer(
+      overrides: [
+        naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
+        subscriptionNotifierProvider.overrideWith(
+          _TestSubscriptionNotifier.new,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    final raw = Uint8List.fromList([2, 4, 6, 8]);
+    final prepared = await notifier.ensureVibeReferencesEncoded(
+      [
+        VibeReference(
+          displayName: 'Stale Vibe',
+          vibeEncoding: 'encoded-for-v4',
+          rawImageData: raw,
+          thumbnail: raw,
+          infoExtracted: 0.3,
+          encodingModel: 'nai-diffusion-4-full',
+          sourceType: VibeSourceType.naiv4vibe,
+        ),
+      ],
+      model: 'nai-diffusion-4-5-full',
+      syncCurrentState: false,
+    );
+
+    expect(prepared.single.vibeEncoding, 'nai-diffusion-4-5-full|0.3|1');
+    expect(prepared.single.encodingModel, 'nai-diffusion-4-5-full');
+    expect(apiService.callCount, 1);
+  });
+
+  test('生成前不会编码已禁用的原图 Vibe', () async {
+    final apiService = _FakeEnhancementApiService();
+    final container = ProviderContainer(
+      overrides: [
+        naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    final raw = Uint8List.fromList([9, 7, 5, 3]);
+    final prepared = await notifier.ensureVibeReferencesEncoded(
+      [
+        VibeReference(
+          displayName: 'Disabled Raw Vibe',
+          vibeEncoding: '',
+          rawImageData: raw,
+          thumbnail: raw,
+          sourceType: VibeSourceType.rawImage,
+          enabled: false,
+        ),
+      ],
+      model: 'nai-diffusion-4-full',
+      syncCurrentState: false,
+    );
+
+    expect(prepared.single.vibeEncoding, isEmpty);
+    expect(apiService.callCount, 0);
   });
 
   test('手动写入编码时会把原图 Vibe 提升为预编码状态', () async {
@@ -477,6 +553,18 @@ void main() {
 
 Uint8List _validPngBytes({required int width, required int height}) =>
     Uint8List.fromList(img.encodePng(img.Image(width: width, height: height)));
+
+class _TestSubscriptionNotifier extends SubscriptionNotifier {
+  @override
+  SubscriptionState build() {
+    return const SubscriptionState.loaded(
+      UserSubscription(tier: 1, active: true),
+    );
+  }
+
+  @override
+  void schedulePostBillingRefresh({Duration delay = Duration.zero}) {}
+}
 
 class _FakeEnhancementApiService extends NAIImageEnhancementApiService {
   _FakeEnhancementApiService() : super(Dio());

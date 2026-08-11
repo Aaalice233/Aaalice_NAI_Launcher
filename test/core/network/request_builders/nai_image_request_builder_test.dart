@@ -75,6 +75,48 @@ void main() {
       },
     );
 
+    test('should match web SMEA thresholds and img2img disabling', () async {
+      const belowThreshold = ImageParams(
+        model: ImageModels.animeDiffusionV3,
+        width: 1472,
+        height: 1472,
+        smeaAuto: true,
+      );
+      const aboveThreshold = ImageParams(
+        model: ImageModels.animeDiffusionV3,
+        width: 1536,
+        height: 1536,
+        smeaAuto: true,
+      );
+      final img2img = ImageParams(
+        model: ImageModels.animeDiffusionV3,
+        action: ImageGenerationAction.img2img,
+        sourceImage: _validPngBytes(),
+        smeaAuto: false,
+        smea: true,
+        smeaDyn: true,
+      );
+
+      final belowResult = await NAIImageRequestBuilder(
+        params: belowThreshold,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: Samplers.kEulerAncestral);
+      final aboveResult = await NAIImageRequestBuilder(
+        params: aboveThreshold,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: Samplers.kEulerAncestral);
+      final img2imgResult = await NAIImageRequestBuilder(
+        params: img2img,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: Samplers.kEulerAncestral);
+
+      expect(belowResult.requestParameters['sm'], isFalse);
+      expect(aboveResult.requestParameters['sm'], isTrue);
+      expect(aboveResult.requestParameters['sm_dyn'], isFalse);
+      expect(img2imgResult.requestParameters['sm'], isFalse);
+      expect(img2imgResult.requestParameters['sm_dyn'], isFalse);
+    });
+
     test('should throw ArgumentError when sampler is empty', () async {
       const params = ImageParams();
       final builder = NAIImageRequestBuilder(
@@ -204,6 +246,32 @@ void main() {
         isStream: true,
       );
       expect(streamResult.vibeEncodingMap, isEmpty);
+    });
+
+    test('should re-encode a Vibe created for a different model', () async {
+      final params = ImageParams(
+        model: 'nai-diffusion-4-5-full',
+        vibeReferencesV4: [
+          VibeReference(
+            displayName: 'stale',
+            vibeEncoding: 'stale-encoding',
+            rawImageData: Uint8List.fromList([1, 2, 3]),
+            encodingModel: 'nai-diffusion-4-full',
+            sourceType: VibeSourceType.naiv4vibe,
+          ),
+        ],
+      );
+
+      final result = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler');
+
+      expect(
+        result.requestParameters['reference_image_multiple'],
+        equals(['encoded-vibe']),
+      );
+      expect(result.vibeEncodingMap, equals({0: 'encoded-vibe'}));
     });
 
     test(

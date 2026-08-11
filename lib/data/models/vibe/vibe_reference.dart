@@ -105,6 +105,11 @@ class VibeReference with _$VibeReference {
 
   bool get hasVibeEncoding => vibeEncoding.isNotEmpty;
 
+  bool needsEncodingForModel(String model) {
+    return canReencodeFromRawSource &&
+        (!hasVibeEncoding || encodingModel != model);
+  }
+
   VibeReference withEncodedVibe(String encoding, {String? model}) {
     if (encoding.isEmpty) {
       return copyWith(vibeEncoding: encoding);

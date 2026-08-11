@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/services/anlas_calculator.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/inpaint_mask_utils.dart';
 import '../../core/utils/localization_extension.dart';
@@ -65,12 +66,16 @@ class ImageWorkflowLauncher {
               steps: params.steps,
               batchCount: params.nSamples,
               batchSize: ref.read(imagesPerRequestProvider),
-              smea: params.smea,
-              smeaDyn: params.smeaDyn,
+              smea: params.effectiveSmea,
+              smeaDyn: params.effectiveSmeaDyn,
+              strength: params.inpaintStrength,
               subscriptionTier:
-                  ref.read(subscriptionNotifierProvider).subscription?.tier ??
-                  0,
-              extraPerSampleCost: _resolvePreciseReferenceExtraCost(params),
+                  ref.read(subscriptionNotifierProvider).subscription?.isOpus ==
+                      true
+                  ? AnlasCalculator.opusTier
+                  : 0,
+              extraPerSampleCost:
+                  AnlasCalculator.resolvePreciseReferenceExtraCost(params),
             )
           : null,
       showMaskExport: mode == ImageEditorMode.inpaint,
@@ -246,13 +251,6 @@ class ImageWorkflowLauncher {
 
     final currentParams = ref.read(generationParamsNotifierProvider);
     ref.read(imageGenerationNotifierProvider.notifier).generate(currentParams);
-  }
-
-  static int _resolvePreciseReferenceExtraCost(ImageParams params) {
-    if (!params.model.contains('diffusion-4-5')) {
-      return 0;
-    }
-    return params.preciseReferenceCount * 5;
   }
 
   static void _applyVariationMetadata(

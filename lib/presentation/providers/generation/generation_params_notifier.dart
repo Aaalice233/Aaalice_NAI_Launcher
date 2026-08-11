@@ -20,6 +20,7 @@ import '../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../data/models/vibe/vibe_reference.dart';
 import '../../../data/services/vibe_library_storage_service.dart';
 import '../quality_preset_provider.dart';
+import '../subscription_provider.dart';
 import '../uc_preset_provider.dart';
 
 part 'generation_params_notifier.g.dart';
@@ -520,6 +521,9 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
         model: model,
         informationExtracted: informationExtracted,
       );
+      ref
+          .read(subscriptionNotifierProvider.notifier)
+          .schedulePostBillingRefresh();
 
       // 存入缓存
       _vibeEncodingCache[cacheKey] = encoding;
@@ -571,7 +575,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     final encodedVibes = <VibeReference>[];
 
     for (final vibe in vibes) {
-      if (!vibe.canReencodeFromRawSource || vibe.vibeEncoding.isNotEmpty) {
+      if (!vibe.enabled || !vibe.needsEncodingForModel(resolvedModel)) {
         encodedVibes.add(vibe);
         continue;
       }
@@ -642,8 +646,8 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     );
 
     final shouldEncode =
-        nextVibe.canReencodeFromRawSource &&
-        (nextVibe.vibeEncoding.isEmpty ||
+        nextVibe.needsEncodingForModel(resolvedModel) ||
+        (nextVibe.canReencodeFromRawSource &&
             nextInfoExtracted != vibe.infoExtracted);
     if (!shouldEncode) {
       return nextVibe.normalizedForLibraryStorage();

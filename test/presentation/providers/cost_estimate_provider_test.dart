@@ -9,7 +9,9 @@ import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/services/anlas_calculator.dart';
 import 'package:nai_launcher/core/utils/focused_inpaint_utils.dart';
+import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
+import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/presentation/providers/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/cost_estimate_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
@@ -87,18 +89,44 @@ void main() {
         workflow.enterUpscaleMode();
         workflow.updateUpscaleBackend(UpscaleBackend.novelai);
 
-        final expected = AnlasCalculator.calculateNovelAiUpscaleCost(
-          inputWidth: 512,
-          inputHeight: 768,
-          scale: 4,
-          subscriptionTier:
-              container.read(subscriptionNotifierProvider).subscription?.tier ??
-              0,
-        );
-
-        expect(container.read(estimatedCostProvider), equals(expected));
+        expect(container.read(estimatedCostProvider), equals(2));
       },
     );
+
+    test('should charge Opus img2img requests with redraw strength', () {
+      final subscription = container.read(
+        subscriptionNotifierProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      subscription.state = const SubscriptionState.loaded(
+        UserSubscription(tier: AnlasCalculator.opusTier, active: true),
+      );
+      paramsNotifier.updateAction(ImageGenerationAction.img2img);
+      paramsNotifier.setSourceImage(_buildPng(width: 1024, height: 1024));
+      paramsNotifier.updateSize(1024, 1024);
+      paramsNotifier.updateStrength(0.5);
+
+      final params = container.read(generationParamsNotifierProvider);
+      final expected = AnlasCalculator.calculateRequestCost(
+        width: 1024,
+        height: 1024,
+        steps: params.steps,
+        batchCount: params.nSamples,
+        batchSize: container.read(imagesPerRequestProvider),
+        smea: params.effectiveSmea,
+        smeaDyn: params.effectiveSmeaDyn,
+        model: params.model,
+        subscriptionTier: AnlasCalculator.opusTier,
+        hasBaseImage: true,
+        strength: 0.5,
+      );
+
+      expect(expected, greaterThan(0));
+      expect(container.read(estimatedCostProvider), expected);
+    });
 
     test(
       'should estimate focused inpaint from actual cropped request size',
@@ -134,6 +162,9 @@ void main() {
           const Rect.fromLTWH(900, 900, 160, 160),
         );
         workflow.onMaskChanged(mask);
+        container
+            .read(generationParamsNotifierProvider.notifier)
+            .updateInpaintStrength(0.5);
 
         final params = container.read(generationParamsNotifierProvider);
         final focusedRequest = FocusedInpaintUtils.prepareRequest(
@@ -155,9 +186,9 @@ void main() {
           subscriptionTier:
               container.read(subscriptionNotifierProvider).subscription?.tier ??
               0,
-          smea: params.smea,
-          smeaDyn: params.smeaDyn,
-          strength: 1.0,
+          smea: params.effectiveSmea,
+          smeaDyn: params.effectiveSmeaDyn,
+          strength: params.inpaintStrength,
           extraPerSampleCost: 0,
         );
 
@@ -222,8 +253,8 @@ void main() {
           subscriptionTier:
               container.read(subscriptionNotifierProvider).subscription?.tier ??
               0,
-          smea: params.smea,
-          smeaDyn: params.smeaDyn,
+          smea: params.effectiveSmea,
+          smeaDyn: params.effectiveSmeaDyn,
           strength: 1.0,
           extraPerSampleCost: 0,
         );
@@ -231,6 +262,111 @@ void main() {
         expect(container.read(estimatedCostProvider), equals(expected));
       },
     );
+
+    test('should use regular inpaint strength for the base price', () {
+      final subscription = container.read(
+        subscriptionNotifierProvider.notifier,
+      );
+      subscription.state = const SubscriptionState.loaded(
+        UserSubscription(tier: 1),
+      );
+
+      final params = container.read(generationParamsNotifierProvider.notifier);
+      params.updateSize(1024, 1024, persist: false);
+      params.updateSteps(28);
+      params.updateSmea(false);
+      params.updateSmeaDyn(false);
+      params.updateAction(ImageGenerationAction.infill);
+      params.setSourceImage(_buildPng(width: 1024, height: 1024));
+      params.setMaskImage(
+        _buildMask(
+          width: 1024,
+          height: 1024,
+          rect: const Rect.fromLTWH(256, 256, 512, 512),
+        ),
+      );
+      params.updateInpaintStrength(0.5);
+
+      expect(container.read(estimatedCostProvider), 10);
+    });
+
+    test(
+      'should price the same auto-SMEA flags sent by the request builder',
+      () {
+        final subscription = container.read(
+          subscriptionNotifierProvider.notifier,
+        );
+        subscription.state = const SubscriptionState.loaded(
+          UserSubscription(tier: 1),
+        );
+
+        final params = container.read(
+          generationParamsNotifierProvider.notifier,
+        );
+        params.updateModel('nai-diffusion-3', persist: false);
+        params.updateSize(1536, 1536, persist: false);
+        params.updateSteps(28);
+        params.updateSmeaAuto(true);
+
+        expect(container.read(estimatedCostProvider), 54);
+      },
+    );
+
+    test('should include only enabled uncached Vibe encoding fees', () {
+      final subscription = container.read(
+        subscriptionNotifierProvider.notifier,
+      );
+      subscription.state = const SubscriptionState.loaded(
+        UserSubscription(tier: 3, active: true),
+      );
+
+      final rawImage = Uint8List.fromList([1, 2, 3]);
+      final params = container.read(generationParamsNotifierProvider.notifier);
+      params.updateSize(512, 768, persist: false);
+      params.updateSteps(28);
+      params.setVibeReferences([
+        VibeReference(
+          displayName: 'enabled',
+          vibeEncoding: '',
+          rawImageData: rawImage,
+          sourceType: VibeSourceType.rawImage,
+        ),
+        VibeReference(
+          displayName: 'disabled',
+          vibeEncoding: '',
+          rawImageData: rawImage,
+          sourceType: VibeSourceType.rawImage,
+          enabled: false,
+        ),
+      ]);
+
+      expect(container.read(estimatedCostProvider), 2);
+    });
+
+    test('should include the per-request fee after four Vibes', () {
+      final subscription = container.read(
+        subscriptionNotifierProvider.notifier,
+      );
+      subscription.state = const SubscriptionState.loaded(
+        UserSubscription(tier: 3, active: true),
+      );
+
+      final params = container.read(generationParamsNotifierProvider.notifier);
+      params.updateSize(512, 768, persist: false);
+      params.updateSteps(28);
+      params.setVibeReferences(
+        List.generate(
+          5,
+          (index) => VibeReference(
+            displayName: 'vibe-$index',
+            vibeEncoding: 'encoded-$index',
+            sourceType: VibeSourceType.naiv4vibe,
+          ),
+        ),
+      );
+
+      expect(container.read(estimatedCostProvider), 2);
+    });
 
     test(
       'focused estimate uses source byte dimensions instead of import size',
@@ -280,8 +416,8 @@ void main() {
           subscriptionTier:
               container.read(subscriptionNotifierProvider).subscription?.tier ??
               0,
-          smea: params.smea,
-          smeaDyn: params.smeaDyn,
+          smea: params.effectiveSmea,
+          smeaDyn: params.effectiveSmeaDyn,
           strength: 1.0,
           extraPerSampleCost: 0,
         );

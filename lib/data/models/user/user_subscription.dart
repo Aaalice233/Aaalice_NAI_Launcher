@@ -3,6 +3,19 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'user_subscription.freezed.dart';
 part 'user_subscription.g.dart';
 
+TrainingStepsInfo? _trainingStepsInfoFromJson(Object? value) {
+  if (value == null) return null;
+  if (value is num) {
+    return TrainingStepsInfo(fixedTrainingStepsLeft: value.toInt());
+  }
+  if (value is Map) {
+    return TrainingStepsInfo.fromJson(Map<String, dynamic>.from(value));
+  }
+  throw FormatException(
+    'Unsupported trainingStepsLeft type: ${value.runtimeType}',
+  );
+}
+
 /// 用户订阅信息模型
 ///
 /// 从 /user/subscription API 获取，包含订阅等级和 Anlas 余额信息
@@ -21,6 +34,7 @@ class UserSubscription with _$UserSubscription {
     int? expiresAt,
 
     /// Anlas 余额信息
+    @JsonKey(fromJson: _trainingStepsInfoFromJson)
     TrainingStepsInfo? trainingStepsLeft,
 
     /// 订阅权益信息
@@ -36,8 +50,26 @@ class UserSubscription with _$UserSubscription {
   factory UserSubscription.fromJson(Map<String, dynamic> json) =>
       _$UserSubscriptionFromJson(json);
 
-  /// 是否是 Opus 订阅
-  bool get isOpus => tier == 3;
+  /// 订阅是否仍然有效。
+  ///
+  /// NovelAI 网页端以服务端过期时间判断普通订阅；内部账号不受过期时间限制。
+  /// 旧响应未携带 [expiresAt] 时，回退到 [active] 字段。
+  bool get hasActiveSubscription {
+    const privilegedAccountTypes = {1, 2, 3, 4};
+    if (privilegedAccountTypes.contains(accountType)) {
+      return true;
+    }
+
+    if (expiresAt != null) {
+      final nowInSeconds = DateTime.now().millisecondsSinceEpoch / 1000;
+      return tier > 0 && expiresAt! > nowInSeconds;
+    }
+
+    return tier > 0 && active;
+  }
+
+  /// 是否拥有有效的 Opus 订阅权益
+  bool get isOpus => tier == 3 && hasActiveSubscription;
 
   /// 当前 Anlas 余额（固定 + 购买）
   int get anlasBalance {
@@ -149,16 +181,11 @@ class SubscriptionState with _$SubscriptionState {
       SubscriptionStateError;
 
   /// 获取订阅信息（如果已加载）
-  UserSubscription? get subscription => maybeMap(
-        loaded: (state) => state.subscription,
-        orElse: () => null,
-      );
+  UserSubscription? get subscription =>
+      maybeMap(loaded: (state) => state.subscription, orElse: () => null);
 
   /// 是否正在加载
-  bool get isLoading => maybeMap(
-        loading: (_) => true,
-        orElse: () => false,
-      );
+  bool get isLoading => maybeMap(loading: (_) => true, orElse: () => false);
 
   /// 余额（如果已加载）
   int? get balance => subscription?.anlasBalance;
@@ -167,14 +194,8 @@ class SubscriptionState with _$SubscriptionState {
   bool get isOpus => subscription?.isOpus ?? false;
 
   /// 是否加载出错
-  bool get isError => maybeMap(
-        error: (_) => true,
-        orElse: () => false,
-      );
+  bool get isError => maybeMap(error: (_) => true, orElse: () => false);
 
   /// 是否已加载成功
-  bool get isLoaded => maybeMap(
-        loaded: (_) => true,
-        orElse: () => false,
-      );
+  bool get isLoaded => maybeMap(loaded: (_) => true, orElse: () => false);
 }

@@ -22,13 +22,6 @@ class _GenerationCostInput {
   final double strength;
 }
 
-int _resolvePreciseReferenceExtraCost(ImageParams params) {
-  if (!params.model.contains('diffusion-4-5')) {
-    return 0;
-  }
-  return params.preciseReferenceCount * 5;
-}
-
 _GenerationCostInput _resolveGenerationCostInput(
   ImageParams params,
   ImageWorkflowState workflow,
@@ -54,7 +47,7 @@ _GenerationCostInput _resolveGenerationCostInput(
       return _GenerationCostInput(
         width: focusedGeometry.requestWidth,
         height: focusedGeometry.requestHeight,
-        strength: 1.0,
+        strength: params.inpaintStrength,
       );
     }
   }
@@ -62,9 +55,11 @@ _GenerationCostInput _resolveGenerationCostInput(
   return _GenerationCostInput(
     width: params.width,
     height: params.height,
-    strength: params.action == ImageGenerationAction.img2img
-        ? params.strength
-        : 1.0,
+    strength: switch (params.action) {
+      ImageGenerationAction.img2img => params.strength,
+      ImageGenerationAction.infill => params.inpaintStrength,
+      ImageGenerationAction.generate => 1.0,
+    },
   );
 }
 
@@ -122,6 +117,9 @@ int estimatedCost(Ref ref) {
   final subscription = ref.watch(
     subscriptionNotifierProvider.select((state) => state.subscription),
   );
+  final subscriptionTier = subscription?.isOpus == true
+      ? AnlasCalculator.opusTier
+      : 0;
 
   if (workflow.isUpscale) {
     if (workflow.upscale.backend == UpscaleBackend.comfyui) {
@@ -134,7 +132,7 @@ int estimatedCost(Ref ref) {
       inputWidth: inputWidth,
       inputHeight: inputHeight,
       scale: 4,
-      subscriptionTier: subscription?.tier ?? 0,
+      subscriptionTier: subscriptionTier,
     );
   }
 
@@ -155,12 +153,18 @@ int estimatedCost(Ref ref) {
     steps: params.steps,
     batchCount: batchCount,
     batchSize: batchSize,
-    smea: params.smea,
-    smeaDyn: params.smeaDyn,
+    smea: params.effectiveSmea,
+    smeaDyn: params.effectiveSmeaDyn,
     model: params.model,
-    subscriptionTier: subscription?.tier ?? 0,
+    subscriptionTier: subscriptionTier,
+    hasBaseImage: params.action != ImageGenerationAction.generate,
+    hasCharacterReference: params.isV45Model && params.hasPreciseReferences,
     strength: requestInput.strength,
-    extraPerSampleCost: _resolvePreciseReferenceExtraCost(params),
+    extraPerSampleCost: AnlasCalculator.resolvePreciseReferenceExtraCost(
+      params,
+    ),
+    extraPerRequestCost: AnlasCalculator.resolveVibeReferenceExtraCost(params),
+    oneTimeCost: AnlasCalculator.resolveVibeEncodingCost(params),
   );
 }
 

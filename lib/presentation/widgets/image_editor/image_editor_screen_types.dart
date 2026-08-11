@@ -11,6 +11,7 @@ class ImageEditorFocusedInpaintCostConfig {
     required this.smea,
     required this.smeaDyn,
     required this.subscriptionTier,
+    this.strength = 1.0,
     this.extraPerSampleCost = 0,
   });
 
@@ -21,6 +22,7 @@ class ImageEditorFocusedInpaintCostConfig {
   final bool smea;
   final bool smeaDyn;
   final int subscriptionTier;
+  final double strength;
   final int extraPerSampleCost;
 
   int estimate({required int width, required int height}) {
@@ -34,7 +36,8 @@ class ImageEditorFocusedInpaintCostConfig {
       smeaDyn: smeaDyn,
       model: model,
       subscriptionTier: subscriptionTier,
-      strength: 1.0,
+      hasBaseImage: true,
+      strength: strength,
       extraPerSampleCost: extraPerSampleCost,
     );
   }

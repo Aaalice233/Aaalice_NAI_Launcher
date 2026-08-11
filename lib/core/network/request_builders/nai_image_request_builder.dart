@@ -102,19 +102,8 @@ class NAIImageRequestBuilder {
         : null;
 
     if (!params.isV4Model) {
-      final resolution = params.width * params.height;
-      final autoSmea = resolution > 1024 * 1024;
-
-      final isDdim = params.sampler.contains('ddim');
-      final effectiveSmea = isDdim
-          ? false
-          : (params.smeaAuto ? autoSmea : params.smea);
-      final effectiveSmeaDyn = isDdim
-          ? false
-          : (params.smeaAuto ? false : params.smeaDyn);
-
-      requestParameters['sm'] = effectiveSmea;
-      requestParameters['sm_dyn'] = effectiveSmeaDyn;
+      requestParameters['sm'] = params.effectiveSmea;
+      requestParameters['sm_dyn'] = params.effectiveSmeaDyn;
       requestParameters['uc'] = effectiveNegativePrompt;
     }
 
@@ -224,13 +213,7 @@ class NAIImageRequestBuilder {
           continue;
         }
 
-        if (vibe.vibeEncoding.isNotEmpty) {
-          allEncodings.add(vibe.vibeEncoding);
-          allStrengths.add(vibe.strength);
-          allInfoExtracted.add(vibe.infoExtracted);
-          vibeEncodingMap[i] = vibe.vibeEncoding;
-          AppLogger.d('V4 Vibe: Using pre-encoded vibe at index $i', 'ImgGen');
-        } else if (vibe.rawImageData != null) {
+        if (vibe.needsEncodingForModel(params.model)) {
           AppLogger.d(
             'V4 Vibe: Encoding rawImage at index $i (2 Anlas)...',
             'ImgGen',
@@ -262,6 +245,12 @@ class NAIImageRequestBuilder {
               'ImgGen',
             );
           }
+        } else if (vibe.vibeEncoding.isNotEmpty) {
+          allEncodings.add(vibe.vibeEncoding);
+          allStrengths.add(vibe.strength);
+          allInfoExtracted.add(vibe.infoExtracted);
+          vibeEncodingMap[i] = vibe.vibeEncoding;
+          AppLogger.d('V4 Vibe: Using pre-encoded vibe at index $i', 'ImgGen');
         }
       }
 
@@ -282,11 +271,12 @@ class NAIImageRequestBuilder {
 
     final encodedVibes = params.vibeReferencesV4
         .where((v) => v.enabled)
+        .where((v) => !v.needsEncodingForModel(params.model))
         .where((v) => v.vibeEncoding.isNotEmpty)
         .toList();
     final rawImageVibes = params.vibeReferencesV4
         .where((v) => v.enabled)
-        .where((v) => v.vibeEncoding.isEmpty && v.rawImageData != null)
+        .where((v) => v.needsEncodingForModel(params.model))
         .toList();
 
     final allEncodings = <String>[];

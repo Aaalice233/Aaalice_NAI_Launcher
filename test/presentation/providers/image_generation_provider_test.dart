@@ -35,8 +35,11 @@ class FakeNAIImageEnhancementApiService extends Mock
     implements NAIImageEnhancementApiService {}
 
 class TestSubscriptionNotifier extends SubscriptionNotifier {
+  int refreshBalanceCallCount = 0;
+
   @override
   SubscriptionState build() {
+    ref.keepAlive();
     return const SubscriptionState.loaded(
       UserSubscription(
         tier: 3,
@@ -47,7 +50,11 @@ class TestSubscriptionNotifier extends SubscriptionNotifier {
   }
 
   @override
-  Future<bool> refreshBalance() async => true;
+  void schedulePostBillingRefresh({
+    Duration delay = SubscriptionNotifier.postBillingRefreshDelay,
+  }) {
+    refreshBalanceCallCount += 1;
+  }
 }
 
 class TestLocalGalleryNotifier extends LocalGalleryNotifier {
@@ -92,7 +99,13 @@ void main() {
     late ProviderContainer container;
 
     setUp(() {
-      container = ProviderContainer();
+      container = ProviderContainer(
+        overrides: [
+          subscriptionNotifierProvider.overrideWith(
+            TestSubscriptionNotifier.new,
+          ),
+        ],
+      );
     });
 
     tearDown(() async {
@@ -210,11 +223,15 @@ void main() {
             naiImageGenerationApiServiceProvider.overrideWithValue(
               mockApiService,
             ),
+            subscriptionNotifierProvider.overrideWith(
+              TestSubscriptionNotifier.new,
+            ),
           ],
         );
         await container
             .read(notificationSettingsNotifierProvider.notifier)
             .setSoundEnabled(false);
+        container.read(subscriptionNotifierProvider);
 
         final params = container
             .read(generationParamsNotifierProvider)
@@ -232,6 +249,10 @@ void main() {
           capturedParams!.negativePrompt,
           equals('bad anatomy, bad hands, text'),
         );
+        final subscriptionNotifier =
+            container.read(subscriptionNotifierProvider.notifier)
+                as TestSubscriptionNotifier;
+        expect(subscriptionNotifier.refreshBalanceCallCount, 1);
       },
     );
 
@@ -299,6 +320,7 @@ void main() {
             .read(imageSaveSettingsNotifierProvider.notifier)
             .setAutoSave(false);
         container.read(imagesPerRequestProvider.notifier).set(3);
+        container.read(subscriptionNotifierProvider);
 
         final params = container
             .read(generationParamsNotifierProvider)
@@ -318,6 +340,10 @@ void main() {
         expect(state.status, GenerationStatus.completed);
         expect(state.currentImages, hasLength(6));
         expect(state.displayImages, hasLength(6));
+        final subscriptionNotifier =
+            container.read(subscriptionNotifierProvider.notifier)
+                as TestSubscriptionNotifier;
+        expect(subscriptionNotifier.refreshBalanceCallCount, 1);
       },
     );
     test(
@@ -544,6 +570,9 @@ void main() {
           ),
           localGalleryNotifierProvider.overrideWith(
             TestLocalGalleryNotifier.new,
+          ),
+          subscriptionNotifierProvider.overrideWith(
+            TestSubscriptionNotifier.new,
           ),
         ],
       );
@@ -780,6 +809,9 @@ void main() {
             naiImageGenerationApiServiceProvider.overrideWithValue(
               mockApiService,
             ),
+            subscriptionNotifierProvider.overrideWith(
+              TestSubscriptionNotifier.new,
+            ),
           ],
         );
         await container
@@ -874,6 +906,9 @@ void main() {
           ),
           naiImageEnhancementApiServiceProvider.overrideWithValue(
             mockEnhancementApiService,
+          ),
+          subscriptionNotifierProvider.overrideWith(
+            TestSubscriptionNotifier.new,
           ),
         ],
       );
@@ -971,6 +1006,9 @@ void main() {
           ),
           naiImageEnhancementApiServiceProvider.overrideWithValue(
             mockEnhancementApiService,
+          ),
+          subscriptionNotifierProvider.overrideWith(
+            TestSubscriptionNotifier.new,
           ),
         ],
       );
