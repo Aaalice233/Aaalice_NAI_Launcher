@@ -6,7 +6,8 @@ enum TagCategory {
   meta(5),
   contributor(9),
   species(12),
-  lore(15);
+  lore(15),
+  library(99);
 
   const TagCategory(this.value);
 
@@ -51,7 +52,16 @@ abstract final class CompletionResultLimits {
   static bool isAll(int value) => value >= _legacyAll;
 }
 
-enum CompletionSourceKind { base, zhDictionary, danbooruApi, cooccurrence, ai }
+enum CompletionSourceKind {
+  base,
+  zhDictionary,
+  danbooruApi,
+  cooccurrence,
+  ai,
+  library,
+}
+
+enum CompletionQueryKind { tag, libraryAlias }
 
 enum CompletionMatchKind {
   englishExact,
@@ -82,6 +92,7 @@ class CompletionQuery {
     required this.limit,
     required this.locale,
     this.relatedTag,
+    this.kind = CompletionQueryKind.tag,
   });
 
   final String fullText;
@@ -92,6 +103,7 @@ class CompletionQuery {
   final int limit;
   final String locale;
   final String? relatedTag;
+  final CompletionQueryKind kind;
 
   bool get isChinese => RegExp(r'[\u3400-\u9fff]').hasMatch(token);
   bool get isEnglish => !isChinese;
@@ -106,6 +118,7 @@ class CompletionQuery {
     String? locale,
     String? relatedTag,
     bool clearRelatedTag = false,
+    CompletionQueryKind? kind,
   }) {
     return CompletionQuery(
       fullText: fullText ?? this.fullText,
@@ -116,6 +129,7 @@ class CompletionQuery {
       limit: limit ?? this.limit,
       locale: locale ?? this.locale,
       relatedTag: clearRelatedTag ? null : relatedTag ?? this.relatedTag,
+      kind: kind ?? this.kind,
     );
   }
 }

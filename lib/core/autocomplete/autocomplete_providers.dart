@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/services/alias_resolver_service.dart';
 import '../../presentation/prompt_assistant/services/prompt_assistant_service.dart';
 import '../database/services/service_providers.dart';
 import 'autocomplete_cache_database.dart';
@@ -12,6 +13,7 @@ import 'completion_orchestrator.dart';
 import 'danbooru_completion_source.dart';
 import 'llm_translation_resolver.dart';
 import 'tag_catalog_repository.dart';
+import 'tag_library_completion_source.dart';
 import 'zh_dictionary_service.dart';
 
 final autocompleteCacheDatabaseProvider = Provider<AutocompleteCacheDatabase>((
@@ -65,18 +67,21 @@ class AutocompleteServices {
     required this.dictionaryTranslations,
     required this.llmTranslations,
     required this.danbooru,
+    this.libraryAliases,
   });
 
   final List<CompletionSource> localSources;
   final TranslationResolver dictionaryTranslations;
   final TranslationResolver llmTranslations;
   final DanbooruCompletionSource danbooru;
+  final CompletionSource? libraryAliases;
 
   CompletionOrchestrator createOrchestrator() => CompletionOrchestrator(
     localSources: localSources,
     dictionaryTranslations: dictionaryTranslations,
     llmTranslations: llmTranslations,
     danbooru: danbooru,
+    libraryAliases: libraryAliases,
   );
 }
 
@@ -99,6 +104,22 @@ final autocompleteLocalSourcesProvider = Provider<List<CompletionSource>>((
   ];
 });
 
+final tagLibraryCompletionSourceProvider = Provider<TagLibraryCompletionSource>(
+  (ref) => TagLibraryCompletionSource(
+    searchEntries: (query, limit) => ref
+        .read(aliasResolverServiceProvider.notifier)
+        .searchEntries(query, limit: limit)
+        .map(
+          (entry) => LibraryCompletionEntry(
+            name: entry.name,
+            contentPreview: entry.contentPreview,
+            useCount: entry.useCount,
+          ),
+        )
+        .toList(growable: false),
+  ),
+);
+
 final autocompleteServicesProvider = Provider<AutocompleteServices>((ref) {
   final zhDictionary = ref.watch(zhDictionaryServiceProvider);
   return AutocompleteServices(
@@ -106,5 +127,6 @@ final autocompleteServicesProvider = Provider<AutocompleteServices>((ref) {
     dictionaryTranslations: zhDictionary,
     llmTranslations: ref.watch(llmTranslationResolverProvider),
     danbooru: ref.watch(danbooruCompletionSourceProvider),
+    libraryAliases: ref.watch(tagLibraryCompletionSourceProvider),
   );
 });

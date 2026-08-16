@@ -312,6 +312,16 @@ class AutocompleteUtils {
     return expands || (maxLines ?? 1) > 1;
   }
 
+  static double getPreferredLineHeight({
+    required BuildContext context,
+    TextStyle? textStyle,
+  }) {
+    final renderEditable = _findRenderEditable(context);
+    if (renderEditable != null) return renderEditable.preferredLineHeight;
+    final effectiveStyle = textStyle ?? DefaultTextStyle.of(context).style;
+    return (effectiveStyle.fontSize ?? 14) * (effectiveStyle.height ?? 1.2);
+  }
+
   /// 计算光标在文本框内的位置
   /// 用于多行文本框的浮层定位
   static Offset getCursorOffset({

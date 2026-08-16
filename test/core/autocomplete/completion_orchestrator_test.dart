@@ -264,6 +264,53 @@ void main() {
   });
 
   test(
+    'routes library aliases exclusively and preserves library order',
+    () async {
+      final normalSource = _RecordingRelatedSource();
+      final remote = _FakeDanbooru();
+      final translations = _CountingTranslations();
+      final orchestrator = CompletionOrchestrator(
+        localSources: [normalSource],
+        dictionaryTranslations: translations,
+        llmTranslations: translations,
+        danbooru: remote,
+        libraryAliases: _Source([
+          const CompletionCandidate(
+            canonicalTag: 'favorite',
+            category: TagCategory.library,
+            postCount: 1,
+            matchKind: CompletionMatchKind.fullText,
+            sources: {CompletionSourceKind.library},
+          ),
+          const CompletionCandidate(
+            canonicalTag: 'frequent',
+            category: TagCategory.library,
+            postCount: 999,
+            matchKind: CompletionMatchKind.fullText,
+            sources: {CompletionSourceKind.library},
+          ),
+        ]),
+      );
+      addTearDown(orchestrator.dispose);
+
+      await orchestrator.query(
+        _query('', kind: CompletionQueryKind.libraryAlias),
+        const AutocompleteSettings(),
+      );
+
+      expect(normalSource.searchCount, 0);
+      expect(remote.searchCount, 0);
+      expect(translations.resolveCount, 0);
+      expect(
+        orchestrator.state.candidates.map(
+          (candidate) => candidate.canonicalTag,
+        ),
+        ['favorite', 'frequent'],
+      );
+    },
+  );
+
+  test(
     'requests at most eight visible missing translations without reordering',
     () async {
       final llm = _RecordingTranslations();
@@ -316,6 +363,7 @@ CompletionQuery _query(
   int limit = 20,
   String? fullText,
   String? relatedTag,
+  CompletionQueryKind kind = CompletionQueryKind.tag,
 }) => CompletionQuery(
   fullText: fullText ?? token,
   cursorPosition: (fullText ?? token).length,
@@ -325,6 +373,7 @@ CompletionQuery _query(
   limit: limit,
   locale: 'zh-CN',
   relatedTag: relatedTag,
+  kind: kind,
 );
 
 CompletionCandidate _candidate(String tag, CompletionSourceKind source) =>
@@ -385,6 +434,19 @@ class _Translations implements TranslationResolver {
     for (final tag in canonicalTags)
       if (values[tag] case final value?) tag: value,
   };
+}
+
+class _CountingTranslations implements TranslationResolver {
+  int resolveCount = 0;
+
+  @override
+  Future<Map<String, String>> resolve(
+    List<String> canonicalTags, {
+    required String locale,
+  }) async {
+    resolveCount++;
+    return const {};
+  }
 }
 
 class _RecordingTranslations implements TranslationResolver {

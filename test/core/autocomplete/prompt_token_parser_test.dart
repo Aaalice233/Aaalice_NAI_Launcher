@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/autocomplete/completion_models.dart';
 import 'package:nai_launcher/core/autocomplete/prompt_token_parser.dart';
 
 void main() {
@@ -74,14 +75,20 @@ void main() {
       expect(query.replacementRange.start, 11);
     });
 
-    test('supports Chinese input and detects a related-tag query', () {
+    test('supports Chinese input and requires explicit related-tag mode', () {
       final chinese = PromptTokenParser.parse(
         text: '杰作, 蓝色眼睛',
         cursorPosition: 8,
         limit: 20,
         locale: 'zh-CN',
       );
-      final related = PromptTokenParser.parse(
+      final normal = PromptTokenParser.parse(
+        text: 'blue_eyes,',
+        cursorPosition: 10,
+        limit: 20,
+        locale: 'en',
+      );
+      final related = PromptTokenParser.parseRelated(
         text: 'blue_eyes,',
         cursorPosition: 10,
         limit: 20,
@@ -90,8 +97,57 @@ void main() {
 
       expect(chinese.token, '蓝色眼睛');
       expect(chinese.isChinese, isTrue);
-      expect(related.token, isEmpty);
-      expect(related.relatedTag, 'blue_eyes');
+      expect(normal.token, isEmpty);
+      expect(normal.relatedTag, isNull);
+      expect(related?.relatedTag, 'blue_eyes');
+    });
+
+    test('detects and applies a tag library alias completion', () {
+      final query = PromptTokenParser.parse(
+        text: 'masterpiece, <角色',
+        cursorPosition: 'masterpiece, <角色'.length,
+        limit: 20,
+        locale: 'zh-CN',
+      );
+
+      expect(query.kind, CompletionQueryKind.libraryAlias);
+      expect(query.token, '角色');
+      expect(
+        query.fullText.substring(
+          query.replacementRange.start,
+          query.replacementRange.end,
+        ),
+        '<角色',
+      );
+
+      final result = PromptTokenParser.apply(
+        text: query.fullText,
+        query: query,
+        canonicalTag: '角色立绘',
+        autoInsertComma: true,
+        replaceUnderscores: true,
+      );
+      expect(result.text, 'masterpiece, <角色立绘>, ');
+      expect(result.cursorPosition, result.text.length);
+    });
+
+    test('replaces the closing bracket when completing inside an alias', () {
+      final query = PromptTokenParser.parse(
+        text: '<character preset>',
+        cursorPosition: 5,
+        limit: 20,
+        locale: 'en',
+      );
+      final result = PromptTokenParser.apply(
+        text: query.fullText,
+        query: query,
+        canonicalTag: 'character sheet',
+        autoInsertComma: false,
+        replaceUnderscores: false,
+      );
+
+      expect(query.kind, CompletionQueryKind.libraryAlias);
+      expect(result.text, '<character sheet>');
     });
 
     test('does not duplicate an existing comma', () {

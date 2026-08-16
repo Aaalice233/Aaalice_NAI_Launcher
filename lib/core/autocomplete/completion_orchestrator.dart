@@ -14,15 +14,18 @@ class CompletionOrchestrator extends ChangeNotifier {
     required TranslationResolver dictionaryTranslations,
     required TranslationResolver llmTranslations,
     required DanbooruCompletionSource danbooru,
+    CompletionSource? libraryAliases,
   }) : _localSources = localSources,
        _dictionaryTranslations = dictionaryTranslations,
        _llmTranslations = llmTranslations,
-       _danbooru = danbooru;
+       _danbooru = danbooru,
+       _libraryAliases = libraryAliases;
 
   final List<CompletionSource> _localSources;
   final TranslationResolver _dictionaryTranslations;
   final TranslationResolver _llmTranslations;
   final DanbooruCompletionSource _danbooru;
+  final CompletionSource? _libraryAliases;
 
   CompletionState _state = const CompletionState();
   CompletionState get state => _state;
@@ -41,15 +44,18 @@ class CompletionOrchestrator extends ChangeNotifier {
     _remoteDebounce?.cancel();
     _danbooru.cancelPending();
     final isRelatedQuery = query.relatedTag != null && query.token.isEmpty;
+    final isLibraryAlias = query.kind == CompletionQueryKind.libraryAlias;
     if (!settings.enabled ||
-        (query.token.isEmpty && query.relatedTag == null) ||
+        (query.token.isEmpty && query.relatedTag == null && !isLibraryAlias) ||
         (isRelatedQuery && !settings.relatedTagsEnabled)) {
       _emit(CompletionState(query: query));
       return;
     }
 
     final canLoadRemote =
-        settings.danbooruEnabled && (query.token.length >= 2 || isRelatedQuery);
+        !isLibraryAlias &&
+        settings.danbooruEnabled &&
+        (query.token.length >= 2 || isRelatedQuery);
     _emit(
       CompletionState(
         query: query,
@@ -59,8 +65,11 @@ class CompletionOrchestrator extends ChangeNotifier {
       ),
     );
 
+    final activeLocalSources = isLibraryAlias
+        ? [_libraryAliases].whereType<CompletionSource>()
+        : _localSources;
     final localResults = await Future.wait(
-      _localSources.map((source) async {
+      activeLocalSources.map((source) async {
         try {
           return _LocalSourceResult(await source.search(query));
         } catch (error) {
@@ -77,10 +86,15 @@ class CompletionOrchestrator extends ChangeNotifier {
         .whereType<String>()
         .toList(growable: false);
     if (!_isCurrent(sequence)) return;
-    var candidates = CompletionRanker.mergeAndSort(
-      localBatches.expand((batch) => batch),
-      query: query,
-    );
+    var candidates = isLibraryAlias
+        ? localBatches
+              .expand((batch) => batch)
+              .take(query.limit)
+              .toList(growable: false)
+        : CompletionRanker.mergeAndSort(
+            localBatches.expand((batch) => batch),
+            query: query,
+          );
     if (isRelatedQuery) {
       candidates = candidates
           .where((candidate) => !candidate.isExisting)
@@ -119,7 +133,11 @@ class CompletionOrchestrator extends ChangeNotifier {
     int sequence,
     AutocompleteSettings settings,
   ) async {
-    if (!settings.showTranslations || candidates.isEmpty) return candidates;
+    if (query.kind == CompletionQueryKind.libraryAlias ||
+        !settings.showTranslations ||
+        candidates.isEmpty) {
+      return candidates;
+    }
     final missing = candidates
         .where((candidate) => candidate.translation?.isNotEmpty != true)
         .map((candidate) => candidate.canonicalTag)
@@ -239,7 +257,8 @@ class CompletionOrchestrator extends ChangeNotifier {
     int sequence,
     AutocompleteSettings settings,
   ) {
-    if (!settings.showTranslations ||
+    if (query.kind == CompletionQueryKind.libraryAlias ||
+        !settings.showTranslations ||
         !settings.llmTranslationEnabled ||
         !query.locale.toLowerCase().startsWith('zh')) {
       return;

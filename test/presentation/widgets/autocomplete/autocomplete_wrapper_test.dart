@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/gestures.dart';
@@ -9,10 +10,13 @@ import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nai_launcher/core/autocomplete/autocomplete_cache_database.dart';
 import 'package:nai_launcher/core/autocomplete/autocomplete_providers.dart';
+import 'package:nai_launcher/core/autocomplete/autocomplete_settings.dart';
 import 'package:nai_launcher/core/autocomplete/completion_models.dart';
 import 'package:nai_launcher/core/autocomplete/danbooru_completion_source.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_config.dart';
 import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_wrapper.dart';
 
 void main() {
@@ -82,6 +86,358 @@ void main() {
 
     expect(controller.text, 'blue_eyes, ');
     expect(controller.selection.extentOffset, controller.text.length);
+  });
+
+  testWidgets(
+    'selection callback receives the updated full text without auto-related mode',
+    (tester) async {
+      final controller = TextEditingController(text: 'masterpiece, blu');
+      controller.selection = const TextSelection.collapsed(offset: 16);
+      final focusNode = FocusNode();
+      final source = _RecordingBaseSource();
+      String? selectedText;
+      addTearDown(() {
+        controller.dispose();
+        focusNode.dispose();
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            autocompleteServicesProvider.overrideWithValue(
+              AutocompleteServices(
+                localSources: [source],
+                dictionaryTranslations: const _NoTranslations(),
+                llmTranslations: const _NoTranslations(),
+                danbooru: _NoDanbooru(),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: AutocompleteWrapper(
+                controller: controller,
+                focusNode: focusNode,
+                config: const AutocompleteConfig(autoInsertComma: false),
+                onSuggestionSelected: (value) => selectedText = value,
+                child: TextField(controller: controller, focusNode: focusNode),
+              ),
+            ),
+          ),
+        ),
+      );
+      focusNode.requestFocus();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+
+      expect(controller.text, 'masterpiece, blue_eyes');
+      expect(selectedText, controller.text);
+      expect(source.tokens, ['blu']);
+    },
+  );
+
+  testWidgets('global insertion and translation settings remain effective', (
+    tester,
+  ) async {
+    final controller = TextEditingController(text: 'blu');
+    controller.selection = const TextSelection.collapsed(offset: 3);
+    final focusNode = FocusNode();
+    addTearDown(() {
+      controller.dispose();
+      focusNode.dispose();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          autocompleteSettingsProvider.overrideWith(
+            (ref) => _FixedAutocompleteSettingsNotifier(),
+          ),
+          autocompleteServicesProvider.overrideWithValue(
+            AutocompleteServices(
+              localSources: [_TranslatedBaseSource()],
+              dictionaryTranslations: const _NoTranslations(),
+              llmTranslations: const _NoTranslations(),
+              danbooru: _NoDanbooru(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: AutocompleteWrapper(
+              controller: controller,
+              focusNode: focusNode,
+              config: const AutocompleteConfig(
+                showTranslation: true,
+                autoInsertComma: true,
+                replaceUnderscoreWithSpace: false,
+              ),
+              child: TextField(controller: controller, focusNode: focusNode),
+            ),
+          ),
+        ),
+      ),
+    );
+    focusNode.requestFocus();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 30));
+
+    expect(find.text('蓝眼睛'), findsNothing);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    expect(controller.text, 'blue eyes');
+  });
+
+  testWidgets('does not query while an IME composition is active', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final source = _RecordingBaseSource();
+    addTearDown(() {
+      controller.dispose();
+      focusNode.dispose();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          autocompleteSettingsProvider.overrideWith(
+            (ref) => _FixedAutocompleteSettingsNotifier(),
+          ),
+          autocompleteServicesProvider.overrideWithValue(
+            AutocompleteServices(
+              localSources: [source],
+              dictionaryTranslations: const _NoTranslations(),
+              llmTranslations: const _NoTranslations(),
+              danbooru: _NoDanbooru(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: AutocompleteWrapper(
+              controller: controller,
+              focusNode: focusNode,
+              child: TextField(controller: controller, focusNode: focusNode),
+            ),
+          ),
+        ),
+      ),
+    );
+    focusNode.requestFocus();
+    await tester.pump();
+    controller.value = const TextEditingValue(
+      text: '蓝',
+      selection: TextSelection.collapsed(offset: 1),
+      composing: TextRange(start: 0, end: 1),
+    );
+    await tester.pump(const Duration(milliseconds: 30));
+    expect(source.tokens, isEmpty);
+
+    controller.value = const TextEditingValue(
+      text: '蓝',
+      selection: TextSelection.collapsed(offset: 1),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 30));
+    expect(source.tokens, ['蓝']);
+  });
+
+  testWidgets('escape closes the popup while results are loading', (
+    tester,
+  ) async {
+    final controller = TextEditingController(text: 'blu');
+    controller.selection = const TextSelection.collapsed(offset: 3);
+    final focusNode = FocusNode();
+    final source = _PendingSource();
+    addTearDown(() {
+      controller.dispose();
+      focusNode.dispose();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          autocompleteServicesProvider.overrideWithValue(
+            AutocompleteServices(
+              localSources: [source],
+              dictionaryTranslations: const _NoTranslations(),
+              llmTranslations: const _NoTranslations(),
+              danbooru: _NoDanbooru(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: AutocompleteWrapper(
+              controller: controller,
+              focusNode: focusNode,
+              child: TextField(controller: controller, focusNode: focusNode),
+            ),
+          ),
+        ),
+      ),
+    );
+    focusNode.requestFocus();
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
+      findsOneWidget,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
+      findsNothing,
+    );
+
+    source.complete();
+    await tester.pump();
+  });
+
+  testWidgets('keyboard repeat navigates candidates without repeated insert', (
+    tester,
+  ) async {
+    final controller = TextEditingController(text: 'tag');
+    controller.selection = const TextSelection.collapsed(offset: 3);
+    final focusNode = FocusNode();
+    addTearDown(() {
+      controller.dispose();
+      focusNode.dispose();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          autocompleteServicesProvider.overrideWithValue(
+            AutocompleteServices(
+              localSources: [_ManyBaseSource()],
+              dictionaryTranslations: const _NoTranslations(),
+              llmTranslations: const _NoTranslations(),
+              danbooru: _NoDanbooru(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: AutocompleteWrapper(
+              controller: controller,
+              focusNode: focusNode,
+              child: TextField(controller: controller, focusNode: focusNode),
+            ),
+          ),
+        ),
+      ),
+    );
+    focusNode.requestFocus();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 30));
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyRepeatEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(controller.text, 'tag_02, ');
+  });
+
+  testWidgets('positions multiline suggestions beside the caret line', (
+    tester,
+  ) async {
+    final controller = TextEditingController(text: 'first line\nblu');
+    controller.selection = TextSelection.collapsed(
+      offset: controller.text.length,
+    );
+    final focusNode = FocusNode();
+    addTearDown(() {
+      controller.dispose();
+      focusNode.dispose();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          autocompleteServicesProvider.overrideWithValue(
+            AutocompleteServices(
+              localSources: [_BaseSource()],
+              dictionaryTranslations: const _NoTranslations(),
+              llmTranslations: const _NoTranslations(),
+              danbooru: _NoDanbooru(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 480,
+                child: AutocompleteWrapper(
+                  controller: controller,
+                  focusNode: focusNode,
+                  maxLines: null,
+                  child: TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    minLines: 6,
+                    maxLines: null,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    focusNode.requestFocus();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 30));
+
+    final inputRect = tester.getRect(find.byType(TextField));
+    final popupRect = tester.getRect(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
+    );
+    expect(popupRect.top, lessThan(inputRect.bottom));
+    expect(popupRect.top, greaterThan(inputRect.top));
+
+    const updatedText = 'one\ntwo\nthree\nfour\nfive\nsix\nseven\nblu';
+    controller.value = const TextEditingValue(
+      text: updatedText,
+      selection: TextSelection.collapsed(offset: updatedText.length),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 30));
+
+    expect(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('keyboard navigation scrolls only at the viewport edge', (
@@ -218,6 +574,67 @@ void main() {
     },
   );
 
+  testWidgets('typing < shows library entries instead of tag completion', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    final focusNode = FocusNode();
+    final baseSource = _BaseSource();
+    final librarySource = _LibrarySource();
+    addTearDown(() {
+      controller.dispose();
+      focusNode.dispose();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          autocompleteServicesProvider.overrideWithValue(
+            AutocompleteServices(
+              localSources: [baseSource],
+              dictionaryTranslations: const _NoTranslations(),
+              llmTranslations: const _NoTranslations(),
+              danbooru: _NoDanbooru(),
+              libraryAliases: librarySource,
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: AutocompleteWrapper(
+              controller: controller,
+              focusNode: focusNode,
+              child: TextField(controller: controller, focusNode: focusNode),
+            ),
+          ),
+        ),
+      ),
+    );
+    focusNode.requestFocus();
+    await tester.pump();
+    controller.value = const TextEditingValue(
+      text: '<',
+      selection: TextSelection.collapsed(offset: 1),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 30));
+
+    expect(baseSource.lastLimit, isNull);
+    expect(librarySource.queries, ['']);
+    expect(find.text('角色立绘'), findsOneWidget);
+    expect(find.text('常用角色提示词'), findsOneWidget);
+    expect(find.text('LIB'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    expect(controller.text, '<角色立绘>, ');
+    expect(controller.selection.extentOffset, controller.text.length);
+  });
+
   testWidgets('settings button receives hover and opens data settings', (
     tester,
   ) async {
@@ -327,6 +744,50 @@ class _BaseSource implements CompletionSource {
   }
 }
 
+class _RecordingBaseSource implements CompletionSource {
+  final List<String> tokens = [];
+
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) async {
+    tokens.add(query.token);
+    return [
+      CompletionCandidate(
+        canonicalTag: query.token == '蓝' ? '蓝色眼睛' : 'blue_eyes',
+        category: TagCategory.general,
+        postCount: 1000,
+        matchKind: CompletionMatchKind.englishPrefix,
+        sources: const {CompletionSourceKind.base},
+      ),
+    ];
+  }
+}
+
+class _PendingSource implements CompletionSource {
+  final Completer<List<CompletionCandidate>> _completer = Completer();
+
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) =>
+      _completer.future;
+
+  void complete() => _completer.complete(const []);
+}
+
+class _TranslatedBaseSource implements CompletionSource {
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) async {
+    return const [
+      CompletionCandidate(
+        canonicalTag: 'blue_eyes',
+        category: TagCategory.general,
+        postCount: 1000,
+        translation: '蓝眼睛',
+        matchKind: CompletionMatchKind.englishPrefix,
+        sources: {CompletionSourceKind.base},
+      ),
+    ];
+  }
+}
+
 class _ManyBaseSource implements CompletionSource {
   @override
   Future<List<CompletionCandidate>> search(CompletionQuery query) async {
@@ -340,6 +801,26 @@ class _ManyBaseSource implements CompletionSource {
         sources: const {CompletionSourceKind.base},
       ),
     );
+  }
+}
+
+class _LibrarySource implements CompletionSource {
+  final List<String> queries = [];
+
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) async {
+    expect(query.kind, CompletionQueryKind.libraryAlias);
+    queries.add(query.token);
+    return const [
+      CompletionCandidate(
+        canonicalTag: '角色立绘',
+        category: TagCategory.library,
+        postCount: 7,
+        translation: '常用角色提示词',
+        matchKind: CompletionMatchKind.fullText,
+        sources: {CompletionSourceKind.library},
+      ),
+    ];
   }
 }
 
@@ -371,6 +852,18 @@ class _RelatedSource implements CompletionSource {
           (candidate) => !query.existingTags.contains(candidate.canonicalTag),
         )
         .toList();
+  }
+}
+
+class _FixedAutocompleteSettingsNotifier extends AutocompleteSettingsNotifier {
+  _FixedAutocompleteSettingsNotifier() : super(LocalStorageService()) {
+    state = const AutocompleteSettings(
+      showTranslations: false,
+      autoInsertComma: false,
+      replaceUnderscores: true,
+      danbooruEnabled: false,
+      zhInstallPromptDismissed: true,
+    );
   }
 }
 

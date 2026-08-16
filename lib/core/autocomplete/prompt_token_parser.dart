@@ -1,3 +1,4 @@
+import '../utils/alias_parser.dart';
 import 'completion_models.dart';
 
 class PromptTokenParser {
@@ -15,6 +16,31 @@ class PromptTokenParser {
     bool splitOnSpaces = false,
   }) {
     final cursor = cursorPosition.clamp(0, text.length);
+    final (isTypingAlias, partialAlias, aliasStart) =
+        AliasParser.detectPartialAlias(text, cursor);
+    if (isTypingAlias) {
+      var replacementEnd = cursor;
+      final closingBracket = text.indexOf('>', cursor);
+      final nextLineBreak = text.indexOf(RegExp(r'[\r\n]'), cursor);
+      if (closingBracket >= 0 &&
+          (nextLineBreak < 0 || closingBracket < nextLineBreak)) {
+        replacementEnd = closingBracket + 1;
+      }
+      return CompletionQuery(
+        fullText: text,
+        cursorPosition: cursor,
+        token: partialAlias.trim().toLowerCase(),
+        replacementRange: TextReplacementRange(
+          start: aliasStart,
+          end: replacementEnd,
+        ),
+        existingTags: const {},
+        limit: limit.clamp(1, CompletionResultLimits.all),
+        locale: locale,
+        kind: CompletionQueryKind.libraryAlias,
+      );
+    }
+
     var start = cursor;
     var end = cursor;
 
@@ -56,17 +82,6 @@ class PromptTokenParser {
       }
     }
 
-    String? relatedTag;
-    if (token.isEmpty) {
-      final before = text.substring(0, start).trimRight();
-      if (before.endsWith(',')) {
-        final withoutComma = before.substring(0, before.length - 1);
-        final previous = withoutComma.split(RegExp(r'[,\n]')).last;
-        final normalized = _normalizeExistingTag(previous);
-        if (normalized.length >= 2) relatedTag = normalized;
-      }
-    }
-
     return CompletionQuery(
       fullText: text,
       cursorPosition: cursor,
@@ -78,7 +93,6 @@ class PromptTokenParser {
       existingTags: existingTags,
       limit: limit.clamp(1, CompletionResultLimits.all),
       locale: locale,
-      relatedTag: relatedTag,
     );
   }
 
@@ -101,7 +115,18 @@ class PromptTokenParser {
       locale: locale,
       splitOnSpaces: splitOnSpaces,
     );
-    if (parsed.relatedTag != null) return parsed;
+    if (parsed.kind == CompletionQueryKind.libraryAlias) return null;
+    if (parsed.token.isEmpty) {
+      final before = text
+          .substring(0, parsed.replacementRange.start)
+          .trimRight();
+      if (!before.endsWith(',')) return null;
+      final withoutComma = before.substring(0, before.length - 1);
+      final previous = withoutComma.split(RegExp(r'[,\n]')).last;
+      final normalized = _normalizeExistingTag(previous);
+      if (normalized.length < 2) return null;
+      return parsed.copyWith(relatedTag: normalized);
+    }
     if (parsed.token.length < 2) return null;
 
     var insertionPosition = parsed.replacementRange.end;
@@ -141,7 +166,9 @@ class PromptTokenParser {
     required bool autoInsertComma,
     required bool replaceUnderscores,
   }) {
-    final tag = replaceUnderscores
+    final tag = query.kind == CompletionQueryKind.libraryAlias
+        ? '<$canonicalTag>'
+        : replaceUnderscores
         ? canonicalTag.replaceAll('_', ' ')
         : canonicalTag;
     final range = query.replacementRange;
