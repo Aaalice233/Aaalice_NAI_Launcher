@@ -286,6 +286,12 @@ void main() {
       matching: find.byWidgetPredicate((widget) => widget is RawScrollbar),
     );
     expect(rawScrollbar, findsOneWidget);
+    final listRect = tester.getRect(
+      find.byKey(const ValueKey('autocomplete-popup-list')),
+    );
+    final firstBadgeRect = tester.getRect(find.text('BASE').first);
+    expect(listRect.right - firstBadgeRect.right, greaterThanOrEqualTo(20));
+
     final scrollbarState = tester.state(rawScrollbar);
     final dynamic painter = (scrollbarState as dynamic).scrollbarPainter;
     final scrollbarSize = tester.getSize(rawScrollbar);

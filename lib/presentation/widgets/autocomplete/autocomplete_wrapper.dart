@@ -128,9 +128,7 @@ class AutocompleteWrapper extends ConsumerStatefulWidget {
 class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   final GlobalKey _anchorKey = GlobalKey(debugLabel: 'autocomplete-anchor');
   final ScrollController _scrollController = ScrollController();
-  final OverlayPortalController _overlayController = OverlayPortalController(
-    debugLabel: 'autocomplete',
-  );
+  OverlayEntry? _overlayEntry;
   FocusNode? _ownedFocusNode;
   CompletionOrchestrator? _orchestrator;
   String? _selectedId;
@@ -197,10 +195,9 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     if (_cursorOffset == nextOffset && _caretLineHeight == nextLineHeight) {
       return;
     }
-    setState(() {
-      _cursorOffset = nextOffset;
-      _caretLineHeight = nextLineHeight;
-    });
+    _cursorOffset = nextOffset;
+    _caretLineHeight = nextLineHeight;
+    _overlayEntry?.markNeedsBuild();
   }
 
   @override
@@ -225,8 +222,8 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       _focusNode.addListener(_onFocusChanged);
     }
     if (oldWidget.usesLegacyStrategy != widget.usesLegacyStrategy) {
-      _disposeOrchestrator();
       _removeOverlay();
+      _disposeOrchestrator();
       WidgetsBinding.instance.addPostFrameCallback((_) => _initializeUnified());
     }
   }
@@ -361,11 +358,14 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   }
 
   void _showOrUpdateOverlay() {
-    if (_overlayController.isShowing) {
-      setState(() {});
-    } else {
-      _overlayController.show();
+    final currentEntry = _overlayEntry;
+    if (currentEntry != null) {
+      currentEntry.markNeedsBuild();
+      return;
     }
+    final entry = OverlayEntry(builder: _buildOverlay);
+    _overlayEntry = entry;
+    Overlay.of(context, rootOverlay: true).insert(entry);
   }
 
   Widget _buildOverlay(BuildContext overlayContext) {
@@ -453,7 +453,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       _startQuery(related: true, resetPinnedRelatedTag: true);
       return KeyEventResult.handled;
     }
-    if (!_overlayController.isShowing) return KeyEventResult.ignored;
+    if (_overlayEntry == null) return KeyEventResult.ignored;
     if (event.logicalKey == LogicalKeyboardKey.escape) {
       if (event is KeyDownEvent) _closeOverlay();
       return KeyEventResult.handled;
@@ -483,7 +483,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     _selectedIndex = (_selectedIndex + delta) % candidates.length;
     if (_selectedIndex < 0) _selectedIndex += candidates.length;
     _selectedId = candidates[_selectedIndex].stableId;
-    setState(() {});
+    _overlayEntry?.markNeedsBuild();
     _ensureSelectionVisible();
   }
 
@@ -572,9 +572,8 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   void _toggleRelatedPin() {
     final relatedTag = _orchestrator?.state.query?.relatedTag;
     if (relatedTag == null) return;
-    setState(() {
-      _pinnedRelatedTag = _pinnedRelatedTag == null ? relatedTag : null;
-    });
+    _pinnedRelatedTag = _pinnedRelatedTag == null ? relatedTag : null;
+    _overlayEntry?.markNeedsBuild();
   }
 
   void _closeOverlay() {
@@ -583,15 +582,17 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   }
 
   void _removeOverlay() {
-    if (_overlayController.isShowing) _overlayController.hide();
+    final entry = _overlayEntry;
+    if (entry == null) return;
+    _overlayEntry = null;
+    entry.remove();
+    entry.dispose();
   }
 
   void _openAutocompleteSettings() {
     _closeOverlay();
     _focusNode.unfocus();
-    // Remove the portal child before GoRouter replaces this route. Reparenting
-    // a visible portal in the same layout frame can leave Flutter's overlay
-    // theater with a stale render-tree anchor.
+    // Let the root overlay entry detach before GoRouter replaces its anchor.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.go('${AppRoutes.settings}?section=storage');
@@ -608,9 +609,9 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   void dispose() {
     widget.controller.removeListener(_onTextChanged);
     _focusNode.removeListener(_onFocusChanged);
+    _removeOverlay();
     _ownedFocusNode?.dispose();
     _disposeOrchestrator();
-    _removeOverlay();
     _scrollController.dispose();
     super.dispose();
   }
@@ -643,7 +644,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       }
     });
     ref.listen(zhDictionaryServiceProvider, (_, __) {
-      if (_overlayController.isShowing) setState(() {});
+      _overlayEntry?.markNeedsBuild();
     });
     ref.listen<bool>(generation_settings.autocompleteSettingsProvider, (
       _,
@@ -658,21 +659,11 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
         _removeOverlay();
       }
     });
-    // The layout-builder portal owns a deferred layout surrogate. Route
-    // replacement or hot reload can reparent that surrogate during layout and
-    // trip Flutter's `node.depth > theater.depth` assertion. A regular portal
-    // with a stable render anchor keeps the same root-overlay hit testing
-    // without that fragile deferred-layout path.
-    return OverlayPortal(
-      controller: _overlayController,
-      overlayLocation: OverlayChildLocation.rootOverlay,
-      overlayChildBuilder: _buildOverlay,
-      child: SizedBox(
-        key: _anchorKey,
-        child: Focus(
-          onKeyEvent: _onKeyEvent,
-          child: Listener(onPointerUp: _onPointerUp, child: widget.child),
-        ),
+    return SizedBox(
+      key: _anchorKey,
+      child: Focus(
+        onKeyEvent: _onKeyEvent,
+        child: Listener(onPointerUp: _onPointerUp, child: widget.child),
       ),
     );
   }

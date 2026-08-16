@@ -88,6 +88,63 @@ void main() {
     expect(controller.selection.extentOffset, controller.text.length);
   });
 
+  testWidgets('opens safely from an initially focused field and detaches', (
+    tester,
+  ) async {
+    final controller = TextEditingController(text: 'blu');
+    controller.selection = const TextSelection.collapsed(offset: 3);
+    final focusNode = FocusNode();
+    addTearDown(() {
+      controller.dispose();
+      focusNode.dispose();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          autocompleteServicesProvider.overrideWithValue(
+            AutocompleteServices(
+              localSources: [_BaseSource()],
+              dictionaryTranslations: const _NoTranslations(),
+              llmTranslations: const _NoTranslations(),
+              danbooru: _NoDanbooru(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: AutocompleteWrapper(
+              controller: controller,
+              focusNode: focusNode,
+              child: TextField(
+                autofocus: true,
+                controller: controller,
+                focusNode: focusNode,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 30));
+
+    expect(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
+      findsOneWidget,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'selection callback receives the updated full text without auto-related mode',
     (tester) async {

@@ -121,9 +121,10 @@ class CompletionOverlay extends StatelessWidget {
                           thickness: 8,
                           radius: const Radius.circular(8),
                           child: ListView.builder(
+                            key: const ValueKey('autocomplete-popup-list'),
                             controller: scrollController,
                             shrinkWrap: true,
-                            padding: EdgeInsets.zero,
+                            padding: const EdgeInsets.only(right: 14),
                             itemExtent: autocompleteCandidateExtent,
                             scrollCacheExtent: const ScrollCacheExtent.pixels(
                               350,
