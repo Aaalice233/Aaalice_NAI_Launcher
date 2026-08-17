@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -135,6 +137,8 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   int _selectedIndex = -1;
   bool _applyingSuggestion = false;
   bool _cursorMetricsScheduled = false;
+  bool _wasComposing = false;
+  late String _lastObservedText;
   Offset? _cursorOffset;
   double _caretLineHeight = 0;
   String? _pinnedRelatedTag;
@@ -145,6 +149,9 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   void initState() {
     super.initState();
     if (widget.focusNode == null) _ownedFocusNode = FocusNode();
+    _lastObservedText = widget.controller.text;
+    final composing = widget.controller.value.composing;
+    _wasComposing = composing.isValid && !composing.isCollapsed;
     widget.controller.addListener(_onTextChanged);
     _focusNode.addListener(_onFocusChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _initializeUnified());
@@ -155,7 +162,6 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     _orchestrator = ref.read(autocompleteServicesProvider).createOrchestrator()
       ..addListener(_onCompletionStateChanged);
     _updateCursorMetrics();
-    if (_focusNode.hasFocus) _startQuery();
   }
 
   void _scheduleCursorMetricsUpdate() {
@@ -211,6 +217,9 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_onTextChanged);
+      _lastObservedText = widget.controller.text;
+      final composing = widget.controller.value.composing;
+      _wasComposing = composing.isValid && !composing.isCollapsed;
       widget.controller.addListener(_onTextChanged);
     }
     _scheduleCursorMetricsUpdate();
@@ -229,11 +238,29 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   }
 
   void _onTextChanged() {
+    final text = widget.controller.text;
+    final textChanged = text != _lastObservedText;
+    _lastObservedText = text;
+    final composingRange = widget.controller.value.composing;
+    final isComposing = composingRange.isValid && !composingRange.isCollapsed;
+    final compositionCommitted = _wasComposing && !isComposing;
+    _wasComposing = isComposing;
+
     if (_applyingSuggestion || widget.usesLegacyStrategy) return;
     _scheduleCursorMetricsUpdate();
-    widget.onChanged?.call(widget.controller.text);
-    final composing = widget.controller.value.composing;
-    if (composing.isValid && !composing.isCollapsed) return;
+    if (textChanged) widget.onChanged?.call(text);
+
+    // A controller listener also fires for caret-only selection changes. Like
+    // the ComfyUI plugin, clicking existing text dismisses suggestions instead
+    // of treating that text as newly typed input.
+    if (!textChanged && !compositionCommitted) {
+      if (_pinnedRelatedTag == null) _dismissOverlay();
+      return;
+    }
+    if (isComposing) {
+      if (_pinnedRelatedTag == null) _dismissOverlay();
+      return;
+    }
     if (_focusNode.hasFocus) {
       _startQuery(
         related: _pinnedRelatedTag != null,
@@ -244,14 +271,10 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
 
   void _onFocusChanged() {
     if (!_focusNode.hasFocus) {
-      if (_pinnedRelatedTag == null) _removeOverlay();
-    } else if (!widget.usesLegacyStrategy) {
-      _scheduleCursorMetricsUpdate();
-      _startQuery(
-        related: _pinnedRelatedTag != null,
-        relatedTagOverride: _pinnedRelatedTag,
-      );
+      if (_pinnedRelatedTag == null) _dismissOverlay();
+      return;
     }
+    if (!widget.usesLegacyStrategy) _scheduleCursorMetricsUpdate();
   }
 
   void _startQuery({
@@ -262,7 +285,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     if (!mounted || !widget.enabled || widget.usesLegacyStrategy) return;
     final settings = ref.read(autocompleteSettingsProvider);
     if (!ref.read(generation_settings.autocompleteSettingsProvider)) {
-      _removeOverlay();
+      _dismissOverlay();
       return;
     }
     _maybePromptZhDictionary(settings);
@@ -291,7 +314,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       query = query.copyWith(relatedTag: relatedTagOverride);
     }
     if (query == null) {
-      _removeOverlay();
+      _dismissOverlay();
       return;
     }
     _orchestrator?.query(query, settings);
@@ -383,34 +406,42 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     final targetRect =
         anchor.localToGlobal(Offset.zero, ancestor: theater) & anchor.size;
     final cursorOffset = _cursorOffset;
-    final horizontalAnchor = cursorOffset == null
+    final caretLeft = cursorOffset == null
         ? targetRect.left
         : targetRect.left + cursorOffset.dx;
-    final verticalAnchor = cursorOffset == null
+    final caretBottom = cursorOffset == null
         ? targetRect.bottom
         : targetRect.top + cursorOffset.dy;
-    final caretLineHeight = _caretLineHeight;
+    final caretTop = cursorOffset == null
+        ? targetRect.top
+        : caretBottom - _caretLineHeight;
     final screen = theater.size;
-    final below = screen.height - verticalAnchor - 8;
-    final above = verticalAnchor - caretLineHeight - 8;
+    const viewportInset = 8.0;
+    const caretGap = 8.0;
+    final below = math.max(
+      screen.height - viewportInset - caretBottom - caretGap,
+      0.0,
+    );
+    final above = math.max(caretTop - caretGap - viewportInset, 0.0);
     final placeBelow = below >= 180 || below >= above;
     final availableHeight = placeBelow ? below : above;
-    final maxHeight = availableHeight.clamp(132.0, 410.0);
-    final maxWidth = screen.width - 16;
-    final minWidth = maxWidth < 360 ? maxWidth : 360.0;
-    final preferredWidth = targetRect.width < 680 ? 680.0 : targetRect.width;
-    final width = preferredWidth.clamp(minWidth, maxWidth);
-    final maxLeft = screen.width - width - 8;
-    final left = horizontalAnchor.clamp(8.0, maxLeft);
+    final maxHeight = math.min(availableHeight, 410.0);
+
+    // Match the ComfyUI popup footprint: a stable 42rem-like preferred width,
+    // capped to 62% of roomy viewports, with some leading text left visible.
+    final availableWidth = math.max(screen.width - viewportInset * 2, 0.0);
+    final responsiveWidth = math.max(360.0, availableWidth * 0.62);
+    final width = math.min(672.0, math.min(availableWidth, responsiveWidth));
+    final leadingContext = math.min(width * 0.12, 72.0);
+    final maxLeft = screen.width - viewportInset - width;
+    final left = (caretLeft - leadingContext).clamp(viewportInset, maxLeft);
     final settings = ref.read(autocompleteSettingsProvider);
     final dictionaryState = ref.read(zhDictionaryServiceProvider).state;
 
     return Positioned(
       left: left,
-      top: placeBelow ? verticalAnchor + 4 : null,
-      bottom: placeBelow
-          ? null
-          : screen.height - (verticalAnchor - caretLineHeight) + 4,
+      top: placeBelow ? caretBottom + caretGap : null,
+      bottom: placeBelow ? null : screen.height - caretTop + caretGap,
       width: width,
       child: TextFieldTapRegion(
         child: CompletionOverlay(
@@ -510,11 +541,10 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       position.maxScrollExtent,
     );
     if ((boundedTarget - position.pixels).abs() < 0.5) return;
-    _scrollController.animateTo(
-      boundedTarget,
-      duration: const Duration(milliseconds: 90),
-      curve: Curves.easeOutCubic,
-    );
+    // Keyboard repeat is a high-frequency interaction. Match the reference
+    // plugin's immediate edge scroll instead of starting overlapping animations
+    // that make the list appear to bounce between rows.
+    _scrollController.jumpTo(boundedTarget);
   }
 
   void _selectIndex(int index) {
@@ -547,7 +577,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     widget.onChanged?.call(applied.text);
     widget.onSuggestionSelected?.call(applied.text);
     _selectedId = null;
-    _removeOverlay();
+    _dismissOverlay();
     final pinnedTag = _pinnedRelatedTag;
     if (settings.relatedTagsEnabled && pinnedTag != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -561,7 +591,11 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   void _onPointerUp(PointerUpEvent event) {
     _scheduleCursorMetricsUpdate();
     final keyboard = HardwareKeyboard.instance;
-    if (!keyboard.isControlPressed && !keyboard.isMetaPressed) return;
+    final requestsRelated = keyboard.isControlPressed || keyboard.isMetaPressed;
+    if (!requestsRelated) {
+      if (_pinnedRelatedTag == null) _dismissOverlay();
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _focusNode.hasFocus) {
         _startQuery(related: true, resetPinnedRelatedTag: true);
@@ -578,6 +612,11 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
 
   void _closeOverlay() {
     _pinnedRelatedTag = null;
+    _dismissOverlay();
+  }
+
+  void _dismissOverlay() {
+    _orchestrator?.cancel();
     _removeOverlay();
   }
 
@@ -636,7 +675,8 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     }
     ref.listen<AutocompleteSettings>(autocompleteSettingsProvider, (_, next) {
       if (!next.relatedTagsEnabled) _pinnedRelatedTag = null;
-      if (_focusNode.hasFocus) {
+      if (_focusNode.hasFocus &&
+          (_overlayEntry != null || _pinnedRelatedTag != null)) {
         _startQuery(
           related: _pinnedRelatedTag != null,
           relatedTagOverride: _pinnedRelatedTag,
@@ -650,13 +690,15 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       _,
       enabled,
     ) {
-      if (enabled && _focusNode.hasFocus) {
+      if (enabled &&
+          _focusNode.hasFocus &&
+          (_overlayEntry != null || _pinnedRelatedTag != null)) {
         _startQuery(
           related: _pinnedRelatedTag != null,
           relatedTagOverride: _pinnedRelatedTag,
         );
       } else if (!enabled) {
-        _removeOverlay();
+        _dismissOverlay();
       }
     });
     return SizedBox(

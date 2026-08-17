@@ -188,6 +188,30 @@ void main() {
     expect(orchestrator.state.candidates.single.canonicalTag, 'new_tag');
   });
 
+  test('cancel clears state and rejects late local results', () async {
+    final source = _QuerySource();
+    final orchestrator = CompletionOrchestrator(
+      localSources: [source],
+      dictionaryTranslations: _Translations(const {}),
+      llmTranslations: _Translations(const {}),
+      danbooru: _FakeDanbooru(),
+    );
+    addTearDown(orchestrator.dispose);
+
+    final pending = orchestrator.query(
+      _query('old'),
+      const AutocompleteSettings(danbooruEnabled: false),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    orchestrator.cancel();
+    expect(orchestrator.state, const CompletionState());
+
+    source.completeOld();
+    await pending;
+    expect(orchestrator.state, const CompletionState());
+  });
+
   test('merges offline and online related tags after an empty token', () async {
     final remote = _FakeDanbooru();
     final orchestrator = CompletionOrchestrator(

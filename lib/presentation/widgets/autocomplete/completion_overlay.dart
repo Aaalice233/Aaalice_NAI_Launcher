@@ -270,9 +270,9 @@ class _CompletionHeader extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final showTitle = constraints.maxWidth >= 590;
+          final showTitle = constraints.maxWidth >= 440;
           final showFullShortcuts = constraints.maxWidth >= 650;
-          final showCompactShortcuts = constraints.maxWidth >= 440;
+          final showCompactShortcuts = constraints.maxWidth >= 540;
           return Row(
             children: [
               if (showTitle) ...[
@@ -477,9 +477,7 @@ class _CompletionTile extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: candidate.isExisting ? null : onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 90),
-            curve: Curves.easeOut,
+          child: Container(
             height: 35,
             decoration: BoxDecoration(
               color: selected
@@ -526,9 +524,7 @@ class _CompletionTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: categoryColor,
-                        fontWeight: selected
-                            ? FontWeight.w700
-                            : FontWeight.w600,
+                        fontWeight: FontWeight.w600,
                         letterSpacing: 0.05,
                       ),
                     ),

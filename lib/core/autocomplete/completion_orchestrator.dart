@@ -35,6 +35,19 @@ class CompletionOrchestrator extends ChangeNotifier {
   final Set<String> _llmRequested = {};
   bool _disposed = false;
 
+  /// Stops every in-flight completion branch and clears the visible snapshot.
+  ///
+  /// Closing a popup is an interaction decision, not merely a presentation
+  /// change. Invalidating the sequence prevents a delayed local or remote result
+  /// from reopening a popup that the user already dismissed.
+  void cancel() {
+    _sequence++;
+    _llmRequested.clear();
+    _remoteDebounce?.cancel();
+    _danbooru.cancelPending();
+    _emit(const CompletionState());
+  }
+
   Future<void> query(
     CompletionQuery query,
     AutocompleteSettings settings,

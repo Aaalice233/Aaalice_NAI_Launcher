@@ -19,6 +19,26 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_config.dart';
 import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_wrapper.dart';
 
+Future<void> _typeCurrentText(
+  WidgetTester tester,
+  TextEditingController controller,
+) async {
+  final text = controller.text;
+  assert(text.isNotEmpty);
+  final prefix = text.substring(0, text.length - 1);
+  controller.value = TextEditingValue(
+    text: prefix,
+    selection: TextSelection.collapsed(offset: prefix.length),
+  );
+  await tester.pump();
+  controller.value = TextEditingValue(
+    text: text,
+    selection: TextSelection.collapsed(offset: text.length),
+  );
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 30));
+}
+
 void main() {
   late String hivePath;
 
@@ -75,7 +95,7 @@ void main() {
     );
     focusNode.requestFocus();
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 30));
+    await _typeCurrentText(tester, controller);
 
     expect(find.text('blue_eyes'), findsOneWidget);
     expect(find.text('BASE'), findsOneWidget);
@@ -88,7 +108,7 @@ void main() {
     expect(controller.selection.extentOffset, controller.text.length);
   });
 
-  testWidgets('opens safely from an initially focused field and detaches', (
+  testWidgets('focus and caret clicks stay quiet until text is edited', (
     tester,
   ) async {
     final controller = TextEditingController(text: 'blu');
@@ -134,8 +154,22 @@ void main() {
 
     expect(
       find.byKey(const ValueKey('autocomplete-popup-surface')),
+      findsNothing,
+    );
+
+    await _typeCurrentText(tester, controller);
+    expect(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
       findsOneWidget,
     );
+
+    controller.selection = const TextSelection.collapsed(offset: 1);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
+      findsNothing,
+    );
+
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
     expect(
@@ -188,7 +222,9 @@ void main() {
       );
       focusNode.requestFocus();
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 30));
+      await _typeCurrentText(tester, controller);
+      expect(source.tokens.last, 'blu');
+      final queryCountBeforeSelection = source.tokens.length;
 
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pump();
@@ -196,7 +232,7 @@ void main() {
 
       expect(controller.text, 'masterpiece, blue_eyes');
       expect(selectedText, controller.text);
-      expect(source.tokens, ['blu']);
+      expect(source.tokens, hasLength(queryCountBeforeSelection));
     },
   );
 
@@ -247,7 +283,7 @@ void main() {
     );
     focusNode.requestFocus();
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 30));
+    await _typeCurrentText(tester, controller);
 
     expect(find.text('蓝眼睛'), findsNothing);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -355,6 +391,7 @@ void main() {
     );
     focusNode.requestFocus();
     await tester.pump();
+    await _typeCurrentText(tester, controller);
 
     expect(
       find.byKey(const ValueKey('autocomplete-popup-surface')),
@@ -369,6 +406,10 @@ void main() {
 
     source.complete();
     await tester.pump();
+    expect(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
+      findsNothing,
+    );
   });
 
   testWidgets('keyboard repeat navigates candidates without repeated insert', (
@@ -410,7 +451,7 @@ void main() {
     );
     focusNode.requestFocus();
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 30));
+    await _typeCurrentText(tester, controller);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowDown);
     await tester.sendKeyRepeatEvent(LogicalKeyboardKey.arrowDown);
@@ -473,7 +514,7 @@ void main() {
     );
     focusNode.requestFocus();
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 30));
+    await _typeCurrentText(tester, controller);
 
     final inputRect = tester.getRect(find.byType(TextField));
     final popupRect = tester.getRect(
@@ -536,22 +577,34 @@ void main() {
     );
     focusNode.requestFocus();
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 30));
+    await _typeCurrentText(tester, controller);
 
     final listView = tester.widget<ListView>(find.byType(ListView));
     final scrollController = listView.controller!;
+    final popup = find.byKey(const ValueKey('autocomplete-popup-surface'));
+    final initialPopupRect = tester.getRect(popup);
     expect(scrollController.offset, 0);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('autocomplete-candidate-tag_00')),
+        matching: find.byType(AnimatedContainer),
+      ),
+      findsNothing,
+      reason: 'keyboard selection must not start a per-row implicit animation',
+    );
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pumpAndSettle();
     expect(scrollController.offset, 0);
+    expect(tester.getRect(popup), initialPopupRect);
 
     for (var i = 0; i < 10; i++) {
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     }
     await tester.pumpAndSettle();
 
+    expect(tester.getRect(popup), initialPopupRect);
     expect(scrollController.offset, greaterThan(0));
     expect(
       scrollController.offset,
@@ -756,7 +809,14 @@ void main() {
     );
     focusNode.requestFocus();
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 30));
+    await _typeCurrentText(tester, controller);
+
+    final inputRect = tester.getRect(find.byType(TextField));
+    final popupRect = tester.getRect(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
+    );
+    expect(popupRect.bottom, lessThanOrEqualTo(inputRect.top - 8));
+    expect(popupRect.width, lessThanOrEqualTo(800 * 0.62));
 
     final settingsButton = find.byKey(
       const ValueKey('autocomplete-popup-settings'),
