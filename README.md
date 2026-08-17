@@ -86,12 +86,12 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 
 ## 📦 下载与安装
 
-前往 [Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases) 下载最新版本。
+前往 [Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases) 下载最新版本。应用会在登录前后持续提示可用更新，并完整渲染 Release 中的 GitHub Flavored Markdown 更新日志（标题、列表、表格、引用、代码、链接与图片）。
 
 | 平台 | 下载文件 | 使用方式 |
 | --- | --- | --- |
-| Windows | `NAI_Launcher_Windows_<version>_Setup.exe` | 安装版，推荐普通用户，安装到当前用户目录，支持应用内一键更新。 |
-| Windows | `NAI_Launcher_Windows_<version>_Portable.zip` | 便携版，解压后运行 `nai_launcher.exe`，支持应用内下载更新、自动覆盖文件并重启。 |
+| Windows | `NAI_Launcher_Windows_<version>_Setup.exe` | 安装版，推荐普通用户，安装到当前用户目录；支持应用内断点下载、校验、自动安装并重启。手动运行安装包时也会检测并关闭托盘中的旧版本。 |
+| Windows | `NAI_Launcher_Windows_<version>_Portable.zip` | 便携版，解压后运行 `nai_launcher.exe`；应用内更新会暂存新版、保留用户文件、原子切换目录，失败时自动回滚并重启旧版。 |
 | macOS | `NAI_Launcher_macOS_<version>_Portable.zip` | 便携版，解压后打开 `Aaalice NAI Launcher.app`。未公证版本如被拦截，可在系统设置的隐私与安全中允许打开。 |
 
 首次登录可以使用 NovelAI 账号密码或 API Token。账号数据仅保存在本地设备，桌面端使用系统安全存储保存敏感信息。
@@ -186,7 +186,7 @@ scripts/dev_run_macos_signed.sh debug
 
 ## 🚀 发布流程
 
-发布由 GitHub Actions 的 `Release` workflow 处理。推送 `v*` tag 后，工作流会分别构建 Windows 安装版、Windows 便携版和 macOS 便携版，并生成 `release_manifest.json`、`checksums.txt` 与 Release notes。
+发布由 GitHub Actions 的 `Release` workflow 处理。推送 `v*` tag 后，工作流会分别构建 Windows 安装版、Windows 便携版和 macOS 便携版，并生成 `release_manifest.json`、`checksums.txt` 与 Release notes。Release 页面会按系统生成带平台图标的 Setup / Portable 直达下载按钮。
 
 ```bash
 git tag v1.0.0
@@ -197,9 +197,11 @@ git push origin v1.0.0
 发布前请确保：
 
 - `pubspec.yaml` 版本号已更新；tag 必须匹配去掉 `+build` 后的版本，例如 `1.0.0+17` 对应 `v1.0.0`。
-- `CHANGELOG.md` 已按 `✨ 新增`、`🛠 改进`、`🐛 修复`、`📦 发布文件` 分类补好。
+- `CHANGELOG.md` 已按 `✨ 新增`、`🛠 改进`、`🐛 修复` 分类补好；发布文件表由脚本自动生成，不要写入 Changelog。
 - `assets/databases/tag_catalog.db` 与 `assets/databases/cooccurrence.db` 是真实 SQLite 文件而不是 Git LFS pointer，并已通过 `dart run tool/tag_catalog/verify_bundled_databases.dart` 校验。
 - Windows 安装器依赖 NSIS；本地打包可运行 `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/package_windows_release.ps1`。
+- 正式签名可配置 GitHub Secrets `WINDOWS_SIGNING_CERT_BASE64`（PFX 的 Base64）和 `WINDOWS_SIGNING_CERT_PASSWORD`。工作流会在打包前签名便携版主程序、打包后签名安装器，并用 `signtool verify` 强制验证；未配置证书时保持当前无签名构建。
+- 本地签名统一使用 `scripts/sign_windows_binary.ps1`，例如：`pwsh -File scripts/sign_windows_binary.ps1 -Path dist/setup.exe -CertificatePath cert.pfx -CertificatePassword '<password>'`。
 
 ## 🗂️ 项目结构
 

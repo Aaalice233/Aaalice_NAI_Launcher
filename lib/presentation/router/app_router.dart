@@ -6,6 +6,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../core/shortcuts/default_shortcuts.dart';
 import '../providers/auth_provider.dart' show authNotifierProvider, AuthStatus;
+import '../providers/update_provider.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/generation/generation_screen.dart';
 import '../screens/local_gallery/local_gallery_screen.dart';
@@ -18,6 +19,7 @@ import '../screens/statistics/statistics_screen.dart';
 import '../screens/precise_ref_library/precise_ref_library_screen.dart';
 import '../screens/tag_library_page/tag_library_page_screen.dart';
 import '../screens/vibe_library/vibe_library_screen.dart';
+import '../widgets/common/update_notice_banner.dart';
 import '../widgets/drop/global_drop_handler.dart';
 import '../widgets/navigation/main_nav_rail.dart';
 import '../widgets/queue/floating_queue_button.dart';
@@ -463,6 +465,12 @@ class DesktopShell extends ConsumerWidget {
                   clipBehavior: Clip.none,
                   children: [
                     content,
+                    const Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: UpdateNoticeBanner(),
+                    ),
                     // 队列悬浮球 - 传入实际可用区域大小
                     FloatingQueueButton(
                       onTap: () =>
@@ -506,6 +514,9 @@ class MobileShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isQueueVisible = ref.watch(queueManagementVisibleProvider);
+    final showUpdateBadge = ref.watch(
+      updateStateProvider.select((state) => state.hasNewVersion),
+    );
 
     return Scaffold(
       body: LayoutBuilder(
@@ -514,6 +525,12 @@ class MobileShell extends ConsumerWidget {
             clipBehavior: Clip.none,
             children: [
               content,
+              const Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: UpdateNoticeBanner(),
+              ),
               // 队列悬浮球 - 传入实际可用区域大小
               FloatingQueueButton(
                 onTap: () =>
@@ -551,8 +568,16 @@ class MobileShell extends ConsumerWidget {
             label: context.l10n.nav_gallery,
           ),
           NavigationDestination(
-            icon: const Icon(Icons.settings_outlined),
-            selectedIcon: const Icon(Icons.settings),
+            icon: Badge(
+              isLabelVisible: showUpdateBadge,
+              smallSize: 7,
+              child: const Icon(Icons.settings_outlined),
+            ),
+            selectedIcon: Badge(
+              isLabelVisible: showUpdateBadge,
+              smallSize: 7,
+              child: const Icon(Icons.settings),
+            ),
             label: context.l10n.nav_settings,
           ),
         ],

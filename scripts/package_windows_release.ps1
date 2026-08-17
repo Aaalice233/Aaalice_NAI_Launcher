@@ -60,6 +60,24 @@ if (-not (Test-Path -LiteralPath $exePath)) {
   throw "Windows release executable was not found: $exePath"
 }
 
+# 便携版更新使用该清单区分应用文件与用户放在程序目录中的个人文件。
+$filesManifestPath = Join-Path $buildPath "app_files_manifest.json"
+if (Test-Path -LiteralPath $filesManifestPath) {
+  Remove-Item -LiteralPath $filesManifestPath -Force
+}
+$managedFiles = Get-ChildItem -LiteralPath $buildPath -File -Recurse |
+  ForEach-Object {
+    $_.FullName.Substring($buildPath.Length).TrimStart([char[]]@('\', '/'))
+  } |
+  Sort-Object
+[ordered]@{
+  schemaVersion = 1
+  version = $Version
+  files = @($managedFiles)
+} |
+  ConvertTo-Json -Depth 4 |
+  Set-Content -LiteralPath $filesManifestPath -Encoding UTF8
+
 New-Item -ItemType Directory -Force -Path $distPath | Out-Null
 
 if (Test-Path -LiteralPath $portablePath) {
@@ -79,6 +97,8 @@ $makensis = Get-ToolPath `
   )
 
 & $makensis `
+  "/INPUTCHARSET" `
+  "UTF8" `
   "/DVERSION=$Version" `
   "/DSOURCE_DIR=$buildPath" `
   "/DOUT_FILE=$installerPath" `

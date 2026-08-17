@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/utils/byte_format.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/version/version_info.dart';
+import '../../providers/queue_execution_provider.dart';
 import '../../providers/update_provider.dart';
 import 'app_toast.dart';
 
@@ -12,7 +15,7 @@ import 'app_toast.dart';
 ///
 /// 显示更新提示的 UI 组件，支持：
 /// - 显示当前版本和最新版本
-/// - 使用 flutter_markdown 渲染 Release body（Markdown）
+/// - 使用 GitHub Flavored Markdown 完整渲染 Release body
 /// - 按钮: [稍后提醒] [忽略此版本] [下载并安装/前往下载]
 /// - 加载状态指示器（检查中）
 /// - 错误状态显示
@@ -25,7 +28,7 @@ class UpdateCheckDialog extends ConsumerWidget {
 
     return AlertDialog(
       title: Text(_getTitle(context, state)),
-      content: SizedBox(width: 480, child: _buildContent(context, state)),
+      content: SizedBox(width: 500, child: _buildContent(context, ref, state)),
       actions: _buildActions(context, ref, state),
     );
   }
@@ -39,15 +42,18 @@ class UpdateCheckDialog extends ConsumerWidget {
       UpdateStatus.downloaded => context.l10n.updateDownloaded,
       UpdateStatus.installing => context.l10n.updateInstalling,
       UpdateStatus.upToDate => context.l10n.updateUpToDate,
-      UpdateStatus.error => state.versionInfo != null
-          ? context.l10n.updateDownloadFailed
-          : context.l10n.updateError,
+      UpdateStatus.error =>
+        state.downloadedUpdate != null
+            ? context.l10n.updateInstallFailed
+            : state.versionInfo != null
+            ? context.l10n.updateDownloadFailed
+            : context.l10n.updateError,
       UpdateStatus.idle => context.l10n.updateChecking,
     };
   }
 
   /// 构建弹窗内容
-  Widget _buildContent(BuildContext context, UpdateState state) {
+  Widget _buildContent(BuildContext context, WidgetRef ref, UpdateState state) {
     return switch (state.status) {
       UpdateStatus.checking => _buildLoadingContent(context),
       UpdateStatus.available => _buildUpdateAvailableContent(
@@ -55,7 +61,7 @@ class UpdateCheckDialog extends ConsumerWidget {
         state.versionInfo!,
       ),
       UpdateStatus.downloading => _buildDownloadContent(context, state),
-      UpdateStatus.downloaded => _buildDownloadedContent(context, state),
+      UpdateStatus.downloaded => _buildDownloadedContent(context, ref, state),
       UpdateStatus.installing => _buildInstallingContent(context),
       UpdateStatus.upToDate => _buildUpToDateContent(context),
       UpdateStatus.error => _buildErrorContent(context, state.errorMessage),
@@ -151,7 +157,7 @@ class UpdateCheckDialog extends ConsumerWidget {
                 ),
               ),
               child: SingleChildScrollView(
-                child: _buildReleaseNotes(versionInfo.releaseNotes!),
+                child: _buildReleaseNotes(context, versionInfo),
               ),
             ),
           ],
@@ -195,35 +201,63 @@ class UpdateCheckDialog extends ConsumerWidget {
   }
 
   /// 构建下载完成、等待安装确认的内容
-  Widget _buildDownloadedContent(BuildContext context, UpdateState state) {
+  Widget _buildDownloadedContent(
+    BuildContext context,
+    WidgetRef ref,
+    UpdateState state,
+  ) {
     final theme = Theme.of(context);
+    final queueState = ref.watch(queueExecutionNotifierProvider);
+    final hasActiveQueue = queueState.isRunning || queueState.isPaused;
 
-    return SizedBox(
-      height: 140,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.check_circle_outline,
-              size: 48,
-              color: theme.colorScheme.primary,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.check_circle_outline,
+            size: 48,
+            color: theme.colorScheme.primary,
+          ),
+          const SizedBox(height: 14),
+          Text(
+            context.l10n.updateDownloadedHint(state.versionInfo?.version ?? ''),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Text(
-                context.l10n.updateDownloadedHint(
-                  state.versionInfo?.version ?? '',
-                ),
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
+            textAlign: TextAlign.center,
+          ),
+          if (hasActiveQueue) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.errorContainer.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 20,
+                    color: theme.colorScheme.onErrorContainer,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      context.l10n.updateActiveTasksWarning,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onErrorContainer,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -291,14 +325,105 @@ class UpdateCheckDialog extends ConsumerWidget {
 
   /// 构建发布说明内容
   ///
-  /// 使用简单的文本渲染，因为 flutter_markdown 可能未添加依赖
-  /// 如果后续需要完整 Markdown 支持，可以添加 flutter_markdown 包
-  Widget _buildReleaseNotes(String releaseNotes) {
-    // 简单的 Markdown 渲染
-    return SelectableText(
-      releaseNotes,
-      style: const TextStyle(fontSize: 14, height: 1.6),
+  /// 完整渲染 GitHub Flavored Markdown：标题、嵌套列表、任务列表、
+  /// 表格、引用、分隔线、删除线、行内/围栏代码、链接与远程图片。
+  Widget _buildReleaseNotes(BuildContext context, VersionInfo versionInfo) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final versionTag = versionInfo.version.startsWith('v')
+        ? versionInfo.version
+        : 'v${versionInfo.version}';
+    final rawContentBase = Uri.parse(
+      'https://raw.githubusercontent.com/Aaalice233/'
+      'Aaalice_NAI_Launcher/$versionTag/',
     );
+
+    return MarkdownBody(
+      data: versionInfo.releaseNotes!,
+      selectable: true,
+      extensionSet: md.ExtensionSet.gitHubWeb,
+      imageDirectory: rawContentBase.toString(),
+      styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
+        p: theme.textTheme.bodyMedium?.copyWith(height: 1.55),
+        a: theme.textTheme.bodyMedium?.copyWith(
+          color: colorScheme.primary,
+          decoration: TextDecoration.underline,
+          decorationColor: colorScheme.primary.withValues(alpha: 0.55),
+        ),
+        h1: theme.textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.w700,
+          height: 1.35,
+        ),
+        h2: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w700,
+          height: 1.4,
+        ),
+        h3: theme.textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+          height: 1.4,
+        ),
+        h1Padding: const EdgeInsets.only(top: 10, bottom: 6),
+        h2Padding: const EdgeInsets.only(top: 9, bottom: 5),
+        h3Padding: const EdgeInsets.only(top: 7, bottom: 4),
+        blockSpacing: 10,
+        listIndent: 22,
+        code: theme.textTheme.bodySmall?.copyWith(
+          fontFamily: 'monospace',
+          color: colorScheme.onSurface,
+          backgroundColor: colorScheme.surfaceContainerHighest,
+        ),
+        codeblockPadding: const EdgeInsets.all(12),
+        codeblockDecoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.72),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: colorScheme.outlineVariant),
+        ),
+        blockquotePadding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
+        blockquoteDecoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.65),
+          borderRadius: BorderRadius.circular(6),
+          border: Border(
+            left: BorderSide(color: colorScheme.primary, width: 3),
+          ),
+        ),
+        tableHead: theme.textTheme.bodyMedium?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
+        tableBody: theme.textTheme.bodyMedium,
+        tableBorder: TableBorder.all(color: colorScheme.outlineVariant),
+        tableCellsPadding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 7,
+        ),
+        tableScrollbarThumbVisibility: true,
+        horizontalRuleDecoration: BoxDecoration(
+          border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
+        ),
+      ),
+      onTapLink: (text, href, title) async {
+        if (href == null || href.isEmpty || href.startsWith('#')) return;
+        final uri = _resolveReleaseUri(href, versionTag);
+        if (uri != null && await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else if (context.mounted) {
+          AppToast.error(context, context.l10n.cannotOpenUrl);
+        }
+      },
+    );
+  }
+
+  Uri? _resolveReleaseUri(String href, String versionTag) {
+    final uri = Uri.tryParse(href);
+    if (uri == null) return null;
+    if (uri.hasScheme) {
+      return const {'http', 'https', 'mailto'}.contains(uri.scheme)
+          ? uri
+          : null;
+    }
+    return Uri.parse(
+      'https://github.com/Aaalice233/Aaalice_NAI_Launcher/blob/'
+      '$versionTag/',
+    ).resolveUri(uri);
   }
 
   /// 构建已是最新内容
@@ -370,9 +495,9 @@ class UpdateCheckDialog extends ConsumerWidget {
       UpdateStatus.available => [
         // 稍后提醒
         TextButton(
-          onPressed: () {
-            // 关闭弹窗，保持状态
-            Navigator.of(context).pop();
+          onPressed: () async {
+            await ref.read(updateStateProvider.notifier).remindLater();
+            if (context.mounted) Navigator.of(context).pop();
           },
           child: Text(context.l10n.remindMeLater),
         ),
@@ -402,7 +527,7 @@ class UpdateCheckDialog extends ConsumerWidget {
           },
           child: Text(
             state.versionInfo?.supportsInAppInstall == true
-                ? context.l10n.updateDownloadAndInstall
+                ? context.l10n.updateDownload
                 : context.l10n.goToDownload,
           ),
         ),
@@ -418,15 +543,14 @@ class UpdateCheckDialog extends ConsumerWidget {
       ],
       UpdateStatus.downloaded => [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () async {
+            await ref.read(updateStateProvider.notifier).remindLater();
+            if (context.mounted) Navigator.of(context).pop();
+          },
           child: Text(context.l10n.updateInstallLater),
         ),
         FilledButton(
-          onPressed: () async {
-            await ref
-                .read(updateStateProvider.notifier)
-                .installDownloadedUpdate();
-          },
+          onPressed: () => _confirmInstall(context, ref),
           child: Text(context.l10n.updateInstallAndRestart),
         ),
       ],
@@ -453,11 +577,13 @@ class UpdateCheckDialog extends ConsumerWidget {
             final notifier = ref.read(updateStateProvider.notifier);
             // 已有版本信息说明是下载/安装阶段出错，直接重试下载；
             // 否则重新走检查更新流程。
-            if (state.versionInfo != null &&
+            if (state.downloadedUpdate != null) {
+              _confirmInstall(context, ref);
+            } else if (state.versionInfo != null &&
                 state.versionInfo!.supportsInAppInstall) {
               notifier.downloadUpdate();
             } else {
-              notifier.checkForUpdates();
+              notifier.checkForUpdates(manual: true);
             }
           },
           child: Text(context.l10n.common_retry),
@@ -470,6 +596,29 @@ class UpdateCheckDialog extends ConsumerWidget {
         ),
       ],
     };
+  }
+
+  Future<void> _confirmInstall(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.updateInstallConfirmationTitle),
+        content: Text(context.l10n.updateInstallConfirmationBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(context.l10n.common_cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(context.l10n.updateInstallAndRestart),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      await ref.read(updateStateProvider.notifier).installDownloadedUpdate();
+    }
   }
 
   Future<void> _openDownloadUrl(

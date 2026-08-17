@@ -5206,9 +5206,35 @@
   "currentVersion": "現在のバージョン",
   "latestVersion": "最新バージョン",
   "releaseNotes": "リリースノート",
-  "remindMeLater": "後で通知する",
+  "remindMeLater": "4時間後に通知",
   "skipThisVersion": "このバージョンをスキップ",
-  "updateDownloadAndInstall": "ダウンロードしてインストール",
+  "updateDownload": "更新をダウンロード",
+  "updateInstallNow": "今すぐインストール",
+  "updateInstallFailed": "更新のインストールに失敗しました",
+  "updateInstallConfirmationTitle": "今すぐ更新をインストールしますか？",
+  "updateInstallConfirmationBody": "アプリを安全に終了して更新をインストールし、自動的に再起動します。実行中の生成・ダウンロードタスクは停止するため、必要な内容を先に保存してください。",
+  "updateActiveTasksWarning": "キュータスクが実行中です。インストールすると現在のタスクは停止します。",
+  "updateNoticeAvailable": "新しいバージョン v{version} があります",
+  "@updateNoticeAvailable": {
+    "placeholders": {"version": {}}
+  },
+  "updateNoticeAvailableSubtitle": "アプリ内でダウンロードして自動的に更新できます",
+  "updateNoticeManualSubtitle": "このプラットフォームでは Release ページから手動で更新してください",
+  "updateNoticeReady": "バージョン v{version} の準備ができました",
+  "@updateNoticeReady": {
+    "placeholders": {"version": {}}
+  },
+  "updateNoticeReadySubtitle": "パッケージは検証済みです。再起動してインストールできます",
+  "updateNoticeFailed": "前回の更新は完了しませんでした",
+  "updateViewDetails": "更新を表示",
+  "updateSettingsAvailable": "v{version} が利用可能です。選択して詳細を表示",
+  "@updateSettingsAvailable": {
+    "placeholders": {"version": {}}
+  },
+  "updateSettingsReady": "v{version} はダウンロード済みです。選択してインストール",
+  "@updateSettingsReady": {
+    "placeholders": {"version": {}}
+  },
   "goToDownload": "ダウンロードに移動",
   "updateDownloading": "アップデートをダウンロードしています...",
   "updateDownloadingProgress": "更新パッケージをダウンロードしています: {percent}%",
@@ -5234,7 +5260,7 @@
   },
   "updateInstallAndRestart": "インストールして再起動",
   "updateInstallLater": "後でインストール",
-  "updateDownloadCancelled": "ダウンロードをキャンセルしました",
+  "updateDownloadCancelled": "ダウンロードをキャンセルしました。後で再開できます",
   "updateDownloadFailed": "更新のダウンロードに失敗しました",
   "updateInstalling": "インストーラーを起動しています...",
   "updateInstallingHint": "インストーラーが起動しました。アプリは終了し、自動的に更新が完了します。",

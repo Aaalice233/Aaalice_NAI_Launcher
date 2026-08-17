@@ -10,6 +10,7 @@ import '../../providers/account_manager_provider.dart';
 import '../../providers/auth_mode_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/layout_state_provider.dart';
+import '../../providers/update_provider.dart';
 import '../../router/app_branch.dart';
 import '../auth/account_avatar.dart';
 import '../auth/login_form_container.dart';
@@ -44,6 +45,9 @@ class MainNavRail extends ConsumerWidget {
       layoutStateNotifierProvider.select((state) => state.mainNavRailExpanded),
     );
 
+    final showUpdateBadge = ref.watch(
+      updateStateProvider.select((state) => state.hasNewVersion),
+    );
     final currentIndex = navigationShell.currentIndex;
     final selectedIndex = _railBranches.indexWhere(
       (branch) => branch.index == currentIndex,
@@ -174,6 +178,7 @@ class MainNavRail extends ConsumerWidget {
               icon: Icons.settings,
               label: context.l10n.nav_settings,
               isSelected: selectedIndex == 8,
+              showBadge: showUpdateBadge,
               onTap: () => navigationShell.goBranch(AppBranch.settings.index),
             ),
             const SizedBox(height: 2),
@@ -707,12 +712,14 @@ class _NavIcon extends StatefulWidget {
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
+  final bool showBadge;
 
   const _NavIcon({
     required this.icon,
     required this.label,
     required this.isSelected,
     required this.onTap,
+    this.showBadge = false,
   });
 
   @override
@@ -784,7 +791,13 @@ class _NavIconState extends State<_NavIcon> {
                         SizedBox(
                           width: constraints.maxWidth.clamp(0.0, 48.0),
                           height: 48,
-                          child: Icon(widget.icon, color: color, size: 24),
+                          child: Center(
+                            child: Badge(
+                              isLabelVisible: widget.showBadge,
+                              smallSize: 7,
+                              child: Icon(widget.icon, color: color, size: 24),
+                            ),
+                          ),
                         ),
                         if (showLabel)
                           Expanded(

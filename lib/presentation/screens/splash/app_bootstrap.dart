@@ -1,14 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../../../app.dart';
+import '../../../core/services/update_check_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/first_launch_detector.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/update_provider.dart';
 import '../../providers/warmup_provider.dart';
-import '../../widgets/common/update_check_dialog.dart';
 import 'splash_screen.dart';
 
 /// 应用启动引导器
@@ -79,6 +81,7 @@ class _MainAppWrapper extends ConsumerStatefulWidget {
 }
 
 class _MainAppWrapperState extends ConsumerState<_MainAppWrapper> {
+  Timer? _autoUpdateTimer;
   @override
   void initState() {
     super.initState();
@@ -94,34 +97,42 @@ class _MainAppWrapperState extends ConsumerState<_MainAppWrapper> {
     _scheduleAutoUpdateCheck();
   }
 
-  /// 调度自动更新检查
+  /// 调度自动更新检查。
   ///
-  /// 延迟3秒后检查是否需要更新，失败时静默处理
-  void _scheduleAutoUpdateCheck() {
-    Future.delayed(const Duration(seconds: 3), () async {
-      try {
-        if (!mounted) return;
+  /// 这里只更新全局状态；主界面中的持久提示负责展示，避免从
+  /// `MaterialApp.router` 外层 context 弹窗导致提示静默失败。
+  void _scheduleAutoUpdateCheck({Duration delay = const Duration(seconds: 3)}) {
+    _autoUpdateTimer?.cancel();
+    _autoUpdateTimer = Timer(delay, _runAutoUpdateCheck);
+  }
 
-        // 检查是否应该检查更新（24小时冷却）
-        final shouldCheck = await ref.read(
-          checkUpdateOnStartupProvider.future,
-        );
-        if (!shouldCheck) return;
-
-        // 执行更新检查
-        await ref.read(updateStateProvider.notifier).checkForUpdates();
-        if (!mounted) return;
-
-        // 如果有更新，显示对话框
-        final state = ref.read(updateStateProvider);
-        if (state.hasUpdate && mounted) {
-          await UpdateCheckDialog.show(context);
-        }
-      } catch (e) {
-        // 静默处理错误，不显示错误弹窗
-        AppLogger.d('Auto update check failed: $e', 'AppBootstrap');
+  Future<void> _runAutoUpdateCheck() async {
+    try {
+      if (!mounted) return;
+      await ref.read(updateCheckServiceReadyProvider.future);
+      if (!mounted) return;
+      final notifier = ref.read(updateStateProvider.notifier);
+      await notifier.initialize();
+      final updateState = ref.read(updateStateProvider);
+      if (!mounted ||
+          updateState.hasDownloadedUpdate ||
+          updateState.hasNewVersion) {
+        return;
       }
-    });
+
+      final shouldCheck = await ref.read(checkUpdateOnStartupProvider.future);
+      if (!shouldCheck || !mounted) return;
+      await notifier.checkForUpdates();
+    } catch (error, stackTrace) {
+      AppLogger.w('Auto update check failed: $error', 'AppBootstrap');
+      AppLogger.d('$stackTrace', 'AppBootstrap');
+    } finally {
+      if (mounted) {
+        _scheduleAutoUpdateCheck(
+          delay: UpdateCheckService.failedCheckRetryInterval,
+        );
+      }
+    }
   }
 
   Future<void> _checkFirstLaunch() async {
@@ -131,6 +142,12 @@ class _MainAppWrapperState extends ConsumerState<_MainAppWrapper> {
 
     // 执行首次启动检测和同步
     await ref.read(firstLaunchNotifierProvider.notifier).checkAndSync(context);
+  }
+
+  @override
+  void dispose() {
+    _autoUpdateTimer?.cancel();
+    super.dispose();
   }
 
   @override

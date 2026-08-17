@@ -86,13 +86,13 @@ NAI Launcher is a third-party client for NovelAI built with Flutter. It integrat
 
 ## 📦 Download & Install
 
-Download the latest version from [Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases).
+Download the latest version from [Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases). The app persistently surfaces available updates before and after login and fully renders GitHub Flavored Markdown release notes, including headings, lists, tables, quotes, code, links, and images.
 
 | Platform | Download File | Usage |
 | --- | --- | --- |
-| Windows | `NAI_Launcher_Windows_<version>_Setup.exe` | Installer version, recommended for general users. Installs to the current user directory and supports one-click in-app updates. |
-| Windows | `NAI_Launcher_Windows_<version>_Portable.zip` | Portable version. Extract and run `nai_launcher.exe`; in-app updates can download the package, replace files, and restart automatically. |
-| macOS | `NAI_Launcher_macOS_<version>_Portable.zip` | Portable version. Extract and open `Aaalice NAI Launcher.app`. If the notarized version is blocked, you can allow it to open in System Settings > Privacy & Security. |
+| Windows | `NAI_Launcher_Windows_<version>_Setup.exe` | Installer version, recommended for general users. Supports resumable in-app downloads, verification, automatic installation, and restart. Manual setup also detects and closes an older version still running in the tray. |
+| Windows | `NAI_Launcher_Windows_<version>_Portable.zip` | Portable version. In-app updates stage the new version, preserve user files, atomically swap directories, and automatically roll back and restart the previous version on failure. |
+| macOS | `NAI_Launcher_macOS_<version>_Portable.zip` | Portable version. Extract and open `Aaalice NAI Launcher.app`. If an unnotarized build is blocked, you can allow it to open in System Settings > Privacy & Security. |
 
 You can log in for the first time using your NovelAI account credentials or an API Token. Account data is stored locally on the device only. The desktop app uses the system's secure storage for sensitive information.
 
@@ -186,7 +186,7 @@ scripts/dev_run_macos_signed.sh debug
 
 ## 🚀 Release Process
 
-Releases are handled by the `Release` workflow in GitHub Actions. After pushing a `v*` tag, the workflow will build the Windows installer, Windows portable, and macOS portable versions separately, and generate `release_manifest.json`, `checksums.txt`, and Release notes.
+Releases are handled by the `Release` workflow in GitHub Actions. After pushing a `v*` tag, the workflow builds the Windows installer, Windows portable, and macOS portable versions, then generates `release_manifest.json`, `checksums.txt`, and Release notes. The Release page groups direct Setup / Portable download badges by operating system and includes platform icons.
 
 ```bash
 git tag v1.0.0
@@ -197,9 +197,11 @@ git push origin v1.0.0
 Before releasing, please ensure:
 
 - The version number in `pubspec.yaml` has been updated; the tag must match the version without the `+build` suffix, e.g., `1.0.0+17` corresponds to `v1.0.0`.
-- `CHANGELOG.md` has been updated and categorized under `✨ Added`, `🛠 Improved`, `🐛 Fixed`, and `📦 Release Files`.
+- `CHANGELOG.md` has been updated under `✨ Added`, `🛠 Improved`, and `🐛 Fixed`; do not add a release-file table because the release script generates it automatically.
 - `assets/databases/tag_catalog.db` and `assets/databases/cooccurrence.db` are actual SQLite files rather than Git LFS pointers and pass `dart run tool/tag_catalog/verify_bundled_databases.dart`.
 - The Windows installer depends on NSIS; for local packaging, you can run `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/package_windows_release.ps1`.
+- For Authenticode signing, configure the GitHub Secrets `WINDOWS_SIGNING_CERT_BASE64` (Base64-encoded PFX) and `WINDOWS_SIGNING_CERT_PASSWORD`. The workflow signs the portable executable before packaging, signs the installer afterward, and requires `signtool verify` to pass. Builds remain unsigned when no certificate is configured.
+- Use `scripts/sign_windows_binary.ps1` for local signing, for example: `pwsh -File scripts/sign_windows_binary.ps1 -Path dist/setup.exe -CertificatePath cert.pfx -CertificatePassword '<password>'`.
 
 ## 🗂️ Project Structure
 

@@ -5023,13 +5023,39 @@
     }
   },
   "updateInstallAndRestart": "安装并重启",
+  "updateInstallNow": "立即安装",
   "updateInstallLater": "稍后安装",
-  "updateDownloadCancelled": "已取消下载",
+  "updateDownload": "下载更新",
+  "updateDownloadCancelled": "已取消下载，稍后可继续",
   "updateDownloadFailed": "下载更新失败",
+  "updateInstallFailed": "安装更新失败",
   "updateInstallingHint": "安装程序已启动，应用即将关闭并自动完成更新。",
-  "remindMeLater": "稍后提醒",
+  "updateInstallConfirmationTitle": "现在安装更新？",
+  "updateInstallConfirmationBody": "应用将安全关闭并安装更新，完成后自动重新启动。进行中的生成和下载任务会停止，请先保存必要内容。",
+  "updateActiveTasksWarning": "检测到队列任务仍在运行，安装会停止当前任务。",
+  "remindMeLater": "4 小时后提醒",
   "skipThisVersion": "忽略此版本",
-  "updateDownloadAndInstall": "下载并安装",
+  "updateNoticeAvailable": "新版本 v{version} 可用",
+  "@updateNoticeAvailable": {
+    "placeholders": {"version": {}}
+  },
+  "updateNoticeAvailableSubtitle": "可在应用内下载并自动完成更新",
+  "updateNoticeManualSubtitle": "当前平台需要前往 Release 页面手动更新",
+  "updateNoticeReady": "新版本 v{version} 已准备好",
+  "@updateNoticeReady": {
+    "placeholders": {"version": {}}
+  },
+  "updateNoticeReadySubtitle": "更新包已校验，重启即可安装",
+  "updateNoticeFailed": "上次更新没有完成",
+  "updateViewDetails": "查看更新",
+  "updateSettingsAvailable": "发现 v{version}，点击查看更新内容",
+  "@updateSettingsAvailable": {
+    "placeholders": {"version": {}}
+  },
+  "updateSettingsReady": "v{version} 已下载，点击安装",
+  "@updateSettingsReady": {
+    "placeholders": {"version": {}}
+  },
   "goToDownload": "前往下载",
   "versionSkipped": "已忽略此版本",
   "cannotOpenUrl": "无法打开链接",

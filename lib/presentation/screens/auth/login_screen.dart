@@ -15,6 +15,7 @@ import '../../widgets/auth/login_form_container.dart';
 import '../../widgets/auth/network_troubleshooting_dialog.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/themed_divider.dart';
+import '../../widgets/common/update_notice_banner.dart';
 
 /// 登录页面 - QQ 风格
 class LoginScreen extends ConsumerStatefulWidget {
@@ -91,34 +92,48 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final isWideScreen = constraints.maxWidth >= _wideScreenBreakpoint;
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isWideScreen =
+                    constraints.maxWidth >= _wideScreenBreakpoint;
 
-          return Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _Header(theme: theme),
-                  const SizedBox(height: 32),
-                  _buildMainContent(
-                    context,
-                    theme,
-                    isWideScreen,
-                    isLoading,
-                    accounts,
+                return Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _Header(theme: theme),
+                        const SizedBox(height: 32),
+                        _buildMainContent(
+                          context,
+                          theme,
+                          isWideScreen,
+                          isLoading,
+                          accounts,
+                        ),
+                        const SizedBox(height: 16),
+                        if (_showTroubleshootingButton)
+                          _TroubleshootingButton(),
+                        const SizedBox(height: 24),
+                        _LoginTip(theme: theme),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  if (_showTroubleshootingButton) _TroubleshootingButton(),
-                  const SizedBox(height: 24),
-                  _LoginTip(theme: theme),
-                ],
-              ),
+                );
+              },
             ),
-          );
-        },
+          ),
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: UpdateNoticeBanner(),
+          ),
+        ],
       ),
     );
   }
@@ -191,7 +206,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       state.httpStatusCode,
     );
 
-    final isNetworkError = state.errorCode == AuthErrorCode.networkTimeout ||
+    final isNetworkError =
+        state.errorCode == AuthErrorCode.networkTimeout ||
         state.errorCode == AuthErrorCode.networkError;
 
     if (isNetworkError && mounted) {
@@ -288,8 +304,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   account: account,
                   isSelected: account.id == currentAccount.id,
                   isDefault: account.id == defaultAccount.id,
-                  createdDate:
-                      _dateFormattingService.formatDate(account.createdAt),
+                  createdDate: _dateFormattingService.formatDate(
+                    account.createdAt,
+                  ),
                   onTap: () {
                     Navigator.pop(dialogContext);
                     _handleQuickLogin(context, ref, account);
@@ -301,8 +318,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const ThemedDivider(),
               ListTile(
                 leading: CircleAvatar(
-                  backgroundColor:
-                      Theme.of(context).colorScheme.primaryContainer,
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer,
                   child: Icon(
                     Icons.add,
                     color: Theme.of(context).colorScheme.primary,
@@ -332,8 +350,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(context.l10n.auth_deleteAccount),
-        content:
-            Text(context.l10n.auth_deleteAccountConfirm(account.displayName)),
+        content: Text(
+          context.l10n.auth_deleteAccountConfirm(account.displayName),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
@@ -518,8 +537,9 @@ class _Header extends StatelessWidget {
         const SizedBox(height: 20),
         Text(
           context.l10n.app_title,
-          style: theme.textTheme.headlineMedium
-              ?.copyWith(fontWeight: FontWeight.bold),
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 8),
@@ -740,8 +760,10 @@ class _QuickLoginView extends ConsumerWidget {
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
-                child:
-                    _QuickLoginButton(account: account, onLogin: onQuickLogin),
+                child: _QuickLoginButton(
+                  account: account,
+                  onLogin: onQuickLogin,
+                ),
               ),
               const SizedBox(height: 16),
               const ThemedDivider(),
@@ -829,8 +851,9 @@ class _AccountSelectorButton extends StatelessWidget {
             Flexible(
               child: Text(
                 account.displayName,
-                style: theme.textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -851,10 +874,7 @@ class _QuickLoginButton extends ConsumerWidget {
   final SavedAccount account;
   final void Function(SavedAccount) onLogin;
 
-  const _QuickLoginButton({
-    required this.account,
-    required this.onLogin,
-  });
+  const _QuickLoginButton({required this.account, required this.onLogin});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -923,15 +943,20 @@ class _AccountListItem extends StatelessWidget {
               ),
               child: Text(
                 context.l10n.common_default,
-                style:
-                    TextStyle(fontSize: 10, color: theme.colorScheme.primary),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: theme.colorScheme.primary,
+                ),
               ),
             ),
           if (isSelected)
             Padding(
               padding: const EdgeInsets.only(left: 8),
-              child:
-                  Icon(Icons.check, color: theme.colorScheme.primary, size: 20),
+              child: Icon(
+                Icons.check,
+                color: theme.colorScheme.primary,
+                size: 20,
+              ),
             ),
         ],
       ),
@@ -975,9 +1000,10 @@ class _LoadingOverlayState extends State<_LoadingOverlay>
       vsync: this,
       duration: const Duration(milliseconds: 200),
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
     _controller.forward();
   }
 
@@ -1016,8 +1042,9 @@ class _LoadingOverlayState extends State<_LoadingOverlay>
                     const SizedBox(height: 16),
                     Text(
                       context.l10n.auth_loggingIn,
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w500),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -1080,9 +1107,11 @@ class _ShimmerBoxState extends State<_ShimmerBox>
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = widget.color?.withValues(alpha: 0.3) ??
+    final baseColor =
+        widget.color?.withValues(alpha: 0.3) ??
         widget.theme.colorScheme.surfaceContainerHighest;
-    final highlightColor = widget.color?.withValues(alpha: 0.1) ??
+    final highlightColor =
+        widget.color?.withValues(alpha: 0.1) ??
         widget.theme.colorScheme.surface;
 
     return AnimatedBuilder(

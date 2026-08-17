@@ -18251,16 +18251,28 @@ abstract class AppLocalizations {
   /// **'Install and Restart'**
   String get updateInstallAndRestart;
 
+  /// No description provided for @updateInstallNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Install Now'**
+  String get updateInstallNow;
+
   /// No description provided for @updateInstallLater.
   ///
   /// In en, this message translates to:
   /// **'Install Later'**
   String get updateInstallLater;
 
+  /// No description provided for @updateDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download Update'**
+  String get updateDownload;
+
   /// No description provided for @updateDownloadCancelled.
   ///
   /// In en, this message translates to:
-  /// **'Download cancelled'**
+  /// **'Download cancelled; you can resume later'**
   String get updateDownloadCancelled;
 
   /// No description provided for @updateDownloadFailed.
@@ -18269,16 +18281,40 @@ abstract class AppLocalizations {
   /// **'Failed to download the update'**
   String get updateDownloadFailed;
 
+  /// No description provided for @updateInstallFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to install the update'**
+  String get updateInstallFailed;
+
   /// No description provided for @updateInstallingHint.
   ///
   /// In en, this message translates to:
   /// **'The installer has started. The app will close and finish updating automatically.'**
   String get updateInstallingHint;
 
+  /// No description provided for @updateInstallConfirmationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Install the update now?'**
+  String get updateInstallConfirmationTitle;
+
+  /// No description provided for @updateInstallConfirmationBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The app will shut down safely, install the update, and restart automatically. Active generation and download tasks will stop, so save anything important first.'**
+  String get updateInstallConfirmationBody;
+
+  /// No description provided for @updateActiveTasksWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue tasks are still active. Installing will stop the current task.'**
+  String get updateActiveTasksWarning;
+
   /// No description provided for @remindMeLater.
   ///
   /// In en, this message translates to:
-  /// **'Remind Me Later'**
+  /// **'Remind Me in 4 Hours'**
   String get remindMeLater;
 
   /// No description provided for @skipThisVersion.
@@ -18287,11 +18323,59 @@ abstract class AppLocalizations {
   /// **'Skip This Version'**
   String get skipThisVersion;
 
-  /// No description provided for @updateDownloadAndInstall.
+  /// No description provided for @updateNoticeAvailable.
   ///
   /// In en, this message translates to:
-  /// **'Download and Install'**
-  String get updateDownloadAndInstall;
+  /// **'Version v{version} is available'**
+  String updateNoticeAvailable(Object version);
+
+  /// No description provided for @updateNoticeAvailableSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Download and finish the update automatically in the app'**
+  String get updateNoticeAvailableSubtitle;
+
+  /// No description provided for @updateNoticeManualSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This platform must be updated manually from the Release page'**
+  String get updateNoticeManualSubtitle;
+
+  /// No description provided for @updateNoticeReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Version v{version} is ready'**
+  String updateNoticeReady(Object version);
+
+  /// No description provided for @updateNoticeReadySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The package is verified and ready to install on restart'**
+  String get updateNoticeReadySubtitle;
+
+  /// No description provided for @updateNoticeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The previous update did not finish'**
+  String get updateNoticeFailed;
+
+  /// No description provided for @updateViewDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'View Update'**
+  String get updateViewDetails;
+
+  /// No description provided for @updateSettingsAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'v{version} is available; select to view details'**
+  String updateSettingsAvailable(Object version);
+
+  /// No description provided for @updateSettingsReady.
+  ///
+  /// In en, this message translates to:
+  /// **'v{version} is downloaded; select to install'**
+  String updateSettingsReady(Object version);
 
   /// No description provided for @goToDownload.
   ///

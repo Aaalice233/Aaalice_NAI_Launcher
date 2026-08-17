@@ -23,6 +23,7 @@ import 'core/network/system_proxy_http_overrides.dart';
 import 'core/shortcuts/shortcut_storage.dart';
 import 'core/database/database_manager.dart';
 import 'core/services/data_migration_service.dart';
+import 'core/services/desktop_app_shutdown_service.dart';
 import 'core/services/sqflite_bootstrap_service.dart';
 import 'core/utils/app_error_reporter.dart';
 import 'core/utils/fatal_diagnostics.dart';
@@ -167,26 +168,7 @@ class AppTrayListener extends TrayListener {
         await windowManager.focus();
         AppLogger.d('Window shown via tray menu', 'TrayListener');
       } else if (menuItem.key == 'exit') {
-        // 退出应用（真正关闭）
-        AppLogger.i('Application exiting, closing database...', 'TrayListener');
-
-        // 1. 关闭数据库连接（避免 Windows 文件锁定）
-        try {
-          await DatabaseManager.instance.dispose();
-          AppLogger.i('Database closed successfully', 'TrayListener');
-        } catch (e) {
-          AppLogger.w('Error closing database: $e', 'TrayListener');
-        }
-
-        // 2. 先销毁托盘图标，避免残留在系统托盘中
-        await trayManager.destroy();
-        // 3. 解除 preventClose，再销毁窗口
-        await windowManager.setPreventClose(false);
-        await windowManager.destroy();
-        AppLogger.d('Application exited via tray menu', 'TrayListener');
-        await AppLogger.flush();
-        // 强制退出进程，确保 dart.exe 不会残留
-        exit(0);
+        await DesktopAppShutdownService.shutdownAndExit(0);
       }
     } catch (e) {
       AppLogger.e('Failed to handle tray menu click: $e', 'TrayListener');

@@ -10013,25 +10013,76 @@ class AppLocalizationsZh extends AppLocalizations {
   String get updateInstallAndRestart => '安装并重启';
 
   @override
+  String get updateInstallNow => '立即安装';
+
+  @override
   String get updateInstallLater => '稍后安装';
 
   @override
-  String get updateDownloadCancelled => '已取消下载';
+  String get updateDownload => '下载更新';
+
+  @override
+  String get updateDownloadCancelled => '已取消下载，稍后可继续';
 
   @override
   String get updateDownloadFailed => '下载更新失败';
 
   @override
+  String get updateInstallFailed => '安装更新失败';
+
+  @override
   String get updateInstallingHint => '安装程序已启动，应用即将关闭并自动完成更新。';
 
   @override
-  String get remindMeLater => '稍后提醒';
+  String get updateInstallConfirmationTitle => '现在安装更新？';
+
+  @override
+  String get updateInstallConfirmationBody =>
+      '应用将安全关闭并安装更新，完成后自动重新启动。进行中的生成和下载任务会停止，请先保存必要内容。';
+
+  @override
+  String get updateActiveTasksWarning => '检测到队列任务仍在运行，安装会停止当前任务。';
+
+  @override
+  String get remindMeLater => '4 小时后提醒';
 
   @override
   String get skipThisVersion => '忽略此版本';
 
   @override
-  String get updateDownloadAndInstall => '下载并安装';
+  String updateNoticeAvailable(Object version) {
+    return '新版本 v$version 可用';
+  }
+
+  @override
+  String get updateNoticeAvailableSubtitle => '可在应用内下载并自动完成更新';
+
+  @override
+  String get updateNoticeManualSubtitle => '当前平台需要前往 Release 页面手动更新';
+
+  @override
+  String updateNoticeReady(Object version) {
+    return '新版本 v$version 已准备好';
+  }
+
+  @override
+  String get updateNoticeReadySubtitle => '更新包已校验，重启即可安装';
+
+  @override
+  String get updateNoticeFailed => '上次更新没有完成';
+
+  @override
+  String get updateViewDetails => '查看更新';
+
+  @override
+  String updateSettingsAvailable(Object version) {
+    return '发现 v$version，点击查看更新内容';
+  }
+
+  @override
+  String updateSettingsReady(Object version) {
+    return 'v$version 已下载，点击安装';
+  }
 
   @override
   String get goToDownload => '前往下载';

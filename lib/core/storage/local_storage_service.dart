@@ -919,7 +919,7 @@ class LocalStorageService {
     return DateTime.fromMillisecondsSinceEpoch(timestamp);
   }
 
-  /// 保存上次更新检查时间
+  /// 保存上次成功完成更新检查的时间
   Future<void> setLastUpdateCheckTime(DateTime? time) async {
     if (time != null) {
       await setSetting(
@@ -928,6 +928,25 @@ class LocalStorageService {
       );
     } else {
       await deleteSetting(StorageKeys.lastUpdateCheckTime);
+    }
+  }
+
+  /// 获取最近一次更新检查尝试时间
+  DateTime? getLastUpdateCheckAttemptTime() {
+    final timestamp = getSetting<int>(StorageKeys.lastUpdateCheckAttemptTime);
+    if (timestamp == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(timestamp);
+  }
+
+  /// 保存最近一次更新检查尝试时间
+  Future<void> setLastUpdateCheckAttemptTime(DateTime? time) async {
+    if (time != null) {
+      await setSetting(
+        StorageKeys.lastUpdateCheckAttemptTime,
+        time.millisecondsSinceEpoch,
+      );
+    } else {
+      await deleteSetting(StorageKeys.lastUpdateCheckAttemptTime);
     }
   }
 
@@ -942,6 +961,39 @@ class LocalStorageService {
       await setSetting(StorageKeys.skippedUpdateVersion, version);
     } else {
       await deleteSetting(StorageKeys.skippedUpdateVersion);
+    }
+  }
+
+  /// 获取上次发现的新版本
+  String? getLastKnownUpdateVersion() {
+    return getSetting<String>(StorageKeys.lastKnownUpdateVersion);
+  }
+
+  /// 保存上次发现的新版本
+  Future<void> setLastKnownUpdateVersion(String? version) async {
+    if (version != null) {
+      await setSetting(StorageKeys.lastKnownUpdateVersion, version);
+    } else {
+      await deleteSetting(StorageKeys.lastKnownUpdateVersion);
+    }
+  }
+
+  /// 获取更新提示延后时间
+  DateTime? getUpdateRemindAfter() {
+    final timestamp = getSetting<int>(StorageKeys.updateRemindAfter);
+    if (timestamp == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(timestamp);
+  }
+
+  /// 保存更新提示延后时间
+  Future<void> setUpdateRemindAfter(DateTime? time) async {
+    if (time != null) {
+      await setSetting(
+        StorageKeys.updateRemindAfter,
+        time.millisecondsSinceEpoch,
+      );
+    } else {
+      await deleteSetting(StorageKeys.updateRemindAfter);
     }
   }
 

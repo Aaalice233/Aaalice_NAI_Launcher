@@ -140,30 +140,70 @@ $manifest |
 $checksumLines |
   Set-Content -Path $checksumsPath -Encoding UTF8
 
-$markdownCodeTick = [char]96
-$downloadRows = $assets | ForEach-Object {
-  "| $markdownCodeTick$($_['fileName'])$markdownCodeTick | $($_['description']) |"
+function Get-DownloadBadge {
+  param([System.Collections.IDictionary]$Asset)
+
+  $type = $Asset['type']
+  $url = $Asset['downloadUrl']
+  switch ($type) {
+    'windows-installer' {
+      return "[![Windows Setup x64](https://img.shields.io/badge/Setup-x64-0078D4?style=flat-square&logo=windows11&logoColor=white)]($url)"
+    }
+    'windows-portable' {
+      return "[![Windows Portable x64](https://img.shields.io/badge/Portable-x64-56B4D3?style=flat-square&logo=windows11&logoColor=white)]($url)"
+    }
+    'macos-portable' {
+      return "[![macOS Portable ZIP](https://img.shields.io/badge/Portable-ZIP-555555?style=flat-square&logo=apple&logoColor=white)]($url)"
+    }
+    default {
+      throw "Cannot create download badge for asset type: $type"
+    }
+  }
+}
+
+$windowsBadges = @(
+  $assets |
+    Where-Object { $_['platform'] -eq 'windows' } |
+    ForEach-Object { Get-DownloadBadge -Asset $_ }
+)
+$macosBadges = @(
+  $assets |
+    Where-Object { $_['platform'] -eq 'macos' } |
+    ForEach-Object { Get-DownloadBadge -Asset $_ }
+)
+$downloadRows = @()
+if ($windowsBadges.Count -gt 0) {
+  $downloadRows += "| **Windows** | $($windowsBadges -join '<br>') |"
+}
+if ($macosBadges.Count -gt 0) {
+  $downloadRows += "| **macOS** | $($macosBadges -join '<br>') |"
 }
 $changelogSection = Get-ChangelogSection -Version ($Version -replace '\+.*$', '')
 
 $releaseLines = @(
   "# NAI Launcher $Tag",
   "",
-  "## 📦 发布文件",
+  "## 📥 按系统下载",
   "",
-  "| 文件 | 说明 |",
+  "点击对应按钮直接下载：",
+  "",
+  "| OS | Download |",
   "| --- | --- |"
 )
 $releaseLines += $downloadRows
 $releaseLines += @(
   "",
+  "> **应用内更新：** Windows 安装版用户无需手动下载。应用会自动选择 Setup x64，完成下载与 SHA256 校验后退出旧版本、静默安装并重新启动。Portable 版也支持应用内自动更新和失败回滚。",
+  "",
+  "> **安装提示：** macOS 当前需下载 ZIP 后手动替换应用。Windows Setup 为普通用户的推荐版本，Portable 适合放在自定义目录。",
+  "",
   "## 📝 更新内容",
   "",
   $changelogSection,
   "",
-  "## 🔐 校验",
+  "## 🔐 文件校验",
   "",
-  '本次 Release 附带 `checksums.txt` 和 `release_manifest.json`。安装版应用内更新会在启动安装器前校验 SHA256。'
+  '本次 Release 附带 `checksums.txt` 和 `release_manifest.json`。应用内更新会同时校验文件大小与 SHA256，校验失败不会启动安装。'
 )
 
 $releaseNotes = $releaseLines -join [Environment]::NewLine

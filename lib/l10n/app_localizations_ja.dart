@@ -10165,25 +10165,77 @@ class AppLocalizationsJa extends AppLocalizations {
   String get updateInstallAndRestart => 'インストールして再起動';
 
   @override
+  String get updateInstallNow => '今すぐインストール';
+
+  @override
   String get updateInstallLater => '後でインストール';
 
   @override
-  String get updateDownloadCancelled => 'ダウンロードをキャンセルしました';
+  String get updateDownload => '更新をダウンロード';
+
+  @override
+  String get updateDownloadCancelled => 'ダウンロードをキャンセルしました。後で再開できます';
 
   @override
   String get updateDownloadFailed => '更新のダウンロードに失敗しました';
 
   @override
+  String get updateInstallFailed => '更新のインストールに失敗しました';
+
+  @override
   String get updateInstallingHint => 'インストーラーが起動しました。アプリは終了し、自動的に更新が完了します。';
 
   @override
-  String get remindMeLater => '後で通知する';
+  String get updateInstallConfirmationTitle => '今すぐ更新をインストールしますか？';
+
+  @override
+  String get updateInstallConfirmationBody =>
+      'アプリを安全に終了して更新をインストールし、自動的に再起動します。実行中の生成・ダウンロードタスクは停止するため、必要な内容を先に保存してください。';
+
+  @override
+  String get updateActiveTasksWarning => 'キュータスクが実行中です。インストールすると現在のタスクは停止します。';
+
+  @override
+  String get remindMeLater => '4時間後に通知';
 
   @override
   String get skipThisVersion => 'このバージョンをスキップ';
 
   @override
-  String get updateDownloadAndInstall => 'ダウンロードしてインストール';
+  String updateNoticeAvailable(Object version) {
+    return '新しいバージョン v$version があります';
+  }
+
+  @override
+  String get updateNoticeAvailableSubtitle => 'アプリ内でダウンロードして自動的に更新できます';
+
+  @override
+  String get updateNoticeManualSubtitle =>
+      'このプラットフォームでは Release ページから手動で更新してください';
+
+  @override
+  String updateNoticeReady(Object version) {
+    return 'バージョン v$version の準備ができました';
+  }
+
+  @override
+  String get updateNoticeReadySubtitle => 'パッケージは検証済みです。再起動してインストールできます';
+
+  @override
+  String get updateNoticeFailed => '前回の更新は完了しませんでした';
+
+  @override
+  String get updateViewDetails => '更新を表示';
+
+  @override
+  String updateSettingsAvailable(Object version) {
+    return 'v$version が利用可能です。選択して詳細を表示';
+  }
+
+  @override
+  String updateSettingsReady(Object version) {
+    return 'v$version はダウンロード済みです。選択してインストール';
+  }
 
   @override
   String get goToDownload => 'ダウンロードに移動';

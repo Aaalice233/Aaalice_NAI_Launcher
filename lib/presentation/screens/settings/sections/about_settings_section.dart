@@ -39,8 +39,9 @@ class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {
           ListTile(
             leading: const Icon(Icons.info_outline),
             title: Text(context.l10n.app_title),
-            subtitle:
-                Text(context.l10n.settings_version(AppVersion.versionName)),
+            subtitle: Text(
+              context.l10n.settings_version(AppVersion.versionName),
+            ),
           ),
           SwitchListTile(
             secondary: const Icon(Icons.article_outlined),
@@ -63,10 +64,22 @@ class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {
             builder: (context, snapshot) {
               final lastCheckTime = snapshot.data;
               return ListTile(
-                leading: const Icon(Icons.system_update),
+                leading: Badge(
+                  isLabelVisible: updateState.hasNewVersion,
+                  smallSize: 7,
+                  child: const Icon(Icons.system_update),
+                ),
                 title: Text(context.l10n.checkForUpdate),
                 subtitle: Text(
-                  _formatLastCheckTime(context, lastCheckTime),
+                  updateState.hasDownloadedUpdate
+                      ? context.l10n.updateSettingsReady(
+                          updateState.versionInfo?.version ?? '',
+                        )
+                      : updateState.hasNewVersion
+                      ? context.l10n.updateSettingsAvailable(
+                          updateState.versionInfo?.version ?? '',
+                        )
+                      : _formatLastCheckTime(context, lastCheckTime),
                 ),
                 trailing: updateState.isChecking
                     ? const SizedBox(
@@ -78,7 +91,12 @@ class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {
                 onTap: updateState.isChecking
                     ? null
                     : () async {
-                        await updateNotifier.checkForUpdates();
+                        if (updateState.hasNewVersion ||
+                            updateState.hasDownloadedUpdate) {
+                          updateNotifier.showNotification();
+                        } else {
+                          await updateNotifier.checkForUpdates(manual: true);
+                        }
                         if (context.mounted) {
                           await UpdateCheckDialog.show(context);
                         }
@@ -94,8 +112,9 @@ class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {
               return SwitchListTile(
                 secondary: const Icon(Icons.new_releases_outlined),
                 title: Text(context.l10n.includePrereleaseUpdates),
-                subtitle:
-                    Text(context.l10n.includePrereleaseUpdatesDescription),
+                subtitle: Text(
+                  context.l10n.includePrereleaseUpdatesDescription,
+                ),
                 value: includePrerelease,
                 onChanged: (value) async {
                   await updateNotifier.setIncludePrerelease(value);

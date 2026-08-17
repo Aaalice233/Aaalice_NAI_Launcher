@@ -5220,13 +5220,39 @@
     }
   },
   "updateInstallAndRestart": "Install and Restart",
+  "updateInstallNow": "Install Now",
   "updateInstallLater": "Install Later",
-  "updateDownloadCancelled": "Download cancelled",
+  "updateDownload": "Download Update",
+  "updateDownloadCancelled": "Download cancelled; you can resume later",
   "updateDownloadFailed": "Failed to download the update",
+  "updateInstallFailed": "Failed to install the update",
   "updateInstallingHint": "The installer has started. The app will close and finish updating automatically.",
-  "remindMeLater": "Remind Me Later",
+  "updateInstallConfirmationTitle": "Install the update now?",
+  "updateInstallConfirmationBody": "The app will shut down safely, install the update, and restart automatically. Active generation and download tasks will stop, so save anything important first.",
+  "updateActiveTasksWarning": "Queue tasks are still active. Installing will stop the current task.",
+  "remindMeLater": "Remind Me in 4 Hours",
   "skipThisVersion": "Skip This Version",
-  "updateDownloadAndInstall": "Download and Install",
+  "updateNoticeAvailable": "Version v{version} is available",
+  "@updateNoticeAvailable": {
+    "placeholders": {"version": {}}
+  },
+  "updateNoticeAvailableSubtitle": "Download and finish the update automatically in the app",
+  "updateNoticeManualSubtitle": "This platform must be updated manually from the Release page",
+  "updateNoticeReady": "Version v{version} is ready",
+  "@updateNoticeReady": {
+    "placeholders": {"version": {}}
+  },
+  "updateNoticeReadySubtitle": "The package is verified and ready to install on restart",
+  "updateNoticeFailed": "The previous update did not finish",
+  "updateViewDetails": "View Update",
+  "updateSettingsAvailable": "v{version} is available; select to view details",
+  "@updateSettingsAvailable": {
+    "placeholders": {"version": {}}
+  },
+  "updateSettingsReady": "v{version} is downloaded; select to install",
+  "@updateSettingsReady": {
+    "placeholders": {"version": {}}
+  },
   "goToDownload": "Go to Download",
   "versionSkipped": "Version skipped",
   "cannotOpenUrl": "Cannot open link",

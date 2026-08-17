@@ -1,93 +1,224 @@
 /// Windows 平台应用内更新的辅助脚本生成器。
 ///
-/// 更新安装必须在应用进程退出后进行，否则安装器会因文件占用而失败。
-/// 旧实现让安装器与应用退出“竞速”（启动安装器后延迟退出应用），
-/// 时序不稳定。改为生成一个独立 PowerShell 脚本：脚本先等待应用进程
-/// 退出，再执行安装或文件替换，彻底消除竞态。
+/// 更新在应用完全退出后执行。脚本记录日志与结构化结果，安装失败会
+/// 重新启动旧版本；便携版通过同卷目录切换和备份实现可回滚更新。
 library;
 
-/// 生成 Windows 更新辅助脚本的纯函数集合，便于单元测试。
 class WindowsUpdateScript {
   WindowsUpdateScript._();
 
-  /// 安装版更新脚本：等待应用退出后以静默模式运行 NSIS 安装器。
-  ///
-  /// NSIS 安装成功后会自行启动新版本应用（见 nai_launcher.nsi），
-  /// 脚本只负责运行安装器并清理临时文件。
   static String buildInstallerScript({
     required int appPid,
+    required String version,
     required String installerPath,
+    required String executablePath,
+    required String resultPath,
+    required String pendingMetadataPath,
+    required String logPath,
   }) {
     return '''
 \$ErrorActionPreference = 'Stop'
 \$AppPid = $appPid
+\$Version = '${_escape(version)}'
 \$InstallerPath = '${_escape(installerPath)}'
+\$ExePath = '${_escape(executablePath)}'
+\$ResultPath = '${_escape(resultPath)}'
+\$PendingMetadataPath = '${_escape(pendingMetadataPath)}'
+\$LogPath = '${_escape(logPath)}'
 \$ScriptPath = \$MyInvocation.MyCommand.Path
 
-# 等待应用进程退出，避免安装时文件被占用。
-try {
-  Wait-Process -Id \$AppPid -Timeout 120 -ErrorAction SilentlyContinue
-} catch {}
-Start-Sleep -Milliseconds 500
+${_commonFunctions()}
 
 try {
-  Start-Process -FilePath \$InstallerPath -ArgumentList '/S' -Wait
-} finally {
+  Write-UpdateLog "Waiting for application process \$AppPid to exit."
+  Wait-ApplicationExit
+  Write-UpdateLog "Starting silent installer: \$InstallerPath"
+  \$Installer = Start-Process -FilePath \$InstallerPath -ArgumentList '/S' -PassThru -Wait
+  if (\$Installer.ExitCode -ne 0) {
+    throw "Installer exited with code \$(\$Installer.ExitCode)."
+  }
+
+  Write-UpdateResult -Success \$true -Message 'Update installed successfully.'
+  Remove-Item -LiteralPath \$PendingMetadataPath -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath \$InstallerPath -Force -ErrorAction SilentlyContinue
+  Write-UpdateLog 'Installer update completed successfully.'
+  Start-Process -FilePath \$ExePath
+} catch {
+  \$FailureMessage = \$_.Exception.Message
+  Write-UpdateLog "Installer update failed: \$FailureMessage"
+  Write-UpdateResult -Success \$false -Message \$FailureMessage
+  if (Test-Path -LiteralPath \$ExePath) {
+    Start-Process -FilePath \$ExePath -ErrorAction SilentlyContinue
+  }
+  exit 1
+} finally {
   Remove-Item -LiteralPath \$ScriptPath -Force -ErrorAction SilentlyContinue
 }
 ''';
   }
 
-  /// 便携版更新脚本：等待应用退出后解压更新包覆盖应用目录并重启。
-  ///
-  /// 只覆盖同名文件、不删除多余文件（Copy-Item -Force），
-  /// 避免误删用户放在应用目录旁边的个人文件。
   static String buildPortableScript({
     required int appPid,
+    required String version,
     required String zipPath,
     required String appDirectory,
-    required String executablePath,
+    required String executableName,
     required String extractDirectory,
+    required String backupDirectory,
+    required String resultPath,
+    required String pendingMetadataPath,
+    required String logPath,
   }) {
     return '''
 \$ErrorActionPreference = 'Stop'
 \$AppPid = $appPid
+\$Version = '${_escape(version)}'
 \$ZipPath = '${_escape(zipPath)}'
 \$AppDir = '${_escape(appDirectory)}'
-\$ExePath = '${_escape(executablePath)}'
+\$ExeName = '${_escape(executableName)}'
 \$ExtractDir = '${_escape(extractDirectory)}'
+\$BackupDir = '${_escape(backupDirectory)}'
+\$ResultPath = '${_escape(resultPath)}'
+\$PendingMetadataPath = '${_escape(pendingMetadataPath)}'
+\$LogPath = '${_escape(logPath)}'
 \$ScriptPath = \$MyInvocation.MyCommand.Path
+\$Swapped = \$false
 
-# 等待应用进程退出，避免覆盖时文件被占用。
-try {
-  Wait-Process -Id \$AppPid -Timeout 120 -ErrorAction SilentlyContinue
-} catch {}
-Start-Sleep -Milliseconds 500
+${_commonFunctions()}
 
 try {
-  if (Test-Path -LiteralPath \$ExtractDir) {
-    Remove-Item -LiteralPath \$ExtractDir -Recurse -Force
-  }
+  Write-UpdateLog "Waiting for application process \$AppPid to exit."
+  Wait-ApplicationExit
+
+  Remove-Item -LiteralPath \$ExtractDir -Recurse -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath \$BackupDir -Recurse -Force -ErrorAction SilentlyContinue
+  Write-UpdateLog "Extracting update package to \$ExtractDir"
   Expand-Archive -LiteralPath \$ZipPath -DestinationPath \$ExtractDir -Force
 
-  # 发布 zip 可能带一层同名顶层目录，定位真实内容根目录。
   \$SourceDir = \$ExtractDir
-  \$Items = Get-ChildItem -LiteralPath \$ExtractDir
+  \$Items = @(Get-ChildItem -LiteralPath \$ExtractDir)
   if (\$Items.Count -eq 1 -and \$Items[0].PSIsContainer) {
     \$SourceDir = \$Items[0].FullName
   }
+  if (!(Test-Path -LiteralPath (Join-Path \$SourceDir \$ExeName))) {
+    throw 'The extracted update does not contain the application executable.'
+  }
 
-  Copy-Item -Path (Join-Path \$SourceDir '*') -Destination \$AppDir -Recurse -Force
-  Start-Process -FilePath \$ExePath
+  # 只把旧清单之外的文件视为用户文件。没有旧清单时无法可靠区分旧程序
+  # 文件与用户文件，因此不把旧目录内容覆盖回新版本。
+  \$ManagedFiles = @{}
+  \$CanPreserveUserFiles = \$false
+  \$OldManifestPath = Join-Path \$AppDir 'app_files_manifest.json'
+  if (Test-Path -LiteralPath \$OldManifestPath) {
+    \$OldManifest = Get-Content -LiteralPath \$OldManifestPath -Raw | ConvertFrom-Json
+    if (\$null -eq \$OldManifest.files) {
+      throw 'The existing application file manifest is invalid.'
+    }
+    foreach (\$RelativePath in \$OldManifest.files) {
+      \$ManagedFiles[\$RelativePath.ToString().ToLowerInvariant()] = \$true
+    }
+    \$ManagedFiles['app_files_manifest.json'] = \$true
+    \$CanPreserveUserFiles = \$true
+  } else {
+    Write-UpdateLog 'No existing file manifest; skipping user-file migration for this update.'
+  }
+
+  Write-UpdateLog "Moving current application to backup: \$BackupDir"
+  Move-Item -LiteralPath \$AppDir -Destination \$BackupDir
+  Move-Item -LiteralPath \$SourceDir -Destination \$AppDir
+  \$Swapped = \$true
+
+  if (\$CanPreserveUserFiles) {
+    Get-ChildItem -LiteralPath \$BackupDir -File -Recurse | ForEach-Object {
+      \$RelativePath = \$_.FullName.Substring(\$BackupDir.Length).TrimStart('\\')
+      if (!\$ManagedFiles.ContainsKey(\$RelativePath.ToLowerInvariant())) {
+        \$Destination = Join-Path \$AppDir \$RelativePath
+        \$DestinationDir = Split-Path -Parent \$Destination
+        New-Item -ItemType Directory -Path \$DestinationDir -Force | Out-Null
+        Copy-Item -LiteralPath \$_.FullName -Destination \$Destination -Force
+      }
+    }
+  }
+
+  \$NewExePath = Join-Path \$AppDir \$ExeName
+  Write-UpdateResult -Success \$true -Message 'Update installed successfully.'
+  Write-UpdateLog "Starting updated application: \$NewExePath"
+  \$NewProcess = Start-Process -FilePath \$NewExePath -PassThru
+  Start-Sleep -Seconds 3
+  if (\$NewProcess.HasExited) {
+    throw "Updated application exited immediately with code \$(\$NewProcess.ExitCode)."
+  }
+
+  Remove-Item -LiteralPath \$BackupDir -Recurse -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath \$ExtractDir -Recurse -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath \$PendingMetadataPath -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath \$ZipPath -Force -ErrorAction SilentlyContinue
+  Write-UpdateLog 'Portable update completed successfully.'
+} catch {
+  \$FailureMessage = \$_.Exception.Message
+  Write-UpdateLog "Portable update failed: \$FailureMessage"
+
+  if (Test-Path -LiteralPath \$BackupDir) {
+    if (Test-Path -LiteralPath \$AppDir) {
+      Remove-Item -LiteralPath \$AppDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    Move-Item -LiteralPath \$BackupDir -Destination \$AppDir
+    \$Swapped = \$false
+    Write-UpdateLog 'Previous application version restored.'
+  }
+
+  Write-UpdateResult -Success \$false -Message \$FailureMessage
+  \$RestoredExePath = Join-Path \$AppDir \$ExeName
+  if (Test-Path -LiteralPath \$RestoredExePath) {
+    Start-Process -FilePath \$RestoredExePath -ErrorAction SilentlyContinue
+  }
+  exit 1
 } finally {
   Remove-Item -LiteralPath \$ExtractDir -Recurse -Force -ErrorAction SilentlyContinue
-  Remove-Item -LiteralPath \$ZipPath -Force -ErrorAction SilentlyContinue
+  if (!\$Swapped) {
+    Remove-Item -LiteralPath \$BackupDir -Recurse -Force -ErrorAction SilentlyContinue
+  }
   Remove-Item -LiteralPath \$ScriptPath -Force -ErrorAction SilentlyContinue
 }
 ''';
   }
 
-  /// PowerShell 单引号字符串转义。
+  static String _commonFunctions() {
+    return '''
+function Write-UpdateLog {
+  param([string]\$Message)
+  \$Timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss.fff'
+  Add-Content -LiteralPath \$LogPath -Value "[\$Timestamp] \$Message" -Encoding UTF8
+}
+
+function Write-UpdateResult {
+  param([bool]\$Success, [string]\$Message)
+  \$Result = [ordered]@{
+    success = \$Success
+    version = \$Version
+    message = \$Message
+    logPath = \$LogPath
+  } | ConvertTo-Json -Compress
+  [System.IO.File]::WriteAllText(
+    \$ResultPath,
+    \$Result,
+    (New-Object System.Text.UTF8Encoding(\$false))
+  )
+}
+
+function Wait-ApplicationExit {
+  \$Deadline = [DateTime]::UtcNow.AddSeconds(120)
+  while ((Get-Process -Id \$AppPid -ErrorAction SilentlyContinue) -and
+         [DateTime]::UtcNow -lt \$Deadline) {
+    Start-Sleep -Milliseconds 250
+  }
+  Start-Sleep -Milliseconds 500
+  if (Get-Process -Id \$AppPid -ErrorAction SilentlyContinue) {
+    throw "Application process \$AppPid did not exit within 120 seconds."
+  }
+}
+''';
+  }
+
   static String _escape(String value) => value.replaceAll("'", "''");
 }

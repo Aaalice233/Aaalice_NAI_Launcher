@@ -10381,26 +10381,82 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updateInstallAndRestart => 'Install and Restart';
 
   @override
+  String get updateInstallNow => 'Install Now';
+
+  @override
   String get updateInstallLater => 'Install Later';
 
   @override
-  String get updateDownloadCancelled => 'Download cancelled';
+  String get updateDownload => 'Download Update';
+
+  @override
+  String get updateDownloadCancelled =>
+      'Download cancelled; you can resume later';
 
   @override
   String get updateDownloadFailed => 'Failed to download the update';
+
+  @override
+  String get updateInstallFailed => 'Failed to install the update';
 
   @override
   String get updateInstallingHint =>
       'The installer has started. The app will close and finish updating automatically.';
 
   @override
-  String get remindMeLater => 'Remind Me Later';
+  String get updateInstallConfirmationTitle => 'Install the update now?';
+
+  @override
+  String get updateInstallConfirmationBody =>
+      'The app will shut down safely, install the update, and restart automatically. Active generation and download tasks will stop, so save anything important first.';
+
+  @override
+  String get updateActiveTasksWarning =>
+      'Queue tasks are still active. Installing will stop the current task.';
+
+  @override
+  String get remindMeLater => 'Remind Me in 4 Hours';
 
   @override
   String get skipThisVersion => 'Skip This Version';
 
   @override
-  String get updateDownloadAndInstall => 'Download and Install';
+  String updateNoticeAvailable(Object version) {
+    return 'Version v$version is available';
+  }
+
+  @override
+  String get updateNoticeAvailableSubtitle =>
+      'Download and finish the update automatically in the app';
+
+  @override
+  String get updateNoticeManualSubtitle =>
+      'This platform must be updated manually from the Release page';
+
+  @override
+  String updateNoticeReady(Object version) {
+    return 'Version v$version is ready';
+  }
+
+  @override
+  String get updateNoticeReadySubtitle =>
+      'The package is verified and ready to install on restart';
+
+  @override
+  String get updateNoticeFailed => 'The previous update did not finish';
+
+  @override
+  String get updateViewDetails => 'View Update';
+
+  @override
+  String updateSettingsAvailable(Object version) {
+    return 'v$version is available; select to view details';
+  }
+
+  @override
+  String updateSettingsReady(Object version) {
+    return 'v$version is downloaded; select to install';
+  }
 
   @override
   String get goToDownload => 'Go to Download';

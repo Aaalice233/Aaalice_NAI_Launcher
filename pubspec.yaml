@@ -124,6 +124,8 @@ dependencies:
   onnxruntime: ^1.4.1
   # 3D 编辑器 WebView (Windows=WebView2 / macOS=WKWebView / Android=Chromium)
   flutter_inappwebview: ^6.1.5
+  markdown: ^7.3.1
+  flutter_markdown_plus: ^1.0.12
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -210,7 +210,11 @@ class StorageKeys {
 
   // Update Check Keys (更新检查相关)
   static const String lastUpdateCheckTime = 'last_update_check_time';
+  static const String lastUpdateCheckAttemptTime =
+      'last_update_check_attempt_time';
   static const String skippedUpdateVersion = 'skipped_update_version';
+  static const String lastKnownUpdateVersion = 'last_known_update_version';
+  static const String updateRemindAfter = 'update_remind_after';
   static const String includePrereleaseUpdates = 'include_prerelease_updates';
 
   // Data Source Cache Settings (数据源缓存设置)
