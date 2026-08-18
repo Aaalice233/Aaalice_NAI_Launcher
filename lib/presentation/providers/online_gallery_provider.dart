@@ -405,6 +405,7 @@ class OnlineGalleryState {
 class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   static const int _pageSize = 40;
   static const int _maxConcurrentDetailRequests = 6;
+  static const int _maxFilteredEmptyPagesPerLoad = 5;
 
   CancelToken? _cancelToken;
   int _requestGeneration = 0;
@@ -436,6 +437,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
 
   void _cancelCurrentRequest() {
     _beginRequest();
+    if (state.isLoading || state.isLoadingMore) {
+      state = state.copyWith(isLoading: false, isLoadingMore: false);
+    }
   }
 
   bool _isCurrentRequest(int generation, String cacheKey) {
@@ -693,51 +697,73 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         aiTagConfig = await adapter.getConfig(cancelToken: _cancelToken);
         if (!_isCurrentRequest(generation, cacheKey)) return;
       }
-      final GalleryPage page;
-      if (state.viewMode == GalleryViewMode.popular) {
-        page = await adapter.ranking(
-          GalleryRankingRequest(
-            cursor: cursor,
-            pageSize: sourceId == GallerySourceId.aiTag
-                ? (aiTagConfig?.pageSize ?? 60)
-                : _pageSize,
-            kind: sourceId == GallerySourceId.aiTag
-                ? GalleryRankingKind.aiTagMonthly
-                : _rankingKind(state.popularScale),
-            date: state.popularDate,
-            period: state.aiTagPopularPeriod,
-            query: state.popularQuery,
-            prompt: state.popularPromptQuery,
-            ratings: state.selectedRatings,
-            blacklistTags: blacklist,
-          ),
-          cancelToken: _cancelToken,
-        );
-      } else {
-        final query = sourceId == GallerySourceId.aiTag
-            ? state.searchQuery.trim()
-            : buildOnlineGallerySearchQuery(
-                state.searchQuery,
-                fuzzyMatch: state.fuzzySearchEnabled,
-              );
-        page = await adapter.search(
-          GallerySearchRequest(
-            cursor: cursor,
-            pageSize: sourceId == GallerySourceId.aiTag
-                ? (aiTagConfig?.pageSize ?? 60)
-                : _pageSize,
-            query: query,
-            prompt: state.promptQuery,
-            timeRange: state.aiTagTimeRange,
-            ratings: state.selectedRatings,
-            dateStart: state.dateRangeStart,
-            dateEnd: state.dateRangeEnd,
-            blacklistTags: blacklist,
-          ),
-          cancelToken: _cancelToken,
-        );
+      var requestCursor = cursor;
+      var pagesFetched = 0;
+      var stalledCursor = false;
+      final visitedCursors = <String>{};
+      late GalleryPage page;
+      while (true) {
+        pagesFetched++;
+        visitedCursors.add(requestCursor);
+        if (state.viewMode == GalleryViewMode.popular) {
+          page = await adapter.ranking(
+            GalleryRankingRequest(
+              cursor: requestCursor,
+              pageSize: sourceId == GallerySourceId.aiTag
+                  ? (aiTagConfig?.pageSize ?? 60)
+                  : _pageSize,
+              kind: sourceId == GallerySourceId.aiTag
+                  ? GalleryRankingKind.aiTagMonthly
+                  : _rankingKind(state.popularScale),
+              date: state.popularDate,
+              period: state.aiTagPopularPeriod,
+              query: state.popularQuery,
+              prompt: state.popularPromptQuery,
+              ratings: state.selectedRatings,
+              blacklistTags: blacklist,
+            ),
+            cancelToken: _cancelToken,
+          );
+        } else {
+          final query = sourceId == GallerySourceId.aiTag
+              ? state.searchQuery.trim()
+              : buildOnlineGallerySearchQuery(
+                  state.searchQuery,
+                  fuzzyMatch: state.fuzzySearchEnabled,
+                );
+          page = await adapter.search(
+            GallerySearchRequest(
+              cursor: requestCursor,
+              pageSize: sourceId == GallerySourceId.aiTag
+                  ? (aiTagConfig?.pageSize ?? 60)
+                  : _pageSize,
+              query: query,
+              prompt: state.promptQuery,
+              timeRange: state.aiTagTimeRange,
+              ratings: state.selectedRatings,
+              dateStart: state.dateRangeStart,
+              dateEnd: state.dateRangeEnd,
+              blacklistTags: blacklist,
+            ),
+            cancelToken: _cancelToken,
+          );
+        }
+        if (!_isCurrentRequest(generation, cacheKey)) return;
+        final nextCursor = page.nextCursor;
+        final filteredEmptyPage = page.rawItemCount > 0 && page.items.isEmpty;
+        stalledCursor =
+            filteredEmptyPage &&
+            nextCursor != null &&
+            visitedCursors.contains(nextCursor);
+        final shouldContinue =
+            filteredEmptyPage &&
+            page.hasMore &&
+            nextCursor != null &&
+            !stalledCursor &&
+            pagesFetched < _maxFilteredEmptyPagesPerLoad;
+        if (!shouldContinue) break;
+        requestCursor = nextCursor;
       }
-      if (!_isCurrentRequest(generation, cacheKey)) return;
       final baseItems = refresh ? const <GalleryItem>[] : cache.posts;
       final existingKeys = baseItems.map(onlineGalleryPostKey).toSet();
       final uniqueNew = <GalleryItem>[];
@@ -745,7 +771,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         if (existingKeys.add(onlineGalleryPostKey(item))) uniqueNew.add(item);
       }
       final duplicatePage =
-          !refresh && page.rawItemCount > 0 && uniqueNew.isEmpty;
+          !refresh && page.items.isNotEmpty && uniqueNew.isEmpty;
+      final endedByDuplicatePage = duplicatePage || stalledCursor;
       final merged = [...baseItems, ...uniqueNew];
       final parsedPage = galleryCursorPage(
         page.cursor,
@@ -754,11 +781,12 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       final nextCache = ModeCache(
         posts: List.unmodifiable(merged),
         page: parsedPage,
-        nextCursor: duplicatePage ? null : page.nextCursor,
+        nextCursor: endedByDuplicatePage ? null : page.nextCursor,
         total: page.total,
-        hasMore: !duplicatePage && page.hasMore && page.nextCursor != null,
+        hasMore:
+            !endedByDuplicatePage && page.hasMore && page.nextCursor != null,
         scrollOffset: refresh ? 0 : cache.scrollOffset,
-        endedByDuplicatePage: duplicatePage,
+        endedByDuplicatePage: endedByDuplicatePage,
       );
       final gelbooruCredentialsBecameInvalid =
           sourceId == GallerySourceId.gelbooru &&

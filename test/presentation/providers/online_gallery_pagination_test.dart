@@ -166,6 +166,84 @@ void main() {
   );
 
   test(
+    'switching to a cached source clears loading from the cancelled request',
+    () async {
+      final pendingRefresh = Completer<GalleryPage>();
+      var danbooruRequests = 0;
+      final danbooru = _FakeGalleryAdapter(
+        GallerySourceId.danbooru,
+        onSearch: (request, _) {
+          danbooruRequests++;
+          if (danbooruRequests == 1) {
+            return Future.value(
+              _page(request.cursor, [_item(11)], nextCursor: null),
+            );
+          }
+          return pendingRefresh.future;
+        },
+      );
+      final safebooru = _FakeGalleryAdapter(
+        GallerySourceId.safebooru,
+        onSearch: (request, _) async => _page(request.cursor, [
+          _item(22, source: GallerySourceId.safebooru),
+        ], nextCursor: null),
+      );
+      final container = _container(danbooru: danbooru, safebooru: safebooru);
+      addTearDown(container.dispose);
+      final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+      await notifier.loadPosts();
+      await notifier.setSource(GallerySourceId.safebooru);
+      await notifier.setSource(GallerySourceId.danbooru);
+      final refresh = notifier.refresh();
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(onlineGalleryNotifierProvider).isLoading, isTrue);
+
+      await notifier.setSource(GallerySourceId.safebooru);
+
+      var state = container.read(onlineGalleryNotifierProvider);
+      expect(state.posts.single.id, 22);
+      expect(state.isLoading, isFalse);
+      expect(state.isLoadingMore, isFalse);
+      pendingRefresh.complete(_page('1', [_item(99)], nextCursor: null));
+      await refresh;
+      state = container.read(onlineGalleryNotifierProvider);
+      expect(state.posts.single.id, 22);
+      expect(state.isLoading, isFalse);
+    },
+  );
+
+  test('filtered empty pages advance without ending pagination', () async {
+    final adapter = _FakeGalleryAdapter(
+      GallerySourceId.danbooru,
+      onSearch: (request, _) async {
+        return switch (request.cursor) {
+          '1' => _page(
+            request.cursor,
+            const [],
+            nextCursor: '2',
+            rawItemCount: 40,
+          ),
+          '2' => _page(request.cursor, [_item(2)], nextCursor: '3'),
+          _ => _page(request.cursor, const [], nextCursor: null),
+        };
+      },
+    );
+    final container = _container(danbooru: adapter);
+    addTearDown(container.dispose);
+
+    await container.read(onlineGalleryNotifierProvider.notifier).loadPosts();
+
+    final state = container.read(onlineGalleryNotifierProvider);
+    expect(adapter.searchCursors, ['1', '2']);
+    expect(state.posts.single.id, 2);
+    expect(state.page, 2);
+    expect(state.currentCache.nextCursor, '3');
+    expect(state.hasMore, isTrue);
+    expect(state.currentCache.endedByDuplicatePage, isFalse);
+  });
+
+  test(
     'late results from a cancelled source cannot overwrite the new source',
     () async {
       final latePage = Completer<GalleryPage>();
@@ -273,13 +351,14 @@ GalleryPage _page(
   String cursor,
   List<GalleryItem> items, {
   required String? nextCursor,
+  int? rawItemCount,
 }) {
   return GalleryPage(
     items: items,
     cursor: cursor,
     nextCursor: nextCursor,
     hasMore: nextCursor != null,
-    rawItemCount: items.length,
+    rawItemCount: rawItemCount ?? items.length,
   );
 }
 
