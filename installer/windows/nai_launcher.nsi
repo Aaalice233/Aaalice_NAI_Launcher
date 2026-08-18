@@ -1,8 +1,5 @@
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
-!include "StrFunc.nsh"
-
-${StrStr}
 
 !ifndef VERSION
   !define VERSION "0.0.0"
@@ -16,10 +13,21 @@ ${StrStr}
   !define OUT_FILE "NAI_Launcher_Windows_Setup.exe"
 !endif
 
-!define APP_NAME "Aaalice NAI Launcher"
-!define APP_EXE "nai_launcher.exe"
-!define PUBLISHER "Aaalice"
-!define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Aaalice NAI Launcher"
+!ifndef APP_NAME
+  !define APP_NAME "Aaalice NAI Launcher"
+!endif
+
+!ifndef APP_EXE
+  !define APP_EXE "nai_launcher.exe"
+!endif
+
+!ifndef PUBLISHER
+  !define PUBLISHER "Aaalice"
+!endif
+
+!ifndef UNINSTALL_KEY
+  !define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Aaalice NAI Launcher"
+!endif
 
 Name "${APP_NAME}"
 OutFile "${OUT_FILE}"
@@ -28,6 +36,8 @@ InstallDirRegKey HKCU "${UNINSTALL_KEY}" "InstallLocation"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
 Unicode true
+
+!define /math PROCESS_PATH_BUFFER_BYTES ${NSIS_MAX_STRLEN} * 2
 
 !define MUI_ABORTWARNING
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${APP_EXE}"
@@ -46,33 +56,90 @@ LangString AppRunningPrompt ${LANG_ENGLISH} "${APP_NAME} is still running (closi
 LangString AppCloseFailed ${LANG_SIMPCHINESE} "无法关闭正在运行的 ${APP_NAME}。请从系统托盘退出应用后重试。"
 LangString AppCloseFailed ${LANG_ENGLISH} "Unable to close ${APP_NAME}. Exit it from the system tray and try again."
 
-Function CheckAppRunning
-  nsExec::ExecToStack '"$SYSDIR\tasklist.exe" /FI "IMAGENAME eq ${APP_EXE}" /NH'
-  Pop $R0
-  Pop $R1
-  ${StrStr} $R2 $R1 "${APP_EXE}"
-  StrCmp $R2 "" 0 app_is_running
-  Push "0"
-  Return
+Var TargetProcessId
 
-app_is_running:
-  Push "1"
+!macro DefineProcessFunctions Prefix
+Function ${Prefix}FindInstalledAppProcess
+  Push $R0
+  Push $R1
+  Push $R2
+  Push $R3
+  Push $R4
+  Push $R5
+  Push $R6
+  Push $R7
+  Push $R8
+  Push $R9
+
+  StrCpy $TargetProcessId "0"
+  ClearErrors
+  GetFullPathName $R9 "$INSTDIR\${APP_EXE}"
+  IfErrors find_process_done
+
+  System::Alloc 65536
+  Pop $R0
+  StrCpy $R1 $R0
+  System::Call 'kernel32::K32EnumProcesses(p R0, i 65536, *i .R2) i .R3'
+  StrCmp $R3 "0" find_process_cleanup
+  IntOp $R2 $R2 / 4
+  StrCpy $R3 "0"
+
+find_process_loop:
+  IntCmp $R3 $R2 find_process_cleanup
+  System::Call '*$R1(i .R4)'
+  StrCmp $R4 "0" find_process_next
+  System::Call 'kernel32::OpenProcess(i 0x00001000, i 0, i R4) p .R5'
+  StrCmp $R5 "0" find_process_next
+  System::Alloc ${PROCESS_PATH_BUFFER_BYTES}
+  Pop $R6
+  StrCpy $R7 ${NSIS_MAX_STRLEN}
+  System::Call 'kernel32::QueryFullProcessImageNameW(p R5, i 0, p R6, *i R7) i .R8'
+  System::Call 'kernel32::CloseHandle(p R5)'
+  StrCmp $R8 "0" find_process_free_path
+  System::Call '*$R6(&w${NSIS_MAX_STRLEN} .R7)'
+  System::Call 'kernel32::lstrcmpiW(w R7, w R9) i .R8'
+  StrCmp $R8 "0" find_process_found
+
+find_process_free_path:
+  System::Free $R6
+
+find_process_next:
+  IntOp $R1 $R1 + 4
+  IntOp $R3 $R3 + 1
+  Goto find_process_loop
+
+find_process_found:
+  System::Free $R6
+  StrCpy $TargetProcessId $R4
+
+find_process_cleanup:
+  System::Free $R0
+
+find_process_done:
+  Pop $R9
+  Pop $R8
+  Pop $R7
+  Pop $R6
+  Pop $R5
+  Pop $R4
+  Pop $R3
+  Pop $R2
+  Pop $R1
+  Pop $R0
 FunctionEnd
 
-Function EnsureAppClosed
-  Call CheckAppRunning
-  Pop $R0
-  StrCmp $R0 "0" app_closed
+Function ${Prefix}EnsureAppClosed
+  Call ${Prefix}FindInstalledAppProcess
+  StrCmp $TargetProcessId "0" app_closed
 
   IfSilent close_app 0
   MessageBox MB_ICONEXCLAMATION|MB_OKCANCEL "$(AppRunningPrompt)" IDOK close_app IDCANCEL cancel_install
 
 close_app:
-  nsExec::ExecToLog '"$SYSDIR\taskkill.exe" /IM ${APP_EXE} /T /F'
+  nsExec::ExecToLog '"$SYSDIR\taskkill.exe" /PID $TargetProcessId /T /F'
   Sleep 1000
-  Call CheckAppRunning
-  Pop $R0
-  StrCmp $R0 "0" app_closed
+  Call ${Prefix}FindInstalledAppProcess
+  StrCmp $TargetProcessId "0" app_closed
 
   IfSilent silent_close_failed 0
   MessageBox MB_ICONSTOP|MB_OK "$(AppCloseFailed)"
@@ -87,6 +154,10 @@ cancel_install:
 
 app_closed:
 FunctionEnd
+!macroend
+
+!insertmacro DefineProcessFunctions ""
+!insertmacro DefineProcessFunctions "un."
 
 Section "${APP_NAME}" SecMain
   SectionIn RO
@@ -118,7 +189,7 @@ Section "Desktop Shortcut" SecDesktop
 SectionEnd
 
 Section "Uninstall"
-  nsExec::ExecToLog 'taskkill /IM ${APP_EXE} /F'
+  Call un.EnsureAppClosed
 
   Delete "$DESKTOP\${APP_NAME}.lnk"
   Delete "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk"
