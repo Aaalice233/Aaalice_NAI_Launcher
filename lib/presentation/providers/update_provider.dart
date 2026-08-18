@@ -285,7 +285,6 @@ class UpdateStateNotifier extends _$UpdateStateNotifier {
               );
             },
           );
-      if (cancelToken.isCancelled) return;
       state = state.copyWith(
         status: UpdateStatus.downloaded,
         downloadedUpdate: downloaded,

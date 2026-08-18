@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -115,6 +116,76 @@ void main() {
         }
       },
     );
+
+    test('cancelling during checksum keeps the resumable part file', () async {
+      final payload = List<int>.generate(64 * 1024, (index) => index % 251);
+      final source = File('${tempDir.path}/checksum-source.bin');
+      await source.writeAsBytes(payload);
+      final hash = await UpdateInstallerService.calculateSha256(source);
+      const fileName = 'checksum-cancel.zip';
+      final updateDir = Directory('${tempDir.path}/updates')..createSync();
+      final hashStarted = Completer<void>();
+      final releaseHash = Completer<void>();
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        request.response.headers.contentLength = payload.length;
+        request.response.add(payload);
+        await request.response.close();
+      });
+
+      try {
+        final asset = ReleaseAssetInfo(
+          type: ReleaseAssetType.windowsPortable,
+          platform: 'windows',
+          fileName: fileName,
+          downloadUrl: 'http://127.0.0.1:${server.port}/update.zip',
+          sha256: hash,
+          size: payload.length,
+        );
+        final versionInfo = VersionInfo(
+          version: '9.9.9',
+          currentVersion: '1.0.0',
+          releaseNotes: 'checksum cancellation test',
+          primaryAsset: asset,
+          assets: [asset],
+          isNewer: true,
+        );
+        final cancelToken = CancelToken();
+        final service = UpdateInstallerService(
+          dio: Dio(),
+          installationService: _SupportedInstallationService(),
+          updateDirectory: updateDir,
+          sha256Calculator: (file) async {
+            if (file.path.endsWith('.part')) {
+              hashStarted.complete();
+              await releaseHash.future;
+            }
+            return UpdateInstallerService.calculateSha256(file);
+          },
+        );
+
+        final download = service.downloadUpdate(
+          versionInfo,
+          cancelToken: cancelToken,
+        );
+        await hashStarted.future;
+        cancelToken.cancel('cancelled during checksum');
+        releaseHash.complete();
+
+        await expectLater(
+          download,
+          throwsA(isA<UpdateDownloadCancelledException>()),
+        );
+        expect(await File('${updateDir.path}/$fileName.part').exists(), isTrue);
+        expect(await File('${updateDir.path}/$fileName').exists(), isFalse);
+        expect(
+          await File('${updateDir.path}/pending_update.json').exists(),
+          isFalse,
+        );
+      } finally {
+        await server.close(force: true);
+      }
+    });
 
     test('consumes updater result exactly once', () async {
       final updateDir = Directory('${tempDir.path}/updates')..createSync();
