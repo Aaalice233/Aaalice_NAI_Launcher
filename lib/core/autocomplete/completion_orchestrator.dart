@@ -15,24 +15,29 @@ class CompletionOrchestrator extends ChangeNotifier {
     required TranslationResolver llmTranslations,
     required DanbooruCompletionSource danbooru,
     CompletionSource? libraryAliases,
+    Duration llmDebounceDuration = const Duration(milliseconds: 400),
   }) : _localSources = localSources,
        _dictionaryTranslations = dictionaryTranslations,
        _llmTranslations = llmTranslations,
        _danbooru = danbooru,
-       _libraryAliases = libraryAliases;
+       _libraryAliases = libraryAliases,
+       _llmDebounceDuration = llmDebounceDuration;
 
   final List<CompletionSource> _localSources;
   final TranslationResolver _dictionaryTranslations;
   final TranslationResolver _llmTranslations;
   final DanbooruCompletionSource _danbooru;
   final CompletionSource? _libraryAliases;
+  final Duration _llmDebounceDuration;
 
   CompletionState _state = const CompletionState();
   CompletionState get state => _state;
 
   Timer? _remoteDebounce;
+  Timer? _llmDebounce;
   int _sequence = 0;
   final Set<String> _llmRequested = {};
+  bool _llmStartedForSequence = false;
   bool _disposed = false;
 
   /// Stops every in-flight completion branch and clears the visible snapshot.
@@ -42,7 +47,7 @@ class CompletionOrchestrator extends ChangeNotifier {
   /// from reopening a popup that the user already dismissed.
   void cancel() {
     _sequence++;
-    _llmRequested.clear();
+    _cancelPendingLlmTranslation();
     _remoteDebounce?.cancel();
     _danbooru.cancelPending();
     _emit(const CompletionState());
@@ -53,7 +58,7 @@ class CompletionOrchestrator extends ChangeNotifier {
     AutocompleteSettings settings,
   ) async {
     final sequence = ++_sequence;
-    _llmRequested.clear();
+    _cancelPendingLlmTranslation();
     _remoteDebounce?.cancel();
     _danbooru.cancelPending();
     final isRelatedQuery = query.relatedTag != null && query.token.isEmpty;
@@ -129,7 +134,7 @@ class CompletionOrchestrator extends ChangeNotifier {
         isRemoteLoading: canLoadRemote,
       ),
     );
-    _scheduleLlmTranslations(candidates, query, sequence, settings);
+    _scheduleLlmTranslations(query, sequence, settings);
 
     if (!canLoadRemote) {
       _emit(_state.copyWith(isRemoteLoading: false));
@@ -228,7 +233,7 @@ class CompletionOrchestrator extends ChangeNotifier {
         clearRemoteError: remoteError == null,
       ),
     );
-    _scheduleLlmTranslations(merged, query, sequence, settings);
+    _scheduleLlmTranslations(query, sequence, settings);
   }
 
   List<CompletionCandidate> _mergeRemoteWithoutReordering({
@@ -265,41 +270,48 @@ class CompletionOrchestrator extends ChangeNotifier {
   }
 
   void _scheduleLlmTranslations(
-    List<CompletionCandidate> candidates,
     CompletionQuery query,
     int sequence,
     AutocompleteSettings settings,
   ) {
+    if (_llmStartedForSequence) return;
+    _llmDebounce?.cancel();
+    _llmDebounce = null;
     if (query.kind == CompletionQueryKind.libraryAlias ||
         !settings.showTranslations ||
         !settings.llmTranslationEnabled ||
         !query.locale.toLowerCase().startsWith('zh')) {
       return;
     }
-    final missing = candidates
-        .where(
-          (candidate) =>
-              candidate.translation?.isNotEmpty != true &&
-              !_llmRequested.contains(candidate.canonicalTag),
-        )
-        .take(8)
-        .map((candidate) => candidate.canonicalTag)
-        .toList();
-    if (missing.isEmpty) return;
-    _llmRequested.addAll(missing);
-    final missingSet = missing.toSet();
-    _emit(
-      _state.copyWith(
-        candidates: _state.candidates
-            .map(
-              (candidate) => missingSet.contains(candidate.canonicalTag)
-                  ? candidate.copyWith(isTranslating: true)
-                  : candidate,
-            )
-            .toList(growable: false),
-      ),
-    );
-    unawaited(_resolveLlm(missing, query, sequence));
+    _llmDebounce = Timer(_llmDebounceDuration, () {
+      _llmDebounce = null;
+      if (!_isCurrent(sequence) || _llmStartedForSequence) return;
+      final missing = _state.candidates
+          .where(
+            (candidate) =>
+                candidate.translation?.isNotEmpty != true &&
+                !_llmRequested.contains(candidate.canonicalTag),
+          )
+          .take(8)
+          .map((candidate) => candidate.canonicalTag)
+          .toList();
+      if (missing.isEmpty) return;
+      _llmStartedForSequence = true;
+      _llmRequested.addAll(missing);
+      final missingSet = missing.toSet();
+      _emit(
+        _state.copyWith(
+          candidates: _state.candidates
+              .map(
+                (candidate) => missingSet.contains(candidate.canonicalTag)
+                    ? candidate.copyWith(isTranslating: true)
+                    : candidate,
+              )
+              .toList(growable: false),
+        ),
+      );
+      unawaited(_resolveLlm(missing, query, sequence));
+    });
   }
 
   Future<void> _resolveLlm(
@@ -350,6 +362,17 @@ class CompletionOrchestrator extends ChangeNotifier {
 
   bool _isCurrent(int sequence) => !_disposed && sequence == _sequence;
 
+  void _cancelPendingLlmTranslation() {
+    _llmDebounce?.cancel();
+    _llmDebounce = null;
+    _llmRequested.clear();
+    _llmStartedForSequence = false;
+    final resolver = _llmTranslations;
+    if (resolver is CancellableTranslationResolver) {
+      resolver.cancelPending();
+    }
+  }
+
   void _emit(CompletionState value) {
     if (_disposed) return;
     _state = value;
@@ -360,6 +383,7 @@ class CompletionOrchestrator extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _sequence++;
+    _cancelPendingLlmTranslation();
     _remoteDebounce?.cancel();
     _danbooru.cancelPending();
     super.dispose();
