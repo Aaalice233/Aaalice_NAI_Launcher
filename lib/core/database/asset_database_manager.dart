@@ -254,9 +254,21 @@ class AssetDatabaseManager {
     if (await marker.exists()) return;
     await _removeLegacyTranslationDatabase(assetDbDir);
     final runtimeDb = p.join(appDir.path, 'databases', 'danbooru.db');
-    for (final suffix in ['', '-wal', '-shm', '.version']) {
-      await File('$runtimeDb$suffix').deleteIfExists();
+    final runtimeDbFile = File(runtimeDb);
+    if (await runtimeDbFile.exists()) {
+      final db = await databaseFactoryFfi.openDatabase(
+        runtimeDb,
+        options: OpenDatabaseOptions(singleInstance: false),
+      );
+      try {
+        // danbooru.db also stores the local gallery. Only the obsolete tag
+        // cache is disposable during the autocomplete migration.
+        await db.execute('DROP TABLE IF EXISTS danbooru_tags');
+      } finally {
+        await db.close();
+      }
     }
+    await File('$runtimeDb.version').deleteIfExists();
     await marker.writeAsString(
       DateTime.now().toUtc().toIso8601String(),
       encoding: utf8,
