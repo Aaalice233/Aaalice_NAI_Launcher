@@ -76,6 +76,19 @@ void main() {
       );
     });
 
+    test('should separate quality tags from a leading text marker', () {
+      const tags = 'location, very aesthetic, masterpiece, no text';
+
+      expect(
+        effective('text:hello', ImageModels.animeDiffusionV45Full),
+        equals('$tags text:hello'),
+      );
+      expect(
+        effective('text:hello | 1girl', ImageModels.animeDiffusionV45Full),
+        equals('$tags text:hello | 1girl'),
+      );
+    });
+
     test('should treat the escaped text:: as ordinary text', () {
       expect(
         effective('1girl, text::escaped', ImageModels.animeDiffusionV45Full),

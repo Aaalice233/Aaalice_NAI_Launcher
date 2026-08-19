@@ -453,8 +453,11 @@ class QualityTags {
     final match = textRenderMarker.firstMatch(chunk);
     if (match == null) return appendSuffix(chunk, suffix);
 
+    final markerAndText = chunk.substring(match.start);
+    final needsSeparator = match.group(0)!.toLowerCase() == 'text:';
     return appendSuffix(chunk.substring(0, match.start), suffix) +
-        chunk.substring(match.start);
+        (needsSeparator ? ' ' : '') +
+        markerAndText;
   }
 
   /// 把 suffix 追加到提示词末尾，保持 `, ` 分隔与已有尾逗号。
