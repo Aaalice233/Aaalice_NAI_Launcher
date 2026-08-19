@@ -220,6 +220,11 @@ abstract interface class CancellableTranslationResolver
   void cancelPending();
 }
 
+abstract interface class ScopedTranslationResolver
+    implements TranslationResolver {
+  TranslationResolver createScope();
+}
+
 class CompletionState {
   const CompletionState({
     this.query,

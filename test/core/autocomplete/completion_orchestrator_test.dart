@@ -415,6 +415,43 @@ void main() {
     expect(orchestrator.state.query?.token, 'third');
     expect(orchestrator.state.candidates.single.translation, '第三个标签');
   });
+
+  test('isolates LLM cancellation between orchestrators', () async {
+    final sharedLlm = _ScopedRecordingTranslations();
+    final first = CompletionOrchestrator(
+      localSources: [_TokenCandidateSource()],
+      dictionaryTranslations: _Translations(const {}),
+      llmTranslations: sharedLlm,
+      danbooru: _FakeDanbooru(),
+      llmDebounceDuration: Duration.zero,
+    );
+    final second = CompletionOrchestrator(
+      localSources: [_TokenCandidateSource()],
+      dictionaryTranslations: _Translations(const {}),
+      llmTranslations: sharedLlm,
+      danbooru: _FakeDanbooru(),
+      llmDebounceDuration: Duration.zero,
+    );
+    addTearDown(first.dispose);
+    addTearDown(second.dispose);
+    const settings = AutocompleteSettings(
+      danbooruEnabled: false,
+      llmTranslationEnabled: true,
+    );
+
+    await first.query(_query('positive'), settings);
+    await second.query(_query('negative'), settings);
+    await Future<void>.delayed(Duration.zero);
+    expect(sharedLlm.scopes, hasLength(2));
+
+    first.cancel();
+
+    expect(sharedLlm.scopes[0].cancelCount, 1);
+    expect(sharedLlm.scopes[1].cancelCount, 0);
+    sharedLlm.scopes[1].completeActive({'negative_tag': '负面标签'});
+    await Future<void>.delayed(Duration.zero);
+    expect(second.state.candidates.single.translation, '负面标签');
+  });
 }
 
 CompletionQuery _query(
@@ -560,6 +597,25 @@ class _CancellableRecordingTranslations
     final active = _active;
     _active = null;
     active!.complete(values);
+  }
+}
+
+class _ScopedRecordingTranslations implements ScopedTranslationResolver {
+  final List<_CancellableRecordingTranslations> scopes = [];
+
+  @override
+  TranslationResolver createScope() {
+    final scope = _CancellableRecordingTranslations();
+    scopes.add(scope);
+    return scope;
+  }
+
+  @override
+  Future<Map<String, String>> resolve(
+    List<String> canonicalTags, {
+    required String locale,
+  }) {
+    throw StateError('A scoped resolver must not be used directly.');
   }
 }
 

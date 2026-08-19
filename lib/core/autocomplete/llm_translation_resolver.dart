@@ -4,7 +4,8 @@ import '../../presentation/prompt_assistant/services/prompt_assistant_service.da
 import 'autocomplete_cache_database.dart';
 import 'completion_models.dart';
 
-class LlmTranslationResolver implements CancellableTranslationResolver {
+class LlmTranslationResolver
+    implements CancellableTranslationResolver, ScopedTranslationResolver {
   LlmTranslationResolver({
     required PromptAssistantService service,
     required AutocompleteCacheDatabase cache,
@@ -18,6 +19,13 @@ class LlmTranslationResolver implements CancellableTranslationResolver {
   final bool Function() _isEnabled;
   int _generation = 0;
   String? _activeSessionId;
+
+  @override
+  TranslationResolver createScope() => LlmTranslationResolver(
+    service: _service,
+    cache: _cache,
+    isEnabled: _isEnabled,
+  );
 
   @override
   void cancelPending() {

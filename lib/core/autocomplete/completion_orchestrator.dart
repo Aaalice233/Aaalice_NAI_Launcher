@@ -18,7 +18,9 @@ class CompletionOrchestrator extends ChangeNotifier {
     Duration llmDebounceDuration = const Duration(milliseconds: 400),
   }) : _localSources = localSources,
        _dictionaryTranslations = dictionaryTranslations,
-       _llmTranslations = llmTranslations,
+       _llmTranslations = llmTranslations is ScopedTranslationResolver
+           ? llmTranslations.createScope()
+           : llmTranslations,
        _danbooru = danbooru,
        _libraryAliases = libraryAliases,
        _llmDebounceDuration = llmDebounceDuration;
