@@ -18,7 +18,11 @@ extension _VibeLibraryScreenBulkActions on _VibeLibraryScreenState {
         .toList();
     if (ids.isEmpty) return;
 
-    final model = ref.read(generationParamsNotifierProvider).model;
+    final currentModel = ref.read(generationParamsNotifierProvider).model;
+    if (!ModelCapabilityRegistry.of(currentModel).supportsVibeTransfer) return;
+    final model = NovelAiVibeCodec.normalizeModelOrNull(currentModel);
+    if (model == null) return;
+
     final confirmed = await ThemedConfirmDialog.show(
       context: context,
       title: context.l10n.vibeLibrary_markEncodingModel,

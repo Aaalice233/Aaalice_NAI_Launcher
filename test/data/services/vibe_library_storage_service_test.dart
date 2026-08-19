@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/utils/vibe_library_path_helper.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_category.dart';
@@ -623,5 +624,88 @@ void main() {
     expect(secondChild, isNotNull);
     expect(secondChild!.rawImageData, secondRaw);
     expect(secondChild.canReencodeFromRawSource, isTrue);
+  });
+
+  test('updateEntryEncodingModel 拒绝文件格式无法表示的模型', () async {
+    final vibeDirectory =
+        '${hiveTempDir.path}${Platform.pathSeparator}vibes_invalid_model';
+    await VibeLibraryPathHelper.instance.setPath(vibeDirectory);
+    addTearDown(() async {
+      await VibeLibraryPathHelper.instance.resetToDefault();
+    });
+
+    final vibe = VibeReference(
+      displayName: 'model guard',
+      vibeEncoding: 'guarded-encoding',
+      thumbnail: Uint8List.fromList([1, 2, 3]),
+      strength: 0.6,
+      infoExtracted: 0.7,
+      encodingModel: ImageModels.animeDiffusionV4Full,
+      sourceType: VibeSourceType.naiv4vibe,
+    );
+    final filePath = await VibeFileStorageService().saveVibeToFile(
+      vibe,
+      customName: 'model_guard',
+    );
+    final entry = VibeLibraryEntry.fromVibeReference(
+      name: 'model guard',
+      vibeData: vibe,
+      filePath: filePath,
+    );
+    await storage.saveEntry(entry);
+    final before = await File(filePath).readAsString();
+
+    final updated = await storage.updateEntryEncodingModel(
+      entry.id,
+      ImageModels.animeDiffusionV3,
+    );
+
+    expect(updated, isNull);
+    expect(await File(filePath).readAsString(), before);
+    final stored = await storage.getEntry(entry.id);
+    expect(stored!.encodingModel, ImageModels.animeDiffusionV4Full);
+  });
+
+  test('updateEntryEncodingModel 统一使用文件格式的基础模型 ID', () async {
+    final vibeDirectory =
+        '${hiveTempDir.path}${Platform.pathSeparator}vibes_normalized_model';
+    await VibeLibraryPathHelper.instance.setPath(vibeDirectory);
+    addTearDown(() async {
+      await VibeLibraryPathHelper.instance.resetToDefault();
+    });
+
+    final vibe = VibeReference(
+      displayName: 'normalized model',
+      vibeEncoding: 'normalized-encoding',
+      thumbnail: Uint8List.fromList([4, 5, 6]),
+      strength: 0.6,
+      infoExtracted: 0.7,
+      encodingModel: ImageModels.animeDiffusionV4Full,
+      sourceType: VibeSourceType.naiv4vibe,
+    );
+    final filePath = await VibeFileStorageService().saveVibeToFile(
+      vibe,
+      customName: 'normalized_model',
+    );
+    final entry = VibeLibraryEntry.fromVibeReference(
+      name: 'normalized model',
+      vibeData: vibe,
+      filePath: filePath,
+    );
+    await storage.saveEntry(entry);
+
+    final updated = await storage.updateEntryEncodingModel(
+      entry.id,
+      ImageModels.animeDiffusionV45FullInpainting,
+    );
+
+    expect(updated, isNotNull);
+    expect(updated!.encodingModel, ImageModels.animeDiffusionV45Full);
+    final fileJson =
+        jsonDecode(await File(filePath).readAsString()) as Map<String, dynamic>;
+    expect(
+      (fileJson['importInfo'] as Map<String, dynamic>)['model'],
+      ImageModels.animeDiffusionV45Full,
+    );
   });
 }

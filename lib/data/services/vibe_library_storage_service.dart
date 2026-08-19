@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/display_thumbnail_utils.dart';
+import '../../core/utils/novelai_vibe_codec.dart';
 import '../../core/utils/vibe_performance_diagnostics.dart';
 import '../models/vibe/vibe_library_category.dart';
 import '../models/vibe/vibe_library_entry.dart';
@@ -990,16 +991,22 @@ class VibeLibraryStorageService
     String id,
     String model,
   ) async {
+    final normalizedModel = NovelAiVibeCodec.normalizeModelOrNull(model);
+    if (normalizedModel == null) {
+      AppLogger.w('Unsupported Vibe encoding model: $model', _tag);
+      return null;
+    }
+
     try {
       final entry = await _readStoredEntry(id);
       if (entry == null) return null;
 
       final bundledModels = entry.bundledVibeEncodingModels;
       final updatedEntry = entry.copyWith(
-        encodingModel: model,
+        encodingModel: normalizedModel,
         bundledVibeEncodingModels: bundledModels == null
             ? null
-            : List<String?>.filled(bundledModels.length, model),
+            : List<String?>.filled(bundledModels.length, normalizedModel),
       );
 
       final filePath = entry.filePath;
@@ -1008,14 +1015,14 @@ class VibeLibraryStorageService
           await _fileStorage.overwriteBundleFile(
             filePath,
             _buildBundleVibeReferences(updatedEntry),
-            defaultModel: model,
+            defaultModel: normalizedModel,
           );
         } else {
           await _fileStorage.overwriteVibeFile(
             filePath,
             updatedEntry.toVibeReference(),
             displayName: updatedEntry.name,
-            defaultModel: model,
+            defaultModel: normalizedModel,
           );
         }
       }
@@ -1023,7 +1030,7 @@ class VibeLibraryStorageService
       await _putStoredEntry(updatedEntry);
       await _upsertDisplayEntryIfReady(updatedEntry);
       AppLogger.d(
-        'Entry encoding model updated: ${entry.displayName} -> $model',
+        'Entry encoding model updated: ${entry.displayName} -> $normalizedModel',
         _tag,
       );
       return updatedEntry;

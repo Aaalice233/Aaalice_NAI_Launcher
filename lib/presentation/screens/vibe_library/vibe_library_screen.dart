@@ -12,8 +12,10 @@ import 'package:go_router/go_router.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/constants/api_constants.dart';
+import '../../../core/constants/model_capabilities.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/utils/novelai_vibe_codec.dart';
 import '../../../core/utils/vibe_file_parser.dart';
 import '../../../core/utils/vibe_image_embedder.dart';
 import '../../../core/utils/vibe_library_path_helper.dart';

@@ -389,6 +389,12 @@ extension _VibeLibraryScreenLayout on _VibeLibraryScreenState {
     final isAllSelected =
         currentIds.isNotEmpty &&
         currentIds.every((id) => selectionState.selectedIds.contains(id));
+    final currentModel = ref.watch(
+      generationParamsNotifierProvider.select((params) => params.model),
+    );
+    final canMarkEncodingModel =
+        ModelCapabilityRegistry.of(currentModel).supportsVibeTransfer &&
+        NovelAiVibeCodec.normalizeModelOrNull(currentModel) != null;
 
     return BulkActionBar(
       selectedCount: selectionState.selectedIds.length,
@@ -432,12 +438,13 @@ extension _VibeLibraryScreenLayout on _VibeLibraryScreenState {
           onPressed: () => _batchToggleFavorite(),
           color: theme.colorScheme.primary,
         ),
-        BulkActionItem(
-          icon: Icons.model_training_outlined,
-          label: context.l10n.vibeLibrary_markEncodingModel,
-          onPressed: () => _batchMarkEncodingModel(),
-          color: theme.colorScheme.secondary,
-        ),
+        if (canMarkEncodingModel)
+          BulkActionItem(
+            icon: Icons.model_training_outlined,
+            label: context.l10n.vibeLibrary_markEncodingModel,
+            onPressed: () => _batchMarkEncodingModel(),
+            color: theme.colorScheme.secondary,
+          ),
         BulkActionItem(
           icon: Icons.delete_outline,
           label: context.l10n.common_delete,
