@@ -215,6 +215,16 @@ abstract interface class TranslationResolver {
   });
 }
 
+abstract interface class CancellableTranslationResolver
+    implements TranslationResolver {
+  void cancelPending();
+}
+
+abstract interface class ScopedTranslationResolver
+    implements TranslationResolver {
+  TranslationResolver createScope();
+}
+
 class CompletionState {
   const CompletionState({
     this.query,

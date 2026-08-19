@@ -93,7 +93,7 @@ void main() {
       },
     );
 
-    test('should charge Opus img2img requests with redraw strength', () {
+    test('should charge Opus img2img above the free resolution', () {
       final subscription = container.read(
         subscriptionNotifierProvider.notifier,
       );
@@ -105,13 +105,14 @@ void main() {
         UserSubscription(tier: AnlasCalculator.opusTier, active: true),
       );
       paramsNotifier.updateAction(ImageGenerationAction.img2img);
-      paramsNotifier.setSourceImage(_buildPng(width: 1024, height: 1024));
-      paramsNotifier.updateSize(1024, 1024);
+      paramsNotifier.setSourceImage(_buildPng(width: 1536, height: 1024));
+      paramsNotifier.updateSize(1536, 1024);
+      paramsNotifier.updateSteps(28);
       paramsNotifier.updateStrength(0.5);
 
       final params = container.read(generationParamsNotifierProvider);
       final expected = AnlasCalculator.calculateRequestCost(
-        width: 1024,
+        width: 1536,
         height: 1024,
         steps: params.steps,
         batchCount: params.nSamples,
@@ -120,12 +121,71 @@ void main() {
         smeaDyn: params.effectiveSmeaDyn,
         model: params.model,
         subscriptionTier: AnlasCalculator.opusTier,
-        hasBaseImage: true,
         strength: 0.5,
       );
 
       expect(expected, greaterThan(0));
       expect(container.read(estimatedCostProvider), expected);
+    });
+
+    test('should keep small Opus img2img requests free', () {
+      // Opus 免费额度不排除以图生图：分辨率和步数达标时服务端同样不扣点。
+      final subscription = container.read(
+        subscriptionNotifierProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      subscription.state = const SubscriptionState.loaded(
+        UserSubscription(tier: AnlasCalculator.opusTier, active: true),
+      );
+      paramsNotifier.updateAction(ImageGenerationAction.img2img);
+      paramsNotifier.setSourceImage(_buildPng(width: 832, height: 1216));
+      paramsNotifier.updateSize(832, 1216);
+      paramsNotifier.updateSteps(28);
+      paramsNotifier.updateStrength(0.5);
+
+      expect(container.read(estimatedCostProvider), 0);
+    });
+
+    test('should keep small Opus inpaint requests free', () {
+      final subscription = container.read(
+        subscriptionNotifierProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      subscription.state = const SubscriptionState.loaded(
+        UserSubscription(tier: AnlasCalculator.opusTier, active: true),
+      );
+      paramsNotifier.updateAction(ImageGenerationAction.infill);
+      paramsNotifier.setSourceImage(_buildPng(width: 832, height: 1216));
+      paramsNotifier.updateSize(832, 1216);
+      paramsNotifier.updateSteps(28);
+
+      expect(container.read(estimatedCostProvider), 0);
+    });
+
+    test('should still charge free-size requests beyond the step limit', () {
+      final subscription = container.read(
+        subscriptionNotifierProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      subscription.state = const SubscriptionState.loaded(
+        UserSubscription(tier: AnlasCalculator.opusTier, active: true),
+      );
+      paramsNotifier.updateAction(ImageGenerationAction.img2img);
+      paramsNotifier.setSourceImage(_buildPng(width: 832, height: 1216));
+      paramsNotifier.updateSize(832, 1216);
+      paramsNotifier.updateSteps(29);
+      paramsNotifier.updateStrength(0.5);
+
+      expect(container.read(estimatedCostProvider), greaterThan(0));
     });
 
     test(

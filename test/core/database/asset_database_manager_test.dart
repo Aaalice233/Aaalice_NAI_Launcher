@@ -125,6 +125,59 @@ void main() {
     }
     expect(await File(p.join(dbDir.path, 'translation.db')).exists(), isFalse);
   });
+
+  test('legacy autocomplete migration preserves local gallery data', () async {
+    final runtimeDir = await Directory(
+      p.join(appSupportDir.path, 'databases'),
+    ).create(recursive: true);
+    final runtimePath = p.join(runtimeDir.path, 'danbooru.db');
+    final runtimeDb = sqlite3.open(runtimePath);
+    runtimeDb.execute('''
+      CREATE TABLE gallery_images(id INTEGER PRIMARY KEY, file_path TEXT);
+      INSERT INTO gallery_images(file_path) VALUES ('C:/gallery/image.png');
+      CREATE TABLE gallery_favorites(image_id INTEGER PRIMARY KEY);
+      INSERT INTO gallery_favorites(image_id) VALUES (1);
+      CREATE TABLE danbooru_tags(tag TEXT PRIMARY KEY);
+      INSERT INTO danbooru_tags(tag) VALUES ('legacy_tag');
+    ''');
+    runtimeDb.dispose();
+
+    await AssetDatabaseManager.initialize();
+
+    final migratedDb = sqlite3.open(runtimePath);
+    try {
+      expect(
+        migratedDb
+            .select('SELECT file_path FROM gallery_images')
+            .single['file_path'],
+        'C:/gallery/image.png',
+      );
+      expect(
+        migratedDb
+            .select('SELECT image_id FROM gallery_favorites')
+            .single['image_id'],
+        1,
+      );
+      expect(
+        migratedDb.select(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'danbooru_tags'",
+        ),
+        isEmpty,
+      );
+    } finally {
+      migratedDb.dispose();
+    }
+    expect(
+      await File(
+        p.join(
+          appSupportDir.path,
+          'asset_databases',
+          '.autocomplete-v1-migrated',
+        ),
+      ).exists(),
+      isTrue,
+    );
+  });
 }
 
 Future<File> _createCatalogFixture(String directory) async {

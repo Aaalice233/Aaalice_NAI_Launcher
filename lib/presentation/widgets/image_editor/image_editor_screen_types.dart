@@ -36,7 +36,6 @@ class ImageEditorFocusedInpaintCostConfig {
       smeaDyn: smeaDyn,
       model: model,
       subscriptionTier: subscriptionTier,
-      hasBaseImage: true,
       strength: strength,
       extraPerSampleCost: extraPerSampleCost,
     );

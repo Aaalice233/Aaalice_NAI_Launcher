@@ -1,8 +1,5 @@
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
-!include "StrFunc.nsh"
-
-${StrStr}
 
 !ifndef VERSION
   !define VERSION "0.0.0"
@@ -16,18 +13,40 @@ ${StrStr}
   !define OUT_FILE "NAI_Launcher_Windows_Setup.exe"
 !endif
 
-!define APP_NAME "Aaalice NAI Launcher"
-!define APP_EXE "nai_launcher.exe"
-!define PUBLISHER "Aaalice"
-!define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Aaalice NAI Launcher"
+!ifndef INSTALL_DIR
+  !define INSTALL_DIR "$LOCALAPPDATA\Programs\Aaalice NAI Launcher"
+!endif
+
+!ifndef APP_NAME
+  !define APP_NAME "Aaalice NAI Launcher"
+!endif
+
+!ifndef APP_EXE
+  !define APP_EXE "nai_launcher.exe"
+!endif
+
+!ifndef PUBLISHER
+  !define PUBLISHER "Aaalice"
+!endif
+
+!ifndef UNINSTALL_KEY
+  !define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Aaalice NAI Launcher"
+!endif
+
+!ifndef PROCESS_QUERY_ACCESS
+  !define PROCESS_QUERY_ACCESS 0x00001000
+!endif
 
 Name "${APP_NAME}"
 OutFile "${OUT_FILE}"
-InstallDir "$LOCALAPPDATA\Programs\Aaalice NAI Launcher"
+InstallDir "${INSTALL_DIR}"
 InstallDirRegKey HKCU "${UNINSTALL_KEY}" "InstallLocation"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
 Unicode true
+
+!define /math PROCESS_PATH_BUFFER_BYTES ${NSIS_MAX_STRLEN} * 2
+!define PROCESS_ENTRY_SIZE 556
 
 !define MUI_ABORTWARNING
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${APP_EXE}"
@@ -45,34 +64,125 @@ LangString AppRunningPrompt ${LANG_SIMPCHINESE} "检测到 ${APP_NAME} 仍在运
 LangString AppRunningPrompt ${LANG_ENGLISH} "${APP_NAME} is still running (closing its window may only hide it to the tray). Close it and continue setup?"
 LangString AppCloseFailed ${LANG_SIMPCHINESE} "无法关闭正在运行的 ${APP_NAME}。请从系统托盘退出应用后重试。"
 LangString AppCloseFailed ${LANG_ENGLISH} "Unable to close ${APP_NAME}. Exit it from the system tray and try again."
+LangString AppInspectionFailed ${LANG_SIMPCHINESE} "无法确认正在运行的 ${APP_NAME} 是否来自当前安装目录。为避免覆盖占用中的文件，请从系统托盘手动退出应用后重试。"
+LangString AppInspectionFailed ${LANG_ENGLISH} "Setup could not verify whether a running ${APP_NAME} belongs to this installation. Exit the app from the system tray and try again to avoid overwriting files in use."
 
-Function CheckAppRunning
-  nsExec::ExecToStack '"$SYSDIR\tasklist.exe" /FI "IMAGENAME eq ${APP_EXE}" /NH'
-  Pop $R0
+Var TargetProcessId
+Var ProcessInspectionFailed
+
+!macro DefineProcessFunctions Prefix
+Function ${Prefix}FindInstalledAppProcess
+  Push $R0
+  Push $R1
+  Push $R2
+  Push $R3
+  Push $R4
+  Push $R5
+  Push $R6
+  Push $R7
+  Push $R8
+  Push $R9
+
+  StrCpy $TargetProcessId "0"
+  StrCpy $ProcessInspectionFailed "0"
+  ClearErrors
+  GetFullPathName $R9 "$INSTDIR\${APP_EXE}"
+  IfErrors find_process_snapshot_failed
+
+  System::Call 'kernel32::CreateToolhelp32Snapshot(i 0x00000002, i 0) p .R0'
+  StrCmp $R0 "-1" find_process_snapshot_failed
+  StrCmp $R0 "0" find_process_snapshot_failed
+
+  System::Call '*(i ${PROCESS_ENTRY_SIZE}, i, i, p, i, i, i, i, i, &w260) p .R1'
+  StrCmp $R1 "0" find_process_enumeration_failed
+  System::Call 'kernel32::Process32FirstW(p R0, p R1) i .R2 ?e'
+  Pop $R3
+  StrCmp $R2 "0" find_process_enumeration_done
+
+find_process_loop:
+  System::Call '*$R1(i, i, i .R4, p, i, i, i, i, i, &w260 .R8)'
+  System::Call 'kernel32::lstrcmpiW(w R8, w "${APP_EXE}") i .R3'
+  StrCmp $R3 "0" 0 find_process_next
+
+  System::Call 'kernel32::OpenProcess(i ${PROCESS_QUERY_ACCESS}, i 0, i R4) p .R5'
+  StrCmp $R5 "0" find_process_inspection_failed
+  System::Alloc ${PROCESS_PATH_BUFFER_BYTES}
+  Pop $R6
+  StrCmp $R6 "0" find_process_close_failed_handle
+  StrCpy $R7 ${NSIS_MAX_STRLEN}
+  System::Call 'kernel32::QueryFullProcessImageNameW(p R5, i 0, p R6, *i R7) i .R8'
+  System::Call 'kernel32::CloseHandle(p R5)'
+  StrCmp $R8 "0" find_process_free_path_failed
+  System::Call '*$R6(&w${NSIS_MAX_STRLEN} .R7)'
+  System::Call 'kernel32::lstrcmpiW(w R7, w R9) i .R8'
+  StrCmp $R8 "0" find_process_found
+
+  System::Free $R6
+
+find_process_next:
+  System::Call 'kernel32::Process32NextW(p R0, p R1) i .R2 ?e'
+  Pop $R3
+  StrCmp $R2 "0" find_process_enumeration_done find_process_loop
+
+find_process_enumeration_done:
+  StrCmp $R3 "18" find_process_cleanup
+  Goto find_process_inspection_failed
+
+find_process_found:
+  System::Free $R6
+  StrCpy $TargetProcessId $R4
+  Goto find_process_cleanup
+
+find_process_free_path_failed:
+  System::Free $R6
+  Goto find_process_inspection_failed
+
+find_process_close_failed_handle:
+  System::Call 'kernel32::CloseHandle(p R5)'
+
+find_process_inspection_failed:
+  StrCpy $ProcessInspectionFailed "1"
+
+find_process_cleanup:
+  System::Free $R1
+  System::Call 'kernel32::CloseHandle(p R0)'
+  Goto find_process_done
+
+find_process_enumeration_failed:
+  StrCpy $ProcessInspectionFailed "1"
+  System::Call 'kernel32::CloseHandle(p R0)'
+  Goto find_process_done
+
+find_process_snapshot_failed:
+  StrCpy $ProcessInspectionFailed "1"
+
+find_process_done:
+  Pop $R9
+  Pop $R8
+  Pop $R7
+  Pop $R6
+  Pop $R5
+  Pop $R4
+  Pop $R3
+  Pop $R2
   Pop $R1
-  ${StrStr} $R2 $R1 "${APP_EXE}"
-  StrCmp $R2 "" 0 app_is_running
-  Push "0"
-  Return
-
-app_is_running:
-  Push "1"
+  Pop $R0
 FunctionEnd
 
-Function EnsureAppClosed
-  Call CheckAppRunning
-  Pop $R0
-  StrCmp $R0 "0" app_closed
+Function ${Prefix}EnsureAppClosed
+  Call ${Prefix}FindInstalledAppProcess
+  StrCmp $ProcessInspectionFailed "1" process_inspection_failed
+  StrCmp $TargetProcessId "0" app_closed
 
   IfSilent close_app 0
   MessageBox MB_ICONEXCLAMATION|MB_OKCANCEL "$(AppRunningPrompt)" IDOK close_app IDCANCEL cancel_install
 
 close_app:
-  nsExec::ExecToLog '"$SYSDIR\taskkill.exe" /IM ${APP_EXE} /T /F'
+  nsExec::ExecToLog '"$SYSDIR\taskkill.exe" /PID $TargetProcessId /T /F'
   Sleep 1000
-  Call CheckAppRunning
-  Pop $R0
-  StrCmp $R0 "0" app_closed
+  Call ${Prefix}FindInstalledAppProcess
+  StrCmp $ProcessInspectionFailed "1" process_inspection_failed
+  StrCmp $TargetProcessId "0" app_closed
 
   IfSilent silent_close_failed 0
   MessageBox MB_ICONSTOP|MB_OK "$(AppCloseFailed)"
@@ -82,11 +192,24 @@ silent_close_failed:
   SetErrorLevel 2
   Quit
 
+process_inspection_failed:
+  IfSilent silent_inspection_failed 0
+  MessageBox MB_ICONSTOP|MB_OK "$(AppInspectionFailed)"
+  Abort
+
+silent_inspection_failed:
+  SetErrorLevel 3
+  Quit
+
 cancel_install:
   Abort
 
 app_closed:
 FunctionEnd
+!macroend
+
+!insertmacro DefineProcessFunctions ""
+!insertmacro DefineProcessFunctions "un."
 
 Section "${APP_NAME}" SecMain
   SectionIn RO
@@ -118,7 +241,7 @@ Section "Desktop Shortcut" SecDesktop
 SectionEnd
 
 Section "Uninstall"
-  nsExec::ExecToLog 'taskkill /IM ${APP_EXE} /F'
+  Call un.EnsureAppClosed
 
   Delete "$DESKTOP\${APP_NAME}.lnk"
   Delete "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk"

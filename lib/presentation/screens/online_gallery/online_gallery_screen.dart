@@ -246,7 +246,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
   /// 构建底部分页条
   Widget _buildPaginationBar(ThemeData theme, OnlineGalleryState state) {
-    if (state.posts.isEmpty && !state.isLoading) {
+    if (state.posts.isEmpty && !state.isLoading && !state.hasMore) {
       return const SizedBox.shrink();
     }
 

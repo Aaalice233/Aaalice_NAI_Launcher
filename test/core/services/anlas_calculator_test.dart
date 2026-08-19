@@ -188,7 +188,7 @@ void main() {
       expect(cost, 80);
     });
 
-    test('does not apply the Opus free image to base-image requests', () {
+    test('applies the Opus free image to eligible redraw requests', () {
       final cost = AnlasCalculator.calculateRequestCost(
         width: 1024,
         height: 1024,
@@ -199,11 +199,36 @@ void main() {
         smeaDyn: false,
         model: model,
         subscriptionTier: AnlasCalculator.opusTier,
-        hasBaseImage: true,
         strength: 0.5,
       );
 
-      expect(cost, 10);
+      expect(cost, 0);
+    });
+
+    test('uses the request calculator for Opus redraw eligibility', () {
+      const eligible = ImageParams(
+        model: model,
+        action: ImageGenerationAction.infill,
+        width: 832,
+        height: 1216,
+        steps: 28,
+      );
+      const overStepLimit = ImageParams(
+        model: model,
+        action: ImageGenerationAction.infill,
+        width: 832,
+        height: 1216,
+        steps: 29,
+      );
+
+      expect(
+        AnlasCalculator.isOpusFreeGeneration(eligible, isOpus: true),
+        isTrue,
+      );
+      expect(
+        AnlasCalculator.isOpusFreeGeneration(overStepLimit, isOpus: true),
+        isFalse,
+      );
     });
 
     test('does not apply the Opus free image with character references', () {

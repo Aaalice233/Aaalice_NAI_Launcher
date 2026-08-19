@@ -37,6 +37,7 @@ class UpdateDownloadCancelledException implements Exception {
 }
 
 typedef AppShutdownHandler = Future<void> Function(int code);
+typedef UpdateSha256Calculator = Future<String> Function(File file);
 
 /// 一次下载的实时进度快照。
 class UpdateDownloadProgress {
@@ -103,6 +104,7 @@ class UpdateInstallerService {
   final Dio _dio;
   final AppInstallationService _installationService;
   final AppShutdownHandler _shutdownHandler;
+  final UpdateSha256Calculator _sha256Calculator;
   final Directory? _updateDirectoryOverride;
 
   static const Duration _speedSampleWindow = Duration(milliseconds: 500);
@@ -118,10 +120,12 @@ class UpdateInstallerService {
     required AppInstallationService installationService,
     AppShutdownHandler shutdownHandler =
         DesktopAppShutdownService.shutdownAndExit,
+    UpdateSha256Calculator? sha256Calculator,
     Directory? updateDirectory,
   }) : _dio = dio,
        _installationService = installationService,
        _shutdownHandler = shutdownHandler,
+       _sha256Calculator = sha256Calculator ?? calculateSha256,
        _updateDirectoryOverride = updateDirectory;
 
   bool get supportsInAppInstall => _installationService.supportsInAppInstall;
@@ -149,11 +153,15 @@ class UpdateInstallerService {
 
     final updateDir = await _ensureUpdateDir();
     await _cleanupStaleFiles(updateDir);
+    _throwIfCancelled(cancelToken);
     final targetFile = File(p.join(updateDir.path, asset.fileName));
 
     if (await targetFile.exists()) {
-      if (await _isPackageValid(targetFile, asset)) {
+      final isValid = await _isPackageValid(targetFile, asset);
+      _throwIfCancelled(cancelToken);
+      if (isValid) {
         final length = await targetFile.length();
+        _throwIfCancelled(cancelToken);
         onProgress?.call(
           UpdateDownloadProgress(
             receivedBytes: length,
@@ -203,11 +211,10 @@ class UpdateInstallerService {
       throw UpdateInstallException('下载更新包失败', originalError: error);
     }
 
-    if (cancelToken?.isCancelled ?? false) {
-      throw const UpdateDownloadCancelledException();
-    }
+    _throwIfCancelled(cancelToken);
 
     final fileLength = await partFile.length();
+    _throwIfCancelled(cancelToken);
     if (asset.size != null && fileLength != asset.size) {
       await _deleteQuietly(partFile);
       throw UpdateInstallException(
@@ -216,7 +223,8 @@ class UpdateInstallerService {
       );
     }
 
-    final actualSha256 = await calculateSha256(partFile);
+    final actualSha256 = await _sha256Calculator(partFile);
+    _throwIfCancelled(cancelToken);
     if (!equalsSha256(actualSha256, expectedSha256)) {
       await _deleteQuietly(partFile);
       throw UpdateInstallException(
@@ -576,7 +584,7 @@ class UpdateInstallerService {
     if (asset.size != null && await file.length() != asset.size) return false;
     final expected = asset.sha256;
     if (expected == null || expected.isEmpty) return false;
-    return equalsSha256(await calculateSha256(file), expected);
+    return equalsSha256(await _sha256Calculator(file), expected);
   }
 
   Future<Directory> _ensureUpdateDir() async {
@@ -637,6 +645,12 @@ class UpdateInstallerService {
   static bool _isDiskFull(FileSystemException error) {
     final code = error.osError?.errorCode;
     return code == 112 || code == 28 || code == 39;
+  }
+
+  static void _throwIfCancelled(CancelToken? cancelToken) {
+    if (cancelToken?.isCancelled ?? false) {
+      throw const UpdateDownloadCancelledException();
+    }
   }
 
   static Future<String> calculateSha256(File file) async {

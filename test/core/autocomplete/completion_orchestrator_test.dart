@@ -347,6 +347,7 @@ void main() {
         dictionaryTranslations: _Translations(const {}),
         llmTranslations: llm,
         danbooru: _FakeDanbooru(),
+        llmDebounceDuration: Duration.zero,
       );
       addTearDown(orchestrator.dispose);
 
@@ -380,6 +381,77 @@ void main() {
       );
     },
   );
+
+  test('debounces LLM translations and cancels a superseded request', () async {
+    final llm = _CancellableRecordingTranslations();
+    final orchestrator = CompletionOrchestrator(
+      localSources: [_TokenCandidateSource()],
+      dictionaryTranslations: _Translations(const {}),
+      llmTranslations: llm,
+      danbooru: _FakeDanbooru(),
+      llmDebounceDuration: const Duration(milliseconds: 30),
+    );
+    addTearDown(orchestrator.dispose);
+    const settings = AutocompleteSettings(
+      danbooruEnabled: false,
+      llmTranslationEnabled: true,
+    );
+
+    await orchestrator.query(_query('first'), settings);
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await orchestrator.query(_query('second'), settings);
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+
+    expect(llm.requestedBatches, [
+      ['second_tag'],
+    ]);
+    await orchestrator.query(_query('third'), settings);
+    expect(llm.cancelCount, 1);
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    expect(llm.requestedBatches.last, ['third_tag']);
+
+    llm.completeActive({'third_tag': '第三个标签'});
+    await Future<void>.delayed(Duration.zero);
+    expect(orchestrator.state.query?.token, 'third');
+    expect(orchestrator.state.candidates.single.translation, '第三个标签');
+  });
+
+  test('isolates LLM cancellation between orchestrators', () async {
+    final sharedLlm = _ScopedRecordingTranslations();
+    final first = CompletionOrchestrator(
+      localSources: [_TokenCandidateSource()],
+      dictionaryTranslations: _Translations(const {}),
+      llmTranslations: sharedLlm,
+      danbooru: _FakeDanbooru(),
+      llmDebounceDuration: Duration.zero,
+    );
+    final second = CompletionOrchestrator(
+      localSources: [_TokenCandidateSource()],
+      dictionaryTranslations: _Translations(const {}),
+      llmTranslations: sharedLlm,
+      danbooru: _FakeDanbooru(),
+      llmDebounceDuration: Duration.zero,
+    );
+    addTearDown(first.dispose);
+    addTearDown(second.dispose);
+    const settings = AutocompleteSettings(
+      danbooruEnabled: false,
+      llmTranslationEnabled: true,
+    );
+
+    await first.query(_query('positive'), settings);
+    await second.query(_query('negative'), settings);
+    await Future<void>.delayed(Duration.zero);
+    expect(sharedLlm.scopes, hasLength(2));
+
+    first.cancel();
+
+    expect(sharedLlm.scopes[0].cancelCount, 1);
+    expect(sharedLlm.scopes[1].cancelCount, 0);
+    sharedLlm.scopes[1].completeActive({'negative_tag': '负面标签'});
+    await Future<void>.delayed(Duration.zero);
+    expect(second.state.candidates.single.translation, '负面标签');
+  });
 }
 
 CompletionQuery _query(
@@ -415,6 +487,13 @@ class _Source implements CompletionSource {
   @override
   Future<List<CompletionCandidate>> search(CompletionQuery query) async =>
       values;
+}
+
+class _TokenCandidateSource implements CompletionSource {
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) async => [
+    _candidate('${query.token}_tag', CompletionSourceKind.base),
+  ];
 }
 
 class _RecordingRelatedSource implements CompletionSource {
@@ -487,6 +566,57 @@ class _RecordingTranslations implements TranslationResolver {
   }
 
   void complete(Map<String, String> values) => _completer.complete(values);
+}
+
+class _CancellableRecordingTranslations
+    implements CancellableTranslationResolver {
+  final List<List<String>> requestedBatches = [];
+  Completer<Map<String, String>>? _active;
+  int cancelCount = 0;
+
+  @override
+  Future<Map<String, String>> resolve(
+    List<String> canonicalTags, {
+    required String locale,
+  }) {
+    requestedBatches.add(List.unmodifiable(canonicalTags));
+    _active = Completer<Map<String, String>>();
+    return _active!.future;
+  }
+
+  @override
+  void cancelPending() {
+    final active = _active;
+    _active = null;
+    if (active == null || active.isCompleted) return;
+    cancelCount++;
+    active.completeError(StateError('translation request cancelled'));
+  }
+
+  void completeActive(Map<String, String> values) {
+    final active = _active;
+    _active = null;
+    active!.complete(values);
+  }
+}
+
+class _ScopedRecordingTranslations implements ScopedTranslationResolver {
+  final List<_CancellableRecordingTranslations> scopes = [];
+
+  @override
+  TranslationResolver createScope() {
+    final scope = _CancellableRecordingTranslations();
+    scopes.add(scope);
+    return scope;
+  }
+
+  @override
+  Future<Map<String, String>> resolve(
+    List<String> canonicalTags, {
+    required String locale,
+  }) {
+    throw StateError('A scoped resolver must not be used directly.');
+  }
 }
 
 class _FakeDanbooru extends DanbooruCompletionSource {

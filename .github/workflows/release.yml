@@ -58,9 +58,6 @@ jobs:
     name: Build Windows
     runs-on: windows-2022
     needs: prepare
-    env:
-      WINDOWS_SIGNING_CERT_BASE64: ${{ secrets.WINDOWS_SIGNING_CERT_BASE64 }}
-      WINDOWS_SIGNING_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
 
     steps:
       - name: Checkout
@@ -140,10 +137,16 @@ jobs:
         run: flutter build windows --release
 
       - name: Sign Windows application
-        if: ${{ env.WINDOWS_SIGNING_CERT_BASE64 != '' }}
         shell: pwsh
+        env:
+          WINDOWS_SIGNING_CERT_BASE64: ${{ secrets.WINDOWS_SIGNING_CERT_BASE64 }}
+          WINDOWS_SIGNING_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
         run: |
           $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERT_BASE64)) {
+            Write-Host 'Windows signing certificate is not configured; skipping application signing.'
+            exit 0
+          }
           $certificatePath = Join-Path $env:RUNNER_TEMP 'nai-launcher-signing.pfx'
           [IO.File]::WriteAllBytes(
             $certificatePath,
@@ -163,17 +166,23 @@ jobs:
             -SkipFlutterBuild
 
       - name: Sign Windows installer
-        if: ${{ env.WINDOWS_SIGNING_CERT_BASE64 != '' }}
         shell: pwsh
+        env:
+          WINDOWS_SIGNING_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
         run: |
           $ErrorActionPreference = 'Stop'
+          $certificatePath = Join-Path $env:RUNNER_TEMP 'nai-launcher-signing.pfx'
+          if (!(Test-Path -LiteralPath $certificatePath)) {
+            Write-Host 'Windows signing certificate is not configured; skipping installer signing.'
+            exit 0
+          }
           ./scripts/sign_windows_binary.ps1 `
             -Path 'dist/NAI_Launcher_Windows_${{ needs.prepare.outputs.version }}_Setup.exe' `
-            -CertificatePath (Join-Path $env:RUNNER_TEMP 'nai-launcher-signing.pfx') `
+            -CertificatePath $certificatePath `
             -CertificatePassword $env:WINDOWS_SIGNING_CERT_PASSWORD
 
       - name: Remove signing certificate
-        if: ${{ always() && env.WINDOWS_SIGNING_CERT_BASE64 != '' }}
+        if: ${{ always() }}
         shell: pwsh
         run: Remove-Item -LiteralPath (Join-Path $env:RUNNER_TEMP 'nai-launcher-signing.pfx') -Force -ErrorAction SilentlyContinue
 
