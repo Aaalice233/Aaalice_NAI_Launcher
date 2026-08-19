@@ -10,6 +10,7 @@ import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
 import '../../../widgets/common/editable_double_field.dart';
+import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../widgets/common/hover_image_preview.dart';
 import '../handlers/vibe_import_handler.dart';
 
@@ -291,13 +292,20 @@ class _VibeCardState extends ConsumerState<VibeCard> {
   }
 
   /// 构建编码状态标签
+  ///
+  /// 编码是绑模型的：同一张图在不同模型下是两份编码。所以这里跟着计费口径
+  /// （`needsEncodingForModel`）走当前模型，而不是只看有没有编码数据，
+  /// 否则会出现"卡片显示已编码、生成按钮却报 2 Anlas"的矛盾。
   Widget _buildEncodingStatusChip(BuildContext context, ThemeData theme) {
+    final model = ref.watch(
+      generationParamsNotifierProvider.select((params) => params.model),
+    );
     final isEncoded = widget.vibe.vibeEncoding.isNotEmpty;
-    final needsEncoding = widget.vibe.canReencodeFromRawSource;
+    final needsEncoding = widget.vibe.needsEncodingForModel(model);
     final l10n = context.l10n;
 
-    if (isEncoded) {
-      // 已编码状态
+    if (isEncoded && !needsEncoding) {
+      // 已编码状态（编码与当前模型匹配）
       return _buildStatusChip(
         theme: theme,
         icon: Icons.check_circle,
@@ -327,9 +335,11 @@ class _VibeCardState extends ConsumerState<VibeCard> {
                 : null,
             text: _isEncoding
                 ? l10n.vibe_statusEncoding
-                : l10n.vibe_statusPendingEncode,
+                : (isEncoded
+                      ? l10n.vibe_statusNeedsReencode
+                      : l10n.vibe_statusPendingEncode),
             color: Colors.orange,
-            maxWidth: 100,
+            maxWidth: 130,
           ),
         ),
       );

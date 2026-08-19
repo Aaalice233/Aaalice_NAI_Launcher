@@ -2165,7 +2165,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get vibe_sourceType_png => 'PNG';
 
   @override
-  String get vibe_sourceType_v4vibe => 'V4 Vibe';
+  String get vibe_sourceType_v4vibe => 'Vibe ファイル';
 
   @override
   String get vibe_sourceType_bundle => 'バンドル';
@@ -7658,6 +7658,19 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get vibeLibrary_markEncodingModel => 'エンコードモデルを設定';
+
+  @override
+  String vibeLibrary_markEncodingModelContent(Object count, Object model) {
+    return '選択した $count 件の Vibe を「$model」のエンコードとして設定し、ライブラリファイルを書き換えます。\n\n別モデルとして誤って記録され、生成のたびに再エンコードされて Anlas を消費する項目の修復用です。エンコードが実際に別モデルのものだった場合、結果が想定と異なる可能性があります。';
+  }
+
+  @override
+  String vibeLibrary_encodingModelMarked(Object count) {
+    return '$count 件の Vibe のエンコードモデルを更新しました';
+  }
+
+  @override
   String get vibeLibrary_importImageDialogTitle => 'Vibe データを含む画像を選択してください';
 
   @override
@@ -8527,6 +8540,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get vibe_statusPendingEncode => 'エンコード (2 Anlas)';
+
+  @override
+  String get vibe_statusNeedsReencode => '再エンコード (2 Anlas)';
 
   @override
   String get vibe_encodeDialogTitle => 'Vibe エンコーディングを確認する';

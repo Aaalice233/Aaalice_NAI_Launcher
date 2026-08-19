@@ -2212,7 +2212,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibe_sourceType_png => 'PNG';
 
   @override
-  String get vibe_sourceType_v4vibe => 'V4 Vibe';
+  String get vibe_sourceType_v4vibe => 'Vibe file';
 
   @override
   String get vibe_sourceType_bundle => 'Bundle';
@@ -7821,6 +7821,19 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get vibeLibrary_markEncodingModel => 'Mark encoding model';
+
+  @override
+  String vibeLibrary_markEncodingModelContent(Object count, Object model) {
+    return 'Mark the selected $count Vibes as encoded for \"$model\" and rewrite their library files.\n\nUse this for entries mislabelled with another model, which makes every generation re-encode and spend Anlas. If those encodings really came from a different model, results may not match expectations.';
+  }
+
+  @override
+  String vibeLibrary_encodingModelMarked(Object count) {
+    return 'Updated the encoding model of $count Vibes';
+  }
+
+  @override
   String get vibeLibrary_importImageDialogTitle =>
       'Select images containing Vibe data';
 
@@ -8706,6 +8719,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get vibe_statusPendingEncode => 'Encode (2 Anlas)';
+
+  @override
+  String get vibe_statusNeedsReencode => 'Re-encode (2 Anlas)';
 
   @override
   String get vibe_encodeDialogTitle => 'Confirm Vibe Encoding';

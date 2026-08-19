@@ -22,12 +22,15 @@ enum VibeSourceType {
 
 extension VibeSourceTypeExtension on VibeSourceType {
   /// 显示名称
+  ///
+  /// 说的是数据来源的文件格式，与编码使用的模型无关：V4.5 的 Vibe 同样存放在
+  /// NovelAI 的 `.naiv4vibe` 文件里，所以这里不带模型版本号。
   String get displayLabel {
     switch (this) {
       case VibeSourceType.png:
         return 'PNG';
       case VibeSourceType.naiv4vibe:
-        return 'V4 Vibe';
+        return 'Vibe File';
       case VibeSourceType.naiv4vibebundle:
         return 'Bundle';
       case VibeSourceType.rawImage:

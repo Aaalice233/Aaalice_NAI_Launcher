@@ -2134,7 +2134,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_sourceType_png => 'PNG';
 
   @override
-  String get vibe_sourceType_v4vibe => 'V4 Vibe';
+  String get vibe_sourceType_v4vibe => 'Vibe 文件';
 
   @override
   String get vibe_sourceType_bundle => '组合包';
@@ -7564,6 +7564,19 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get vibeLibrary_markEncodingModel => '标记编码模型';
+
+  @override
+  String vibeLibrary_markEncodingModelContent(Object count, Object model) {
+    return '把选中的 $count 个 Vibe 标记为「$model」的编码，并重写库文件。\n\n适用于被错误标记成其它模型、导致每次生成都重新编码扣 Anlas 的条目。如果这些编码确实来自别的模型，标记后画面效果可能与预期不符。';
+  }
+
+  @override
+  String vibeLibrary_encodingModelMarked(Object count) {
+    return '已标记 $count 个Vibe的编码模型';
+  }
+
+  @override
   String get vibeLibrary_importImageDialogTitle => '选择包含 Vibe 的图片';
 
   @override
@@ -8414,6 +8427,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get vibe_statusPendingEncode => '待编码 (2 Anlas)';
+
+  @override
+  String get vibe_statusNeedsReencode => '需重新编码 (2 Anlas)';
 
   @override
   String get vibe_encodeDialogTitle => '确认编码 Vibe';

@@ -33,7 +33,8 @@ void main() {
       expect(json['identifier'], 'novelai-vibe-transfer');
       expect(json['name'], 'Same');
       expect(NovelAiVibeCodec.validateSingleMap(json), isTrue);
-      expect(json['encodings']['v4full']['unknown']['encoding'], 'encoded-a');
+      // 条目没记录编码模型时按 NovelAiVibeCodec.defaultModel（V4.5 Full）落盘。
+      expect(json['encodings']['v4-5full']['unknown']['encoding'], 'encoded-a');
     },
   );
 }

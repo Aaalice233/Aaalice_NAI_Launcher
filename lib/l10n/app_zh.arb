@@ -944,7 +944,7 @@
   "reference_disable": "禁用参考",
   "vibe_normalize": "标准化参考强度值",
   "vibe_sourceType_png": "PNG",
-  "vibe_sourceType_v4vibe": "V4 Vibe",
+  "vibe_sourceType_v4vibe": "Vibe 文件",
   "vibe_sourceType_bundle": "组合包",
   "vibe_sourceType_image": "图片",
   "vibe_sourceType": "数据源",
@@ -3731,6 +3731,20 @@
       "count": {}
     }
   },
+  "vibeLibrary_markEncodingModel": "标记编码模型",
+  "vibeLibrary_markEncodingModelContent": "把选中的 {count} 个 Vibe 标记为「{model}」的编码，并重写库文件。\n\n适用于被错误标记成其它模型、导致每次生成都重新编码扣 Anlas 的条目。如果这些编码确实来自别的模型，标记后画面效果可能与预期不符。",
+  "@vibeLibrary_markEncodingModelContent": {
+    "placeholders": {
+      "count": {},
+      "model": {}
+    }
+  },
+  "vibeLibrary_encodingModelMarked": "已标记 {count} 个Vibe的编码模型",
+  "@vibeLibrary_encodingModelMarked": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "vibeLibrary_importImageDialogTitle": "选择包含 Vibe 的图片",
   "vibeLibrary_clipboardEmpty": "剪贴板为空",
   "vibeLibrary_encodeTimeout": "编码超时，请检查网络连接",
@@ -4198,6 +4212,7 @@
   "vibe_statusEncoded": "已编码",
   "vibe_statusEncoding": "编码中...",
   "vibe_statusPendingEncode": "待编码 (2 Anlas)",
+  "vibe_statusNeedsReencode": "需重新编码 (2 Anlas)",
   "vibe_encodeDialogTitle": "确认编码 Vibe",
   "vibe_encodeDialogMessage": "是否编码此图片以供生成使用？",
   "vibe_encodeCostWarning": "此操作将消耗 2 Anlas（点数）",

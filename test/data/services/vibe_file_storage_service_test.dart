@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/utils/novelai_vibe_codec.dart';
 import 'package:nai_launcher/core/utils/vibe_library_path_helper.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
@@ -113,6 +114,7 @@ void main() {
       final filePath = await service.saveVibeToFile(
         staleRawEncodedVibe,
         customName: 'stale-raw-encoded',
+        defaultModel: ImageModels.animeDiffusionV4Full,
       );
 
       final saved =
@@ -130,6 +132,57 @@ void main() {
       expect(saved.containsKey('image'), isTrue);
     },
   );
+
+  test('saveVibeToFile 缺少编码模型时跟随用户默认模型', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'vibe_file_storage_test_',
+    );
+    final hiveDir = await Directory.systemTemp.createTemp(
+      'vibe_file_storage_hive_',
+    );
+    Hive.init(hiveDir.path);
+    await Hive.openBox(StorageKeys.settingsBox);
+    await LocalStorageService().setDefaultModel(
+      ImageModels.animeDiffusionV45Full,
+    );
+    final service = VibeFileStorageService();
+
+    await VibeLibraryPathHelper.instance.setPath(tempDir.path);
+    addTearDown(() async {
+      await VibeLibraryPathHelper.instance.resetToDefault();
+      await Hive.close();
+      if (await hiveDir.exists()) {
+        await hiveDir.delete(recursive: true);
+      }
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    // encodingModel 为空的 Vibe 以前会被硬编码兜底成 v4full，回读后变成
+    // “明确的 V4 编码”，在 V4.5 下每次生成都会重新编码扣 Anlas。
+    final filePath = await service.saveVibeToFile(
+      VibeReference(
+        displayName: 'model-less',
+        vibeEncoding: 'encoded-payload',
+        thumbnail: Uint8List.fromList([1, 2, 3]),
+        rawImageData: Uint8List.fromList([9, 8, 7, 6]),
+        sourceType: VibeSourceType.png,
+      ),
+      customName: 'model-less',
+    );
+
+    final saved =
+        jsonDecode(await File(filePath).readAsString())
+            as Map<String, dynamic>;
+    final encodings = saved['encodings'] as Map<String, dynamic>;
+
+    expect(encodings.keys.single, 'v4-5full');
+    expect(
+      (saved['importInfo'] as Map<String, dynamic>)['model'],
+      ImageModels.animeDiffusionV45Full,
+    );
+  });
 
   test('loadVibeFromFile 支持读取 type=image 的单个 Vibe 文件', () async {
     final tempDir = await Directory.systemTemp.createTemp(

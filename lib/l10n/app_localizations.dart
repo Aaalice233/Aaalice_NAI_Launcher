@@ -4031,7 +4031,7 @@ abstract class AppLocalizations {
   /// No description provided for @vibe_sourceType_v4vibe.
   ///
   /// In en, this message translates to:
-  /// **'V4 Vibe'**
+  /// **'Vibe file'**
   String get vibe_sourceType_v4vibe;
 
   /// No description provided for @vibe_sourceType_bundle.
@@ -13967,6 +13967,24 @@ abstract class AppLocalizations {
   /// **'Deleted {count} Vibes'**
   String vibeLibrary_deletedCount(Object count);
 
+  /// No description provided for @vibeLibrary_markEncodingModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark encoding model'**
+  String get vibeLibrary_markEncodingModel;
+
+  /// No description provided for @vibeLibrary_markEncodingModelContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark the selected {count} Vibes as encoded for \"{model}\" and rewrite their library files.\n\nUse this for entries mislabelled with another model, which makes every generation re-encode and spend Anlas. If those encodings really came from a different model, results may not match expectations.'**
+  String vibeLibrary_markEncodingModelContent(Object count, Object model);
+
+  /// No description provided for @vibeLibrary_encodingModelMarked.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated the encoding model of {count} Vibes'**
+  String vibeLibrary_encodingModelMarked(Object count);
+
   /// No description provided for @vibeLibrary_importImageDialogTitle.
   ///
   /// In en, this message translates to:
@@ -15382,6 +15400,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Encode (2 Anlas)'**
   String get vibe_statusPendingEncode;
+
+  /// No description provided for @vibe_statusNeedsReencode.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-encode (2 Anlas)'**
+  String get vibe_statusNeedsReencode;
 
   /// No description provided for @vibe_encodeDialogTitle.
   ///

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 
+import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/file_name_sanitizer.dart';
 import '../../core/utils/novelai_vibe_codec.dart';
@@ -47,11 +48,20 @@ class VibeFileStorageService {
   static const String _bundleFileExtension = '.naiv4vibebundle';
   static const String _tag = 'VibeFileStorage';
 
+  /// Vibe 自身没记录编码模型时，落盘用的兜底模型。
+  ///
+  /// NovelAI 的文件格式要求把编码挂在某个模型键（v4full / v4-5full ...）下，
+  /// 表达不了"未知"。这里以前硬编码 v4full，等于给来源不明的编码伪造了一个
+  /// V4 标签：库一旦从文件重建，这些条目就变成"明确的 V4 编码"，而
+  /// `VibeReference.needsEncodingForModel` 会因此判定它们在 V4.5 下需要重新
+  /// 编码，每次生成都白扣 2 Anlas。改成跟随用户当前的默认模型。
+  String get _fallbackEncodingModel => LocalStorageService().getDefaultModel();
+
   /// 保存单个 Vibe 到 .naiv4vibe 文件
   Future<String> saveVibeToFile(
     VibeReference vibe, {
     String? customName,
-    String defaultModel = 'nai-diffusion-4-full',
+    String? defaultModel,
   }) async {
     final directoryPath = await _ensureVibeDirectory();
     final baseName = _normalizeFileBaseName(customName ?? vibe.displayName);
@@ -66,7 +76,7 @@ class VibeFileStorageService {
       final jsonString = _buildNaiv4VibeJson(
         vibe,
         displayName: customName ?? vibe.displayName,
-        defaultModel: defaultModel,
+        defaultModel: defaultModel ?? _fallbackEncodingModel,
       );
       await File(filePath).writeAsString(jsonString);
       AppLogger.i('Vibe 文件保存成功: $filePath', _tag);
@@ -82,7 +92,7 @@ class VibeFileStorageService {
     String filePath,
     VibeReference vibe, {
     required String displayName,
-    String defaultModel = 'nai-diffusion-4-full',
+    String? defaultModel,
   }) async {
     final file = File(filePath);
     if (!await file.exists()) {
@@ -109,7 +119,7 @@ class VibeFileStorageService {
     final replacement = NovelAiVibeCodec.buildSingleMap(
       vibeForFile,
       name: displayName,
-      fallbackModel: defaultModel,
+      fallbackModel: defaultModel ?? _fallbackEncodingModel,
     );
     _mergeCompatibleImageEncodings(jsonData, replacement);
 
@@ -121,7 +131,7 @@ class VibeFileStorageService {
   Future<String> saveBundleToFile(
     List<VibeReference> vibes, {
     String? bundleName,
-    String defaultModel = NovelAiVibeCodec.defaultModel,
+    String? defaultModel,
   }) async {
     if (vibes.isEmpty) {
       throw ArgumentError('vibes 不能为空');
@@ -137,7 +147,10 @@ class VibeFileStorageService {
     final filePath = p.join(directoryPath, fileName);
 
     try {
-      final jsonString = _buildBundleJson(vibes, defaultModel: defaultModel);
+      final jsonString = _buildBundleJson(
+        vibes,
+        defaultModel: defaultModel ?? _fallbackEncodingModel,
+      );
       await File(filePath).writeAsString(jsonString);
       AppLogger.i('Vibe Bundle 保存成功: $filePath', _tag);
       return filePath;
@@ -151,7 +164,7 @@ class VibeFileStorageService {
   Future<void> overwriteBundleFile(
     String filePath,
     List<VibeReference> vibes, {
-    String defaultModel = NovelAiVibeCodec.defaultModel,
+    String? defaultModel,
   }) async {
     if (vibes.isEmpty) {
       throw ArgumentError('vibes 不能为空');
@@ -168,7 +181,10 @@ class VibeFileStorageService {
     }
 
     try {
-      final jsonString = _buildBundleJson(vibes, defaultModel: defaultModel);
+      final jsonString = _buildBundleJson(
+        vibes,
+        defaultModel: defaultModel ?? _fallbackEncodingModel,
+      );
       await file.writeAsString(jsonString);
       AppLogger.i('Vibe Bundle 文件覆盖成功: $filePath', _tag);
     } catch (e, stackTrace) {

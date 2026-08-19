@@ -33,7 +33,8 @@ void main() {
       expect(
         extracted.vibes.single,
         reference.copyWith(
-          encodingModel: ImageModels.animeDiffusionV4Full,
+          // 未指明编码模型时按 NovelAiVibeCodec.defaultModel 兜底。
+          encodingModel: ImageModels.animeDiffusionV45Full,
           sourceType: VibeSourceType.png,
         ),
       );
@@ -61,7 +62,7 @@ void main() {
 
         expect(extracted.isBundle, isTrue);
         expect(extracted.vibes, [
-          original.copyWith(encodingModel: ImageModels.animeDiffusionV4Full),
+          original.copyWith(encodingModel: ImageModels.animeDiffusionV45Full),
         ]);
       },
     );

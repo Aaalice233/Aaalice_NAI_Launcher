@@ -1002,7 +1002,7 @@
   "reference_disable": "参照を無効化",
   "vibe_normalize": "基準強度値の正規化",
   "vibe_sourceType_png": "PNG",
-  "vibe_sourceType_v4vibe": "V4 Vibe",
+  "vibe_sourceType_v4vibe": "Vibe ファイル",
   "vibe_sourceType_bundle": "バンドル",
   "vibe_sourceType_image": "画像",
   "vibe_sourceType": "ソース",
@@ -3756,6 +3756,20 @@
       "count": {}
     }
   },
+  "vibeLibrary_markEncodingModel": "エンコードモデルを設定",
+  "vibeLibrary_markEncodingModelContent": "選択した {count} 件の Vibe を「{model}」のエンコードとして設定し、ライブラリファイルを書き換えます。\n\n別モデルとして誤って記録され、生成のたびに再エンコードされて Anlas を消費する項目の修復用です。エンコードが実際に別モデルのものだった場合、結果が想定と異なる可能性があります。",
+  "@vibeLibrary_markEncodingModelContent": {
+    "placeholders": {
+      "count": {},
+      "model": {}
+    }
+  },
+  "vibeLibrary_encodingModelMarked": "{count} 件の Vibe のエンコードモデルを更新しました",
+  "@vibeLibrary_encodingModelMarked": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "vibeLibrary_importImageDialogTitle": "Vibe データを含む画像を選択してください",
   "vibeLibrary_clipboardEmpty": "クリップボードが空です",
   "vibeLibrary_encodeTimeout": "エンコードがタイムアウトしました。ネットワーク接続を確認してください。",
@@ -4425,6 +4439,7 @@
   "vibe_statusEncoded": "エンコード済み",
   "vibe_statusEncoding": "エンコード中...",
   "vibe_statusPendingEncode": "エンコード (2 Anlas)",
+  "vibe_statusNeedsReencode": "再エンコード (2 Anlas)",
   "vibe_encodeDialogTitle": "Vibe エンコーディングを確認する",
   "vibe_encodeDialogMessage": "この画像を生成のためにエンコードしますか?",
   "vibe_encodeCostWarning": "これには 2 Anlas (クレジット) かかります",

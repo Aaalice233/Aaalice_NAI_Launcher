@@ -980,6 +980,59 @@ class VibeLibraryStorageService
     }
   }
 
+  /// 把条目（含 bundle 子项）的编码模型改写为指定模型，并同步落盘。
+  ///
+  /// 用于修复历史数据：`encodingModel` 为空的 Vibe 落盘时必须被兜底成某个模型
+  /// 键（文件格式表达不了"未知"），回读后就成了"明确属于该模型"，于是在别的
+  /// 模型下每次生成都会重新编码扣费。回读时文件优先，所以这里必须连文件一起
+  /// 重写，否则下次同步又会被覆盖回去。
+  Future<VibeLibraryEntry?> updateEntryEncodingModel(
+    String id,
+    String model,
+  ) async {
+    try {
+      final entry = await _readStoredEntry(id);
+      if (entry == null) return null;
+
+      final bundledModels = entry.bundledVibeEncodingModels;
+      final updatedEntry = entry.copyWith(
+        encodingModel: model,
+        bundledVibeEncodingModels: bundledModels == null
+            ? null
+            : List<String?>.filled(bundledModels.length, model),
+      );
+
+      final filePath = entry.filePath;
+      if (filePath != null && filePath.isNotEmpty) {
+        if (entry.isBundle) {
+          await _fileStorage.overwriteBundleFile(
+            filePath,
+            _buildBundleVibeReferences(updatedEntry),
+            defaultModel: model,
+          );
+        } else {
+          await _fileStorage.overwriteVibeFile(
+            filePath,
+            updatedEntry.toVibeReference(),
+            displayName: updatedEntry.name,
+            defaultModel: model,
+          );
+        }
+      }
+
+      await _putStoredEntry(updatedEntry);
+      await _upsertDisplayEntryIfReady(updatedEntry);
+      AppLogger.d(
+        'Entry encoding model updated: ${entry.displayName} -> $model',
+        _tag,
+      );
+      return updatedEntry;
+    } catch (e, stackTrace) {
+      AppLogger.e('Failed to update entry encoding model', e, stackTrace, _tag);
+      return null;
+    }
+  }
+
   /// 更新条目标签
   Future<VibeLibraryEntry?> updateEntryTags(
     String id,

@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
+import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/vibe_file_parser.dart';
@@ -48,6 +49,7 @@ import 'widgets/vibe_export_dialog_advanced.dart';
 import 'widgets/vibe_image_encode_dialog.dart' as encode_dialog;
 import 'widgets/vibe_import_naming_dialog.dart' as naming_dialog;
 
+part 'vibe_library_screen_bulk_actions.dart';
 part 'vibe_library_screen_layout.dart';
 
 const List<String> _vibeImportImageExtensions = ['png', 'jpg', 'jpeg', 'webp'];

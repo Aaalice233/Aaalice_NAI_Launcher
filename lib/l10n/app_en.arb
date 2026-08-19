@@ -1012,7 +1012,7 @@
   "reference_disable": "Disable reference",
   "vibe_normalize": "Normalize Reference Strength Values",
   "vibe_sourceType_png": "PNG",
-  "vibe_sourceType_v4vibe": "V4 Vibe",
+  "vibe_sourceType_v4vibe": "Vibe file",
   "vibe_sourceType_bundle": "Bundle",
   "vibe_sourceType_image": "Image",
   "vibe_sourceType": "Source",
@@ -3806,6 +3806,20 @@
       "count": {}
     }
   },
+  "vibeLibrary_markEncodingModel": "Mark encoding model",
+  "vibeLibrary_markEncodingModelContent": "Mark the selected {count} Vibes as encoded for \"{model}\" and rewrite their library files.\n\nUse this for entries mislabelled with another model, which makes every generation re-encode and spend Anlas. If those encodings really came from a different model, results may not match expectations.",
+  "@vibeLibrary_markEncodingModelContent": {
+    "placeholders": {
+      "count": {},
+      "model": {}
+    }
+  },
+  "vibeLibrary_encodingModelMarked": "Updated the encoding model of {count} Vibes",
+  "@vibeLibrary_encodingModelMarked": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "vibeLibrary_importImageDialogTitle": "Select images containing Vibe data",
   "vibeLibrary_clipboardEmpty": "Clipboard is empty",
   "vibeLibrary_encodeTimeout": "Encoding timed out. Please check your network connection.",
@@ -4395,6 +4409,7 @@
   "vibe_statusEncoded": "Encoded",
   "vibe_statusEncoding": "Encoding...",
   "vibe_statusPendingEncode": "Encode (2 Anlas)",
+  "vibe_statusNeedsReencode": "Re-encode (2 Anlas)",
   "vibe_encodeDialogTitle": "Confirm Vibe Encoding",
   "vibe_encodeDialogMessage": "Encode this image for generation?",
   "vibe_encodeCostWarning": "This will cost 2 Anlas (credits)",

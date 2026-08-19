@@ -433,6 +433,12 @@ extension _VibeLibraryScreenLayout on _VibeLibraryScreenState {
           color: theme.colorScheme.primary,
         ),
         BulkActionItem(
+          icon: Icons.model_training_outlined,
+          label: context.l10n.vibeLibrary_markEncodingModel,
+          onPressed: () => _batchMarkEncodingModel(),
+          color: theme.colorScheme.secondary,
+        ),
+        BulkActionItem(
           icon: Icons.delete_outline,
           label: context.l10n.common_delete,
           onPressed: () => _batchDelete(),

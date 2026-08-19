@@ -8,6 +8,7 @@ import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
+import 'package:nai_launcher/core/services/anlas_calculator.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/utils/nai_api_utils.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
@@ -225,6 +226,88 @@ void main() {
         .vibeReferencesV4
         .single;
     expect(updated.vibeEncoding, 'original-encoding');
+  });
+
+  test('缺少编码模型的预编码 Vibe 会补齐为当前模型，不再虚报编码费', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    notifier.updateModel(ImageModels.animeDiffusionV45Full, persist: false);
+
+    final raw = Uint8List.fromList([4, 5, 6]);
+    // 只带 iTXt 编码的 PNG 解析不出编码模型，encodingModel 会是 null。
+    notifier.addVibeReferences([
+      VibeReference(
+        displayName: 'PNG Vibe',
+        vibeEncoding: 'encoding-without-model',
+        rawImageData: raw,
+        thumbnail: raw,
+        sourceType: VibeSourceType.png,
+      ),
+    ], recordUsage: false);
+
+    final params = container.read(generationParamsNotifierProvider);
+    final vibe = params.vibeReferencesV4.single;
+
+    expect(vibe.encodingModel, ImageModels.animeDiffusionV45Full);
+    expect(vibe.needsEncodingForModel(params.model), isFalse);
+    expect(AnlasCalculator.usesVibeReferences(params), isTrue);
+    expect(AnlasCalculator.resolveVibeEncodingCost(params), 0);
+  });
+
+  test('setVibeReferences 替换导入时同样补齐编码模型', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    notifier.updateModel(ImageModels.animeDiffusionV45Full, persist: false);
+
+    final raw = Uint8List.fromList([1, 1, 2]);
+    // Shift+点击库条目走的是替换而不是追加。
+    notifier.setVibeReferences([
+      VibeReference(
+        displayName: 'Library Vibe',
+        vibeEncoding: 'encoding-without-model',
+        rawImageData: raw,
+        thumbnail: raw,
+        sourceType: VibeSourceType.naiv4vibe,
+      ),
+    ]);
+
+    final params = container.read(generationParamsNotifierProvider);
+    expect(
+      params.vibeReferencesV4.single.encodingModel,
+      ImageModels.animeDiffusionV45Full,
+    );
+    expect(AnlasCalculator.resolveVibeEncodingCost(params), 0);
+  });
+
+  test('已经记录编码模型的 Vibe 不会被改写，换模型仍会计费', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    notifier.updateModel(ImageModels.animeDiffusionV45Full, persist: false);
+
+    final raw = Uint8List.fromList([7, 7, 7]);
+    notifier.addVibeReferences([
+      VibeReference(
+        displayName: 'V4 Vibe',
+        vibeEncoding: 'encoded-for-v4',
+        rawImageData: raw,
+        thumbnail: raw,
+        encodingModel: ImageModels.animeDiffusionV4Full,
+        sourceType: VibeSourceType.naiv4vibe,
+      ),
+    ], recordUsage: false);
+
+    final params = container.read(generationParamsNotifierProvider);
+    final vibe = params.vibeReferencesV4.single;
+
+    expect(vibe.encodingModel, ImageModels.animeDiffusionV4Full);
+    expect(vibe.needsEncodingForModel(params.model), isTrue);
+    expect(AnlasCalculator.resolveVibeEncodingCost(params), 2);
   });
 
   test('没有原图数据的预编码 Vibe 改信息提取时不会错误清空编码', () async {

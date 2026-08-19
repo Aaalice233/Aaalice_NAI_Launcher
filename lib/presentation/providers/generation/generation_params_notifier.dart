@@ -431,18 +431,25 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       }
     }
 
-    _primeVibeEncodingCache(vibeToAdd);
-
-    state = state.copyWith(
-      vibeReferencesV4: [...state.vibeReferencesV4, vibeToAdd],
-    );
-    _scheduleGenerationStateSave(immediate: true);
+    _applyVibeReferences([...state.vibeReferencesV4, vibeToAdd]);
   }
+
+  /// 原图字节 -> SHA256 的弱引用记忆表。
+  ///
+  /// 统一写入口会对整份 Vibe 列表 prime 缓存，逐条重算 SHA256 会随列表长度和
+  /// 图片体积线性放大。`copyWith` 不会复制字节，同一条 Vibe 的 rawImageData
+  /// 始终是同一个实例，因此可以按实例记忆；Expando 是弱引用，不会拖住原图。
+  final Expando<String> _imageHashes = Expando<String>('vibeImageHash');
 
   /// 计算图片数据的 SHA256 哈希值（用于缓存键）
   String _calculateImageHash(Uint8List imageData) {
-    final bytes = sha256.convert(imageData).bytes;
-    return base64Encode(bytes);
+    final cached = _imageHashes[imageData];
+    if (cached != null) {
+      return cached;
+    }
+    final hash = base64Encode(sha256.convert(imageData).bytes);
+    _imageHashes[imageData] = hash;
+    return hash;
   }
 
   String _buildVibeEncodingCacheKey(
@@ -484,6 +491,46 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       informationExtracted: vibe.infoExtracted,
     );
     _vibeEncodingCache.putIfAbsent(cacheKey, () => vibe.vibeEncoding);
+  }
+
+  /// 给"带编码但没记录编码模型"的 Vibe 补上当前模型。
+  ///
+  /// 只含 iTXt 编码的 PNG 等来源解析不出编码模型，`encodingModel` 会是 null。
+  /// [_primeVibeEncodingCache] 早就按"这份编码属于导入时选中的模型"建缓存键并
+  /// 复用它，但该假设只活在内存缓存里：估价用的
+  /// `VibeReference.needsEncodingForModel` 读的是 `encodingModel` 字段，于是
+  /// 报价显示要收编码费、实际请求却命中缓存不收，两边对不上。这里把同一个假设
+  /// 写回字段，让估价、请求构建和卡片状态读到同一个事实。
+  VibeReference _adoptEncodingModel(VibeReference vibe) {
+    if (!vibe.hasVibeEncoding ||
+        !vibe.canReencodeFromRawSource ||
+        vibe.encodingModel != null) {
+      return vibe;
+    }
+    return vibe.copyWith(encodingModel: state.model);
+  }
+
+  /// 把一份 Vibe 列表整理成可以进入 state 的形态。
+  ///
+  /// 面板里的每条 Vibe 都要满足两个不变量：编码缓存已 prime、编码模型已知。
+  /// 这两件事以前散在各个 public 方法里各自维护，库导入的替换路径就漏过一次，
+  /// 表现为报价说要收编码费、实际请求却命中缓存不收。
+  List<VibeReference> _normalizeVibeReferences(List<VibeReference> vibes) {
+    for (final vibe in vibes) {
+      _primeVibeEncodingCache(vibe);
+    }
+    return vibes.map(_adoptEncodingModel).toList(growable: false);
+  }
+
+  /// Vibe 列表的统一写入口：整理不变量、落 state、安排持久化。
+  ///
+  /// 新增改动 Vibe 列表的方法时走这里，不要直接 `state.copyWith`。
+  void _applyVibeReferences(
+    List<VibeReference> vibes, {
+    bool immediateSave = true,
+  }) {
+    state = state.copyWith(vibeReferencesV4: _normalizeVibeReferences(vibes));
+    _scheduleGenerationStateSave(immediate: immediateSave);
   }
 
   bool _isSameVibeSource(VibeReference left, VibeReference right) {
@@ -651,8 +698,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     if (changed &&
         syncCurrentState &&
         _isSameVibeList(state.vibeReferencesV4, vibes)) {
-      state = state.copyWith(vibeReferencesV4: encodedVibes);
-      _scheduleGenerationStateSave(immediate: true);
+      _applyVibeReferences(encodedVibes);
     }
 
     return changed ? encodedVibes : vibes;
@@ -778,14 +824,9 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
         newVibes = newVibes.sublist(newVibes.length - 16);
       }
 
-      for (final vibe in newVibes) {
-        _primeVibeEncodingCache(vibe);
-      }
-
       // 更新状态
-      state = state.copyWith(vibeReferencesV4: newVibes);
+      _applyVibeReferences(newVibes);
       finalCount = newVibes.length;
-      _scheduleGenerationStateSave(immediate: true);
 
       if (recordUsage) {
         // 记录使用
@@ -836,8 +877,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     if (index < 0 || index >= state.vibeReferencesV4.length) return;
     final newList = [...state.vibeReferencesV4];
     newList.removeAt(index);
-    state = state.copyWith(vibeReferencesV4: newList);
-    _scheduleGenerationStateSave(immediate: true);
+    _applyVibeReferences(newList);
   }
 
   /// 更新 V4 Vibe 参考配置
@@ -887,14 +927,12 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       nextVibe = nextVibe.normalizedForLibraryStorage();
     }
     newList[index] = nextVibe;
-    state = state.copyWith(vibeReferencesV4: newList);
-    _scheduleGenerationStateSave();
+    _applyVibeReferences(newList, immediateSave: false);
   }
 
   /// 清除所有 V4 Vibe 参考
   void clearVibeReferences() {
-    state = state.copyWith(vibeReferencesV4: []);
-    _scheduleGenerationStateSave(immediate: true);
+    _applyVibeReferences(const []);
   }
 
   /// 设置 vibe references（替换现有）
@@ -903,12 +941,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       'generation.setVibeReferences',
       () {
         // 限制最多 16 个
-        final limitedVibes = vibes.take(16).toList();
-        for (final vibe in limitedVibes) {
-          _primeVibeEncodingCache(vibe);
-        }
-        state = state.copyWith(vibeReferencesV4: limitedVibes);
-        _scheduleGenerationStateSave(immediate: true);
+        _applyVibeReferences(vibes.take(16).toList());
       },
       details: {
         'inputVibes': vibes.length,
@@ -1035,14 +1068,10 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
         return false;
       }
 
-      // 转换为 VibeReference
-      final vibe = entry.toVibeReference();
-
       // 更新指定位置的 vibe
       final newList = [...state.vibeReferencesV4];
-      newList[index] = vibe;
-      state = state.copyWith(vibeReferencesV4: newList);
-      _scheduleGenerationStateSave(immediate: true);
+      newList[index] = entry.toVibeReference();
+      _applyVibeReferences(newList);
 
       // 记录使用
       await storageService.incrementUsedCount(entryId);
@@ -1371,13 +1400,11 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
         );
       }
 
-      for (final vibe in restoredVibes) {
-        _primeVibeEncodingCache(vibe);
-      }
+      final normalizedVibes = _normalizeVibeReferences(restoredVibes);
 
       // 更新状态
       state = state.copyWith(
-        vibeReferencesV4: restoredVibes,
+        vibeReferencesV4: normalizedVibes,
         preciseReferences: preciseRefs,
         normalizeVibeStrength:
             stateData['normalizeVibeStrength'] as bool? ?? true,
