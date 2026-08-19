@@ -340,20 +340,128 @@ class QualityTags {
     ];
   }
 
-  /// 将质量标签应用到提示词
-  /// V3+ 模型添加到末尾，V2 及更早模型添加到开头
+  /// V4 起支持的 `text:` 文字渲染标记。
+  ///
+  /// 正则与网页端一致：标记前的分隔符也算在匹配内，`text::` 是转义写法不算标记。
+  static final RegExp textRenderMarker = RegExp(
+    r'(?:^|\s|[,.:\[\]{}、。])text:(?!:)',
+    caseSensitive: false,
+  );
+
+  /// 提示词混合（prompt mix）的分隔符与分段上限。
+  static const String promptMixSeparator = '|';
+  static const String promptMixEscape = '||';
+  static const int maxPromptMixChunks = 6;
+
+  /// 混合段末尾的权重后缀，例如 `1girl:1.2`。
+  static final RegExp _promptMixWeight = RegExp(r':[\d.]+$');
+
+  /// 按 `|` 把提示词切成混合段。
+  ///
+  /// `||…||` 区间内的单个 `|` 不参与切分（网页端用占位符替换实现，这里用扫描，
+  /// 结果等价且不会和用户真的打出占位符冲突）；超过上限的部分会并回最后一段。
+  static List<String> splitPromptMixChunks(String prompt) {
+    final chunks = <String>[];
+    final buffer = StringBuffer();
+    var escaped = false;
+
+    for (var i = 0; i < prompt.length; i++) {
+      final char = prompt[i];
+      if (char == promptMixSeparator &&
+          i + 1 < prompt.length &&
+          prompt[i + 1] == promptMixSeparator) {
+        escaped = !escaped;
+        buffer.write(promptMixEscape);
+        i++;
+        continue;
+      }
+      if (char == promptMixSeparator && !escaped) {
+        chunks.add(buffer.toString());
+        buffer.clear();
+        continue;
+      }
+      buffer.write(char);
+    }
+    chunks.add(buffer.toString());
+
+    if (chunks.length <= maxPromptMixChunks) return chunks;
+    return [
+      ...chunks.take(maxPromptMixChunks - 1),
+      chunks.skip(maxPromptMixChunks - 1).join(promptMixSeparator),
+    ];
+  }
+
+  /// 将质量标签应用到提示词。
   static String applyQualityTags(String prompt, String model) {
-    final tags = getQualityTags(model);
-    if (tags == null || tags.isEmpty) return prompt;
+    return applySuffix(
+      prompt,
+      getQualityTags(model),
+      ModelCapabilityRegistry.of(model),
+    );
+  }
+
+  /// 把 suffix 追加到提示词，跳过混合段与 `text:` 渲染段。
+  ///
+  /// 网页端分两层：先按 `|` 切混合段，V4 起只往第一段追加（V3 及更早每段都
+  /// 追加，并保留段尾的 `:权重`）；再在该段内按 `text:` 切分，只往标记之前
+  /// 追加——直接追加到末尾会让质量词落进要画进图里的文字。
+  static String applySuffix(
+    String prompt,
+    String? suffix,
+    ModelCapabilities capabilities,
+  ) {
+    if (suffix == null || suffix.isEmpty) return prompt;
+
+    // V4 起角色是独立字段，混合段只有第一段代表基础提示词。
+    if (capabilities.promptStructure == PromptStructure.v4) {
+      final chunks = splitPromptMixChunks(prompt);
+      chunks[0] = _applyToChunk(
+        chunks[0],
+        suffix,
+        hasTextSection: capabilities.supportsTextRendering,
+      );
+      return chunks.join(promptMixSeparator);
+    }
+
+    // V3 及更早：网页端直接按 `|` 切（不做 `||` 转义、不设上限），每段都加。
+    return prompt
+        .split(promptMixSeparator)
+        .map((chunk) {
+          final weight = _promptMixWeight.firstMatch(chunk)?.group(0) ?? '';
+          final base = weight.isEmpty
+              ? chunk
+              : chunk.substring(0, chunk.length - weight.length);
+          return appendSuffix(base, suffix) + weight;
+        })
+        .join(promptMixSeparator);
+  }
+
+  static String _applyToChunk(
+    String chunk,
+    String suffix, {
+    required bool hasTextSection,
+  }) {
+    if (!hasTextSection) return appendSuffix(chunk, suffix);
+
+    // 多个 `text:` 时网页端用第一处的分隔符重新拼接，这里保留各自原本的分隔符。
+    final match = textRenderMarker.firstMatch(chunk);
+    if (match == null) return appendSuffix(chunk, suffix);
+
+    return appendSuffix(chunk.substring(0, match.start), suffix) +
+        chunk.substring(match.start);
+  }
+
+  /// 把 suffix 追加到提示词末尾，保持 `, ` 分隔与已有尾逗号。
+  static String appendSuffix(String prompt, String? suffix) {
+    if (suffix == null || suffix.isEmpty) return prompt;
 
     final trimmedPrompt = prompt.trim();
-    if (trimmedPrompt.isEmpty) return tags;
+    if (trimmedPrompt.isEmpty) return suffix;
 
-    // V3+ 模型：标签添加到末尾
     if (trimmedPrompt.endsWith(',')) {
-      return '$trimmedPrompt $tags';
+      return '$trimmedPrompt $suffix';
     }
-    return '$trimmedPrompt, $tags';
+    return '$trimmedPrompt, $suffix';
   }
 }
 

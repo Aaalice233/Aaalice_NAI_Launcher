@@ -33,6 +33,7 @@ class ModelCapabilities {
     this.supportsVibeTransfer = false,
     this.supportsPreciseReference = false,
     this.supportsImg2ImgInpainting = false,
+    this.supportsTextRendering = false,
   });
 
   /// 条目的代表模型 ID，用于日志与调试。
@@ -55,6 +56,12 @@ class ModelCapabilities {
 
   /// inpainting 时是否可以复用原图潜空间。
   final bool supportsImg2ImgInpainting;
+
+  /// 是否支持 `text:` 文字渲染段。
+  ///
+  /// 质量词等自动追加的内容必须留在 `text:` 之前，否则会被模型当成要画进
+  /// 图里的文字。
+  final bool supportsTextRendering;
 
   /// 是否支持多角色提示词与角色定位。
   bool get supportsCharacterPositioning => maxCharacters > 0;
@@ -107,6 +114,7 @@ class ModelCapabilityRegistry {
     maxCharacters: 6,
     supportsVibeTransfer: true,
     supportsImg2ImgInpainting: true,
+    supportsTextRendering: true,
   );
 
   static const ModelCapabilities v4Full = ModelCapabilities(
@@ -118,6 +126,7 @@ class ModelCapabilityRegistry {
     maxCharacters: 6,
     supportsVibeTransfer: true,
     supportsImg2ImgInpainting: true,
+    supportsTextRendering: true,
   );
 
   static const ModelCapabilities v45Curated = ModelCapabilities(
@@ -130,6 +139,7 @@ class ModelCapabilityRegistry {
     supportsVibeTransfer: true,
     supportsPreciseReference: true,
     supportsImg2ImgInpainting: true,
+    supportsTextRendering: true,
   );
 
   static const ModelCapabilities v45Full = ModelCapabilities(
@@ -142,6 +152,7 @@ class ModelCapabilityRegistry {
     supportsVibeTransfer: true,
     supportsPreciseReference: true,
     supportsImg2ImgInpainting: true,
+    supportsTextRendering: true,
   );
 
   /// 精确匹配表，inpainting 变体指向所属家族。
