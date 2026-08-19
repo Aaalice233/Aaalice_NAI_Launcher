@@ -121,9 +121,9 @@ class VibeFileStorageService {
       name: displayName,
       fallbackModel: defaultModel ?? _fallbackEncodingModel,
     );
-    _mergeCompatibleImageEncodings(jsonData, replacement);
+    final merged = _mergeCompatibleVibeMap(jsonData, replacement);
 
-    await file.writeAsString(NovelAiVibeCodec.encodeJson(replacement));
+    await file.writeAsString(NovelAiVibeCodec.encodeJson(merged));
     AppLogger.i('Vibe 文件覆盖成功: $filePath', _tag);
   }
 
@@ -181,11 +181,22 @@ class VibeFileStorageService {
     }
 
     try {
-      final jsonString = _buildBundleJson(
+      Map<String, dynamic>? existingJson;
+      try {
+        final decoded = jsonDecode(await file.readAsString());
+        if (decoded is Map<String, dynamic>) {
+          existingJson = decoded;
+        }
+      } catch (_) {
+        existingJson = null;
+      }
+
+      final replacement = NovelAiVibeCodec.buildBundleMap(
         vibes,
-        defaultModel: defaultModel ?? _fallbackEncodingModel,
+        fallbackModel: defaultModel ?? _fallbackEncodingModel,
       );
-      await file.writeAsString(jsonString);
+      final merged = _mergeCompatibleBundleMap(existingJson, replacement);
+      await file.writeAsString(NovelAiVibeCodec.encodeJson(merged));
       AppLogger.i('Vibe Bundle 文件覆盖成功: $filePath', _tag);
     } catch (e, stackTrace) {
       AppLogger.e('覆盖 Vibe Bundle 失败: $filePath', e, stackTrace, _tag);
@@ -204,16 +215,24 @@ class VibeFileStorageService {
         return null;
       }
 
-      final bytes = await file.readAsBytes();
       final fileName = p.basename(filePath);
       final extension = p.extension(fileName).toLowerCase();
+      final List<VibeReference> references;
 
-      if (extension == _singleFileExtension &&
-          !VibeExportUtils.validateNaiv4VibeJson(utf8.decode(bytes))) {
-        AppLogger.w('文件格式校验失败: $filePath', _tag);
+      if (extension == _bundleFileExtension) {
+        references = await VibeFileParser.fromBundleFile(
+          filePath,
+          fileName: fileName,
+        );
+      } else {
+        final bytes = await file.readAsBytes();
+        if (extension == _singleFileExtension &&
+            !VibeExportUtils.validateNaiv4VibeJson(utf8.decode(bytes))) {
+          AppLogger.w('文件格式校验失败: $filePath', _tag);
+        }
+        references = await VibeFileParser.parseFile(fileName, bytes);
       }
 
-      final references = await VibeFileParser.parseFile(fileName, bytes);
       if (references.isEmpty) {
         AppLogger.w('未解析到 Vibe 数据: $filePath', _tag);
         return null;
@@ -337,10 +356,9 @@ class VibeFileStorageService {
         return const [];
       }
 
-      final bytes = await file.readAsBytes();
-      final vibes = await VibeFileParser.fromBundle(
-        p.basename(bundlePath),
-        bytes,
+      final vibes = await VibeFileParser.fromBundleFile(
+        bundlePath,
+        fileName: p.basename(bundlePath),
       );
 
       if (safeStartIndex >= vibes.length) {
@@ -804,15 +822,121 @@ class VibeFileStorageService {
     );
   }
 
-  void _mergeCompatibleImageEncodings(
+  Map<String, dynamic> _mergeCompatibleBundleMap(
+    Map<String, dynamic>? existing,
+    Map<String, dynamic> replacement,
+  ) {
+    if (existing == null) return replacement;
+
+    final existingVibes = existing['vibes'];
+    final replacementVibes = replacement['vibes'];
+    if (existingVibes is! List || replacementVibes is! List) {
+      return replacement;
+    }
+
+    final mergedVibes = <dynamic>[];
+    for (var i = 0; i < replacementVibes.length; i++) {
+      final replacementItem = replacementVibes[i];
+      if (replacementItem is! Map || i >= existingVibes.length) {
+        mergedVibes.add(replacementItem);
+        continue;
+      }
+
+      final existingItem = existingVibes[i];
+      if (existingItem is! Map) {
+        mergedVibes.add(replacementItem);
+        continue;
+      }
+
+      mergedVibes.add(
+        _mergeCompatibleVibeMap(
+          Map<String, dynamic>.from(existingItem),
+          Map<String, dynamic>.from(replacementItem),
+        ),
+      );
+    }
+
+    final merged = Map<String, dynamic>.from(existing)..addAll(replacement);
+    merged['vibes'] = mergedVibes;
+    return merged;
+  }
+
+  Map<String, dynamic> _mergeCompatibleVibeMap(
     Map<String, dynamic> existing,
     Map<String, dynamic> replacement,
   ) {
-    if (existing['type'] != 'image' ||
-        replacement['type'] != 'image' ||
-        existing['id'] != replacement['id']) {
-      return;
+    if (!_isCompatibleVibeMap(existing, replacement)) {
+      return replacement;
     }
+
+    final merged = Map<String, dynamic>.from(existing)..addAll(replacement);
+    final existingCreatedAt = existing['createdAt'];
+    if (existingCreatedAt != null) {
+      merged['createdAt'] = existingCreatedAt;
+    }
+
+    final existingImage = existing['image'];
+    if (existingImage is String && existingImage.isNotEmpty) {
+      merged['image'] = existingImage;
+      merged['type'] = existing['type'] ?? 'image';
+      final existingId = existing['id'];
+      if (existingId != null) {
+        merged['id'] = existingId;
+      }
+    }
+
+    final existingThumbnail = existing['thumbnail'];
+    if (existingThumbnail is String && existingThumbnail.isNotEmpty) {
+      merged['thumbnail'] = existingThumbnail;
+    }
+
+    final existingImportInfo = existing['importInfo'];
+    final replacementImportInfo = replacement['importInfo'];
+    if (existingImportInfo is Map && replacementImportInfo is Map) {
+      merged['importInfo'] = Map<String, dynamic>.from(existingImportInfo)
+        ..addAll(Map<String, dynamic>.from(replacementImportInfo));
+    }
+
+    _mergeCompatibleEncodings(existing, merged);
+    return merged;
+  }
+
+  bool _isCompatibleVibeMap(
+    Map<String, dynamic> existing,
+    Map<String, dynamic> replacement,
+  ) {
+    final existingId = existing['id'];
+    final replacementId = replacement['id'];
+    if (existingId is String &&
+        existingId.isNotEmpty &&
+        existingId == replacementId) {
+      return true;
+    }
+
+    final replacementEncoding = NovelAiVibeCodec.firstEncoding(
+      replacement['encodings'],
+    );
+    if (replacementEncoding == null) return false;
+
+    final existingEncodings = existing['encodings'];
+    if (existingEncodings is! Map) return false;
+    for (final modelValue in existingEncodings.values) {
+      if (modelValue is! Map) continue;
+      for (final variantValue in modelValue.values) {
+        if (variantValue is Map &&
+            variantValue['encoding'] == replacementEncoding) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  void _mergeCompatibleEncodings(
+    Map<String, dynamic> existing,
+    Map<String, dynamic> replacement,
+  ) {
+    if (!_isCompatibleVibeMap(existing, replacement)) return;
 
     final existingEncodings = existing['encodings'];
     final replacementEncodings = replacement['encodings'];
@@ -833,8 +957,44 @@ class VibeFileStorageService {
         continue;
       }
       for (final variantEntry in oldVariants.entries) {
-        targetVariants.putIfAbsent(variantEntry.key, () => variantEntry.value);
+        final oldIdentity = _encodingVariantIdentity(variantEntry.value);
+        final alreadyPresent =
+            oldIdentity != null &&
+            targetVariants.values.any(
+              (value) => _encodingVariantIdentity(value) == oldIdentity,
+            );
+        if (alreadyPresent) continue;
+
+        var targetKey = variantEntry.key;
+        if (targetVariants.containsKey(targetKey)) {
+          final preservedKey = _preservedEncodingVariantKey(variantEntry.value);
+          targetKey = preservedKey;
+          var suffix = 2;
+          while (targetVariants.containsKey(targetKey)) {
+            targetKey = '$preservedKey-$suffix';
+            suffix++;
+          }
+        }
+        targetVariants[targetKey] = variantEntry.value;
       }
     }
+  }
+
+  String? _encodingVariantIdentity(dynamic value) {
+    if (value is! Map) return null;
+    final encoding = value['encoding'];
+    if (encoding is! String || encoding.isEmpty) return null;
+
+    final encodingHash = NovelAiVibeCodec.hashString(encoding);
+    final params = value['params'];
+    if (params is! Map) return encodingHash;
+    return '$encodingHash:${NovelAiVibeCodec.encodingParamsKey(Map<String, dynamic>.from(params))}';
+  }
+
+  String _preservedEncodingVariantKey(dynamic value) {
+    if (value is Map && value['encoding'] is String) {
+      return NovelAiVibeCodec.hashString(value['encoding'] as String);
+    }
+    return NovelAiVibeCodec.hashString(jsonEncode(value));
   }
 }

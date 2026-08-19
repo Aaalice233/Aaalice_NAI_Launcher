@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
@@ -27,6 +29,9 @@ class VibeFileParser {
 
   /// 最大处理的文件大小（20MB）
   static const int _maxFileSize = 20 * 1024 * 1024;
+
+  /// 大型 Bundle 的 JSON 与 Base64 解码必须离开 UI isolate。
+  static const int _backgroundBundleParseThreshold = 1024 * 1024;
 
   /// 解析超时时间
   static const Duration _parseTimeout = Duration(seconds: 5);
@@ -637,10 +642,17 @@ class VibeFileParser {
   }
 
   /// 从 JSON 数据中提取缩略图
-  static Uint8List? _extractThumbnailFromJson(Map<String, dynamic> jsonData) {
+  static Uint8List? _extractThumbnailFromJson(
+    Map<String, dynamic> jsonData, {
+    Uint8List? rawImageData,
+  }) {
     try {
       final thumbnailBase64 = jsonData['thumbnail'] as String?;
       if (thumbnailBase64 != null && thumbnailBase64.isNotEmpty) {
+        final imageBase64 = jsonData['image'] as String?;
+        if (rawImageData != null && thumbnailBase64 == imageBase64) {
+          return rawImageData;
+        }
         final base64Data = _extractBase64FromDataUri(thumbnailBase64);
         if (base64Data != null) {
           return base64Decode(base64Data);
@@ -699,7 +711,57 @@ class VibeFileParser {
     String fileName,
     Uint8List bytes, {
     double defaultStrength = 0.6,
+  }) {
+    if (bytes.length < _backgroundBundleParseThreshold) {
+      return Future.value(
+        _parseBundleBytesSync(
+          fileName,
+          bytes,
+          defaultStrength: defaultStrength,
+        ),
+      );
+    }
+
+    return Isolate.run(
+      () => _parseBundleBytesSync(
+        fileName,
+        bytes,
+        defaultStrength: defaultStrength,
+      ),
+      debugName: 'VibeFileParser.fromBundle',
+    );
+  }
+
+  /// 从文件读取并解析 Bundle；大文件连文件读取也在后台 isolate 完成。
+  static Future<List<VibeReference>> fromBundleFile(
+    String filePath, {
+    required String fileName,
+    double defaultStrength = 0.6,
   }) async {
+    final file = File(filePath);
+    final fileLength = await file.length();
+    if (fileLength < _backgroundBundleParseThreshold) {
+      return _parseBundleBytesSync(
+        fileName,
+        await file.readAsBytes(),
+        defaultStrength: defaultStrength,
+      );
+    }
+
+    return Isolate.run(() {
+      return _parseBundleBytesSync(
+        fileName,
+        File(filePath).readAsBytesSync(),
+        defaultStrength: defaultStrength,
+      );
+    }, debugName: 'VibeFileParser.fromBundleFile');
+  }
+
+  static List<VibeReference> _parseBundleBytesSync(
+    String fileName,
+    Uint8List bytes, {
+    required double defaultStrength,
+  }) {
     final jsonString = utf8.decode(bytes);
     final bundleData = jsonDecode(jsonString) as Map<String, dynamic>;
     final vibesList = bundleData['vibes'] as List<dynamic>? ?? [];
@@ -734,7 +796,10 @@ class VibeFileParser {
         final rawImageData = _extractRawImageFromJson(vibeJson);
         if (encodingDetails != null ||
             (rawImageData != null && rawImageData.isNotEmpty)) {
-          final thumbnail = _extractThumbnailFromJson(vibeJson);
+          final thumbnail = _extractThumbnailFromJson(
+            vibeJson,
+            rawImageData: rawImageData,
+          );
           results.add(
             VibeReference(
               displayName: name,

@@ -708,4 +708,186 @@ void main() {
       ImageModels.animeDiffusionV45Full,
     );
   });
+
+  test('updateEntryEncodingModel 保留 bundle 全部原图和已有编码变体', () async {
+    final vibeDirectory =
+        '${hiveTempDir.path}${Platform.pathSeparator}vibes_bundle_relabel';
+    await VibeLibraryPathHelper.instance.setPath(vibeDirectory);
+    addTearDown(() async {
+      await VibeLibraryPathHelper.instance.resetToDefault();
+    });
+
+    final rawImages = List<Uint8List>.generate(
+      5,
+      (index) => Uint8List.fromList([0x89, 0x50, 0x4e, 0x47, index]),
+    );
+    final saved = await storage.saveBundleEntry([
+      for (var i = 0; i < rawImages.length; i++)
+        VibeReference(
+          displayName: 'child-$i',
+          vibeEncoding: 'encoding-$i',
+          thumbnail: Uint8List.fromList([i + 1, i + 2]),
+          rawImageData: rawImages[i],
+          strength: 0.1 + i,
+          infoExtracted: 0.2 + i * 0.1,
+          encodingModel: ImageModels.animeDiffusionV4Full,
+          sourceType: VibeSourceType.naiv4vibebundle,
+        ),
+    ], name: 'bundle relabel');
+    expect(saved.bundledVibePreviews, hasLength(4));
+
+    final file = File(saved.filePath!);
+    final originalJson =
+        jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    final originalVibes = originalJson['vibes'] as List<dynamic>;
+    final first = originalVibes.first as Map<String, dynamic>;
+    first['createdAt'] = 123456789;
+    first['customField'] = 'preserve-me';
+    final firstEncodings = first['encodings'] as Map<String, dynamic>;
+    final v4Encodings = firstEncodings['v4full'] as Map<String, dynamic>;
+    final collidingVariantKey = v4Encodings.keys.single;
+    firstEncodings['v4-5full'] = <String, dynamic>{
+      collidingVariantKey: <String, dynamic>{
+        'encoding': 'existing-v45-encoding',
+        'params': <String, dynamic>{'information_extracted': 0.2},
+      },
+    };
+    await file.writeAsString(jsonEncode(originalJson));
+
+    final updated = await storage.updateEntryEncodingModel(
+      saved.id,
+      ImageModels.animeDiffusionV45Full,
+    );
+
+    expect(updated, isNotNull);
+    expect(
+      updated!.bundledVibeEncodingModels,
+      List<String?>.filled(5, ImageModels.animeDiffusionV45Full),
+    );
+
+    final updatedJson =
+        jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    final updatedVibes = updatedJson['vibes'] as List<dynamic>;
+    expect(updatedVibes, hasLength(5));
+    for (var i = 0; i < updatedVibes.length; i++) {
+      final item = updatedVibes[i] as Map<String, dynamic>;
+      expect(base64Decode(item['image'] as String), rawImages[i]);
+      expect(item['type'], 'image');
+      expect(
+        (item['importInfo'] as Map<String, dynamic>)['model'],
+        ImageModels.animeDiffusionV45Full,
+      );
+    }
+
+    final updatedFirst = updatedVibes.first as Map<String, dynamic>;
+    expect(updatedFirst['createdAt'], 123456789);
+    expect(updatedFirst['customField'], 'preserve-me');
+    final updatedEncodings = updatedFirst['encodings'] as Map<String, dynamic>;
+    expect(updatedEncodings['v4full'], isNotNull);
+    final v45Encodings = updatedEncodings['v4-5full'] as Map<String, dynamic>;
+    expect(
+      v45Encodings.values.any(
+        (value) =>
+            value is Map<String, dynamic> &&
+            value['encoding'] == 'existing-v45-encoding',
+      ),
+      isTrue,
+    );
+    expect(
+      v45Encodings.values.any(
+        (value) =>
+            value is Map<String, dynamic> && value['encoding'] == 'encoding-0',
+      ),
+      isTrue,
+    );
+    expect(v45Encodings, hasLength(2));
+  });
+
+  test('getDetailData 只解析一次 bundle 并复用子项构建详情', () async {
+    await storage.close();
+    final rawImages = [
+      Uint8List.fromList([1, 2, 3]),
+      Uint8List.fromList([4, 5, 6]),
+    ];
+    final bundleVibes = [
+      VibeReference(
+        displayName: 'first',
+        vibeEncoding: 'encoding-first',
+        thumbnail: rawImages[0],
+        rawImageData: rawImages[0],
+        strength: 0.2,
+        infoExtracted: 0.3,
+        sourceType: VibeSourceType.naiv4vibebundle,
+      ),
+      VibeReference(
+        displayName: 'second',
+        vibeEncoding: 'encoding-second',
+        thumbnail: rawImages[1],
+        rawImageData: rawImages[1],
+        strength: 0.4,
+        infoExtracted: 0.5,
+        sourceType: VibeSourceType.naiv4vibebundle,
+      ),
+    ];
+    final fileStorage = _CountingVibeFileStorageService(bundleVibes);
+    storage = VibeLibraryStorageService(fileStorage: fileStorage);
+    final entry = VibeLibraryEntry(
+      id: 'single-pass-bundle',
+      name: 'single pass bundle',
+      vibeDisplayName: 'stale first',
+      vibeEncoding: 'stale-encoding',
+      strength: 0.6,
+      infoExtracted: 0.7,
+      sourceTypeIndex: VibeSourceType.naiv4vibebundle.index,
+      createdAt: DateTime(2026, 8, 19),
+      filePath: r'G:\AIdarw\vibes\single-pass.naiv4vibebundle',
+      bundledVibeNames: const ['stale first'],
+    );
+    await storage.saveEntry(entry);
+
+    final details = await storage.getDetailData(entry.id);
+
+    expect(details, isNotNull);
+    expect(details!.entry.vibeDisplayName, 'first');
+    expect(details.entry.bundledVibeNames, ['first', 'second']);
+    expect(details.entry.bundledVibePreviews, rawImages);
+    expect(details.bundleVibes, orderedEquals(bundleVibes));
+    expect(fileStorage.bundleParseCalls, 1);
+    expect(fileStorage.singleFileLoadCalls, 0);
+    expect(fileStorage.previewExtractionCalls, 0);
+  });
+}
+
+class _CountingVibeFileStorageService extends VibeFileStorageService {
+  _CountingVibeFileStorageService(this.vibes);
+
+  final List<VibeReference> vibes;
+  int bundleParseCalls = 0;
+  int singleFileLoadCalls = 0;
+  int previewExtractionCalls = 0;
+
+  @override
+  Future<List<VibeReference>> extractVibesFromBundle(
+    String bundlePath, {
+    int startIndex = 0,
+    int? limit,
+  }) async {
+    bundleParseCalls++;
+    return vibes;
+  }
+
+  @override
+  Future<VibeReference?> loadVibeFromFile(String filePath) async {
+    singleFileLoadCalls++;
+    return vibes.isEmpty ? null : vibes.first;
+  }
+
+  @override
+  Future<List<Uint8List>> extractPreviewsFromBundle(
+    String bundlePath, {
+    int maxCount = 4,
+  }) async {
+    previewExtractionCalls++;
+    return const [];
+  }
 }

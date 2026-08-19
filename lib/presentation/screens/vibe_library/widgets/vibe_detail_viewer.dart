@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/shortcuts/default_shortcuts.dart';
+import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
@@ -70,6 +71,12 @@ class VibeDetailViewer extends ConsumerStatefulWidget {
   /// Vibe 条目数据
   final VibeLibraryEntry entry;
 
+  /// 后台加载的完整详情数据；非空时先显示响应式加载层。
+  final Future<VibeLibraryDetailData>? detailDataFuture;
+
+  /// 已随详情条目一次解析完成的 Bundle 子项。
+  final List<VibeReference> bundleVibes;
+
   /// 回调函数
   final VibeDetailCallbacks? callbacks;
 
@@ -79,6 +86,8 @@ class VibeDetailViewer extends ConsumerStatefulWidget {
   const VibeDetailViewer({
     super.key,
     required this.entry,
+    this.detailDataFuture,
+    this.bundleVibes = const [],
     this.callbacks,
     this.heroTag,
   });
@@ -87,14 +96,18 @@ class VibeDetailViewer extends ConsumerStatefulWidget {
   static Future<void> show(
     BuildContext context, {
     required VibeLibraryEntry entry,
+    Future<VibeLibraryDetailData>? detailDataFuture,
+    List<VibeReference> bundleVibes = const [],
     VibeDetailCallbacks? callbacks,
     String? heroTag,
   }) {
     return showDialog<void>(
       context: context,
-      barrierColor: Colors.transparent,
+      barrierColor: Colors.black,
       builder: (context) => VibeDetailViewer(
         entry: entry,
+        detailDataFuture: detailDataFuture,
+        bundleVibes: bundleVibes,
         callbacks: callbacks,
         heroTag: heroTag,
       ),
@@ -111,8 +124,10 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
   late double _infoExtracted;
   List<double>? _bundleStrengths;
   List<double>? _bundleInfoExtracted;
+  late List<VibeReference> _bundleVibes;
   final Map<int, Uint8List> _bundleChildRawImageBytes = {};
   final Set<int> _bundleChildImageLoads = {};
+  bool _isLoadingDetailData = false;
   bool _isRenaming = false;
   bool _isSavingParams = false;
 
@@ -160,11 +175,17 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
   void initState() {
     super.initState();
     _entry = widget.entry;
+    _bundleVibes = widget.bundleVibes;
     _hydrateBundleParamCache(_entry);
     _selectFirstBundleChildIfNeeded();
     _syncDisplayedParamsWithSelection();
-    unawaited(_loadSelectedBundleImage());
-    unawaited(_loadActualEntry());
+    final detailDataFuture = widget.detailDataFuture;
+    if (detailDataFuture == null) {
+      unawaited(_loadSelectedBundleImage());
+    } else {
+      _isLoadingDetailData = true;
+      unawaited(_loadDetailData(detailDataFuture));
+    }
   }
 
   void _hydrateBundleParamCache(VibeLibraryEntry entry) {
@@ -277,6 +298,13 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
   Uint8List? get _imageBytes {
     // Bundle 模式：主预览优先使用子 Vibe 原图，底部画廊条才使用缩略图。
     if (_entry.isBundle && _selectedSubVibeIndex >= 0) {
+      if (_selectedSubVibeIndex < _bundleVibes.length) {
+        final bundledRaw = _bundleVibes[_selectedSubVibeIndex].rawImageData;
+        if (bundledRaw != null && bundledRaw.isNotEmpty) {
+          return bundledRaw;
+        }
+      }
+
       final loadedRaw = _bundleChildRawImageBytes[_selectedSubVibeIndex];
       if (loadedRaw != null && loadedRaw.isNotEmpty) {
         return loadedRaw;
@@ -483,20 +511,33 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
     }
   }
 
-  Future<void> _loadActualEntry() async {
-    final actualEntry = await ref
-        .read(vibeLibraryStorageServiceProvider)
-        .getEntry(_entry.id);
-    if (!mounted || actualEntry == null) return;
+  Future<void> _loadDetailData(
+    Future<VibeLibraryDetailData> detailDataFuture,
+  ) async {
+    VibeLibraryDetailData detailData;
+    try {
+      detailData = await detailDataFuture;
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to load Vibe detail data',
+        error,
+        stackTrace,
+        'VibeDetailViewer',
+      );
+      detailData = VibeLibraryDetailData(entry: _entry);
+    }
+    if (!mounted) return;
+
     setState(() {
-      _entry = actualEntry;
-      final maxIndex = (_entry.bundledVibeNames?.length ?? 1) - 1;
-      if (_selectedSubVibeIndex > maxIndex) {
-        _selectedSubVibeIndex = maxIndex >= 0 ? 0 : -1;
-      }
-      _hydrateBundleParamCache(actualEntry);
+      _entry = detailData.entry;
+      _bundleVibes = detailData.bundleVibes;
+      _bundleChildRawImageBytes.clear();
+      _bundleChildImageLoads.clear();
+      _selectedSubVibeIndex = -1;
+      _hydrateBundleParamCache(_entry);
       _selectFirstBundleChildIfNeeded();
       _syncDisplayedParamsWithSelection();
+      _isLoadingDetailData = false;
     });
     unawaited(_loadSelectedBundleImage());
   }
@@ -511,6 +552,15 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
     }
 
     _bundleChildImageLoads.add(index);
+    if (index < _bundleVibes.length) {
+      _bundleChildImageLoads.remove(index);
+      return;
+    }
+    if (index == 0 && _entry.rawImageData?.isNotEmpty == true) {
+      _bundleChildImageLoads.remove(index);
+      return;
+    }
+
     final entryId = _entry.id;
     final childVibe = await ref
         .read(vibeLibraryStorageServiceProvider)
@@ -546,11 +596,15 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingDetailData) {
+      return _buildLoadingView();
+    }
+
     final isDesktop = MediaQuery.sizeOf(context).width > 800;
     final isBundle = _entry.isBundle;
 
     return Dialog.fullscreen(
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.black,
       child: ShortcutAwareWidget(
         contextType: ShortcutContext.vibeDetail,
         autofocus: true,
@@ -597,6 +651,44 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingView() {
+    return Dialog.fullscreen(
+      backgroundColor: Colors.black,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          const VibeDetailBackground(),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(color: Colors.white),
+                const SizedBox(height: 16),
+                Text(
+                  context.l10n.common_loading,
+                  style: const TextStyle(color: Colors.white70),
+                ),
+              ],
+            ),
+          ),
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: IconButton(
+                  tooltip: context.l10n.common_close,
+                  onPressed: _close,
+                  icon: const Icon(Icons.close, color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

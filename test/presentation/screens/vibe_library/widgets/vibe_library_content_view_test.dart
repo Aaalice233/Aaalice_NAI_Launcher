@@ -15,23 +15,39 @@ void main() {
   test('打开详情前应优先回读真实条目参数，而不是继续使用列表旧快照', () async {
     final staleEntry = _buildEntry(strength: 0.6, infoExtracted: 0.7);
     final actualEntry = _buildEntry(strength: 0.18, infoExtracted: 0.3);
-    final resolved = await resolveVibeDetailEntryForOpen(
+    final resolved = await resolveVibeDetailDataForOpen(
       _DetailEntryStorage(actualEntry),
       staleEntry,
     );
 
-    expect(resolved.strength, 0.18);
-    expect(resolved.infoExtracted, 0.3);
+    expect(resolved.entry.strength, 0.18);
+    expect(resolved.entry.infoExtracted, 0.3);
   });
 
   test('真实条目不可用时，打开详情仍回退使用当前列表条目', () async {
     final staleEntry = _buildEntry(strength: 0.6, infoExtracted: 0.7);
-    final resolved = await resolveVibeDetailEntryForOpen(
+    final resolved = await resolveVibeDetailDataForOpen(
       _DetailEntryStorage(null),
       staleEntry,
     );
 
-    expect(resolved, same(staleEntry));
+    expect(resolved.entry, same(staleEntry));
+    expect(resolved.bundleVibes, isEmpty);
+  });
+
+  test('打开 bundle 详情会把同一次解析得到的全部子项交给查看器', () async {
+    final entry = _buildEntry(strength: 0.6, infoExtracted: 0.7);
+    const bundleVibes = [
+      VibeReference(displayName: 'first', vibeEncoding: 'encoding-1'),
+      VibeReference(displayName: 'second', vibeEncoding: 'encoding-2'),
+    ];
+    final resolved = await resolveVibeDetailDataForOpen(
+      _DetailEntryStorage(entry, bundleVibes: bundleVibes),
+      entry,
+    );
+
+    expect(resolved.entry, same(entry));
+    expect(resolved.bundleVibes, same(bundleVibes));
   });
 
   test('发送 bundle 到生成页时默认保留每个子 Vibe 自己的参数', () {
@@ -136,10 +152,16 @@ VibeLibraryEntry _buildEntry({
 }
 
 class _DetailEntryStorage extends VibeLibraryStorageService {
-  _DetailEntryStorage(this.entry);
+  _DetailEntryStorage(this.entry, {this.bundleVibes = const []});
 
   final VibeLibraryEntry? entry;
+  final List<VibeReference> bundleVibes;
 
   @override
-  Future<VibeLibraryEntry?> getEntry(String id) async => entry;
+  Future<VibeLibraryDetailData?> getDetailData(String id) async {
+    final value = entry;
+    return value == null
+        ? null
+        : VibeLibraryDetailData(entry: value, bundleVibes: bundleVibes);
+  }
 }

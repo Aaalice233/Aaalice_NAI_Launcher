@@ -581,8 +581,21 @@ class VibeLibraryStorageService
 
   /// 根据 ID 获取条目
   Future<VibeLibraryEntry?> getEntry(String id) async {
+    final detailData = await _loadDetailData(id, operation: 'storage.getEntry');
+    return detailData?.entry;
+  }
+
+  /// 一次加载详情页所需的完整条目和 Bundle 子项。
+  Future<VibeLibraryDetailData?> getDetailData(String id) {
+    return _loadDetailData(id, operation: 'storage.getDetailData');
+  }
+
+  Future<VibeLibraryDetailData?> _loadDetailData(
+    String id, {
+    required String operation,
+  }) async {
     final span = VibePerformanceDiagnostics.start(
-      'storage.getEntry',
+      operation,
       details: {'id': id},
     );
     var found = false;
@@ -598,10 +611,21 @@ class VibeLibraryStorageService
       isBundle = entry.isBundle;
 
       final filePath = entry.filePath;
-      if (filePath == null || filePath.isEmpty) return entry;
+      if (filePath == null || filePath.isEmpty) {
+        return VibeLibraryDetailData(entry: entry);
+      }
       hasFile = true;
 
-      final vibeData = await _fileStorage.loadVibeFromFile(filePath);
+      final List<VibeReference> bundleVibes;
+      final VibeReference? vibeData;
+      if (entry.isBundle) {
+        bundleVibes = await _fileStorage.extractVibesFromBundle(filePath);
+        vibeData = bundleVibes.isEmpty ? null : bundleVibes.first;
+      } else {
+        bundleVibes = const [];
+        vibeData = await _fileStorage.loadVibeFromFile(filePath);
+      }
+
       if (vibeData == null) {
         fileMissing = true;
         AppLogger.w('Entry file missing or invalid: $filePath', _tag);
@@ -630,36 +654,42 @@ class VibeLibraryStorageService
             ),
           )
           .copyWith(filePath: filePath);
-      if (entry.isBundle) {
-        final bundleVibes = await _fileStorage.extractVibesFromBundle(filePath);
-        if (bundleVibes.isNotEmpty) {
-          mergedEntry = mergedEntry.copyWith(
-            bundledVibeNames: bundleVibes
-                .map((v) => v.displayName)
-                .toList(growable: false),
-            bundledVibeEncodings: bundleVibes
-                .map((v) => v.vibeEncoding)
-                .toList(growable: false),
-            bundledVibeStrengths: bundleVibes
-                .map((v) => v.strength)
-                .toList(growable: false),
-            bundledVibeInfoExtracted: bundleVibes
-                .map((v) => v.infoExtracted)
-                .toList(growable: false),
-            bundledVibeEncodingModels: bundleVibes
-                .map((v) => v.encodingModel)
-                .toList(growable: false),
-          );
+      if (bundleVibes.isNotEmpty) {
+        final previews = <Uint8List>[];
+        for (final vibe in bundleVibes.take(4)) {
+          final preview = vibe.thumbnail ?? vibe.rawImageData;
+          if (preview != null && preview.isNotEmpty) {
+            previews.add(preview);
+          }
         }
 
-        final previews = await _fileStorage.extractPreviewsFromBundle(filePath);
+        mergedEntry = mergedEntry.copyWith(
+          bundledVibeNames: bundleVibes
+              .map((v) => v.displayName)
+              .toList(growable: false),
+          bundledVibeEncodings: bundleVibes
+              .map((v) => v.vibeEncoding)
+              .toList(growable: false),
+          bundledVibeStrengths: bundleVibes
+              .map((v) => v.strength)
+              .toList(growable: false),
+          bundledVibeInfoExtracted: bundleVibes
+              .map((v) => v.infoExtracted)
+              .toList(growable: false),
+          bundledVibeEncodingModels: bundleVibes
+              .map((v) => v.encodingModel)
+              .toList(growable: false),
+        );
         if (previews.isNotEmpty) {
           previewsLoaded = true;
           mergedEntry = mergedEntry.copyWith(bundledVibePreviews: previews);
         }
       }
 
-      return mergedEntry;
+      return VibeLibraryDetailData(
+        entry: mergedEntry,
+        bundleVibes: List.unmodifiable(bundleVibes),
+      );
     } catch (e, stackTrace) {
       AppLogger.e('Failed to get entry', e, stackTrace, _tag);
       return null;
@@ -1001,22 +1031,33 @@ class VibeLibraryStorageService
       final entry = await _readStoredEntry(id);
       if (entry == null) return null;
 
-      final bundledModels = entry.bundledVibeEncodingModels;
+      final filePath = entry.filePath;
+      List<VibeReference>? bundleVibes;
+      if (entry.isBundle && filePath != null && filePath.isNotEmpty) {
+        bundleVibes = await _fileStorage.extractVibesFromBundle(filePath);
+        if (bundleVibes.isEmpty) {
+          throw StateError('Bundle 文件没有可更新的 Vibe: $filePath');
+        }
+      }
+
+      final bundledModelCount = entry.isBundle
+          ? bundleVibes?.length ??
+                entry.bundledVibeEncodingModels?.length ??
+                entry.bundledVibeEncodings?.length
+          : null;
       final updatedEntry = entry.copyWith(
         encodingModel: normalizedModel,
-        bundledVibeEncodingModels: bundledModels == null
-            ? null
-            : List<String?>.filled(bundledModels.length, normalizedModel),
+        bundledVibeEncodingModels: bundledModelCount == null
+            ? entry.bundledVibeEncodingModels
+            : List<String?>.filled(bundledModelCount, normalizedModel),
       );
 
-      final filePath = entry.filePath;
       if (filePath != null && filePath.isNotEmpty) {
         if (entry.isBundle) {
-          await _fileStorage.overwriteBundleFile(
-            filePath,
-            _buildBundleVibeReferences(updatedEntry),
-            defaultModel: normalizedModel,
-          );
+          await _fileStorage.overwriteBundleFile(filePath, [
+            for (final vibe in bundleVibes!)
+              vibe.copyWith(encodingModel: normalizedModel),
+          ], defaultModel: normalizedModel);
         } else {
           await _fileStorage.overwriteVibeFile(
             filePath,
