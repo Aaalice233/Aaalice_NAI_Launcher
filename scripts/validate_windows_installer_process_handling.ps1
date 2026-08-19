@@ -196,7 +196,7 @@ try {
     -InstallPath $installDir `
     -SourcePath $sourceDir `
     -UninstallKey $uninstallKey `
-    -ProcessQueryAccess '0x00000001'
+    -ProcessQueryAccess '0'
 
   $unreadableTarget = Start-HiddenProcess -Path (Join-Path $installDir $appName)
   $blockedExit = Invoke-SilentExecutable -Path $blockedInstaller
