@@ -774,9 +774,14 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
           !refresh && page.items.isNotEmpty && uniqueNew.isEmpty;
       final endedByDuplicatePage = duplicatePage || stalledCursor;
       final merged = [...baseItems, ...uniqueNew];
+      final isInitialLoad =
+          !refresh && cache.posts.isEmpty && cache.page == 1 && cursor == '1';
+      final firstRequestedPage = refresh || isInitialLoad
+          ? galleryCursorPage(cursor)
+          : cache.page + 1;
       final parsedPage = galleryCursorPage(
         page.cursor,
-        fallback: refresh ? 1 : cache.page + 1,
+        fallback: firstRequestedPage + pagesFetched - 1,
       );
       final nextCache = ModeCache(
         posts: List.unmodifiable(merged),

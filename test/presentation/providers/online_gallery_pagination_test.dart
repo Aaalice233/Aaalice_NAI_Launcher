@@ -213,7 +213,7 @@ void main() {
     },
   );
 
-  test('filtered empty pages advance without ending pagination', () async {
+  test('filtered empty Danbooru cursors advance the visible page', () async {
     final adapter = _FakeGalleryAdapter(
       GallerySourceId.danbooru,
       onSearch: (request, _) async {
@@ -221,10 +221,11 @@ void main() {
           '1' => _page(
             request.cursor,
             const [],
-            nextCursor: '2',
+            nextCursor: 'b900',
             rawItemCount: 40,
           ),
-          '2' => _page(request.cursor, [_item(2)], nextCursor: '3'),
+          'b900' => _page(request.cursor, [_item(2)], nextCursor: 'b800'),
+          'b800' => _page(request.cursor, [_item(3)], nextCursor: 'b700'),
           _ => _page(request.cursor, const [], nextCursor: null),
         };
       },
@@ -234,13 +235,64 @@ void main() {
 
     await container.read(onlineGalleryNotifierProvider.notifier).loadPosts();
 
-    final state = container.read(onlineGalleryNotifierProvider);
-    expect(adapter.searchCursors, ['1', '2']);
+    var state = container.read(onlineGalleryNotifierProvider);
+    expect(adapter.searchCursors, ['1', 'b900']);
     expect(state.posts.single.id, 2);
     expect(state.page, 2);
-    expect(state.currentCache.nextCursor, '3');
+    expect(state.currentCache.nextCursor, 'b800');
     expect(state.hasMore, isTrue);
     expect(state.currentCache.endedByDuplicatePage, isFalse);
+
+    await container.read(onlineGalleryNotifierProvider.notifier).loadMore();
+
+    state = container.read(onlineGalleryNotifierProvider);
+    expect(adapter.searchCursors, ['1', 'b900', 'b800']);
+    expect(state.posts.map((item) => item.id), [2, 3]);
+    expect(state.page, 3);
+    expect(state.currentCache.nextCursor, 'b700');
+  });
+
+  test('continues after a full batch of filtered empty cursors', () async {
+    const nextCursorByCursor = {
+      '1': 'b900',
+      'b900': 'b800',
+      'b800': 'b700',
+      'b700': 'b600',
+      'b600': 'b500',
+    };
+    final adapter = _FakeGalleryAdapter(
+      GallerySourceId.danbooru,
+      onSearch: (request, _) async {
+        if (request.cursor == 'b500') {
+          return _page(request.cursor, [_item(6)], nextCursor: 'b400');
+        }
+        return _page(
+          request.cursor,
+          const [],
+          nextCursor: nextCursorByCursor[request.cursor],
+          rawItemCount: 40,
+        );
+      },
+    );
+    final container = _container(danbooru: adapter);
+    addTearDown(container.dispose);
+    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+    await notifier.loadPosts();
+
+    var state = container.read(onlineGalleryNotifierProvider);
+    expect(state.posts, isEmpty);
+    expect(state.page, 5);
+    expect(state.currentCache.nextCursor, 'b500');
+    expect(state.hasMore, isTrue);
+
+    await notifier.loadMore();
+
+    state = container.read(onlineGalleryNotifierProvider);
+    expect(adapter.searchCursors.last, 'b500');
+    expect(state.posts.single.id, 6);
+    expect(state.page, 6);
+    expect(state.currentCache.nextCursor, 'b400');
   });
 
   test(
