@@ -1474,6 +1474,16 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     state = state.copyWith(decrisp: decrisp);
   }
 
+  /// 标记当前 img2img 请求来自增强面板
+  ///
+  /// 决定是否自动补 `-2::upscaled, blurry::`，只属于单次请求，不落盘。
+  void updateIsEnhanceRequest(bool isEnhanceRequest) {
+    if (state.isEnhanceRequest == isEnhanceRequest) {
+      return;
+    }
+    state = state.copyWith(isEnhanceRequest: isEnhanceRequest);
+  }
+
   /// 更新使用坐标模式 (V4+ 多角色)
   void updateUseCoords(bool useCoords) {
     state = state.copyWith(useCoords: useCoords);

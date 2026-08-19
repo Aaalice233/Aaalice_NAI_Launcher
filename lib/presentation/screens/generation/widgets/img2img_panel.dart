@@ -10,6 +10,7 @@ import 'package:image/image.dart' as img;
 
 import '../../../../core/comfyui/comfyui_models.dart';
 import '../../../../core/comfyui/workflow_template.dart';
+import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/focused_inpaint_utils.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
@@ -640,6 +641,8 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
   Widget _buildEnhancePanel(ThemeData theme, ImageWorkflowState workflow) {
     final controller = ref.read(imageWorkflowControllerProvider.notifier);
     final enhance = workflow.enhance;
+    final availableFactors = controller.availableEnhanceFactors;
+    final activeFactor = controller.effectiveEnhanceFactor;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -662,11 +665,16 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
             ),
           ),
           const SizedBox(height: 12),
+          // 网页端的幅度是 1-5 整数档，每档对应固定的 strength/noise
           _buildSliderSection(
             theme,
             label: context.l10n.img2img_enhanceMagnitude,
-            value: enhance.magnitude,
-            onChanged: controller.updateEnhanceMagnitude,
+            value: enhance.level.toDouble(),
+            min: EnhanceLevels.minLevel.toDouble(),
+            max: EnhanceLevels.maxLevel.toDouble(),
+            divisions: EnhanceLevels.maxLevel - EnhanceLevels.minLevel,
+            valueLabelBuilder: (value) => value.round().toString(),
+            onChanged: (value) => controller.updateEnhanceLevel(value.round()),
           ),
           // 子面板容器带背景色，ListTile 的水波纹会被它遮住，
           // 需要自带一层透明 Material（与放大面板中的开关保持一致）。
@@ -690,13 +698,15 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
-            children: [1.0, 1.5].map((factor) {
-              final label = factor == 1.0 ? '1x' : '1.5x';
+            // 可用倍率按源图尺寸算：放大后超面积上限或对不齐 64 的档位不给选
+            children: availableFactors.reversed.map((factor) {
+              final label = factor == factor.roundToDouble()
+                  ? '${factor.toStringAsFixed(0)}x'
+                  : '${factor.toStringAsFixed(1)}x';
               return ChoiceChip(
                 label: Text(label),
-                selected: enhance.upscaleFactor == factor,
-                onSelected: (_) =>
-                    controller.updateEnhanceUpscaleFactor(factor),
+                selected: activeFactor == factor,
+                onSelected: (_) => controller.updateEnhanceUpscaleFactor(factor),
               );
             }).toList(),
           ),

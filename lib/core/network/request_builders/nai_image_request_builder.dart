@@ -411,7 +411,10 @@ class NAIImageRequestBuilder {
       qualityToggle: params.qualityToggle,
       ucPreset: params.ucPreset,
     );
-    final effectivePrompt = promptSemantics.effectivePrompt;
+    // 网页端的增强入口会在质量词解析之后再补降权词，顺序必须一致。
+    final effectivePrompt = params.shouldApplyEnhancePromptAddition
+        ? EnhanceLevels.applyPromptAddition(promptSemantics.effectivePrompt)
+        : promptSemantics.effectivePrompt;
     final effectiveNegativePrompt = promptSemantics.effectiveNegativePrompt;
 
     final requestParameters = buildBaseParameters(

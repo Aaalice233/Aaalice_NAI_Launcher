@@ -36,6 +36,12 @@ class ApiConstants {
   static const Duration connectTimeout = Duration(seconds: 30);
   static const Duration receiveTimeout = Duration(seconds: 120);
 
+  /// 官网图像生成请求的最大像素面积。
+  static const int maxImagePixels = 3145728;
+
+  /// 请求尺寸必须对齐的像素栅格。
+  static const int dimensionGrid = 64;
+
   /// 默认请求头
   static const Map<String, String> defaultHeaders = {
     'Content-Type': 'application/json',
@@ -850,5 +856,137 @@ class UcPresets {
     }
 
     return effectiveNegative;
+  }
+}
+
+/// 增强面板「幅度」档位表。
+///
+/// 网页端是 1-5 的整数档而不是连续滑条，每档对应固定的 strength/noise
+/// （0.2/0.4/0.5/0.6/0.7，只有最高档带 0.1 噪声）。
+class EnhanceLevels {
+  EnhanceLevels._();
+
+  static const List<({double strength, double noise})> table = [
+    (strength: 0.2, noise: 0.0),
+    (strength: 0.4, noise: 0.0),
+    (strength: 0.5, noise: 0.0),
+    (strength: 0.6, noise: 0.0),
+    (strength: 0.7, noise: 0.1),
+  ];
+
+  static const int minLevel = 1;
+  static const int maxLevel = 5;
+
+  /// 网页端默认停在中间档。
+  static const int defaultLevel = 3;
+
+  static ({double strength, double noise}) resolve(int level) {
+    return table[level.clamp(minLevel, maxLevel) - 1];
+  }
+
+  /// 把旧版连续 magnitude(0-1) 迁移到最接近的档位。
+  ///
+  /// 旧实现把 magnitude 直接当 strength 用，因此按 strength 距离取最近档，
+  /// 用户升级后拿到的增强力度与升级前基本一致。
+  static int fromLegacyMagnitude(double magnitude) {
+    final clamped = magnitude.clamp(0.0, 1.0);
+    var bestLevel = defaultLevel;
+    var bestDistance = double.infinity;
+    for (var index = 0; index < table.length; index++) {
+      final distance = (table[index].strength - clamped).abs();
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestLevel = index + 1;
+      }
+    }
+    return bestLevel;
+  }
+
+  /// 增强时自动补进提示词的降权词。
+  ///
+  /// 网页端原样拼 `", -2::upscaled, blurry::,"`（首尾都带逗号），
+  /// 这里保持一致，方便和网页端对比 token 数。
+  static const String promptAddition = ', -2::upscaled, blurry::,';
+
+  /// 判断提示词里是否已经有这条降权词，网页端只做子串匹配。
+  static const String promptAdditionMarker = 'upscaled, blurry';
+
+  /// 把降权词插进增强请求的有效提示词。
+  ///
+  /// 有 `text:` 段时插在标记之前，避免降权词落进要渲染的文字里；
+  /// 没有时直接接到末尾。
+  static String applyPromptAddition(String prompt) {
+    if (prompt.contains(promptAdditionMarker)) {
+      return prompt;
+    }
+
+    final match = QualityTags.textRenderMarker.firstMatch(prompt);
+    if (match == null) {
+      return '$prompt$promptAddition';
+    }
+    return prompt.substring(0, match.start) +
+        promptAddition +
+        prompt.substring(match.start);
+  }
+}
+
+/// 增强面板可选的放大倍率。
+class EnhanceScales {
+  EnhanceScales._();
+
+  /// 网页端候选倍率，从大到小。
+  static const List<double> candidates = [2.0, 1.5, 1.0];
+
+  /// 网页端对最常用的 832×1216（含转置）直接给固定档位。
+  ///
+  /// 这个尺寸乘 1.5 得到 1248×1824，本来过不了 64 对齐的筛选，
+  /// 网页端专门开了口子，这里照抄。
+  static const List<double> _portraitDefaults = [1.5, 1.0];
+
+  static bool _isDefaultPortrait(int width, int height) {
+    return (width == 832 && height == 1216) || (width == 1216 && height == 832);
+  }
+
+  /// 当前源图尺寸下可用的倍率，从大到小。
+  ///
+  /// 源图尺寸未知时只给 1x——网页端在拿到图片前也不会给放大档。
+  static List<double> availableFactors({int? sourceWidth, int? sourceHeight}) {
+    final width = sourceWidth ?? 0;
+    final height = sourceHeight ?? 0;
+    if (width <= 0 || height <= 0) {
+      return const [1.0];
+    }
+    if (_isDefaultPortrait(width, height)) {
+      return _portraitDefaults;
+    }
+
+    final available = candidates.where((factor) {
+      final scaledWidth = width * factor;
+      final scaledHeight = height * factor;
+      if (scaledWidth * scaledHeight > ApiConstants.maxImagePixels) {
+        return false;
+      }
+      return scaledWidth % ApiConstants.dimensionGrid == 0 &&
+          scaledHeight % ApiConstants.dimensionGrid == 0;
+    }).toList(growable: false);
+
+    return available.isEmpty ? const [1.0] : available;
+  }
+
+  /// 把持久化的倍率约束到当前源图可用的档位。
+  static double resolveFactor(
+    double preferred, {
+    int? sourceWidth,
+    int? sourceHeight,
+  }) {
+    final available = availableFactors(
+      sourceWidth: sourceWidth,
+      sourceHeight: sourceHeight,
+    );
+    if (available.contains(preferred)) {
+      return preferred;
+    }
+    // 网页端在档位表变化时回落到最大的可用档。
+    return available.first;
   }
 }

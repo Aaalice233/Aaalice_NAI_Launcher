@@ -300,7 +300,9 @@ class StorageKeys {
   static const String kritaBridgeEnabled = 'krita_bridge_enabled';
 
   // 工作流设置
+  /// 旧版连续幅度（0-1），只用于迁移到 [workflowEnhanceLevel]。
   static const String workflowEnhanceMagnitude = 'workflow_enhance_magnitude';
+  static const String workflowEnhanceLevel = 'workflow_enhance_level';
   static const String workflowEnhanceShowIndividualSettings =
       'workflow_enhance_show_individual_settings';
   static const String workflowEnhanceUpscaleFactor =

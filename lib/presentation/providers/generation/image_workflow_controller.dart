@@ -288,28 +288,29 @@ class UpscaleWorkflowSettings {
 
 class EnhanceWorkflowSettings {
   const EnhanceWorkflowSettings({
-    this.magnitude = 0.5,
+    this.level = EnhanceLevels.defaultLevel,
     this.showIndividualSettings = false,
     this.upscaleFactor = 1.0,
     this.strength = 0.5,
-    this.noise = 0.175,
+    this.noise = 0.0,
   });
 
-  final double magnitude;
+  /// 网页端口径的 1-5 档幅度。
+  final int level;
   final bool showIndividualSettings;
   final double upscaleFactor;
   final double strength;
   final double noise;
 
   EnhanceWorkflowSettings copyWith({
-    double? magnitude,
+    int? level,
     bool? showIndividualSettings,
     double? upscaleFactor,
     double? strength,
     double? noise,
   }) {
     return EnhanceWorkflowSettings(
-      magnitude: magnitude ?? this.magnitude,
+      level: level ?? this.level,
       showIndividualSettings:
           showIndividualSettings ?? this.showIndividualSettings,
       upscaleFactor: upscaleFactor ?? this.upscaleFactor,
@@ -620,7 +621,8 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
   }
 
   EnhanceWorkflowSettings _readPersistedEnhanceSettings() {
-    final rawMagnitude = _storage.getSetting(
+    final rawLevel = _storage.getSetting(StorageKeys.workflowEnhanceLevel);
+    final rawLegacyMagnitude = _storage.getSetting(
       StorageKeys.workflowEnhanceMagnitude,
     );
     final rawShowIndividual = _storage.getSetting<bool>(
@@ -641,18 +643,27 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       return fallback;
     }
 
+    // 档位化之前存的是 0-1 的连续 magnitude，用独立的新键避免两种量纲混淆；
+    // 新键缺失时按最接近的档位迁移旧值。
+    final level = switch (rawLevel) {
+      final int value => value,
+      final double value => value.round(),
+      _ => rawLegacyMagnitude == null
+          ? const EnhanceWorkflowSettings().level
+          : EnhanceLevels.fromLegacyMagnitude(
+              asDouble(rawLegacyMagnitude, 0.5),
+            ),
+    };
+
     return EnhanceWorkflowSettings(
-      magnitude: asDouble(
-        rawMagnitude,
-        const EnhanceWorkflowSettings().magnitude,
-      ).clamp(0.0, 1.0),
+      level: level.clamp(EnhanceLevels.minLevel, EnhanceLevels.maxLevel),
       showIndividualSettings:
           rawShowIndividual ??
           const EnhanceWorkflowSettings().showIndividualSettings,
       upscaleFactor: asDouble(
         rawUpscaleFactor,
         const EnhanceWorkflowSettings().upscaleFactor,
-      ).clamp(1.0, 1.5),
+      ).clamp(1.0, EnhanceScales.candidates.first),
       strength: asDouble(
         rawStrength,
         const EnhanceWorkflowSettings().strength,
@@ -732,10 +743,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
 
   void _persistEnhanceSettings(EnhanceWorkflowSettings settings) {
     unawaited(
-      _storage.setSetting(
-        StorageKeys.workflowEnhanceMagnitude,
-        settings.magnitude,
-      ),
+      _storage.setSetting(StorageKeys.workflowEnhanceLevel, settings.level),
     );
     unawaited(
       _storage.setSetting(
@@ -1296,16 +1304,17 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     }
   }
 
-  void updateEnhanceMagnitude(double value) {
-    final resolved = _resolveMagnitude(value);
+  void updateEnhanceLevel(int level) {
+    final clamped = level.clamp(EnhanceLevels.minLevel, EnhanceLevels.maxLevel);
+    final resolved = EnhanceLevels.resolve(clamped);
     final nextSettings = state.enhance.copyWith(
-      magnitude: value.clamp(0.0, 1.0),
+      level: clamped,
       strength: state.enhance.showIndividualSettings
           ? state.enhance.strength
-          : resolved.$1,
+          : resolved.strength,
       noise: state.enhance.showIndividualSettings
           ? state.enhance.noise
-          : resolved.$2,
+          : resolved.noise,
     );
     state = state.copyWith(enhance: nextSettings);
     _persistEnhanceSettings(nextSettings);
@@ -1316,11 +1325,11 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
   }
 
   void toggleEnhanceIndividualSettings(bool value) {
-    final resolved = _resolveMagnitude(state.enhance.magnitude);
+    final resolved = EnhanceLevels.resolve(state.enhance.level);
     final nextSettings = state.enhance.copyWith(
       showIndividualSettings: value,
-      strength: value ? state.enhance.strength : resolved.$1,
-      noise: value ? state.enhance.noise : resolved.$2,
+      strength: value ? state.enhance.strength : resolved.strength,
+      noise: value ? state.enhance.noise : resolved.noise,
     );
     state = state.copyWith(enhance: nextSettings);
     _persistEnhanceSettings(nextSettings);
@@ -1329,12 +1338,29 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
 
   void updateEnhanceUpscaleFactor(double factor) {
     final nextSettings = state.enhance.copyWith(
-      upscaleFactor: factor <= 1.0 ? 1.0 : 1.5,
+      upscaleFactor: EnhanceScales.resolveFactor(
+        factor,
+        sourceWidth: state.sourceWidth ?? state.baseWidth,
+        sourceHeight: state.sourceHeight ?? state.baseHeight,
+      ),
     );
     state = state.copyWith(enhance: nextSettings);
     _persistEnhanceSettings(nextSettings);
     _applyEnhanceToParams();
   }
+
+  /// 当前源图尺寸下可用的放大倍率。
+  List<double> get availableEnhanceFactors => EnhanceScales.availableFactors(
+    sourceWidth: state.sourceWidth ?? state.baseWidth,
+    sourceHeight: state.sourceHeight ?? state.baseHeight,
+  );
+
+  /// 持久化的倍率在当前源图不可用时回落到最大可用档。
+  double get effectiveEnhanceFactor => EnhanceScales.resolveFactor(
+    state.enhance.upscaleFactor,
+    sourceWidth: state.sourceWidth ?? state.baseWidth,
+    sourceHeight: state.sourceHeight ?? state.baseHeight,
+  );
 
   void updateEnhanceIndividualSettings({double? strength, double? noise}) {
     final nextSettings = state.enhance.copyWith(
@@ -1364,6 +1390,9 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
   }
 
   void _restoreBaseParams() {
+    // 增强专属的一次性标记只属于增强请求，离开增强模式必须清掉，
+    // 否则后续普通生成会带着自动补的降权词发出去。
+    _paramsNotifier.updateIsEnhanceRequest(false);
     if (state.baseWidth != null && state.baseHeight != null) {
       _paramsNotifier.updateSize(
         state.baseWidth!,
@@ -1386,19 +1415,17 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
 
     final baseWidth = state.sourceWidth ?? state.baseWidth ?? _params.width;
     final baseHeight = state.sourceHeight ?? state.baseHeight ?? _params.height;
-    final requestWidth = _normalizeDimension(
-      (baseWidth * state.enhance.upscaleFactor).round(),
-    );
-    final requestHeight = _normalizeDimension(
-      (baseHeight * state.enhance.upscaleFactor).round(),
-    );
+    final factor = effectiveEnhanceFactor;
+    final requestWidth = _normalizeDimension((baseWidth * factor).round());
+    final requestHeight = _normalizeDimension((baseHeight * factor).round());
     final resolved = state.enhance.showIndividualSettings
-        ? (state.enhance.strength, state.enhance.noise)
-        : _resolveMagnitude(state.enhance.magnitude);
+        ? (strength: state.enhance.strength, noise: state.enhance.noise)
+        : EnhanceLevels.resolve(state.enhance.level);
 
     _paramsNotifier.updateSize(requestWidth, requestHeight, persist: false);
-    _paramsNotifier.updateStrength(resolved.$1);
-    _paramsNotifier.updateNoise(resolved.$2);
+    _paramsNotifier.updateStrength(resolved.strength);
+    _paramsNotifier.updateNoise(resolved.noise);
+    _paramsNotifier.updateIsEnhanceRequest(true);
     _paramsNotifier.updateAction(ImageGenerationAction.img2img);
   }
 
@@ -1425,13 +1452,6 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
 
     _paramsNotifier.updateIsOutpaint(false);
     _paramsNotifier.updateAction(ImageGenerationAction.img2img);
-  }
-
-  (double, double) _resolveMagnitude(double magnitude) {
-    final clamped = magnitude.clamp(0.0, 1.0);
-    // Magnitude 在 UI 中作为 Strength/Noise 的快捷联动值使用。
-    // 这里先采用保守映射，避免增强时默认噪声过高。
-    return (clamped, clamped * 0.35);
   }
 
   int _normalizeDimension(int value) {

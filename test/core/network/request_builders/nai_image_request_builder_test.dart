@@ -993,6 +993,70 @@ void main() {
         expect(result.vibeEncodingMap, isEmpty);
       },
     );
+
+    test('should add the enhance down-weight tag after quality tags', () async {
+      final params = ImageParams(
+        prompt: '1girl',
+        model: ImageModels.animeDiffusionV45Full,
+        qualityToggle: true,
+        ucPreset: UcPresets.noneApiValue,
+        action: ImageGenerationAction.img2img,
+        sourceImage: _validPngBytes(),
+        isEnhanceRequest: true,
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      expect(
+        result.requestData['input'],
+        '1girl, location, very aesthetic, masterpiece, no text'
+        ', -2::upscaled, blurry::,',
+      );
+    });
+
+    test('should skip the enhance tag on models without it', () async {
+      // 网页端能力位 enhancePromptAdd 从 V4.5 起才为 true。
+      final params = ImageParams(
+        prompt: '1girl',
+        model: ImageModels.animeDiffusionV4Full,
+        qualityToggle: false,
+        ucPreset: UcPresets.noneApiValue,
+        action: ImageGenerationAction.img2img,
+        sourceImage: _validPngBytes(),
+        isEnhanceRequest: true,
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      expect(result.requestData['input'], '1girl');
+    });
+
+    test('should leave plain img2img prompts untouched', () async {
+      final params = ImageParams(
+        prompt: '1girl',
+        model: ImageModels.animeDiffusionV45Full,
+        qualityToggle: false,
+        ucPreset: UcPresets.noneApiValue,
+        action: ImageGenerationAction.img2img,
+        sourceImage: _validPngBytes(),
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      expect(result.requestData['input'], '1girl');
+    });
   });
 }
 

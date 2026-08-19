@@ -155,6 +155,14 @@ class ImageParams with _$ImageParams {
     /// 使用坐标模式 (V4+ 多角色)
     @Default(false) bool useCoords,
 
+    /// 当前 img2img 请求是否来自增强面板。
+    ///
+    /// 网页端的增强是独立入口，会自动往提示词补降权词；启动器复用普通
+    /// img2img 通道，靠这个一次性标记区分。
+    @Default(false)
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    bool isEnhanceRequest,
+
     // ========== 生成动作 ==========
 
     /// 生成动作类型
@@ -248,6 +256,10 @@ extension ImageParamsExtension on ImageParams {
 
   /// 检查是否为 Inpainting 模型
   bool get isInpaintingModel => ImageModels.isInpaintingModel(model);
+
+  /// 是否要给本次请求的提示词补 `-2::upscaled, blurry::`。
+  bool get shouldApplyEnhancePromptAddition =>
+      isEnhanceRequest && capabilities.supportsEnhancePromptAdd;
 
   /// 网页端在重绘、局部重绘、DDIM 和 V4+ 请求中禁用 SMEA。
   /// V3 自动模式只在超过 1472×1472 时启用，旧模型阈值为 832×1280。
