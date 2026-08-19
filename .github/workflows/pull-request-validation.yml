@@ -1,0 +1,127 @@
+name: Pull Request Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/pull-request-validation.yml"
+      - ".github/workflows/release.yml"
+      - "assets/**"
+      - "installer/windows/**"
+      - "lib/**"
+      - "pubspec.lock"
+      - "pubspec.yaml"
+      - "scripts/**"
+      - "test/**"
+      - "tool/**"
+      - "windows/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.44.2"
+
+jobs:
+  windows-validation:
+    name: Test and package Windows
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v4
+        with:
+          nuget-version: latest
+
+      - name: Verify NuGet
+        shell: pwsh
+        run: ./scripts/verify_nuget.ps1
+
+      - name: Install NSIS
+        shell: pwsh
+        run: choco install nsis -y --no-progress
+
+      - name: Pull LFS databases
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git lfs install
+          git lfs pull --include="assets/databases/*.db"
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Validate bundled autocomplete databases
+        run: dart run tool/tag_catalog/verify_bundled_databases.dart
+
+      - name: Generate localizations
+        run: flutter gen-l10n
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Verify generated files
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git diff --exit-code
+
+      - name: Run tests
+        run: flutter test --reporter compact
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Build Windows release
+        run: flutter build windows --release
+
+      - name: Validate installer process handling
+        shell: pwsh
+        run: ./scripts/validate_windows_installer_process_handling.ps1
+
+      - name: Package Windows artifacts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $match = Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$'
+          if (!$match) {
+            throw 'pubspec.yaml does not contain a version field.'
+          }
+          $version = $match.Matches[0].Groups[1].Value.Trim() -replace '\+.*$', ''
+          ./scripts/package_windows_release.ps1 `
+            -Version $version `
+            -SkipFlutterBuild
+
+      - name: Verify packaged artifacts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $match = Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$'
+          $version = $match.Matches[0].Groups[1].Value.Trim() -replace '\+.*$', ''
+          $required = @(
+            "dist/NAI_Launcher_Windows_${version}_Setup.exe",
+            "dist/NAI_Launcher_Windows_${version}_Portable.zip"
+          )
+          foreach ($path in $required) {
+            if (!(Test-Path -LiteralPath $path)) {
+              throw "Missing packaged artifact: $path"
+            }
+          }
