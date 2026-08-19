@@ -3633,7 +3633,7 @@
   "preciseRef_referenceType": "参照タイプ",
   "preciseRef_strength": "強度",
   "preciseRef_fidelity": "忠実度",
-  "preciseRef_v4Only": "この機能には V4 以降のモデルが必要です",
+  "preciseRef_v4Only": "この機能は V4.5 モデルのみ対応しています",
   "preciseRef_typeCharacter": "キャラ参照",
   "preciseRef_typeStyle": "絵柄参照",
   "preciseRef_typeCharacterAndStyle": "キャラ＆絵柄参照",

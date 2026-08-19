@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
@@ -549,6 +550,58 @@ void main() {
       expect(reference.fidelity, 0.9);
     },
   );
+
+  group('updateModel default follow-up', () {
+    test('should adopt the new model defaults when untouched', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV4Full);
+      notifier.updateScale(5.5);
+
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+
+      final params = container.read(generationParamsNotifierProvider);
+      expect(params.model, ImageModels.animeDiffusionV45Full);
+      expect(params.scale, 5.0);
+    });
+
+    test('should keep a scale the user adjusted', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV4Full);
+      notifier.updateScale(7.5);
+
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+
+      expect(container.read(generationParamsNotifierProvider).scale, 7.5);
+    });
+
+    test('should skip the follow-up for metadata imports', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV4Full);
+      notifier.updateScale(5.5);
+
+      notifier.updateModel(
+        ImageModels.animeDiffusionV45Full,
+        followDefaults: false,
+      );
+
+      expect(container.read(generationParamsNotifierProvider).scale, 5.5);
+    });
+  });
 }
 
 Uint8List _validPngBytes({required int width, required int height}) =>

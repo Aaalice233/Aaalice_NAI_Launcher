@@ -9,6 +9,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/constants/api_constants.dart';
+import '../../../core/constants/model_capabilities.dart';
 import '../../../core/enums/precise_ref_type.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
@@ -209,10 +210,44 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   }
 
   /// 更新模型
-  void updateModel(String model, {bool persist = true}) {
-    state = state.copyWith(model: model);
+  /// 更新模型
+  ///
+  /// [followDefaults] 为 true 时，若 CFG 与步数仍停留在旧模型的出厂默认值，
+  /// 会一并切到新模型的默认值；用户手动调过的参数不会被覆盖。元数据导入等
+  /// 需要还原历史参数的场景应传 false。
+  void updateModel(
+    String model, {
+    bool persist = true,
+    bool followDefaults = true,
+  }) {
+    final previousModel = state.model;
+    var next = state.copyWith(model: model);
+
+    final followUps = followDefaults
+        ? resolveModelSwitchFollowUps(
+            from: ModelCapabilityRegistry.of(previousModel),
+            to: ModelCapabilityRegistry.of(model),
+            currentScale: state.scale,
+            currentSteps: state.steps,
+          )
+        : const ModelSwitchFollowUps();
+
+    if (followUps.scale != null) {
+      next = next.copyWith(scale: followUps.scale!);
+    }
+    if (followUps.steps != null) {
+      next = next.copyWith(steps: followUps.steps!);
+    }
+    state = next;
+
     if (persist) {
       _storage.setDefaultModel(model);
+      if (followUps.scale != null) {
+        _storage.setDefaultScale(followUps.scale!);
+      }
+      if (followUps.steps != null) {
+        _storage.setDefaultSteps(followUps.steps!);
+      }
     }
   }
 

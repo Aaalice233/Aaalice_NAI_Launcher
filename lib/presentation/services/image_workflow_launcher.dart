@@ -271,7 +271,9 @@ class ImageWorkflowLauncher {
         updateScale: notifier.updateScale,
         updateSize: notifier.updateSize,
         updateSampler: notifier.updateSampler,
-        updateModel: notifier.updateModel,
+        // 导入要还原图片自带的参数，模型切换不能再套用新模型的默认值
+        updateModel: (value) =>
+            notifier.updateModel(value, followDefaults: false),
         updateSmea: notifier.updateSmea,
         updateSmeaDyn: notifier.updateSmeaDyn,
         updateVarietyPlus: notifier.updateVarietyPlus,

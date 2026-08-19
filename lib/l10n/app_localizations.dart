@@ -13664,7 +13664,7 @@ abstract class AppLocalizations {
   /// No description provided for @preciseRef_v4Only.
   ///
   /// In en, this message translates to:
-  /// **'This feature requires V4+ models'**
+  /// **'This feature is only available on V4.5 models'**
   String get preciseRef_v4Only;
 
   /// No description provided for @preciseRef_typeCharacter.

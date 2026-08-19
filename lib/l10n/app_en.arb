@@ -3686,7 +3686,7 @@
   "preciseRef_referenceType": "Reference Type",
   "preciseRef_strength": "Strength",
   "preciseRef_fidelity": "Fidelity",
-  "preciseRef_v4Only": "This feature requires V4+ models",
+  "preciseRef_v4Only": "This feature is only available on V4.5 models",
   "preciseRef_typeCharacter": "Character",
   "preciseRef_typeStyle": "Style",
   "preciseRef_typeCharacterAndStyle": "Character + Style",

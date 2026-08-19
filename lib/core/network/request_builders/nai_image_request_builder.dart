@@ -49,7 +49,7 @@ class NAIImageRequestBuilder {
     List<PreciseReference>? preciseReferences,
   }) : _preciseReferences =
            (preciseReferences ??
-                   (params.isV45Model
+                   (params.capabilities.supportsPreciseReference
                        ? params.preciseReferences
                        : <PreciseReference>[]))
                .where((reference) => reference.enabled)
@@ -193,6 +193,10 @@ class NAIImageRequestBuilder {
     if (params.action == ImageGenerationAction.infill) {
       // NovelAI 的 infill 请求会直接携带 image + mask，继续附带
       // Vibe Transfer payload 会触发服务端 500，因此局部重绘时跳过。
+      return vibeEncodingMap;
+    }
+    if (!params.capabilities.supportsVibeTransfer) {
+      // 不支持 Vibe Transfer 的模型带上相关参数会被服务端拒绝。
       return vibeEncodingMap;
     }
     if (!params.hasVibeReferencesV4) {

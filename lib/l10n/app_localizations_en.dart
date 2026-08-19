@@ -7635,7 +7635,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preciseRef_fidelity => 'Fidelity';
 
   @override
-  String get preciseRef_v4Only => 'This feature requires V4+ models';
+  String get preciseRef_v4Only =>
+      'This feature is only available on V4.5 models';
 
   @override
   String get preciseRef_typeCharacter => 'Character';

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../../data/models/image/image_params.dart';
+import '../constants/model_capabilities.dart';
 
 /// Anlas 消耗计算器
 ///
@@ -20,11 +21,12 @@ class AnlasCalculator {
   static const int _preciseReferenceCost = 5;
 
   static bool _usesPreciseReferences(ImageParams params) {
-    return params.isV45Model && params.hasPreciseReferences;
+    return params.capabilities.supportsPreciseReference &&
+        params.hasPreciseReferences;
   }
 
   static bool usesVibeReferences(ImageParams params) {
-    return params.isV4Model &&
+    return params.capabilities.supportsVibeTransfer &&
         params.hasVibeReferencesV4 &&
         params.action != ImageGenerationAction.infill &&
         !_usesPreciseReferences(params);
@@ -175,27 +177,24 @@ class AnlasCalculator {
     bool hasCharacterReference = false,
     double strength = 1.0,
   }) {
-    // 计算分辨率（像素数）
-    int r = width * height;
-    if (r < 65536) r = 65536; // 最小分辨率限制
-
-    // 确定模型版本
-    final version = _getModelVersion(model);
+    final pixels = width * height;
 
     // 计算每张图的基础消耗
     double perSample;
 
-    if (version >= 3) {
-      // 网页端先对面积与步数公式向上取整，再应用 SMEA 与重绘强度。
-      final baseCost = (_areaCoefficient * r + _stepAreaCoefficient * r * steps)
-          .ceil();
+    if (ModelCapabilityRegistry.of(model).anlasFormula == AnlasFormula.modern) {
+      // 网页端只对面积与步数部分取整，随后连乘 SMEA 倍率与重绘强度，最后统一取整。
+      final baseCost =
+          (_areaCoefficient * pixels + _stepAreaCoefficient * pixels * steps)
+              .ceil();
       final smeaFactor = !smea ? 1.0 : (!smeaDyn ? 1.2 : 1.4);
-      perSample = (baseCost * smeaFactor).ceilToDouble();
+      perSample = baseCost * smeaFactor;
     } else {
-      // 旧模型沿用已有的指数估算；本次计费更新只替换当前 V3/V4 路径，
+      // 旧模型沿用已有的指数估算；本次计费更新只替换当前现代模型路径，
       // 避免用现代模型公式回算旧版请求。
       perSample =
-          (15.266497014243718 * math.exp(r / 1024 / 1024 * 0.6326248927474729) -
+          (15.266497014243718 *
+                  math.exp(pixels / 1024 / 1024 * 0.6326248927474729) -
               15.225164493059737) *
           steps /
           28;
@@ -210,7 +209,7 @@ class AnlasCalculator {
         _isOpusFree(
           isOpus: isOpus || subscriptionTier >= opusTier,
           steps: steps,
-          resolution: r,
+          resolution: pixels,
           hasCharacterReference: hasCharacterReference,
         )
         ? 1
@@ -235,16 +234,6 @@ class AnlasCalculator {
         !hasCharacterReference &&
         steps <= 28 &&
         resolution <= 1024 * 1024;
-  }
-
-  /// 获取模型版本号
-  static int _getModelVersion(String model) {
-    if (model.contains('diffusion-4')) return 4;
-    if (model.contains('diffusion-3') || model.contains('diffusion-furry-3')) {
-      return 3;
-    }
-    if (model.contains('diffusion-2')) return 2;
-    return 1;
   }
 
   /// 检查当前参数是否满足 Opus 免费条件

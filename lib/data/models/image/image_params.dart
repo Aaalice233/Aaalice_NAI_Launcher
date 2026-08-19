@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/constants/api_constants.dart';
+import '../../../core/constants/model_capabilities.dart';
 import '../../../core/enums/precise_ref_type.dart';
 import '../vibe/vibe_reference.dart';
 
@@ -231,19 +233,21 @@ class ImageParams with _$ImageParams {
 
 /// ImageParams 扩展方法
 extension ImageParamsExtension on ImageParams {
+  /// 当前模型的能力描述
+  ModelCapabilities get capabilities => ModelCapabilityRegistry.of(model);
+
   /// 检查是否为 V3 模型
   bool get isV3Model =>
       model.contains('diffusion-3') || model.contains('diffusion-furry-3');
 
   /// 检查是否为 V4+ 模型
-  bool get isV4Model =>
-      model.contains('diffusion-4') || model.contains('diffusion-4-5');
+  bool get isV4Model => ImageModels.isV4Model(model);
 
   /// 检查是否为 V4.5 模型
-  bool get isV45Model => model.contains('diffusion-4-5');
+  bool get isV45Model => ImageModels.isV45Model(model);
 
   /// 检查是否为 Inpainting 模型
-  bool get isInpaintingModel => model.contains('inpainting');
+  bool get isInpaintingModel => ImageModels.isInpaintingModel(model);
 
   /// 网页端在重绘、局部重绘、DDIM 和 V4+ 请求中禁用 SMEA。
   /// V3 自动模式只在超过 1472×1472 时启用，旧模型阈值为 832×1280。

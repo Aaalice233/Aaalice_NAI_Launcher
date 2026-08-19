@@ -7382,7 +7382,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preciseRef_fidelity => '保真度';
 
   @override
-  String get preciseRef_v4Only => '此功能需要 V4+ 模型';
+  String get preciseRef_v4Only => '此功能仅 V4.5 模型支持';
 
   @override
   String get preciseRef_typeCharacter => '角色';

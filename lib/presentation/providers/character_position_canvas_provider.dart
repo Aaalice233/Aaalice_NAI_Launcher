@@ -11,18 +11,23 @@ import 'prompt_maximize_provider.dart';
 part 'character_position_canvas_provider.g.dart';
 
 bool isCharacterPositionCanvasAvailable({
-  required bool isV4Model,
+  required bool supportsCharacterPositioning,
   required bool hasCharacters,
   required bool isGenerating,
   required bool hasError,
 }) {
-  return isV4Model && hasCharacters && !isGenerating && !hasError;
+  return supportsCharacterPositioning &&
+      hasCharacters &&
+      !isGenerating &&
+      !hasError;
 }
 
-/// 位置画布仅在 V4、多角色且未生成/报错时可占用预览区。
+/// 位置画布仅在支持角色定位的模型、有角色且未生成/报错时可占用预览区。
 final characterPositionCanvasAvailableProvider = Provider<bool>((ref) {
-  final isV4Model = ref.watch(
-    generationParamsNotifierProvider.select((params) => params.isV4Model),
+  final supportsCharacterPositioning = ref.watch(
+    generationParamsNotifierProvider.select(
+      (params) => params.capabilities.supportsCharacterPositioning,
+    ),
   );
   final hasCharacters = ref.watch(
     characterPromptNotifierProvider.select(
@@ -35,7 +40,7 @@ final characterPositionCanvasAvailableProvider = Provider<bool>((ref) {
     ),
   );
   return isCharacterPositionCanvasAvailable(
-    isV4Model: isV4Model,
+    supportsCharacterPositioning: supportsCharacterPositioning,
     hasCharacters: hasCharacters,
     isGenerating: generationState.$1,
     hasError: generationState.$2,

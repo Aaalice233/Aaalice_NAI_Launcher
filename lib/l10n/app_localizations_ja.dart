@@ -7475,7 +7475,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get preciseRef_fidelity => '忠実度';
 
   @override
-  String get preciseRef_v4Only => 'この機能には V4 以降のモデルが必要です';
+  String get preciseRef_v4Only => 'この機能は V4.5 モデルのみ対応しています';
 
   @override
   String get preciseRef_typeCharacter => 'キャラ参照';

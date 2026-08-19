@@ -1431,7 +1431,7 @@
   "preciseRef_referenceType": "参考类型",
   "preciseRef_strength": "参考强度",
   "preciseRef_fidelity": "保真度",
-  "preciseRef_v4Only": "此功能需要 V4+ 模型",
+  "preciseRef_v4Only": "此功能仅 V4.5 模型支持",
   "preciseRef_typeCharacter": "角色",
   "preciseRef_typeStyle": "风格",
   "preciseRef_typeCharacterAndStyle": "角色+风格",

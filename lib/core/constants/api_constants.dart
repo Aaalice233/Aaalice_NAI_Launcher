@@ -1,3 +1,5 @@
+import 'model_capabilities.dart';
+
 /// NovelAI API 常量定义
 class ApiConstants {
   ApiConstants._();
@@ -99,11 +101,13 @@ class ImageModels {
     furryDiffusion: 'Furry Diffusion',
   };
 
-  /// 判断是否为 V4+ 模型
+  /// 判断是否使用 V4 起的提示词结构
   static bool isV4Model(String model) =>
-      model.contains('diffusion-4') || model.contains('diffusion-4-5');
+      ModelCapabilityRegistry.of(model).promptStructure == PromptStructure.v4;
 
-  /// 判断是否为 V4.5 模型
+  /// 判断是否为 V4.5 家族。
+  ///
+  /// 语义严格限定在 V4.5，用作精准参考等 V4.5 专属功能的判定代理。
   static bool isV45Model(String model) => model.contains('diffusion-4-5');
 
   /// 判断是否为 Inpainting 模型
@@ -137,23 +141,8 @@ class ImageModels {
   }
 
   /// 判断实际请求模型是否支持在 Inpainting 中复用原图潜空间。
-  static bool supportsImg2ImgInpainting(String model) {
-    return switch (model) {
-      animeDiffusionV45Full ||
-      animeDiffusionV45FullInpainting ||
-      animeDiffusionV45Curated ||
-      animeDiffusionV45CuratedInpainting ||
-      animeDiffusionV4Full ||
-      animeDiffusionV4FullInpainting ||
-      animeDiffusionV4Curated ||
-      animeDiffusionV4CuratedInpainting ||
-      animeDiffusionV3 ||
-      animeDiffusionV3Inpainting ||
-      furryDiffusionV3 ||
-      furryDiffusionV3Inpainting => true,
-      _ => false,
-    };
-  }
+  static bool supportsImg2ImgInpainting(String model) =>
+      ModelCapabilityRegistry.of(model).supportsImg2ImgInpainting;
 }
 
 /// 采样器列表
