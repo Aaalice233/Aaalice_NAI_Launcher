@@ -1108,6 +1108,12 @@ abstract class AppLocalizations {
   /// **'Integrations'**
   String get settings_integrations;
 
+  /// No description provided for @settings_generationModelSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get settings_generationModelSection;
+
   /// No description provided for @settings_generationInputSection.
   ///
   /// In en, this message translates to:
@@ -1533,6 +1539,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Image Size'**
   String get generation_imageSize;
+
+  /// No description provided for @generation_transparentBackground.
+  ///
+  /// In en, this message translates to:
+  /// **'Transparent BG'**
+  String get generation_transparentBackground;
+
+  /// No description provided for @generation_e2eUpscaleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Server outputs {size}'**
+  String generation_e2eUpscaleHint(Object size);
 
   /// No description provided for @generation_sampler.
   ///
@@ -2427,6 +2445,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Upscale Amount'**
   String get img2img_enhanceUpscaleAmount;
+
+  /// No description provided for @img2img_enhanceScaleMax.
+  ///
+  /// In en, this message translates to:
+  /// **'Max'**
+  String get img2img_enhanceScaleMax;
 
   /// No description provided for @img2img_focusedInpaint.
   ///
@@ -12299,6 +12323,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Retry Interval'**
   String get settings_queueRetryInterval;
+
+  /// No description provided for @settings_showV5TestModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Show V5 test models'**
+  String get settings_showV5TestModels;
+
+  /// No description provided for @settings_showV5TestModelsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'List NovelAI V5 staging models in the model picker. Requires a test-access account to generate.'**
+  String get settings_showV5TestModelsSubtitle;
 
   /// No description provided for @settings_showRandomPromptTools.
   ///

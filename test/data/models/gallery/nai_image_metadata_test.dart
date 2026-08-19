@@ -103,6 +103,74 @@ void main() {
       },
     );
 
+    test('fromNaiComment should map the V5 staging source fingerprint', () {
+      // 字段取自实际的 V5 测试站生成图，其中 skip_cfg_below_sigma 等
+      // 是服务端在 V5 世代新增的记录字段，解析必须原样容忍。
+      final metadata = NaiImageMetadata.fromNaiComment({
+        'Comment': jsonEncode({
+          'prompt': '1girl, sunset',
+          'uc': 'bad hands',
+          'steps': 28,
+          'width': 1920,
+          'height': 1088,
+          'scale': 6.0,
+          'seed': 1347709609,
+          'sampler': 'k_euler_ancestral',
+          'noise_schedule': 'karras',
+          'cfg_rescale': 0.4,
+          'skip_cfg_above_sigma': 83.34213178923424,
+          'skip_cfg_below_sigma': 0.0,
+          'cfg_sched_eligibility': 'enable_for_post_summer_samplers',
+          'quality_boost': false,
+          'straight_alpha': false,
+          'uncond_per_vibe': true,
+          'wonky_vibe_correlation': true,
+          'signed_hash': '0jNDGIqAgJ6k2iVPrZb6KopAhInDG1F1p',
+          'v4_prompt': {
+            'caption': {'base_caption': '1girl, sunset', 'char_captions': []},
+            'use_coords': true,
+            'use_order': true,
+            'legacy_uc': false,
+          },
+          'v4_negative_prompt': {
+            'caption': {'base_caption': 'bad hands', 'char_captions': []},
+            'use_coords': false,
+            'use_order': false,
+            'legacy_uc': false,
+          },
+        }),
+        'Software': 'NovelAI',
+        'Source': 'DiffusionModelMetaName.NAIv5 DE206BDA',
+      });
+
+      expect(metadata.model, equals(ImageModels.animeDiffusionV5Curated));
+      expect(metadata.source, equals('DiffusionModelMetaName.NAIv5 DE206BDA'));
+      expect(metadata.steps, 28);
+      expect(metadata.width, 1920);
+      expect(metadata.height, 1088);
+      expect(metadata.scale, 6.0);
+      expect(metadata.seed, 1347709609);
+      expect(metadata.noiseSchedule, 'karras');
+    });
+
+    test('fromNaiComment should map production-style V5 source names', () {
+      NaiImageMetadata parseWithSource(String source) =>
+          NaiImageMetadata.fromNaiComment({
+            'Comment': jsonEncode({'prompt': '1girl', 'uc': ''}),
+            'Software': 'NovelAI',
+            'Source': source,
+          });
+
+      expect(
+        parseWithSource('NovelAI Diffusion V5 1234ABCD').model,
+        equals(ImageModels.animeDiffusionV5Curated),
+      );
+      expect(
+        parseWithSource('NovelAI Diffusion V5 Full 1234ABCD').model,
+        equals(ImageModels.animeDiffusionV5Full),
+      );
+    });
+
     test(
       'fromNaiComment should not infer model from ambiguous V4.5 source',
       () {

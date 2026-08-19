@@ -346,14 +346,18 @@ class EnhanceWorkflowSettings {
     this.level = EnhanceLevels.defaultLevel,
     this.showIndividualSettings = false,
     this.upscaleFactor = 1.0,
+    this.maxScale = false,
     this.strength = 0.5,
     this.noise = 0.0,
   });
 
-  /// 网页端口径的 1-5 档幅度。
+  /// 官网口径的 1-5 档幅度。
   final int level;
   final bool showIndividualSettings;
   final double upscaleFactor;
+
+  /// max 档：不按倍率放大，交给服务端放到 3.14MP 上限。
+  final bool maxScale;
   final double strength;
   final double noise;
 
@@ -361,6 +365,7 @@ class EnhanceWorkflowSettings {
     int? level,
     bool? showIndividualSettings,
     double? upscaleFactor,
+    bool? maxScale,
     double? strength,
     double? noise,
   }) {
@@ -369,6 +374,7 @@ class EnhanceWorkflowSettings {
       showIndividualSettings:
           showIndividualSettings ?? this.showIndividualSettings,
       upscaleFactor: upscaleFactor ?? this.upscaleFactor,
+      maxScale: maxScale ?? this.maxScale,
       strength: strength ?? this.strength,
       noise: noise ?? this.noise,
     );
@@ -732,6 +738,10 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     final rawUpscaleFactor = _storage.getSetting(
       StorageKeys.workflowEnhanceUpscaleFactor,
     );
+    final rawMaxScale = _storage.getSetting<bool>(
+      StorageKeys.workflowEnhanceMaxScale,
+      defaultValue: const EnhanceWorkflowSettings().maxScale,
+    );
     final rawStrength = _storage.getSetting(
       StorageKeys.workflowEnhanceStrength,
     );
@@ -765,6 +775,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
         rawUpscaleFactor,
         const EnhanceWorkflowSettings().upscaleFactor,
       ).clamp(1.0, EnhanceScales.candidates.first),
+      maxScale: rawMaxScale ?? const EnhanceWorkflowSettings().maxScale,
       strength: asDouble(
         rawStrength,
         const EnhanceWorkflowSettings().strength,
@@ -888,6 +899,12 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       _storage.setSetting(
         StorageKeys.workflowEnhanceUpscaleFactor,
         settings.upscaleFactor,
+      ),
+    );
+    unawaited(
+      _storage.setSetting(
+        StorageKeys.workflowEnhanceMaxScale,
+        settings.maxScale,
       ),
     );
     unawaited(
@@ -1047,6 +1064,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       _paramsNotifier.updateModel(
         ImageModels.resolveBaseModel(_params.model),
         persist: false,
+        followDefaults: false,
       );
     }
 
@@ -1498,21 +1516,27 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
         sourceWidth: state.sourceWidth ?? state.baseWidth,
         sourceHeight: state.sourceHeight ?? state.baseHeight,
       ),
+      maxScale: false,
     );
     state = state.copyWith(enhance: nextSettings);
     _persistEnhanceSettings(nextSettings);
     _applyEnhanceToParams();
   }
 
-  /// 当前源图尺寸下可用的放大倍率。
-  List<double> get availableEnhanceFactors => EnhanceScales.availableFactors(
-    sourceWidth: state.sourceWidth ?? state.baseWidth,
-    sourceHeight: state.sourceHeight ?? state.baseHeight,
-  );
+  /// 切到 max 档：不按倍率放大，服务端把结果放到 3.14MP 上限。
+  void selectEnhanceMaxScale() {
+    if (!isMaxEnhanceAvailable) {
+      return;
+    }
+    final nextSettings = state.enhance.copyWith(maxScale: true);
+    state = state.copyWith(enhance: nextSettings);
+    _persistEnhanceSettings(nextSettings);
+    _applyEnhanceToParams();
+  }
 
-  /// 持久化的倍率在当前源图不可用时回落到最大可用档。
-  double get effectiveEnhanceFactor => EnhanceScales.resolveFactor(
-    state.enhance.upscaleFactor,
+  /// max 档在当前模型与源图尺寸下是否可用。
+  bool get isMaxEnhanceAvailable => E2eUpscale.allowsMaxEnhance(
+    _params.capabilities,
     sourceWidth: state.sourceWidth ?? state.baseWidth,
     sourceHeight: state.sourceHeight ?? state.baseHeight,
   );
@@ -1546,7 +1570,8 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
 
   void _restoreBaseParams() {
     // 增强专属的一次性标记只属于增强请求，离开增强模式必须清掉，
-    // 否则后续普通生成会带着自动补的降权词发出去。
+    // 否则后续普通生成会带着 max 档参数或自动补的降权词发出去。
+    _paramsNotifier.updateUpscaledEnhance(false);
     _paramsNotifier.updateIsEnhanceRequest(false);
     if (state.baseWidth != null && state.baseHeight != null) {
       _paramsNotifier.updateSize(
@@ -1570,7 +1595,10 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
 
     final baseWidth = state.sourceWidth ?? state.baseWidth ?? _params.width;
     final baseHeight = state.sourceHeight ?? state.baseHeight ?? _params.height;
-    final factor = effectiveEnhanceFactor;
+    // max 档按原尺寸发请求，由服务端等比放到面积上限；模型不支持或原图太大时
+    // 自动退回倍率档，避免 upscaled_enhance 发给不认识它的模型。
+    final useMaxScale = state.enhance.maxScale && isMaxEnhanceAvailable;
+    final factor = useMaxScale ? 1.0 : effectiveEnhanceFactor;
     final requestWidth = _normalizeDimension((baseWidth * factor).round());
     final requestHeight = _normalizeDimension((baseHeight * factor).round());
     final resolved = state.enhance.showIndividualSettings
@@ -1580,9 +1608,23 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     _paramsNotifier.updateSize(requestWidth, requestHeight, persist: false);
     _paramsNotifier.updateStrength(resolved.strength);
     _paramsNotifier.updateNoise(resolved.noise);
+    _paramsNotifier.updateUpscaledEnhance(useMaxScale);
     _paramsNotifier.updateIsEnhanceRequest(true);
     _paramsNotifier.updateAction(ImageGenerationAction.img2img);
   }
+
+  /// 当前源图尺寸下可用的放大倍率。
+  List<double> get availableEnhanceFactors => EnhanceScales.availableFactors(
+    sourceWidth: state.sourceWidth ?? state.baseWidth,
+    sourceHeight: state.sourceHeight ?? state.baseHeight,
+  );
+
+  /// 持久化的倍率在当前源图不可用时回落到最大可用档。
+  double get effectiveEnhanceFactor => EnhanceScales.resolveFactor(
+    state.enhance.upscaleFactor,
+    sourceWidth: state.sourceWidth ?? state.baseWidth,
+    sourceHeight: state.sourceHeight ?? state.baseHeight,
+  );
 
   void _applySourceSizeToParams() {
     final width = state.sourceWidth;

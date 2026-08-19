@@ -206,6 +206,7 @@
   "settings_dataStorage": "数据与存储",
   "settings_privacySharing": "安全与分享",
   "settings_integrations": "集成",
+  "settings_generationModelSection": "模型",
   "settings_generationInputSection": "输入",
   "settings_generationRetrySection": "失败重试",
   "settings_generationFeedbackSection": "完成提醒",
@@ -288,6 +289,8 @@
   "generation_clearHistoryConfirm": "确定要清除所有历史记录吗？此操作不可撤销。",
   "generation_model": "模型",
   "generation_imageSize": "图像尺寸",
+  "generation_transparentBackground": "透明背景",
+  "generation_e2eUpscaleHint": "服务端输出 {size}",
   "generation_sampler": "采样器",
   "generation_steps": "步数: {steps}",
   "generation_cfgScale": "CFG 强度：{scale}",
@@ -511,6 +514,7 @@
   "img2img_enhanceMagnitude": "幅度",
   "img2img_enhanceShowIndividualSettings": "显示单独设置",
   "img2img_enhanceUpscaleAmount": "放大倍数",
+  "img2img_enhanceScaleMax": "最大",
   "img2img_focusedInpaint": "Focused Inpainting（聚焦重绘）",
   "img2img_focusedInpaintEnabledHint": "已启用。请在重绘编辑器左上角按钮里调整聚焦区域与 Minimum Context Area。",
   "img2img_focusedInpaintDisabledHint": "默认是普通重绘；如需聚焦重绘，请在重绘编辑器左上角按钮中开启并框选区域。",
@@ -3289,6 +3293,8 @@
 
   "settings_queueRetryCount": "重试次数",
   "settings_queueRetryInterval": "重试间隔",
+  "settings_showV5TestModels": "显示 V5 测试模型",
+  "settings_showV5TestModelsSubtitle": "在模型列表中显示 NovelAI V5 测试站模型，需要测试资格账号才能生成",
   "settings_showRandomPromptTools": "显示随机提示词工具",
   "settings_showRandomPromptToolsSubtitle": "在生成页显示“随机提示词”按钮和“抽卡模式”开关",
   "settings_enablePromptWeightScroll": "滚轮调整提示词权重",
@@ -5472,6 +5478,11 @@
   "@generation_cfgRescale": {
     "placeholders": {
       "value": {}
+    }
+  },
+  "@generation_e2eUpscaleHint": {
+    "placeholders": {
+      "size": {}
     }
   },
   "@generation_cfgScale": {

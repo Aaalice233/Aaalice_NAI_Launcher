@@ -1076,6 +1076,262 @@ void main() {
       },
     );
 
+    test('should build the V5 staging payload with params_version 4', () async {
+      const params = ImageParams(
+        prompt: '1girl',
+        model: ImageModels.v5StagingKey,
+        qualityToggle: false,
+        ucPreset: UcPresets.noneApiValue,
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+      final parameters = result.requestParameters;
+
+      expect(result.requestData['model'], ImageModels.v5StagingKey);
+      expect(parameters['params_version'], 4);
+      expect(parameters['v4_prompt'], isA<Map<String, dynamic>>());
+      expect(parameters['v4_negative_prompt'], isA<Map<String, dynamic>>());
+      // V4 起的结构不再发送 V3 时代的顶层字段
+      expect(parameters.containsKey('sm'), isFalse);
+      expect(parameters.containsKey('sm_dyn'), isFalse);
+      expect(parameters.containsKey('uc'), isFalse);
+    });
+
+    test('should keep V4.5 requests on params_version 3', () async {
+      const params = ImageParams(model: ImageModels.animeDiffusionV45Full);
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      expect(result.requestParameters['params_version'], 3);
+    });
+
+    test('should omit vibe payload for models without vibe support', () async {
+      // V5 测试期尚未开放 Vibe Transfer，携带相关参数会被服务端拒绝。
+      const params = ImageParams(
+        model: ImageModels.v5StagingKey,
+        vibeReferencesV4: [
+          VibeReference(
+            displayName: 'pre',
+            vibeEncoding: 'pre-encoded',
+            sourceType: VibeSourceType.png,
+          ),
+        ],
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      expect(
+        result.requestParameters.containsKey('reference_image_multiple'),
+        isFalse,
+      );
+      expect(
+        result.requestParameters.containsKey('reference_strength_multiple'),
+        isFalse,
+      );
+      expect(result.vibeEncodingMap, isEmpty);
+    });
+
+    test('should keep the V5 infill request on the base model', () async {
+      final params = ImageParams(
+        model: ImageModels.v5StagingKey,
+        action: ImageGenerationAction.infill,
+        sourceImage: _solidPngBytes(width: 64, height: 64),
+        maskImage: _solidPngBytes(width: 64, height: 64),
+        width: 64,
+        height: 64,
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      expect(result.requestData['model'], ImageModels.v5StagingKey);
+    });
+
+    test(
+      'should insert transparent background before the quality tags',
+      () async {
+        const params = ImageParams(
+          prompt: '1girl',
+          model: ImageModels.v5StagingKey,
+          qualityToggle: true,
+          ucPreset: UcPresets.noneApiValue,
+          transparentBackground: true,
+        );
+        final builder = NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        );
+
+        final result = await builder.build(sampler: 'k_euler_ancestral');
+
+        expect(
+          result.requestData['input'],
+          '1girl, transparent background, very aesthetic, masterpiece, no text',
+        );
+        expect(result.requestParameters['straight_alpha'], isTrue);
+        expect(
+          result.requestParameters['tag_hint_transparent_background'],
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'should still add transparent background without quality tags',
+      () async {
+        const params = ImageParams(
+          prompt: '1girl',
+          model: ImageModels.v5StagingKey,
+          qualityToggle: false,
+          ucPreset: UcPresets.noneApiValue,
+          transparentBackground: true,
+        );
+        final builder = NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        );
+
+        final result = await builder.build(sampler: 'k_euler_ancestral');
+
+        expect(result.requestData['input'], '1girl, transparent background');
+      },
+    );
+
+    test('should send straight_alpha even with the toggle off', () async {
+      // 官网把 alpha 模式当账号设置，只要模型支持透明就一直下发。
+      const params = ImageParams(model: ImageModels.v5StagingKey);
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      expect(result.requestParameters['straight_alpha'], isTrue);
+      expect(
+        result.requestParameters.containsKey('tag_hint_transparent_background'),
+        isFalse,
+      );
+    });
+
+    test('should omit transparency params for V4.5', () async {
+      const params = ImageParams(
+        prompt: '1girl',
+        model: ImageModels.animeDiffusionV45Full,
+        qualityToggle: false,
+        transparentBackground: true,
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      expect(result.requestData['input'], '1girl');
+      expect(result.requestParameters.containsKey('straight_alpha'), isFalse);
+      expect(
+        result.requestParameters.containsKey('tag_hint_transparent_background'),
+        isFalse,
+      );
+    });
+
+    test('should send the e2e upscale block for V5 generate', () async {
+      const params = ImageParams(
+        model: ImageModels.v5StagingKey,
+        e2eUpscale: true,
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      expect(result.requestParameters['upscale'], {
+        'declared_blur_sigma': E2eUpscale.declaredBlurSigma,
+      });
+      // 基础分辨率不变，翻倍由服务端完成
+      expect(result.requestParameters['width'], params.width);
+      expect(result.requestParameters['height'], params.height);
+    });
+
+    test('should drop the e2e upscale block for infill', () async {
+      final params = ImageParams(
+        model: ImageModels.v5StagingKey,
+        e2eUpscale: true,
+        action: ImageGenerationAction.infill,
+        sourceImage: _solidPngBytes(width: 64, height: 64),
+        maskImage: _solidPngBytes(width: 64, height: 64),
+        width: 64,
+        height: 64,
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      expect(result.requestParameters.containsKey('upscale'), isFalse);
+    });
+
+    test('should drop the e2e upscale block for V4.5', () async {
+      const params = ImageParams(
+        model: ImageModels.animeDiffusionV45Full,
+        e2eUpscale: true,
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      expect(result.requestParameters.containsKey('upscale'), isFalse);
+    });
+
+    test('should send upscaled_enhance only where supported', () async {
+      const v5 = ImageParams(
+        model: ImageModels.v5StagingKey,
+        upscaledEnhance: true,
+      );
+      const v45 = ImageParams(
+        model: ImageModels.animeDiffusionV45Full,
+        upscaledEnhance: true,
+      );
+
+      final v5Result = await NAIImageRequestBuilder(
+        params: v5,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler_ancestral');
+      final v45Result = await NAIImageRequestBuilder(
+        params: v45,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler_ancestral');
+
+      expect(v5Result.requestParameters['upscaled_enhance'], isTrue);
+      expect(
+        v45Result.requestParameters.containsKey('upscaled_enhance'),
+        isFalse,
+      );
+    });
+
     test('should add the enhance down-weight tag after quality tags', () async {
       final params = ImageParams(
         prompt: '1girl',
@@ -1125,8 +1381,30 @@ void main() {
       );
     });
 
+    test('should skip the enhance tag on the max tier', () async {
+      // 官网 max 档本身就是重新放大，不再压 upscaled。
+      final params = ImageParams(
+        prompt: '1girl',
+        model: ImageModels.v5StagingKey,
+        qualityToggle: false,
+        ucPreset: UcPresets.noneApiValue,
+        action: ImageGenerationAction.img2img,
+        sourceImage: _validPngBytes(),
+        isEnhanceRequest: true,
+        upscaledEnhance: true,
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      expect(result.requestData['input'], '1girl');
+    });
+
     test('should skip the enhance tag on models without it', () async {
-      // 网页端能力位 enhancePromptAdd 从 V4.5 起才为 true。
+      // 官网能力位 enhancePromptAdd 从 V4.5 起才为 true。
       final params = ImageParams(
         prompt: '1girl',
         model: ImageModels.animeDiffusionV4Full,

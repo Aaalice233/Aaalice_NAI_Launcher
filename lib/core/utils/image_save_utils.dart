@@ -68,6 +68,15 @@ class ImageSaveUtils {
         'strength': params.strength,
         'noise': params.noise,
       },
+      // V5 专属参数：官网写回元数据时保留 upscale 与透明背景，只剔除
+      // upscaled_enhance（增强 max 档是一次性动作，不属于图片参数）。
+      if (params.capabilities.supportsTransparentBackground) ...{
+        'straight_alpha': true,
+        if (params.transparentBackground)
+          'tag_hint_transparent_background': true,
+      },
+      if (params.effectiveE2eUpscale)
+        'upscale': {'declared_blur_sigma': E2eUpscale.declaredBlurSigma},
     };
 
     if (fixedPrefixTags?.isNotEmpty == true) {
@@ -220,6 +229,7 @@ class ImageSaveUtils {
             model: params.model,
             qualityToggle: params.qualityToggle,
             ucPreset: params.ucPreset,
+            transparentBackground: params.transparentBackground,
           ).effectivePrompt,
       source: existingMetadata?.source ?? _getModelSourceName(params.model),
       software: existingMetadata?.software ?? 'NovelAI',
@@ -409,7 +419,9 @@ class ImageSaveUtils {
 
   /// 获取模型显示名称
   static String _getModelSourceName(String model) {
-    if (model.contains('diffusion-4-5')) {
+    if (model.contains('diffusion-5') || model == ImageModels.v5StagingKey) {
+      return 'NovelAI Diffusion V5';
+    } else if (model.contains('diffusion-4-5')) {
       return 'NovelAI Diffusion V4.5';
     } else if (model.contains('diffusion-4')) {
       return 'NovelAI Diffusion V4';

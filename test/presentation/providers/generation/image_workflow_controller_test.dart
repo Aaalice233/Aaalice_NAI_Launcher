@@ -228,7 +228,7 @@ void main() {
         controller.setSourceImageDimensions(768, 1024);
         controller.enterEnhanceMode();
 
-        // 没有 4x 这一档，回落到当前源图最大的可用档
+        // 官网没有 4x，回落到当前源图最大的可用档
         controller.updateEnhanceUpscaleFactor(4.0);
         expect(
           container.read(imageWorkflowControllerProvider).enhance.upscaleFactor,
@@ -244,93 +244,6 @@ void main() {
         );
       },
     );
-
-    test('enhance level should drive the official strength/noise', () {
-      final controller = container.read(
-        imageWorkflowControllerProvider.notifier,
-      );
-      final paramsNotifier = container.read(
-        generationParamsNotifierProvider.notifier,
-      );
-
-      paramsNotifier.setSourceImage(_validImageBytes(width: 768, height: 1024));
-      controller.setSourceImageDimensions(768, 1024);
-      controller.enterEnhanceMode();
-      controller.updateEnhanceLevel(5);
-
-      final params = container.read(generationParamsNotifierProvider);
-      expect(params.strength, 0.7);
-      expect(params.noise, 0.1);
-
-      controller.updateEnhanceLevel(1);
-      final lowered = container.read(generationParamsNotifierProvider);
-      expect(lowered.strength, 0.2);
-      expect(lowered.noise, 0.0);
-    });
-
-    test('enhance level should migrate the legacy magnitude key', () async {
-      await Hive.box(
-        StorageKeys.settingsBox,
-      ).put(StorageKeys.workflowEnhanceMagnitude, 0.72);
-
-      container.dispose();
-      container = ProviderContainer();
-
-      final workflow = container.read(imageWorkflowControllerProvider);
-
-      // 0.72 距离档位 5 的 strength(0.7) 最近
-      expect(workflow.enhance.level, 5);
-    });
-
-    test('enhance mode should flag and clear the enhance request', () {
-      final controller = container.read(
-        imageWorkflowControllerProvider.notifier,
-      );
-      final paramsNotifier = container.read(
-        generationParamsNotifierProvider.notifier,
-      );
-
-      paramsNotifier.setSourceImage(_validImageBytes(width: 768, height: 1024));
-      controller.setSourceImageDimensions(768, 1024);
-      controller.enterEnhanceMode();
-
-      expect(
-        container.read(generationParamsNotifierProvider).isEnhanceRequest,
-        isTrue,
-      );
-
-      controller.exitEnhanceMode();
-
-      expect(
-        container.read(generationParamsNotifierProvider).isEnhanceRequest,
-        isFalse,
-      );
-    });
-
-    test('enhance scales should follow the source dimensions', () {
-      final controller = container.read(
-        imageWorkflowControllerProvider.notifier,
-      );
-      final paramsNotifier = container.read(
-        generationParamsNotifierProvider.notifier,
-      );
-
-      paramsNotifier.setSourceImage(_validImageBytes(width: 768, height: 1024));
-      controller.setSourceImageDimensions(768, 1024);
-      controller.enterEnhanceMode();
-
-      expect(controller.availableEnhanceFactors, [2.0, 1.5, 1.0]);
-
-      controller.updateEnhanceUpscaleFactor(2.0);
-      final params = container.read(generationParamsNotifierProvider);
-      expect(params.width, 1536);
-      expect(params.height, 2048);
-
-      // 换成 832×1216 后 2x 不再可用，倍率回落到最大可用档
-      controller.setSourceImageDimensions(832, 1216);
-      expect(controller.availableEnhanceFactors, [1.5, 1.0]);
-      expect(controller.effectiveEnhanceFactor, 1.5);
-    });
 
     test('enterBaseMode from enhance should restore base workflow', () {
       final controller = container.read(
@@ -934,6 +847,151 @@ void main() {
         expect(workflow.upscale.backend, equals(UpscaleBackend.novelai));
       },
     );
+
+    test('enhance level should drive the official strength/noise', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      paramsNotifier.setSourceImage(_validImageBytes(width: 768, height: 1024));
+      controller.setSourceImageDimensions(768, 1024);
+      controller.enterEnhanceMode();
+      controller.updateEnhanceLevel(5);
+
+      final params = container.read(generationParamsNotifierProvider);
+      expect(params.strength, 0.7);
+      expect(params.noise, 0.1);
+
+      controller.updateEnhanceLevel(1);
+      final lowered = container.read(generationParamsNotifierProvider);
+      expect(lowered.strength, 0.2);
+      expect(lowered.noise, 0.0);
+    });
+
+    test('enhance mode should flag and clear the enhance request', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      paramsNotifier.setSourceImage(_validImageBytes(width: 768, height: 1024));
+      controller.setSourceImageDimensions(768, 1024);
+      controller.enterEnhanceMode();
+
+      expect(
+        container.read(generationParamsNotifierProvider).isEnhanceRequest,
+        isTrue,
+      );
+
+      controller.exitEnhanceMode();
+
+      expect(
+        container.read(generationParamsNotifierProvider).isEnhanceRequest,
+        isFalse,
+      );
+    });
+
+    test('enhance scales should follow the source dimensions', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      paramsNotifier.setSourceImage(_validImageBytes(width: 768, height: 1024));
+      controller.setSourceImageDimensions(768, 1024);
+      controller.enterEnhanceMode();
+
+      expect(controller.availableEnhanceFactors, [2.0, 1.5, 1.0]);
+
+      controller.updateEnhanceUpscaleFactor(2.0);
+      final params = container.read(generationParamsNotifierProvider);
+      expect(params.width, 1536);
+      expect(params.height, 2048);
+
+      // 换成 832×1216 后 2x 不再可用，倍率回落到最大可用档
+      controller.setSourceImageDimensions(832, 1216);
+      expect(controller.availableEnhanceFactors, [1.5, 1.0]);
+      expect(controller.effectiveEnhanceFactor, 1.5);
+    });
+
+    test('enhance level should migrate the legacy magnitude key', () async {
+      await Hive.box(
+        StorageKeys.settingsBox,
+      ).put(StorageKeys.workflowEnhanceMagnitude, 0.72);
+
+      container.dispose();
+      container = ProviderContainer();
+
+      final workflow = container.read(imageWorkflowControllerProvider);
+
+      // 0.72 距离档位 5 的 strength(0.7) 最近
+      expect(workflow.enhance.level, 5);
+    });
+
+    test('max enhance should keep the source size and flag the request', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      paramsNotifier.updateModel(ImageModels.v5StagingKey, persist: false);
+      paramsNotifier.setSourceImage(_validImageBytes(width: 768, height: 1024));
+      controller.setSourceImageDimensions(768, 1024);
+      controller.enterEnhanceMode();
+      controller.updateEnhanceUpscaleFactor(1.5);
+      controller.selectEnhanceMaxScale();
+
+      final params = container.read(generationParamsNotifierProvider);
+      expect(container.read(imageWorkflowControllerProvider).enhance.maxScale,
+          isTrue);
+      expect(params.width, 768);
+      expect(params.height, 1024);
+      expect(params.upscaledEnhance, isTrue);
+
+      // 退出增强模式后一次性开关必须清掉
+      controller.exitEnhanceMode();
+      expect(
+        container.read(generationParamsNotifierProvider).upscaledEnhance,
+        isFalse,
+      );
+    });
+
+    test('max enhance should be refused on models without the tier', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      paramsNotifier.updateModel(
+        ImageModels.animeDiffusionV45Full,
+        persist: false,
+      );
+      paramsNotifier.setSourceImage(_validImageBytes(width: 768, height: 1024));
+      controller.setSourceImageDimensions(768, 1024);
+      controller.enterEnhanceMode();
+      controller.selectEnhanceMaxScale();
+
+      expect(controller.isMaxEnhanceAvailable, isFalse);
+      expect(
+        container.read(imageWorkflowControllerProvider).enhance.maxScale,
+        isFalse,
+      );
+      expect(
+        container.read(generationParamsNotifierProvider).upscaledEnhance,
+        isFalse,
+      );
+    });
 
     test(
       'upscale settings should clamp persisted comfy scale to safe max',

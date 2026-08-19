@@ -67,6 +67,7 @@ class StorageKeys {
   // Panel Width Keys (面板宽度)
   static const String historyPanelWidth = 'history_panel_width';
   static const String defaultModel = 'default_model';
+  static const String showV5TestModels = 'show_v5_test_models';
   static const String defaultSampler = 'default_sampler';
   static const String defaultSteps = 'default_steps';
   static const String defaultScale = 'default_scale';
@@ -130,6 +131,8 @@ class StorageKeys {
   static const String lastCfgRescale = 'last_cfg_rescale';
   static const String lastNoiseSchedule = 'last_noise_schedule';
   static const String lastVarietyPlus = 'last_variety_plus';
+  static const String lastTransparentBackground = 'last_transparent_background';
+  static const String lastE2eUpscale = 'last_e2e_upscale';
 
   // Gallery Keys (画廊相关)
   static const String generationHistory = 'generation_history';
@@ -312,6 +315,7 @@ class StorageKeys {
   /// 旧版连续幅度（0-1），只用于迁移到 [workflowEnhanceLevel]。
   static const String workflowEnhanceMagnitude = 'workflow_enhance_magnitude';
   static const String workflowEnhanceLevel = 'workflow_enhance_level';
+  static const String workflowEnhanceMaxScale = 'workflow_enhance_max_scale';
   static const String workflowEnhanceShowIndividualSettings =
       'workflow_enhance_show_individual_settings';
   static const String workflowEnhanceUpscaleFactor =

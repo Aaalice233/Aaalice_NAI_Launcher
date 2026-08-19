@@ -458,7 +458,15 @@ class NAIImageGenerationApiService {
         params: effectiveParams,
         encodeVibe: _enhancementService.encodeVibe,
         preciseReferences: effectivePreciseRefs,
-      ).build(sampler: effectiveParams.sampler, isStream: true);
+      ).build(
+        // 与非流式路径一致：DDIM 在部分模型上需要换成对应版本，
+        // 漏掉映射会让流式请求被服务端拒绝。
+        sampler: _mapSamplerForModel(
+          effectiveParams.sampler,
+          effectiveParams.model,
+        ),
+        isStream: true,
+      );
       buildStopwatch.stop();
       if (_enablePipelineTracing) {
         AppLogger.i(

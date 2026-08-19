@@ -100,6 +100,25 @@ class NAIImageRequestBuilder {
         ? 58.0 * sqrt(4.0 * (params.width / 8) * (params.height / 8) / 63232)
         : null;
 
+    if (params.capabilities.supportsTransparentBackground) {
+      // 官网把 alpha 模式做成账号级设置（Straight/Premultiplied），只要模型
+      // 支持透明就随请求下发；启动器沿用官网默认的 straight，不额外开设置项。
+      requestParameters['straight_alpha'] = true;
+      if (params.transparentBackground) {
+        requestParameters['tag_hint_transparent_background'] = true;
+      }
+    }
+
+    if (params.effectiveE2eUpscale) {
+      requestParameters['upscale'] = {
+        'declared_blur_sigma': E2eUpscale.declaredBlurSigma,
+      };
+    }
+
+    if (params.effectiveUpscaledEnhance) {
+      requestParameters['upscaled_enhance'] = true;
+    }
+
     if (!params.isV4Model) {
       requestParameters['sm'] = params.effectiveSmea;
       requestParameters['sm_dyn'] = params.effectiveSmeaDyn;
@@ -114,7 +133,7 @@ class NAIImageRequestBuilder {
     required String effectivePrompt,
     required String effectiveNegativePrompt,
   }) {
-    requestParameters['params_version'] = 3;
+    requestParameters['params_version'] = params.capabilities.paramsVersion;
     requestParameters['use_coords'] = params.useCoords;
     requestParameters['legacy_v3_extend'] = false;
     requestParameters['legacy_uc'] = false;
@@ -195,7 +214,7 @@ class NAIImageRequestBuilder {
       return vibeEncodingMap;
     }
     if (!params.capabilities.supportsVibeTransfer) {
-      // 不支持 Vibe Transfer 的模型带上相关参数会被服务端拒绝。
+      // V5 测试期尚未开放 Vibe Transfer，附带相关参数会被服务端拒绝。
       return vibeEncodingMap;
     }
     if (!params.hasVibeReferencesV4) {
@@ -439,7 +458,8 @@ class NAIImageRequestBuilder {
       model: baseModel,
       qualityToggle: params.qualityToggle,
       ucPreset: params.ucPreset,
-      isEnhanceRequest: params.isEnhanceRequest,
+      isEnhanceRequest: params.shouldApplyEnhancePromptAddition,
+      transparentBackground: params.transparentBackground,
     );
     final effectivePrompt = promptSemantics.effectivePrompt;
     final effectiveNegativePrompt = promptSemantics.effectiveNegativePrompt;

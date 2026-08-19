@@ -155,9 +155,22 @@ class ImageParams with _$ImageParams {
     /// 使用坐标模式 (V4+ 多角色)
     @Default(false) bool useCoords,
 
+    /// 透明背景 (仅 V5)，对应 `straight_alpha`
+    @Default(false) bool transparentBackground,
+
+    /// 端到端二倍放大 (仅 V5)，对应 `parameters.upscale`
+    @Default(false) bool e2eUpscale,
+
+    /// 增强 max 档 (仅 V5)，对应 `upscaled_enhance`
+    ///
+    /// 单次请求的临时开关，官网也不会把它写进图片元数据。
+    @Default(false)
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    bool upscaledEnhance,
+
     /// 当前 img2img 请求是否来自增强面板。
     ///
-    /// 网页端的增强是独立入口，会自动往提示词补降权词；启动器复用普通
+    /// 官网的增强是独立入口，会自动往提示词补降权词；启动器复用普通
     /// img2img 通道，靠这个一次性标记区分。
     @Default(false)
     @JsonKey(includeFromJson: false, includeToJson: false)
@@ -257,9 +270,38 @@ extension ImageParamsExtension on ImageParams {
   /// 检查是否为 Inpainting 模型
   bool get isInpaintingModel => ImageModels.isInpaintingModel(model);
 
+  /// 透明背景是否真的会写进请求。
+  ///
+  /// 官网对不支持的模型直接删掉 `straight_alpha`，开关本身可以保持开着，
+  /// 换回 V4.5 再换回来时用户的选择不会丢。
+  bool get effectiveTransparentBackground =>
+      transparentBackground && capabilities.supportsTransparentBackground;
+
+  /// 端到端 ×2 放大是否真的会写进请求。
+  ///
+  /// 官网在局部重绘时无条件丢弃 `upscale`（infill 已有自己的尺寸约束）。
+  bool get effectiveE2eUpscale =>
+      e2eUpscale &&
+      capabilities.supportsE2eUpscale &&
+      action != ImageGenerationAction.infill;
+
+  /// 增强 max 档是否真的会写进请求。
+  bool get effectiveUpscaledEnhance =>
+      upscaledEnhance && capabilities.supportsMaxEnhance;
+
   /// 是否要给本次请求的提示词补 `-2::upscaled, blurry::`。
+  ///
+  /// 官网只在非 max 档的增强请求上补：max 档本身就是重新放大，
+  /// 再压 upscaled 会互相打架。
   bool get shouldApplyEnhancePromptAddition =>
-      isEnhanceRequest && capabilities.supportsEnhancePromptAdd;
+      isEnhanceRequest &&
+      !effectiveUpscaledEnhance &&
+      capabilities.supportsEnhancePromptAdd;
+
+  /// 开启端到端放大后服务端实际输出的尺寸。
+  (int, int) get outputSize => effectiveE2eUpscale
+      ? (width * E2eUpscale.factor, height * E2eUpscale.factor)
+      : (width, height);
 
   /// 网页端在重绘、局部重绘、DDIM 和 V4+ 请求中禁用 SMEA。
   /// V3 自动模式只在超过 1472×1472 时启用，旧模型阈值为 832×1280。

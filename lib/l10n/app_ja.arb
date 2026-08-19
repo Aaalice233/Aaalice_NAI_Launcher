@@ -203,6 +203,7 @@
   "settings_dataStorage": "データとストレージ",
   "settings_privacySharing": "保護と共有",
   "settings_integrations": "連携",
+  "settings_generationModelSection": "モデル",
   "settings_generationInputSection": "入力",
   "settings_generationRetrySection": "失敗時リトライ",
   "settings_generationFeedbackSection": "完了通知",
@@ -301,6 +302,8 @@
   "generation_clearHistoryConfirm": "すべての履歴レコードをクリアしてもよろしいですか?この操作は元に戻すことができません。",
   "generation_model": "モデル",
   "generation_imageSize": "画像サイズ",
+  "generation_transparentBackground": "透過背景",
+  "generation_e2eUpscaleHint": "サーバー出力 {size}",
   "generation_sampler": "サンプラー",
   "generation_steps": "ステップ: {steps}",
   "@generation_steps": {
@@ -309,6 +312,11 @@
     }
   },
   "generation_cfgScale": "CFG スケール: {scale}",
+  "@generation_e2eUpscaleHint": {
+    "placeholders": {
+      "size": {}
+    }
+  },
   "@generation_cfgScale": {
     "placeholders": {
       "scale": {}
@@ -557,6 +565,7 @@
   "img2img_enhanceMagnitude": "大きさ",
   "img2img_enhanceShowIndividualSettings": "個別設定を表示",
   "img2img_enhanceUpscaleAmount": "画像の拡大率",
+  "img2img_enhanceScaleMax": "最大",
   "img2img_focusedInpaint": "Focused インペイント",
   "img2img_focusedInpaintEnabledHint": "有効になりました。インペイント エディターの左上のコントロールからフォーカス エリアと最小コンテキスト エリアを調整します。",
   "img2img_focusedInpaintDisabledHint": "通常のインペイントがデフォルトです。Focused インペイントを使うには、インペイントエディター左上のコントロールから有効にし、フォーカスエリアを描画します。",
@@ -3545,6 +3554,8 @@
   "shortcut_settings_enable": "ショートカットを有効にする",
   "shortcut_settings_show_badges": "ショートカット バッジを表示",
   "shortcut_settings_show_in_tooltips": "ツールチップに表示",
+  "settings_showV5TestModels": "V5 テストモデルを表示",
+  "settings_showV5TestModelsSubtitle": "モデル一覧に NovelAI V5 テストサイトのモデルを表示します。生成にはテスト参加権限のアカウントが必要です。",
   "settings_showRandomPromptTools": "ランダムプロンプトツールを表示",
   "settings_showRandomPromptToolsSubtitle": "生成ページにランダムプロンプトボタンと Random Mode の切り替えを表示します",
   "settings_enablePromptWeightScroll": "マウスホイールでプロンプトの重みを調整",

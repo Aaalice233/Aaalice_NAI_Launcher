@@ -144,6 +144,20 @@ class LocalStorageService {
     await setSetting(StorageKeys.defaultModel, model);
   }
 
+  /// 获取是否在模型列表中显示 V5 测试模型（默认关闭）
+  bool getShowV5TestModels() {
+    return getSetting<bool>(
+          StorageKeys.showV5TestModels,
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// 保存是否显示 V5 测试模型
+  Future<void> setShowV5TestModels(bool value) async {
+    await setSetting(StorageKeys.showV5TestModels, value);
+  }
+
   /// 获取默认采样器
   String getDefaultSampler() {
     return getSetting<String>(
@@ -588,6 +602,31 @@ class LocalStorageService {
   /// 保存 Variety+ 设置
   Future<void> setLastVarietyPlus(bool value) async {
     await setSetting(StorageKeys.lastVarietyPlus, value);
+  }
+
+  /// 获取上次的透明背景开关 (仅 V5 生效)
+  bool getLastTransparentBackground() {
+    return getSetting<bool>(
+          StorageKeys.lastTransparentBackground,
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// 保存透明背景开关
+  Future<void> setLastTransparentBackground(bool value) async {
+    await setSetting(StorageKeys.lastTransparentBackground, value);
+  }
+
+  /// 获取上次的端到端 ×2 放大开关 (仅 V5 生效)
+  bool getLastE2eUpscale() {
+    return getSetting<bool>(StorageKeys.lastE2eUpscale, defaultValue: false) ??
+        false;
+  }
+
+  /// 保存端到端 ×2 放大开关
+  Future<void> setLastE2eUpscale(bool value) async {
+    await setSetting(StorageKeys.lastE2eUpscale, value);
   }
 
   // ==================== Seed Lock ====================

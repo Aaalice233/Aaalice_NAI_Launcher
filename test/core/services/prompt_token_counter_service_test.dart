@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/services/prompt_token_counter_service.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
 
@@ -161,11 +162,145 @@ void main() {
 
       final tokens = await service.countTokensForTexts(
         const ['prompt', 'quality'],
+        model: 'nai-diffusion-4-5-full',
       );
 
       expect(tokens, equals(6));
     });
+
+    test('should expose per-model token limits', () {
+      expect(
+        PromptTokenCounterService.tokenLimitForModel(
+          ImageModels.animeDiffusionV45Full,
+        ),
+        512,
+      );
+      expect(
+        PromptTokenCounterService.tokenLimitForModel(ImageModels.v5StagingKey),
+        703,
+      );
+      expect(
+        PromptTokenCounterService.tokenLimitForModel(
+          ImageModels.animeDiffusionV5Full,
+        ),
+        1406,
+      );
+    });
+
+    test('should hide the counter for models without a tokenizer', () {
+      // V3 及更早使用 CLIP，启动器还没有对应实现。
+      expect(
+        PromptTokenCounterService.supportsPromptTokenCount(
+          ImageModels.animeDiffusionV3,
+        ),
+        isFalse,
+      );
+      expect(
+        PromptTokenCounterService.tokenLimitForModel(
+          ImageModels.animeDiffusionV3,
+        ),
+        isNull,
+      );
+    });
+
+    test('should route V5 prompts to the injected Qwen encoder', () async {
+      final t5 = _FakePromptTokenEncoder({'prompt': 4});
+      final qwen = _FakePromptTokenEncoder({'prompt': 9});
+      final service = PromptTokenCounterService(encoder: t5, qwenEncoder: qwen);
+
+      expect(
+        await service.countTokensForTexts(
+          const ['prompt'],
+          model: ImageModels.v5StagingKey,
+        ),
+        9,
+      );
+      expect(
+        await service.countTokensForTexts(
+          const ['prompt'],
+          model: ImageModels.animeDiffusionV45Full,
+        ),
+        4,
+      );
+    });
+
+    test('should keep weight syntax intact when counting for V5', () async {
+      // 官网 Qwen 计数不剥权重语法（"4::blending::" 计 5 而不是
+      // "blending" 的 2），也不做 trim；T5 词表会忽略这些语法字符，
+      // 剥离只对 T5 是无损的。
+      final recorder = _RecordingPromptTokenEncoder();
+      final service = PromptTokenCounterService(
+        encoder: recorder,
+        qwenEncoder: recorder,
+      );
+
+      await service.countTokensForTexts(
+        const ['\n4::blending::, {{ultimate madoka}}\n'],
+        model: ImageModels.v5StagingKey,
+      );
+      expect(
+        recorder.receivedTexts.single,
+        '\n4::blending::, {{ultimate madoka}}\n',
+      );
+
+      recorder.receivedTexts.clear();
+      await service.countTokensForTexts(
+        const ['4::blending::, {{ultimate madoka}}'],
+        model: ImageModels.animeDiffusionV45Full,
+      );
+      expect(
+        recorder.receivedTexts.single,
+        'blending, ultimate madoka',
+      );
+    });
+
+    test('should not apply the EOS calibration to V5 counts', () async {
+      // T5 的 +1 来自官网计数条包含 EOS；Qwen encode 不带 EOS，不能加。
+      final service = PromptTokenCounterService(
+        encoder: _FakePromptTokenEncoder({'prompt': 4}),
+        qwenEncoder: _FakePromptTokenEncoder({'prompt': 4}),
+      );
+
+      expect(
+        await service.countTokensForTexts(
+          const ['prompt'],
+          model: ImageModels.animeDiffusionV45Full,
+          applyWebAdjustment: true,
+        ),
+        5,
+      );
+      expect(
+        await service.countTokensForTexts(
+          const ['prompt'],
+          model: ImageModels.v5StagingKey,
+          applyWebAdjustment: true,
+        ),
+        4,
+      );
+      expect(
+        PromptTokenCounterService.webAdjustmentForModel(
+          ImageModels.animeDiffusionV45Full,
+        ),
+        1,
+      );
+      expect(
+        PromptTokenCounterService.webAdjustmentForModel(
+          ImageModels.v5StagingKey,
+        ),
+        0,
+      );
+    });
   });
+}
+
+class _RecordingPromptTokenEncoder implements PromptTokenEncoder {
+  final List<String> receivedTexts = [];
+
+  @override
+  Future<int> countTokens(String text) async {
+    receivedTexts.add(text);
+    return 1;
+  }
 }
 
 class _FakePromptTokenEncoder implements PromptTokenEncoder {

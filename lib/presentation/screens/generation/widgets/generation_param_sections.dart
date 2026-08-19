@@ -43,6 +43,7 @@ class ModelSection extends ConsumerWidget {
     final model = ref.watch(
       generationParamsNotifierProvider.select((params) => params.model),
     );
+    final showV5TestModels = ref.watch(showV5TestModelsSettingsProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -50,7 +51,10 @@ class ModelSection extends ConsumerWidget {
         const SizedBox(height: 8),
         ThemedDropdown<String>(
           value: model,
-          items: ImageModels.allModels.map((model) {
+          items: ImageModels.visibleModels(
+            showV5TestModels: showV5TestModels,
+            current: model,
+          ).map((model) {
             return DropdownMenuItem(
               value: model,
               child: Text(
@@ -80,13 +84,36 @@ class SizeSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final size = ref.watch(
       generationParamsNotifierProvider.select(
-        (params) => (width: params.width, height: params.height),
+        (params) => (
+          width: params.width,
+          height: params.height,
+          supportsE2eUpscale: params.capabilities.supportsE2eUpscale,
+          e2eUpscale: params.e2eUpscale,
+          outputSize: params.outputSize,
+        ),
       ),
     );
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ParamSectionTitle(context.l10n.generation_imageSize),
+        Row(
+          children: [
+            ParamSectionTitle(context.l10n.generation_imageSize),
+            const Spacer(),
+            // 端到端 ×2 放大：模型按基础分辨率生成，服务端输出边长翻倍
+            if (size.supportsE2eUpscale)
+              _ToggleButton(
+                label: '×${E2eUpscale.factor}',
+                isEnabled: size.e2eUpscale,
+                onChanged: (value) {
+                  ref
+                      .read(generationParamsNotifierProvider.notifier)
+                      .updateE2eUpscale(value);
+                },
+              ),
+          ],
+        ),
         const SizedBox(height: 8),
         SizeSelector(
           width: size.width,
@@ -97,6 +124,17 @@ class SizeSection extends ConsumerWidget {
                 .updateSize(width, height);
           },
         ),
+        if (size.supportsE2eUpscale && size.e2eUpscale) ...[
+          const SizedBox(height: 6),
+          Text(
+            context.l10n.generation_e2eUpscaleHint(
+              '${size.outputSize.$1}×${size.outputSize.$2}',
+            ),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -237,6 +275,9 @@ class CfgScaleSection extends ConsumerWidget {
           decrisp: params.decrisp,
           varietyPlus: params.varietyPlus,
           isV3Model: params.isV3Model,
+          supportsTransparentBackground:
+              params.capabilities.supportsTransparentBackground,
+          transparentBackground: params.transparentBackground,
         ),
       ),
     );
@@ -249,6 +290,19 @@ class CfgScaleSection extends ConsumerWidget {
               context.l10n.generation_cfgScale(data.scale.toStringAsFixed(1)),
             ),
             const Spacer(),
+            // 透明背景 (仅 V5)：勾选后正向提示词补 transparent background
+            if (data.supportsTransparentBackground) ...[
+              _ToggleButton(
+                label: context.l10n.generation_transparentBackground,
+                isEnabled: data.transparentBackground,
+                onChanged: (value) {
+                  ref
+                      .read(generationParamsNotifierProvider.notifier)
+                      .updateTransparentBackground(value);
+                },
+              ),
+              const SizedBox(width: 8),
+            ],
             // Decrisp (仅 V3 模型)
             if (data.isV3Model) ...[
               _ToggleButton(

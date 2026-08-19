@@ -548,6 +548,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_integrations => 'Integrations';
 
   @override
+  String get settings_generationModelSection => 'Model';
+
+  @override
   String get settings_generationInputSection => 'Input';
 
   @override
@@ -775,6 +778,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get generation_imageSize => 'Image Size';
+
+  @override
+  String get generation_transparentBackground => 'Transparent BG';
+
+  @override
+  String generation_e2eUpscaleHint(Object size) {
+    return 'Server outputs $size';
+  }
 
   @override
   String get generation_sampler => 'Sampler';
@@ -1291,6 +1302,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get img2img_enhanceUpscaleAmount => 'Upscale Amount';
+
+  @override
+  String get img2img_enhanceScaleMax => 'Max';
 
   @override
   String get img2img_focusedInpaint => 'Focused Inpainting';
@@ -6879,6 +6893,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_queueRetryInterval => 'Retry Interval';
+
+  @override
+  String get settings_showV5TestModels => 'Show V5 test models';
+
+  @override
+  String get settings_showV5TestModelsSubtitle =>
+      'List NovelAI V5 staging models in the model picker. Requires a test-access account to generate.';
 
   @override
   String get settings_showRandomPromptTools => 'Show random prompt tools';

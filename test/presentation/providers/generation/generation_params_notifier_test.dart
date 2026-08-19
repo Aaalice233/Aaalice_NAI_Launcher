@@ -721,14 +721,14 @@ void main() {
       final notifier = container.read(
         generationParamsNotifierProvider.notifier,
       );
-      notifier.updateModel(ImageModels.animeDiffusionV4Full);
-      notifier.updateScale(5.5);
-
       notifier.updateModel(ImageModels.animeDiffusionV45Full);
+      notifier.updateScale(5.0);
+
+      notifier.updateModel(ImageModels.v5StagingKey);
 
       final params = container.read(generationParamsNotifierProvider);
-      expect(params.model, ImageModels.animeDiffusionV45Full);
-      expect(params.scale, 5.0);
+      expect(params.model, ImageModels.v5StagingKey);
+      expect(params.scale, 10.0);
     });
 
     test('should keep a scale the user adjusted', () async {
@@ -738,10 +738,10 @@ void main() {
       final notifier = container.read(
         generationParamsNotifierProvider.notifier,
       );
-      notifier.updateModel(ImageModels.animeDiffusionV4Full);
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
       notifier.updateScale(7.5);
 
-      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+      notifier.updateModel(ImageModels.v5StagingKey);
 
       expect(container.read(generationParamsNotifierProvider).scale, 7.5);
     });
@@ -753,15 +753,24 @@ void main() {
       final notifier = container.read(
         generationParamsNotifierProvider.notifier,
       );
-      notifier.updateModel(ImageModels.animeDiffusionV4Full);
-      notifier.updateScale(5.5);
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+      notifier.updateScale(5.0);
 
-      notifier.updateModel(
-        ImageModels.animeDiffusionV45Full,
-        followDefaults: false,
-      );
+      notifier.updateModel(ImageModels.v5StagingKey, followDefaults: false);
 
-      expect(container.read(generationParamsNotifierProvider).scale, 5.5);
+      expect(container.read(generationParamsNotifierProvider).scale, 5.0);
+    });
+  });
+
+  group('V5 test model visibility setting', () {
+    test('should default to hidden and persist the opt-in', () async {
+      final storage = LocalStorageService();
+
+      expect(storage.getShowV5TestModels(), isFalse);
+
+      await storage.setShowV5TestModels(true);
+
+      expect(LocalStorageService().getShowV5TestModels(), isTrue);
     });
   });
 }

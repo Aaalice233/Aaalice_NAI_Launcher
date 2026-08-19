@@ -642,6 +642,16 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
   Widget _buildEnhancePanel(ThemeData theme, ImageWorkflowState workflow) {
     final controller = ref.read(imageWorkflowControllerProvider.notifier);
     final enhance = workflow.enhance;
+    final capabilities = ref.watch(
+      generationParamsNotifierProvider.select((params) => params.capabilities),
+    );
+    final maxEnhanceAvailable = E2eUpscale.allowsMaxEnhance(
+      capabilities,
+      sourceWidth: workflow.sourceWidth ?? workflow.baseWidth,
+      sourceHeight: workflow.sourceHeight ?? workflow.baseHeight,
+    );
+    final useMaxScale = enhance.maxScale && maxEnhanceAvailable;
+    // 官网按源图尺寸决定可选倍率：面积超上限或算出来对不齐 64 的档位不给选
     final availableFactors = controller.availableEnhanceFactors;
     final activeFactor = controller.effectiveEnhanceFactor;
 
@@ -666,7 +676,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
             ),
           ),
           const SizedBox(height: 12),
-          // 网页端的幅度是 1-5 整数档，每档对应固定的 strength/noise
+          // 官网的幅度是 1-5 整数档，每档对应固定的 strength/noise
           _buildSliderSection(
             theme,
             label: context.l10n.img2img_enhanceMagnitude,
@@ -700,17 +710,26 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           Wrap(
             spacing: 8,
             // 可用倍率按源图尺寸算：放大后超面积上限或对不齐 64 的档位不给选
-            children: availableFactors.reversed.map((factor) {
-              final label = factor == factor.roundToDouble()
-                  ? '${factor.toStringAsFixed(0)}x'
-                  : '${factor.toStringAsFixed(1)}x';
-              return ChoiceChip(
-                label: Text(label),
-                selected: activeFactor == factor,
-                onSelected: (_) =>
-                    controller.updateEnhanceUpscaleFactor(factor),
-              );
-            }).toList(),
+            children: [
+              ...availableFactors.reversed.map((factor) {
+                final label = factor == factor.roundToDouble()
+                    ? '${factor.toStringAsFixed(0)}x'
+                    : '${factor.toStringAsFixed(1)}x';
+                return ChoiceChip(
+                  label: Text(label),
+                  selected: !useMaxScale && activeFactor == factor,
+                  onSelected: (_) =>
+                      controller.updateEnhanceUpscaleFactor(factor),
+                );
+              }),
+              // max 档仅 V5 且原图面积在阈值内时出现，放大到官方面积上限
+              if (maxEnhanceAvailable)
+                ChoiceChip(
+                  label: Text(context.l10n.img2img_enhanceScaleMax),
+                  selected: useMaxScale,
+                  onSelected: (_) => controller.selectEnhanceMaxScale(),
+                ),
+            ],
           ),
           if (enhance.showIndividualSettings) ...[
             const SizedBox(height: 12),

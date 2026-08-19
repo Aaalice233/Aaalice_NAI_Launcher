@@ -211,6 +211,7 @@
   "settings_dataStorage": "Data & Storage",
   "settings_privacySharing": "Privacy & Sharing",
   "settings_integrations": "Integrations",
+  "settings_generationModelSection": "Model",
   "settings_generationInputSection": "Input",
   "settings_generationRetrySection": "Retry on Failure",
   "settings_generationFeedbackSection": "Completion Alert",
@@ -308,6 +309,8 @@
   "generation_clearHistoryConfirm": "Are you sure you want to clear all history records? This action cannot be undone.",
   "generation_model": "Model",
   "generation_imageSize": "Image Size",
+  "generation_transparentBackground": "Transparent BG",
+  "generation_e2eUpscaleHint": "Server outputs {size}",
   "generation_sampler": "Sampler",
   "generation_steps": "Steps: {steps}",
   "@generation_steps": {
@@ -316,6 +319,11 @@
     }
   },
   "generation_cfgScale": "CFG Scale: {scale}",
+  "@generation_e2eUpscaleHint": {
+    "placeholders": {
+      "size": {}
+    }
+  },
   "@generation_cfgScale": {
     "placeholders": {
       "scale": {}
@@ -566,6 +574,7 @@
   "img2img_enhanceMagnitude": "Magnitude",
   "img2img_enhanceShowIndividualSettings": "Show Individual Settings",
   "img2img_enhanceUpscaleAmount": "Upscale Amount",
+  "img2img_enhanceScaleMax": "Max",
   "img2img_focusedInpaint": "Focused Inpainting",
   "img2img_focusedInpaintEnabledHint": "Enabled. Adjust the focus area and Minimum Context Area from the top-left control in the inpaint editor.",
   "img2img_focusedInpaintDisabledHint": "Regular inpaint is the default. To use Focused Inpaint, enable it from the top-left control in the inpaint editor and draw a focus area.",
@@ -3295,6 +3304,8 @@
 
   "settings_queueRetryCount": "Retry Count",
   "settings_queueRetryInterval": "Retry Interval",
+  "settings_showV5TestModels": "Show V5 test models",
+  "settings_showV5TestModelsSubtitle": "List NovelAI V5 staging models in the model picker. Requires a test-access account to generate.",
   "settings_showRandomPromptTools": "Show random prompt tools",
   "settings_showRandomPromptToolsSubtitle": "Show the Random Prompt button and Random Mode toggle on the generation page",
   "settings_enablePromptWeightScroll": "Adjust prompt weight with mouse wheel",

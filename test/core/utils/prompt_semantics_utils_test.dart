@@ -44,6 +44,39 @@ void main() {
         expect(snapshot.effectiveNegativePrompt, equals('blurry'));
       },
     );
+
+    test('should place transparent background ahead of the quality tags', () {
+      final snapshot = buildPromptSemanticsSnapshot(
+        prompt: '1girl',
+        negativePrompt: '',
+        model: ImageModels.v5StagingKey,
+        qualityToggle: true,
+        ucPreset: UcPresets.toApiValue(UcPresetType.none),
+        transparentBackground: true,
+      );
+
+      expect(
+        snapshot.effectivePrompt,
+        equals(
+          '1girl, transparent background, very aesthetic, masterpiece, no text',
+        ),
+      );
+      // 基础提示词不受影响，元数据里保留用户原文
+      expect(snapshot.basePrompt, equals('1girl'));
+    });
+
+    test('should ignore transparent background on models without it', () {
+      final snapshot = buildPromptSemanticsSnapshot(
+        prompt: '1girl',
+        negativePrompt: '',
+        model: ImageModels.animeDiffusionV45Full,
+        qualityToggle: false,
+        ucPreset: UcPresets.toApiValue(UcPresetType.none),
+        transparentBackground: true,
+      );
+
+      expect(snapshot.effectivePrompt, equals('1girl'));
+    });
   });
 
   group('text: 渲染段', () {
@@ -60,10 +93,8 @@ void main() {
     test('should keep quality tags out of the rendered text', () {
       // 追加到末尾会让质量词被模型当成要画进图里的文字。
       expect(
-        effective('1girl, text:hello', ImageModels.animeDiffusionV45Full),
-        equals(
-          '1girl, location, very aesthetic, masterpiece, no text text:hello',
-        ),
+        effective('1girl, text:hello', ImageModels.v5StagingKey),
+        equals('1girl, very aesthetic, masterpiece, no text text:hello'),
       );
       expect(
         effective(
@@ -92,11 +123,8 @@ void main() {
 
     test('should treat the escaped text:: as ordinary text', () {
       expect(
-        effective('1girl, text::escaped', ImageModels.animeDiffusionV45Full),
-        equals(
-          '1girl, text::escaped, location, very aesthetic, masterpiece,'
-          ' no text',
-        ),
+        effective('1girl, text::escaped', ImageModels.v5StagingKey),
+        equals('1girl, text::escaped, very aesthetic, masterpiece, no text'),
       );
     });
 
@@ -107,6 +135,25 @@ void main() {
         equals(
           '1girl, text:hello, best quality, amazing quality,'
           ' very aesthetic, absurdres',
+        ),
+      );
+    });
+
+    test('should place transparent background before the text section', () {
+      final snapshot = buildPromptSemanticsSnapshot(
+        prompt: '1girl, text:hello',
+        negativePrompt: '',
+        model: ImageModels.v5StagingKey,
+        qualityToggle: true,
+        ucPreset: UcPresets.toApiValue(UcPresetType.none),
+        transparentBackground: true,
+      );
+
+      expect(
+        snapshot.effectivePrompt,
+        equals(
+          '1girl, transparent background, very aesthetic, masterpiece,'
+          ' no text text:hello',
         ),
       );
     });
@@ -148,16 +195,14 @@ void main() {
     });
 
     test('should only tag the first chunk from V4 onward', () {
-      const tags = 'location, very aesthetic, masterpiece, no text';
-
       expect(
-        effective('1girl | 1boy', ImageModels.animeDiffusionV45Full),
-        equals('1girl, $tags| 1boy'),
+        effective('1girl | 1boy', ImageModels.v5StagingKey),
+        equals('1girl, very aesthetic, masterpiece, no text| 1boy'),
       );
       // text: 分段发生在混合段内部
       expect(
-        effective('1girl, text:hi | 1boy', ImageModels.animeDiffusionV45Full),
-        equals('1girl, $tags text:hi | 1boy'),
+        effective('1girl, text:hi | 1boy', ImageModels.v5StagingKey),
+        equals('1girl, very aesthetic, masterpiece, no text text:hi | 1boy'),
       );
     });
 
@@ -198,6 +243,58 @@ void main() {
         effective('cat:1|happy:-0.2|cute:-0.3', ImageModels.animeDiffusionV3),
         equals('cat, $tags:1|happy, $tags:-0.2|cute, $tags:-0.3'),
       );
+    });
+  });
+
+  group('QualityTags.composeSuffix', () {
+    test('should combine transparency with the model quality tags', () {
+      expect(
+        QualityTags.composeSuffix(
+          ImageModels.v5StagingKey,
+          qualityToggle: true,
+          transparentBackground: false,
+        ),
+        equals('very aesthetic, masterpiece, no text'),
+      );
+      expect(
+        QualityTags.composeSuffix(
+          ImageModels.v5StagingKey,
+          qualityToggle: true,
+          transparentBackground: true,
+        ),
+        equals('transparent background, very aesthetic, masterpiece, no text'),
+      );
+      expect(
+        QualityTags.composeSuffix(
+          ImageModels.v5StagingKey,
+          qualityToggle: false,
+          transparentBackground: true,
+        ),
+        equals('transparent background'),
+      );
+      expect(
+        QualityTags.composeSuffix(
+          ImageModels.v5StagingKey,
+          qualityToggle: false,
+          transparentBackground: false,
+        ),
+        isNull,
+      );
+    });
+
+    test('should register the official V5 quality tags', () {
+      // 官网把 custom 与正式 V5 ID 归到同一条质量词分支。
+      for (final model in [
+        ImageModels.v5StagingKey,
+        ImageModels.animeDiffusionV5Full,
+        ImageModels.animeDiffusionV5Curated,
+      ]) {
+        expect(
+          QualityTags.getQualityTags(model),
+          equals('very aesthetic, masterpiece, no text'),
+          reason: model,
+        );
+      }
     });
   });
 }

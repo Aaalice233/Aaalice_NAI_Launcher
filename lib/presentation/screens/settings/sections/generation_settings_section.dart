@@ -104,6 +104,7 @@ class _GenerationSettingsSectionState
     final theme = Theme.of(context);
     final l10n = context.l10n;
     final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
+    final showV5TestModels = ref.watch(showV5TestModelsSettingsProvider);
     final promptWeightScrollEnabled = ref.watch(
       promptWeightScrollSettingsProvider,
     );
@@ -140,6 +141,16 @@ class _GenerationSettingsSectionState
       icon: Icons.tune_outlined,
       child: Column(
         children: [
+          SettingsSectionLabel(l10n.settings_generationModelSection),
+          SwitchListTile(
+            secondary: const Icon(Icons.science_outlined),
+            title: Text(l10n.settings_showV5TestModels),
+            subtitle: Text(l10n.settings_showV5TestModelsSubtitle),
+            value: showV5TestModels,
+            onChanged: (value) {
+              ref.read(showV5TestModelsSettingsProvider.notifier).set(value);
+            },
+          ),
           SettingsSectionLabel(l10n.settings_generationInputSection),
           SwitchListTile(
             secondary: const Icon(Icons.casino_outlined),

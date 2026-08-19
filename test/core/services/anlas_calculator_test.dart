@@ -173,14 +173,26 @@ void main() {
   });
 
   group('AnlasCalculator model pricing family', () {
-    // 计费族改成能力表字段之前靠模型 ID 推导版本号，未登记的模型会掉进
-    // V2 及更早的指数公式，把 17 Anlas 显示成 11。
-    test('prices modern models with the area and steps formula', () {
+    // 测试期 V5 用 `custom` 作为模型键。它一度匹配不上任何版本判定，
+    // 会掉进 V2 及更早的指数公式，把 17 Anlas 显示成 11。
+    test('prices the V5 staging model with the modern formula', () {
+      final cost = AnlasCalculator.calculateFromValues(
+        width: 832,
+        height: 1216,
+        steps: 23,
+        nSamples: 1,
+        smea: false,
+        smeaDyn: false,
+        model: ImageModels.v5StagingKey,
+      );
+
+      expect(cost, 17);
+    });
+
+    test('prices the official V5 ids like the staging key', () {
       for (final model in [
-        ImageModels.animeDiffusionV45Full,
-        ImageModels.animeDiffusionV45Curated,
-        ImageModels.animeDiffusionV4Full,
-        ImageModels.animeDiffusionV3,
+        ImageModels.animeDiffusionV5Curated,
+        ImageModels.animeDiffusionV5Full,
       ]) {
         expect(
           AnlasCalculator.calculateFromValues(
@@ -196,6 +208,20 @@ void main() {
           reason: '$model should follow the modern pricing formula',
         );
       }
+    });
+
+    test('keeps V4.5 and V5 on the same base price', () {
+      int priceFor(String model) => AnlasCalculator.calculateFromValues(
+        width: 1024,
+        height: 1024,
+        steps: 28,
+        nSamples: 1,
+        smea: false,
+        smeaDyn: false,
+        model: model,
+      );
+
+      expect(priceFor(ImageModels.v5StagingKey), priceFor(model));
     });
 
     test('keeps pre-V3 models on the legacy exponential estimate', () {
@@ -231,7 +257,7 @@ void main() {
 
     test('does not bill vibe fees on models without vibe support', () {
       const params = ImageParams(
-        model: ImageModels.animeV2,
+        model: ImageModels.v5StagingKey,
         vibeReferencesV4: [
           VibeReference(
             displayName: 'pre',

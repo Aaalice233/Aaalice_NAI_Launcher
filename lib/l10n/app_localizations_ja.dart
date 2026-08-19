@@ -539,6 +539,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_integrations => '連携';
 
   @override
+  String get settings_generationModelSection => 'モデル';
+
+  @override
   String get settings_generationInputSection => '入力';
 
   @override
@@ -764,6 +767,14 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get generation_imageSize => '画像サイズ';
+
+  @override
+  String get generation_transparentBackground => '透過背景';
+
+  @override
+  String generation_e2eUpscaleHint(Object size) {
+    return 'サーバー出力 $size';
+  }
 
   @override
   String get generation_sampler => 'サンプラー';
@@ -1263,6 +1274,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get img2img_enhanceUpscaleAmount => '画像の拡大率';
+
+  @override
+  String get img2img_enhanceScaleMax => '最大';
 
   @override
   String get img2img_focusedInpaint => 'Focused インペイント';
@@ -6730,6 +6744,13 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settings_queueRetryInterval => '再試行間隔';
+
+  @override
+  String get settings_showV5TestModels => 'V5 テストモデルを表示';
+
+  @override
+  String get settings_showV5TestModelsSubtitle =>
+      'モデル一覧に NovelAI V5 テストサイトのモデルを表示します。生成にはテスト参加権限のアカウントが必要です。';
 
   @override
   String get settings_showRandomPromptTools => 'ランダムプロンプトツールを表示';
