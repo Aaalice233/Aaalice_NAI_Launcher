@@ -1416,9 +1416,8 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     final baseWidth = state.sourceWidth ?? state.baseWidth ?? _params.width;
     final baseHeight = state.sourceHeight ?? state.baseHeight ?? _params.height;
     final factor = effectiveEnhanceFactor;
-    // Enhance keeps the exact web-client product, including 832×1216 at 1.5x.
-    final requestWidth = (baseWidth * factor).floor();
-    final requestHeight = (baseHeight * factor).floor();
+    final requestWidth = _normalizeDimension((baseWidth * factor).round());
+    final requestHeight = _normalizeDimension((baseHeight * factor).round());
     final resolved = state.enhance.showIndividualSettings
         ? (strength: state.enhance.strength, noise: state.enhance.noise)
         : EnhanceLevels.resolve(state.enhance.level);
@@ -1453,6 +1452,11 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
 
     _paramsNotifier.updateIsOutpaint(false);
     _paramsNotifier.updateAction(ImageGenerationAction.img2img);
+  }
+
+  int _normalizeDimension(int value) {
+    final normalized = ((value + 32) ~/ 64) * 64;
+    return normalized.clamp(64, 4096);
   }
 
   bool _usesStableDiffusionImportBounds(String model) {
