@@ -157,9 +157,6 @@ int estimatedCost(Ref ref) {
     smeaDyn: params.effectiveSmeaDyn,
     model: params.model,
     subscriptionTier: subscriptionTier,
-    // Opus 免费额度只看角色参考、分辨率和步数，不排除以图生图和局部重绘：
-    // 网页端的判定函数同样不接收动作类型，小图重绘实测也不扣点。
-    hasBaseImage: false,
     hasCharacterReference: params.isV45Model && params.hasPreciseReferences,
     strength: requestInput.strength,
     extraPerSampleCost: AnlasCalculator.resolvePreciseReferenceExtraCost(

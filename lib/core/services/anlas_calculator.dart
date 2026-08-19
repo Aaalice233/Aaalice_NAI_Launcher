@@ -77,7 +77,6 @@ class AnlasCalculator {
       smeaDyn: params.effectiveSmeaDyn,
       model: params.model,
       subscriptionTier: isOpus ? opusTier : 0,
-      hasBaseImage: params.action != ImageGenerationAction.generate,
       hasCharacterReference: _usesPreciseReferences(params),
       strength: switch (params.action) {
         ImageGenerationAction.img2img => params.strength,
@@ -100,7 +99,6 @@ class AnlasCalculator {
     required bool smeaDyn,
     required String model,
     int subscriptionTier = 0,
-    bool hasBaseImage = false,
     bool hasCharacterReference = false,
     double strength = 1.0,
     int extraPerSampleCost = 0,
@@ -123,7 +121,6 @@ class AnlasCalculator {
         smeaDyn: smeaDyn,
         model: model,
         subscriptionTier: isFirstImageInRequest ? subscriptionTier : 0,
-        hasBaseImage: hasBaseImage,
         hasCharacterReference: hasCharacterReference,
         strength: strength,
       );
@@ -175,7 +172,6 @@ class AnlasCalculator {
     required String model,
     bool isOpus = false,
     int subscriptionTier = 0,
-    bool hasBaseImage = false,
     bool hasCharacterReference = false,
     double strength = 1.0,
   }) {
@@ -215,7 +211,6 @@ class AnlasCalculator {
           isOpus: isOpus || subscriptionTier >= opusTier,
           steps: steps,
           resolution: r,
-          hasBaseImage: hasBaseImage,
           hasCharacterReference: hasCharacterReference,
         )
         ? 1
@@ -228,15 +223,15 @@ class AnlasCalculator {
   }
 
   /// 检查是否满足 Opus 免费条件
+  ///
+  /// 网页端按订阅、角色参考、步数和分辨率判断；请求是否携带基础图不参与判定。
   static bool _isOpusFree({
     required bool isOpus,
     required int steps,
     required int resolution,
-    required bool hasBaseImage,
     required bool hasCharacterReference,
   }) {
     return isOpus &&
-        !hasBaseImage &&
         !hasCharacterReference &&
         steps <= 28 &&
         resolution <= 1024 * 1024;
@@ -254,14 +249,7 @@ class AnlasCalculator {
 
   /// 检查当前参数是否满足 Opus 免费条件
   static bool isOpusFreeGeneration(ImageParams params, {required bool isOpus}) {
-    if (!isOpus) return false;
-    if (params.steps > 28) return false;
-    if (params.nSamples > 1) return false;
-    if (params.action != ImageGenerationAction.generate) return false;
-    if (_usesPreciseReferences(params)) return false;
-
-    final resolution = params.width * params.height;
-    return resolution <= 1024 * 1024;
+    return calculate(params, isOpus: isOpus) == 0;
   }
 
   /// 计算导演工具（augment-image）的 Anlas 消耗

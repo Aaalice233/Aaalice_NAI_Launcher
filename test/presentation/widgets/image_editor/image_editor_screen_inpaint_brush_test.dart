@@ -14,6 +14,20 @@ import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_scre
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('focused inpaint keeps eligible Opus redraws free', () {
+    const config = ImageEditorFocusedInpaintCostConfig(
+      model: 'nai-diffusion-4-full',
+      steps: 28,
+      batchCount: 1,
+      batchSize: 1,
+      smea: false,
+      smeaDyn: false,
+      subscriptionTier: 3,
+    );
+
+    expect(config.estimate(width: 832, height: 1216), 0);
+  });
+
   testWidgets('non-focused inpaint brush commits mask strokes on the image', (
     tester,
   ) async {
