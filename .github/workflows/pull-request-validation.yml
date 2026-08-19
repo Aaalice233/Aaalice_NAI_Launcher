@@ -7,8 +7,11 @@ on:
     paths:
       - ".github/workflows/pull-request-validation.yml"
       - ".github/workflows/release.yml"
+      - "analysis_options.yaml"
       - "assets/**"
+      - "fonts/**"
       - "installer/windows/**"
+      - "l10n.yaml"
       - "lib/**"
       - "pubspec.lock"
       - "pubspec.yaml"
