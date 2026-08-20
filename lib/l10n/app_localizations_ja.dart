@@ -1296,11 +1296,15 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get img2img_noSeedvr2Models =>
-      'SeedVR2 モデルが見つかりません。モデル リストを更新するか、SeedVR2 ノード/モデル ファイルを確認してください。';
+      '利用可能な SeedVR2 モデルが見つかりません。モデル一覧を更新し、ComfyUI ネイティブの models/diffusion_models と models/vae、または SeedVR2 カスタムノードのモデルフォルダーを確認してください。';
 
   @override
   String get img2img_noRegularUpscaleModels =>
       '通常の拡大モデルが見つかりません。モデルリストを更新するか、models/upscale_models を確認してください。';
+
+  @override
+  String get img2img_useNativeSeedvr2Workflow =>
+      'ComfyUI ネイティブ SeedVR2 の 1 ステップ拡大ワークフローを使用します。';
 
   @override
   String get img2img_useSeedvr2TiledWorkflow =>
@@ -1361,8 +1365,32 @@ class AppLocalizationsJa extends AppLocalizations {
   String get img2img_metricQuality => '品質';
 
   @override
+  String get img2img_seedvr2Engine => 'SeedVR2 エンジン';
+
+  @override
+  String get img2img_seedvr2EngineAuto => '自動';
+
+  @override
+  String get img2img_seedvr2EngineNative => 'ネイティブ';
+
+  @override
+  String get img2img_seedvr2EngineLegacy => '互換ノード';
+
+  @override
+  String get img2img_seedvr2EngineResolvedNative =>
+      'ComfyUI ネイティブの SeedVR2 を使用しています。';
+
+  @override
+  String get img2img_seedvr2EngineResolvedLegacy =>
+      'インストール済みの SeedVR2 カスタムノードを使用しています。';
+
+  @override
+  String get img2img_seedvr2EngineUnavailable =>
+      '選択した SeedVR2 エンジンまたは必要なモデルを利用できません。モデル一覧を更新するか、エンジンを切り替えてください。';
+
+  @override
   String get img2img_seedvr2VaeTileHint =>
-      'SeedVR2 VAE MODEL のエンコード/デコード タイル サイズも書き込みます。';
+      'SeedVR2 VAE のエンコードとデコードに使用するタイルサイズを設定します。';
 
   @override
   String get img2img_seedvr2UseTiledUpscale => 'タイル状の拡大を使用する';
@@ -9021,6 +9049,13 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get comfyWorkflow_seedvr2TiledUpscaleName => 'SeedVR2 タイル拡大';
+
+  @override
+  String get comfyWorkflow_seedvr2LegacyUpscaleName => 'SeedVR2 互換ノード拡大';
+
+  @override
+  String get comfyWorkflow_seedvr2LegacyUpscaleDescription =>
+      'インストール済みの SeedVR2VideoUpscaler カスタムノードで拡大します。';
 
   @override
   String get comfyWorkflow_seedvr2TiledUpscaleDescription =>

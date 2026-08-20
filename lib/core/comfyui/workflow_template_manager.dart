@@ -119,7 +119,7 @@ class WorkflowTemplateManager {
     return workflow;
   }
 
-  /// 校验当前 ComfyUI 是否已注册 workflow 中所有节点类型。
+  /// 校验当前 ComfyUI 的节点类型及其必需输入是否匹配 workflow。
   Future<void> validateWorkflowNodeTypes({
     required ComfyUIApiService api,
     required Map<String, dynamic> workflow,
@@ -132,6 +132,16 @@ class WorkflowTemplateManager {
     if (missingNodeTypes.isNotEmpty) {
       throw ComfyUIApiException(
         formatMissingWorkflowNodeTypesMessage(missingNodeTypes),
+      );
+    }
+
+    final missingRequiredInputs = findMissingWorkflowRequiredInputs(
+      workflow: workflow,
+      objectInfo: objectInfo,
+    );
+    if (missingRequiredInputs.isNotEmpty) {
+      throw ComfyUIApiException(
+        formatMissingWorkflowRequiredInputsMessage(missingRequiredInputs),
       );
     }
   }
@@ -217,8 +227,8 @@ class WorkflowTemplateManager {
     try {
       final dir = await _getStorageDir();
       final files = dir.listSync().whereType<File>().where(
-            (f) => f.path.endsWith('.json'),
-          );
+        (f) => f.path.endsWith('.json'),
+      );
 
       for (final file in files) {
         try {
@@ -251,9 +261,7 @@ class WorkflowTemplateManager {
       'manifest': template.toManifestJson(),
       'workflow': template.workflowJson,
     };
-    await file.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(data),
-    );
+    await file.writeAsString(const JsonEncoder.withIndent('  ').convert(data));
   }
 
   Future<void> _deleteCustomTemplateFile(String templateId) async {

@@ -507,21 +507,43 @@ class ComfyUITask extends _$ComfyUITask {
   }
 }
 
-/// 从 ComfyUI object_info 获取可用于超分的模型列表。
-///
-/// 包含：
-/// - SeedVR2LoadDiTModel 的 DiT 模型
-/// - UpscaleModelLoader 的普通超分模型（.pth/.pt/.safetensors 等）
+/// 从 ComfyUI object_info 获取超分模型和 SeedVR2 后端能力。
 @riverpod
 class ComfyUISeedvr2Models extends _$ComfyUISeedvr2Models {
   static const _tag = 'ComfyUIUpscaleModels';
-  static const _seedvr2NodeClass = 'SeedVR2LoadDiTModel';
+  static const _nativeModelNodeClass = 'UNETLoader';
+  static const _nativeVaeNodeClass = 'VAELoader';
+  static const _legacyModelNodeClass = 'SeedVR2LoadDiTModel';
   static const _upscaleNodeClass = 'UpscaleModelLoader';
-  static const _fallback = ['seedvr2_ema_7b_fp16.safetensors'];
+  static const _fallback = ['seedvr2_3b_int8_convrot.safetensors'];
+  static const _nativeRequiredNodeClasses = {
+    'LoadImage',
+    'JoinImageWithAlpha',
+    'ImageScaleBy',
+    'SeedVR2Preprocess',
+    'VAELoader',
+    'VAEEncodeTiled',
+    'UNETLoader',
+    'SeedVR2Conditioning',
+    'KSampler',
+    'VAEDecodeTiled',
+    'SeedVR2PostProcessing',
+    'SaveImage',
+  };
+  static const _legacyRequiredNodeClasses = {
+    'LoadImage',
+    'SeedVR2LoadDiTModel',
+    'SeedVR2LoadVAEModel',
+    'SeedVR2VideoUpscaler',
+    'SaveImage',
+  };
+
   bool _isFetching = false;
   bool _hasFetchedFromServer = false;
+  ComfySeedvr2Capabilities _capabilities = const ComfySeedvr2Capabilities();
 
   bool get hasFetchedFromServer => _hasFetchedFromServer;
+  ComfySeedvr2Capabilities get capabilities => _capabilities;
 
   @override
   List<String> build() {
@@ -529,6 +551,7 @@ class ComfyUISeedvr2Models extends _$ComfyUISeedvr2Models {
       if (!next.enabled) {
         _hasFetchedFromServer = false;
         _isFetching = false;
+        _capabilities = const ComfySeedvr2Capabilities();
         state = _fallback;
         return;
       }
@@ -537,6 +560,8 @@ class ComfyUISeedvr2Models extends _$ComfyUISeedvr2Models {
       final enabledChanged = prev?.enabled != next.enabled;
       if (serverChanged || enabledChanged) {
         _hasFetchedFromServer = false;
+        _capabilities = const ComfySeedvr2Capabilities();
+        state = _fallback;
         _scheduleAutoFetch(force: true);
       }
     });
@@ -593,32 +618,77 @@ class ComfyUISeedvr2Models extends _$ComfyUISeedvr2Models {
     }
 
     try {
-      final seedvr2Models = await _fetchModelsFromNode(
-        conn!,
-        nodeClass: _seedvr2NodeClass,
-        candidateFields: const ['model', 'dit_model', 'dit_model_name'],
+      final nodeClasses = <String>{
+        ..._nativeRequiredNodeClasses,
+        ..._legacyRequiredNodeClasses,
+        'SeedVR2TilingUpscaler',
+        _upscaleNodeClass,
+      };
+      final nodeInfoEntries = await Future.wait(
+        nodeClasses.map((nodeClass) async {
+          final info = await _fetchNodeInfo(conn!, nodeClass: nodeClass);
+          return MapEntry(nodeClass, info);
+        }),
       );
-      final normalUpscaleModels = await _fetchModelsFromNode(
-        conn,
+      final nodeInfo = Map<String, Map<String, dynamic>?>.fromEntries(
+        nodeInfoEntries,
+      );
+
+      final nativeModels = _extractModelsFromNodeInfo(
+        nodeInfo[_nativeModelNodeClass],
+        nodeClass: _nativeModelNodeClass,
+        candidateFields: const ['unet_name'],
+      ).where(_isSeedvr2Model).toList(growable: false);
+      final legacyModels = _extractModelsFromNodeInfo(
+        nodeInfo[_legacyModelNodeClass],
+        nodeClass: _legacyModelNodeClass,
+        candidateFields: const ['model', 'dit_model', 'dit_model_name'],
+      ).where(_isSeedvr2Model).toList(growable: false);
+      final nativeVaeModels = _extractModelsFromNodeInfo(
+        nodeInfo[_nativeVaeNodeClass],
+        nodeClass: _nativeVaeNodeClass,
+        candidateFields: const ['vae_name'],
+      ).where(_isSeedvr2Vae).toList(growable: false);
+      final normalUpscaleModels = _extractModelsFromNodeInfo(
+        nodeInfo[_upscaleNodeClass],
         nodeClass: _upscaleNodeClass,
         candidateFields: const ['model_name', 'upscale_model', 'model'],
       );
 
-      final models = <String>[
-        ...seedvr2Models,
-        for (final model in normalUpscaleModels)
-          if (!seedvr2Models.contains(model)) model,
-      ];
+      _capabilities = ComfySeedvr2Capabilities(
+        nativeNodesAvailable: _nativeRequiredNodeClasses.every(
+          (nodeClass) => _hasNode(nodeInfo[nodeClass], nodeClass),
+        ),
+        legacyNodesAvailable: _legacyRequiredNodeClasses.every(
+          (nodeClass) => _hasNode(nodeInfo[nodeClass], nodeClass),
+        ),
+        legacyTilingAvailable: _hasNode(
+          nodeInfo['SeedVR2TilingUpscaler'],
+          'SeedVR2TilingUpscaler',
+        ),
+        nativeModels: _deduplicate(nativeModels),
+        legacyModels: _deduplicate(legacyModels),
+        nativeVaeModels: _deduplicate(nativeVaeModels),
+      );
 
-      if (models.isNotEmpty) {
-        AppLogger.i(
-          'Found ${seedvr2Models.length} SeedVR2 and '
-          '${normalUpscaleModels.length} regular upscale model(s)',
-          _tag,
-        );
-        state = models;
-        _hasFetchedFromServer = true;
-      } else {
+      final models = _deduplicate([
+        ...nativeModels,
+        ...legacyModels,
+        ...normalUpscaleModels,
+      ]);
+      state = models;
+      _hasFetchedFromServer = true;
+      AppLogger.i(
+        'Found nativeSeedVR2=${nativeModels.length}, '
+        'legacySeedVR2=${legacyModels.length}, '
+        'nativeVae=${nativeVaeModels.length}, '
+        'regular=${normalUpscaleModels.length}; '
+        'nativeUsable=${_capabilities.nativeUsable}, '
+        'legacyUsable=${_capabilities.legacyUsable}, '
+        'legacyTiling=${_capabilities.legacyTilingAvailable}',
+        _tag,
+      );
+      if (models.isEmpty) {
         AppLogger.w('Could not extract any ComfyUI upscale model list', _tag);
       }
     } catch (e, st) {
@@ -629,72 +699,63 @@ class ComfyUISeedvr2Models extends _$ComfyUISeedvr2Models {
     }
   }
 
-  Future<List<String>> _fetchModelsFromNode(
+  Future<Map<String, dynamic>?> _fetchNodeInfo(
     ComfyUIConnectionManager conn, {
     required String nodeClass,
-    required Iterable<String> candidateFields,
   }) async {
     try {
       final info = await conn.api!.getObjectInfo(nodeClass);
-      AppLogger.d(
-        '$nodeClass object_info raw keys: ${info.keys.toList()}',
-        _tag,
-      );
-
-      final node = info[nodeClass] as Map<String, dynamic>?;
-      if (node == null) {
-        AppLogger.w(
-          'Node "$nodeClass" not found. Available: ${info.keys.take(10)}',
-          _tag,
-        );
-        return const [];
-      }
-
-      final input = node['input'] as Map<String, dynamic>?;
-      if (input == null) {
-        AppLogger.w('$nodeClass has no "input" key. Keys: ${node.keys}', _tag);
-        return const [];
-      }
-
-      final required = input['required'] as Map<String, dynamic>?;
-      if (required == null) {
-        AppLogger.w(
-          '$nodeClass has no required inputs. Keys: ${input.keys}',
-          _tag,
-        );
-        return const [];
-      }
-
-      AppLogger.d(
-        '$nodeClass required fields: ${required.keys.toList()}',
-        _tag,
-      );
-      final models = extractChoiceListFromCandidateFields(
-        required,
-        candidateFields,
-      );
-
-      if (models != null && models.isNotEmpty) {
-        return models;
-      }
-
-      AppLogger.w('Could not extract model list from $nodeClass', _tag);
-      for (final entry in required.entries) {
-        AppLogger.d(
-          '  ${entry.key}: ${entry.value.runtimeType} = '
-          '${_truncate(entry.value.toString(), 200)}',
-          _tag,
-        );
-      }
-      return const [];
+      return info;
     } catch (e) {
-      AppLogger.w('Failed to fetch models from $nodeClass: $e', _tag);
-      return const [];
+      AppLogger.d('Node $nodeClass is unavailable: $e', _tag);
+      return null;
     }
   }
 
-  static String _truncate(String s, int maxLen) =>
-      s.length <= maxLen ? s : '${s.substring(0, maxLen)}...';
+  List<String> _extractModelsFromNodeInfo(
+    Map<String, dynamic>? info, {
+    required String nodeClass,
+    required Iterable<String> candidateFields,
+  }) {
+    final node = info?[nodeClass] as Map<String, dynamic>?;
+    final input = node?['input'] as Map<String, dynamic>?;
+    final required = input?['required'] as Map<String, dynamic>?;
+    if (required == null) return const [];
+
+    final models = extractChoiceListFromCandidateFields(
+      required,
+      candidateFields,
+    );
+    if (models != null && models.isNotEmpty) return models;
+
+    AppLogger.d(
+      'Could not extract model list from $nodeClass; fields='
+      '${required.keys.toList()}',
+      _tag,
+    );
+    return const [];
+  }
+
+  static bool _hasNode(Map<String, dynamic>? info, String nodeClass) =>
+      info?[nodeClass] is Map<String, dynamic>;
+
+  static bool _isSeedvr2Model(String model) =>
+      model.trim().toLowerCase().contains('seedvr2');
+
+  static bool _isSeedvr2Vae(String model) {
+    final normalized = model.trim().toLowerCase().replaceAll('\\', '/');
+    return normalized.contains('seedvr2') ||
+        normalized.endsWith('/ema_vae_fp16.safetensors') ||
+        normalized == 'ema_vae_fp16.safetensors';
+  }
+
+  static List<String> _deduplicate(Iterable<String> values) {
+    final seen = <String>{};
+    return [
+      for (final value in values)
+        if (value.trim().isNotEmpty && seen.add(value.trim())) value.trim(),
+    ];
+  }
 }
 
 enum ComfyUITaskErrorCode {

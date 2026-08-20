@@ -19,14 +19,27 @@ void main() {
         extractChoiceListFromObjectInfoField([
           'COMBO',
           {
-            'choices': [
-              'seedvr2_a.safetensors',
-              'seedvr2_b.safetensors',
-            ],
+            'choices': ['seedvr2_a.safetensors', 'seedvr2_b.safetensors'],
             'default': 'seedvr2_a.safetensors',
           },
         ]),
         ['seedvr2_a.safetensors', 'seedvr2_b.safetensors'],
+      );
+    });
+
+    test('should parse custom-node COMBO options from live object_info', () {
+      expect(
+        extractChoiceListFromObjectInfoField([
+          'COMBO',
+          {
+            'options': [
+              'seedvr2_ema_3b-Q4_K_M.gguf',
+              'seedvr2_ema_7b_fp16.safetensors',
+            ],
+            'default': 'seedvr2_ema_3b-Q4_K_M.gguf',
+          },
+        ]),
+        ['seedvr2_ema_3b-Q4_K_M.gguf', 'seedvr2_ema_7b_fp16.safetensors'],
       );
     });
   });
@@ -70,6 +83,33 @@ void main() {
         ),
         throwsA(isA<ComfyUIApiException>()),
       );
+    });
+  });
+
+  group('formatComfyUIErrorResponse', () {
+    test('prefers actionable node validation errors', () {
+      final detail = formatComfyUIErrorResponse({
+        'error': {
+          'type': 'prompt_outputs_failed_validation',
+          'message': 'Prompt outputs failed validation',
+          'details': '',
+        },
+        'node_errors': {
+          '8': {
+            'class_type': 'SeedVR2TilingUpscaler',
+            'errors': [
+              {
+                'message': 'Required input is missing',
+                'details': 'tile_batch_size',
+              },
+            ],
+          },
+        },
+      });
+
+      expect(detail, contains('节点 8 (SeedVR2TilingUpscaler)'));
+      expect(detail, contains('Required input is missing: tile_batch_size'));
+      expect(detail, isNot(contains('prompt_outputs_failed_validation')));
     });
   });
 }

@@ -2485,7 +2485,7 @@ abstract class AppLocalizations {
   /// No description provided for @img2img_noSeedvr2Models.
   ///
   /// In en, this message translates to:
-  /// **'No SeedVR2 model found. Refresh the model list or check the SeedVR2 node/model files.'**
+  /// **'No usable SeedVR2 model found. Refresh the model list and check ComfyUI\'s native models/diffusion_models and models/vae folders or the SeedVR2 custom-node model folder.'**
   String get img2img_noSeedvr2Models;
 
   /// No description provided for @img2img_noRegularUpscaleModels.
@@ -2493,6 +2493,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No regular upscale model found. Refresh the model list or check models/upscale_models.'**
   String get img2img_noRegularUpscaleModels;
+
+  /// No description provided for @img2img_useNativeSeedvr2Workflow.
+  ///
+  /// In en, this message translates to:
+  /// **'Using the native ComfyUI SeedVR2 one-step upscale workflow.'**
+  String get img2img_useNativeSeedvr2Workflow;
 
   /// No description provided for @img2img_useSeedvr2TiledWorkflow.
   ///
@@ -2590,10 +2596,52 @@ abstract class AppLocalizations {
   /// **'Quality'**
   String get img2img_metricQuality;
 
+  /// No description provided for @img2img_seedvr2Engine.
+  ///
+  /// In en, this message translates to:
+  /// **'SeedVR2 Engine'**
+  String get img2img_seedvr2Engine;
+
+  /// No description provided for @img2img_seedvr2EngineAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get img2img_seedvr2EngineAuto;
+
+  /// No description provided for @img2img_seedvr2EngineNative.
+  ///
+  /// In en, this message translates to:
+  /// **'Native'**
+  String get img2img_seedvr2EngineNative;
+
+  /// No description provided for @img2img_seedvr2EngineLegacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Compatibility'**
+  String get img2img_seedvr2EngineLegacy;
+
+  /// No description provided for @img2img_seedvr2EngineResolvedNative.
+  ///
+  /// In en, this message translates to:
+  /// **'Using native SeedVR2 built into ComfyUI.'**
+  String get img2img_seedvr2EngineResolvedNative;
+
+  /// No description provided for @img2img_seedvr2EngineResolvedLegacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Using the installed SeedVR2 custom nodes.'**
+  String get img2img_seedvr2EngineResolvedLegacy;
+
+  /// No description provided for @img2img_seedvr2EngineUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected SeedVR2 engine or its required models are unavailable. Refresh the model list or switch engines.'**
+  String get img2img_seedvr2EngineUnavailable;
+
   /// No description provided for @img2img_seedvr2VaeTileHint.
   ///
   /// In en, this message translates to:
-  /// **'Also writes the SeedVR2 VAE MODEL encode/decode tile size.'**
+  /// **'Sets the tile size used for SeedVR2 VAE encoding and decoding.'**
   String get img2img_seedvr2VaeTileHint;
 
   /// No description provided for @img2img_seedvr2UseTiledUpscale.
@@ -16270,6 +16318,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'SeedVR2 Tiled Upscale'**
   String get comfyWorkflow_seedvr2TiledUpscaleName;
+
+  /// No description provided for @comfyWorkflow_seedvr2LegacyUpscaleName.
+  ///
+  /// In en, this message translates to:
+  /// **'SeedVR2 Compatibility Upscale'**
+  String get comfyWorkflow_seedvr2LegacyUpscaleName;
+
+  /// No description provided for @comfyWorkflow_seedvr2LegacyUpscaleDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Upscale with the installed SeedVR2VideoUpscaler custom nodes.'**
+  String get comfyWorkflow_seedvr2LegacyUpscaleDescription;
 
   /// No description provided for @comfyWorkflow_seedvr2TiledUpscaleDescription.
   ///

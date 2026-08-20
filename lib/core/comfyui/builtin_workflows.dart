@@ -5,13 +5,123 @@ class BuiltinWorkflows {
   BuiltinWorkflows._();
 
   static List<WorkflowTemplate> get all => [
+    seedvr2NativeUpscale,
     seedvr2Upscale,
     seedvr2TiledUpscale,
     modelUpscale,
     rtxUpscale,
   ];
 
-  /// SeedVR2 超分工作流
+  /// ComfyUI 原生 SeedVR2 图片超分工作流。
+  ///
+  /// 输入先保留 alpha 并按倍率缩放，再经过原生 SeedVR2 预处理、VAE、
+  /// 一步采样和后处理。该工作流只依赖 ComfyUI Core 节点。
+  static const WorkflowTemplate seedvr2NativeUpscale = WorkflowTemplate(
+    id: 'builtin_seedvr2_native_upscale',
+    name: 'SeedVR2 Native Upscale',
+    description:
+        'Upscale with the native SeedVR2 implementation included in ComfyUI.',
+    version: '1.0.0',
+    author: 'NAI Launcher',
+    category: WorkflowCategory.enhance,
+    requiresInputImage: true,
+    requiresMask: false,
+    isBuiltin: true,
+    slots: [
+      WorkflowSlot(
+        id: 'input_image',
+        direction: SlotDirection.input,
+        dataType: SlotDataType.image,
+        nodeId: '1',
+        field: 'image',
+        label: 'Input Image',
+        required: true,
+      ),
+      WorkflowSlot(
+        id: 'scale',
+        direction: SlotDirection.parameter,
+        dataType: SlotDataType.number,
+        nodeId: '3',
+        field: 'scale_by',
+        label: 'Scale',
+        defaultValue: 1.5,
+        min: 1.0,
+        max: 2.0,
+        step: 0.1,
+      ),
+      WorkflowSlot(
+        id: 'dit_model',
+        direction: SlotDirection.parameter,
+        dataType: SlotDataType.choice,
+        nodeId: '7',
+        field: 'unet_name',
+        label: 'Upscale Model',
+        defaultValue: 'seedvr2_3b_int8_convrot.safetensors',
+        choices: ['seedvr2_3b_int8_convrot.safetensors'],
+      ),
+      WorkflowSlot(
+        id: 'vae_model',
+        direction: SlotDirection.parameter,
+        dataType: SlotDataType.choice,
+        nodeId: '5',
+        field: 'vae_name',
+        label: 'VAE Model',
+        defaultValue: 'seedvr2_ema_vae_fp16.safetensors',
+        choices: [
+          'seedvr2_ema_vae_fp16.safetensors',
+          'ema_vae_fp16.safetensors',
+        ],
+      ),
+      WorkflowSlot(
+        id: 'vae_encode_tile_size',
+        direction: SlotDirection.parameter,
+        dataType: SlotDataType.integer,
+        nodeId: '6',
+        field: 'tile_size',
+        label: 'VAE Encode Tile Size',
+        defaultValue: 1024,
+        min: 128,
+        max: 4096,
+        step: 64,
+      ),
+      WorkflowSlot(
+        id: 'vae_decode_tile_size',
+        direction: SlotDirection.parameter,
+        dataType: SlotDataType.integer,
+        nodeId: '10',
+        field: 'tile_size',
+        label: 'VAE Decode Tile Size',
+        defaultValue: 1024,
+        min: 128,
+        max: 4096,
+        step: 64,
+      ),
+      WorkflowSlot(
+        id: 'seed',
+        direction: SlotDirection.parameter,
+        dataType: SlotDataType.integer,
+        nodeId: '9',
+        field: 'seed',
+        label: 'Random Seed',
+        defaultValue: -1,
+        min: -1,
+        max: 4294967295,
+      ),
+      WorkflowSlot(
+        id: 'output_image',
+        direction: SlotDirection.output,
+        dataType: SlotDataType.image,
+        nodeId: '12',
+        field: null,
+        label: 'Output Image',
+        outputMethod: OutputMethod.httpHistory,
+        nodeClass: 'SaveImage',
+      ),
+    ],
+    workflowJson: _seedvr2NativeWorkflowJson,
+  );
+
+  /// 兼容旧版自定义节点的 SeedVR2 超分工作流
   ///
   /// 节点图：
   ///   [15] LoadImage (输入)
@@ -425,7 +535,119 @@ class BuiltinWorkflows {
     workflowJson: _rtxUpscaleWorkflowJson,
   );
 
-  // ==================== SeedVR2 超分 ====================
+  // ==================== ComfyUI 原生 SeedVR2 超分 ====================
+
+  static const Map<String, dynamic> _seedvr2NativeWorkflowJson = {
+    '1': {
+      'inputs': {'image': 'placeholder.png'},
+      'class_type': 'LoadImage',
+      '_meta': {'title': 'Load Image'},
+    },
+    '2': {
+      'inputs': {
+        'image': ['1', 0],
+        'alpha': ['1', 1],
+      },
+      'class_type': 'JoinImageWithAlpha',
+      '_meta': {'title': 'Join Image With Alpha'},
+    },
+    '3': {
+      'inputs': {
+        'image': ['2', 0],
+        'upscale_method': 'lanczos',
+        'scale_by': 1.5,
+      },
+      'class_type': 'ImageScaleBy',
+      '_meta': {'title': 'Scale SeedVR2 Input'},
+    },
+    '4': {
+      'inputs': {
+        'resized_images': ['3', 0],
+      },
+      'class_type': 'SeedVR2Preprocess',
+      '_meta': {'title': 'Pre-Process SeedVR2 Input'},
+    },
+    '5': {
+      'inputs': {'vae_name': 'seedvr2_ema_vae_fp16.safetensors'},
+      'class_type': 'VAELoader',
+      '_meta': {'title': 'Load SeedVR2 VAE'},
+    },
+    '6': {
+      'inputs': {
+        'pixels': ['4', 0],
+        'vae': ['5', 0],
+        'tile_size': 1024,
+        'overlap': 64,
+        'temporal_size': 4096,
+        'temporal_overlap': 8,
+      },
+      'class_type': 'VAEEncodeTiled',
+      '_meta': {'title': 'VAE Encode Tiled'},
+    },
+    '7': {
+      'inputs': {
+        'unet_name': 'seedvr2_3b_int8_convrot.safetensors',
+        'weight_dtype': 'default',
+      },
+      'class_type': 'UNETLoader',
+      '_meta': {'title': 'Load Native SeedVR2 Model'},
+    },
+    '8': {
+      'inputs': {
+        'model': ['7', 0],
+        'vae_conditioning': ['6', 0],
+      },
+      'class_type': 'SeedVR2Conditioning',
+      '_meta': {'title': 'Apply SeedVR2 Conditioning'},
+    },
+    '9': {
+      'inputs': {
+        'model': ['7', 0],
+        'seed': 454201668,
+        'steps': 1,
+        'cfg': 1.0,
+        'sampler_name': 'euler',
+        'scheduler': 'simple',
+        'positive': ['8', 0],
+        'negative': ['8', 1],
+        'latent_image': ['6', 0],
+        'denoise': 1.0,
+      },
+      'class_type': 'KSampler',
+      '_meta': {'title': 'SeedVR2 One-Step Sampler'},
+    },
+    '10': {
+      'inputs': {
+        'samples': ['9', 0],
+        'vae': ['5', 0],
+        'tile_size': 1024,
+        'overlap': 64,
+        'temporal_size': 4096,
+        'temporal_overlap': 8,
+      },
+      'class_type': 'VAEDecodeTiled',
+      '_meta': {'title': 'VAE Decode Tiled'},
+    },
+    '11': {
+      'inputs': {
+        'images': ['10', 0],
+        'original_resized_images': ['3', 0],
+        'color_correction_method': 'lab',
+      },
+      'class_type': 'SeedVR2PostProcessing',
+      '_meta': {'title': 'Post-Process SeedVR2 Output'},
+    },
+    '12': {
+      'inputs': {
+        'filename_prefix': 'NAI_seedvr2_native_upscale',
+        'images': ['11', 0],
+      },
+      'class_type': 'SaveImage',
+      '_meta': {'title': 'Save Image'},
+    },
+  };
+
+  // ==================== 兼容自定义节点的 SeedVR2 超分 ====================
 
   static const Map<String, dynamic> _seedvr2WorkflowJson = {
     '5': {
@@ -550,6 +772,8 @@ class BuiltinWorkflows {
         'blending_method': 'content_aware',
         'color_correction': 'lab',
         'resolution_target': 'longest',
+        // 新版 SeedVR2TilingUpscaler 将该项设为必填；1 是最低显存默认值。
+        'tile_batch_size': 1,
       },
       'class_type': 'SeedVR2TilingUpscaler',
       '_meta': {'title': 'SeedVR2 Tiling Upscaler'},

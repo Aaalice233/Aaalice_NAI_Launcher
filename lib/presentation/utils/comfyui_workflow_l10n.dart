@@ -8,7 +8,8 @@ extension LocalizedWorkflowTemplate on WorkflowTemplate {
     if (!isBuiltin) return name;
     final l10n = context.l10n;
     return switch (id) {
-      'builtin_seedvr2_upscale' => l10n.comfyWorkflow_seedvr2UpscaleName,
+      'builtin_seedvr2_native_upscale' => l10n.comfyWorkflow_seedvr2UpscaleName,
+      'builtin_seedvr2_upscale' => l10n.comfyWorkflow_seedvr2LegacyUpscaleName,
       'builtin_seedvr2_tiled_upscale' =>
         l10n.comfyWorkflow_seedvr2TiledUpscaleName,
       'builtin_comfy_model_upscale' => l10n.comfyWorkflow_modelUpscaleName,
@@ -21,7 +22,10 @@ extension LocalizedWorkflowTemplate on WorkflowTemplate {
     if (!isBuiltin) return description;
     final l10n = context.l10n;
     return switch (id) {
-      'builtin_seedvr2_upscale' => l10n.comfyWorkflow_seedvr2UpscaleDescription,
+      'builtin_seedvr2_native_upscale' =>
+        l10n.comfyWorkflow_seedvr2UpscaleDescription,
+      'builtin_seedvr2_upscale' =>
+        l10n.comfyWorkflow_seedvr2LegacyUpscaleDescription,
       'builtin_seedvr2_tiled_upscale' =>
         l10n.comfyWorkflow_seedvr2TiledUpscaleDescription,
       'builtin_comfy_model_upscale' =>

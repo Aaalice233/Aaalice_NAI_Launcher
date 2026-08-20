@@ -286,6 +286,10 @@ class StorageKeys {
       'comfyui_upscale_regular_model';
   static const String comfyuiUpscaleSeedvr2Model =
       'comfyui_upscale_seedvr2_model';
+  static const String comfyuiUpscaleSeedvr2NativeModel =
+      'comfyui_upscale_seedvr2_native_model';
+  static const String comfyuiUpscaleSeedvr2LegacyModel =
+      'comfyui_upscale_seedvr2_legacy_model';
   static const String comfyuiUpscaleScale = 'comfyui_upscale_scale';
   static const String comfyuiUpscaleBackend = 'comfyui_upscale_backend';
   static const String comfyuiUpscaleModule = 'comfyui_upscale_module';
@@ -295,6 +299,7 @@ class StorageKeys {
   static const String comfyuiSeedvr2TileSize = 'comfyui_seedvr2_tile_size';
   static const String comfyuiSeedvr2BlocksToSwap =
       'comfyui_seedvr2_blocks_to_swap';
+  static const String comfyuiSeedvr2Engine = 'comfyui_seedvr2_engine';
 
   // Krita Bridge 设置
   static const String kritaBridgeEnabled = 'krita_bridge_enabled';

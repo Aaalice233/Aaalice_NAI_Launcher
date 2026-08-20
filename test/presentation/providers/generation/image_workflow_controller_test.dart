@@ -857,25 +857,32 @@ void main() {
       },
     );
 
-    test('updateSeedvr2BlocksToSwap should clamp values to the valid range', () {
-      final controller = container.read(
-        imageWorkflowControllerProvider.notifier,
-      );
+    test(
+      'updateSeedvr2BlocksToSwap should clamp values to the valid range',
+      () {
+        final controller = container.read(
+          imageWorkflowControllerProvider.notifier,
+        );
 
-      controller.updateSeedvr2BlocksToSwap(-8);
-      expect(
-        container.read(imageWorkflowControllerProvider).upscale
-            .seedvr2BlocksToSwap,
-        equals(UpscaleWorkflowSettings.minSeedvr2BlocksToSwap),
-      );
+        controller.updateSeedvr2BlocksToSwap(-8);
+        expect(
+          container
+              .read(imageWorkflowControllerProvider)
+              .upscale
+              .seedvr2BlocksToSwap,
+          equals(UpscaleWorkflowSettings.minSeedvr2BlocksToSwap),
+        );
 
-      controller.updateSeedvr2BlocksToSwap(120);
-      expect(
-        container.read(imageWorkflowControllerProvider).upscale
-            .seedvr2BlocksToSwap,
-        equals(UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap),
-      );
-    });
+        controller.updateSeedvr2BlocksToSwap(120);
+        expect(
+          container
+              .read(imageWorkflowControllerProvider)
+              .upscale
+              .seedvr2BlocksToSwap,
+          equals(UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap),
+        );
+      },
+    );
 
     test('build should default upscale settings to safe local defaults', () {
       final workflow = container.read(imageWorkflowControllerProvider);
@@ -950,6 +957,20 @@ void main() {
         equals('seedvr2_ema_3b_q4_k_m.safetensors'),
       );
     });
+
+    test(
+      'selectPreferredUpscaleModel should prefer quantized native models',
+      () {
+        expect(
+          selectPreferredUpscaleModel(const [
+            'seedvr2_7b_fp16.safetensors',
+            'seedvr2_7b_fp8_e4m3fn.safetensors',
+            'seedvr2_7b_sharp_int8_convrot.safetensors',
+          ]),
+          equals('seedvr2_7b_sharp_int8_convrot.safetensors'),
+        );
+      },
+    );
 
     test(
       'clearSourceImage should preserve workflow setting preferences',

@@ -1276,11 +1276,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get img2img_noSeedvr2Models =>
-      '未发现 SeedVR2 模型，请刷新模型列表或检查 SeedVR2 节点/模型文件。';
+      '未发现可用的 SeedVR2 模型，请刷新模型列表，并检查 ComfyUI 原生 models/diffusion_models、models/vae 或 SeedVR2 自定义节点模型目录。';
 
   @override
   String get img2img_noRegularUpscaleModels =>
       '未发现普通超分模型，请刷新模型列表或检查 models/upscale_models。';
+
+  @override
+  String get img2img_useNativeSeedvr2Workflow =>
+      '将使用 ComfyUI 原生 SeedVR2 一步超分流程。';
 
   @override
   String get img2img_useSeedvr2TiledWorkflow =>
@@ -1340,8 +1344,29 @@ class AppLocalizationsZh extends AppLocalizations {
   String get img2img_metricQuality => '效果';
 
   @override
-  String get img2img_seedvr2VaeTileHint =>
-      '同时写入 SeedVR2 VAE MODEL 的 encode/decode tile size。';
+  String get img2img_seedvr2Engine => 'SeedVR2 引擎';
+
+  @override
+  String get img2img_seedvr2EngineAuto => '自动';
+
+  @override
+  String get img2img_seedvr2EngineNative => '原生';
+
+  @override
+  String get img2img_seedvr2EngineLegacy => '兼容节点';
+
+  @override
+  String get img2img_seedvr2EngineResolvedNative => '当前使用 ComfyUI 原生 SeedVR2。';
+
+  @override
+  String get img2img_seedvr2EngineResolvedLegacy => '当前使用已安装的 SeedVR2 自定义节点。';
+
+  @override
+  String get img2img_seedvr2EngineUnavailable =>
+      '当前选择的 SeedVR2 引擎或所需模型不可用，请刷新模型列表或切换引擎。';
+
+  @override
+  String get img2img_seedvr2VaeTileHint => '设置 SeedVR2 VAE 编码与解码的分块尺寸。';
 
   @override
   String get img2img_seedvr2UseTiledUpscale => '使用分块放大';
@@ -8898,6 +8923,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get comfyWorkflow_seedvr2TiledUpscaleName => 'SeedVR2 分块超分';
+
+  @override
+  String get comfyWorkflow_seedvr2LegacyUpscaleName => 'SeedVR2 兼容节点超分';
+
+  @override
+  String get comfyWorkflow_seedvr2LegacyUpscaleDescription =>
+      '使用已安装的 SeedVR2VideoUpscaler 自定义节点进行超分';
 
   @override
   String get comfyWorkflow_seedvr2TiledUpscaleDescription =>

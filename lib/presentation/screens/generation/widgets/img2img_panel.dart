@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 
 import '../../../../core/comfyui/comfyui_models.dart';
+import '../../../../core/comfyui/seedvr2_support.dart';
 import '../../../../core/comfyui/workflow_template.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/focused_inpaint_utils.dart';
@@ -706,7 +707,8 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
               return ChoiceChip(
                 label: Text(label),
                 selected: activeFactor == factor,
-                onSelected: (_) => controller.updateEnhanceUpscaleFactor(factor),
+                onSelected: (_) =>
+                    controller.updateEnhanceUpscaleFactor(factor),
               );
             }).toList(),
           ),
@@ -749,23 +751,31 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
     final isNai = upscale.backend == UpscaleBackend.novelai;
     final isComfy = upscale.backend == UpscaleBackend.comfyui;
     final comfyModule = upscale.comfyModule;
-    final currentComfyModel = upscale.comfyModelForModule(comfyModule);
+    final isComfySeedvr2 = comfyModule == ComfyUpscaleModule.seedvr2;
+    final isComfyRtx = comfyModule == ComfyUpscaleModule.rtx;
 
     final availableModels = ref.watch(comfyUISeedvr2ModelsProvider);
-    final moduleModels = filterComfyUpscaleModelsForModule(
-      availableModels,
-      module: comfyModule,
+    final modelsNotifier = ref.read(comfyUISeedvr2ModelsProvider.notifier);
+    final seedvr2Capabilities = modelsNotifier.capabilities;
+    final seedvr2Backend = isComfySeedvr2
+        ? seedvr2Capabilities.resolveBackend(upscale.seedvr2Engine)
+        : null;
+    final currentComfyModel = upscale.comfyModelForModule(
+      comfyModule,
+      seedvr2Backend: seedvr2Backend,
     );
-    final modelsFetchedFromServer = ref
-        .read(comfyUISeedvr2ModelsProvider.notifier)
-        .hasFetchedFromServer;
+    final moduleModels = isComfySeedvr2
+        ? seedvr2Capabilities.modelsForBackend(seedvr2Backend)
+        : filterComfyUpscaleModelsForModule(
+            availableModels,
+            module: comfyModule,
+          );
+    final modelsFetchedFromServer = modelsNotifier.hasFetchedFromServer;
     final resolvedComfyModel = resolveComfyUpscaleModelForModule(
-      availableModels,
+      moduleModels,
       module: comfyModule,
       currentModel: currentComfyModel,
     );
-    final isComfySeedvr2 = comfyModule == ComfyUpscaleModule.seedvr2;
-    final isComfyRtx = comfyModule == ComfyUpscaleModule.rtx;
 
     if (resolvedComfyModel != null &&
         shouldAutoPersistResolvedUpscaleModel(
@@ -776,7 +786,10 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           resolvedModel: resolvedComfyModel,
         )) {
       Future.microtask(
-        () => controller.updateUpscaleComfyModel(resolvedComfyModel),
+        () => controller.updateUpscaleComfyModel(
+          resolvedComfyModel,
+          seedvr2Backend: seedvr2Backend,
+        ),
       );
     }
 
@@ -916,7 +929,10 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                       ? null
                       : (v) {
                           if (v != null) {
-                            controller.updateUpscaleComfyModel(v);
+                            controller.updateUpscaleComfyModel(
+                              v,
+                              seedvr2Backend: seedvr2Backend,
+                            );
                           }
                         },
                 ),
@@ -935,7 +951,13 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
               ],
               Text(
                 switch (comfyModule) {
-                  ComfyUpscaleModule.seedvr2 when upscale.seedvr2Tiled =>
+                  ComfyUpscaleModule.seedvr2
+                      when seedvr2Backend == ComfySeedvr2Backend.native =>
+                    context.l10n.img2img_useNativeSeedvr2Workflow,
+                  ComfyUpscaleModule.seedvr2
+                      when seedvr2Backend == ComfySeedvr2Backend.legacy &&
+                          seedvr2Capabilities.legacyTilingAvailable &&
+                          upscale.seedvr2Tiled =>
                     context.l10n.img2img_useSeedvr2TiledWorkflow,
                   ComfyUpscaleModule.seedvr2 =>
                     context.l10n.img2img_useSeedvr2Workflow,
@@ -952,8 +974,9 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton.icon(
-                    onPressed: () =>
-                        ref.read(comfyUISeedvr2ModelsProvider.notifier).fetch(),
+                    onPressed: () => ref
+                        .read(comfyUISeedvr2ModelsProvider.notifier)
+                        .fetch(force: true),
                     icon: const Icon(Icons.refresh, size: 14),
                     label: Text(
                       context.l10n.img2img_refreshModelList,
@@ -969,7 +992,13 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
               _buildScaleSlider(theme, upscale, controller),
               if (isComfySeedvr2) ...[
                 const SizedBox(height: 8),
-                _buildSeedvr2Controls(theme, upscale, controller),
+                _buildSeedvr2Controls(
+                  theme,
+                  upscale,
+                  controller,
+                  capabilities: seedvr2Capabilities,
+                  backend: seedvr2Backend,
+                ),
               ],
               const SizedBox(height: 8),
               if (taskState.isRunning) ...[
@@ -1218,21 +1247,66 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
   Widget _buildSeedvr2Controls(
     ThemeData theme,
     UpscaleWorkflowSettings upscale,
-    ImageWorkflowController controller,
-  ) {
+    ImageWorkflowController controller, {
+    required ComfySeedvr2Capabilities capabilities,
+    required ComfySeedvr2Backend? backend,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildIntegerSliderSection(
-          theme,
-          label: context.l10n.img2img_seedvr2BlocksToSwap,
-          value: upscale.seedvr2BlocksToSwap,
-          min: UpscaleWorkflowSettings.minSeedvr2BlocksToSwap,
-          max: UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap,
-          step: 1,
-          onChanged: controller.updateSeedvr2BlocksToSwap,
-          hint: context.l10n.img2img_seedvr2BlocksToSwapHint,
+        Text(
+          context.l10n.img2img_seedvr2Engine,
+          style: theme.textTheme.bodyMedium,
         ),
+        const SizedBox(height: 6),
+        SegmentedButton<ComfySeedvr2Engine>(
+          segments: [
+            ButtonSegment(
+              value: ComfySeedvr2Engine.automatic,
+              label: Text(context.l10n.img2img_seedvr2EngineAuto),
+              icon: const Icon(Icons.auto_mode_outlined, size: 16),
+            ),
+            ButtonSegment(
+              value: ComfySeedvr2Engine.native,
+              label: Text(context.l10n.img2img_seedvr2EngineNative),
+              icon: const Icon(Icons.verified_outlined, size: 16),
+              enabled: capabilities.nativeUsable,
+            ),
+            ButtonSegment(
+              value: ComfySeedvr2Engine.legacy,
+              label: Text(context.l10n.img2img_seedvr2EngineLegacy),
+              icon: const Icon(Icons.extension_outlined, size: 16),
+              enabled: capabilities.legacyUsable,
+            ),
+          ],
+          selected: {upscale.seedvr2Engine},
+          onSelectionChanged: (selection) {
+            if (selection.isNotEmpty) {
+              controller.updateSeedvr2Engine(selection.first);
+            }
+          },
+          showSelectedIcon: false,
+          style: const ButtonStyle(
+            visualDensity: VisualDensity.compact,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          switch (backend) {
+            ComfySeedvr2Backend.native =>
+              context.l10n.img2img_seedvr2EngineResolvedNative,
+            ComfySeedvr2Backend.legacy =>
+              context.l10n.img2img_seedvr2EngineResolvedLegacy,
+            null => context.l10n.img2img_seedvr2EngineUnavailable,
+          },
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: backend == null
+                ? theme.colorScheme.error
+                : theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 8),
         _buildIntegerSliderSection(
           theme,
           label: 'VAE Tile Size',
@@ -1243,36 +1317,49 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           onChanged: controller.updateSeedvr2VaeTileSize,
           hint: context.l10n.img2img_seedvr2VaeTileHint,
         ),
-        Material(
-          type: MaterialType.transparency,
-          child: SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              context.l10n.img2img_seedvr2UseTiledUpscale,
-              style: theme.textTheme.bodyMedium,
-            ),
-            subtitle: Text(
-              context.l10n.img2img_seedvr2UseTiledUpscaleHint,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                height: 1.35,
-              ),
-            ),
-            value: upscale.seedvr2Tiled,
-            onChanged: controller.updateSeedvr2Tiled,
-          ),
-        ),
-        if (upscale.seedvr2Tiled)
+        if (backend == ComfySeedvr2Backend.legacy) ...[
           _buildIntegerSliderSection(
             theme,
-            label: context.l10n.img2img_seedvr2TileSize,
-            value: upscale.seedvr2TileSize,
-            min: UpscaleWorkflowSettings.minSeedvr2TileSize,
-            max: UpscaleWorkflowSettings.maxSeedvr2TileSize,
-            step: 64,
-            onChanged: controller.updateSeedvr2TileSize,
-            hint: context.l10n.img2img_seedvr2TileSizeHint,
+            label: context.l10n.img2img_seedvr2BlocksToSwap,
+            value: upscale.seedvr2BlocksToSwap,
+            min: UpscaleWorkflowSettings.minSeedvr2BlocksToSwap,
+            max: UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap,
+            step: 1,
+            onChanged: controller.updateSeedvr2BlocksToSwap,
+            hint: context.l10n.img2img_seedvr2BlocksToSwapHint,
           ),
+          if (capabilities.legacyTilingAvailable)
+            Material(
+              type: MaterialType.transparency,
+              child: SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  context.l10n.img2img_seedvr2UseTiledUpscale,
+                  style: theme.textTheme.bodyMedium,
+                ),
+                subtitle: Text(
+                  context.l10n.img2img_seedvr2UseTiledUpscaleHint,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    height: 1.35,
+                  ),
+                ),
+                value: upscale.seedvr2Tiled,
+                onChanged: controller.updateSeedvr2Tiled,
+              ),
+            ),
+          if (capabilities.legacyTilingAvailable && upscale.seedvr2Tiled)
+            _buildIntegerSliderSection(
+              theme,
+              label: context.l10n.img2img_seedvr2TileSize,
+              value: upscale.seedvr2TileSize,
+              min: UpscaleWorkflowSettings.minSeedvr2TileSize,
+              max: UpscaleWorkflowSettings.maxSeedvr2TileSize,
+              step: 64,
+              onChanged: controller.updateSeedvr2TileSize,
+              hint: context.l10n.img2img_seedvr2TileSizeHint,
+            ),
+        ],
       ],
     );
   }
@@ -1349,6 +1436,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
     final upscale = wf.upscale;
     return 'backend=${upscale.backend.name}, module=${upscale.comfyModule.name}, '
         'scale=${upscale.comfyScale}, comfyModel=${upscale.comfyModel}, '
+        'seedvr2Engine=${upscale.seedvr2Engine.name}, '
         'seedvr2Tiled=${upscale.seedvr2Tiled}, '
         'seedvr2VaeTileSize=${upscale.seedvr2VaeTileSize}, '
         'seedvr2TileSize=${upscale.seedvr2TileSize}, '
@@ -1462,20 +1550,39 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
     ImageWorkflowState wf,
   ) async {
     final scale = wf.upscale.comfyScale;
-    final seedvr2Models = ref.read(comfyUISeedvr2ModelsProvider);
+    final modelsNotifier = ref.read(comfyUISeedvr2ModelsProvider.notifier);
+    final capabilities = modelsNotifier.capabilities;
+    final backend = capabilities.resolveBackend(wf.upscale.seedvr2Engine);
     AppLogger.i(
       'SeedVR2 upscale begin: ${_sourceLogSummary(params, src)}; '
       '${_workflowLogSummary(wf)}',
       _upscaleLogTag,
     );
-    final model = resolveComfyUpscaleModelForModule(
-      seedvr2Models,
-      module: ComfyUpscaleModule.seedvr2,
-      currentModel: wf.upscale.comfyModel,
-    );
+    if (backend == null) {
+      AppLogger.w(
+        'SeedVR2 engine is unavailable: '
+        'requested=${wf.upscale.seedvr2Engine.name}, '
+        'nativeUsable=${capabilities.nativeUsable}, '
+        'legacyUsable=${capabilities.legacyUsable}',
+        _upscaleLogTag,
+      );
+      if (mounted) {
+        AppToast.error(context, context.l10n.img2img_seedvr2EngineUnavailable);
+      }
+      return;
+    }
+
+    final seedvr2Models = capabilities.modelsForBackend(backend);
+    final currentModel = wf.upscale.comfySeedvr2ModelForBackend(backend);
+    final model = seedvr2Models.isEmpty
+        ? null
+        : selectPreferredUpscaleModel(
+            seedvr2Models,
+            currentModel: currentModel,
+          );
     AppLogger.d(
-      'SeedVR2 model resolved: available=${seedvr2Models.length}, '
-      'selected=${model ?? '<none>'}',
+      'SeedVR2 model resolved: backend=${backend.name}, '
+      'available=${seedvr2Models.length}, selected=${model ?? '<none>'}',
       _upscaleLogTag,
     );
     if (model == null) {
@@ -1498,28 +1605,71 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
       'SeedVR2 source decoded: ${decodedSource.width}x${decodedSource.height}',
       _upscaleLogTag,
     );
-    final targetResolution = wf.upscale.seedvr2Tiled
-        ? calculateComfySeedvr2TiledTargetResolution(
-            sourceWidth: decodedSource.width,
-            sourceHeight: decodedSource.height,
-            scale: scale,
-          )
-        : calculateComfySeedvr2TargetResolution(
-            sourceWidth: decodedSource.width,
-            sourceHeight: decodedSource.height,
-            scale: scale,
+
+    late final String templateId;
+    late final Map<String, dynamic> paramValues;
+    if (backend == ComfySeedvr2Backend.native) {
+      final vaeModel = capabilities.preferredNativeVae;
+      if (vaeModel == null) {
+        AppLogger.w('Native SeedVR2 VAE is missing', _upscaleLogTag);
+        if (mounted) {
+          AppToast.error(
+            context,
+            context.l10n.img2img_seedvr2EngineUnavailable,
           );
-    final templateId = wf.upscale.seedvr2Tiled
-        ? comfySeedvr2TiledUpscaleTemplateId
-        : comfySeedvr2UpscaleTemplateId;
-    final tileUpscaleResolution = math.max(
-      64,
-      math.min(8192, (wf.upscale.seedvr2TileSize * scale).round()),
-    );
+        }
+        return;
+      }
+      templateId = comfySeedvr2NativeUpscaleTemplateId;
+      paramValues = {
+        'scale': scale,
+        'dit_model': model,
+        'vae_model': vaeModel,
+        'vae_encode_tile_size': wf.upscale.seedvr2VaeTileSize,
+        'vae_decode_tile_size': wf.upscale.seedvr2VaeTileSize,
+        'seed': -1,
+      };
+    } else {
+      final useTiled =
+          wf.upscale.seedvr2Tiled && capabilities.legacyTilingAvailable;
+      final targetResolution = useTiled
+          ? calculateComfySeedvr2TiledTargetResolution(
+              sourceWidth: decodedSource.width,
+              sourceHeight: decodedSource.height,
+              scale: scale,
+            )
+          : calculateComfySeedvr2TargetResolution(
+              sourceWidth: decodedSource.width,
+              sourceHeight: decodedSource.height,
+              scale: scale,
+            );
+      final tileUpscaleResolution = math.max(
+        64,
+        math.min(8192, (wf.upscale.seedvr2TileSize * scale).round()),
+      );
+      templateId = useTiled
+          ? comfySeedvr2LegacyTiledUpscaleTemplateId
+          : comfySeedvr2LegacyUpscaleTemplateId;
+      paramValues = {
+        'target_resolution': targetResolution,
+        'dit_model': model,
+        'vae_encode_tile_size': wf.upscale.seedvr2VaeTileSize,
+        'vae_decode_tile_size': wf.upscale.seedvr2VaeTileSize,
+        'blocks_to_swap': wf.upscale.seedvr2BlocksToSwap,
+        'swap_io_components': resolveSeedvr2SwapIoComponents(
+          wf.upscale.seedvr2BlocksToSwap,
+        ),
+        if (useTiled) ...{
+          'tile_size': wf.upscale.seedvr2TileSize,
+          'tile_upscale_resolution': tileUpscaleResolution,
+        },
+        'seed': -1,
+      };
+    }
 
     AppLogger.i(
-      'SeedVR2 execute start: template=$templateId, model=$model, '
-      'targetResolution=$targetResolution, tileUpscaleResolution=$tileUpscaleResolution',
+      'SeedVR2 execute start: backend=${backend.name}, '
+      'template=$templateId, model=$model, paramKeys=${paramValues.keys}',
       _upscaleLogTag,
     );
     final results = await ref
@@ -1527,21 +1677,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
         .execute(
           templateId: templateId,
           inputImages: {'input_image': src},
-          paramValues: {
-            'target_resolution': targetResolution,
-            'dit_model': model,
-            'vae_encode_tile_size': wf.upscale.seedvr2VaeTileSize,
-            'vae_decode_tile_size': wf.upscale.seedvr2VaeTileSize,
-            'blocks_to_swap': wf.upscale.seedvr2BlocksToSwap,
-            'swap_io_components': resolveSeedvr2SwapIoComponents(
-              wf.upscale.seedvr2BlocksToSwap,
-            ),
-            if (wf.upscale.seedvr2Tiled) ...{
-              'tile_size': wf.upscale.seedvr2TileSize,
-              'tile_upscale_resolution': tileUpscaleResolution,
-            },
-            'seed': -1,
-          },
+          paramValues: paramValues,
         );
     AppLogger.i(
       'SeedVR2 execute returned: ${_resultLogSummary(results)}',
@@ -1859,8 +1995,9 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
     final eligibleWorkflows = workflows
         .where(
           (t) =>
-              t.id != comfySeedvr2UpscaleTemplateId &&
-              t.id != comfySeedvr2TiledUpscaleTemplateId &&
+              t.id != comfySeedvr2NativeUpscaleTemplateId &&
+              t.id != comfySeedvr2LegacyUpscaleTemplateId &&
+              t.id != comfySeedvr2LegacyTiledUpscaleTemplateId &&
               t.id != comfyModelUpscaleTemplateId &&
               t.id != comfyRtxUpscaleTemplateId &&
               t.requiresInputImage,
