@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/image_save_utils.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
+import '../../../core/utils/keyboard_modifier_utils.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/image/image_stream_chunk.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
@@ -1121,8 +1122,7 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
   }
 
   bool get _isMultiSelectModifierPressed {
-    final keyboard = HardwareKeyboard.instance;
-    return keyboard.isControlPressed || keyboard.isMetaPressed;
+    return isPrimarySelectionModifierPressed();
   }
 
   void _handleLegacyTap() {

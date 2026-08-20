@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +13,7 @@ import 'package:nai_launcher/presentation/providers/history_click_behavior_provi
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/history_panel.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_detail/components/detail_top_bar.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_viewer.dart';
 import 'package:nai_launcher/presentation/widgets/common/selectable_image_card.dart';
 
@@ -33,6 +35,56 @@ void main() {
     expect(viewer.images, hasLength(1));
     expect(viewer.initialIndex, 0);
     expect(viewer.showThumbnails, isFalse);
+  });
+
+  testWidgets('classic detail browses history with left and right arrows', (
+    tester,
+  ) async {
+    final container = _createContainer([
+      _image('first'),
+      _image('second'),
+      _image('third'),
+    ]);
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(_historyApp(container));
+    await _pumpRoute(tester);
+    final second = find.byKey(const ValueKey('second'));
+    await tester.ensureVisible(second);
+    await tester.tap(second);
+    await _pumpRoute(tester);
+
+    final viewer = tester.widget<ImageDetailViewer>(
+      find.byType(ImageDetailViewer),
+    );
+    expect(viewer.images.map((image) => image.identifier), [
+      'first',
+      'second',
+      'third',
+    ]);
+    expect(viewer.initialIndex, 1);
+    expect(viewer.showThumbnails, isTrue);
+    expect(_detailIndex(tester), 1);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await _pumpDetailNavigation(tester);
+    expect(_detailIndex(tester), 0);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await _pumpDetailNavigation(tester);
+    expect(_detailIndex(tester), 0);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await _pumpDetailNavigation(tester);
+    expect(_detailIndex(tester), 1);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await _pumpDetailNavigation(tester);
+    expect(_detailIndex(tester), 2);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await _pumpDetailNavigation(tester);
+    expect(_detailIndex(tester), 2);
   });
 
   testWidgets(
@@ -163,6 +215,33 @@ void main() {
       expect(viewer.showThumbnails, isFalse);
     },
   );
+
+  testWidgets('Windows key does not turn a classic click into bulk selection', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    try {
+      final container = _createContainer([_image('windows-meta')]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(_historyApp(container));
+      await tester.pumpAndSettle();
+      final finder = find.byKey(const ValueKey('windows-meta'));
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+      await tester.tap(finder);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+      await _pumpRoute(tester);
+
+      final viewer = tester.widget<ImageDetailViewer>(
+        find.byType(ImageDetailViewer),
+      );
+      expect(viewer.images, hasLength(1));
+      expect(viewer.initialIndex, 0);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 
   testWidgets('rapid tall-row navigation settles on the latest selection', (
     tester,
@@ -380,6 +459,16 @@ void _expectLinkedViewer(WidgetTester tester, {required int initialIndex}) {
   expect(viewer.images, hasLength(2));
   expect(viewer.initialIndex, initialIndex);
   expect(viewer.showThumbnails, isTrue);
+}
+
+int _detailIndex(WidgetTester tester) {
+  return tester.widget<DetailTopBar>(find.byType(DetailTopBar)).currentIndex;
+}
+
+Future<void> _pumpDetailNavigation(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 350));
+  await tester.pump();
 }
 
 Future<void> _openContextMenu(WidgetTester tester, Finder target) async {
