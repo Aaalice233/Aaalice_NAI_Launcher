@@ -15,14 +15,14 @@ String _$referencePanelNotifierHash() =>
 @ProviderFor(ReferencePanelNotifier)
 final referencePanelNotifierProvider =
     NotifierProvider<ReferencePanelNotifier, ReferencePanelState>.internal(
-      ReferencePanelNotifier.new,
-      name: r'referencePanelNotifierProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$referencePanelNotifierHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
+  ReferencePanelNotifier.new,
+  name: r'referencePanelNotifierProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$referencePanelNotifierHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
 
 typedef _$ReferencePanelNotifier = Notifier<ReferencePanelState>;
 // ignore_for_file: type=lint
