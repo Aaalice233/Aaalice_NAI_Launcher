@@ -243,7 +243,7 @@ void main() {
     final v45 = ModelCapabilityRegistry.of(ImageModels.animeDiffusionV45Full);
     final v5 = ModelCapabilityRegistry.of(ImageModels.v5StagingKey);
 
-    test('follows defaults from V4 to V4.5', () {
+    test('follows the new defaults when the user has not touched them', () {
       final followUps = resolveModelSwitchFollowUps(
         from: v4,
         to: v45,
@@ -255,7 +255,7 @@ void main() {
       expect(followUps.steps, isNull, reason: '两者步数默认值相同，不需要改动');
     });
 
-    test('keeps adjusted values from V4 to V4.5', () {
+    test('keeps values the user adjusted', () {
       final followUps = resolveModelSwitchFollowUps(
         from: v4,
         to: v45,
@@ -266,7 +266,7 @@ void main() {
       expect(followUps.isEmpty, isTrue);
     });
 
-    test('follows the new defaults when the user has not touched them', () {
+    test('follows V5 defaults when the V4.5 values are untouched', () {
       final followUps = resolveModelSwitchFollowUps(
         from: v45,
         to: v5,
@@ -278,7 +278,7 @@ void main() {
       expect(followUps.steps, isNull, reason: '两者步数默认值相同，不需要改动');
     });
 
-    test('keeps values the user adjusted', () {
+    test('keeps adjusted values when switching from V4.5 to V5', () {
       final followUps = resolveModelSwitchFollowUps(
         from: v45,
         to: v5,
@@ -300,7 +300,7 @@ void main() {
       expect(followUps.isEmpty, isTrue);
     });
 
-    test('does nothing when the source and target are identical', () {
+    test('does nothing when the defaults are identical', () {
       final followUps = resolveModelSwitchFollowUps(
         from: v45,
         to: v45,

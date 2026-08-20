@@ -45,7 +45,7 @@ void main() {
   });
 
   group('EnhanceLevels.applyPromptAddition', () {
-    test('should append the official down-weight tag verbatim', () {
+    test('should append the down-weight tag verbatim', () {
       // 官网原样拼接，首尾都留逗号，这里保持一致以便对比 token。
       expect(
         EnhanceLevels.applyPromptAddition('1girl, sunset'),
@@ -112,7 +112,7 @@ void main() {
   });
 
   group('EnhanceScales', () {
-    test('should keep the official fixed tiers for 832x1216', () {
+    test('should keep the fixed tiers for 832x1216', () {
       // 832×1.5=1248 过不了 64 对齐，官网给这个尺寸开了口子
       expect(
         EnhanceScales.availableFactors(sourceWidth: 832, sourceHeight: 1216),
@@ -148,28 +148,16 @@ void main() {
 
     test('should clamp a persisted factor to what the source allows', () {
       expect(
-        EnhanceScales.resolveFactor(
-          2.0,
-          sourceWidth: 768,
-          sourceHeight: 1024,
-        ),
+        EnhanceScales.resolveFactor(2.0, sourceWidth: 768, sourceHeight: 1024),
         2.0,
       );
       // 同一个 2x 偏好换到大图上回落到最大可用档
       expect(
-        EnhanceScales.resolveFactor(
-          2.0,
-          sourceWidth: 1024,
-          sourceHeight: 1024,
-        ),
+        EnhanceScales.resolveFactor(2.0, sourceWidth: 1024, sourceHeight: 1024),
         1.5,
       );
       expect(
-        EnhanceScales.resolveFactor(
-          2.0,
-          sourceWidth: 1536,
-          sourceHeight: 1536,
-        ),
+        EnhanceScales.resolveFactor(2.0, sourceWidth: 1536, sourceHeight: 1536),
         1.0,
       );
     });

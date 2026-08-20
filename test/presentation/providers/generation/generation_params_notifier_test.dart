@@ -721,6 +721,23 @@ void main() {
       final notifier = container.read(
         generationParamsNotifierProvider.notifier,
       );
+      notifier.updateModel(ImageModels.animeDiffusionV4Full);
+      notifier.updateScale(5.5);
+
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+
+      final params = container.read(generationParamsNotifierProvider);
+      expect(params.model, ImageModels.animeDiffusionV45Full);
+      expect(params.scale, 5.0);
+    });
+
+    test('should adopt V5 defaults from V4.5 when untouched', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
       notifier.updateModel(ImageModels.animeDiffusionV45Full);
       notifier.updateScale(5.0);
 
@@ -738,6 +755,21 @@ void main() {
       final notifier = container.read(
         generationParamsNotifierProvider.notifier,
       );
+      notifier.updateModel(ImageModels.animeDiffusionV4Full);
+      notifier.updateScale(7.5);
+
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+
+      expect(container.read(generationParamsNotifierProvider).scale, 7.5);
+    });
+
+    test('should keep an adjusted V4.5 scale when switching to V5', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
       notifier.updateModel(ImageModels.animeDiffusionV45Full);
       notifier.updateScale(7.5);
 
@@ -747,6 +779,24 @@ void main() {
     });
 
     test('should skip the follow-up for metadata imports', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV4Full);
+      notifier.updateScale(5.5);
+
+      notifier.updateModel(
+        ImageModels.animeDiffusionV45Full,
+        followDefaults: false,
+      );
+
+      expect(container.read(generationParamsNotifierProvider).scale, 5.5);
+    });
+
+    test('should skip the V5 follow-up for metadata imports', () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 

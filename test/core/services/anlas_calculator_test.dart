@@ -173,6 +173,29 @@ void main() {
   });
 
   group('AnlasCalculator model pricing family', () {
+    test('prices modern models with the area and steps formula', () {
+      for (final model in [
+        ImageModels.animeDiffusionV45Full,
+        ImageModels.animeDiffusionV45Curated,
+        ImageModels.animeDiffusionV4Full,
+        ImageModels.animeDiffusionV3,
+      ]) {
+        expect(
+          AnlasCalculator.calculateFromValues(
+            width: 832,
+            height: 1216,
+            steps: 23,
+            nSamples: 1,
+            smea: false,
+            smeaDyn: false,
+            model: model,
+          ),
+          17,
+          reason: '$model should follow the modern pricing formula',
+        );
+      }
+    });
+
     // 测试期 V5 用 `custom` 作为模型键。它一度匹配不上任何版本判定，
     // 会掉进 V2 及更早的指数公式，把 17 Anlas 显示成 11。
     test('prices the V5 staging model with the modern formula', () {
@@ -256,20 +279,22 @@ void main() {
     });
 
     test('does not bill vibe fees on models without vibe support', () {
-      const params = ImageParams(
-        model: ImageModels.v5StagingKey,
-        vibeReferencesV4: [
-          VibeReference(
-            displayName: 'pre',
-            vibeEncoding: 'pre-encoded',
-            sourceType: VibeSourceType.png,
-          ),
-        ],
-      );
+      for (final model in [ImageModels.animeV2, ImageModels.v5StagingKey]) {
+        final params = ImageParams(
+          model: model,
+          vibeReferencesV4: const [
+            VibeReference(
+              displayName: 'pre',
+              vibeEncoding: 'pre-encoded',
+              sourceType: VibeSourceType.png,
+            ),
+          ],
+        );
 
-      expect(AnlasCalculator.usesVibeReferences(params), isFalse);
-      expect(AnlasCalculator.resolveVibeReferenceExtraCost(params), 0);
-      expect(AnlasCalculator.resolveVibeEncodingCost(params), 0);
+        expect(AnlasCalculator.usesVibeReferences(params), isFalse);
+        expect(AnlasCalculator.resolveVibeReferenceExtraCost(params), 0);
+        expect(AnlasCalculator.resolveVibeEncodingCost(params), 0);
+      }
     });
 
     test('uses the real pixel area below the old 65536 floor', () {

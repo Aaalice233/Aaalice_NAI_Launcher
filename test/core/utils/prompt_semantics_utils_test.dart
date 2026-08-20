@@ -93,6 +93,12 @@ void main() {
     test('should keep quality tags out of the rendered text', () {
       // 追加到末尾会让质量词被模型当成要画进图里的文字。
       expect(
+        effective('1girl, text:hello', ImageModels.animeDiffusionV45Full),
+        equals(
+          '1girl, location, very aesthetic, masterpiece, no text text:hello',
+        ),
+      );
+      expect(
         effective('1girl, text:hello', ImageModels.v5StagingKey),
         equals('1girl, very aesthetic, masterpiece, no text text:hello'),
       );
@@ -122,6 +128,13 @@ void main() {
     });
 
     test('should treat the escaped text:: as ordinary text', () {
+      expect(
+        effective('1girl, text::escaped', ImageModels.animeDiffusionV45Full),
+        equals(
+          '1girl, text::escaped, location, very aesthetic, masterpiece,'
+          ' no text',
+        ),
+      );
       expect(
         effective('1girl, text::escaped', ImageModels.v5StagingKey),
         equals('1girl, text::escaped, very aesthetic, masterpiece, no text'),
@@ -195,6 +208,16 @@ void main() {
     });
 
     test('should only tag the first chunk from V4 onward', () {
+      const v45Tags = 'location, very aesthetic, masterpiece, no text';
+
+      expect(
+        effective('1girl | 1boy', ImageModels.animeDiffusionV45Full),
+        equals('1girl, $v45Tags| 1boy'),
+      );
+      expect(
+        effective('1girl, text:hi | 1boy', ImageModels.animeDiffusionV45Full),
+        equals('1girl, $v45Tags text:hi | 1boy'),
+      );
       expect(
         effective('1girl | 1boy', ImageModels.v5StagingKey),
         equals('1girl, very aesthetic, masterpiece, no text| 1boy'),
