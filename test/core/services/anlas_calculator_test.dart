@@ -411,6 +411,26 @@ void main() {
     });
   });
 
+    test('does not charge V4-only Vibe fees on V3', () {
+      final rawImage = Uint8List.fromList([1, 2, 3]);
+      final params = ImageParams(
+        model: ImageModels.animeDiffusionV3,
+        vibeReferencesV4: List.generate(
+          5,
+          (index) => VibeReference(
+            displayName: 'v3-vibe-$index',
+            vibeEncoding: '',
+            rawImageData: rawImage,
+            sourceType: VibeSourceType.rawImage,
+          ),
+        ),
+      );
+
+      expect(AnlasCalculator.usesVibeReferences(params), isTrue);
+      expect(AnlasCalculator.resolveVibeEncodingCost(params), 0);
+      expect(AnlasCalculator.resolveVibeReferenceExtraCost(params), 0);
+    });
+
   group('AnlasCalculator Vibe pricing', () {
     test('charges encoding only for enabled uncached raw Vibes', () {
       final rawImage = Uint8List.fromList([1, 2, 3]);

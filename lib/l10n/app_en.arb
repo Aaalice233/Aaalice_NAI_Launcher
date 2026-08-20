@@ -4418,6 +4418,7 @@
   "vibe_statusEncoding": "Encoding...",
   "vibe_statusPendingEncode": "Encode (2 Anlas)",
   "vibe_statusNeedsReencode": "Re-encode (2 Anlas)",
+  "vibe_statusSourceImageRequired": "Source image required",
   "vibe_encodeDialogTitle": "Confirm Vibe Encoding",
   "vibe_encodeDialogMessage": "Encode this image for generation?",
   "vibe_encodeCostWarning": "This will cost 2 Anlas (credits)",
@@ -4631,9 +4632,9 @@
 
   "comfyWorkflow_seedvr2UpscaleName": "SeedVR2 Upscale",
   "comfyWorkflow_seedvr2UpscaleDescription": "Upscale with the SeedVR2 AI model. Produces high-quality results.",
-  "comfyWorkflow_seedvr2TiledUpscaleName": "SeedVR2 Tiled Upscale",
   "comfyWorkflow_seedvr2LegacyUpscaleName": "SeedVR2 Compatibility Upscale",
   "comfyWorkflow_seedvr2LegacyUpscaleDescription": "Upscale with the installed SeedVR2VideoUpscaler custom nodes.",
+  "comfyWorkflow_seedvr2TiledUpscaleName": "SeedVR2 Tiled Upscale",
   "comfyWorkflow_seedvr2TiledUpscaleDescription": "Use SeedVR2TilingUpscaler for tiled upscale to reduce VRAM pressure on large images.",
   "comfyWorkflow_modelUpscaleName": "ComfyUI Standard Upscale Model",
   "comfyWorkflow_modelUpscaleDescription": "Load a standard upscale model with ComfyUI UpscaleModelLoader, then correct the final scale with Lanczos.",

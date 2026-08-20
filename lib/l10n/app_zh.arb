@@ -4221,6 +4221,7 @@
   "vibe_statusEncoding": "编码中...",
   "vibe_statusPendingEncode": "待编码 (2 Anlas)",
   "vibe_statusNeedsReencode": "需重新编码 (2 Anlas)",
+  "vibe_statusSourceImageRequired": "缺少原图",
   "vibe_encodeDialogTitle": "确认编码 Vibe",
   "vibe_encodeDialogMessage": "是否编码此图片以供生成使用？",
   "vibe_encodeCostWarning": "此操作将消耗 2 Anlas（点数）",
@@ -4434,9 +4435,9 @@
 
   "comfyWorkflow_seedvr2UpscaleName": "SeedVR2 超分",
   "comfyWorkflow_seedvr2UpscaleDescription": "使用 SeedVR2 AI 模型进行超分辨率放大，效果优秀",
-  "comfyWorkflow_seedvr2TiledUpscaleName": "SeedVR2 分块超分",
   "comfyWorkflow_seedvr2LegacyUpscaleName": "SeedVR2 兼容节点超分",
   "comfyWorkflow_seedvr2LegacyUpscaleDescription": "使用已安装的 SeedVR2VideoUpscaler 自定义节点进行超分",
+  "comfyWorkflow_seedvr2TiledUpscaleName": "SeedVR2 分块超分",
   "comfyWorkflow_seedvr2TiledUpscaleDescription": "使用 SeedVR2TilingUpscaler 分块放大，降低大图显存压力",
   "comfyWorkflow_modelUpscaleName": "ComfyUI 普通超分模型",
   "comfyWorkflow_modelUpscaleDescription": "使用 ComfyUI UpscaleModelLoader 加载普通超分模型，并用 Lanczos 修正最终倍率",

@@ -15455,6 +15455,12 @@ abstract class AppLocalizations {
   /// **'Re-encode (2 Anlas)'**
   String get vibe_statusNeedsReencode;
 
+  /// No description provided for @vibe_statusSourceImageRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Source image required'**
+  String get vibe_statusSourceImageRequired;
+
   /// No description provided for @vibe_encodeDialogTitle.
   ///
   /// In en, this message translates to:
@@ -16313,12 +16319,6 @@ abstract class AppLocalizations {
   /// **'Upscale with the SeedVR2 AI model. Produces high-quality results.'**
   String get comfyWorkflow_seedvr2UpscaleDescription;
 
-  /// No description provided for @comfyWorkflow_seedvr2TiledUpscaleName.
-  ///
-  /// In en, this message translates to:
-  /// **'SeedVR2 Tiled Upscale'**
-  String get comfyWorkflow_seedvr2TiledUpscaleName;
-
   /// No description provided for @comfyWorkflow_seedvr2LegacyUpscaleName.
   ///
   /// In en, this message translates to:
@@ -16330,6 +16330,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Upscale with the installed SeedVR2VideoUpscaler custom nodes.'**
   String get comfyWorkflow_seedvr2LegacyUpscaleDescription;
+
+  /// No description provided for @comfyWorkflow_seedvr2TiledUpscaleName.
+  ///
+  /// In en, this message translates to:
+  /// **'SeedVR2 Tiled Upscale'**
+  String get comfyWorkflow_seedvr2TiledUpscaleName;
 
   /// No description provided for @comfyWorkflow_seedvr2TiledUpscaleDescription.
   ///

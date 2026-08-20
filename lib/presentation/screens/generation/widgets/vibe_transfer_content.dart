@@ -5,10 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
+import '../../../../core/constants/model_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../utils/dropped_file_reader.dart';
 import '../../../widgets/common/app_toast.dart';
 import 'recent_vibes_section.dart';
@@ -123,6 +125,13 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
     final vibes = widget.vibes;
     final hasVibes = vibes.isNotEmpty;
     final showBackground = widget.showBackground;
+    final supportsEncodedVibes = ref.watch(
+      generationParamsNotifierProvider.select(
+        (params) => ModelCapabilityRegistry.of(
+          params.model,
+        ).supportsEncodedVibeTransfer,
+      ),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -138,9 +147,10 @@ class _VibeTransferContentState extends ConsumerState<VibeTransferContent> {
         ),
         const SizedBox(height: 12),
 
-        // Normalize 复选框
-        _buildNormalizeOption(context, theme, showBackground),
-        const SizedBox(height: 12),
+        if (supportsEncodedVibes) ...[
+          _buildNormalizeOption(context, theme, showBackground),
+          const SizedBox(height: 12),
+        ],
 
         // Vibe 列表或空状态（包裹 DragTarget 支持拖拽）
         _buildDragTargetWrapper(

@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/model_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/vibe/vibe_reference.dart';
 import '../../../widgets/common/app_toast.dart';
@@ -300,11 +301,23 @@ class _VibeCardState extends ConsumerState<VibeCard> {
     final model = ref.watch(
       generationParamsNotifierProvider.select((params) => params.model),
     );
+    final supportsEncoding = ModelCapabilityRegistry.of(
+      model,
+    ).supportsEncodedVibeTransfer;
     final isEncoded = widget.vibe.vibeEncoding.isNotEmpty;
-    final needsEncoding = widget.vibe.needsEncodingForModel(model);
+    final needsEncoding =
+        supportsEncoding && widget.vibe.needsEncodingForModel(model);
     final l10n = context.l10n;
 
-    if (isEncoded && !needsEncoding) {
+    if (!supportsEncoding && !widget.vibe.canReencodeFromRawSource) {
+      return _buildStatusChip(
+        theme: theme,
+        icon: Icons.broken_image_outlined,
+        text: l10n.vibe_statusSourceImageRequired,
+        color: theme.colorScheme.error,
+        maxWidth: 130,
+      );
+    } else if (supportsEncoding && isEncoded && !needsEncoding) {
       // 已编码状态（编码与当前模型匹配）
       return _buildStatusChip(
         theme: theme,

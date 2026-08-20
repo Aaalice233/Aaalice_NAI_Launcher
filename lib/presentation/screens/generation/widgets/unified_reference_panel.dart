@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/constants/model_capabilities.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/vibe_performance_diagnostics.dart';
@@ -288,6 +289,9 @@ class _UnifiedReferencePanelState extends ConsumerState<UnifiedReferencePanel> {
   }) async {
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
     final model = ref.read(generationParamsNotifierProvider).model;
+    if (!ModelCapabilityRegistry.of(model).supportsEncodedVibeTransfer) {
+      return null;
+    }
 
     return await notifier.encodeVibeWithCache(
       imageData,

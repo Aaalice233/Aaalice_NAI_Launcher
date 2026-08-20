@@ -1320,76 +1320,6 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     );
   }
 
-  /// 构建导入进度覆盖层
-  Widget _buildImportOverlay(ThemeData theme) {
-    final hasProgress = _importProgress.isActive;
-    final progressValue = _importProgress.progress;
-
-    return Positioned.fill(
-      child: Container(
-        color: Colors.black.withValues(alpha: 0.3),
-        child: Center(
-          child: Container(
-            width: 320,
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 20,
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 4,
-                    value: progressValue,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      theme.colorScheme.primary,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  context.l10n.vibeLibrary_importing,
-                  style: theme.textTheme.titleMedium,
-                ),
-                if (hasProgress) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    '${_importProgress.current} / ${_importProgress.total}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-                if (_importProgress.message.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    _importProgress.message,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   /// 从图片导入 Vibe
   Future<void> _importVibesFromImage() async {
     if (!mounted) return;
@@ -1750,15 +1680,34 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
     // 显示编码配置对话框
     final config = await encode_dialog.VibeImageEncodeDialog.show(
+    final currentModel = ref.read(generationParamsNotifierProvider).model;
+    final supportsEncoding = ModelCapabilityRegistry.of(
+      currentModel,
+    ).supportsEncodedVibeTransfer;
       context: context,
       imageBytes: imageFile.bytes,
       fileName: imageFile.source,
     );
 
     if (config == null) return null; // 用户取消
+      encodeImage: supportsEncoding,
 
     // 编码重试循环
     while (mounted) {
+    if (!supportsEncoding) {
+      return _saveVibeReference(
+        reference: VibeReference(
+          displayName: config.name,
+          vibeEncoding: '',
+          thumbnail: imageFile.bytes,
+          rawImageData: imageFile.bytes,
+          strength: config.strength,
+          infoExtracted: config.infoExtracted,
+          sourceType: VibeSourceType.rawImage,
+        ),
+        categoryId: targetCategoryId,
+      );
+    }
       if (!mounted) break;
 
       // 显示编码中对话框，使用自己的 context 管理

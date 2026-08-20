@@ -582,6 +582,14 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     double informationExtracted = 1.0,
     String? vibeName,
   }) async {
+    if (!ModelCapabilityRegistry.of(model).supportsEncodedVibeTransfer) {
+      AppLogger.w(
+        '当前模型使用原图 Vibe，不执行预编码: ${vibeName ?? 'unknown'}',
+        'VibeCache',
+      );
+      return null;
+    }
+
     final cacheKey = _buildVibeEncodingCacheKey(
       imageData,
       model: model,
@@ -653,6 +661,11 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     }
 
     final resolvedModel = model ?? state.model;
+    if (!ModelCapabilityRegistry.of(
+      resolvedModel,
+    ).supportsEncodedVibeTransfer) {
+      return vibes;
+    }
     var changed = false;
     final encodedVibes = <VibeReference>[];
 
@@ -725,6 +738,15 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       strength: nextStrength,
       infoExtracted: nextInfoExtracted,
     );
+    if (!ModelCapabilityRegistry.of(
+      resolvedModel,
+    ).supportsEncodedVibeTransfer) {
+      if (nextInfoExtracted != vibe.infoExtracted &&
+          nextVibe.canReencodeFromRawSource) {
+        return nextVibe.copyWith(vibeEncoding: '', encodingModel: null);
+      }
+      return nextVibe;
+    }
 
     final shouldEncode =
         nextVibe.needsEncodingForModel(resolvedModel) ||
@@ -904,8 +926,11 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       nextEncoding = vibeEncoding;
       nextEncodingModel = vibeEncoding.isEmpty ? null : state.model;
     } else if (infoChanged && current.canReencodeFromRawSource) {
+      final supportsEncoding = ModelCapabilityRegistry.of(
+        state.model,
+      ).supportsEncodedVibeTransfer;
       final rawImageData = current.rawImageData;
-      final cachedEncoding = rawImageData == null
+      final cachedEncoding = !supportsEncoding || rawImageData == null
           ? null
           : getCachedVibeEncoding(
               rawImageData,

@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Import for locale-aware string comparison
 
+import '../../../../core/constants/model_capabilities.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
@@ -93,9 +94,12 @@ class VibeImportHandler {
               parsedVibes += vibes.length;
 
               // 检查是否需要编码
-              final needsEncoding = vibes.any(
-                (v) => v.sourceType == VibeSourceType.rawImage,
-              );
+              final supportsEncoding = ModelCapabilityRegistry.of(
+                ref.read(generationParamsNotifierProvider).model,
+              ).supportsEncodedVibeTransfer;
+              final needsEncoding =
+                  supportsEncoding &&
+                  vibes.any((v) => v.sourceType == VibeSourceType.rawImage);
 
               // 如果需要编码，显示确认对话框
               var encodeNow = false;
@@ -185,9 +189,12 @@ class VibeImportHandler {
       var vibes = await VibeFileParser.parseFile(fileName, bytes);
       parsedVibes = vibes.length;
 
-      final needsEncoding = vibes.any(
-        (v) => v.sourceType == VibeSourceType.rawImage,
-      );
+      final supportsEncoding = ModelCapabilityRegistry.of(
+        ref.read(generationParamsNotifierProvider).model,
+      ).supportsEncodedVibeTransfer;
+      final needsEncoding =
+          supportsEncoding &&
+          vibes.any((v) => v.sourceType == VibeSourceType.rawImage);
 
       if (needsEncoding && context.mounted) {
         final dialogResult = await _showEncodingConfirmDialog(fileName);
@@ -411,6 +418,10 @@ class VibeImportHandler {
   Future<List<VibeReference>?> _encodeVibesNow(
     List<VibeReference> vibes,
   ) async {
+    final params = ref.read(generationParamsNotifierProvider);
+    if (!ModelCapabilityRegistry.of(params.model).supportsEncodedVibeTransfer) {
+      return vibes;
+    }
     final span = VibePerformanceDiagnostics.start(
       'importHandler.encodeVibesNow',
       details: {
@@ -427,7 +438,6 @@ class VibeImportHandler {
     var encodedCount = 0;
     var returnedCount = 0;
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
-    final params = ref.read(generationParamsNotifierProvider);
     final model = params.model;
 
     // 显示编码进度对话框，使用 rootNavigator 确保正确关闭

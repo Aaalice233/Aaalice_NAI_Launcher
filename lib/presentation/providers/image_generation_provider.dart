@@ -483,6 +483,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     if (!AnlasCalculator.usesVibeReferences(params)) {
       return params;
     }
+    if (!params.capabilities.supportsEncodedVibeTransfer) {
+      return params;
+    }
 
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
     final encodedVibes = await notifier.ensureVibeReferencesEncoded(

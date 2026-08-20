@@ -117,6 +117,27 @@ void main() {
     expect(apiService.requestedInformationExtracted, [0.2, 0.5, 0.5]);
   });
 
+  test('V3 原图 Vibe 不调用预编码接口', () async {
+    final apiService = _FakeEnhancementApiService();
+    final container = ProviderContainer(
+      overrides: [
+        naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final encoding = await container
+        .read(generationParamsNotifierProvider.notifier)
+        .encodeVibeWithCache(
+          Uint8List.fromList([1, 2, 3]),
+          model: ImageModels.animeDiffusionV3,
+          vibeName: 'v3-raw',
+        );
+
+    expect(encoding, isNull);
+    expect(apiService.callCount, 0);
+  });
+
   test('更新信息提取后，可重新编码的 Vibe 会回到待编码状态', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
@@ -142,6 +163,38 @@ void main() {
         .single;
     expect(updated.infoExtracted, 0.3);
     expect(updated.vibeEncoding, isEmpty);
+  });
+
+  test('V3 下修改信息提取会使旧 V4 编码失效', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    notifier.addVibeReference(
+      VibeReference(
+        displayName: 'V4 encoded vibe',
+        vibeEncoding: 'encoded-for-v4',
+        encodingModel: ImageModels.animeDiffusionV4Full,
+        rawImageData: Uint8List.fromList([9, 8, 7]),
+        infoExtracted: 0.7,
+        sourceType: VibeSourceType.naiv4vibe,
+      ),
+    );
+    notifier.updateModel(ImageModels.animeDiffusionV3);
+
+    notifier.updateVibeReference(0, infoExtracted: 0.3);
+    notifier.updateModel(ImageModels.animeDiffusionV4Full);
+
+    final updated = container
+        .read(generationParamsNotifierProvider)
+        .vibeReferencesV4
+        .single;
+    expect(updated.vibeEncoding, isEmpty);
+    expect(updated.encodingModel, isNull);
+    expect(
+      updated.needsEncodingForModel(ImageModels.animeDiffusionV4Full),
+      isTrue,
+    );
   });
 
   test('信息提取切回已有缓存值时，会直接恢复缓存编码', () async {
@@ -391,6 +444,32 @@ void main() {
     expect(prepared.vibeEncoding, 'nai-diffusion-4-5-full|0.5|1');
     expect(apiService.callCount, 1);
     expect(apiService.requestedInformationExtracted, [0.5]);
+  });
+
+  test('V3 下显式保存新的信息提取值会清除旧 V4 编码', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final prepared = await container
+        .read(generationParamsNotifierProvider.notifier)
+        .prepareVibeForLibraryParamSave(
+          VibeReference(
+            displayName: 'Persisted V4 Vibe',
+            vibeEncoding: 'encoded-before',
+            encodingModel: ImageModels.animeDiffusionV4Full,
+            rawImageData: Uint8List.fromList([1, 3, 5, 7]),
+            infoExtracted: 0.2,
+            sourceType: VibeSourceType.naiv4vibe,
+          ),
+          strength: 0.6,
+          infoExtracted: 0.5,
+          model: ImageModels.animeDiffusionV3,
+        );
+
+    expect(prepared, isNotNull);
+    expect(prepared!.infoExtracted, 0.5);
+    expect(prepared.vibeEncoding, isEmpty);
+    expect(prepared.encodingModel, isNull);
   });
 
   test('生成前自动编码会把原图 Vibe 提升为预编码状态', () async {

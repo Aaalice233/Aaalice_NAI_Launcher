@@ -248,6 +248,88 @@ void main() {
       expect(streamResult.vibeEncodingMap, isEmpty);
     });
 
+    test(
+      'should send raw Vibe images directly for V3 without encoding',
+      () async {
+        final rawImage = Uint8List.fromList([1, 2, 3, 4]);
+        var encodeCalls = 0;
+        final params = ImageParams(
+          model: ImageModels.animeDiffusionV3,
+          normalizeVibeStrength: true,
+          vibeReferencesV4: [
+            VibeReference(
+              displayName: 'raw-v3',
+              vibeEncoding: '',
+              rawImageData: rawImage,
+              strength: 0.4,
+              infoExtracted: 0.3,
+              sourceType: VibeSourceType.rawImage,
+            ),
+            const VibeReference(
+              displayName: 'encoding-only-v4',
+              vibeEncoding: 'v4-encoding',
+              sourceType: VibeSourceType.naiv4vibe,
+              enabled: false,
+            ),
+          ],
+        );
+        final builder = NAIImageRequestBuilder(
+          params: params,
+          encodeVibe:
+              (image, {required model, informationExtracted = 1.0}) async {
+                encodeCalls++;
+                return 'unexpected-encoding';
+              },
+        );
+
+        final result = await builder.build(sampler: 'k_euler');
+
+        expect(result.requestParameters['reference_image_multiple'], [
+          base64Encode(rawImage),
+        ]);
+        expect(result.requestParameters['reference_strength_multiple'], [0.4]);
+        expect(
+          result.requestParameters['reference_information_extracted_multiple'],
+          [0.3],
+        );
+        expect(
+          result.requestParameters.containsKey(
+            'normalize_reference_strength_multiple',
+          ),
+          isFalse,
+        );
+        expect(result.vibeEncodingMap, isEmpty);
+        expect(encodeCalls, 0);
+      },
+    );
+
+    test('should reject enabled V3 Vibes without source images', () async {
+      const params = ImageParams(
+        model: ImageModels.animeDiffusionV3,
+        vibeReferencesV4: [
+          VibeReference(
+            displayName: 'encoding-only-v4',
+            vibeEncoding: 'v4-encoding',
+            sourceType: VibeSourceType.naiv4vibe,
+          ),
+        ],
+      );
+
+      expect(
+        NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler'),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('encoding-only-v4'),
+          ),
+        ),
+      );
+    });
+
     test('should re-encode a Vibe created for a different model', () async {
       final params = ImageParams(
         model: 'nai-diffusion-4-5-full',

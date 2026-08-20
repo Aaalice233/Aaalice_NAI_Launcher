@@ -84,7 +84,7 @@ void main() {
       );
     });
 
-    test('vibe transfer is limited to the V4 families', () {
+    test('separates traditional V3 Vibe from V4 encoded Vibes', () {
       expect(
         ModelCapabilityRegistry.of(
           ImageModels.animeDiffusionV45Full,
@@ -95,7 +95,25 @@ void main() {
         ModelCapabilityRegistry.of(
           ImageModels.animeDiffusionV3,
         ).supportsVibeTransfer,
+        isTrue,
+      );
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.furryDiffusionV3,
+        ).supportsVibeTransfer,
+        isTrue,
+      );
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV3,
+        ).supportsEncodedVibeTransfer,
         isFalse,
+      );
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV45Full,
+        ).supportsEncodedVibeTransfer,
+        isTrue,
       );
     });
 

@@ -8457,6 +8457,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_statusNeedsReencode => '需重新编码 (2 Anlas)';
 
   @override
+  String get vibe_statusSourceImageRequired => '缺少原图';
+
+  @override
   String get vibe_encodeDialogTitle => '确认编码 Vibe';
 
   @override
@@ -8922,14 +8925,14 @@ class AppLocalizationsZh extends AppLocalizations {
       '使用 SeedVR2 AI 模型进行超分辨率放大，效果优秀';
 
   @override
-  String get comfyWorkflow_seedvr2TiledUpscaleName => 'SeedVR2 分块超分';
-
-  @override
   String get comfyWorkflow_seedvr2LegacyUpscaleName => 'SeedVR2 兼容节点超分';
 
   @override
   String get comfyWorkflow_seedvr2LegacyUpscaleDescription =>
       '使用已安装的 SeedVR2VideoUpscaler 自定义节点进行超分';
+
+  @override
+  String get comfyWorkflow_seedvr2TiledUpscaleName => 'SeedVR2 分块超分';
 
   @override
   String get comfyWorkflow_seedvr2TiledUpscaleDescription =>

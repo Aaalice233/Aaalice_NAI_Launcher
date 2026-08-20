@@ -8752,6 +8752,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibe_statusNeedsReencode => 'Re-encode (2 Anlas)';
 
   @override
+  String get vibe_statusSourceImageRequired => 'Source image required';
+
+  @override
   String get vibe_encodeDialogTitle => 'Confirm Vibe Encoding';
 
   @override
@@ -9242,15 +9245,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'Upscale with the SeedVR2 AI model. Produces high-quality results.';
 
   @override
-  String get comfyWorkflow_seedvr2TiledUpscaleName => 'SeedVR2 Tiled Upscale';
-
-  @override
   String get comfyWorkflow_seedvr2LegacyUpscaleName =>
       'SeedVR2 Compatibility Upscale';
 
   @override
   String get comfyWorkflow_seedvr2LegacyUpscaleDescription =>
       'Upscale with the installed SeedVR2VideoUpscaler custom nodes.';
+
+  @override
+  String get comfyWorkflow_seedvr2TiledUpscaleName => 'SeedVR2 Tiled Upscale';
 
   @override
   String get comfyWorkflow_seedvr2TiledUpscaleDescription =>

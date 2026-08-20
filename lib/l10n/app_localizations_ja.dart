@@ -8573,6 +8573,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get vibe_statusNeedsReencode => '再エンコード (2 Anlas)';
 
   @override
+  String get vibe_statusSourceImageRequired => '元画像が必要';
+
+  @override
   String get vibe_encodeDialogTitle => 'Vibe エンコーディングを確認する';
 
   @override
@@ -9048,14 +9051,14 @@ class AppLocalizationsJa extends AppLocalizations {
       'SeedVR2 AI モデルで拡大します。高品質な結果を生成します。';
 
   @override
-  String get comfyWorkflow_seedvr2TiledUpscaleName => 'SeedVR2 タイル拡大';
-
-  @override
   String get comfyWorkflow_seedvr2LegacyUpscaleName => 'SeedVR2 互換ノード拡大';
 
   @override
   String get comfyWorkflow_seedvr2LegacyUpscaleDescription =>
       'インストール済みの SeedVR2VideoUpscaler カスタムノードで拡大します。';
+
+  @override
+  String get comfyWorkflow_seedvr2TiledUpscaleName => 'SeedVR2 タイル拡大';
 
   @override
   String get comfyWorkflow_seedvr2TiledUpscaleDescription =>

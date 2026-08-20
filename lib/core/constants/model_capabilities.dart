@@ -31,6 +31,7 @@ class ModelCapabilities {
     required this.defaultSteps,
     this.maxCharacters = 0,
     this.supportsVibeTransfer = false,
+    this.supportsEncodedVibeTransfer = false,
     this.supportsPreciseReference = false,
     this.supportsImg2ImgInpainting = false,
     this.supportsTextRendering = false,
@@ -53,6 +54,12 @@ class ModelCapabilities {
   final int maxCharacters;
 
   final bool supportsVibeTransfer;
+
+  /// 是否使用 V4+ 的预编码 Vibe 协议。
+  ///
+  /// V3 支持传统 Vibe Transfer，但直接在生成请求中携带原图；只有 V4+
+  /// 需要先调用编码接口，并支持缓存编码、强度标准化及相应 Anlas 费用。
+  final bool supportsEncodedVibeTransfer;
   final bool supportsPreciseReference;
 
   /// inpainting 时是否可以复用原图潜空间。
@@ -99,6 +106,7 @@ class ModelCapabilityRegistry {
     anlasFormula: AnlasFormula.modern,
     defaultScale: 5.0,
     defaultSteps: 23,
+    supportsVibeTransfer: true,
     supportsImg2ImgInpainting: true,
   );
 
@@ -108,6 +116,7 @@ class ModelCapabilityRegistry {
     anlasFormula: AnlasFormula.modern,
     defaultScale: 6.2,
     defaultSteps: 23,
+    supportsVibeTransfer: true,
     supportsImg2ImgInpainting: true,
   );
 
@@ -119,6 +128,7 @@ class ModelCapabilityRegistry {
     defaultSteps: 23,
     maxCharacters: 6,
     supportsVibeTransfer: true,
+    supportsEncodedVibeTransfer: true,
     supportsImg2ImgInpainting: true,
     supportsTextRendering: true,
   );
@@ -131,6 +141,7 @@ class ModelCapabilityRegistry {
     defaultSteps: 23,
     maxCharacters: 6,
     supportsVibeTransfer: true,
+    supportsEncodedVibeTransfer: true,
     supportsImg2ImgInpainting: true,
     supportsTextRendering: true,
   );
@@ -143,6 +154,7 @@ class ModelCapabilityRegistry {
     defaultSteps: 23,
     maxCharacters: 6,
     supportsVibeTransfer: true,
+    supportsEncodedVibeTransfer: true,
     supportsPreciseReference: true,
     supportsImg2ImgInpainting: true,
     supportsTextRendering: true,
@@ -157,6 +169,7 @@ class ModelCapabilityRegistry {
     defaultSteps: 23,
     maxCharacters: 6,
     supportsVibeTransfer: true,
+    supportsEncodedVibeTransfer: true,
     supportsPreciseReference: true,
     supportsImg2ImgInpainting: true,
     supportsTextRendering: true,

@@ -86,7 +86,6 @@ class NAIImageRequestBuilder {
       'noise_schedule': params.isV4Model
           ? (params.noiseSchedule == 'native' ? 'karras' : params.noiseSchedule)
           : params.noiseSchedule,
-      'normalize_reference_strength_multiple': true,
       'inpaintImg2ImgStrength': NAIApiUtils.toJsonNumber(
         params.inpaintStrength,
       ),
@@ -200,6 +199,36 @@ class NAIImageRequestBuilder {
       return vibeEncodingMap;
     }
     if (!params.hasVibeReferencesV4) {
+      return vibeEncodingMap;
+    }
+
+    if (!params.capabilities.supportsEncodedVibeTransfer) {
+      final enabledVibes = params.enabledVibeReferencesV4;
+      final missingSourceVibes = enabledVibes
+          .where((vibe) => !vibe.canReencodeFromRawSource)
+          .toList(growable: false);
+      if (missingSourceVibes.isNotEmpty) {
+        final names = missingSourceVibes
+            .map((vibe) => vibe.displayName)
+            .join(', ');
+        throw StateError('V3 Vibe Transfer requires source image data: $names');
+      }
+
+      final rawImageVibes = enabledVibes;
+      if (rawImageVibes.isEmpty) {
+        return vibeEncodingMap;
+      }
+
+      requestParameters['reference_image_multiple'] = rawImageVibes
+          .map((vibe) => base64Encode(vibe.rawImageData!))
+          .toList(growable: false);
+      requestParameters['reference_strength_multiple'] = rawImageVibes
+          .map((vibe) => vibe.strength)
+          .toList(growable: false);
+      requestParameters['reference_information_extracted_multiple'] =
+          rawImageVibes
+              .map((vibe) => vibe.infoExtracted)
+              .toList(growable: false);
       return vibeEncodingMap;
     }
 

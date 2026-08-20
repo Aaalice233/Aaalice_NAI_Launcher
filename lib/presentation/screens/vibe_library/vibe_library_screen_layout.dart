@@ -563,3 +563,73 @@ extension _VibeLibraryScreenLayout on _VibeLibraryScreenState {
     );
   }
 }
+
+  /// 构建导入进度覆盖层
+  Widget _buildImportOverlay(ThemeData theme) {
+    final hasProgress = _importProgress.isActive;
+    final progressValue = _importProgress.progress;
+
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black.withValues(alpha: 0.3),
+        child: Center(
+          child: Container(
+            width: 320,
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 4,
+                    value: progressValue,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  context.l10n.vibeLibrary_importing,
+                  style: theme.textTheme.titleMedium,
+                ),
+                if (hasProgress) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    '${_importProgress.current} / ${_importProgress.total}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+                if (_importProgress.message.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _importProgress.message,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }

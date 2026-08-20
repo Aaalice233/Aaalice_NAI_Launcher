@@ -41,7 +41,8 @@ class AnlasCalculator {
 
   /// 尚未编码的启用 Vibe 每个只在生成前收取一次编码费。
   static int resolveVibeEncodingCost(ImageParams params) {
-    if (!usesVibeReferences(params)) {
+    if (!usesVibeReferences(params) ||
+        !params.capabilities.supportsEncodedVibeTransfer) {
       return 0;
     }
 
@@ -53,7 +54,8 @@ class AnlasCalculator {
 
   /// 单次请求使用超过四个 Vibe 时，每个额外 Vibe 收取 2 Anlas。
   static int resolveVibeReferenceExtraCost(ImageParams params) {
-    if (!usesVibeReferences(params)) {
+    if (!usesVibeReferences(params) ||
+        !params.capabilities.supportsEncodedVibeTransfer) {
       return 0;
     }
 
