@@ -26,10 +26,10 @@ void main() {
       expect(EnhanceLevels.resolve(5), (strength: 0.7, noise: 0.1));
       expect(EnhanceLevels.resolve(0), EnhanceLevels.resolve(1));
       expect(EnhanceLevels.resolve(9), EnhanceLevels.resolve(5));
-      expect(
-        EnhanceLevels.resolve(EnhanceLevels.defaultLevel),
-        (strength: 0.5, noise: 0.0),
-      );
+      expect(EnhanceLevels.resolve(EnhanceLevels.defaultLevel), (
+        strength: 0.5,
+        noise: 0.0,
+      ));
     });
 
     test('should migrate legacy magnitudes to the nearest level', () {
@@ -68,6 +68,45 @@ void main() {
     test('should skip prompts that already carry the tag', () {
       const prompt = '1girl, -2::upscaled, blurry::,';
       expect(EnhanceLevels.applyPromptAddition(prompt), equals(prompt));
+    });
+
+    test('should only update the base prompt of inline character prompts', () {
+      expect(
+        EnhanceLevels.applyPromptAddition(
+          '2girls, indoors | girl, red hair | girl, blue hair',
+        ),
+        equals(
+          '2girls, indoors, -2::upscaled, blurry::,'
+          '| girl, red hair | girl, blue hair',
+        ),
+      );
+    });
+
+    test('should preserve text markers and randomizer pipes', () {
+      expect(
+        EnhanceLevels.applyPromptAddition(
+          'scene ||day|night||, text:hello | girl, red hair',
+        ),
+        equals(
+          'scene ||day|night||,, -2::upscaled, blurry::, text:hello'
+          ' | girl, red hair',
+        ),
+      );
+      expect(
+        EnhanceLevels.applyPromptAddition(
+          'scene | girl, upscaled, blurry jacket',
+        ),
+        equals('scene, -2::upscaled, blurry::,| girl, upscaled, blurry jacket'),
+      );
+      expect(
+        EnhanceLevels.applyPromptAddition(
+          'scene ||red, text:hello|blue|| | girl, red hair',
+        ),
+        equals(
+          'scene ||red, text:hello|blue||, -2::upscaled, blurry::,'
+          '| girl, red hair',
+        ),
+      );
     });
   });
 

@@ -28,21 +28,22 @@ void main() {
     });
 
     test(
-        'should keep prompt unchanged when quality and uc presets are disabled',
-        () {
-      final snapshot = buildPromptSemanticsSnapshot(
-        prompt: '1girl',
-        negativePrompt: 'blurry',
-        model: ImageModels.animeDiffusionV45Full,
-        qualityToggle: false,
-        ucPreset: UcPresets.toApiValue(UcPresetType.none),
-      );
+      'should keep prompt unchanged when quality and uc presets are disabled',
+      () {
+        final snapshot = buildPromptSemanticsSnapshot(
+          prompt: '1girl',
+          negativePrompt: 'blurry',
+          model: ImageModels.animeDiffusionV45Full,
+          qualityToggle: false,
+          ucPreset: UcPresets.toApiValue(UcPresetType.none),
+        );
 
-      expect(snapshot.basePrompt, equals('1girl'));
-      expect(snapshot.baseNegativePrompt, equals('blurry'));
-      expect(snapshot.effectivePrompt, equals('1girl'));
-      expect(snapshot.effectiveNegativePrompt, equals('blurry'));
-    });
+        expect(snapshot.basePrompt, equals('1girl'));
+        expect(snapshot.baseNegativePrompt, equals('blurry'));
+        expect(snapshot.effectivePrompt, equals('1girl'));
+        expect(snapshot.effectiveNegativePrompt, equals('blurry'));
+      },
+    );
   });
 
   group('text: 渲染段', () {
@@ -123,23 +124,27 @@ void main() {
     }
 
     test('should split on | but not inside a || region', () {
-      expect(
-        QualityTags.splitPromptMixChunks('1girl | 1boy'),
-        ['1girl ', ' 1boy'],
-      );
-      expect(
-        QualityTags.splitPromptMixChunks('a ||b|c|| d | e'),
-        ['a ||b|c|| d ', ' e'],
-      );
+      expect(QualityTags.splitPromptMixChunks('1girl | 1boy'), [
+        '1girl ',
+        ' 1boy',
+      ]);
+      expect(QualityTags.splitPromptMixChunks('a ||b|c|| d | e'), [
+        'a ||b|c|| d ',
+        ' e',
+      ]);
       expect(QualityTags.splitPromptMixChunks('1girl'), ['1girl']);
     });
 
     test('should merge the tail once the chunk cap is reached', () {
       // 上限 6 段，多出来的并回最后一段，重新拼接无损。
-      expect(
-        QualityTags.splitPromptMixChunks('1|2|3|4|5|6|7|8'),
-        ['1', '2', '3', '4', '5', '6|7|8'],
-      );
+      expect(QualityTags.splitPromptMixChunks('1|2|3|4|5|6|7|8'), [
+        '1',
+        '2',
+        '3',
+        '4',
+        '5',
+        '6|7|8',
+      ]);
     });
 
     test('should only tag the first chunk from V4 onward', () {
@@ -156,6 +161,26 @@ void main() {
       );
     });
 
+    test('should keep quality and enhance additions outside randomizers', () {
+      final snapshot = buildPromptSemanticsSnapshot(
+        prompt: 'scene ||red, text:hello|blue|| | girl, red hair',
+        negativePrompt: '',
+        model: ImageModels.animeDiffusionV45Full,
+        qualityToggle: true,
+        ucPreset: UcPresets.toApiValue(UcPresetType.none),
+        isEnhanceRequest: true,
+      );
+
+      expect(
+        snapshot.effectivePrompt,
+        equals(
+          'scene ||red, text:hello|blue||, location, very aesthetic,'
+          ' masterpiece, no text, -2::upscaled, blurry::,'
+          '| girl, red hair',
+        ),
+      );
+    });
+
     test('should tag every chunk on V3 and keep the mix weight', () {
       const tags = 'best quality, amazing quality, very aesthetic, absurdres';
 
@@ -167,6 +192,11 @@ void main() {
       expect(
         effective('1girl|1boy:0.8', ImageModels.animeDiffusionV3),
         equals('1girl, $tags|1boy, $tags:0.8'),
+      );
+      // 官方示例包含负权重，质量词仍需插在权重后缀之前。
+      expect(
+        effective('cat:1|happy:-0.2|cute:-0.3', ImageModels.animeDiffusionV3),
+        equals('cat, $tags:1|happy, $tags:-0.2|cute, $tags:-0.3'),
       );
     });
   });

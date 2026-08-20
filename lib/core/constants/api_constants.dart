@@ -320,9 +320,7 @@ class QualityTags {
   ///
   /// 这些值只用于读取/识别旧 PNG 元数据，不能用于新的生成请求。
   static const Map<String, List<String>> legacyModelQualityTags = {
-    ImageModels.animeDiffusionV45Full: [
-      'very aesthetic, masterpiece, no text',
-    ],
+    ImageModels.animeDiffusionV45Full: ['very aesthetic, masterpiece, no text'],
     ImageModels.animeDiffusionV45Curated: [
       'very aesthetic, masterpiece, no text, -0.8::feet::, rating:general',
     ],
@@ -354,13 +352,35 @@ class QualityTags {
     caseSensitive: false,
   );
 
+  static RegExpMatch? _firstTextRenderMarkerOutsideRandomizer(String prompt) {
+    var randomizerOpen = false;
+    var cursor = 0;
+
+    for (final match in textRenderMarker.allMatches(prompt)) {
+      while (cursor < match.start) {
+        if (prompt[cursor] == promptMixSeparator &&
+            cursor + 1 < prompt.length &&
+            prompt[cursor + 1] == promptMixSeparator) {
+          randomizerOpen = !randomizerOpen;
+          cursor += 2;
+          continue;
+        }
+        cursor++;
+      }
+      if (!randomizerOpen) return match;
+    }
+    return null;
+  }
+
   /// 提示词混合（prompt mix）的分隔符与分段上限。
   static const String promptMixSeparator = '|';
   static const String promptMixEscape = '||';
   static const int maxPromptMixChunks = 6;
 
-  /// 混合段末尾的权重后缀，例如 `1girl:1.2`。
-  static final RegExp _promptMixWeight = RegExp(r':[\d.]+$');
+  /// 混合段末尾的权重后缀，例如 `1girl:1.2` 或 `happy:-0.2`。
+  static final RegExp _promptMixWeight = RegExp(
+    r':[+-]?(?:\d+(?:\.\d*)?|\.\d+)$',
+  );
 
   /// 按 `|` 把提示词切成混合段。
   ///
@@ -450,7 +470,7 @@ class QualityTags {
     if (!hasTextSection) return appendSuffix(chunk, suffix);
 
     // 多个 `text:` 时网页端用第一处的分隔符重新拼接，这里保留各自原本的分隔符。
-    final match = textRenderMarker.firstMatch(chunk);
+    final match = _firstTextRenderMarkerOutsideRandomizer(chunk);
     if (match == null) return appendSuffix(chunk, suffix);
 
     final markerAndText = chunk.substring(match.start);
@@ -571,7 +591,7 @@ class UcPresets {
   ///
   /// 这些值只用于读取/剥离旧 PNG 元数据，不能用于新的生成请求。
   static const Map<String, Map<UcPresetType, List<String>>>
-      legacyPresetVariants = {
+  legacyPresetVariants = {
     ImageModels.animeDiffusionV45Full: {
       UcPresetType.heavy: [
         'nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page',
@@ -836,10 +856,7 @@ class UcPresets {
 
   /// 检查正面提示词是否包含 nsfw tag
   static bool containsNsfwTag(String prompt) {
-    final nsfwPattern = RegExp(
-      r'[\{\[]*nsfw[\}\]]*',
-      caseSensitive: false,
-    );
+    final nsfwPattern = RegExp(r'[\{\[]*nsfw[\}\]]*', caseSensitive: false);
     return nsfwPattern.hasMatch(prompt);
   }
 
@@ -916,20 +933,27 @@ class EnhanceLevels {
 
   /// 把降权词插进增强请求的有效提示词。
   ///
-  /// 有 `text:` 段时插在标记之前，避免降权词落进要渲染的文字里；
-  /// 没有时直接接到末尾。
+  /// 只修改基础提示词段；有 `text:` 段时插在标记之前，避免降权词落进
+  /// 要渲染的文字里。内联角色段和 `||...||` 随机区间保持原样。
   static String applyPromptAddition(String prompt) {
-    if (prompt.contains(promptAdditionMarker)) {
+    final chunks = QualityTags.splitPromptMixChunks(prompt);
+    final basePrompt = chunks.first;
+    if (basePrompt.contains(promptAdditionMarker)) {
       return prompt;
     }
 
-    final match = QualityTags.textRenderMarker.firstMatch(prompt);
+    final match = QualityTags._firstTextRenderMarkerOutsideRandomizer(
+      basePrompt,
+    );
     if (match == null) {
-      return '$prompt$promptAddition';
+      chunks[0] = '${basePrompt.trimRight()}$promptAddition';
+    } else {
+      chunks[0] =
+          basePrompt.substring(0, match.start) +
+          promptAddition +
+          basePrompt.substring(match.start);
     }
-    return prompt.substring(0, match.start) +
-        promptAddition +
-        prompt.substring(match.start);
+    return chunks.join(QualityTags.promptMixSeparator);
   }
 }
 
@@ -963,15 +987,17 @@ class EnhanceScales {
       return _portraitDefaults;
     }
 
-    final available = candidates.where((factor) {
-      final scaledWidth = width * factor;
-      final scaledHeight = height * factor;
-      if (scaledWidth * scaledHeight > ApiConstants.maxImagePixels) {
-        return false;
-      }
-      return scaledWidth % ApiConstants.dimensionGrid == 0 &&
-          scaledHeight % ApiConstants.dimensionGrid == 0;
-    }).toList(growable: false);
+    final available = candidates
+        .where((factor) {
+          final scaledWidth = width * factor;
+          final scaledHeight = height * factor;
+          if (scaledWidth * scaledHeight > ApiConstants.maxImagePixels) {
+            return false;
+          }
+          return scaledWidth % ApiConstants.dimensionGrid == 0 &&
+              scaledHeight % ApiConstants.dimensionGrid == 0;
+        })
+        .toList(growable: false);
 
     return available.isEmpty ? const [1.0] : available;
   }

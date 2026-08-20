@@ -1,4 +1,5 @@
 import '../constants/api_constants.dart';
+import '../constants/model_capabilities.dart';
 
 /// 提示词语义快照
 ///
@@ -24,9 +25,15 @@ PromptSemanticsSnapshot buildPromptSemanticsSnapshot({
   required String model,
   required bool qualityToggle,
   required int ucPreset,
+  bool isEnhanceRequest = false,
 }) {
-  final effectivePrompt =
-      qualityToggle ? QualityTags.applyQualityTags(prompt, model) : prompt;
+  var effectivePrompt = qualityToggle
+      ? QualityTags.applyQualityTags(prompt, model)
+      : prompt;
+  if (isEnhanceRequest &&
+      ModelCapabilityRegistry.of(model).supportsEnhancePromptAdd) {
+    effectivePrompt = EnhanceLevels.applyPromptAddition(effectivePrompt);
+  }
 
   final effectiveNegativePrompt = UcPresets.applyPresetWithNsfwCheck(
     negativePrompt,
