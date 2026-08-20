@@ -868,6 +868,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   /// [addToDisplay] 为 true 时，将图像插入当前结果和中央预览列表首位。
   /// [replaceCurrentDisplay] 为 true 时，将当前结果和中央预览替换为该图像，
   /// 既有图像仍保留在历史记录中。
+  /// [embedNaiMetadata] 为 false 时，历史记录与保存结果均保留传入的原始字节。
   Future<String?> registerExternalImage(
     Uint8List imageBytes, {
     required ImageParams params,
@@ -878,6 +879,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     bool syncToGalleryIndex = true,
     bool addToDisplay = false,
     bool replaceCurrentDisplay = false,
+    bool embedNaiMetadata = true,
   }) async {
     assert(
       !addToDisplay || !replaceCurrentDisplay,
@@ -888,23 +890,28 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         _resolveImageSize(imageBytes, width: width, height: height) ??
         (params.width, params.height);
 
-    final existingMetadata = await ImageMetadataService().getMetadataFromBytes(
-      imageBytes,
-    );
     final effectiveParams = params.copyWith(
       width: resolvedSize.$1,
       height: resolvedSize.$2,
     );
-    final normalizedBytes = await ImageSaveUtils.rebuildImageBytesWithMetadata(
-      imageBytes: imageBytes,
-      params: effectiveParams,
-      actualSeed: existingMetadata?.seed,
-    );
+    final Uint8List normalizedBytes;
+    if (embedNaiMetadata) {
+      final existingMetadata = await ImageMetadataService()
+          .getMetadataFromBytes(imageBytes);
+      normalizedBytes = await ImageSaveUtils.rebuildImageBytesWithMetadata(
+        imageBytes: imageBytes,
+        params: effectiveParams,
+        actualSeed: existingMetadata?.seed,
+      );
+    } else {
+      normalizedBytes = imageBytes;
+    }
 
     final generatedImage = GeneratedImage.create(
       normalizedBytes,
       width: resolvedSize.$1,
       height: resolvedSize.$2,
+      preserveOriginalBytesOnSave: !embedNaiMetadata,
     );
 
     final shouldDisplay = addToDisplay || replaceCurrentDisplay;
@@ -1041,7 +1048,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             }
           }
 
-          if (!hasEmbeddedMetadata) {
+          if (!image.preserveOriginalBytesOnSave && !hasEmbeddedMetadata) {
             AppLogger.i(
               '[ImageGeneration] Saving image with fixed_prefix=$fixedPrefixTags, fixed_suffix=$fixedSuffixTags, fixed_negative_prefix=$fixedNegativePrefixTags, fixed_negative_suffix=$fixedNegativeSuffixTags',
               'ImageGeneration',
@@ -1051,7 +1058,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           // 原子保存：日期分类路径 + 独占防冲突 + 失败清理，全部在工具内完成
           final filePath = await ImageSaveUtils.saveBytesToDatedPath(
             rootPath: saveDirPath,
-            bytes: hasEmbeddedMetadata
+            bytes: image.preserveOriginalBytesOnSave || hasEmbeddedMetadata
                 ? image.bytes
                 : await ImageSaveUtils.rebuildImageBytesWithMetadata(
                     imageBytes: image.bytes,

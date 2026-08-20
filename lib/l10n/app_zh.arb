@@ -567,6 +567,8 @@
   "img2img_seedvr2VaeTileHint": "设置 SeedVR2 VAE 编码与解码的分块尺寸。",
   "img2img_seedvr2UseTiledUpscale": "使用分块放大",
   "img2img_seedvr2UseTiledUpscaleHint": "启用后改用 SeedVR2TilingUpscaler，适合大图或显存压力较高的场景。",
+  "settings_comfyUiSeedvr2EmbedNaiMetadata": "在 SeedVR2 结果中写入 NAI 生成参数",
+  "settings_comfyUiSeedvr2EmbedNaiMetadataHint": "默认关闭。开启后会写入启动器当前的提示词和生成参数；关闭时保留 ComfyUI 返回的原始 PNG 元数据。",
   "img2img_seedvr2TileSize": "分块图块大小",
   "img2img_seedvr2TileSizeHint": "同时控制 SeedVR2TilingUpscaler 的 tile_width / tile_height。",
   "img2img_seedvr2BlocksToSwap": "内存卸载层数",

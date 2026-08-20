@@ -1609,6 +1609,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       id: image.id,
       showSaveButton: image.canSave,
       showCopyButton: image.canSave,
+      preserveOriginalBytesOnSave: image.preserveOriginalBytesOnSave,
     );
   }
 

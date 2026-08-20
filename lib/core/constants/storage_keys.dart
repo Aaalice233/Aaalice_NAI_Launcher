@@ -300,6 +300,8 @@ class StorageKeys {
   static const String comfyuiSeedvr2BlocksToSwap =
       'comfyui_seedvr2_blocks_to_swap';
   static const String comfyuiSeedvr2Engine = 'comfyui_seedvr2_engine';
+  static const String comfyuiSeedvr2EmbedNaiMetadata =
+      'comfyui_seedvr2_embed_nai_metadata';
 
   // Krita Bridge 设置
   static const String kritaBridgeEnabled = 'krita_bridge_enabled';

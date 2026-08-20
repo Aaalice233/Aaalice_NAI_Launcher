@@ -921,6 +921,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
         id: img.id,
         showSaveButton: img.canSave,
         showCopyButton: img.canSave,
+        preserveOriginalBytesOnSave: img.preserveOriginalBytesOnSave,
       );
     }).toList();
 
@@ -971,9 +972,12 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           ? Random().nextInt(4294967295)
           : finalSeed;
 
-      // 构建最终字节：已有 NAI 元数据则原样保留，否则按当前参数重建
+      // 构建最终字节：外部结果可要求保留原始字节；其他图像缺少 NAI
+      // 元数据时仍按当前参数重建。
       final Uint8List finalBytes;
-      if (ImageSaveUtils.hasEmbeddedNovelAiMetadata(imageBytes)) {
+      if (image.preserveOriginalBytesOnSave) {
+        finalBytes = imageBytes;
+      } else if (ImageSaveUtils.hasEmbeddedNovelAiMetadata(imageBytes)) {
         finalBytes = imageBytes;
       } else {
         final characterConfig = ref.read(characterPromptNotifierProvider);

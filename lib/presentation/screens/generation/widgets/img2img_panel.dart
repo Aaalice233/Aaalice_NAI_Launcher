@@ -1441,6 +1441,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
         'seedvr2VaeTileSize=${upscale.seedvr2VaeTileSize}, '
         'seedvr2TileSize=${upscale.seedvr2TileSize}, '
         'seedvr2BlocksToSwap=${upscale.seedvr2BlocksToSwap}, '
+        'seedvr2EmbedNaiMetadata=${upscale.seedvr2EmbedNaiMetadata}, '
         'fileLogging=${AppLogger.fileLoggingEnabled}';
   }
 
@@ -1718,6 +1719,7 @@ class _Img2ImgPanelState extends ConsumerState<Img2ImgPanel> {
           height: outH,
           saveToLocal: saveSettings.autoSave,
           replaceCurrentDisplay: true,
+          embedNaiMetadata: wf.upscale.seedvr2EmbedNaiMetadata,
         );
     AppLogger.i('SeedVR2 result registered: ${outW}x$outH', _upscaleLogTag);
 

@@ -622,6 +622,8 @@
   "img2img_seedvr2VaeTileHint": "Sets the tile size used for SeedVR2 VAE encoding and decoding.",
   "img2img_seedvr2UseTiledUpscale": "Use tiled upscale",
   "img2img_seedvr2UseTiledUpscaleHint": "When enabled, uses SeedVR2TilingUpscaler. Recommended for large images or high VRAM pressure.",
+  "settings_comfyUiSeedvr2EmbedNaiMetadata": "Write NAI generation parameters to SeedVR2 results",
+  "settings_comfyUiSeedvr2EmbedNaiMetadataHint": "Off by default. When enabled, writes the launcher's current prompts and generation parameters. When disabled, preserves the PNG metadata returned by ComfyUI.",
   "img2img_seedvr2TileSize": "Tile Size",
   "img2img_seedvr2TileSizeHint": "Also controls SeedVR2TilingUpscaler tile_width / tile_height.",
   "img2img_seedvr2BlocksToSwap": "Blocks Offloaded To RAM",

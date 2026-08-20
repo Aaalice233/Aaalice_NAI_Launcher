@@ -821,6 +821,7 @@ void main() {
         controller.updateSeedvr2VaeTileSize(768);
         controller.updateSeedvr2Tiled(true);
         controller.updateSeedvr2TileSize(1280);
+        controller.updateSeedvr2EmbedNaiMetadata(true);
         await Hive.box(StorageKeys.settingsBox).flush();
 
         container.dispose();
@@ -835,6 +836,7 @@ void main() {
         expect(workflow.upscale.seedvr2VaeTileSize, equals(768));
         expect(workflow.upscale.seedvr2Tiled, isTrue);
         expect(workflow.upscale.seedvr2TileSize, equals(1280));
+        expect(workflow.upscale.seedvr2EmbedNaiMetadata, isTrue);
       },
     );
 
@@ -894,6 +896,7 @@ void main() {
         workflow.upscale.comfyModel,
         equals(UpscaleWorkflowSettings.defaultComfyModel),
       );
+      expect(workflow.upscale.seedvr2EmbedNaiMetadata, isFalse);
     });
 
     test(

@@ -1376,6 +1376,14 @@ class AppLocalizationsZh extends AppLocalizations {
       '启用后改用 SeedVR2TilingUpscaler，适合大图或显存压力较高的场景。';
 
   @override
+  String get settings_comfyUiSeedvr2EmbedNaiMetadata =>
+      '在 SeedVR2 结果中写入 NAI 生成参数';
+
+  @override
+  String get settings_comfyUiSeedvr2EmbedNaiMetadataHint =>
+      '默认关闭。开启后会写入启动器当前的提示词和生成参数；关闭时保留 ComfyUI 返回的原始 PNG 元数据。';
+
+  @override
   String get img2img_seedvr2TileSize => '分块图块大小';
 
   @override

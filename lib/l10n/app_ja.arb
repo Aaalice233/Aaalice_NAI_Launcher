@@ -613,6 +613,8 @@
   "img2img_seedvr2VaeTileHint": "SeedVR2 VAE のエンコードとデコードに使用するタイルサイズを設定します。",
   "img2img_seedvr2UseTiledUpscale": "タイル状の拡大を使用する",
   "img2img_seedvr2UseTiledUpscaleHint": "有効にすると、SeedVR2TilingUpscaler が使用されます。大きな画像や VRAM 負荷が高い場合に推奨します。",
+  "settings_comfyUiSeedvr2EmbedNaiMetadata": "SeedVR2 の結果に NAI 生成パラメータを書き込む",
+  "settings_comfyUiSeedvr2EmbedNaiMetadataHint": "既定では無効です。有効にすると、ランチャーの現在のプロンプトと生成パラメータを書き込みます。無効の場合は、ComfyUI から返された PNG メタデータをそのまま保持します。",
   "img2img_seedvr2TileSize": "タイルのサイズ",
   "img2img_seedvr2TileSizeHint": "SeedVR2TilingUpscaler tile_width / tile_height も制御します。",
   "img2img_seedvr2BlocksToSwap": "メモリへ退避するブロック数",

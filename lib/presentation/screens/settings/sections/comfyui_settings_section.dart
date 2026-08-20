@@ -6,6 +6,7 @@ import '../../../../core/comfyui/workflow_template.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../utils/comfyui_workflow_l10n.dart';
 import '../../../providers/comfyui/comfyui_provider.dart';
+import '../../../providers/generation/image_workflow_controller.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../widgets/settings_card.dart';
@@ -38,6 +39,11 @@ class _ComfyUISettingsSectionState
     final settings = ref.watch(comfyUISettingsProvider);
     final connStatus = ref.watch(comfyUIConnectionProvider);
     final workflows = ref.watch(comfyUIWorkflowsProvider);
+    final seedvr2EmbedNaiMetadata = ref.watch(
+      imageWorkflowControllerProvider.select(
+        (state) => state.upscale.seedvr2EmbedNaiMetadata,
+      ),
+    );
 
     if (_urlController.text.isEmpty ||
         _urlController.text != settings.serverUrl) {
@@ -162,6 +168,19 @@ class _ComfyUISettingsSectionState
                       child: Text(context.l10n.settings_comfyUiDisconnect),
                     ),
                   ),
+                SwitchListTile(
+                  secondary: const Icon(Icons.description_outlined),
+                  title: Text(
+                    context.l10n.settings_comfyUiSeedvr2EmbedNaiMetadata,
+                  ),
+                  subtitle: Text(
+                    context.l10n.settings_comfyUiSeedvr2EmbedNaiMetadataHint,
+                  ),
+                  value: seedvr2EmbedNaiMetadata,
+                  onChanged: ref
+                      .read(imageWorkflowControllerProvider.notifier)
+                      .updateSeedvr2EmbedNaiMetadata,
+                ),
                 const SizedBox(height: 8),
               ],
             ],

@@ -206,6 +206,7 @@ class UpscaleWorkflowSettings {
     this.seedvr2Tiled = false,
     this.seedvr2TileSize = defaultSeedvr2TileSize,
     this.seedvr2BlocksToSwap = defaultSeedvr2BlocksToSwap,
+    this.seedvr2EmbedNaiMetadata = false,
   });
 
   static const UpscaleBackend defaultBackend = UpscaleBackend.comfyui;
@@ -238,6 +239,7 @@ class UpscaleWorkflowSettings {
   final bool seedvr2Tiled;
   final int seedvr2TileSize;
   final int seedvr2BlocksToSwap;
+  final bool seedvr2EmbedNaiMetadata;
 
   static const double minScale = 1.0;
   static const double maxScale = 2.0;
@@ -263,6 +265,7 @@ class UpscaleWorkflowSettings {
     bool? seedvr2Tiled,
     int? seedvr2TileSize,
     int? seedvr2BlocksToSwap,
+    bool? seedvr2EmbedNaiMetadata,
   }) {
     return UpscaleWorkflowSettings(
       backend: backend ?? this.backend,
@@ -279,6 +282,8 @@ class UpscaleWorkflowSettings {
       seedvr2Tiled: seedvr2Tiled ?? this.seedvr2Tiled,
       seedvr2TileSize: seedvr2TileSize ?? this.seedvr2TileSize,
       seedvr2BlocksToSwap: seedvr2BlocksToSwap ?? this.seedvr2BlocksToSwap,
+      seedvr2EmbedNaiMetadata:
+          seedvr2EmbedNaiMetadata ?? this.seedvr2EmbedNaiMetadata,
     );
   }
 
@@ -563,6 +568,12 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       min: UpscaleWorkflowSettings.minSeedvr2BlocksToSwap,
       max: UpscaleWorkflowSettings.maxSeedvr2BlocksToSwap,
     );
+    final persistedSeedvr2EmbedNaiMetadata =
+        _storage.getSetting<bool>(
+          StorageKeys.comfyuiSeedvr2EmbedNaiMetadata,
+          defaultValue: false,
+        ) ??
+        false;
     final persistedEnhance = _readPersistedEnhanceSettings();
 
     return _buildDefaultState(
@@ -580,6 +591,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
         seedvr2Tiled: persistedSeedvr2Tiled,
         seedvr2TileSize: persistedSeedvr2TileSize,
         seedvr2BlocksToSwap: persistedSeedvr2BlocksToSwap,
+        seedvr2EmbedNaiMetadata: persistedSeedvr2EmbedNaiMetadata,
       ),
     );
   }
@@ -852,6 +864,12 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       _storage.setSetting(
         StorageKeys.comfyuiSeedvr2Engine,
         settings.seedvr2Engine.name,
+      ),
+    );
+    unawaited(
+      _storage.setSetting(
+        StorageKeys.comfyuiSeedvr2EmbedNaiMetadata,
+        settings.seedvr2EmbedNaiMetadata,
       ),
     );
   }
@@ -1157,6 +1175,12 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
 
   void updateSeedvr2Tiled(bool value) {
     final nextSettings = state.upscale.copyWith(seedvr2Tiled: value);
+    state = state.copyWith(upscale: nextSettings);
+    _persistUpscaleSettings(nextSettings);
+  }
+
+  void updateSeedvr2EmbedNaiMetadata(bool value) {
+    final nextSettings = state.upscale.copyWith(seedvr2EmbedNaiMetadata: value);
     state = state.copyWith(upscale: nextSettings);
     _persistUpscaleSettings(nextSettings);
   }

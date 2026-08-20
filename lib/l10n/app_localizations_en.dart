@@ -1430,6 +1430,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'When enabled, uses SeedVR2TilingUpscaler. Recommended for large images or high VRAM pressure.';
 
   @override
+  String get settings_comfyUiSeedvr2EmbedNaiMetadata =>
+      'Write NAI generation parameters to SeedVR2 results';
+
+  @override
+  String get settings_comfyUiSeedvr2EmbedNaiMetadataHint =>
+      'Off by default. When enabled, writes the launcher\'s current prompts and generation parameters. When disabled, preserves the PNG metadata returned by ComfyUI.';
+
+  @override
   String get img2img_seedvr2TileSize => 'Tile Size';
 
   @override

@@ -2656,6 +2656,18 @@ abstract class AppLocalizations {
   /// **'When enabled, uses SeedVR2TilingUpscaler. Recommended for large images or high VRAM pressure.'**
   String get img2img_seedvr2UseTiledUpscaleHint;
 
+  /// No description provided for @settings_comfyUiSeedvr2EmbedNaiMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Write NAI generation parameters to SeedVR2 results'**
+  String get settings_comfyUiSeedvr2EmbedNaiMetadata;
+
+  /// No description provided for @settings_comfyUiSeedvr2EmbedNaiMetadataHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Off by default. When enabled, writes the launcher\'s current prompts and generation parameters. When disabled, preserves the PNG metadata returned by ComfyUI.'**
+  String get settings_comfyUiSeedvr2EmbedNaiMetadataHint;
+
   /// No description provided for @img2img_seedvr2TileSize.
   ///
   /// In en, this message translates to:

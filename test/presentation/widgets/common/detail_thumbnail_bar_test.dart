@@ -66,4 +66,7 @@ class _TestImageDetailData implements ImageDetailData {
 
   @override
   bool get showFavoriteButton => false;
+
+  @override
+  bool get preserveOriginalBytesOnSave => false;
 }
