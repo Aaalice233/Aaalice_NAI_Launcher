@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
@@ -154,4 +155,44 @@ void main() {
       expect(characters.characters.single.customPosition?.row, 0.2);
     },
   );
+
+  test('model import preserves the image guidance value', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    notifier.updateModel(
+      ImageModels.animeDiffusionV4Full,
+      persist: false,
+      followDefaults: false,
+    );
+    notifier.updateScale(5.5);
+
+    const metadata = NaiImageMetadata(
+      model: ImageModels.animeDiffusionV45Full,
+      scale: 5.5,
+    );
+    const options = MetadataImportOptions(
+      importPrompt: false,
+      importNegativePrompt: false,
+      importFixedTags: false,
+      importQualityTags: false,
+      importCharacterPrompts: false,
+      importVibeReferences: false,
+      importPreciseReferences: false,
+      importScale: true,
+      importModel: true,
+    );
+
+    final appliedCount = await MetadataImportCoordinator.apply(
+      read: container.read,
+      metadata: metadata,
+      options: options,
+      l10n: AppLocalizationsEn(),
+    );
+
+    final params = container.read(generationParamsNotifierProvider);
+    expect(appliedCount, 2);
+    expect(params.model, ImageModels.animeDiffusionV45Full);
+    expect(params.scale, 5.5);
+  });
 }

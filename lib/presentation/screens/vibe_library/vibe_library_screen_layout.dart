@@ -389,6 +389,12 @@ extension _VibeLibraryScreenLayout on _VibeLibraryScreenState {
     final isAllSelected =
         currentIds.isNotEmpty &&
         currentIds.every((id) => selectionState.selectedIds.contains(id));
+    final currentModel = ref.watch(
+      generationParamsNotifierProvider.select((params) => params.model),
+    );
+    final canMarkEncodingModel =
+        ModelCapabilityRegistry.of(currentModel).supportsVibeTransfer &&
+        NovelAiVibeCodec.normalizeModelOrNull(currentModel) != null;
 
     return BulkActionBar(
       selectedCount: selectionState.selectedIds.length,
@@ -432,6 +438,15 @@ extension _VibeLibraryScreenLayout on _VibeLibraryScreenState {
           onPressed: () => _batchToggleFavorite(),
           color: theme.colorScheme.primary,
         ),
+        if (canMarkEncodingModel)
+          BulkActionItem(
+            icon: Icons.model_training_outlined,
+            label: context.l10n.vibeLibrary_markEncodingModel,
+            onPressed: _isMarkingEncodingModel
+                ? null
+                : () => _batchMarkEncodingModel(),
+            color: theme.colorScheme.secondary,
+          ),
         BulkActionItem(
           icon: Icons.delete_outline,
           label: context.l10n.common_delete,
@@ -546,6 +561,76 @@ extension _VibeLibraryScreenLayout on _VibeLibraryScreenState {
             style: theme.textTheme.bodySmall,
           ),
         ],
+      ),
+    );
+  }
+
+  /// 构建导入进度覆盖层
+  Widget _buildImportOverlay(ThemeData theme) {
+    final hasProgress = _importProgress.isActive;
+    final progressValue = _importProgress.progress;
+
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black.withValues(alpha: 0.3),
+        child: Center(
+          child: Container(
+            width: 320,
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 4,
+                    value: progressValue,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  context.l10n.vibeLibrary_importing,
+                  style: theme.textTheme.titleMedium,
+                ),
+                if (hasProgress) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    '${_importProgress.current} / ${_importProgress.total}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+                if (_importProgress.message.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _importProgress.message,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

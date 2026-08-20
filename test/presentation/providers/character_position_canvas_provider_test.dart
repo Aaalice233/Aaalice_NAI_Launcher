@@ -7,10 +7,10 @@ import 'package:nai_launcher/presentation/providers/prompt_maximize_provider.dar
 final _availabilityProvider = StateProvider<bool>((ref) => true);
 
 void main() {
-  test('availability requires V4 characters and an idle non-error state', () {
+  test('availability requires positioning support, characters and an idle non-error state', () {
     expect(
       isCharacterPositionCanvasAvailable(
-        isV4Model: true,
+        supportsCharacterPositioning: true,
         hasCharacters: true,
         isGenerating: false,
         hasError: false,
@@ -19,7 +19,7 @@ void main() {
     );
     expect(
       isCharacterPositionCanvasAvailable(
-        isV4Model: false,
+        supportsCharacterPositioning: false,
         hasCharacters: true,
         isGenerating: false,
         hasError: false,
@@ -28,7 +28,7 @@ void main() {
     );
     expect(
       isCharacterPositionCanvasAvailable(
-        isV4Model: true,
+        supportsCharacterPositioning: true,
         hasCharacters: false,
         isGenerating: false,
         hasError: false,
@@ -37,7 +37,7 @@ void main() {
     );
     expect(
       isCharacterPositionCanvasAvailable(
-        isV4Model: true,
+        supportsCharacterPositioning: true,
         hasCharacters: true,
         isGenerating: true,
         hasError: false,
@@ -46,7 +46,7 @@ void main() {
     );
     expect(
       isCharacterPositionCanvasAvailable(
-        isV4Model: true,
+        supportsCharacterPositioning: true,
         hasCharacters: true,
         isGenerating: false,
         hasError: true,

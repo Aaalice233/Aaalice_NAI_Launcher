@@ -41,7 +41,8 @@ class MetadataImportCoordinator {
         updateScale: notifier.updateScale,
         updateSize: notifier.updateSize,
         updateSampler: notifier.updateSampler,
-        updateModel: notifier.updateModel,
+        updateModel: (value) =>
+            notifier.updateModel(value, followDefaults: false),
         updateSmea: notifier.updateSmea,
         updateSmeaDyn: notifier.updateSmeaDyn,
         updateVarietyPlus: notifier.updateVarietyPlus,

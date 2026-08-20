@@ -29,10 +29,10 @@ class FileImageDetailData implements ImageDetailData {
     String? id,
     NaiImageMetadata? initialMetadata,
     bool showCopyButton = true,
-  })  : _cachedBytes = cachedBytes,
-        _id = id ?? filePath,
-        _initialMetadata = initialMetadata,
-        _showCopyButton = showCopyButton;
+  }) : _cachedBytes = cachedBytes,
+       _id = id ?? filePath,
+       _initialMetadata = initialMetadata,
+       _showCopyButton = showCopyButton;
 
   @override
   ImageProvider getImageProvider() {
@@ -57,11 +57,7 @@ class FileImageDetailData implements ImageDetailData {
           targetHeight = _maxImageDimension;
         }
 
-        return ResizeImage(
-          fileImage,
-          width: targetWidth,
-          height: targetHeight,
-        );
+        return ResizeImage(fileImage, width: targetWidth, height: targetHeight);
       }
     }
 
@@ -186,4 +182,7 @@ class FileImageDetailData implements ImageDetailData {
 
   @override
   bool get showFavoriteButton => true;
+
+  @override
+  bool get preserveOriginalBytesOnSave => false;
 }

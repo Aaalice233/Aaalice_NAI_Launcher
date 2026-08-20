@@ -399,6 +399,59 @@ void main() {
     );
 
     test(
+      'registerExternalImage should preserve original bytes when metadata embedding is disabled',
+      () async {
+        final notifier = container.read(
+          imageGenerationNotifierProvider.notifier,
+        );
+        final params = container.read(generationParamsNotifierProvider);
+        final comfyPrompt = jsonEncode({
+          '1': {
+            'class_type': 'LoadImage',
+            'inputs': {'image': 'launcher_input.png'},
+          },
+          '2': {
+            'class_type': 'SaveImage',
+            'inputs': {'filename_prefix': 'SeedVR2'},
+          },
+        });
+        final originalBytes = UnifiedMetadataParser.embedTextChunkOnly(
+          _validImageBytes(width: 512, height: 768),
+          'prompt',
+          comfyPrompt,
+        );
+        final tempDir = await Directory.systemTemp.createTemp(
+          'nai_launcher_seedvr2_raw_',
+        );
+        addTearDown(() => tempDir.delete(recursive: true));
+
+        await notifier.registerExternalImage(
+          originalBytes,
+          params: params,
+          saveToLocal: true,
+          saveDirectoryPath: tempDir.path,
+          syncToGalleryIndex: false,
+          embedNaiMetadata: false,
+        );
+
+        final savedImage = container
+            .read(imageGenerationNotifierProvider)
+            .history
+            .first;
+        final savedBytes = await File(savedImage.filePath!).readAsBytes();
+
+        expect(savedImage.preserveOriginalBytesOnSave, isTrue);
+        expect(savedImage.bytes, orderedEquals(originalBytes));
+        expect(savedBytes, orderedEquals(originalBytes));
+        expect(
+          UnifiedMetadataParser.extractPngTextData(savedBytes)['prompt'],
+          comfyPrompt,
+        );
+        expect(ImageSaveUtils.hasEmbeddedNovelAiMetadata(savedBytes), isFalse);
+      },
+    );
+
+    test(
       'registerExternalImage should prepend external result to current display',
       () async {
         final notifier = container.read(

@@ -174,16 +174,13 @@ class _VibeLibraryContentViewState
     var resolved = false;
     final storage = ref.read(vibeLibraryStorageServiceProvider);
     try {
-      final resolvedEntry = await resolveVibeDetailEntryForOpen(storage, entry);
-      resolved = true;
-      if (!mounted || !context.mounted) {
-        return;
-      }
+      final detailDataFuture = resolveVibeDetailDataForOpen(storage, entry);
 
       VibeDetailViewer.show(
         context,
-        entry: resolvedEntry,
-        heroTag: 'vibe_${resolvedEntry.id}',
+        entry: entry,
+        detailDataFuture: detailDataFuture,
+        heroTag: 'vibe_${entry.id}',
         callbacks: VibeDetailCallbacks(
           onSendToGeneration:
               (
@@ -225,6 +222,8 @@ class _VibeLibraryContentViewState
               },
         ),
       );
+      await detailDataFuture;
+      resolved = true;
     } finally {
       span.finish(details: {'resolved': resolved});
     }
@@ -788,16 +787,31 @@ class _VibeLibraryContentViewState
 
 double computeVibeGridCacheExtent(double itemWidth) => itemWidth * 1.5;
 
-Future<VibeLibraryEntry> resolveVibeDetailEntryForOpen(
+Future<VibeLibraryDetailData> resolveVibeDetailDataForOpen(
   VibeLibraryStorageService storage,
   VibeLibraryEntry entry,
 ) async {
-  return VibePerformanceDiagnostics.measure(
-    'content.resolveVibeDetailEntryForOpen',
-    () async => await storage.getEntry(entry.id) ?? entry,
-    details: {'entryId': entry.id, 'isBundle': entry.isBundle},
-    resultDetails: (entry) => {'resolvedId': entry.id},
-  );
+  try {
+    return await VibePerformanceDiagnostics.measure(
+      'content.resolveVibeDetailDataForOpen',
+      () async =>
+          await storage.getDetailData(entry.id) ??
+          VibeLibraryDetailData(entry: entry),
+      details: {'entryId': entry.id, 'isBundle': entry.isBundle},
+      resultDetails: (data) => {
+        'resolvedId': data.entry.id,
+        'bundleVibes': data.bundleVibes.length,
+      },
+    );
+  } catch (error, stackTrace) {
+    AppLogger.e(
+      'Failed to resolve Vibe detail data',
+      error,
+      stackTrace,
+      'VibeLibraryContent',
+    );
+    return VibeLibraryDetailData(entry: entry);
+  }
 }
 
 List<VibeReference> buildBundleVibesForGeneration(

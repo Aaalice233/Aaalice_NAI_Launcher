@@ -1,3 +1,5 @@
+import 'model_capabilities.dart';
+
 /// NovelAI API 常量定义
 class ApiConstants {
   ApiConstants._();
@@ -33,6 +35,12 @@ class ApiConstants {
   /// HTTP 请求超时
   static const Duration connectTimeout = Duration(seconds: 30);
   static const Duration receiveTimeout = Duration(seconds: 120);
+
+  /// 官网图像生成请求的最大像素面积。
+  static const int maxImagePixels = 3145728;
+
+  /// 请求尺寸必须对齐的像素栅格。
+  static const int dimensionGrid = 64;
 
   /// 默认请求头
   static const Map<String, String> defaultHeaders = {
@@ -99,11 +107,13 @@ class ImageModels {
     furryDiffusion: 'Furry Diffusion',
   };
 
-  /// 判断是否为 V4+ 模型
+  /// 判断是否使用 V4 起的提示词结构
   static bool isV4Model(String model) =>
-      model.contains('diffusion-4') || model.contains('diffusion-4-5');
+      ModelCapabilityRegistry.of(model).promptStructure == PromptStructure.v4;
 
-  /// 判断是否为 V4.5 模型
+  /// 判断是否为 V4.5 家族。
+  ///
+  /// 语义严格限定在 V4.5，用作精准参考等 V4.5 专属功能的判定代理。
   static bool isV45Model(String model) => model.contains('diffusion-4-5');
 
   /// 判断是否为 Inpainting 模型
@@ -137,23 +147,8 @@ class ImageModels {
   }
 
   /// 判断实际请求模型是否支持在 Inpainting 中复用原图潜空间。
-  static bool supportsImg2ImgInpainting(String model) {
-    return switch (model) {
-      animeDiffusionV45Full ||
-      animeDiffusionV45FullInpainting ||
-      animeDiffusionV45Curated ||
-      animeDiffusionV45CuratedInpainting ||
-      animeDiffusionV4Full ||
-      animeDiffusionV4FullInpainting ||
-      animeDiffusionV4Curated ||
-      animeDiffusionV4CuratedInpainting ||
-      animeDiffusionV3 ||
-      animeDiffusionV3Inpainting ||
-      furryDiffusionV3 ||
-      furryDiffusionV3Inpainting => true,
-      _ => false,
-    };
-  }
+  static bool supportsImg2ImgInpainting(String model) =>
+      ModelCapabilityRegistry.of(model).supportsImg2ImgInpainting;
 }
 
 /// 采样器列表
@@ -325,9 +320,7 @@ class QualityTags {
   ///
   /// 这些值只用于读取/识别旧 PNG 元数据，不能用于新的生成请求。
   static const Map<String, List<String>> legacyModelQualityTags = {
-    ImageModels.animeDiffusionV45Full: [
-      'very aesthetic, masterpiece, no text',
-    ],
+    ImageModels.animeDiffusionV45Full: ['very aesthetic, masterpiece, no text'],
     ImageModels.animeDiffusionV45Curated: [
       'very aesthetic, masterpiece, no text, -0.8::feet::, rating:general',
     ],
@@ -351,20 +344,153 @@ class QualityTags {
     ];
   }
 
-  /// 将质量标签应用到提示词
-  /// V3+ 模型添加到末尾，V2 及更早模型添加到开头
+  /// V4 起支持的 `text:` 文字渲染标记。
+  ///
+  /// 正则与网页端一致：标记前的分隔符也算在匹配内，`text::` 是转义写法不算标记。
+  static final RegExp textRenderMarker = RegExp(
+    r'(?:^|\s|[,.:\[\]{}、。])text:(?!:)',
+    caseSensitive: false,
+  );
+
+  static RegExpMatch? _firstTextRenderMarkerOutsideRandomizer(String prompt) {
+    var randomizerOpen = false;
+    var cursor = 0;
+
+    for (final match in textRenderMarker.allMatches(prompt)) {
+      while (cursor < match.start) {
+        if (prompt[cursor] == promptMixSeparator &&
+            cursor + 1 < prompt.length &&
+            prompt[cursor + 1] == promptMixSeparator) {
+          randomizerOpen = !randomizerOpen;
+          cursor += 2;
+          continue;
+        }
+        cursor++;
+      }
+      if (!randomizerOpen) return match;
+    }
+    return null;
+  }
+
+  /// 提示词混合（prompt mix）的分隔符与分段上限。
+  static const String promptMixSeparator = '|';
+  static const String promptMixEscape = '||';
+  static const int maxPromptMixChunks = 6;
+
+  /// 混合段末尾的权重后缀，例如 `1girl:1.2` 或 `happy:-0.2`。
+  static final RegExp _promptMixWeight = RegExp(
+    r':[+-]?(?:\d+(?:\.\d*)?|\.\d+)$',
+  );
+
+  /// 按 `|` 把提示词切成混合段。
+  ///
+  /// `||…||` 区间内的单个 `|` 不参与切分（网页端用占位符替换实现，这里用扫描，
+  /// 结果等价且不会和用户真的打出占位符冲突）；超过上限的部分会并回最后一段。
+  static List<String> splitPromptMixChunks(String prompt) {
+    final chunks = <String>[];
+    final buffer = StringBuffer();
+    var escaped = false;
+
+    for (var i = 0; i < prompt.length; i++) {
+      final char = prompt[i];
+      if (char == promptMixSeparator &&
+          i + 1 < prompt.length &&
+          prompt[i + 1] == promptMixSeparator) {
+        escaped = !escaped;
+        buffer.write(promptMixEscape);
+        i++;
+        continue;
+      }
+      if (char == promptMixSeparator && !escaped) {
+        chunks.add(buffer.toString());
+        buffer.clear();
+        continue;
+      }
+      buffer.write(char);
+    }
+    chunks.add(buffer.toString());
+
+    if (chunks.length <= maxPromptMixChunks) return chunks;
+    return [
+      ...chunks.take(maxPromptMixChunks - 1),
+      chunks.skip(maxPromptMixChunks - 1).join(promptMixSeparator),
+    ];
+  }
+
+  /// 将质量标签应用到提示词。
   static String applyQualityTags(String prompt, String model) {
-    final tags = getQualityTags(model);
-    if (tags == null || tags.isEmpty) return prompt;
+    return applySuffix(
+      prompt,
+      getQualityTags(model),
+      ModelCapabilityRegistry.of(model),
+    );
+  }
+
+  /// 把 suffix 追加到提示词，跳过混合段与 `text:` 渲染段。
+  ///
+  /// 网页端分两层：先按 `|` 切混合段，V4 起只往第一段追加（V3 及更早每段都
+  /// 追加，并保留段尾的 `:权重`）；再在该段内按 `text:` 切分，只往标记之前
+  /// 追加——直接追加到末尾会让质量词落进要画进图里的文字。
+  static String applySuffix(
+    String prompt,
+    String? suffix,
+    ModelCapabilities capabilities,
+  ) {
+    if (suffix == null || suffix.isEmpty) return prompt;
+
+    // V4 起角色是独立字段，混合段只有第一段代表基础提示词。
+    if (capabilities.promptStructure == PromptStructure.v4) {
+      final chunks = splitPromptMixChunks(prompt);
+      chunks[0] = _applyToChunk(
+        chunks[0],
+        suffix,
+        hasTextSection: capabilities.supportsTextRendering,
+      );
+      return chunks.join(promptMixSeparator);
+    }
+
+    // V3 及更早：网页端直接按 `|` 切（不做 `||` 转义、不设上限），每段都加。
+    return prompt
+        .split(promptMixSeparator)
+        .map((chunk) {
+          final weight = _promptMixWeight.firstMatch(chunk)?.group(0) ?? '';
+          final base = weight.isEmpty
+              ? chunk
+              : chunk.substring(0, chunk.length - weight.length);
+          return appendSuffix(base, suffix) + weight;
+        })
+        .join(promptMixSeparator);
+  }
+
+  static String _applyToChunk(
+    String chunk,
+    String suffix, {
+    required bool hasTextSection,
+  }) {
+    if (!hasTextSection) return appendSuffix(chunk, suffix);
+
+    // 多个 `text:` 时网页端用第一处的分隔符重新拼接，这里保留各自原本的分隔符。
+    final match = _firstTextRenderMarkerOutsideRandomizer(chunk);
+    if (match == null) return appendSuffix(chunk, suffix);
+
+    final markerAndText = chunk.substring(match.start);
+    final needsSeparator = match.group(0)!.toLowerCase() == 'text:';
+    return appendSuffix(chunk.substring(0, match.start), suffix) +
+        (needsSeparator ? ' ' : '') +
+        markerAndText;
+  }
+
+  /// 把 suffix 追加到提示词末尾，保持 `, ` 分隔与已有尾逗号。
+  static String appendSuffix(String prompt, String? suffix) {
+    if (suffix == null || suffix.isEmpty) return prompt;
 
     final trimmedPrompt = prompt.trim();
-    if (trimmedPrompt.isEmpty) return tags;
+    if (trimmedPrompt.isEmpty) return suffix;
 
-    // V3+ 模型：标签添加到末尾
     if (trimmedPrompt.endsWith(',')) {
-      return '$trimmedPrompt $tags';
+      return '$trimmedPrompt $suffix';
     }
-    return '$trimmedPrompt, $tags';
+    return '$trimmedPrompt, $suffix';
   }
 }
 
@@ -465,7 +591,7 @@ class UcPresets {
   ///
   /// 这些值只用于读取/剥离旧 PNG 元数据，不能用于新的生成请求。
   static const Map<String, Map<UcPresetType, List<String>>>
-      legacyPresetVariants = {
+  legacyPresetVariants = {
     ImageModels.animeDiffusionV45Full: {
       UcPresetType.heavy: [
         'nsfw, lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page',
@@ -730,10 +856,7 @@ class UcPresets {
 
   /// 检查正面提示词是否包含 nsfw tag
   static bool containsNsfwTag(String prompt) {
-    final nsfwPattern = RegExp(
-      r'[\{\[]*nsfw[\}\]]*',
-      caseSensitive: false,
-    );
+    final nsfwPattern = RegExp(r'[\{\[]*nsfw[\}\]]*', caseSensitive: false);
     return nsfwPattern.hasMatch(prompt);
   }
 
@@ -753,5 +876,146 @@ class UcPresets {
     }
 
     return effectiveNegative;
+  }
+}
+
+/// 增强面板「幅度」档位表。
+///
+/// 网页端是 1-5 的整数档而不是连续滑条，每档对应固定的 strength/noise
+/// （0.2/0.4/0.5/0.6/0.7，只有最高档带 0.1 噪声）。
+class EnhanceLevels {
+  EnhanceLevels._();
+
+  static const List<({double strength, double noise})> table = [
+    (strength: 0.2, noise: 0.0),
+    (strength: 0.4, noise: 0.0),
+    (strength: 0.5, noise: 0.0),
+    (strength: 0.6, noise: 0.0),
+    (strength: 0.7, noise: 0.1),
+  ];
+
+  static const int minLevel = 1;
+  static const int maxLevel = 5;
+
+  /// 网页端默认停在中间档。
+  static const int defaultLevel = 3;
+
+  static ({double strength, double noise}) resolve(int level) {
+    return table[level.clamp(minLevel, maxLevel) - 1];
+  }
+
+  /// 把旧版连续 magnitude(0-1) 迁移到最接近的档位。
+  ///
+  /// 旧实现把 magnitude 直接当 strength 用，因此按 strength 距离取最近档，
+  /// 用户升级后拿到的增强力度与升级前基本一致。
+  static int fromLegacyMagnitude(double magnitude) {
+    final clamped = magnitude.clamp(0.0, 1.0);
+    var bestLevel = defaultLevel;
+    var bestDistance = double.infinity;
+    for (var index = 0; index < table.length; index++) {
+      final distance = (table[index].strength - clamped).abs();
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestLevel = index + 1;
+      }
+    }
+    return bestLevel;
+  }
+
+  /// 增强时自动补进提示词的降权词。
+  ///
+  /// 网页端原样拼 `", -2::upscaled, blurry::,"`（首尾都带逗号），
+  /// 这里保持一致，方便和网页端对比 token 数。
+  static const String promptAddition = ', -2::upscaled, blurry::,';
+
+  /// 判断提示词里是否已经有这条降权词，网页端只做子串匹配。
+  static const String promptAdditionMarker = 'upscaled, blurry';
+
+  /// 把降权词插进增强请求的有效提示词。
+  ///
+  /// 只修改基础提示词段；有 `text:` 段时插在标记之前，避免降权词落进
+  /// 要渲染的文字里。内联角色段和 `||...||` 随机区间保持原样。
+  static String applyPromptAddition(String prompt) {
+    final chunks = QualityTags.splitPromptMixChunks(prompt);
+    final basePrompt = chunks.first;
+    if (basePrompt.contains(promptAdditionMarker)) {
+      return prompt;
+    }
+
+    final match = QualityTags._firstTextRenderMarkerOutsideRandomizer(
+      basePrompt,
+    );
+    if (match == null) {
+      chunks[0] = '${basePrompt.trimRight()}$promptAddition';
+    } else {
+      chunks[0] =
+          basePrompt.substring(0, match.start) +
+          promptAddition +
+          basePrompt.substring(match.start);
+    }
+    return chunks.join(QualityTags.promptMixSeparator);
+  }
+}
+
+/// 增强面板可选的放大倍率。
+class EnhanceScales {
+  EnhanceScales._();
+
+  /// 网页端候选倍率，从大到小。
+  static const List<double> candidates = [2.0, 1.5, 1.0];
+
+  /// 网页端对最常用的 832×1216（含转置）直接给固定档位。
+  ///
+  /// 这个尺寸乘 1.5 得到 1248×1824，本来过不了 64 对齐的筛选，
+  /// 网页端专门开了口子，这里照抄。
+  static const List<double> _portraitDefaults = [1.5, 1.0];
+
+  static bool _isDefaultPortrait(int width, int height) {
+    return (width == 832 && height == 1216) || (width == 1216 && height == 832);
+  }
+
+  /// 当前源图尺寸下可用的倍率，从大到小。
+  ///
+  /// 源图尺寸未知时只给 1x——网页端在拿到图片前也不会给放大档。
+  static List<double> availableFactors({int? sourceWidth, int? sourceHeight}) {
+    final width = sourceWidth ?? 0;
+    final height = sourceHeight ?? 0;
+    if (width <= 0 || height <= 0) {
+      return const [1.0];
+    }
+    if (_isDefaultPortrait(width, height)) {
+      return _portraitDefaults;
+    }
+
+    final available = candidates
+        .where((factor) {
+          final scaledWidth = width * factor;
+          final scaledHeight = height * factor;
+          if (scaledWidth * scaledHeight > ApiConstants.maxImagePixels) {
+            return false;
+          }
+          return scaledWidth % ApiConstants.dimensionGrid == 0 &&
+              scaledHeight % ApiConstants.dimensionGrid == 0;
+        })
+        .toList(growable: false);
+
+    return available.isEmpty ? const [1.0] : available;
+  }
+
+  /// 把持久化的倍率约束到当前源图可用的档位。
+  static double resolveFactor(
+    double preferred, {
+    int? sourceWidth,
+    int? sourceHeight,
+  }) {
+    final available = availableFactors(
+      sourceWidth: sourceWidth,
+      sourceHeight: sourceHeight,
+    );
+    if (available.contains(preferred)) {
+      return preferred;
+    }
+    // 网页端在档位表变化时回落到最大的可用档。
+    return available.first;
   }
 }

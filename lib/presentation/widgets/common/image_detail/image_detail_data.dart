@@ -41,6 +41,9 @@ abstract class ImageDetailData {
 
   /// 是否需要显示收藏按钮
   bool get showFavoriteButton;
+
+  /// 保存时是否必须保持当前图像字节不变。
+  bool get preserveOriginalBytesOnSave;
 }
 
 /// 文件信息
@@ -162,6 +165,9 @@ class LocalImageDetailData implements ImageDetailData {
 
   @override
   bool get showFavoriteButton => true;
+
+  @override
+  bool get preserveOriginalBytesOnSave => false;
 }
 
 /// 生成图像数据适配器
@@ -174,6 +180,8 @@ class GeneratedImageDetailData implements ImageDetailData {
   final String _id;
   final bool _showSaveButton;
   final bool _showCopyButton;
+  @override
+  final bool preserveOriginalBytesOnSave;
 
   GeneratedImageDetailData({
     required this.imageBytes,
@@ -181,6 +189,7 @@ class GeneratedImageDetailData implements ImageDetailData {
     String? id,
     bool showSaveButton = true,
     bool showCopyButton = true,
+    this.preserveOriginalBytesOnSave = false,
   }) : _metadata = metadata,
        _id = id ?? imageBytes.hashCode.toString(),
        _showSaveButton = showSaveButton,

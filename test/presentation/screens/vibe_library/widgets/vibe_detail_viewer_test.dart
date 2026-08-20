@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_detail/vibe_preview_drop_zone.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_detail_viewer.dart';
+import 'package:nai_launcher/presentation/widgets/common/decoded_memory_image.dart';
 
 void main() {
   testWidgets('关闭详情页不会自动保存参数', (tester) async {
@@ -21,12 +23,13 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final entry = _buildEntry();
+    final storage = _FakeVibeLibraryStorageService(entry);
     var saveCount = 0;
 
     await tester.pumpWidget(
       _wrapWithHost(
         entry: entry,
-        storage: _FakeVibeLibraryStorageService(entry),
+        storage: storage,
         onSaveParams: (_, __, ___) async {
           saveCount++;
           return entry;
@@ -36,6 +39,7 @@ void main() {
 
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
+    expect(storage.getEntryCalls, 0);
 
     final infoSlider = tester.widget<Slider>(find.byType(Slider).at(1));
     infoSlider.onChanged?.call(0.1);
@@ -136,24 +140,27 @@ void main() {
       bundledVibeStrengths: const [0.6],
       bundledVibeInfoExtracted: const [0.2],
     );
+    final bundleChildren = [
+      VibeReference(
+        displayName: 'first',
+        vibeEncoding: 'encoding-first',
+        thumbnail: previewImage,
+        rawImageData: rawImage,
+        strength: 0.6,
+        infoExtracted: 0.2,
+        sourceType: VibeSourceType.naiv4vibebundle,
+      ),
+    ];
+    final storage = _FakeVibeLibraryStorageService(
+      entry,
+      bundleChildren: bundleChildren,
+    );
 
     await tester.pumpWidget(
       _wrapWithHost(
         entry: entry,
-        storage: _FakeVibeLibraryStorageService(
-          entry,
-          bundleChildren: [
-            VibeReference(
-              displayName: 'first',
-              vibeEncoding: 'encoding-first',
-              thumbnail: previewImage,
-              rawImageData: rawImage,
-              strength: 0.6,
-              infoExtracted: 0.2,
-              sourceType: VibeSourceType.naiv4vibebundle,
-            ),
-          ],
-        ),
+        storage: storage,
+        bundleVibes: bundleChildren,
         onSaveParams: (_, __, ___) async => entry,
       ),
     );
@@ -166,12 +173,72 @@ void main() {
     );
     expect(previewZone.imageBytes, same(rawImage));
     expect(previewZone.imageBytes, isNot(same(previewImage)));
+    expect(storage.getEntryCalls, 0);
+    expect(storage.loadBundleChildCalls, 0);
+
+    final decodedImage = tester.widget<DecodedMemoryImage>(
+      find
+          .descendant(
+            of: find.byType(VibePreviewDropZone),
+            matching: find.byType(DecodedMemoryImage),
+          )
+          .first,
+    );
+    expect(decodedImage.gaplessPlayback, isTrue);
+  });
+
+  testWidgets('后台解析详情时立即显示加载层，完成后只使用解析结果', (tester) async {
+    tester.view.physicalSize = const Size(1400, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final initialEntry = _buildEntry().copyWith(
+      vibeThumbnail: null,
+      rawImageData: null,
+    );
+    final rawImage = _pngBytes(32, 64, 96);
+    final actualEntry = initialEntry.copyWith(
+      vibeThumbnail: rawImage,
+      rawImageData: rawImage,
+    );
+    final storage = _FakeVibeLibraryStorageService(actualEntry);
+    final detailData = Completer<VibeLibraryDetailData>();
+
+    await tester.pumpWidget(
+      _wrapWithHost(
+        entry: initialEntry,
+        storage: storage,
+        detailDataFuture: detailData.future,
+        onSaveParams: (_, __, ___) async => actualEntry,
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pump();
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('加载中...'), findsOneWidget);
+    expect(find.byType(VibePreviewDropZone), findsNothing);
+
+    detailData.complete(VibeLibraryDetailData(entry: actualEntry));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    final previewZone = tester.widget<VibePreviewDropZone>(
+      find.byType(VibePreviewDropZone).first,
+    );
+    expect(previewZone.imageBytes, same(rawImage));
+    expect(storage.getEntryCalls, 0);
+    expect(storage.loadBundleChildCalls, 0);
   });
 }
 
 Widget _wrapWithHost({
   required VibeLibraryEntry entry,
   required VibeLibraryStorageService storage,
+  Future<VibeLibraryDetailData>? detailDataFuture,
+  List<VibeReference> bundleVibes = const [],
   required Future<VibeLibraryEntry?> Function(
     VibeLibraryEntry entry,
     double strength,
@@ -199,6 +266,8 @@ Widget _wrapWithHost({
                   VibeDetailViewer.show(
                     context,
                     entry: entry,
+                    detailDataFuture: detailDataFuture,
+                    bundleVibes: bundleVibes,
                     callbacks: VibeDetailCallbacks(
                       onSaveParams: (entry, strength, infoExtracted, _) {
                         return onSaveParams(entry, strength, infoExtracted);
@@ -243,9 +312,12 @@ class _FakeVibeLibraryStorageService extends VibeLibraryStorageService {
 
   final VibeLibraryEntry entry;
   final List<VibeReference> bundleChildren;
+  int getEntryCalls = 0;
+  int loadBundleChildCalls = 0;
 
   @override
   Future<VibeLibraryEntry?> getEntry(String id) async {
+    getEntryCalls++;
     if (id != entry.id) {
       return null;
     }
@@ -254,6 +326,7 @@ class _FakeVibeLibraryStorageService extends VibeLibraryStorageService {
 
   @override
   Future<VibeReference?> loadBundleChildVibe(String id, int childIndex) async {
+    loadBundleChildCalls++;
     if (id != entry.id ||
         childIndex < 0 ||
         childIndex >= bundleChildren.length) {

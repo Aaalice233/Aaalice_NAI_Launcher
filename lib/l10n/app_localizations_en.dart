@@ -1324,11 +1324,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get img2img_noSeedvr2Models =>
-      'No SeedVR2 model found. Refresh the model list or check the SeedVR2 node/model files.';
+      'No usable SeedVR2 model found. Refresh the model list and check ComfyUI\'s native models/diffusion_models and models/vae folders or the SeedVR2 custom-node model folder.';
 
   @override
   String get img2img_noRegularUpscaleModels =>
       'No regular upscale model found. Refresh the model list or check models/upscale_models.';
+
+  @override
+  String get img2img_useNativeSeedvr2Workflow =>
+      'Using the native ComfyUI SeedVR2 one-step upscale workflow.';
 
   @override
   String get img2img_useSeedvr2TiledWorkflow =>
@@ -1391,8 +1395,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get img2img_metricQuality => 'Quality';
 
   @override
+  String get img2img_seedvr2Engine => 'SeedVR2 Engine';
+
+  @override
+  String get img2img_seedvr2EngineAuto => 'Auto';
+
+  @override
+  String get img2img_seedvr2EngineNative => 'Native';
+
+  @override
+  String get img2img_seedvr2EngineLegacy => 'Compatibility';
+
+  @override
+  String get img2img_seedvr2EngineResolvedNative =>
+      'Using native SeedVR2 built into ComfyUI.';
+
+  @override
+  String get img2img_seedvr2EngineResolvedLegacy =>
+      'Using the installed SeedVR2 custom nodes.';
+
+  @override
+  String get img2img_seedvr2EngineUnavailable =>
+      'The selected SeedVR2 engine or its required models are unavailable. Refresh the model list or switch engines.';
+
+  @override
   String get img2img_seedvr2VaeTileHint =>
-      'Also writes the SeedVR2 VAE MODEL encode/decode tile size.';
+      'Sets the tile size used for SeedVR2 VAE encoding and decoding.';
 
   @override
   String get img2img_seedvr2UseTiledUpscale => 'Use tiled upscale';
@@ -1400,6 +1428,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get img2img_seedvr2UseTiledUpscaleHint =>
       'When enabled, uses SeedVR2TilingUpscaler. Recommended for large images or high VRAM pressure.';
+
+  @override
+  String get settings_comfyUiSeedvr2EmbedNaiMetadata =>
+      'Write NAI generation parameters to SeedVR2 results';
+
+  @override
+  String get settings_comfyUiSeedvr2EmbedNaiMetadataHint =>
+      'Off by default. When enabled, writes the launcher\'s current prompts and generation parameters. When disabled, preserves the PNG metadata returned by ComfyUI.';
 
   @override
   String get img2img_seedvr2TileSize => 'Tile Size';
@@ -2212,7 +2248,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibe_sourceType_png => 'PNG';
 
   @override
-  String get vibe_sourceType_v4vibe => 'V4 Vibe';
+  String get vibe_sourceType_v4vibe => 'Vibe file';
 
   @override
   String get vibe_sourceType_bundle => 'Bundle';
@@ -7635,7 +7671,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preciseRef_fidelity => 'Fidelity';
 
   @override
-  String get preciseRef_v4Only => 'This feature requires V4+ models';
+  String get preciseRef_v4Only =>
+      'This feature is only available on V4.5 models';
 
   @override
   String get preciseRef_typeCharacter => 'Character';
@@ -7817,6 +7854,19 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String vibeLibrary_deletedCount(Object count) {
     return 'Deleted $count Vibes';
+  }
+
+  @override
+  String get vibeLibrary_markEncodingModel => 'Mark encoding model';
+
+  @override
+  String vibeLibrary_markEncodingModelContent(Object count, Object model) {
+    return 'Mark the selected $count Vibes as encoded for \"$model\" and rewrite their library files.\n\nUse this for entries mislabelled with another model, which makes every generation re-encode and spend Anlas. If those encodings really came from a different model, results may not match expectations.';
+  }
+
+  @override
+  String vibeLibrary_encodingModelMarked(Object count) {
+    return 'Updated the encoding model of $count Vibes';
   }
 
   @override
@@ -8707,6 +8757,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibe_statusPendingEncode => 'Encode (2 Anlas)';
 
   @override
+  String get vibe_statusNeedsReencode => 'Re-encode (2 Anlas)';
+
+  @override
+  String get vibe_statusSourceImageRequired => 'Source image required';
+
+  @override
   String get vibe_encodeDialogTitle => 'Confirm Vibe Encoding';
 
   @override
@@ -9195,6 +9251,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get comfyWorkflow_seedvr2UpscaleDescription =>
       'Upscale with the SeedVR2 AI model. Produces high-quality results.';
+
+  @override
+  String get comfyWorkflow_seedvr2LegacyUpscaleName =>
+      'SeedVR2 Compatibility Upscale';
+
+  @override
+  String get comfyWorkflow_seedvr2LegacyUpscaleDescription =>
+      'Upscale with the installed SeedVR2VideoUpscaler custom nodes.';
 
   @override
   String get comfyWorkflow_seedvr2TiledUpscaleName => 'SeedVR2 Tiled Upscale';

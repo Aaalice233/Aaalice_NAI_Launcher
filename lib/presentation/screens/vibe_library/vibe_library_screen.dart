@@ -11,8 +11,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
+import '../../../core/constants/api_constants.dart';
+import '../../../core/constants/model_capabilities.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/utils/novelai_vibe_codec.dart';
 import '../../../core/utils/vibe_file_parser.dart';
 import '../../../core/utils/vibe_image_embedder.dart';
 import '../../../core/utils/vibe_library_path_helper.dart';
@@ -48,6 +51,7 @@ import 'widgets/vibe_export_dialog_advanced.dart';
 import 'widgets/vibe_image_encode_dialog.dart' as encode_dialog;
 import 'widgets/vibe_import_naming_dialog.dart' as naming_dialog;
 
+part 'vibe_library_screen_bulk_actions.dart';
 part 'vibe_library_screen_layout.dart';
 
 const List<String> _vibeImportImageExtensions = ['png', 'jpg', 'jpeg', 'webp'];
@@ -77,6 +81,9 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
 
   /// 是否正在打开文件选择器
   bool _isPickingFile = false;
+
+  /// 是否正在批量标记 Vibe 编码模型
+  bool _isMarkingEncodingModel = false;
 
   /// 导入进度信息
   ImportProgress _importProgress = const ImportProgress();
@@ -1316,76 +1323,6 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     );
   }
 
-  /// 构建导入进度覆盖层
-  Widget _buildImportOverlay(ThemeData theme) {
-    final hasProgress = _importProgress.isActive;
-    final progressValue = _importProgress.progress;
-
-    return Positioned.fill(
-      child: Container(
-        color: Colors.black.withValues(alpha: 0.3),
-        child: Center(
-          child: Container(
-            width: 320,
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 20,
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 4,
-                    value: progressValue,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      theme.colorScheme.primary,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  context.l10n.vibeLibrary_importing,
-                  style: theme.textTheme.titleMedium,
-                ),
-                if (hasProgress) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    '${_importProgress.current} / ${_importProgress.total}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-                if (_importProgress.message.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    _importProgress.message,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   /// 从图片导入 Vibe
   Future<void> _importVibesFromImage() async {
     if (!mounted) return;
@@ -1743,15 +1680,34 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     if (!mounted) return null;
 
     final l10n = context.l10n;
+    final currentModel = ref.read(generationParamsNotifierProvider).model;
+    final supportsEncoding = ModelCapabilityRegistry.of(
+      currentModel,
+    ).supportsEncodedVibeTransfer;
 
     // 显示编码配置对话框
     final config = await encode_dialog.VibeImageEncodeDialog.show(
       context: context,
       imageBytes: imageFile.bytes,
       fileName: imageFile.source,
+      encodeImage: supportsEncoding,
     );
 
     if (config == null) return null; // 用户取消
+    if (!supportsEncoding) {
+      return _saveVibeReference(
+        reference: VibeReference(
+          displayName: config.name,
+          vibeEncoding: '',
+          thumbnail: imageFile.bytes,
+          rawImageData: imageFile.bytes,
+          strength: config.strength,
+          infoExtracted: config.infoExtracted,
+          sourceType: VibeSourceType.rawImage,
+        ),
+        categoryId: targetCategoryId,
+      );
+    }
 
     // 编码重试循环
     while (mounted) {

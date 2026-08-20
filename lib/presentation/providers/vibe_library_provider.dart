@@ -748,6 +748,35 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
     }
   }
 
+  /// 把条目的编码模型改写为指定模型（含 bundle 子项，并同步重写文件）
+  Future<VibeLibraryEntry?> updateEntryEncodingModel(
+    String id,
+    String model,
+  ) async {
+    try {
+      final updated = await _storage.updateEntryEncodingModel(id, model);
+      if (updated == null) return null;
+      final displayEntry = updated.toDisplayEntry();
+
+      final updatedEntries = state.entries.map((e) {
+        return e.id == id ? displayEntry : e;
+      }).toList();
+
+      state = state.copyWith(entries: updatedEntries);
+      await _applyFilters();
+      return updated;
+    } catch (e, stackTrace) {
+      AppLogger.e(
+        'Failed to update entry encoding model',
+        e,
+        stackTrace,
+        'VibeLibrary',
+      );
+      state = state.copyWith(error: e.toString());
+      return null;
+    }
+  }
+
   /// 更新条目标签
   Future<VibeLibraryEntry?> updateEntryTags(
     String id,

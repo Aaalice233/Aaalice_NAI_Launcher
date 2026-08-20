@@ -41,19 +41,31 @@ class VibeImageEncodeDialog extends StatefulWidget {
   /// 默认名称
   final String? defaultName;
 
-  const VibeImageEncodeDialog({super.key, this.thumbnail, this.defaultName});
+  /// 是否需要调用 V4+ 预编码接口。
+  final bool encodeImage;
+
+  const VibeImageEncodeDialog({
+    super.key,
+    this.thumbnail,
+    this.defaultName,
+    this.encodeImage = true,
+  });
 
   /// 显示对话框的便捷方法
   static Future<VibeImageEncodeConfig?> show({
     required BuildContext context,
     required Uint8List imageBytes,
     required String fileName,
+    bool encodeImage = true,
   }) {
     return showDialog<VibeImageEncodeConfig>(
       context: context,
       barrierDismissible: false,
-      builder: (context) =>
-          VibeImageEncodeDialog(thumbnail: imageBytes, defaultName: fileName),
+      builder: (context) => VibeImageEncodeDialog(
+        thumbnail: imageBytes,
+        defaultName: fileName,
+        encodeImage: encodeImage,
+      ),
     );
   }
 
@@ -178,10 +190,10 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
 
                 // Info Extracted 滑块
                 _buildInfoExtractedSlider(theme),
-                const SizedBox(height: 16),
-
-                // Anlas 提示
-                _buildAnlasHint(theme),
+                if (widget.encodeImage) ...[
+                  const SizedBox(height: 16),
+                  _buildAnlasHint(theme),
+                ],
                 const SizedBox(height: 24),
 
                 // 底部按钮
@@ -202,7 +214,9 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
         const SizedBox(width: 12),
         Expanded(
           child: Text(
-            context.l10n.vibe_encodeImageTitle,
+            widget.encodeImage
+                ? context.l10n.vibe_encodeImageTitle
+                : context.l10n.vibe_saveToLibrary_title,
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -435,8 +449,14 @@ class _VibeImageEncodeDialogState extends State<VibeImageEncodeDialog> {
         // 开始编码按钮
         FilledButton.icon(
           onPressed: _confirm,
-          icon: const Icon(Icons.play_arrow),
-          label: Text(context.l10n.vibe_encodeStartButton),
+          icon: Icon(
+            widget.encodeImage ? Icons.play_arrow : Icons.save_outlined,
+          ),
+          label: Text(
+            widget.encodeImage
+                ? context.l10n.vibe_encodeStartButton
+                : context.l10n.common_save,
+          ),
         ),
       ],
     );

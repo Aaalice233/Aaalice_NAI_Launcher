@@ -18,6 +18,9 @@ class GeneratedImage {
   final GeneratedImageKind kind;
   final NaiImageMetadata? metadata;
 
+  /// 保存时跳过启动器的 PNG 元数据补写，保持接收到的文件字节不变。
+  final bool preserveOriginalBytesOnSave;
+
   /// 已保存的文件路径（如果有）
   /// 当图像被保存到磁盘后，此字段会被填充
   final String? filePath;
@@ -30,6 +33,7 @@ class GeneratedImage {
     DateTime? createdAt,
     this.kind = GeneratedImageKind.completed,
     this.metadata,
+    this.preserveOriginalBytesOnSave = false,
     this.filePath,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -40,6 +44,7 @@ class GeneratedImage {
     required int height,
     GeneratedImageKind kind = GeneratedImageKind.completed,
     NaiImageMetadata? metadata,
+    bool preserveOriginalBytesOnSave = false,
   }) {
     final encodedSize = NaiResolutionAdapter.readImageSize(bytes);
     return GeneratedImage(
@@ -49,6 +54,7 @@ class GeneratedImage {
       height: encodedSize?.$2 ?? height,
       kind: kind,
       metadata: metadata,
+      preserveOriginalBytesOnSave: preserveOriginalBytesOnSave,
     );
   }
 
@@ -62,6 +68,7 @@ class GeneratedImage {
       createdAt: createdAt,
       kind: kind,
       metadata: metadata,
+      preserveOriginalBytesOnSave: preserveOriginalBytesOnSave,
       filePath: path,
     );
   }

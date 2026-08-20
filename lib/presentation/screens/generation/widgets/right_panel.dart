@@ -12,26 +12,19 @@ import 'history_panel.dart';
 class RightPanel extends ConsumerWidget {
   final bool isResizing;
 
-  const RightPanel({
-    super.key,
-    this.isResizing = false,
-  });
+  const RightPanel({super.key, this.isResizing = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final layoutState = ref.watch(layoutStateNotifierProvider);
 
-    final width =
-        layoutState.rightPanelExpanded ? layoutState.rightPanelWidth : 40.0;
+    final width = layoutState.rightPanelExpanded
+        ? layoutState.rightPanelWidth
+        : 40.0;
     final decoration = BoxDecoration(
       color: theme.colorScheme.surface,
-      border: Border(
-        left: BorderSide(
-          color: theme.dividerColor,
-          width: 1,
-        ),
-      ),
+      border: Border(left: BorderSide(color: theme.dividerColor, width: 1)),
     );
 
     final child = layoutState.rightPanelExpanded
@@ -44,17 +37,8 @@ class RightPanel extends ConsumerWidget {
                 .setRightPanelExpanded(true),
           );
 
-    // 拖拽时不使用动画，避免粘滞感
-    if (isResizing) {
-      return Container(
-        width: width,
-        decoration: decoration,
-        child: child,
-      );
-    }
-
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: isResizing ? Duration.zero : const Duration(milliseconds: 200),
       width: width,
       decoration: decoration,
       child: child,

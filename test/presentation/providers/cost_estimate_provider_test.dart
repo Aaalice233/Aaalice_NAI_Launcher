@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/core/services/anlas_calculator.dart';
 import 'package:nai_launcher/core/utils/focused_inpaint_utils.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
@@ -166,6 +167,28 @@ void main() {
       paramsNotifier.updateSteps(28);
 
       expect(container.read(estimatedCostProvider), 0);
+    });
+
+    test('should charge only the precise reference surcharge on Opus', () {
+      final subscription = container.read(
+        subscriptionNotifierProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      subscription.state = const SubscriptionState.loaded(
+        UserSubscription(tier: AnlasCalculator.opusTier, active: true),
+      );
+      paramsNotifier.updateModel('nai-diffusion-4-5-full');
+      paramsNotifier.updateSize(832, 1216);
+      paramsNotifier.updateSteps(28);
+      paramsNotifier.addPreciseReference(
+        _buildPng(width: 832, height: 1216),
+        type: PreciseRefType.character,
+      );
+
+      expect(container.read(estimatedCostProvider), 5);
     });
 
     test('should still charge free-size requests beyond the step limit', () {

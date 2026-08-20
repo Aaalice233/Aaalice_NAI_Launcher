@@ -61,8 +61,10 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
         .where((reference) => reference.enabled)
         .length;
     final hasActiveReferences = activeReferenceCount > 0;
-    final isV4Model = ref.watch(
-      generationParamsNotifierProvider.select((params) => params.isV4Model),
+    final supportsPreciseReference = ref.watch(
+      generationParamsNotifierProvider.select(
+        (params) => params.capabilities.supportsPreciseReference,
+      ),
     );
 
     // 判断是否显示背景（折叠且有数据时显示）
@@ -163,7 +165,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
             const ThemedDivider(),
 
             // 非 V4 模型提示
-            if (!isV4Model) ...[
+            if (!supportsPreciseReference) ...[
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -226,9 +228,9 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
 
             // 添加按钮
             _buildAddReferenceDropTarget(
-              isV4Model: isV4Model,
+              supportsPreciseReference: supportsPreciseReference,
               child: OutlinedButton.icon(
-                onPressed: isV4Model ? _addReference : null,
+                onPressed: supportsPreciseReference ? _addReference : null,
                 icon: Icon(
                   _isFileDraggingOver ? Icons.file_download_rounded : Icons.add,
                   size: 18,
@@ -248,7 +250,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
                 Expanded(
                   child: OutlinedButton.icon(
                     key: const Key('precise-ref-panel-from-library'),
-                    onPressed: isV4Model ? _importFromLibrary : null,
+                    onPressed: supportsPreciseReference ? _importFromLibrary : null,
                     icon: const Icon(Icons.photo_library_outlined, size: 16),
                     label: Text(
                       context.l10n.preciseRefLib_fromLibrary,
@@ -294,10 +296,10 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
   }
 
   Widget _buildAddReferenceDropTarget({
-    required bool isV4Model,
+    required bool supportsPreciseReference,
     required Widget child,
   }) {
-    if (!isV4Model) {
+    if (!supportsPreciseReference) {
       return child;
     }
 

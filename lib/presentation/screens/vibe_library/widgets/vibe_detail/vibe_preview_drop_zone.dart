@@ -8,6 +8,7 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../../../core/utils/app_logger.dart';
 import '../../../../themes/design_tokens.dart';
+import '../../../../widgets/common/decoded_memory_image.dart';
 import '../../../../widgets/common/image_picker_card/_internal/picker_handler.dart';
 
 /// Vibe 预览图拖拽区
@@ -211,9 +212,10 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
               maxScale: 4.0,
               child: Center(
                 child: widget.imageBytes != null
-                    ? Image.memory(
-                        widget.imageBytes!,
+                    ? DecodedMemoryImage(
+                        bytes: widget.imageBytes!,
                         fit: BoxFit.contain,
+                        gaplessPlayback: true,
                         errorBuilder: (_, __, ___) => _buildPlaceholder(),
                       )
                     : _buildPlaceholder(),

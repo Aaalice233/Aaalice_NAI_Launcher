@@ -157,7 +157,6 @@ int estimatedCost(Ref ref) {
     smeaDyn: params.effectiveSmeaDyn,
     model: params.model,
     subscriptionTier: subscriptionTier,
-    hasCharacterReference: params.isV45Model && params.hasPreciseReferences,
     strength: requestInput.strength,
     extraPerSampleCost: AnlasCalculator.resolvePreciseReferenceExtraCost(
       params,

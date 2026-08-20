@@ -2485,7 +2485,7 @@ abstract class AppLocalizations {
   /// No description provided for @img2img_noSeedvr2Models.
   ///
   /// In en, this message translates to:
-  /// **'No SeedVR2 model found. Refresh the model list or check the SeedVR2 node/model files.'**
+  /// **'No usable SeedVR2 model found. Refresh the model list and check ComfyUI\'s native models/diffusion_models and models/vae folders or the SeedVR2 custom-node model folder.'**
   String get img2img_noSeedvr2Models;
 
   /// No description provided for @img2img_noRegularUpscaleModels.
@@ -2493,6 +2493,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No regular upscale model found. Refresh the model list or check models/upscale_models.'**
   String get img2img_noRegularUpscaleModels;
+
+  /// No description provided for @img2img_useNativeSeedvr2Workflow.
+  ///
+  /// In en, this message translates to:
+  /// **'Using the native ComfyUI SeedVR2 one-step upscale workflow.'**
+  String get img2img_useNativeSeedvr2Workflow;
 
   /// No description provided for @img2img_useSeedvr2TiledWorkflow.
   ///
@@ -2590,10 +2596,52 @@ abstract class AppLocalizations {
   /// **'Quality'**
   String get img2img_metricQuality;
 
+  /// No description provided for @img2img_seedvr2Engine.
+  ///
+  /// In en, this message translates to:
+  /// **'SeedVR2 Engine'**
+  String get img2img_seedvr2Engine;
+
+  /// No description provided for @img2img_seedvr2EngineAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get img2img_seedvr2EngineAuto;
+
+  /// No description provided for @img2img_seedvr2EngineNative.
+  ///
+  /// In en, this message translates to:
+  /// **'Native'**
+  String get img2img_seedvr2EngineNative;
+
+  /// No description provided for @img2img_seedvr2EngineLegacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Compatibility'**
+  String get img2img_seedvr2EngineLegacy;
+
+  /// No description provided for @img2img_seedvr2EngineResolvedNative.
+  ///
+  /// In en, this message translates to:
+  /// **'Using native SeedVR2 built into ComfyUI.'**
+  String get img2img_seedvr2EngineResolvedNative;
+
+  /// No description provided for @img2img_seedvr2EngineResolvedLegacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Using the installed SeedVR2 custom nodes.'**
+  String get img2img_seedvr2EngineResolvedLegacy;
+
+  /// No description provided for @img2img_seedvr2EngineUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected SeedVR2 engine or its required models are unavailable. Refresh the model list or switch engines.'**
+  String get img2img_seedvr2EngineUnavailable;
+
   /// No description provided for @img2img_seedvr2VaeTileHint.
   ///
   /// In en, this message translates to:
-  /// **'Also writes the SeedVR2 VAE MODEL encode/decode tile size.'**
+  /// **'Sets the tile size used for SeedVR2 VAE encoding and decoding.'**
   String get img2img_seedvr2VaeTileHint;
 
   /// No description provided for @img2img_seedvr2UseTiledUpscale.
@@ -2607,6 +2655,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'When enabled, uses SeedVR2TilingUpscaler. Recommended for large images or high VRAM pressure.'**
   String get img2img_seedvr2UseTiledUpscaleHint;
+
+  /// No description provided for @settings_comfyUiSeedvr2EmbedNaiMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Write NAI generation parameters to SeedVR2 results'**
+  String get settings_comfyUiSeedvr2EmbedNaiMetadata;
+
+  /// No description provided for @settings_comfyUiSeedvr2EmbedNaiMetadataHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Off by default. When enabled, writes the launcher\'s current prompts and generation parameters. When disabled, preserves the PNG metadata returned by ComfyUI.'**
+  String get settings_comfyUiSeedvr2EmbedNaiMetadataHint;
 
   /// No description provided for @img2img_seedvr2TileSize.
   ///
@@ -4031,7 +4091,7 @@ abstract class AppLocalizations {
   /// No description provided for @vibe_sourceType_v4vibe.
   ///
   /// In en, this message translates to:
-  /// **'V4 Vibe'**
+  /// **'Vibe file'**
   String get vibe_sourceType_v4vibe;
 
   /// No description provided for @vibe_sourceType_bundle.
@@ -13664,7 +13724,7 @@ abstract class AppLocalizations {
   /// No description provided for @preciseRef_v4Only.
   ///
   /// In en, this message translates to:
-  /// **'This feature requires V4+ models'**
+  /// **'This feature is only available on V4.5 models'**
   String get preciseRef_v4Only;
 
   /// No description provided for @preciseRef_typeCharacter.
@@ -13966,6 +14026,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Deleted {count} Vibes'**
   String vibeLibrary_deletedCount(Object count);
+
+  /// No description provided for @vibeLibrary_markEncodingModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark encoding model'**
+  String get vibeLibrary_markEncodingModel;
+
+  /// No description provided for @vibeLibrary_markEncodingModelContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark the selected {count} Vibes as encoded for \"{model}\" and rewrite their library files.\n\nUse this for entries mislabelled with another model, which makes every generation re-encode and spend Anlas. If those encodings really came from a different model, results may not match expectations.'**
+  String vibeLibrary_markEncodingModelContent(Object count, Object model);
+
+  /// No description provided for @vibeLibrary_encodingModelMarked.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated the encoding model of {count} Vibes'**
+  String vibeLibrary_encodingModelMarked(Object count);
 
   /// No description provided for @vibeLibrary_importImageDialogTitle.
   ///
@@ -15383,6 +15461,18 @@ abstract class AppLocalizations {
   /// **'Encode (2 Anlas)'**
   String get vibe_statusPendingEncode;
 
+  /// No description provided for @vibe_statusNeedsReencode.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-encode (2 Anlas)'**
+  String get vibe_statusNeedsReencode;
+
+  /// No description provided for @vibe_statusSourceImageRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Source image required'**
+  String get vibe_statusSourceImageRequired;
+
   /// No description provided for @vibe_encodeDialogTitle.
   ///
   /// In en, this message translates to:
@@ -16240,6 +16330,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Upscale with the SeedVR2 AI model. Produces high-quality results.'**
   String get comfyWorkflow_seedvr2UpscaleDescription;
+
+  /// No description provided for @comfyWorkflow_seedvr2LegacyUpscaleName.
+  ///
+  /// In en, this message translates to:
+  /// **'SeedVR2 Compatibility Upscale'**
+  String get comfyWorkflow_seedvr2LegacyUpscaleName;
+
+  /// No description provided for @comfyWorkflow_seedvr2LegacyUpscaleDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Upscale with the installed SeedVR2VideoUpscaler custom nodes.'**
+  String get comfyWorkflow_seedvr2LegacyUpscaleDescription;
 
   /// No description provided for @comfyWorkflow_seedvr2TiledUpscaleName.
   ///

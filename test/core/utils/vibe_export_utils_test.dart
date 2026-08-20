@@ -132,8 +132,9 @@ void main() {
           jsonDecode(await File(firstPath).readAsString())
               as Map<String, dynamic>;
       expect(NovelAiVibeCodec.validateSingleMap(exported), isTrue);
+      // 没指明编码模型时按 NovelAiVibeCodec.defaultModel（V4.5 Full）落盘。
       expect(
-        exported['encodings']['v4full']['unknown']['encoding'],
+        exported['encodings']['v4-5full']['unknown']['encoding'],
         'encoded-payload',
       );
     });

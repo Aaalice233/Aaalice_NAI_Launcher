@@ -1276,11 +1276,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get img2img_noSeedvr2Models =>
-      '未发现 SeedVR2 模型，请刷新模型列表或检查 SeedVR2 节点/模型文件。';
+      '未发现可用的 SeedVR2 模型，请刷新模型列表，并检查 ComfyUI 原生 models/diffusion_models、models/vae 或 SeedVR2 自定义节点模型目录。';
 
   @override
   String get img2img_noRegularUpscaleModels =>
       '未发现普通超分模型，请刷新模型列表或检查 models/upscale_models。';
+
+  @override
+  String get img2img_useNativeSeedvr2Workflow =>
+      '将使用 ComfyUI 原生 SeedVR2 一步超分流程。';
 
   @override
   String get img2img_useSeedvr2TiledWorkflow =>
@@ -1340,8 +1344,29 @@ class AppLocalizationsZh extends AppLocalizations {
   String get img2img_metricQuality => '效果';
 
   @override
-  String get img2img_seedvr2VaeTileHint =>
-      '同时写入 SeedVR2 VAE MODEL 的 encode/decode tile size。';
+  String get img2img_seedvr2Engine => 'SeedVR2 引擎';
+
+  @override
+  String get img2img_seedvr2EngineAuto => '自动';
+
+  @override
+  String get img2img_seedvr2EngineNative => '原生';
+
+  @override
+  String get img2img_seedvr2EngineLegacy => '兼容节点';
+
+  @override
+  String get img2img_seedvr2EngineResolvedNative => '当前使用 ComfyUI 原生 SeedVR2。';
+
+  @override
+  String get img2img_seedvr2EngineResolvedLegacy => '当前使用已安装的 SeedVR2 自定义节点。';
+
+  @override
+  String get img2img_seedvr2EngineUnavailable =>
+      '当前选择的 SeedVR2 引擎或所需模型不可用，请刷新模型列表或切换引擎。';
+
+  @override
+  String get img2img_seedvr2VaeTileHint => '设置 SeedVR2 VAE 编码与解码的分块尺寸。';
 
   @override
   String get img2img_seedvr2UseTiledUpscale => '使用分块放大';
@@ -1349,6 +1374,14 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get img2img_seedvr2UseTiledUpscaleHint =>
       '启用后改用 SeedVR2TilingUpscaler，适合大图或显存压力较高的场景。';
+
+  @override
+  String get settings_comfyUiSeedvr2EmbedNaiMetadata =>
+      '在 SeedVR2 结果中写入 NAI 生成参数';
+
+  @override
+  String get settings_comfyUiSeedvr2EmbedNaiMetadataHint =>
+      '默认关闭。开启后会写入启动器当前的提示词和生成参数；关闭时保留 ComfyUI 返回的原始 PNG 元数据。';
 
   @override
   String get img2img_seedvr2TileSize => '分块图块大小';
@@ -2134,7 +2167,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_sourceType_png => 'PNG';
 
   @override
-  String get vibe_sourceType_v4vibe => 'V4 Vibe';
+  String get vibe_sourceType_v4vibe => 'Vibe 文件';
 
   @override
   String get vibe_sourceType_bundle => '组合包';
@@ -7382,7 +7415,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preciseRef_fidelity => '保真度';
 
   @override
-  String get preciseRef_v4Only => '此功能需要 V4+ 模型';
+  String get preciseRef_v4Only => '此功能仅 V4.5 模型支持';
 
   @override
   String get preciseRef_typeCharacter => '角色';
@@ -7561,6 +7594,19 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String vibeLibrary_deletedCount(Object count) {
     return '已删除 $count 个Vibe';
+  }
+
+  @override
+  String get vibeLibrary_markEncodingModel => '标记编码模型';
+
+  @override
+  String vibeLibrary_markEncodingModelContent(Object count, Object model) {
+    return '把选中的 $count 个 Vibe 标记为「$model」的编码，并重写库文件。\n\n适用于被错误标记成其它模型、导致每次生成都重新编码扣 Anlas 的条目。如果这些编码确实来自别的模型，标记后画面效果可能与预期不符。';
+  }
+
+  @override
+  String vibeLibrary_encodingModelMarked(Object count) {
+    return '已标记 $count 个Vibe的编码模型';
   }
 
   @override
@@ -8416,6 +8462,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_statusPendingEncode => '待编码 (2 Anlas)';
 
   @override
+  String get vibe_statusNeedsReencode => '需重新编码 (2 Anlas)';
+
+  @override
+  String get vibe_statusSourceImageRequired => '缺少原图';
+
+  @override
   String get vibe_encodeDialogTitle => '确认编码 Vibe';
 
   @override
@@ -8879,6 +8931,13 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get comfyWorkflow_seedvr2UpscaleDescription =>
       '使用 SeedVR2 AI 模型进行超分辨率放大，效果优秀';
+
+  @override
+  String get comfyWorkflow_seedvr2LegacyUpscaleName => 'SeedVR2 兼容节点超分';
+
+  @override
+  String get comfyWorkflow_seedvr2LegacyUpscaleDescription =>
+      '使用已安装的 SeedVR2VideoUpscaler 自定义节点进行超分';
 
   @override
   String get comfyWorkflow_seedvr2TiledUpscaleName => 'SeedVR2 分块超分';

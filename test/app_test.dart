@@ -12,6 +12,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/app.dart';
 import 'package:nai_launcher/core/comfyui/builtin_workflows.dart';
 import 'package:nai_launcher/core/comfyui/comfyui_url_utils.dart';
+import 'package:nai_launcher/core/comfyui/seedvr2_support.dart';
 import 'package:nai_launcher/core/comfyui/workflow_node_validator.dart';
 import 'package:nai_launcher/core/autocomplete/autocomplete_providers.dart';
 import 'package:nai_launcher/core/autocomplete/completion_models.dart';
@@ -943,9 +944,60 @@ void main() {
   });
 
   group('ComfyUI upscale workflows', () {
-    test('SeedVR2 workflow avoids optional helper nodes', () {
+    test('native SeedVR2 workflow uses the ComfyUI core node graph', () {
       final workflow = BuiltinWorkflows.all.firstWhere(
-        (workflow) => workflow.id == comfySeedvr2UpscaleTemplateId,
+        (workflow) => workflow.id == comfySeedvr2NativeUpscaleTemplateId,
+      );
+      final nodeTypes = extractWorkflowNodeTypes(workflow.workflowJson);
+
+      expect(
+        nodeTypes,
+        containsAll([
+          'SeedVR2Preprocess',
+          'SeedVR2Conditioning',
+          'SeedVR2PostProcessing',
+          'KSampler',
+        ]),
+      );
+      expect(nodeTypes, isNot(contains('SeedVR2VideoUpscaler')));
+      expect(nodeTypes, isNot(contains('SeedVR2LoadDiTModel')));
+      expect(nodeTypes, isNot(contains('SeedVR2LoadVAEModel')));
+      expect(workflow.workflowJson['9']['inputs']['steps'], 1);
+      expect(workflow.workflowJson['9']['inputs']['cfg'], 1.0);
+      expect(workflow.workflowJson['9']['inputs']['sampler_name'], 'euler');
+      expect(workflow.workflowJson['9']['inputs']['scheduler'], 'simple');
+    });
+
+    test('injects native SeedVR2 model, VAE, scale, tiles, and seed', () {
+      final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
+      final workflow = manager.getById(comfySeedvr2NativeUpscaleTemplateId)!;
+
+      final executable = manager.buildExecutableWorkflow(
+        template: workflow,
+        paramValues: const {
+          'scale': 1.75,
+          'dit_model': 'seedvr2_7b_sharp_int8_convrot.safetensors',
+          'vae_model': 'ema_vae_fp16.safetensors',
+          'vae_encode_tile_size': 768,
+          'vae_decode_tile_size': 768,
+          'seed': 1234,
+        },
+      );
+
+      expect(executable['3']['inputs']['scale_by'], 1.75);
+      expect(
+        executable['7']['inputs']['unet_name'],
+        'seedvr2_7b_sharp_int8_convrot.safetensors',
+      );
+      expect(executable['5']['inputs']['vae_name'], 'ema_vae_fp16.safetensors');
+      expect(executable['6']['inputs']['tile_size'], 768);
+      expect(executable['10']['inputs']['tile_size'], 768);
+      expect(executable['9']['inputs']['seed'], 1234);
+    });
+
+    test('legacy SeedVR2 workflow avoids optional helper nodes', () {
+      final workflow = BuiltinWorkflows.all.firstWhere(
+        (workflow) => workflow.id == comfySeedvr2LegacyUpscaleTemplateId,
       );
       final nodeTypes = extractWorkflowNodeTypes(workflow.workflowJson);
 
@@ -961,7 +1013,7 @@ void main() {
 
     test('injects SeedVR2 target resolution into the upscaler node', () {
       final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
-      final workflow = manager.getById(comfySeedvr2UpscaleTemplateId)!;
+      final workflow = manager.getById(comfySeedvr2LegacyUpscaleTemplateId)!;
 
       final executable = manager.buildExecutableWorkflow(
         template: workflow,
@@ -973,7 +1025,7 @@ void main() {
 
     test('injects SeedVR2 VAE tile size into encode and decode fields', () {
       final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
-      final workflow = manager.getById(comfySeedvr2UpscaleTemplateId)!;
+      final workflow = manager.getById(comfySeedvr2LegacyUpscaleTemplateId)!;
 
       final executable = manager.buildExecutableWorkflow(
         template: workflow,
@@ -989,7 +1041,7 @@ void main() {
 
     test('injects SeedVR2 block swap settings into the DiT loader node', () {
       final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
-      final workflow = manager.getById(comfySeedvr2UpscaleTemplateId)!;
+      final workflow = manager.getById(comfySeedvr2LegacyUpscaleTemplateId)!;
 
       final executable = manager.buildExecutableWorkflow(
         template: workflow,
@@ -1004,7 +1056,9 @@ void main() {
 
     test('injects SeedVR2 block swap settings into the tiled workflow', () {
       final manager = WorkflowTemplateManager()..loadBuiltinTemplates();
-      final workflow = manager.getById(comfySeedvr2TiledUpscaleTemplateId)!;
+      final workflow = manager.getById(
+        comfySeedvr2LegacyTiledUpscaleTemplateId,
+      )!;
 
       final executable = manager.buildExecutableWorkflow(
         template: workflow,
@@ -1042,6 +1096,7 @@ void main() {
       expect(executable['8']['inputs']['tile_height'], 1280);
       expect(executable['8']['inputs']['tile_upscale_resolution'], 1536);
       expect(executable['8']['inputs']['resolution_target'], 'longest');
+      expect(executable['8']['inputs']['tile_batch_size'], 1);
     });
 
     test('detects missing ComfyUI node types before queueing workflow', () {
@@ -1055,6 +1110,41 @@ void main() {
 
       expect(missing, ['Float']);
       expect(formatMissingWorkflowNodeTypesMessage(missing), contains('Float'));
+    });
+
+    test('detects required inputs added by updated ComfyUI nodes', () {
+      final missing = findMissingWorkflowRequiredInputs(
+        workflow: {
+          '8': {
+            'class_type': 'SeedVR2TilingUpscaler',
+            'inputs': {
+              'image': ['15', 0],
+            },
+          },
+        },
+        objectInfo: {
+          'SeedVR2TilingUpscaler': {
+            'input': {
+              'required': {
+                'image': ['IMAGE'],
+                'tile_batch_size': ['INT'],
+              },
+            },
+          },
+        },
+      );
+
+      expect(missing, [
+        (
+          nodeId: '8',
+          nodeType: 'SeedVR2TilingUpscaler',
+          inputName: 'tile_batch_size',
+        ),
+      ]);
+      expect(
+        formatMissingWorkflowRequiredInputsMessage(missing),
+        contains('tile_batch_size'),
+      );
     });
 
     test('calculates SeedVR2 target resolution from source shortest side', () {
@@ -1162,8 +1252,9 @@ void main() {
       }
     });
 
-    test('keeps separate model choices across local upscale modules', () async {
-      const seedvr2Model = 'seedvr2_ema_7b_fp16.safetensors';
+    test('keeps separate model choices across local upscale engines', () async {
+      const nativeSeedvr2Model = 'seedvr2_7b_sharp_int8_convrot.safetensors';
+      const legacySeedvr2Model = 'seedvr2_ema_7b_fp16.safetensors';
       const regularModel = '4x-UltraSharpV2.pth';
       final firstContainer = ProviderContainer();
 
@@ -1173,7 +1264,16 @@ void main() {
         );
 
         controller.updateComfyUpscaleModule(ComfyUpscaleModule.seedvr2);
-        controller.updateUpscaleComfyModel(seedvr2Model);
+        controller.updateSeedvr2Engine(ComfySeedvr2Engine.native);
+        controller.updateUpscaleComfyModel(
+          nativeSeedvr2Model,
+          seedvr2Backend: ComfySeedvr2Backend.native,
+        );
+        controller.updateSeedvr2Engine(ComfySeedvr2Engine.legacy);
+        controller.updateUpscaleComfyModel(
+          legacySeedvr2Model,
+          seedvr2Backend: ComfySeedvr2Backend.legacy,
+        );
         controller.updateComfyUpscaleModule(ComfyUpscaleModule.regular);
         controller.updateUpscaleComfyModel(regularModel);
         controller.updateComfyUpscaleModule(ComfyUpscaleModule.rtx);
@@ -1184,7 +1284,7 @@ void main() {
               .read(imageWorkflowControllerProvider)
               .upscale
               .comfyModel,
-          seedvr2Model,
+          legacySeedvr2Model,
         );
 
         controller.updateComfyUpscaleModule(ComfyUpscaleModule.regular);
@@ -1210,7 +1310,9 @@ void main() {
         expect(workflow.upscale.comfyModule, ComfyUpscaleModule.regular);
         expect(workflow.upscale.comfyModel, regularModel);
         expect(workflow.upscale.comfyRegularModel, regularModel);
-        expect(workflow.upscale.comfySeedvr2Model, seedvr2Model);
+        expect(workflow.upscale.comfySeedvr2NativeModel, nativeSeedvr2Model);
+        expect(workflow.upscale.comfySeedvr2LegacyModel, legacySeedvr2Model);
+        expect(workflow.upscale.seedvr2Engine, ComfySeedvr2Engine.legacy);
 
         secondContainer
             .read(imageWorkflowControllerProvider.notifier)
@@ -1221,10 +1323,63 @@ void main() {
               .read(imageWorkflowControllerProvider)
               .upscale
               .comfyModel,
-          seedvr2Model,
+          legacySeedvr2Model,
+        );
+
+        secondContainer
+            .read(imageWorkflowControllerProvider.notifier)
+            .updateSeedvr2Engine(ComfySeedvr2Engine.native);
+
+        expect(
+          secondContainer
+              .read(imageWorkflowControllerProvider)
+              .upscale
+              .comfyModel,
+          nativeSeedvr2Model,
         );
       } finally {
         secondContainer.dispose();
+      }
+    });
+
+    test('migrates the previous custom-node SeedVR2 model selection', () async {
+      const legacyModel = 'seedvr2_ema_7b_fp16.safetensors';
+      await Hive.box(
+        StorageKeys.settingsBox,
+      ).put(StorageKeys.comfyuiUpscaleSeedvr2Model, legacyModel);
+
+      final container = ProviderContainer();
+      try {
+        final upscale = container.read(imageWorkflowControllerProvider).upscale;
+
+        expect(upscale.seedvr2Engine, ComfySeedvr2Engine.automatic);
+        expect(upscale.comfySeedvr2LegacyModel, legacyModel);
+        expect(
+          upscale.comfySeedvr2NativeModel,
+          UpscaleWorkflowSettings.defaultComfyModel,
+        );
+      } finally {
+        container.dispose();
+      }
+    });
+
+    test('migrates a previous native-style SeedVR2 model selection', () async {
+      const nativeModel = 'seedvr2_7b_fp8_e4m3fn.safetensors';
+      await Hive.box(
+        StorageKeys.settingsBox,
+      ).put(StorageKeys.comfyuiUpscaleSeedvr2Model, nativeModel);
+
+      final container = ProviderContainer();
+      try {
+        final upscale = container.read(imageWorkflowControllerProvider).upscale;
+
+        expect(upscale.comfySeedvr2NativeModel, nativeModel);
+        expect(
+          upscale.comfySeedvr2LegacyModel,
+          UpscaleWorkflowSettings.defaultLegacyComfyModel,
+        );
+      } finally {
+        container.dispose();
       }
     });
   });

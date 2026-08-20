@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/constants/model_capabilities.dart';
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/extensions/vibe_library_extensions.dart';
 import '../../../core/utils/app_logger.dart';
@@ -144,6 +145,9 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
     List<VibeReference> vibes, {
     required String model,
   }) async {
+    if (!ModelCapabilityRegistry.of(model).supportsEncodedVibeTransfer) {
+      return vibes;
+    }
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
 
     try {

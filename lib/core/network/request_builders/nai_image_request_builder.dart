@@ -49,7 +49,7 @@ class NAIImageRequestBuilder {
     List<PreciseReference>? preciseReferences,
   }) : _preciseReferences =
            (preciseReferences ??
-                   (params.isV45Model
+                   (params.capabilities.supportsPreciseReference
                        ? params.preciseReferences
                        : <PreciseReference>[]))
                .where((reference) => reference.enabled)
@@ -86,7 +86,6 @@ class NAIImageRequestBuilder {
       'noise_schedule': params.isV4Model
           ? (params.noiseSchedule == 'native' ? 'karras' : params.noiseSchedule)
           : params.noiseSchedule,
-      'normalize_reference_strength_multiple': true,
       'inpaintImg2ImgStrength': NAIApiUtils.toJsonNumber(
         params.inpaintStrength,
       ),
@@ -195,7 +194,41 @@ class NAIImageRequestBuilder {
       // Vibe Transfer payload 会触发服务端 500，因此局部重绘时跳过。
       return vibeEncodingMap;
     }
+    if (!params.capabilities.supportsVibeTransfer) {
+      // 不支持 Vibe Transfer 的模型带上相关参数会被服务端拒绝。
+      return vibeEncodingMap;
+    }
     if (!params.hasVibeReferencesV4) {
+      return vibeEncodingMap;
+    }
+
+    if (!params.capabilities.supportsEncodedVibeTransfer) {
+      final enabledVibes = params.enabledVibeReferencesV4;
+      final missingSourceVibes = enabledVibes
+          .where((vibe) => !vibe.canReencodeFromRawSource)
+          .toList(growable: false);
+      if (missingSourceVibes.isNotEmpty) {
+        final names = missingSourceVibes
+            .map((vibe) => vibe.displayName)
+            .join(', ');
+        throw StateError('V3 Vibe Transfer requires source image data: $names');
+      }
+
+      final rawImageVibes = enabledVibes;
+      if (rawImageVibes.isEmpty) {
+        return vibeEncodingMap;
+      }
+
+      requestParameters['reference_image_multiple'] = rawImageVibes
+          .map((vibe) => base64Encode(vibe.rawImageData!))
+          .toList(growable: false);
+      requestParameters['reference_strength_multiple'] = rawImageVibes
+          .map((vibe) => vibe.strength)
+          .toList(growable: false);
+      requestParameters['reference_information_extracted_multiple'] =
+          rawImageVibes
+              .map((vibe) => vibe.infoExtracted)
+              .toList(growable: false);
       return vibeEncodingMap;
     }
 
@@ -406,6 +439,7 @@ class NAIImageRequestBuilder {
       model: baseModel,
       qualityToggle: params.qualityToggle,
       ucPreset: params.ucPreset,
+      isEnhanceRequest: params.isEnhanceRequest,
     );
     final effectivePrompt = promptSemantics.effectivePrompt;
     final effectiveNegativePrompt = promptSemantics.effectiveNegativePrompt;

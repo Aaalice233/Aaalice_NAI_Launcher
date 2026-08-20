@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
 import '../../data/models/gallery/nai_image_metadata.dart';
@@ -428,13 +427,7 @@ class ImageSaveUtils {
     }
 
     try {
-      final decoder = img.PngDecoder();
-      final info = decoder.startDecode(bytes);
-      if (info is! img.PngInfo) {
-        return null;
-      }
-
-      final textData = info.textData;
+      final textData = UnifiedMetadataParser.extractPngTextData(bytes);
       final rawComment = textData['Comment'];
       if (rawComment == null || rawComment.isEmpty) {
         return null;
@@ -645,8 +638,9 @@ class ImageSaveUtils {
       return metadata.seed;
     }
     if (bytes != null) {
-      final extracted = await ImageMetadataService()
-          .getMetadataFromBytes(bytes);
+      final extracted = await ImageMetadataService().getMetadataFromBytes(
+        bytes,
+      );
       if (extracted?.seed != null && extracted!.seed! >= 0) {
         return extracted.seed;
       }

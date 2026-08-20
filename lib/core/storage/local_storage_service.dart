@@ -2,12 +2,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../constants/api_constants.dart';
+import '../constants/model_capabilities.dart';
 import '../constants/storage_keys.dart';
 
 part 'local_storage_service.g.dart';
 
 /// 本地存储服务 - 存储非敏感配置数据
 class LocalStorageService {
+  static const String _fallbackModel = ImageModels.animeDiffusionV45Full;
+
   /// 获取已打开的 settings box (在 main.dart 中预先打开)
   Box get _settingsBox => Hive.box(StorageKeys.settingsBox);
 
@@ -130,9 +134,9 @@ class LocalStorageService {
   String getDefaultModel() {
     return getSetting<String>(
           StorageKeys.defaultModel,
-          defaultValue: 'nai-diffusion-4-5-full',
+          defaultValue: _fallbackModel,
         ) ??
-        'nai-diffusion-4-5-full';
+        _fallbackModel;
   }
 
   /// 保存默认模型
@@ -156,7 +160,9 @@ class LocalStorageService {
 
   /// 获取默认步数
   int getDefaultSteps() {
-    return getSetting<int>(StorageKeys.defaultSteps, defaultValue: 28) ?? 28;
+    final fallback = ModelCapabilityRegistry.of(getDefaultModel()).defaultSteps;
+    return getSetting<int>(StorageKeys.defaultSteps, defaultValue: fallback) ??
+        fallback;
   }
 
   /// 保存默认步数

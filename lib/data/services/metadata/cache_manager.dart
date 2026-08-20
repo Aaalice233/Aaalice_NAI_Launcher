@@ -20,11 +20,12 @@ class MetadataCacheManager {
   static const int _memoryCacheCapacity = 500;
   // Bump this whenever NaiImageMetadata parsing semantics change; cached values
   // are parsed snapshots, not raw PNG metadata.
-  static const int _currentCacheVersion = 6;
+  static const int _currentCacheVersion = 7;
 
   Box<String>? _persistentBox;
-  final _memoryCache =
-      _LRUCache<String, NaiImageMetadata>(capacity: _memoryCacheCapacity);
+  final _memoryCache = _LRUCache<String, NaiImageMetadata>(
+    capacity: _memoryCacheCapacity,
+  );
 
   // 统计计数器
   int _memoryCacheHits = 0;
@@ -84,8 +85,9 @@ class MetadataCacheManager {
       }
       final json = jsonDecode(jsonString) as Map<String, dynamic>;
       _persistentCacheHits++;
-      final metadata =
-          NaiImageMetadata.fromJson(json).upgradeFromRawJsonIfNeeded();
+      final metadata = NaiImageMetadata.fromJson(
+        json,
+      ).upgradeFromRawJsonIfNeeded();
       _memoryCache.put(hash, metadata);
       return metadata;
     } catch (e) {
@@ -187,15 +189,15 @@ class MetadataCacheManager {
 
   /// 获取详细统计
   Map<String, dynamic> getStatistics() => {
-        'memorySize': memorySize,
-        'memoryHitRate': memoryHitRate,
-        'persistentSize': persistentSize,
-        'persistentHitRate': persistentHitRate,
-        'memoryHits': _memoryCacheHits,
-        'memoryMisses': _memoryCacheMisses,
-        'persistentHits': _persistentCacheHits,
-        'persistentMisses': _persistentCacheMisses,
-      };
+    'memorySize': memorySize,
+    'memoryHitRate': memoryHitRate,
+    'persistentSize': persistentSize,
+    'persistentHitRate': persistentHitRate,
+    'memoryHits': _memoryCacheHits,
+    'memoryMisses': _memoryCacheMisses,
+    'persistentHits': _persistentCacheHits,
+    'persistentMisses': _persistentCacheMisses,
+  };
 
   // ==================== 私有方法 ====================
 

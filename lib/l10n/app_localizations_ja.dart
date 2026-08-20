@@ -1296,11 +1296,15 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get img2img_noSeedvr2Models =>
-      'SeedVR2 モデルが見つかりません。モデル リストを更新するか、SeedVR2 ノード/モデル ファイルを確認してください。';
+      '利用可能な SeedVR2 モデルが見つかりません。モデル一覧を更新し、ComfyUI ネイティブの models/diffusion_models と models/vae、または SeedVR2 カスタムノードのモデルフォルダーを確認してください。';
 
   @override
   String get img2img_noRegularUpscaleModels =>
       '通常の拡大モデルが見つかりません。モデルリストを更新するか、models/upscale_models を確認してください。';
+
+  @override
+  String get img2img_useNativeSeedvr2Workflow =>
+      'ComfyUI ネイティブ SeedVR2 の 1 ステップ拡大ワークフローを使用します。';
 
   @override
   String get img2img_useSeedvr2TiledWorkflow =>
@@ -1361,8 +1365,32 @@ class AppLocalizationsJa extends AppLocalizations {
   String get img2img_metricQuality => '品質';
 
   @override
+  String get img2img_seedvr2Engine => 'SeedVR2 エンジン';
+
+  @override
+  String get img2img_seedvr2EngineAuto => '自動';
+
+  @override
+  String get img2img_seedvr2EngineNative => 'ネイティブ';
+
+  @override
+  String get img2img_seedvr2EngineLegacy => '互換ノード';
+
+  @override
+  String get img2img_seedvr2EngineResolvedNative =>
+      'ComfyUI ネイティブの SeedVR2 を使用しています。';
+
+  @override
+  String get img2img_seedvr2EngineResolvedLegacy =>
+      'インストール済みの SeedVR2 カスタムノードを使用しています。';
+
+  @override
+  String get img2img_seedvr2EngineUnavailable =>
+      '選択した SeedVR2 エンジンまたは必要なモデルを利用できません。モデル一覧を更新するか、エンジンを切り替えてください。';
+
+  @override
   String get img2img_seedvr2VaeTileHint =>
-      'SeedVR2 VAE MODEL のエンコード/デコード タイル サイズも書き込みます。';
+      'SeedVR2 VAE のエンコードとデコードに使用するタイルサイズを設定します。';
 
   @override
   String get img2img_seedvr2UseTiledUpscale => 'タイル状の拡大を使用する';
@@ -1370,6 +1398,14 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get img2img_seedvr2UseTiledUpscaleHint =>
       '有効にすると、SeedVR2TilingUpscaler が使用されます。大きな画像や VRAM 負荷が高い場合に推奨します。';
+
+  @override
+  String get settings_comfyUiSeedvr2EmbedNaiMetadata =>
+      'SeedVR2 の結果に NAI 生成パラメータを書き込む';
+
+  @override
+  String get settings_comfyUiSeedvr2EmbedNaiMetadataHint =>
+      '既定では無効です。有効にすると、ランチャーの現在のプロンプトと生成パラメータを書き込みます。無効の場合は、ComfyUI から返された PNG メタデータをそのまま保持します。';
 
   @override
   String get img2img_seedvr2TileSize => 'タイルのサイズ';
@@ -2165,7 +2201,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get vibe_sourceType_png => 'PNG';
 
   @override
-  String get vibe_sourceType_v4vibe => 'V4 Vibe';
+  String get vibe_sourceType_v4vibe => 'Vibe ファイル';
 
   @override
   String get vibe_sourceType_bundle => 'バンドル';
@@ -7475,7 +7511,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get preciseRef_fidelity => '忠実度';
 
   @override
-  String get preciseRef_v4Only => 'この機能には V4 以降のモデルが必要です';
+  String get preciseRef_v4Only => 'この機能は V4.5 モデルのみ対応しています';
 
   @override
   String get preciseRef_typeCharacter => 'キャラ参照';
@@ -7655,6 +7691,19 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String vibeLibrary_deletedCount(Object count) {
     return '$count 件の Vibe を削除しました';
+  }
+
+  @override
+  String get vibeLibrary_markEncodingModel => 'エンコードモデルを設定';
+
+  @override
+  String vibeLibrary_markEncodingModelContent(Object count, Object model) {
+    return '選択した $count 件の Vibe を「$model」のエンコードとして設定し、ライブラリファイルを書き換えます。\n\n別モデルとして誤って記録され、生成のたびに再エンコードされて Anlas を消費する項目の修復用です。エンコードが実際に別モデルのものだった場合、結果が想定と異なる可能性があります。';
+  }
+
+  @override
+  String vibeLibrary_encodingModelMarked(Object count) {
+    return '$count 件の Vibe のエンコードモデルを更新しました';
   }
 
   @override
@@ -8529,6 +8578,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get vibe_statusPendingEncode => 'エンコード (2 Anlas)';
 
   @override
+  String get vibe_statusNeedsReencode => '再エンコード (2 Anlas)';
+
+  @override
+  String get vibe_statusSourceImageRequired => '元画像が必要';
+
+  @override
   String get vibe_encodeDialogTitle => 'Vibe エンコーディングを確認する';
 
   @override
@@ -9002,6 +9057,13 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get comfyWorkflow_seedvr2UpscaleDescription =>
       'SeedVR2 AI モデルで拡大します。高品質な結果を生成します。';
+
+  @override
+  String get comfyWorkflow_seedvr2LegacyUpscaleName => 'SeedVR2 互換ノード拡大';
+
+  @override
+  String get comfyWorkflow_seedvr2LegacyUpscaleDescription =>
+      'インストール済みの SeedVR2VideoUpscaler カスタムノードで拡大します。';
 
   @override
   String get comfyWorkflow_seedvr2TiledUpscaleName => 'SeedVR2 タイル拡大';

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import '../constants/api_constants.dart';
 import 'isolate_pool.dart';
 import 'pica_lanczos_resizer.dart';
 
@@ -14,7 +15,7 @@ class NaiResolutionAdapter {
 
   // NovelAI web build ae6a6aa-production, verified 2026-07-16.
   /// 当前官网图像生成请求的最大像素面积。
-  static const int officialMaxPixels = 3145728;
+  static const int officialMaxPixels = ApiConstants.maxImagePixels;
 
   /// 当前官网图像编辑器工作画布的最长边限制。
   static const int officialEditorMaxSide = 2560;

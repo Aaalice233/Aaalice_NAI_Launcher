@@ -13,7 +13,12 @@ class NovelAiVibeCodec {
   static const String singleIdentifier = 'novelai-vibe-transfer';
   static const String bundleIdentifier = 'novelai-vibe-transfer-bundle';
   static const int version = 1;
-  static const String defaultModel = ImageModels.animeDiffusionV4Full;
+  /// 调用方没指明编码模型时的兜底。
+  ///
+  /// NovelAI 的文件格式要求把编码挂在具体的模型键下，表达不了"未知"，所以这里
+  /// 必须选一个。选当前主流的 V4.5：猜错时的代价是条目被判定为需要为当前模型
+  /// 重新编码（每次生成 2 Anlas），因此兜底值越贴近实际使用的模型越好。
+  static const String defaultModel = ImageModels.animeDiffusionV45Full;
 
   static Map<String, dynamic> buildSingleMap(
     VibeReference vibe, {
@@ -222,7 +227,7 @@ class NovelAiVibeCodec {
       ImageModels.animeDiffusionV4Full => 'v4full',
       ImageModels.animeDiffusionV45Curated => 'v4-5curated',
       ImageModels.animeDiffusionV45Full => 'v4-5full',
-      _ => 'v4full',
+      _ => 'v4-5full',
     };
   }
 

@@ -5,8 +5,10 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
+import 'package:nai_launcher/core/services/anlas_calculator.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/utils/nai_api_utils.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
@@ -115,6 +117,27 @@ void main() {
     expect(apiService.requestedInformationExtracted, [0.2, 0.5, 0.5]);
   });
 
+  test('V3 原图 Vibe 不调用预编码接口', () async {
+    final apiService = _FakeEnhancementApiService();
+    final container = ProviderContainer(
+      overrides: [
+        naiImageEnhancementApiServiceProvider.overrideWithValue(apiService),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final encoding = await container
+        .read(generationParamsNotifierProvider.notifier)
+        .encodeVibeWithCache(
+          Uint8List.fromList([1, 2, 3]),
+          model: ImageModels.animeDiffusionV3,
+          vibeName: 'v3-raw',
+        );
+
+    expect(encoding, isNull);
+    expect(apiService.callCount, 0);
+  });
+
   test('更新信息提取后，可重新编码的 Vibe 会回到待编码状态', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
@@ -140,6 +163,38 @@ void main() {
         .single;
     expect(updated.infoExtracted, 0.3);
     expect(updated.vibeEncoding, isEmpty);
+  });
+
+  test('V3 下修改信息提取会使旧 V4 编码失效', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    notifier.addVibeReference(
+      VibeReference(
+        displayName: 'V4 encoded vibe',
+        vibeEncoding: 'encoded-for-v4',
+        encodingModel: ImageModels.animeDiffusionV4Full,
+        rawImageData: Uint8List.fromList([9, 8, 7]),
+        infoExtracted: 0.7,
+        sourceType: VibeSourceType.naiv4vibe,
+      ),
+    );
+    notifier.updateModel(ImageModels.animeDiffusionV3);
+
+    notifier.updateVibeReference(0, infoExtracted: 0.3);
+    notifier.updateModel(ImageModels.animeDiffusionV4Full);
+
+    final updated = container
+        .read(generationParamsNotifierProvider)
+        .vibeReferencesV4
+        .single;
+    expect(updated.vibeEncoding, isEmpty);
+    expect(updated.encodingModel, isNull);
+    expect(
+      updated.needsEncodingForModel(ImageModels.animeDiffusionV4Full),
+      isTrue,
+    );
   });
 
   test('信息提取切回已有缓存值时，会直接恢复缓存编码', () async {
@@ -226,6 +281,88 @@ void main() {
     expect(updated.vibeEncoding, 'original-encoding');
   });
 
+  test('缺少编码模型的预编码 Vibe 会补齐为当前模型，不再虚报编码费', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    notifier.updateModel(ImageModels.animeDiffusionV45Full, persist: false);
+
+    final raw = Uint8List.fromList([4, 5, 6]);
+    // 只带 iTXt 编码的 PNG 解析不出编码模型，encodingModel 会是 null。
+    notifier.addVibeReferences([
+      VibeReference(
+        displayName: 'PNG Vibe',
+        vibeEncoding: 'encoding-without-model',
+        rawImageData: raw,
+        thumbnail: raw,
+        sourceType: VibeSourceType.png,
+      ),
+    ], recordUsage: false);
+
+    final params = container.read(generationParamsNotifierProvider);
+    final vibe = params.vibeReferencesV4.single;
+
+    expect(vibe.encodingModel, ImageModels.animeDiffusionV45Full);
+    expect(vibe.needsEncodingForModel(params.model), isFalse);
+    expect(AnlasCalculator.usesVibeReferences(params), isTrue);
+    expect(AnlasCalculator.resolveVibeEncodingCost(params), 0);
+  });
+
+  test('setVibeReferences 替换导入时同样补齐编码模型', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    notifier.updateModel(ImageModels.animeDiffusionV45Full, persist: false);
+
+    final raw = Uint8List.fromList([1, 1, 2]);
+    // Shift+点击库条目走的是替换而不是追加。
+    notifier.setVibeReferences([
+      VibeReference(
+        displayName: 'Library Vibe',
+        vibeEncoding: 'encoding-without-model',
+        rawImageData: raw,
+        thumbnail: raw,
+        sourceType: VibeSourceType.naiv4vibe,
+      ),
+    ]);
+
+    final params = container.read(generationParamsNotifierProvider);
+    expect(
+      params.vibeReferencesV4.single.encodingModel,
+      ImageModels.animeDiffusionV45Full,
+    );
+    expect(AnlasCalculator.resolveVibeEncodingCost(params), 0);
+  });
+
+  test('已经记录编码模型的 Vibe 不会被改写，换模型仍会计费', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    notifier.updateModel(ImageModels.animeDiffusionV45Full, persist: false);
+
+    final raw = Uint8List.fromList([7, 7, 7]);
+    notifier.addVibeReferences([
+      VibeReference(
+        displayName: 'V4 Vibe',
+        vibeEncoding: 'encoded-for-v4',
+        rawImageData: raw,
+        thumbnail: raw,
+        encodingModel: ImageModels.animeDiffusionV4Full,
+        sourceType: VibeSourceType.naiv4vibe,
+      ),
+    ], recordUsage: false);
+
+    final params = container.read(generationParamsNotifierProvider);
+    final vibe = params.vibeReferencesV4.single;
+
+    expect(vibe.encodingModel, ImageModels.animeDiffusionV4Full);
+    expect(vibe.needsEncodingForModel(params.model), isTrue);
+    expect(AnlasCalculator.resolveVibeEncodingCost(params), 2);
+  });
+
   test('没有原图数据的预编码 Vibe 改信息提取时不会错误清空编码', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
@@ -307,6 +444,32 @@ void main() {
     expect(prepared.vibeEncoding, 'nai-diffusion-4-5-full|0.5|1');
     expect(apiService.callCount, 1);
     expect(apiService.requestedInformationExtracted, [0.5]);
+  });
+
+  test('V3 下显式保存新的信息提取值会清除旧 V4 编码', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final prepared = await container
+        .read(generationParamsNotifierProvider.notifier)
+        .prepareVibeForLibraryParamSave(
+          VibeReference(
+            displayName: 'Persisted V4 Vibe',
+            vibeEncoding: 'encoded-before',
+            encodingModel: ImageModels.animeDiffusionV4Full,
+            rawImageData: Uint8List.fromList([1, 3, 5, 7]),
+            infoExtracted: 0.2,
+            sourceType: VibeSourceType.naiv4vibe,
+          ),
+          strength: 0.6,
+          infoExtracted: 0.5,
+          model: ImageModels.animeDiffusionV3,
+        );
+
+    expect(prepared, isNotNull);
+    expect(prepared!.infoExtracted, 0.5);
+    expect(prepared.vibeEncoding, isEmpty);
+    expect(prepared.encodingModel, isNull);
   });
 
   test('生成前自动编码会把原图 Vibe 提升为预编码状态', () async {
@@ -549,6 +712,58 @@ void main() {
       expect(reference.fidelity, 0.9);
     },
   );
+
+  group('updateModel default follow-up', () {
+    test('should adopt the new model defaults when untouched', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV4Full);
+      notifier.updateScale(5.5);
+
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+
+      final params = container.read(generationParamsNotifierProvider);
+      expect(params.model, ImageModels.animeDiffusionV45Full);
+      expect(params.scale, 5.0);
+    });
+
+    test('should keep a scale the user adjusted', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV4Full);
+      notifier.updateScale(7.5);
+
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+
+      expect(container.read(generationParamsNotifierProvider).scale, 7.5);
+    });
+
+    test('should skip the follow-up for metadata imports', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV4Full);
+      notifier.updateScale(5.5);
+
+      notifier.updateModel(
+        ImageModels.animeDiffusionV45Full,
+        followDefaults: false,
+      );
+
+      expect(container.read(generationParamsNotifierProvider).scale, 5.5);
+    });
+  });
 }
 
 Uint8List _validPngBytes({required int width, required int height}) =>

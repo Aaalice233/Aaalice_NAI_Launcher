@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/core/services/anlas_calculator.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
@@ -171,6 +172,95 @@ void main() {
     });
   });
 
+  group('AnlasCalculator model pricing family', () {
+    // 计费族改成能力表字段之前靠模型 ID 推导版本号，未登记的模型会掉进
+    // V2 及更早的指数公式，把 17 Anlas 显示成 11。
+    test('prices modern models with the area and steps formula', () {
+      for (final model in [
+        ImageModels.animeDiffusionV45Full,
+        ImageModels.animeDiffusionV45Curated,
+        ImageModels.animeDiffusionV4Full,
+        ImageModels.animeDiffusionV3,
+      ]) {
+        expect(
+          AnlasCalculator.calculateFromValues(
+            width: 832,
+            height: 1216,
+            steps: 23,
+            nSamples: 1,
+            smea: false,
+            smeaDyn: false,
+            model: model,
+          ),
+          17,
+          reason: '$model should follow the modern pricing formula',
+        );
+      }
+    });
+
+    test('keeps pre-V3 models on the legacy exponential estimate', () {
+      final legacyCost = AnlasCalculator.calculateFromValues(
+        width: 832,
+        height: 1216,
+        steps: 23,
+        nSamples: 1,
+        smea: false,
+        smeaDyn: false,
+        model: ImageModels.animeV2,
+      );
+
+      expect(legacyCost, 11);
+    });
+
+    test('rounds SMEA and strength in one pass like the web client', () {
+      // 网页端只在面积与步数部分取整，SMEA 倍率和重绘强度连乘后才收尾取整；
+      // 分两次取整会在这个组合上多算 1 Anlas。
+      final cost = AnlasCalculator.calculateFromValues(
+        width: 512,
+        height: 768,
+        steps: 28,
+        nSamples: 1,
+        smea: true,
+        smeaDyn: false,
+        model: ImageModels.animeDiffusionV3,
+        strength: 0.71,
+      );
+
+      expect(cost, 7);
+    });
+
+    test('does not bill vibe fees on models without vibe support', () {
+      const params = ImageParams(
+        model: ImageModels.animeV2,
+        vibeReferencesV4: [
+          VibeReference(
+            displayName: 'pre',
+            vibeEncoding: 'pre-encoded',
+            sourceType: VibeSourceType.png,
+          ),
+        ],
+      );
+
+      expect(AnlasCalculator.usesVibeReferences(params), isFalse);
+      expect(AnlasCalculator.resolveVibeReferenceExtraCost(params), 0);
+      expect(AnlasCalculator.resolveVibeEncodingCost(params), 0);
+    });
+
+    test('uses the real pixel area below the old 65536 floor', () {
+      final tinyCost = AnlasCalculator.calculateFromValues(
+        width: 64,
+        height: 64,
+        steps: 28,
+        nSamples: 1,
+        smea: false,
+        smeaDyn: false,
+        model: model,
+      );
+
+      expect(tinyCost, 2, reason: '极小分辨率按实际面积计算后落到每张最低价');
+    });
+  });
+
   group('AnlasCalculator request pricing', () {
     test('applies the Opus free image once per request', () {
       final cost = AnlasCalculator.calculateRequestCost(
@@ -231,7 +321,7 @@ void main() {
       );
     });
 
-    test('does not apply the Opus free image with character references', () {
+    test('keeps the Opus free base price with precise references', () {
       final cost = AnlasCalculator.calculateRequestCost(
         width: 1024,
         height: 1024,
@@ -242,11 +332,10 @@ void main() {
         smeaDyn: false,
         model: model,
         subscriptionTier: AnlasCalculator.opusTier,
-        hasCharacterReference: true,
         extraPerSampleCost: 5,
       );
 
-      expect(cost, 25);
+      expect(cost, 5);
     });
 
     test('keeps per-image, per-request, and one-time fees distinct', () {
@@ -322,6 +411,26 @@ void main() {
   });
 
   group('AnlasCalculator Vibe pricing', () {
+    test('does not charge V4-only Vibe fees on V3', () {
+      final rawImage = Uint8List.fromList([1, 2, 3]);
+      final params = ImageParams(
+        model: ImageModels.animeDiffusionV3,
+        vibeReferencesV4: List.generate(
+          5,
+          (index) => VibeReference(
+            displayName: 'v3-vibe-$index',
+            vibeEncoding: '',
+            rawImageData: rawImage,
+            sourceType: VibeSourceType.rawImage,
+          ),
+        ),
+      );
+
+      expect(AnlasCalculator.usesVibeReferences(params), isTrue);
+      expect(AnlasCalculator.resolveVibeEncodingCost(params), 0);
+      expect(AnlasCalculator.resolveVibeReferenceExtraCost(params), 0);
+    });
+
     test('charges encoding only for enabled uncached raw Vibes', () {
       final rawImage = Uint8List.fromList([1, 2, 3]);
       final params = ImageParams(

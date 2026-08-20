@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -279,6 +280,79 @@ void main() {
         expect(result.metadata!.seed, equals(123));
         expect(result.metadata!.characterPrompts, isEmpty);
         expect(result.metadata!.characterNegativePrompts, isEmpty);
+      },
+    );
+
+    test(
+      'should replace ComfyUI workflow prompt with Unicode image metadata',
+      () async {
+        final png = img.Image(width: 2, height: 2);
+        img.fill(png, color: img.ColorRgb8(12, 34, 56));
+        var bytes = Uint8List.fromList(img.encodePng(png));
+        final comfyPrompt = jsonEncode({
+          '1': {
+            'class_type': 'LoadImage',
+            'inputs': {'image': 'launcher_input.png'},
+          },
+          '9': {
+            'class_type': 'KSampler',
+            'inputs': {
+              'seed': 987654321,
+              'steps': 1,
+              'cfg': 1.0,
+              'sampler_name': 'euler',
+              'scheduler': 'simple',
+            },
+          },
+        });
+        bytes = UnifiedMetadataParser.embedTextChunkOnly(
+          bytes,
+          'prompt',
+          comfyPrompt,
+        );
+
+        final rawResult = UnifiedMetadataParser.parseFromPng(bytes);
+        expect(rawResult.success, isTrue);
+        expect(rawResult.sourceFormat, 'ComfyUI');
+        expect(rawResult.metadata!.prompt, isEmpty);
+        expect(rawResult.metadata!.seed, 987654321);
+        expect(rawResult.metadata!.sampler, 'euler');
+
+        const positivePrompt = '1girl, <丰满>, 夜景';
+        const negativePrompt = '低质量, bad hands';
+        final rebuilt = await ImageSaveUtils.rebuildImageBytesWithMetadata(
+          imageBytes: bytes,
+          params: const ImageParams(
+            prompt: positivePrompt,
+            negativePrompt: negativePrompt,
+            model: ImageModels.animeDiffusionV45Full,
+            width: 2,
+            height: 2,
+          ),
+          actualSeed: rawResult.metadata!.seed,
+        );
+
+        final textData = UnifiedMetadataParser.extractPngTextData(rebuilt);
+        expect(textData['prompt'], comfyPrompt);
+        expect(textData['Description'], startsWith(positivePrompt));
+        expect(textData['Description'], contains('<丰满>'));
+        expect(jsonDecode(textData['Comment']!)['prompt'], positivePrompt);
+        expect(ImageSaveUtils.hasEmbeddedNovelAiMetadata(rebuilt), isTrue);
+
+        final parsed = UnifiedMetadataParser.parseFromPng(rebuilt);
+        expect(parsed.success, isTrue);
+        expect(parsed.sourceFormat, 'NovelAI');
+        expect(parsed.metadata!.prompt, positivePrompt);
+        expect(parsed.metadata!.negativePrompt, negativePrompt);
+        expect(parsed.metadata!.seed, 987654321);
+        expect(parsed.metadata!.width, 2);
+        expect(parsed.metadata!.height, 2);
+
+        final decoded = img.decodePng(rebuilt);
+        expect(decoded, isNotNull);
+        expect(decoded!.getPixel(0, 0).r, 12);
+        expect(decoded.getPixel(0, 0).g, 34);
+        expect(decoded.getPixel(0, 0).b, 56);
       },
     );
 

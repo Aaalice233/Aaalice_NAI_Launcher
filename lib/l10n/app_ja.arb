@@ -566,8 +566,9 @@
   "img2img_upscaleMode": "拡大モード",
   "img2img_upscaleRegularModel": "レギュラーモデル",
   "img2img_upscaleModel": "拡大モデル",
-  "img2img_noSeedvr2Models": "SeedVR2 モデルが見つかりません。モデル リストを更新するか、SeedVR2 ノード/モデル ファイルを確認してください。",
+  "img2img_noSeedvr2Models": "利用可能な SeedVR2 モデルが見つかりません。モデル一覧を更新し、ComfyUI ネイティブの models/diffusion_models と models/vae、または SeedVR2 カスタムノードのモデルフォルダーを確認してください。",
   "img2img_noRegularUpscaleModels": "通常の拡大モデルが見つかりません。モデルリストを更新するか、models/upscale_models を確認してください。",
+  "img2img_useNativeSeedvr2Workflow": "ComfyUI ネイティブ SeedVR2 の 1 ステップ拡大ワークフローを使用します。",
   "img2img_useSeedvr2TiledWorkflow": "SeedVR2TilingUpscaler のタイル状の拡大ワークフローを使用します。",
   "img2img_useSeedvr2Workflow": "SeedVR2VideoUpscaler ワークフローの使用。",
   "img2img_useRegularUpscaleWorkflow": "UpscaleModelLoader + ImageUpscaleWithModel を使用し、Lanczos でターゲット スケールに修正します。",
@@ -602,9 +603,18 @@
   "img2img_metricSpeed": "速度",
   "img2img_metricVram": "VRAM",
   "img2img_metricQuality": "品質",
-  "img2img_seedvr2VaeTileHint": "SeedVR2 VAE MODEL のエンコード/デコード タイル サイズも書き込みます。",
+  "img2img_seedvr2Engine": "SeedVR2 エンジン",
+  "img2img_seedvr2EngineAuto": "自動",
+  "img2img_seedvr2EngineNative": "ネイティブ",
+  "img2img_seedvr2EngineLegacy": "互換ノード",
+  "img2img_seedvr2EngineResolvedNative": "ComfyUI ネイティブの SeedVR2 を使用しています。",
+  "img2img_seedvr2EngineResolvedLegacy": "インストール済みの SeedVR2 カスタムノードを使用しています。",
+  "img2img_seedvr2EngineUnavailable": "選択した SeedVR2 エンジンまたは必要なモデルを利用できません。モデル一覧を更新するか、エンジンを切り替えてください。",
+  "img2img_seedvr2VaeTileHint": "SeedVR2 VAE のエンコードとデコードに使用するタイルサイズを設定します。",
   "img2img_seedvr2UseTiledUpscale": "タイル状の拡大を使用する",
   "img2img_seedvr2UseTiledUpscaleHint": "有効にすると、SeedVR2TilingUpscaler が使用されます。大きな画像や VRAM 負荷が高い場合に推奨します。",
+  "settings_comfyUiSeedvr2EmbedNaiMetadata": "SeedVR2 の結果に NAI 生成パラメータを書き込む",
+  "settings_comfyUiSeedvr2EmbedNaiMetadataHint": "既定では無効です。有効にすると、ランチャーの現在のプロンプトと生成パラメータを書き込みます。無効の場合は、ComfyUI から返された PNG メタデータをそのまま保持します。",
   "img2img_seedvr2TileSize": "タイルのサイズ",
   "img2img_seedvr2TileSizeHint": "SeedVR2TilingUpscaler tile_width / tile_height も制御します。",
   "img2img_seedvr2BlocksToSwap": "メモリへ退避するブロック数",
@@ -1002,7 +1012,7 @@
   "reference_disable": "参照を無効化",
   "vibe_normalize": "基準強度値の正規化",
   "vibe_sourceType_png": "PNG",
-  "vibe_sourceType_v4vibe": "V4 Vibe",
+  "vibe_sourceType_v4vibe": "Vibe ファイル",
   "vibe_sourceType_bundle": "バンドル",
   "vibe_sourceType_image": "画像",
   "vibe_sourceType": "ソース",
@@ -3633,7 +3643,7 @@
   "preciseRef_referenceType": "参照タイプ",
   "preciseRef_strength": "強度",
   "preciseRef_fidelity": "忠実度",
-  "preciseRef_v4Only": "この機能には V4 以降のモデルが必要です",
+  "preciseRef_v4Only": "この機能は V4.5 モデルのみ対応しています",
   "preciseRef_typeCharacter": "キャラ参照",
   "preciseRef_typeStyle": "絵柄参照",
   "preciseRef_typeCharacterAndStyle": "キャラ＆絵柄参照",
@@ -3752,6 +3762,20 @@
   },
   "vibeLibrary_deletedCount": "{count} 件の Vibe を削除しました",
   "@vibeLibrary_deletedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "vibeLibrary_markEncodingModel": "エンコードモデルを設定",
+  "vibeLibrary_markEncodingModelContent": "選択した {count} 件の Vibe を「{model}」のエンコードとして設定し、ライブラリファイルを書き換えます。\n\n別モデルとして誤って記録され、生成のたびに再エンコードされて Anlas を消費する項目の修復用です。エンコードが実際に別モデルのものだった場合、結果が想定と異なる可能性があります。",
+  "@vibeLibrary_markEncodingModelContent": {
+    "placeholders": {
+      "count": {},
+      "model": {}
+    }
+  },
+  "vibeLibrary_encodingModelMarked": "{count} 件の Vibe のエンコードモデルを更新しました",
+  "@vibeLibrary_encodingModelMarked": {
     "placeholders": {
       "count": {}
     }
@@ -4425,6 +4449,8 @@
   "vibe_statusEncoded": "エンコード済み",
   "vibe_statusEncoding": "エンコード中...",
   "vibe_statusPendingEncode": "エンコード (2 Anlas)",
+  "vibe_statusNeedsReencode": "再エンコード (2 Anlas)",
+  "vibe_statusSourceImageRequired": "元画像が必要",
   "vibe_encodeDialogTitle": "Vibe エンコーディングを確認する",
   "vibe_encodeDialogMessage": "この画像を生成のためにエンコードしますか?",
   "vibe_encodeCostWarning": "これには 2 Anlas (クレジット) かかります",
@@ -4637,6 +4663,8 @@
   "settings_comfyUiCategoryCustom": "カスタム",
   "comfyWorkflow_seedvr2UpscaleName": "SeedVR2 拡大",
   "comfyWorkflow_seedvr2UpscaleDescription": "SeedVR2 AI モデルで拡大します。高品質な結果を生成します。",
+  "comfyWorkflow_seedvr2LegacyUpscaleName": "SeedVR2 互換ノード拡大",
+  "comfyWorkflow_seedvr2LegacyUpscaleDescription": "インストール済みの SeedVR2VideoUpscaler カスタムノードで拡大します。",
   "comfyWorkflow_seedvr2TiledUpscaleName": "SeedVR2 タイル拡大",
   "comfyWorkflow_seedvr2TiledUpscaleDescription": "大きな画像の VRAM 負荷を軽減するため、タイル状の拡大に SeedVR2TilingUpscaler を使用します。",
   "comfyWorkflow_modelUpscaleName": "ComfyUI 標準拡大モデル",

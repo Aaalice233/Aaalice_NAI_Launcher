@@ -286,6 +286,10 @@ class StorageKeys {
       'comfyui_upscale_regular_model';
   static const String comfyuiUpscaleSeedvr2Model =
       'comfyui_upscale_seedvr2_model';
+  static const String comfyuiUpscaleSeedvr2NativeModel =
+      'comfyui_upscale_seedvr2_native_model';
+  static const String comfyuiUpscaleSeedvr2LegacyModel =
+      'comfyui_upscale_seedvr2_legacy_model';
   static const String comfyuiUpscaleScale = 'comfyui_upscale_scale';
   static const String comfyuiUpscaleBackend = 'comfyui_upscale_backend';
   static const String comfyuiUpscaleModule = 'comfyui_upscale_module';
@@ -295,12 +299,17 @@ class StorageKeys {
   static const String comfyuiSeedvr2TileSize = 'comfyui_seedvr2_tile_size';
   static const String comfyuiSeedvr2BlocksToSwap =
       'comfyui_seedvr2_blocks_to_swap';
+  static const String comfyuiSeedvr2Engine = 'comfyui_seedvr2_engine';
+  static const String comfyuiSeedvr2EmbedNaiMetadata =
+      'comfyui_seedvr2_embed_nai_metadata';
 
   // Krita Bridge 设置
   static const String kritaBridgeEnabled = 'krita_bridge_enabled';
 
   // 工作流设置
+  /// 旧版连续幅度（0-1），只用于迁移到 [workflowEnhanceLevel]。
   static const String workflowEnhanceMagnitude = 'workflow_enhance_magnitude';
+  static const String workflowEnhanceLevel = 'workflow_enhance_level';
   static const String workflowEnhanceShowIndividualSettings =
       'workflow_enhance_show_individual_settings';
   static const String workflowEnhanceUpscaleFactor =

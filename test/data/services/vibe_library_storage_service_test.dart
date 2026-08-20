@@ -5,7 +5,9 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/core/utils/novelai_vibe_codec.dart';
 import 'package:nai_launcher/core/utils/vibe_library_path_helper.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_category.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
@@ -624,4 +626,459 @@ void main() {
     expect(secondChild!.rawImageData, secondRaw);
     expect(secondChild.canReencodeFromRawSource, isTrue);
   });
+
+  test('updateEntryEncodingModel 拒绝文件格式无法表示的模型', () async {
+    final vibeDirectory =
+        '${hiveTempDir.path}${Platform.pathSeparator}vibes_invalid_model';
+    await VibeLibraryPathHelper.instance.setPath(vibeDirectory);
+    addTearDown(() async {
+      await VibeLibraryPathHelper.instance.resetToDefault();
+    });
+
+    final vibe = VibeReference(
+      displayName: 'model guard',
+      vibeEncoding: 'guarded-encoding',
+      thumbnail: Uint8List.fromList([1, 2, 3]),
+      strength: 0.6,
+      infoExtracted: 0.7,
+      encodingModel: ImageModels.animeDiffusionV4Full,
+      sourceType: VibeSourceType.naiv4vibe,
+    );
+    final filePath = await VibeFileStorageService().saveVibeToFile(
+      vibe,
+      customName: 'model_guard',
+    );
+    final entry = VibeLibraryEntry.fromVibeReference(
+      name: 'model guard',
+      vibeData: vibe,
+      filePath: filePath,
+    );
+    await storage.saveEntry(entry);
+    final before = await File(filePath).readAsString();
+
+    final updated = await storage.updateEntryEncodingModel(
+      entry.id,
+      ImageModels.animeDiffusionV3,
+    );
+
+    expect(updated, isNull);
+    expect(await File(filePath).readAsString(), before);
+    final stored = await storage.getEntry(entry.id);
+    expect(stored!.encodingModel, ImageModels.animeDiffusionV4Full);
+  });
+
+  test('updateEntryEncodingModel 使用单文件真实数据修复旧 Hive 空编码快照', () async {
+    final vibeDirectory =
+        '${hiveTempDir.path}${Platform.pathSeparator}vibes_stale_single';
+    await VibeLibraryPathHelper.instance.setPath(vibeDirectory);
+    addTearDown(() async {
+      await VibeLibraryPathHelper.instance.resetToDefault();
+    });
+
+    final fileVibe = VibeReference(
+      displayName: 'actual file vibe',
+      vibeEncoding: 'actual-file-encoding',
+      thumbnail: Uint8List.fromList([4, 5, 6]),
+      rawImageData: Uint8List.fromList([9, 8, 7]),
+      strength: 0.3,
+      infoExtracted: 0.4,
+      encodingModel: ImageModels.animeDiffusionV4Full,
+      sourceType: VibeSourceType.naiv4vibe,
+    );
+    final filePath = await VibeFileStorageService().saveVibeToFile(
+      fileVibe,
+      customName: 'actual_file_vibe',
+    );
+    final staleEntry = VibeLibraryEntry(
+      id: 'stale-single-entry',
+      name: 'stale single',
+      vibeDisplayName: 'stale snapshot',
+      vibeEncoding: '',
+      strength: 0.6,
+      infoExtracted: 0.7,
+      sourceTypeIndex: VibeSourceType.rawImage.index,
+      createdAt: DateTime(2026, 8, 20),
+      filePath: filePath,
+    );
+    await storage.saveEntry(staleEntry);
+
+    final updated = await storage.updateEntryEncodingModel(
+      staleEntry.id,
+      ImageModels.animeDiffusionV45Full,
+    );
+
+    expect(updated, isNotNull);
+    expect(updated!.vibeEncoding, 'actual-file-encoding');
+    expect(updated.rawImageData, fileVibe.rawImageData);
+    expect(updated.vibeThumbnail, fileVibe.thumbnail);
+    expect(updated.encodingModel, ImageModels.animeDiffusionV45Full);
+  });
+
+  test('updateEntryEncodingModel 不把无 encoding 的单条原图计为成功', () async {
+    final vibeDirectory =
+        '${hiveTempDir.path}${Platform.pathSeparator}vibes_raw_single';
+    await VibeLibraryPathHelper.instance.setPath(vibeDirectory);
+    addTearDown(() async {
+      await VibeLibraryPathHelper.instance.resetToDefault();
+    });
+
+    final rawVibe = VibeReference(
+      displayName: 'raw only',
+      vibeEncoding: '',
+      rawImageData: _validPngBytes(),
+      sourceType: VibeSourceType.rawImage,
+    );
+    final filePath = await VibeFileStorageService().saveVibeToFile(
+      rawVibe,
+      customName: 'raw_only',
+    );
+    final entry = VibeLibraryEntry.fromVibeReference(
+      name: 'raw only',
+      vibeData: rawVibe,
+      filePath: filePath,
+    );
+    await storage.saveEntry(entry);
+    final before = await File(filePath).readAsString();
+
+    final updated = await storage.updateEntryEncodingModel(
+      entry.id,
+      ImageModels.animeDiffusionV45Full,
+    );
+
+    expect(updated, isNull);
+    expect(await File(filePath).readAsString(), before);
+    expect((await storage.getEntry(entry.id))!.encodingModel, isNull);
+  });
+
+  test('updateEntryEncodingModel 只标记 mixed bundle 中确有 encoding 的子项', () async {
+    final vibeDirectory =
+        '${hiveTempDir.path}${Platform.pathSeparator}vibes_mixed_bundle';
+    await VibeLibraryPathHelper.instance.setPath(vibeDirectory);
+    addTearDown(() async {
+      await VibeLibraryPathHelper.instance.resetToDefault();
+    });
+
+    final rawImage = _validPngBytes();
+    final saved = await storage.saveBundleEntry([
+      VibeReference(
+        displayName: 'raw child',
+        vibeEncoding: '',
+        rawImageData: rawImage,
+        sourceType: VibeSourceType.rawImage,
+      ),
+      VibeReference(
+        displayName: 'encoded child',
+        vibeEncoding: 'encoded-child-payload',
+        rawImageData: rawImage,
+        encodingModel: ImageModels.animeDiffusionV4Full,
+        sourceType: VibeSourceType.naiv4vibebundle,
+      ),
+    ], name: 'mixed bundle');
+    final file = File(saved.filePath!);
+    final before =
+        jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    final rawChildBefore =
+        ((before['vibes'] as List<dynamic>)[0] as Map<String, dynamic>);
+
+    final updated = await storage.updateEntryEncodingModel(
+      saved.id,
+      ImageModels.animeDiffusionV45Full,
+    );
+
+    expect(updated, isNotNull);
+    expect(updated!.bundledVibeEncodingModels, hasLength(2));
+    expect(updated.bundledVibeEncodingModels![0], isNull);
+    expect(
+      updated.bundledVibeEncodingModels![1],
+      ImageModels.animeDiffusionV45Full,
+    );
+    final after = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    final afterVibes = after['vibes'] as List<dynamic>;
+    expect(afterVibes, hasLength(2));
+    expect(afterVibes[0], rawChildBefore);
+    expect(
+      ((afterVibes[1] as Map<String, dynamic>)['importInfo']
+          as Map<String, dynamic>)['model'],
+      ImageModels.animeDiffusionV45Full,
+    );
+  });
+
+  test('saveBundleEntry 显式 replace 使用 replacement 的原图和缩略图', () async {
+    final vibeDirectory =
+        '${hiveTempDir.path}${Platform.pathSeparator}vibes_explicit_replace';
+    await VibeLibraryPathHelper.instance.setPath(vibeDirectory);
+    addTearDown(() async {
+      await VibeLibraryPathHelper.instance.resetToDefault();
+    });
+
+    final oldImage = Uint8List.fromList([1, 2, 3, 4]);
+    final replacementImage = Uint8List.fromList([9, 8, 7, 6]);
+    final oldEntry = await storage.saveBundleEntry([
+      VibeReference(
+        displayName: 'old child',
+        vibeEncoding: 'shared-encoding',
+        thumbnail: Uint8List.fromList([1, 1]),
+        rawImageData: oldImage,
+        encodingModel: ImageModels.animeDiffusionV4Full,
+        sourceType: VibeSourceType.naiv4vibebundle,
+      ),
+    ], name: 'replace bundle');
+    final replacement = VibeReference(
+      displayName: 'replacement child',
+      vibeEncoding: 'shared-encoding',
+      thumbnail: Uint8List.fromList([2, 2]),
+      rawImageData: replacementImage,
+      encodingModel: ImageModels.animeDiffusionV4Full,
+      sourceType: VibeSourceType.naiv4vibebundle,
+    );
+
+    final replaced = await storage.saveBundleEntry(
+      [replacement],
+      name: 'replace bundle',
+      replaceEntry: oldEntry,
+    );
+
+    expect(replaced.id, oldEntry.id);
+    final json =
+        jsonDecode(await File(replaced.filePath!).readAsString())
+            as Map<String, dynamic>;
+    final savedChild =
+        (json['vibes'] as List<dynamic>).single as Map<String, dynamic>;
+    final imageBase64 = base64Encode(replacementImage);
+    expect(savedChild['image'], imageBase64);
+    expect(savedChild['id'], NovelAiVibeCodec.hashString(imageBase64));
+    expect(
+      savedChild['thumbnail'],
+      NovelAiVibeCodec.imageDataUri(replacement.thumbnail!),
+    );
+  });
+
+  test('updateEntryEncodingModel 统一使用文件格式的基础模型 ID', () async {
+    final vibeDirectory =
+        '${hiveTempDir.path}${Platform.pathSeparator}vibes_normalized_model';
+    await VibeLibraryPathHelper.instance.setPath(vibeDirectory);
+    addTearDown(() async {
+      await VibeLibraryPathHelper.instance.resetToDefault();
+    });
+
+    final vibe = VibeReference(
+      displayName: 'normalized model',
+      vibeEncoding: 'normalized-encoding',
+      thumbnail: Uint8List.fromList([4, 5, 6]),
+      strength: 0.6,
+      infoExtracted: 0.7,
+      encodingModel: ImageModels.animeDiffusionV4Full,
+      sourceType: VibeSourceType.naiv4vibe,
+    );
+    final filePath = await VibeFileStorageService().saveVibeToFile(
+      vibe,
+      customName: 'normalized_model',
+    );
+    final entry = VibeLibraryEntry.fromVibeReference(
+      name: 'normalized model',
+      vibeData: vibe,
+      filePath: filePath,
+    );
+    await storage.saveEntry(entry);
+
+    final updated = await storage.updateEntryEncodingModel(
+      entry.id,
+      ImageModels.animeDiffusionV45FullInpainting,
+    );
+
+    expect(updated, isNotNull);
+    expect(updated!.encodingModel, ImageModels.animeDiffusionV45Full);
+    final fileJson =
+        jsonDecode(await File(filePath).readAsString()) as Map<String, dynamic>;
+    expect(
+      (fileJson['importInfo'] as Map<String, dynamic>)['model'],
+      ImageModels.animeDiffusionV45Full,
+    );
+  });
+
+  test('updateEntryEncodingModel 保留 bundle 全部原图和已有编码变体', () async {
+    final vibeDirectory =
+        '${hiveTempDir.path}${Platform.pathSeparator}vibes_bundle_relabel';
+    await VibeLibraryPathHelper.instance.setPath(vibeDirectory);
+    addTearDown(() async {
+      await VibeLibraryPathHelper.instance.resetToDefault();
+    });
+
+    final rawImages = List<Uint8List>.generate(
+      5,
+      (index) => Uint8List.fromList([0x89, 0x50, 0x4e, 0x47, index]),
+    );
+    final saved = await storage.saveBundleEntry([
+      for (var i = 0; i < rawImages.length; i++)
+        VibeReference(
+          displayName: 'child-$i',
+          vibeEncoding: 'encoding-$i',
+          thumbnail: Uint8List.fromList([i + 1, i + 2]),
+          rawImageData: rawImages[i],
+          strength: 0.1 + i,
+          infoExtracted: 0.2 + i * 0.1,
+          encodingModel: ImageModels.animeDiffusionV4Full,
+          sourceType: VibeSourceType.naiv4vibebundle,
+        ),
+    ], name: 'bundle relabel');
+    expect(saved.bundledVibePreviews, hasLength(4));
+    await storage.saveEntry(
+      saved.copyWith(vibeEncoding: '', encodingModel: null),
+    );
+
+    final file = File(saved.filePath!);
+    final originalJson =
+        jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    final originalVibes = originalJson['vibes'] as List<dynamic>;
+    final first = originalVibes.first as Map<String, dynamic>;
+    first['createdAt'] = 123456789;
+    first['customField'] = 'preserve-me';
+    final firstEncodings = first['encodings'] as Map<String, dynamic>;
+    final v4Encodings = firstEncodings['v4full'] as Map<String, dynamic>;
+    final collidingVariantKey = v4Encodings.keys.single;
+    firstEncodings['v4-5full'] = <String, dynamic>{
+      collidingVariantKey: <String, dynamic>{
+        'encoding': 'existing-v45-encoding',
+        'params': <String, dynamic>{'information_extracted': 0.2},
+      },
+    };
+    await file.writeAsString(jsonEncode(originalJson));
+
+    final updated = await storage.updateEntryEncodingModel(
+      saved.id,
+      ImageModels.animeDiffusionV45Full,
+    );
+
+    expect(updated, isNotNull);
+    expect(updated!.encodingModel, ImageModels.animeDiffusionV45Full);
+    expect(
+      updated.bundledVibeEncodingModels,
+      List<String?>.filled(5, ImageModels.animeDiffusionV45Full),
+    );
+
+    final updatedJson =
+        jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    final updatedVibes = updatedJson['vibes'] as List<dynamic>;
+    expect(updatedVibes, hasLength(5));
+    for (var i = 0; i < updatedVibes.length; i++) {
+      final item = updatedVibes[i] as Map<String, dynamic>;
+      expect(base64Decode(item['image'] as String), rawImages[i]);
+      expect(item['type'], 'image');
+      expect(
+        (item['importInfo'] as Map<String, dynamic>)['model'],
+        ImageModels.animeDiffusionV45Full,
+      );
+    }
+
+    final updatedFirst = updatedVibes.first as Map<String, dynamic>;
+    expect(updatedFirst['createdAt'], 123456789);
+    expect(updatedFirst['customField'], 'preserve-me');
+    final updatedEncodings = updatedFirst['encodings'] as Map<String, dynamic>;
+    expect(updatedEncodings['v4full'], isNotNull);
+    final v45Encodings = updatedEncodings['v4-5full'] as Map<String, dynamic>;
+    expect(
+      v45Encodings.values.any(
+        (value) =>
+            value is Map<String, dynamic> &&
+            value['encoding'] == 'existing-v45-encoding',
+      ),
+      isTrue,
+    );
+    expect(
+      v45Encodings.values.any(
+        (value) =>
+            value is Map<String, dynamic> && value['encoding'] == 'encoding-0',
+      ),
+      isTrue,
+    );
+    expect(v45Encodings, hasLength(2));
+  });
+
+  test('getDetailData 只解析一次 bundle 并复用子项构建详情', () async {
+    await storage.close();
+    final rawImages = [
+      Uint8List.fromList([1, 2, 3]),
+      Uint8List.fromList([4, 5, 6]),
+    ];
+    final bundleVibes = [
+      VibeReference(
+        displayName: 'first',
+        vibeEncoding: 'encoding-first',
+        thumbnail: rawImages[0],
+        rawImageData: rawImages[0],
+        strength: 0.2,
+        infoExtracted: 0.3,
+        sourceType: VibeSourceType.naiv4vibebundle,
+      ),
+      VibeReference(
+        displayName: 'second',
+        vibeEncoding: 'encoding-second',
+        thumbnail: rawImages[1],
+        rawImageData: rawImages[1],
+        strength: 0.4,
+        infoExtracted: 0.5,
+        sourceType: VibeSourceType.naiv4vibebundle,
+      ),
+    ];
+    final fileStorage = _CountingVibeFileStorageService(bundleVibes);
+    storage = VibeLibraryStorageService(fileStorage: fileStorage);
+    final entry = VibeLibraryEntry(
+      id: 'single-pass-bundle',
+      name: 'single pass bundle',
+      vibeDisplayName: 'stale first',
+      vibeEncoding: 'stale-encoding',
+      strength: 0.6,
+      infoExtracted: 0.7,
+      sourceTypeIndex: VibeSourceType.naiv4vibebundle.index,
+      createdAt: DateTime(2026, 8, 19),
+      filePath: r'G:\AIdarw\vibes\single-pass.naiv4vibebundle',
+      bundledVibeNames: const ['stale first'],
+    );
+    await storage.saveEntry(entry);
+
+    final details = await storage.getDetailData(entry.id);
+
+    expect(details, isNotNull);
+    expect(details!.entry.vibeDisplayName, 'first');
+    expect(details.entry.bundledVibeNames, ['first', 'second']);
+    expect(details.entry.bundledVibePreviews, rawImages);
+    expect(details.bundleVibes, orderedEquals(bundleVibes));
+    expect(fileStorage.bundleParseCalls, 1);
+    expect(fileStorage.singleFileLoadCalls, 0);
+    expect(fileStorage.previewExtractionCalls, 0);
+  });
+}
+
+class _CountingVibeFileStorageService extends VibeFileStorageService {
+  _CountingVibeFileStorageService(this.vibes);
+
+  final List<VibeReference> vibes;
+  int bundleParseCalls = 0;
+  int singleFileLoadCalls = 0;
+  int previewExtractionCalls = 0;
+
+  @override
+  Future<List<VibeReference>> extractVibesFromBundle(
+    String bundlePath, {
+    int startIndex = 0,
+    int? limit,
+  }) async {
+    bundleParseCalls++;
+    return vibes;
+  }
+
+  @override
+  Future<VibeReference?> loadVibeFromFile(String filePath) async {
+    singleFileLoadCalls++;
+    return vibes.isEmpty ? null : vibes.first;
+  }
+
+  @override
+  Future<List<Uint8List>> extractPreviewsFromBundle(
+    String bundlePath, {
+    int maxCount = 4,
+  }) async {
+    previewExtractionCalls++;
+    return const [];
+  }
 }

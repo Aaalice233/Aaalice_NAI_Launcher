@@ -13,6 +13,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/file_explorer_utils.dart';
 import '../../../../core/utils/image_save_utils.dart';
 import '../../../../core/utils/image_share_sanitizer.dart';
+import '../../../../core/utils/keyboard_modifier_utils.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
 import '../../../../core/utils/zip_utils.dart';
 import '../../../../data/services/alias_resolver_service.dart';
@@ -704,11 +705,8 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                                     HistoryClickBehavior.selectPreview
                                 ? () => _showLinkedDetail(context, historyImage)
                                 : null,
-                            onFullscreen: () => _showDetailForBehavior(
-                              context,
-                              historyImage,
-                              clickBehavior,
-                            ),
+                            onFullscreen: () =>
+                                _showLinkedDetail(context, historyImage),
                             enableContextMenu: true,
                             enableHoverScale: true,
                             hoverEffectsEnabled: !_isHistoryScrolling,
@@ -938,8 +936,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
           onLongPress: clickBehavior == HistoryClickBehavior.selectPreview
               ? () => _showLinkedDetail(context, image)
               : null,
-          onFullscreen: () =>
-              _showDetailForBehavior(context, image, clickBehavior),
+          onFullscreen: () => _showLinkedDetail(context, image),
           enableContextMenu: true,
           enableHoverScale: true,
           hoverEffectsEnabled: !_isHistoryScrolling,
@@ -1114,8 +1111,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
   }
 
   bool get _isMultiSelectModifierPressed {
-    final keyboard = HardwareKeyboard.instance;
-    return keyboard.isControlPressed || keyboard.isMetaPressed;
+    return isPrimarySelectionModifierPressed();
   }
 
   void _toggleSelectedImage(GeneratedImage image) {
@@ -1139,19 +1135,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       ref.read(generationPreviewFocusNodeProvider).requestFocus();
       return;
     }
-    _showSingleDetail(context, image);
-  }
-
-  void _showDetailForBehavior(
-    BuildContext context,
-    GeneratedImage image,
-    HistoryClickBehavior behavior,
-  ) {
-    if (behavior == HistoryClickBehavior.selectPreview) {
-      _showLinkedDetail(context, image);
-    } else {
-      _showSingleDetail(context, image);
-    }
+    _showLinkedDetail(context, image);
   }
 
   bool _favoriteStateFor(GeneratedImage image) {
@@ -1582,57 +1566,6 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
     }
   }
 
-  void _showSingleDetail(BuildContext context, GeneratedImage image) {
-    final currentContext = context;
-
-    // 简化逻辑：统一使用 FileImageDetailData 从 PNG 文件解析元数据
-    // - 如果图像已保存（有 filePath），直接使用
-    // - 如果图像未保存，使用 GeneratedImageDetailData 作为 fallback
-    final ImageDetailData imageData;
-    if (image.filePath != null && image.filePath!.isNotEmpty) {
-      // 已保存的图像：使用 FileImageDetailData（异步解析元数据）
-      // 加入预加载队列（如果尚未解析）
-      ImageMetadataService().enqueuePreload(
-        taskId: image.id,
-        filePath: image.filePath,
-      );
-      imageData = FileImageDetailData(
-        filePath: image.filePath!,
-        cachedBytes: image.bytes,
-        id: image.id,
-        initialMetadata: image.metadata,
-        showCopyButton: image.canSave,
-      );
-    } else {
-      // 未保存的图像：使用 GeneratedImageDetailData，失败快照仅允许查看。
-      imageData = GeneratedImageDetailData(
-        imageBytes: image.bytes,
-        metadata: image.metadata,
-        id: image.id,
-        showSaveButton: image.canSave,
-        showCopyButton: image.canSave,
-      );
-    }
-
-    if (!currentContext.mounted) return;
-
-    // 使用 ImageDetailOpener 打开详情页（带防重复点击）
-    ImageDetailOpener.showSingleImmediate(
-      currentContext,
-      image: imageData,
-      showMetadataPanel: true,
-      callbacks: ImageDetailCallbacks(
-        onSave: image.canSave
-            ? (img) => GenerationSaveService.saveImageFromDetail(
-                currentContext,
-                ref,
-                img,
-              )
-            : null,
-      ),
-    );
-  }
-
   void _showLinkedDetail(BuildContext context, GeneratedImage image) {
     final state = ref.read(imageGenerationNotifierProvider);
     final sequence = state.detailSequenceFor(image);
@@ -1676,6 +1609,7 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
       id: image.id,
       showSaveButton: image.canSave,
       showCopyButton: image.canSave,
+      preserveOriginalBytesOnSave: image.preserveOriginalBytesOnSave,
     );
   }
 

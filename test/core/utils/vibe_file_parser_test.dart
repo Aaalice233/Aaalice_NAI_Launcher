@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -164,5 +165,59 @@ void main() {
     expect(references.single.rawImageData, rawImage);
     expect(references.single.sourceType, VibeSourceType.rawImage);
     expect(references.single.encodingModel, ImageModels.animeDiffusionV45Full);
+  });
+
+  test('.naiv4vibebundle 的原图与相同缩略图只保留一份字节数据', () async {
+    final image = Uint8List.fromList([7, 6, 5, 4]);
+    final encodedImage = base64Encode(image);
+    final bundleJson = jsonEncode({
+      'vibes': [
+        {
+          'name': 'Shared image bytes',
+          'type': 'image',
+          'image': encodedImage,
+          'thumbnail': encodedImage,
+          'encodings': <String, dynamic>{},
+        },
+      ],
+    });
+
+    final references = await VibeFileParser.fromBundle(
+      'shared-image.naiv4vibebundle',
+      Uint8List.fromList(utf8.encode(bundleJson)),
+    );
+
+    expect(references, hasLength(1));
+    expect(references.single.rawImageData, image);
+    expect(
+      identical(references.single.rawImageData, references.single.thumbnail),
+      isTrue,
+    );
+  });
+
+  test('大型 .naiv4vibebundle 会让出当前 isolate 再完成解析', () async {
+    final bundleJson = jsonEncode({
+      'padding': ''.padRight(2 * 1024 * 1024, 'x'),
+      'vibes': [
+        {
+          'name': 'Background bundle',
+          'encodings': {
+            'v4full': {
+              'variant': {'encoding': 'background-encoding'},
+            },
+          },
+        },
+      ],
+    });
+    var timerRan = false;
+    Timer.run(() => timerRan = true);
+
+    final references = await VibeFileParser.fromBundle(
+      'background.naiv4vibebundle',
+      Uint8List.fromList(utf8.encode(bundleJson)),
+    );
+
+    expect(timerRan, isTrue);
+    expect(references.single.vibeEncoding, 'background-encoding');
   });
 }

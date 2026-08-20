@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/comfyui/seedvr2_support.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/presentation/providers/comfyui/comfyui_provider.dart';
@@ -112,7 +113,7 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('seedvr2_ema_7b_fp16'), findsOneWidget);
+      expect(find.text('seedvr2_7b_sharp_int8_convrot'), findsOneWidget);
       expect(find.textContaining('SeedVR2 ·'), findsNothing);
 
       await tester.tap(find.text('普通模型'));
@@ -159,8 +160,24 @@ class _EnabledComfyUISettings extends ComfyUISettings {
 
 class _FixedComfyUIUpscaleModels extends ComfyUISeedvr2Models {
   @override
+  bool get hasFetchedFromServer => true;
+
+  @override
+  ComfySeedvr2Capabilities get capabilities => const ComfySeedvr2Capabilities(
+    nativeNodesAvailable: true,
+    legacyNodesAvailable: true,
+    nativeModels: ['seedvr2_7b_sharp_int8_convrot.safetensors'],
+    legacyModels: ['seedvr2_ema_7b_fp16.safetensors'],
+    nativeVaeModels: ['ema_vae_fp16.safetensors'],
+  );
+
+  @override
   List<String> build() {
-    return const ['seedvr2_ema_7b_fp16.safetensors', '4x-UltraSharpV2.pth'];
+    return const [
+      'seedvr2_7b_sharp_int8_convrot.safetensors',
+      'seedvr2_ema_7b_fp16.safetensors',
+      '4x-UltraSharpV2.pth',
+    ];
   }
 
   @override
