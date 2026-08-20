@@ -321,7 +321,7 @@ void main() {
       );
     });
 
-    test('does not apply the Opus free image with character references', () {
+    test('keeps the Opus free base price with precise references', () {
       final cost = AnlasCalculator.calculateRequestCost(
         width: 1024,
         height: 1024,
@@ -332,11 +332,10 @@ void main() {
         smeaDyn: false,
         model: model,
         subscriptionTier: AnlasCalculator.opusTier,
-        hasCharacterReference: true,
         extraPerSampleCost: 5,
       );
 
-      expect(cost, 25);
+      expect(cost, 5);
     });
 
     test('keeps per-image, per-request, and one-time fees distinct', () {
@@ -411,6 +410,7 @@ void main() {
     });
   });
 
+  group('AnlasCalculator Vibe pricing', () {
     test('does not charge V4-only Vibe fees on V3', () {
       final rawImage = Uint8List.fromList([1, 2, 3]);
       final params = ImageParams(
@@ -431,7 +431,6 @@ void main() {
       expect(AnlasCalculator.resolveVibeReferenceExtraCost(params), 0);
     });
 
-  group('AnlasCalculator Vibe pricing', () {
     test('charges encoding only for enabled uncached raw Vibes', () {
       final rawImage = Uint8List.fromList([1, 2, 3]);
       final params = ImageParams(

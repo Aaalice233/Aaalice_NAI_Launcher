@@ -81,7 +81,6 @@ class AnlasCalculator {
       smeaDyn: params.effectiveSmeaDyn,
       model: params.model,
       subscriptionTier: isOpus ? opusTier : 0,
-      hasCharacterReference: _usesPreciseReferences(params),
       strength: switch (params.action) {
         ImageGenerationAction.img2img => params.strength,
         ImageGenerationAction.infill => params.inpaintStrength,
@@ -103,7 +102,6 @@ class AnlasCalculator {
     required bool smeaDyn,
     required String model,
     int subscriptionTier = 0,
-    bool hasCharacterReference = false,
     double strength = 1.0,
     int extraPerSampleCost = 0,
     int extraPerRequestCost = 0,
@@ -125,7 +123,6 @@ class AnlasCalculator {
         smeaDyn: smeaDyn,
         model: model,
         subscriptionTier: isFirstImageInRequest ? subscriptionTier : 0,
-        hasCharacterReference: hasCharacterReference,
         strength: strength,
       );
       if (sampleCost == invalidCost) return invalidCost;
@@ -176,7 +173,6 @@ class AnlasCalculator {
     required String model,
     bool isOpus = false,
     int subscriptionTier = 0,
-    bool hasCharacterReference = false,
     double strength = 1.0,
   }) {
     final pixels = width * height;
@@ -212,7 +208,6 @@ class AnlasCalculator {
           isOpus: isOpus || subscriptionTier >= opusTier,
           steps: steps,
           resolution: pixels,
-          hasCharacterReference: hasCharacterReference,
         )
         ? 1
         : 0;
@@ -225,17 +220,13 @@ class AnlasCalculator {
 
   /// 检查是否满足 Opus 免费条件
   ///
-  /// 网页端按订阅、角色参考、步数和分辨率判断；请求是否携带基础图不参与判定。
+  /// 精准参考不会取消符合条件的 Opus 基础免费额度，其附加费在请求成本中独立叠加。
   static bool _isOpusFree({
     required bool isOpus,
     required int steps,
     required int resolution,
-    required bool hasCharacterReference,
   }) {
-    return isOpus &&
-        !hasCharacterReference &&
-        steps <= 28 &&
-        resolution <= 1024 * 1024;
+    return isOpus && steps <= 28 && resolution <= 1024 * 1024;
   }
 
   /// 检查当前参数是否满足 Opus 免费条件
