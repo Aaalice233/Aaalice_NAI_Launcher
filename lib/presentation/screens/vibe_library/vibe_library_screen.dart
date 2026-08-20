@@ -82,6 +82,9 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
   /// 是否正在打开文件选择器
   bool _isPickingFile = false;
 
+  /// 是否正在批量标记 Vibe 编码模型
+  bool _isMarkingEncodingModel = false;
+
   /// 导入进度信息
   ImportProgress _importProgress = const ImportProgress();
 
@@ -1677,23 +1680,20 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
     if (!mounted) return null;
 
     final l10n = context.l10n;
-
-    // 显示编码配置对话框
-    final config = await encode_dialog.VibeImageEncodeDialog.show(
     final currentModel = ref.read(generationParamsNotifierProvider).model;
     final supportsEncoding = ModelCapabilityRegistry.of(
       currentModel,
     ).supportsEncodedVibeTransfer;
+
+    // 显示编码配置对话框
+    final config = await encode_dialog.VibeImageEncodeDialog.show(
       context: context,
       imageBytes: imageFile.bytes,
       fileName: imageFile.source,
+      encodeImage: supportsEncoding,
     );
 
     if (config == null) return null; // 用户取消
-      encodeImage: supportsEncoding,
-
-    // 编码重试循环
-    while (mounted) {
     if (!supportsEncoding) {
       return _saveVibeReference(
         reference: VibeReference(
@@ -1708,6 +1708,9 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
         categoryId: targetCategoryId,
       );
     }
+
+    // 编码重试循环
+    while (mounted) {
       if (!mounted) break;
 
       // 显示编码中对话框，使用自己的 context 管理

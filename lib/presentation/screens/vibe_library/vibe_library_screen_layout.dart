@@ -442,7 +442,9 @@ extension _VibeLibraryScreenLayout on _VibeLibraryScreenState {
           BulkActionItem(
             icon: Icons.model_training_outlined,
             label: context.l10n.vibeLibrary_markEncodingModel,
-            onPressed: () => _batchMarkEncodingModel(),
+            onPressed: _isMarkingEncodingModel
+                ? null
+                : () => _batchMarkEncodingModel(),
             color: theme.colorScheme.secondary,
           ),
         BulkActionItem(
@@ -562,7 +564,6 @@ extension _VibeLibraryScreenLayout on _VibeLibraryScreenState {
       ),
     );
   }
-}
 
   /// 构建导入进度覆盖层
   Widget _buildImportOverlay(ThemeData theme) {
@@ -633,3 +634,4 @@ extension _VibeLibraryScreenLayout on _VibeLibraryScreenState {
       ),
     );
   }
+}

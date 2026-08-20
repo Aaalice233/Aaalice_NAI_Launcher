@@ -165,6 +165,7 @@ class VibeFileStorageService {
     String filePath,
     List<VibeReference> vibes, {
     String? defaultModel,
+    bool preserveExistingData = true,
   }) async {
     if (vibes.isEmpty) {
       throw ArgumentError('vibes 不能为空');
@@ -187,15 +188,22 @@ class VibeFileStorageService {
         if (decoded is Map<String, dynamic>) {
           existingJson = decoded;
         }
-      } catch (_) {
-        existingJson = null;
+      } catch (error) {
+        if (preserveExistingData) {
+          throw StateError('无法安全解析现有 Vibe Bundle，已取消覆盖: $error');
+        }
+      }
+      if (preserveExistingData && existingJson == null) {
+        throw StateError('现有 Vibe Bundle 结构无效，已取消覆盖');
       }
 
       final replacement = NovelAiVibeCodec.buildBundleMap(
         vibes,
         fallbackModel: defaultModel ?? _fallbackEncodingModel,
       );
-      final merged = _mergeCompatibleBundleMap(existingJson, replacement);
+      final merged = preserveExistingData
+          ? _mergeCompatibleBundleMap(existingJson, replacement)
+          : replacement;
       await file.writeAsString(NovelAiVibeCodec.encodeJson(merged));
       AppLogger.i('Vibe Bundle 文件覆盖成功: $filePath', _tag);
     } catch (e, stackTrace) {
@@ -826,39 +834,130 @@ class VibeFileStorageService {
     Map<String, dynamic>? existing,
     Map<String, dynamic> replacement,
   ) {
-    if (existing == null) return replacement;
+    if (existing == null) {
+      throw StateError('缺少可安全合并的现有 Vibe Bundle');
+    }
 
     final existingVibes = existing['vibes'];
     final replacementVibes = replacement['vibes'];
     if (existingVibes is! List || replacementVibes is! List) {
-      return replacement;
+      throw StateError('Vibe Bundle 子项结构无效，已取消覆盖');
     }
 
-    final mergedVibes = <dynamic>[];
+    final mergedVibes = List<dynamic>.from(existingVibes);
+    final usedExistingIndices = <int>{};
+    final canUsePositionalFallback =
+        existingVibes.length == replacementVibes.length &&
+        existingVibes.every(_isValidBundleVibeItem) &&
+        replacementVibes.every(_isValidBundleVibeItem);
+
     for (var i = 0; i < replacementVibes.length; i++) {
       final replacementItem = replacementVibes[i];
-      if (replacementItem is! Map || i >= existingVibes.length) {
-        mergedVibes.add(replacementItem);
-        continue;
+      if (replacementItem is! Map) {
+        throw StateError('待写入的 Vibe Bundle 子项无效，已取消覆盖');
       }
 
-      final existingItem = existingVibes[i];
+      final replacementMap = Map<String, dynamic>.from(replacementItem);
+      var existingIndex = _findStableVibeIndex(
+        existingVibes,
+        replacementMap,
+        usedExistingIndices,
+      );
+      if (existingIndex == null &&
+          canUsePositionalFallback &&
+          !usedExistingIndices.contains(i)) {
+        existingIndex = i;
+      }
+      if (existingIndex == null) {
+        throw StateError('无法稳定匹配 Vibe Bundle 子项，已取消覆盖以避免数据丢失');
+      }
+
+      final existingItem = existingVibes[existingIndex];
       if (existingItem is! Map) {
-        mergedVibes.add(replacementItem);
-        continue;
+        throw StateError('匹配到的 Vibe Bundle 子项无效，已取消覆盖');
       }
-
-      mergedVibes.add(
-        _mergeCompatibleVibeMap(
-          Map<String, dynamic>.from(existingItem),
-          Map<String, dynamic>.from(replacementItem),
-        ),
+      usedExistingIndices.add(existingIndex);
+      mergedVibes[existingIndex] = _mergeCompatibleVibeMap(
+        Map<String, dynamic>.from(existingItem),
+        replacementMap,
       );
     }
 
     final merged = Map<String, dynamic>.from(existing)..addAll(replacement);
     merged['vibes'] = mergedVibes;
     return merged;
+  }
+
+  bool _isValidBundleVibeItem(dynamic value) {
+    return value is Map &&
+        NovelAiVibeCodec.validateSingleMap(Map<String, dynamic>.from(value));
+  }
+
+  int? _findStableVibeIndex(
+    List<dynamic> existingVibes,
+    Map<String, dynamic> replacement,
+    Set<int> usedExistingIndices,
+  ) {
+    final replacementId = replacement['id'];
+    if (replacementId is String && replacementId.isNotEmpty) {
+      final idMatches = <int>[];
+      for (var i = 0; i < existingVibes.length; i++) {
+        if (usedExistingIndices.contains(i)) continue;
+        final existingItem = existingVibes[i];
+        if (existingItem is Map && existingItem['id'] == replacementId) {
+          idMatches.add(i);
+        }
+      }
+      if (idMatches.length == 1) return idMatches.single;
+      if (idMatches.length > 1) {
+        final replacementEncoding = NovelAiVibeCodec.firstEncoding(
+          replacement['encodings'],
+        );
+        if (replacementEncoding == null) return null;
+        final encodingMatches = idMatches
+            .where((index) {
+              final item = existingVibes[index];
+              return item is Map &&
+                  _containsEncoding(item, replacementEncoding);
+            })
+            .toList(growable: false);
+        return encodingMatches.length == 1 ? encodingMatches.single : null;
+      }
+    }
+
+    final replacementEncoding = NovelAiVibeCodec.firstEncoding(
+      replacement['encodings'],
+    );
+    if (replacementEncoding == null) return null;
+
+    int? match;
+    for (var i = 0; i < existingVibes.length; i++) {
+      if (usedExistingIndices.contains(i)) continue;
+      final existingItem = existingVibes[i];
+      if (existingItem is! Map ||
+          !_containsEncoding(existingItem, replacementEncoding)) {
+        continue;
+      }
+      if (match != null) {
+        return null;
+      }
+      match = i;
+    }
+    return match;
+  }
+
+  bool _containsEncoding(Map<dynamic, dynamic> vibe, String encoding) {
+    final encodings = vibe['encodings'];
+    if (encodings is! Map) return false;
+    for (final modelValue in encodings.values) {
+      if (modelValue is! Map) continue;
+      for (final variantValue in modelValue.values) {
+        if (variantValue is Map && variantValue['encoding'] == encoding) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   Map<String, dynamic> _mergeCompatibleVibeMap(
@@ -897,8 +996,28 @@ class VibeFileStorageService {
         ..addAll(Map<String, dynamic>.from(replacementImportInfo));
     }
 
-    _mergeCompatibleEncodings(existing, merged);
+    if (_shouldPreserveExistingEncodings(existing, replacement)) {
+      _mergeCompatibleEncodings(existing, merged);
+    }
     return merged;
+  }
+
+  bool _shouldPreserveExistingEncodings(
+    Map<String, dynamic> existing,
+    Map<String, dynamic> replacement,
+  ) {
+    final replacementEncodings = replacement['encodings'];
+    if (replacementEncodings is Map && replacementEncodings.isNotEmpty) {
+      return true;
+    }
+
+    final existingImportInfo = existing['importInfo'];
+    final replacementImportInfo = replacement['importInfo'];
+    if (existingImportInfo is! Map || replacementImportInfo is! Map) {
+      return false;
+    }
+    return existingImportInfo['information_extracted'] ==
+        replacementImportInfo['information_extracted'];
   }
 
   bool _isCompatibleVibeMap(

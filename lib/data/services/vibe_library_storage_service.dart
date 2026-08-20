@@ -527,7 +527,11 @@ class VibeLibraryStorageService
       late final String filePath;
       if (canOverwriteExistingBundle) {
         filePath = existingPath;
-        await _fileStorage.overwriteBundleFile(filePath, vibes);
+        await _fileStorage.overwriteBundleFile(
+          filePath,
+          vibes,
+          preserveExistingData: false,
+        );
       } else {
         filePath = await _fileStorage.saveBundleToFile(vibes, bundleName: name);
       }
@@ -1033,35 +1037,84 @@ class VibeLibraryStorageService
 
       final filePath = entry.filePath;
       List<VibeReference>? bundleVibes;
+      VibeReference? singleVibe;
       if (entry.isBundle && filePath != null && filePath.isNotEmpty) {
         bundleVibes = await _fileStorage.extractVibesFromBundle(filePath);
         if (bundleVibes.isEmpty) {
           throw StateError('Bundle 文件没有可更新的 Vibe: $filePath');
         }
+      } else if (!entry.isBundle) {
+        singleVibe = filePath != null && filePath.isNotEmpty
+            ? await _fileStorage.loadVibeFromFile(filePath)
+            : entry.toVibeReference();
+        if (singleVibe == null) {
+          throw StateError('Vibe 文件没有可更新的数据: $filePath');
+        }
       }
 
-      final bundledModelCount = entry.isBundle
-          ? bundleVibes?.length ??
-                entry.bundledVibeEncodingModels?.length ??
-                entry.bundledVibeEncodings?.length
-          : null;
-      final updatedEntry = entry.copyWith(
+      List<String?>? updatedBundledModels;
+      List<VibeReference>? encodedBundleVibes;
+      var firstBundleHasEncoding = false;
+      if (entry.isBundle) {
+        if (bundleVibes != null) {
+          encodedBundleVibes = bundleVibes
+              .where((vibe) => vibe.hasVibeEncoding)
+              .toList(growable: false);
+          if (encodedBundleVibes.isEmpty) return null;
+          firstBundleHasEncoding = bundleVibes.first.hasVibeEncoding;
+          final existingModels = entry.bundledVibeEncodingModels;
+          updatedBundledModels = [
+            for (var i = 0; i < bundleVibes.length; i++)
+              bundleVibes[i].hasVibeEncoding
+                  ? normalizedModel
+                  : existingModels != null && i < existingModels.length
+                  ? existingModels[i]
+                  : bundleVibes[i].encodingModel,
+          ];
+        } else {
+          final bundledEncodings = entry.bundledVibeEncodings;
+          if (bundledEncodings == null ||
+              !bundledEncodings.any((encoding) => encoding.trim().isNotEmpty)) {
+            return null;
+          }
+          firstBundleHasEncoding = bundledEncodings.first.trim().isNotEmpty;
+          final existingModels = entry.bundledVibeEncodingModels;
+          updatedBundledModels = [
+            for (var i = 0; i < bundledEncodings.length; i++)
+              bundledEncodings[i].trim().isNotEmpty
+                  ? normalizedModel
+                  : existingModels != null && i < existingModels.length
+                  ? existingModels[i]
+                  : null,
+          ];
+        }
+      } else if (!singleVibe!.hasVibeEncoding) {
+        return null;
+      }
+
+      final updatedSingleVibe = singleVibe?.copyWith(
         encodingModel: normalizedModel,
-        bundledVibeEncodingModels: bundledModelCount == null
-            ? entry.bundledVibeEncodingModels
-            : List<String?>.filled(bundledModelCount, normalizedModel),
       );
+      final updatedEntry = updatedSingleVibe != null
+          ? entry.updateVibeData(updatedSingleVibe)
+          : entry.copyWith(
+              encodingModel: firstBundleHasEncoding
+                  ? normalizedModel
+                  : entry.encodingModel,
+              bundledVibeEncodingModels:
+                  updatedBundledModels ?? entry.bundledVibeEncodingModels,
+            );
 
       if (filePath != null && filePath.isNotEmpty) {
         if (entry.isBundle) {
           await _fileStorage.overwriteBundleFile(filePath, [
-            for (final vibe in bundleVibes!)
+            for (final vibe in encodedBundleVibes!)
               vibe.copyWith(encodingModel: normalizedModel),
           ], defaultModel: normalizedModel);
         } else {
           await _fileStorage.overwriteVibeFile(
             filePath,
-            updatedEntry.toVibeReference(),
+            updatedSingleVibe!,
             displayName: updatedEntry.name,
             defaultModel: normalizedModel,
           );
