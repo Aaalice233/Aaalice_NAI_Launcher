@@ -179,6 +179,27 @@ class UnifiedMetadataParser {
     return true;
   }
 
+  /// 读取 PNG 文本元数据，同时支持 Latin-1 `tEXt` 和 UTF-8 `iTXt`。
+  ///
+  /// `package:image` 4.3.0 只暴露 `tEXt`，因此 Unicode 提示词需要在这里
+  /// 额外解析标准 `iTXt`，避免中文等内容被丢弃或误解码。
+  static Map<String, String> extractPngTextData(Uint8List bytes) {
+    if (!isPngHeader(bytes)) return const {};
+
+    final textData = <String, String>{};
+    try {
+      final info = img.PngDecoder().startDecode(bytes);
+      if (info is img.PngInfo) {
+        textData.addAll(info.textData);
+      }
+    } catch (_) {
+      // 手动 chunk 解析仍可能成功。
+    }
+
+    textData.addAll(_extractTextDataFromChunks(bytes));
+    return textData;
+  }
+
   /// 从 PNG 文件路径提取元数据（智能渐进式读取）
   ///
   /// [filePath] PNG 文件路径
@@ -339,7 +360,10 @@ class UnifiedMetadataParser {
       }
 
       final pngInfo = info as img.PngInfo;
-      final textData = pngInfo.textData;
+      final textData = <String, String>{
+        ...pngInfo.textData,
+        ..._extractTextDataFromChunks(bytes),
+      };
 
       // PortableLogger.d(
       //   'PNG decoded successfully, ${fileInfo}textData fields: ${textData.keys.toList()}',
@@ -523,24 +547,19 @@ class UnifiedMetadataParser {
       for (var i = 0; i < chunks.length; i++) {
         final chunk = chunks[i];
 
-        // 如果存在相同 keyword 的 chunk，替换它
-        if (chunk.type == 'tEXt' && !textChunkAdded) {
-          final nullIndex = chunk.data.indexOf(0);
-          if (nullIndex > 0) {
-            final existingKeyword = latin1.decode(
-              chunk.data.sublist(0, nullIndex),
-            );
-            if (existingKeyword == keyword) {
-              _writeTextChunk(output, keyword, text);
-              textChunkAdded = true;
-              continue; // 跳过原始 chunk
-            }
+        // 替换同名 tEXt/iTXt/zTXt，并清除重复项。
+        final existingKeyword = _textChunkKeyword(chunk);
+        if (existingKeyword == keyword) {
+          if (!textChunkAdded) {
+            _writeTextMetadataChunk(output, keyword, text);
+            textChunkAdded = true;
           }
+          continue;
         }
 
         // 在第一个 IDAT 之前插入新 chunk（PNG 规范建议）
         if (i == idatIndex && !textChunkAdded) {
-          _writeTextChunk(output, keyword, text);
+          _writeTextMetadataChunk(output, keyword, text);
           textChunkAdded = true;
         }
 
@@ -550,7 +569,7 @@ class UnifiedMetadataParser {
 
       // 如果还没添加（没有 IDAT 的情况），追加到末尾
       if (!textChunkAdded) {
-        _writeTextChunk(output, keyword, text);
+        _writeTextMetadataChunk(output, keyword, text);
       }
 
       return output.toBytes();
@@ -728,6 +747,93 @@ class UnifiedMetadataParser {
     return chunks;
   }
 
+  static Map<String, String> _extractTextDataFromChunks(Uint8List bytes) {
+    final result = <String, String>{};
+    for (final chunk in _parsePngChunks(bytes)) {
+      final entry = switch (chunk.type) {
+        'tEXt' => _decodeTextChunk(chunk.data),
+        'iTXt' => _decodeInternationalTextChunk(chunk.data),
+        'zTXt' => _decodeCompressedTextChunk(chunk.data),
+        _ => null,
+      };
+      if (entry != null) {
+        result[entry.$1] = entry.$2;
+      }
+    }
+    return result;
+  }
+
+  static (String, String)? _decodeTextChunk(Uint8List data) {
+    final separator = data.indexOf(0);
+    if (separator <= 0) return null;
+    return (
+      latin1.decode(data.sublist(0, separator)),
+      latin1.decode(data.sublist(separator + 1)),
+    );
+  }
+
+  static (String, String)? _decodeInternationalTextChunk(Uint8List data) {
+    final keywordEnd = data.indexOf(0);
+    if (keywordEnd <= 0 || keywordEnd + 5 > data.length) return null;
+
+    var cursor = keywordEnd + 1;
+    final compressionFlag = data[cursor++];
+    final compressionMethod = data[cursor++];
+    final languageEnd = data.indexOf(0, cursor);
+    if (languageEnd < 0) return null;
+    cursor = languageEnd + 1;
+    final translatedKeywordEnd = data.indexOf(0, cursor);
+    if (translatedKeywordEnd < 0) return null;
+    cursor = translatedKeywordEnd + 1;
+
+    List<int> textBytes = data.sublist(cursor);
+    if (compressionFlag == 1) {
+      if (compressionMethod != 0) return null;
+      textBytes = ZLibCodec().decode(textBytes);
+    } else if (compressionFlag != 0) {
+      return null;
+    }
+
+    return (latin1.decode(data.sublist(0, keywordEnd)), utf8.decode(textBytes));
+  }
+
+  static (String, String)? _decodeCompressedTextChunk(Uint8List data) {
+    final keywordEnd = data.indexOf(0);
+    if (keywordEnd <= 0 || keywordEnd + 2 > data.length) return null;
+    final compressionMethod = data[keywordEnd + 1];
+    if (compressionMethod != 0) return null;
+    final decoded = ZLibCodec().decode(data.sublist(keywordEnd + 2));
+    return (latin1.decode(data.sublist(0, keywordEnd)), latin1.decode(decoded));
+  }
+
+  static String? _textChunkKeyword(_PngChunk chunk) {
+    if (chunk.type != 'tEXt' && chunk.type != 'iTXt' && chunk.type != 'zTXt') {
+      return null;
+    }
+    final separator = chunk.data.indexOf(0);
+    if (separator <= 0) return null;
+    return latin1.decode(chunk.data.sublist(0, separator));
+  }
+
+  static bool _isLatin1(String text) {
+    for (final codeUnit in text.codeUnits) {
+      if (codeUnit > 0xff) return false;
+    }
+    return true;
+  }
+
+  static void _writeTextMetadataChunk(
+    BytesBuilder builder,
+    String keyword,
+    String text,
+  ) {
+    if (_isLatin1(text)) {
+      _writeTextChunk(builder, keyword, text);
+    } else {
+      _writeInternationalTextChunk(builder, keyword, text);
+    }
+  }
+
   /// 写入 tEXt chunk 到 builder
   static void _writeTextChunk(
     BytesBuilder builder,
@@ -743,6 +849,22 @@ class UnifiedMetadataParser {
     data.setAll(keywordBytes.length + 1, textBytes);
 
     _writeChunk(builder, 'tEXt', data);
+  }
+
+  /// 写入未压缩 UTF-8 iTXt chunk。
+  static void _writeInternationalTextChunk(
+    BytesBuilder builder,
+    String keyword,
+    String text,
+  ) {
+    final keywordBytes = latin1.encode(keyword);
+    final textBytes = utf8.encode(text);
+    final data = Uint8List(keywordBytes.length + 5 + textBytes.length);
+    data.setAll(0, keywordBytes);
+    // keyword terminator, compression flag/method, empty language tag and
+    // empty translated keyword are all zero-filled.
+    data.setAll(keywordBytes.length + 5, textBytes);
+    _writeChunk(builder, 'iTXt', data);
   }
 
   /// 写入 PNG chunk（带 length + type + data + crc 结构）
@@ -767,128 +889,12 @@ class UnifiedMetadataParser {
     builder.add(crcBytes.buffer.asUint8List());
   }
 
-  /// 更新 PNG 的 tEXt chunk 中的 Comment 字段
+  /// 更新 PNG 的 Comment 文本字段。
   static Future<Uint8List> _updateTextChunk(
     Uint8List bytes,
     String metadataJson,
   ) async {
-    try {
-      final chunks = _parsePngChunks(bytes);
-      final output = BytesBuilder();
-
-      // 写入 PNG 文件头
-      output.add(bytes.sublist(0, 8));
-
-      var commentUpdated = false;
-
-      for (final chunk in chunks) {
-        if (chunk.type == 'tEXt' && !commentUpdated) {
-          // 解析现有的 tEXt chunk
-          final nullIndex = chunk.data.indexOf(0);
-
-          if (nullIndex > 0) {
-            final keyword = latin1.decode(chunk.data.sublist(0, nullIndex));
-
-            if (keyword == 'Comment') {
-              // 更新 Comment chunk
-              final newComment = _createTextChunk('Comment', metadataJson);
-              output.add(newComment);
-              commentUpdated = true;
-              continue; // 跳过原始 chunk
-            }
-          }
-        }
-
-        // 写入原始 chunk
-        output.add(_createChunk(chunk.type, chunk.data));
-      }
-
-      // 如果没有找到 Comment chunk，添加一个新的
-      if (!commentUpdated) {
-        final newComment = _createTextChunk('Comment', metadataJson);
-        // 在 IHDR 之后插入（通常是第二个位置）
-        final ihdrEnd = _findChunkEnd(bytes, 'IHDR');
-        if (ihdrEnd > 0) {
-          final result = output.toBytes();
-          final before = result.sublist(0, ihdrEnd);
-          final after = result.sublist(ihdrEnd);
-          return Uint8List.fromList([...before, ...newComment, ...after]);
-        }
-      }
-
-      return output.toBytes();
-    } catch (e) {
-      PortableLogger.w(
-        '[UnifiedMetadataParser] Failed to update tEXt chunk: $e',
-        _tag,
-      );
-      return bytes; // 失败时返回原始数据
-    }
-  }
-
-  /// 创建 tEXt chunk
-  static Uint8List _createTextChunk(String keyword, String text) {
-    final keywordBytes = latin1.encode(keyword);
-    final textBytes = latin1.encode(text);
-    final data = Uint8List(keywordBytes.length + 1 + textBytes.length);
-
-    data.setRange(0, keywordBytes.length, keywordBytes);
-    data[keywordBytes.length] = 0; // null separator
-    data.setRange(keywordBytes.length + 1, data.length, textBytes);
-
-    return _createChunk('tEXt', data);
-  }
-
-  /// 创建 PNG chunk
-  static Uint8List _createChunk(String type, Uint8List data) {
-    final output = BytesBuilder();
-
-    // Length (4 bytes, big-endian)
-    final lengthBytes = ByteData(4)..setUint32(0, data.length);
-    output.add(lengthBytes.buffer.asUint8List());
-
-    // Type (4 bytes)
-    final typeBytes = latin1.encode(type);
-    output.add(typeBytes);
-
-    // Data
-    output.add(data);
-
-    // CRC32 (type + data)
-    final crcInput = Uint8List(typeBytes.length + data.length);
-    crcInput.setRange(0, typeBytes.length, typeBytes);
-    crcInput.setRange(typeBytes.length, crcInput.length, data);
-    final crc = _crc32(crcInput);
-    final crcBytes = ByteData(4)..setUint32(0, crc);
-    output.add(crcBytes.buffer.asUint8List());
-
-    return output.toBytes();
-  }
-
-  /// 查找 chunk 的结束位置
-  static int _findChunkEnd(Uint8List bytes, String chunkType) {
-    var offset = 8; // 跳过 PNG 文件头
-
-    while (offset < bytes.length) {
-      if (offset + 8 > bytes.length) break;
-
-      final length = ByteData.sublistView(
-        bytes,
-        offset,
-        offset + 4,
-      ).getUint32(0);
-      final type = latin1.decode(bytes.sublist(offset + 4, offset + 8));
-
-      if (type == chunkType) {
-        return offset +
-            12 +
-            length; // length(4) + type(4) + data(length) + crc(4)
-      }
-
-      offset += 12 + length;
-    }
-
-    return 0;
+    return embedTextChunkOnly(bytes, 'Comment', metadataJson);
   }
 
   /// CRC32 计算（PNG 标准）
@@ -1324,8 +1330,11 @@ class UnifiedMetadataParser {
       final key = entry.key.toLowerCase();
       final value = entry.value;
 
-      // Prompt 字段
-      if (key.contains('prompt') && !key.contains('negative')) {
+      // ComfyUI 把完整执行图放在名为 prompt 的 PNG 字段中；该 JSON
+      // 不能作为用户提示词展示。
+      if (key.contains('prompt') &&
+          !key.contains('negative') &&
+          !_looksLikeComfyWorkflowJson(value)) {
         prompt ??= value;
       }
 
@@ -1409,6 +1418,22 @@ class UnifiedMetadataParser {
     }
 
     return null;
+  }
+
+  static bool _looksLikeComfyWorkflowJson(String value) {
+    if (!value.trimLeft().startsWith('{')) return false;
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is! Map<String, dynamic> || decoded.isEmpty) return false;
+      return decoded.values.any(
+        (node) =>
+            node is Map &&
+            node['class_type'] is String &&
+            node['inputs'] is Map,
+      );
+    } catch (_) {
+      return false;
+    }
   }
 
   /// 从 JSON 中提取字符串
@@ -1736,16 +1761,20 @@ class ComfyUiParser implements MetadataParser {
         int? seed;
 
         for (final entry in json.entries) {
-          final node = entry.value as Map<String, dynamic>;
+          final value = entry.value;
+          if (value is! Map) continue;
+          final node = Map<String, dynamic>.from(value);
           final classType = node['class_type'] as String?;
 
           if (classType?.contains('KSampler') == true) {
             final inputs = node['inputs'] as Map<String, dynamic>?;
             if (inputs != null) {
               sampler = inputs['sampler_name'] as String?;
-              steps = inputs['steps'] as int?;
+              steps = (inputs['steps'] as num?)?.toInt();
               cfg = (inputs['cfg'] as num?)?.toDouble();
-              seed = inputs['seed'] as int?;
+              seed =
+                  (inputs['seed'] as num?)?.toInt() ??
+                  (inputs['noise_seed'] as num?)?.toInt();
             }
           }
 
@@ -1764,14 +1793,18 @@ class ComfyUiParser implements MetadataParser {
           }
         }
 
-        if (positivePrompt != null) {
+        if (positivePrompt != null ||
+            sampler != null ||
+            steps != null ||
+            cfg != null ||
+            seed != null) {
           return NaiImageMetadata(
-            prompt: positivePrompt,
+            prompt: positivePrompt ?? '',
             negativePrompt: negativePrompt ?? '',
-            seed: seed ?? 0,
-            sampler: sampler ?? 'Unknown',
-            steps: steps ?? 0,
-            scale: cfg ?? 7.0,
+            seed: seed,
+            sampler: sampler,
+            steps: steps,
+            scale: cfg,
             model: 'Unknown',
             software: 'ComfyUI',
             rawJson: prompt,
