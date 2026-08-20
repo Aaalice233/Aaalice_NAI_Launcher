@@ -47,6 +47,7 @@ abstract final class CompletionResultLimits {
   static const int _legacyAll = 200000;
   static const int oneCharacter = 100;
   static const int danbooruPageSize = 1000;
+  static const int initialRelatedTags = 100;
   static const int maxRelatedTags = 25000;
 
   static bool isAll(int value) => value >= _legacyAll;

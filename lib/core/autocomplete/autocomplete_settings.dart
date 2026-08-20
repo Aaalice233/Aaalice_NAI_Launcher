@@ -12,6 +12,7 @@ class AutocompleteSettings {
     this.showTranslations = true,
     this.autoInsertComma = true,
     this.replaceUnderscores = false,
+    this.openOnTagClick = false,
     this.danbooruEnabled = true,
     this.relatedTagsEnabled = true,
     this.llmTranslationEnabled = false,
@@ -24,6 +25,7 @@ class AutocompleteSettings {
   final bool showTranslations;
   final bool autoInsertComma;
   final bool replaceUnderscores;
+  final bool openOnTagClick;
   final bool danbooruEnabled;
   final bool relatedTagsEnabled;
   final bool llmTranslationEnabled;
@@ -36,6 +38,7 @@ class AutocompleteSettings {
     bool? showTranslations,
     bool? autoInsertComma,
     bool? replaceUnderscores,
+    bool? openOnTagClick,
     bool? danbooruEnabled,
     bool? relatedTagsEnabled,
     bool? llmTranslationEnabled,
@@ -48,6 +51,7 @@ class AutocompleteSettings {
       showTranslations: showTranslations ?? this.showTranslations,
       autoInsertComma: autoInsertComma ?? this.autoInsertComma,
       replaceUnderscores: replaceUnderscores ?? this.replaceUnderscores,
+      openOnTagClick: openOnTagClick ?? this.openOnTagClick,
       danbooruEnabled: danbooruEnabled ?? this.danbooruEnabled,
       relatedTagsEnabled: relatedTagsEnabled ?? this.relatedTagsEnabled,
       llmTranslationEnabled:
@@ -109,6 +113,12 @@ class AutocompleteSettingsNotifier extends StateNotifier<AutocompleteSettings> {
         replaceUnderscores:
             storage.getSetting<bool>(
               StorageKeys.autocompleteReplaceUnderscores,
+              defaultValue: false,
+            ) ??
+            false,
+        openOnTagClick:
+            storage.getSetting<bool>(
+              StorageKeys.autocompleteOpenOnTagClick,
               defaultValue: false,
             ) ??
             false,
@@ -183,6 +193,12 @@ class AutocompleteSettingsNotifier extends StateNotifier<AutocompleteSettings> {
   Future<void> setReplaceUnderscores(bool value) => _set(
     state.copyWith(replaceUnderscores: value),
     StorageKeys.autocompleteReplaceUnderscores,
+    value,
+  );
+
+  Future<void> setOpenOnTagClick(bool value) => _set(
+    state.copyWith(openOnTagClick: value),
+    StorageKeys.autocompleteOpenOnTagClick,
     value,
   );
 

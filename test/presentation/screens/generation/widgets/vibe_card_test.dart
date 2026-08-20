@@ -136,6 +136,87 @@ void main() {
     expect(nextEnabled, isFalse);
   });
 
+  testWidgets('未编码原图加入卡片后不会自动弹出编码确认', (tester) async {
+    final vibe = VibeReference(
+      displayName: 'raw-image',
+      vibeEncoding: '',
+      rawImageData: Uint8List.fromList(const [1, 2, 3]),
+      thumbnail: Uint8List.fromList(const [1, 2, 3]),
+      strength: 0.6,
+      infoExtracted: 0.7,
+      sourceType: VibeSourceType.rawImage,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: VibeCard(
+              index: 0,
+              vibe: vibe,
+              onRemove: () {},
+              onStrengthChanged: (_) {},
+              onInfoExtractedChanged: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('窄宽卡片将操作区收进边界且删除按钮可点击', (tester) async {
+    final vibe = VibeReference(
+      displayName: 'narrow-card',
+      vibeEncoding: 'encoded',
+      thumbnail: Uint8List.fromList(const [1, 2, 3]),
+      strength: 0.6,
+      infoExtracted: 0.7,
+      sourceType: VibeSourceType.naiv4vibe,
+    );
+    var removed = false;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 154,
+                child: VibeCard(
+                  index: 0,
+                  vibe: vibe,
+                  onRemove: () => removed = true,
+                  onStrengthChanged: (_) {},
+                  onInfoExtractedChanged: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final cardRect = tester.getRect(
+      find.byKey(const ValueKey('vibe-card-container-0')),
+    );
+    final removeFinder = find.byKey(const Key('vibe-card-remove-0'));
+    final removeRect = tester.getRect(removeFinder);
+    expect(cardRect.contains(removeRect.center), isTrue);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(removeFinder);
+    await tester.pump();
+    expect(removed, isTrue);
+  });
+
   testWidgets('关闭的 Vibe 卡片会降低整体透明度', (tester) async {
     final vibe = VibeReference(
       displayName: 'disabled-test',

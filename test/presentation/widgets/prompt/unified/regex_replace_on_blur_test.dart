@@ -161,6 +161,67 @@ void main() {
     expect(controller.text, '1.2::aqua hair::');
   });
 
+  testWidgets('自动格式化保留换行和分段', (tester) async {
+    await pumpInput(
+      tester,
+      enableRegexReplace: false,
+      rules: const [],
+      enableAutoFormat: true,
+    );
+
+    await typeAndBlur(
+      tester,
+      'quality tags, best quality,\n\n  blue hair, red eyes',
+    );
+
+    expect(
+      controller.text,
+      'quality_tags, best_quality,\n\n  blue_hair, red_eyes',
+    );
+  });
+
+  testWidgets('失焦格式化后光标保持在原来的行列', (tester) async {
+    await pumpInput(
+      tester,
+      enableRegexReplace: false,
+      rules: const [],
+      enableAutoFormat: true,
+    );
+
+    const original = 'masterpiece   tag,\nblue hair, smile';
+    final caretOffset = original.indexOf('smile') + 2;
+    controller.value = const TextEditingValue(
+      text: original,
+    ).copyWith(selection: TextSelection.collapsed(offset: caretOffset));
+    focusNode.requestFocus();
+    await tester.pump();
+    focusNode.unfocus();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+
+    const formatted = 'masterpiece_tag,\nblue_hair, smile';
+    expect(controller.text, formatted);
+    expect(
+      controller.selection,
+      TextSelection.collapsed(offset: formatted.indexOf('smile') + 2),
+    );
+  });
+
+  testWidgets('关闭自动格式化时完整保留原始排版', (tester) async {
+    await pumpInput(
+      tester,
+      enableRegexReplace: false,
+      rules: const [],
+      enableAutoFormat: false,
+    );
+
+    const original = 'quality   tags，\n\n  blue hair';
+    await typeAndBlur(tester, original);
+
+    expect(controller.text, original);
+  });
+
   testWidgets('非法规则被跳过，合法规则照常生效', (tester) async {
     await pumpInput(
       tester,

@@ -962,7 +962,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get prompt_autoFormatSubtitle =>
-      'Convert Chinese commas to English, auto-add underscores';
+      'Convert Chinese commas and tag spaces while preserving line breaks';
 
   @override
   String get prompt_highlightEmphasis => 'Highlight Emphasis';
@@ -4322,23 +4322,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Prompt appears in both main and character prompts\nSuitable for: pose, interaction, and other universal tags';
 
   @override
-  String get vibeNoEncodingWarning => 'This image has no pre-encoded data';
-
-  @override
-  String vibeWillCostAnlas(int count) {
-    return 'Encoding will cost $count Anlas';
-  }
-
-  @override
-  String get vibeEncodeConfirm => 'Continue and consume Anlas?';
-
-  @override
-  String get vibeCancel => 'Cancel';
-
-  @override
-  String get vibeConfirmEncode => 'Encode';
-
-  @override
   String get vibeParseFailed => 'Failed to parse Vibe file';
 
   @override
@@ -7147,9 +7130,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get metadataImport_clear => 'Clear';
 
   @override
-  String get metadataImport_prompt => 'Prompt';
-
-  @override
   String get metadataImport_mainPrompt => 'Main Prompt';
 
   @override
@@ -7225,42 +7205,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get metadataImport_seed => 'Seed';
-
-  @override
-  String get metadataImport_steps => 'Steps';
-
-  @override
-  String get metadataImport_scale => 'CFG Scale';
-
-  @override
-  String get metadataImport_size => 'Size';
-
-  @override
-  String get metadataImport_sampler => 'Sampler';
-
-  @override
-  String get metadataImport_model => 'Model';
-
-  @override
-  String get metadataImport_smea => 'SMEA';
-
-  @override
-  String get metadataImport_smeaDyn => 'SMEA Dyn';
-
-  @override
-  String get metadataImport_noiseSchedule => 'Noise Schedule';
-
-  @override
-  String get metadataImport_cfgRescale => 'CFG Rescale';
-
-  @override
-  String get metadataImport_qualityToggle => 'Quality Toggle';
-
-  @override
-  String get metadataImport_ucPreset => 'Undesired Content Preset';
-
-  @override
   String get metadataImport_noData => '(no data)';
 
   @override
@@ -7278,16 +7222,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String metadataImport_appliedCount(int count) {
     return 'Applied $count parameters';
   }
-
-  @override
-  String get metadataImport_appliedTitle => 'Metadata Applied';
-
-  @override
-  String get metadataImport_appliedDescription =>
-      'The following parameters have been applied:';
-
-  @override
-  String get metadataImport_charactersCount => 'characters';
 
   @override
   String get shortcut_context_global => 'Global';
@@ -8578,41 +8512,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vibe_import_confirm => 'Confirm';
 
   @override
-  String get vibe_import_noEncodingData => 'No encoding data';
-
-  @override
   String get vibe_import_encodingCost => 'Encoding will cost 2 Anlas';
 
   @override
-  String get vibe_import_confirmCost => 'Continue and consume Anlas?';
-
-  @override
-  String get vibe_import_encodeNow => 'Encode immediately (2 Anlas)';
-
-  @override
-  String get vibe_addImageOnly => 'Add image only';
-
-  @override
-  String get vibe_import_autoSave => 'Auto-save to library';
-
-  @override
   String get vibe_import_encodingFailed => 'Encoding failed';
-
-  @override
-  String get vibe_import_encodingFailedMessage =>
-      'Failed to encode vibe. Continue adding unencoded image?';
-
-  @override
-  String get vibe_import_encodingInProgress => 'Encoding...';
-
-  @override
-  String get vibe_import_encodingComplete => 'Encoding complete';
-
-  @override
-  String get vibe_import_partialFailed => 'Partial encoding failed';
-
-  @override
-  String get vibe_import_timeout => 'Encoding timeout';
 
   @override
   String get vibe_import_title => 'Import from Library';
@@ -11640,6 +11543,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get autocomplete_autoComma => 'Add a comma after insertion';
+
+  @override
+  String get autocomplete_openOnTagClick =>
+      'Open autocomplete when clicking tags';
+
+  @override
+  String get autocomplete_openOnTagClickSubtitle =>
+      'When enabled, clicking an existing tag opens normal autocomplete; Ctrl/Command-click still shows related tags';
 
   @override
   String get autocomplete_replaceUnderscores =>

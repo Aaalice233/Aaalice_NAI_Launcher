@@ -157,6 +157,14 @@ void main() {
       findsNothing,
     );
 
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 30));
+    expect(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
+      findsNothing,
+    );
+
     await _typeCurrentText(tester, controller);
     expect(
       find.byKey(const ValueKey('autocomplete-popup-surface')),
@@ -179,8 +187,60 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('opens normal autocomplete on tag click when enabled', (
+    tester,
+  ) async {
+    final controller = TextEditingController(text: 'blu');
+    controller.selection = const TextSelection.collapsed(offset: 3);
+    final focusNode = FocusNode();
+    addTearDown(() {
+      controller.dispose();
+      focusNode.dispose();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          autocompleteSettingsProvider.overrideWith(
+            (ref) => _OpenOnTagClickSettingsNotifier(),
+          ),
+          autocompleteServicesProvider.overrideWithValue(
+            AutocompleteServices(
+              localSources: [_BaseSource()],
+              dictionaryTranslations: const _NoTranslations(),
+              llmTranslations: const _NoTranslations(),
+              danbooru: _NoDanbooru(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: AutocompleteWrapper(
+              controller: controller,
+              focusNode: focusNode,
+              child: TextField(controller: controller, focusNode: focusNode),
+            ),
+          ),
+        ),
+      ),
+    );
+    focusNode.requestFocus();
+    await tester.pump();
+
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 30));
+
+    expect(find.text('Tag autocomplete'), findsOneWidget);
+    expect(find.text('blue_eyes'), findsOneWidget);
+    expect(find.text('Related tags'), findsNothing);
+  });
+
   testWidgets(
-    'selection callback receives the updated full text without auto-related mode',
+    'selection callback receives full text and normal completion opens related tags',
     (tester) async {
       final controller = TextEditingController(text: 'masterpiece, blu');
       controller.selection = const TextSelection.collapsed(offset: 16);
@@ -232,7 +292,19 @@ void main() {
 
       expect(controller.text, 'masterpiece, blue_eyes');
       expect(selectedText, controller.text);
-      expect(source.tokens, hasLength(queryCountBeforeSelection));
+      expect(source.tokens, hasLength(queryCountBeforeSelection + 2));
+      expect(source.relatedTags.last, 'blue_eyes');
+      expect(find.text('Related tags'), findsOneWidget);
+      expect(find.text('halo'), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+
+      expect(controller.text, 'masterpiece, blue_eyes, halo');
+      expect(source.relatedTags.last, 'halo');
+      expect(find.text('Related tags'), findsOneWidget);
+      expect(find.text('smile'), findsOneWidget);
     },
   );
 
@@ -613,6 +685,65 @@ void main() {
     );
   });
 
+  testWidgets('Ctrl-click keeps related intent until mouse up', (tester) async {
+    final controller = TextEditingController(text: 'solo_focus');
+    controller.selection = const TextSelection.collapsed(offset: 10);
+    final focusNode = FocusNode();
+    addTearDown(() {
+      controller.dispose();
+      focusNode.dispose();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          autocompleteSettingsProvider.overrideWith(
+            (ref) => _OpenOnTagClickSettingsNotifier(),
+          ),
+          autocompleteServicesProvider.overrideWithValue(
+            AutocompleteServices(
+              localSources: [_NormalAndRelatedSource()],
+              dictionaryTranslations: const _NoTranslations(),
+              llmTranslations: const _NoTranslations(),
+              danbooru: _NoDanbooru(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: AutocompleteWrapper(
+              controller: controller,
+              focusNode: focusNode,
+              child: TextField(controller: controller, focusNode: focusNode),
+            ),
+          ),
+        ),
+      ),
+    );
+    focusNode.requestFocus();
+    await tester.pump();
+    await _typeCurrentText(tester, controller);
+    expect(find.text('Tag autocomplete'), findsOneWidget);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    expect(HardwareKeyboard.instance.isControlPressed, isTrue);
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(
+      location: tester.getCenter(find.byType(TextField)),
+    );
+    await gesture.down(tester.getCenter(find.byType(TextField)));
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 30));
+    await tester.pump();
+
+    expect(find.text('Related tags'), findsOneWidget);
+    expect(find.text('halo'), findsOneWidget);
+  });
+
   testWidgets(
     'opens, pins, and continuously inserts related tags by keyboard',
     (tester) async {
@@ -863,10 +994,25 @@ class _BaseSource implements CompletionSource {
 
 class _RecordingBaseSource implements CompletionSource {
   final List<String> tokens = [];
+  final List<String> relatedTags = [];
 
   @override
   Future<List<CompletionCandidate>> search(CompletionQuery query) async {
     tokens.add(query.token);
+    if (query.relatedTag case final relatedTag?) {
+      relatedTags.add(relatedTag);
+      return [
+        CompletionCandidate(
+          canonicalTag: relatedTag == 'blue_eyes' ? 'halo' : 'smile',
+          category: TagCategory.general,
+          postCount: 250000,
+          matchKind: CompletionMatchKind.related,
+          sources: const {CompletionSourceKind.cooccurrence},
+          relatedScore: 0.77,
+          cooccurrenceCount: 220000,
+        ),
+      ];
+    }
     return [
       CompletionCandidate(
         canonicalTag: query.token == '蓝' ? '蓝色眼睛' : 'blue_eyes',
@@ -941,6 +1087,34 @@ class _LibrarySource implements CompletionSource {
   }
 }
 
+class _NormalAndRelatedSource implements CompletionSource {
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) async {
+    if (query.relatedTag != null) {
+      return const [
+        CompletionCandidate(
+          canonicalTag: 'halo',
+          category: TagCategory.general,
+          postCount: 250000,
+          matchKind: CompletionMatchKind.related,
+          sources: {CompletionSourceKind.cooccurrence},
+          relatedScore: 0.77,
+          cooccurrenceCount: 220000,
+        ),
+      ];
+    }
+    return const [
+      CompletionCandidate(
+        canonicalTag: 'solo_focus',
+        category: TagCategory.general,
+        postCount: 497667,
+        matchKind: CompletionMatchKind.englishExact,
+        sources: {CompletionSourceKind.base},
+      ),
+    ];
+  }
+}
+
 class _RelatedSource implements CompletionSource {
   @override
   Future<List<CompletionCandidate>> search(CompletionQuery query) async {
@@ -969,6 +1143,16 @@ class _RelatedSource implements CompletionSource {
           (candidate) => !query.existingTags.contains(candidate.canonicalTag),
         )
         .toList();
+  }
+}
+
+class _OpenOnTagClickSettingsNotifier extends AutocompleteSettingsNotifier {
+  _OpenOnTagClickSettingsNotifier() : super(LocalStorageService()) {
+    state = const AutocompleteSettings(
+      openOnTagClick: true,
+      danbooruEnabled: false,
+      zhInstallPromptDismissed: true,
+    );
   }
 }
 

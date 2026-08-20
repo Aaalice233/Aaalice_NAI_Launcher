@@ -1,7 +1,5 @@
-import 'dart:collection';
 import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -64,51 +62,10 @@ class VibeCard extends ConsumerStatefulWidget {
 class _VibeCardState extends ConsumerState<VibeCard> {
   bool _isEncoding = false;
 
-  // 跟踪已经显示过编码对话框的 vibe（使用缩略图哈希作为 ID）
-  // 使用 LinkedHashSet 保持插入顺序，便于实现 LRU 淘汰
-  static final LinkedHashSet<String> _shownDialogs = LinkedHashSet<String>();
-
   /// 把当前这一条 Vibe 保存到 Vibe 库（复用已有的命名/查重流程）
   Future<void> _saveToLibrary() async {
     final handler = VibeImportHandler(ref: ref, context: context);
     await handler.saveToLibrary([widget.vibe]);
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // 如果是新添加的未编码原始图片，自动显示编码对话框
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkAndShowEncodingDialog();
-    });
-  }
-
-  void _checkAndShowEncodingDialog() {
-    final vibe = widget.vibe;
-    final needsEncoding =
-        vibe.canReencodeFromRawSource && vibe.vibeEncoding.isEmpty;
-
-    if (needsEncoding) {
-      // 生成唯一 ID（基于图片数据哈希）
-      final vibeId = _calculateVibeId(vibe);
-
-      // 确保只显示一次（限制 Set 大小防止内存泄漏）
-      if (!_shownDialogs.contains(vibeId)) {
-        // LRU 淘汰：如果超过 100 条，移除最旧的
-        if (_shownDialogs.length >= 100) {
-          _shownDialogs.remove(_shownDialogs.first);
-        }
-        _shownDialogs.add(vibeId);
-        _showEncodingDialog();
-      }
-    }
-  }
-
-  String _calculateVibeId(VibeReference vibe) {
-    if (vibe.rawImageData != null) {
-      return sha256.convert(vibe.rawImageData!).toString();
-    }
-    return vibe.displayName + DateTime.now().millisecondsSinceEpoch.toString();
   }
 
   @override
@@ -117,6 +74,7 @@ class _VibeCardState extends ConsumerState<VibeCard> {
     final vibe = widget.vibe;
 
     return Container(
+      key: ValueKey('vibe-card-container-${widget.index}'),
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -128,97 +86,172 @@ class _VibeCardState extends ConsumerState<VibeCard> {
         opacity: vibe.enabled ? 1.0 : _disabledVibeCardOpacity,
         duration: const Duration(milliseconds: 160),
         curve: Curves.easeOut,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 左侧：缩略图 + Bundle 标签
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildThumbnail(theme),
-                const SizedBox(height: 6),
-                // Bundle 来源标识移到缩略图下方，宽度与缩略图一致
-                if (vibe.bundleSource != null)
-                  _buildBundleSourceChip(context, theme),
-              ],
-            ),
-            const SizedBox(width: 12),
-
-            // 右侧：滑条和源类型
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 顶部行：编码状态标签 + 删除按钮
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // 编码状态标签
-                      _buildEncodingStatusChip(context, theme),
-                      const Spacer(),
-                      _buildEnabledSwitch(context),
-                      const SizedBox(width: 4),
-                      // 保存到库按钮（右上角）
-                      SizedBox(
-                        width: 28,
-                        height: 28,
-                        child: IconButton(
-                          key: Key('vibe-card-save-to-library-${widget.index}'),
-                          padding: EdgeInsets.zero,
-                          icon: Icon(
-                            Icons.bookmark_add_outlined,
-                            size: 18,
-                            color: theme.colorScheme.primary,
-                          ),
-                          onPressed: _saveToLibrary,
-                          tooltip: context.l10n.vibeLibrary_save,
-                        ),
-                      ),
-                      // 删除按钮（右上角）
-                      SizedBox(
-                        width: 28,
-                        height: 28,
-                        child: IconButton(
-                          padding: EdgeInsets.zero,
-                          icon: Icon(
-                            Icons.delete_outline,
-                            size: 18,
-                            color: theme.colorScheme.error,
-                          ),
-                          onPressed: widget.onRemove,
-                          tooltip: context.l10n.vibe_remove,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Reference Strength 滑条
-                  _buildSliderRow(
-                    context,
-                    theme,
-                    label: context.l10n.vibe_referenceStrength,
-                    value: vibe.strength,
-                    onChanged: widget.onStrengthChanged,
-                  ),
-
-                  if (vibe.canReencodeFromRawSource) ...[
-                    const SizedBox(height: 8),
-                    // Information Extracted 滑条
-                    _buildSliderRow(
-                      context,
-                      theme,
-                      label: context.l10n.vibe_infoExtraction,
-                      value: vibe.infoExtracted,
-                      onChanged: widget.onInfoExtractedChanged,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 340) {
+              return _buildCompactContent(context, theme, vibe);
+            }
+            return _buildWideContent(context, theme, vibe);
+          },
         ),
       ),
+    );
+  }
+
+  Widget _buildWideContent(
+    BuildContext context,
+    ThemeData theme,
+    VibeReference vibe,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildPreviewColumn(context, theme, vibe),
+        const SizedBox(width: 12),
+        Expanded(child: _buildSettings(context, theme, vibe)),
+      ],
+    );
+  }
+
+  Widget _buildCompactContent(
+    BuildContext context,
+    ThemeData theme,
+    VibeReference vibe,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildHeader(context, theme, compact: true),
+        const SizedBox(height: 10),
+        Center(child: _buildPreviewColumn(context, theme, vibe)),
+        const SizedBox(height: 10),
+        _buildSliders(context, theme, vibe),
+      ],
+    );
+  }
+
+  Widget _buildPreviewColumn(
+    BuildContext context,
+    ThemeData theme,
+    VibeReference vibe,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildThumbnail(theme),
+        if (vibe.bundleSource != null) ...[
+          const SizedBox(height: 6),
+          _buildBundleSourceChip(context, theme),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSettings(
+    BuildContext context,
+    ThemeData theme,
+    VibeReference vibe,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildHeader(context, theme),
+        const SizedBox(height: 8),
+        _buildSliders(context, theme, vibe),
+      ],
+    );
+  }
+
+  Widget _buildHeader(
+    BuildContext context,
+    ThemeData theme, {
+    bool compact = false,
+  }) {
+    final status = _buildEncodingStatusChip(context, theme);
+    final actions = _buildActions(context, theme);
+    if (compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Align(alignment: Alignment.centerLeft, child: status),
+          const SizedBox(height: 4),
+          Align(alignment: Alignment.centerRight, child: actions),
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [status, const Spacer(), actions],
+    );
+  }
+
+  Widget _buildActions(BuildContext context, ThemeData theme) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildEnabledSwitch(context),
+        const SizedBox(width: 4),
+        SizedBox(
+          width: 28,
+          height: 28,
+          child: IconButton(
+            key: Key('vibe-card-save-to-library-${widget.index}'),
+            padding: EdgeInsets.zero,
+            icon: Icon(
+              Icons.bookmark_add_outlined,
+              size: 18,
+              color: theme.colorScheme.primary,
+            ),
+            onPressed: _saveToLibrary,
+            tooltip: context.l10n.vibeLibrary_save,
+          ),
+        ),
+        SizedBox(
+          width: 28,
+          height: 28,
+          child: IconButton(
+            key: Key('vibe-card-remove-${widget.index}'),
+            padding: EdgeInsets.zero,
+            icon: Icon(
+              Icons.delete_outline,
+              size: 18,
+              color: theme.colorScheme.error,
+            ),
+            onPressed: widget.onRemove,
+            tooltip: context.l10n.vibe_remove,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSliders(
+    BuildContext context,
+    ThemeData theme,
+    VibeReference vibe,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSliderRow(
+          context,
+          theme,
+          label: context.l10n.vibe_referenceStrength,
+          value: vibe.strength,
+          onChanged: widget.onStrengthChanged,
+        ),
+        if (vibe.canReencodeFromRawSource) ...[
+          const SizedBox(height: 8),
+          _buildSliderRow(
+            context,
+            theme,
+            label: context.l10n.vibe_infoExtraction,
+            value: vibe.infoExtracted,
+            onChanged: widget.onInfoExtractedChanged,
+          ),
+        ],
+      ],
     );
   }
 
@@ -228,13 +261,17 @@ class _VibeCardState extends ConsumerState<VibeCard> {
       message: vibe.enabled
           ? context.l10n.reference_disable
           : context.l10n.reference_enable,
-      child: Transform.scale(
-        scale: 0.78,
-        child: Switch(
-          key: ValueKey('vibe-enabled-switch-${widget.index}'),
-          value: vibe.enabled,
-          onChanged: widget.onEnabledChanged,
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      child: SizedBox(
+        width: 40,
+        height: 28,
+        child: FittedBox(
+          fit: BoxFit.contain,
+          child: Switch(
+            key: ValueKey('vibe-enabled-switch-${widget.index}'),
+            value: vibe.enabled,
+            onChanged: widget.onEnabledChanged,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
         ),
       ),
     );

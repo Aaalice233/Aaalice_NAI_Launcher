@@ -861,15 +861,6 @@ class _GlobalDropHandlerState extends ConsumerState<GlobalDropHandler> {
           context,
           l10n.metadataImport_appliedCount(appliedCount),
         );
-        unawaited(
-          MetadataImportCoordinator.showAppliedDialog(
-            context: context,
-            metadata: metadata,
-            options: options,
-            l10n: l10n,
-            currentModel: ref.read(generationParamsNotifierProvider).model,
-          ),
-        );
       } else {
         AppToast.warning(context, l10n.metadataImport_noParamsSelected);
       }

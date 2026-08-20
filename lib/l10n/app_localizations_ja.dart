@@ -943,7 +943,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get prompt_autoFormat => '自動フォーマット';
 
   @override
-  String get prompt_autoFormatSubtitle => '中国語カンマを英語カンマに変換し、アンダースコアを自動追加します';
+  String get prompt_autoFormatSubtitle => '改行を保持しながら、中国語のカンマとタグ内の空白を変換します';
 
   @override
   String get prompt_highlightEmphasis => 'ハイライトの強調';
@@ -4224,23 +4224,6 @@ class AppLocalizationsJa extends AppLocalizations {
       'プロンプトはメイン プロンプトとキャラクター プロンプトの両方に表示されます\n用途: ポーズ、インタラクション、その他の汎用タグ';
 
   @override
-  String get vibeNoEncodingWarning => 'この画像には事前にエンコードされたデータがありません';
-
-  @override
-  String vibeWillCostAnlas(int count) {
-    return 'エンコードには $count Anlas を消費します';
-  }
-
-  @override
-  String get vibeEncodeConfirm => '続けて Anlas を消費しますか?';
-
-  @override
-  String get vibeCancel => 'キャンセル';
-
-  @override
-  String get vibeConfirmEncode => 'エンコード';
-
-  @override
   String get vibeParseFailed => 'Vibe ファイルの解析に失敗しました';
 
   @override
@@ -6993,9 +6976,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get metadataImport_clear => 'クリア';
 
   @override
-  String get metadataImport_prompt => 'プロンプト';
-
-  @override
   String get metadataImport_mainPrompt => 'メイン プロンプト';
 
   @override
@@ -7071,42 +7051,6 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get metadataImport_seed => 'シード';
-
-  @override
-  String get metadataImport_steps => 'ステップ数';
-
-  @override
-  String get metadataImport_scale => 'CFG スケール';
-
-  @override
-  String get metadataImport_size => 'サイズ';
-
-  @override
-  String get metadataImport_sampler => 'サンプラー';
-
-  @override
-  String get metadataImport_model => 'モデル';
-
-  @override
-  String get metadataImport_smea => 'SMEA';
-
-  @override
-  String get metadataImport_smeaDyn => 'SMEA Dyn';
-
-  @override
-  String get metadataImport_noiseSchedule => 'ノイズスケジュール';
-
-  @override
-  String get metadataImport_cfgRescale => 'CFG リスケール';
-
-  @override
-  String get metadataImport_qualityToggle => '品質切り替え';
-
-  @override
-  String get metadataImport_ucPreset => '除外したい要素プリセット';
-
-  @override
   String get metadataImport_noData => '(データなし)';
 
   @override
@@ -7124,15 +7068,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String metadataImport_appliedCount(int count) {
     return '適用された $count パラメータ';
   }
-
-  @override
-  String get metadataImport_appliedTitle => 'メタデータが適用されました';
-
-  @override
-  String get metadataImport_appliedDescription => '次のパラメータが適用されました:';
-
-  @override
-  String get metadataImport_charactersCount => 'キャラクター';
 
   @override
   String get shortcut_context_global => 'グローバル';
@@ -8400,41 +8335,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get vibe_import_confirm => '確認';
 
   @override
-  String get vibe_import_noEncodingData => 'エンコード データがありません';
-
-  @override
   String get vibe_import_encodingCost => 'エンコードには 2 Anlas を消費します';
 
   @override
-  String get vibe_import_confirmCost => '続けて Anlas を消費しますか?';
-
-  @override
-  String get vibe_import_encodeNow => 'すぐにエンコードします (2 Anlas)';
-
-  @override
-  String get vibe_addImageOnly => '画像のみを追加';
-
-  @override
-  String get vibe_import_autoSave => 'ライブラリに自動保存';
-
-  @override
   String get vibe_import_encodingFailed => 'エンコードに失敗しました';
-
-  @override
-  String get vibe_import_encodingFailedMessage =>
-      'Vibe のエンコードに失敗しました。未エンコードの画像を追加し続けますか？';
-
-  @override
-  String get vibe_import_encodingInProgress => 'エンコード中...';
-
-  @override
-  String get vibe_import_encodingComplete => 'エンコードが完了しました';
-
-  @override
-  String get vibe_import_partialFailed => '部分的なエンコードに失敗しました';
-
-  @override
-  String get vibe_import_timeout => 'エンコードのタイムアウト';
 
   @override
   String get vibe_import_title => 'ライブラリからインポート';
@@ -11375,6 +11279,13 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get autocomplete_autoComma => '挿入後にカンマを追加';
+
+  @override
+  String get autocomplete_openOnTagClick => 'タグのクリックで補完を表示';
+
+  @override
+  String get autocomplete_openOnTagClickSubtitle =>
+      'オンにすると既存タグのクリックで通常の補完を開きます。Ctrl/Command＋クリックでは引き続き関連タグを表示します';
 
   @override
   String get autocomplete_replaceUnderscores => '挿入時にアンダースコアを空白に置換';

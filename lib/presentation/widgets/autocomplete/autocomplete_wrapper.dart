@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -139,6 +140,8 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   bool _cursorMetricsScheduled = false;
   bool _wasComposing = false;
   late String _lastObservedText;
+  final Set<int> _relatedClickPointers = <int>{};
+  final Set<int> _regularClickPointers = <int>{};
   Offset? _cursorOffset;
   double _caretLineHeight = 0;
   String? _pinnedRelatedTag;
@@ -556,10 +559,14 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     }
     final candidate = state.candidates[index];
     if (candidate.isExisting) return;
+    final query = state.query!;
     final settings = ref.read(autocompleteSettingsProvider);
+    final completedTag = query.kind == CompletionQueryKind.tag
+        ? candidate.canonicalTag
+        : null;
     final applied = PromptTokenParser.apply(
       text: widget.controller.text,
-      query: state.query!,
+      query: query,
       canonicalTag: candidate.canonicalTag,
       autoInsertComma:
           settings.autoInsertComma && (widget.config?.autoInsertComma ?? true),
@@ -578,29 +585,71 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     widget.onSuggestionSelected?.call(applied.text);
     _selectedId = null;
     _dismissOverlay();
-    final pinnedTag = _pinnedRelatedTag;
-    if (settings.relatedTagsEnabled && pinnedTag != null) {
+    final nextRelatedTag = _pinnedRelatedTag ?? completedTag;
+    if (settings.relatedTagsEnabled && nextRelatedTag != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _focusNode.hasFocus) {
-          _startQuery(related: true, relatedTagOverride: pinnedTag);
+          _startQuery(related: true, relatedTagOverride: nextRelatedTag);
         }
       });
+    }
+  }
+
+  void _onPointerDown(PointerDownEvent event) {
+    final keyboard = HardwareKeyboard.instance;
+    final isPrimaryClick = event.buttons == kPrimaryButton;
+    final requestsRelated = keyboard.isControlPressed || keyboard.isMetaPressed;
+    if (isPrimaryClick && requestsRelated) {
+      _relatedClickPointers.add(event.pointer);
+      _regularClickPointers.remove(event.pointer);
+    } else if (isPrimaryClick) {
+      _regularClickPointers.add(event.pointer);
+      _relatedClickPointers.remove(event.pointer);
+    } else {
+      _relatedClickPointers.remove(event.pointer);
+      _regularClickPointers.remove(event.pointer);
     }
   }
 
   void _onPointerUp(PointerUpEvent event) {
     _scheduleCursorMetricsUpdate();
     final keyboard = HardwareKeyboard.instance;
-    final requestsRelated = keyboard.isControlPressed || keyboard.isMetaPressed;
-    if (!requestsRelated) {
+    final startedAsRelated = _relatedClickPointers.remove(event.pointer);
+    final startedAsRegular = _regularClickPointers.remove(event.pointer);
+    final isPrimaryClick = startedAsRelated || startedAsRegular;
+    final requestsRelated =
+        isPrimaryClick &&
+        (startedAsRelated ||
+            keyboard.isControlPressed ||
+            keyboard.isMetaPressed);
+    if (requestsRelated) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _focusNode.hasFocus) {
+          _startQuery(related: true, resetPinnedRelatedTag: true);
+        }
+      });
+      return;
+    }
+
+    final settings = ref.read(autocompleteSettingsProvider);
+    final selection = widget.controller.selection;
+    if (!startedAsRegular ||
+        !settings.openOnTagClick ||
+        !selection.isValid ||
+        !selection.isCollapsed) {
       if (_pinnedRelatedTag == null) _dismissOverlay();
       return;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _focusNode.hasFocus) {
-        _startQuery(related: true, resetPinnedRelatedTag: true);
+        _startQuery(resetPinnedRelatedTag: true);
       }
     });
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    _relatedClickPointers.remove(event.pointer);
+    _regularClickPointers.remove(event.pointer);
   }
 
   void _toggleRelatedPin() {
@@ -705,7 +754,12 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       key: _anchorKey,
       child: Focus(
         onKeyEvent: _onKeyEvent,
-        child: Listener(onPointerUp: _onPointerUp, child: widget.child),
+        child: Listener(
+          onPointerDown: _onPointerDown,
+          onPointerUp: _onPointerUp,
+          onPointerCancel: _onPointerCancel,
+          child: widget.child,
+        ),
       ),
     );
   }

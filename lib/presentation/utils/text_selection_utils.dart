@@ -115,11 +115,91 @@ class TextSelectionUtils {
       return newValue;
     }
 
-    return wrapSelection(
-      oldValue,
-      open: wrapPair.open,
-      close: wrapPair.close,
+    return wrapSelection(oldValue, open: wrapPair.open, close: wrapPair.close);
+  }
+
+  /// 文本整体改写后，将光标和选区恢复到原来的行与列。
+  ///
+  /// 自动格式化可能改变前面各行的长度，直接复用全局 offset 会让光标跳到
+  /// 其他行；按行列映射可以让用户继续编辑原来的提示词分组。
+  static TextSelection preserveLineAndColumnSelection({
+    required String oldText,
+    required String newText,
+    required TextSelection selection,
+  }) {
+    if (!selection.isValid) {
+      return TextSelection.collapsed(offset: newText.length);
+    }
+
+    return TextSelection(
+      baseOffset: _mapOffsetByLineAndColumn(
+        oldText: oldText,
+        newText: newText,
+        offset: selection.baseOffset,
+      ),
+      extentOffset: _mapOffsetByLineAndColumn(
+        oldText: oldText,
+        newText: newText,
+        offset: selection.extentOffset,
+      ),
+      affinity: selection.affinity,
+      isDirectional: selection.isDirectional,
     );
+  }
+
+  static int _mapOffsetByLineAndColumn({
+    required String oldText,
+    required String newText,
+    required int offset,
+  }) {
+    final safeOffset = offset.clamp(0, oldText.length);
+    final oldLineStarts = _lineStarts(oldText);
+    final newLineStarts = _lineStarts(newText);
+
+    var oldLineIndex = 0;
+    for (var i = 1; i < oldLineStarts.length; i++) {
+      if (oldLineStarts[i] > safeOffset) break;
+      oldLineIndex = i;
+    }
+
+    final column = safeOffset - oldLineStarts[oldLineIndex];
+    final newLineIndex = oldLineIndex.clamp(0, newLineStarts.length - 1);
+    final newLineStart = newLineStarts[newLineIndex];
+    final newLineEnd = _lineContentEnd(newText, newLineStarts, newLineIndex);
+    return newLineStart + column.clamp(0, newLineEnd - newLineStart);
+  }
+
+  static List<int> _lineStarts(String text) {
+    final starts = <int>[0];
+    var index = 0;
+    while (index < text.length) {
+      final codeUnit = text.codeUnitAt(index);
+      if (codeUnit == 0x0D) {
+        if (index + 1 < text.length && text.codeUnitAt(index + 1) == 0x0A) {
+          index++;
+        }
+        starts.add(index + 1);
+      } else if (codeUnit == 0x0A) {
+        starts.add(index + 1);
+      }
+      index++;
+    }
+    return starts;
+  }
+
+  static int _lineContentEnd(String text, List<int> lineStarts, int lineIndex) {
+    if (lineIndex + 1 >= lineStarts.length) {
+      return text.length;
+    }
+
+    var end = lineStarts[lineIndex + 1];
+    if (end > 0 && text.codeUnitAt(end - 1) == 0x0A) {
+      end--;
+    }
+    if (end > 0 && text.codeUnitAt(end - 1) == 0x0D) {
+      end--;
+    }
+    return end;
   }
 
   static bool _hasActiveComposingRange(TextEditingValue value) {

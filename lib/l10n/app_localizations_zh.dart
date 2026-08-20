@@ -929,7 +929,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get prompt_autoFormat => '自动格式化';
 
   @override
-  String get prompt_autoFormatSubtitle => '中文逗号转英文、空格自动转下划线';
+  String get prompt_autoFormatSubtitle => '中文逗号转英文、标签内空格转下划线（保留换行）';
 
   @override
   String get prompt_highlightEmphasis => '高亮强调';
@@ -4157,23 +4157,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scope_allTooltip => '提示词同时出现在主提示词和角色提示词\n适合：姿势、互动等通用标签';
 
   @override
-  String get vibeNoEncodingWarning => '此图片没有预编码数据';
-
-  @override
-  String vibeWillCostAnlas(int count) {
-    return '编码将消耗 $count Anlas';
-  }
-
-  @override
-  String get vibeEncodeConfirm => '是否继续添加并消耗点数？';
-
-  @override
-  String get vibeCancel => '取消';
-
-  @override
-  String get vibeConfirmEncode => '确认编码';
-
-  @override
   String get vibeParseFailed => '无法解析 Vibe 文件';
 
   @override
@@ -6899,9 +6882,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get metadataImport_clear => '清空';
 
   @override
-  String get metadataImport_prompt => '正向提示词';
-
-  @override
   String get metadataImport_mainPrompt => '主提示词';
 
   @override
@@ -6977,42 +6957,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get metadataImport_seed => '种子 (Seed)';
-
-  @override
-  String get metadataImport_steps => '步数 (Steps)';
-
-  @override
-  String get metadataImport_scale => 'CFG 强度';
-
-  @override
-  String get metadataImport_size => '尺寸 (Size)';
-
-  @override
-  String get metadataImport_sampler => '采样器 (Sampler)';
-
-  @override
-  String get metadataImport_model => '模型 (Model)';
-
-  @override
-  String get metadataImport_smea => 'SMEA';
-
-  @override
-  String get metadataImport_smeaDyn => 'SMEA Dyn';
-
-  @override
-  String get metadataImport_noiseSchedule => '噪声计划';
-
-  @override
-  String get metadataImport_cfgRescale => 'CFG 重缩放';
-
-  @override
-  String get metadataImport_qualityToggle => '质量标签';
-
-  @override
-  String get metadataImport_ucPreset => 'UC 预设';
-
-  @override
   String get metadataImport_noData => '（无数据）';
 
   @override
@@ -7030,15 +6974,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String metadataImport_appliedCount(int count) {
     return '已应用 $count 项参数';
   }
-
-  @override
-  String get metadataImport_appliedTitle => '元数据已应用';
-
-  @override
-  String get metadataImport_appliedDescription => '以下参数已应用到当前设置：';
-
-  @override
-  String get metadataImport_charactersCount => '个角色';
 
   @override
   String get shortcut_context_global => '全局';
@@ -8290,40 +8225,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get vibe_import_confirm => '确认';
 
   @override
-  String get vibe_import_noEncodingData => '无编码数据';
-
-  @override
   String get vibe_import_encodingCost => '编码将消耗 2 Anlas';
 
   @override
-  String get vibe_import_confirmCost => '继续并消耗 Anlas？';
-
-  @override
-  String get vibe_import_encodeNow => '立即编码 (2 Anlas)';
-
-  @override
-  String get vibe_addImageOnly => '仅添加图片';
-
-  @override
-  String get vibe_import_autoSave => '自动保存到库';
-
-  @override
   String get vibe_import_encodingFailed => '编码失败';
-
-  @override
-  String get vibe_import_encodingFailedMessage => 'Vibe 编码失败，是否继续添加未编码图片？';
-
-  @override
-  String get vibe_import_encodingInProgress => '编码中...';
-
-  @override
-  String get vibe_import_encodingComplete => '编码完成';
-
-  @override
-  String get vibe_import_partialFailed => '部分编码失败';
-
-  @override
-  String get vibe_import_timeout => '编码超时';
 
   @override
   String get vibe_import_title => '从库导入';
@@ -11214,6 +11119,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get autocomplete_autoComma => '插入后自动添加逗号';
+
+  @override
+  String get autocomplete_openOnTagClick => '点击标签时显示补全';
+
+  @override
+  String get autocomplete_openOnTagClickSubtitle =>
+      '开启后，点击已有标签会打开普通补全菜单；Ctrl/Command + 点击仍显示相关标签';
 
   @override
   String get autocomplete_replaceUnderscores => '插入时将下划线替换为空格';

@@ -445,7 +445,8 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       return;
     }
 
-    var text = _effectiveController.text;
+    final originalValue = _effectiveController.value;
+    var text = originalValue.text;
     if (text.isEmpty) return;
 
     var changed = false;
@@ -495,7 +496,16 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     }
 
     if (changed) {
-      _effectiveController.text = text;
+      final selection = TextSelectionUtils.preserveLineAndColumnSelection(
+        oldText: originalValue.text,
+        newText: text,
+        selection: originalValue.selection,
+      );
+      _effectiveController.value = originalValue.copyWith(
+        text: text,
+        selection: selection,
+        composing: TextRange.empty,
+      );
       _handleTextChanged(text);
       if (mounted && messages.isNotEmpty) {
         AppToast.info(context, messages.join(' + '));

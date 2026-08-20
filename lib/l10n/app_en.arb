@@ -408,7 +408,7 @@
   "prompt_smartAutocomplete": "Smart Autocomplete",
   "prompt_smartAutocompleteSubtitle": "Show tag suggestions while typing",
   "prompt_autoFormat": "Auto Format",
-  "prompt_autoFormatSubtitle": "Convert Chinese commas to English, auto-add underscores",
+  "prompt_autoFormatSubtitle": "Convert Chinese commas and tag spaces while preserving line breaks",
   "prompt_highlightEmphasis": "Highlight Emphasis",
   "prompt_highlightEmphasisSubtitle": "Highlight brackets and weight syntax",
   "prompt_sdSyntaxAutoConvert": "SD Syntax Auto Convert",
@@ -1959,16 +1959,6 @@
   "scope_all": "Both",
   "scope_allTooltip": "Prompt appears in both main and character prompts\nSuitable for: pose, interaction, and other universal tags",
 
-  "vibeNoEncodingWarning": "This image has no pre-encoded data",
-  "vibeWillCostAnlas": "Encoding will cost {count} Anlas",
-  "@vibeWillCostAnlas": {
-    "placeholders": {
-      "count": {"type": "int"}
-    }
-  },
-  "vibeEncodeConfirm": "Continue and consume Anlas?",
-  "vibeCancel": "Cancel",
-  "vibeConfirmEncode": "Encode",
   "vibeParseFailed": "Failed to parse Vibe file",
 
   "tagGroupBrowser_searchHint": "Search tags...",
@@ -3442,7 +3432,6 @@
   "metadataImport_promptsOnly": "Prompts Only",
   "metadataImport_generationOnly": "Parameters Only",
   "metadataImport_clear": "Clear",
-  "metadataImport_prompt": "Prompt",
   "metadataImport_mainPrompt": "Main Prompt",
   "metadataImport_fixedTags": "Fixed Tags",
   "metadataImport_fixedPrefix": "Prefix: {text}",
@@ -3520,18 +3509,6 @@
       "fidelity": {}
     }
   },
-  "metadataImport_seed": "Seed",
-  "metadataImport_steps": "Steps",
-  "metadataImport_scale": "CFG Scale",
-  "metadataImport_size": "Size",
-  "metadataImport_sampler": "Sampler",
-  "metadataImport_model": "Model",
-  "metadataImport_smea": "SMEA",
-  "metadataImport_smeaDyn": "SMEA Dyn",
-  "metadataImport_noiseSchedule": "Noise Schedule",
-  "metadataImport_cfgRescale": "CFG Rescale",
-  "metadataImport_qualityToggle": "Quality Toggle",
-  "metadataImport_ucPreset": "Undesired Content Preset",
   "metadataImport_noData": "(no data)",
   "metadataImport_selectedCount": "{count} selected",
   "@metadataImport_selectedCount": {
@@ -3547,9 +3524,6 @@
       "count": {"type": "int"}
     }
   },
-  "metadataImport_appliedTitle": "Metadata Applied",
-  "metadataImport_appliedDescription": "The following parameters have been applied:",
-  "metadataImport_charactersCount": "characters",
   "shortcut_context_global": "Global",
   "shortcut_context_generation": "Generation",
   "shortcut_context_gallery": "Gallery List",
@@ -4312,18 +4286,8 @@
   "vibe_embedToImage": "Embed to Image",
   "vibe_import_skip": "Skip",
   "vibe_import_confirm": "Confirm",
-  "vibe_import_noEncodingData": "No encoding data",
   "vibe_import_encodingCost": "Encoding will cost 2 Anlas",
-  "vibe_import_confirmCost": "Continue and consume Anlas?",
-  "vibe_import_encodeNow": "Encode immediately (2 Anlas)",
-  "vibe_addImageOnly": "Add image only",
-  "vibe_import_autoSave": "Auto-save to library",
   "vibe_import_encodingFailed": "Encoding failed",
-  "vibe_import_encodingFailedMessage": "Failed to encode vibe. Continue adding unencoded image?",
-  "vibe_import_encodingInProgress": "Encoding...",
-  "vibe_import_encodingComplete": "Encoding complete",
-  "vibe_import_partialFailed": "Partial encoding failed",
-  "vibe_import_timeout": "Encoding timeout",
   "vibe_import_title": "Import from Library",
   "vibe_import_result": "Imported {count} vibes",
   "@vibe_import_result": {
@@ -5913,6 +5877,8 @@
   "autocomplete_showAliases": "Show matched aliases",
   "autocomplete_showTranslations": "Show Chinese translations",
   "autocomplete_autoComma": "Add a comma after insertion",
+  "autocomplete_openOnTagClick": "Open autocomplete when clicking tags",
+  "autocomplete_openOnTagClickSubtitle": "When enabled, clicking an existing tag opens normal autocomplete; Ctrl/Command-click still shows related tags",
   "autocomplete_replaceUnderscores": "Replace underscores with spaces on insertion",
   "autocomplete_dataSourcesTitle": "Data Sources & Cache",
   "autocomplete_relatedTagsTitle": "Co-occurrence and related tags",

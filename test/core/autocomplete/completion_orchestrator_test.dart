@@ -243,6 +243,47 @@ void main() {
   });
 
   test(
+    'shows an initial related batch before exhaustive expansion finishes',
+    () async {
+      final source = _ProgressiveRelatedSource();
+      final orchestrator = CompletionOrchestrator(
+        localSources: [source],
+        dictionaryTranslations: _Translations(const {}),
+        llmTranslations: _Translations(const {}),
+        danbooru: _FakeDanbooru(),
+      );
+      addTearDown(orchestrator.dispose);
+
+      await orchestrator.query(
+        _query(
+          '',
+          fullText: 'blue_eyes, ',
+          relatedTag: 'blue_eyes',
+          limit: CompletionResultLimits.all,
+        ),
+        const AutocompleteSettings(danbooruEnabled: false),
+      );
+
+      expect(source.requestedLimits, [
+        CompletionResultLimits.initialRelatedTags,
+        CompletionResultLimits.all,
+      ]);
+      expect(orchestrator.state.candidates.single.canonicalTag, 'fast_tag');
+      expect(orchestrator.state.isLocalLoading, isTrue);
+
+      source.completeExpansion();
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        orchestrator.state.candidates.map((value) => value.canonicalTag),
+        containsAll(['fast_tag', 'expanded_tag']),
+      );
+      expect(orchestrator.state.isLocalLoading, isFalse);
+    },
+  );
+
+  test(
     'does not query related sources when recommendations are disabled',
     () async {
       final relatedSource = _RecordingRelatedSource();
@@ -503,6 +544,29 @@ class _RecordingRelatedSource implements CompletionSource {
   Future<List<CompletionCandidate>> search(CompletionQuery query) async {
     searchCount++;
     return [_candidate('smile', CompletionSourceKind.cooccurrence)];
+  }
+}
+
+class _ProgressiveRelatedSource implements CompletionSource {
+  final List<int> requestedLimits = [];
+  final Completer<List<CompletionCandidate>> _expansion = Completer();
+
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) {
+    requestedLimits.add(query.limit);
+    if (query.limit == CompletionResultLimits.initialRelatedTags) {
+      return Future.value([
+        _candidate('fast_tag', CompletionSourceKind.cooccurrence),
+      ]);
+    }
+    return _expansion.future;
+  }
+
+  void completeExpansion() {
+    _expansion.complete([
+      _candidate('fast_tag', CompletionSourceKind.cooccurrence),
+      _candidate('expanded_tag', CompletionSourceKind.cooccurrence),
+    ]);
   }
 }
 

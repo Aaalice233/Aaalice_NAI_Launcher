@@ -1149,23 +1149,11 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         return;
       }
 
-      final l10n = context.l10n;
-      final currentModel = ref.read(generationParamsNotifierProvider).model;
-      final rootNavigator = Navigator.of(context, rootNavigator: true);
-      AppToast.success(context, l10n.metadataImport_appliedCount(appliedCount));
-      context.go(AppRoutes.home);
-
-      await WidgetsBinding.instance.endOfFrame;
-      if (!rootNavigator.mounted) return;
-      unawaited(
-        MetadataImportCoordinator.showAppliedDialog(
-          context: rootNavigator.context,
-          metadata: metadata,
-          options: options,
-          l10n: l10n,
-          currentModel: currentModel,
-        ),
+      AppToast.success(
+        context,
+        context.l10n.metadataImport_appliedCount(appliedCount),
       );
+      context.go(AppRoutes.home);
     } catch (e, stack) {
       AppLogger.e('导入图片元数据失败', e, stack, 'LocalGallery');
       if (mounted) {

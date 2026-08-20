@@ -1849,7 +1849,7 @@ abstract class AppLocalizations {
   /// No description provided for @prompt_autoFormatSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Convert Chinese commas to English, auto-add underscores'**
+  /// **'Convert Chinese commas and tag spaces while preserving line breaks'**
   String get prompt_autoFormatSubtitle;
 
   /// No description provided for @prompt_highlightEmphasis.
@@ -7796,36 +7796,6 @@ abstract class AppLocalizations {
   /// **'Prompt appears in both main and character prompts\nSuitable for: pose, interaction, and other universal tags'**
   String get scope_allTooltip;
 
-  /// No description provided for @vibeNoEncodingWarning.
-  ///
-  /// In en, this message translates to:
-  /// **'This image has no pre-encoded data'**
-  String get vibeNoEncodingWarning;
-
-  /// No description provided for @vibeWillCostAnlas.
-  ///
-  /// In en, this message translates to:
-  /// **'Encoding will cost {count} Anlas'**
-  String vibeWillCostAnlas(int count);
-
-  /// No description provided for @vibeEncodeConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'Continue and consume Anlas?'**
-  String get vibeEncodeConfirm;
-
-  /// No description provided for @vibeCancel.
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel'**
-  String get vibeCancel;
-
-  /// No description provided for @vibeConfirmEncode.
-  ///
-  /// In en, this message translates to:
-  /// **'Encode'**
-  String get vibeConfirmEncode;
-
   /// No description provided for @vibeParseFailed.
   ///
   /// In en, this message translates to:
@@ -12762,12 +12732,6 @@ abstract class AppLocalizations {
   /// **'Clear'**
   String get metadataImport_clear;
 
-  /// No description provided for @metadataImport_prompt.
-  ///
-  /// In en, this message translates to:
-  /// **'Prompt'**
-  String get metadataImport_prompt;
-
   /// No description provided for @metadataImport_mainPrompt.
   ///
   /// In en, this message translates to:
@@ -12869,78 +12833,6 @@ abstract class AppLocalizations {
     Object fidelity,
   );
 
-  /// No description provided for @metadataImport_seed.
-  ///
-  /// In en, this message translates to:
-  /// **'Seed'**
-  String get metadataImport_seed;
-
-  /// No description provided for @metadataImport_steps.
-  ///
-  /// In en, this message translates to:
-  /// **'Steps'**
-  String get metadataImport_steps;
-
-  /// No description provided for @metadataImport_scale.
-  ///
-  /// In en, this message translates to:
-  /// **'CFG Scale'**
-  String get metadataImport_scale;
-
-  /// No description provided for @metadataImport_size.
-  ///
-  /// In en, this message translates to:
-  /// **'Size'**
-  String get metadataImport_size;
-
-  /// No description provided for @metadataImport_sampler.
-  ///
-  /// In en, this message translates to:
-  /// **'Sampler'**
-  String get metadataImport_sampler;
-
-  /// No description provided for @metadataImport_model.
-  ///
-  /// In en, this message translates to:
-  /// **'Model'**
-  String get metadataImport_model;
-
-  /// No description provided for @metadataImport_smea.
-  ///
-  /// In en, this message translates to:
-  /// **'SMEA'**
-  String get metadataImport_smea;
-
-  /// No description provided for @metadataImport_smeaDyn.
-  ///
-  /// In en, this message translates to:
-  /// **'SMEA Dyn'**
-  String get metadataImport_smeaDyn;
-
-  /// No description provided for @metadataImport_noiseSchedule.
-  ///
-  /// In en, this message translates to:
-  /// **'Noise Schedule'**
-  String get metadataImport_noiseSchedule;
-
-  /// No description provided for @metadataImport_cfgRescale.
-  ///
-  /// In en, this message translates to:
-  /// **'CFG Rescale'**
-  String get metadataImport_cfgRescale;
-
-  /// No description provided for @metadataImport_qualityToggle.
-  ///
-  /// In en, this message translates to:
-  /// **'Quality Toggle'**
-  String get metadataImport_qualityToggle;
-
-  /// No description provided for @metadataImport_ucPreset.
-  ///
-  /// In en, this message translates to:
-  /// **'Undesired Content Preset'**
-  String get metadataImport_ucPreset;
-
   /// No description provided for @metadataImport_noData.
   ///
   /// In en, this message translates to:
@@ -12970,24 +12862,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Applied {count} parameters'**
   String metadataImport_appliedCount(int count);
-
-  /// No description provided for @metadataImport_appliedTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Metadata Applied'**
-  String get metadataImport_appliedTitle;
-
-  /// No description provided for @metadataImport_appliedDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'The following parameters have been applied:'**
-  String get metadataImport_appliedDescription;
-
-  /// No description provided for @metadataImport_charactersCount.
-  ///
-  /// In en, this message translates to:
-  /// **'characters'**
-  String get metadataImport_charactersCount;
 
   /// No description provided for @shortcut_context_global.
   ///
@@ -15161,77 +15035,17 @@ abstract class AppLocalizations {
   /// **'Confirm'**
   String get vibe_import_confirm;
 
-  /// No description provided for @vibe_import_noEncodingData.
-  ///
-  /// In en, this message translates to:
-  /// **'No encoding data'**
-  String get vibe_import_noEncodingData;
-
   /// No description provided for @vibe_import_encodingCost.
   ///
   /// In en, this message translates to:
   /// **'Encoding will cost 2 Anlas'**
   String get vibe_import_encodingCost;
 
-  /// No description provided for @vibe_import_confirmCost.
-  ///
-  /// In en, this message translates to:
-  /// **'Continue and consume Anlas?'**
-  String get vibe_import_confirmCost;
-
-  /// No description provided for @vibe_import_encodeNow.
-  ///
-  /// In en, this message translates to:
-  /// **'Encode immediately (2 Anlas)'**
-  String get vibe_import_encodeNow;
-
-  /// No description provided for @vibe_addImageOnly.
-  ///
-  /// In en, this message translates to:
-  /// **'Add image only'**
-  String get vibe_addImageOnly;
-
-  /// No description provided for @vibe_import_autoSave.
-  ///
-  /// In en, this message translates to:
-  /// **'Auto-save to library'**
-  String get vibe_import_autoSave;
-
   /// No description provided for @vibe_import_encodingFailed.
   ///
   /// In en, this message translates to:
   /// **'Encoding failed'**
   String get vibe_import_encodingFailed;
-
-  /// No description provided for @vibe_import_encodingFailedMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to encode vibe. Continue adding unencoded image?'**
-  String get vibe_import_encodingFailedMessage;
-
-  /// No description provided for @vibe_import_encodingInProgress.
-  ///
-  /// In en, this message translates to:
-  /// **'Encoding...'**
-  String get vibe_import_encodingInProgress;
-
-  /// No description provided for @vibe_import_encodingComplete.
-  ///
-  /// In en, this message translates to:
-  /// **'Encoding complete'**
-  String get vibe_import_encodingComplete;
-
-  /// No description provided for @vibe_import_partialFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Partial encoding failed'**
-  String get vibe_import_partialFailed;
-
-  /// No description provided for @vibe_import_timeout.
-  ///
-  /// In en, this message translates to:
-  /// **'Encoding timeout'**
-  String get vibe_import_timeout;
 
   /// No description provided for @vibe_import_title.
   ///
@@ -20386,6 +20200,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add a comma after insertion'**
   String get autocomplete_autoComma;
+
+  /// No description provided for @autocomplete_openOnTagClick.
+  ///
+  /// In en, this message translates to:
+  /// **'Open autocomplete when clicking tags'**
+  String get autocomplete_openOnTagClick;
+
+  /// No description provided for @autocomplete_openOnTagClickSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'When enabled, clicking an existing tag opens normal autocomplete; Ctrl/Command-click still shows related tags'**
+  String get autocomplete_openOnTagClickSubtitle;
 
   /// No description provided for @autocomplete_replaceUnderscores.
   ///

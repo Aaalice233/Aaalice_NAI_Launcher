@@ -401,7 +401,7 @@
   "prompt_smartAutocomplete": "スマート オートコンプリート",
   "prompt_smartAutocompleteSubtitle": "入力中にタグの候補を表示します",
   "prompt_autoFormat": "自動フォーマット",
-  "prompt_autoFormatSubtitle": "中国語カンマを英語カンマに変換し、アンダースコアを自動追加します",
+  "prompt_autoFormatSubtitle": "改行を保持しながら、中国語のカンマとタグ内の空白を変換します",
   "prompt_highlightEmphasis": "ハイライトの強調",
   "prompt_highlightEmphasisSubtitle": "括弧と重みの構文を強調表示します",
   "prompt_sdSyntaxAutoConvert": "SD 構文自動変換",
@@ -1926,18 +1926,6 @@
   "scope_characterTooltip": "プロンプトはキャラクタープロンプトにのみ表示されます\nキャラクターごとに個別に生成されます\n適用対象: 髪の色、目の色、服装、表情など。",
   "scope_all": "両方",
   "scope_allTooltip": "プロンプトはメイン プロンプトとキャラクター プロンプトの両方に表示されます\n用途: ポーズ、インタラクション、その他の汎用タグ",
-  "vibeNoEncodingWarning": "この画像には事前にエンコードされたデータがありません",
-  "vibeWillCostAnlas": "エンコードには {count} Anlas を消費します",
-  "@vibeWillCostAnlas": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "vibeEncodeConfirm": "続けて Anlas を消費しますか?",
-  "vibeCancel": "キャンセル",
-  "vibeConfirmEncode": "エンコード",
   "vibeParseFailed": "Vibe ファイルの解析に失敗しました",
   "tagGroupBrowser_searchHint": "タグを検索...",
   "tagGroupBrowser_tagCount": "{count} タグ",
@@ -3371,7 +3359,6 @@
   "metadataImport_promptsOnly": "プロンプトのみ",
   "metadataImport_generationOnly": "パラメータのみ",
   "metadataImport_clear": "クリア",
-  "metadataImport_prompt": "プロンプト",
   "metadataImport_mainPrompt": "メイン プロンプト",
   "metadataImport_fixedTags": "固定タグ",
   "metadataImport_fixedPrefix": "プレフィックス: {text}",
@@ -3461,18 +3448,6 @@
       "fidelity": {}
     }
   },
-  "metadataImport_seed": "シード",
-  "metadataImport_steps": "ステップ数",
-  "metadataImport_scale": "CFG スケール",
-  "metadataImport_size": "サイズ",
-  "metadataImport_sampler": "サンプラー",
-  "metadataImport_model": "モデル",
-  "metadataImport_smea": "SMEA",
-  "metadataImport_smeaDyn": "SMEA Dyn",
-  "metadataImport_noiseSchedule": "ノイズスケジュール",
-  "metadataImport_cfgRescale": "CFG リスケール",
-  "metadataImport_qualityToggle": "品質切り替え",
-  "metadataImport_ucPreset": "除外したい要素プリセット",
   "metadataImport_noData": "(データなし)",
   "metadataImport_selectedCount": "{count} が選択されました",
   "@metadataImport_selectedCount": {
@@ -3492,9 +3467,6 @@
       }
     }
   },
-  "metadataImport_appliedTitle": "メタデータが適用されました",
-  "metadataImport_appliedDescription": "次のパラメータが適用されました:",
-  "metadataImport_charactersCount": "キャラクター",
   "shortcut_context_global": "グローバル",
   "shortcut_context_generation": "生成",
   "shortcut_context_gallery": "ギャラリーリスト",
@@ -4316,18 +4288,8 @@
   "vibe_embedToImage": "画像に埋め込む",
   "vibe_import_skip": "スキップ",
   "vibe_import_confirm": "確認",
-  "vibe_import_noEncodingData": "エンコード データがありません",
   "vibe_import_encodingCost": "エンコードには 2 Anlas を消費します",
-  "vibe_import_confirmCost": "続けて Anlas を消費しますか?",
-  "vibe_import_encodeNow": "すぐにエンコードします (2 Anlas)",
-  "vibe_addImageOnly": "画像のみを追加",
-  "vibe_import_autoSave": "ライブラリに自動保存",
   "vibe_import_encodingFailed": "エンコードに失敗しました",
-  "vibe_import_encodingFailedMessage": "Vibe のエンコードに失敗しました。未エンコードの画像を追加し続けますか？",
-  "vibe_import_encodingInProgress": "エンコード中...",
-  "vibe_import_encodingComplete": "エンコードが完了しました",
-  "vibe_import_partialFailed": "部分的なエンコードに失敗しました",
-  "vibe_import_timeout": "エンコードのタイムアウト",
   "vibe_import_title": "ライブラリからインポート",
   "vibe_import_result": "{count} 件の Vibe をインポートしました",
   "@vibe_import_result": {
@@ -5940,6 +5902,8 @@
   "autocomplete_showAliases": "一致した別名を表示",
   "autocomplete_showTranslations": "中国語訳を表示",
   "autocomplete_autoComma": "挿入後にカンマを追加",
+  "autocomplete_openOnTagClick": "タグのクリックで補完を表示",
+  "autocomplete_openOnTagClickSubtitle": "オンにすると既存タグのクリックで通常の補完を開きます。Ctrl/Command＋クリックでは引き続き関連タグを表示します",
   "autocomplete_replaceUnderscores": "挿入時にアンダースコアを空白に置換",
   "autocomplete_dataSourcesTitle": "データソースとキャッシュ",
   "autocomplete_relatedTagsTitle": "共起・関連タグ候補",

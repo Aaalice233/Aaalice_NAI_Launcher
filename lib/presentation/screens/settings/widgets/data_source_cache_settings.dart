@@ -89,6 +89,14 @@ class DataSourceCacheSettings extends ConsumerWidget {
                   onChanged: notifier.setAutoInsertComma,
                 ),
                 SwitchListTile.adaptive(
+                  title: Text(context.l10n.autocomplete_openOnTagClick),
+                  subtitle: Text(
+                    context.l10n.autocomplete_openOnTagClickSubtitle,
+                  ),
+                  value: settings.openOnTagClick,
+                  onChanged: notifier.setOpenOnTagClick,
+                ),
+                SwitchListTile.adaptive(
                   title: Text(context.l10n.autocomplete_replaceUnderscores),
                   value: settings.replaceUnderscores,
                   onChanged: notifier.setReplaceUnderscores,

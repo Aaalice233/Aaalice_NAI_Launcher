@@ -81,6 +81,7 @@ void main() {
 
     expect(find.text('图片保存位置'), findsOneWidget);
     expect(find.text('自动保存'), findsOneWidget);
+    expect(find.text('点击标签时显示补全'), findsOneWidget);
     expect(
       <String, int>{
         '数据与存储标题': find.text('数据与存储').evaluate().length,

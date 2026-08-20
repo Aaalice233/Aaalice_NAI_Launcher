@@ -88,10 +88,16 @@ class CompletionOrchestrator extends ChangeNotifier {
     final activeLocalSources = isLibraryAlias
         ? [_libraryAliases].whereType<CompletionSource>()
         : _localSources;
+    final expandsRelatedResults =
+        isRelatedQuery &&
+        query.limit > CompletionResultLimits.initialRelatedTags;
+    final initialQuery = expandsRelatedResults
+        ? query.copyWith(limit: CompletionResultLimits.initialRelatedTags)
+        : query;
     final localResults = await Future.wait(
       activeLocalSources.map((source) async {
         try {
-          return _LocalSourceResult(await source.search(query));
+          return _LocalSourceResult(await source.search(initialQuery));
         } catch (error) {
           return _LocalSourceResult(
             const <CompletionCandidate>[],
@@ -113,7 +119,7 @@ class CompletionOrchestrator extends ChangeNotifier {
               .toList(growable: false)
         : CompletionRanker.mergeAndSort(
             localBatches.expand((batch) => batch),
-            query: query,
+            query: initialQuery,
           );
     if (isRelatedQuery) {
       candidates = candidates
@@ -122,7 +128,7 @@ class CompletionOrchestrator extends ChangeNotifier {
     }
     candidates = await _applyDictionaryTranslations(
       candidates,
-      query,
+      initialQuery,
       sequence,
       settings,
     );
@@ -130,13 +136,16 @@ class CompletionOrchestrator extends ChangeNotifier {
     _emit(
       _state.copyWith(
         candidates: candidates,
-        isLocalLoading: false,
+        isLocalLoading: expandsRelatedResults,
         localError: localErrors.isEmpty ? null : localErrors.join('\n'),
         clearLocalError: localErrors.isEmpty,
         isRemoteLoading: canLoadRemote,
       ),
     );
-    _scheduleLlmTranslations(query, sequence, settings);
+    _scheduleLlmTranslations(initialQuery, sequence, settings);
+    if (expandsRelatedResults) {
+      unawaited(_expandRelatedLocalResults(query, settings, sequence));
+    }
 
     if (!canLoadRemote) {
       _emit(_state.copyWith(isRemoteLoading: false));
@@ -145,6 +154,55 @@ class CompletionOrchestrator extends ChangeNotifier {
     _remoteDebounce = Timer(const Duration(milliseconds: 250), () {
       unawaited(_loadRemote(query, sequence, settings));
     });
+  }
+
+  Future<void> _expandRelatedLocalResults(
+    CompletionQuery query,
+    AutocompleteSettings settings,
+    int sequence,
+  ) async {
+    final localResults = await Future.wait(
+      _localSources.map((source) async {
+        try {
+          return _LocalSourceResult(await source.search(query));
+        } catch (error) {
+          return _LocalSourceResult(
+            const <CompletionCandidate>[],
+            error: '${source.runtimeType}: $error',
+          );
+        }
+      }),
+    );
+    if (!_isCurrent(sequence)) return;
+
+    final localErrors = localResults
+        .map((result) => result.error)
+        .whereType<String>()
+        .toList(growable: false);
+    var expanded = CompletionRanker.mergeAndSort(
+      localResults.expand((result) => result.candidates),
+      query: query,
+    ).where((candidate) => !candidate.isExisting).toList(growable: false);
+    expanded = await _applyDictionaryTranslations(
+      expanded,
+      query,
+      sequence,
+      settings,
+    );
+    if (!_isCurrent(sequence)) return;
+
+    final merged = CompletionRanker.mergeAndSort(
+      [..._state.candidates, ...expanded],
+      query: query,
+    ).where((candidate) => !candidate.isExisting).toList(growable: false);
+    _emit(
+      _state.copyWith(
+        candidates: merged,
+        isLocalLoading: false,
+        localError: localErrors.isEmpty ? null : localErrors.join('\n'),
+        clearLocalError: localErrors.isEmpty,
+      ),
+    );
   }
 
   Future<List<CompletionCandidate>> _applyDictionaryTranslations(
