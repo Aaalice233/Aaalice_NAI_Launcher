@@ -146,17 +146,33 @@ class SamplerSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sampler = ref.watch(
-      generationParamsNotifierProvider.select((params) => params.sampler),
+    final data = ref.watch(
+      generationParamsNotifierProvider.select(
+        (params) => (sampler: params.sampler, isV4Model: params.isV4Model),
+      ),
     );
+    // V4 起官网不提供 DDIM；存量选择显示为实际会发送的 Euler Ancestral。
+    final isDdim =
+        data.sampler == Samplers.ddim || data.sampler == Samplers.ddimV3;
+    final displaySampler = data.isV4Model && isDdim
+        ? Samplers.kEulerAncestral
+        : data.sampler;
+    final availableSamplers = data.isV4Model
+        ? Samplers.allSamplers
+              .where(
+                (sampler) =>
+                    sampler != Samplers.ddim && sampler != Samplers.ddimV3,
+              )
+              .toList(growable: false)
+        : Samplers.allSamplers;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ParamSectionTitle(context.l10n.generation_sampler),
         const SizedBox(height: 8),
         ThemedDropdown<String>(
-          value: sampler,
-          items: Samplers.allSamplers.map((sampler) {
+          value: displaySampler,
+          items: availableSamplers.map((sampler) {
             return DropdownMenuItem(
               value: sampler,
               child: Text(

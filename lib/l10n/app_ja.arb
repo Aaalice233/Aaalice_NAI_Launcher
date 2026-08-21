@@ -315,6 +315,11 @@
     }
   },
   "generation_cfgScale": "CFG スケール: {scale}",
+  "@character_limitReached": {
+    "placeholders": {
+      "limit": {}
+    }
+  },
   "@generation_opusUsageRemaining": {
     "placeholders": {
       "percent": {}
@@ -1046,6 +1051,7 @@
   "vibe_shiftReplaceHint": "Shift+クリックして置換",
   "character_buttonLabel": "キャラクター",
   "character_addCharacter": "キャラクターを追加",
+  "character_limitReached": "このモデルのキャラクター上限（{limit}）に達しました",
   "character_number": "キャラクター {index}",
   "@character_number": {
     "placeholders": {
@@ -1346,6 +1352,8 @@
   "qualityTags_disabled": "品質タグが無効です\nクリックして有効にします",
   "qualityTags_addToEnd": "プロンプトの最後に追加:",
   "qualityTags_naiDefault": "NAI のデフォルト",
+  "qualityTags_naiDefaultStandard": "NAI のデフォルト（標準）",
+  "qualityTags_naiDefaultLight": "NAI のデフォルト（ライト）",
   "qualityTags_none": "なし",
   "qualityTags_addFromLibrary": "ライブラリから追加",
   "qualityTags_selectFromLibrary": "品質タグエントリの選択",

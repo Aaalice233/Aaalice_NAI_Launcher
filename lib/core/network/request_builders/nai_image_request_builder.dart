@@ -114,6 +114,18 @@ class NAIImageRequestBuilder {
       }
     }
 
+    // 官网每个请求都带质量/负面预设的数字提示（0=none 1=standard 2=heavy
+    // 3=light 4=humanFocus 5=furryFocus）。自定义预设映射不到官方编号，
+    // 与官网删除 undefined 的行为一致，直接不发。
+    final qtHint = _resolveQualityTagHint();
+    if (qtHint != null) {
+      requestParameters['tag_hint_qt'] = qtHint;
+    }
+    final ucHint = _resolveUcPresetTagHint();
+    if (ucHint != null) {
+      requestParameters['tag_hint_uc_preset'] = ucHint;
+    }
+
     if (params.effectiveE2eUpscale) {
       requestParameters['upscale'] = {
         'declared_blur_sigma': E2eUpscale.declaredBlurSigma,
@@ -131,6 +143,31 @@ class NAIImageRequestBuilder {
     }
 
     return requestParameters;
+  }
+
+  /// 质量预设的官网数字编号。
+  ///
+  /// 自定义质量词在进入构造前已并入 prompt（qualityToggle=false），
+  /// 此时按 none 上报，与官网“预设未参与解析”的语义一致。
+  int? _resolveQualityTagHint() {
+    if (!params.qualityToggle) return 0;
+    return params.qualityTier == QualityTags.lightTier ? 3 : 1;
+  }
+
+  /// 负面预设的官网数字编号。
+  ///
+  /// [ImageParams.ucPreset] 存的是请求 `ucPreset` 字段的旧版取值
+  /// （0=heavy 1=light 2=humanFocus 3=none 7=furryFocus），这里换算成
+  /// tag hint 的编号体系。
+  int? _resolveUcPresetTagHint() {
+    return switch (params.ucPreset) {
+      UcPresets.heavyApiValue => 2,
+      UcPresets.lightApiValue => 3,
+      UcPresets.humanFocusApiValue => 4,
+      UcPresets.noneApiValue => 0,
+      UCPresets.furryFocus => 5,
+      _ => null,
+    };
   }
 
   void buildV4Parameters(
@@ -465,6 +502,7 @@ class NAIImageRequestBuilder {
       ucPreset: params.ucPreset,
       isEnhanceRequest: params.shouldApplyEnhancePromptAddition,
       transparentBackground: params.transparentBackground,
+      qualityTier: params.qualityTier,
     );
     final effectivePrompt = promptSemantics.effectivePrompt;
     final effectiveNegativePrompt = promptSemantics.effectiveNegativePrompt;

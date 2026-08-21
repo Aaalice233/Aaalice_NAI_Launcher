@@ -169,6 +169,9 @@ class NaiImageMetadata with _$NaiImageMetadata {
     @HiveField(36, defaultValue: [])
     @Default([])
     List<String> fixedNegativeSuffixTags,
+
+    /// 透明背景开关（V5 起，comment 里的 tag_hint_transparent_background）
+    @HiveField(38) bool? transparentBackground,
   }) = _NaiImageMetadata;
 
   const NaiImageMetadata._();
@@ -220,6 +223,8 @@ class NaiImageMetadata with _$NaiImageMetadata {
             ? reparsed.vibeReferences
             : base.vibeReferences,
         varietyPlus: base.varietyPlus ?? reparsed.varietyPlus,
+        transparentBackground:
+            base.transparentBackground ?? reparsed.transparentBackground,
         preciseReferenceImages: base.preciseReferenceImages.isEmpty
             ? reparsed.preciseReferenceImages
             : base.preciseReferenceImages,
@@ -346,7 +351,23 @@ class NaiImageMetadata with _$NaiImageMetadata {
 
     final sourceModel = _modelIdFromSource(source);
     final importedUcPreset = _toInt(commentData['uc_preset']);
-    final importedQualityToggle = _safeGetBool(commentData, 'quality_toggle');
+    final importedQualityToggle =
+        _safeGetBool(commentData, 'quality_toggle') ??
+        _qualityToggleFromTagHint(commentData);
+
+    // 质量开关明确为关时不做质量词推断——带权重的描述词
+    // （如 "detailed snow on hair"）会被关键词匹配误判成质量词。
+    if (importedQualityToggle == false) {
+      parts['qualityTags'] = [];
+    } else if (importedQualityToggle == true &&
+        (parts['qualityTags']?.isEmpty ?? true)) {
+      // 开关明确为开时按注册的官方质量词做精确后缀匹配，
+      // 关键词推断认不出 "no text" 这类不含质量语义的词。
+      parts['qualityTags'] = _extractRegisteredQualitySuffix(
+        prompt,
+        sourceModel,
+      );
+    }
 
     // 构建元数据对象（使用try-catch包装每个字段）
     try {
@@ -363,6 +384,10 @@ class NaiImageMetadata with _$NaiImageMetadata {
         smea: _safeGetBool(commentData, 'sm'),
         smeaDyn: _safeGetBool(commentData, 'sm_dyn'),
         varietyPlus: _extractVarietyPlus(commentData),
+        transparentBackground: _safeGetBool(
+          commentData,
+          'tag_hint_transparent_background',
+        ),
         noiseSchedule: _safeGetString(commentData, 'noise_schedule'),
         cfgRescale: _toDouble(commentData['cfg_rescale']),
         ucPreset: importedUcPreset,
@@ -508,6 +533,53 @@ class NaiImageMetadata with _$NaiImageMetadata {
     return (json, json['Software'] as String?, source);
   }
 
+  /// 用注册的官方质量词对 prompt 做精确后缀匹配。
+  ///
+  /// 命中时返回按逗号拆分的质量词列表；[model] 未知时会尝试全部
+  /// 已注册的质量词组合。
+  static List<String> _extractRegisteredQualitySuffix(
+    String prompt,
+    String? model,
+  ) {
+    final trimmed = prompt.trim();
+    if (trimmed.isEmpty) return const [];
+
+    final candidates = <String>{
+      if (model != null) ...QualityTags.getQualityTagVariants(model),
+      if (model != null)
+        for (final tier in QualityTags.tiersForModel(model))
+          QualityTags.getQualityTagsForTier(model, tier) ?? '',
+      if (model == null) ...QualityTags.modelQualityTags.values,
+      if (model == null)
+        for (final tiers in QualityTags.modelQualityTagTiers.values)
+          ...tiers.values,
+    }..removeWhere((tags) => tags.isEmpty);
+
+    for (final tags in candidates) {
+      if (trimmed == tags || trimmed.endsWith(', $tags')) {
+        return tags
+            .split(',')
+            .map((tag) => tag.trim())
+            .where((tag) => tag.isNotEmpty)
+            .toList(growable: false);
+      }
+    }
+    return const [];
+  }
+
+  /// 从 `tag_hint_qt` 推导质量词开关。
+  ///
+  /// V5 起官方 comment 携带质量预设的数字提示；旧字段 `quality_toggle`
+  /// 缺失时以它兜底。显式的 null/0 表示"未启用质量预设"。
+  static bool? _qualityToggleFromTagHint(Map<String, dynamic> data) {
+    if (!data.containsKey('tag_hint_qt')) return null;
+    final value = data['tag_hint_qt'];
+    if (value == null) return false;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    return null;
+  }
+
   static bool _rawJsonMayContainUpgradableFields(String raw) {
     final text = raw.toLowerCase();
     const markers = [
@@ -518,6 +590,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
       'variety_plus',
       'varietyplus',
       'skip_cfg_above_sigma',
+      'tag_hint_transparent_background',
       'v4_prompt',
       'char_captions',
     ];

@@ -2265,6 +2265,11 @@ class AppLocalizationsJa extends AppLocalizations {
   String get character_addCharacter => 'キャラクターを追加';
 
   @override
+  String character_limitReached(Object limit) {
+    return 'このモデルのキャラクター上限（$limit）に達しました';
+  }
+
+  @override
   String character_number(Object index) {
     return 'キャラクター $index';
   }
@@ -2963,6 +2968,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get qualityTags_naiDefault => 'NAI のデフォルト';
+
+  @override
+  String get qualityTags_naiDefaultStandard => 'NAI のデフォルト（標準）';
+
+  @override
+  String get qualityTags_naiDefaultLight => 'NAI のデフォルト（ライト）';
 
   @override
   String get qualityTags_none => 'なし';

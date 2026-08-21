@@ -2231,6 +2231,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get character_addCharacter => '添加角色';
 
   @override
+  String character_limitReached(Object limit) {
+    return '已达当前模型的角色上限（$limit 个）';
+  }
+
+  @override
   String character_number(Object index) {
     return '角色 $index';
   }
@@ -2915,6 +2920,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get qualityTags_naiDefault => 'NAI 默认';
+
+  @override
+  String get qualityTags_naiDefaultStandard => 'NAI 默认（标准）';
+
+  @override
+  String get qualityTags_naiDefaultLight => 'NAI 默认（轻量）';
 
   @override
   String get qualityTags_none => '无';

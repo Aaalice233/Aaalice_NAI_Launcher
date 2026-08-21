@@ -392,8 +392,44 @@ class QualityTags {
     ],
   };
 
+  /// 官方质量词的 standard 档 ID。
+  static const String standardTier = 'standard';
+
+  /// 官方质量词的 light 档 ID（V5 起）。
+  static const String lightTier = 'light';
+
+  /// 拥有多档官方质量词的模型：V5 在 standard 之外提供 light 档。
+  static const Map<String, Map<String, String>> modelQualityTagTiers = {
+    ImageModels.v5StagingKey: _v5QualityTiers,
+    ImageModels.animeDiffusionV5Full: _v5QualityTiers,
+    ImageModels.animeDiffusionV5Curated: _v5QualityTiers,
+  };
+
+  static const Map<String, String> _v5QualityTiers = {
+    standardTier: 'very aesthetic, masterpiece, no text',
+    lightTier: 'very aesthetic, amazing quality, no text',
+  };
+
+  /// 当前模型可选的官方质量词档位（有序，standard 在前）。
+  static List<String> tiersForModel(String model) {
+    final tiers = modelQualityTagTiers[model];
+    if (tiers != null) return tiers.keys.toList(growable: false);
+    return const [standardTier];
+  }
+
   /// 获取指定模型的质量标签
   static String? getQualityTags(String model) {
+    return modelQualityTags[model];
+  }
+
+  /// 获取指定模型与档位的质量标签。
+  ///
+  /// 模型没有该档位时回退到 standard，保证切换模型后不会静默丢质量词。
+  static String? getQualityTagsForTier(String model, String tier) {
+    final tiers = modelQualityTagTiers[model];
+    if (tiers != null) {
+      return tiers[tier] ?? tiers[standardTier];
+    }
     return modelQualityTags[model];
   }
 
@@ -542,8 +578,11 @@ class QualityTags {
     String model, {
     required bool qualityToggle,
     required bool transparentBackground,
+    String qualityTier = standardTier,
   }) {
-    final tags = qualityToggle ? getQualityTags(model) : null;
+    final tags = qualityToggle
+        ? getQualityTagsForTier(model, qualityTier)
+        : null;
     final hasTags = tags != null && tags.isNotEmpty;
     if (!transparentBackground) {
       return hasTags ? tags : null;

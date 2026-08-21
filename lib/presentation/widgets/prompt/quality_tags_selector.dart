@@ -199,32 +199,38 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
     final theme = Theme.of(context);
     final items = <PopupMenuEntry<String>>[];
 
-    // NAI 默认
-    items.add(
-      PopupMenuItem<String>(
-        value: 'nai_default',
-        child: Row(
-          children: [
-            if (state.mode == PromptPresetMode.naiDefault)
-              Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
-            else
-              const SizedBox(width: 16),
-            const SizedBox(width: 8),
-            Text(
-              context.l10n.qualityTags_naiDefault,
-              style: TextStyle(
-                fontWeight: state.mode == PromptPresetMode.naiDefault
-                    ? FontWeight.w600
-                    : FontWeight.normal,
-                color: state.mode == PromptPresetMode.naiDefault
-                    ? theme.colorScheme.primary
-                    : null,
+    // NAI 默认（V5 提供 standard/light 两档官方质量词）
+    final tiers = QualityTags.tiersForModel(widget.model);
+    for (final tier in tiers) {
+      final selected = state.mode == PromptPresetMode.naiDefault &&
+          (tiers.length == 1 || state.naiTierId == tier);
+      final label = tiers.length == 1
+          ? context.l10n.qualityTags_naiDefault
+          : tier == QualityTags.lightTier
+              ? context.l10n.qualityTags_naiDefaultLight
+              : context.l10n.qualityTags_naiDefaultStandard;
+      items.add(
+        PopupMenuItem<String>(
+          value: 'nai_tier_$tier',
+          child: Row(
+            children: [
+              if (selected)
+                Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
+              else
+                const SizedBox(width: 16),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                  color: selected ? theme.colorScheme.primary : null,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    }
 
     // 无
     items.add(
@@ -303,6 +309,16 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
     switch (value) {
       case 'nai_default':
         ref.read(qualityPresetNotifierProvider.notifier).setNaiDefault();
+        break;
+      case 'nai_tier_standard':
+        ref
+            .read(qualityPresetNotifierProvider.notifier)
+            .setNaiTier(QualityTags.standardTier);
+        break;
+      case 'nai_tier_light':
+        ref
+            .read(qualityPresetNotifierProvider.notifier)
+            .setNaiTier(QualityTags.lightTier);
         break;
       case 'none':
         ref.read(qualityPresetNotifierProvider.notifier).setNone();

@@ -20,8 +20,23 @@ class OpusUsageChip extends ConsumerWidget {
 
   const OpusUsageChip({super.key, this.compact = false});
 
-  /// 网页端按 1% ≈ 17.3 张估算剩余可生成数。
+  /// 网页端按 1% ≈ 17.3 张估算剩余可生成数（1MP 以内 1 份/张口径）。
   static const double _imagesPerPercent = 17.3;
+
+  /// 网页端的面积扣份档位：大图一张消耗多份配额。
+  static const List<(int, int)> _quotaUnitTiers = [
+    (1048576, 1),
+    (1747627, 2),
+    (2446678, 3),
+    (3145728, 4),
+  ];
+
+  static int _quotaUnitsForArea(int area) {
+    for (final (maxArea, units) in _quotaUnitTiers) {
+      if (area <= maxArea) return units;
+    }
+    return _quotaUnitTiers.last.$2;
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,12 +46,15 @@ class OpusUsageChip extends ConsumerWidget {
             state.subscription?.isOpus == true ? state.subscription?.usage : null,
       ),
     );
-    final hasOpusUsageLimit = ref.watch(
+    final modelInfo = ref.watch(
       generationParamsNotifierProvider.select(
-        (params) => params.capabilities.hasOpusUsageLimit,
+        (params) => (
+          hasOpusUsageLimit: params.capabilities.hasOpusUsageLimit,
+          area: params.width * params.height,
+        ),
       ),
     );
-    if (usage == null || !hasOpusUsageLimit) {
+    if (usage == null || !modelInfo.hasOpusUsageLimit) {
       return const SizedBox.shrink();
     }
 
@@ -47,7 +65,9 @@ class OpusUsageChip extends ConsumerWidget {
     final accentColor = exhausted
         ? theme.colorScheme.error
         : theme.colorScheme.primary;
-    final estimatedImages = (percent * _imagesPerPercent).round();
+    // 按当前生成尺寸折算：大图一张消耗多份配额，估算张数随之缩减。
+    final quotaUnits = _quotaUnitsForArea(modelInfo.area);
+    final estimatedImages = (percent * _imagesPerPercent / quotaUnits).round();
 
     final tooltip = exhausted
         ? l10n.generation_opusUsageExhausted

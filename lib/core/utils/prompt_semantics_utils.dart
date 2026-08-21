@@ -27,6 +27,7 @@ PromptSemanticsSnapshot buildPromptSemanticsSnapshot({
   required int ucPreset,
   bool isEnhanceRequest = false,
   bool transparentBackground = false,
+  String qualityTier = QualityTags.standardTier,
 }) {
   final capabilities = ModelCapabilityRegistry.of(model);
   // 自定义质量预设在到这一步之前就已经并进 prompt（qualityToggle=false），
@@ -39,6 +40,7 @@ PromptSemanticsSnapshot buildPromptSemanticsSnapshot({
       qualityToggle: qualityToggle,
       transparentBackground:
           transparentBackground && capabilities.supportsTransparentBackground,
+      qualityTier: qualityTier,
     ),
     capabilities,
   );

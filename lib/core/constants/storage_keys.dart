@@ -82,6 +82,7 @@ class StorageKeys {
 
   // 质量词预设（新版）
   static const String qualityPresetMode = 'quality_preset_mode';
+  static const String qualityPresetNaiTier = 'quality_preset_nai_tier';
   static const String qualityPresetCustomId = 'quality_preset_custom_id';
   static const String qualityPresetCustomIds =
       'quality_preset_custom_ids'; // 自定义条目ID列表

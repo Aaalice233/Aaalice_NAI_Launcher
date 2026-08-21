@@ -2313,6 +2313,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get character_addCharacter => 'Add Character';
 
   @override
+  String character_limitReached(Object limit) {
+    return 'Character limit for this model reached ($limit)';
+  }
+
+  @override
   String character_number(Object index) {
     return 'Character $index';
   }
@@ -3029,6 +3034,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get qualityTags_naiDefault => 'NAI Default';
+
+  @override
+  String get qualityTags_naiDefaultStandard => 'NAI Default (Standard)';
+
+  @override
+  String get qualityTags_naiDefaultLight => 'NAI Default (Light)';
 
   @override
   String get qualityTags_none => 'None';

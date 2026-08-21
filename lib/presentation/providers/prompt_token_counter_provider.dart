@@ -60,6 +60,7 @@ final promptTokenUsageProvider =
                 target == PromptTokenCountTarget.positive &&
                 params.shouldApplyEnhancePromptAddition,
             transparentBackground: params.transparentBackground,
+            qualityTier: params.qualityTier,
           ),
         ),
       );
@@ -72,8 +73,9 @@ final promptTokenUsageProvider =
       final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
       final service = await ref.watch(promptTokenCounterServiceProvider.future);
       final qualityContent = switch (qualityPresetState.mode) {
-        PromptPresetMode.naiDefault => QualityTags.getQualityTags(
+        PromptPresetMode.naiDefault => QualityTags.getQualityTagsForTier(
           promptState.model,
+          qualityPresetState.naiTierId,
         ),
         PromptPresetMode.custom => currentQualityEntry?.content,
         PromptPresetMode.none => null,
@@ -100,6 +102,7 @@ final promptTokenUsageProvider =
         useCustomUcPreset: ucPresetState.isCustom,
         isEnhanceRequest: promptState.isEnhanceRequest,
         transparentBackground: promptState.transparentBackground,
+        qualityTier: promptState.qualityTier,
         characters: characterConfig.characters,
         resolveAliases: aliasResolver.resolveAliases,
       );
@@ -152,6 +155,7 @@ PromptTokenCountPayload buildPromptTokenCountPayload({
   required List<ui_character.CharacterPrompt> characters,
   required String Function(String text) resolveAliases,
   bool transparentBackground = false,
+  String qualityTier = QualityTags.standardTier,
 }) {
   return switch (target) {
     PromptTokenCountTarget.positive => _buildPositiveTokenCountPayload(
@@ -168,6 +172,7 @@ PromptTokenCountPayload buildPromptTokenCountPayload({
       useCustomUcPreset: useCustomUcPreset,
       isEnhanceRequest: isEnhanceRequest,
       transparentBackground: transparentBackground,
+      qualityTier: qualityTier,
       characters: characters,
       resolveAliases: resolveAliases,
     ),
@@ -205,6 +210,7 @@ PromptTokenCountPayload _buildPositiveTokenCountPayload({
   required List<ui_character.CharacterPrompt> characters,
   required String Function(String text) resolveAliases,
   bool transparentBackground = false,
+  String qualityTier = QualityTags.standardTier,
 }) {
   final resolvedPrompt = resolveAliases(prompt).trim();
   final resolvedNegativePrompt = resolveAliases(negativePrompt).trim();
@@ -238,6 +244,7 @@ PromptTokenCountPayload _buildPositiveTokenCountPayload({
     ucPreset: presetResolution.ucPreset,
     isEnhanceRequest: isEnhanceRequest,
     transparentBackground: transparentBackground,
+    qualityTier: qualityTier,
   );
 
   final extraTexts = characters

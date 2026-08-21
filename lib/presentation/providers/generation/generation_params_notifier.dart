@@ -158,6 +158,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       noiseSchedule: storage.getLastNoiseSchedule(),
       varietyPlus: storage.getLastVarietyPlus(),
       transparentBackground: storage.getLastTransparentBackground(),
+      qualityTier: storage.getQualityPresetNaiTier(),
       e2eUpscale: storage.getLastE2eUpscale(),
       // 从存储加载种子锁定状态
       seed: storage.getSeedLocked() && storage.getLockedSeedValue() != null
@@ -1527,6 +1528,16 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   /// 更新 Decrisp (V3 模型)
   void updateDecrisp(bool decrisp) {
     state = state.copyWith(decrisp: decrisp);
+  }
+
+  /// 更新官方质量词档位 (standard/light)
+  ///
+  /// 持久化由质量预设 Provider 负责，这里只同步请求构造使用的状态。
+  void updateQualityTier(String qualityTier) {
+    if (state.qualityTier == qualityTier) {
+      return;
+    }
+    state = state.copyWith(qualityTier: qualityTier);
   }
 
   /// 更新透明背景开关 (仅 V5)

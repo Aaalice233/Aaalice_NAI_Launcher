@@ -4202,6 +4202,12 @@ abstract class AppLocalizations {
   /// **'Add Character'**
   String get character_addCharacter;
 
+  /// No description provided for @character_limitReached.
+  ///
+  /// In en, this message translates to:
+  /// **'Character limit for this model reached ({limit})'**
+  String character_limitReached(Object limit);
+
   /// No description provided for @character_number.
   ///
   /// In en, this message translates to:
@@ -5473,6 +5479,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'NAI Default'**
   String get qualityTags_naiDefault;
+
+  /// No description provided for @qualityTags_naiDefaultStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'NAI Default (Standard)'**
+  String get qualityTags_naiDefaultStandard;
+
+  /// No description provided for @qualityTags_naiDefaultLight.
+  ///
+  /// In en, this message translates to:
+  /// **'NAI Default (Light)'**
+  String get qualityTags_naiDefaultLight;
 
   /// No description provided for @qualityTags_none.
   ///

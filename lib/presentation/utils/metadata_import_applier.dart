@@ -19,6 +19,7 @@ class MetadataImportTarget {
     required this.updateCfgRescale,
     required this.updateQualityToggle,
     required this.updateUcPreset,
+    required this.updateTransparentBackground,
   });
 
   final void Function(String value) updatePrompt;
@@ -36,6 +37,7 @@ class MetadataImportTarget {
   final void Function(double value) updateCfgRescale;
   final void Function(bool value) updateQualityToggle;
   final void Function(int value) updateUcPreset;
+  final void Function(bool value) updateTransparentBackground;
 }
 
 class MetadataImportApplier {
@@ -136,6 +138,11 @@ class MetadataImportApplier {
       options.importUcPreset,
       metadata.ucPreset,
       target.updateUcPreset,
+    );
+    count += _applyValue<bool>(
+      options.importTransparentBackground,
+      metadata.transparentBackground,
+      target.updateTransparentBackground,
     );
 
     return count;

@@ -8,6 +8,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:msgpack_dart/msgpack_dart.dart' as msgpack;
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/network/nai_api_endpoint.dart';
 import 'package:nai_launcher/core/network/nai_api_endpoint_service.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
@@ -15,6 +16,37 @@ import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_se
 import 'package:nai_launcher/data/models/image/image_params.dart';
 
 void main() {
+  test('maps DDIM onto Euler Ancestral for every v4-structure model', () {
+    // V5 之前的判定是 contains('diffusion-4')，V5 会漏掉并把 ddim 原样发出。
+    for (final model in [
+      ImageModels.animeDiffusionV4Full,
+      ImageModels.animeDiffusionV45Full,
+      ImageModels.animeDiffusionV5Curated,
+      ImageModels.animeDiffusionV5Full,
+    ]) {
+      expect(
+        NAIImageGenerationApiService.mapSamplerForModel(Samplers.ddim, model),
+        Samplers.kEulerAncestral,
+        reason: model,
+      );
+    }
+
+    expect(
+      NAIImageGenerationApiService.mapSamplerForModel(
+        Samplers.ddim,
+        ImageModels.animeDiffusionV3,
+      ),
+      Samplers.ddimV3,
+    );
+    expect(
+      NAIImageGenerationApiService.mapSamplerForModel(
+        Samplers.kEulerAncestral,
+        ImageModels.animeDiffusionV5Curated,
+      ),
+      Samplers.kEulerAncestral,
+    );
+  });
+
   test('completed older request must not clear newer cancel token', () async {
     final adapter = _PendingDioAdapter();
     final dio = Dio()..httpClientAdapter = adapter;

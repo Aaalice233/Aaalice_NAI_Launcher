@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/constants/model_capabilities.dart';
+import '../../core/utils/app_logger.dart';
 import '../../data/models/character/character_prompt.dart';
 import '../../data/repositories/character_prompt_repository.dart';
+import 'generation/generation_params_notifier.dart';
 
 part 'character_prompt_provider.g.dart';
 
@@ -49,6 +52,15 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
     String? prompt,
     String? thumbnailPath,
   }) {
+    if (isAtCharacterLimit) {
+      // 官方上限：V5 为 32、V4/V4.5 为 6。到顶后静默拒绝，
+      // 添加入口会按同一判定禁用并给出提示。
+      AppLogger.w(
+        'Character limit reached ($characterLimit), ignoring addCharacter',
+        'CharacterPrompt',
+      );
+      return;
+    }
     state = state.addCharacter(
       gender: gender,
       name: name,
@@ -56,6 +68,18 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
       thumbnailPath: thumbnailPath,
     );
     _saveConfig();
+  }
+
+  /// 当前模型的官方角色数量上限。
+  int get characterLimit {
+    final model = ref.read(generationParamsNotifierProvider).model;
+    return ModelCapabilityRegistry.of(model).maxCharacters;
+  }
+
+  /// 是否已达到官方角色数量上限。
+  bool get isAtCharacterLimit {
+    final limit = characterLimit;
+    return limit > 0 && state.characters.length >= limit;
   }
 
   /// 移除角色
@@ -197,6 +221,17 @@ int characterCount(Ref ref) {
 int enabledCharacterCount(Ref ref) {
   final config = ref.watch(characterPromptNotifierProvider);
   return config.characters.where((c) => c.enabled).length;
+}
+
+/// 是否已达到当前模型的官方角色上限（V5 为 32、V4/V4.5 为 6）。
+@riverpod
+bool characterLimitReached(Ref ref) {
+  final model = ref.watch(
+    generationParamsNotifierProvider.select((params) => params.model),
+  );
+  final limit = ModelCapabilityRegistry.of(model).maxCharacters;
+  final count = ref.watch(characterCountProvider);
+  return limit > 0 && count >= limit;
 }
 
 /// 便捷 Provider：获取当前选中的角色

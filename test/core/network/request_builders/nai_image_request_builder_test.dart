@@ -1453,6 +1453,96 @@ void main() {
       expect(result.requestData['input'], '1girl');
     });
 
+    test('should report quality and uc preset tag hints', () async {
+      // 官网每个请求都带预设的数字提示：0=none 1=standard 2=heavy
+      // 3=light 4=humanFocus 5=furryFocus。
+      Future<Map<String, dynamic>> paramsFor(ImageParams params) async {
+        final result = await NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler_ancestral');
+        return result.requestParameters;
+      }
+
+      final standard = await paramsFor(
+        ImageParams(
+          model: ImageModels.animeDiffusionV45Full,
+          qualityToggle: true,
+          ucPreset: UcPresets.toApiValue(UcPresetType.heavy),
+        ),
+      );
+      expect(standard['tag_hint_qt'], 1);
+      expect(standard['tag_hint_uc_preset'], 2);
+
+      final light = await paramsFor(
+        const ImageParams(
+          model: ImageModels.animeDiffusionV5Curated,
+          qualityToggle: true,
+          qualityTier: QualityTags.lightTier,
+          ucPreset: UcPresets.lightApiValue,
+        ),
+      );
+      expect(light['tag_hint_qt'], 3);
+      expect(light['tag_hint_uc_preset'], 3);
+
+      final none = await paramsFor(
+        const ImageParams(
+          model: ImageModels.animeDiffusionV5Curated,
+          qualityToggle: false,
+          ucPreset: UcPresets.noneApiValue,
+        ),
+      );
+      expect(none['tag_hint_qt'], 0);
+      expect(none['tag_hint_uc_preset'], 0);
+
+      final furry = await paramsFor(
+        ImageParams(
+          model: ImageModels.animeDiffusionV45Full,
+          ucPreset: UcPresets.toApiValue(UcPresetType.furryFocus),
+        ),
+      );
+      expect(furry['tag_hint_uc_preset'], 5);
+    });
+
+    test('should apply the V5 light quality tier to the prompt', () async {
+      const params = ImageParams(
+        prompt: '1girl',
+        model: ImageModels.animeDiffusionV5Curated,
+        qualityToggle: true,
+        qualityTier: QualityTags.lightTier,
+        ucPreset: UcPresets.noneApiValue,
+      );
+      final result = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler_ancestral');
+
+      expect(
+        result.requestData['input'],
+        '1girl, very aesthetic, amazing quality, no text',
+      );
+    });
+
+    test('should fall back to standard tags on models without light', () async {
+      // V4.5 没有 light 档，切换模型后档位残留不能弄丢质量词。
+      const params = ImageParams(
+        prompt: '1girl',
+        model: ImageModels.animeDiffusionV45Full,
+        qualityToggle: true,
+        qualityTier: QualityTags.lightTier,
+        ucPreset: UcPresets.noneApiValue,
+      );
+      final result = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler_ancestral');
+
+      expect(
+        result.requestData['input'],
+        '1girl, location, very aesthetic, masterpiece, no text',
+      );
+    });
+
     test('should leave plain img2img prompts untouched', () async {
       final params = ImageParams(
         prompt: '1girl',

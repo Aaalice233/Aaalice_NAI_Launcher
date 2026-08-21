@@ -54,6 +54,7 @@ class MetadataImportCoordinator {
           notifier.updateUcPreset(value);
           applyImportedUcPreset(read, value);
         },
+        updateTransparentBackground: notifier.updateTransparentBackground,
       ),
     );
 

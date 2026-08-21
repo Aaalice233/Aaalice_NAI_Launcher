@@ -74,6 +74,13 @@ class ImageWorkflowLauncher {
                       true
                   ? AnlasCalculator.opusTier
                   : 0,
+              opusQuotaExhausted:
+                  ref
+                      .read(subscriptionNotifierProvider)
+                      .subscription
+                      ?.usage
+                      ?.isNegative ??
+                  false,
               extraPerSampleCost:
                   AnlasCalculator.resolvePreciseReferenceExtraCost(params),
             )
@@ -287,6 +294,7 @@ class ImageWorkflowLauncher {
           notifier.updateUcPreset(value);
           applyImportedUcPreset(ref.read, value);
         },
+        updateTransparentBackground: notifier.updateTransparentBackground,
       ),
     );
 

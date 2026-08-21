@@ -621,6 +621,14 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
         onChanged: (v) =>
             setState(() => _options = _options.copyWith(importUcPreset: v)),
       ),
+      _GenerationImportOption(
+        label: l10n.generation_transparentBackground,
+        value: _options.importTransparentBackground,
+        hasData: metadata.transparentBackground != null,
+        onChanged: (v) => setState(
+          () => _options = _options.copyWith(importTransparentBackground: v),
+        ),
+      ),
     ];
   }
 

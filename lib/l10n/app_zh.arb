@@ -974,6 +974,7 @@
 
   "character_buttonLabel": "角色",
   "character_addCharacter": "添加角色",
+  "character_limitReached": "已达当前模型的角色上限（{limit} 个）",
   "character_number": "角色 {index}",
   "gallery_generationParams": "生成参数",
   "gallery_metaModel": "模型",
@@ -1266,6 +1267,8 @@
   "qualityTags_disabled": "质量标签已关闭\n点击开启",
   "qualityTags_addToEnd": "添加到提示词末尾:",
   "qualityTags_naiDefault": "NAI 默认",
+  "qualityTags_naiDefaultStandard": "NAI 默认（标准）",
+  "qualityTags_naiDefaultLight": "NAI 默认（轻量）",
   "qualityTags_none": "无",
   "qualityTags_addFromLibrary": "从词库添加",
   "qualityTags_selectFromLibrary": "选择质量词条目",
@@ -5479,6 +5482,11 @@
   "@generation_cfgRescale": {
     "placeholders": {
       "value": {}
+    }
+  },
+  "@character_limitReached": {
+    "placeholders": {
+      "limit": {}
     }
   },
   "@generation_opusUsageRemaining": {

@@ -306,6 +306,20 @@ class LocalStorageService {
     await setSetting(StorageKeys.qualityPresetMode, value);
   }
 
+  /// 获取官方质量词档位（standard/light，默认 standard）
+  String getQualityPresetNaiTier() {
+    return getSetting<String>(
+          StorageKeys.qualityPresetNaiTier,
+          defaultValue: QualityTags.standardTier,
+        ) ??
+        QualityTags.standardTier;
+  }
+
+  /// 保存官方质量词档位
+  Future<void> setQualityPresetNaiTier(String value) async {
+    await setSetting(StorageKeys.qualityPresetNaiTier, value);
+  }
+
   /// 获取质量词预设自定义条目 ID
   String? getQualityPresetCustomId() {
     return getSetting<String>(StorageKeys.qualityPresetCustomId);

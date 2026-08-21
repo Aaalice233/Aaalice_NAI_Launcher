@@ -172,6 +172,53 @@ void main() {
     });
 
     test(
+      'V5 metadata should not classify a weighted detailed prompt as quality tags',
+      () {
+        const prompt =
+            '1girl, upper body, 1.35:: {dark school uniform plaid scarf '
+            'detailed snow on hair}';
+        final metadata = NaiImageMetadata.fromNaiComment({
+          'Comment': jsonEncode({
+            'prompt': prompt,
+            'tag_hint_qt': null,
+            'v4_prompt': {
+              'caption': {'base_caption': prompt, 'char_captions': []},
+            },
+          }),
+          'Software': 'NovelAI',
+          'Source': 'NovelAI Diffusion V5 DB276663',
+        });
+
+        expect(metadata.qualityToggle, isFalse);
+        expect(metadata.qualityTags, isEmpty);
+        expect(metadata.mainPrompt, prompt);
+      },
+    );
+
+    test('V5 metadata should extract the registered quality-tag suffix', () {
+      const prompt =
+          '1girl, transparent background, very aesthetic, masterpiece, no text';
+      final metadata = NaiImageMetadata.fromNaiComment({
+        'Comment': jsonEncode({
+          'prompt': prompt,
+          'tag_hint_qt': true,
+          'v4_prompt': {
+            'caption': {'base_caption': prompt, 'char_captions': []},
+          },
+        }),
+        'Software': 'NovelAI',
+        'Source': 'NovelAI Diffusion V5 DB276663',
+      });
+
+      expect(metadata.qualityToggle, isTrue);
+      expect(
+        metadata.qualityTags,
+        equals(['very aesthetic', 'masterpiece', 'no text']),
+      );
+      expect(metadata.mainPrompt, '1girl, transparent background');
+    });
+
+    test(
       'fromNaiComment should not infer model from ambiguous V4.5 source',
       () {
         final metadata = NaiImageMetadata.fromNaiComment({
@@ -229,6 +276,7 @@ void main() {
           updateCfgRescale: (_) {},
           updateQualityToggle: (_) {},
           updateUcPreset: (_) {},
+        updateTransparentBackground: (_) {},
         ),
       );
 
@@ -277,6 +325,8 @@ void main() {
             updateCfgRescale: (value) => applied['cfgRescale'] = value,
             updateQualityToggle: (value) => applied['qualityToggle'] = value,
             updateUcPreset: (value) => applied['ucPreset'] = value,
+            updateTransparentBackground: (value) =>
+                applied['transparentBackground'] = value,
           ),
         );
 
@@ -811,6 +861,7 @@ void main() {
         updateCfgRescale: (_) {},
         updateQualityToggle: (_) {},
         updateUcPreset: (_) {},
+        updateTransparentBackground: (_) {},
       );
 
       MetadataImportApplier.applyPromptAndGenerationParams(
@@ -859,4 +910,42 @@ void main() {
       expect(previewOnlyPost.bestQualityUrl, 'https://example.com/preview.jpg');
     });
   });
+  test('parses and re-applies the transparent background hint', () {
+    final metadata = NaiImageMetadata.fromNaiComment(const {
+      'prompt': '1girl',
+      'uc': '',
+      'tag_hint_transparent_background': true,
+    });
+
+    expect(metadata.transparentBackground, isTrue);
+
+    bool? applied;
+    final count = MetadataImportApplier.applyPromptAndGenerationParams(
+      metadata: metadata,
+      options: const MetadataImportOptions(importTransparentBackground: true),
+      currentModel: ImageModels.animeDiffusionV5Curated,
+      target: MetadataImportTarget(
+        updatePrompt: (_) {},
+        updateNegativePrompt: (_) {},
+        updateSeed: (_) {},
+        updateSteps: (_) {},
+        updateScale: (_) {},
+        updateSize: (_, __) {},
+        updateSampler: (_) {},
+        updateModel: (_) {},
+        updateSmea: (_) {},
+        updateSmeaDyn: (_) {},
+        updateVarietyPlus: (_) {},
+        updateNoiseSchedule: (_) {},
+        updateCfgRescale: (_) {},
+        updateQualityToggle: (_) {},
+        updateUcPreset: (_) {},
+        updateTransparentBackground: (value) => applied = value,
+      ),
+    );
+
+    expect(applied, isTrue);
+    expect(count, greaterThan(0));
+  });
+
 }

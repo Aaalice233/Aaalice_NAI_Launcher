@@ -140,6 +140,9 @@ class ImageParams with _$ImageParams {
     /// 质量标签开关
     @Default(true) bool qualityToggle,
 
+    /// 官方质量词档位 (standard/light，light 仅 V5 提供)
+    @Default(QualityTags.standardTier) String qualityTier,
+
     /// 添加原始图像
     @Default(true) bool addOriginalImage,
 

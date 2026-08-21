@@ -322,6 +322,11 @@
     }
   },
   "generation_cfgScale": "CFG Scale: {scale}",
+  "@character_limitReached": {
+    "placeholders": {
+      "limit": {}
+    }
+  },
   "@generation_opusUsageRemaining": {
     "placeholders": {
       "percent": {}
@@ -1057,6 +1062,7 @@
 
   "character_buttonLabel": "Characters",
   "character_addCharacter": "Add Character",
+  "character_limitReached": "Character limit for this model reached ({limit})",
   "character_number": "Character {index}",
   "@character_number": {
     "placeholders": {
@@ -1364,6 +1370,8 @@
   "qualityTags_disabled": "Quality tags disabled\nClick to enable",
   "qualityTags_addToEnd": "Add to prompt end:",
   "qualityTags_naiDefault": "NAI Default",
+  "qualityTags_naiDefaultStandard": "NAI Default (Standard)",
+  "qualityTags_naiDefaultLight": "NAI Default (Light)",
   "qualityTags_none": "None",
   "qualityTags_addFromLibrary": "Add from Library",
   "qualityTags_selectFromLibrary": "Select Quality Tag Entry",
