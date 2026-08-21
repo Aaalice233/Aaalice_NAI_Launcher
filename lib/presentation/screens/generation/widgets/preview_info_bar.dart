@@ -92,7 +92,11 @@ class _InfoPill extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Center(
+          // widthFactor 让胶囊按内容收窄：种子胶囊在 Flexible 里拿到的是有界宽度，
+          // 普通 Center 会撑满剩余空间，把胶囊拉成一条长条
+          child: Align(
+            alignment: Alignment.center,
+            widthFactor: 1,
             child: DefaultTextStyle.merge(
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.85),
@@ -164,16 +168,16 @@ class _SeedPill extends ConsumerWidget {
 }
 
 /// 透明底色入口：向上弹出档位浮层
-class _TransparencyBackgroundButton extends ConsumerStatefulWidget {
+class _TransparencyBackgroundButton extends StatefulWidget {
   const _TransparencyBackgroundButton();
 
   @override
-  ConsumerState<_TransparencyBackgroundButton> createState() =>
+  State<_TransparencyBackgroundButton> createState() =>
       _TransparencyBackgroundButtonState();
 }
 
 class _TransparencyBackgroundButtonState
-    extends ConsumerState<_TransparencyBackgroundButton> {
+    extends State<_TransparencyBackgroundButton> {
   final OverlayPortalController _controller = OverlayPortalController();
   final LayerLink _link = LayerLink();
 
@@ -184,10 +188,8 @@ class _TransparencyBackgroundButtonState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final style = ref.watch(previewTransparencyNotifierProvider);
-    // 官网同款：浮层打开、或档位已偏离默认值时都高亮，提示这里改过设置
-    final selected =
-        _controller.isShowing || style != TransparencyBackgrounds.defaultStyle;
+    // 只在浮层打开时高亮，平时与两侧胶囊保持同一套底色
+    final selected = _controller.isShowing;
 
     return CompositedTransformTarget(
       link: _link,

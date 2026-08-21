@@ -56,9 +56,14 @@ Future<ProviderContainer> _pumpBar(
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: Center(
+            // 与 image_preview.dart 的用法一致：定宽容器 + 左对齐，
+            // 信息条本身拿到的是松约束，宽度由内容决定
             child: SizedBox(
               width: width,
-              child: PreviewInfoBar(image: image),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: PreviewInfoBar(image: image),
+              ),
             ),
           ),
         ),
@@ -109,6 +114,15 @@ void main() {
     );
 
     expect(find.text('$seed'), findsOneWidget);
+  });
+
+  testWidgets('信息条按内容收窄，种子胶囊不会被拉满剩余宽度', (tester) async {
+    await _pumpBar(tester, _image(seed: 4201934405), width: 600);
+
+    expect(
+      tester.getSize(find.byType(PreviewInfoBar)).width,
+      lessThan(350),
+    );
   });
 
   testWidgets('元数据没有种子时不显示种子胶囊', (tester) async {
