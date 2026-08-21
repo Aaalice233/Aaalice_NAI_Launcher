@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/image/image_params.dart';
+import '../../providers/cost_estimate_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/subscription_provider.dart';
 
@@ -42,17 +43,23 @@ class OpusUsageChip extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final usage = ref.watch(
       subscriptionNotifierProvider.select(
-        (state) =>
-            state.subscription?.isOpus == true ? state.subscription?.usage : null,
+        (state) => state.subscription?.isOpus == true
+            ? state.subscription?.usage
+            : null,
       ),
     );
     final modelInfo = ref.watch(
-      generationParamsNotifierProvider.select(
-        (params) => (
+      generationParamsNotifierProvider.select((params) {
+        final billingSize = resolveGenerationBillingSize(
+          width: params.width,
+          height: params.height,
+          maxEnhance: params.effectiveUpscaledEnhance,
+        );
+        return (
           hasOpusUsageLimit: params.capabilities.hasOpusUsageLimit,
-          area: params.width * params.height,
-        ),
-      ),
+          area: billingSize.width * billingSize.height,
+        );
+      }),
     );
     if (usage == null || !modelInfo.hasOpusUsageLimit) {
       return const SizedBox.shrink();

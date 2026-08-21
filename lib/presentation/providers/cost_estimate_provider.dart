@@ -23,6 +23,18 @@ class _GenerationCostInput {
   final double strength;
 }
 
+/// Resolves the dimensions used by both Anlas and Opus quota calculations.
+({int width, int height}) resolveGenerationBillingSize({
+  required int width,
+  required int height,
+  required bool maxEnhance,
+}) {
+  if (!maxEnhance) {
+    return (width: width, height: height);
+  }
+  return E2eUpscale.resolveMaxEnhanceTargetSize(width, height);
+}
+
 _GenerationCostInput _resolveGenerationCostInput(
   ImageParams params,
   ImageWorkflowState workflow,
@@ -53,23 +65,16 @@ _GenerationCostInput _resolveGenerationCostInput(
     }
   }
 
-  // 增强 max 档：请求携带原图尺寸，但服务端按放大到 3.14MP 的面积计费，
-  // 网页端预估同样先替换成目标尺寸再算（Opus 免费判定随之失效）。
-  if (params.effectiveUpscaledEnhance) {
-    final target = E2eUpscale.resolveMaxEnhanceTargetSize(
-      params.width,
-      params.height,
-    );
-    return _GenerationCostInput(
-      width: target.width,
-      height: target.height,
-      strength: params.strength,
-    );
-  }
-
-  return _GenerationCostInput(
+  // 增强 max 档：请求携带原图尺寸，但服务端按放大到 3.14MP 的面积计费。
+  final billingSize = resolveGenerationBillingSize(
     width: params.width,
     height: params.height,
+    maxEnhance: params.effectiveUpscaledEnhance,
+  );
+
+  return _GenerationCostInput(
+    width: billingSize.width,
+    height: billingSize.height,
     strength: switch (params.action) {
       ImageGenerationAction.img2img => params.strength,
       ImageGenerationAction.infill => params.inpaintStrength,

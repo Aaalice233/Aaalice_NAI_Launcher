@@ -91,7 +91,7 @@ void main() {
         workflow.enterUpscaleMode();
         workflow.updateUpscaleBackend(UpscaleBackend.novelai);
 
-        expect(container.read(estimatedCostProvider), equals(2));
+        expect(container.read(estimatedCostProvider), equals(1));
       },
     );
 
@@ -151,10 +151,19 @@ void main() {
       expect(container.read(estimatedCostProvider), 0);
     });
 
+    test('should share the max enhance billing size with quota estimates', () {
+      final billingSize = resolveGenerationBillingSize(
+        width: 832,
+        height: 1216,
+        maxEnhance: true,
+      );
+      final expected = E2eUpscale.resolveMaxEnhanceTargetSize(832, 1216);
+
+      expect(billingSize, expected);
+      expect(billingSize.width * billingSize.height, greaterThan(1024 * 1024));
+    });
+
     test('should price max enhance by the upscaled 3.14MP area', () {
-      // 增强 max 档：请求带原图尺寸，服务端按放大到 3.14MP 的面积计费。
-      // 网页端预估先把尺寸换成目标值再算，Opus 免费判定随之失效——
-      // 按原图面积算会把 ≤1MP 的原图误判成免费。
       final subscription = container.read(
         subscriptionNotifierProvider.notifier,
       );
@@ -178,10 +187,14 @@ void main() {
       paramsNotifier.updateUpscaledEnhance(true);
 
       final params = container.read(generationParamsNotifierProvider);
-      final target = E2eUpscale.resolveMaxEnhanceTargetSize(832, 1216);
+      final billingSize = resolveGenerationBillingSize(
+        width: params.width,
+        height: params.height,
+        maxEnhance: params.effectiveUpscaledEnhance,
+      );
       final expected = AnlasCalculator.calculateRequestCost(
-        width: target.width,
-        height: target.height,
+        width: billingSize.width,
+        height: billingSize.height,
         steps: params.steps,
         batchCount: params.nSamples,
         batchSize: container.read(imagesPerRequestProvider),
@@ -189,14 +202,15 @@ void main() {
         smeaDyn: params.effectiveSmeaDyn,
         model: params.model,
         subscriptionTier: AnlasCalculator.opusTier,
-        strength: 0.5,
+        strength: params.strength,
       );
 
-      expect(target.width * target.height, greaterThan(1024 * 1024));
+      expect(params.upscaledEnhance, isTrue);
+      expect(params.effectiveUpscaledEnhance, isTrue);
+      expect(billingSize.width * billingSize.height, greaterThan(1024 * 1024));
       expect(expected, greaterThan(0));
       expect(container.read(estimatedCostProvider), expected);
 
-      // 关掉 max 档后回到原图面积，Opus 免费恢复。
       paramsNotifier.updateUpscaledEnhance(false);
       expect(container.read(estimatedCostProvider), 0);
     });

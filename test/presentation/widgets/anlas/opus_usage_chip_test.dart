@@ -23,8 +23,9 @@ class _SubscriptionStub extends SubscriptionNotifier {
 Future<void> _pumpChip(
   WidgetTester tester,
   SubscriptionState subscription,
-  String model,
-) async {
+  String model, {
+  void Function(ProviderContainer container)? configure,
+}) async {
   final container = ProviderContainer(
     overrides: [
       subscriptionNotifierProvider.overrideWith(
@@ -48,6 +49,7 @@ Future<void> _pumpChip(
   container
       .read(generationParamsNotifierProvider.notifier)
       .updateModel(model, persist: false, followDefaults: false);
+  configure?.call(container);
   await tester.pump();
 }
 
@@ -71,6 +73,26 @@ void main() {
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
   });
 
+  testWidgets('uses the max enhance billing area for the image estimate', (
+    tester,
+  ) async {
+    await _pumpChip(
+      tester,
+      opusWithUsage,
+      ImageModels.animeDiffusionV5Curated,
+      configure: (container) {
+        final notifier = container.read(
+          generationParamsNotifierProvider.notifier,
+        );
+        notifier.updateSize(832, 1216, persist: false);
+        notifier.updateUpscaledEnhance(true);
+      },
+    );
+
+    final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
+    expect(tooltip.message, contains('About 424 images left'));
+  });
+
   testWidgets('stays hidden on models without the quota pool', (tester) async {
     await _pumpChip(tester, opusWithUsage, ImageModels.animeDiffusionV45Full);
 
@@ -84,7 +106,11 @@ void main() {
       UserSubscription(tier: 3, active: true),
     );
 
-    await _pumpChip(tester, opusWithoutUsage, ImageModels.animeDiffusionV5Curated);
+    await _pumpChip(
+      tester,
+      opusWithoutUsage,
+      ImageModels.animeDiffusionV5Curated,
+    );
 
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
