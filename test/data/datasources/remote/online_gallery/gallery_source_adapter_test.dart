@@ -98,6 +98,30 @@ void main() {
         expect(http.requests.single.queryParameters['tags'], '1girl');
       },
     );
+
+    test(
+      'reads the current Danbooru authorization for every request',
+      () async {
+        String? authHeader;
+        final http = _RecordingHttpAdapter((_) => [_donmaiPost(30)]);
+        final adapter = DonmaiGallerySourceAdapter(
+          sourceId: GallerySourceId.danbooru,
+          dio: Dio()..httpClientAdapter = http,
+          authHeader: () => authHeader,
+        );
+        const request = GallerySearchRequest(cursor: '1', pageSize: 40);
+
+        await adapter.search(request);
+        authHeader = 'Basic current-credentials';
+        await adapter.search(request);
+
+        expect(http.requests.first.headers['Authorization'], isNull);
+        expect(
+          http.requests.last.headers['Authorization'],
+          'Basic current-credentials',
+        );
+      },
+    );
   });
 
   group('AiTagGallerySourceAdapter', () {

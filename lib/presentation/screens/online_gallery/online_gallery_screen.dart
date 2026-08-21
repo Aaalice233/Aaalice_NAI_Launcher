@@ -67,6 +67,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   GalleryViewMode? _lastViewMode;
   GallerySourceId? _lastFavoritesSource;
   String? _lastCacheKey;
+  String? _scheduledAutoLoadCacheKey;
 
   @override
   bool get wantKeepAlive => true;
@@ -115,6 +116,43 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         _scrollController.position.maxScrollExtent - 200) {
       _galleryNotifier.loadMore();
     }
+  }
+
+  void _scheduleAutoLoadIfUnderfilled(OnlineGalleryState state) {
+    if (state.isLoading ||
+        state.isLoadingMore ||
+        !state.hasMore ||
+        state.currentCache.appendErrorCode != null ||
+        _scheduledAutoLoadCacheKey == state.currentCacheKey) {
+      return;
+    }
+
+    final cacheKey = state.currentCacheKey;
+    _scheduledAutoLoadCacheKey = cacheKey;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_scheduledAutoLoadCacheKey == cacheKey) {
+        _scheduledAutoLoadCacheKey = null;
+      }
+
+      final latest = ref.read(onlineGalleryNotifierProvider);
+      if (latest.currentCacheKey != cacheKey ||
+          latest.isLoading ||
+          latest.isLoadingMore ||
+          !latest.hasMore ||
+          latest.currentCache.appendErrorCode != null) {
+        return;
+      }
+
+      final needsMore =
+          latest.posts.isEmpty ||
+          (_scrollController.hasClients &&
+              _scrollController.position.pixels >=
+                  _scrollController.position.maxScrollExtent - 200);
+      if (needsMore) {
+        unawaited(_galleryNotifier.loadMore());
+      }
+    });
   }
 
   /// 保存当前滚动位置
@@ -228,6 +266,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     _lastViewMode = state.viewMode;
     _lastFavoritesSource = state.favoritesSourceId;
     _lastCacheKey = state.currentCacheKey;
+    _scheduleAutoLoadIfUnderfilled(state);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,

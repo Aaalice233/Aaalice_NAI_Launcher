@@ -108,10 +108,12 @@ Map<GallerySourceId, GallerySourceAdapter> onlineGallerySourceAdapters(
     GallerySourceId.danbooru: DonmaiGallerySourceAdapter(
       sourceId: GallerySourceId.danbooru,
       dio: dio,
+      authHeader: () => ref.read(danbooruAuthProvider.notifier).getAuthHeader(),
     ),
     GallerySourceId.safebooru: DonmaiGallerySourceAdapter(
       sourceId: GallerySourceId.safebooru,
       dio: dio,
+      authHeader: () => ref.read(danbooruAuthProvider.notifier).getAuthHeader(),
     ),
     GallerySourceId.gelbooru: GelbooruGallerySourceAdapter(
       dio: dio,

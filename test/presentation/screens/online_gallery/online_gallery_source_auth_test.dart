@@ -216,6 +216,60 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('empty filtered page automatically continues pagination', (
+    tester,
+  ) async {
+    await _setViewSize(tester, 1200);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onlineGalleryNotifierProvider.overrideWith(
+            _EmptyFilteredGalleryNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+          danbooruSuggestionNotifierProvider.overrideWith(
+            _EmptyDanbooruSuggestionNotifier.new,
+          ),
+        ],
+        child: const _TestApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('danbooru:401')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('underfilled grid automatically appends the next page', (
+    tester,
+  ) async {
+    await _setViewSize(tester, 1200);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onlineGalleryNotifierProvider.overrideWith(
+            _UnderfilledGalleryNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+          danbooruSuggestionNotifierProvider.overrideWith(
+            _EmptyDanbooruSuggestionNotifier.new,
+          ),
+        ],
+        child: const _TestApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('danbooru:401')), findsOneWidget);
+    expect(find.byKey(const ValueKey('danbooru:402')), findsOneWidget);
+    expect(find.text('2 images'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('page replacement renders the second page URL with stable keys', (
     tester,
   ) async {
@@ -454,6 +508,51 @@ class _AiTagDetailGalleryNotifier extends _AiTagSearchGalleryNotifier {
   }
 }
 
+class _EmptyFilteredGalleryNotifier extends OnlineGalleryNotifier {
+  @override
+  OnlineGalleryState build() {
+    return const OnlineGalleryState(
+      searchCache: ModeCache(posts: [], page: 5, nextCursor: 'b500'),
+    );
+  }
+
+  @override
+  Future<void> loadPosts({bool refresh = false}) async {}
+
+  @override
+  Future<void> loadMore() async {
+    state = const OnlineGalleryState(
+      searchCache: ModeCache(
+        posts: [_pageOnePost],
+        page: 6,
+        nextCursor: null,
+        hasMore: false,
+      ),
+    );
+  }
+}
+
+class _UnderfilledGalleryNotifier extends OnlineGalleryNotifier {
+  @override
+  OnlineGalleryState build() {
+    return const OnlineGalleryState(
+      searchCache: ModeCache(posts: [_pageOnePost], page: 1, nextCursor: '2'),
+    );
+  }
+
+  @override
+  Future<void> loadMore() async {
+    state = const OnlineGalleryState(
+      searchCache: ModeCache(
+        posts: [_pageOnePost, _pageTwoPost],
+        page: 2,
+        nextCursor: null,
+        hasMore: false,
+      ),
+    );
+  }
+}
+
 class _PagedGalleryNotifier extends OnlineGalleryNotifier {
   @override
   OnlineGalleryState build() {
@@ -461,6 +560,9 @@ class _PagedGalleryNotifier extends OnlineGalleryNotifier {
       searchCache: ModeCache(posts: [_pageOnePost], page: 1, nextCursor: '2'),
     );
   }
+
+  @override
+  Future<void> loadMore() async {}
 
   @override
   Future<void> goToPage(int page) async {

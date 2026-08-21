@@ -6,12 +6,16 @@ import '../../../models/online_gallery/gallery_source.dart';
 import 'gallery_source_adapter.dart';
 
 class DonmaiGallerySourceAdapter implements GallerySourceAdapter {
-  DonmaiGallerySourceAdapter({required this.sourceId, required Dio dio})
-    : assert(
-        sourceId == GallerySourceId.danbooru ||
-            sourceId == GallerySourceId.safebooru,
-      ),
-      _dio = dio;
+  DonmaiGallerySourceAdapter({
+    required this.sourceId,
+    required Dio dio,
+    String? Function()? authHeader,
+  }) : assert(
+         sourceId == GallerySourceId.danbooru ||
+             sourceId == GallerySourceId.safebooru,
+       ),
+       _dio = dio,
+       _authHeader = authHeader;
 
   @override
   final GallerySourceId sourceId;
@@ -21,6 +25,7 @@ class DonmaiGallerySourceAdapter implements GallerySourceAdapter {
       gallerySourceCapabilities[sourceId]!;
 
   final Dio _dio;
+  final String? Function()? _authHeader;
 
   String get _baseUrl => sourceId == GallerySourceId.safebooru
       ? 'https://safebooru.donmai.us'
@@ -275,9 +280,13 @@ class DonmaiGallerySourceAdapter implements GallerySourceAdapter {
         .toList(growable: false);
   }
 
-  Map<String, String> _headers(String url) => {
-    ...onlineGalleryImageHeadersForUrl(url),
-    'Accept': 'application/json',
-    'User-Agent': 'NAI-Launcher/1.0',
-  };
+  Map<String, String> _headers(String url) {
+    final authHeader = _authHeader?.call();
+    return {
+      ...onlineGalleryImageHeadersForUrl(url),
+      'Accept': 'application/json',
+      'User-Agent': 'NAI-Launcher/1.0',
+      if (authHeader != null) 'Authorization': authHeader,
+    };
+  }
 }
