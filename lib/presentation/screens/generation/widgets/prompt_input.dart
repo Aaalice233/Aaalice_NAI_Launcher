@@ -12,6 +12,8 @@ import '../../../../core/utils/nai_prompt_formatter.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../../data/models/fixed_tag/fixed_tag_entry.dart';
+import '../../../../data/models/image/image_params.dart'
+    show ImageParamsExtension;
 import '../../../../data/models/prompt/prompt_preset_mode.dart';
 import '../../../../data/services/alias_resolver_service.dart';
 import '../../../providers/character_prompt_provider.dart';
@@ -39,6 +41,7 @@ import '../../../widgets/prompt/fixed_tags_button.dart';
 import '../../../providers/pending_prompt_provider.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
+import 'generation_toggle_button.dart';
 
 bool usesRichPromptTypeTooltip(TargetPlatform platform) =>
     platform != TargetPlatform.windows;
@@ -463,7 +466,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
         // 提示词编辑区域（autoGrow 时随内容自增高，否则填充可用高度）
         if (widget.autoGrow) editor else Expanded(child: editor),
-        _PromptTokenCountFooter(
+        _PromptFooter(
           target: _isNegativeMode
               ? PromptTokenCountTarget.negative
               : PromptTokenCountTarget.positive,
@@ -1014,7 +1017,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
             },
           ),
         ),
-        const _PromptTokenCountFooter(
+        const _PromptFooter(
           target: PromptTokenCountTarget.positive,
           topPadding: 4,
         ),
@@ -1023,11 +1026,8 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   }
 }
 
-class _PromptTokenCountFooter extends ConsumerWidget {
-  const _PromptTokenCountFooter({
-    required this.target,
-    required this.topPadding,
-  });
+class _PromptFooter extends ConsumerWidget {
+  const _PromptFooter({required this.target, required this.topPadding});
 
   final PromptTokenCountTarget target;
   final double topPadding;
@@ -1035,10 +1035,41 @@ class _PromptTokenCountFooter extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokenUsage = ref.watch(promptTokenUsageProvider(target));
+    final transparentBackground = ref.watch(
+      generationParamsNotifierProvider.select(
+        (params) => (
+          supported: params.capabilities.supportsTransparentBackground,
+          enabled: params.transparentBackground,
+        ),
+      ),
+    );
+    final showTransparentBackground =
+        target == PromptTokenCountTarget.positive &&
+        transparentBackground.supported;
+
     return Padding(
       padding: EdgeInsets.only(top: topPadding),
-      child: RepaintBoundary(
-        child: PromptTokenCountAsyncBar(usage: tokenUsage),
+      child: Row(
+        children: [
+          if (showTransparentBackground) ...[
+            GenerationToggleButton(
+              key: const ValueKey('generation_transparent_background_toggle'),
+              label: context.l10n.generation_transparentBackground,
+              isEnabled: transparentBackground.enabled,
+              onChanged: (value) {
+                ref
+                    .read(generationParamsNotifierProvider.notifier)
+                    .updateTransparentBackground(value);
+              },
+            ),
+            const SizedBox(width: 8),
+          ],
+          Expanded(
+            child: RepaintBoundary(
+              child: PromptTokenCountAsyncBar(usage: tokenUsage),
+            ),
+          ),
+        ],
       ),
     );
   }

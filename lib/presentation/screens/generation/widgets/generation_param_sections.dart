@@ -10,6 +10,7 @@ import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_dropdown.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/common/themed_slider.dart';
+import 'generation_toggle_button.dart';
 import 'size_selector.dart';
 
 /// 生成参数分节控件集
@@ -103,7 +104,7 @@ class SizeSection extends ConsumerWidget {
             const Spacer(),
             // 端到端 ×2 放大：模型按基础分辨率生成，服务端输出边长翻倍
             if (size.supportsE2eUpscale)
-              _ToggleButton(
+              GenerationToggleButton(
                 label: '×${E2eUpscale.factor}',
                 isEnabled: size.e2eUpscale,
                 onChanged: (value) {
@@ -298,9 +299,6 @@ class CfgScaleSection extends ConsumerWidget {
           decrisp: params.decrisp,
           varietyPlus: params.varietyPlus,
           isV3Model: params.isV3Model,
-          supportsTransparentBackground:
-              params.capabilities.supportsTransparentBackground,
-          transparentBackground: params.transparentBackground,
           supportsVarietyPlus: params.capabilities.supportsVarietyPlus,
         ),
       ),
@@ -314,22 +312,9 @@ class CfgScaleSection extends ConsumerWidget {
               context.l10n.generation_cfgScale(data.scale.toStringAsFixed(1)),
             ),
             const Spacer(),
-            // 透明背景 (仅 V5)：勾选后正向提示词补 transparent background
-            if (data.supportsTransparentBackground) ...[
-              _ToggleButton(
-                label: context.l10n.generation_transparentBackground,
-                isEnabled: data.transparentBackground,
-                onChanged: (value) {
-                  ref
-                      .read(generationParamsNotifierProvider.notifier)
-                      .updateTransparentBackground(value);
-                },
-              ),
-              const SizedBox(width: 8),
-            ],
             // Decrisp (仅 V3 模型)
             if (data.isV3Model) ...[
-              _ToggleButton(
+              GenerationToggleButton(
                 label: 'Decrisp',
                 isEnabled: data.decrisp,
                 onChanged: (value) {
@@ -342,7 +327,7 @@ class CfgScaleSection extends ConsumerWidget {
             ],
             // Variety+ (V3-V4.5；V5 不支持 skip_cfg_above_sigma)
             if (data.supportsVarietyPlus)
-              _ToggleButton(
+              GenerationToggleButton(
                 label: 'Variety+',
                 isEnabled: data.varietyPlus,
                 onChanged: (value) {
@@ -814,100 +799,6 @@ class _SmeaOptions extends StatelessWidget {
           const SizedBox(width: 4),
           Text(label, style: TextStyle(fontSize: 13, color: color)),
         ],
-      ),
-    );
-  }
-}
-
-/// 通用切换按钮 (用于 Variety+, Decrisp 等)
-class _ToggleButton extends StatefulWidget {
-  final String label;
-  final bool isEnabled;
-  final ValueChanged<bool> onChanged;
-
-  const _ToggleButton({
-    required this.label,
-    required this.isEnabled,
-    required this.onChanged,
-  });
-
-  @override
-  State<_ToggleButton> createState() => _ToggleButtonState();
-}
-
-class _ToggleButtonState extends State<_ToggleButton> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    // 计算背景色
-    Color backgroundColor;
-    if (widget.isEnabled) {
-      backgroundColor = _isHovered
-          ? theme.colorScheme.primary.withValues(alpha: 0.85)
-          : theme.colorScheme.primary;
-    } else {
-      final baseColor = isDark
-          ? Colors.white.withValues(alpha: 0.08)
-          : Colors.black.withValues(alpha: 0.05);
-      backgroundColor = _isHovered
-          ? (isDark
-                ? Colors.white.withValues(alpha: 0.15)
-                : Colors.black.withValues(alpha: 0.1))
-          : baseColor;
-    }
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () => widget.onChanged(!widget.isEnabled),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeInOut,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: widget.isEnabled
-                  ? theme.colorScheme.primary
-                  : (_isHovered
-                        ? theme.colorScheme.outline.withValues(alpha: 0.4)
-                        : theme.colorScheme.outline.withValues(alpha: 0.2)),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (widget.isEnabled) ...[
-                Icon(
-                  Icons.check_rounded,
-                  size: 14,
-                  color: theme.colorScheme.onPrimary,
-                ),
-                const SizedBox(width: 4),
-              ],
-              Text(
-                widget.label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: widget.isEnabled
-                      ? theme.colorScheme.onPrimary
-                      : theme.colorScheme.onSurface.withValues(
-                          alpha: _isHovered ? 0.8 : 0.6,
-                        ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

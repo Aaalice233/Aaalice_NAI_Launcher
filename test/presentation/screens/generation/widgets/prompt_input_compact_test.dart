@@ -42,9 +42,55 @@ void main() {
 
     expect(find.text('12 / 512'), findsOneWidget);
   });
+
+  testWidgets('V5 紧凑模式会在提示词框下方显示透明背景开关', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith(
+            (ref) => _TestLocalStorageService(
+              defaultModel: 'nai-diffusion-5-curated',
+            ),
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.positive,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 12, limit: 703),
+          ),
+        ],
+        child: const MaterialApp(
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 720,
+                height: 160,
+                child: PromptInputWidget(compact: true),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      find.byKey(const ValueKey('generation_transparent_background_toggle')),
+      findsOneWidget,
+    );
+    expect(find.text('12 / 703'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 class _TestLocalStorageService extends LocalStorageService {
+  _TestLocalStorageService({this.defaultModel = 'nai-diffusion-4-5-full'});
+
+  final String defaultModel;
+
   @override
   bool getEnablePromptWeightScroll() => true;
 
@@ -70,7 +116,10 @@ class _TestLocalStorageService extends LocalStorageService {
   String getLastNegativePrompt() => '';
 
   @override
-  String getDefaultModel() => 'nai-diffusion-4-5-full';
+  String getDefaultModel() => defaultModel;
+
+  @override
+  bool getLastTransparentBackground() => false;
 
   @override
   String getDefaultSampler() => 'k_euler_ancestral';
