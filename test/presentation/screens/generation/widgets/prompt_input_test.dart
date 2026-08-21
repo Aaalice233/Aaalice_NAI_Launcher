@@ -11,6 +11,7 @@ import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assi
 import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/prompt_token_counter_provider.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/generation_toggle_button.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/weight_adjust_toolbar.dart';
@@ -66,6 +67,78 @@ void main() {
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('V5 透明背景开关位于正向提示词框左下角', (tester) async {
+    final storage = _TestLocalStorageService(
+      defaultModel: 'nai-diffusion-5-curated',
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith((ref) => storage),
+          characterPromptNotifierProvider.overrideWith(
+            _TestCharacterPromptNotifier.new,
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.positive,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 703),
+          ),
+          promptTokenUsageProvider(
+            PromptTokenCountTarget.negative,
+          ).overrideWith(
+            (ref) async => const PromptTokenUsage(usedTokens: 0, limit: 703),
+          ),
+        ],
+        child: const MaterialApp(
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            body: SizedBox(
+              width: 960,
+              height: 420,
+              child: PromptInputWidget(autoGrow: true),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final promptField = find
+        .descendant(
+          of: find.byKey(const ValueKey('generation_prompt_positive_input')),
+          matching: find.byType(TextField),
+        )
+        .first;
+    final toggle = find.byKey(
+      const ValueKey('generation_transparent_background_toggle'),
+    );
+
+    expect(toggle, findsOneWidget);
+    expect(
+      tester.getTopLeft(toggle).dy,
+      greaterThanOrEqualTo(tester.getBottomLeft(promptField).dy),
+    );
+    expect(
+      tester.getTopLeft(toggle).dx,
+      closeTo(tester.getTopLeft(promptField).dx, 1),
+    );
+    expect(tester.widget<GenerationToggleButton>(toggle).isEnabled, isFalse);
+
+    await tester.tap(toggle);
+    await tester.pump();
+
+    expect(tester.widget<GenerationToggleButton>(toggle).isEnabled, isTrue);
+    expect(storage.savedTransparentBackground, isTrue);
+
+    await tester.tap(find.byIcon(Icons.block).first);
+    await tester.pump();
+
+    expect(toggle, findsNothing);
   });
 
   testWidgets('Ctrl+F 搜索选中命中且编辑提示词不重置光标', (tester) async {
@@ -417,9 +490,14 @@ void main() {
 }
 
 class _TestLocalStorageService extends LocalStorageService {
-  _TestLocalStorageService({this.enablePromptWeightScroll = true});
+  _TestLocalStorageService({
+    this.enablePromptWeightScroll = true,
+    this.defaultModel = 'nai-diffusion-4-5-full',
+  });
 
   final bool enablePromptWeightScroll;
+  final String defaultModel;
+  bool? savedTransparentBackground;
 
   @override
   bool getEnablePromptWeightScroll() => enablePromptWeightScroll;
@@ -452,7 +530,15 @@ class _TestLocalStorageService extends LocalStorageService {
   Future<void> setLastNegativePrompt(String prompt) async {}
 
   @override
-  String getDefaultModel() => 'nai-diffusion-4-5-full';
+  String getDefaultModel() => defaultModel;
+
+  @override
+  bool getLastTransparentBackground() => false;
+
+  @override
+  Future<void> setLastTransparentBackground(bool value) async {
+    savedTransparentBackground = value;
+  }
 
   @override
   String getDefaultSampler() => 'k_euler_ancestral';
