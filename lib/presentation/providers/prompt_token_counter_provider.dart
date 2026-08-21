@@ -2,10 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/api_constants.dart';
+import '../../core/constants/model_capabilities.dart';
 import '../../core/services/prompt_token_counter_service.dart';
 import '../../core/utils/prompt_preset_resolution.dart';
 import '../../core/utils/prompt_semantics_utils.dart';
 import '../../data/models/character/character_prompt.dart' as ui_character;
+import '../../data/models/image/image_params.dart';
 import '../../data/models/prompt/prompt_preset_mode.dart';
 import '../../data/services/alias_resolver_service.dart';
 import 'character_prompt_provider.dart';
@@ -56,7 +58,9 @@ final promptTokenUsageProvider =
             model: params.model,
             isEnhanceRequest:
                 target == PromptTokenCountTarget.positive &&
-                params.isEnhanceRequest,
+                params.shouldApplyEnhancePromptAddition,
+            transparentBackground: params.transparentBackground,
+            qualityTier: params.qualityTier,
           ),
         ),
       );
@@ -69,8 +73,9 @@ final promptTokenUsageProvider =
       final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
       final service = await ref.watch(promptTokenCounterServiceProvider.future);
       final qualityContent = switch (qualityPresetState.mode) {
-        PromptPresetMode.naiDefault => QualityTags.getQualityTags(
+        PromptPresetMode.naiDefault => QualityTags.getQualityTagsForTier(
           promptState.model,
+          qualityPresetState.naiTierId,
         ),
         PromptPresetMode.custom => currentQualityEntry?.content,
         PromptPresetMode.none => null,
@@ -96,13 +101,18 @@ final promptTokenUsageProvider =
         ucPresetContent: ucPresetContent,
         useCustomUcPreset: ucPresetState.isCustom,
         isEnhanceRequest: promptState.isEnhanceRequest,
+        transparentBackground: promptState.transparentBackground,
+        qualityTier: promptState.qualityTier,
         characters: characterConfig.characters,
         resolveAliases: aliasResolver.resolveAliases,
       );
 
       final breakdown = <PromptTokenBreakdownEntry>[];
       for (final group in payload.breakdown) {
-        final tokens = await service.countTokensForTexts(group.texts);
+        final tokens = await service.countTokensForTexts(
+          group.texts,
+          model: promptState.model,
+        );
         if (tokens <= 0) {
           continue;
         }
@@ -110,9 +120,12 @@ final promptTokenUsageProvider =
           PromptTokenBreakdownEntry(label: group.label, tokens: tokens),
         );
       }
-      if (breakdown.isNotEmpty) {
+      final webAdjustment = PromptTokenCounterService.webAdjustmentForModel(
+        promptState.model,
+      );
+      if (breakdown.isNotEmpty && webAdjustment > 0) {
         breakdown.add(
-          const PromptTokenBreakdownEntry(label: '网页端校准', tokens: 1),
+          PromptTokenBreakdownEntry(label: '网页端校准', tokens: webAdjustment),
         );
       }
 
@@ -141,6 +154,8 @@ PromptTokenCountPayload buildPromptTokenCountPayload({
   bool isEnhanceRequest = false,
   required List<ui_character.CharacterPrompt> characters,
   required String Function(String text) resolveAliases,
+  bool transparentBackground = false,
+  String qualityTier = QualityTags.standardTier,
 }) {
   return switch (target) {
     PromptTokenCountTarget.positive => _buildPositiveTokenCountPayload(
@@ -156,6 +171,8 @@ PromptTokenCountPayload buildPromptTokenCountPayload({
       ucPresetContent: ucPresetContent,
       useCustomUcPreset: useCustomUcPreset,
       isEnhanceRequest: isEnhanceRequest,
+      transparentBackground: transparentBackground,
+      qualityTier: qualityTier,
       characters: characters,
       resolveAliases: resolveAliases,
     ),
@@ -192,6 +209,8 @@ PromptTokenCountPayload _buildPositiveTokenCountPayload({
   required bool isEnhanceRequest,
   required List<ui_character.CharacterPrompt> characters,
   required String Function(String text) resolveAliases,
+  bool transparentBackground = false,
+  String qualityTier = QualityTags.standardTier,
 }) {
   final resolvedPrompt = resolveAliases(prompt).trim();
   final resolvedNegativePrompt = resolveAliases(negativePrompt).trim();
@@ -224,6 +243,8 @@ PromptTokenCountPayload _buildPositiveTokenCountPayload({
     qualityToggle: presetResolution.qualityToggle,
     ucPreset: presetResolution.ucPreset,
     isEnhanceRequest: isEnhanceRequest,
+    transparentBackground: transparentBackground,
+    qualityTier: qualityTier,
   );
 
   final extraTexts = characters
@@ -251,6 +272,16 @@ PromptTokenCountPayload _buildPositiveTokenCountPayload({
     resolvedQualityMode,
     resolvedQualityContent,
   );
+  // 透明背景会真的进正向提示词，明细里跟质量词算在一起，否则分项加不回总数。
+  final transparencyApplies =
+      transparentBackground &&
+      ModelCapabilityRegistry.of(model).supportsTransparentBackground;
+  final qualityBreakdownText = transparencyApplies
+      ? [
+          QualityTags.transparentBackgroundTag,
+          qualityTags,
+        ].where((text) => text.isNotEmpty).join(', ')
+      : qualityTags;
 
   return PromptTokenCountPayload(
     mainText: promptSemantics.effectivePrompt,
@@ -258,7 +289,10 @@ PromptTokenCountPayload _buildPositiveTokenCountPayload({
     breakdown: [
       PromptTokenCountBreakdownGroup(label: '提示词', texts: [resolvedPrompt]),
       PromptTokenCountBreakdownGroup(label: '固定词', texts: fixedTagTexts),
-      PromptTokenCountBreakdownGroup(label: '质量预设', texts: [qualityTags]),
+      PromptTokenCountBreakdownGroup(
+        label: '质量预设',
+        texts: [qualityBreakdownText],
+      ),
       PromptTokenCountBreakdownGroup(label: '角色', texts: extraTexts),
     ],
   );

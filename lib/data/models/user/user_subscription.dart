@@ -45,6 +45,9 @@ class UserSubscription with _$UserSubscription {
 
     /// 是否在宽限期
     @Default(false) bool isGracePeriod,
+
+    /// Opus 免费生成配额（V5 起，随时间自动回充）
+    OpusUsageInfo? usage,
   }) = _UserSubscription;
 
   factory UserSubscription.fromJson(Map<String, dynamic> json) =>
@@ -93,6 +96,26 @@ class UserSubscription with _$UserSubscription {
         return 'Unknown';
     }
   }
+}
+
+/// Opus 免费生成配额信息（V5 起）
+///
+/// 网页端在配额透支（[isNegative]）时按正常价扣 Anlas；配额随时间自动回充。
+@freezed
+class OpusUsageInfo with _$OpusUsageInfo {
+  const factory OpusUsageInfo({
+    /// 剩余配额百分比（0-100，可能为负值语义见 [isNegative]）
+    @Default(0) double percent,
+
+    /// 配额是否已透支
+    @Default(false) bool isNegative,
+
+    /// 距下一个 1% 回充的秒数
+    @Default(0) double timeUntilNextPercent,
+  }) = _OpusUsageInfo;
+
+  factory OpusUsageInfo.fromJson(Map<String, dynamic> json) =>
+      _$OpusUsageInfoFromJson(json);
 }
 
 /// Anlas 训练步数信息

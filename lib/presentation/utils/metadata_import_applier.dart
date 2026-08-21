@@ -2,6 +2,8 @@ import '../../core/constants/api_constants.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/metadata/metadata_import_options.dart';
 
+void _ignoreQualityTier(String _) {}
+
 class MetadataImportTarget {
   const MetadataImportTarget({
     required this.updatePrompt,
@@ -18,7 +20,9 @@ class MetadataImportTarget {
     required this.updateNoiseSchedule,
     required this.updateCfgRescale,
     required this.updateQualityToggle,
+    this.updateQualityTier = _ignoreQualityTier,
     required this.updateUcPreset,
+    required this.updateTransparentBackground,
   });
 
   final void Function(String value) updatePrompt;
@@ -35,7 +39,9 @@ class MetadataImportTarget {
   final void Function(String value) updateNoiseSchedule;
   final void Function(double value) updateCfgRescale;
   final void Function(bool value) updateQualityToggle;
+  final void Function(String value) updateQualityTier;
   final void Function(int value) updateUcPreset;
+  final void Function(bool value) updateTransparentBackground;
 }
 
 class MetadataImportApplier {
@@ -127,15 +133,23 @@ class MetadataImportApplier {
       metadata.cfgRescale,
       target.updateCfgRescale,
     );
-    count += _applyValue<bool>(
-      options.importQualityToggle,
-      metadata.qualityToggle,
-      target.updateQualityToggle,
-    );
+    if (options.importQualityToggle && metadata.qualityToggle != null) {
+      final enabled = metadata.qualityToggle!;
+      target.updateQualityToggle(enabled);
+      if (enabled && metadata.qualityTier != null) {
+        target.updateQualityTier(metadata.qualityTier!);
+      }
+      count++;
+    }
     count += _applyValue<int>(
       options.importUcPreset,
       metadata.ucPreset,
       target.updateUcPreset,
+    );
+    count += _applyValue<bool>(
+      options.importTransparentBackground,
+      metadata.transparentBackground,
+      target.updateTransparentBackground,
     );
 
     return count;
@@ -152,16 +166,14 @@ class MetadataImportApplier {
     }
 
     final model = resolveImportableModel(metadata) ?? currentModel;
-    return UcPresets.stripPresetByInt(
-      baseNegative,
-      model,
-      metadata.ucPreset!,
-    );
+    return UcPresets.stripPresetByInt(baseNegative, model, metadata.ucPreset!);
   }
 
   static String? toImportableModelId(String? model) {
     if (model == null || model.isEmpty) return null;
-    return ImageModels.allModels.contains(model) ? model : null;
+    // 测试期生成的图元数据里是 `custom`，迁移到正式 ID。
+    final normalized = ImageModels.migrateLegacyModel(model);
+    return ImageModels.allModels.contains(normalized) ? normalized : null;
   }
 
   static String? resolveImportableModel(NaiImageMetadata metadata) {

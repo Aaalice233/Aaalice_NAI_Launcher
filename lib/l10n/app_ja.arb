@@ -300,7 +300,13 @@
   "generation_clearHistory": "履歴をクリア",
   "generation_clearHistoryConfirm": "すべての履歴レコードをクリアしてもよろしいですか?この操作は元に戻すことができません。",
   "generation_model": "モデル",
+  "generation_opusUsageRemaining": "Opus 無料生成の残り {percent}%",
+  "generation_opusUsageEstimate": "あと約 {count} 枚生成可能",
+  "generation_opusUsageRefill": "上限は時間経過で自動回復します",
+  "generation_opusUsageExhausted": "Opus の無料枠を使い切りました。回復するまで V5 の生成には Anlas を消費します。",
   "generation_imageSize": "画像サイズ",
+  "generation_transparentBackground": "透過背景",
+  "generation_e2eUpscaleHint": "サーバー出力 {size}",
   "generation_sampler": "サンプラー",
   "generation_steps": "ステップ: {steps}",
   "@generation_steps": {
@@ -309,6 +315,26 @@
     }
   },
   "generation_cfgScale": "CFG スケール: {scale}",
+  "@character_limitReached": {
+    "placeholders": {
+      "limit": {}
+    }
+  },
+  "@generation_opusUsageRemaining": {
+    "placeholders": {
+      "percent": {}
+    }
+  },
+  "@generation_opusUsageEstimate": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "@generation_e2eUpscaleHint": {
+    "placeholders": {
+      "size": {}
+    }
+  },
   "@generation_cfgScale": {
     "placeholders": {
       "scale": {}
@@ -557,6 +583,7 @@
   "img2img_enhanceMagnitude": "大きさ",
   "img2img_enhanceShowIndividualSettings": "個別設定を表示",
   "img2img_enhanceUpscaleAmount": "画像の拡大率",
+  "img2img_enhanceScaleMax": "最大",
   "img2img_focusedInpaint": "Focused インペイント",
   "img2img_focusedInpaintEnabledHint": "有効になりました。インペイント エディターの左上のコントロールからフォーカス エリアと最小コンテキスト エリアを調整します。",
   "img2img_focusedInpaintDisabledHint": "通常のインペイントがデフォルトです。Focused インペイントを使うには、インペイントエディター左上のコントロールから有効にし、フォーカスエリアを描画します。",
@@ -1024,6 +1051,7 @@
   "vibe_shiftReplaceHint": "Shift+クリックして置換",
   "character_buttonLabel": "キャラクター",
   "character_addCharacter": "キャラクターを追加",
+  "character_limitReached": "このモデルのキャラクター上限（{limit}）に達しました",
   "character_number": "キャラクター {index}",
   "@character_number": {
     "placeholders": {
@@ -1324,6 +1352,8 @@
   "qualityTags_disabled": "品質タグが無効です\nクリックして有効にします",
   "qualityTags_addToEnd": "プロンプトの最後に追加:",
   "qualityTags_naiDefault": "NAI のデフォルト",
+  "qualityTags_naiDefaultStandard": "NAI のデフォルト（標準）",
+  "qualityTags_naiDefaultLight": "NAI のデフォルト（ライト）",
   "qualityTags_none": "なし",
   "qualityTags_addFromLibrary": "ライブラリから追加",
   "qualityTags_selectFromLibrary": "品質タグエントリの選択",

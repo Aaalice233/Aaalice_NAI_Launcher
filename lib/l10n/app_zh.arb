@@ -287,7 +287,13 @@
   "generation_clearHistory": "清除历史记录",
   "generation_clearHistoryConfirm": "确定要清除所有历史记录吗？此操作不可撤销。",
   "generation_model": "模型",
+  "generation_opusUsageRemaining": "Opus 免费生成剩余 {percent}%",
+  "generation_opusUsageEstimate": "约可再生成 {count} 张",
+  "generation_opusUsageRefill": "额度会随时间自动恢复",
+  "generation_opusUsageExhausted": "Opus 免费额度已用完，V5 生成将消耗 Anlas，额度会随时间自动恢复",
   "generation_imageSize": "图像尺寸",
+  "generation_transparentBackground": "透明背景",
+  "generation_e2eUpscaleHint": "服务端输出 {size}",
   "generation_sampler": "采样器",
   "generation_steps": "步数: {steps}",
   "generation_cfgScale": "CFG 强度：{scale}",
@@ -511,6 +517,7 @@
   "img2img_enhanceMagnitude": "幅度",
   "img2img_enhanceShowIndividualSettings": "显示单独设置",
   "img2img_enhanceUpscaleAmount": "放大倍数",
+  "img2img_enhanceScaleMax": "最大",
   "img2img_focusedInpaint": "Focused Inpainting（聚焦重绘）",
   "img2img_focusedInpaintEnabledHint": "已启用。请在重绘编辑器左上角按钮里调整聚焦区域与 Minimum Context Area。",
   "img2img_focusedInpaintDisabledHint": "默认是普通重绘；如需聚焦重绘，请在重绘编辑器左上角按钮中开启并框选区域。",
@@ -967,6 +974,7 @@
 
   "character_buttonLabel": "角色",
   "character_addCharacter": "添加角色",
+  "character_limitReached": "已达当前模型的角色上限（{limit} 个）",
   "character_number": "角色 {index}",
   "gallery_generationParams": "生成参数",
   "gallery_metaModel": "模型",
@@ -1259,6 +1267,8 @@
   "qualityTags_disabled": "质量标签已关闭\n点击开启",
   "qualityTags_addToEnd": "添加到提示词末尾:",
   "qualityTags_naiDefault": "NAI 默认",
+  "qualityTags_naiDefaultStandard": "NAI 默认（标准）",
+  "qualityTags_naiDefaultLight": "NAI 默认（轻量）",
   "qualityTags_none": "无",
   "qualityTags_addFromLibrary": "从词库添加",
   "qualityTags_selectFromLibrary": "选择质量词条目",
@@ -5472,6 +5482,26 @@
   "@generation_cfgRescale": {
     "placeholders": {
       "value": {}
+    }
+  },
+  "@character_limitReached": {
+    "placeholders": {
+      "limit": {}
+    }
+  },
+  "@generation_opusUsageRemaining": {
+    "placeholders": {
+      "percent": {}
+    }
+  },
+  "@generation_opusUsageEstimate": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "@generation_e2eUpscaleHint": {
+    "placeholders": {
+      "size": {}
     }
   },
   "@generation_cfgScale": {

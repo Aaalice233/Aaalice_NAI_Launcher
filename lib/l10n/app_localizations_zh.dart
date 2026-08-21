@@ -752,7 +752,32 @@ class AppLocalizationsZh extends AppLocalizations {
   String get generation_model => '模型';
 
   @override
+  String generation_opusUsageRemaining(Object percent) {
+    return 'Opus 免费生成剩余 $percent%';
+  }
+
+  @override
+  String generation_opusUsageEstimate(Object count) {
+    return '约可再生成 $count 张';
+  }
+
+  @override
+  String get generation_opusUsageRefill => '额度会随时间自动恢复';
+
+  @override
+  String get generation_opusUsageExhausted =>
+      'Opus 免费额度已用完，V5 生成将消耗 Anlas，额度会随时间自动恢复';
+
+  @override
   String get generation_imageSize => '图像尺寸';
+
+  @override
+  String get generation_transparentBackground => '透明背景';
+
+  @override
+  String generation_e2eUpscaleHint(Object size) {
+    return '服务端输出 $size';
+  }
 
   @override
   String get generation_sampler => '采样器';
@@ -1244,6 +1269,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get img2img_enhanceUpscaleAmount => '放大倍数';
+
+  @override
+  String get img2img_enhanceScaleMax => '最大';
 
   @override
   String get img2img_focusedInpaint => 'Focused Inpainting（聚焦重绘）';
@@ -2203,6 +2231,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get character_addCharacter => '添加角色';
 
   @override
+  String character_limitReached(Object limit) {
+    return '已达当前模型的角色上限（$limit 个）';
+  }
+
+  @override
   String character_number(Object index) {
     return '角色 $index';
   }
@@ -2887,6 +2920,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get qualityTags_naiDefault => 'NAI 默认';
+
+  @override
+  String get qualityTags_naiDefaultStandard => 'NAI 默认（标准）';
+
+  @override
+  String get qualityTags_naiDefaultLight => 'NAI 默认（轻量）';
 
   @override
   String get qualityTags_none => '无';

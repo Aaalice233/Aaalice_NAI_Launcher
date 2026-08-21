@@ -127,6 +127,31 @@ void main() {
       expect(() => builder.build(sampler: ''), throwsA(isA<ArgumentError>()));
     });
 
+    test('should reject character counts above the model limit', () async {
+      final params = ImageParams(
+        model: ImageModels.animeDiffusionV45Full,
+        characters: List<CharacterPrompt>.generate(
+          7,
+          (index) => CharacterPrompt(prompt: 'character $index'),
+        ),
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      await expectLater(
+        builder.build(sampler: 'k_euler'),
+        throwsA(
+          isA<ArgumentError>().having(
+            (error) => error.message,
+            'message',
+            contains('at most 6 characters'),
+          ),
+        ),
+      );
+    });
+
     test(
       'should keep explicit centers and give all six characters a fallback',
       () async {
@@ -1076,6 +1101,290 @@ void main() {
       },
     );
 
+    test('should build the V5 staging payload with params_version 4', () async {
+      const params = ImageParams(
+        prompt: '1girl',
+        model: ImageModels.v5StagingKey,
+        qualityToggle: false,
+        ucPreset: UcPresets.noneApiValue,
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+      final parameters = result.requestParameters;
+
+      expect(result.requestData['model'], ImageModels.v5StagingKey);
+      expect(parameters['params_version'], 4);
+      expect(parameters['v4_prompt'], isA<Map<String, dynamic>>());
+      expect(parameters['v4_negative_prompt'], isA<Map<String, dynamic>>());
+      // V4 起的结构不再发送 V3 时代的顶层字段
+      expect(parameters.containsKey('sm'), isFalse);
+      expect(parameters.containsKey('sm_dyn'), isFalse);
+      expect(parameters.containsKey('uc'), isFalse);
+    });
+
+    test('should keep V4.5 requests on params_version 3', () async {
+      const params = ImageParams(model: ImageModels.animeDiffusionV45Full);
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      expect(result.requestParameters['params_version'], 3);
+    });
+
+    test('should omit vibe payload for models without vibe support', () async {
+      // V5 测试期尚未开放 Vibe Transfer，携带相关参数会被服务端拒绝。
+      const params = ImageParams(
+        model: ImageModels.v5StagingKey,
+        vibeReferencesV4: [
+          VibeReference(
+            displayName: 'pre',
+            vibeEncoding: 'pre-encoded',
+            sourceType: VibeSourceType.png,
+          ),
+        ],
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      expect(
+        result.requestParameters.containsKey('reference_image_multiple'),
+        isFalse,
+      );
+      expect(
+        result.requestParameters.containsKey('reference_strength_multiple'),
+        isFalse,
+      );
+      expect(result.vibeEncodingMap, isEmpty);
+    });
+
+    test('should route V5 infill onto the official weights', () async {
+      Future<String> requestModelFor(String model) async {
+        final params = ImageParams(
+          model: model,
+          action: ImageGenerationAction.infill,
+          sourceImage: _solidPngBytes(width: 64, height: 64),
+          maskImage: _solidPngBytes(width: 64, height: 64),
+          width: 64,
+          height: 64,
+        );
+        final result = await NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler_ancestral');
+        return result.requestData['model'] as String;
+      }
+
+      // Full 用独立 inpainting 权重；Curated 按网页端映射到 V4.5 Curated。
+      expect(
+        await requestModelFor(ImageModels.animeDiffusionV5Full),
+        ImageModels.animeDiffusionV5FullInpainting,
+      );
+      expect(
+        await requestModelFor(ImageModels.animeDiffusionV5Curated),
+        ImageModels.animeDiffusionV45CuratedInpainting,
+      );
+    });
+
+    test(
+      'should insert transparent background before the quality tags',
+      () async {
+        const params = ImageParams(
+          prompt: '1girl',
+          model: ImageModels.v5StagingKey,
+          qualityToggle: true,
+          ucPreset: UcPresets.noneApiValue,
+          transparentBackground: true,
+        );
+        final builder = NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        );
+
+        final result = await builder.build(sampler: 'k_euler_ancestral');
+
+        expect(
+          result.requestData['input'],
+          '1girl, transparent background, very aesthetic, masterpiece, no text',
+        );
+        expect(result.requestParameters['straight_alpha'], isTrue);
+        expect(
+          result.requestParameters['tag_hint_transparent_background'],
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'should still add transparent background without quality tags',
+      () async {
+        const params = ImageParams(
+          prompt: '1girl',
+          model: ImageModels.v5StagingKey,
+          qualityToggle: false,
+          ucPreset: UcPresets.noneApiValue,
+          transparentBackground: true,
+        );
+        final builder = NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        );
+
+        final result = await builder.build(sampler: 'k_euler_ancestral');
+
+        expect(result.requestData['input'], '1girl, transparent background');
+      },
+    );
+
+    test('should send straight_alpha even with the toggle off', () async {
+      // 官网把 alpha 模式当账号设置，只要模型支持透明就一直下发。
+      const params = ImageParams(model: ImageModels.v5StagingKey);
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      expect(result.requestParameters['straight_alpha'], isTrue);
+      expect(
+        result.requestParameters.containsKey('tag_hint_transparent_background'),
+        isFalse,
+      );
+    });
+
+    test('should omit transparency params for V4.5', () async {
+      const params = ImageParams(
+        prompt: '1girl',
+        model: ImageModels.animeDiffusionV45Full,
+        qualityToggle: false,
+        transparentBackground: true,
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      expect(result.requestData['input'], '1girl');
+      expect(result.requestParameters.containsKey('straight_alpha'), isFalse);
+      expect(
+        result.requestParameters.containsKey('tag_hint_transparent_background'),
+        isFalse,
+      );
+    });
+
+    test('should drop the e2e upscale block on production V5', () async {
+      // 正式版能力位为 false，即使存量开关仍是开启状态也不能发送。
+      const params = ImageParams(
+        model: ImageModels.animeDiffusionV5Curated,
+        e2eUpscale: true,
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      expect(result.requestParameters.containsKey('upscale'), isFalse);
+      expect(result.requestParameters['width'], params.width);
+      expect(result.requestParameters['height'], params.height);
+    });
+
+    test('should force karras and drop variety on V5', () async {
+      const params = ImageParams(
+        model: ImageModels.animeDiffusionV5Curated,
+        noiseSchedule: 'exponential',
+        varietyPlus: true,
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      // 网页端请求归一化对 V5 强制写入 karras，忽略用户存量选择。
+      expect(result.requestParameters['noise_schedule'], 'karras');
+      // V5 不支持 Variety+（cfgDelay 能力位为 false）。
+      expect(result.requestParameters['skip_cfg_above_sigma'], isNull);
+      // cfg_rescale 正式版继续下发。
+      expect(result.requestParameters.containsKey('cfg_rescale'), isTrue);
+    });
+
+    test('should drop the e2e upscale block for infill', () async {
+      final params = ImageParams(
+        model: ImageModels.v5StagingKey,
+        e2eUpscale: true,
+        action: ImageGenerationAction.infill,
+        sourceImage: _solidPngBytes(width: 64, height: 64),
+        maskImage: _solidPngBytes(width: 64, height: 64),
+        width: 64,
+        height: 64,
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      expect(result.requestParameters.containsKey('upscale'), isFalse);
+    });
+
+    test('should drop the e2e upscale block for V4.5', () async {
+      const params = ImageParams(
+        model: ImageModels.animeDiffusionV45Full,
+        e2eUpscale: true,
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      expect(result.requestParameters.containsKey('upscale'), isFalse);
+    });
+
+    test('should send upscaled_enhance only where supported', () async {
+      const v5 = ImageParams(
+        model: ImageModels.animeDiffusionV5Curated,
+        upscaledEnhance: true,
+      );
+      const v45 = ImageParams(
+        model: ImageModels.animeDiffusionV45Full,
+        upscaledEnhance: true,
+      );
+
+      final v5Result = await NAIImageRequestBuilder(
+        params: v5,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler_ancestral');
+      final v45Result = await NAIImageRequestBuilder(
+        params: v45,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler_ancestral');
+
+      expect(v5Result.requestParameters['upscaled_enhance'], isTrue);
+      expect(
+        v45Result.requestParameters.containsKey('upscaled_enhance'),
+        isFalse,
+      );
+    });
+
     test('should add the enhance down-weight tag after quality tags', () async {
       final params = ImageParams(
         prompt: '1girl',
@@ -1125,8 +1434,30 @@ void main() {
       );
     });
 
+    test('should skip the enhance prompt tag for max requests', () async {
+      final params = ImageParams(
+        prompt: '1girl',
+        model: ImageModels.animeDiffusionV5Curated,
+        qualityToggle: false,
+        ucPreset: UcPresets.noneApiValue,
+        action: ImageGenerationAction.img2img,
+        sourceImage: _validPngBytes(),
+        isEnhanceRequest: true,
+        upscaledEnhance: true,
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      expect(result.requestData['input'], '1girl');
+      expect(result.requestParameters['upscaled_enhance'], isTrue);
+    });
+
     test('should skip the enhance tag on models without it', () async {
-      // 网页端能力位 enhancePromptAdd 从 V4.5 起才为 true。
+      // 官网能力位 enhancePromptAdd 从 V4.5 起才为 true。
       final params = ImageParams(
         prompt: '1girl',
         model: ImageModels.animeDiffusionV4Full,
@@ -1144,6 +1475,117 @@ void main() {
       final result = await builder.build(sampler: 'k_euler_ancestral');
 
       expect(result.requestData['input'], '1girl');
+    });
+
+    test('should report quality and uc preset tag hints', () async {
+      // 官网每个请求都带预设的数字提示：0=none 1=standard 2=heavy
+      // 3=light 4=humanFocus 5=furryFocus。
+      Future<Map<String, dynamic>> paramsFor(ImageParams params) async {
+        final result = await NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler_ancestral');
+        return result.requestParameters;
+      }
+
+      final standard = await paramsFor(
+        ImageParams(
+          model: ImageModels.animeDiffusionV45Full,
+          qualityToggle: true,
+          ucPreset: UcPresets.toApiValue(UcPresetType.heavy),
+        ),
+      );
+      expect(standard['tag_hint_qt'], 1);
+      expect(standard['tag_hint_uc_preset'], 2);
+
+      final light = await paramsFor(
+        const ImageParams(
+          model: ImageModels.animeDiffusionV5Curated,
+          qualityToggle: true,
+          qualityTier: QualityTags.lightTier,
+          ucPreset: UcPresets.lightApiValue,
+        ),
+      );
+      expect(light['tag_hint_qt'], 3);
+      expect(light['tag_hint_uc_preset'], 3);
+
+      final none = await paramsFor(
+        const ImageParams(
+          model: ImageModels.animeDiffusionV5Curated,
+          qualityToggle: false,
+          ucPreset: UcPresets.noneApiValue,
+        ),
+      );
+      expect(none['tag_hint_qt'], 0);
+      expect(none['tag_hint_uc_preset'], 0);
+
+      final furry = await paramsFor(
+        ImageParams(
+          model: ImageModels.animeDiffusionV45Full,
+          ucPreset: UcPresets.toApiValue(UcPresetType.furryFocus),
+        ),
+      );
+      expect(furry['tag_hint_uc_preset'], 5);
+
+      final custom = await paramsFor(
+        const ImageParams(
+          model: ImageModels.animeDiffusionV5Curated,
+          qualityToggle: false,
+          ucPreset: UcPresets.noneApiValue,
+          omitQualityTagHint: true,
+          omitUcPresetTagHint: true,
+        ),
+      );
+      expect(custom.containsKey('tag_hint_qt'), isFalse);
+      expect(custom.containsKey('tag_hint_uc_preset'), isFalse);
+
+      final v45Fallback = await paramsFor(
+        const ImageParams(
+          model: ImageModels.animeDiffusionV45Full,
+          qualityToggle: true,
+          qualityTier: QualityTags.lightTier,
+        ),
+      );
+      expect(v45Fallback['tag_hint_qt'], 1);
+    });
+
+    test('should apply the V5 light quality tier to the prompt', () async {
+      const params = ImageParams(
+        prompt: '1girl',
+        model: ImageModels.animeDiffusionV5Curated,
+        qualityToggle: true,
+        qualityTier: QualityTags.lightTier,
+        ucPreset: UcPresets.noneApiValue,
+      );
+      final result = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler_ancestral');
+
+      expect(
+        result.requestData['input'],
+        '1girl, very aesthetic, amazing quality, no text',
+      );
+    });
+
+    test('should fall back to standard tags on models without light', () async {
+      // V4.5 没有 light 档，切换模型后档位残留不能弄丢质量词。
+      const params = ImageParams(
+        prompt: '1girl',
+        model: ImageModels.animeDiffusionV45Full,
+        qualityToggle: true,
+        qualityTier: QualityTags.lightTier,
+        ucPreset: UcPresets.noneApiValue,
+      );
+      final result = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler_ancestral');
+
+      expect(
+        result.requestData['input'],
+        '1girl, location, very aesthetic, masterpiece, no text',
+      );
     });
 
     test('should leave plain img2img prompts untouched', () async {

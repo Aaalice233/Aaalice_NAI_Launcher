@@ -7,6 +7,7 @@ import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/prompt_maximize_provider.dart';
 import '../../utils/asset_protection_guard.dart';
 import '../../widgets/anlas/anlas_balance_chip.dart';
+import '../../widgets/anlas/opus_usage_chip.dart';
 import '../../widgets/common/themed_divider.dart';
 import '../../widgets/common/themed_scaffold.dart';
 import '../../widgets/common/themed_button.dart';
@@ -138,7 +139,9 @@ class _MobileGenerationLayoutState
           ),
           child: Row(
             children: [
-              // Anlas 余额显示
+              // Opus 免费配额 + Anlas 余额显示
+              const OpusUsageChip(compact: true),
+              const SizedBox(width: 6),
               const AnlasBalanceChip(compact: true),
               const SizedBox(width: 8),
               // 抽卡模式开关

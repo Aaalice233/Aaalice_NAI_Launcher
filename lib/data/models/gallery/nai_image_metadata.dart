@@ -95,6 +95,9 @@ class NaiImageMetadata with _$NaiImageMetadata {
     /// 质量标签开关
     @HiveField(14) bool? qualityToggle,
 
+    /// 官方质量词档位（Standard / Light）。
+    @HiveField(39) String? qualityTier,
+
     /// 是否为 img2img
     @HiveField(15) @Default(false) bool isImg2Img,
 
@@ -169,6 +172,9 @@ class NaiImageMetadata with _$NaiImageMetadata {
     @HiveField(36, defaultValue: [])
     @Default([])
     List<String> fixedNegativeSuffixTags,
+
+    /// 透明背景开关（V5 起，comment 里的 tag_hint_transparent_background）
+    @HiveField(38) bool? transparentBackground,
   }) = _NaiImageMetadata;
 
   const NaiImageMetadata._();
@@ -220,6 +226,13 @@ class NaiImageMetadata with _$NaiImageMetadata {
             ? reparsed.vibeReferences
             : base.vibeReferences,
         varietyPlus: base.varietyPlus ?? reparsed.varietyPlus,
+        qualityToggle: base.qualityToggle ?? reparsed.qualityToggle,
+        qualityTier: base.qualityTier ?? reparsed.qualityTier,
+        qualityTags: base.qualityTags.isEmpty
+            ? reparsed.qualityTags
+            : base.qualityTags,
+        transparentBackground:
+            base.transparentBackground ?? reparsed.transparentBackground,
         preciseReferenceImages: base.preciseReferenceImages.isEmpty
             ? reparsed.preciseReferenceImages
             : base.preciseReferenceImages,
@@ -346,7 +359,24 @@ class NaiImageMetadata with _$NaiImageMetadata {
 
     final sourceModel = _modelIdFromSource(source);
     final importedUcPreset = _toInt(commentData['uc_preset']);
-    final importedQualityToggle = _safeGetBool(commentData, 'quality_toggle');
+    final importedQualityToggle =
+        _safeGetBool(commentData, 'quality_toggle') ??
+        _qualityToggleFromTagHint(commentData);
+    final importedQualityTier = _qualityTierFromComment(commentData);
+
+    // 质量开关明确为关时不做质量词推断——带权重的描述词
+    // （如 "detailed snow on hair"）会被关键词匹配误判成质量词。
+    if (importedQualityToggle == false) {
+      parts['qualityTags'] = [];
+    } else if (importedQualityToggle == true &&
+        (parts['qualityTags']?.isEmpty ?? true)) {
+      // 开关明确为开时按注册的官方质量词做精确后缀匹配，
+      // 关键词推断认不出 "no text" 这类不含质量语义的词。
+      parts['qualityTags'] = _extractRegisteredQualitySuffix(
+        prompt,
+        sourceModel,
+      );
+    }
 
     // 构建元数据对象（使用try-catch包装每个字段）
     try {
@@ -363,10 +393,15 @@ class NaiImageMetadata with _$NaiImageMetadata {
         smea: _safeGetBool(commentData, 'sm'),
         smeaDyn: _safeGetBool(commentData, 'sm_dyn'),
         varietyPlus: _extractVarietyPlus(commentData),
+        transparentBackground: _safeGetBool(
+          commentData,
+          'tag_hint_transparent_background',
+        ),
         noiseSchedule: _safeGetString(commentData, 'noise_schedule'),
         cfgRescale: _toDouble(commentData['cfg_rescale']),
         ucPreset: importedUcPreset,
         qualityToggle: importedQualityToggle,
+        qualityTier: importedQualityTier,
         isImg2Img: commentData['image'] != null,
         strength: _toDouble(commentData['strength']),
         noise: _toDouble(commentData['noise']),
@@ -508,6 +543,79 @@ class NaiImageMetadata with _$NaiImageMetadata {
     return (json, json['Software'] as String?, source);
   }
 
+  /// 用注册的官方质量词对 prompt 做精确后缀匹配。
+  ///
+  /// 命中时返回按逗号拆分的质量词列表；[model] 未知时会尝试全部
+  /// 已注册的质量词组合。
+  static List<String> _extractRegisteredQualitySuffix(
+    String prompt,
+    String? model,
+  ) {
+    final trimmed = prompt.trim();
+    if (trimmed.isEmpty) return const [];
+
+    final candidates = <String>{
+      if (model != null) ...QualityTags.getQualityTagVariants(model),
+      if (model != null)
+        for (final tier in QualityTags.tiersForModel(model))
+          QualityTags.getQualityTagsForTier(model, tier) ?? '',
+      if (model == null) ...QualityTags.modelQualityTags.values,
+      if (model == null)
+        for (final tiers in QualityTags.modelQualityTagTiers.values)
+          ...tiers.values,
+    }..removeWhere((tags) => tags.isEmpty);
+
+    for (final tags in candidates) {
+      if (trimmed == tags || trimmed.endsWith(', $tags')) {
+        return tags
+            .split(',')
+            .map((tag) => tag.trim())
+            .where((tag) => tag.isNotEmpty)
+            .toList(growable: false);
+      }
+    }
+    return const [];
+  }
+
+  /// 从 `tag_hint_qt` 推导质量词开关。
+  ///
+  /// V5 起官方 comment 携带质量预设的数字提示；旧字段 `quality_toggle`
+  /// 缺失时以它兜底。显式的 null/0 表示"未启用质量预设"。
+  static bool? _qualityToggleFromTagHint(Map<String, dynamic> data) {
+    if (!data.containsKey('tag_hint_qt')) return null;
+    final value = data['tag_hint_qt'];
+    if (value == null) return false;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    return null;
+  }
+
+  /// 从官网的数字提示恢复具体质量档位。
+  ///
+  /// 正式站使用 1=Standard、3=Light；布尔 true 是旧测试数据，按 Standard
+  /// 兼容。0、null 与 false 表示没有官方质量预设，因此不返回档位。
+  static String? _qualityTierFromComment(Map<String, dynamic> data) {
+    final explicit = _safeGetString(data, 'quality_tier');
+    if (explicit == QualityTags.standardTier ||
+        explicit == QualityTags.lightTier) {
+      return explicit;
+    }
+
+    if (!data.containsKey('tag_hint_qt')) return null;
+    final value = data['tag_hint_qt'];
+    if (value is bool) {
+      return value ? QualityTags.standardTier : null;
+    }
+    if (value is num) {
+      return switch (value.toInt()) {
+        1 => QualityTags.standardTier,
+        3 => QualityTags.lightTier,
+        _ => null,
+      };
+    }
+    return null;
+  }
+
   static bool _rawJsonMayContainUpgradableFields(String raw) {
     final text = raw.toLowerCase();
     const markers = [
@@ -518,6 +626,9 @@ class NaiImageMetadata with _$NaiImageMetadata {
       'variety_plus',
       'varietyplus',
       'skip_cfg_above_sigma',
+      'tag_hint_transparent_background',
+      'tag_hint_qt',
+      'quality_tier',
       'v4_prompt',
       'char_captions',
     ];
@@ -1150,6 +1261,18 @@ class NaiImageMetadata with _$NaiImageMetadata {
 
     // Official PNG Source fingerprints are exact model identifiers. Do not
     // fall back to prompt/UC inference when the Source text is ambiguous.
+    // Production writes `NovelAI Diffusion V5 <hash>`; the known Full hashes
+    // come from the web client (657484A5 / 0ADF9AB7), everything else in the
+    // V5 family resolves to Curated, mirroring the official parser. Staging
+    // used the enum name form (`DiffusionModelMetaName.NAIv5 DE206BDA`).
+    if (normalized.contains('naiv5') || normalized.contains('diffusion v5')) {
+      return normalized.contains('657484a5') ||
+              normalized.contains('0adf9ab7') ||
+              normalized.contains('full')
+          ? ImageModels.animeDiffusionV5Full
+          : ImageModels.animeDiffusionV5Curated;
+    }
+
     if (normalized.contains('v4.5')) {
       if (normalized.contains('4bde2a90') || normalized.contains('v4.5 full')) {
         return ImageModels.animeDiffusionV45Full;
@@ -1281,6 +1404,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
       fixedNegativePrefixTags.isNotEmpty ||
       fixedNegativeSuffixTags.isNotEmpty ||
       qualityTags.isNotEmpty ||
+      transparentBackground == true ||
       characterInfos.isNotEmpty ||
       vibeReferences.isNotEmpty ||
       preciseReferenceImages.isNotEmpty;
@@ -1344,6 +1468,15 @@ class NaiImageMetadata with _$NaiImageMetadata {
 
     if (startIndex < endIndex) {
       mainTags.addAll(allTags.sublist(startIndex, endIndex));
+    }
+
+    // 官网把透明背景词包装进质量预设。只剥离主提示词末尾的自动词，避免
+    // 删除用户在正文其他位置主动写入的同名描述。
+    if (transparentBackground == true &&
+        mainTags.isNotEmpty &&
+        mainTags.last.toLowerCase() ==
+            QualityTags.transparentBackgroundTag.toLowerCase()) {
+      mainTags.removeLast();
     }
 
     return mainTags.join(', ');

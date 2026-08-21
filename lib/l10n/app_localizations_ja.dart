@@ -763,7 +763,32 @@ class AppLocalizationsJa extends AppLocalizations {
   String get generation_model => 'モデル';
 
   @override
+  String generation_opusUsageRemaining(Object percent) {
+    return 'Opus 無料生成の残り $percent%';
+  }
+
+  @override
+  String generation_opusUsageEstimate(Object count) {
+    return 'あと約 $count 枚生成可能';
+  }
+
+  @override
+  String get generation_opusUsageRefill => '上限は時間経過で自動回復します';
+
+  @override
+  String get generation_opusUsageExhausted =>
+      'Opus の無料枠を使い切りました。回復するまで V5 の生成には Anlas を消費します。';
+
+  @override
   String get generation_imageSize => '画像サイズ';
+
+  @override
+  String get generation_transparentBackground => '透過背景';
+
+  @override
+  String generation_e2eUpscaleHint(Object size) {
+    return 'サーバー出力 $size';
+  }
 
   @override
   String get generation_sampler => 'サンプラー';
@@ -1263,6 +1288,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get img2img_enhanceUpscaleAmount => '画像の拡大率';
+
+  @override
+  String get img2img_enhanceScaleMax => '最大';
 
   @override
   String get img2img_focusedInpaint => 'Focused インペイント';
@@ -2237,6 +2265,11 @@ class AppLocalizationsJa extends AppLocalizations {
   String get character_addCharacter => 'キャラクターを追加';
 
   @override
+  String character_limitReached(Object limit) {
+    return 'このモデルのキャラクター上限（$limit）に達しました';
+  }
+
+  @override
   String character_number(Object index) {
     return 'キャラクター $index';
   }
@@ -2935,6 +2968,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get qualityTags_naiDefault => 'NAI のデフォルト';
+
+  @override
+  String get qualityTags_naiDefaultStandard => 'NAI のデフォルト（標準）';
+
+  @override
+  String get qualityTags_naiDefaultLight => 'NAI のデフォルト（ライト）';
 
   @override
   String get qualityTags_none => 'なし';

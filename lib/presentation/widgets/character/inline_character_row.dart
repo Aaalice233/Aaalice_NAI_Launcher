@@ -391,6 +391,21 @@ class _AddCharacterChip extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
+    final limitReached = ref.watch(characterLimitReachedProvider);
+
+    if (limitReached) {
+      // 官方上限（V5 为 32）已满：入口保留但禁用，悬浮说明原因。
+      final limit = ref
+          .read(characterPromptNotifierProvider.notifier)
+          .characterLimit;
+      return Tooltip(
+        message: l10n.character_limitReached(limit.toString()),
+        child: Opacity(
+          opacity: 0.4,
+          child: IgnorePointer(child: _buildChipBody(theme, l10n)),
+        ),
+      );
+    }
 
     return PopupMenuButton<_CharacterAddAction>(
       tooltip: l10n.character_addCharacter,
@@ -431,20 +446,24 @@ class _AddCharacterChip extends ConsumerWidget {
         ),
       ],
       // 与角色卡同宽的添加卡（宽度由外部网格单元给定）
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 72),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: theme.colorScheme.outline.withValues(alpha: 0.4),
-          ),
+      child: _buildChipBody(theme, l10n),
+    );
+  }
+
+  Widget _buildChipBody(ThemeData theme, AppLocalizations l10n) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 72),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.4),
         ),
-        child: Center(
-          child: Icon(
-            Icons.add,
-            size: 18,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.add,
+          size: 18,
+          color: theme.colorScheme.onSurfaceVariant,
         ),
       ),
     );

@@ -9,6 +9,9 @@ enum PromptStructure {
   v4,
 }
 
+/// 提示词 token 计数使用的分词器。
+enum TokenizerKind { clip, t5, qwen35 }
+
 /// Anlas 基础价公式族。
 enum AnlasFormula {
   /// V2 及更早的指数估算。
@@ -27,15 +30,26 @@ class ModelCapabilities {
     required this.id,
     required this.promptStructure,
     required this.anlasFormula,
+    required this.tokenizer,
+    required this.tokenLimit,
     required this.defaultScale,
     required this.defaultSteps,
+    this.paramsVersion = 3,
     this.maxCharacters = 0,
     this.supportsVibeTransfer = false,
     this.supportsEncodedVibeTransfer = false,
     this.supportsPreciseReference = false,
+    this.hasInpaintingVariant = true,
     this.supportsImg2ImgInpainting = false,
-    this.supportsTextRendering = false,
+    this.supportsTransparentBackground = false,
+    this.supportsE2eUpscale = false,
+    this.supportsMaxEnhance = false,
     this.supportsEnhancePromptAdd = false,
+    this.supportsTextRendering = false,
+    this.supportsNoiseSchedule = true,
+    this.supportsVarietyPlus = false,
+    this.anlasMultiplier = 1.0,
+    this.hasOpusUsageLimit = false,
   });
 
   /// 条目的代表模型 ID，用于日志与调试。
@@ -43,6 +57,13 @@ class ModelCapabilities {
 
   final PromptStructure promptStructure;
   final AnlasFormula anlasFormula;
+  final TokenizerKind tokenizer;
+
+  /// 提示词 token 上限。
+  final int tokenLimit;
+
+  /// 请求 `parameters.params_version`，仅在 [PromptStructure.v4] 下写入。
+  final int paramsVersion;
 
   /// 模型出厂默认 CFG Scale，用于模型切换时的默认值跟随。
   final double defaultScale;
@@ -62,19 +83,49 @@ class ModelCapabilities {
   final bool supportsEncodedVibeTransfer;
   final bool supportsPreciseReference;
 
+  /// 是否存在独立的 inpainting 权重。V5 没有，infill 直接用基础模型。
+  final bool hasInpaintingVariant;
+
   /// inpainting 时是否可以复用原图潜空间。
   final bool supportsImg2ImgInpainting;
 
+  /// 透明背景（`straight_alpha`）。
+  final bool supportsTransparentBackground;
+
+  /// 端到端二倍放大（`parameters.upscale`）。
+  final bool supportsE2eUpscale;
+
+  /// 增强面板的 max 档（`upscaled_enhance`）。
+  final bool supportsMaxEnhance;
+
+  /// 非 max 档增强时是否自动往提示词补 `-2::upscaled, blurry::`。
+  ///
+  /// 官网能力位 `enhancePromptAdd`，V4.5 起为 true。
+  final bool supportsEnhancePromptAdd;
+
   /// 是否支持 `text:` 文字渲染段。
   ///
-  /// 质量词等自动追加的内容必须留在 `text:` 之前，否则会被模型当成要画进
-  /// 图里的文字。
+  /// 官网能力位 `text`，V4 起为 true。质量词等自动追加的内容必须留在
+  /// `text:` 之前，否则会被模型当成要画进图里的文字。
   final bool supportsTextRendering;
 
-  /// 增强时是否自动往提示词补 `-2::upscaled, blurry::`。
+  /// 噪声调度是否可选。
   ///
-  /// 网页端能力位 `enhancePromptAdd`，V4.5 起为 true。
-  final bool supportsEnhancePromptAdd;
+  /// V5 不开放选择，网页端请求归一化会强制写入 karras。
+  final bool supportsNoiseSchedule;
+
+  /// 是否支持 Variety+（`skip_cfg_above_sigma`）。
+  ///
+  /// 网页端能力位 `cfgDelay`，V3 起为 true，V5 又收回了。
+  final bool supportsVarietyPlus;
+
+  /// Anlas 基础价倍率。V5 正式版在现代公式之上乘 1.5。
+  final double anlasMultiplier;
+
+  /// Opus 免费生成是否受配额池限制（V5 专属）。
+  ///
+  /// 配额随 `/user/subscription` 的 `usage` 字段返回，透支后按正常价扣 Anlas。
+  final bool hasOpusUsageLimit;
 
   /// 是否支持多角色提示词与角色定位。
   bool get supportsCharacterPositioning => maxCharacters > 0;
@@ -88,6 +139,8 @@ class ModelCapabilityRegistry {
     id: ImageModels.animeFull,
     promptStructure: PromptStructure.legacy,
     anlasFormula: AnlasFormula.legacy,
+    tokenizer: TokenizerKind.clip,
+    tokenLimit: 225,
     defaultScale: 10.0,
     defaultSteps: 28,
   );
@@ -96,6 +149,8 @@ class ModelCapabilityRegistry {
     id: ImageModels.animeV2,
     promptStructure: PromptStructure.legacy,
     anlasFormula: AnlasFormula.legacy,
+    tokenizer: TokenizerKind.clip,
+    tokenLimit: 225,
     defaultScale: 10.0,
     defaultSteps: 28,
   );
@@ -104,26 +159,34 @@ class ModelCapabilityRegistry {
     id: ImageModels.animeDiffusionV3,
     promptStructure: PromptStructure.legacy,
     anlasFormula: AnlasFormula.modern,
+    tokenizer: TokenizerKind.clip,
+    tokenLimit: 225,
     defaultScale: 5.0,
     defaultSteps: 23,
     supportsVibeTransfer: true,
     supportsImg2ImgInpainting: true,
+    supportsVarietyPlus: true,
   );
 
   static const ModelCapabilities furryV3 = ModelCapabilities(
     id: ImageModels.furryDiffusionV3,
     promptStructure: PromptStructure.legacy,
     anlasFormula: AnlasFormula.modern,
+    tokenizer: TokenizerKind.clip,
+    tokenLimit: 225,
     defaultScale: 6.2,
     defaultSteps: 23,
     supportsVibeTransfer: true,
     supportsImg2ImgInpainting: true,
+    supportsVarietyPlus: true,
   );
 
   static const ModelCapabilities v4Curated = ModelCapabilities(
     id: ImageModels.animeDiffusionV4Curated,
     promptStructure: PromptStructure.v4,
     anlasFormula: AnlasFormula.modern,
+    tokenizer: TokenizerKind.t5,
+    tokenLimit: 512,
     defaultScale: 5.5,
     defaultSteps: 23,
     maxCharacters: 6,
@@ -131,12 +194,15 @@ class ModelCapabilityRegistry {
     supportsEncodedVibeTransfer: true,
     supportsImg2ImgInpainting: true,
     supportsTextRendering: true,
+    supportsVarietyPlus: true,
   );
 
   static const ModelCapabilities v4Full = ModelCapabilities(
     id: ImageModels.animeDiffusionV4Full,
     promptStructure: PromptStructure.v4,
     anlasFormula: AnlasFormula.modern,
+    tokenizer: TokenizerKind.t5,
+    tokenLimit: 512,
     defaultScale: 5.5,
     defaultSteps: 23,
     maxCharacters: 6,
@@ -144,12 +210,15 @@ class ModelCapabilityRegistry {
     supportsEncodedVibeTransfer: true,
     supportsImg2ImgInpainting: true,
     supportsTextRendering: true,
+    supportsVarietyPlus: true,
   );
 
   static const ModelCapabilities v45Curated = ModelCapabilities(
     id: ImageModels.animeDiffusionV45Curated,
     promptStructure: PromptStructure.v4,
     anlasFormula: AnlasFormula.modern,
+    tokenizer: TokenizerKind.t5,
+    tokenLimit: 512,
     defaultScale: 5.0,
     defaultSteps: 23,
     maxCharacters: 6,
@@ -157,14 +226,17 @@ class ModelCapabilityRegistry {
     supportsEncodedVibeTransfer: true,
     supportsPreciseReference: true,
     supportsImg2ImgInpainting: true,
-    supportsTextRendering: true,
     supportsEnhancePromptAdd: true,
+    supportsTextRendering: true,
+    supportsVarietyPlus: true,
   );
 
   static const ModelCapabilities v45Full = ModelCapabilities(
     id: ImageModels.animeDiffusionV45Full,
     promptStructure: PromptStructure.v4,
     anlasFormula: AnlasFormula.modern,
+    tokenizer: TokenizerKind.t5,
+    tokenLimit: 512,
     defaultScale: 5.0,
     defaultSteps: 23,
     maxCharacters: 6,
@@ -172,11 +244,57 @@ class ModelCapabilityRegistry {
     supportsEncodedVibeTransfer: true,
     supportsPreciseReference: true,
     supportsImg2ImgInpainting: true,
-    supportsTextRendering: true,
     supportsEnhancePromptAdd: true,
+    supportsTextRendering: true,
+    supportsVarietyPlus: true,
   );
 
-  /// 精确匹配表，inpainting 变体指向所属家族。
+  /// V5 Curated（正式版，网页端 build 65441ab-production 实测）。
+  ///
+  /// Vibe 与角色参考正式版明确不支持；端到端 ×2 放大未上线，增强 max 档
+  /// 保留。噪声调度不可选，请求固定发 karras。基础价在现代公式之上
+  /// 乘 1.5，Opus 免费受配额池限制。
+  static const ModelCapabilities v5Curated = ModelCapabilities(
+    id: ImageModels.animeDiffusionV5Curated,
+    promptStructure: PromptStructure.v4,
+    anlasFormula: AnlasFormula.modern,
+    tokenizer: TokenizerKind.qwen35,
+    tokenLimit: 703,
+    paramsVersion: 4,
+    defaultScale: 7.0,
+    defaultSteps: 23,
+    maxCharacters: 32,
+    supportsImg2ImgInpainting: true,
+    supportsTransparentBackground: true,
+    supportsMaxEnhance: true,
+    supportsEnhancePromptAdd: true,
+    supportsTextRendering: true,
+    supportsNoiseSchedule: false,
+    anlasMultiplier: 1.5,
+    hasOpusUsageLimit: true,
+  );
+
+  static const ModelCapabilities v5Full = ModelCapabilities(
+    id: ImageModels.animeDiffusionV5Full,
+    promptStructure: PromptStructure.v4,
+    anlasFormula: AnlasFormula.modern,
+    tokenizer: TokenizerKind.qwen35,
+    tokenLimit: 1471,
+    paramsVersion: 4,
+    defaultScale: 7.0,
+    defaultSteps: 23,
+    maxCharacters: 32,
+    supportsImg2ImgInpainting: true,
+    supportsTransparentBackground: true,
+    supportsMaxEnhance: true,
+    supportsEnhancePromptAdd: true,
+    supportsTextRendering: true,
+    supportsNoiseSchedule: false,
+    anlasMultiplier: 1.5,
+    hasOpusUsageLimit: true,
+  );
+
+  /// 精确匹配表，inpainting 变体与测试期别名都指向所属家族。
   static const Map<String, ModelCapabilities> _exactMatches = {
     ImageModels.animeCurated: v1,
     ImageModels.animeFull: v1,
@@ -194,6 +312,11 @@ class ModelCapabilityRegistry {
     ImageModels.animeDiffusionV45CuratedInpainting: v45Curated,
     ImageModels.animeDiffusionV45Full: v45Full,
     ImageModels.animeDiffusionV45FullInpainting: v45Full,
+    ImageModels.animeDiffusionV5Curated: v5Curated,
+    ImageModels.animeDiffusionV5CuratedInpainting: v5Curated,
+    ImageModels.animeDiffusionV5Full: v5Full,
+    ImageModels.animeDiffusionV5FullInpainting: v5Full,
+    ImageModels.v5StagingKey: v5Curated,
   };
 
   /// 查询模型能力。
@@ -204,6 +327,9 @@ class ModelCapabilityRegistry {
     final exact = _exactMatches[model];
     if (exact != null) return exact;
 
+    if (model.contains('diffusion-5')) {
+      return model.contains('full') ? v5Full : v5Curated;
+    }
     if (model.contains('diffusion-4-5')) {
       return model.contains('curated') ? v45Curated : v45Full;
     }
@@ -230,7 +356,7 @@ class ModelSwitchFollowUps {
 /// 计算模型切换后应当跟随的默认参数。
 ///
 /// 只有当前值仍停留在旧模型的出厂默认时才跟随，用户手动调过的参数一律保留——
-/// 各家族的默认 CFG 并不相同，不跟随会让用户在没察觉的情况下废图。
+/// V5 默认 CFG 是 7 而 V4.5 是 5，不跟随会让用户在没察觉的情况下废图。
 ModelSwitchFollowUps resolveModelSwitchFollowUps({
   required ModelCapabilities from,
   required ModelCapabilities to,

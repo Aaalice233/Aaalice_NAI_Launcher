@@ -1528,11 +1528,47 @@ abstract class AppLocalizations {
   /// **'Model'**
   String get generation_model;
 
+  /// No description provided for @generation_opusUsageRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}% of Opus Generations remaining'**
+  String generation_opusUsageRemaining(Object percent);
+
+  /// No description provided for @generation_opusUsageEstimate.
+  ///
+  /// In en, this message translates to:
+  /// **'About {count} images left'**
+  String generation_opusUsageEstimate(Object count);
+
+  /// No description provided for @generation_opusUsageRefill.
+  ///
+  /// In en, this message translates to:
+  /// **'The allowance refills automatically over time'**
+  String get generation_opusUsageRefill;
+
+  /// No description provided for @generation_opusUsageExhausted.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Opus allowance is used up. V5 generations will cost Anlas until it refills.'**
+  String get generation_opusUsageExhausted;
+
   /// No description provided for @generation_imageSize.
   ///
   /// In en, this message translates to:
   /// **'Image Size'**
   String get generation_imageSize;
+
+  /// No description provided for @generation_transparentBackground.
+  ///
+  /// In en, this message translates to:
+  /// **'Transparent BG'**
+  String get generation_transparentBackground;
+
+  /// No description provided for @generation_e2eUpscaleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Server outputs {size}'**
+  String generation_e2eUpscaleHint(Object size);
 
   /// No description provided for @generation_sampler.
   ///
@@ -2427,6 +2463,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Upscale Amount'**
   String get img2img_enhanceUpscaleAmount;
+
+  /// No description provided for @img2img_enhanceScaleMax.
+  ///
+  /// In en, this message translates to:
+  /// **'Max'**
+  String get img2img_enhanceScaleMax;
 
   /// No description provided for @img2img_focusedInpaint.
   ///
@@ -4160,6 +4202,12 @@ abstract class AppLocalizations {
   /// **'Add Character'**
   String get character_addCharacter;
 
+  /// No description provided for @character_limitReached.
+  ///
+  /// In en, this message translates to:
+  /// **'Character limit for this model reached ({limit})'**
+  String character_limitReached(Object limit);
+
   /// No description provided for @character_number.
   ///
   /// In en, this message translates to:
@@ -5431,6 +5479,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'NAI Default'**
   String get qualityTags_naiDefault;
+
+  /// No description provided for @qualityTags_naiDefaultStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'NAI Default (Standard)'**
+  String get qualityTags_naiDefaultStandard;
+
+  /// No description provided for @qualityTags_naiDefaultLight.
+  ///
+  /// In en, this message translates to:
+  /// **'NAI Default (Light)'**
+  String get qualityTags_naiDefaultLight;
 
   /// No description provided for @qualityTags_none.
   ///

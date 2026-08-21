@@ -83,7 +83,10 @@ class NAIImageRequestBuilder {
           ? false
           : params.addOriginalImage,
       'cfg_rescale': NAIApiUtils.toJsonNumber(params.cfgRescale),
-      'noise_schedule': params.isV4Model
+      // V5 不开放噪声调度，网页端请求归一化强制写入 karras。
+      'noise_schedule': !params.capabilities.supportsNoiseSchedule
+          ? 'karras'
+          : params.isV4Model
           ? (params.noiseSchedule == 'native' ? 'karras' : params.noiseSchedule)
           : params.noiseSchedule,
       'inpaintImg2ImgStrength': NAIApiUtils.toJsonNumber(
@@ -96,9 +99,42 @@ class NAIImageRequestBuilder {
       if (isStream) 'stream': 'msgpack',
     };
 
-    requestParameters['skip_cfg_above_sigma'] = params.varietyPlus
+    // Variety+ 对应网页端能力位 cfgDelay，V5 不支持时一律发 null。
+    requestParameters['skip_cfg_above_sigma'] =
+        params.varietyPlus && params.capabilities.supportsVarietyPlus
         ? 58.0 * sqrt(4.0 * (params.width / 8) * (params.height / 8) / 63232)
         : null;
+
+    if (params.capabilities.supportsTransparentBackground) {
+      // 官网把 alpha 模式做成账号级设置（Straight/Premultiplied），只要模型
+      // 支持透明就随请求下发；启动器沿用官网默认的 straight，不额外开设置项。
+      requestParameters['straight_alpha'] = true;
+      if (params.transparentBackground) {
+        requestParameters['tag_hint_transparent_background'] = true;
+      }
+    }
+
+    // 官网每个请求都带质量/负面预设的数字提示（0=none 1=standard 2=heavy
+    // 3=light 4=humanFocus 5=furryFocus）。自定义预设映射不到官方编号，
+    // 与官网删除 undefined 的行为一致，直接不发。
+    final qtHint = _resolveQualityTagHint();
+    if (qtHint != null) {
+      requestParameters['tag_hint_qt'] = qtHint;
+    }
+    final ucHint = _resolveUcPresetTagHint();
+    if (ucHint != null) {
+      requestParameters['tag_hint_uc_preset'] = ucHint;
+    }
+
+    if (params.effectiveE2eUpscale) {
+      requestParameters['upscale'] = {
+        'declared_blur_sigma': E2eUpscale.declaredBlurSigma,
+      };
+    }
+
+    if (params.effectiveUpscaledEnhance) {
+      requestParameters['upscaled_enhance'] = true;
+    }
 
     if (!params.isV4Model) {
       requestParameters['sm'] = params.effectiveSmea;
@@ -109,12 +145,37 @@ class NAIImageRequestBuilder {
     return requestParameters;
   }
 
+  /// 质量预设的官网数字编号。
+  ///
+  /// 自定义质量词在进入构造前已并入 prompt（qualityToggle=false），
+  /// 此时按 none 上报，与官网“预设未参与解析”的语义一致。
+  int? _resolveQualityTagHint() {
+    return QualityTags.toTagHint(
+      model: params.model,
+      enabled: params.qualityToggle,
+      tier: params.qualityTier,
+      omit: params.omitQualityTagHint,
+    );
+  }
+
+  /// 负面预设的官网数字编号。
+  ///
+  /// [ImageParams.ucPreset] 存的是请求 `ucPreset` 字段的旧版取值
+  /// （0=heavy 1=light 2=humanFocus 3=none 7=furryFocus），这里换算成
+  /// tag hint 的编号体系。
+  int? _resolveUcPresetTagHint() {
+    return UcPresets.toTagHint(
+      params.ucPreset,
+      omit: params.omitUcPresetTagHint,
+    );
+  }
+
   void buildV4Parameters(
     Map<String, dynamic> requestParameters, {
     required String effectivePrompt,
     required String effectiveNegativePrompt,
   }) {
-    requestParameters['params_version'] = 3;
+    requestParameters['params_version'] = params.capabilities.paramsVersion;
     requestParameters['use_coords'] = params.useCoords;
     requestParameters['legacy_v3_extend'] = false;
     requestParameters['legacy_uc'] = false;
@@ -195,7 +256,7 @@ class NAIImageRequestBuilder {
       return vibeEncodingMap;
     }
     if (!params.capabilities.supportsVibeTransfer) {
-      // 不支持 Vibe Transfer 的模型带上相关参数会被服务端拒绝。
+      // V5 测试期尚未开放 Vibe Transfer，附带相关参数会被服务端拒绝。
       return vibeEncodingMap;
     }
     if (!params.hasVibeReferencesV4) {
@@ -427,6 +488,15 @@ class NAIImageRequestBuilder {
       throw ArgumentError.value(sampler, 'sampler', 'Sampler cannot be empty');
     }
 
+    final characterLimit = params.capabilities.maxCharacters;
+    if (characterLimit > 0 && params.characters.length > characterLimit) {
+      throw ArgumentError.value(
+        params.characters.length,
+        'characters',
+        'Model ${params.model} supports at most $characterLimit characters',
+      );
+    }
+
     final seed = params.seed == -1 ? Random().nextInt(4294967295) : params.seed;
 
     final baseModel = ImageModels.resolveBaseModel(params.model);
@@ -439,7 +509,9 @@ class NAIImageRequestBuilder {
       model: baseModel,
       qualityToggle: params.qualityToggle,
       ucPreset: params.ucPreset,
-      isEnhanceRequest: params.isEnhanceRequest,
+      isEnhanceRequest: params.shouldApplyEnhancePromptAddition,
+      transparentBackground: params.transparentBackground,
+      qualityTier: params.qualityTier,
     );
     final effectivePrompt = promptSemantics.effectivePrompt;
     final effectiveNegativePrompt = promptSemantics.effectiveNegativePrompt;

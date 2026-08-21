@@ -12,10 +12,7 @@ import '../../../../data/models/metadata/metadata_import_options.dart';
 class MetadataImportDialog extends StatefulWidget {
   final NaiImageMetadata metadata;
 
-  const MetadataImportDialog({
-    super.key,
-    required this.metadata,
-  });
+  const MetadataImportDialog({super.key, required this.metadata});
 
   /// 显示对话框并返回用户选择的导入选项
   static Future<MetadataImportOptions?> show(
@@ -56,10 +53,12 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
 
     _options = _options.copyWith(
       selectedQualityTags: qualityTags.isNotEmpty ? List.from(qualityTags) : [],
-      selectedCharacterIndices:
-          characterCount > 0 ? List.generate(characterCount, (i) => i) : [],
-      selectedVibeIndices:
-          vibeCount > 0 ? List.generate(vibeCount, (i) => i) : [],
+      selectedCharacterIndices: characterCount > 0
+          ? List.generate(characterCount, (i) => i)
+          : [],
+      selectedVibeIndices: vibeCount > 0
+          ? List.generate(vibeCount, (i) => i)
+          : [],
       selectedPreciseReferenceIndices: preciseReferenceCount > 0
           ? List.generate(preciseReferenceCount, (i) => i)
           : [],
@@ -227,7 +226,8 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
           _buildParentCheckboxTile(
             title: l10n.metadataImport_fixedTags,
             value: _options.importFixedTags,
-            hasData: metadata.fixedPrefixTags.isNotEmpty ||
+            hasData:
+                metadata.fixedPrefixTags.isNotEmpty ||
                 metadata.fixedSuffixTags.isNotEmpty ||
                 metadata.fixedNegativePrefixTags.isNotEmpty ||
                 metadata.fixedNegativeSuffixTags.isNotEmpty,
@@ -243,9 +243,10 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                   value: _options.importFixedPrefix,
                   onChanged: _options.importFixedTags
                       ? (v) => setState(
-                            () => _options =
-                                _options.copyWith(importFixedPrefix: v),
-                          )
+                          () => _options = _options.copyWith(
+                            importFixedPrefix: v,
+                          ),
+                        )
                       : null,
                 ),
               if (metadata.fixedSuffixTags.isNotEmpty)
@@ -256,9 +257,10 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                   value: _options.importFixedSuffix,
                   onChanged: _options.importFixedTags
                       ? (v) => setState(
-                            () => _options =
-                                _options.copyWith(importFixedSuffix: v),
-                          )
+                          () => _options = _options.copyWith(
+                            importFixedSuffix: v,
+                          ),
+                        )
                       : null,
                 ),
               if (metadata.fixedNegativePrefixTags.isNotEmpty)
@@ -272,9 +274,10 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                   value: _options.importFixedPrefix,
                   onChanged: _options.importFixedTags
                       ? (v) => setState(
-                            () => _options =
-                                _options.copyWith(importFixedPrefix: v),
-                          )
+                          () => _options = _options.copyWith(
+                            importFixedPrefix: v,
+                          ),
+                        )
                       : null,
                 ),
               if (metadata.fixedNegativeSuffixTags.isNotEmpty)
@@ -288,9 +291,10 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                   value: _options.importFixedSuffix,
                   onChanged: _options.importFixedTags
                       ? (v) => setState(
-                            () => _options =
-                                _options.copyWith(importFixedSuffix: v),
-                          )
+                          () => _options = _options.copyWith(
+                            importFixedSuffix: v,
+                          ),
+                        )
                       : null,
                 ),
             ],
@@ -313,17 +317,18 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                   value: _options.selectedQualityTags.contains(tag),
                   onChanged: _options.importQualityTags
                       ? (v) => setState(() {
-                            final selected =
-                                List<String>.from(_options.selectedQualityTags);
-                            if (v) {
-                              if (!selected.contains(tag)) selected.add(tag);
-                            } else {
-                              selected.remove(tag);
-                            }
-                            _options = _options.copyWith(
-                              selectedQualityTags: selected,
-                            );
-                          })
+                          final selected = List<String>.from(
+                            _options.selectedQualityTags,
+                          );
+                          if (v) {
+                            if (!selected.contains(tag)) selected.add(tag);
+                          } else {
+                            selected.remove(tag);
+                          }
+                          _options = _options.copyWith(
+                            selectedQualityTags: selected,
+                          );
+                        })
                       : null,
                 );
               }).toList(),
@@ -350,20 +355,20 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                   value: _options.selectedCharacterIndices.contains(index),
                   onChanged: _options.importCharacterPrompts
                       ? (v) => setState(() {
-                            final selected = List<int>.from(
-                              _options.selectedCharacterIndices,
-                            );
-                            if (v) {
-                              if (!selected.contains(index)) {
-                                selected.add(index);
-                              }
-                            } else {
-                              selected.remove(index);
+                          final selected = List<int>.from(
+                            _options.selectedCharacterIndices,
+                          );
+                          if (v) {
+                            if (!selected.contains(index)) {
+                              selected.add(index);
                             }
-                            _options = _options.copyWith(
-                              selectedCharacterIndices: selected,
-                            );
-                          })
+                          } else {
+                            selected.remove(index);
+                          }
+                          _options = _options.copyWith(
+                            selectedCharacterIndices: selected,
+                          );
+                        })
                       : null,
                 );
               }).toList(),
@@ -437,16 +442,18 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                 value: _options.selectedVibeIndices.contains(index),
                 onChanged: _options.importVibeReferences
                     ? (v) => setState(() {
-                          final selected =
-                              List<int>.from(_options.selectedVibeIndices);
-                          if (v) {
-                            if (!selected.contains(index)) selected.add(index);
-                          } else {
-                            selected.remove(index);
-                          }
-                          _options =
-                              _options.copyWith(selectedVibeIndices: selected);
-                        })
+                        final selected = List<int>.from(
+                          _options.selectedVibeIndices,
+                        );
+                        if (v) {
+                          if (!selected.contains(index)) selected.add(index);
+                        } else {
+                          selected.remove(index);
+                        }
+                        _options = _options.copyWith(
+                          selectedVibeIndices: selected,
+                        );
+                      })
                     : null,
               );
             }).toList(),
@@ -474,18 +481,18 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                 value: _options.selectedPreciseReferenceIndices.contains(index),
                 onChanged: _options.importPreciseReferences
                     ? (v) => setState(() {
-                          final selected = List<int>.from(
-                            _options.selectedPreciseReferenceIndices,
-                          );
-                          if (v) {
-                            if (!selected.contains(index)) selected.add(index);
-                          } else {
-                            selected.remove(index);
-                          }
-                          _options = _options.copyWith(
-                            selectedPreciseReferenceIndices: selected,
-                          );
-                        })
+                        final selected = List<int>.from(
+                          _options.selectedPreciseReferenceIndices,
+                        );
+                        if (v) {
+                          if (!selected.contains(index)) selected.add(index);
+                        } else {
+                          selected.remove(index);
+                        }
+                        _options = _options.copyWith(
+                          selectedPreciseReferenceIndices: selected,
+                        );
+                      })
                     : null,
               );
             }).toList(),
@@ -621,6 +628,14 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
         onChanged: (v) =>
             setState(() => _options = _options.copyWith(importUcPreset: v)),
       ),
+      _GenerationImportOption(
+        label: l10n.generation_transparentBackground,
+        value: _options.importTransparentBackground,
+        hasData: metadata.transparentBackground != null,
+        onChanged: (v) => setState(
+          () => _options = _options.copyWith(importTransparentBackground: v),
+        ),
+      ),
     ];
   }
 
@@ -671,13 +686,13 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
               overflow: TextOverflow.ellipsis,
             )
           : !hasData
-              ? Text(
-                  context.l10n.metadataImport_noData,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.outline,
-                  ),
-                )
-              : null,
+          ? Text(
+              context.l10n.metadataImport_noData,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            )
+          : null,
       value: value && hasData,
       onChanged: hasData ? (v) => onChanged(v ?? false) : null,
       dense: true,
@@ -769,8 +784,8 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
         style: theme.textTheme.bodySmall?.copyWith(
           color: hasData
               ? value
-                  ? theme.colorScheme.onPrimaryContainer
-                  : theme.colorScheme.onSurface
+                    ? theme.colorScheme.onPrimaryContainer
+                    : theme.colorScheme.onSurface
               : theme.colorScheme.onSurfaceVariant,
         ),
       ),
@@ -779,8 +794,9 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
       showCheckmark: true,
       backgroundColor: theme.colorScheme.surfaceContainerHighest,
       selectedColor: theme.colorScheme.primaryContainer,
-      disabledColor:
-          theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      disabledColor: theme.colorScheme.surfaceContainerHighest.withValues(
+        alpha: 0.5,
+      ),
       padding: EdgeInsets.zero,
       visualDensity: VisualDensity.compact,
     );

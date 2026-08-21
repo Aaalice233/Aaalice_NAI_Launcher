@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:msgpack_dart/msgpack_dart.dart' as msgpack;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -49,22 +50,23 @@ class NAIImageGenerationApiService {
   /// - V1/V2: 直接使用 ddim
   /// - V3: 需要映射到 ddim_v3
   /// - V4+: 不原生支持 DDIM，回退到 Euler Ancestral
-  String _mapSamplerForModel(String sampler, String model) {
+  @visibleForTesting
+  static String mapSamplerForModel(String sampler, String model) {
     if (sampler == Samplers.ddim || sampler == Samplers.ddimV3) {
-      // V3 模型需要使用 ddim_v3
-      if (model.contains('diffusion-3')) {
-        AppLogger.i('Mapping DDIM to DDIM v3 for model: $model', 'ImgGen');
-        return Samplers.ddimV3;
-      }
-
-      // V4 及以后版本不原生支持 DDIM
-      if (model.contains('diffusion-4') || model == 'N/A') {
+      // V4 起（V4/V4.5/V5）不支持 DDIM，官网请求归一化替换为 Euler Ancestral
+      if (ImageModels.isV4Model(model) || model == 'N/A') {
         AppLogger.w(
           'Model $model does not support DDIM sampler, '
               'falling back to Euler Ancestral',
           'ImgGen',
         );
         return Samplers.kEulerAncestral;
+      }
+
+      // V3 模型需要使用 ddim_v3
+      if (model.contains('diffusion-3')) {
+        AppLogger.i('Mapping DDIM to DDIM v3 for model: $model', 'ImgGen');
+        return Samplers.ddimV3;
       }
     }
 
@@ -142,7 +144,7 @@ class NAIImageGenerationApiService {
 
     try {
       // 0. 采样器版本映射
-      final effectiveSampler = _mapSamplerForModel(
+      final effectiveSampler = mapSamplerForModel(
         effectiveParams.sampler,
         effectiveParams.model,
       );
@@ -454,11 +456,20 @@ class NAIImageGenerationApiService {
       }
 
       final buildStopwatch = Stopwatch()..start();
-      final requestBuildResult = await NAIImageRequestBuilder(
-        params: effectiveParams,
-        encodeVibe: _enhancementService.encodeVibe,
-        preciseReferences: effectivePreciseRefs,
-      ).build(sampler: effectiveParams.sampler, isStream: true);
+      final requestBuildResult =
+          await NAIImageRequestBuilder(
+            params: effectiveParams,
+            encodeVibe: _enhancementService.encodeVibe,
+            preciseReferences: effectivePreciseRefs,
+          ).build(
+            // 与非流式路径一致：DDIM 在部分模型上需要换成对应版本，
+            // 漏掉映射会让流式请求被服务端拒绝。
+            sampler: mapSamplerForModel(
+              effectiveParams.sampler,
+              effectiveParams.model,
+            ),
+            isStream: true,
+          );
       buildStopwatch.stop();
       if (_enablePipelineTracing) {
         AppLogger.i(

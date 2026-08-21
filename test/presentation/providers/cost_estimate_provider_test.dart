@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/core/services/anlas_calculator.dart';
@@ -90,7 +91,7 @@ void main() {
         workflow.enterUpscaleMode();
         workflow.updateUpscaleBackend(UpscaleBackend.novelai);
 
-        expect(container.read(estimatedCostProvider), equals(2));
+        expect(container.read(estimatedCostProvider), equals(1));
       },
     );
 
@@ -147,6 +148,70 @@ void main() {
       paramsNotifier.updateSteps(28);
       paramsNotifier.updateStrength(0.5);
 
+      expect(container.read(estimatedCostProvider), 0);
+    });
+
+    test('should share the max enhance billing size with quota estimates', () {
+      final billingSize = resolveGenerationBillingSize(
+        width: 832,
+        height: 1216,
+        maxEnhance: true,
+      );
+      final expected = E2eUpscale.resolveMaxEnhanceTargetSize(832, 1216);
+
+      expect(billingSize, expected);
+      expect(billingSize.width * billingSize.height, greaterThan(1024 * 1024));
+    });
+
+    test('should price max enhance by the upscaled 3.14MP area', () {
+      final subscription = container.read(
+        subscriptionNotifierProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      subscription.state = const SubscriptionState.loaded(
+        UserSubscription(tier: AnlasCalculator.opusTier, active: true),
+      );
+      paramsNotifier.updateModel(
+        ImageModels.animeDiffusionV5Curated,
+        persist: false,
+        followDefaults: false,
+      );
+      paramsNotifier.updateAction(ImageGenerationAction.img2img);
+      paramsNotifier.setSourceImage(_buildPng(width: 832, height: 1216));
+      paramsNotifier.updateSize(832, 1216);
+      paramsNotifier.updateSteps(23);
+      paramsNotifier.updateStrength(0.5);
+      paramsNotifier.updateUpscaledEnhance(true);
+
+      final params = container.read(generationParamsNotifierProvider);
+      final billingSize = resolveGenerationBillingSize(
+        width: params.width,
+        height: params.height,
+        maxEnhance: params.effectiveUpscaledEnhance,
+      );
+      final expected = AnlasCalculator.calculateRequestCost(
+        width: billingSize.width,
+        height: billingSize.height,
+        steps: params.steps,
+        batchCount: params.nSamples,
+        batchSize: container.read(imagesPerRequestProvider),
+        smea: params.effectiveSmea,
+        smeaDyn: params.effectiveSmeaDyn,
+        model: params.model,
+        subscriptionTier: AnlasCalculator.opusTier,
+        strength: params.strength,
+      );
+
+      expect(params.upscaledEnhance, isTrue);
+      expect(params.effectiveUpscaledEnhance, isTrue);
+      expect(billingSize.width * billingSize.height, greaterThan(1024 * 1024));
+      expect(expected, greaterThan(0));
+      expect(container.read(estimatedCostProvider), expected);
+
+      paramsNotifier.updateUpscaledEnhance(false);
       expect(container.read(estimatedCostProvider), 0);
     });
 

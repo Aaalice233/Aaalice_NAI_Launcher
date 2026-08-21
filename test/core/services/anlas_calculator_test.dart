@@ -173,8 +173,6 @@ void main() {
   });
 
   group('AnlasCalculator model pricing family', () {
-    // 计费族改成能力表字段之前靠模型 ID 推导版本号，未登记的模型会掉进
-    // V2 及更早的指数公式，把 17 Anlas 显示成 11。
     test('prices modern models with the area and steps formula', () {
       for (final model in [
         ImageModels.animeDiffusionV45Full,
@@ -196,6 +194,79 @@ void main() {
           reason: '$model should follow the modern pricing formula',
         );
       }
+    });
+
+    // 正式版 V5 在现代公式之上乘 1.5：ceil(线性部分)×1.5 后与重绘强度
+    // 连乘再收尾取整。832×1216@23 步：ceil(16.38)=17，17×1.5=25.5 → 26。
+    test('prices V5 at 1.5x the modern formula', () {
+      for (final model in [
+        ImageModels.v5StagingKey,
+        ImageModels.animeDiffusionV5Curated,
+        ImageModels.animeDiffusionV5Full,
+      ]) {
+        expect(
+          AnlasCalculator.calculateFromValues(
+            width: 832,
+            height: 1216,
+            steps: 23,
+            nSamples: 1,
+            smea: false,
+            smeaDyn: false,
+            model: model,
+          ),
+          26,
+          reason: '$model should carry the 1.5x multiplier',
+        );
+      }
+    });
+
+    test('keeps the V5 base price at 1.5x of V4.5', () {
+      int priceFor(String model) => AnlasCalculator.calculateFromValues(
+        width: 1024,
+        height: 1024,
+        steps: 28,
+        nSamples: 1,
+        smea: false,
+        smeaDyn: false,
+        model: model,
+      );
+
+      final v45 = priceFor(model);
+      expect(priceFor(ImageModels.v5StagingKey), (v45 * 1.5).ceil());
+    });
+
+    test('does not grant the V5 Opus discount once the quota runs dry', () {
+      int cost({required bool exhausted}) =>
+          AnlasCalculator.calculateFromValues(
+            width: 832,
+            height: 1216,
+            steps: 23,
+            nSamples: 1,
+            smea: false,
+            smeaDyn: false,
+            model: ImageModels.animeDiffusionV5Curated,
+            subscriptionTier: AnlasCalculator.opusTier,
+            opusQuotaExhausted: exhausted,
+          );
+
+      expect(cost(exhausted: false), 0);
+      expect(cost(exhausted: true), 26);
+    });
+
+    test('keeps the V4.5 Opus discount independent of the V5 quota', () {
+      final cost = AnlasCalculator.calculateFromValues(
+        width: 832,
+        height: 1216,
+        steps: 23,
+        nSamples: 1,
+        smea: false,
+        smeaDyn: false,
+        model: ImageModels.animeDiffusionV45Full,
+        subscriptionTier: AnlasCalculator.opusTier,
+        opusQuotaExhausted: true,
+      );
+
+      expect(cost, 0);
     });
 
     test('keeps pre-V3 models on the legacy exponential estimate', () {
@@ -230,20 +301,22 @@ void main() {
     });
 
     test('does not bill vibe fees on models without vibe support', () {
-      const params = ImageParams(
-        model: ImageModels.animeV2,
-        vibeReferencesV4: [
-          VibeReference(
-            displayName: 'pre',
-            vibeEncoding: 'pre-encoded',
-            sourceType: VibeSourceType.png,
-          ),
-        ],
-      );
+      for (final model in [ImageModels.animeV2, ImageModels.v5StagingKey]) {
+        final params = ImageParams(
+          model: model,
+          vibeReferencesV4: const [
+            VibeReference(
+              displayName: 'pre',
+              vibeEncoding: 'pre-encoded',
+              sourceType: VibeSourceType.png,
+            ),
+          ],
+        );
 
-      expect(AnlasCalculator.usesVibeReferences(params), isFalse);
-      expect(AnlasCalculator.resolveVibeReferenceExtraCost(params), 0);
-      expect(AnlasCalculator.resolveVibeEncodingCost(params), 0);
+        expect(AnlasCalculator.usesVibeReferences(params), isFalse);
+        expect(AnlasCalculator.resolveVibeReferenceExtraCost(params), 0);
+        expect(AnlasCalculator.resolveVibeEncodingCost(params), 0);
+      }
     });
 
     test('uses the real pixel area below the old 65536 floor', () {
@@ -359,37 +432,41 @@ void main() {
   });
 
   group('AnlasCalculator upscale pricing', () {
-    test(
-      'uses the official input-area tiers instead of output generation cost',
-      () {
-        expect(
+    test('matches the current web client input-area tiers', () {
+      int costForPixels(int pixels) =>
           AnlasCalculator.calculateNovelAiUpscaleCost(
-            inputWidth: 512,
-            inputHeight: 512,
+            inputWidth: pixels,
+            inputHeight: 1,
             scale: 4,
-          ),
-          1,
-        );
-        expect(
-          AnlasCalculator.calculateNovelAiUpscaleCost(
-            inputWidth: 512,
-            inputHeight: 768,
-            scale: 4,
-          ),
-          2,
-        );
-        expect(
-          AnlasCalculator.calculateNovelAiUpscaleCost(
-            inputWidth: 1024,
-            inputHeight: 1024,
-            scale: 4,
-          ),
-          7,
-        );
-      },
-    );
+          );
 
-    test('applies the Opus threshold and reports unsupported input sizes', () {
+      expect(
+        AnlasCalculator.calculateNovelAiUpscaleCost(
+          inputWidth: 512,
+          inputHeight: 512,
+          scale: 4,
+        ),
+        1,
+      );
+      expect(
+        AnlasCalculator.calculateNovelAiUpscaleCost(
+          inputWidth: 512,
+          inputHeight: 768,
+          scale: 4,
+        ),
+        1,
+      );
+      expect(costForPixels(1048576), 1);
+      expect(costForPixels(1048577), 2);
+      expect(costForPixels(1747627), 2);
+      expect(costForPixels(1747628), 3);
+      expect(costForPixels(2446678), 3);
+      expect(costForPixels(2446679), 4);
+      expect(costForPixels(3145728), 4);
+      expect(costForPixels(3145729), AnlasCalculator.invalidCost);
+    });
+
+    test('applies the Opus threshold and reports inputs above 3MP', () {
       expect(
         AnlasCalculator.calculateNovelAiUpscaleCost(
           inputWidth: 640,
@@ -401,8 +478,8 @@ void main() {
       );
       expect(
         AnlasCalculator.calculateNovelAiUpscaleCost(
-          inputWidth: 1025,
-          inputHeight: 1024,
+          inputWidth: 3145729,
+          inputHeight: 1,
           scale: 4,
         ),
         AnlasCalculator.invalidCost,

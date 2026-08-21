@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'model_capabilities.dart';
 
 /// NovelAI API 常量定义
@@ -87,7 +89,23 @@ class ImageModels {
   static const String animeDiffusionV45FullInpainting =
       'nai-diffusion-4-5-full-inpainting';
 
+  // V5 系列（2026-08 正式上线）
+  static const String animeDiffusionV5Curated = 'nai-diffusion-5-curated';
+  static const String animeDiffusionV5Full = 'nai-diffusion-5-full';
+  static const String animeDiffusionV5CuratedInpainting =
+      'nai-diffusion-5-curated-inpainting';
+  static const String animeDiffusionV5FullInpainting =
+      'nai-diffusion-5-full-inpainting';
+
+  /// V5 测试期的历史模型键。
+  ///
+  /// 正式版上线后不再出现在任何界面，仅用于识别测试期生成图片的元数据
+  /// 与迁移旧的持久化选择。
+  static const String v5StagingKey = 'custom';
+
   static const List<String> allModels = [
+    animeDiffusionV5Full,
+    animeDiffusionV5Curated,
     animeDiffusionV45Full,
     animeDiffusionV45Curated,
     animeDiffusionV4Full,
@@ -98,6 +116,8 @@ class ImageModels {
   ];
 
   static const Map<String, String> modelDisplayNames = {
+    animeDiffusionV5Full: 'NAI Diffusion V5 (Full)',
+    animeDiffusionV5Curated: 'NAI Diffusion V5 (Curated)',
     animeDiffusionV45Full: 'NAI Diffusion V4.5 (Full)',
     animeDiffusionV45Curated: 'NAI Diffusion V4.5 (Curated)',
     animeDiffusionV4Full: 'NAI Diffusion V4 (Full)',
@@ -107,23 +127,51 @@ class ImageModels {
     furryDiffusion: 'Furry Diffusion',
   };
 
-  /// 判断是否使用 V4 起的提示词结构
+  /// 模型选择器可见的模型列表。
+  ///
+  /// [current] 是当前选中的模型：它可能来自元数据导入等非常规途径，
+  /// 必须保留在候选项里，否则下拉框会因为 value 不在列表中而断言失败。
+  static List<String> visibleModels({String? current}) {
+    final normalized = current == null ? null : migrateLegacyModel(current);
+    if (normalized != null && !allModels.contains(normalized)) {
+      return [normalized, ...allModels];
+    }
+    return allModels;
+  }
+
+  /// 把测试期的历史模型键迁移到正式 ID。
+  ///
+  /// 测试期的 `custom` 可能残留在持久化选择或旧图元数据里，
+  /// 统一归一到 V5 Curated（测试站部署对应 curated 权重）。
+  static String migrateLegacyModel(String model) {
+    if (model == v5StagingKey) return animeDiffusionV5Curated;
+    return model;
+  }
+
+  /// 判断是否使用 V4 起的提示词结构（V4、V4.5、V5 均为 true）
   static bool isV4Model(String model) =>
       ModelCapabilityRegistry.of(model).promptStructure == PromptStructure.v4;
 
   /// 判断是否为 V4.5 家族。
   ///
-  /// 语义严格限定在 V4.5，用作精准参考等 V4.5 专属功能的判定代理。
+  /// 语义严格限定在 V4.5，V5 返回 false：精准参考等 V4.5 专属功能在 V5
+  /// 测试期尚未开放，靠这个判定继续保持隐藏。
   static bool isV45Model(String model) => model.contains('diffusion-4-5');
 
   /// 判断是否为 Inpainting 模型
   static bool isInpaintingModel(String model) => model.contains('inpainting');
 
   /// 将设置界面使用的基础模型转换为实际的 Inpainting 请求模型。
-  static String resolveInpaintingModel(String model) {
+  static String resolveInpaintingModel(String rawModel) {
+    // 测试期的 custom 键兜底归一，避免掉进 default 分支的 V3 权重。
+    final model = migrateLegacyModel(rawModel);
     if (isInpaintingModel(model)) return model;
+    if (!ModelCapabilityRegistry.of(model).hasInpaintingVariant) return model;
 
     return switch (model) {
+      // V5 Curated 的重绘权重尚未就绪，网页端映射到 V4.5 Curated Inpainting。
+      animeDiffusionV5Curated => animeDiffusionV45CuratedInpainting,
+      animeDiffusionV5Full => animeDiffusionV5FullInpainting,
       animeDiffusionV45Full => animeDiffusionV45FullInpainting,
       animeDiffusionV45Curated => animeDiffusionV45CuratedInpainting,
       animeDiffusionV4Full => animeDiffusionV4FullInpainting,
@@ -136,6 +184,8 @@ class ImageModels {
   /// 将 Inpainting 请求模型还原为设置界面对应的基础模型。
   static String resolveBaseModel(String model) {
     return switch (model) {
+      animeDiffusionV5FullInpainting => animeDiffusionV5Full,
+      animeDiffusionV5CuratedInpainting => animeDiffusionV5Curated,
       animeDiffusionV45FullInpainting => animeDiffusionV45Full,
       animeDiffusionV45CuratedInpainting => animeDiffusionV45Curated,
       animeDiffusionV4FullInpainting => animeDiffusionV4Full,
@@ -296,8 +346,21 @@ class CharacterPositions {
 class QualityTags {
   QualityTags._();
 
+  /// 透明背景开启时插入的提示词。
+  ///
+  /// 官网把它拼在质量词 suffix 的最前面（`transparent background, <质量词>`），
+  /// 质量词关闭时它自己就是整个 suffix。
+  static const String transparentBackgroundTag = 'transparent background';
+
   /// 各模型的质量标签映射
   static const Map<String, String> modelQualityTags = {
+    // V5 系列
+    // 官网测试站把 `custom` 与 V4.5 Full 归到同一条质量词分支，正式 ID 上线前
+    // 按这条实证登记；两个 V5 变体在官网代码里没有拆分。
+    ImageModels.v5StagingKey: 'very aesthetic, masterpiece, no text',
+    ImageModels.animeDiffusionV5Full: 'very aesthetic, masterpiece, no text',
+    ImageModels.animeDiffusionV5Curated: 'very aesthetic, masterpiece, no text',
+
     // V4.5 系列 (添加到末尾)
     ImageModels.animeDiffusionV45Full:
         'location, very aesthetic, masterpiece, no text',
@@ -329,8 +392,60 @@ class QualityTags {
     ],
   };
 
+  /// 官方质量词的 standard 档 ID。
+  static const String standardTier = 'standard';
+
+  /// 官方质量词的 light 档 ID（V5 起）。
+  static const String lightTier = 'light';
+
+  /// 拥有多档官方质量词的模型：V5 在 standard 之外提供 light 档。
+  static const Map<String, Map<String, String>> modelQualityTagTiers = {
+    ImageModels.v5StagingKey: _v5QualityTiers,
+    ImageModels.animeDiffusionV5Full: _v5QualityTiers,
+    ImageModels.animeDiffusionV5Curated: _v5QualityTiers,
+  };
+
+  static const Map<String, String> _v5QualityTiers = {
+    standardTier: 'very aesthetic, masterpiece, no text',
+    lightTier: 'very aesthetic, amazing quality, no text',
+  };
+
+  /// 当前模型可选的官方质量词档位（有序，standard 在前）。
+  static List<String> tiersForModel(String model) {
+    final tiers = modelQualityTagTiers[model];
+    if (tiers != null) return tiers.keys.toList(growable: false);
+    return const [standardTier];
+  }
+
+  /// 将当前有效官方质量档位转换为官网的数字提示。
+  ///
+  /// 自定义预设由调用方传入 [omit]，此时官网会省略该字段；显式关闭质量词
+  /// 才发送 0。模型没有 Light 档时按实际生效的 Standard 上报。
+  static int? toTagHint({
+    required String model,
+    required bool enabled,
+    required String tier,
+    bool omit = false,
+  }) {
+    if (omit) return null;
+    if (!enabled) return 0;
+    final supportsLight = tiersForModel(model).contains(lightTier);
+    return supportsLight && tier == lightTier ? 3 : 1;
+  }
+
   /// 获取指定模型的质量标签
   static String? getQualityTags(String model) {
+    return modelQualityTags[model];
+  }
+
+  /// 获取指定模型与档位的质量标签。
+  ///
+  /// 模型没有该档位时回退到 standard，保证切换模型后不会静默丢质量词。
+  static String? getQualityTagsForTier(String model, String tier) {
+    final tiers = modelQualityTagTiers[model];
+    if (tiers != null) {
+      return tiers[tier] ?? tiers[standardTier];
+    }
     return modelQualityTags[model];
   }
 
@@ -346,7 +461,7 @@ class QualityTags {
 
   /// V4 起支持的 `text:` 文字渲染标记。
   ///
-  /// 正则与网页端一致：标记前的分隔符也算在匹配内，`text::` 是转义写法不算标记。
+  /// 正则与官网一致：标记前的分隔符也算在匹配内，`text::` 是转义写法不算标记。
   static final RegExp textRenderMarker = RegExp(
     r'(?:^|\s|[,.:\[\]{}、。])text:(?!:)',
     caseSensitive: false,
@@ -372,7 +487,7 @@ class QualityTags {
     return null;
   }
 
-  /// 提示词混合（prompt mix）的分隔符与分段上限。
+  /// 提示词混合（prompt mix）的分隔符与分段上限，官网常量 `zg` / `jB`。
   static const String promptMixSeparator = '|';
   static const String promptMixEscape = '||';
   static const int maxPromptMixChunks = 6;
@@ -384,7 +499,7 @@ class QualityTags {
 
   /// 按 `|` 把提示词切成混合段。
   ///
-  /// `||…||` 区间内的单个 `|` 不参与切分（网页端用占位符替换实现，这里用扫描，
+  /// `||…||` 区间内的单个 `|` 不参与切分（官网用占位符替换实现，这里用扫描，
   /// 结果等价且不会和用户真的打出占位符冲突）；超过上限的部分会并回最后一段。
   static List<String> splitPromptMixChunks(String prompt) {
     final chunks = <String>[];
@@ -417,20 +532,11 @@ class QualityTags {
     ];
   }
 
-  /// 将质量标签应用到提示词。
-  static String applyQualityTags(String prompt, String model) {
-    return applySuffix(
-      prompt,
-      getQualityTags(model),
-      ModelCapabilityRegistry.of(model),
-    );
-  }
-
   /// 把 suffix 追加到提示词，跳过混合段与 `text:` 渲染段。
   ///
-  /// 网页端分两层：先按 `|` 切混合段，V4 起只往第一段追加（V3 及更早每段都
-  /// 追加，并保留段尾的 `:权重`）；再在该段内按 `text:` 切分，只往标记之前
-  /// 追加——直接追加到末尾会让质量词落进要画进图里的文字。
+  /// 官网分两层：先按 `|` 切混合段，V4 起只往第一段追加（V3 及更早每段都追加，
+  /// 并保留段尾的 `:权重`）；再在该段内按 `text:` 切分，只往标记之前追加——
+  /// 直接追加到末尾会让质量词落进要画进图里的文字。
   static String applySuffix(
     String prompt,
     String? suffix,
@@ -449,7 +555,7 @@ class QualityTags {
       return chunks.join(promptMixSeparator);
     }
 
-    // V3 及更早：网页端直接按 `|` 切（不做 `||` 转义、不设上限），每段都加。
+    // V3 及更早：官网直接按 `|` 切（不做 `||` 转义、不设上限），每段都加。
     return prompt
         .split(promptMixSeparator)
         .map((chunk) {
@@ -469,7 +575,7 @@ class QualityTags {
   }) {
     if (!hasTextSection) return appendSuffix(chunk, suffix);
 
-    // 多个 `text:` 时网页端用第一处的分隔符重新拼接，这里保留各自原本的分隔符。
+    // 多个 `text:` 时官网用第一处的分隔符重新拼接，这里保留各自原本的分隔符。
     final match = _firstTextRenderMarkerOutsideRandomizer(chunk);
     if (match == null) return appendSuffix(chunk, suffix);
 
@@ -480,7 +586,29 @@ class QualityTags {
         markerAndText;
   }
 
-  /// 把 suffix 追加到提示词末尾，保持 `, ` 分隔与已有尾逗号。
+  /// 按官网口径拼出要追加到提示词末尾的整段 suffix。
+  ///
+  /// 官网把透明背景当成质量词 suffix 的前缀处理：开启后即使质量词关闭，
+  /// `transparent background` 也会单独作为 suffix 追加。
+  static String? composeSuffix(
+    String model, {
+    required bool qualityToggle,
+    required bool transparentBackground,
+    String qualityTier = standardTier,
+  }) {
+    final tags = qualityToggle
+        ? getQualityTagsForTier(model, qualityTier)
+        : null;
+    final hasTags = tags != null && tags.isNotEmpty;
+    if (!transparentBackground) {
+      return hasTags ? tags : null;
+    }
+    return hasTags
+        ? '$transparentBackgroundTag, $tags'
+        : transparentBackgroundTag;
+  }
+
+  /// 把 suffix 追加到提示词末尾，保持官网的 `, ` 分隔与已有尾逗号。
   static String appendSuffix(String prompt, String? suffix) {
     if (suffix == null || suffix.isEmpty) return prompt;
 
@@ -491,6 +619,52 @@ class QualityTags {
       return '$trimmedPrompt $suffix';
     }
     return '$trimmedPrompt, $suffix';
+  }
+}
+
+/// 端到端放大（`parameters.upscale`）与增强 max 档使用的常量。
+///
+/// 数值取自官网测试站 bundle：`aS = 2`、`Kx = 0`、`sT = 2516582.4`
+/// （= 0.8 × 官方最大面积 3145728）。
+class E2eUpscale {
+  E2eUpscale._();
+
+  /// 开启后模型仍按基础分辨率生成，服务端输出边长翻倍。
+  static const int factor = 2;
+
+  /// 官网固定发 0，服务端据此决定去模糊强度。
+  static const int declaredBlurSigma = 0;
+
+  /// 增强面板出现 max 档的原图面积上限。
+  static const double maxEnhanceAreaThreshold = 2516582.4;
+
+  /// 增强面板是否应当给出 max 档。
+  ///
+  /// 官网的判定是「模型支持 max 档 且 原图面积在阈值内」，
+  /// 面积过大时服务端没有放大空间，档位直接不出现。
+  static bool allowsMaxEnhance(
+    ModelCapabilities capabilities, {
+    int? sourceWidth,
+    int? sourceHeight,
+  }) {
+    if (!capabilities.supportsMaxEnhance) return false;
+    final area = (sourceWidth ?? 0) * (sourceHeight ?? 0);
+    return area > 0 && area < maxEnhanceAreaThreshold;
+  }
+
+  /// max 档服务端实际生成的目标尺寸：等比放大到官方面积上限。
+  ///
+  /// 请求参数里携带的仍是原图尺寸，但计费按放大后的面积——网页端的
+  /// 价格预估就是先用这个尺寸替换 width/height 再算的。
+  static ({int width, int height}) resolveMaxEnhanceTargetSize(
+    int width,
+    int height,
+  ) {
+    if (width <= 0 || height <= 0) {
+      return (width: width, height: height);
+    }
+    final scale = math.sqrt(ApiConstants.maxImagePixels / (width * height));
+    return (width: (width * scale).round(), height: (height * scale).round());
   }
 }
 
@@ -521,6 +695,34 @@ class UcPresets {
       UcPresetType.furryFocus => UCPresets.furryFocus,
     };
   }
+
+  /// 将旧版请求字段的 UC 取值转换为官网的数字提示。
+  static int? toTagHint(int apiValue, {bool omit = false}) {
+    if (omit) return null;
+    return switch (apiValue) {
+      heavyApiValue => 2,
+      lightApiValue => 3,
+      humanFocusApiValue => 4,
+      noneApiValue => 0,
+      UCPresets.furryFocus => 5,
+      _ => null,
+    };
+  }
+
+  /// V5 预设（Curated/Full 共用一套）
+  ///
+  /// heavy/furryFocus/humanFocus 与 V4.5 Full 同文案，light 是 V5 专属新文案。
+  static const Map<UcPresetType, String> v5Presets = {
+    UcPresetType.heavy:
+        'lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page',
+    UcPresetType.light:
+        'lowres, bad hands, bad anatomy, artistic error, sepia, white haze, worst quality, very displeasing, jpeg artifacts, 0::ai-generated::',
+    UcPresetType.furryFocus:
+        '{worst quality}, distracting watermark, unfinished, bad quality, {widescreen}, upscale, {sequence}, {{grandfathered content}}, blurred foreground, chromatic aberration, sketch, everyone, [sketch background], simple, [flat colors], ych (character), outline, multiple scenes, [[horror (theme)]], comic',
+    UcPresetType.humanFocus:
+        'lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, @_@, mismatched pupils, glowing eyes, bad anatomy',
+    UcPresetType.none: '',
+  };
 
   /// V4.5 Full 预设
   static const Map<UcPresetType, String> v45FullPresets = {
@@ -651,6 +853,12 @@ class UcPresets {
   /// 根据模型获取对应的预设映射
   static Map<UcPresetType, String> getPresetsForModel(String model) {
     switch (model) {
+      case ImageModels.v5StagingKey:
+      case ImageModels.animeDiffusionV5Curated:
+      case ImageModels.animeDiffusionV5CuratedInpainting:
+      case ImageModels.animeDiffusionV5Full:
+      case ImageModels.animeDiffusionV5FullInpainting:
+        return v5Presets;
       case ImageModels.animeDiffusionV45Full:
         return v45FullPresets;
       case ImageModels.animeDiffusionV45Curated:

@@ -16,10 +16,7 @@ class QualityTagsSelector extends ConsumerStatefulWidget {
   /// 当前选择的模型
   final String model;
 
-  const QualityTagsSelector({
-    super.key,
-    required this.model,
-  });
+  const QualityTagsSelector({super.key, required this.model});
 
   @override
   ConsumerState<QualityTagsSelector> createState() =>
@@ -82,11 +79,11 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
               decoration: BoxDecoration(
                 color: isEnabled
                     ? (_isHovering
-                        ? Colors.green.withValues(alpha: 0.2)
-                        : Colors.green.withValues(alpha: 0.1))
+                          ? Colors.green.withValues(alpha: 0.2)
+                          : Colors.green.withValues(alpha: 0.1))
                     : (_isHovering
-                        ? theme.colorScheme.surfaceContainerHighest
-                        : Colors.transparent),
+                          ? theme.colorScheme.surfaceContainerHighest
+                          : Colors.transparent),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
                   color: isEnabled
@@ -179,9 +176,9 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
       case PromptPresetMode.custom:
         // 找到当前选中的条目
         final currentEntry = customEntries.cast<TagLibraryEntry?>().firstWhere(
-              (e) => e?.id == state.customEntryId,
-              orElse: () => null,
-            );
+          (e) => e?.id == state.customEntryId,
+          orElse: () => null,
+        );
         if (currentEntry != null) {
           // 截断名称
           final name = currentEntry.displayName;
@@ -199,32 +196,39 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
     final theme = Theme.of(context);
     final items = <PopupMenuEntry<String>>[];
 
-    // NAI 默认
-    items.add(
-      PopupMenuItem<String>(
-        value: 'nai_default',
-        child: Row(
-          children: [
-            if (state.mode == PromptPresetMode.naiDefault)
-              Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
-            else
-              const SizedBox(width: 16),
-            const SizedBox(width: 8),
-            Text(
-              context.l10n.qualityTags_naiDefault,
-              style: TextStyle(
-                fontWeight: state.mode == PromptPresetMode.naiDefault
-                    ? FontWeight.w600
-                    : FontWeight.normal,
-                color: state.mode == PromptPresetMode.naiDefault
-                    ? theme.colorScheme.primary
-                    : null,
+    // NAI 默认（V5 提供 standard/light 两档官方质量词）
+    final tiers = QualityTags.tiersForModel(widget.model);
+    for (final tier in tiers) {
+      final selected =
+          state.mode == PromptPresetMode.naiDefault &&
+          (tiers.length == 1 || state.naiTierId == tier);
+      final label = tiers.length == 1
+          ? context.l10n.qualityTags_naiDefault
+          : tier == QualityTags.lightTier
+          ? context.l10n.qualityTags_naiDefaultLight
+          : context.l10n.qualityTags_naiDefaultStandard;
+      items.add(
+        PopupMenuItem<String>(
+          value: 'nai_tier_$tier',
+          child: Row(
+            children: [
+              if (selected)
+                Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
+              else
+                const SizedBox(width: 16),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                  color: selected ? theme.colorScheme.primary : null,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    }
 
     // 无
     items.add(
@@ -266,9 +270,7 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
             const SizedBox(width: 8),
             Text(
               context.l10n.qualityTags_addFromLibrary,
-              style: TextStyle(
-                color: theme.colorScheme.primary,
-              ),
+              style: TextStyle(color: theme.colorScheme.primary),
             ),
           ],
         ),
@@ -279,7 +281,8 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
     if (customEntries.isNotEmpty) {
       items.add(const PopupMenuDivider());
       for (final entry in customEntries) {
-        final isSelected = state.mode == PromptPresetMode.custom &&
+        final isSelected =
+            state.mode == PromptPresetMode.custom &&
             state.customEntryId == entry.id;
         items.add(
           LibraryEntryMenuItem(
@@ -303,6 +306,16 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
     switch (value) {
       case 'nai_default':
         ref.read(qualityPresetNotifierProvider.notifier).setNaiDefault();
+        break;
+      case 'nai_tier_standard':
+        ref
+            .read(qualityPresetNotifierProvider.notifier)
+            .setNaiTier(QualityTags.standardTier);
+        break;
+      case 'nai_tier_light':
+        ref
+            .read(qualityPresetNotifierProvider.notifier)
+            .setNaiTier(QualityTags.lightTier);
         break;
       case 'none':
         ref.read(qualityPresetNotifierProvider.notifier).setNone();
@@ -341,25 +354,24 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
     if (state.mode == PromptPresetMode.none) {
       return Text(
         context.l10n.qualityTags_disabled,
-        style: TextStyle(
-          color: theme.colorScheme.onSurface,
-          fontSize: 12,
-        ),
+        style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 12),
       );
     }
 
     String content;
     if (state.mode == PromptPresetMode.custom && state.customEntryId != null) {
       final currentEntry = customEntries.cast<TagLibraryEntry?>().firstWhere(
-            (e) => e?.id == state.customEntryId,
-            orElse: () => null,
-          );
-      content = currentEntry?.content ??
-          QualityTags.getQualityTags(widget.model) ??
+        (e) => e?.id == state.customEntryId,
+        orElse: () => null,
+      );
+      content =
+          currentEntry?.content ??
+          QualityTags.getQualityTagsForTier(widget.model, state.naiTierId) ??
           QualityTags.getQualityTags(ImageModels.animeDiffusionV45Full) ??
           '';
     } else {
-      content = QualityTags.getQualityTags(widget.model) ??
+      content =
+          QualityTags.getQualityTagsForTier(widget.model, state.naiTierId) ??
           QualityTags.getQualityTags(ImageModels.animeDiffusionV45Full) ??
           '';
     }
@@ -378,10 +390,7 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
         const SizedBox(height: 4),
         Text(
           ', $content',
-          style: TextStyle(
-            color: Colors.green.shade700,
-            fontSize: 11,
-          ),
+          style: TextStyle(color: Colors.green.shade700, fontSize: 11),
         ),
       ],
     );

@@ -11,6 +11,7 @@ class ImageEditorFocusedInpaintCostConfig {
     required this.smea,
     required this.smeaDyn,
     required this.subscriptionTier,
+    this.opusQuotaExhausted = false,
     this.strength = 1.0,
     this.extraPerSampleCost = 0,
   });
@@ -22,6 +23,9 @@ class ImageEditorFocusedInpaintCostConfig {
   final bool smea;
   final bool smeaDyn;
   final int subscriptionTier;
+
+  /// V5 的 Opus 免费配额是否已透支（透支后按正常价预估）。
+  final bool opusQuotaExhausted;
   final double strength;
   final int extraPerSampleCost;
 
@@ -36,6 +40,7 @@ class ImageEditorFocusedInpaintCostConfig {
       smeaDyn: smeaDyn,
       model: model,
       subscriptionTier: subscriptionTier,
+      opusQuotaExhausted: opusQuotaExhausted,
       strength: strength,
       extraPerSampleCost: extraPerSampleCost,
     );

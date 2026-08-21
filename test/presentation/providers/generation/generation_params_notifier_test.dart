@@ -731,6 +731,24 @@ void main() {
       expect(params.scale, 5.0);
     });
 
+    test('should adopt V5 defaults from V4.5 when untouched', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+      notifier.updateScale(5.0);
+
+      notifier.updateModel(ImageModels.v5StagingKey);
+
+      final params = container.read(generationParamsNotifierProvider);
+      expect(params.model, ImageModels.v5StagingKey);
+      // 正式版 V5 的出厂默认 CFG 是 7（测试期是 10）。
+      expect(params.scale, 7.0);
+    });
+
     test('should keep a scale the user adjusted', () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
@@ -742,6 +760,21 @@ void main() {
       notifier.updateScale(7.5);
 
       notifier.updateModel(ImageModels.animeDiffusionV45Full);
+
+      expect(container.read(generationParamsNotifierProvider).scale, 7.5);
+    });
+
+    test('should keep an adjusted V4.5 scale when switching to V5', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+      notifier.updateScale(7.5);
+
+      notifier.updateModel(ImageModels.v5StagingKey);
 
       expect(container.read(generationParamsNotifierProvider).scale, 7.5);
     });
@@ -762,6 +795,21 @@ void main() {
       );
 
       expect(container.read(generationParamsNotifierProvider).scale, 5.5);
+    });
+
+    test('should skip the V5 follow-up for metadata imports', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+      notifier.updateScale(5.0);
+
+      notifier.updateModel(ImageModels.v5StagingKey, followDefaults: false);
+
+      expect(container.read(generationParamsNotifierProvider).scale, 5.0);
     });
   });
 }

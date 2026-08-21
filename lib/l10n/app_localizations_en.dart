@@ -774,7 +774,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generation_model => 'Model';
 
   @override
+  String generation_opusUsageRemaining(Object percent) {
+    return '$percent% of Opus Generations remaining';
+  }
+
+  @override
+  String generation_opusUsageEstimate(Object count) {
+    return 'About $count images left';
+  }
+
+  @override
+  String get generation_opusUsageRefill =>
+      'The allowance refills automatically over time';
+
+  @override
+  String get generation_opusUsageExhausted =>
+      'Your Opus allowance is used up. V5 generations will cost Anlas until it refills.';
+
+  @override
   String get generation_imageSize => 'Image Size';
+
+  @override
+  String get generation_transparentBackground => 'Transparent BG';
+
+  @override
+  String generation_e2eUpscaleHint(Object size) {
+    return 'Server outputs $size';
+  }
 
   @override
   String get generation_sampler => 'Sampler';
@@ -1291,6 +1317,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get img2img_enhanceUpscaleAmount => 'Upscale Amount';
+
+  @override
+  String get img2img_enhanceScaleMax => 'Max';
 
   @override
   String get img2img_focusedInpaint => 'Focused Inpainting';
@@ -2284,6 +2313,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get character_addCharacter => 'Add Character';
 
   @override
+  String character_limitReached(Object limit) {
+    return 'Character limit for this model reached ($limit)';
+  }
+
+  @override
   String character_number(Object index) {
     return 'Character $index';
   }
@@ -3000,6 +3034,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get qualityTags_naiDefault => 'NAI Default';
+
+  @override
+  String get qualityTags_naiDefaultStandard => 'NAI Default (Standard)';
+
+  @override
+  String get qualityTags_naiDefaultLight => 'NAI Default (Light)';
 
   @override
   String get qualityTags_none => 'None';

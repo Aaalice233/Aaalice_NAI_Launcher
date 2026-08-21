@@ -28,7 +28,7 @@ NAI Launcher is a third-party client for NovelAI built with Flutter. It integrat
 
 | Feature | Description |
 | --- | --- |
-| 🎨 Image Generation | Supports NovelAI Diffusion V1/V2/V3/V4/V4.5, Furry series, common samplers, size presets, multi-character parameters, and Anlas estimation. |
+| 🎨 Image Generation | Supports NovelAI Diffusion V1/V2/V3/V4/V4.5/V5, Furry series, common samplers, size presets, multi-character parameters, and Anlas estimation. |
 | 🖼️ Image-to-Image & Editing | Supports img2img, inpainting, Focused Inpaint, Outpaint, virtual canvas expansion, hard-edge masks, and click-to-fill region selection. |
 | 🌈 Reference & Style | Supports Vibe Transfer, Precise Reference, multi-image references, Vibe pack import/export, and PNG metadata embedding/export. |
 | ✍️ Prompt Tools | Includes the complete offline merged Danbooru/e621 tag and alias catalog plus Danbooru co-occurrence recommendations. Press `Ctrl/⌘+Shift+Space` for tags related to the tag before the cursor, pin the source tag for continuous insertion, and optionally merge Danbooru online relations, Chinese translations, and AI translations for missing entries. Also includes NAI/SD weight syntax assistance, token counting, in-box prompt search, and pinned words. |

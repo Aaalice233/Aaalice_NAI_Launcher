@@ -1,8 +1,12 @@
-import 'package:dart_sentencepiece_tokenizer/dart_sentencepiece_tokenizer.dart';
-import 'package:flutter/services.dart';
-
 import '../../data/models/character/character_prompt.dart';
+import '../constants/model_capabilities.dart';
 import '../utils/nai_prompt_parser.dart';
+import 'tokenizers/prompt_token_encoder.dart';
+import 'tokenizers/qwen_prompt_token_encoder.dart';
+import 'tokenizers/t5_prompt_token_encoder.dart';
+
+export 'tokenizers/prompt_token_encoder.dart';
+export 'tokenizers/t5_prompt_token_encoder.dart';
 
 class PromptTokenUsage {
   const PromptTokenUsage({
@@ -19,46 +23,76 @@ class PromptTokenUsage {
 }
 
 class PromptTokenBreakdownEntry {
-  const PromptTokenBreakdownEntry({
-    required this.label,
-    required this.tokens,
-  });
+  const PromptTokenBreakdownEntry({required this.label, required this.tokens});
 
   final String label;
   final int tokens;
 }
 
-abstract class PromptTokenEncoder {
-  Future<int> countTokens(String text);
-}
-
 class PromptTokenCounterService {
   const PromptTokenCounterService({
     required PromptTokenEncoder encoder,
-  }) : _encoder = encoder;
+    PromptTokenEncoder? qwenEncoder,
+  }) : _encoder = encoder,
+       _qwenEncoder = qwenEncoder;
 
-  static const int v4PromptTokenLimit = 512;
   static const String _t5TokenizerAssetPath =
       'assets/data/tokenizers/t5_spiece.model';
+  static const String _qwenTokenizerAssetPath =
+      'assets/data/tokenizers/qwen35_bpe.txt.gz';
 
+  /// V4 系列使用的 T5 分词器，同时作为未指定分词器时的兜底。
   final PromptTokenEncoder _encoder;
 
+  /// V5 使用的 Qwen 分词器；为空时按需加载官方词表。
+  final PromptTokenEncoder? _qwenEncoder;
+
+  /// 是否有可用的分词器实现。V3 及更早使用 CLIP，启动器暂不支持。
   static bool supportsPromptTokenCount(String model) {
-    return model.contains('diffusion-4') || model.contains('diffusion-4-5');
+    final tokenizer = ModelCapabilityRegistry.of(model).tokenizer;
+    return tokenizer == TokenizerKind.t5 || tokenizer == TokenizerKind.qwen35;
   }
 
   static int? tokenLimitForModel(String model) {
     if (!supportsPromptTokenCount(model)) {
       return null;
     }
-    return v4PromptTokenLimit;
+    return ModelCapabilityRegistry.of(model).tokenLimit;
+  }
+
+  /// 官网计数条相对纯分词结果的偏移。
+  ///
+  /// T5 的 encode 会附加 EOS，官网计数条把它算进去（实测 "hello world"
+  /// 显示 3）；Qwen 的 BPE encode 不带 EOS（同一文本显示 2），不能加。
+  static int webAdjustmentForModel(String model) {
+    return ModelCapabilityRegistry.of(model).tokenizer == TokenizerKind.t5
+        ? 1
+        : 0;
+  }
+
+  /// 计数前是否剥离 NAI 权重语法。
+  ///
+  /// T5 词表会把 `{}`、`::` 这类语法字符当作未知字符忽略，剥不剥结果相同，
+  /// 剥离只是避免它们干扰逗号分段；Qwen 会把这些字符真实编码进 token
+  /// （官网 "4::blending::" 计 5、"blending" 计 2），剥离会让计数偏小。
+  static bool _stripsWeightSyntaxForCounting(String model) {
+    return ModelCapabilityRegistry.of(model).tokenizer == TokenizerKind.t5;
   }
 
   static Future<PromptTokenCounterService> createDefault() async {
+    // Qwen 词表有 1MB 出头，只在真正切到 V5 时才加载。
     final encoder = await T5PromptTokenEncoder.load(
       assetPath: _t5TokenizerAssetPath,
     );
     return PromptTokenCounterService(encoder: encoder);
+  }
+
+  Future<PromptTokenEncoder> _resolveEncoder(String model) async {
+    if (ModelCapabilityRegistry.of(model).tokenizer != TokenizerKind.qwen35) {
+      return _encoder;
+    }
+    return _qwenEncoder ??
+        await QwenPromptTokenEncoder.load(assetPath: _qwenTokenizerAssetPath);
   }
 
   Future<PromptTokenUsage?> countUsageFromTexts({
@@ -74,10 +108,8 @@ class PromptTokenCounterService {
     }
 
     final usedTokens = await countTokensForTexts(
-      _collectCountedTexts(
-        mainText: mainText,
-        extraTexts: extraTexts,
-      ),
+      _collectCountedTexts(mainText: mainText, extraTexts: extraTexts),
+      model: model,
       applyWebAdjustment: applyWebAdjustment,
     );
 
@@ -106,19 +138,26 @@ class PromptTokenCounterService {
 
   Future<int> countTokensForTexts(
     Iterable<String> texts, {
+    required String model,
     bool applyWebAdjustment = false,
   }) async {
+    final encoder = await _resolveEncoder(model);
+    final stripWeightSyntax = _stripsWeightSyntaxForCounting(model);
+
     var usedTokens = 0;
     for (final text in texts) {
-      final normalizedText = _normalizePromptForCounting(text);
-      if (normalizedText.isEmpty) {
+      // Qwen 会把首尾空白与换行也编码成 token，官网原样计数，这里不能 trim。
+      final normalizedText = stripWeightSyntax
+          ? _normalizePromptForCounting(text)
+          : text;
+      if (normalizedText.trim().isEmpty) {
         continue;
       }
-      usedTokens += await _encoder.countTokens(normalizedText);
+      usedTokens += await encoder.countTokens(normalizedText);
     }
 
     if (applyWebAdjustment && usedTokens > 0) {
-      usedTokens += 1;
+      usedTokens += webAdjustmentForModel(model);
     }
 
     return usedTokens;
@@ -128,17 +167,16 @@ class PromptTokenCounterService {
     required String mainText,
     required Iterable<String> extraTexts,
   }) sync* {
-    final trimmedMainText = mainText.trim();
-    if (trimmedMainText.isNotEmpty) {
-      yield trimmedMainText;
+    // 只过滤纯空白文本，不做 trim：首尾空白是否计数由分词器分支决定。
+    if (mainText.trim().isNotEmpty) {
+      yield mainText;
     }
 
     for (final text in extraTexts) {
-      final trimmedText = text.trim();
-      if (trimmedText.isEmpty) {
+      if (text.trim().isEmpty) {
         continue;
       }
-      yield trimmedText;
+      yield text;
     }
   }
 
@@ -182,9 +220,7 @@ class PromptTokenCounterService {
         parenDepth--;
       }
 
-      if (char == '|' &&
-          i + 1 < trimmed.length &&
-          trimmed[i + 1] == '|') {
+      if (char == '|' && i + 1 < trimmed.length && trimmed[i + 1] == '|') {
         inPipe = !inPipe;
         segmentBuffer.write('||');
         i++;
@@ -212,9 +248,9 @@ class PromptTokenCounterService {
 
   static String _stripSegmentWeightSyntaxPreservingWhitespace(String segment) {
     final leadingWhitespaceLength = segment.length - segment.trimLeft().length;
-    final trailingWhitespaceLength = segment.length - segment.trimRight().length;
-    final leadingWhitespace =
-        segment.substring(0, leadingWhitespaceLength);
+    final trailingWhitespaceLength =
+        segment.length - segment.trimRight().length;
+    final leadingWhitespace = segment.substring(0, leadingWhitespaceLength);
     final trailingWhitespace = segment.substring(
       segment.length - trailingWhitespaceLength,
     );
@@ -225,42 +261,5 @@ class PromptTokenCounterService {
 
     final strippedCore = NaiPromptParser.stripWeightSyntax(core);
     return '$leadingWhitespace$strippedCore$trailingWhitespace';
-  }
-}
-
-class T5PromptTokenEncoder implements PromptTokenEncoder {
-  T5PromptTokenEncoder._(this._tokenizer);
-
-  static Future<T5PromptTokenEncoder>? _instanceFuture;
-
-  final SentencePieceTokenizer _tokenizer;
-
-  static Future<T5PromptTokenEncoder> load({
-    required String assetPath,
-  }) {
-    return _instanceFuture ??= _loadFromAsset(assetPath);
-  }
-
-  static Future<T5PromptTokenEncoder> _loadFromAsset(String assetPath) async {
-    final data = await rootBundle.load(assetPath);
-    final tokenizer = SentencePieceTokenizer.fromBytes(
-      data.buffer.asUint8List(),
-      config: const SentencePieceConfig(),
-    );
-    return T5PromptTokenEncoder._(tokenizer);
-  }
-
-  @override
-  Future<int> countTokens(String text) async {
-    final normalized = text.trim();
-    if (normalized.isEmpty) {
-      return 0;
-    }
-
-    final encoding = _tokenizer.encode(
-      normalized,
-      addSpecialTokens: false,
-    );
-    return encoding.ids.length;
   }
 }

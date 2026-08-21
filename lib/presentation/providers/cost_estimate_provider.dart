@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/constants/api_constants.dart';
 import '../../core/services/anlas_calculator.dart';
 import '../../core/utils/focused_inpaint_utils.dart';
 import '../../data/models/image/image_params.dart';
@@ -20,6 +21,18 @@ class _GenerationCostInput {
   final int width;
   final int height;
   final double strength;
+}
+
+/// Resolves the dimensions used by both Anlas and Opus quota calculations.
+({int width, int height}) resolveGenerationBillingSize({
+  required int width,
+  required int height,
+  required bool maxEnhance,
+}) {
+  if (!maxEnhance) {
+    return (width: width, height: height);
+  }
+  return E2eUpscale.resolveMaxEnhanceTargetSize(width, height);
 }
 
 _GenerationCostInput _resolveGenerationCostInput(
@@ -52,9 +65,16 @@ _GenerationCostInput _resolveGenerationCostInput(
     }
   }
 
-  return _GenerationCostInput(
+  // 增强 max 档：请求携带原图尺寸，但服务端按放大到 3.14MP 的面积计费。
+  final billingSize = resolveGenerationBillingSize(
     width: params.width,
     height: params.height,
+    maxEnhance: params.effectiveUpscaledEnhance,
+  );
+
+  return _GenerationCostInput(
+    width: billingSize.width,
+    height: billingSize.height,
     strength: switch (params.action) {
       ImageGenerationAction.img2img => params.strength,
       ImageGenerationAction.infill => params.inpaintStrength,
@@ -120,6 +140,8 @@ int estimatedCost(Ref ref) {
   final subscriptionTier = subscription?.isOpus == true
       ? AnlasCalculator.opusTier
       : 0;
+  // V5 的 Opus 免费额度是随时间回充的配额池，透支后按正常价扣 Anlas。
+  final opusQuotaExhausted = subscription?.usage?.isNegative ?? false;
 
   if (workflow.isUpscale) {
     if (workflow.upscale.backend == UpscaleBackend.comfyui) {
@@ -157,6 +179,7 @@ int estimatedCost(Ref ref) {
     smeaDyn: params.effectiveSmeaDyn,
     model: params.model,
     subscriptionTier: subscriptionTier,
+    opusQuotaExhausted: opusQuotaExhausted,
     strength: requestInput.strength,
     extraPerSampleCost: AnlasCalculator.resolvePreciseReferenceExtraCost(
       params,

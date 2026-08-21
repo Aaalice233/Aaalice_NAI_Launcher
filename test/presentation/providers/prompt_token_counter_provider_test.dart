@@ -219,6 +219,42 @@ void main() {
         api.UcPresetType.furryFocus,
       );
     });
+
+    test(
+      'should preserve the Light tier across a custom preset round trip',
+      () {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        final notifier = container.read(qualityPresetNotifierProvider.notifier);
+
+        notifier.setNaiTier(api.QualityTags.lightTier);
+        notifier.setCustomEntry('custom-quality');
+
+        expect(
+          container.read(qualityPresetNotifierProvider).naiTierId,
+          api.QualityTags.lightTier,
+        );
+        expect(
+          container.read(qualityPresetNotifierProvider).mode,
+          PromptPresetMode.custom,
+        );
+
+        notifier.removeCustomEntry('custom-quality');
+
+        expect(
+          container.read(qualityPresetNotifierProvider).mode,
+          PromptPresetMode.naiDefault,
+        );
+        expect(
+          container.read(qualityPresetNotifierProvider).naiTierId,
+          api.QualityTags.lightTier,
+        );
+        expect(
+          container.read(generationParamsNotifierProvider).qualityTier,
+          api.QualityTags.lightTier,
+        );
+      },
+    );
   });
 
   group('FixedTagsState link helpers', () {

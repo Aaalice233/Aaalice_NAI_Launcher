@@ -305,6 +305,20 @@ class LocalStorageService {
     await setSetting(StorageKeys.qualityPresetMode, value);
   }
 
+  /// 获取官方质量词档位（standard/light，默认 standard）
+  String getQualityPresetNaiTier() {
+    return getSetting<String>(
+          StorageKeys.qualityPresetNaiTier,
+          defaultValue: QualityTags.standardTier,
+        ) ??
+        QualityTags.standardTier;
+  }
+
+  /// 保存官方质量词档位
+  Future<void> setQualityPresetNaiTier(String value) async {
+    await setSetting(StorageKeys.qualityPresetNaiTier, value);
+  }
+
   /// 获取质量词预设自定义条目 ID
   String? getQualityPresetCustomId() {
     return getSetting<String>(StorageKeys.qualityPresetCustomId);
@@ -588,6 +602,31 @@ class LocalStorageService {
   /// 保存 Variety+ 设置
   Future<void> setLastVarietyPlus(bool value) async {
     await setSetting(StorageKeys.lastVarietyPlus, value);
+  }
+
+  /// 获取上次的透明背景开关 (仅 V5 生效)
+  bool getLastTransparentBackground() {
+    return getSetting<bool>(
+          StorageKeys.lastTransparentBackground,
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// 保存透明背景开关
+  Future<void> setLastTransparentBackground(bool value) async {
+    await setSetting(StorageKeys.lastTransparentBackground, value);
+  }
+
+  /// 获取上次的端到端 ×2 放大开关 (仅 V5 生效)
+  bool getLastE2eUpscale() {
+    return getSetting<bool>(StorageKeys.lastE2eUpscale, defaultValue: false) ??
+        false;
+  }
+
+  /// 保存端到端 ×2 放大开关
+  Future<void> setLastE2eUpscale(bool value) async {
+    await setSetting(StorageKeys.lastE2eUpscale, value);
   }
 
   // ==================== Seed Lock ====================

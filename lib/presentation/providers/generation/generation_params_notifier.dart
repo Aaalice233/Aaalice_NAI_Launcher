@@ -145,7 +145,8 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     return ImageParams(
       prompt: storage.getLastPrompt(),
       negativePrompt: storage.getLastNegativePrompt(),
-      model: storage.getDefaultModel(),
+      // 测试期持久化的 custom 键迁移到正式 ID。
+      model: ImageModels.migrateLegacyModel(storage.getDefaultModel()),
       sampler: storage.getDefaultSampler(),
       steps: storage.getDefaultSteps(),
       scale: storage.getDefaultScale(),
@@ -156,6 +157,9 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       cfgRescale: storage.getLastCfgRescale(),
       noiseSchedule: storage.getLastNoiseSchedule(),
       varietyPlus: storage.getLastVarietyPlus(),
+      transparentBackground: storage.getLastTransparentBackground(),
+      qualityTier: storage.getQualityPresetNaiTier(),
+      e2eUpscale: storage.getLastE2eUpscale(),
       // 从存储加载种子锁定状态
       seed: storage.getSeedLocked() && storage.getLockedSeedValue() != null
           ? storage.getLockedSeedValue()!
@@ -209,7 +213,6 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     });
   }
 
-  /// 更新模型
   /// 更新模型
   ///
   /// [followDefaults] 为 true 时，若 CFG 与步数仍停留在旧模型的出厂默认值，
@@ -322,7 +325,8 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     final storage = ref.read(localStorageServiceProvider);
 
     state = ImageParams(
-      model: storage.getDefaultModel(),
+      // 测试期持久化的 custom 键迁移到正式 ID。
+      model: ImageModels.migrateLegacyModel(storage.getDefaultModel()),
       sampler: storage.getDefaultSampler(),
       steps: storage.getDefaultSteps(),
       scale: storage.getDefaultScale(),
@@ -1526,9 +1530,44 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     state = state.copyWith(decrisp: decrisp);
   }
 
+  /// 更新官方质量词档位 (standard/light)
+  ///
+  /// 持久化由质量预设 Provider 负责，这里只同步请求构造使用的状态。
+  void updateQualityTier(String qualityTier) {
+    if (state.qualityTier == qualityTier) {
+      return;
+    }
+    state = state.copyWith(qualityTier: qualityTier);
+  }
+
+  /// 更新透明背景开关 (仅 V5)
+  ///
+  /// 不支持的模型只是请求里不带这些参数，开关值照常保留，
+  /// 用户在 V4.5 与 V5 之间来回切换时不会丢掉选择。
+  void updateTransparentBackground(bool transparentBackground) {
+    state = state.copyWith(transparentBackground: transparentBackground);
+    _storage.setLastTransparentBackground(transparentBackground);
+  }
+
+  /// 更新端到端 ×2 放大开关 (仅 V5)
+  void updateE2eUpscale(bool e2eUpscale) {
+    state = state.copyWith(e2eUpscale: e2eUpscale);
+    _storage.setLastE2eUpscale(e2eUpscale);
+  }
+
+  /// 更新增强 max 档 (仅 V5)
+  ///
+  /// 由增强工作流按当前档位驱动，属于单次请求状态，不落盘。
+  void updateUpscaledEnhance(bool upscaledEnhance) {
+    if (state.upscaledEnhance == upscaledEnhance) {
+      return;
+    }
+    state = state.copyWith(upscaledEnhance: upscaledEnhance);
+  }
+
   /// 标记当前 img2img 请求来自增强面板
   ///
-  /// 决定是否自动补 `-2::upscaled, blurry::`，只属于单次请求，不落盘。
+  /// 决定是否自动补 `-2::upscaled, blurry::`，同样只属于单次请求。
   void updateIsEnhanceRequest(bool isEnhanceRequest) {
     if (state.isEnhanceRequest == isEnhanceRequest) {
       return;

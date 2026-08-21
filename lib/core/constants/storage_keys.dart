@@ -82,6 +82,7 @@ class StorageKeys {
 
   // 质量词预设（新版）
   static const String qualityPresetMode = 'quality_preset_mode';
+  static const String qualityPresetNaiTier = 'quality_preset_nai_tier';
   static const String qualityPresetCustomId = 'quality_preset_custom_id';
   static const String qualityPresetCustomIds =
       'quality_preset_custom_ids'; // 自定义条目ID列表
@@ -130,6 +131,8 @@ class StorageKeys {
   static const String lastCfgRescale = 'last_cfg_rescale';
   static const String lastNoiseSchedule = 'last_noise_schedule';
   static const String lastVarietyPlus = 'last_variety_plus';
+  static const String lastTransparentBackground = 'last_transparent_background';
+  static const String lastE2eUpscale = 'last_e2e_upscale';
 
   // Gallery Keys (画廊相关)
   static const String generationHistory = 'generation_history';
@@ -312,6 +315,7 @@ class StorageKeys {
   /// 旧版连续幅度（0-1），只用于迁移到 [workflowEnhanceLevel]。
   static const String workflowEnhanceMagnitude = 'workflow_enhance_magnitude';
   static const String workflowEnhanceLevel = 'workflow_enhance_level';
+  static const String workflowEnhanceMaxScale = 'workflow_enhance_max_scale';
   static const String workflowEnhanceShowIndividualSettings =
       'workflow_enhance_show_individual_settings';
   static const String workflowEnhanceUpscaleFactor =
