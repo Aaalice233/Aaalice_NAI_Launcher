@@ -85,6 +85,11 @@ Function ${Prefix}FindInstalledAppProcess
 
   StrCpy $TargetProcessId "0"
   StrCpy $ProcessInspectionFailed "0"
+
+  ; With no target executable there is nothing in this installation to stop.
+  ; Scanning would let an unrelated inaccessible same-named process block first install.
+  IfFileExists "$INSTDIR\${APP_EXE}" 0 find_process_done
+
   ClearErrors
   GetFullPathName $R9 "$INSTDIR\${APP_EXE}"
   IfErrors find_process_snapshot_failed

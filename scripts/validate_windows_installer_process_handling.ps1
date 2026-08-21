@@ -128,13 +128,20 @@ $testId = [Guid]::NewGuid().ToString('N')
 $tempRoot = Join-Path $env:TEMP "nai-launcher-installer-process-$testId"
 $sourceDir = Join-Path $tempRoot 'source'
 $installDir = Join-Path $tempRoot 'installed'
+$firstInstallDir = Join-Path $tempRoot 'first-install'
 $otherDir = Join-Path $tempRoot 'other'
 $outputDir = Join-Path $tempRoot 'output'
 $appName = 'nai_launcher_process_test.exe'
 $uninstallKey = "Software\Aaalice\InstallerProcessTest\$testId"
 
 try {
-  foreach ($directory in @($sourceDir, $installDir, $otherDir, $outputDir)) {
+  foreach ($directory in @(
+      $sourceDir,
+      $installDir,
+      $firstInstallDir,
+      $otherDir,
+      $outputDir
+    )) {
     [void](New-Item -ItemType Directory -Path $directory -Force)
   }
 
@@ -183,6 +190,26 @@ try {
     -HasExited $false `
     -Message 'The uninstaller stopped a same-named executable from another directory.'
 
+  $firstInstallInstaller = Join-Path $outputDir 'first-install-setup.exe'
+  Invoke-Makensis `
+    -OutputPath $firstInstallInstaller `
+    -InstallPath $firstInstallDir `
+    -SourcePath $sourceDir `
+    -UninstallKey "$uninstallKey-first-install" `
+    -ProcessQueryAccess '0'
+
+  $firstInstallExit = Invoke-SilentExecutable -Path $firstInstallInstaller
+  if ($firstInstallExit -ne 0) {
+    throw "First install with an unrelated inaccessible process exited with code $firstInstallExit"
+  }
+  Assert-ProcessState `
+    -Process $otherProcess `
+    -HasExited $false `
+    -Message 'The first installer stopped an unrelated same-named executable.'
+  if (-not (Test-Path -LiteralPath (Join-Path $firstInstallDir 'source-version.txt'))) {
+    throw 'The first installer was blocked by an unrelated inaccessible process.'
+  }
+
   [void](New-Item -ItemType Directory -Path $installDir -Force)
   Copy-Item -LiteralPath $ping -Destination (Join-Path $installDir $appName)
   Set-Content `
@@ -227,9 +254,13 @@ try {
     }
   }
 
-  $registryPath = "HKCU:\$uninstallKey"
-  if (Test-Path -LiteralPath $registryPath) {
-    Remove-Item -LiteralPath $registryPath -Recurse -Force
+  foreach ($registryPath in @(
+      "HKCU:\$uninstallKey",
+      "HKCU:\$uninstallKey-first-install"
+    )) {
+    if (Test-Path -LiteralPath $registryPath) {
+      Remove-Item -LiteralPath $registryPath -Recurse -Force
+    }
   }
 
   if (Test-Path -LiteralPath $tempRoot) {
