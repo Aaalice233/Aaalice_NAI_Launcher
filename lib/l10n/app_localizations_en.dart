@@ -257,7 +257,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nav_randomConfig => 'Random Config';
 
   @override
-  String get nav_dictionary => 'Dictionary (WIP)';
+  String get nav_dictionary => 'Dictionary';
 
   @override
   String get nav_discordCommunity => 'Discord Community';

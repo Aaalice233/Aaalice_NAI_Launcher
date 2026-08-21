@@ -253,7 +253,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get nav_randomConfig => 'ランダム構成';
 
   @override
-  String get nav_dictionary => '辞書 (WIP)';
+  String get nav_dictionary => '辞書';
 
   @override
   String get nav_discordCommunity => 'Discord コミュニティ';

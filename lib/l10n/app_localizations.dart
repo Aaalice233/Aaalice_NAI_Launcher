@@ -571,7 +571,7 @@ abstract class AppLocalizations {
   /// No description provided for @nav_dictionary.
   ///
   /// In en, this message translates to:
-  /// **'Dictionary (WIP)'**
+  /// **'Dictionary'**
   String get nav_dictionary;
 
   /// No description provided for @nav_discordCommunity.
