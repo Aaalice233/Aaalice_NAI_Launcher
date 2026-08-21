@@ -812,7 +812,6 @@ void main() {
       expect(container.read(generationParamsNotifierProvider).scale, 5.0);
     });
   });
-
 }
 
 Uint8List _validPngBytes({required int width, required int height}) =>

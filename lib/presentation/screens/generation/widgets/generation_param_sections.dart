@@ -52,9 +52,9 @@ class ModelSection extends ConsumerWidget {
         const SizedBox(height: 8),
         ThemedDropdown<String>(
           value: normalizedModel,
-          items: ImageModels.visibleModels(
-            current: normalizedModel,
-          ).map((model) {
+          items: ImageModels.visibleModels(current: normalizedModel).map((
+            model,
+          ) {
             return DropdownMenuItem(
               value: model,
               child: Text(

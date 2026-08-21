@@ -144,7 +144,6 @@ class LocalStorageService {
     await setSetting(StorageKeys.defaultModel, model);
   }
 
-
   /// 获取默认采样器
   String getDefaultSampler() {
     return getSetting<String>(

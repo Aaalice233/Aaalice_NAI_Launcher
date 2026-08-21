@@ -45,10 +45,7 @@ void main() {
   test('normalizes decomposed input before counting', () {
     // 官方前端会先做 NFC，否则分解形式的韩文会被拆成一堆字节。
     expect(encoder.countTokensSync('한국'), 1);
-    expect(
-      encoder.countTokensSync('한국'),
-      1,
-    );
+    expect(encoder.countTokensSync('한국'), 1);
   });
 
   test('treats special tokens as a single token', () {
@@ -60,30 +57,33 @@ void main() {
     expect(encoder.countTokensSync(''), 0);
   });
 
-  test('counts weight syntax through the service like the web client', () async {
-    // 官网口径：不剥权重语法、不 trim、不加 EOS 校准。
-    final service = PromptTokenCounterService(
-      encoder: encoder,
-      qwenEncoder: encoder,
-    );
+  test(
+    'counts weight syntax through the service like the web client',
+    () async {
+      // 官网口径：不剥权重语法、不 trim、不加 EOS 校准。
+      final service = PromptTokenCounterService(
+        encoder: encoder,
+        qwenEncoder: encoder,
+      );
 
-    expect(
-      await service.countTokensForTexts(
-        const ['-0.8::feet::'],
-        model: ImageModels.v5StagingKey,
-        applyWebAdjustment: true,
-      ),
-      8,
-    );
-    expect(
-      await service.countTokensForTexts(
-        const ['1girl, {{blue eyes}}, [smile], -0.8::feet::'],
-        model: ImageModels.v5StagingKey,
-        applyWebAdjustment: true,
-      ),
-      19,
-    );
-  });
+      expect(
+        await service.countTokensForTexts(
+          const ['-0.8::feet::'],
+          model: ImageModels.v5StagingKey,
+          applyWebAdjustment: true,
+        ),
+        8,
+      );
+      expect(
+        await service.countTokensForTexts(
+          const ['1girl, {{blue eyes}}, [smile], -0.8::feet::'],
+          model: ImageModels.v5StagingKey,
+          applyWebAdjustment: true,
+        ),
+        19,
+      );
+    },
+  );
 
   test('loads the tokenizer from the bundled asset', () async {
     final bundled = await QwenPromptTokenEncoder.load(

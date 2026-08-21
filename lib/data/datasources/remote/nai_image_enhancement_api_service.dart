@@ -195,13 +195,12 @@ class NAIImageEnhancementApiService {
     Uint8List image, {
     required String prompt,
     int defry = 0,
-  }) =>
-      augmentImage(
-        image,
-        reqType: _reqTypeEmotion,
-        prompt: prompt,
-        defry: defry,
-      );
+  }) => augmentImage(
+    image,
+    reqType: _reqTypeEmotion,
+    prompt: prompt,
+    defry: defry,
+  );
 
   Future<Uint8List> removeBackground(Uint8List image) =>
       augmentImage(image, reqType: _reqTypeBgRemoval);
@@ -210,13 +209,12 @@ class NAIImageEnhancementApiService {
     Uint8List image, {
     String? prompt,
     int defry = 0,
-  }) =>
-      augmentImage(
-        image,
-        reqType: _reqTypeColorize,
-        prompt: prompt,
-        defry: defry,
-      );
+  }) => augmentImage(
+    image,
+    reqType: _reqTypeColorize,
+    prompt: prompt,
+    defry: defry,
+  );
 
   Future<Uint8List> declutter(Uint8List image) =>
       augmentImage(image, reqType: _reqTypeDeclutter);
@@ -235,10 +233,7 @@ class NAIImageEnhancementApiService {
     try {
       final response = await _dio.post(
         _endpointService.imageUrl(ApiConstants.annotateImageEndpoint),
-        data: {
-          'image': base64Encode(image),
-          'req_type': annotateType,
-        },
+        data: {'image': base64Encode(image), 'req_type': annotateType},
         options: Options(
           responseType: annotateType == _annotateTypeWd
               ? ResponseType.json

@@ -31,8 +31,9 @@ void main() {
         ),
       ).thenAnswer((invocation) async {
         capturedUrl = invocation.positionalArguments.first as String;
-        capturedData =
-            Map<String, dynamic>.from(invocation.namedArguments[#data] as Map);
+        capturedData = Map<String, dynamic>.from(
+          invocation.namedArguments[#data] as Map,
+        );
         return Response<dynamic>(
           data: zipBytes,
           requestOptions: RequestOptions(path: '/ai/upscale'),
@@ -131,36 +132,39 @@ void main() {
       expect(callCount, 1);
     });
 
-    test('should send source image width and height for director tools',
-        () async {
-      final dio = _MockDio();
-      final sourceImage = _buildPng(width: 48, height: 32);
-      final zipBytes = _buildZipWithSingleImage(sourceImage);
-      Map<String, dynamic>? capturedData;
+    test(
+      'should send source image width and height for director tools',
+      () async {
+        final dio = _MockDio();
+        final sourceImage = _buildPng(width: 48, height: 32);
+        final zipBytes = _buildZipWithSingleImage(sourceImage);
+        Map<String, dynamic>? capturedData;
 
-      when(
-        () => dio.post<dynamic>(
-          any(),
-          data: any(named: 'data'),
-          options: any(named: 'options'),
-        ),
-      ).thenAnswer((invocation) async {
-        capturedData =
-            Map<String, dynamic>.from(invocation.namedArguments[#data] as Map);
-        return Response<dynamic>(
-          data: zipBytes,
-          requestOptions: RequestOptions(path: '/augment-image'),
-        );
-      });
+        when(
+          () => dio.post<dynamic>(
+            any(),
+            data: any(named: 'data'),
+            options: any(named: 'options'),
+          ),
+        ).thenAnswer((invocation) async {
+          capturedData = Map<String, dynamic>.from(
+            invocation.namedArguments[#data] as Map,
+          );
+          return Response<dynamic>(
+            data: zipBytes,
+            requestOptions: RequestOptions(path: '/augment-image'),
+          );
+        });
 
-      final service = NAIImageEnhancementApiService(dio);
-      final result = await service.removeBackground(sourceImage);
+        final service = NAIImageEnhancementApiService(dio);
+        final result = await service.removeBackground(sourceImage);
 
-      expect(result, isNotEmpty);
-      expect(capturedData?['req_type'], equals('bg-removal'));
-      expect(capturedData?['width'], equals(48));
-      expect(capturedData?['height'], equals(32));
-    });
+        expect(result, isNotEmpty);
+        expect(capturedData?['req_type'], equals('bg-removal'));
+        expect(capturedData?['width'], equals(48));
+        expect(capturedData?['height'], equals(32));
+      },
+    );
 
     test('encodeVibe should send information_extracted to API', () async {
       final dio = _MockDio();
@@ -174,8 +178,9 @@ void main() {
           options: any(named: 'options'),
         ),
       ).thenAnswer((invocation) async {
-        capturedData =
-            Map<String, dynamic>.from(invocation.namedArguments[#data] as Map);
+        capturedData = Map<String, dynamic>.from(
+          invocation.namedArguments[#data] as Map,
+        );
         return Response<dynamic>(
           data: Uint8List.fromList(const [1, 2, 3]),
           requestOptions: RequestOptions(path: '/encode-vibe'),
@@ -197,10 +202,7 @@ void main() {
   });
 }
 
-Uint8List _buildPng({
-  required int width,
-  required int height,
-}) {
+Uint8List _buildPng({required int width, required int height}) {
   final image = img.Image(width: width, height: height);
   img.fill(image, color: img.ColorRgb8(255, 255, 255));
   return Uint8List.fromList(img.encodePng(image));

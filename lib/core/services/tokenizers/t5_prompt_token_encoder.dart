@@ -13,9 +13,7 @@ class T5PromptTokenEncoder implements PromptTokenEncoder {
 
   final SentencePieceTokenizer _tokenizer;
 
-  static Future<T5PromptTokenEncoder> load({
-    required String assetPath,
-  }) {
+  static Future<T5PromptTokenEncoder> load({required String assetPath}) {
     return _instances.putIfAbsent(assetPath, () => _loadFromAsset(assetPath));
   }
 
@@ -35,10 +33,7 @@ class T5PromptTokenEncoder implements PromptTokenEncoder {
       return 0;
     }
 
-    final encoding = _tokenizer.encode(
-      normalized,
-      addSpecialTokens: false,
-    );
+    final encoding = _tokenizer.encode(normalized, addSpecialTokens: false);
     return encoding.ids.length;
   }
 }

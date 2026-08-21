@@ -67,11 +67,12 @@ class QwenPromptTokenEncoder implements PromptTokenEncoder {
       ranks[line] = ranks.length;
     }
 
-    final specialTokens = (header['specialTokens'] as List<dynamic>? ?? const [])
-        .cast<String>()
-        .toList()
-      // 长的优先，避免前缀较短的特殊标记先匹配。
-      ..sort((a, b) => b.length.compareTo(a.length));
+    final specialTokens =
+        (header['specialTokens'] as List<dynamic>? ?? const [])
+            .cast<String>()
+            .toList()
+          // 长的优先，避免前缀较短的特殊标记先匹配。
+          ..sort((a, b) => b.length.compareTo(a.length));
 
     return QwenPromptTokenEncoder._(
       splitPattern: RegExp(header['splitRegex'] as String, unicode: true),

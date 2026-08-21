@@ -57,7 +57,7 @@ class NAIImageGenerationApiService {
       if (ImageModels.isV4Model(model) || model == 'N/A') {
         AppLogger.w(
           'Model $model does not support DDIM sampler, '
-          'falling back to Euler Ancestral',
+              'falling back to Euler Ancestral',
           'ImgGen',
         );
         return Samplers.kEulerAncestral;
@@ -456,19 +456,20 @@ class NAIImageGenerationApiService {
       }
 
       final buildStopwatch = Stopwatch()..start();
-      final requestBuildResult = await NAIImageRequestBuilder(
-        params: effectiveParams,
-        encodeVibe: _enhancementService.encodeVibe,
-        preciseReferences: effectivePreciseRefs,
-      ).build(
-        // 与非流式路径一致：DDIM 在部分模型上需要换成对应版本，
-        // 漏掉映射会让流式请求被服务端拒绝。
-        sampler: mapSamplerForModel(
-          effectiveParams.sampler,
-          effectiveParams.model,
-        ),
-        isStream: true,
-      );
+      final requestBuildResult =
+          await NAIImageRequestBuilder(
+            params: effectiveParams,
+            encodeVibe: _enhancementService.encodeVibe,
+            preciseReferences: effectivePreciseRefs,
+          ).build(
+            // 与非流式路径一致：DDIM 在部分模型上需要换成对应版本，
+            // 漏掉映射会让流式请求被服务端拒绝。
+            sampler: mapSamplerForModel(
+              effectiveParams.sampler,
+              effectiveParams.model,
+            ),
+            isStream: true,
+          );
       buildStopwatch.stop();
       if (_enablePipelineTracing) {
         AppLogger.i(

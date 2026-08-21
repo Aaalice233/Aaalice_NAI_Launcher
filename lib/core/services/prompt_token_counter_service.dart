@@ -21,11 +21,9 @@ class PromptTokenUsage {
 
   bool get isOverLimit => usedTokens > limit;
 }
+
 class PromptTokenBreakdownEntry {
-  const PromptTokenBreakdownEntry({
-    required this.label,
-    required this.tokens,
-  });
+  const PromptTokenBreakdownEntry({required this.label, required this.tokens});
 
   final String label;
   final int tokens;
@@ -110,10 +108,7 @@ class PromptTokenCounterService {
     }
 
     final usedTokens = await countTokensForTexts(
-      _collectCountedTexts(
-        mainText: mainText,
-        extraTexts: extraTexts,
-      ),
+      _collectCountedTexts(mainText: mainText, extraTexts: extraTexts),
       model: model,
       applyWebAdjustment: applyWebAdjustment,
     );
@@ -225,9 +220,7 @@ class PromptTokenCounterService {
         parenDepth--;
       }
 
-      if (char == '|' &&
-          i + 1 < trimmed.length &&
-          trimmed[i + 1] == '|') {
+      if (char == '|' && i + 1 < trimmed.length && trimmed[i + 1] == '|') {
         inPipe = !inPipe;
         segmentBuffer.write('||');
         i++;
@@ -255,9 +248,9 @@ class PromptTokenCounterService {
 
   static String _stripSegmentWeightSyntaxPreservingWhitespace(String segment) {
     final leadingWhitespaceLength = segment.length - segment.trimLeft().length;
-    final trailingWhitespaceLength = segment.length - segment.trimRight().length;
-    final leadingWhitespace =
-        segment.substring(0, leadingWhitespaceLength);
+    final trailingWhitespaceLength =
+        segment.length - segment.trimRight().length;
+    final leadingWhitespace = segment.substring(0, leadingWhitespaceLength);
     final trailingWhitespace = segment.substring(
       segment.length - trailingWhitespaceLength,
     );
