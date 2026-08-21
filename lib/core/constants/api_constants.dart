@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'model_capabilities.dart';
 
 /// NovelAI API 常量定义
@@ -583,7 +585,7 @@ class E2eUpscale {
 
   /// 增强面板是否应当给出 max 档。
   ///
-  /// 官网的判定是「模型支持端到端放大 且 原图面积在阈值内」，
+  /// 官网的判定是「模型支持 max 档 且 原图面积在阈值内」，
   /// 面积过大时服务端没有放大空间，档位直接不出现。
   static bool allowsMaxEnhance(
     ModelCapabilities capabilities, {
@@ -593,6 +595,24 @@ class E2eUpscale {
     if (!capabilities.supportsMaxEnhance) return false;
     final area = (sourceWidth ?? 0) * (sourceHeight ?? 0);
     return area > 0 && area < maxEnhanceAreaThreshold;
+  }
+
+  /// max 档服务端实际生成的目标尺寸：等比放大到官方面积上限。
+  ///
+  /// 请求参数里携带的仍是原图尺寸，但计费按放大后的面积——网页端的
+  /// 价格预估就是先用这个尺寸替换 width/height 再算的。
+  static ({int width, int height}) resolveMaxEnhanceTargetSize(
+    int width,
+    int height,
+  ) {
+    if (width <= 0 || height <= 0) {
+      return (width: width, height: height);
+    }
+    final scale = math.sqrt(ApiConstants.maxImagePixels / (width * height));
+    return (
+      width: (width * scale).round(),
+      height: (height * scale).round(),
+    );
   }
 }
 

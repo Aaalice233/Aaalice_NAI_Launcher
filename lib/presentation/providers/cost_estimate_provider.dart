@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/constants/api_constants.dart';
 import '../../core/services/anlas_calculator.dart';
 import '../../core/utils/focused_inpaint_utils.dart';
 import '../../data/models/image/image_params.dart';
@@ -50,6 +51,20 @@ _GenerationCostInput _resolveGenerationCostInput(
         strength: params.inpaintStrength,
       );
     }
+  }
+
+  // 增强 max 档：请求携带原图尺寸，但服务端按放大到 3.14MP 的面积计费，
+  // 网页端预估同样先替换成目标尺寸再算（Opus 免费判定随之失效）。
+  if (params.effectiveUpscaledEnhance) {
+    final target = E2eUpscale.resolveMaxEnhanceTargetSize(
+      params.width,
+      params.height,
+    );
+    return _GenerationCostInput(
+      width: target.width,
+      height: target.height,
+      strength: params.strength,
+    );
   }
 
   return _GenerationCostInput(

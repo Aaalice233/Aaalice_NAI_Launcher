@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/core/services/anlas_calculator.dart';
@@ -147,6 +148,56 @@ void main() {
       paramsNotifier.updateSteps(28);
       paramsNotifier.updateStrength(0.5);
 
+      expect(container.read(estimatedCostProvider), 0);
+    });
+
+    test('should price max enhance by the upscaled 3.14MP area', () {
+      // 增强 max 档：请求带原图尺寸，服务端按放大到 3.14MP 的面积计费。
+      // 网页端预估先把尺寸换成目标值再算，Opus 免费判定随之失效——
+      // 按原图面积算会把 ≤1MP 的原图误判成免费。
+      final subscription = container.read(
+        subscriptionNotifierProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      subscription.state = const SubscriptionState.loaded(
+        UserSubscription(tier: AnlasCalculator.opusTier, active: true),
+      );
+      paramsNotifier.updateModel(
+        ImageModels.animeDiffusionV5Curated,
+        persist: false,
+        followDefaults: false,
+      );
+      paramsNotifier.updateAction(ImageGenerationAction.img2img);
+      paramsNotifier.setSourceImage(_buildPng(width: 832, height: 1216));
+      paramsNotifier.updateSize(832, 1216);
+      paramsNotifier.updateSteps(23);
+      paramsNotifier.updateStrength(0.5);
+      paramsNotifier.updateUpscaledEnhance(true);
+
+      final params = container.read(generationParamsNotifierProvider);
+      final target = E2eUpscale.resolveMaxEnhanceTargetSize(832, 1216);
+      final expected = AnlasCalculator.calculateRequestCost(
+        width: target.width,
+        height: target.height,
+        steps: params.steps,
+        batchCount: params.nSamples,
+        batchSize: container.read(imagesPerRequestProvider),
+        smea: params.effectiveSmea,
+        smeaDyn: params.effectiveSmeaDyn,
+        model: params.model,
+        subscriptionTier: AnlasCalculator.opusTier,
+        strength: 0.5,
+      );
+
+      expect(target.width * target.height, greaterThan(1024 * 1024));
+      expect(expected, greaterThan(0));
+      expect(container.read(estimatedCostProvider), expected);
+
+      // 关掉 max 档后回到原图面积，Opus 免费恢复。
+      paramsNotifier.updateUpscaledEnhance(false);
       expect(container.read(estimatedCostProvider), 0);
     });
 
