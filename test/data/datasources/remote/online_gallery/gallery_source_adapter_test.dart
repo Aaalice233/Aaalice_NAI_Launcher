@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/data/datasources/remote/danbooru_api_service.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/ai_tag_gallery_source_adapter.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/donmai_gallery_source_adapter.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
@@ -120,6 +121,32 @@ void main() {
           http.requests.last.headers['Authorization'],
           'Basic current-credentials',
         );
+      },
+    );
+  });
+
+  group('DanbooruApiService', () {
+    test(
+      'loads favorite posts through the ordered-favorites post search',
+      () async {
+        final http = _RecordingHttpAdapter((request) {
+          expect(request.uri.path, '/posts.json');
+          expect(request.queryParameters['tags'], 'ordfav:alice');
+          expect(request.queryParameters['page'], 2);
+          expect(request.queryParameters['limit'], 40);
+          expect(request.headers['Authorization'], 'Basic current-credentials');
+          return [_donmaiPost(30)];
+        });
+        final service = DanbooruApiService(Dio()..httpClientAdapter = http)
+          ..setAuthHeader('Basic current-credentials');
+
+        final posts = await service.getFavorites(
+          username: 'alice',
+          page: 2,
+          limit: 40,
+        );
+
+        expect(posts.map((post) => post.id), [30]);
       },
     );
   });

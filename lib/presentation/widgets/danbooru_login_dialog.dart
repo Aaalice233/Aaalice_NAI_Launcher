@@ -44,7 +44,7 @@ class _DanbooruLoginDialogState extends ConsumerState<DanbooruLoginDialog> {
     setState(() => _isLoading = false);
 
     if (success && mounted) {
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(true);
       AppToast.success(context, context.l10n.danbooru_loginSuccess);
     }
   }

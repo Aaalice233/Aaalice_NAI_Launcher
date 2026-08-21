@@ -259,19 +259,25 @@ class DanbooruApiService {
   // ==================== 收藏夹 ====================
 
   Future<List<DanbooruPost>> getFavorites({
+    String? username,
     int? userId,
     dynamic page = 1,
     int limit = 40,
   }) async {
-    final queryParams = <String, dynamic>{
-      'page': page,
-      'limit': limit.clamp(1, 200),
-      if (userId != null) 'search[user_id]': userId,
-    };
+    final user = username?.trim().isNotEmpty == true
+        ? username!.trim()
+        : userId?.toString();
+    if (user == null) return [];
 
+    // /favorites.json returns Favorite resources without embedded post data.
+    // ordfav returns complete posts in the user's favorite-time order.
     final response = await _dio.get(
-      '$_baseUrl$_favoritesEndpoint',
-      queryParameters: queryParams,
+      '$_baseUrl$_postsEndpoint',
+      queryParameters: {
+        'tags': 'ordfav:$user',
+        'page': page,
+        'limit': limit.clamp(1, 200),
+      },
       options: Options(
         receiveTimeout: _timeout,
         sendTimeout: _timeout,
@@ -281,9 +287,8 @@ class DanbooruApiService {
 
     if (response.data is List) {
       return (response.data as List)
-          .whereType<Map<String, dynamic>>()
-          .where((fav) => fav['post'] != null)
-          .map((fav) => DanbooruPost.fromJson(fav['post'] as Map<String, dynamic>))
+          .whereType<Map>()
+          .map((post) => DanbooruPost.fromJson(Map<String, dynamic>.from(post)))
           .toList();
     }
     return [];

@@ -1234,11 +1234,18 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     }
   }
 
-  void _showLoginDialog(BuildContext context) {
-    showDialog(
+  Future<void> _showLoginDialog(BuildContext context) async {
+    final loggedIn = await showDialog<bool>(
       context: context,
       builder: (context) => const DanbooruLoginDialog(),
     );
+    if (loggedIn != true || !mounted) return;
+
+    final state = ref.read(onlineGalleryNotifierProvider);
+    if (state.viewMode == GalleryViewMode.favorites &&
+        state.favoritesSourceId == GallerySourceId.danbooru) {
+      await _galleryNotifier.refresh();
+    }
   }
 
   void _showGelbooruCredentialsDialog(BuildContext context) {

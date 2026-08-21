@@ -885,7 +885,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       final int rawCount;
       if (sourceId == GallerySourceId.danbooru) {
         raw = await _danbooruApi.getFavorites(
-          userId: _danbooruAuth.user!.id,
+          username: _danbooruAuth.user!.name,
           page: pageNumber,
           limit: _pageSize,
         );
