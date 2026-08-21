@@ -67,10 +67,12 @@ class AutocompleteServices {
     required this.dictionaryTranslations,
     required this.llmTranslations,
     required this.danbooru,
+    this.tagLookupSources = const [],
     this.libraryAliases,
   });
 
   final List<CompletionSource> localSources;
+  final List<CompletionSource> tagLookupSources;
   final TranslationResolver dictionaryTranslations;
   final TranslationResolver llmTranslations;
   final DanbooruCompletionSource danbooru;
@@ -78,6 +80,7 @@ class AutocompleteServices {
 
   CompletionOrchestrator createOrchestrator() => CompletionOrchestrator(
     localSources: localSources,
+    tagLookupSources: tagLookupSources,
     dictionaryTranslations: dictionaryTranslations,
     llmTranslations: llmTranslations,
     danbooru: danbooru,
@@ -122,8 +125,10 @@ final tagLibraryCompletionSourceProvider = Provider<TagLibraryCompletionSource>(
 
 final autocompleteServicesProvider = Provider<AutocompleteServices>((ref) {
   final zhDictionary = ref.watch(zhDictionaryServiceProvider);
+  final tagCatalog = ref.watch(tagCatalogRepositoryProvider);
   return AutocompleteServices(
     localSources: ref.watch(autocompleteLocalSourcesProvider),
+    tagLookupSources: [tagCatalog, zhDictionary],
     dictionaryTranslations: zhDictionary,
     llmTranslations: ref.watch(llmTranslationResolverProvider),
     danbooru: ref.watch(danbooruCompletionSourceProvider),

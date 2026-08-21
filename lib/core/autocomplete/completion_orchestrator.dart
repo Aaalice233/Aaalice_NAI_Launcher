@@ -14,9 +14,11 @@ class CompletionOrchestrator extends ChangeNotifier {
     required TranslationResolver dictionaryTranslations,
     required TranslationResolver llmTranslations,
     required DanbooruCompletionSource danbooru,
+    List<CompletionSource> tagLookupSources = const [],
     CompletionSource? libraryAliases,
     Duration llmDebounceDuration = const Duration(milliseconds: 400),
   }) : _localSources = localSources,
+       _tagLookupSources = tagLookupSources,
        _dictionaryTranslations = dictionaryTranslations,
        _llmTranslations = llmTranslations is ScopedTranslationResolver
            ? llmTranslations.createScope()
@@ -26,6 +28,7 @@ class CompletionOrchestrator extends ChangeNotifier {
        _llmDebounceDuration = llmDebounceDuration;
 
   final List<CompletionSource> _localSources;
+  final List<CompletionSource> _tagLookupSources;
   final TranslationResolver _dictionaryTranslations;
   final TranslationResolver _llmTranslations;
   final DanbooruCompletionSource _danbooru;
@@ -57,28 +60,49 @@ class CompletionOrchestrator extends ChangeNotifier {
 
   Future<void> query(
     CompletionQuery query,
-    AutocompleteSettings settings,
-  ) async {
+    AutocompleteSettings settings, {
+    CompletionQuery? relatedFallbackQuery,
+  }) async {
     final sequence = ++_sequence;
     _cancelPendingLlmTranslation();
     _remoteDebounce?.cancel();
     _danbooru.cancelPending();
-    final isRelatedQuery = query.relatedTag != null && query.token.isEmpty;
-    final isLibraryAlias = query.kind == CompletionQueryKind.libraryAlias;
+    final requestedRelatedQuery =
+        query.relatedTag != null && query.token.isEmpty;
     if (!settings.enabled ||
-        (query.token.isEmpty && query.relatedTag == null && !isLibraryAlias) ||
-        (isRelatedQuery && !settings.relatedTagsEnabled)) {
+        (query.token.isEmpty &&
+            query.relatedTag == null &&
+            query.kind != CompletionQueryKind.libraryAlias) ||
+        (requestedRelatedQuery && !settings.relatedTagsEnabled)) {
       _emit(CompletionState(query: query));
       return;
     }
 
+    var effectiveQuery = query;
+    if (requestedRelatedQuery &&
+        relatedFallbackQuery != null &&
+        _tagLookupSources.isNotEmpty) {
+      final resolution = await _resolveRelatedTag(relatedFallbackQuery);
+      if (!_isCurrent(sequence)) return;
+      if (resolution != null) {
+        effectiveQuery = resolution.isExact
+            ? query.copyWith(relatedTag: resolution.canonicalTag)
+            : relatedFallbackQuery;
+      }
+    }
+
+    final isRelatedQuery =
+        effectiveQuery.relatedTag != null && effectiveQuery.token.isEmpty;
+    final isLibraryAlias =
+        effectiveQuery.kind == CompletionQueryKind.libraryAlias;
+
     final canLoadRemote =
         !isLibraryAlias &&
         settings.danbooruEnabled &&
-        (query.token.length >= 2 || isRelatedQuery);
+        (effectiveQuery.token.length >= 2 || isRelatedQuery);
     _emit(
       CompletionState(
-        query: query,
+        query: effectiveQuery,
         candidates: const [],
         isLocalLoading: true,
         isRemoteLoading: canLoadRemote,
@@ -90,10 +114,12 @@ class CompletionOrchestrator extends ChangeNotifier {
         : _localSources;
     final expandsRelatedResults =
         isRelatedQuery &&
-        query.limit > CompletionResultLimits.initialRelatedTags;
+        effectiveQuery.limit > CompletionResultLimits.initialRelatedTags;
     final initialQuery = expandsRelatedResults
-        ? query.copyWith(limit: CompletionResultLimits.initialRelatedTags)
-        : query;
+        ? effectiveQuery.copyWith(
+            limit: CompletionResultLimits.initialRelatedTags,
+          )
+        : effectiveQuery;
     final localResults = await Future.wait(
       activeLocalSources.map((source) async {
         try {
@@ -115,7 +141,7 @@ class CompletionOrchestrator extends ChangeNotifier {
     var candidates = isLibraryAlias
         ? localBatches
               .expand((batch) => batch)
-              .take(query.limit)
+              .take(effectiveQuery.limit)
               .toList(growable: false)
         : CompletionRanker.mergeAndSort(
             localBatches.expand((batch) => batch),
@@ -144,7 +170,7 @@ class CompletionOrchestrator extends ChangeNotifier {
     );
     _scheduleLlmTranslations(initialQuery, sequence, settings);
     if (expandsRelatedResults) {
-      unawaited(_expandRelatedLocalResults(query, settings, sequence));
+      unawaited(_expandRelatedLocalResults(effectiveQuery, settings, sequence));
     }
 
     if (!canLoadRemote) {
@@ -152,9 +178,47 @@ class CompletionOrchestrator extends ChangeNotifier {
       return;
     }
     _remoteDebounce = Timer(const Duration(milliseconds: 250), () {
-      unawaited(_loadRemote(query, sequence, settings));
+      unawaited(_loadRemote(effectiveQuery, sequence, settings));
     });
   }
+
+  Future<_RelatedTagResolution?> _resolveRelatedTag(
+    CompletionQuery fallbackQuery,
+  ) async {
+    // Prefix matches must stay in normal completion so an incomplete tag is
+    // never guessed as the source of a related-tag query.
+    final lookupQuery = fallbackQuery.copyWith(
+      limit: math.min(fallbackQuery.limit, 20),
+    );
+    final results = await Future.wait(
+      _tagLookupSources.map((source) async {
+        try {
+          return await source.search(lookupQuery);
+        } catch (_) {
+          return const <CompletionCandidate>[];
+        }
+      }),
+    );
+    final candidates = CompletionRanker.mergeAndSort(
+      results.expand((batch) => batch),
+      query: lookupQuery,
+    );
+    if (candidates.isEmpty) return null;
+
+    final exact = candidates.where(_isExactTagMatch).firstOrNull;
+    return _RelatedTagResolution(
+      canonicalTag: (exact ?? candidates.first).canonicalTag,
+      isExact: exact != null,
+    );
+  }
+
+  static bool _isExactTagMatch(CompletionCandidate candidate) =>
+      switch (candidate.matchKind) {
+        CompletionMatchKind.englishExact ||
+        CompletionMatchKind.aliasExact ||
+        CompletionMatchKind.chineseExact => true,
+        _ => false,
+      };
 
   Future<void> _expandRelatedLocalResults(
     CompletionQuery query,
@@ -455,4 +519,14 @@ class _LocalSourceResult {
 
   final List<CompletionCandidate> candidates;
   final String? error;
+}
+
+class _RelatedTagResolution {
+  const _RelatedTagResolution({
+    required this.canonicalTag,
+    required this.isExact,
+  });
+
+  final String canonicalTag;
+  final bool isExact;
 }

@@ -359,6 +359,13 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     final cursorPosition = selection.isValid
         ? selection.extentOffset
         : widget.controller.text.length;
+    final fallbackQuery = PromptTokenParser.parse(
+      text: widget.controller.text,
+      cursorPosition: cursorPosition,
+      limit: config?.maxSuggestions ?? settings.resultLimit,
+      locale: Localizations.localeOf(context).toLanguageTag(),
+      splitOnSpaces: config?.treatSpacesAsSeparators ?? false,
+    );
     var query = related
         ? PromptTokenParser.parseRelated(
             text: widget.controller.text,
@@ -367,13 +374,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
             locale: Localizations.localeOf(context).toLanguageTag(),
             splitOnSpaces: config?.treatSpacesAsSeparators ?? false,
           )
-        : PromptTokenParser.parse(
-            text: widget.controller.text,
-            cursorPosition: cursorPosition,
-            limit: config?.maxSuggestions ?? settings.resultLimit,
-            locale: Localizations.localeOf(context).toLanguageTag(),
-            splitOnSpaces: config?.treatSpacesAsSeparators ?? false,
-          );
+        : fallbackQuery;
     if (resetPinnedRelatedTag) _pinnedRelatedTag = null;
     if (query != null && relatedTagOverride != null) {
       query = query.copyWith(relatedTag: relatedTagOverride);
@@ -383,7 +384,13 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       return;
     }
     _keepEmptyQueryVisible = keepEmptyVisible || query.relatedTag != null;
-    _orchestrator?.query(query, settings);
+    _orchestrator?.query(
+      query,
+      settings,
+      relatedFallbackQuery: related && relatedTagOverride == null
+          ? fallbackQuery
+          : null,
+    );
   }
 
   void _maybePromptZhDictionary(AutocompleteSettings settings) {

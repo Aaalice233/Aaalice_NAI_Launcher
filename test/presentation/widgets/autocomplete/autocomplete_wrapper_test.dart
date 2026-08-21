@@ -1044,6 +1044,70 @@ void main() {
   });
 
   testWidgets(
+    'Ctrl-click falls back to normal autocomplete for partial Chinese tags',
+    (tester) async {
+      final controller = TextEditingController(text: '大慈树');
+      controller.selection = TextSelection.collapsed(
+        offset: controller.text.length,
+      );
+      final focusNode = FocusNode();
+      final source = _PartialChineseSource();
+      addTearDown(() {
+        controller.dispose();
+        focusNode.dispose();
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            autocompleteSettingsProvider.overrideWith(
+              (ref) => _OpenOnTagClickSettingsNotifier(),
+            ),
+            autocompleteServicesProvider.overrideWithValue(
+              AutocompleteServices(
+                localSources: [source],
+                tagLookupSources: [source],
+                dictionaryTranslations: const _NoTranslations(),
+                llmTranslations: const _NoTranslations(),
+                danbooru: _NoDanbooru(),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: AutocompleteWrapper(
+                controller: controller,
+                focusNode: focusNode,
+                child: TextField(controller: controller, focusNode: focusNode),
+              ),
+            ),
+          ),
+        ),
+      );
+      focusNode.requestFocus();
+      await tester.pump();
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(
+        location: tester.getCenter(find.byType(TextField)),
+      );
+      await gesture.down(tester.getCenter(find.byType(TextField)));
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 30));
+      await tester.pump();
+
+      expect(find.text('Tag autocomplete'), findsOneWidget);
+      expect(find.text('大慈树王 (原神)'), findsOneWidget);
+      expect(find.text('Related tags'), findsNothing);
+    },
+  );
+
+  testWidgets(
     'opens, pins, and continuously inserts related tags by keyboard',
     (tester) async {
       final controller = TextEditingController(text: 'blue_archive');
@@ -1447,6 +1511,23 @@ class _NormalAndRelatedSource implements CompletionSource {
         postCount: 497667,
         matchKind: CompletionMatchKind.englishExact,
         sources: {CompletionSourceKind.base},
+      ),
+    ];
+  }
+}
+
+class _PartialChineseSource implements CompletionSource {
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) async {
+    if (query.token != '大慈树') return const [];
+    return const [
+      CompletionCandidate(
+        canonicalTag: 'rukkhadevata_(genshin_impact)',
+        category: TagCategory.character,
+        postCount: 593,
+        translation: '大慈树王 (原神)',
+        matchKind: CompletionMatchKind.chinesePrefix,
+        sources: {CompletionSourceKind.zhDictionary},
       ),
     ];
   }
