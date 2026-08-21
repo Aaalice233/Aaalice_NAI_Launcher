@@ -6746,11 +6746,11 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_queueRetryInterval => '再試行間隔';
 
   @override
-  String get settings_showV5TestModels => 'V5 テストモデルを表示';
+  String get settings_showV5TestModels => 'テストサイトモデルを表示';
 
   @override
   String get settings_showV5TestModelsSubtitle =>
-      'モデル一覧に NovelAI V5 テストサイトのモデルを表示します。生成にはテスト参加権限のアカウントが必要です。';
+      'モデル一覧に NovelAI テストサイト項目（custom）を表示します。テスト参加権限のアカウント専用。V5 正式モデルは常に表示されます。';
 
   @override
   String get settings_showRandomPromptTools => 'ランダムプロンプトツールを表示';

@@ -6895,11 +6895,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_queueRetryInterval => 'Retry Interval';
 
   @override
-  String get settings_showV5TestModels => 'Show V5 test models';
+  String get settings_showV5TestModels => 'Show staging test models';
 
   @override
   String get settings_showV5TestModelsSubtitle =>
-      'List NovelAI V5 staging models in the model picker. Requires a test-access account to generate.';
+      'List the NovelAI staging entry (custom) in the model picker. Test-access accounts only; the official V5 models are always shown.';
 
   @override
   String get settings_showRandomPromptTools => 'Show random prompt tools';

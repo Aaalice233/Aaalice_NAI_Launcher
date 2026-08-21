@@ -3293,8 +3293,8 @@
 
   "settings_queueRetryCount": "重试次数",
   "settings_queueRetryInterval": "重试间隔",
-  "settings_showV5TestModels": "显示 V5 测试模型",
-  "settings_showV5TestModelsSubtitle": "在模型列表中显示 NovelAI V5 测试站模型，需要测试资格账号才能生成",
+  "settings_showV5TestModels": "显示测试站模型",
+  "settings_showV5TestModelsSubtitle": "在模型列表中显示 NovelAI 测试站条目（custom），仅测试资格账号可用；V5 正式模型已默认显示",
   "settings_showRandomPromptTools": "显示随机提示词工具",
   "settings_showRandomPromptToolsSubtitle": "在生成页显示“随机提示词”按钮和“抽卡模式”开关",
   "settings_enablePromptWeightScroll": "滚轮调整提示词权重",

@@ -183,7 +183,7 @@ void main() {
         PromptTokenCounterService.tokenLimitForModel(
           ImageModels.animeDiffusionV5Full,
         ),
-        1406,
+        1471,
       );
     });
 

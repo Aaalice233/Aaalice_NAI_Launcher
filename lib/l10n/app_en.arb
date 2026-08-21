@@ -3304,8 +3304,8 @@
 
   "settings_queueRetryCount": "Retry Count",
   "settings_queueRetryInterval": "Retry Interval",
-  "settings_showV5TestModels": "Show V5 test models",
-  "settings_showV5TestModelsSubtitle": "List NovelAI V5 staging models in the model picker. Requires a test-access account to generate.",
+  "settings_showV5TestModels": "Show staging test models",
+  "settings_showV5TestModelsSubtitle": "List the NovelAI staging entry (custom) in the model picker. Test-access accounts only; the official V5 models are always shown.",
   "settings_showRandomPromptTools": "Show random prompt tools",
   "settings_showRandomPromptToolsSubtitle": "Show the Random Prompt button and Random Mode toggle on the generation page",
   "settings_enablePromptWeightScroll": "Adjust prompt weight with mouse wheel",

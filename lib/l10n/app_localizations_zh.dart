@@ -6654,11 +6654,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_queueRetryInterval => '重试间隔';
 
   @override
-  String get settings_showV5TestModels => '显示 V5 测试模型';
+  String get settings_showV5TestModels => '显示测试站模型';
 
   @override
   String get settings_showV5TestModelsSubtitle =>
-      '在模型列表中显示 NovelAI V5 测试站模型，需要测试资格账号才能生成';
+      '在模型列表中显示 NovelAI 测试站条目（custom），仅测试资格账号可用；V5 正式模型已默认显示';
 
   @override
   String get settings_showRandomPromptTools => '显示随机提示词工具';

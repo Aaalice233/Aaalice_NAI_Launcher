@@ -12327,13 +12327,13 @@ abstract class AppLocalizations {
   /// No description provided for @settings_showV5TestModels.
   ///
   /// In en, this message translates to:
-  /// **'Show V5 test models'**
+  /// **'Show staging test models'**
   String get settings_showV5TestModels;
 
   /// No description provided for @settings_showV5TestModelsSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'List NovelAI V5 staging models in the model picker. Requires a test-access account to generate.'**
+  /// **'List the NovelAI staging entry (custom) in the model picker. Test-access accounts only; the official V5 models are always shown.'**
   String get settings_showV5TestModelsSubtitle;
 
   /// No description provided for @settings_showRandomPromptTools.

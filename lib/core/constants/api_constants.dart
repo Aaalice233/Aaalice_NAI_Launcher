@@ -87,16 +87,20 @@ class ImageModels {
   static const String animeDiffusionV45FullInpainting =
       'nai-diffusion-4-5-full-inpainting';
 
-  // V5 系列
-  // 测试期官网用 `custom` 作为模型键，正式模型 ID 以 NovelAI 公布为准，
-  // 这里先按官网代码中已出现的命名登记。
+  // V5 系列（2026-08 正式上线）
   static const String animeDiffusionV5Curated = 'nai-diffusion-5-curated';
   static const String animeDiffusionV5Full = 'nai-diffusion-5-full';
+  static const String animeDiffusionV5CuratedInpainting =
+      'nai-diffusion-5-curated-inpainting';
+  static const String animeDiffusionV5FullInpainting =
+      'nai-diffusion-5-full-inpainting';
 
-  /// V5 测试期使用的模型键。
+  /// V5 测试期使用的模型键，指向测试站部署，保留用于识别与测试。
   static const String v5StagingKey = 'custom';
 
   static const List<String> allModels = [
+    animeDiffusionV5Full,
+    animeDiffusionV5Curated,
     animeDiffusionV45Full,
     animeDiffusionV45Curated,
     animeDiffusionV4Full,
@@ -107,9 +111,9 @@ class ImageModels {
   ];
 
   static const Map<String, String> modelDisplayNames = {
-    v5StagingKey: 'NAI Diffusion V5 (测试站)',
     animeDiffusionV5Full: 'NAI Diffusion V5 (Full)',
     animeDiffusionV5Curated: 'NAI Diffusion V5 (Curated)',
+    v5StagingKey: 'NAI Diffusion V5 (测试站)',
     animeDiffusionV45Full: 'NAI Diffusion V4.5 (Full)',
     animeDiffusionV45Curated: 'NAI Diffusion V4.5 (Curated)',
     animeDiffusionV4Full: 'NAI Diffusion V4 (Full)',
@@ -121,7 +125,7 @@ class ImageModels {
 
   /// 模型选择器可见的模型列表。
   ///
-  /// V5 正式上线前只有测试站可用，需要用户显式打开测试开关才出现。
+  /// V5 正式模型无条件展示；`custom` 只指向测试站部署，仍需测试开关。
   /// [current] 是当前选中的模型：它可能来自元数据导入或已关闭的测试开关，
   /// 必须保留在候选项里，否则下拉框会因为 value 不在列表中而断言失败。
   static List<String> visibleModels({
@@ -151,10 +155,14 @@ class ImageModels {
   /// 将设置界面使用的基础模型转换为实际的 Inpainting 请求模型。
   static String resolveInpaintingModel(String model) {
     if (isInpaintingModel(model)) return model;
-    // V5 没有独立的 inpainting 权重，infill 直接用基础模型。
     if (!ModelCapabilityRegistry.of(model).hasInpaintingVariant) return model;
 
     return switch (model) {
+      // V5 Curated 的重绘权重尚未就绪，网页端映射到 V4.5 Curated Inpainting。
+      animeDiffusionV5Curated => animeDiffusionV45CuratedInpainting,
+      animeDiffusionV5Full => animeDiffusionV5FullInpainting,
+      // 测试站部署没有独立 inpainting，infill 继续走同一模型键。
+      v5StagingKey => v5StagingKey,
       animeDiffusionV45Full => animeDiffusionV45FullInpainting,
       animeDiffusionV45Curated => animeDiffusionV45CuratedInpainting,
       animeDiffusionV4Full => animeDiffusionV4FullInpainting,
@@ -167,6 +175,8 @@ class ImageModels {
   /// 将 Inpainting 请求模型还原为设置界面对应的基础模型。
   static String resolveBaseModel(String model) {
     return switch (model) {
+      animeDiffusionV5FullInpainting => animeDiffusionV5Full,
+      animeDiffusionV5CuratedInpainting => animeDiffusionV5Curated,
       animeDiffusionV45FullInpainting => animeDiffusionV45Full,
       animeDiffusionV45CuratedInpainting => animeDiffusionV45Curated,
       animeDiffusionV4FullInpainting => animeDiffusionV4Full,
@@ -607,6 +617,21 @@ class UcPresets {
     };
   }
 
+  /// V5 预设（Curated/Full 共用一套）
+  ///
+  /// heavy/furryFocus/humanFocus 与 V4.5 Full 同文案，light 是 V5 专属新文案。
+  static const Map<UcPresetType, String> v5Presets = {
+    UcPresetType.heavy:
+        'lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page',
+    UcPresetType.light:
+        'lowres, bad hands, bad anatomy, artistic error, sepia, white haze, worst quality, very displeasing, jpeg artifacts, 0::ai-generated::',
+    UcPresetType.furryFocus:
+        '{worst quality}, distracting watermark, unfinished, bad quality, {widescreen}, upscale, {sequence}, {{grandfathered content}}, blurred foreground, chromatic aberration, sketch, everyone, [sketch background], simple, [flat colors], ych (character), outline, multiple scenes, [[horror (theme)]], comic',
+    UcPresetType.humanFocus:
+        'lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, @_@, mismatched pupils, glowing eyes, bad anatomy',
+    UcPresetType.none: '',
+  };
+
   /// V4.5 Full 预设
   static const Map<UcPresetType, String> v45FullPresets = {
     UcPresetType.heavy:
@@ -736,10 +761,12 @@ class UcPresets {
   /// 根据模型获取对应的预设映射
   static Map<UcPresetType, String> getPresetsForModel(String model) {
     switch (model) {
-      // V5 测试期沿用 V4.5 Full 的预设文案，官方给出独立文案后再拆分。
       case ImageModels.v5StagingKey:
       case ImageModels.animeDiffusionV5Curated:
+      case ImageModels.animeDiffusionV5CuratedInpainting:
       case ImageModels.animeDiffusionV5Full:
+      case ImageModels.animeDiffusionV5FullInpainting:
+        return v5Presets;
       case ImageModels.animeDiffusionV45Full:
         return v45FullPresets;
       case ImageModels.animeDiffusionV45Curated:

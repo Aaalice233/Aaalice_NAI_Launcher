@@ -70,7 +70,11 @@ class AnlasCalculator {
   ///
   /// [params] 图像生成参数
   /// [isOpus] 是否 Opus 订阅
-  static int calculate(ImageParams params, {bool isOpus = false}) {
+  static int calculate(
+    ImageParams params, {
+    bool isOpus = false,
+    bool opusQuotaExhausted = false,
+  }) {
     return calculateRequestCost(
       width: params.width,
       height: params.height,
@@ -81,6 +85,7 @@ class AnlasCalculator {
       smeaDyn: params.effectiveSmeaDyn,
       model: params.model,
       subscriptionTier: isOpus ? opusTier : 0,
+      opusQuotaExhausted: opusQuotaExhausted,
       strength: switch (params.action) {
         ImageGenerationAction.img2img => params.strength,
         ImageGenerationAction.infill => params.inpaintStrength,
@@ -102,6 +107,7 @@ class AnlasCalculator {
     required bool smeaDyn,
     required String model,
     int subscriptionTier = 0,
+    bool opusQuotaExhausted = false,
     double strength = 1.0,
     int extraPerSampleCost = 0,
     int extraPerRequestCost = 0,
@@ -123,6 +129,7 @@ class AnlasCalculator {
         smeaDyn: smeaDyn,
         model: model,
         subscriptionTier: isFirstImageInRequest ? subscriptionTier : 0,
+        opusQuotaExhausted: opusQuotaExhausted,
         strength: strength,
       );
       if (sampleCost == invalidCost) return invalidCost;
@@ -173,20 +180,23 @@ class AnlasCalculator {
     required String model,
     bool isOpus = false,
     int subscriptionTier = 0,
+    bool opusQuotaExhausted = false,
     double strength = 1.0,
   }) {
     final pixels = width * height;
+    final capabilities = ModelCapabilityRegistry.of(model);
 
     // 计算每张图的基础消耗
     double perSample;
 
-    if (ModelCapabilityRegistry.of(model).anlasFormula == AnlasFormula.modern) {
-      // 网页端只对面积与步数部分取整，随后连乘 SMEA 倍率与重绘强度，最后统一取整。
+    if (capabilities.anlasFormula == AnlasFormula.modern) {
+      // 网页端只对面积与步数部分取整，随后连乘 SMEA 倍率、模型倍率与重绘
+      // 强度，最后统一取整。V5 的模型倍率是 1.5。
       final baseCost =
           (_areaCoefficient * pixels + _stepAreaCoefficient * pixels * steps)
               .ceil();
       final smeaFactor = !smea ? 1.0 : (!smeaDyn ? 1.2 : 1.4);
-      perSample = baseCost * smeaFactor;
+      perSample = baseCost * smeaFactor * capabilities.anlasMultiplier;
     } else {
       // 旧模型沿用已有的指数估算；本次计费更新只替换当前现代模型路径，
       // 避免用现代模型公式回算旧版请求。
@@ -202,13 +212,15 @@ class AnlasCalculator {
     final int cost = math.max((perSample * strength).ceil(), 2);
     if (cost > maximumPerSampleCost) return invalidCost;
 
-    // Opus 免费条件检查
+    // Opus 免费条件检查；V5 的免费额度受配额池限制，透支后不再抵扣。
+    final quotaBlocked = capabilities.hasOpusUsageLimit && opusQuotaExhausted;
     final opusDiscount =
-        _isOpusFree(
-          isOpus: isOpus || subscriptionTier >= opusTier,
-          steps: steps,
-          resolution: pixels,
-        )
+        !quotaBlocked &&
+            _isOpusFree(
+              isOpus: isOpus || subscriptionTier >= opusTier,
+              steps: steps,
+              resolution: pixels,
+            )
         ? 1
         : 0;
 

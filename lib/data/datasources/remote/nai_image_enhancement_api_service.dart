@@ -39,11 +39,55 @@ class NAIImageEnhancementApiService {
 
   // ==================== 图像放大 API ====================
 
+  /// V5 上线后 `/ai/upscale` 换代使用的固定模型与去模糊参数。
+  static const String _upscaleModel = ImageModels.animeDiffusionV5Curated;
+  static const int _upscaleDeclaredBlurSigma = 0;
+
   /// 调用 NovelAI `/ai/upscale` 端点进行超分辨率放大。
-  /// 该端点位于主 API (`api.novelai.net`)，而非图像生成域。
+  ///
+  /// V5 上线后接口换代：请求体变为 `{image, model, declared_blur_sigma}`，
+  /// 发往图像生成域。仅当服务端明确不认新格式（400/404/405/422）时回退
+  /// 旧版 `{image, width, height, scale}` 发主 API；计费类与服务器错误
+  /// （401/402/429/5xx）不回退，避免重复扣费。
   Future<Uint8List> upscaleImage(
     Uint8List image, {
     int scale = 4,
+    void Function(int, int)? onProgress,
+  }) async {
+    try {
+      final response = await _dio.post(
+        _endpointService.imageUrl(ApiConstants.upscaleEndpoint),
+        data: {
+          'image': base64Encode(image),
+          'model': _upscaleModel,
+          'declared_blur_sigma': _upscaleDeclaredBlurSigma,
+        },
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: {'Accept': 'application/x-zip-compressed'},
+        ),
+        onReceiveProgress: onProgress,
+      );
+
+      return _extractUpscaleResult(response.data as Uint8List);
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      const legacyFallbackStatuses = {400, 404, 405, 422};
+      if (status == null || !legacyFallbackStatuses.contains(status)) {
+        AppLogger.w('Upscale image failed: ${e.message}', 'NAIEnhancement');
+        throw Exception('图像放大失败: ${_mapDioError(e)}');
+      }
+      AppLogger.w(
+        'Upscale v2 rejected with $status, falling back to legacy format',
+        'NAIEnhancement',
+      );
+      return _upscaleImageLegacy(image, scale: scale, onProgress: onProgress);
+    }
+  }
+
+  Future<Uint8List> _upscaleImageLegacy(
+    Uint8List image, {
+    required int scale,
     void Function(int, int)? onProgress,
   }) async {
     try {
@@ -67,14 +111,17 @@ class NAIImageEnhancementApiService {
         onReceiveProgress: onProgress,
       );
 
-      final raw = response.data as Uint8List;
-      final images = ZipUtils.extractAllImages(raw);
-      if (images.isNotEmpty) return images.first;
-      return raw;
+      return _extractUpscaleResult(response.data as Uint8List);
     } on DioException catch (e) {
-      AppLogger.w('Upscale image failed: ${e.message}', 'NAIEnhancement');
+      AppLogger.w('Legacy upscale failed: ${e.message}', 'NAIEnhancement');
       throw Exception('图像放大失败: ${_mapDioError(e)}');
     }
+  }
+
+  Uint8List _extractUpscaleResult(Uint8List raw) {
+    final images = ZipUtils.extractAllImages(raw);
+    if (images.isNotEmpty) return images.first;
+    return raw;
   }
 
   // ==================== Vibe Transfer API ====================

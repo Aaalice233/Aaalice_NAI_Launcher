@@ -745,7 +745,8 @@ void main() {
 
       final params = container.read(generationParamsNotifierProvider);
       expect(params.model, ImageModels.v5StagingKey);
-      expect(params.scale, 10.0);
+      // 正式版 V5 的出厂默认 CFG 是 7（测试期是 10）。
+      expect(params.scale, 7.0);
     });
 
     test('should keep a scale the user adjusted', () async {

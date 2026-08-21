@@ -12,9 +12,10 @@ void main() {
     });
 
     test('resolves the official V5 ids', () {
+      // 正式版把 Full 的上限从测试期的 1406 提到 1471。
       expect(
         ModelCapabilityRegistry.of(ImageModels.animeDiffusionV5Full).tokenLimit,
-        1406,
+        1471,
       );
       expect(
         ModelCapabilityRegistry.of(
@@ -39,7 +40,7 @@ void main() {
       // 正式 ID 一旦带上后缀，仍然要走 V4 结构而不是静默降级到 legacy 路径。
       final unknownV5 = ModelCapabilityRegistry.of('nai-diffusion-5-full-next');
       expect(unknownV5.promptStructure, PromptStructure.v4);
-      expect(unknownV5.tokenLimit, 1406);
+      expect(unknownV5.tokenLimit, 1471);
 
       expect(
         ModelCapabilityRegistry.of('nai-diffusion-4-5-curated-next').tokenLimit,
@@ -76,16 +77,32 @@ void main() {
       );
     });
 
-    test('V5 has no dedicated inpainting weights', () {
+    test('V5 inpainting maps to the official weights', () {
+      // 正式版：Full 有独立 inpainting；Curated 的重绘权重尚未就绪，
+      // 网页端映射到 V4.5 Curated Inpainting；测试站键继续走自身。
       expect(
-        ModelCapabilityRegistry.of(
-          ImageModels.v5StagingKey,
-        ).hasInpaintingVariant,
-        isFalse,
+        ImageModels.resolveInpaintingModel(ImageModels.animeDiffusionV5Full),
+        ImageModels.animeDiffusionV5FullInpainting,
+      );
+      expect(
+        ImageModels.resolveInpaintingModel(ImageModels.animeDiffusionV5Curated),
+        ImageModels.animeDiffusionV45CuratedInpainting,
       );
       expect(
         ImageModels.resolveInpaintingModel(ImageModels.v5StagingKey),
         ImageModels.v5StagingKey,
+      );
+      expect(
+        ImageModels.resolveBaseModel(
+          ImageModels.animeDiffusionV5FullInpainting,
+        ),
+        ImageModels.animeDiffusionV5Full,
+      );
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV5FullInpainting,
+        ),
+        same(ModelCapabilityRegistry.of(ImageModels.animeDiffusionV5Full)),
       );
     });
 
@@ -97,13 +114,26 @@ void main() {
       expect(ImageModels.isV45Model(ImageModels.v5StagingKey), isFalse);
     });
 
-    test('V5 exposes the staging-only generation features', () {
+    test('V5 exposes the production feature set', () {
       final caps = ModelCapabilityRegistry.of(ImageModels.v5StagingKey);
 
       expect(caps.supportsTransparentBackground, isTrue);
-      expect(caps.supportsE2eUpscale, isTrue);
+      // 端到端 ×2 放大正式版未上线；增强 max 档保留。
+      expect(caps.supportsE2eUpscale, isFalse);
       expect(caps.supportsMaxEnhance, isTrue);
       expect(caps.maxCharacters, 32);
+      // 正式版专属：噪声调度不可选、Variety+ 不支持、计价 1.5 倍、
+      // Opus 免费受配额池限制。
+      expect(caps.supportsNoiseSchedule, isFalse);
+      expect(caps.supportsVarietyPlus, isFalse);
+      expect(caps.anlasMultiplier, 1.5);
+      expect(caps.hasOpusUsageLimit, isTrue);
+      expect(
+        ModelCapabilityRegistry.of(
+          ImageModels.animeDiffusionV45Full,
+        ).supportsVarietyPlus,
+        isTrue,
+      );
     });
 
     test('the modern anlas formula covers V3 and newer', () {

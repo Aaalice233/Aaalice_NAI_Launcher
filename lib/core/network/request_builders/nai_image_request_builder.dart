@@ -83,7 +83,10 @@ class NAIImageRequestBuilder {
           ? false
           : params.addOriginalImage,
       'cfg_rescale': NAIApiUtils.toJsonNumber(params.cfgRescale),
-      'noise_schedule': params.isV4Model
+      // V5 不开放噪声调度，网页端请求归一化强制写入 karras。
+      'noise_schedule': !params.capabilities.supportsNoiseSchedule
+          ? 'karras'
+          : params.isV4Model
           ? (params.noiseSchedule == 'native' ? 'karras' : params.noiseSchedule)
           : params.noiseSchedule,
       'inpaintImg2ImgStrength': NAIApiUtils.toJsonNumber(
@@ -96,7 +99,9 @@ class NAIImageRequestBuilder {
       if (isStream) 'stream': 'msgpack',
     };
 
-    requestParameters['skip_cfg_above_sigma'] = params.varietyPlus
+    // Variety+ 对应网页端能力位 cfgDelay，V5 不支持时一律发 null。
+    requestParameters['skip_cfg_above_sigma'] =
+        params.varietyPlus && params.capabilities.supportsVarietyPlus
         ? 58.0 * sqrt(4.0 * (params.width / 8) * (params.height / 8) / 63232)
         : null;
 

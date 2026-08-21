@@ -120,6 +120,8 @@ int estimatedCost(Ref ref) {
   final subscriptionTier = subscription?.isOpus == true
       ? AnlasCalculator.opusTier
       : 0;
+  // V5 的 Opus 免费额度是随时间回充的配额池，透支后按正常价扣 Anlas。
+  final opusQuotaExhausted = subscription?.usage?.isNegative ?? false;
 
   if (workflow.isUpscale) {
     if (workflow.upscale.backend == UpscaleBackend.comfyui) {
@@ -157,6 +159,7 @@ int estimatedCost(Ref ref) {
     smeaDyn: params.effectiveSmeaDyn,
     model: params.model,
     subscriptionTier: subscriptionTier,
+    opusQuotaExhausted: opusQuotaExhausted,
     strength: requestInput.strength,
     extraPerSampleCost: AnlasCalculator.resolvePreciseReferenceExtraCost(
       params,

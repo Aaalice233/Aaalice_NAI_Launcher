@@ -1251,7 +1251,9 @@ void main() {
       );
     });
 
-    test('should send the e2e upscale block for V5 generate', () async {
+    test('should drop the e2e upscale block on production V5', () async {
+      // 端到端 ×2 放大是测试期功能，正式版能力位为 false，即使存量开关
+      // 仍是开启状态也不能把 upscale 块发出去。
       const params = ImageParams(
         model: ImageModels.v5StagingKey,
         e2eUpscale: true,
@@ -1263,12 +1265,30 @@ void main() {
 
       final result = await builder.build(sampler: 'k_euler_ancestral');
 
-      expect(result.requestParameters['upscale'], {
-        'declared_blur_sigma': E2eUpscale.declaredBlurSigma,
-      });
-      // 基础分辨率不变，翻倍由服务端完成
+      expect(result.requestParameters.containsKey('upscale'), isFalse);
       expect(result.requestParameters['width'], params.width);
       expect(result.requestParameters['height'], params.height);
+    });
+
+    test('should force karras and drop variety on V5', () async {
+      const params = ImageParams(
+        model: ImageModels.animeDiffusionV5Curated,
+        noiseSchedule: 'exponential',
+        varietyPlus: true,
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      // 网页端请求归一化对 V5 强制写入 karras，忽略用户存量选择。
+      expect(result.requestParameters['noise_schedule'], 'karras');
+      // V5 不支持 Variety+（cfgDelay 能力位为 false）。
+      expect(result.requestParameters['skip_cfg_above_sigma'], isNull);
+      // cfg_rescale 正式版继续下发。
+      expect(result.requestParameters.containsKey('cfg_rescale'), isTrue);
     });
 
     test('should drop the e2e upscale block for infill', () async {

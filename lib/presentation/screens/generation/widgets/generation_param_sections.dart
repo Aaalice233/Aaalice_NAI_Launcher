@@ -186,10 +186,17 @@ class NoiseScheduleSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final data = ref.watch(
       generationParamsNotifierProvider.select(
-        (params) =>
-            (noiseSchedule: params.noiseSchedule, isV4Model: params.isV4Model),
+        (params) => (
+          noiseSchedule: params.noiseSchedule,
+          isV4Model: params.isV4Model,
+          supportsNoiseSchedule: params.capabilities.supportsNoiseSchedule,
+        ),
       ),
     );
+    // V5 不开放噪声调度选择，请求固定发 karras。
+    if (!data.supportsNoiseSchedule) {
+      return const SizedBox.shrink();
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -278,6 +285,7 @@ class CfgScaleSection extends ConsumerWidget {
           supportsTransparentBackground:
               params.capabilities.supportsTransparentBackground,
           transparentBackground: params.transparentBackground,
+          supportsVarietyPlus: params.capabilities.supportsVarietyPlus,
         ),
       ),
     );
@@ -316,16 +324,17 @@ class CfgScaleSection extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
             ],
-            // Variety+ (所有模型)
-            _ToggleButton(
-              label: 'Variety+',
-              isEnabled: data.varietyPlus,
-              onChanged: (value) {
-                ref
-                    .read(generationParamsNotifierProvider.notifier)
-                    .updateVarietyPlus(value);
-              },
-            ),
+            // Variety+ (V3-V4.5；V5 不支持 skip_cfg_above_sigma)
+            if (data.supportsVarietyPlus)
+              _ToggleButton(
+                label: 'Variety+',
+                isEnabled: data.varietyPlus,
+                onChanged: (value) {
+                  ref
+                      .read(generationParamsNotifierProvider.notifier)
+                      .updateVarietyPlus(value);
+                },
+              ),
           ],
         ),
         ThemedSlider(

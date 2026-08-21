@@ -1150,10 +1150,14 @@ class NaiImageMetadata with _$NaiImageMetadata {
 
     // Official PNG Source fingerprints are exact model identifiers. Do not
     // fall back to prompt/UC inference when the Source text is ambiguous.
-    // V5 staging writes the enum name form (`DiffusionModelMetaName.NAIv5
-    // DE206BDA`); production is expected to switch to `NovelAI Diffusion V5`.
+    // Production writes `NovelAI Diffusion V5 <hash>`; the known Full hashes
+    // come from the web client (657484A5 / 0ADF9AB7), everything else in the
+    // V5 family resolves to Curated, mirroring the official parser. Staging
+    // used the enum name form (`DiffusionModelMetaName.NAIv5 DE206BDA`).
     if (normalized.contains('naiv5') || normalized.contains('diffusion v5')) {
-      return normalized.contains('full')
+      return normalized.contains('657484a5') ||
+              normalized.contains('0adf9ab7') ||
+              normalized.contains('full')
           ? ImageModels.animeDiffusionV5Full
           : ImageModels.animeDiffusionV5Curated;
     }

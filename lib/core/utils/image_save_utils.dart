@@ -420,7 +420,11 @@ class ImageSaveUtils {
   /// 获取模型显示名称
   static String _getModelSourceName(String model) {
     if (model.contains('diffusion-5') || model == ImageModels.v5StagingKey) {
-      return 'NovelAI Diffusion V5';
+      // 官方解析按已知 Full 指纹区分，其余 V5 一律归 Curated；
+      // Full 带上网页端的真实指纹保证自家图能被官网与启动器双向识别。
+      return model.contains('diffusion-5-full')
+          ? 'NovelAI Diffusion V5 657484A5'
+          : 'NovelAI Diffusion V5';
     } else if (model.contains('diffusion-4-5')) {
       return 'NovelAI Diffusion V4.5';
     } else if (model.contains('diffusion-4')) {

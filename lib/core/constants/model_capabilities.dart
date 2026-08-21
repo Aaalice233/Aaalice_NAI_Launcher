@@ -46,6 +46,10 @@ class ModelCapabilities {
     this.supportsMaxEnhance = false,
     this.supportsEnhancePromptAdd = false,
     this.supportsTextRendering = false,
+    this.supportsNoiseSchedule = true,
+    this.supportsVarietyPlus = false,
+    this.anlasMultiplier = 1.0,
+    this.hasOpusUsageLimit = false,
   });
 
   /// 条目的代表模型 ID，用于日志与调试。
@@ -105,6 +109,24 @@ class ModelCapabilities {
   /// `text:` 之前，否则会被模型当成要画进图里的文字。
   final bool supportsTextRendering;
 
+  /// 噪声调度是否可选。
+  ///
+  /// V5 不开放选择，网页端请求归一化会强制写入 karras。
+  final bool supportsNoiseSchedule;
+
+  /// 是否支持 Variety+（`skip_cfg_above_sigma`）。
+  ///
+  /// 网页端能力位 `cfgDelay`，V3 起为 true，V5 又收回了。
+  final bool supportsVarietyPlus;
+
+  /// Anlas 基础价倍率。V5 正式版在现代公式之上乘 1.5。
+  final double anlasMultiplier;
+
+  /// Opus 免费生成是否受配额池限制（V5 专属）。
+  ///
+  /// 配额随 `/user/subscription` 的 `usage` 字段返回，透支后按正常价扣 Anlas。
+  final bool hasOpusUsageLimit;
+
   /// 是否支持多角色提示词与角色定位。
   bool get supportsCharacterPositioning => maxCharacters > 0;
 }
@@ -143,6 +165,7 @@ class ModelCapabilityRegistry {
     defaultSteps: 23,
     supportsVibeTransfer: true,
     supportsImg2ImgInpainting: true,
+    supportsVarietyPlus: true,
   );
 
   static const ModelCapabilities furryV3 = ModelCapabilities(
@@ -155,6 +178,7 @@ class ModelCapabilityRegistry {
     defaultSteps: 23,
     supportsVibeTransfer: true,
     supportsImg2ImgInpainting: true,
+    supportsVarietyPlus: true,
   );
 
   static const ModelCapabilities v4Curated = ModelCapabilities(
@@ -170,6 +194,7 @@ class ModelCapabilityRegistry {
     supportsEncodedVibeTransfer: true,
     supportsImg2ImgInpainting: true,
     supportsTextRendering: true,
+    supportsVarietyPlus: true,
   );
 
   static const ModelCapabilities v4Full = ModelCapabilities(
@@ -185,6 +210,7 @@ class ModelCapabilityRegistry {
     supportsEncodedVibeTransfer: true,
     supportsImg2ImgInpainting: true,
     supportsTextRendering: true,
+    supportsVarietyPlus: true,
   );
 
   static const ModelCapabilities v45Curated = ModelCapabilities(
@@ -202,6 +228,7 @@ class ModelCapabilityRegistry {
     supportsImg2ImgInpainting: true,
     supportsEnhancePromptAdd: true,
     supportsTextRendering: true,
+    supportsVarietyPlus: true,
   );
 
   static const ModelCapabilities v45Full = ModelCapabilities(
@@ -219,12 +246,14 @@ class ModelCapabilityRegistry {
     supportsImg2ImgInpainting: true,
     supportsEnhancePromptAdd: true,
     supportsTextRendering: true,
+    supportsVarietyPlus: true,
   );
 
-  /// V5 Curated。
+  /// V5 Curated（正式版，网页端 build 161cb00-production 实测）。
   ///
-  /// Vibe 与角色参考在测试期尚未开放，官方开放后改这里的两个能力位即可。
-  /// 计费族按测试站当前行为映射到 [AnlasFormula.modern]，正式定价以服务端实扣为准。
+  /// Vibe 与角色参考正式版明确不支持；端到端 ×2 放大未上线（能力位 false，
+  /// 请求归一化会删除 `upscale` 块），增强 max 档保留。噪声调度不可选，
+  /// 请求固定发 karras。基础价在现代公式之上乘 1.5，Opus 免费受配额池限制。
   static const ModelCapabilities v5Curated = ModelCapabilities(
     id: ImageModels.animeDiffusionV5Curated,
     promptStructure: PromptStructure.v4,
@@ -232,16 +261,17 @@ class ModelCapabilityRegistry {
     tokenizer: TokenizerKind.qwen35,
     tokenLimit: 703,
     paramsVersion: 4,
-    defaultScale: 10.0,
+    defaultScale: 7.0,
     defaultSteps: 23,
     maxCharacters: 32,
-    hasInpaintingVariant: false,
     supportsImg2ImgInpainting: true,
     supportsTransparentBackground: true,
-    supportsE2eUpscale: true,
     supportsMaxEnhance: true,
     supportsEnhancePromptAdd: true,
     supportsTextRendering: true,
+    supportsNoiseSchedule: false,
+    anlasMultiplier: 1.5,
+    hasOpusUsageLimit: true,
   );
 
   static const ModelCapabilities v5Full = ModelCapabilities(
@@ -249,18 +279,19 @@ class ModelCapabilityRegistry {
     promptStructure: PromptStructure.v4,
     anlasFormula: AnlasFormula.modern,
     tokenizer: TokenizerKind.qwen35,
-    tokenLimit: 1406,
+    tokenLimit: 1471,
     paramsVersion: 4,
-    defaultScale: 10.0,
+    defaultScale: 7.0,
     defaultSteps: 23,
     maxCharacters: 32,
-    hasInpaintingVariant: false,
     supportsImg2ImgInpainting: true,
     supportsTransparentBackground: true,
-    supportsE2eUpscale: true,
     supportsMaxEnhance: true,
     supportsEnhancePromptAdd: true,
     supportsTextRendering: true,
+    supportsNoiseSchedule: false,
+    anlasMultiplier: 1.5,
+    hasOpusUsageLimit: true,
   );
 
   /// 精确匹配表，inpainting 变体与测试期别名都指向所属家族。
@@ -282,7 +313,9 @@ class ModelCapabilityRegistry {
     ImageModels.animeDiffusionV45Full: v45Full,
     ImageModels.animeDiffusionV45FullInpainting: v45Full,
     ImageModels.animeDiffusionV5Curated: v5Curated,
+    ImageModels.animeDiffusionV5CuratedInpainting: v5Curated,
     ImageModels.animeDiffusionV5Full: v5Full,
+    ImageModels.animeDiffusionV5FullInpainting: v5Full,
     ImageModels.v5StagingKey: v5Curated,
   };
 

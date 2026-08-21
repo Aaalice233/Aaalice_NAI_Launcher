@@ -196,24 +196,11 @@ void main() {
       }
     });
 
-    // 测试期 V5 用 `custom` 作为模型键。它一度匹配不上任何版本判定，
-    // 会掉进 V2 及更早的指数公式，把 17 Anlas 显示成 11。
-    test('prices the V5 staging model with the modern formula', () {
-      final cost = AnlasCalculator.calculateFromValues(
-        width: 832,
-        height: 1216,
-        steps: 23,
-        nSamples: 1,
-        smea: false,
-        smeaDyn: false,
-        model: ImageModels.v5StagingKey,
-      );
-
-      expect(cost, 17);
-    });
-
-    test('prices the official V5 ids like the staging key', () {
+    // 正式版 V5 在现代公式之上乘 1.5：ceil(线性部分)×1.5 后与重绘强度
+    // 连乘再收尾取整。832×1216@23 步：ceil(16.38)=17，17×1.5=25.5 → 26。
+    test('prices V5 at 1.5x the modern formula', () {
       for (final model in [
+        ImageModels.v5StagingKey,
         ImageModels.animeDiffusionV5Curated,
         ImageModels.animeDiffusionV5Full,
       ]) {
@@ -227,13 +214,13 @@ void main() {
             smeaDyn: false,
             model: model,
           ),
-          17,
-          reason: '$model should follow the modern pricing formula',
+          26,
+          reason: '$model should carry the 1.5x multiplier',
         );
       }
     });
 
-    test('keeps V4.5 and V5 on the same base price', () {
+    test('keeps the V5 base price at 1.5x of V4.5', () {
       int priceFor(String model) => AnlasCalculator.calculateFromValues(
         width: 1024,
         height: 1024,
@@ -244,7 +231,41 @@ void main() {
         model: model,
       );
 
-      expect(priceFor(ImageModels.v5StagingKey), priceFor(model));
+      final v45 = priceFor(model);
+      expect(priceFor(ImageModels.v5StagingKey), (v45 * 1.5).ceil());
+    });
+
+    test('does not grant the V5 Opus discount once the quota runs dry', () {
+      int cost({required bool exhausted}) => AnlasCalculator.calculateFromValues(
+        width: 832,
+        height: 1216,
+        steps: 23,
+        nSamples: 1,
+        smea: false,
+        smeaDyn: false,
+        model: ImageModels.animeDiffusionV5Curated,
+        subscriptionTier: AnlasCalculator.opusTier,
+        opusQuotaExhausted: exhausted,
+      );
+
+      expect(cost(exhausted: false), 0);
+      expect(cost(exhausted: true), 26);
+    });
+
+    test('keeps the V4.5 Opus discount independent of the V5 quota', () {
+      final cost = AnlasCalculator.calculateFromValues(
+        width: 832,
+        height: 1216,
+        steps: 23,
+        nSamples: 1,
+        smea: false,
+        smeaDyn: false,
+        model: ImageModels.animeDiffusionV45Full,
+        subscriptionTier: AnlasCalculator.opusTier,
+        opusQuotaExhausted: true,
+      );
+
+      expect(cost, 0);
     });
 
     test('keeps pre-V3 models on the legacy exponential estimate', () {
