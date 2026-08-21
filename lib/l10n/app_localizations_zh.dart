@@ -11243,6 +11243,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autocomplete_relatedHeaderTitle => '相关标签';
 
   @override
+  String get autocomplete_loading => '正在查询本地词库与在线标签…';
+
+  @override
+  String get autocomplete_empty => '没有找到匹配的标签';
+
+  @override
   String get autocomplete_relatedLoading => '正在查询本地共现库与在线相关标签…';
 
   @override

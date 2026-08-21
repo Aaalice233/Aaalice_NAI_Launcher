@@ -5918,6 +5918,8 @@
   "autocomplete_sourceAi": "Prompt Assistant translation",
   "autocomplete_headerTitle": "Tag autocomplete",
   "autocomplete_relatedHeaderTitle": "Related tags",
+  "autocomplete_loading": "Searching the local catalog and online tags…",
+  "autocomplete_empty": "No matching tags found",
   "autocomplete_relatedLoading": "Querying offline co-occurrences and online related tags…",
   "autocomplete_relatedEmpty": "No related tags are available",
   "autocomplete_relatedMetric": "{count} co-occurrences · Jaccard {score}",

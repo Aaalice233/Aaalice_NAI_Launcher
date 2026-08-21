@@ -18,6 +18,7 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_config.dart';
 import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_wrapper.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/nai_syntax_controller.dart';
 
 Future<void> _typeCurrentText(
   WidgetTester tester,
@@ -237,6 +238,67 @@ void main() {
     await tester.pump();
     expect(controller.text, 'blue_eyes, ');
   });
+
+  testWidgets(
+    'click-opened autocomplete survives delayed caret sync and empty results',
+    (tester) async {
+      final controller = TextEditingController(text: 'no_watermark');
+      controller.selection = const TextSelection.collapsed(offset: 0);
+      final focusNode = FocusNode();
+      final source = _DelayedEmptyTagSource();
+      addTearDown(() {
+        controller.dispose();
+        focusNode.dispose();
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            autocompleteSettingsProvider.overrideWith(
+              (ref) => _OpenOnTagClickSettingsNotifier(),
+            ),
+            autocompleteServicesProvider.overrideWithValue(
+              AutocompleteServices(
+                localSources: [source],
+                dictionaryTranslations: const _NoTranslations(),
+                llmTranslations: const _NoTranslations(),
+                danbooru: _NoDanbooru(),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: AutocompleteWrapper(
+                controller: controller,
+                focusNode: focusNode,
+                child: TextField(controller: controller, focusNode: focusNode),
+              ),
+            ),
+          ),
+        ),
+      );
+      focusNode.requestFocus();
+      await tester.pump();
+
+      await tester.tap(find.byType(TextField));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+      expect(find.text('Tag autocomplete'), findsOneWidget);
+
+      controller.selection = const TextSelection.collapsed(offset: 1);
+      await tester.pump();
+      expect(find.text('Tag autocomplete'), findsOneWidget);
+
+      source.complete();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+      expect(find.text('Tag autocomplete'), findsOneWidget);
+      expect(find.text('No matching tags found'), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'Shift+Enter inserts a newline instead of confirming an open popup',
@@ -463,6 +525,85 @@ void main() {
       expect(source.relatedTags.last, 'halo');
       expect(find.text('Related tags'), findsOneWidget);
       expect(find.text('smile'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'syntax repaint notifications do not close a loading related popup',
+    (tester) async {
+      final controller = NaiSyntaxController(text: 'blu');
+      controller.selection = const TextSelection.collapsed(offset: 3);
+      final focusNode = FocusNode();
+      final source = _DelayedEmptyRelatedSource();
+      addTearDown(() {
+        controller.dispose();
+        focusNode.dispose();
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            autocompleteSettingsProvider.overrideWith(
+              (ref) => _OpenOnTagClickSettingsNotifier(),
+            ),
+            autocompleteServicesProvider.overrideWithValue(
+              AutocompleteServices(
+                localSources: [source],
+                dictionaryTranslations: const _NoTranslations(),
+                llmTranslations: const _NoTranslations(),
+                danbooru: _NoDanbooru(),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: AutocompleteWrapper(
+                controller: controller,
+                focusNode: focusNode,
+                child: TextField(controller: controller, focusNode: focusNode),
+              ),
+            ),
+          ),
+        ),
+      );
+      focusNode.requestFocus();
+      await tester.pump();
+      await _typeCurrentText(tester, controller);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+      expect(find.text('Related tags'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('autocomplete-popup-empty')),
+        findsOneWidget,
+      );
+
+      controller.updateSearchHighlights(
+        matches: const [],
+        activeMatchIndex: -1,
+      );
+      await tester.pump();
+      expect(find.text('Related tags'), findsOneWidget);
+
+      // The real prompt stack can synchronize the selection after applying a
+      // completion. That delayed caret notification must not cancel an active
+      // related query; actual pointer/keyboard movement has its own close path.
+      controller.selection = const TextSelection.collapsed(offset: 2);
+      await tester.pump();
+      expect(find.text('Related tags'), findsOneWidget);
+
+      source.completeRelated();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+      expect(find.text('Related tags'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('autocomplete-popup-empty')),
+        findsOneWidget,
+      );
     },
   );
 
@@ -1132,6 +1273,20 @@ void main() {
   });
 }
 
+class _DelayedEmptyTagSource implements CompletionSource {
+  final Completer<List<CompletionCandidate>> _result = Completer();
+
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) =>
+      _result.future;
+
+  void complete() {
+    if (!_result.isCompleted) {
+      _result.complete(const <CompletionCandidate>[]);
+    }
+  }
+}
+
 class _BaseSource implements CompletionSource {
   int? lastLimit;
 
@@ -1147,6 +1302,30 @@ class _BaseSource implements CompletionSource {
         sources: {CompletionSourceKind.base},
       ),
     ];
+  }
+}
+
+class _DelayedEmptyRelatedSource implements CompletionSource {
+  final Completer<List<CompletionCandidate>> _related = Completer();
+
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) {
+    if (query.relatedTag != null) return _related.future;
+    return Future.value([
+      const CompletionCandidate(
+        canonicalTag: 'blue_eyes',
+        category: TagCategory.general,
+        postCount: 1000,
+        matchKind: CompletionMatchKind.englishPrefix,
+        sources: {CompletionSourceKind.base},
+      ),
+    ]);
+  }
+
+  void completeRelated() {
+    if (!_related.isCompleted) {
+      _related.complete(const <CompletionCandidate>[]);
+    }
   }
 }
 

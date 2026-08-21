@@ -5987,6 +5987,8 @@
   "autocomplete_sourceAi": "Prompt Assistant 汉化",
   "autocomplete_headerTitle": "标签补全",
   "autocomplete_relatedHeaderTitle": "相关标签",
+  "autocomplete_loading": "正在查询本地词库与在线标签…",
+  "autocomplete_empty": "没有找到匹配的标签",
   "autocomplete_relatedLoading": "正在查询本地共现库与在线相关标签…",
   "autocomplete_relatedEmpty": "没有找到可用的相关标签",
   "autocomplete_relatedMetric": "共现 {count} 次 · Jaccard {score}",

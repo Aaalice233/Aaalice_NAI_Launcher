@@ -20417,6 +20417,18 @@ abstract class AppLocalizations {
   /// **'Related tags'**
   String get autocomplete_relatedHeaderTitle;
 
+  /// No description provided for @autocomplete_loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching the local catalog and online tags…'**
+  String get autocomplete_loading;
+
+  /// No description provided for @autocomplete_empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching tags found'**
+  String get autocomplete_empty;
+
   /// No description provided for @autocomplete_relatedLoading.
   ///
   /// In en, this message translates to:

@@ -5943,6 +5943,8 @@
   "autocomplete_sourceAi": "Prompt Assistant 翻訳",
   "autocomplete_headerTitle": "タグ補完",
   "autocomplete_relatedHeaderTitle": "関連タグ",
+  "autocomplete_loading": "ローカルカタログとオンラインタグを検索中…",
+  "autocomplete_empty": "一致するタグが見つかりません",
   "autocomplete_relatedLoading": "ローカル共起データとオンライン関連タグを検索中…",
   "autocomplete_relatedEmpty": "利用可能な関連タグがありません",
   "autocomplete_relatedMetric": "共起 {count} 回 · Jaccard {score}",

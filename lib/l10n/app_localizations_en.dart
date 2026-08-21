@@ -11673,6 +11673,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autocomplete_relatedHeaderTitle => 'Related tags';
 
   @override
+  String get autocomplete_loading =>
+      'Searching the local catalog and online tags…';
+
+  @override
+  String get autocomplete_empty => 'No matching tags found';
+
+  @override
   String get autocomplete_relatedLoading =>
       'Querying offline co-occurrences and online related tags…';
 

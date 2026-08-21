@@ -11404,6 +11404,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get autocomplete_relatedHeaderTitle => '関連タグ';
 
   @override
+  String get autocomplete_loading => 'ローカルカタログとオンラインタグを検索中…';
+
+  @override
+  String get autocomplete_empty => '一致するタグが見つかりません';
+
+  @override
   String get autocomplete_relatedLoading => 'ローカル共起データとオンライン関連タグを検索中…';
 
   @override

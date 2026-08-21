@@ -11,6 +11,7 @@ import '../../../core/autocomplete/autocomplete_settings.dart';
 import '../../../core/autocomplete/completion_models.dart';
 import '../../../core/autocomplete/completion_orchestrator.dart';
 import '../../../core/autocomplete/prompt_token_parser.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/generation/generation_settings_notifiers.dart'
     as generation_settings;
@@ -140,6 +141,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   bool _cursorMetricsScheduled = false;
   bool _wasComposing = false;
   TextEditingValue? _lastObservedValue;
+  bool? _keepEmptyQueryVisible;
   final Set<int> _relatedClickPointers = <int>{};
   final Set<int> _regularClickPointers = <int>{};
   Offset? _cursorOffset;
@@ -279,15 +281,24 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     _scheduleCursorMetricsUpdate();
     if (textChanged) widget.onChanged?.call(text);
 
-    // A controller listener also fires for caret-only selection changes. Like
-    // the ComfyUI plugin, clicking existing text dismisses suggestions instead
-    // of treating that text as newly typed input.
+    // NaiSyntaxController also notifies listeners when only its paint cache or
+    // search highlighting changes. Ignore those identical value notifications;
+    // only a real caret/selection move should dismiss an unpinned popup.
     if (!textChanged && !compositionCommitted) {
-      if (_pinnedRelatedTag == null) _dismissOverlay();
+      final selectionChanged = value.selection != previousValue.selection;
+      final composingChanged = value.composing != previousValue.composing;
+      if (!selectionChanged && !composingChanged) return;
+      // Click-opened and related popups own their pointer lifecycle: pointer-up
+      // either opens the newly clicked tag or explicitly closes the popup, and
+      // caret movement keys are handled below. Ignoring controller selection
+      // synchronization here prevents the tap recognizer's delayed caret update
+      // from closing the menu it just opened.
+      if (_keepEmptyQueryVisible ?? false) return;
+      if (_pinnedRelatedTag == null) _dismissOverlay('selection changed');
       return;
     }
     if (isComposing) {
-      if (_pinnedRelatedTag == null) _dismissOverlay();
+      if (_pinnedRelatedTag == null) _dismissOverlay('composition started');
       return;
     }
     if (textChanged && !activeTokenChanged) {
@@ -324,7 +335,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
 
   void _onFocusChanged() {
     if (!_focusNode.hasFocus) {
-      if (_pinnedRelatedTag == null) _dismissOverlay();
+      if (_pinnedRelatedTag == null) _dismissOverlay('focus lost');
       return;
     }
     if (!widget.usesLegacyStrategy) _scheduleCursorMetricsUpdate();
@@ -334,6 +345,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     bool related = false,
     String? relatedTagOverride,
     bool resetPinnedRelatedTag = false,
+    bool keepEmptyVisible = false,
   }) {
     if (!mounted || !widget.enabled || widget.usesLegacyStrategy) return;
     final settings = ref.read(autocompleteSettingsProvider);
@@ -370,6 +382,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       _dismissOverlay();
       return;
     }
+    _keepEmptyQueryVisible = keepEmptyVisible || query.relatedTag != null;
     _orchestrator?.query(query, settings);
   }
 
@@ -408,9 +421,20 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
         state.localError?.isNotEmpty == true ||
         state.remoteError?.isNotEmpty == true ||
         state.translationError?.isNotEmpty == true ||
-        state.query?.relatedTag != null;
+        state.query?.relatedTag != null ||
+        ((_keepEmptyQueryVisible ?? false) && state.query != null);
     if (!hasVisibleState ||
         (!_focusNode.hasFocus && _pinnedRelatedTag == null)) {
+      if (_overlayEntry != null) {
+        AppLogger.d(
+          'Removing popup from state: visible=$hasVisibleState '
+              'related=${state.query?.relatedTag ?? ''} '
+              'localLoading=${state.isLocalLoading} '
+              'remoteLoading=${state.isRemoteLoading} '
+              'focused=${_focusNode.hasFocus}',
+          'Autocomplete',
+        );
+      }
       _removeOverlay();
       return;
     }
@@ -548,6 +572,15 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       if (event is KeyDownEvent) _closeOverlay();
       return KeyEventResult.handled;
     }
+    final movesTextCaret =
+        event.logicalKey == LogicalKeyboardKey.arrowLeft ||
+        event.logicalKey == LogicalKeyboardKey.arrowRight ||
+        event.logicalKey == LogicalKeyboardKey.home ||
+        event.logicalKey == LogicalKeyboardKey.end;
+    if (movesTextCaret) {
+      if (event is KeyDownEvent) _dismissOverlay('keyboard caret move');
+      return KeyEventResult.ignored;
+    }
     final candidates = _orchestrator?.state.candidates ?? const [];
     if (candidates.isEmpty) return KeyEventResult.ignored;
     if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
@@ -681,7 +714,11 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     if (requestsRelated) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _focusNode.hasFocus) {
-          _startQuery(related: true, resetPinnedRelatedTag: true);
+          _startQuery(
+            related: true,
+            resetPinnedRelatedTag: true,
+            keepEmptyVisible: true,
+          );
         }
       });
       return;
@@ -693,12 +730,14 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
         !settings.openOnTagClick ||
         !selection.isValid ||
         !selection.isCollapsed) {
-      if (_pinnedRelatedTag == null) _dismissOverlay();
+      if (_pinnedRelatedTag == null) {
+        _dismissOverlay('pointer interaction without an open intent');
+      }
       return;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _focusNode.hasFocus) {
-        _startQuery(resetPinnedRelatedTag: true);
+        _startQuery(resetPinnedRelatedTag: true, keepEmptyVisible: true);
       }
     });
   }
@@ -717,10 +756,23 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
 
   void _closeOverlay() {
     _pinnedRelatedTag = null;
-    _dismissOverlay();
+    _dismissOverlay('explicit close');
   }
 
-  void _dismissOverlay() {
+  void _dismissOverlay([String reason = 'query replaced']) {
+    _keepEmptyQueryVisible = false;
+    final state = _orchestrator?.state;
+    if (_overlayEntry != null || state?.query != null) {
+      AppLogger.d(
+        'Closing popup: reason=$reason '
+            'query=${state?.query?.token ?? ''} '
+            'related=${state?.query?.relatedTag ?? ''} '
+            'localLoading=${state?.isLocalLoading ?? false} '
+            'remoteLoading=${state?.isRemoteLoading ?? false} '
+            'focused=${_focusNode.hasFocus}',
+        'Autocomplete',
+      );
+    }
     _orchestrator?.cancel();
     _removeOverlay();
   }
@@ -780,11 +832,14 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     }
     ref.listen<AutocompleteSettings>(autocompleteSettingsProvider, (_, next) {
       if (!next.relatedTagsEnabled) _pinnedRelatedTag = null;
+      final activeRelatedTag = _orchestrator?.state.query?.relatedTag;
+      final relatedTag = _pinnedRelatedTag ?? activeRelatedTag;
       if (_focusNode.hasFocus &&
-          (_overlayEntry != null || _pinnedRelatedTag != null)) {
+          (_overlayEntry != null || relatedTag != null)) {
         _startQuery(
-          related: _pinnedRelatedTag != null,
-          relatedTagOverride: _pinnedRelatedTag,
+          related: relatedTag != null,
+          relatedTagOverride: relatedTag,
+          keepEmptyVisible: _keepEmptyQueryVisible ?? false,
         );
       }
     });
@@ -795,15 +850,18 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       _,
       enabled,
     ) {
+      final activeRelatedTag = _orchestrator?.state.query?.relatedTag;
+      final relatedTag = _pinnedRelatedTag ?? activeRelatedTag;
       if (enabled &&
           _focusNode.hasFocus &&
-          (_overlayEntry != null || _pinnedRelatedTag != null)) {
+          (_overlayEntry != null || relatedTag != null)) {
         _startQuery(
-          related: _pinnedRelatedTag != null,
-          relatedTagOverride: _pinnedRelatedTag,
+          related: relatedTag != null,
+          relatedTagOverride: relatedTag,
+          keepEmptyVisible: _keepEmptyQueryVisible ?? false,
         );
       } else if (!enabled) {
-        _dismissOverlay();
+        _dismissOverlay('autocomplete disabled');
       }
     });
     return SizedBox(

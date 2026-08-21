@@ -104,7 +104,8 @@ class _VibeCardState extends ConsumerState<VibeCard> {
     VibeReference vibe,
   ) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      key: ValueKey('vibe-card-wide-content-${widget.index}'),
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         _buildPreviewColumn(context, theme, vibe),
         const SizedBox(width: 12),
@@ -284,6 +285,7 @@ class _VibeCardState extends ConsumerState<VibeCard> {
     final previewBytes = widget.vibe.rawImageData ?? widget.vibe.thumbnail;
 
     return ClipRRect(
+      key: ValueKey('vibe-card-thumbnail-${widget.index}'),
       borderRadius: BorderRadius.circular(6),
       child: SizedBox(
         width: 100,
@@ -294,6 +296,7 @@ class _VibeCardState extends ConsumerState<VibeCard> {
               ? (previewBytes != null
                     ? HoverImagePreview(
                         imageBytes: previewBytes,
+                        previewMaxSize: 520,
                         child: DecodedMemoryImage(
                           bytes: thumbnailBytes,
                           fit: BoxFit.cover,

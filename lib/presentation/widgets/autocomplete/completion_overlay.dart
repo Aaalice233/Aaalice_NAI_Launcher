@@ -179,6 +179,7 @@ class _EmptyCompletionBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final loading = state.isLocalLoading || state.isRemoteLoading;
+    final related = state.query?.relatedTag != null;
     final error = state.localError ?? state.remoteError;
     return SizedBox(
       key: const ValueKey('autocomplete-popup-empty'),
@@ -214,9 +215,13 @@ class _EmptyCompletionBody extends StatelessWidget {
                   message: error ?? '',
                   child: Text(
                     loading
-                        ? context.l10n.autocomplete_relatedLoading
+                        ? related
+                              ? context.l10n.autocomplete_relatedLoading
+                              : context.l10n.autocomplete_loading
                         : error == null
-                        ? context.l10n.autocomplete_relatedEmpty
+                        ? related
+                              ? context.l10n.autocomplete_relatedEmpty
+                              : context.l10n.autocomplete_empty
                         : context.l10n.autocomplete_statusError,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
