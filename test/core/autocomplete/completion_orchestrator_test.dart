@@ -243,6 +243,61 @@ void main() {
   });
 
   test(
+    'falls back to normal completion for a partial translated related tag',
+    () async {
+      final lookup = _TranslatedTagLookupSource();
+      final related = _CanonicalRelatedSource();
+      final orchestrator = CompletionOrchestrator(
+        localSources: [lookup, related],
+        tagLookupSources: [lookup],
+        dictionaryTranslations: _Translations(const {}),
+        llmTranslations: _Translations(const {}),
+        danbooru: _FakeDanbooru(),
+      );
+      addTearDown(orchestrator.dispose);
+
+      await orchestrator.query(
+        _query('', fullText: '大慈树', relatedTag: '大慈树'),
+        const AutocompleteSettings(danbooruEnabled: false),
+        relatedFallbackQuery: _query('大慈树'),
+      );
+
+      expect(orchestrator.state.query?.token, '大慈树');
+      expect(orchestrator.state.query?.relatedTag, isNull);
+      expect(
+        orchestrator.state.candidates.single.canonicalTag,
+        'rukkhadevata_(genshin_impact)',
+      );
+      expect(orchestrator.state.candidates.single.translation, '大慈树王 (原神)');
+      expect(related.requestedTags, isEmpty);
+    },
+  );
+
+  test('resolves an exact Chinese tag before loading related tags', () async {
+    final lookup = _TranslatedTagLookupSource();
+    final related = _CanonicalRelatedSource();
+    final orchestrator = CompletionOrchestrator(
+      localSources: [lookup, related],
+      tagLookupSources: [lookup],
+      dictionaryTranslations: _Translations(const {}),
+      llmTranslations: _Translations(const {}),
+      danbooru: _FakeDanbooru(),
+    );
+    addTearDown(orchestrator.dispose);
+
+    await orchestrator.query(
+      _query('', fullText: '蓝眼睛', relatedTag: '蓝眼睛'),
+      const AutocompleteSettings(danbooruEnabled: false),
+      relatedFallbackQuery: _query('蓝眼睛'),
+    );
+
+    expect(orchestrator.state.query?.token, isEmpty);
+    expect(orchestrator.state.query?.relatedTag, 'blue_eyes');
+    expect(orchestrator.state.candidates.single.canonicalTag, 'halo');
+    expect(related.requestedTags, ['blue_eyes']);
+  });
+
+  test(
     'shows an initial related batch before exhaustive expansion finishes',
     () async {
       final source = _ProgressiveRelatedSource();
@@ -535,6 +590,55 @@ class _TokenCandidateSource implements CompletionSource {
   Future<List<CompletionCandidate>> search(CompletionQuery query) async => [
     _candidate('${query.token}_tag', CompletionSourceKind.base),
   ];
+}
+
+class _TranslatedTagLookupSource implements CompletionSource {
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) async {
+    return switch (query.token) {
+      '大慈树' => const [
+        CompletionCandidate(
+          canonicalTag: 'rukkhadevata_(genshin_impact)',
+          category: TagCategory.character,
+          postCount: 593,
+          translation: '大慈树王 (原神)',
+          matchKind: CompletionMatchKind.chinesePrefix,
+          sources: {CompletionSourceKind.zhDictionary},
+        ),
+      ],
+      '蓝眼睛' => const [
+        CompletionCandidate(
+          canonicalTag: 'blue_eyes',
+          category: TagCategory.general,
+          postCount: 1000,
+          translation: '蓝眼睛',
+          matchKind: CompletionMatchKind.chineseExact,
+          sources: {CompletionSourceKind.zhDictionary},
+        ),
+      ],
+      _ => const [],
+    };
+  }
+}
+
+class _CanonicalRelatedSource implements CompletionSource {
+  final List<String> requestedTags = [];
+
+  @override
+  Future<List<CompletionCandidate>> search(CompletionQuery query) async {
+    final relatedTag = query.relatedTag;
+    if (relatedTag == null) return const [];
+    requestedTags.add(relatedTag);
+    return const [
+      CompletionCandidate(
+        canonicalTag: 'halo',
+        category: TagCategory.general,
+        postCount: 100,
+        matchKind: CompletionMatchKind.related,
+        sources: {CompletionSourceKind.cooccurrence},
+      ),
+    ];
+  }
 }
 
 class _RecordingRelatedSource implements CompletionSource {
