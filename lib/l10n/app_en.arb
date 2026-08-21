@@ -211,7 +211,6 @@
   "settings_dataStorage": "Data & Storage",
   "settings_privacySharing": "Privacy & Sharing",
   "settings_integrations": "Integrations",
-  "settings_generationModelSection": "Model",
   "settings_generationInputSection": "Input",
   "settings_generationRetrySection": "Retry on Failure",
   "settings_generationFeedbackSection": "Completion Alert",
@@ -308,6 +307,10 @@
   "generation_clearHistory": "Clear History",
   "generation_clearHistoryConfirm": "Are you sure you want to clear all history records? This action cannot be undone.",
   "generation_model": "Model",
+  "generation_opusUsageRemaining": "{percent}% of Opus Generations remaining",
+  "generation_opusUsageEstimate": "About {count} images left",
+  "generation_opusUsageRefill": "The allowance refills automatically over time",
+  "generation_opusUsageExhausted": "Your Opus allowance is used up. V5 generations will cost Anlas until it refills.",
   "generation_imageSize": "Image Size",
   "generation_transparentBackground": "Transparent BG",
   "generation_e2eUpscaleHint": "Server outputs {size}",
@@ -319,6 +322,16 @@
     }
   },
   "generation_cfgScale": "CFG Scale: {scale}",
+  "@generation_opusUsageRemaining": {
+    "placeholders": {
+      "percent": {}
+    }
+  },
+  "@generation_opusUsageEstimate": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "@generation_e2eUpscaleHint": {
     "placeholders": {
       "size": {}
@@ -3304,8 +3317,6 @@
 
   "settings_queueRetryCount": "Retry Count",
   "settings_queueRetryInterval": "Retry Interval",
-  "settings_showV5TestModels": "Show staging test models",
-  "settings_showV5TestModelsSubtitle": "List the NovelAI staging entry (custom) in the model picker. Test-access accounts only; the official V5 models are always shown.",
   "settings_showRandomPromptTools": "Show random prompt tools",
   "settings_showRandomPromptToolsSubtitle": "Show the Random Prompt button and Random Mode toggle on the generation page",
   "settings_enablePromptWeightScroll": "Adjust prompt weight with mouse wheel",

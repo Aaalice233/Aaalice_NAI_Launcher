@@ -67,7 +67,6 @@ class StorageKeys {
   // Panel Width Keys (面板宽度)
   static const String historyPanelWidth = 'history_panel_width';
   static const String defaultModel = 'default_model';
-  static const String showV5TestModels = 'show_v5_test_models';
   static const String defaultSampler = 'default_sampler';
   static const String defaultSteps = 'default_steps';
   static const String defaultScale = 'default_scale';

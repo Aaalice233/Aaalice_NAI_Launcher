@@ -144,19 +144,6 @@ class LocalStorageService {
     await setSetting(StorageKeys.defaultModel, model);
   }
 
-  /// 获取是否在模型列表中显示 V5 测试模型（默认关闭）
-  bool getShowV5TestModels() {
-    return getSetting<bool>(
-          StorageKeys.showV5TestModels,
-          defaultValue: false,
-        ) ??
-        false;
-  }
-
-  /// 保存是否显示 V5 测试模型
-  Future<void> setShowV5TestModels(bool value) async {
-    await setSetting(StorageKeys.showV5TestModels, value);
-  }
 
   /// 获取默认采样器
   String getDefaultSampler() {

@@ -176,27 +176,6 @@ final randomPromptToolsVisibilityProvider =
 );
 
 typedef _$RandomPromptToolsVisibility = Notifier<bool>;
-String _$showV5TestModelsSettingsHash() =>
-    r'3690cd734af85ceab855d16885c97d70e4f16c99';
-
-/// V5 测试模型显示设置 Notifier
-///
-/// V5 只在 NovelAI 测试站可用，普通用户选中会直接报错，因此默认隐藏。
-///
-/// Copied from [ShowV5TestModelsSettings].
-@ProviderFor(ShowV5TestModelsSettings)
-final showV5TestModelsSettingsProvider =
-    NotifierProvider<ShowV5TestModelsSettings, bool>.internal(
-  ShowV5TestModelsSettings.new,
-  name: r'showV5TestModelsSettingsProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$showV5TestModelsSettingsHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
-
-typedef _$ShowV5TestModelsSettings = Notifier<bool>;
 String _$imagesPerRequestHash() => r'1100f132419f744de697cc84ea53fe27a258abbd';
 
 /// 每次请求生成图片数量设置 Notifier（1-4张）

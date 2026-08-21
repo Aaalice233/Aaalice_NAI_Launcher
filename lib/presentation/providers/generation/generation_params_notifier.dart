@@ -145,7 +145,8 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     return ImageParams(
       prompt: storage.getLastPrompt(),
       negativePrompt: storage.getLastNegativePrompt(),
-      model: storage.getDefaultModel(),
+      // 测试期持久化的 custom 键迁移到正式 ID。
+      model: ImageModels.migrateLegacyModel(storage.getDefaultModel()),
       sampler: storage.getDefaultSampler(),
       steps: storage.getDefaultSteps(),
       scale: storage.getDefaultScale(),
@@ -323,7 +324,8 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     final storage = ref.read(localStorageServiceProvider);
 
     state = ImageParams(
-      model: storage.getDefaultModel(),
+      // 测试期持久化的 custom 键迁移到正式 ID。
+      model: ImageModels.migrateLegacyModel(storage.getDefaultModel()),
       sampler: storage.getDefaultSampler(),
       steps: storage.getDefaultSteps(),
       scale: storage.getDefaultScale(),

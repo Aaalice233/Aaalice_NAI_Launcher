@@ -79,7 +79,7 @@ void main() {
 
     test('V5 inpainting maps to the official weights', () {
       // 正式版：Full 有独立 inpainting；Curated 的重绘权重尚未就绪，
-      // 网页端映射到 V4.5 Curated Inpainting；测试站键继续走自身。
+      // 网页端映射到 V4.5 Curated Inpainting。
       expect(
         ImageModels.resolveInpaintingModel(ImageModels.animeDiffusionV5Full),
         ImageModels.animeDiffusionV5FullInpainting,
@@ -88,9 +88,10 @@ void main() {
         ImageModels.resolveInpaintingModel(ImageModels.animeDiffusionV5Curated),
         ImageModels.animeDiffusionV45CuratedInpainting,
       );
+      // 测试期的 custom 键归一到 V5 Curated 后走同一条映射。
       expect(
         ImageModels.resolveInpaintingModel(ImageModels.v5StagingKey),
-        ImageModels.v5StagingKey,
+        ImageModels.animeDiffusionV45CuratedInpainting,
       );
       expect(
         ImageModels.resolveBaseModel(
@@ -229,33 +230,34 @@ void main() {
   });
 
   group('visibleModels', () {
-    test('hides the V5 staging entry unless the switch is on', () {
-      expect(
-        ImageModels.visibleModels(showV5TestModels: false),
-        isNot(contains(ImageModels.v5StagingKey)),
-      );
-      expect(
-        ImageModels.visibleModels(showV5TestModels: true).first,
-        ImageModels.v5StagingKey,
-      );
+    test('lists the official V5 models by default', () {
+      final models = ImageModels.visibleModels();
+
+      expect(models.first, ImageModels.animeDiffusionV5Full);
+      expect(models, contains(ImageModels.animeDiffusionV5Curated));
+      expect(models, isNot(contains(ImageModels.v5StagingKey)));
     });
 
-    test('always keeps the current selection in the list', () {
+    test('migrates the staging key instead of listing it', () {
+      // 测试期选中的 custom 归一到 V5 Curated，不再单独出现在列表里。
       final models = ImageModels.visibleModels(
-        showV5TestModels: false,
         current: ImageModels.v5StagingKey,
       );
 
-      expect(models.first, ImageModels.v5StagingKey);
-      expect(
-        models.where((model) => model == ImageModels.v5StagingKey).length,
-        1,
-      );
+      expect(models, isNot(contains(ImageModels.v5StagingKey)));
+      expect(models, contains(ImageModels.animeDiffusionV5Curated));
+      expect(models, equals(ImageModels.allModels));
+    });
+
+    test('keeps an unknown selection in the list', () {
+      final models = ImageModels.visibleModels(current: 'future-model');
+
+      expect(models.first, 'future-model');
+      expect(models.skip(1), equals(ImageModels.allModels));
     });
 
     test('does not duplicate a selection that is already visible', () {
       final models = ImageModels.visibleModels(
-        showV5TestModels: true,
         current: ImageModels.animeDiffusionV45Full,
       );
 
@@ -264,6 +266,17 @@ void main() {
             .where((model) => model == ImageModels.animeDiffusionV45Full)
             .length,
         1,
+      );
+    });
+
+    test('migrateLegacyModel maps custom onto V5 Curated', () {
+      expect(
+        ImageModels.migrateLegacyModel(ImageModels.v5StagingKey),
+        ImageModels.animeDiffusionV5Curated,
+      );
+      expect(
+        ImageModels.migrateLegacyModel(ImageModels.animeDiffusionV45Full),
+        ImageModels.animeDiffusionV45Full,
       );
     });
   });

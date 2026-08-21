@@ -203,7 +203,6 @@
   "settings_dataStorage": "データとストレージ",
   "settings_privacySharing": "保護と共有",
   "settings_integrations": "連携",
-  "settings_generationModelSection": "モデル",
   "settings_generationInputSection": "入力",
   "settings_generationRetrySection": "失敗時リトライ",
   "settings_generationFeedbackSection": "完了通知",
@@ -301,6 +300,10 @@
   "generation_clearHistory": "履歴をクリア",
   "generation_clearHistoryConfirm": "すべての履歴レコードをクリアしてもよろしいですか?この操作は元に戻すことができません。",
   "generation_model": "モデル",
+  "generation_opusUsageRemaining": "Opus 無料生成の残り {percent}%",
+  "generation_opusUsageEstimate": "あと約 {count} 枚生成可能",
+  "generation_opusUsageRefill": "上限は時間経過で自動回復します",
+  "generation_opusUsageExhausted": "Opus の無料枠を使い切りました。回復するまで V5 の生成には Anlas を消費します。",
   "generation_imageSize": "画像サイズ",
   "generation_transparentBackground": "透過背景",
   "generation_e2eUpscaleHint": "サーバー出力 {size}",
@@ -312,6 +315,16 @@
     }
   },
   "generation_cfgScale": "CFG スケール: {scale}",
+  "@generation_opusUsageRemaining": {
+    "placeholders": {
+      "percent": {}
+    }
+  },
+  "@generation_opusUsageEstimate": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "@generation_e2eUpscaleHint": {
     "placeholders": {
       "size": {}
@@ -3554,8 +3567,6 @@
   "shortcut_settings_enable": "ショートカットを有効にする",
   "shortcut_settings_show_badges": "ショートカット バッジを表示",
   "shortcut_settings_show_in_tooltips": "ツールチップに表示",
-  "settings_showV5TestModels": "テストサイトモデルを表示",
-  "settings_showV5TestModelsSubtitle": "モデル一覧に NovelAI テストサイト項目（custom）を表示します。テスト参加権限のアカウント専用。V5 正式モデルは常に表示されます。",
   "settings_showRandomPromptTools": "ランダムプロンプトツールを表示",
   "settings_showRandomPromptToolsSubtitle": "生成ページにランダムプロンプトボタンと Random Mode の切り替えを表示します",
   "settings_enablePromptWeightScroll": "マウスホイールでプロンプトの重みを調整",

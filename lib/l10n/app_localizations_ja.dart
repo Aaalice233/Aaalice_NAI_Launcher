@@ -539,9 +539,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_integrations => '連携';
 
   @override
-  String get settings_generationModelSection => 'モデル';
-
-  @override
   String get settings_generationInputSection => '入力';
 
   @override
@@ -764,6 +761,23 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get generation_model => 'モデル';
+
+  @override
+  String generation_opusUsageRemaining(Object percent) {
+    return 'Opus 無料生成の残り $percent%';
+  }
+
+  @override
+  String generation_opusUsageEstimate(Object count) {
+    return 'あと約 $count 枚生成可能';
+  }
+
+  @override
+  String get generation_opusUsageRefill => '上限は時間経過で自動回復します';
+
+  @override
+  String get generation_opusUsageExhausted =>
+      'Opus の無料枠を使い切りました。回復するまで V5 の生成には Anlas を消費します。';
 
   @override
   String get generation_imageSize => '画像サイズ';
@@ -6744,13 +6758,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settings_queueRetryInterval => '再試行間隔';
-
-  @override
-  String get settings_showV5TestModels => 'テストサイトモデルを表示';
-
-  @override
-  String get settings_showV5TestModelsSubtitle =>
-      'モデル一覧に NovelAI テストサイト項目（custom）を表示します。テスト参加権限のアカウント専用。V5 正式モデルは常に表示されます。';
 
   @override
   String get settings_showRandomPromptTools => 'ランダムプロンプトツールを表示';

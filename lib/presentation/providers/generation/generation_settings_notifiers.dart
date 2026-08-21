@@ -180,24 +180,6 @@ class RandomPromptToolsVisibility extends _$RandomPromptToolsVisibility {
   }
 }
 
-/// V5 测试模型显示设置 Notifier
-///
-/// V5 只在 NovelAI 测试站可用，普通用户选中会直接报错，因此默认隐藏。
-@Riverpod(keepAlive: true)
-class ShowV5TestModelsSettings extends _$ShowV5TestModelsSettings {
-  LocalStorageService get _storage => ref.read(localStorageServiceProvider);
-
-  @override
-  bool build() => _storage.getShowV5TestModels();
-
-  void toggle() => set(!state);
-
-  void set(bool value) {
-    state = value;
-    _storage.setShowV5TestModels(value);
-  }
-}
-
 /// 每次请求生成图片数量设置 Notifier（1-4张）
 @Riverpod(keepAlive: true)
 class ImagesPerRequest extends _$ImagesPerRequest {

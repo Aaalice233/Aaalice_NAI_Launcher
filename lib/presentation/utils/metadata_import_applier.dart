@@ -161,7 +161,9 @@ class MetadataImportApplier {
 
   static String? toImportableModelId(String? model) {
     if (model == null || model.isEmpty) return null;
-    return ImageModels.allModels.contains(model) ? model : null;
+    // 测试期生成的图元数据里是 `custom`，迁移到正式 ID。
+    final normalized = ImageModels.migrateLegacyModel(model);
+    return ImageModels.allModels.contains(normalized) ? normalized : null;
   }
 
   static String? resolveImportableModel(NaiImageMetadata metadata) {

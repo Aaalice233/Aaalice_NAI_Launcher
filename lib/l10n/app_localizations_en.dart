@@ -548,9 +548,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_integrations => 'Integrations';
 
   @override
-  String get settings_generationModelSection => 'Model';
-
-  @override
   String get settings_generationInputSection => 'Input';
 
   @override
@@ -775,6 +772,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get generation_model => 'Model';
+
+  @override
+  String generation_opusUsageRemaining(Object percent) {
+    return '$percent% of Opus Generations remaining';
+  }
+
+  @override
+  String generation_opusUsageEstimate(Object count) {
+    return 'About $count images left';
+  }
+
+  @override
+  String get generation_opusUsageRefill =>
+      'The allowance refills automatically over time';
+
+  @override
+  String get generation_opusUsageExhausted =>
+      'Your Opus allowance is used up. V5 generations will cost Anlas until it refills.';
 
   @override
   String get generation_imageSize => 'Image Size';
@@ -6893,13 +6908,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_queueRetryInterval => 'Retry Interval';
-
-  @override
-  String get settings_showV5TestModels => 'Show staging test models';
-
-  @override
-  String get settings_showV5TestModelsSubtitle =>
-      'List the NovelAI staging entry (custom) in the model picker. Test-access accounts only; the official V5 models are always shown.';
 
   @override
   String get settings_showRandomPromptTools => 'Show random prompt tools';

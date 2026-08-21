@@ -813,17 +813,6 @@ void main() {
     });
   });
 
-  group('V5 test model visibility setting', () {
-    test('should default to hidden and persist the opt-in', () async {
-      final storage = LocalStorageService();
-
-      expect(storage.getShowV5TestModels(), isFalse);
-
-      await storage.setShowV5TestModels(true);
-
-      expect(LocalStorageService().getShowV5TestModels(), isTrue);
-    });
-  });
 }
 
 Uint8List _validPngBytes({required int width, required int height}) =>

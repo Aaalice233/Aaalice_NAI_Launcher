@@ -95,7 +95,10 @@ class ImageModels {
   static const String animeDiffusionV5FullInpainting =
       'nai-diffusion-5-full-inpainting';
 
-  /// V5 测试期使用的模型键，指向测试站部署，保留用于识别与测试。
+  /// V5 测试期的历史模型键。
+  ///
+  /// 正式版上线后不再出现在任何界面，仅用于识别测试期生成图片的元数据
+  /// 与迁移旧的持久化选择。
   static const String v5StagingKey = 'custom';
 
   static const List<String> allModels = [
@@ -113,7 +116,6 @@ class ImageModels {
   static const Map<String, String> modelDisplayNames = {
     animeDiffusionV5Full: 'NAI Diffusion V5 (Full)',
     animeDiffusionV5Curated: 'NAI Diffusion V5 (Curated)',
-    v5StagingKey: 'NAI Diffusion V5 (测试站)',
     animeDiffusionV45Full: 'NAI Diffusion V4.5 (Full)',
     animeDiffusionV45Curated: 'NAI Diffusion V4.5 (Curated)',
     animeDiffusionV4Full: 'NAI Diffusion V4 (Full)',
@@ -125,18 +127,23 @@ class ImageModels {
 
   /// 模型选择器可见的模型列表。
   ///
-  /// V5 正式模型无条件展示；`custom` 只指向测试站部署，仍需测试开关。
-  /// [current] 是当前选中的模型：它可能来自元数据导入或已关闭的测试开关，
+  /// [current] 是当前选中的模型：它可能来自元数据导入等非常规途径，
   /// 必须保留在候选项里，否则下拉框会因为 value 不在列表中而断言失败。
-  static List<String> visibleModels({
-    required bool showV5TestModels,
-    String? current,
-  }) {
-    final models = [if (showV5TestModels) v5StagingKey, ...allModels];
-    if (current != null && !models.contains(current)) {
-      return [current, ...models];
+  static List<String> visibleModels({String? current}) {
+    final normalized = current == null ? null : migrateLegacyModel(current);
+    if (normalized != null && !allModels.contains(normalized)) {
+      return [normalized, ...allModels];
     }
-    return models;
+    return allModels;
+  }
+
+  /// 把测试期的历史模型键迁移到正式 ID。
+  ///
+  /// 测试期的 `custom` 可能残留在持久化选择或旧图元数据里，
+  /// 统一归一到 V5 Curated（测试站部署对应 curated 权重）。
+  static String migrateLegacyModel(String model) {
+    if (model == v5StagingKey) return animeDiffusionV5Curated;
+    return model;
   }
 
   /// 判断是否使用 V4 起的提示词结构（V4、V4.5、V5 均为 true）
@@ -153,7 +160,9 @@ class ImageModels {
   static bool isInpaintingModel(String model) => model.contains('inpainting');
 
   /// 将设置界面使用的基础模型转换为实际的 Inpainting 请求模型。
-  static String resolveInpaintingModel(String model) {
+  static String resolveInpaintingModel(String rawModel) {
+    // 测试期的 custom 键兜底归一，避免掉进 default 分支的 V3 权重。
+    final model = migrateLegacyModel(rawModel);
     if (isInpaintingModel(model)) return model;
     if (!ModelCapabilityRegistry.of(model).hasInpaintingVariant) return model;
 
@@ -161,8 +170,6 @@ class ImageModels {
       // V5 Curated 的重绘权重尚未就绪，网页端映射到 V4.5 Curated Inpainting。
       animeDiffusionV5Curated => animeDiffusionV45CuratedInpainting,
       animeDiffusionV5Full => animeDiffusionV5FullInpainting,
-      // 测试站部署没有独立 inpainting，infill 继续走同一模型键。
-      v5StagingKey => v5StagingKey,
       animeDiffusionV45Full => animeDiffusionV45FullInpainting,
       animeDiffusionV45Curated => animeDiffusionV45CuratedInpainting,
       animeDiffusionV4Full => animeDiffusionV4FullInpainting,

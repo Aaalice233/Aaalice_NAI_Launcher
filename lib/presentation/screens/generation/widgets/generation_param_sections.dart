@@ -43,17 +43,17 @@ class ModelSection extends ConsumerWidget {
     final model = ref.watch(
       generationParamsNotifierProvider.select((params) => params.model),
     );
-    final showV5TestModels = ref.watch(showV5TestModelsSettingsProvider);
+    // 测试期的 custom 键归一到正式 ID，保证下拉框 value 一定在候选项里。
+    final normalizedModel = ImageModels.migrateLegacyModel(model);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ParamSectionTitle(context.l10n.generation_model),
         const SizedBox(height: 8),
         ThemedDropdown<String>(
-          value: model,
+          value: normalizedModel,
           items: ImageModels.visibleModels(
-            showV5TestModels: showV5TestModels,
-            current: model,
+            current: normalizedModel,
           ).map((model) {
             return DropdownMenuItem(
               value: model,

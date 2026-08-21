@@ -1108,12 +1108,6 @@ abstract class AppLocalizations {
   /// **'Integrations'**
   String get settings_integrations;
 
-  /// No description provided for @settings_generationModelSection.
-  ///
-  /// In en, this message translates to:
-  /// **'Model'**
-  String get settings_generationModelSection;
-
   /// No description provided for @settings_generationInputSection.
   ///
   /// In en, this message translates to:
@@ -1533,6 +1527,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Model'**
   String get generation_model;
+
+  /// No description provided for @generation_opusUsageRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}% of Opus Generations remaining'**
+  String generation_opusUsageRemaining(Object percent);
+
+  /// No description provided for @generation_opusUsageEstimate.
+  ///
+  /// In en, this message translates to:
+  /// **'About {count} images left'**
+  String generation_opusUsageEstimate(Object count);
+
+  /// No description provided for @generation_opusUsageRefill.
+  ///
+  /// In en, this message translates to:
+  /// **'The allowance refills automatically over time'**
+  String get generation_opusUsageRefill;
+
+  /// No description provided for @generation_opusUsageExhausted.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Opus allowance is used up. V5 generations will cost Anlas until it refills.'**
+  String get generation_opusUsageExhausted;
 
   /// No description provided for @generation_imageSize.
   ///
@@ -12323,18 +12341,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Retry Interval'**
   String get settings_queueRetryInterval;
-
-  /// No description provided for @settings_showV5TestModels.
-  ///
-  /// In en, this message translates to:
-  /// **'Show staging test models'**
-  String get settings_showV5TestModels;
-
-  /// No description provided for @settings_showV5TestModelsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'List the NovelAI staging entry (custom) in the model picker. Test-access accounts only; the official V5 models are always shown.'**
-  String get settings_showV5TestModelsSubtitle;
 
   /// No description provided for @settings_showRandomPromptTools.
   ///

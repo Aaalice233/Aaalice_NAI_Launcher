@@ -1143,23 +1143,32 @@ void main() {
       expect(result.vibeEncodingMap, isEmpty);
     });
 
-    test('should keep the V5 infill request on the base model', () async {
-      final params = ImageParams(
-        model: ImageModels.v5StagingKey,
-        action: ImageGenerationAction.infill,
-        sourceImage: _solidPngBytes(width: 64, height: 64),
-        maskImage: _solidPngBytes(width: 64, height: 64),
-        width: 64,
-        height: 64,
-      );
-      final builder = NAIImageRequestBuilder(
-        params: params,
-        encodeVibe: _fakeEncodeVibe,
-      );
+    test('should route V5 infill onto the official weights', () async {
+      Future<String> requestModelFor(String model) async {
+        final params = ImageParams(
+          model: model,
+          action: ImageGenerationAction.infill,
+          sourceImage: _solidPngBytes(width: 64, height: 64),
+          maskImage: _solidPngBytes(width: 64, height: 64),
+          width: 64,
+          height: 64,
+        );
+        final result = await NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler_ancestral');
+        return result.requestData['model'] as String;
+      }
 
-      final result = await builder.build(sampler: 'k_euler_ancestral');
-
-      expect(result.requestData['model'], ImageModels.v5StagingKey);
+      // Full 用独立 inpainting 权重；Curated 按网页端映射到 V4.5 Curated。
+      expect(
+        await requestModelFor(ImageModels.animeDiffusionV5Full),
+        ImageModels.animeDiffusionV5FullInpainting,
+      );
+      expect(
+        await requestModelFor(ImageModels.animeDiffusionV5Curated),
+        ImageModels.animeDiffusionV45CuratedInpainting,
+      );
     });
 
     test(

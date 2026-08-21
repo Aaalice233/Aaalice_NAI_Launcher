@@ -15,6 +15,7 @@ import 'package:nai_launcher/presentation/widgets/common/app_toast.dart';
 import 'package:nai_launcher/presentation/widgets/common/draggable_number_input.dart';
 import 'package:nai_launcher/presentation/widgets/generation/auto_save_toggle_chip.dart';
 import 'package:nai_launcher/presentation/widgets/anlas/anlas_balance_chip.dart';
+import 'package:nai_launcher/presentation/widgets/anlas/opus_usage_chip.dart';
 import 'add_to_queue_button.dart';
 import 'batch_settings_button.dart';
 import 'generate_button.dart';
@@ -148,6 +149,8 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          const OpusUsageChip(compact: true),
+                          const SizedBox(width: 6),
                           const AnlasBalanceChip(compact: true),
                           if (showRandomTools) ...[
                             const SizedBox(width: 8),
@@ -227,6 +230,8 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            const OpusUsageChip(),
+                            const SizedBox(width: 8),
                             const AnlasBalanceChip(),
                             const SizedBox(width: 16),
                             if (showRandomTools) ...[

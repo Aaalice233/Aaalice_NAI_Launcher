@@ -530,9 +530,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_integrations => '集成';
 
   @override
-  String get settings_generationModelSection => '模型';
-
-  @override
   String get settings_generationInputSection => '输入';
 
   @override
@@ -753,6 +750,23 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get generation_model => '模型';
+
+  @override
+  String generation_opusUsageRemaining(Object percent) {
+    return 'Opus 免费生成剩余 $percent%';
+  }
+
+  @override
+  String generation_opusUsageEstimate(Object count) {
+    return '约可再生成 $count 张';
+  }
+
+  @override
+  String get generation_opusUsageRefill => '额度会随时间自动恢复';
+
+  @override
+  String get generation_opusUsageExhausted =>
+      'Opus 免费额度已用完，V5 生成将消耗 Anlas，额度会随时间自动恢复';
 
   @override
   String get generation_imageSize => '图像尺寸';
@@ -6652,13 +6666,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_queueRetryInterval => '重试间隔';
-
-  @override
-  String get settings_showV5TestModels => '显示测试站模型';
-
-  @override
-  String get settings_showV5TestModelsSubtitle =>
-      '在模型列表中显示 NovelAI 测试站条目（custom），仅测试资格账号可用；V5 正式模型已默认显示';
 
   @override
   String get settings_showRandomPromptTools => '显示随机提示词工具';
