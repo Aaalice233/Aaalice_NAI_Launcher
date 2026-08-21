@@ -139,7 +139,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   bool _applyingSuggestion = false;
   bool _cursorMetricsScheduled = false;
   bool _wasComposing = false;
-  late String _lastObservedText;
+  TextEditingValue? _lastObservedValue;
   final Set<int> _relatedClickPointers = <int>{};
   final Set<int> _regularClickPointers = <int>{};
   Offset? _cursorOffset;
@@ -148,11 +148,13 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
 
   FocusNode get _focusNode => widget.focusNode ?? _ownedFocusNode!;
 
+  bool get _supportsNewlines => widget.expands || (widget.maxLines ?? 1) > 1;
+
   @override
   void initState() {
     super.initState();
     if (widget.focusNode == null) _ownedFocusNode = FocusNode();
-    _lastObservedText = widget.controller.text;
+    _lastObservedValue = widget.controller.value;
     final composing = widget.controller.value.composing;
     _wasComposing = composing.isValid && !composing.isCollapsed;
     widget.controller.addListener(_onTextChanged);
@@ -216,11 +218,19 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   }
 
   @override
+  void reassemble() {
+    super.reassemble();
+    _lastObservedValue = widget.controller.value;
+    final composing = widget.controller.value.composing;
+    _wasComposing = composing.isValid && !composing.isCollapsed;
+  }
+
+  @override
   void didUpdateWidget(covariant AutocompleteWrapper oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_onTextChanged);
-      _lastObservedText = widget.controller.text;
+      _lastObservedValue = widget.controller.value;
       final composing = widget.controller.value.composing;
       _wasComposing = composing.isValid && !composing.isCollapsed;
       widget.controller.addListener(_onTextChanged);
@@ -241,10 +251,26 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   }
 
   void _onTextChanged() {
-    final text = widget.controller.text;
-    final textChanged = text != _lastObservedText;
-    _lastObservedText = text;
-    final composingRange = widget.controller.value.composing;
+    final value = widget.controller.value;
+    final previousValue = _lastObservedValue;
+    _lastObservedValue = value;
+    if (previousValue == null) {
+      _recoverAfterStateReload(value);
+      return;
+    }
+
+    final text = value.text;
+    final textChanged = text != previousValue.text;
+    final activeTokenChanged =
+        textChanged &&
+        PromptTokenParser.editChangesActiveToken(
+          previousText: previousValue.text,
+          previousCursorPosition: _cursorPosition(previousValue),
+          currentText: text,
+          currentCursorPosition: _cursorPosition(value),
+          splitOnSpaces: widget.config?.treatSpacesAsSeparators ?? false,
+        );
+    final composingRange = value.composing;
     final isComposing = composingRange.isValid && !composingRange.isCollapsed;
     final compositionCommitted = _wasComposing && !isComposing;
     _wasComposing = isComposing;
@@ -264,6 +290,10 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       if (_pinnedRelatedTag == null) _dismissOverlay();
       return;
     }
+    if (textChanged && !activeTokenChanged) {
+      _closeOverlay();
+      return;
+    }
     if (_focusNode.hasFocus) {
       _startQuery(
         related: _pinnedRelatedTag != null,
@@ -271,6 +301,26 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       );
     }
   }
+
+  void _recoverAfterStateReload(TextEditingValue value) {
+    final composing = value.composing;
+    _wasComposing = composing.isValid && !composing.isCollapsed;
+    if (_applyingSuggestion ||
+        widget.usesLegacyStrategy ||
+        _wasComposing ||
+        !_focusNode.hasFocus) {
+      return;
+    }
+    widget.onChanged?.call(value.text);
+    _startQuery(
+      related: _pinnedRelatedTag != null,
+      relatedTagOverride: _pinnedRelatedTag,
+    );
+  }
+
+  int _cursorPosition(TextEditingValue value) => value.selection.isValid
+      ? value.selection.extentOffset
+      : value.text.length;
 
   void _onFocusChanged() {
     if (!_focusNode.hasFocus) {
@@ -488,6 +538,12 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       return KeyEventResult.handled;
     }
     if (_overlayEntry == null) return KeyEventResult.ignored;
+    if (event.logicalKey == LogicalKeyboardKey.enter &&
+        keyboard.isShiftPressed &&
+        _supportsNewlines) {
+      if (event is KeyDownEvent) _closeOverlay();
+      return KeyEventResult.ignored;
+    }
     if (event.logicalKey == LogicalKeyboardKey.escape) {
       if (event is KeyDownEvent) _closeOverlay();
       return KeyEventResult.handled;

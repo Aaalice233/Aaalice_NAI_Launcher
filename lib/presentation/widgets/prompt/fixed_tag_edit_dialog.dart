@@ -186,6 +186,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                       controller: _contentController,
                       focusNode: _contentFocusNode,
                       ref: ref,
+                      expands: true,
                       config: const AutocompleteConfig(
                         showTranslation: true,
                         showCategory: true,

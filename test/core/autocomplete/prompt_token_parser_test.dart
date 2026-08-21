@@ -216,4 +216,45 @@ void main() {
       },
     );
   });
+
+  group('PromptTokenParser.editChangesActiveToken', () {
+    bool changes(
+      String before,
+      int beforeCursor,
+      String after,
+      int afterCursor, {
+      bool splitOnSpaces = false,
+    }) => PromptTokenParser.editChangesActiveToken(
+      previousText: before,
+      previousCursorPosition: beforeCursor,
+      currentText: after,
+      currentCursorPosition: afterCursor,
+      splitOnSpaces: splitOnSpaces,
+    );
+
+    test('ignores structural edits around an untouched tag', () {
+      expect(changes('solo_focus', 0, '\nsolo_focus', 1), isFalse);
+      expect(changes('first\nsolo_focus', 6, 'firstsolo_focus', 5), isFalse);
+      expect(changes('first, solo_focus', 7, 'first,solo_focus', 6), isFalse);
+      expect(changes('first,solo_focus', 6, 'firstsolo_focus', 5), isFalse);
+      expect(changes('{solo_focus}', 1, 'solo_focus}', 0), isFalse);
+      expect(changes('solo_focus, next', 10, ', next', 0), isFalse);
+    });
+
+    test('detects inserted, deleted, replaced, and pasted tag text', () {
+      expect(changes('solo_focus', 4, 'sol_focus', 3), isTrue);
+      expect(changes('solo_focus', 0, 'olo_focus', 0), isTrue);
+      expect(changes('solo_focus', 4, 'solX_focus', 4), isTrue);
+      expect(changes('', 0, 'solo_focus', 10), isTrue);
+      expect(changes('', 0, '<角色', 3), isTrue);
+    });
+
+    test('treats spaces according to the field separator policy', () {
+      expect(changes('blueeyes', 4, 'blue eyes', 5), isTrue);
+      expect(
+        changes('first solo', 6, 'firstsolo', 5, splitOnSpaces: true),
+        isFalse,
+      );
+    });
+  });
 }

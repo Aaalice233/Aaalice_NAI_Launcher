@@ -159,6 +159,88 @@ class PromptTokenParser {
     );
   }
 
+  /// Returns whether an edit changed the tag fragment at the caret.
+  ///
+  /// Structural edits around a tag (line breaks, commas, boundary whitespace,
+  /// or weight delimiters) must not query an untouched neighboring tag.
+  static bool editChangesActiveToken({
+    required String previousText,
+    required int previousCursorPosition,
+    required String currentText,
+    required int currentCursorPosition,
+    bool splitOnSpaces = false,
+  }) {
+    if (previousText == currentText) return false;
+
+    final previous = parse(
+      text: previousText,
+      cursorPosition: previousCursorPosition,
+      limit: 1,
+      locale: '',
+      splitOnSpaces: splitOnSpaces,
+    );
+    final current = parse(
+      text: currentText,
+      cursorPosition: currentCursorPosition,
+      limit: 1,
+      locale: '',
+      splitOnSpaces: splitOnSpaces,
+    );
+    if (current.kind == CompletionQueryKind.tag && current.token.isEmpty) {
+      return false;
+    }
+
+    var prefixLength = 0;
+    final sharedLength = previousText.length < currentText.length
+        ? previousText.length
+        : currentText.length;
+    while (prefixLength < sharedLength &&
+        previousText.codeUnitAt(prefixLength) ==
+            currentText.codeUnitAt(prefixLength)) {
+      prefixLength++;
+    }
+
+    var suffixLength = 0;
+    while (suffixLength < previousText.length - prefixLength &&
+        suffixLength < currentText.length - prefixLength &&
+        previousText.codeUnitAt(previousText.length - suffixLength - 1) ==
+            currentText.codeUnitAt(currentText.length - suffixLength - 1)) {
+      suffixLength++;
+    }
+    final previousChangeEnd = previousText.length - suffixLength;
+    final currentChangeEnd = currentText.length - suffixLength;
+    final removed = previousText.substring(prefixLength, previousChangeEnd);
+    final inserted = currentText.substring(prefixLength, currentChangeEnd);
+    final changedCodeUnits = [...removed.codeUnits, ...inserted.codeUnits];
+    if (changedCodeUnits.every(
+      (unit) => unit == 0x2c || unit == 0x0a || unit == 0x0d,
+    )) {
+      return false;
+    }
+
+    final sameActiveToken =
+        previous.kind == current.kind && previous.token == current.token;
+    if (sameActiveToken) {
+      return !_sameSemanticTags(previousText, currentText, splitOnSpaces);
+    }
+
+    final insertedTouchesCurrentToken =
+        currentChangeEnd > prefixLength &&
+        prefixLength < current.replacementRange.end &&
+        currentChangeEnd > current.replacementRange.start;
+    if (insertedTouchesCurrentToken) return true;
+
+    final removedTouchesPreviousToken =
+        prefixLength < previous.replacementRange.end &&
+        previousChangeEnd > previous.replacementRange.start;
+    if (!removedTouchesPreviousToken) return false;
+
+    final removedWholePreviousToken =
+        prefixLength <= previous.replacementRange.start &&
+        previousChangeEnd >= previous.replacementRange.end;
+    return !removedWholePreviousToken;
+  }
+
   static ({String text, int cursorPosition}) apply({
     required String text,
     required CompletionQuery query,
@@ -206,6 +288,29 @@ class PromptTokenParser {
 
     final result = '$before$insertion$after';
     return (text: result, cursorPosition: before.length + insertion.length);
+  }
+
+  static bool _sameSemanticTags(
+    String previousText,
+    String currentText,
+    bool splitOnSpaces,
+  ) {
+    List<String> tags(String text) {
+      final separator = splitOnSpaces ? RegExp(r'[,\n\s]+') : RegExp(r'[,\n]');
+      return text
+          .split(separator)
+          .map(_normalizeExistingTag)
+          .where((tag) => tag.isNotEmpty)
+          .toList(growable: false);
+    }
+
+    final previousTags = tags(previousText);
+    final currentTags = tags(currentText);
+    if (previousTags.length != currentTags.length) return false;
+    for (var index = 0; index < previousTags.length; index++) {
+      if (previousTags[index] != currentTags[index]) return false;
+    }
+    return true;
   }
 
   static bool _isSeparator(int codeUnit, bool splitOnSpaces) =>

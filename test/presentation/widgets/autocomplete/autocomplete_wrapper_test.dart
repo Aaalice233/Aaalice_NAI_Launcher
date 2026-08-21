@@ -26,15 +26,10 @@ Future<void> _typeCurrentText(
   final text = controller.text;
   assert(text.isNotEmpty);
   final prefix = text.substring(0, text.length - 1);
-  controller.value = TextEditingValue(
-    text: prefix,
-    selection: TextSelection.collapsed(offset: prefix.length),
-  );
+  final field = find.byType(TextField);
+  await tester.enterText(field, prefix);
   await tester.pump();
-  controller.value = TextEditingValue(
-    text: text,
-    selection: TextSelection.collapsed(offset: text.length),
-  );
+  await tester.enterText(field, text);
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 30));
 }
@@ -237,6 +232,169 @@ void main() {
     expect(find.text('Tag autocomplete'), findsOneWidget);
     expect(find.text('blue_eyes'), findsOneWidget);
     expect(find.text('Related tags'), findsNothing);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(controller.text, 'blue_eyes, ');
+  });
+
+  testWidgets(
+    'Shift+Enter inserts a newline instead of confirming an open popup',
+    (tester) async {
+      final controller = TextEditingController(text: 'blu');
+      controller.selection = const TextSelection.collapsed(offset: 3);
+      final focusNode = FocusNode();
+      addTearDown(() {
+        controller.dispose();
+        focusNode.dispose();
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            autocompleteSettingsProvider.overrideWith(
+              (ref) => _OpenOnTagClickSettingsNotifier(),
+            ),
+            autocompleteServicesProvider.overrideWithValue(
+              AutocompleteServices(
+                localSources: [_BaseSource()],
+                dictionaryTranslations: const _NoTranslations(),
+                llmTranslations: const _NoTranslations(),
+                danbooru: _NoDanbooru(),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: AutocompleteWrapper(
+                controller: controller,
+                focusNode: focusNode,
+                maxLines: 4,
+                child: TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  maxLines: 4,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      focusNode.requestFocus();
+      await tester.pump();
+
+      final field = find.byType(TextField);
+      await tester.tapAt(tester.getTopLeft(field) + const Offset(20, 20));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+      expect(find.text('Tag autocomplete'), findsOneWidget);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+
+      expect(controller.text, isNot(contains('blue_eyes')));
+      expect(
+        find.byKey(const ValueKey('autocomplete-popup-surface')),
+        findsNothing,
+      );
+
+      // Widget tests do not synthesize the platform's newline text edit from
+      // a hardware key event, so deliver the edit that Flutter receives next.
+      await tester.enterText(field, '${controller.text}\n');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+      expect(controller.text, contains('\n'));
+      expect(
+        find.byKey(const ValueKey('autocomplete-popup-surface')),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets('structural edits stay quiet but tag text deletion queries', (
+    tester,
+  ) async {
+    final controller = TextEditingController(text: 'first, solo_focus');
+    controller.selection = const TextSelection.collapsed(offset: 7);
+    final focusNode = FocusNode();
+    final source = _BaseSource();
+    addTearDown(() {
+      controller.dispose();
+      focusNode.dispose();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          autocompleteServicesProvider.overrideWithValue(
+            AutocompleteServices(
+              localSources: [source],
+              dictionaryTranslations: const _NoTranslations(),
+              llmTranslations: const _NoTranslations(),
+              danbooru: _NoDanbooru(),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: AutocompleteWrapper(
+              controller: controller,
+              focusNode: focusNode,
+              maxLines: 4,
+              child: TextField(
+                controller: controller,
+                focusNode: focusNode,
+                maxLines: 4,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    focusNode.requestFocus();
+    await tester.pump();
+
+    controller.value = const TextEditingValue(
+      text: 'first, \nsolo_focus',
+      selection: TextSelection.collapsed(offset: 8),
+    );
+    await tester.pump(const Duration(milliseconds: 30));
+
+    controller.value = const TextEditingValue(
+      text: 'first, solo_focus',
+      selection: TextSelection.collapsed(offset: 7),
+    );
+    await tester.pump(const Duration(milliseconds: 30));
+
+    controller.value = const TextEditingValue(
+      text: 'first,solo_focus',
+      selection: TextSelection.collapsed(offset: 6),
+    );
+    await tester.pump(const Duration(milliseconds: 30));
+
+    expect(source.lastLimit, isNull);
+    expect(
+      find.byKey(const ValueKey('autocomplete-popup-surface')),
+      findsNothing,
+    );
+
+    controller.value = const TextEditingValue(
+      text: 'first,olo_focus',
+      selection: TextSelection.collapsed(offset: 6),
+    );
+    await tester.pump(const Duration(milliseconds: 30));
+
+    expect(source.lastLimit, isNotNull);
+    expect(find.text('Tag autocomplete'), findsOneWidget);
   });
 
   testWidgets(

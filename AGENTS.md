@@ -12,6 +12,7 @@
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/dev_hot_reload_window.ps1
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/dev_hot_reload.ps1
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/trigger_hot_reload.ps1
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/trigger_hot_restart.ps1
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/capture_dev_window.ps1
 flutter pub get
 dart run build_runner build --delete-conflicting-outputs
@@ -21,7 +22,13 @@ flutter analyze
 flutter build windows --release
 ```
 
-Windows 桌面热重载优先使用 `scripts/dev_hot_reload_window.ps1`，它会打开独立 PowerShell 窗口并调用 `scripts/dev_hot_reload.ps1`。后者会先运行 `build_runner`，再进入 `flutter run -d windows`，之后可在该窗口按 `r` 热重载、`R` 热重启、`q` 退出。已有该开发会话时，代码修改并完成最小验证后应自动运行 `scripts/trigger_hot_reload.ps1`；该脚本直接向现有 Flutter 控制台发送热重载，不启动第二个 `flutter attach`，需要完整状态重置时传入 `-Restart`。桌面 UI 改动可用 `scripts/capture_dev_window.ps1` 截取实际 Debug 窗口，默认输出到 `tool/.tmp/nai_launcher_window.png`；截图验证完需删除临时图片。依赖变更后运行 `flutter pub get`。新增或修改 Riverpod providers、Freezed models、JSON models、Hive adapters 或生成路由后运行 `build_runner`。
+Windows 桌面开发优先使用 `scripts/dev_hot_reload_window.ps1`，它会打开独立 PowerShell 窗口并调用 `scripts/dev_hot_reload.ps1`。后者会先运行 `build_runner`，再进入 `flutter run -d windows`，之后可在该窗口按 `r` 热重载、`R` 热重启、`q` 退出。已有该开发会话时，不启动第二个 `flutter attach`，而是在代码修改并完成最小验证后按以下规则自动触发：
+
+- 普通热重载（`r`）：运行 `scripts/trigger_hot_reload.ps1`。它会保留当前页面、输入内容和现有 `State`，适用于只修改方法实现、Widget 布局、样式、文案等不改变状态初始化的代码。
+- 热重启（`R`）：运行 `scripts/trigger_hot_restart.ps1`。它会重建 Dart 应用状态并重新执行 `main`、`initState` 和各类初始化器，适用于新增、删除或改变 `State` 字段，修改 `initState`、Provider/依赖注入初始化、全局变量、静态缓存、启动流程或生成代码。遇到“代码已更新但旧状态仍生效”、新增字段出现 `LateInitializationError` 等情况，必须使用热重启，不能继续只发普通热重载。
+- 原生 Windows/C++、插件注册或依赖构建发生变化时，两者都不够，需要停止现有会话并重新运行开发启动脚本。
+
+桌面 UI 改动可用 `scripts/capture_dev_window.ps1` 截取实际 Debug 窗口，默认输出到 `tool/.tmp/nai_launcher_window.png`；截图验证完需删除临时图片。依赖变更后运行 `flutter pub get`。新增或修改 Riverpod providers、Freezed models、JSON models、Hive adapters 或生成路由后运行 `build_runner`。
 
 ## 代码风格与命名约定
 

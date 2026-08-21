@@ -293,6 +293,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                       controller: _contentController,
                       focusNode: _contentFocusNode,
                       ref: ref,
+                      expands: true,
                       config: const AutocompleteConfig(
                         showTranslation: true,
                         showCategory: true,
