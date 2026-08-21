@@ -157,6 +157,26 @@ void main() {
       expect(box.color, const Color(0xFFFF0000));
     });
 
+    testWidgets('入口图标按给定尺寸自绘', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Center(child: TransparencyBackgroundIcon(size: 16)),
+        ),
+      );
+
+      expect(
+        tester.getSize(find.byType(TransparencyBackgroundIcon)),
+        const Size(16, 16),
+      );
+      expect(
+        find.descendant(
+          of: find.byType(TransparencyBackgroundIcon),
+          matching: find.byType(CustomPaint),
+        ),
+        findsWidgets,
+      );
+    });
+
     testWidgets('棋盘格档位走自绘', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(

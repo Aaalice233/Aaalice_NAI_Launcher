@@ -1594,12 +1594,6 @@ abstract class AppLocalizations {
   /// **'Seed'**
   String get generation_seed;
 
-  /// No description provided for @generation_previewDisplaySettings.
-  ///
-  /// In en, this message translates to:
-  /// **'Display Settings'**
-  String get generation_previewDisplaySettings;
-
   /// No description provided for @generation_previewApplySeed.
   ///
   /// In en, this message translates to:

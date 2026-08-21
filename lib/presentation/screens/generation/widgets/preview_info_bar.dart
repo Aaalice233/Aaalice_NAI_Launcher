@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../providers/generation/generated_image_metadata_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/preview_transparency_provider.dart';
 import '../../../widgets/common/transparency_background.dart';
@@ -9,8 +10,8 @@ import '../../../widgets/image_editor/widgets/color_picker.dart';
 
 /// 预览图下方的信息条（对齐官网结果区底部的 display/save 工具条）
 ///
-/// 自左向右：分辨率胶囊 → 分隔线 → 显示设置齿轮 → 种子胶囊。
-/// 齿轮向上弹出显示设置浮层，目前只有透明部分的底色选择。
+/// 自左向右：分辨率胶囊 → 分隔线 → 透明底色入口 → 种子胶囊。
+/// 透明底色入口向上弹出档位浮层。
 class PreviewInfoBar extends ConsumerWidget {
   final GeneratedImage image;
 
@@ -23,7 +24,11 @@ class PreviewInfoBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final seed = image.metadata?.seed;
+    // 种子要等 PNG 元数据解析完才知道，解析期间先不占位
+    final seed = ref
+        .watch(generatedImageMetadataProvider(image))
+        .valueOrNull
+        ?.seed;
 
     return SizedBox(
       height: barHeight,
@@ -53,8 +58,8 @@ class PreviewInfoBar extends ConsumerWidget {
                   ),
                   const _PillDivider(),
                 ],
-                const _DisplaySettingsButton(),
-                if (seed != null) ...[
+                const _TransparencyBackgroundButton(),
+                if (seed != null && seed >= 0) ...[
                   const SizedBox(width: 6),
                   Flexible(child: _SeedPill(seed: seed)),
                 ],
@@ -158,15 +163,17 @@ class _SeedPill extends ConsumerWidget {
   }
 }
 
-/// 显示设置齿轮：向上弹出浮层
-class _DisplaySettingsButton extends StatefulWidget {
-  const _DisplaySettingsButton();
+/// 透明底色入口：向上弹出档位浮层
+class _TransparencyBackgroundButton extends ConsumerStatefulWidget {
+  const _TransparencyBackgroundButton();
 
   @override
-  State<_DisplaySettingsButton> createState() => _DisplaySettingsButtonState();
+  ConsumerState<_TransparencyBackgroundButton> createState() =>
+      _TransparencyBackgroundButtonState();
 }
 
-class _DisplaySettingsButtonState extends State<_DisplaySettingsButton> {
+class _TransparencyBackgroundButtonState
+    extends ConsumerState<_TransparencyBackgroundButton> {
   final OverlayPortalController _controller = OverlayPortalController();
   final LayerLink _link = LayerLink();
 
@@ -177,7 +184,10 @@ class _DisplaySettingsButtonState extends State<_DisplaySettingsButton> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final selected = _controller.isShowing;
+    final style = ref.watch(previewTransparencyNotifierProvider);
+    // 官网同款：浮层打开、或档位已偏离默认值时都高亮，提示这里改过设置
+    final selected =
+        _controller.isShowing || style != TransparencyBackgrounds.defaultStyle;
 
     return CompositedTransformTarget(
       link: _link,
@@ -198,13 +208,13 @@ class _DisplaySettingsButtonState extends State<_DisplaySettingsButton> {
                 targetAnchor: Alignment.topRight,
                 followerAnchor: Alignment.bottomRight,
                 offset: const Offset(0, -5),
-                child: _DisplaySettingsPanel(onClose: _close),
+                child: const _TransparencyBackgroundPanel(),
               ),
             ],
           );
         },
         child: Tooltip(
-          message: context.l10n.generation_previewDisplaySettings,
+          message: context.l10n.generation_transparencyBackgroundTitle,
           waitDuration: const Duration(milliseconds: 400),
           child: Material(
             color: selected
@@ -221,12 +231,13 @@ class _DisplaySettingsButtonState extends State<_DisplaySettingsButton> {
               child: SizedBox(
                 width: PreviewInfoBar.barHeight,
                 height: PreviewInfoBar.barHeight,
-                child: Icon(
-                  Icons.settings_rounded,
-                  size: 15,
-                  color: selected
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                child: Center(
+                  child: TransparencyBackgroundIcon(
+                    size: 16,
+                    color: selected
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
                 ),
               ),
             ),
@@ -237,18 +248,17 @@ class _DisplaySettingsButtonState extends State<_DisplaySettingsButton> {
   }
 }
 
-/// 显示设置浮层内容
-class _DisplaySettingsPanel extends ConsumerStatefulWidget {
-  final VoidCallback onClose;
-
-  const _DisplaySettingsPanel({required this.onClose});
+/// 透明底色档位浮层
+class _TransparencyBackgroundPanel extends ConsumerStatefulWidget {
+  const _TransparencyBackgroundPanel();
 
   @override
-  ConsumerState<_DisplaySettingsPanel> createState() =>
-      _DisplaySettingsPanelState();
+  ConsumerState<_TransparencyBackgroundPanel> createState() =>
+      _TransparencyBackgroundPanelState();
 }
 
-class _DisplaySettingsPanelState extends ConsumerState<_DisplaySettingsPanel> {
+class _TransparencyBackgroundPanelState
+    extends ConsumerState<_TransparencyBackgroundPanel> {
   bool _customExpanded = false;
 
   @override

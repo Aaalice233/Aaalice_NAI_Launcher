@@ -807,9 +807,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get generation_seed => 'シード';
 
   @override
-  String get generation_previewDisplaySettings => '表示設定';
-
-  @override
   String get generation_previewApplySeed => '表示中の画像のシードを使う';
 
   @override

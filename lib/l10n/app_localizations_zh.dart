@@ -796,9 +796,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get generation_seed => '种子';
 
   @override
-  String get generation_previewDisplaySettings => '显示设置';
-
-  @override
   String get generation_previewApplySeed => '使用当前图片的种子';
 
   @override

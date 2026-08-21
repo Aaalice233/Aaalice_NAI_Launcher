@@ -298,7 +298,6 @@
   "generation_steps": "步数: {steps}",
   "generation_cfgScale": "CFG 强度：{scale}",
   "generation_seed": "种子",
-  "generation_previewDisplaySettings": "显示设置",
   "generation_previewApplySeed": "使用当前图片的种子",
   "generation_transparencyBackgroundTitle": "透明部分显示",
   "generation_transparencyChecker": "跟随主题棋盘格",

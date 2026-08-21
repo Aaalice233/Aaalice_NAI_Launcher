@@ -341,7 +341,6 @@
     }
   },
   "generation_seed": "シード",
-  "generation_previewDisplaySettings": "表示設定",
   "generation_previewApplySeed": "表示中の画像のシードを使う",
   "generation_transparencyBackgroundTitle": "透過部分の表示",
   "generation_transparencyChecker": "テーマに合わせたチェック模様",

@@ -819,9 +819,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generation_seed => 'Seed';
 
   @override
-  String get generation_previewDisplaySettings => 'Display Settings';
-
-  @override
   String get generation_previewApplySeed =>
       'Use the seed of the displayed image';
 

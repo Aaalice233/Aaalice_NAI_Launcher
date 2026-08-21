@@ -130,6 +130,78 @@ class TransparencyBackgroundLayer extends StatelessWidget {
   }
 }
 
+/// 透明底色入口图标：复刻官网 20×20 的棋盘格图标
+///
+/// 官网 SVG 是 16×16 圆角描边外框 + 4×4 网格里填充对角格子，
+/// 这里按 viewBox 等比缩放绘制，保证任意尺寸下比例一致。
+class TransparencyBackgroundIcon extends StatelessWidget {
+  final double size;
+
+  /// 不传时跟随 [IconTheme]
+  final Color? color;
+
+  const TransparencyBackgroundIcon({super.key, this.size = 16, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final resolved =
+        color ??
+        IconTheme.of(context).color ??
+        Theme.of(context).colorScheme.onSurface;
+
+    return SizedBox.square(
+      dimension: size,
+      child: CustomPaint(painter: _TransparencyIconPainter(color: resolved)),
+    );
+  }
+}
+
+class _TransparencyIconPainter extends CustomPainter {
+  /// 官网 SVG 的 viewBox 边长
+  static const double _viewBox = 20.0;
+
+  /// 网格格子边长（4×4 网格铺满 16×16 外框）
+  static const double _cell = 4.0;
+
+  final Color color;
+
+  const _TransparencyIconPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+
+    canvas.save();
+    canvas.scale(size.width / _viewBox, size.height / _viewBox);
+
+    final path = Path();
+    for (var row = 0; row < 4; row++) {
+      for (var column = row.isEven ? 0 : 1; column < 4; column += 2) {
+        path.addRect(
+          Rect.fromLTWH(2 + column * _cell, 2 + row * _cell, _cell, _cell),
+        );
+      }
+    }
+    canvas.drawPath(path, Paint()..color = color);
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(2, 2, 16, 16),
+        const Radius.circular(1),
+      ),
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_TransparencyIconPainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
 /// 棋盘格绘制：格子边长与官网一致（12px 背景平铺 → 6px 方格）
 class _CheckerPainter extends CustomPainter {
   static const double _cell = 6.0;

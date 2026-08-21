@@ -1,10 +1,13 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
+import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/preview_transparency_provider.dart';
@@ -18,6 +21,17 @@ GeneratedImage _image({int? seed}) {
     width: 832,
     height: 1216,
     metadata: seed == null ? null : NaiImageMetadata(seed: seed),
+  );
+}
+
+/// 造一张带 NovelAI `Comment` 文本块的 PNG，模拟接口返回的生成结果
+Uint8List _naiPngBytes({required int seed}) {
+  final canvas = img.Image(width: 2, height: 2);
+  img.fill(canvas, color: img.ColorRgb8(12, 34, 56));
+  return UnifiedMetadataParser.embedTextChunkOnly(
+    Uint8List.fromList(img.encodePng(canvas)),
+    'Comment',
+    jsonEncode({'prompt': '1girl', 'seed': seed, 'steps': 28}),
   );
 }
 
@@ -51,6 +65,9 @@ Future<ProviderContainer> _pumpBar(
       ),
     ),
   );
+  // 种子来自异步解析的 PNG 元数据，先让 FutureProvider 落定
+  await tester.pump();
+  await tester.pump();
   return container;
 }
 
@@ -79,13 +96,28 @@ void main() {
     expect(container.read(generationParamsNotifierProvider).seed, seed);
   });
 
+  testWidgets('生成结果不带 metadata 时从 PNG 字节解析出种子', (tester) async {
+    const seed = 1234567890;
+    await _pumpBar(
+      tester,
+      GeneratedImage(
+        id: 'seed-from-bytes',
+        bytes: _naiPngBytes(seed: seed),
+        width: 832,
+        height: 1216,
+      ),
+    );
+
+    expect(find.text('$seed'), findsOneWidget);
+  });
+
   testWidgets('元数据没有种子时不显示种子胶囊', (tester) async {
     await _pumpBar(tester, _image());
 
     expect(find.byIcon(Icons.eco_outlined), findsNothing);
-    // 分辨率与设置入口仍然在
+    // 分辨率与透明底色入口仍然在
     expect(find.text('832'), findsOneWidget);
-    expect(find.byIcon(Icons.settings_rounded), findsOneWidget);
+    expect(find.byType(TransparencyBackgroundIcon), findsOneWidget);
   });
 
   testWidgets('容器窄到放不下时收起分辨率胶囊', (tester) async {
@@ -93,15 +125,15 @@ void main() {
 
     expect(find.text('832'), findsNothing);
     expect(find.text('1216'), findsNothing);
-    // 设置入口与种子仍然可用
-    expect(find.byIcon(Icons.settings_rounded), findsOneWidget);
+    // 透明底色入口与种子仍然可用
+    expect(find.byType(TransparencyBackgroundIcon), findsOneWidget);
     expect(find.byIcon(Icons.eco_outlined), findsOneWidget);
   });
 
-  testWidgets('齿轮弹出的浮层可切换透明底色档位', (tester) async {
+  testWidgets('棋盘格入口弹出的浮层可切换透明底色档位', (tester) async {
     final container = await _pumpBar(tester, _image(seed: 1));
 
-    await tester.tap(find.byIcon(Icons.settings_rounded));
+    await tester.tap(find.byType(TransparencyBackgroundIcon));
     await tester.pumpAndSettle();
 
     final l10n = await AppLocalizations.delegate.load(const Locale('zh'));
