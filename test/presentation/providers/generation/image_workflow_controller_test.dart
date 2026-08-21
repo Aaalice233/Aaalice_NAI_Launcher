@@ -943,26 +943,74 @@ void main() {
         generationParamsNotifierProvider.notifier,
       );
 
-      paramsNotifier.updateModel(ImageModels.v5StagingKey, persist: false);
+      paramsNotifier.updateModel(
+        ImageModels.animeDiffusionV5Curated,
+        persist: false,
+      );
+      paramsNotifier.setSourceImage(_validImageBytes(width: 768, height: 1024));
+      controller.setSourceImageDimensions(768, 1024);
+      controller.enterEnhanceMode();
+      controller.selectEnhanceMaxScale();
+
+      final params = container.read(generationParamsNotifierProvider);
+      expect(controller.isMaxEnhanceAvailable, isTrue);
+      expect(
+        container.read(imageWorkflowControllerProvider).enhance.maxScale,
+        isTrue,
+      );
+      expect(params.width, 768);
+      expect(params.height, 1024);
+      expect(params.upscaledEnhance, isTrue);
+
+      controller.exitEnhanceMode();
+      expect(
+        container.read(generationParamsNotifierProvider).upscaledEnhance,
+        isFalse,
+      );
+    });
+
+    test('max enhance should re-normalize when the model changes', () {
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      paramsNotifier.updateModel(
+        ImageModels.animeDiffusionV5Curated,
+        persist: false,
+        followDefaults: false,
+      );
       paramsNotifier.setSourceImage(_validImageBytes(width: 768, height: 1024));
       controller.setSourceImageDimensions(768, 1024);
       controller.enterEnhanceMode();
       controller.updateEnhanceUpscaleFactor(1.5);
       controller.selectEnhanceMaxScale();
 
-      final params = container.read(generationParamsNotifierProvider);
-      expect(container.read(imageWorkflowControllerProvider).enhance.maxScale,
-          isTrue);
+      paramsNotifier.updateModel(
+        ImageModels.animeDiffusionV45Full,
+        persist: false,
+        followDefaults: false,
+      );
+
+      var params = container.read(generationParamsNotifierProvider);
+      expect(controller.isMaxEnhanceAvailable, isFalse);
+      expect(params.width, 1152);
+      expect(params.height, 1536);
+      expect(params.upscaledEnhance, isFalse);
+
+      paramsNotifier.updateModel(
+        ImageModels.animeDiffusionV5Curated,
+        persist: false,
+        followDefaults: false,
+      );
+
+      params = container.read(generationParamsNotifierProvider);
+      expect(controller.isMaxEnhanceAvailable, isTrue);
       expect(params.width, 768);
       expect(params.height, 1024);
       expect(params.upscaledEnhance, isTrue);
-
-      // 退出增强模式后一次性开关必须清掉
-      controller.exitEnhanceMode();
-      expect(
-        container.read(generationParamsNotifierProvider).upscaledEnhance,
-        isFalse,
-      );
     });
 
     test('max enhance should be refused on models without the tier', () {

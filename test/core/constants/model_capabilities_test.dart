@@ -100,9 +100,7 @@ void main() {
         ImageModels.animeDiffusionV5Full,
       );
       expect(
-        ModelCapabilityRegistry.of(
-          ImageModels.animeDiffusionV5FullInpainting,
-        ),
+        ModelCapabilityRegistry.of(ImageModels.animeDiffusionV5FullInpainting),
         same(ModelCapabilityRegistry.of(ImageModels.animeDiffusionV5Full)),
       );
     });
@@ -119,7 +117,7 @@ void main() {
       final caps = ModelCapabilityRegistry.of(ImageModels.v5StagingKey);
 
       expect(caps.supportsTransparentBackground, isTrue);
-      // 端到端 ×2 放大正式版未上线；增强 max 档保留。
+      // 正式站关闭端到端 ×2，并保留增强 max 档。
       expect(caps.supportsE2eUpscale, isFalse);
       expect(caps.supportsMaxEnhance, isTrue);
       expect(caps.maxCharacters, 32);

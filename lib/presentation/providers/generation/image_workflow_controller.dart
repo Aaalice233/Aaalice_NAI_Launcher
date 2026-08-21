@@ -502,6 +502,14 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       _isDisposed = true;
       _sourceImageRequestId++;
     });
+    ref.listen<String>(
+      generationParamsNotifierProvider.select((params) => params.model),
+      (previous, next) {
+        if (previous != next && state.mode == ImageWorkflowMode.enhance) {
+          _applyEnhanceToParams();
+        }
+      },
+    );
 
     final persistedScale = _readPersistedUpscaleScale();
     final legacyPersistedModel = _readPersistedStringSetting(

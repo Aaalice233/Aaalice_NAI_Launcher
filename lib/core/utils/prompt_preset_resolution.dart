@@ -7,12 +7,16 @@ class PromptPresetResolution {
     required this.negativePrompt,
     required this.qualityToggle,
     required this.ucPreset,
+    required this.omitQualityTagHint,
+    required this.omitUcPresetTagHint,
   });
 
   final String prompt;
   final String negativePrompt;
   final bool qualityToggle;
   final int ucPreset;
+  final bool omitQualityTagHint;
+  final bool omitUcPresetTagHint;
 }
 
 PromptPresetResolution resolvePromptPresetSettings({
@@ -40,6 +44,8 @@ PromptPresetResolution resolvePromptPresetSettings({
     ucPreset: useCustomUcPreset
         ? UcPresets.noneApiValue
         : UcPresets.toApiValue(ucPresetType),
+    omitQualityTagHint: qualityMode == PromptPresetMode.custom,
+    omitUcPresetTagHint: useCustomUcPreset,
   );
 }
 

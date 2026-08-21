@@ -249,11 +249,11 @@ class ModelCapabilityRegistry {
     supportsVarietyPlus: true,
   );
 
-  /// V5 Curated（正式版，网页端 build 161cb00-production 实测）。
+  /// V5 Curated（正式版，网页端 build 65441ab-production 实测）。
   ///
-  /// Vibe 与角色参考正式版明确不支持；端到端 ×2 放大未上线（能力位 false，
-  /// 请求归一化会删除 `upscale` 块），增强 max 档保留。噪声调度不可选，
-  /// 请求固定发 karras。基础价在现代公式之上乘 1.5，Opus 免费受配额池限制。
+  /// Vibe 与角色参考正式版明确不支持；端到端 ×2 放大未上线，增强 max 档
+  /// 保留。噪声调度不可选，请求固定发 karras。基础价在现代公式之上
+  /// 乘 1.5，Opus 免费受配额池限制。
   static const ModelCapabilities v5Curated = ModelCapabilities(
     id: ImageModels.animeDiffusionV5Curated,
     promptStructure: PromptStructure.v4,
@@ -356,7 +356,7 @@ class ModelSwitchFollowUps {
 /// 计算模型切换后应当跟随的默认参数。
 ///
 /// 只有当前值仍停留在旧模型的出厂默认时才跟随，用户手动调过的参数一律保留——
-/// V5 默认 CFG 是 10 而 V4.5 是 5，不跟随会让用户在没察觉的情况下废图。
+/// V5 默认 CFG 是 7 而 V4.5 是 5，不跟随会让用户在没察觉的情况下废图。
 ModelSwitchFollowUps resolveModelSwitchFollowUps({
   required ModelCapabilities from,
   required ModelCapabilities to,
@@ -364,7 +364,8 @@ ModelSwitchFollowUps resolveModelSwitchFollowUps({
   required int currentSteps,
 }) {
   const scaleTolerance = 0.001;
-  final scaleUntouched = (currentScale - from.defaultScale).abs() < scaleTolerance;
+  final scaleUntouched =
+      (currentScale - from.defaultScale).abs() < scaleTolerance;
   final stepsUntouched = currentSteps == from.defaultSteps;
 
   return ModelSwitchFollowUps(

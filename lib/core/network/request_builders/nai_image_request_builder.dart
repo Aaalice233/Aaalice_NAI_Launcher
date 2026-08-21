@@ -150,8 +150,12 @@ class NAIImageRequestBuilder {
   /// 自定义质量词在进入构造前已并入 prompt（qualityToggle=false），
   /// 此时按 none 上报，与官网“预设未参与解析”的语义一致。
   int? _resolveQualityTagHint() {
-    if (!params.qualityToggle) return 0;
-    return params.qualityTier == QualityTags.lightTier ? 3 : 1;
+    return QualityTags.toTagHint(
+      model: params.model,
+      enabled: params.qualityToggle,
+      tier: params.qualityTier,
+      omit: params.omitQualityTagHint,
+    );
   }
 
   /// 负面预设的官网数字编号。
@@ -160,14 +164,10 @@ class NAIImageRequestBuilder {
   /// （0=heavy 1=light 2=humanFocus 3=none 7=furryFocus），这里换算成
   /// tag hint 的编号体系。
   int? _resolveUcPresetTagHint() {
-    return switch (params.ucPreset) {
-      UcPresets.heavyApiValue => 2,
-      UcPresets.lightApiValue => 3,
-      UcPresets.humanFocusApiValue => 4,
-      UcPresets.noneApiValue => 0,
-      UCPresets.furryFocus => 5,
-      _ => null,
-    };
+    return UcPresets.toTagHint(
+      params.ucPreset,
+      omit: params.omitUcPresetTagHint,
+    );
   }
 
   void buildV4Parameters(
@@ -486,6 +486,15 @@ class NAIImageRequestBuilder {
   }) async {
     if (sampler.isEmpty) {
       throw ArgumentError.value(sampler, 'sampler', 'Sampler cannot be empty');
+    }
+
+    final characterLimit = params.capabilities.maxCharacters;
+    if (characterLimit > 0 && params.characters.length > characterLimit) {
+      throw ArgumentError.value(
+        params.characters.length,
+        'characters',
+        'Model ${params.model} supports at most $characterLimit characters',
+      );
     }
 
     final seed = params.seed == -1 ? Random().nextInt(4294967295) : params.seed;

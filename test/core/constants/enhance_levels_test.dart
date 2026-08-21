@@ -175,7 +175,7 @@ void main() {
       );
       expect(
         E2eUpscale.allowsMaxEnhance(
-          ModelCapabilityRegistry.of(ImageModels.v5StagingKey),
+          ModelCapabilityRegistry.of(ImageModels.animeDiffusionV5Curated),
           sourceWidth: 832,
           sourceHeight: 1216,
         ),
@@ -184,7 +184,9 @@ void main() {
     });
 
     test('should hide the max tier once the source fills the area budget', () {
-      final v5 = ModelCapabilityRegistry.of(ImageModels.v5StagingKey);
+      final v5 = ModelCapabilityRegistry.of(
+        ImageModels.animeDiffusionV5Curated,
+      );
 
       // 1600×1600 = 2560000 已超过 0.8 × 3.14MP 的阈值
       expect(
@@ -198,7 +200,9 @@ void main() {
     });
 
     test('should hide the max tier before the source size is known', () {
-      final v5 = ModelCapabilityRegistry.of(ImageModels.v5StagingKey);
+      final v5 = ModelCapabilityRegistry.of(
+        ImageModels.animeDiffusionV5Curated,
+      );
 
       expect(E2eUpscale.allowsMaxEnhance(v5), isFalse);
       expect(

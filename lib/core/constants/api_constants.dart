@@ -417,6 +417,22 @@ class QualityTags {
     return const [standardTier];
   }
 
+  /// 将当前有效官方质量档位转换为官网的数字提示。
+  ///
+  /// 自定义预设由调用方传入 [omit]，此时官网会省略该字段；显式关闭质量词
+  /// 才发送 0。模型没有 Light 档时按实际生效的 Standard 上报。
+  static int? toTagHint({
+    required String model,
+    required bool enabled,
+    required String tier,
+    bool omit = false,
+  }) {
+    if (omit) return null;
+    if (!enabled) return 0;
+    final supportsLight = tiersForModel(model).contains(lightTier);
+    return supportsLight && tier == lightTier ? 3 : 1;
+  }
+
   /// 获取指定模型的质量标签
   static String? getQualityTags(String model) {
     return modelQualityTags[model];
@@ -648,10 +664,7 @@ class E2eUpscale {
       return (width: width, height: height);
     }
     final scale = math.sqrt(ApiConstants.maxImagePixels / (width * height));
-    return (
-      width: (width * scale).round(),
-      height: (height * scale).round(),
-    );
+    return (width: (width * scale).round(), height: (height * scale).round());
   }
 }
 
@@ -680,6 +693,19 @@ class UcPresets {
       UcPresetType.humanFocus => humanFocusApiValue,
       UcPresetType.none => noneApiValue,
       UcPresetType.furryFocus => UCPresets.furryFocus,
+    };
+  }
+
+  /// 将旧版请求字段的 UC 取值转换为官网的数字提示。
+  static int? toTagHint(int apiValue, {bool omit = false}) {
+    if (omit) return null;
+    return switch (apiValue) {
+      heavyApiValue => 2,
+      lightApiValue => 3,
+      humanFocusApiValue => 4,
+      noneApiValue => 0,
+      UCPresets.furryFocus => 5,
+      _ => null,
     };
   }
 

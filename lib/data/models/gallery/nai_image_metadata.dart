@@ -95,6 +95,9 @@ class NaiImageMetadata with _$NaiImageMetadata {
     /// 质量标签开关
     @HiveField(14) bool? qualityToggle,
 
+    /// 官方质量词档位（Standard / Light）。
+    @HiveField(39) String? qualityTier,
+
     /// 是否为 img2img
     @HiveField(15) @Default(false) bool isImg2Img,
 
@@ -223,6 +226,11 @@ class NaiImageMetadata with _$NaiImageMetadata {
             ? reparsed.vibeReferences
             : base.vibeReferences,
         varietyPlus: base.varietyPlus ?? reparsed.varietyPlus,
+        qualityToggle: base.qualityToggle ?? reparsed.qualityToggle,
+        qualityTier: base.qualityTier ?? reparsed.qualityTier,
+        qualityTags: base.qualityTags.isEmpty
+            ? reparsed.qualityTags
+            : base.qualityTags,
         transparentBackground:
             base.transparentBackground ?? reparsed.transparentBackground,
         preciseReferenceImages: base.preciseReferenceImages.isEmpty
@@ -354,6 +362,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
     final importedQualityToggle =
         _safeGetBool(commentData, 'quality_toggle') ??
         _qualityToggleFromTagHint(commentData);
+    final importedQualityTier = _qualityTierFromComment(commentData);
 
     // 质量开关明确为关时不做质量词推断——带权重的描述词
     // （如 "detailed snow on hair"）会被关键词匹配误判成质量词。
@@ -392,6 +401,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
         cfgRescale: _toDouble(commentData['cfg_rescale']),
         ucPreset: importedUcPreset,
         qualityToggle: importedQualityToggle,
+        qualityTier: importedQualityTier,
         isImg2Img: commentData['image'] != null,
         strength: _toDouble(commentData['strength']),
         noise: _toDouble(commentData['noise']),
@@ -580,6 +590,32 @@ class NaiImageMetadata with _$NaiImageMetadata {
     return null;
   }
 
+  /// 从官网的数字提示恢复具体质量档位。
+  ///
+  /// 正式站使用 1=Standard、3=Light；布尔 true 是旧测试数据，按 Standard
+  /// 兼容。0、null 与 false 表示没有官方质量预设，因此不返回档位。
+  static String? _qualityTierFromComment(Map<String, dynamic> data) {
+    final explicit = _safeGetString(data, 'quality_tier');
+    if (explicit == QualityTags.standardTier ||
+        explicit == QualityTags.lightTier) {
+      return explicit;
+    }
+
+    if (!data.containsKey('tag_hint_qt')) return null;
+    final value = data['tag_hint_qt'];
+    if (value is bool) {
+      return value ? QualityTags.standardTier : null;
+    }
+    if (value is num) {
+      return switch (value.toInt()) {
+        1 => QualityTags.standardTier,
+        3 => QualityTags.lightTier,
+        _ => null,
+      };
+    }
+    return null;
+  }
+
   static bool _rawJsonMayContainUpgradableFields(String raw) {
     final text = raw.toLowerCase();
     const markers = [
@@ -591,6 +627,8 @@ class NaiImageMetadata with _$NaiImageMetadata {
       'varietyplus',
       'skip_cfg_above_sigma',
       'tag_hint_transparent_background',
+      'tag_hint_qt',
+      'quality_tier',
       'v4_prompt',
       'char_captions',
     ];
@@ -1366,6 +1404,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
       fixedNegativePrefixTags.isNotEmpty ||
       fixedNegativeSuffixTags.isNotEmpty ||
       qualityTags.isNotEmpty ||
+      transparentBackground == true ||
       characterInfos.isNotEmpty ||
       vibeReferences.isNotEmpty ||
       preciseReferenceImages.isNotEmpty;
@@ -1429,6 +1468,15 @@ class NaiImageMetadata with _$NaiImageMetadata {
 
     if (startIndex < endIndex) {
       mainTags.addAll(allTags.sublist(startIndex, endIndex));
+    }
+
+    // 官网把透明背景词包装进质量预设。只剥离主提示词末尾的自动词，避免
+    // 删除用户在正文其他位置主动写入的同名描述。
+    if (transparentBackground == true &&
+        mainTags.isNotEmpty &&
+        mainTags.last.toLowerCase() ==
+            QualityTags.transparentBackgroundTag.toLowerCase()) {
+      mainTags.removeLast();
     }
 
     return mainTags.join(', ');

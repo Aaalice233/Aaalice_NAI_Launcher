@@ -127,6 +127,31 @@ void main() {
       expect(() => builder.build(sampler: ''), throwsA(isA<ArgumentError>()));
     });
 
+    test('should reject character counts above the model limit', () async {
+      final params = ImageParams(
+        model: ImageModels.animeDiffusionV45Full,
+        characters: List<CharacterPrompt>.generate(
+          7,
+          (index) => CharacterPrompt(prompt: 'character $index'),
+        ),
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      await expectLater(
+        builder.build(sampler: 'k_euler'),
+        throwsA(
+          isA<ArgumentError>().having(
+            (error) => error.message,
+            'message',
+            contains('at most 6 characters'),
+          ),
+        ),
+      );
+    });
+
     test(
       'should keep explicit centers and give all six characters a fallback',
       () async {
@@ -1261,10 +1286,9 @@ void main() {
     });
 
     test('should drop the e2e upscale block on production V5', () async {
-      // 端到端 ×2 放大是测试期功能，正式版能力位为 false，即使存量开关
-      // 仍是开启状态也不能把 upscale 块发出去。
+      // 正式版能力位为 false，即使存量开关仍是开启状态也不能发送。
       const params = ImageParams(
-        model: ImageModels.v5StagingKey,
+        model: ImageModels.animeDiffusionV5Curated,
         e2eUpscale: true,
       );
       final builder = NAIImageRequestBuilder(
@@ -1337,7 +1361,7 @@ void main() {
 
     test('should send upscaled_enhance only where supported', () async {
       const v5 = ImageParams(
-        model: ImageModels.v5StagingKey,
+        model: ImageModels.animeDiffusionV5Curated,
         upscaledEnhance: true,
       );
       const v45 = ImageParams(
@@ -1410,11 +1434,10 @@ void main() {
       );
     });
 
-    test('should skip the enhance tag on the max tier', () async {
-      // 官网 max 档本身就是重新放大，不再压 upscaled。
+    test('should skip the enhance prompt tag for max requests', () async {
       final params = ImageParams(
         prompt: '1girl',
-        model: ImageModels.v5StagingKey,
+        model: ImageModels.animeDiffusionV5Curated,
         qualityToggle: false,
         ucPreset: UcPresets.noneApiValue,
         action: ImageGenerationAction.img2img,
@@ -1430,6 +1453,7 @@ void main() {
       final result = await builder.build(sampler: 'k_euler_ancestral');
 
       expect(result.requestData['input'], '1girl');
+      expect(result.requestParameters['upscaled_enhance'], isTrue);
     });
 
     test('should skip the enhance tag on models without it', () async {
@@ -1502,6 +1526,27 @@ void main() {
         ),
       );
       expect(furry['tag_hint_uc_preset'], 5);
+
+      final custom = await paramsFor(
+        const ImageParams(
+          model: ImageModels.animeDiffusionV5Curated,
+          qualityToggle: false,
+          ucPreset: UcPresets.noneApiValue,
+          omitQualityTagHint: true,
+          omitUcPresetTagHint: true,
+        ),
+      );
+      expect(custom.containsKey('tag_hint_qt'), isFalse);
+      expect(custom.containsKey('tag_hint_uc_preset'), isFalse);
+
+      final v45Fallback = await paramsFor(
+        const ImageParams(
+          model: ImageModels.animeDiffusionV45Full,
+          qualityToggle: true,
+          qualityTier: QualityTags.lightTier,
+        ),
+      );
+      expect(v45Fallback['tag_hint_qt'], 1);
     });
 
     test('should apply the V5 light quality tier to the prompt', () async {

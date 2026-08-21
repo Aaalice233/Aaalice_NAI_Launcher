@@ -195,13 +195,14 @@ void main() {
       },
     );
 
-    test('V5 metadata should extract the registered quality-tag suffix', () {
+    test('V5 metadata should restore the Light tier and transparent suffix', () {
       const prompt =
-          '1girl, transparent background, very aesthetic, masterpiece, no text';
+          '1girl, transparent background, very aesthetic, amazing quality, no text';
       final metadata = NaiImageMetadata.fromNaiComment({
         'Comment': jsonEncode({
           'prompt': prompt,
-          'tag_hint_qt': true,
+          'tag_hint_qt': 3,
+          'tag_hint_transparent_background': true,
           'v4_prompt': {
             'caption': {'base_caption': prompt, 'char_captions': []},
           },
@@ -211,11 +212,50 @@ void main() {
       });
 
       expect(metadata.qualityToggle, isTrue);
+      expect(metadata.qualityTier, QualityTags.lightTier);
+      expect(metadata.transparentBackground, isTrue);
       expect(
         metadata.qualityTags,
-        equals(['very aesthetic', 'masterpiece', 'no text']),
+        equals(['very aesthetic', 'amazing quality', 'no text']),
       );
-      expect(metadata.mainPrompt, '1girl, transparent background');
+      expect(metadata.mainPrompt, '1girl');
+
+      final applied = <String, Object?>{};
+      final count = MetadataImportApplier.applyPromptAndGenerationParams(
+        metadata: metadata,
+        options: const MetadataImportOptions(
+          importPrompt: true,
+          importQualityToggle: true,
+          importTransparentBackground: true,
+        ),
+        currentModel: ImageModels.animeDiffusionV5Curated,
+        target: MetadataImportTarget(
+          updatePrompt: (value) => applied['prompt'] = value,
+          updateNegativePrompt: (_) {},
+          updateSeed: (_) {},
+          updateSteps: (_) {},
+          updateScale: (_) {},
+          updateSize: (_, __) {},
+          updateSampler: (_) {},
+          updateModel: (_) {},
+          updateSmea: (_) {},
+          updateSmeaDyn: (_) {},
+          updateVarietyPlus: (_) {},
+          updateNoiseSchedule: (_) {},
+          updateCfgRescale: (_) {},
+          updateQualityToggle: (value) => applied['qualityToggle'] = value,
+          updateQualityTier: (value) => applied['qualityTier'] = value,
+          updateUcPreset: (_) {},
+          updateTransparentBackground: (value) =>
+              applied['transparentBackground'] = value,
+        ),
+      );
+
+      expect(count, 3);
+      expect(applied['prompt'], '1girl');
+      expect(applied['qualityToggle'], isTrue);
+      expect(applied['qualityTier'], QualityTags.lightTier);
+      expect(applied['transparentBackground'], isTrue);
     });
 
     test(
@@ -276,7 +316,7 @@ void main() {
           updateCfgRescale: (_) {},
           updateQualityToggle: (_) {},
           updateUcPreset: (_) {},
-        updateTransparentBackground: (_) {},
+          updateTransparentBackground: (_) {},
         ),
       );
 
@@ -520,6 +560,31 @@ void main() {
         'cached-encoded-vibe',
       );
       expect(upgraded.varietyPlus, isTrue);
+    });
+
+    test('cached rawJson metadata should upgrade the V5 Light preset', () {
+      const prompt = '1girl, very aesthetic, amazing quality, no text';
+      final rawJson = jsonEncode({
+        'prompt': prompt,
+        'uc': '',
+        'tag_hint_qt': 3,
+      });
+      final stale = NaiImageMetadata(
+        prompt: prompt,
+        rawJson: rawJson,
+        software: 'NovelAI',
+        source: 'NovelAI Diffusion V5 DB276663',
+      );
+
+      final upgraded = stale.upgradeFromRawJsonIfNeeded();
+
+      expect(upgraded.qualityToggle, isTrue);
+      expect(upgraded.qualityTier, QualityTags.lightTier);
+      expect(
+        upgraded.qualityTags,
+        equals(['very aesthetic', 'amazing quality', 'no text']),
+      );
+      expect(upgraded.mainPrompt, '1girl');
     });
 
     test('cached rawJson metadata should upgrade V4 character prompts', () {
@@ -912,12 +977,13 @@ void main() {
   });
   test('parses and re-applies the transparent background hint', () {
     final metadata = NaiImageMetadata.fromNaiComment(const {
-      'prompt': '1girl',
+      'prompt': '1girl, transparent background',
       'uc': '',
       'tag_hint_transparent_background': true,
     });
 
     expect(metadata.transparentBackground, isTrue);
+    expect(metadata.mainPrompt, '1girl');
 
     bool? applied;
     final count = MetadataImportApplier.applyPromptAndGenerationParams(
@@ -947,5 +1013,4 @@ void main() {
     expect(applied, isTrue);
     expect(count, greaterThan(0));
   });
-
 }

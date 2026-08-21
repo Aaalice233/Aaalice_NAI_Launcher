@@ -7,6 +7,7 @@ import '../../l10n/app_localizations.dart';
 import '../providers/character_prompt_provider.dart';
 import '../providers/fixed_tags_provider.dart';
 import '../providers/image_generation_provider.dart';
+import '../providers/quality_preset_provider.dart';
 import 'metadata_import_applier.dart';
 import 'prompt_preset_import_utils.dart';
 
@@ -49,6 +50,9 @@ class MetadataImportCoordinator {
         updateQualityToggle: (value) {
           notifier.updateQualityToggle(value);
           applyImportedQualityToggle(read, value);
+        },
+        updateQualityTier: (value) {
+          read(qualityPresetNotifierProvider.notifier).setNaiTier(value);
         },
         updateUcPreset: (value) {
           notifier.updateUcPreset(value);

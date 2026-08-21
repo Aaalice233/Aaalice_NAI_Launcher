@@ -117,5 +117,52 @@ void main() {
         6,
       );
     });
+
+    test('truncates bulk imports to the active model limit', () {
+      final notifier = container.read(characterPromptNotifierProvider.notifier);
+      container
+          .read(generationParamsNotifierProvider.notifier)
+          .updateModel(
+            ImageModels.animeDiffusionV45Full,
+            persist: false,
+            followDefaults: false,
+          );
+      final imported = List<CharacterPrompt>.generate(
+        8,
+        (index) => CharacterPrompt(
+          id: 'character-$index',
+          name: 'Character $index',
+          prompt: 'character $index',
+        ),
+      );
+
+      notifier.replaceAll(imported);
+
+      final stored = container.read(characterPromptNotifierProvider);
+      expect(stored.characters, hasLength(6));
+      expect(stored.characters.last.id, 'character-5');
+    });
+
+    test('limits V5 character state for V4.5 without mutating the source', () {
+      final v5Config = CharacterPromptConfig(
+        characters: List<CharacterPrompt>.generate(
+          32,
+          (index) => CharacterPrompt(
+            id: 'character-$index',
+            name: 'Character $index',
+            prompt: 'character $index',
+          ),
+        ),
+      );
+
+      final limited = limitCharacterConfigForModel(
+        v5Config,
+        ImageModels.animeDiffusionV45Curated,
+      );
+
+      expect(v5Config.characters, hasLength(32));
+      expect(limited.characters, hasLength(6));
+      expect(limited.characters.last.id, 'character-5');
+    });
   });
 }

@@ -143,6 +143,16 @@ class ImageParams with _$ImageParams {
     /// 官方质量词档位 (standard/light，light 仅 V5 提供)
     @Default(QualityTags.standardTier) String qualityTier,
 
+    /// 自定义质量词没有官网预设 ID，请求中应省略 `tag_hint_qt`。
+    @Default(false)
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    bool omitQualityTagHint,
+
+    /// 自定义负面预设没有官网预设 ID，请求中应省略 `tag_hint_uc_preset`。
+    @Default(false)
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    bool omitUcPresetTagHint,
+
     /// 添加原始图像
     @Default(true) bool addOriginalImage,
 

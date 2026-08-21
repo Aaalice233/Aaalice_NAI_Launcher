@@ -11,6 +11,17 @@ import 'generation/generation_params_notifier.dart';
 
 part 'character_prompt_provider.g.dart';
 
+CharacterPromptConfig limitCharacterConfigForModel(
+  CharacterPromptConfig config,
+  String model,
+) {
+  final limit = ModelCapabilityRegistry.of(model).maxCharacters;
+  final limited = limit > 0 && config.characters.length > limit
+      ? config.copyWith(characters: config.characters.take(limit).toList())
+      : config;
+  return limited.normalizeCustomPositions();
+}
+
 /// 多角色提示词状态管理 Provider
 ///
 /// 管理多角色提示词配置，包括添加、删除、更新、重排序等操作。
@@ -145,10 +156,19 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
   ///
   /// 用于随机生成时一次性设置所有角色
   void replaceAll(List<CharacterPrompt> characters) {
-    state = CharacterPromptConfig(
+    final requested = CharacterPromptConfig(
       characters: characters,
       globalAiChoice: state.globalAiChoice,
-    ).normalizeCustomPositions();
+    );
+    final model = ref.read(generationParamsNotifierProvider).model;
+    state = limitCharacterConfigForModel(requested, model);
+    if (state.characters.length != characters.length) {
+      AppLogger.w(
+        'Character import truncated from ${characters.length} to '
+            '${state.characters.length} for $model',
+        'CharacterPrompt',
+      );
+    }
     _saveConfig();
   }
 

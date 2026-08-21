@@ -417,7 +417,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     return NaiImageMetadata.fromNaiComment({
       'Comment': rawJson,
       'Software': 'NovelAI',
-      'Source': _modelSourceName(metadataParams.model),
+      'Source': ImageSaveUtils.getModelSourceName(metadataParams.model),
     }, rawJson: rawJson);
   }
 
@@ -449,34 +449,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     }
 
     return (charCaptions, charNegCaptions);
-  }
-
-  String _modelSourceName(String model) {
-    if (model.contains('diffusion-4-5')) {
-      if (model.contains('curated')) {
-        return 'NovelAI Diffusion V4.5 Curated';
-      }
-      return 'NovelAI Diffusion V4.5 Full';
-    }
-    if (model.contains('diffusion-4')) {
-      if (model.contains('curated')) {
-        return 'NovelAI Diffusion V4 Curated';
-      }
-      return 'NovelAI Diffusion V4 Full';
-    }
-    if (model.contains('furry') && model.contains('-3')) {
-      return 'NovelAI Furry Diffusion V3';
-    }
-    if (model.contains('diffusion-3')) {
-      return 'NovelAI Diffusion V3';
-    }
-    if (model.contains('diffusion-2')) {
-      return 'NovelAI Diffusion V2';
-    }
-    if (model.contains('furry')) {
-      return 'NovelAI Furry Diffusion';
-    }
-    return 'NovelAI';
   }
 
   Future<ImageParams> _prepareVibesForGeneration(ImageParams params) async {
@@ -573,7 +545,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         );
         // 重新读取角色配置（已被 generateAndApplyRandomPrompt 更新）
         final characterConfig = ref.read(characterPromptNotifierProvider);
-        final apiCharacters = _convertCharactersToApiFormat(characterConfig);
+        final apiCharacters = _convertCharactersToApiFormat(
+          characterConfig,
+          model: effectiveParams.model,
+        );
         effectiveParams = params.copyWith(
           prompt: randomPrompt,
           characters: apiCharacters,
@@ -643,12 +618,17 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
     // 读取多角色提示词配置并转换为 API 格式
     final characterConfig = ref.read(characterPromptNotifierProvider);
-    final apiCharacters = _convertCharactersToApiFormat(characterConfig);
+    final apiCharacters = _convertCharactersToApiFormat(
+      characterConfig,
+      model: effectiveParams.model,
+    );
 
     // NAI 官方预设保持为 API 开关；自定义预设展开成显式提示词，避免官方预设重复生效。
     final ImageParams baseParams = effectiveParams.copyWith(
       qualityToggle: presetResolution.qualityToggle,
       ucPreset: presetResolution.ucPreset,
+      omitQualityTagHint: presetResolution.omitQualityTagHint,
+      omitUcPresetTagHint: presetResolution.omitUcPresetTagHint,
       characters: apiCharacters,
       // 如果有角色且使用自定义位置，启用坐标模式
       useCoords: apiCharacters.isNotEmpty && !characterConfig.globalAiChoice,
@@ -716,6 +696,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           final newCharacterConfig = ref.read(characterPromptNotifierProvider);
           final newApiCharacters = _convertCharactersToApiFormat(
             newCharacterConfig,
+            model: currentParams.model,
           );
           currentParams = currentParams.copyWith(
             prompt: preparedPrompt,
@@ -1987,12 +1968,21 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   ///
   /// 注意：此方法会统一解析角色提示词中的别名
   List<CharacterPrompt> _convertCharactersToApiFormat(
-    ui_character.CharacterPromptConfig config,
-  ) {
+    ui_character.CharacterPromptConfig config, {
+    required String model,
+  }) {
+    final limitedConfig = limitCharacterConfigForModel(config, model);
+    if (limitedConfig.characters.length != config.characters.length) {
+      AppLogger.w(
+        'Character request truncated from ${config.characters.length} to '
+            '${limitedConfig.characters.length} for $model',
+        'CharacterPrompt',
+      );
+    }
     final aliasResolver = ref.read(aliasResolverServiceProvider.notifier);
     return CharacterConversionService(
       aliasResolver: aliasResolver.resolveAliases,
-    ).convert(config).characters;
+    ).convert(limitedConfig).characters;
   }
 
   /// 统一随机提示词生成并应用方法
