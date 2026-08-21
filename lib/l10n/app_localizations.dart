@@ -1594,6 +1594,90 @@ abstract class AppLocalizations {
   /// **'Seed'**
   String get generation_seed;
 
+  /// No description provided for @generation_previewDisplaySettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Display Settings'**
+  String get generation_previewDisplaySettings;
+
+  /// No description provided for @generation_previewApplySeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the seed of the displayed image'**
+  String get generation_previewApplySeed;
+
+  /// No description provided for @generation_transparencyBackgroundTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Transparency Background'**
+  String get generation_transparencyBackgroundTitle;
+
+  /// No description provided for @generation_transparencyChecker.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme Checkerboard'**
+  String get generation_transparencyChecker;
+
+  /// No description provided for @generation_transparencyCheckerLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light Checkerboard'**
+  String get generation_transparencyCheckerLight;
+
+  /// No description provided for @generation_transparencyCheckerDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark Checkerboard'**
+  String get generation_transparencyCheckerDark;
+
+  /// No description provided for @generation_transparencyNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get generation_transparencyNone;
+
+  /// No description provided for @generation_transparencyBlack.
+  ///
+  /// In en, this message translates to:
+  /// **'Black'**
+  String get generation_transparencyBlack;
+
+  /// No description provided for @generation_transparencyWhite.
+  ///
+  /// In en, this message translates to:
+  /// **'White'**
+  String get generation_transparencyWhite;
+
+  /// No description provided for @generation_transparencyGray.
+  ///
+  /// In en, this message translates to:
+  /// **'Gray'**
+  String get generation_transparencyGray;
+
+  /// No description provided for @generation_transparencyRed.
+  ///
+  /// In en, this message translates to:
+  /// **'Red'**
+  String get generation_transparencyRed;
+
+  /// No description provided for @generation_transparencyGreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Green'**
+  String get generation_transparencyGreen;
+
+  /// No description provided for @generation_transparencyBlue.
+  ///
+  /// In en, this message translates to:
+  /// **'Blue'**
+  String get generation_transparencyBlue;
+
+  /// No description provided for @generation_transparencyCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Color'**
+  String get generation_transparencyCustom;
+
   /// No description provided for @generation_seedRandom.
   ///
   /// In en, this message translates to:

@@ -807,6 +807,48 @@ class AppLocalizationsJa extends AppLocalizations {
   String get generation_seed => 'シード';
 
   @override
+  String get generation_previewDisplaySettings => '表示設定';
+
+  @override
+  String get generation_previewApplySeed => '表示中の画像のシードを使う';
+
+  @override
+  String get generation_transparencyBackgroundTitle => '透過部分の表示';
+
+  @override
+  String get generation_transparencyChecker => 'テーマに合わせたチェック模様';
+
+  @override
+  String get generation_transparencyCheckerLight => '明るいチェック模様';
+
+  @override
+  String get generation_transparencyCheckerDark => '暗いチェック模様';
+
+  @override
+  String get generation_transparencyNone => 'なし';
+
+  @override
+  String get generation_transparencyBlack => '黒';
+
+  @override
+  String get generation_transparencyWhite => '白';
+
+  @override
+  String get generation_transparencyGray => 'グレー';
+
+  @override
+  String get generation_transparencyRed => '赤';
+
+  @override
+  String get generation_transparencyGreen => '緑';
+
+  @override
+  String get generation_transparencyBlue => '青';
+
+  @override
+  String get generation_transparencyCustom => 'カスタムカラー';
+
+  @override
   String get generation_seedRandom => 'ランダム';
 
   @override

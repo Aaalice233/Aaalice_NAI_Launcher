@@ -796,6 +796,48 @@ class AppLocalizationsZh extends AppLocalizations {
   String get generation_seed => '种子';
 
   @override
+  String get generation_previewDisplaySettings => '显示设置';
+
+  @override
+  String get generation_previewApplySeed => '使用当前图片的种子';
+
+  @override
+  String get generation_transparencyBackgroundTitle => '透明部分显示';
+
+  @override
+  String get generation_transparencyChecker => '跟随主题棋盘格';
+
+  @override
+  String get generation_transparencyCheckerLight => '浅色棋盘格';
+
+  @override
+  String get generation_transparencyCheckerDark => '深色棋盘格';
+
+  @override
+  String get generation_transparencyNone => '无';
+
+  @override
+  String get generation_transparencyBlack => '黑色';
+
+  @override
+  String get generation_transparencyWhite => '白色';
+
+  @override
+  String get generation_transparencyGray => '灰色';
+
+  @override
+  String get generation_transparencyRed => '红色';
+
+  @override
+  String get generation_transparencyGreen => '绿色';
+
+  @override
+  String get generation_transparencyBlue => '蓝色';
+
+  @override
+  String get generation_transparencyCustom => '自定义颜色';
+
+  @override
   String get generation_seedRandom => '随机';
 
   @override

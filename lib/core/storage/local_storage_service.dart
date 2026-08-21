@@ -768,6 +768,19 @@ class LocalStorageService {
     await setSetting(StorageKeys.historyClickBehavior, behavior);
   }
 
+  /// 获取预览区透明底色样式
+  ///
+  /// 未设置时返回 null，默认值与合法性由 `TransparencyBackgrounds` 归一化，
+  /// 避免在 core 层重复定义样式表。
+  String? getPreviewTransparencyBackground() {
+    return getSetting<String>(StorageKeys.previewTransparencyBackground);
+  }
+
+  /// 保存预览区透明底色样式
+  Future<void> setPreviewTransparencyBackground(String style) async {
+    await setSetting(StorageKeys.previewTransparencyBackground, style);
+  }
+
   /// 获取官网式布局左栏宽度 (默认400)
   double getWebLeftPanelWidth() {
     return getSetting<double>(

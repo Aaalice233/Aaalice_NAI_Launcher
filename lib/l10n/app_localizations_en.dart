@@ -819,6 +819,50 @@ class AppLocalizationsEn extends AppLocalizations {
   String get generation_seed => 'Seed';
 
   @override
+  String get generation_previewDisplaySettings => 'Display Settings';
+
+  @override
+  String get generation_previewApplySeed =>
+      'Use the seed of the displayed image';
+
+  @override
+  String get generation_transparencyBackgroundTitle =>
+      'Transparency Background';
+
+  @override
+  String get generation_transparencyChecker => 'Theme Checkerboard';
+
+  @override
+  String get generation_transparencyCheckerLight => 'Light Checkerboard';
+
+  @override
+  String get generation_transparencyCheckerDark => 'Dark Checkerboard';
+
+  @override
+  String get generation_transparencyNone => 'None';
+
+  @override
+  String get generation_transparencyBlack => 'Black';
+
+  @override
+  String get generation_transparencyWhite => 'White';
+
+  @override
+  String get generation_transparencyGray => 'Gray';
+
+  @override
+  String get generation_transparencyRed => 'Red';
+
+  @override
+  String get generation_transparencyGreen => 'Green';
+
+  @override
+  String get generation_transparencyBlue => 'Blue';
+
+  @override
+  String get generation_transparencyCustom => 'Custom Color';
+
+  @override
   String get generation_seedRandom => 'Random';
 
   @override
