@@ -36,6 +36,25 @@ class _WidePreviewImageGenerationNotifier extends ImageGenerationNotifier {
   }
 }
 
+class _PortraitPreviewImageGenerationNotifier extends ImageGenerationNotifier {
+  @override
+  ImageGenerationState build() {
+    return ImageGenerationState(
+      displayImages: [
+        GeneratedImage(
+          id: 'portrait-preview',
+          bytes: base64Decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0l'
+            'EQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+          ),
+          width: 832,
+          height: 1216,
+        ),
+      ],
+    );
+  }
+}
+
 class _MemoryCharacterPromptRepository extends CharacterPromptRepository {
   CharacterPromptConfig config = const CharacterPromptConfig();
 
@@ -216,6 +235,24 @@ void main() {
       );
     }
 
+    Widget buildPortraitPreviewTestApp() {
+      return ProviderScope(
+        overrides: [
+          characterPromptRepositoryProvider.overrideWith(
+            (ref) => _MemoryCharacterPromptRepository(),
+          ),
+          imageGenerationNotifierProvider.overrideWith(
+            _PortraitPreviewImageGenerationNotifier.new,
+          ),
+        ],
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: CharacterPositionCanvasView()),
+        ),
+      );
+    }
+
     test('replaceAll 和重新启用会在自定义模式补齐全部坐标', () async {
       final container = ProviderContainer(
         overrides: [
@@ -301,6 +338,9 @@ void main() {
       final container = ProviderScope.containerOf(
         tester.element(find.byType(CharacterPositionCanvasView)),
       );
+      container
+          .read(generationParamsNotifierProvider.notifier)
+          .updateSize(1000, 10, persist: false);
       final notifier = container.read(characterPromptNotifierProvider.notifier);
       notifier.addCharacter(CharacterGender.female, name: 'Alice');
       notifier.setGlobalAiChoice(false);
@@ -333,6 +373,22 @@ void main() {
             .customPosition,
         isNotNull,
       );
+    });
+
+    testWidgets('已有纵向预览图时切换横向分辨率会更新画布宽高比', (tester) async {
+      await tester.pumpWidget(buildPortraitPreviewTestApp());
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(CharacterPositionCanvasView)),
+      );
+
+      container
+          .read(generationParamsNotifierProvider.notifier)
+          .updateSize(1216, 832, persist: false);
+      await tester.pump();
+
+      final canvas = tester.widget<AspectRatio>(find.byType(AspectRatio));
+      expect(canvas.aspectRatio, closeTo(1216 / 832, 0.0001));
+      expect(find.byType(DecodedMemoryImage), findsOneWidget);
     });
   });
 }
