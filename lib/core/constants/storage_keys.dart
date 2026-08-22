@@ -287,6 +287,8 @@ class StorageKeys {
       'online_gallery_blacklist_last_sync_error';
   static const String onlineGalleryPromptTagCategories =
       'online_gallery_prompt_tag_categories';
+  static const String onlineGalleryOutputFilterTags =
+      'online_gallery_output_filter_tags';
 
   // ComfyUI 设置
   static const String comfyuiEnabled = 'comfyui_enabled';

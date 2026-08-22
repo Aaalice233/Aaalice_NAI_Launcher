@@ -853,14 +853,17 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                       ? context.l10n.localGallery_copyPrompt
                                       : context.l10n.onlineGallery_copyTags),
                               onPressed: () async {
-                                final prompt =
-                                    widget.copyTextOverride
-                                            ?.trim()
-                                            .isNotEmpty ==
-                                        true
-                                    ? widget.copyTextOverride!.trim()
-                                    : _promptForAction();
+                                final prompt = widget.copyTextOverride == null
+                                    ? _promptForAction()
+                                    : widget.copyTextOverride!.trim();
                                 if (prompt == null) return;
+                                if (prompt.isEmpty) {
+                                  AppToast.info(
+                                    context,
+                                    context.l10n.onlineGallery_noTagInfo,
+                                  );
+                                  return;
+                                }
                                 try {
                                   await Clipboard.setData(
                                     ClipboardData(text: prompt),

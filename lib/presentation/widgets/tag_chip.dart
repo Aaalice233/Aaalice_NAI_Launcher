@@ -11,18 +11,24 @@ class SimpleTagChip extends ConsumerStatefulWidget {
   final String tag;
   final Color? color;
   final VoidCallback? onTap;
+  final GestureTapDownCallback? onSecondaryTapDown;
   final String? translation;
   final bool autoTranslate;
   final int? category;
+  final bool isOutputFiltered;
+  final String? tooltip;
 
   const SimpleTagChip({
     super.key,
     required this.tag,
     this.color,
     this.onTap,
+    this.onSecondaryTapDown,
     this.translation,
     this.autoTranslate = true,
     this.category,
+    this.isOutputFiltered = false,
+    this.tooltip,
   });
 
   @override
@@ -69,22 +75,28 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
             ? TagColors.fromCategory(widget.category!)
             : theme.colorScheme.primary);
     final translationText = widget.translation ?? _autoTranslation;
+    final stateColor = widget.isOutputFiltered
+        ? theme.colorScheme.error
+        : chipColor;
 
-    return MouseRegion(
+    final chip = MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
       child: GestureDetector(
         onTap: widget.onTap,
+        onSecondaryTapDown: widget.onSecondaryTapDown,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: _isHovering
-                ? chipColor.withValues(alpha: 0.3)
-                : chipColor.withValues(alpha: 0.1),
+                ? stateColor.withValues(alpha: 0.22)
+                : stateColor.withValues(
+                    alpha: widget.isOutputFiltered ? 0.08 : 0.1,
+                  ),
             borderRadius: BorderRadius.circular(4),
             border: Border.all(
-              color: chipColor.withValues(alpha: _isHovering ? 0.8 : 0.3),
+              color: stateColor.withValues(alpha: _isHovering ? 0.8 : 0.35),
             ),
           ),
           child: Row(
@@ -95,13 +107,24 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
                   displayText,
                   style: TextStyle(
                     fontSize: 11,
-                    color: chipColor,
+                    color: stateColor,
                     fontWeight: FontWeight.w500,
+                    decoration: widget.isOutputFiltered
+                        ? TextDecoration.lineThrough
+                        : null,
                   ),
                   overflow: TextOverflow.ellipsis,
                   softWrap: false,
                 ),
               ),
+              if (widget.isOutputFiltered) ...[
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.filter_alt_off_outlined,
+                  size: 12,
+                  color: theme.colorScheme.error,
+                ),
+              ],
               if (translationText != null) ...[
                 const SizedBox(width: 4),
                 Flexible(
@@ -121,6 +144,9 @@ class _SimpleTagChipState extends ConsumerState<SimpleTagChip> {
         ),
       ),
     );
+    return widget.tooltip == null
+        ? chip
+        : Tooltip(message: widget.tooltip!, child: chip);
   }
 }
 

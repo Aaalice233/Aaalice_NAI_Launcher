@@ -2596,6 +2596,73 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_blacklistTags => '黑名单标签';
 
   @override
+  String get onlineGallery_outputFilter => '输出过滤';
+
+  @override
+  String get onlineGallery_outputFilterTooltip => '管理复制、发送和加入队列时自动剔除的标签';
+
+  @override
+  String get onlineGallery_outputFilterTitle => '输出过滤标签';
+
+  @override
+  String get onlineGallery_outputFilterSubtitle =>
+      '图片仍会正常显示；这些标签只会从复制、发送和队列提示词中精确剔除。';
+
+  @override
+  String get onlineGallery_outputFilterAddHint => '添加需要从输出中剔除的标签';
+
+  @override
+  String get onlineGallery_outputFilterInputHint => '支持逗号、中文逗号、顿号或换行分隔';
+
+  @override
+  String get onlineGallery_outputFilterEmpty => '暂未设置输出过滤标签';
+
+  @override
+  String get onlineGallery_outputFilterRestoreDefaults => '恢复默认过滤词';
+
+  @override
+  String get onlineGallery_outputFilterClearTitle => '清空输出过滤？';
+
+  @override
+  String get onlineGallery_outputFilterClearConfirm =>
+      '清空后，水印和马赛克等标签也会重新出现在复制与发送的提示词中。';
+
+  @override
+  String get onlineGallery_addTagToOutputFilter => '加入输出过滤';
+
+  @override
+  String get onlineGallery_outputFilterAlreadyAdded => '已在输出过滤中';
+
+  @override
+  String get onlineGallery_outputFilterMenuHint => '保留图片，只从输出提示词中剔除此标签';
+
+  @override
+  String get onlineGallery_addTagToBlacklist => '加入黑名单';
+
+  @override
+  String get onlineGallery_blacklistAlreadyAdded => '已在黑名单中';
+
+  @override
+  String get onlineGallery_blacklistMenuHint => '隐藏包含此标签的画廊图片';
+
+  @override
+  String get onlineGallery_outputFilteredTagTooltip =>
+      '此标签会在复制、发送和加入队列时被剔除；右键可管理';
+
+  @override
+  String get onlineGallery_tagContextMenuTooltip => '右键可加入黑名单或输出过滤';
+
+  @override
+  String onlineGallery_outputFilterTagAdded(Object tag) {
+    return '已将 $tag 加入输出过滤';
+  }
+
+  @override
+  String onlineGallery_blacklistTagAdded(Object tag) {
+    return '已将 $tag 加入黑名单';
+  }
+
+  @override
   String get onlineGallery_blacklistTitle => '在线画廊黑名单';
 
   @override

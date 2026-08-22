@@ -1222,6 +1222,36 @@
   "onlineGallery_fuzzySearch": "Fuzzy Match",
   "onlineGallery_fuzzySearchTooltip": "Use *tag* matching for related tags when enabled; search exact Danbooru tags when disabled",
   "onlineGallery_blacklistTags": "Blacklist Tags",
+  "onlineGallery_outputFilter": "Output Filter",
+  "onlineGallery_outputFilterTooltip": "Manage tags removed automatically when copying, sending, or adding to the queue",
+  "onlineGallery_outputFilterTitle": "Output filter tags",
+  "onlineGallery_outputFilterSubtitle": "Images remain visible. Exact matching tags are removed only from copied, sent, and queued prompts.",
+  "onlineGallery_outputFilterAddHint": "Add a tag to remove from output",
+  "onlineGallery_outputFilterInputHint": "Separate multiple tags with commas or line breaks",
+  "onlineGallery_outputFilterEmpty": "No output filter tags configured",
+  "onlineGallery_outputFilterRestoreDefaults": "Restore defaults",
+  "onlineGallery_outputFilterClearTitle": "Clear the output filter?",
+  "onlineGallery_outputFilterClearConfirm": "Watermark and mosaic tags will appear in copied and sent prompts again.",
+  "onlineGallery_addTagToOutputFilter": "Add to output filter",
+  "onlineGallery_outputFilterAlreadyAdded": "Already in output filter",
+  "onlineGallery_outputFilterMenuHint": "Keep the image visible and remove only this output tag",
+  "onlineGallery_addTagToBlacklist": "Add to blacklist",
+  "onlineGallery_blacklistAlreadyAdded": "Already in blacklist",
+  "onlineGallery_blacklistMenuHint": "Hide gallery images containing this tag",
+  "onlineGallery_outputFilteredTagTooltip": "Removed when copying, sending, or adding to queue; right-click to manage",
+  "onlineGallery_tagContextMenuTooltip": "Right-click to add to the blacklist or output filter",
+  "onlineGallery_outputFilterTagAdded": "Added {tag} to the output filter",
+  "@onlineGallery_outputFilterTagAdded": {
+    "placeholders": {
+      "tag": {}
+    }
+  },
+  "onlineGallery_blacklistTagAdded": "Added {tag} to the blacklist",
+  "@onlineGallery_blacklistTagAdded": {
+    "placeholders": {
+      "tag": {}
+    }
+  },
   "onlineGallery_blacklistTitle": "Online Gallery Blacklist",
   "onlineGallery_blacklistSubtitle": "Images containing blacklisted tags will be hidden directly in the online gallery.",
   "onlineGallery_addBlacklistTagHint": "Add blacklist tag",

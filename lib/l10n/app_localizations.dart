@@ -63,7 +63,8 @@ import 'app_localizations_zh.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale)
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -71,7 +72,8 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations);
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -83,18 +85,19 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
+      <LocalizationsDelegate<dynamic>>[
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
     Locale('ja'),
-    Locale('zh')
+    Locale('zh'),
   ];
 
   /// No description provided for @app_title.
@@ -3701,13 +3704,23 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Work {workWidth}×{workHeight} → output {targetWidth}×{targetHeight}'**
-  String editor_compressionSizeSummary(int workWidth, int workHeight, int targetWidth, int targetHeight);
+  String editor_compressionSizeSummary(
+    int workWidth,
+    int workHeight,
+    int targetWidth,
+    int targetHeight,
+  );
 
   /// No description provided for @editor_compressionNormalSummary.
   ///
   /// In en, this message translates to:
   /// **'Normal (about 1 MP): {normalWidth}×{normalHeight}. Lowest: {minimumWidth}×{minimumHeight}.'**
-  String editor_compressionNormalSummary(int normalWidth, int normalHeight, int minimumWidth, int minimumHeight);
+  String editor_compressionNormalSummary(
+    int normalWidth,
+    int normalHeight,
+    int minimumWidth,
+    int minimumHeight,
+  );
 
   /// No description provided for @editor_compressionUnavailable.
   ///
@@ -3725,7 +3738,13 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Outer crop {outerWidth}×{outerHeight}, request {requestWidth}×{requestHeight}, estimated {cost} Anlas.'**
-  String editor_focusRequestSummary(int outerWidth, int outerHeight, int requestWidth, int requestHeight, int cost);
+  String editor_focusRequestSummary(
+    int outerWidth,
+    int outerHeight,
+    int requestWidth,
+    int requestHeight,
+    int cost,
+  );
 
   /// No description provided for @editor_unsupportedImageFormat.
   ///
@@ -4866,6 +4885,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Blacklist Tags'**
   String get onlineGallery_blacklistTags;
+
+  /// No description provided for @onlineGallery_outputFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Output Filter'**
+  String get onlineGallery_outputFilter;
+
+  /// No description provided for @onlineGallery_outputFilterTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage tags removed automatically when copying, sending, or adding to the queue'**
+  String get onlineGallery_outputFilterTooltip;
+
+  /// No description provided for @onlineGallery_outputFilterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Output filter tags'**
+  String get onlineGallery_outputFilterTitle;
+
+  /// No description provided for @onlineGallery_outputFilterSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Images remain visible. Exact matching tags are removed only from copied, sent, and queued prompts.'**
+  String get onlineGallery_outputFilterSubtitle;
+
+  /// No description provided for @onlineGallery_outputFilterAddHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a tag to remove from output'**
+  String get onlineGallery_outputFilterAddHint;
+
+  /// No description provided for @onlineGallery_outputFilterInputHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Separate multiple tags with commas or line breaks'**
+  String get onlineGallery_outputFilterInputHint;
+
+  /// No description provided for @onlineGallery_outputFilterEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No output filter tags configured'**
+  String get onlineGallery_outputFilterEmpty;
+
+  /// No description provided for @onlineGallery_outputFilterRestoreDefaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore defaults'**
+  String get onlineGallery_outputFilterRestoreDefaults;
+
+  /// No description provided for @onlineGallery_outputFilterClearTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear the output filter?'**
+  String get onlineGallery_outputFilterClearTitle;
+
+  /// No description provided for @onlineGallery_outputFilterClearConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Watermark and mosaic tags will appear in copied and sent prompts again.'**
+  String get onlineGallery_outputFilterClearConfirm;
+
+  /// No description provided for @onlineGallery_addTagToOutputFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to output filter'**
+  String get onlineGallery_addTagToOutputFilter;
+
+  /// No description provided for @onlineGallery_outputFilterAlreadyAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Already in output filter'**
+  String get onlineGallery_outputFilterAlreadyAdded;
+
+  /// No description provided for @onlineGallery_outputFilterMenuHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the image visible and remove only this output tag'**
+  String get onlineGallery_outputFilterMenuHint;
+
+  /// No description provided for @onlineGallery_addTagToBlacklist.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to blacklist'**
+  String get onlineGallery_addTagToBlacklist;
+
+  /// No description provided for @onlineGallery_blacklistAlreadyAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Already in blacklist'**
+  String get onlineGallery_blacklistAlreadyAdded;
+
+  /// No description provided for @onlineGallery_blacklistMenuHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide gallery images containing this tag'**
+  String get onlineGallery_blacklistMenuHint;
+
+  /// No description provided for @onlineGallery_outputFilteredTagTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed when copying, sending, or adding to queue; right-click to manage'**
+  String get onlineGallery_outputFilteredTagTooltip;
+
+  /// No description provided for @onlineGallery_tagContextMenuTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Right-click to add to the blacklist or output filter'**
+  String get onlineGallery_tagContextMenuTooltip;
+
+  /// No description provided for @onlineGallery_outputFilterTagAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {tag} to the output filter'**
+  String onlineGallery_outputFilterTagAdded(Object tag);
+
+  /// No description provided for @onlineGallery_blacklistTagAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {tag} to the blacklist'**
+  String onlineGallery_blacklistTagAdded(Object tag);
 
   /// No description provided for @onlineGallery_blacklistTitle.
   ///
@@ -10259,7 +10398,11 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{enabled}/{total} · showing {shown}'**
-  String fixedTags_columnFilteredCount(Object enabled, Object total, Object shown);
+  String fixedTags_columnFilteredCount(
+    Object enabled,
+    Object total,
+    Object shown,
+  );
 
   /// No description provided for @fixedTags_new.
   ///
@@ -13097,7 +13240,12 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Reference {index}: {type} (strength {strength}%, fidelity {fidelity}%)'**
-  String metadataImport_preciseReferenceDetail(int index, Object type, Object strength, Object fidelity);
+  String metadataImport_preciseReferenceDetail(
+    int index,
+    Object type,
+    Object strength,
+    Object fidelity,
+  );
 
   /// No description provided for @metadataImport_noData.
   ///
@@ -19979,7 +20127,13 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{name} ({startMonth}/{startDay} - {endMonth}/{endDay})'**
-  String diy_timeRangeSummary(String name, int startMonth, int startDay, int endMonth, int endDay);
+  String diy_timeRangeSummary(
+    String name,
+    int startMonth,
+    int startDay,
+    int endMonth,
+    int endDay,
+  );
 
   /// No description provided for @diy_activeBadge.
   ///
@@ -20804,7 +20958,8 @@ abstract class AppLocalizations {
   String get autocomplete_openSettings;
 }
 
-class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -20813,26 +20968,28 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
   }
 
   @override
-  bool isSupported(Locale locale) => <String>['en', 'ja', 'zh'].contains(locale.languageCode);
+  bool isSupported(Locale locale) =>
+      <String>['en', 'ja', 'zh'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
-
-
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'en': return AppLocalizationsEn();
-    case 'ja': return AppLocalizationsJa();
-    case 'zh': return AppLocalizationsZh();
+    case 'en':
+      return AppLocalizationsEn();
+    case 'ja':
+      return AppLocalizationsJa();
+    case 'zh':
+      return AppLocalizationsZh();
   }
 
   throw FlutterError(
     'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
     'an issue with the localizations generation tool. Please file an issue '
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.'
+    'that was used.',
   );
 }
