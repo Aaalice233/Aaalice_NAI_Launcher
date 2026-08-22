@@ -2831,7 +2831,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onlineGallery_aiTagPromptQuery =>
-      'AI Prompt search (raw syntax such as ::artist: is supported)';
+      'AI Prompt search (search raw Prompt text such as artist:)';
+
+  @override
+  String get onlineGallery_artistHunt => 'Artist chain hunt';
+
+  @override
+  String get onlineGallery_artistHuntTooltip =>
+      'Show only images whose positive Prompt contains explicit artist: tags';
+
+  @override
+  String get onlineGallery_artistChain => 'Artist chain';
+
+  @override
+  String get onlineGallery_copyArtistChain => 'Copy artist chain';
+
+  @override
+  String get onlineGallery_copyFullPrompt => 'Copy full Prompt';
+
+  @override
+  String get onlineGallery_copyRawArtistFragments =>
+      'Copy original artist fragments';
+
+  @override
+  String get onlineGallery_noArtistChain => 'No artist chain';
+
+  @override
+  String onlineGallery_artistCount(Object count) {
+    return '$count artists';
+  }
+
+  @override
+  String get onlineGallery_artistHuntNoExactResults =>
+      'No exact artist chains were found in the candidate works';
+
+  @override
+  String onlineGallery_artistHuntPartialFailure(Object count) {
+    return '$count works could not be parsed. Retry to check them again.';
+  }
+
+  @override
+  String get onlineGallery_artistHuntDetailFailed =>
+      'None of the candidate work details could be parsed. Please retry.';
 
   @override
   String get onlineGallery_aiTagTimeRange => 'Time range';

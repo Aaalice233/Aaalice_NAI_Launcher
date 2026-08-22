@@ -5111,8 +5111,74 @@ abstract class AppLocalizations {
   /// No description provided for @onlineGallery_aiTagPromptQuery.
   ///
   /// In en, this message translates to:
-  /// **'AI Prompt search (raw syntax such as ::artist: is supported)'**
+  /// **'AI Prompt search (search raw Prompt text such as artist:)'**
   String get onlineGallery_aiTagPromptQuery;
+
+  /// No description provided for @onlineGallery_artistHunt.
+  ///
+  /// In en, this message translates to:
+  /// **'Artist chain hunt'**
+  String get onlineGallery_artistHunt;
+
+  /// No description provided for @onlineGallery_artistHuntTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Show only images whose positive Prompt contains explicit artist: tags'**
+  String get onlineGallery_artistHuntTooltip;
+
+  /// No description provided for @onlineGallery_artistChain.
+  ///
+  /// In en, this message translates to:
+  /// **'Artist chain'**
+  String get onlineGallery_artistChain;
+
+  /// No description provided for @onlineGallery_copyArtistChain.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy artist chain'**
+  String get onlineGallery_copyArtistChain;
+
+  /// No description provided for @onlineGallery_copyFullPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy full Prompt'**
+  String get onlineGallery_copyFullPrompt;
+
+  /// No description provided for @onlineGallery_copyRawArtistFragments.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy original artist fragments'**
+  String get onlineGallery_copyRawArtistFragments;
+
+  /// No description provided for @onlineGallery_noArtistChain.
+  ///
+  /// In en, this message translates to:
+  /// **'No artist chain'**
+  String get onlineGallery_noArtistChain;
+
+  /// No description provided for @onlineGallery_artistCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} artists'**
+  String onlineGallery_artistCount(Object count);
+
+  /// No description provided for @onlineGallery_artistHuntNoExactResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No exact artist chains were found in the candidate works'**
+  String get onlineGallery_artistHuntNoExactResults;
+
+  /// No description provided for @onlineGallery_artistHuntPartialFailure.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} works could not be parsed. Retry to check them again.'**
+  String onlineGallery_artistHuntPartialFailure(Object count);
+
+  /// No description provided for @onlineGallery_artistHuntDetailFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'None of the candidate work details could be parsed. Please retry.'**
+  String get onlineGallery_artistHuntDetailFailed;
 
   /// No description provided for @onlineGallery_aiTagTimeRange.
   ///

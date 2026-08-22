@@ -364,6 +364,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           cache: value.currentCache,
           aiTagConfig: value.aiTagConfig,
           random: (value.randomEnabled, value.randomSession),
+          artistHunt: value.artistHuntEnabled,
         ),
       ),
     );
@@ -675,6 +676,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             authState,
             gelbooruAuthState,
             compact: compactActions,
+            compactArtistHunt: constraints.maxWidth < 1750,
           );
           final popularOptionsOnFirstRow =
               state.viewMode == GalleryViewMode.popular && !narrowToolbar;
@@ -966,7 +968,68 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     DanbooruAuthState authState,
     GelbooruAuthState gelbooruAuthState, {
     required bool compact,
+    required bool compactArtistHunt,
   }) {
+    final showArtistHunt =
+        state.viewMode != GalleryViewMode.favorites &&
+        state.activeSourceId == GallerySourceId.aiTag;
+    final artistHuntButton = Semantics(
+      button: true,
+      toggled: state.artistHuntEnabled,
+      label: context.l10n.onlineGallery_artistHunt,
+      child: compactArtistHunt
+          ? IconButton(
+              key: const ValueKey('online-gallery-artist-hunt-toggle'),
+              onPressed: state.isLoading
+                  ? null
+                  : () {
+                      _saveScrollOffset();
+                      unawaited(
+                        _galleryNotifier.setArtistHuntEnabled(
+                          !state.artistHuntEnabled,
+                        ),
+                      );
+                    },
+              tooltip: context.l10n.onlineGallery_artistHuntTooltip,
+              icon: const Icon(Icons.brush_outlined, size: 18),
+              style: IconButton.styleFrom(
+                backgroundColor: state.artistHuntEnabled
+                    ? theme.colorScheme.primaryContainer
+                    : null,
+                foregroundColor: state.artistHuntEnabled
+                    ? theme.colorScheme.onPrimaryContainer
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+            )
+          : OutlinedButton.icon(
+              key: const ValueKey('online-gallery-artist-hunt-toggle'),
+              onPressed: state.isLoading
+                  ? null
+                  : () {
+                      _saveScrollOffset();
+                      unawaited(
+                        _galleryNotifier.setArtistHuntEnabled(
+                          !state.artistHuntEnabled,
+                        ),
+                      );
+                    },
+              icon: const Icon(Icons.brush_outlined, size: 17),
+              label: Text(context.l10n.onlineGallery_artistHunt),
+              style: OutlinedButton.styleFrom(
+                backgroundColor: state.artistHuntEnabled
+                    ? theme.colorScheme.primaryContainer
+                    : null,
+                foregroundColor: state.artistHuntEnabled
+                    ? theme.colorScheme.onPrimaryContainer
+                    : theme.colorScheme.onSurfaceVariant,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 7,
+                ),
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+    );
     final randomButton = Semantics(
       button: true,
       toggled: state.randomEnabled,
@@ -1041,6 +1104,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (showArtistHunt) ...[artistHuntButton, const SizedBox(width: 6)],
         if (state.supportsRandom) ...[randomButton, const SizedBox(width: 6)],
         if (compact)
           IconButton.filledTonal(
@@ -1860,6 +1924,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         return context.l10n.onlineGallery_aiTagRankingProcessing;
       case OnlineGalleryErrorCode.configurationUnavailable:
         return context.l10n.onlineGallery_sourceConfigUnavailable;
+      case OnlineGalleryErrorCode.artistHuntDetailFailed:
+        return context.l10n.onlineGallery_artistHuntDetailFailed;
       case OnlineGalleryErrorCode.requestFailed:
       case OnlineGalleryErrorCode.gelbooruRequestFailed:
       case null:
@@ -1873,8 +1939,15 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     final icon = isFavorites
         ? Icons.favorite_border
         : Icons.image_not_supported_outlined;
+    final activeCache = state.randomEnabled
+        ? state.randomSession.cache
+        : state.currentCache;
+    final artistHuntEmpty =
+        state.isArtistHuntActive && activeCache.artistHuntCandidateCount > 0;
     final message = isFavorites
         ? context.l10n.onlineGallery_favoritesEmpty
+        : artistHuntEmpty
+        ? context.l10n.onlineGallery_artistHuntNoExactResults
         : context.l10n.onlineGallery_noResults;
 
     return Center(
@@ -1888,6 +1961,23 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           ),
           const SizedBox(height: 12),
           Text(message, style: theme.textTheme.titleMedium),
+          if (artistHuntEmpty && activeCache.artistHuntFailureCount > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              context.l10n.onlineGallery_artistHuntPartialFailure(
+                activeCache.artistHuntFailureCount,
+              ),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: _galleryNotifier.refresh,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: Text(context.l10n.common_retry),
+            ),
+          ],
         ],
       ),
     );
@@ -2023,9 +2113,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         state.viewMode == GalleryViewMode.favorites &&
         state.favoritesSourceId == GallerySourceId.gelbooru;
     final canWriteFavorite = post.sourceId == GallerySourceId.danbooru;
-    final promptOverride = detail != null && detail.media.isNotEmpty
-        ? (detail.media.first.prompt ?? detail.prompt)
-        : detail?.prompt;
+    final targetMedia = post.focusedMediaId != null
+        ? post.cover
+        : detail != null && detail.media.isNotEmpty
+        ? detail.media.first
+        : null;
+    final promptOverride = targetMedia?.prompt ?? detail?.prompt;
     return Consumer(
       builder: (context, cardRef, _) {
         final postKey = onlineGalleryPostKey(post);
@@ -2061,9 +2154,17 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           canSelect: (promptOverride ?? tagPrompt).isNotEmpty,
           tagPrompt: tagPrompt,
           promptOverride: promptOverride,
-          negativePromptOverride: detail != null && detail.media.isNotEmpty
-              ? (detail.media.first.negativePrompt ?? detail.negativePrompt)
-              : detail?.negativePrompt,
+          negativePromptOverride:
+              targetMedia?.negativePrompt ?? detail?.negativePrompt,
+          copyTextOverride: post.artistChain?.formattedText,
+          copyTooltip: post.artistChain != null
+              ? context.l10n.onlineGallery_copyArtistChain
+              : null,
+          badgeLabel: post.artistChain != null
+              ? context.l10n.onlineGallery_artistCount(
+                  post.artistChain!.artistCount,
+                )
+              : null,
           hoverController: _hoverController,
           imageCoordinator: _prefetchCoordinator,
           onHoverIntent: () {
@@ -2156,6 +2257,48 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     }
     if (state.posts.isEmpty) {
       return _buildEmptyState(theme, state);
+    }
+    final activeCache = state.randomEnabled
+        ? state.randomSession.cache
+        : state.currentCache;
+    if (state.isArtistHuntActive && activeCache.artistHuntFailureCount > 0) {
+      return Column(
+        children: [
+          Material(
+            color: theme.colorScheme.errorContainer.withValues(alpha: 0.55),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 18,
+                    color: theme.colorScheme.onErrorContainer,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      context.l10n.onlineGallery_artistHuntPartialFailure(
+                        activeCache.artistHuntFailureCount,
+                      ),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onErrorContainer,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: state.isLoading
+                        ? null
+                        : _galleryNotifier.refresh,
+                    child: Text(context.l10n.common_retry),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Expanded(child: _buildImageGrid(theme, state)),
+        ],
+      );
     }
     return _buildImageGrid(theme, state);
   }
@@ -2368,7 +2511,14 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           }
           try {
             final detail = await _galleryNotifier.loadDetail(post);
-            final media = detail.media.first;
+            final focusedIndex = post.focusedMediaId == null
+                ? -1
+                : detail.media.indexWhere(
+                    (media) => media.id == post.focusedMediaId,
+                  );
+            final media = focusedIndex >= 0
+                ? detail.media[focusedIndex]
+                : detail.media.first;
             final prompt =
                 media.prompt ??
                 detail.prompt ??
@@ -2507,7 +2657,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     }
   }
 
-  /// AI TAG 按作品下载全部媒体，其他来源保持单帖单媒体语义。
+  /// AI TAG 普通卡按作品下载全部媒体；媒体焦点卡只下载目标图片。
   Future<(int success, int fail)> _downloadPosts(
     List<DanbooruPost> posts,
     String destinationDir,
@@ -2524,6 +2674,15 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           if (post.sourceId != GallerySourceId.aiTag) {
             return [
               _GalleryDownloadJob(post: post, media: post.cover, mediaIndex: 1),
+            ];
+          }
+          if (post.focusedMediaId != null) {
+            return [
+              _GalleryDownloadJob(
+                post: post,
+                media: post.cover,
+                mediaIndex: (post.focusedMediaIndex ?? 0) + 1,
+              ),
             ];
           }
           try {

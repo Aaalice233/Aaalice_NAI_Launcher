@@ -39,6 +39,33 @@ void main() {
     expect(maxActive, 4);
   });
 
+  test('media-focused cards deduplicate by their work detail key', () async {
+    final gate = Completer<GalleryDetail>();
+    var calls = 0;
+    final coordinator = OnlineGalleryDetailCoordinator(
+      loader: (item, _) {
+        calls++;
+        return gate.future;
+      },
+    );
+    final first = _item(
+      7,
+    ).copyWith(focusedMediaId: '7:0', focusedMediaIndex: 0);
+    final second = _item(
+      7,
+    ).copyWith(focusedMediaId: '7:1', focusedMediaIndex: 1);
+
+    final firstFuture = coordinator.request(first);
+    final secondFuture = coordinator.request(second);
+
+    expect(first.stableKey, isNot(second.stableKey));
+    expect(first.detailStableKey, second.detailStableKey);
+    expect(identical(firstFuture, secondFuture), isTrue);
+    expect(calls, 1);
+    gate.complete(_detail(first));
+    await Future.wait([firstFuture, secondFuture]);
+  });
+
   test('interactive request upgrades queued visible detail', () async {
     final started = <int>[];
     final gates = <Completer<GalleryDetail>>[];

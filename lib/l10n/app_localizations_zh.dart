@@ -2729,7 +2729,45 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onlineGallery_aiTagPromptQuery =>
-      'AI Prompt 搜索（支持 ::artist: 等原始语法）';
+      'AI Prompt 搜索（可搜索 artist: 等 Prompt 原文）';
+
+  @override
+  String get onlineGallery_artistHunt => '画师串打野';
+
+  @override
+  String get onlineGallery_artistHuntTooltip =>
+      '只显示正向 Prompt 中明确包含 artist: 标签的图片';
+
+  @override
+  String get onlineGallery_artistChain => '画师串';
+
+  @override
+  String get onlineGallery_copyArtistChain => '复制画师串';
+
+  @override
+  String get onlineGallery_copyFullPrompt => '复制完整 Prompt';
+
+  @override
+  String get onlineGallery_copyRawArtistFragments => '复制原始画师片段';
+
+  @override
+  String get onlineGallery_noArtistChain => '无可复制画师串';
+
+  @override
+  String onlineGallery_artistCount(Object count) {
+    return '$count 位画师';
+  }
+
+  @override
+  String get onlineGallery_artistHuntNoExactResults => '候选作品中没有精确画师串';
+
+  @override
+  String onlineGallery_artistHuntPartialFailure(Object count) {
+    return '有 $count 个作品解析失败，可重试再次检查。';
+  }
+
+  @override
+  String get onlineGallery_artistHuntDetailFailed => '候选作品详情全部解析失败，请重试。';
 
   @override
   String get onlineGallery_aiTagTimeRange => '时间范围';

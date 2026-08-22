@@ -1,9 +1,13 @@
+import 'dart:ui';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cache/online_gallery_detail_coordinator.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
+import 'package:nai_launcher/data/models/online_gallery/artist_chain.dart';
 import 'package:nai_launcher/data/models/online_gallery/danbooru_post.dart';
 import 'package:nai_launcher/data/models/online_gallery/gelbooru_credentials.dart';
 import 'package:nai_launcher/data/services/danbooru_auth_service.dart';
@@ -222,6 +226,33 @@ void main() {
         findsOneWidget,
       );
       expect(find.textContaining('AI Prompt search'), findsOneWidget);
+      final artistHuntToggle = find.byKey(
+        const ValueKey('online-gallery-artist-hunt-toggle'),
+      );
+      expect(artistHuntToggle, findsOneWidget);
+      final semantics = tester.widget<Semantics>(
+        find
+            .ancestor(of: artistHuntToggle, matching: find.byType(Semantics))
+            .first,
+      );
+      expect(semantics.properties.label, 'Artist chain hunt');
+      expect(semantics.properties.toggled, isFalse);
+      await tester.tap(artistHuntToggle);
+      await tester.pump();
+      expect(
+        tester
+            .widget<Semantics>(
+              find
+                  .ancestor(
+                    of: artistHuntToggle,
+                    matching: find.byType(Semantics),
+                  )
+                  .first,
+            )
+            .properties
+            .toggled,
+        isTrue,
+      );
       expect(find.text('Login'), findsNothing);
       expect(find.byIcon(Icons.tune), findsNothing);
       expect(find.byIcon(Icons.blur_on), findsNothing);
@@ -259,6 +290,90 @@ void main() {
     expect(find.text('Copy full metadata'), findsOneWidget);
     expect(find.text('Download all images in this work'), findsOneWidget);
     expect(find.byType(CachedNetworkImage), findsAtLeastNWidgets(4));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('AI TAG artist hunt card and detail target the focused media', (
+    tester,
+  ) async {
+    await _setViewSize(tester, 1200);
+    String? clipboardText;
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        clipboardText =
+            (call.arguments as Map<Object?, Object?>)['text'] as String?;
+      }
+      return null;
+    });
+    addTearDown(
+      () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onlineGalleryNotifierProvider.overrideWith(
+            _AiTagHuntGalleryNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+          danbooruSuggestionNotifierProvider.overrideWith(
+            _EmptyDanbooruSuggestionNotifier.new,
+          ),
+        ],
+        child: const _TestApp(),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('ai_tag:801:media:801_p1')),
+      findsOneWidget,
+    );
+    expect(find.text('1 artists'), findsOneWidget);
+
+    final card = find.byType(DanbooruPostCard);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: tester.getCenter(card));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Copy artist chain'));
+    await tester.pump();
+    expect(clipboardText, '1.2::artist:target::');
+    await tester.pump(const Duration(seconds: 3));
+
+    await mouse.moveTo(Offset.zero);
+    await mouse.removePointer();
+    await tester.pump();
+    await tester.tap(card);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.text('Copy artist chain'), findsOneWidget);
+    expect(find.text('Copy full Prompt'), findsOneWidget);
+    expect(find.text('Copy original artist fragments'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Copy artist chain'));
+    await tester.pump();
+    expect(clipboardText, '1.2::artist:target::');
+    await tester.pump(const Duration(seconds: 3));
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Dialog),
+        matching: find.byIcon(Icons.chevron_right),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(find.text('No artist chain'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'No artist chain'),
+          )
+          .onPressed,
+      isNull,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -647,6 +762,20 @@ class _AiTagSearchGalleryNotifier extends OnlineGalleryNotifier {
       searchCache: const ModeCache(posts: [_aiTagPost], hasMore: false),
     );
   }
+
+  @override
+  Future<void> setArtistHuntEnabled(bool enabled) async {
+    final cache = state.currentCache;
+    state = state
+        .copyWith(artistHuntEnabled: enabled)
+        .updateCurrentCache(cache);
+  }
+
+  @override
+  Future<void> loadPosts({bool refresh = false}) async {}
+
+  @override
+  Future<void> loadMore() async {}
 }
 
 class _AiTagDetailGalleryNotifier extends _AiTagSearchGalleryNotifier {
@@ -671,7 +800,7 @@ class _AiTagDetailGalleryNotifier extends _AiTagSearchGalleryNotifier {
         previewUrl: 'https://cdn.example/NAI/88/801_p1.webp',
         displayUrl: 'https://cdn.example/NAI/88/801_p1.webp',
         downloadUrl: 'https://cdn.example/NAI/88/801_p1.webp',
-        prompt: 'landscape',
+        prompt: 'landscape, 1.2::artist:target::',
       ),
       GalleryMedia(
         id: '801_p2',
@@ -687,6 +816,35 @@ class _AiTagDetailGalleryNotifier extends _AiTagSearchGalleryNotifier {
       prompt: '1girl, solo',
       negativePrompt: 'lowres',
       description: 'Description',
+    );
+  }
+}
+
+class _AiTagHuntGalleryNotifier extends _AiTagDetailGalleryNotifier {
+  @override
+  OnlineGalleryState build() {
+    final base = super.build().copyWith(artistHuntEnabled: true);
+    const focusedMedia = GalleryMedia(
+      id: '801_p1',
+      previewUrl: 'https://cdn.example/NAI/88/801_p1.webp',
+      displayUrl: 'https://cdn.example/NAI/88/801_p1.webp',
+      downloadUrl: 'https://cdn.example/NAI/88/801_p1.webp',
+      width: 768,
+      height: 1024,
+      prompt: 'landscape, 1.2::artist:target::',
+    );
+    final focusedItem = _aiTagPost.copyWith(
+      cover: focusedMedia,
+      focusedMediaId: focusedMedia.id,
+      focusedMediaIndex: 1,
+      artistChain: const ArtistChainExtraction(
+        formattedText: '1.2::artist:target::',
+        rawFragments: ['artist:target'],
+        artistNames: ['target'],
+      ),
+    );
+    return base.updateCurrentCache(
+      ModeCache(posts: [focusedItem], hasMore: false),
     );
   }
 }

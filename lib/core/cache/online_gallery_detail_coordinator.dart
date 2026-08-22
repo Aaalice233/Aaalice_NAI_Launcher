@@ -46,7 +46,7 @@ class OnlineGalleryDetailCoordinator {
     GalleryDetailPriority priority = GalleryDetailPriority.interactive,
     bool forceRefresh = false,
   }) {
-    final key = item.stableKey;
+    final key = item.detailStableKey;
     if (forceRefresh) {
       _completed.remove(key);
       final oldTask = _tasks.remove(key);
@@ -101,8 +101,8 @@ class OnlineGalleryDetailCoordinator {
     final queued = List<_DetailTask>.of(_visibleQueue);
     _visibleQueue.clear();
     for (final task in queued) {
-      if (_tasks[task.item.stableKey] == task) {
-        _tasks.remove(task.item.stableKey);
+      if (_tasks[task.item.detailStableKey] == task) {
+        _tasks.remove(task.item.detailStableKey);
       }
       if (!task.cancelToken.isCancelled) {
         task.cancelToken.cancel('Gallery scope changed');
@@ -174,7 +174,8 @@ class OnlineGalleryDetailCoordinator {
           ? _visibleQueue.removeAt(0)
           : null;
       if (task == null) return;
-      if (_tasks[task.item.stableKey] != task || task.completer.isCompleted) {
+      if (_tasks[task.item.detailStableKey] != task ||
+          task.completer.isCompleted) {
         continue;
       }
       _active++;
@@ -184,7 +185,7 @@ class OnlineGalleryDetailCoordinator {
   }
 
   Future<void> _run(_DetailTask task) async {
-    final key = task.item.stableKey;
+    final key = task.item.detailStableKey;
     try {
       final detail = await _loader(task.item, task.cancelToken);
       if (_tasks[key] == task && _revisions[key] == task.revision) {

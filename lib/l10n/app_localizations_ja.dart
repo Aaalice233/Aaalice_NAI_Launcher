@@ -2772,7 +2772,46 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get onlineGallery_aiTagPromptQuery =>
-      'AI Prompt 検索（::artist: などの原文構文に対応）';
+      'AI Prompt 検索（artist: などの Prompt 原文を検索）';
+
+  @override
+  String get onlineGallery_artistHunt => '絵師タグ探索';
+
+  @override
+  String get onlineGallery_artistHuntTooltip =>
+      'ポジティブ Prompt に明示的な artist: タグがある画像のみ表示';
+
+  @override
+  String get onlineGallery_artistChain => '絵師タグ列';
+
+  @override
+  String get onlineGallery_copyArtistChain => '絵師タグ列をコピー';
+
+  @override
+  String get onlineGallery_copyFullPrompt => '完全な Prompt をコピー';
+
+  @override
+  String get onlineGallery_copyRawArtistFragments => '元の絵師タグ断片をコピー';
+
+  @override
+  String get onlineGallery_noArtistChain => 'コピー可能な絵師タグなし';
+
+  @override
+  String onlineGallery_artistCount(Object count) {
+    return '絵師 $count 人';
+  }
+
+  @override
+  String get onlineGallery_artistHuntNoExactResults => '候補作品に正確な絵師タグ列がありません';
+
+  @override
+  String onlineGallery_artistHuntPartialFailure(Object count) {
+    return '$count 件の作品を解析できませんでした。再試行できます。';
+  }
+
+  @override
+  String get onlineGallery_artistHuntDetailFailed =>
+      '候補作品の詳細をすべて解析できませんでした。再試行してください。';
 
   @override
   String get onlineGallery_aiTagTimeRange => '期間';

@@ -45,6 +45,9 @@ class DanbooruPostCard extends StatefulWidget {
   final String? tagPrompt;
   final String? promptOverride;
   final String? negativePromptOverride;
+  final String? copyTextOverride;
+  final String? copyTooltip;
+  final String? badgeLabel;
   final VoidCallback onTap;
   final Function(String) onTagTap;
   final VoidCallback? onFavoriteToggle;
@@ -68,6 +71,9 @@ class DanbooruPostCard extends StatefulWidget {
     this.tagPrompt,
     this.promptOverride,
     this.negativePromptOverride,
+    this.copyTextOverride,
+    this.copyTooltip,
+    this.badgeLabel,
     required this.onTap,
     required this.onTagTap,
     this.onFavoriteToggle,
@@ -500,7 +506,8 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                 ),
                               ),
                             ),
-                          if (widget.post.mediaCount > 1)
+                          if (widget.badgeLabel != null ||
+                              widget.post.mediaCount > 1)
                             Positioned(
                               top: 4,
                               right: 4,
@@ -516,14 +523,17 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(
-                                      Icons.collections_outlined,
+                                    Icon(
+                                      widget.badgeLabel != null
+                                          ? Icons.brush_outlined
+                                          : Icons.collections_outlined,
                                       size: 11,
                                       color: Colors.white,
                                     ),
                                     const SizedBox(width: 3),
                                     Text(
-                                      '${widget.post.mediaCount}',
+                                      widget.badgeLabel ??
+                                          '${widget.post.mediaCount}',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 10,
@@ -577,7 +587,8 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                           if (!_isHovering &&
                               !widget.favoriteReadOnly &&
                               widget.post.rating != null &&
-                              widget.post.mediaCount <= 1)
+                              widget.post.mediaCount <= 1 &&
+                              widget.badgeLabel == null)
                             Positioned(
                               top: 4,
                               right: 4,
@@ -857,11 +868,19 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                             ),
                             CardActionButtonConfig(
                               icon: Icons.copy,
-                              tooltip: widget.promptOverride != null
-                                  ? context.l10n.localGallery_copyPrompt
-                                  : context.l10n.onlineGallery_copyTags,
+                              tooltip:
+                                  widget.copyTooltip ??
+                                  (widget.promptOverride != null
+                                      ? context.l10n.localGallery_copyPrompt
+                                      : context.l10n.onlineGallery_copyTags),
                               onPressed: () async {
-                                final prompt = _promptForAction();
+                                final prompt =
+                                    widget.copyTextOverride
+                                            ?.trim()
+                                            .isNotEmpty ==
+                                        true
+                                    ? widget.copyTextOverride!.trim()
+                                    : _promptForAction();
                                 if (prompt == null) return;
                                 try {
                                   await Clipboard.setData(

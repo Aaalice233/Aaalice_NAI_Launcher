@@ -13,8 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases"><img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version"></a>
-  <img src="https://img.shields.io/badge/Flutter-3.44.2-blue?logo=flutter" alt="Flutter">
+  <a href="https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/latest"><img src="https://img.shields.io/github/v/release/Aaalice233/Aaalice_NAI_Launcher?display_name=tag&sort=semver" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey" alt="Platforms">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <a href="https://discord.gg/R48n6GwXzD"><img src="https://img.shields.io/badge/Discord-加入服务器-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
@@ -103,155 +102,12 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 - Danbooru 在线补充默认开启，只发送光标所在的当前英文 token，不发送完整提示词；可在“设置 → 数据源与缓存”关闭并单独清除缓存。
 - AI 缺失汉化默认关闭。开启后会复用 Prompt Assistant 的 `Translate` 路由，向用户选择的模型服务发送最多 8 个待翻译标签，可能产生 API 费用；AI 翻译缓存可单独清除。
 
-## 🛠️ 从源码构建
+## 💬 支持与贡献
 
-### 环境要求
-
-- Flutter `3.44.2`（项目最低要求 Flutter `3.35.0` / Dart `3.10.7`）
-- Git LFS，用于拉取 `assets/databases/*.db`
-- Windows 构建：Visual Studio 2022 Desktop development with C++
-- Windows 构建：[NuGet CLI](https://learn.microsoft.com/nuget/install-nuget-client-tools)，`nuget.exe` 所在目录必须加入 `PATH`
-- macOS 构建：完整 Xcode、CocoaPods、Git LFS
-
-### 通用步骤
-
-```bash
-git clone https://github.com/Aaalice233/Aaalice_NAI_Launcher.git
-cd Aaalice_NAI_Launcher
-
-git lfs install
-git lfs pull --include="assets/databases/*.db"
-
-flutter pub get
-dart run build_runner build --delete-conflicting-outputs
-flutter analyze
-flutter test
-```
-
-### Windows
-
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify_nuget.ps1
-flutter build windows --release
-```
-
-`flutter_inappwebview` 的 Windows 实现会在编译阶段通过 NuGet 获取 WebView2 SDK 等原生依赖。`verify_nuget.ps1` 检查失败时，请先安装 NuGet CLI，并确认新 PowerShell 窗口中可以直接运行 `nuget help`。
-
-产物目录：
-
-```text
-build/windows/x64/runner/Release/
-```
-
-Windows 桌面开发可启动独立热重载会话：
-
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/dev_hot_reload_window.ps1
-```
-
-代码修改后可从任意终端安全触发现有会话，不会启动第二个 `flutter attach`：
-
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/trigger_hot_reload.ps1
-# 需要重置应用状态时：
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/trigger_hot_reload.ps1 -Restart
-```
-
-无需切换到开发窗口即可读取 Flutter 控制台缓冲区；可按正则过滤，并保留匹配行上下文：
-
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/read_flutter_console.ps1 -Last 200
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/read_flutter_console.ps1 -Pattern '\[Autocomplete\]' -Context 3 -Last 100
-```
-
-需要检查实际桌面窗口时，可直接截图到项目临时目录（窗口被遮挡时也可直接渲染）：
-
-```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/capture_dev_window.ps1
-# 自定义输出路径或不激活窗口：
-pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/capture_dev_window.ps1 -OutputPath tool/.tmp/ui.png -NoActivate
-```
-
-### macOS
-
-```bash
-flutter build macos --release
-```
-
-产物路径：
-
-```text
-build/macos/Build/Products/Release/Aaalice NAI Launcher.app
-```
-
-本地开发时如果 Keychain 反复弹授权，可以先创建稳定的本地签名证书，再运行签名启动脚本：
-
-```bash
-scripts/create_macos_dev_cert.sh
-scripts/dev_run_macos_signed.sh debug
-```
-
-## 🚀 发布流程
-
-发布由 GitHub Actions 的 `Release` workflow 处理。推送 `v*` tag 后，工作流会分别构建 Windows 安装版、Windows 便携版和 macOS 便携版，并生成 `release_manifest.json`、`checksums.txt` 与 Release notes。Release 页面会按系统生成带平台图标的 Setup / Portable 直达下载按钮。
-
-```bash
-git tag v1.0.0
-git push origin main
-git push origin v1.0.0
-```
-
-发布前请确保：
-
-- `pubspec.yaml` 版本号已更新；tag 必须匹配去掉 `+build` 后的版本，例如 `1.0.0+17` 对应 `v1.0.0`。
-- `CHANGELOG.md` 已按 `✨ 新增`、`🛠 改进`、`🐛 修复` 分类补好；发布文件表由脚本自动生成，不要写入 Changelog。
-- `assets/databases/tag_catalog.db` 与 `assets/databases/cooccurrence.db` 是真实 SQLite 文件而不是 Git LFS pointer，并已通过 `dart run tool/tag_catalog/verify_bundled_databases.dart` 校验。
-- Windows 安装器依赖 NSIS；本地打包可运行 `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/package_windows_release.ps1`。
-- 正式签名可配置 GitHub Secrets `WINDOWS_SIGNING_CERT_BASE64`（PFX 的 Base64）和 `WINDOWS_SIGNING_CERT_PASSWORD`。工作流会在打包前签名便携版主程序、打包后签名安装器，并用 `signtool verify` 强制验证；未配置证书时保持当前无签名构建。
-- 本地签名统一使用 `scripts/sign_windows_binary.ps1`，例如：`pwsh -File scripts/sign_windows_binary.ps1 -Path dist/setup.exe -CertificatePath cert.pfx -CertificatePassword '<password>'`。
-
-## 🗂️ 项目结构
-
-```text
-nai_launcher/
-├── assets/                 # 图标、截图、音效、标签数据、预置数据库
-├── installer/              # 安装器脚本
-├── krita_plugin/           # Krita 插件与打包/验收脚本
-├── lib/
-│   ├── core/               # 网络、数据库、缓存、加密、文件、快捷键等基础能力
-│   ├── data/               # API、模型、仓库和业务数据服务
-│   ├── l10n/               # 中/英/日界面文案与生成文件
-│   └── presentation/       # 页面、组件、状态管理、主题和路由
-├── macos/                  # macOS runner
-├── scripts/                # 构建、签名、数据库和测试辅助脚本
-├── test/                   # 单元测试和组件测试
-├── tool/                   # 开发工具、数据处理、图标生成和诊断脚本
-└── windows/                # Windows runner
-```
-
-## 💻 开发约定
-
-常用命令：
-
-```bash
-flutter pub get
-dart run build_runner build --delete-conflicting-outputs
-dart format lib test
-flutter analyze
-flutter test
-```
-
-提交信息使用：
-
-```text
-type(scope): 中文描述
-```
-
-常用 type：`feat`、`fix`、`refactor`、`perf`、`style`、`docs`、`test`、`chore`。
-
-## 🤝 贡献
-
-欢迎通过 Issue 和 Pull Request 参与。提交 PR 前请说明变更目标、影响范围、验证方式；涉及 UI 或跨平台行为时，尽量附上截图或录屏。
+- 遇到问题或有功能建议，请提交 [GitHub Issue](https://github.com/Aaalice233/Aaalice_NAI_Launcher/issues)。
+- 交流使用经验、获取社区帮助可加入 [Discord](https://discord.gg/R48n6GwXzD)。
+- 欢迎提交 Pull Request；请说明变更目标、验证方式，界面改动尽量附上截图或录屏。
+- 每个版本的完整变化请查看 [CHANGELOG.md](CHANGELOG.md) 或 [Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases)。
 
 ## 🙏 致谢
 

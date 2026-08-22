@@ -18,6 +18,7 @@ import '../../../data/datasources/remote/online_gallery/gallery_source_adapter.d
 import '../../../data/models/online_gallery/gallery_item.dart';
 import '../../../data/models/online_gallery/gallery_source.dart';
 import '../../../data/models/queue/replication_task.dart';
+import '../../../data/services/online_gallery/artist_chain_parser.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/online_gallery_provider.dart';
 import '../../providers/pending_prompt_provider.dart';
@@ -47,16 +48,19 @@ class _AiTagDetailDialog extends ConsumerStatefulWidget {
 
 class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
   late Future<GalleryDetail> _detailFuture;
-  final PageController _pageController = PageController();
+  late final PageController _pageController;
   final FocusNode _keyboardFocus = FocusNode();
   int _mediaIndex = 0;
   int _downloadCompleted = 0;
   int _downloadTotal = 0;
   bool _didPrefetchInitialAdjacent = false;
+  bool _didResolveInitialMedia = false;
 
   @override
   void initState() {
     super.initState();
+    _mediaIndex = widget.item.focusedMediaIndex ?? 0;
+    _pageController = PageController(initialPage: _mediaIndex);
     _detailFuture = ref
         .read(onlineGalleryNotifierProvider.notifier)
         .loadDetail(widget.item);
@@ -145,10 +149,26 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
   }
 
   Widget _buildDetail(GalleryDetail detail) {
+    if (!_didResolveInitialMedia) {
+      _didResolveInitialMedia = true;
+      final focusedMediaId = widget.item.focusedMediaId;
+      final resolvedIndex = focusedMediaId == null
+          ? _mediaIndex.clamp(0, detail.media.length - 1)
+          : detail.media.indexWhere((media) => media.id == focusedMediaId);
+      final targetIndex = resolvedIndex < 0 ? 0 : resolvedIndex;
+      if (targetIndex != _mediaIndex) {
+        _mediaIndex = targetIndex;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _pageController.hasClients) {
+            _pageController.jumpToPage(targetIndex);
+          }
+        });
+      }
+    }
     if (!_didPrefetchInitialAdjacent) {
       _didPrefetchInitialAdjacent = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _prefetchAdjacent(detail, 0);
+        if (mounted) _prefetchAdjacent(detail, _mediaIndex);
       });
     }
     final theme = Theme.of(context);
@@ -406,6 +426,8 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
     GalleryMedia media,
   ) {
     final item = detail.item;
+    final artistChain = ArtistChainParser.parse(media.prompt);
+    final artistHuntMode = widget.item.focusedMediaId != null;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -460,6 +482,11 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
               .toList(growable: false),
         ),
         const SizedBox(height: 16),
+        if (artistHuntMode && artistChain.isNotEmpty)
+          _metadataSection(
+            context.l10n.onlineGallery_artistChain,
+            artistChain.formattedText,
+          ),
         if (media.prompt?.isNotEmpty == true)
           _metadataSection('Prompt', media.prompt!),
         if (media.negativePrompt?.isNotEmpty == true)
@@ -478,13 +505,40 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
           spacing: 8,
           runSpacing: 8,
           children: [
-            OutlinedButton.icon(
-              onPressed: media.prompt?.isNotEmpty == true
-                  ? () => _copy(media.prompt!)
-                  : null,
-              icon: const Icon(Icons.copy, size: 16),
-              label: Text(context.l10n.localGallery_copyPrompt),
-            ),
+            if (artistHuntMode) ...[
+              FilledButton.tonalIcon(
+                onPressed: artistChain.isNotEmpty
+                    ? () => _copy(artistChain.formattedText)
+                    : null,
+                icon: const Icon(Icons.brush_outlined, size: 16),
+                label: Text(
+                  artistChain.isNotEmpty
+                      ? context.l10n.onlineGallery_copyArtistChain
+                      : context.l10n.onlineGallery_noArtistChain,
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: media.prompt?.isNotEmpty == true
+                    ? () => _copy(media.prompt!)
+                    : null,
+                icon: const Icon(Icons.copy_all, size: 16),
+                label: Text(context.l10n.onlineGallery_copyFullPrompt),
+              ),
+              OutlinedButton.icon(
+                onPressed: artistChain.rawFragments.isNotEmpty
+                    ? () => _copy(artistChain.rawText)
+                    : null,
+                icon: const Icon(Icons.code, size: 16),
+                label: Text(context.l10n.onlineGallery_copyRawArtistFragments),
+              ),
+            ] else
+              OutlinedButton.icon(
+                onPressed: media.prompt?.isNotEmpty == true
+                    ? () => _copy(media.prompt!)
+                    : null,
+                icon: const Icon(Icons.copy, size: 16),
+                label: Text(context.l10n.localGallery_copyPrompt),
+              ),
             OutlinedButton.icon(
               onPressed: media.negativePrompt?.isNotEmpty == true
                   ? () => _copy(media.negativePrompt!)

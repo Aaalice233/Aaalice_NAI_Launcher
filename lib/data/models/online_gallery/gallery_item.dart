@@ -1,3 +1,4 @@
+import 'artist_chain.dart';
 import 'gallery_source.dart';
 
 class GalleryMedia {
@@ -114,6 +115,9 @@ class GalleryItem {
     int? favCount,
     this.rank,
     this.rankingName,
+    this.focusedMediaId,
+    this.focusedMediaIndex,
+    this.artistChain,
     this.rawSourceMetadata = const {},
   }) : _sourceId = sourceId,
        imageWidth = width ?? imageWidth,
@@ -158,10 +162,23 @@ class GalleryItem {
   final int? favoriteCount;
   final int? rank;
   final String? rankingName;
+
+  /// Optional image-level focus used by feeds that surface individual media
+  /// from a multi-media work.
+  final String? focusedMediaId;
+  final int? focusedMediaIndex;
+  final ArtistChainExtraction? artistChain;
   final Map<String, dynamic> rawSourceMetadata;
 
   GallerySourceId get sourceId => _sourceId ?? GallerySourceId.fromKey(site);
-  String get stableKey => sourceId.stableItemKey(id);
+  String get detailStableKey => sourceId.stableItemKey(id);
+  String get stableKey {
+    final mediaId = focusedMediaId;
+    return mediaId == null
+        ? detailStableKey
+        : '$detailStableKey:media:$mediaId';
+  }
+
   int? get favCount => favoriteCount;
   int get width => _cover?.width ?? imageWidth;
   int get height => _cover?.height ?? imageHeight;
@@ -329,6 +346,9 @@ class GalleryItem {
     int? favCount,
     int? rank,
     String? rankingName,
+    String? focusedMediaId,
+    int? focusedMediaIndex,
+    ArtistChainExtraction? artistChain,
     Map<String, dynamic>? rawSourceMetadata,
   }) {
     return GalleryItem(
@@ -368,6 +388,9 @@ class GalleryItem {
       favoriteCount: favoriteCount ?? favCount ?? this.favoriteCount,
       rank: rank ?? this.rank,
       rankingName: rankingName ?? this.rankingName,
+      focusedMediaId: focusedMediaId ?? this.focusedMediaId,
+      focusedMediaIndex: focusedMediaIndex ?? this.focusedMediaIndex,
+      artistChain: artistChain ?? this.artistChain,
       rawSourceMetadata: rawSourceMetadata ?? this.rawSourceMetadata,
     );
   }
