@@ -248,53 +248,37 @@ class _CooccurrenceDataPackStatus extends ConsumerWidget {
                 ),
           title: Text(context.l10n.autocomplete_cooccurrence),
           subtitle: Text(subtitle),
-        ),
-        if (state.status == CooccurrenceDataPackStatus.downloading)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(72, 0, 24, 8),
-            child: LinearProgressIndicator(value: state.progress),
-          ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(72, 0, 16, 8),
-          child: Wrap(
-            alignment: WrapAlignment.end,
-            spacing: 8,
-            runSpacing: 8,
+          trailing: Wrap(
+            spacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               if (state.status == CooccurrenceDataPackStatus.downloading)
-                OutlinedButton.icon(
+                IconButton(
+                  tooltip: context.l10n.common_cancel,
                   onPressed: service.cancelDownload,
-                  icon: const Icon(Icons.pause, size: 18),
-                  label: Text(context.l10n.common_cancel),
+                  icon: const Icon(Icons.pause),
                 )
               else if (!busy && !state.hasInstalledData)
-                FilledButton.tonalIcon(
+                FilledButton.tonal(
                   onPressed: service.install,
-                  icon: Icon(
-                    state.status == CooccurrenceDataPackStatus.error
-                        ? Icons.refresh
-                        : Icons.download,
-                    size: 18,
-                  ),
-                  label: Text(
+                  child: Text(
                     state.status == CooccurrenceDataPackStatus.error
                         ? context.l10n.common_retry
                         : context.l10n.autocomplete_downloadNow,
                   ),
                 )
               else if (!busy && state.hasInstalledData) ...[
-                OutlinedButton.icon(
+                IconButton(
+                  tooltip: context.l10n.autocomplete_checkUpdate,
                   onPressed: service.checkForUpdate,
-                  icon: const Icon(Icons.refresh, size: 18),
-                  label: Text(context.l10n.autocomplete_checkUpdate),
+                  icon: const Icon(Icons.refresh),
                 ),
-                FilledButton.tonalIcon(
+                FilledButton.tonal(
                   onPressed:
                       state.status == CooccurrenceDataPackStatus.updateAvailable
                       ? service.install
                       : service.repair,
-                  icon: const Icon(Icons.build_outlined, size: 18),
-                  label: Text(
+                  child: Text(
                     state.status == CooccurrenceDataPackStatus.updateAvailable
                         ? context.l10n.autocomplete_update
                         : context.l10n.autocomplete_repair,
@@ -309,6 +293,11 @@ class _CooccurrenceDataPackStatus extends ConsumerWidget {
             ],
           ),
         ),
+        if (state.status == CooccurrenceDataPackStatus.downloading)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(72, 0, 24, 8),
+            child: LinearProgressIndicator(value: state.progress),
+          ),
       ],
     );
   }
