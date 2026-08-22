@@ -181,6 +181,61 @@ void main() {
     },
   );
 
+  testWidgets(
+    'uses descendant input focus when a caller passes a different focus node',
+    (tester) async {
+      final controller = TextEditingController(text: 'blu');
+      controller.selection = const TextSelection.collapsed(offset: 3);
+      final wrapperFocusNode = FocusNode();
+      final inputFocusNode = FocusNode();
+      addTearDown(() {
+        controller.dispose();
+        wrapperFocusNode.dispose();
+        inputFocusNode.dispose();
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            autocompleteServicesProvider.overrideWithValue(
+              AutocompleteServices(
+                localSources: [_BaseSource()],
+                dictionaryTranslations: const _NoTranslations(),
+                llmTranslations: const _NoTranslations(),
+                danbooru: _NoDanbooru(),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: AutocompleteWrapper(
+                controller: controller,
+                focusNode: wrapperFocusNode,
+                child: TextField(
+                  controller: controller,
+                  focusNode: inputFocusNode,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      inputFocusNode.requestFocus();
+      await tester.pump();
+      expect(wrapperFocusNode.hasFocus, isFalse);
+      await _typeCurrentText(tester, controller);
+
+      expect(
+        find.byKey(const ValueKey('autocomplete-popup-surface')),
+        findsOneWidget,
+      );
+    },
+  );
+
   testWidgets('focus and caret clicks stay quiet until text is edited', (
     tester,
   ) async {

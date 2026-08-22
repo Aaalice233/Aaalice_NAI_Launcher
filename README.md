@@ -157,6 +157,13 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/trigger_hot_reload.ps1
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/trigger_hot_reload.ps1 -Restart
 ```
 
+无需切换到开发窗口即可读取 Flutter 控制台缓冲区；可按正则过滤，并保留匹配行上下文：
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/read_flutter_console.ps1 -Last 200
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/read_flutter_console.ps1 -Pattern '\[Autocomplete\]' -Context 3 -Last 100
+```
+
 需要检查实际桌面窗口时，可直接截图到项目临时目录（窗口被遮挡时也可直接渲染）：
 
 ```powershell

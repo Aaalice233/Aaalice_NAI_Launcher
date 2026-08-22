@@ -194,6 +194,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
                       ),
                       child: ThemedInput(
                         controller: _contentController,
+                        focusNode: _contentFocusNode,
                         decoration: InputDecoration(
                           hintText: context.l10n.fixedTags_contentHint,
                           contentPadding: const EdgeInsets.all(12),

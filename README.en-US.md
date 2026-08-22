@@ -157,6 +157,13 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/trigger_hot_reload.ps1
 pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/trigger_hot_reload.ps1 -Restart
 ```
 
+Read the Flutter console buffer without switching to the development window. The output can be filtered with a regular expression while retaining context around matches:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/read_flutter_console.ps1 -Last 200
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/read_flutter_console.ps1 -Pattern '\[Autocomplete\]' -Context 3 -Last 100
+```
+
 To inspect the real desktop window, capture it directly into the project temp directory. Direct rendering also works when the window is covered:
 
 ```powershell

@@ -301,6 +301,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                       ),
                       child: ThemedInput(
                         controller: _contentController,
+                        focusNode: _contentFocusNode,
                         decoration: InputDecoration(
                           hintText: context.l10n.tagLibrary_contentHint,
                           contentPadding: const EdgeInsets.all(12),
@@ -505,6 +506,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
           ),
           child: ThemedInput(
             controller: _tagsController,
+            focusNode: _tagsFocusNode,
             hintText: context.l10n.tagLibrary_tagsHint,
             helperText: context.l10n.tagLibrary_tagsHelper,
           ),

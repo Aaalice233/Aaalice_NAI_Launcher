@@ -201,6 +201,7 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
                 borderRadius: 8,
                 child: ThemedInput(
                   controller: _promptController,
+                  focusNode: _promptFocusNode,
                   maxLines: 6,
                   minLines: 6,
                   textAlignVertical: TextAlignVertical.top,

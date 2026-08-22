@@ -138,6 +138,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   bool _applyingSuggestion = false;
   bool _cursorMetricsScheduled = false;
   bool _wasComposing = false;
+  bool _descendantHasFocus = false;
   TextEditingValue? _lastObservedValue;
   bool? _keepEmptyQueryVisible;
   final Set<int> _relatedClickPointers = <int>{};
@@ -147,6 +148,8 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   String? _pinnedRelatedTag;
 
   FocusNode get _focusNode => widget.focusNode ?? _ownedFocusNode!;
+
+  bool get _hasInputFocus => _focusNode.hasFocus || _descendantHasFocus;
 
   bool get _supportsNewlines => widget.expands || (widget.maxLines ?? 1) > 1;
 
@@ -303,7 +306,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       _closeOverlay();
       return;
     }
-    if (_focusNode.hasFocus) {
+    if (_hasInputFocus) {
       _startQuery(
         related: _pinnedRelatedTag != null,
         relatedTagOverride: _pinnedRelatedTag,
@@ -317,7 +320,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     if (_applyingSuggestion ||
         widget.usesLegacyStrategy ||
         _wasComposing ||
-        !_focusNode.hasFocus) {
+        !_hasInputFocus) {
       return;
     }
     widget.onChanged?.call(value.text);
@@ -331,8 +334,15 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       ? value.selection.extentOffset
       : value.text.length;
 
-  void _onFocusChanged() {
-    if (!_focusNode.hasFocus) {
+  void _onFocusChanged() => _handleEffectiveFocusChanged();
+
+  void _onDescendantFocusChanged(bool hasFocus) {
+    _descendantHasFocus = hasFocus;
+    _handleEffectiveFocusChanged();
+  }
+
+  void _handleEffectiveFocusChanged() {
+    if (!_hasInputFocus) {
       if (_pinnedRelatedTag == null) _dismissOverlay('focus lost');
       return;
     }
@@ -424,15 +434,14 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
         state.translationError?.isNotEmpty == true ||
         state.query?.relatedTag != null ||
         ((_keepEmptyQueryVisible ?? false) && state.query != null);
-    if (!hasVisibleState ||
-        (!_focusNode.hasFocus && _pinnedRelatedTag == null)) {
+    if (!hasVisibleState || (!_hasInputFocus && _pinnedRelatedTag == null)) {
       if (_overlayEntry != null) {
         AppLogger.d(
           'Removing popup from state: visible=$hasVisibleState '
               'related=${state.query?.relatedTag ?? ''} '
               'localLoading=${state.isLocalLoading} '
               'remoteLoading=${state.isRemoteLoading} '
-              'focused=${_focusNode.hasFocus}',
+              'focused=$_hasInputFocus',
           'Autocomplete',
         );
       }
@@ -678,7 +687,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     final nextRelatedTag = _pinnedRelatedTag ?? completedTag;
     if (settings.relatedTagsEnabled && nextRelatedTag != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _focusNode.hasFocus) {
+        if (mounted && _hasInputFocus) {
           _startQuery(related: true, relatedTagOverride: nextRelatedTag);
         }
       });
@@ -714,7 +723,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
             keyboard.isMetaPressed);
     if (requestsRelated) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _focusNode.hasFocus) {
+        if (mounted && _hasInputFocus) {
           _startQuery(
             related: true,
             resetPinnedRelatedTag: true,
@@ -737,7 +746,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       return;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _focusNode.hasFocus) {
+      if (mounted && _hasInputFocus) {
         _startQuery(resetPinnedRelatedTag: true, keepEmptyVisible: true);
       }
     });
@@ -770,7 +779,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
             'related=${state?.query?.relatedTag ?? ''} '
             'localLoading=${state?.isLocalLoading ?? false} '
             'remoteLoading=${state?.isRemoteLoading ?? false} '
-            'focused=${_focusNode.hasFocus}',
+            'focused=$_hasInputFocus',
         'Autocomplete',
       );
     }
@@ -839,8 +848,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       if (!next.relatedTagsEnabled) _pinnedRelatedTag = null;
       final activeRelatedTag = _orchestrator?.state.query?.relatedTag;
       final relatedTag = _pinnedRelatedTag ?? activeRelatedTag;
-      if (_focusNode.hasFocus &&
-          (_overlayEntry != null || relatedTag != null)) {
+      if (_hasInputFocus && (_overlayEntry != null || relatedTag != null)) {
         _startQuery(
           related: relatedTag != null,
           relatedTagOverride: relatedTag,
@@ -854,6 +862,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     return SizedBox(
       key: _anchorKey,
       child: Focus(
+        onFocusChange: _onDescendantFocusChanged,
         onKeyEvent: _onKeyEvent,
         child: Listener(
           onPointerDown: _onPointerDown,

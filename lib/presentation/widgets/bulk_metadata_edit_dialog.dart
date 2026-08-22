@@ -418,6 +418,7 @@ class _BulkMetadataEditDialogState
               ),
               child: ThemedInput(
                 controller: controller,
+                focusNode: focusNode,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurface,
                 ),
