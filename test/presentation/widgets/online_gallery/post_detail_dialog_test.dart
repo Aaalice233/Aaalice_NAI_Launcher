@@ -185,7 +185,7 @@ void main() {
     await tester.tap(find.text('Copy Tags'));
     await tester.pump();
 
-    expect(copiedText, 'example_artist');
+    expect(copiedText, 'artist:example_artist');
     await tester.pump(const Duration(seconds: 4));
     await tester.pump(const Duration(milliseconds: 400));
   });

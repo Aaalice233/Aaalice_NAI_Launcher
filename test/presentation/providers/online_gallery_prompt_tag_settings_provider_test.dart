@@ -17,11 +17,18 @@ void main() {
         width: 512,
         height: 768,
       ),
-      tags: ['general', 'character', 'copyright', 'artist', 'meta'],
+      tags: [
+        'general',
+        'character',
+        'copyright',
+        'example_artist',
+        'artist:already_prefixed',
+        'meta',
+      ],
       tagStringGeneral: 'general',
       tagStringCharacter: 'character',
       tagStringCopyright: 'copyright',
-      tagStringArtist: 'artist',
+      tagStringArtist: 'example_artist artist:already_prefixed',
       tagStringMeta: 'meta',
     );
 
@@ -33,7 +40,10 @@ void main() {
         },
       );
 
-      expect(settings.promptFor(categorizedItem), 'general, artist');
+      expect(
+        settings.promptFor(categorizedItem),
+        'general, artist:example_artist, artist:already_prefixed',
+      );
     });
 
     test('falls back to source tags when categories are unavailable', () {

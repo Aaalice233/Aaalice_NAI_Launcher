@@ -51,11 +51,24 @@ class OnlineGalleryPromptTagSettings {
 
     final selectedTags = <String>{};
     for (final category in OnlineGalleryPromptTagCategory.values) {
-      if (categories.contains(category)) {
-        selectedTags.addAll(categoryTags[category]!);
+      if (!categories.contains(category)) continue;
+      for (final tag in categoryTags[category]!) {
+        selectedTags.add(
+          category == OnlineGalleryPromptTagCategory.artist
+              ? _formatArtistTag(tag)
+              : tag,
+        );
       }
     }
     return selectedTags.join(', ');
+  }
+
+  String _formatArtistTag(String tag) {
+    const prefix = 'artist:';
+    if (tag.toLowerCase().startsWith(prefix)) {
+      return '$prefix${tag.substring(prefix.length)}';
+    }
+    return '$prefix$tag';
   }
 }
 
