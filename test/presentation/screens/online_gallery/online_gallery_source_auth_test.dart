@@ -235,7 +235,8 @@ void main() {
             .ancestor(of: artistHuntToggle, matching: find.byType(Semantics))
             .first,
       );
-      expect(semantics.properties.label, 'Artist chain hunt');
+      expect(semantics.properties.label, 'Artist chains only');
+      expect(find.text('Artist chains only'), findsOneWidget);
       expect(semantics.properties.toggled, isFalse);
       await tester.tap(artistHuntToggle);
       await tester.pump();

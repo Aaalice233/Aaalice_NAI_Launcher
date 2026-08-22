@@ -2834,7 +2834,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'AI Prompt search (search raw Prompt text such as artist:)';
 
   @override
-  String get onlineGallery_artistHunt => 'Artist chain hunt';
+  String get onlineGallery_artistHunt => 'Artist chains only';
 
   @override
   String get onlineGallery_artistHuntTooltip =>

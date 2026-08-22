@@ -5117,7 +5117,7 @@ abstract class AppLocalizations {
   /// No description provided for @onlineGallery_artistHunt.
   ///
   /// In en, this message translates to:
-  /// **'Artist chain hunt'**
+  /// **'Artist chains only'**
   String get onlineGallery_artistHunt;
 
   /// No description provided for @onlineGallery_artistHuntTooltip.

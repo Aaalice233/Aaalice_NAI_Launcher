@@ -2732,7 +2732,7 @@ class AppLocalizationsZh extends AppLocalizations {
       'AI Prompt 搜索（可搜索 artist: 等 Prompt 原文）';
 
   @override
-  String get onlineGallery_artistHunt => '画师串打野';
+  String get onlineGallery_artistHunt => '仅画师串';
 
   @override
   String get onlineGallery_artistHuntTooltip =>

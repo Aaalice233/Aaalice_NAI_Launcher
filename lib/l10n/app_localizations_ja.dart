@@ -2775,7 +2775,7 @@ class AppLocalizationsJa extends AppLocalizations {
       'AI Prompt 検索（artist: などの Prompt 原文を検索）';
 
   @override
-  String get onlineGallery_artistHunt => '絵師タグ探索';
+  String get onlineGallery_artistHunt => '絵師タグのみ';
 
   @override
   String get onlineGallery_artistHuntTooltip =>

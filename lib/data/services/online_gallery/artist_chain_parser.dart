@@ -21,12 +21,15 @@ class ArtistChainParser {
     r'(^|[\s,\n\r\{\[(:])artist\s*:',
     caseSensitive: false,
   );
+  static final RegExp _lineBreaks = RegExp(r'\r\n?|\n');
   static final RegExp _whitespace = RegExp(r'\s+');
   static final RegExp _structuralSpacing = RegExp(r'\s*(::|[,{}\[\]])\s*');
   static final RegExp _artistPrefixSpacing = RegExp(
     r'artist\s*:\s*',
     caseSensitive: false,
   );
+  static final RegExp _repeatedCommas = RegExp(r',+');
+  static final RegExp _edgeCommas = RegExp(r'^,+|,+$');
 
   static ArtistChainExtraction parse(String? positivePrompt) {
     final prompt = positivePrompt ?? '';
@@ -67,15 +70,19 @@ class ArtistChainParser {
   }
 
   static String _normalizeIdentityText(String value) {
-    final collapsed = value.trim().toLowerCase().replaceAll(_whitespace, ' ');
+    final collapsed = value
+        .trim()
+        .toLowerCase()
+        .replaceAll(_lineBreaks, ',')
+        .replaceAll(_whitespace, ' ');
     final normalizedArtists = collapsed.replaceAll(
       _artistPrefixSpacing,
       'artist:',
     );
-    return normalizedArtists.replaceAllMapped(
-      _structuralSpacing,
-      (match) => match.group(1)!,
-    );
+    return normalizedArtists
+        .replaceAllMapped(_structuralSpacing, (match) => match.group(1)!)
+        .replaceAll(_repeatedCommas, ',')
+        .replaceAll(_edgeCommas, '');
   }
 
   /// Adds the broad server-side candidate constraint without changing the

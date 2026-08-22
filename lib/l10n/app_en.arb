@@ -1296,7 +1296,7 @@
   "onlineGallery_gelbooruRequestFailed": "The Gelbooru request failed. Try again later.",
   "onlineGallery_aiTagQuery": "Search works, artists, titles, tags, or models",
   "onlineGallery_aiTagPromptQuery": "AI Prompt search (search raw Prompt text such as artist:)",
-  "onlineGallery_artistHunt": "Artist chain hunt",
+  "onlineGallery_artistHunt": "Artist chains only",
   "onlineGallery_artistHuntTooltip": "Show only images whose positive Prompt contains explicit artist: tags",
   "onlineGallery_artistChain": "Artist chain",
   "onlineGallery_copyArtistChain": "Copy artist chain",

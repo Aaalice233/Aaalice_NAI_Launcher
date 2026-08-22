@@ -1284,7 +1284,7 @@
   "onlineGallery_gelbooruRequestFailed": "Gelbooru リクエストに失敗しました。しばらくしてから再試行してください。",
   "onlineGallery_aiTagQuery": "作品、作者、タイトル、タグ、モデルを検索",
   "onlineGallery_aiTagPromptQuery": "AI Prompt 検索（artist: などの Prompt 原文を検索）",
-  "onlineGallery_artistHunt": "絵師タグ探索",
+  "onlineGallery_artistHunt": "絵師タグのみ",
   "onlineGallery_artistHuntTooltip": "ポジティブ Prompt に明示的な artist: タグがある画像のみ表示",
   "onlineGallery_artistChain": "絵師タグ列",
   "onlineGallery_copyArtistChain": "絵師タグ列をコピー",
