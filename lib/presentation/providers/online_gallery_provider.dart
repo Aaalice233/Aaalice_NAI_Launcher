@@ -1000,10 +1000,12 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       var failureCount = replace ? 0 : session.cache.artistHuntFailureCount;
 
       if (artistHuntActive) {
+        final artistHuntDeduplicationKeys = _artistHuntDeduplicationKeys(posts);
         final resolution = await _resolveArtistHuntCandidates(
           candidates,
           generation: generation,
           cacheKey: cacheKey,
+          deduplicationKeys: artistHuntDeduplicationKeys,
           onProgress: (items, resolvedDelta, failureDelta) {
             if (generation != _requestGeneration || !state.randomEnabled) {
               return;
@@ -1253,6 +1255,9 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
           : cache.posts is ChunkedGalleryItems
           ? cache.posts as ChunkedGalleryItems
           : ChunkedGalleryItems.from(cache.posts);
+      final artistHuntDeduplicationKeys = artistHuntActive
+          ? _artistHuntDeduplicationKeys(baseItems)
+          : null;
       var merged = baseItems;
       var candidateCount = refresh ? 0 : cache.artistHuntCandidateCount;
       var resolvedCount = refresh ? 0 : cache.artistHuntResolvedCount;
@@ -1318,6 +1323,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
             page.items,
             generation: generation,
             cacheKey: cacheKey,
+            deduplicationKeys: artistHuntDeduplicationKeys!,
             onProgress: (items, resolvedDelta, failureDelta) {
               if (!_isCurrentRequest(generation, cacheKey)) return;
               resolvedCount += resolvedDelta;
@@ -1555,10 +1561,22 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         .toList(growable: false);
   }
 
+  Set<String> _artistHuntDeduplicationKeys(Iterable<GalleryItem> items) {
+    final keys = <String>{};
+    for (final item in items) {
+      final extraction = item.artistChain;
+      final prompt = item.cover.prompt;
+      if (extraction == null || extraction.isEmpty || prompt == null) continue;
+      keys.add(ArtistChainParser.deduplicationKey(prompt, extraction));
+    }
+    return keys;
+  }
+
   Future<_ArtistHuntResolution?> _resolveArtistHuntCandidates(
     List<GalleryItem> candidates, {
     required int generation,
     required String cacheKey,
+    required Set<String> deduplicationKeys,
     void Function(List<GalleryItem> items, int resolvedDelta, int failureDelta)?
     onProgress,
   }) async {
@@ -1603,8 +1621,14 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
         final media = outcome.detail!.media;
         for (var mediaIndex = 0; mediaIndex < media.length; mediaIndex++) {
           final focusedMedia = media[mediaIndex];
-          final extraction = ArtistChainParser.parse(focusedMedia.prompt);
-          if (extraction.isEmpty) continue;
+          final prompt = focusedMedia.prompt;
+          final extraction = ArtistChainParser.parse(prompt);
+          if (extraction.isEmpty || prompt == null) continue;
+          final deduplicationKey = ArtistChainParser.deduplicationKey(
+            prompt,
+            extraction,
+          );
+          if (!deduplicationKeys.add(deduplicationKey)) continue;
           final focusedItem = candidate.copyWith(
             cover: focusedMedia,
             focusedMediaId: focusedMedia.id,

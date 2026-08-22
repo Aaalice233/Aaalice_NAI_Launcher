@@ -21,6 +21,12 @@ class ArtistChainParser {
     r'(^|[\s,\n\r\{\[(:])artist\s*:',
     caseSensitive: false,
   );
+  static final RegExp _whitespace = RegExp(r'\s+');
+  static final RegExp _structuralSpacing = RegExp(r'\s*(::|[,{}\[\]])\s*');
+  static final RegExp _artistPrefixSpacing = RegExp(
+    r'artist\s*:\s*',
+    caseSensitive: false,
+  );
 
   static ArtistChainExtraction parse(String? positivePrompt) {
     final prompt = positivePrompt ?? '';
@@ -43,6 +49,32 @@ class ArtistChainParser {
       formattedText: parsed.nodes.map((node) => node.text).join(', '),
       rawFragments: List.unmodifiable(rawFragments),
       artistNames: List.unmodifiable(artistNames),
+    );
+  }
+
+  /// Builds a conservative identity for suppressing repeated generations.
+  ///
+  /// Only casing and insignificant whitespace around Prompt syntax are
+  /// normalized. Different positive Prompt content or different artist-chain
+  /// weighting therefore remains independently visible.
+  static String deduplicationKey(
+    String positivePrompt,
+    ArtistChainExtraction extraction,
+  ) {
+    final prompt = _normalizeIdentityText(positivePrompt);
+    final chain = _normalizeIdentityText(extraction.formattedText);
+    return '$prompt\u0000$chain';
+  }
+
+  static String _normalizeIdentityText(String value) {
+    final collapsed = value.trim().toLowerCase().replaceAll(_whitespace, ' ');
+    final normalizedArtists = collapsed.replaceAll(
+      _artistPrefixSpacing,
+      'artist:',
+    );
+    return normalizedArtists.replaceAllMapped(
+      _structuralSpacing,
+      (match) => match.group(1)!,
     );
   }
 

@@ -66,6 +66,39 @@ void main() {
     },
   );
 
+  test(
+    'deduplicates matching media by normalized Prompt and artist chain',
+    () async {
+      final adapter = _ArtistHuntAdapter(
+        candidates: [_item(1), _item(2), _item(3)],
+        details: {
+          1: _detail(1, const [
+            '1girl, artist: Alpha',
+            '  1GIRL , ARTIST : alpha  ',
+            'landscape, artist:alpha',
+          ]),
+          2: _detail(2, const ['1girl, artist:alpha']),
+          3: _detail(3, const ['1girl, {artist:alpha}']),
+        },
+      );
+      final container = _container(adapter);
+      addTearDown(container.dispose);
+      final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+      await notifier.setSource(GallerySourceId.aiTag);
+      await notifier.setArtistHuntEnabled(true);
+
+      final state = container.read(onlineGalleryNotifierProvider);
+      expect(state.posts.map((item) => item.stableKey), [
+        'ai_tag:1:media:1:0',
+        'ai_tag:1:media:1:2',
+        'ai_tag:3:media:3:0',
+      ]);
+      expect(state.currentCache.artistHuntCandidateCount, 3);
+      expect(state.currentCache.artistHuntResolvedCount, 3);
+    },
+  );
+
   test('limits detail concurrency and publishes completed batches', () async {
     final candidates = [for (var id = 1; id <= 6; id++) _item(id)];
     final adapter = _ArtistHuntAdapter(
@@ -131,9 +164,10 @@ void main() {
     'random mode keeps the artist constraint and media-level output',
     () async {
       final adapter = _ArtistHuntAdapter(
-        candidates: [_item(1)],
+        candidates: [_item(1), _item(2)],
         details: {
           1: _detail(1, const ['artist: alpha', 'plain scenery']),
+          2: _detail(2, const [' ARTIST : ALPHA ']),
         },
       );
       final container = _container(adapter);

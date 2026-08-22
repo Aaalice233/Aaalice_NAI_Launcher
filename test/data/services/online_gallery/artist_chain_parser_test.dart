@@ -135,6 +135,46 @@ void main() {
     });
   });
 
+  group('ArtistChainParser.deduplicationKey', () {
+    test('ignores casing and insignificant Prompt syntax spacing', () {
+      final first = ArtistChainParser.parse(
+        '1girl, 1.2::artist:Foo Bar::, {detailed eyes}',
+      );
+      final second = ArtistChainParser.parse(
+        '  1GIRL , 1.2 :: ARTIST : foo bar :: , { detailed eyes } ',
+      );
+
+      expect(
+        ArtistChainParser.deduplicationKey(
+          '1girl, 1.2::artist:Foo Bar::, {detailed eyes}',
+          first,
+        ),
+        ArtistChainParser.deduplicationKey(
+          '  1GIRL , 1.2 :: ARTIST : foo bar :: , { detailed eyes } ',
+          second,
+        ),
+      );
+    });
+
+    test('keeps different Prompts and artist weights distinct', () {
+      final plain = ArtistChainParser.parse('1girl, artist:foo');
+      final weighted = ArtistChainParser.parse('1girl, {artist:foo}');
+
+      expect(
+        ArtistChainParser.deduplicationKey('1girl, artist:foo', plain),
+        isNot(
+          ArtistChainParser.deduplicationKey('landscape, artist:foo', plain),
+        ),
+      );
+      expect(
+        ArtistChainParser.deduplicationKey('1girl, artist:foo', plain),
+        isNot(
+          ArtistChainParser.deduplicationKey('1girl, {artist:foo}', weighted),
+        ),
+      );
+    });
+  });
+
   group('ArtistChainParser.withArtistConstraint', () {
     test('adds the constraint without rewriting the original query', () {
       const query = '1girl blue hair';
