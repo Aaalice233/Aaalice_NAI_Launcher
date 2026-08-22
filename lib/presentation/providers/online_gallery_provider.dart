@@ -1637,6 +1637,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
           );
           allItems.add(focusedItem);
           progressItems.add(focusedItem);
+          break;
         }
       }
 

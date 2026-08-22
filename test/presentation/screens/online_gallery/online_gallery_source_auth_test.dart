@@ -238,6 +238,45 @@ void main() {
       expect(semantics.properties.label, 'Artist chains only');
       expect(find.text('Artist chains only'), findsOneWidget);
       expect(semantics.properties.toggled, isFalse);
+
+      final card = find.byType(DanbooruPostCard);
+      final viewIcon = find.descendant(
+        of: card,
+        matching: find.byIcon(Icons.visibility_outlined),
+      );
+      final favoriteIcon = find.descendant(
+        of: card,
+        matching: find.byIcon(Icons.favorite),
+      );
+      final viewCount = find.descendant(of: card, matching: find.text('123'));
+      final favoriteCount = find.descendant(
+        of: card,
+        matching: find.text('45'),
+      );
+      expect(viewIcon, findsOneWidget);
+      expect(favoriteIcon, findsOneWidget);
+      final viewIconRect = tester.getRect(viewIcon);
+      final favoriteIconRect = tester.getRect(favoriteIcon);
+      final viewCountRect = tester.getRect(viewCount);
+      final favoriteCountRect = tester.getRect(favoriteCount);
+      expect(
+        viewCountRect.left - viewIconRect.right,
+        greaterThanOrEqualTo(3.5),
+      );
+      expect(
+        favoriteCountRect.left - favoriteIconRect.right,
+        greaterThanOrEqualTo(3.5),
+      );
+      expect(viewIconRect.center.dy, closeTo(viewCountRect.center.dy, 1));
+      expect(
+        favoriteIconRect.center.dy,
+        closeTo(favoriteCountRect.center.dy, 1),
+      );
+      expect(
+        (viewIconRect.left + favoriteCountRect.right) / 2,
+        closeTo(tester.getRect(card).center.dx, 1),
+      );
+
       await tester.tap(artistHuntToggle);
       await tester.pump();
       expect(
@@ -294,7 +333,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('AI TAG artist hunt card and detail target the focused media', (
+  testWidgets('AI TAG filtered work targets its representative media', (
     tester,
   ) async {
     await _setViewSize(tester, 1200);
@@ -328,10 +367,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(
-      find.byKey(const ValueKey('ai_tag:801:media:801_p1')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('ai_tag:801')), findsOneWidget);
     expect(find.text('1 artists'), findsOneWidget);
 
     final card = find.byType(DanbooruPostCard);
@@ -672,6 +708,8 @@ const _aiTagPost = GalleryItem(
   author: 'Alice',
   aiType: 'NAI',
   mediaCount: 3,
+  viewCount: 123,
+  favoriteCount: 45,
   rank: 3,
   tags: ['1girl'],
   cover: GalleryMedia(

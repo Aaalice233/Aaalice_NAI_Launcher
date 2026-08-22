@@ -653,51 +653,30 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                       ),
                                     ),
                                   Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      if (widget.post.score != null) ...[
-                                        const Icon(
-                                          Icons.arrow_upward,
-                                          size: 10,
-                                          color: Colors.white70,
+                                      if (widget.post.score != null)
+                                        _OverlayStatItem(
+                                          icon: Icons.arrow_upward,
+                                          value: '${widget.post.score}',
                                         ),
-                                        Text(
-                                          '${widget.post.score}',
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 10,
-                                          ),
+                                      if (widget.post.score != null &&
+                                          (widget.post.viewCount != null ||
+                                              widget.post.favCount != null))
+                                        const SizedBox(width: 12),
+                                      if (widget.post.viewCount != null)
+                                        _OverlayStatItem(
+                                          icon: Icons.visibility_outlined,
+                                          value: '${widget.post.viewCount}',
                                         ),
-                                        const SizedBox(width: 8),
-                                      ],
-                                      if (widget.post.viewCount != null) ...[
-                                        const Icon(
-                                          Icons.visibility_outlined,
-                                          size: 10,
-                                          color: Colors.white70,
+                                      if (widget.post.viewCount != null &&
+                                          widget.post.favCount != null)
+                                        const SizedBox(width: 12),
+                                      if (widget.post.favCount != null)
+                                        _OverlayStatItem(
+                                          icon: Icons.favorite,
+                                          value: '${widget.post.favCount}',
                                         ),
-                                        Text(
-                                          '${widget.post.viewCount}',
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 10,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                      ],
-                                      if (widget.post.favCount != null) ...[
-                                        const Icon(
-                                          Icons.favorite,
-                                          size: 10,
-                                          color: Colors.white70,
-                                        ),
-                                        Text(
-                                          '${widget.post.favCount}',
-                                          style: const TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 10,
-                                          ),
-                                        ),
-                                      ],
                                     ],
                                   ),
                                 ],
@@ -1266,6 +1245,33 @@ class _HoverPreviewCardInnerState
   }
 }
 
+class _OverlayStatItem extends StatelessWidget {
+  final IconData icon;
+  final String value;
+
+  const _OverlayStatItem({required this.icon, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(icon, size: 10, color: Colors.white70),
+        const SizedBox(width: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 10,
+            height: 1,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _StatItem extends StatelessWidget {
   final IconData icon;
   final String value;
@@ -1277,13 +1283,15 @@ class _StatItem extends StatelessWidget {
     final theme = Theme.of(context);
     return Row(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Icon(icon, size: 12, color: theme.colorScheme.onSurfaceVariant),
-        const SizedBox(width: 3),
+        const SizedBox(width: 4),
         Text(
           value,
           style: TextStyle(
             fontSize: 11,
+            height: 1,
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),

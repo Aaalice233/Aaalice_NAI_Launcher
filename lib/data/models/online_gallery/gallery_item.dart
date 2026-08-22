@@ -163,8 +163,7 @@ class GalleryItem {
   final int? rank;
   final String? rankingName;
 
-  /// Optional image-level focus used by feeds that surface individual media
-  /// from a multi-media work.
+  /// Optional representative media selected inside a multi-media work.
   final String? focusedMediaId;
   final int? focusedMediaIndex;
   final ArtistChainExtraction? artistChain;
@@ -172,12 +171,7 @@ class GalleryItem {
 
   GallerySourceId get sourceId => _sourceId ?? GallerySourceId.fromKey(site);
   String get detailStableKey => sourceId.stableItemKey(id);
-  String get stableKey {
-    final mediaId = focusedMediaId;
-    return mediaId == null
-        ? detailStableKey
-        : '$detailStableKey:media:$mediaId';
-  }
+  String get stableKey => detailStableKey;
 
   int? get favCount => favoriteCount;
   int get width => _cover?.width ?? imageWidth;

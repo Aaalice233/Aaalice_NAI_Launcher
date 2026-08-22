@@ -14,8 +14,24 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
+  test('normal AI TAG feed keeps one card per work', () async {
+    final adapter = _ArtistHuntAdapter(
+      candidates: [_item(1), _item(1), _item(2)],
+      details: const {},
+    );
+    final container = _container(adapter);
+    addTearDown(container.dispose);
+
+    await container
+        .read(onlineGalleryNotifierProvider.notifier)
+        .setSource(GallerySourceId.aiTag);
+
+    final state = container.read(onlineGalleryNotifierProvider);
+    expect(state.posts.map((item) => item.stableKey), ['ai_tag:1', 'ai_tag:2']);
+  });
+
   test(
-    'filters server false positives and emits every matching media with stable keys',
+    'filters false positives and keeps one representative image per work',
     () async {
       final adapter = _ArtistHuntAdapter(
         candidates: [_item(1), _item(2)],
@@ -37,19 +53,10 @@ void main() {
 
       var state = container.read(onlineGalleryNotifierProvider);
       expect(adapter.searchPrompts, ['', 'artist:']);
-      expect(state.posts, hasLength(2));
-      expect(state.posts.map((item) => item.stableKey), [
-        'ai_tag:1:media:1:0',
-        'ai_tag:1:media:1:1',
-      ]);
-      expect(state.posts.map((item) => item.cover.prompt), [
-        'artist: alpha',
-        'scenery, 1.2::artist: beta::',
-      ]);
-      expect(state.posts.map((item) => item.artistChain!.formattedText), [
-        'artist:alpha',
-        '1.2::artist:beta::',
-      ]);
+      expect(state.posts, hasLength(1));
+      expect(state.posts.single.stableKey, 'ai_tag:1');
+      expect(state.posts.single.cover.prompt, 'artist: alpha');
+      expect(state.posts.single.artistChain!.formattedText, 'artist:alpha');
       expect(adapter.detailCalls, {1: 1, 2: 1});
 
       notifier.saveScrollOffset(84);
@@ -60,44 +67,37 @@ void main() {
 
       await notifier.setArtistHuntEnabled(true);
       state = container.read(onlineGalleryNotifierProvider);
-      expect(state.posts, hasLength(2));
+      expect(state.posts, hasLength(1));
       expect(state.scrollOffset, 84);
       expect(adapter.searchPrompts, ['', 'artist:']);
     },
   );
 
-  test(
-    'deduplicates matching media by normalized Prompt and artist chain',
-    () async {
-      final adapter = _ArtistHuntAdapter(
-        candidates: [_item(1), _item(2), _item(3)],
-        details: {
-          1: _detail(1, const [
-            '1girl, artist: Alpha',
-            '  1GIRL , ARTIST : alpha  ',
-            'landscape, artist:alpha',
-          ]),
-          2: _detail(2, const ['1girl, artist:alpha']),
-          3: _detail(3, const ['1girl, {artist:alpha}']),
-        },
-      );
-      final container = _container(adapter);
-      addTearDown(container.dispose);
-      final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+  test('deduplicates works by normalized Prompt and artist chain', () async {
+    final adapter = _ArtistHuntAdapter(
+      candidates: [_item(1), _item(2), _item(3)],
+      details: {
+        1: _detail(1, const [
+          '1girl, artist: Alpha',
+          '  1GIRL , ARTIST : alpha  ',
+          'landscape, artist:alpha',
+        ]),
+        2: _detail(2, const ['1girl, artist:alpha']),
+        3: _detail(3, const ['1girl, {artist:alpha}']),
+      },
+    );
+    final container = _container(adapter);
+    addTearDown(container.dispose);
+    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
 
-      await notifier.setSource(GallerySourceId.aiTag);
-      await notifier.setArtistHuntEnabled(true);
+    await notifier.setSource(GallerySourceId.aiTag);
+    await notifier.setArtistHuntEnabled(true);
 
-      final state = container.read(onlineGalleryNotifierProvider);
-      expect(state.posts.map((item) => item.stableKey), [
-        'ai_tag:1:media:1:0',
-        'ai_tag:1:media:1:2',
-        'ai_tag:3:media:3:0',
-      ]);
-      expect(state.currentCache.artistHuntCandidateCount, 3);
-      expect(state.currentCache.artistHuntResolvedCount, 3);
-    },
-  );
+    final state = container.read(onlineGalleryNotifierProvider);
+    expect(state.posts.map((item) => item.stableKey), ['ai_tag:1', 'ai_tag:3']);
+    expect(state.currentCache.artistHuntCandidateCount, 3);
+    expect(state.currentCache.artistHuntResolvedCount, 3);
+  });
 
   test('limits detail concurrency and publishes completed batches', () async {
     final candidates = [for (var id = 1; id <= 6; id++) _item(id)];
@@ -161,7 +161,7 @@ void main() {
   });
 
   test(
-    'random mode keeps the artist constraint and media-level output',
+    'random mode keeps the artist constraint and work-level output',
     () async {
       final adapter = _ArtistHuntAdapter(
         candidates: [_item(1), _item(2)],
@@ -183,7 +183,7 @@ void main() {
       final state = container.read(onlineGalleryNotifierProvider);
       expect(request.prompt, 'artist:');
       expect(state.randomEnabled, isTrue);
-      expect(state.posts.single.stableKey, 'ai_tag:1:media:1:0');
+      expect(state.posts.single.stableKey, 'ai_tag:1');
       expect(state.posts.single.artistChain!.formattedText, 'artist:alpha');
     },
   );
