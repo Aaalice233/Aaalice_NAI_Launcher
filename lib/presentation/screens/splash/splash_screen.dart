@@ -223,7 +223,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 520),
               child: Text(
-                error,
+                WarmupMessageLocalizer.localizeError(l10n, error),
                 textAlign: TextAlign.center,
                 maxLines: 4,
                 overflow: TextOverflow.ellipsis,

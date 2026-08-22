@@ -1431,6 +1431,12 @@
   "warmup_translationInit": "初始化翻译数据...",
   "warmup_danbooruTagsInit": "初始化 Danbooru 标签...",
   "warmup_dataMigration": "迁移 Hive / Vibe / 图片数据...",
+  "warmup_dataMigrationFailed": "数据迁移失败：{details}",
+  "@warmup_dataMigrationFailed": {
+    "placeholders": {
+      "details": {}
+    }
+  },
   "warmup_galleryDataSource": "初始化画廊索引...",
   "warmup_checkAndRecoverData": "检查数据完整性...",
   "warmup_group_dataSourceInitialization": "初始化数据源服务...",
@@ -3143,12 +3149,6 @@
 
   "tagLibrary_addedToFixed": "已添加到固定词",
   "tagLibrary_entryMoved": "条目已移动到目标分类",
-  "tagLibrary_useCount": "使用 {count} 次",
-  "@tagLibrary_useCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
   "tagLibrary_addFavorite": "添加收藏",
   "tagLibrary_thumbnail": "预览图",
   "tagLibrary_selectImage": "选择图片",

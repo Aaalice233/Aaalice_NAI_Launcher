@@ -1534,6 +1534,12 @@
   "warmup_translationInit": "Initializing translation data...",
   "warmup_danbooruTagsInit": "Initializing Danbooru tags...",
   "warmup_dataMigration": "Migrating Hive / Vibe / image data...",
+  "warmup_dataMigrationFailed": "Data migration failed: {details}",
+  "@warmup_dataMigrationFailed": {
+    "placeholders": {
+      "details": {}
+    }
+  },
   "warmup_galleryDataSource": "Initializing gallery index...",
   "warmup_checkAndRecoverData": "Checking data integrity...",
   "warmup_group_dataSourceInitialization": "Initializing data source services...",
@@ -3169,12 +3175,6 @@
 
   "tagLibrary_addedToFixed": "Added to Fixed Tags",
   "tagLibrary_entryMoved": "Entry moved to target category",
-  "tagLibrary_useCount": "Used {count} times",
-  "@tagLibrary_useCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
   "tagLibrary_addFavorite": "Add to Favorites",
   "tagLibrary_thumbnail": "Thumbnail",
   "tagLibrary_selectImage": "Select Image",

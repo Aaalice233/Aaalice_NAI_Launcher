@@ -1112,33 +1112,37 @@ class _HoverPreviewCardInnerState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _StatItem(
-                            icon: Icons.photo_size_select_actual,
-                            value: '${post.width}×${post.height}',
+                          Expanded(
+                            child: Wrap(
+                              spacing: 12,
+                              runSpacing: 4,
+                              children: [
+                                _StatItem(
+                                  icon: Icons.photo_size_select_actual,
+                                  value: '${post.width}×${post.height}',
+                                ),
+                                if (post.score != null)
+                                  _StatItem(
+                                    icon: Icons.thumb_up,
+                                    value: '${post.score}',
+                                  ),
+                                if (post.viewCount != null)
+                                  _StatItem(
+                                    icon: Icons.visibility_outlined,
+                                    value: '${post.viewCount}',
+                                  ),
+                                if (post.favCount != null)
+                                  _StatItem(
+                                    icon: Icons.favorite,
+                                    value: '${post.favCount}',
+                                  ),
+                              ],
+                            ),
                           ),
-                          const SizedBox(width: 12),
-                          if (post.score != null) ...[
-                            _StatItem(
-                              icon: Icons.thumb_up,
-                              value: '${post.score}',
-                            ),
-                            const SizedBox(width: 12),
-                          ],
-                          if (post.viewCount != null) ...[
-                            _StatItem(
-                              icon: Icons.visibility_outlined,
-                              value: '${post.viewCount}',
-                            ),
-                            const SizedBox(width: 12),
-                          ],
-                          if (post.favCount != null)
-                            _StatItem(
-                              icon: Icons.favorite,
-                              value: '${post.favCount}',
-                            ),
-                          const Spacer(),
-                          if (post.rating != null)
+                          if (post.rating != null) ...[
+                            const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 6,
@@ -1157,6 +1161,7 @@ class _HoverPreviewCardInnerState
                                 ),
                               ),
                             ),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 10),

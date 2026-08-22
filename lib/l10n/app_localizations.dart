@@ -6212,6 +6212,12 @@ abstract class AppLocalizations {
   /// **'Migrating Hive / Vibe / image data...'**
   String get warmup_dataMigration;
 
+  /// No description provided for @warmup_dataMigrationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Data migration failed: {details}'**
+  String warmup_dataMigrationFailed(Object details);
+
   /// No description provided for @warmup_galleryDataSource.
   ///
   /// In en, this message translates to:
@@ -11867,12 +11873,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Entry moved to target category'**
   String get tagLibrary_entryMoved;
-
-  /// No description provided for @tagLibrary_useCount.
-  ///
-  /// In en, this message translates to:
-  /// **'Used {count} times'**
-  String tagLibrary_useCount(Object count);
 
   /// No description provided for @tagLibrary_addFavorite.
   ///

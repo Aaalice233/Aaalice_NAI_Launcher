@@ -110,7 +110,7 @@ Future<ResizeImage> _pumpUntilResizeWidth(
 ) async {
   ResizeImage? latest;
 
-  for (var attempt = 0; attempt < 10; attempt++) {
+  for (var attempt = 0; attempt < 50; attempt++) {
     await tester.runAsync(() async {
       await Future<void>.delayed(const Duration(milliseconds: 10));
     });

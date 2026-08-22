@@ -3370,6 +3370,11 @@ class AppLocalizationsJa extends AppLocalizations {
   String get warmup_dataMigration => 'Hive / Vibe / 画像データを移行しています...';
 
   @override
+  String warmup_dataMigrationFailed(Object details) {
+    return 'データ移行に失敗しました: $details';
+  }
+
+  @override
   String get warmup_galleryDataSource => 'ギャラリー インデックスを初期化しています...';
 
   @override
@@ -6508,11 +6513,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get tagLibrary_entryMoved => 'エントリがターゲット カテゴリに移動されました';
-
-  @override
-  String tagLibrary_useCount(Object count) {
-    return '$count 回使用されました';
-  }
 
   @override
   String get tagLibrary_addFavorite => 'お気に入りに追加';

@@ -3448,6 +3448,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get warmup_dataMigration => 'Migrating Hive / Vibe / image data...';
 
   @override
+  String warmup_dataMigrationFailed(Object details) {
+    return 'Data migration failed: $details';
+  }
+
+  @override
   String get warmup_galleryDataSource => 'Initializing gallery index...';
 
   @override
@@ -6661,11 +6666,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tagLibrary_entryMoved => 'Entry moved to target category';
-
-  @override
-  String tagLibrary_useCount(Object count) {
-    return 'Used $count times';
-  }
 
   @override
   String get tagLibrary_addFavorite => 'Add to Favorites';

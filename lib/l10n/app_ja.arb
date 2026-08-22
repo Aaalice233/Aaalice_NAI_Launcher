@@ -1517,6 +1517,12 @@
   "warmup_translationInit": "翻訳データを初期化しています...",
   "warmup_danbooruTagsInit": "Danbooru タグを初期化しています...",
   "warmup_dataMigration": "Hive / Vibe / 画像データを移行しています...",
+  "warmup_dataMigrationFailed": "データ移行に失敗しました: {details}",
+  "@warmup_dataMigrationFailed": {
+    "placeholders": {
+      "details": {}
+    }
+  },
   "warmup_galleryDataSource": "ギャラリー インデックスを初期化しています...",
   "warmup_checkAndRecoverData": "データの整合性をチェックしています...",
   "warmup_group_dataSourceInitialization": "データ ソース サービスを初期化しています...",
@@ -3114,12 +3120,6 @@
   "tagLibraryPicker_allCategories": "すべてのカテゴリ",
   "tagLibrary_addedToFixed": "固定タグに追加",
   "tagLibrary_entryMoved": "エントリがターゲット カテゴリに移動されました",
-  "tagLibrary_useCount": "{count} 回使用されました",
-  "@tagLibrary_useCount": {
-    "placeholders": {
-      "count": {}
-    }
-  },
   "tagLibrary_addFavorite": "お気に入りに追加",
   "tagLibrary_thumbnail": "サムネイル",
   "tagLibrary_selectImage": "画像を選択してください",
