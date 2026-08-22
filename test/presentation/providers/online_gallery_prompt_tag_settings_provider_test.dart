@@ -67,6 +67,20 @@ void main() {
   });
 
   group('OnlineGalleryPromptTagSettingsNotifier', () {
+    test('selects only general tags by default', () {
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWith((ref) => _FakeStorage()),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      expect(
+        container.read(onlineGalleryPromptTagSettingsProvider).categories,
+        {OnlineGalleryPromptTagCategory.general},
+      );
+    });
+
     test('loads and persists selected categories', () async {
       final storage = _FakeStorage()
         ..values[StorageKeys.onlineGalleryPromptTagCategories] = <String>[

@@ -17,10 +17,6 @@ class OnlineGalleryPromptTagSettings {
 
   static const defaultCategories = <OnlineGalleryPromptTagCategory>{
     OnlineGalleryPromptTagCategory.general,
-    OnlineGalleryPromptTagCategory.character,
-    OnlineGalleryPromptTagCategory.copyright,
-    OnlineGalleryPromptTagCategory.artist,
-    OnlineGalleryPromptTagCategory.meta,
   };
 
   final Set<OnlineGalleryPromptTagCategory> categories;
