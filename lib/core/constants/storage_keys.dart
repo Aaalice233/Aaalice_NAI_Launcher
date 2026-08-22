@@ -50,6 +50,8 @@ class StorageKeys {
   static const String promptMaximized = 'prompt_maximized';
   static const String generationLayoutMode = 'generation_layout_mode';
   static const String historyClickBehavior = 'history_click_behavior';
+  static const String previewTransparencyBackground =
+      'preview_transparency_background';
   static const String mainNavRailExpanded = 'main_nav_rail_expanded';
   static const String webLeftPanelWidth = 'web_left_panel_width';
   static const String webLeftPanelExpanded = 'web_left_panel_expanded';
@@ -76,6 +78,7 @@ class StorageKeys {
       'selected_resolution_preset_id';
   static const String imageSavePath = 'image_save_path';
   static const String autoSaveImages = 'auto_save_images';
+  static const String imageStraightAlpha = 'image_straight_alpha';
   static const String shareStripMetadata = 'share_strip_metadata';
   static const String addQualityTags = 'add_quality_tags';
   static const String ucPresetType = 'uc_preset_type';

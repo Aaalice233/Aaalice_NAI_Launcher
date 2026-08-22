@@ -71,7 +71,7 @@ void main() {
     expect(storage.values, isEmpty);
   });
 
-  testWidgets('按任务流展示输入、重试、提醒三个小节', (tester) async {
+  testWidgets('按任务流展示输入、输出、重试、提醒四个小节', (tester) async {
     final storage = _MemoryLocalStorageService();
     await tester.binding.setSurfaceSize(const Size(1000, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -92,6 +92,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('输入'), findsOneWidget);
+    expect(find.text('图像输出'), findsOneWidget);
     expect(find.text('失败重试'), findsOneWidget);
     expect(find.text('完成提醒'), findsOneWidget);
     expect(find.text('显示随机提示词工具'), findsOneWidget);
@@ -99,6 +100,79 @@ void main() {
     expect(find.text('重试次数'), findsOneWidget);
     expect(find.text('重试间隔'), findsOneWidget);
     expect(find.text('完成音效'), findsOneWidget);
+  });
+
+  testWidgets('透明图像 Alpha 模式默认直通并可切换为预乘', (tester) async {
+    final storage = _MemoryLocalStorageService();
+    await tester.binding.setSurfaceSize(const Size(1000, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SingleChildScrollView(child: GenerationSettingsSection()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final selector = find.byKey(const Key('settings-alpha-mode-selector'));
+    expect(selector, findsOneWidget);
+    expect(
+      find.ancestor(of: selector, matching: find.byType(ListTile)),
+      findsOneWidget,
+    );
+    expect(tester.widget<SegmentedButton<bool>>(selector).selected, {true});
+
+    await tester.tap(find.text('预乘（Premultiplied）'));
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<SegmentedButton<bool>>(selector).selected, {false});
+    expect(storage.values[StorageKeys.imageStraightAlpha], isFalse);
+    expect(find.textContaining('RGB 已乘 Alpha'), findsOneWidget);
+  });
+
+  testWidgets('透明图像 Alpha 选择器在窄布局中不会溢出', (tester) async {
+    final storage = _MemoryLocalStorageService();
+    await tester.binding.setSurfaceSize(const Size(360, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Padding(
+              padding: EdgeInsets.all(24),
+              child: SingleChildScrollView(child: GenerationSettingsSection()),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('settings-alpha-mode-selector')),
+      findsOneWidget,
+    );
+    expect(
+      find.ancestor(
+        of: find.byKey(const Key('settings-alpha-mode-selector')),
+        matching: find.byType(ListTile),
+      ),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('音效开关关闭时隐藏自定义音效入口', (tester) async {

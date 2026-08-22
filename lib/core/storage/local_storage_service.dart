@@ -243,6 +243,20 @@ class LocalStorageService {
     await setSetting(StorageKeys.autoSaveImages, value);
   }
 
+  /// 获取透明图像的 Alpha 模式（true=Straight，false=Premultiplied）。
+  bool getImageStraightAlpha() {
+    return getSetting<bool>(
+          StorageKeys.imageStraightAlpha,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存透明图像的 Alpha 模式。
+  Future<void> setImageStraightAlpha(bool value) async {
+    await setSetting(StorageKeys.imageStraightAlpha, value);
+  }
+
   // ==================== Quality Tags ====================
 
   /// 获取是否添加质量标签 (默认开启)
@@ -766,6 +780,19 @@ class LocalStorageService {
   /// 保存历史记录点击行为
   Future<void> setHistoryClickBehavior(String behavior) async {
     await setSetting(StorageKeys.historyClickBehavior, behavior);
+  }
+
+  /// 获取预览区透明底色样式
+  ///
+  /// 未设置时返回 null，默认值与合法性由 `TransparencyBackgrounds` 归一化，
+  /// 避免在 core 层重复定义样式表。
+  String? getPreviewTransparencyBackground() {
+    return getSetting<String>(StorageKeys.previewTransparencyBackground);
+  }
+
+  /// 保存预览区透明底色样式
+  Future<void> setPreviewTransparencyBackground(String style) async {
+    await setSetting(StorageKeys.previewTransparencyBackground, style);
   }
 
   /// 获取官网式布局左栏宽度 (默认400)

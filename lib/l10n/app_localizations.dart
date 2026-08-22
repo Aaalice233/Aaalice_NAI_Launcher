@@ -1114,6 +1114,12 @@ abstract class AppLocalizations {
   /// **'Input'**
   String get settings_generationInputSection;
 
+  /// No description provided for @settings_generationOutputSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Image Output'**
+  String get settings_generationOutputSection;
+
   /// No description provided for @settings_generationRetrySection.
   ///
   /// In en, this message translates to:
@@ -1125,6 +1131,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Completion Alert'**
   String get settings_generationFeedbackSection;
+
+  /// No description provided for @settings_alphaModeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Alpha mode for transparent images'**
+  String get settings_alphaModeTitle;
+
+  /// No description provided for @settings_alphaModeStraight.
+  ///
+  /// In en, this message translates to:
+  /// **'Straight'**
+  String get settings_alphaModeStraight;
+
+  /// No description provided for @settings_alphaModePremultiplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Premultiplied'**
+  String get settings_alphaModePremultiplied;
+
+  /// No description provided for @settings_alphaModeStraightDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Preserve RGB without multiplying by alpha. Best for further editing and the NovelAI website default.'**
+  String get settings_alphaModeStraightDescription;
+
+  /// No description provided for @settings_alphaModePremultipliedDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Store RGB multiplied by alpha for compositing and rendering pipelines that expect premultiplied input.'**
+  String get settings_alphaModePremultipliedDescription;
 
   /// No description provided for @settings_promptAssistant.
   ///
@@ -1593,6 +1629,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Seed'**
   String get generation_seed;
+
+  /// No description provided for @generation_previewApplySeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the seed of the displayed image'**
+  String get generation_previewApplySeed;
+
+  /// No description provided for @generation_transparencyBackgroundTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Transparency Background'**
+  String get generation_transparencyBackgroundTitle;
+
+  /// No description provided for @generation_transparencyChecker.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme Checkerboard'**
+  String get generation_transparencyChecker;
+
+  /// No description provided for @generation_transparencyCheckerLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light Checkerboard'**
+  String get generation_transparencyCheckerLight;
+
+  /// No description provided for @generation_transparencyCheckerDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark Checkerboard'**
+  String get generation_transparencyCheckerDark;
+
+  /// No description provided for @generation_transparencyNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get generation_transparencyNone;
+
+  /// No description provided for @generation_transparencyBlack.
+  ///
+  /// In en, this message translates to:
+  /// **'Black'**
+  String get generation_transparencyBlack;
+
+  /// No description provided for @generation_transparencyWhite.
+  ///
+  /// In en, this message translates to:
+  /// **'White'**
+  String get generation_transparencyWhite;
+
+  /// No description provided for @generation_transparencyGray.
+  ///
+  /// In en, this message translates to:
+  /// **'Gray'**
+  String get generation_transparencyGray;
+
+  /// No description provided for @generation_transparencyRed.
+  ///
+  /// In en, this message translates to:
+  /// **'Red'**
+  String get generation_transparencyRed;
+
+  /// No description provided for @generation_transparencyGreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Green'**
+  String get generation_transparencyGreen;
+
+  /// No description provided for @generation_transparencyBlue.
+  ///
+  /// In en, this message translates to:
+  /// **'Blue'**
+  String get generation_transparencyBlue;
+
+  /// No description provided for @generation_transparencyCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Color'**
+  String get generation_transparencyCustom;
 
   /// No description provided for @generation_seedRandom.
   ///

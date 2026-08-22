@@ -551,10 +551,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_generationInputSection => 'Input';
 
   @override
+  String get settings_generationOutputSection => 'Image Output';
+
+  @override
   String get settings_generationRetrySection => 'Retry on Failure';
 
   @override
   String get settings_generationFeedbackSection => 'Completion Alert';
+
+  @override
+  String get settings_alphaModeTitle => 'Alpha mode for transparent images';
+
+  @override
+  String get settings_alphaModeStraight => 'Straight';
+
+  @override
+  String get settings_alphaModePremultiplied => 'Premultiplied';
+
+  @override
+  String get settings_alphaModeStraightDescription =>
+      'Preserve RGB without multiplying by alpha. Best for further editing and the NovelAI website default.';
+
+  @override
+  String get settings_alphaModePremultipliedDescription =>
+      'Store RGB multiplied by alpha for compositing and rendering pipelines that expect premultiplied input.';
 
   @override
   String get settings_promptAssistant => 'Prompt Assistant';
@@ -817,6 +837,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get generation_seed => 'Seed';
+
+  @override
+  String get generation_previewApplySeed =>
+      'Use the seed of the displayed image';
+
+  @override
+  String get generation_transparencyBackgroundTitle =>
+      'Transparency Background';
+
+  @override
+  String get generation_transparencyChecker => 'Theme Checkerboard';
+
+  @override
+  String get generation_transparencyCheckerLight => 'Light Checkerboard';
+
+  @override
+  String get generation_transparencyCheckerDark => 'Dark Checkerboard';
+
+  @override
+  String get generation_transparencyNone => 'None';
+
+  @override
+  String get generation_transparencyBlack => 'Black';
+
+  @override
+  String get generation_transparencyWhite => 'White';
+
+  @override
+  String get generation_transparencyGray => 'Gray';
+
+  @override
+  String get generation_transparencyRed => 'Red';
+
+  @override
+  String get generation_transparencyGreen => 'Green';
+
+  @override
+  String get generation_transparencyBlue => 'Blue';
+
+  @override
+  String get generation_transparencyCustom => 'Custom Color';
 
   @override
   String get generation_seedRandom => 'Random';

@@ -1246,22 +1246,33 @@ void main() {
       },
     );
 
-    test('should send straight_alpha even with the toggle off', () async {
-      // 官网把 alpha 模式当账号设置，只要模型支持透明就一直下发。
-      const params = ImageParams(model: ImageModels.v5StagingKey);
-      final builder = NAIImageRequestBuilder(
-        params: params,
-        encodeVibe: _fakeEncodeVibe,
-      );
+    test(
+      'should send selected alpha mode even with transparency off',
+      () async {
+        // 官网把 alpha 模式当账号设置，只要模型支持透明就一直下发。
+        const straightParams = ImageParams(model: ImageModels.v5StagingKey);
+        final straightResult = await NAIImageRequestBuilder(
+          params: straightParams,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler_ancestral');
+        final premultipliedResult = await NAIImageRequestBuilder(
+          params: straightParams.copyWith(straightAlpha: false),
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler_ancestral');
 
-      final result = await builder.build(sampler: 'k_euler_ancestral');
-
-      expect(result.requestParameters['straight_alpha'], isTrue);
-      expect(
-        result.requestParameters.containsKey('tag_hint_transparent_background'),
-        isFalse,
-      );
-    });
+        expect(straightResult.requestParameters['straight_alpha'], isTrue);
+        expect(
+          premultipliedResult.requestParameters['straight_alpha'],
+          isFalse,
+        );
+        expect(
+          straightResult.requestParameters.containsKey(
+            'tag_hint_transparent_background',
+          ),
+          isFalse,
+        );
+      },
+    );
 
     test('should omit transparency params for V4.5', () async {
       const params = ImageParams(

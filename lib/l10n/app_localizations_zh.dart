@@ -533,10 +533,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_generationInputSection => '输入';
 
   @override
+  String get settings_generationOutputSection => '图像输出';
+
+  @override
   String get settings_generationRetrySection => '失败重试';
 
   @override
   String get settings_generationFeedbackSection => '完成提醒';
+
+  @override
+  String get settings_alphaModeTitle => '透明图像 Alpha 模式';
+
+  @override
+  String get settings_alphaModeStraight => '直通（Straight）';
+
+  @override
+  String get settings_alphaModePremultiplied => '预乘（Premultiplied）';
+
+  @override
+  String get settings_alphaModeStraightDescription =>
+      '保留未乘 Alpha 的 RGB，适合继续编辑，也是 NovelAI 官网默认值。';
+
+  @override
+  String get settings_alphaModePremultipliedDescription =>
+      'RGB 已乘 Alpha，适合要求预乘输入的合成与渲染流程。';
 
   @override
   String get settings_promptAssistant => '提示词助手';
@@ -794,6 +814,45 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get generation_seed => '种子';
+
+  @override
+  String get generation_previewApplySeed => '使用当前图片的种子';
+
+  @override
+  String get generation_transparencyBackgroundTitle => '透明部分显示';
+
+  @override
+  String get generation_transparencyChecker => '跟随主题棋盘格';
+
+  @override
+  String get generation_transparencyCheckerLight => '浅色棋盘格';
+
+  @override
+  String get generation_transparencyCheckerDark => '深色棋盘格';
+
+  @override
+  String get generation_transparencyNone => '无';
+
+  @override
+  String get generation_transparencyBlack => '黑色';
+
+  @override
+  String get generation_transparencyWhite => '白色';
+
+  @override
+  String get generation_transparencyGray => '灰色';
+
+  @override
+  String get generation_transparencyRed => '红色';
+
+  @override
+  String get generation_transparencyGreen => '绿色';
+
+  @override
+  String get generation_transparencyBlue => '蓝色';
+
+  @override
+  String get generation_transparencyCustom => '自定义颜色';
 
   @override
   String get generation_seedRandom => '随机';

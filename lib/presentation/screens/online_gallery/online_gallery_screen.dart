@@ -662,6 +662,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compactActions = constraints.maxWidth < 900;
+          final narrowToolbar = constraints.maxWidth < 720;
           final modeSelector = _buildModeSelector(
             theme,
             state,
@@ -676,7 +677,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             compact: compactActions,
           );
           final popularOptionsOnFirstRow =
-              state.viewMode == GalleryViewMode.popular;
+              state.viewMode == GalleryViewMode.popular && !narrowToolbar;
           final secondaryControls = _buildSecondaryControls(
             theme,
             state,
@@ -690,23 +691,36 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  modeSelector,
-                  if (showQueryFields) ...[
+              if (narrowToolbar)
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
+                  children: [modeSelector, primaryActions],
+                )
+              else
+                Row(
+                  children: [
+                    modeSelector,
+                    if (showQueryFields) ...[
+                      const SizedBox(width: 12),
+                      Expanded(child: _buildSearchFields(theme, state)),
+                    ] else if (!popularOptionsOnFirstRow)
+                      const Spacer(),
+                    if (popularOptionsOnFirstRow) ...[
+                      const SizedBox(width: 12),
+                      _buildPopularOptions(theme, state),
+                      if (!showQueryFields) const Spacer(),
+                    ],
                     const SizedBox(width: 12),
-                    Expanded(child: _buildSearchFields(theme, state)),
-                  ] else if (!popularOptionsOnFirstRow)
-                    const Spacer(),
-                  if (popularOptionsOnFirstRow) ...[
-                    const SizedBox(width: 12),
-                    _buildPopularOptions(theme, state),
-                    if (!showQueryFields) const Spacer(),
+                    primaryActions,
                   ],
-                  const SizedBox(width: 12),
-                  primaryActions,
-                ],
-              ),
+                ),
+              if (narrowToolbar && showQueryFields) ...[
+                const SizedBox(height: 8),
+                _buildSearchFields(theme, state),
+              ],
               const SizedBox(height: 8),
               Align(alignment: Alignment.centerLeft, child: secondaryControls),
             ],

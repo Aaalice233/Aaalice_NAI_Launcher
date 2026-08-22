@@ -69,6 +69,26 @@ void main() {
     expect(storage.getLastVarietyPlus(), isTrue);
   });
 
+  test('alpha mode should default to straight and persist changes', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    expect(
+      container.read(generationParamsNotifierProvider).straightAlpha,
+      isTrue,
+    );
+
+    container
+        .read(generationParamsNotifierProvider.notifier)
+        .updateStraightAlpha(false);
+
+    expect(
+      container.read(generationParamsNotifierProvider).straightAlpha,
+      isFalse,
+    );
+    expect(LocalStorageService().getImageStraightAlpha(), isFalse);
+  });
+
   test('encodeVibeWithCache 会区分 model 和 informationExtracted', () async {
     final apiService = _FakeEnhancementApiService();
     final container = ProviderContainer(
