@@ -159,9 +159,8 @@ class _CharacterPositionCanvasViewState
     final backgroundImage = generationState.displayImages.isNotEmpty
         ? generationState.displayImages.first
         : null;
-    final aspectRatio =
-        backgroundImage?.aspectRatio ??
-        previewDimensions.width / previewDimensions.height;
+    // 锚点坐标用于下一次请求；历史预览只作背景，不能决定画布尺寸。
+    final aspectRatio = previewDimensions.width / previewDimensions.height;
 
     return AspectRatio(
       aspectRatio: aspectRatio,

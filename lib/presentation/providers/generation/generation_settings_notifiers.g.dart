@@ -7,7 +7,7 @@ part of 'generation_settings_notifiers.dart';
 // **************************************************************************
 
 String _$autocompleteSettingsHash() =>
-    r'0ca3c153a47c4babddbcfe874c4142a211bc5a01';
+    r'4c9452cec36b8369553769ecf16dde884bd2c9b4';
 
 /// 自动补全设置 Notifier
 ///
