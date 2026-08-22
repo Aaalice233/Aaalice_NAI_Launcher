@@ -86,7 +86,7 @@ NAI Launcher is a third-party client for NovelAI built with Flutter. It integrat
 
 ## 📦 Download & Install
 
-Download the latest version from [Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases). The app persistently surfaces available updates before and after login and fully renders GitHub Flavored Markdown release notes, including headings, lists, tables, quotes, code, links, and images.
+Download the latest version from [Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases). The app persistently surfaces available updates before and after login and fully renders the GitHub Flavored Markdown under the Release’s “What’s Changed” section, including headings, lists, tables, quotes, code, links, and images, without repeating platform downloads or file verification details.
 
 | Platform | Download File | Usage |
 | --- | --- | --- |

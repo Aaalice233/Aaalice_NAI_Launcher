@@ -86,7 +86,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 
 ## 📦 下载与安装
 
-前往 [Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases) 下载最新版本。应用会在登录前后持续提示可用更新，并完整渲染 Release 中的 GitHub Flavored Markdown 更新日志（标题、列表、表格、引用、代码、链接与图片）。
+前往 [Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases) 下载最新版本。应用会在登录前后持续提示可用更新，并完整渲染 Release“更新内容”中的 GitHub Flavored Markdown（标题、列表、表格、引用、代码、链接与图片），不重复显示平台下载与文件校验区段。
 
 | 平台 | 下载文件 | 使用方式 |
 | --- | --- | --- |

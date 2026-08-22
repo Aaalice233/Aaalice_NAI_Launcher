@@ -82,4 +82,68 @@ print('updated');
     expect(find.text("print('updated');"), findsOneWidget);
     expect(find.text('Release details'), findsOneWidget);
   });
+
+  testWidgets('shows changelog content without release download sections', (
+    tester,
+  ) async {
+    const asset = ReleaseAssetInfo(
+      type: ReleaseAssetType.windowsPortable,
+      platform: 'windows',
+      fileName: 'update.zip',
+      downloadUrl: 'https://example.com/update.zip',
+      sha256: 'abc',
+    );
+    const info = VersionInfo(
+      version: '2.0.0',
+      currentVersion: '1.0.0',
+      primaryAsset: asset,
+      assets: [asset],
+      isNewer: true,
+      releaseNotes: '''
+# NAI Launcher v2.0.0
+
+## 📥 按系统下载
+
+点击对应按钮直接下载。
+
+## 📝 更新内容
+
+### 🐛 修复
+
+- 修复实际问题。
+
+## 🔐 文件校验
+
+SHA256 校验说明。
+''',
+    );
+    const state = UpdateState(
+      status: UpdateStatus.available,
+      versionInfo: info,
+      notificationVisible: true,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          updateStateNotifierProvider.overrideWith(
+            () => _DialogUpdateNotifier(state),
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(body: UpdateCheckDialog()),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('修复实际问题。'), findsOneWidget);
+    expect(find.text('按系统下载'), findsNothing);
+    expect(find.text('点击对应按钮直接下载。'), findsNothing);
+    expect(find.text('文件校验'), findsNothing);
+    expect(find.text('SHA256 校验说明。'), findsNothing);
+  });
 }
