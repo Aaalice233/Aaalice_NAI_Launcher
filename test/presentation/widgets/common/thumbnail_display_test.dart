@@ -63,6 +63,45 @@ void main() {
     expect(resized.width, 400);
     expect(resized.height, 400);
   });
+
+  testWidgets('uses the actual viewport ratio when covering the thumbnail', (
+    tester,
+  ) async {
+    final directory = Directory.systemTemp.createTempSync(
+      'thumbnail_display_ratio_test_',
+    );
+    addTearDown(() {
+      if (directory.existsSync()) {
+        directory.deleteSync(recursive: true);
+      }
+    });
+
+    final imageFile = File('${directory.path}/landscape.png');
+    imageFile.writeAsBytesSync(
+      img.encodePng(img.Image(width: 200, height: 100)),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(devicePixelRatio: 2),
+          child: ThumbnailDisplay(
+            imagePath: imageFile.path,
+            width: 64,
+            height: 64,
+          ),
+        ),
+      ),
+    );
+
+    final resized = await _pumpUntilResizeWidth(tester, 256);
+    final image = tester.widget<Image>(find.byType(Image));
+
+    expect(resized.width, 256);
+    expect(resized.height, 128);
+    expect(image.width, 128);
+    expect(image.height, 64);
+  });
 }
 
 Future<ResizeImage> _pumpUntilResizeWidth(

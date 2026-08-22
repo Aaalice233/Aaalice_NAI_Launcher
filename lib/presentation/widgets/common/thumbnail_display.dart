@@ -98,9 +98,10 @@ class _ThumbnailDisplayState extends State<ThumbnailDisplay> {
     // 容器尺寸
     final containerWidth = widget.width;
     final containerHeight = widget.height;
-    const containerAspectRatio = 2.5; // 与 EntryCard 一致
+    final containerAspectRatio = containerWidth / containerHeight;
 
-    // 计算图像相对于容器的缩放（模拟 BoxFit.cover 或类似效果）
+    // 按当前显示区域的实际比例铺满，避免组件用于非 200x80
+    // 区域时出现未被图像覆盖的边带。
     final imageAspectRatio = _imageSize!.width / _imageSize!.height;
 
     // 使用与裁剪对话框相同的逻辑计算"虚拟图像"尺寸
