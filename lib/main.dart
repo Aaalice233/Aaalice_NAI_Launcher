@@ -31,6 +31,7 @@ import 'core/utils/app_logger.dart';
 import 'core/utils/hive_startup_box_opener.dart';
 import 'core/utils/hive_storage_helper.dart';
 import 'core/utils/window_focus_tracker.dart';
+import 'core/utils/windows_clipboard_history_key_fix.dart';
 import 'core/utils/window_state_coercion.dart';
 import 'core/utils/window_state_persistence.dart';
 import 'data/datasources/local/nai_tags_data_source.dart';
@@ -298,6 +299,7 @@ void main() {
 
 Future<void> _bootstrapApplication() async {
   WidgetsFlutterBinding.ensureInitialized();
+  WindowsClipboardHistoryKeyFix.instance.install();
   AppErrorReporter.installGlobalHandlers();
 
   // 先初始化控制台日志；文件日志稍后读取设置后按需开启，默认关闭。
