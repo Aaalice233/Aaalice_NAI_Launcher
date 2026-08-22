@@ -38,7 +38,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
   late double _weight;
   late bool _enabled;
   bool _saveToLibrary = false;
-  String? _selectedCategoryId; // 保存到词库的目标分类
+  String? _selectedCategoryId;
 
   final _nameFocusNode = FocusNode();
   final _contentFocusNode = FocusNode();
@@ -78,430 +78,466 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
       ),
     );
 
+    final mediaSize = MediaQuery.sizeOf(context);
+    final isWide = mediaSize.width >= 760;
+    final dialogWidth = isWide
+        ? 860.0
+        : (mediaSize.width - 32).clamp(0.0, 560.0).toDouble();
+    final dialogHeight = (mediaSize.height - (isWide ? 48 : 32))
+        .clamp(0.0, 680.0)
+        .toDouble();
+
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 500, minWidth: 400),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 标题
-                Row(
-                  children: [
-                    Icon(
-                      _isEditing ? Icons.edit : Icons.add,
-                      color: theme.colorScheme.secondary,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      _isEditing
-                          ? context.l10n.fixedTags_edit
-                          : context.l10n.fixedTags_add,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
+      insetPadding: EdgeInsets.all(isWide ? 24 : 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: SizedBox(
+        width: dialogWidth,
+        height: dialogHeight,
+        child: Column(
+          children: [
+            _buildHeader(theme),
+            Divider(height: 1, color: theme.colorScheme.outlineVariant),
+            Expanded(
+              child: isWide ? _buildWideBody(theme) : _buildNarrowBody(theme),
+            ),
+            Divider(height: 1, color: theme.colorScheme.outlineVariant),
+            _buildFooter(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 12, 12),
+      child: Row(
+        children: [
+          Icon(
+            _isEditing ? Icons.edit_outlined : Icons.add,
+            color: theme.colorScheme.secondary,
+          ),
+          const SizedBox(width: 12),
+          Text(
+            _isEditing
+                ? context.l10n.fixedTags_edit
+                : context.l10n.fixedTags_add,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const Spacer(),
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWideBody(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: _buildEditorPane(theme, expanded: true)),
+          const SizedBox(width: 20),
+          VerticalDivider(width: 1, color: theme.colorScheme.outlineVariant),
+          const SizedBox(width: 20),
+          SizedBox(
+            width: 250,
+            child: SingleChildScrollView(child: _buildSettingsPane(theme)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNarrowBody(ThemeData theme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildEditorPane(theme, expanded: false),
+          const SizedBox(height: 20),
+          Divider(color: theme.colorScheme.outlineVariant),
+          const SizedBox(height: 16),
+          _buildSettingsPane(theme),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditorPane(ThemeData theme, {required bool expanded}) {
+    final promptEditor = _buildPromptEditor();
+    return Column(
+      mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (widget.entry?.sourceEntryId != null) ...[
+          _buildLibraryLinkBanner(theme),
+          const SizedBox(height: 16),
+        ],
+        Text(context.l10n.fixedTags_name, style: theme.textTheme.labelLarge),
+        const SizedBox(height: 6),
+        ThemedInput(
+          controller: _nameController,
+          focusNode: _nameFocusNode,
+          hintText: context.l10n.fixedTags_nameHint,
+          textInputAction: TextInputAction.next,
+          onSubmitted: (_) => _contentFocusNode.requestFocus(),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Text(
+              context.l10n.fixedTags_content,
+              style: theme.textTheme.labelLarge,
+            ),
+            const Spacer(),
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _contentController,
+              builder: (context, value, child) => Text(
+                '${value.text.characters.length}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        if (expanded)
+          Expanded(child: promptEditor)
+        else
+          SizedBox(height: 280, child: promptEditor),
+        const SizedBox(height: 6),
+        Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: Text(
+            context.l10n.fixedTags_syntaxHelp,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline,
+              fontSize: 12,
+            ),
+            maxLines: 2,
+          ),
+        ),
+      ],
+    );
+  }
 
-                const SizedBox(height: 20),
+  Widget _buildLibraryLinkBanner(ThemeData theme) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.sync_alt, size: 16, color: theme.colorScheme.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              context.l10n.fixedTags_linkedFromLibrary,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-                // 【新增】关联自词库的标识
-                if (widget.entry?.sourceEntryId != null)
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.blue.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.sync_alt,
-                          size: 16,
-                          color: Colors.blue.shade700,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            context.l10n.fixedTags_linkedFromLibrary,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.blue.shade700,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
+  Widget _buildPromptEditor() {
+    return PromptFormatterWrapper(
+      controller: _contentController,
+      focusNode: _contentFocusNode,
+      enableAutoFormat: ref.watch(autoFormatPromptSettingsProvider),
+      child: AutocompleteWrapper.withAlias(
+        controller: _contentController,
+        focusNode: _contentFocusNode,
+        ref: ref,
+        expands: true,
+        config: const AutocompleteConfig(
+          showTranslation: true,
+          showCategory: true,
+          autoInsertComma: true,
+        ),
+        child: ThemedInput(
+          controller: _contentController,
+          focusNode: _contentFocusNode,
+          decoration: InputDecoration(
+            hintText: context.l10n.fixedTags_contentHint,
+            contentPadding: const EdgeInsets.all(12),
+          ),
+          maxLines: null,
+          expands: true,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingsPane(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(context.l10n.fixedTags_scope, style: theme.textTheme.labelLarge),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<FixedTagPromptType>(
+            segments: [
+              ButtonSegment(
+                value: FixedTagPromptType.positive,
+                label: Text(context.l10n.fixedTags_positive),
+              ),
+              ButtonSegment(
+                value: FixedTagPromptType.negative,
+                label: Text(context.l10n.fixedTags_negative),
+              ),
+            ],
+            selected: {_promptType},
+            onSelectionChanged: (selection) {
+              setState(() => _promptType = selection.first);
+            },
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          context.l10n.fixedTags_position,
+          style: theme.textTheme.labelLarge,
+        ),
+        const SizedBox(height: 8),
+        Center(
+          child: PrefixSuffixSwitch(
+            value: _position,
+            onChanged: (value) => setState(() => _position = value),
+            prefixLabel: context.l10n.fixedTags_prefix,
+            suffixLabel: context.l10n.fixedTags_suffix,
+          ),
+        ),
+        const SizedBox(height: 20),
+        _buildWeightControl(theme),
+        const SizedBox(height: 12),
+        SwitchListTile(
+          value: _enabled,
+          onChanged: (value) => setState(() => _enabled = value),
+          contentPadding: EdgeInsets.zero,
+          title: Text(
+            context.l10n.fixedTags_enabled,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          dense: true,
+        ),
+        if (!_isEditing) ...[
+          const SizedBox(height: 8),
+          _buildSaveToLibrary(theme),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildWeightControl(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              context.l10n.fixedTags_weight,
+              style: theme.textTheme.labelLarge,
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.secondary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '${_weight.toStringAsFixed(2)}x',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.secondary,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Text('0.5', style: theme.textTheme.bodySmall),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ThemedSlider(
+                value: _weight,
+                min: 0.5,
+                max: 2.0,
+                divisions: 30,
+                onChanged: (value) => setState(() => _weight = value),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text('2.0', style: theme.textTheme.bodySmall),
+            const SizedBox(width: 4),
+            IconButton(
+              icon: const Icon(Icons.refresh, size: 18),
+              tooltip: context.l10n.fixedTags_resetWeight,
+              onPressed: () => setState(() => _weight = 1.0),
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
+        if (_weight != 1.0) ...[
+          const SizedBox(height: 4),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _contentController,
+              builder: (context, value, child) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.l10n.fixedTags_weightPreview,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.outline,
+                      fontSize: 11,
                     ),
                   ),
-
-                // 名称输入
-                Text(
-                  context.l10n.fixedTags_name,
-                  style: theme.textTheme.labelLarge,
-                ),
-                const SizedBox(height: 6),
-                ThemedInput(
-                  controller: _nameController,
-                  focusNode: _nameFocusNode,
-                  hintText: context.l10n.fixedTags_nameHint,
-                  textInputAction: TextInputAction.next,
-                  onSubmitted: (_) {
-                    _contentFocusNode.requestFocus();
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
-                // 内容输入 (带自动补全)
-                Text(
-                  context.l10n.fixedTags_content,
-                  style: theme.textTheme.labelLarge,
-                ),
-                const SizedBox(height: 6),
-                SizedBox(
-                  height: 120,
-                  child: PromptFormatterWrapper(
-                    controller: _contentController,
-                    focusNode: _contentFocusNode,
-                    enableAutoFormat: ref.watch(
-                      autoFormatPromptSettingsProvider,
-                    ),
-                    child: AutocompleteWrapper.withAlias(
-                      controller: _contentController,
-                      focusNode: _contentFocusNode,
-                      ref: ref,
-                      expands: true,
-                      config: const AutocompleteConfig(
-                        showTranslation: true,
-                        showCategory: true,
-                        autoInsertComma: true,
-                      ),
-                      child: ThemedInput(
-                        controller: _contentController,
-                        focusNode: _contentFocusNode,
-                        decoration: InputDecoration(
-                          hintText: context.l10n.fixedTags_contentHint,
-                          contentPadding: const EdgeInsets.all(12),
-                        ),
-                        maxLines: null,
-                        expands: true,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Padding(
-                  padding: const EdgeInsets.only(left: 12),
-                  child: Text(
-                    context.l10n.fixedTags_syntaxHelp,
+                  const SizedBox(height: 4),
+                  Text(
+                    _getWeightPreview(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12,
-                      color: theme.colorScheme.outline,
-                    ),
-                    maxLines: 2,
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // 作用范围选择
-                Row(
-                  children: [
-                    Text(
-                      context.l10n.fixedTags_scope,
-                      style: theme.textTheme.labelLarge,
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: SegmentedButton<FixedTagPromptType>(
-                        segments: [
-                          ButtonSegment(
-                            value: FixedTagPromptType.positive,
-                            label: Text(context.l10n.fixedTags_positive),
-                            icon: const Icon(
-                              Icons.add_circle_outline,
-                              size: 16,
-                            ),
-                          ),
-                          ButtonSegment(
-                            value: FixedTagPromptType.negative,
-                            label: Text(context.l10n.fixedTags_negative),
-                            icon: const Icon(
-                              Icons.remove_circle_outline,
-                              size: 16,
-                            ),
-                          ),
-                        ],
-                        selected: {_promptType},
-                        onSelectionChanged: (selection) {
-                          setState(() => _promptType = selection.first);
-                        },
-                        showSelectedIcon: false,
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                // 位置选择
-                Row(
-                  children: [
-                    Text(
-                      context.l10n.fixedTags_position,
-                      style: theme.textTheme.labelLarge,
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Center(
-                        child: PrefixSuffixSwitch(
-                          value: _position,
-                          onChanged: (value) =>
-                              setState(() => _position = value),
-                          prefixLabel: context.l10n.fixedTags_prefix,
-                          suffixLabel: context.l10n.fixedTags_suffix,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                // 权重调节
-                Row(
-                  children: [
-                    Text(
-                      context.l10n.fixedTags_weight,
-                      style: theme.textTheme.labelLarge,
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.secondary.withValues(
-                          alpha: 0.1,
-                        ),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        '${_weight.toStringAsFixed(2)}x',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.secondary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Text(
-                      '0.5',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ThemedSlider(
-                        value: _weight,
-                        min: 0.5,
-                        max: 2.0,
-                        divisions: 30,
-                        onChanged: (value) {
-                          setState(() => _weight = value);
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '2.0',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // 重置按钮
-                    IconButton(
-                      icon: const Icon(Icons.refresh, size: 18),
-                      tooltip: context.l10n.fixedTags_resetWeight,
-                      onPressed: () => setState(() => _weight = 1.0),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ],
-                ),
-
-                // 权重预览
-                if (_weight != 1.0) ...[
-                  const SizedBox(height: 4),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          context.l10n.fixedTags_weightPreview,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: theme.colorScheme.outline,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _getWeightPreview(),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontFamily: 'monospace',
-                            color: theme.colorScheme.secondary,
-                          ),
-                        ),
-                      ],
+                      fontFamily: 'monospace',
+                      color: theme.colorScheme.secondary,
                     ),
                   ),
                 ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 
-                const SizedBox(height: 20),
-
-                // 保存到词库选项（仅新建时显示）
-                if (!_isEditing) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: _saveToLibrary
-                          ? theme.colorScheme.primaryContainer.withValues(
-                              alpha: 0.3,
-                            )
-                          : theme.colorScheme.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: _saveToLibrary
-                            ? theme.colorScheme.primary.withValues(alpha: 0.4)
-                            : theme.colorScheme.outlineVariant.withValues(
-                                alpha: 0.5,
-                              ),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 复选框行
-                        InkWell(
-                          onTap: () =>
-                              setState(() => _saveToLibrary = !_saveToLibrary),
-                          borderRadius: BorderRadius.circular(8),
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: Checkbox(
-                                  value: _saveToLibrary,
-                                  onChanged: (value) {
-                                    setState(
-                                      () => _saveToLibrary = value ?? false,
-                                    );
-                                  },
-                                  materialTapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                  visualDensity: VisualDensity.compact,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Icon(
-                                Icons.bookmark_add_outlined,
-                                size: 18,
-                                color: _saveToLibrary
-                                    ? theme.colorScheme.primary
-                                    : theme.colorScheme.outline,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      context.l10n.fixedTags_saveToLibrary,
-                                      style: theme.textTheme.bodyMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w500,
-                                            color: _saveToLibrary
-                                                ? theme.colorScheme.primary
-                                                : null,
-                                          ),
-                                    ),
-                                    Text(
-                                      context.l10n.fixedTags_saveToLibraryHint,
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(
-                                            color: theme.colorScheme.outline,
-                                            fontSize: 11,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
+  Widget _buildSaveToLibrary(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _saveToLibrary
+            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
+            : theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: _saveToLibrary
+              ? theme.colorScheme.primary.withValues(alpha: 0.4)
+              : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () => setState(() => _saveToLibrary = !_saveToLibrary),
+            borderRadius: BorderRadius.circular(6),
+            child: Row(
+              children: [
+                Checkbox(
+                  value: _saveToLibrary,
+                  onChanged: (value) =>
+                      setState(() => _saveToLibrary = value ?? false),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+                const SizedBox(width: 6),
+                Icon(
+                  Icons.bookmark_add_outlined,
+                  size: 18,
+                  color: _saveToLibrary
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.outline,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        context.l10n.fixedTags_saveToLibrary,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                          color: _saveToLibrary
+                              ? theme.colorScheme.primary
+                              : null,
                         ),
-                        // 类别选择器（仅当保存到词库时显示）
-                        if (_saveToLibrary) ...[
-                          const SizedBox(height: 12),
-                          _buildCompactCategorySelector(theme),
-                        ],
-                      ],
-                    ),
+                      ),
+                      Text(
+                        context.l10n.fixedTags_saveToLibraryHint,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.outline,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                ],
-
-                // 操作按钮
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: Text(context.l10n.common_cancel),
-                    ),
-                    const SizedBox(width: 8),
-                    FilledButton(
-                      onPressed: _canSave() ? _save : null,
-                      child: Text(context.l10n.common_save),
-                    ),
-                  ],
                 ),
               ],
             ),
           ),
-        ),
+          if (_saveToLibrary) ...[
+            const SizedBox(height: 10),
+            _buildCompactCategorySelector(theme),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(context.l10n.common_cancel),
+          ),
+          const SizedBox(width: 8),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _contentController,
+            builder: (context, value, child) => FilledButton(
+              onPressed: value.text.trim().isNotEmpty ? _save : null,
+              child: Text(context.l10n.common_save),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -513,10 +549,6 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
               : _contentController.text)
         : 'your_content';
     return FixedTagEntry.applyWeight(content, _weight);
-  }
-
-  bool _canSave() {
-    return _contentController.text.trim().isNotEmpty;
   }
 
   void _save() {
@@ -543,7 +575,6 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
           enabled: _enabled,
         );
 
-    // 如果选中了"保存到词库"，同时添加到词库
     if (_saveToLibrary && !_isEditing) {
       ref
           .read(tagLibraryPageNotifierProvider.notifier)
@@ -557,22 +588,17 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
             content: content,
             categoryId: _selectedCategoryId,
           );
-      // 强制刷新词库Provider，确保保存后能立即查看
       ref.invalidate(tagLibraryPageNotifierProvider);
     }
 
     Navigator.of(context).pop(result);
   }
 
-  /// 构建紧凑类别选择器（内嵌在卡片内）
   Widget _buildCompactCategorySelector(ThemeData theme) {
     final state = ref.watch(tagLibraryPageNotifierProvider);
     final categories = state.categories;
-
-    // 构建分类选项列表
     final items = <DropdownMenuItem<String?>>[];
 
-    // Root 选项
     items.add(
       DropdownMenuItem<String?>(
         value: null,
@@ -593,7 +619,6 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
       ),
     );
 
-    // 递归添加分类
     void addCategoryItems(String? parentId, int depth) {
       final children = categories.where((c) => c.parentId == parentId).toList()
         ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
@@ -628,52 +653,43 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
 
     addCategoryItems(null, 0);
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          Icons.folder_open_outlined,
-          size: 16,
-          color: theme.colorScheme.outline,
-        ),
-        const SizedBox(width: 8),
         Text(
           context.l10n.fixedTags_saveToCategory,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.outline,
           ),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: DropdownButtonFormField<String?>(
-            initialValue: _selectedCategoryId,
-            decoration: InputDecoration(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 6,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(
-                  color: theme.colorScheme.outline.withValues(alpha: 0.3),
-                ),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(
-                  color: theme.colorScheme.outline.withValues(alpha: 0.3),
-                ),
-              ),
-              isDense: true,
-              filled: true,
-              fillColor: theme.colorScheme.surface,
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String?>(
+          initialValue: _selectedCategoryId,
+          decoration: InputDecoration(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 6,
             ),
-            items: items,
-            onChanged: (value) {
-              setState(() => _selectedCategoryId = value);
-            },
-            isExpanded: true,
-            style: theme.textTheme.bodyMedium,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(
+                color: theme.colorScheme.outline.withValues(alpha: 0.3),
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(
+                color: theme.colorScheme.outline.withValues(alpha: 0.3),
+              ),
+            ),
+            isDense: true,
+            filled: true,
+            fillColor: theme.colorScheme.surface,
           ),
+          items: items,
+          onChanged: (value) => setState(() => _selectedCategoryId = value),
+          isExpanded: true,
+          style: theme.textTheme.bodyMedium,
         ),
       ],
     );
