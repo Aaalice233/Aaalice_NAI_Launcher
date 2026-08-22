@@ -5,6 +5,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/hover_image_preview.dart';
 import '../../../widgets/common/thumbnail_display.dart';
 
 typedef SidebarDragHandleBuilder = Widget Function(Widget child);
@@ -66,7 +67,7 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
         ? Colors.white
         : foreground;
 
-    return MouseRegion(
+    final tile = MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
       child: InkWell(
@@ -111,6 +112,19 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
           ),
         ),
       ),
+    );
+
+    final libraryEntry = widget.libraryEntry;
+    if (libraryEntry == null || !libraryEntry.hasThumbnail) return tile;
+
+    return HoverImagePreview.file(
+      imagePath: libraryEntry.thumbnail!,
+      previewMaxSize: 320,
+      hoverDelay: const Duration(milliseconds: 300),
+      imageOffsetX: libraryEntry.thumbnailOffsetX,
+      imageOffsetY: libraryEntry.thumbnailOffsetY,
+      imageScale: libraryEntry.thumbnailScale,
+      child: tile,
     );
   }
 
