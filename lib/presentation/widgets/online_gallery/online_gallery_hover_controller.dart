@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 
@@ -31,44 +32,32 @@ class OnlineGalleryHoverController {
       _entry = OverlayEntry(
         builder: (overlayContext) {
           final mediaSize = MediaQuery.sizeOf(overlayContext);
-          final safeWidth = (mediaSize.width - 32)
+          final safeWidth = (mediaSize.width - 20)
               .clamp(0.0, previewSize.width)
               .toDouble();
-          final safeHeight = (mediaSize.height - 32)
+          final safeHeight = (mediaSize.height - 20)
               .clamp(0.0, previewSize.height)
               .toDouble();
-          final resolvedSize = Size(safeWidth, safeHeight);
           final renderObject = context.findRenderObject();
           final liveTargetRect =
               renderObject is RenderBox && renderObject.attached
               ? renderObject.localToGlobal(Offset.zero) & renderObject.size
               : targetRect;
-          const gap = 12.0;
-          final fitsRight =
-              liveTargetRect.right + gap + resolvedSize.width <=
-              mediaSize.width - 16;
-          final desiredLeft = fitsRight
-              ? liveTargetRect.width + gap
-              : -resolvedSize.width - gap;
-          final desiredTop =
-              (liveTargetRect.center.dy - resolvedSize.height / 2).clamp(
-                16.0,
-                mediaSize.height - resolvedSize.height - 16,
-              );
-          final offset = Offset(desiredLeft, desiredTop - liveTargetRect.top);
-          return Positioned(
-            left: 0,
-            top: 0,
-            width: resolvedSize.width,
-            height: resolvedSize.height,
+          return Positioned.fill(
             child: IgnorePointer(
               child: CompositedTransformFollower(
                 link: layerLink,
                 showWhenUnlinked: false,
                 targetAnchor: Alignment.topLeft,
                 followerAnchor: Alignment.topLeft,
-                offset: offset,
-                child: Builder(builder: builder),
+                child: CustomSingleChildLayout(
+                  delegate: _HoverFollowerLayoutDelegate(
+                    targetRect: liveTargetRect,
+                    viewportSize: mediaSize,
+                    maxPreviewSize: Size(safeWidth, safeHeight),
+                  ),
+                  child: Builder(builder: builder),
+                ),
               ),
             ),
           );
@@ -92,4 +81,48 @@ class OnlineGalleryHoverController {
   }
 
   void dispose() => dismiss();
+}
+
+class _HoverFollowerLayoutDelegate extends SingleChildLayoutDelegate {
+  const _HoverFollowerLayoutDelegate({
+    required this.targetRect,
+    required this.viewportSize,
+    required this.maxPreviewSize,
+  });
+
+  final Rect targetRect;
+  final Size viewportSize;
+  final Size maxPreviewSize;
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
+      BoxConstraints(
+        maxWidth: maxPreviewSize.width,
+        maxHeight: maxPreviewSize.height,
+      );
+
+  @override
+  Offset getPositionForChild(Size size, Size childSize) {
+    const gap = 12.0;
+    const viewportMargin = 10.0;
+    final fitsRight =
+        targetRect.right + gap + childSize.width <=
+        viewportSize.width - viewportMargin;
+    final left = fitsRight ? targetRect.width + gap : -childSize.width - gap;
+    final maxTop = max(
+      viewportMargin,
+      viewportSize.height - childSize.height - viewportMargin,
+    );
+    final top = (targetRect.center.dy - childSize.height / 2).clamp(
+      viewportMargin,
+      maxTop,
+    );
+    return Offset(left, top - targetRect.top);
+  }
+
+  @override
+  bool shouldRelayout(covariant _HoverFollowerLayoutDelegate oldDelegate) =>
+      targetRect != oldDelegate.targetRect ||
+      viewportSize != oldDelegate.viewportSize ||
+      maxPreviewSize != oldDelegate.maxPreviewSize;
 }

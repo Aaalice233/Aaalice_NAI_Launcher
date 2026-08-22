@@ -11,12 +11,14 @@ class ProgressiveGalleryImage extends StatefulWidget {
     required this.sample,
     required this.coordinator,
     this.fit = BoxFit.cover,
+    this.alignment = Alignment.center,
   });
 
   final GalleryImageRequest thumbnail;
   final GalleryImageRequest sample;
   final OnlineGalleryPrefetchCoordinator coordinator;
   final BoxFit fit;
+  final AlignmentGeometry alignment;
 
   @override
   State<ProgressiveGalleryImage> createState() =>
@@ -72,6 +74,7 @@ class _ProgressiveGalleryImageState extends State<ProgressiveGalleryImage> {
     final thumbnail = Image(
       image: widget.thumbnail.createImageProvider(manager),
       fit: widget.fit,
+      alignment: widget.alignment,
       gaplessPlayback: true,
       errorBuilder: (_, __, ___) => const ColoredBox(
         color: Colors.black12,
@@ -99,6 +102,7 @@ class _ProgressiveGalleryImageState extends State<ProgressiveGalleryImage> {
           child: Image(
             image: widget.sample.createImageProvider(manager),
             fit: widget.fit,
+            alignment: widget.alignment,
             gaplessPlayback: true,
             errorBuilder: (_, __, ___) => const SizedBox.shrink(),
           ),

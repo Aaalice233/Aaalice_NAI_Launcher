@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
@@ -86,11 +87,11 @@ void main() {
   });
 
   test('blacklisted results never consume random seen keys', () async {
-    final blocked = GalleryItem(
+    const blocked = GalleryItem(
       id: 8,
       sourceId: GallerySourceId.danbooru,
-      tags: const ['blocked_tag'],
-      cover: const GalleryMedia(
+      tags: ['blocked_tag'],
+      cover: GalleryMedia(
         id: '8',
         previewUrl: 'https://example.test/8-preview.webp',
         displayUrl: 'https://example.test/8.webp',
@@ -175,6 +176,7 @@ ProviderContainer _container(_RandomFakeAdapter danbooru) {
   };
   return ProviderContainer(
     overrides: [
+      localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
       onlineGallerySourceAdaptersProvider.overrideWithValue(adapters),
     ],
   );
@@ -199,6 +201,24 @@ GalleryPage _page(List<GalleryItem> items) => GalleryPage(
   hasMore: true,
   rawItemCount: items.length,
 );
+
+class _MemoryStorage extends LocalStorageService {
+  final Map<String, Object?> _values = {};
+
+  @override
+  T? getSetting<T>(String key, {T? defaultValue}) =>
+      (_values[key] ?? defaultValue) as T?;
+
+  @override
+  Future<void> setSetting<T>(String key, T value) async {
+    _values[key] = value;
+  }
+
+  @override
+  Future<void> deleteSetting(String key) async {
+    _values.remove(key);
+  }
+}
 
 class _RandomFakeAdapter implements GallerySourceAdapter {
   _RandomFakeAdapter(this.batches);

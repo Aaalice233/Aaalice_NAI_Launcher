@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -199,8 +200,8 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     if (renderObject is! RenderBox || !renderObject.hasSize) return;
     final viewport = MediaQuery.sizeOf(context);
     final previewSize = Size(
-      min(320.0, max(0.0, viewport.width - 32)),
-      min(500.0, max(0.0, viewport.height - 32)),
+      min(320.0, max(0.0, viewport.width - 20)),
+      max(0.0, viewport.height - 20),
     );
     if (previewSize.isEmpty) return;
     final targetRect =
@@ -214,6 +215,11 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
       onIntent: widget.onHoverIntent,
       builder: (_) => _HoverPreviewCardInner(
         post: widget.post,
+        aspectRatio:
+            _resolvedAspectRatio ??
+            (widget.post.width > 0 && widget.post.height > 0
+                ? widget.post.width / widget.post.height
+                : null),
         maxWidth: previewSize.width,
         maxHeight: previewSize.height,
         imageCoordinator: widget.imageCoordinator,
@@ -918,38 +924,64 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
 }
 
 /// 悬浮预览卡片（内部实现）
-class _HoverPreviewCardInner extends ConsumerWidget {
+class _HoverPreviewCardInner extends ConsumerStatefulWidget {
   final DanbooruPost post;
+  final double? aspectRatio;
   final double maxWidth;
   final double maxHeight;
   final OnlineGalleryPrefetchCoordinator? imageCoordinator;
 
   const _HoverPreviewCardInner({
     required this.post,
+    required this.aspectRatio,
     required this.maxWidth,
     required this.maxHeight,
     required this.imageCoordinator,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_HoverPreviewCardInner> createState() =>
+      _HoverPreviewCardInnerState();
+}
+
+class _HoverPreviewCardInnerState
+    extends ConsumerState<_HoverPreviewCardInner> {
+  double _metadataContentHeight = 40;
+
+  void _updateMetadataHeight(Size size) {
+    if (!mounted || (size.height - _metadataContentHeight).abs() < 0.5) return;
+    setState(() => _metadataContentHeight = size.height);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final post = widget.post;
+    final maxWidth = widget.maxWidth;
+    final maxHeight = widget.maxHeight;
+    final imageCoordinator = widget.imageCoordinator;
     final theme = Theme.of(context);
     final translationService = ref.watch(tagTranslationLookupProvider);
 
-    final reservedMetadataHeight = min(120.0, maxHeight * 0.4);
-    final imageMaxHeight = min(
-      360.0,
-      max(1.0, maxHeight - reservedMetadataHeight),
-    );
-    final imageMinHeight = min(150.0, imageMaxHeight);
-    double previewHeight = maxWidth;
-
-    if (post.width > 0 && post.height > 0) {
-      previewHeight = maxWidth / (post.width / post.height);
-    }
-    previewHeight = previewHeight
-        .clamp(imageMinHeight, imageMaxHeight)
+    const borderExtent = 4.0;
+    final contentWidth = max(1.0, maxWidth - borderExtent);
+    final contentMaxHeight = max(1.0, maxHeight - borderExtent);
+    final maxMetadataHeight = min(240.0, max(40.0, contentMaxHeight * 0.35));
+    final metadataHeight = _metadataContentHeight
+        .clamp(40.0, maxMetadataHeight)
         .toDouble();
+    final naturalImageHeight = max(
+      150.0,
+      widget.aspectRatio != null && widget.aspectRatio! > 0
+          ? contentWidth / widget.aspectRatio!
+          : contentWidth,
+    );
+    final availableImageHeight = max(1.0, contentMaxHeight - metadataHeight);
+    final previewHeight = min(naturalImageHeight, availableImageHeight);
+    final cropsTallImage = naturalImageHeight > availableImageHeight;
+    final imageFit = cropsTallImage ? BoxFit.fitWidth : BoxFit.contain;
+    final imageAlignment = cropsTallImage
+        ? Alignment.topCenter
+        : Alignment.center;
 
     final imageUrl = post.sampleUrl ?? post.largeFileUrl ?? post.previewUrl;
 
@@ -999,11 +1031,13 @@ class _HoverPreviewCardInner extends ConsumerWidget {
                 top: Radius.circular(12),
               ),
               child: SizedBox(
+                key: const ValueKey('online-gallery-hover-media'),
                 width: maxWidth,
                 height: previewHeight,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
+                    ColoredBox(color: theme.colorScheme.surfaceContainerLowest),
                     if (imageCoordinator != null)
                       ProgressiveGalleryImage(
                         thumbnail: GalleryImageRequest.forUrl(
@@ -1028,14 +1062,17 @@ class _HoverPreviewCardInner extends ConsumerWidget {
                                 naturalHeight: post.height,
                               ),
                         ),
-                        coordinator: imageCoordinator!,
+                        coordinator: imageCoordinator,
+                        fit: imageFit,
+                        alignment: imageAlignment,
                       )
                     else
                       CachedNetworkImage(
                         imageUrl: imageUrl,
                         httpHeaders: onlineGalleryImageHeadersForUrl(imageUrl),
                         cacheKey: onlineGalleryImageCacheKeyForUrl(imageUrl),
-                        fit: BoxFit.cover,
+                        fit: imageFit,
+                        alignment: imageAlignment,
                         cacheManager: OnlineGalleryImageCacheManager.instance,
                         memCacheWidth: GalleryImageSizing.hoverTargetWidth(
                           MediaQuery.devicePixelRatioOf(context),
@@ -1048,7 +1085,8 @@ class _HoverPreviewCardInner extends ConsumerWidget {
                           cacheKey: onlineGalleryImageCacheKeyForUrl(
                             post.previewUrl,
                           ),
-                          fit: BoxFit.cover,
+                          fit: imageFit,
+                          alignment: imageAlignment,
                           cacheManager: OnlineGalleryImageCacheManager.instance,
                           memCacheWidth: GalleryImageSizing.hoverTargetWidth(
                             MediaQuery.devicePixelRatioOf(context),
@@ -1074,89 +1112,95 @@ class _HoverPreviewCardInner extends ConsumerWidget {
                 ),
               ),
             ),
-            Flexible(
+            SizedBox(
+              height: metadataHeight,
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                child: _MeasureSize(
+                  onChange: _updateMetadataHeight,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _StatItem(
-                          icon: Icons.photo_size_select_actual,
-                          value: '${post.width}×${post.height}',
-                        ),
-                        const SizedBox(width: 12),
-                        if (post.score != null) ...[
-                          _StatItem(
-                            icon: Icons.thumb_up,
-                            value: '${post.score}',
-                          ),
-                          const SizedBox(width: 12),
-                        ],
-                        if (post.viewCount != null) ...[
-                          _StatItem(
-                            icon: Icons.visibility_outlined,
-                            value: '${post.viewCount}',
-                          ),
-                          const SizedBox(width: 12),
-                        ],
-                        if (post.favCount != null)
-                          _StatItem(
-                            icon: Icons.favorite,
-                            value: '${post.favCount}',
-                          ),
-                        const Spacer(),
-                        if (post.rating != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
+                        Row(
+                          children: [
+                            _StatItem(
+                              icon: Icons.photo_size_select_actual,
+                              value: '${post.width}×${post.height}',
                             ),
-                            decoration: BoxDecoration(
-                              color: _getRatingColor(post.rating),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              _getRatingLabel(context, post.rating),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                            const SizedBox(width: 12),
+                            if (post.score != null) ...[
+                              _StatItem(
+                                icon: Icons.thumb_up,
+                                value: '${post.score}',
                               ),
-                            ),
+                              const SizedBox(width: 12),
+                            ],
+                            if (post.viewCount != null) ...[
+                              _StatItem(
+                                icon: Icons.visibility_outlined,
+                                value: '${post.viewCount}',
+                              ),
+                              const SizedBox(width: 12),
+                            ],
+                            if (post.favCount != null)
+                              _StatItem(
+                                icon: Icons.favorite,
+                                value: '${post.favCount}',
+                              ),
+                            const Spacer(),
+                            if (post.rating != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _getRatingColor(post.rating),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  _getRatingLabel(context, post.rating),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        if (post.artistTags.isNotEmpty) ...[
+                          _TagRow(
+                            icon: Icons.brush,
+                            color: const Color(0xFFFF8A8A),
+                            tags: post.artistTags.take(3).toList(),
+                            translationService: translationService,
                           ),
+                          const SizedBox(height: 6),
+                        ],
+                        if (post.characterTags.isNotEmpty) ...[
+                          _TagRow(
+                            icon: Icons.person,
+                            color: const Color(0xFF8AFF8A),
+                            tags: post.characterTags.take(4).toList(),
+                            translationService: translationService,
+                            isCharacter: true,
+                          ),
+                          const SizedBox(height: 6),
+                        ],
+                        if (post.copyrightTags.isNotEmpty) ...[
+                          _TagRow(
+                            icon: Icons.movie,
+                            color: const Color(0xFFCC8AFF),
+                            tags: post.copyrightTags.take(2).toList(),
+                            translationService: translationService,
+                          ),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    if (post.artistTags.isNotEmpty) ...[
-                      _TagRow(
-                        icon: Icons.brush,
-                        color: const Color(0xFFFF8A8A),
-                        tags: post.artistTags.take(3).toList(),
-                        translationService: translationService,
-                      ),
-                      const SizedBox(height: 6),
-                    ],
-                    if (post.characterTags.isNotEmpty) ...[
-                      _TagRow(
-                        icon: Icons.person,
-                        color: const Color(0xFF8AFF8A),
-                        tags: post.characterTags.take(4).toList(),
-                        translationService: translationService,
-                        isCharacter: true,
-                      ),
-                      const SizedBox(height: 6),
-                    ],
-                    if (post.copyrightTags.isNotEmpty) ...[
-                      _TagRow(
-                        icon: Icons.movie,
-                        color: const Color(0xFFCC8AFF),
-                        tags: post.copyrightTags.take(2).toList(),
-                        translationService: translationService,
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -1194,6 +1238,39 @@ class _HoverPreviewCardInner extends ConsumerWidget {
       default:
         return rating?.toUpperCase() ?? '';
     }
+  }
+}
+
+class _MeasureSize extends SingleChildRenderObjectWidget {
+  const _MeasureSize({required this.onChange, required super.child});
+
+  final ValueChanged<Size> onChange;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _MeasureSizeRenderObject(onChange);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _MeasureSizeRenderObject renderObject,
+  ) {
+    renderObject.onChange = onChange;
+  }
+}
+
+class _MeasureSizeRenderObject extends RenderProxyBox {
+  _MeasureSizeRenderObject(this.onChange);
+
+  ValueChanged<Size> onChange;
+  Size? _reportedSize;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    if (_reportedSize == size) return;
+    _reportedSize = size;
+    WidgetsBinding.instance.addPostFrameCallback((_) => onChange(size));
   }
 }
 
