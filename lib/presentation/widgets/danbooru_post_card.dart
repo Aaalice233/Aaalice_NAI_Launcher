@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
@@ -7,7 +8,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as path;
 
-import '../../core/cache/danbooru_image_cache_manager.dart';
+import '../../core/cache/gallery_image_request.dart';
+import '../../core/cache/online_gallery_image_cache_manager.dart';
+import '../../core/cache/online_gallery_prefetch_coordinator.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../core/utils/file_picker_utils.dart';
 import '../../data/models/online_gallery/danbooru_post.dart';
@@ -18,6 +21,8 @@ import '../providers/pending_prompt_provider.dart';
 import '../providers/replication_queue_provider.dart';
 import '../providers/reverse_prompt_provider.dart';
 import 'common/card_action_buttons.dart';
+import 'online_gallery/online_gallery_hover_controller.dart';
+import 'online_gallery/progressive_gallery_image.dart';
 
 import 'common/app_toast.dart';
 
@@ -26,7 +31,7 @@ import 'common/app_toast.dart';
 /// 性能优化：
 /// - 使用 RepaintBoundary 减少不必要的重绘
 /// - memCacheWidth 限制内存占用
-/// - 使用自定义缓存管理器（支持 HTTP/2）
+/// - 使用统一缓存管理器与按显示尺寸解码
 class DanbooruPostCard extends StatefulWidget {
   final DanbooruPost post;
   final double itemWidth;
@@ -45,6 +50,9 @@ class DanbooruPostCard extends StatefulWidget {
   final VoidCallback? onFavoriteToggle;
   final VoidCallback? onSelectionToggle;
   final VoidCallback? onLongPress;
+  final OnlineGalleryHoverController? hoverController;
+  final VoidCallback? onHoverIntent;
+  final OnlineGalleryPrefetchCoordinator? imageCoordinator;
 
   const DanbooruPostCard({
     super.key,
@@ -65,6 +73,9 @@ class DanbooruPostCard extends StatefulWidget {
     this.onFavoriteToggle,
     this.onSelectionToggle,
     this.onLongPress,
+    this.hoverController,
+    this.onHoverIntent,
+    this.imageCoordinator,
   });
 
   @override
@@ -72,13 +83,26 @@ class DanbooruPostCard extends StatefulWidget {
 }
 
 class _DanbooruPostCardState extends State<DanbooruPostCard> {
+  static final LinkedHashMap<String, double> _aspectRatioCache =
+      LinkedHashMap<String, double>();
+  static const int _maxAspectRatioEntries = 1000;
+
   bool _isHovering = false;
   double? _resolvedAspectRatio;
   String? _dimensionRequestUrl;
   ImageStream? _dimensionStream;
   ImageStreamListener? _dimensionListener;
-  OverlayEntry? _overlayEntry;
+  late final OnlineGalleryHoverController _ownedHoverController;
   final _layerLink = LayerLink();
+
+  OnlineGalleryHoverController get _hoverController =>
+      widget.hoverController ?? _ownedHoverController;
+
+  @override
+  void initState() {
+    super.initState();
+    _ownedHoverController = OnlineGalleryHoverController();
+  }
 
   @override
   void didChangeDependencies() {
@@ -90,7 +114,9 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
   void didUpdateWidget(covariant DanbooruPostCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.post.stableKey != widget.post.stableKey) {
-      _removeOverlay();
+      (oldWidget.hoverController ?? _ownedHoverController).dismissFor(
+        oldWidget.post.stableKey,
+      );
       _isHovering = false;
     }
     if (oldWidget.post.previewUrl != widget.post.previewUrl ||
@@ -110,14 +136,26 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
       return;
     }
     final url = post.previewUrl;
-    if (_dimensionRequestUrl == url) return;
+    final request = GalleryImageRequest.forUrl(
+      sourceId: post.sourceId,
+      url: url,
+      tier: GalleryImageTier.thumbnail,
+      targetDecodeWidth: GalleryImageSizing.gridTargetWidth(
+        layoutWidth: widget.itemWidth,
+        devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+      ),
+    );
+    final cachedRatio = _aspectRatioCache.remove(request.stableRequestKey);
+    if (cachedRatio != null) {
+      _aspectRatioCache[request.stableRequestKey] = cachedRatio;
+      _resolvedAspectRatio = cachedRatio;
+      return;
+    }
+    if (_dimensionRequestUrl == request.stableRequestKey) return;
     _detachDimensionListener();
-    _dimensionRequestUrl = url;
-    final provider = CachedNetworkImageProvider(
-      url,
-      cacheManager: DanbooruImageCacheManager.instance,
-      cacheKey: onlineGalleryImageCacheKeyForUrl(url),
-      headers: onlineGalleryImageHeadersForUrl(url),
+    _dimensionRequestUrl = request.stableRequestKey;
+    final provider = request.createImageProvider(
+      OnlineGalleryImageCacheManager.instance,
     );
     final stream = provider.resolve(createLocalImageConfiguration(context));
     late final ImageStreamListener listener;
@@ -126,7 +164,12 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
       final width = imageInfo.image.width;
       final height = imageInfo.image.height;
       if (width > 0 && height > 0) {
-        setState(() => _resolvedAspectRatio = width / height);
+        final ratio = width / height;
+        _aspectRatioCache[request.stableRequestKey] = ratio;
+        while (_aspectRatioCache.length > _maxAspectRatioEntries) {
+          _aspectRatioCache.remove(_aspectRatioCache.keys.first);
+        }
+        setState(() => _resolvedAspectRatio = ratio);
       }
       _detachDimensionListener();
     }, onError: (_, __) => _detachDimensionListener());
@@ -146,65 +189,40 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
   @override
   void dispose() {
     _detachDimensionListener();
-    _removeOverlay();
+    _hoverController.dismissFor(widget.post.stableKey);
+    _ownedHoverController.dispose();
     super.dispose();
   }
 
-  void _showOverlay() {
-    if (_overlayEntry != null) return;
-
-    final overlay = Overlay.of(context);
+  void _scheduleOverlay() {
     final renderObject = context.findRenderObject();
     if (renderObject is! RenderBox || !renderObject.hasSize) return;
-
-    const viewportMargin = 16.0;
-    const targetGap = 12.0;
     final viewport = MediaQuery.sizeOf(context);
-    final availableWidth = viewport.width - viewportMargin * 2;
-    final availableHeight = viewport.height - viewportMargin * 2;
-    if (availableWidth <= 0 || availableHeight <= 0) return;
-
+    final previewSize = Size(
+      min(320.0, max(0.0, viewport.width - 32)),
+      min(500.0, max(0.0, viewport.height - 32)),
+    );
+    if (previewSize.isEmpty) return;
     final targetRect =
         renderObject.localToGlobal(Offset.zero) & renderObject.size;
-    final previewWidth = min(320.0, availableWidth);
-    final previewMaxHeight = min(500.0, availableHeight);
-    final rightSpace = viewport.width - viewportMargin - targetRect.right;
-    final leftSpace = targetRect.left - viewportMargin;
-    final showOnRight =
-        rightSpace >= previewWidth + targetGap ||
-        (rightSpace >= leftSpace && leftSpace < previewWidth + targetGap);
-    final desiredLeft = showOnRight
-        ? targetRect.right + targetGap
-        : targetRect.left - targetGap - previewWidth;
-    final left = desiredLeft
-        .clamp(viewportMargin, viewport.width - viewportMargin - previewWidth)
-        .toDouble();
-    final top = (targetRect.top - 50)
-        .clamp(
-          viewportMargin,
-          viewport.height - viewportMargin - previewMaxHeight,
-        )
-        .toDouble();
-
-    _overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        left: left,
-        top: top,
-        width: previewWidth,
-        child: _HoverPreviewCardInner(
-          post: widget.post,
-          maxWidth: previewWidth,
-          maxHeight: previewMaxHeight,
-        ),
+    _hoverController.schedule(
+      context: context,
+      stableKey: widget.post.stableKey,
+      layerLink: _layerLink,
+      targetRect: targetRect,
+      previewSize: previewSize,
+      onIntent: widget.onHoverIntent,
+      builder: (_) => _HoverPreviewCardInner(
+        post: widget.post,
+        maxWidth: previewSize.width,
+        maxHeight: previewSize.height,
+        imageCoordinator: widget.imageCoordinator,
       ),
     );
-
-    overlay.insert(_overlayEntry!);
   }
 
   void _removeOverlay() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
+    _hoverController.dismissFor(widget.post.stableKey);
   }
 
   String get _actionPrompt =>
@@ -231,7 +249,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
       if (!mounted) return;
       AppToast.info(context, context.l10n.onlineGallery_downloadStarted);
 
-      final file = await DanbooruImageCacheManager.instance.getSingleFile(
+      final file = await OnlineGalleryImageCacheManager.instance.getSingleFile(
         url,
         key: onlineGalleryImageCacheKeyForUrl(url),
         headers: onlineGalleryImageHeadersForUrl(url),
@@ -266,8 +284,18 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
       widget.itemWidth * 2.5,
     );
 
-    final pixelRatio = MediaQuery.of(context).devicePixelRatio;
-    final memCacheWidth = (widget.itemWidth * pixelRatio).toInt();
+    final pixelRatio = MediaQuery.devicePixelRatioOf(context);
+    final gridImageRequest = GalleryImageRequest.forUrl(
+      sourceId: widget.post.sourceId,
+      url: widget.post.previewUrl,
+      tier: GalleryImageTier.thumbnail,
+      targetDecodeWidth: GalleryImageSizing.gridTargetWidth(
+        layoutWidth: widget.itemWidth,
+        devicePixelRatio: pixelRatio,
+        naturalWidth: widget.post.width,
+        naturalHeight: widget.post.height,
+      ),
+    );
 
     // 根据图片宽高比决定按钮布局方向
     // 横图（宽高比大）：水平布局，因为高度小放不下垂直按钮
@@ -281,11 +309,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
           onEnter: (_) {
             if (widget.selectionMode) return;
             setState(() => _isHovering = true);
-            Future.delayed(const Duration(milliseconds: 300), () {
-              if (_isHovering && mounted && !widget.selectionMode) {
-                _showOverlay();
-              }
-            });
+            _scheduleOverlay();
           },
           onExit: (_) {
             setState(() => _isHovering = false);
@@ -358,16 +382,12 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                       fit: StackFit.expand,
                       children: [
                         CachedNetworkImage(
-                          imageUrl: widget.post.previewUrl,
-                          httpHeaders: onlineGalleryImageHeadersForUrl(
-                            widget.post.previewUrl,
-                          ),
-                          cacheKey: onlineGalleryImageCacheKeyForUrl(
-                            widget.post.previewUrl,
-                          ),
+                          imageUrl: gridImageRequest.url,
+                          httpHeaders: gridImageRequest.headers,
+                          cacheKey: gridImageRequest.cacheKey,
                           fit: BoxFit.cover,
-                          memCacheWidth: memCacheWidth,
-                          cacheManager: DanbooruImageCacheManager.instance,
+                          memCacheWidth: gridImageRequest.targetDecodeWidth,
+                          cacheManager: OnlineGalleryImageCacheManager.instance,
                           errorListener: (error) {
                             // 静默处理图片加载错误，避免控制台警告
                           },
@@ -685,7 +705,6 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                         return CardActionButtons(
                           visible: _isHovering,
                           direction: buttonDirection,
-                          hoverDelay: const Duration(milliseconds: 100),
                           buttons: [
                             if (widget.showFavoriteAction &&
                                 !widget.favoriteReadOnly &&
@@ -788,18 +807,20 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                   return;
                                 }
                                 try {
-                                  final file = await DanbooruImageCacheManager
-                                      .instance
-                                      .getSingleFile(
-                                        imageUrl,
-                                        key: onlineGalleryImageCacheKeyForUrl(
-                                          imageUrl,
-                                        ),
-                                        headers:
-                                            onlineGalleryImageHeadersForUrl(
-                                              imageUrl,
-                                            ),
-                                      );
+                                  final file =
+                                      await OnlineGalleryImageCacheManager
+                                          .instance
+                                          .getSingleFile(
+                                            imageUrl,
+                                            key:
+                                                onlineGalleryImageCacheKeyForUrl(
+                                                  imageUrl,
+                                                ),
+                                            headers:
+                                                onlineGalleryImageHeadersForUrl(
+                                                  imageUrl,
+                                                ),
+                                          );
                                   final bytes = await file.readAsBytes();
                                   await ref
                                       .read(reversePromptProvider.notifier)
@@ -901,11 +922,13 @@ class _HoverPreviewCardInner extends ConsumerWidget {
   final DanbooruPost post;
   final double maxWidth;
   final double maxHeight;
+  final OnlineGalleryPrefetchCoordinator? imageCoordinator;
 
   const _HoverPreviewCardInner({
     required this.post,
     required this.maxWidth,
     required this.maxHeight,
+    required this.imageCoordinator,
   });
 
   @override
@@ -981,30 +1004,57 @@ class _HoverPreviewCardInner extends ConsumerWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    CachedNetworkImage(
-                      imageUrl: imageUrl,
-                      httpHeaders: onlineGalleryImageHeadersForUrl(imageUrl),
-                      cacheKey: onlineGalleryImageCacheKeyForUrl(imageUrl),
-                      fit: BoxFit.cover,
-                      cacheManager: DanbooruImageCacheManager.instance,
-                      placeholder: (context, url) => Container(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        child: const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                    if (imageCoordinator != null)
+                      ProgressiveGalleryImage(
+                        thumbnail: GalleryImageRequest.forUrl(
+                          sourceId: post.sourceId,
+                          url: post.previewUrl,
+                          tier: GalleryImageTier.thumbnail,
+                          targetDecodeWidth:
+                              GalleryImageSizing.hoverTargetWidth(
+                                MediaQuery.devicePixelRatioOf(context),
+                                naturalWidth: post.width,
+                                naturalHeight: post.height,
+                              ),
                         ),
-                      ),
-                      errorWidget: (context, url, error) => CachedNetworkImage(
-                        imageUrl: post.previewUrl,
-                        httpHeaders: onlineGalleryImageHeadersForUrl(
-                          post.previewUrl,
+                        sample: GalleryImageRequest.forUrl(
+                          sourceId: post.sourceId,
+                          url: imageUrl,
+                          tier: GalleryImageTier.sample,
+                          targetDecodeWidth:
+                              GalleryImageSizing.hoverTargetWidth(
+                                MediaQuery.devicePixelRatioOf(context),
+                                naturalWidth: post.width,
+                                naturalHeight: post.height,
+                              ),
                         ),
-                        cacheKey: onlineGalleryImageCacheKeyForUrl(
-                          post.previewUrl,
-                        ),
+                        coordinator: imageCoordinator!,
+                      )
+                    else
+                      CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        httpHeaders: onlineGalleryImageHeadersForUrl(imageUrl),
+                        cacheKey: onlineGalleryImageCacheKeyForUrl(imageUrl),
                         fit: BoxFit.cover,
-                        cacheManager: DanbooruImageCacheManager.instance,
+                        cacheManager: OnlineGalleryImageCacheManager.instance,
+                        memCacheWidth: GalleryImageSizing.hoverTargetWidth(
+                          MediaQuery.devicePixelRatioOf(context),
+                        ),
+                        errorWidget: (_, __, ___) => CachedNetworkImage(
+                          imageUrl: post.previewUrl,
+                          httpHeaders: onlineGalleryImageHeadersForUrl(
+                            post.previewUrl,
+                          ),
+                          cacheKey: onlineGalleryImageCacheKeyForUrl(
+                            post.previewUrl,
+                          ),
+                          fit: BoxFit.cover,
+                          cacheManager: OnlineGalleryImageCacheManager.instance,
+                          memCacheWidth: GalleryImageSizing.hoverTargetWidth(
+                            MediaQuery.devicePixelRatioOf(context),
+                          ),
+                        ),
                       ),
-                    ),
                     if (post.isVideo || post.isAnimated)
                       Center(
                         child: Container(

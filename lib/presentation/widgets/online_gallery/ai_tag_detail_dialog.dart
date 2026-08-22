@@ -9,12 +9,14 @@ import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as path;
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/cache/danbooru_image_cache_manager.dart';
+import '../../../core/cache/gallery_image_request.dart';
+import '../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../router/app_router.dart';
 import '../../../core/utils/file_picker_utils.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/datasources/remote/online_gallery/gallery_source_adapter.dart';
 import '../../../data/models/online_gallery/gallery_item.dart';
+import '../../../data/models/online_gallery/gallery_source.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/online_gallery_provider.dart';
@@ -50,6 +52,7 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
   int _mediaIndex = 0;
   int _downloadCompleted = 0;
   int _downloadTotal = 0;
+  bool _didPrefetchInitialAdjacent = false;
 
   @override
   void initState() {
@@ -142,6 +145,12 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
   }
 
   Widget _buildDetail(GalleryDetail detail) {
+    if (!_didPrefetchInitialAdjacent) {
+      _didPrefetchInitialAdjacent = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _prefetchAdjacent(detail, 0);
+      });
+    }
     final theme = Theme.of(context);
     final media = detail.media[_mediaIndex.clamp(0, detail.media.length - 1)];
     return KeyboardListener(
@@ -280,10 +289,15 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
                       maxScale: 5,
                       child: CachedNetworkImage(
                         imageUrl: media.displayUrl,
-                        cacheManager: DanbooruImageCacheManager.instance,
+                        cacheManager: OnlineGalleryImageCacheManager.instance,
                         cacheKey: onlineGalleryImageCacheKeyForUrl(
                           media.displayUrl,
                         ),
+                        memCacheWidth:
+                            GalleryImageSizing.detailViewportTargetWidth(
+                              MediaQuery.devicePixelRatioOf(context),
+                              MediaQuery.sizeOf(context).width,
+                            ),
                         httpHeaders: onlineGalleryImageHeadersForUrl(
                           media.displayUrl,
                         ),
@@ -296,7 +310,7 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
                               await CachedNetworkImage.evictFromCache(
                                 media.displayUrl,
                                 cacheManager:
-                                    DanbooruImageCacheManager.instance,
+                                    OnlineGalleryImageCacheManager.instance,
                                 cacheKey: onlineGalleryImageCacheKeyForUrl(
                                   media.displayUrl,
                                 ),
@@ -347,9 +361,15 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
                     clipBehavior: Clip.antiAlias,
                     child: CachedNetworkImage(
                       imageUrl: media.previewUrl,
-                      cacheManager: DanbooruImageCacheManager.instance,
+                      cacheManager: OnlineGalleryImageCacheManager.instance,
                       cacheKey: onlineGalleryImageCacheKeyForUrl(
                         media.previewUrl,
+                      ),
+                      memCacheWidth: GalleryImageSizing.gridTargetWidth(
+                        layoutWidth: 64,
+                        devicePixelRatio: MediaQuery.devicePixelRatioOf(
+                          context,
+                        ),
                       ),
                       httpHeaders: onlineGalleryImageHeadersForUrl(
                         media.previewUrl,
@@ -546,13 +566,17 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
     for (final target in [index - 1, index + 1]) {
       if (target < 0 || target >= detail.media.length) continue;
       final media = detail.media[target];
-      precacheImage(
-        CachedNetworkImageProvider(
-          media.displayUrl,
-          cacheManager: DanbooruImageCacheManager.instance,
-          cacheKey: onlineGalleryImageCacheKeyForUrl(media.displayUrl),
-          headers: onlineGalleryImageHeadersForUrl(media.displayUrl),
+      final request = GalleryImageRequest.forUrl(
+        sourceId: GallerySourceId.aiTag,
+        url: media.displayUrl,
+        tier: GalleryImageTier.sample,
+        targetDecodeWidth: GalleryImageSizing.detailViewportTargetWidth(
+          MediaQuery.devicePixelRatioOf(context),
+          MediaQuery.sizeOf(context).width,
         ),
+      );
+      precacheImage(
+        request.createImageProvider(OnlineGalleryImageCacheManager.instance),
         context,
       );
     }
@@ -614,7 +638,7 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
 
   Future<void> _sendToReverse(GalleryMedia media) async {
     try {
-      final file = await DanbooruImageCacheManager.instance.getSingleFile(
+      final file = await OnlineGalleryImageCacheManager.instance.getSingleFile(
         media.downloadUrl,
         key: onlineGalleryImageCacheKeyForUrl(media.downloadUrl),
         headers: onlineGalleryImageHeadersForUrl(media.downloadUrl),
@@ -658,7 +682,7 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
           final index = start + offset;
           final media = mediaItems[index];
           try {
-            final sourceFile = await DanbooruImageCacheManager.instance
+            final sourceFile = await OnlineGalleryImageCacheManager.instance
                 .getSingleFile(
                   media.downloadUrl,
                   key: onlineGalleryImageCacheKeyForUrl(media.downloadUrl),

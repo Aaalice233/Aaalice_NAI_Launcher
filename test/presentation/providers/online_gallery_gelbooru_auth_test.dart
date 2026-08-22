@@ -360,6 +360,7 @@ class _FakeGelbooruApiService extends GelbooruApiService {
     required int pid,
     int limit = 40,
     CancelToken? cancelToken,
+    bool noCache = false,
   }) async {
     searchCalls++;
     searchPids.add(pid);

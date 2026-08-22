@@ -19,6 +19,8 @@ enum GallerySourceId {
 
 enum GalleryRankingKind { day, week, month, aiTagMonthly }
 
+enum GalleryFeedKind { search, ranking, favorites }
+
 class GallerySourceCapabilities {
   const GallerySourceCapabilities({
     required this.supportsSearch,
@@ -32,6 +34,7 @@ class GallerySourceCapabilities {
     required this.supportsWritableFavorites,
     required this.supportsDetails,
     required this.supportsMultipleMedia,
+    required this.randomFeeds,
   });
 
   final bool supportsSearch;
@@ -45,8 +48,11 @@ class GallerySourceCapabilities {
   final bool supportsWritableFavorites;
   final bool supportsDetails;
   final bool supportsMultipleMedia;
+  final Set<GalleryFeedKind> randomFeeds;
 
   bool get supportsRanking => rankingKinds.isNotEmpty;
+
+  bool supportsRandomFeed(GalleryFeedKind feed) => randomFeeds.contains(feed);
 }
 
 const Map<GallerySourceId, GallerySourceCapabilities>
@@ -67,6 +73,11 @@ gallerySourceCapabilities = {
     supportsWritableFavorites: true,
     supportsDetails: true,
     supportsMultipleMedia: false,
+    randomFeeds: {
+      GalleryFeedKind.search,
+      GalleryFeedKind.ranking,
+      GalleryFeedKind.favorites,
+    },
   ),
   GallerySourceId.safebooru: GallerySourceCapabilities(
     supportsSearch: true,
@@ -84,6 +95,7 @@ gallerySourceCapabilities = {
     supportsWritableFavorites: false,
     supportsDetails: true,
     supportsMultipleMedia: false,
+    randomFeeds: {GalleryFeedKind.search, GalleryFeedKind.ranking},
   ),
   GallerySourceId.gelbooru: GallerySourceCapabilities(
     supportsSearch: true,
@@ -97,6 +109,7 @@ gallerySourceCapabilities = {
     supportsWritableFavorites: false,
     supportsDetails: true,
     supportsMultipleMedia: false,
+    randomFeeds: {GalleryFeedKind.search, GalleryFeedKind.favorites},
   ),
   GallerySourceId.aiTag: GallerySourceCapabilities(
     supportsSearch: true,
@@ -110,6 +123,7 @@ gallerySourceCapabilities = {
     supportsWritableFavorites: false,
     supportsDetails: true,
     supportsMultipleMedia: true,
+    randomFeeds: {GalleryFeedKind.search, GalleryFeedKind.ranking},
   ),
 };
 

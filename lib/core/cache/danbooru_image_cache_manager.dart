@@ -1,65 +1,11 @@
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'online_gallery_image_cache_manager.dart';
 
-const _gelbooruReferer = 'https://gelbooru.com/';
-const _gelbooruContentCookie = 'fringeBenefits=yup';
-const _onlineGalleryBrowserUserAgent =
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-    'AppleWebKit/537.36 (KHTML, like Gecko) '
-    'Chrome/126.0.0.0 Safari/537.36';
+export 'online_gallery_image_cache_manager.dart';
 
-const _gelbooruImageHeaders = <String, String>{
-  'User-Agent': _onlineGalleryBrowserUserAgent,
-  'Referer': _gelbooruReferer,
-  'Cookie': _gelbooruContentCookie,
-  'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-};
+/// Compatibility alias. New code should import
+/// `online_gallery_image_cache_manager.dart` directly.
+@Deprecated('Use OnlineGalleryImageCacheManager instead')
+typedef DanbooruImageCacheManager = OnlineGalleryImageCacheManager;
 
-/// Danbooru 图片缓存管理器
-///
-/// 使用自定义配置提升图片加载性能：
-/// - 最大缓存对象数：1000（支持大量图片）
-/// - 过期时间：7天
-/// - 支持 HTTP/2（通过全局 Dio 实例）
-class DanbooruImageCacheManager extends CacheManager with ImageCacheManager {
-  static const key = 'danbooruImageCache';
-
-  static final DanbooruImageCacheManager _instance =
-      DanbooruImageCacheManager._internal();
-
-  factory DanbooruImageCacheManager() => _instance;
-
-  DanbooruImageCacheManager._internal()
-    : super(
-        Config(
-          key,
-          stalePeriod: const Duration(days: 7),
-          maxNrOfCacheObjects: 1000,
-        ),
-      );
-
-  /// 获取单例实例
-  static DanbooruImageCacheManager get instance => _instance;
-}
-
-Map<String, String> onlineGalleryImageHeadersForUrl(String url) {
-  final uri = Uri.tryParse(url);
-  if (!_isGelbooruMediaHost(uri)) return const {};
-  return _gelbooruImageHeaders;
-}
-
-String? onlineGalleryImageCacheKeyForUrl(String url) {
-  final uri = Uri.tryParse(url);
-  if (!_isGelbooruMediaHost(uri)) return null;
-  return 'gelbooru-image-v2:$url';
-}
-
-bool shouldPrefetchOnlineGalleryImage(String url) {
-  return !_isGelbooruMediaHost(Uri.tryParse(url));
-}
-
-bool _isGelbooruMediaHost(Uri? uri) {
-  if (uri == null || uri.host.isEmpty) return false;
-
-  final host = uri.host.toLowerCase();
-  return host == 'gelbooru.com' || host.endsWith('.gelbooru.com');
-}
+@Deprecated('All supported gallery images can be prefetched')
+bool shouldPrefetchOnlineGalleryImage(String url) => true;

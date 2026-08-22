@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:nai_launcher/core/cache/danbooru_image_cache_manager.dart';
+import 'package:nai_launcher/core/cache/gallery_image_request.dart';
+import 'package:nai_launcher/core/cache/online_gallery_image_cache_manager.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../data/models/queue/replication_task.dart';
@@ -95,7 +96,14 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
                             cacheKey: onlineGalleryImageCacheKeyForUrl(
                               widget.task.thumbnailUrl!,
                             ),
-                            cacheManager: DanbooruImageCacheManager.instance,
+                            cacheManager:
+                                OnlineGalleryImageCacheManager.instance,
+                            memCacheWidth: GalleryImageSizing.gridTargetWidth(
+                              layoutWidth: 150,
+                              devicePixelRatio: MediaQuery.devicePixelRatioOf(
+                                context,
+                              ),
+                            ),
                             width: 150,
                             height: 150,
                             fit: BoxFit.cover,

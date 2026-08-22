@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:video_player/video_player.dart';
 
-import '../../../core/cache/danbooru_image_cache_manager.dart';
+import '../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../../core/utils/app_logger.dart';
+import '../app_branch_visibility.dart';
 
 /// 简洁视频播放器组件
 ///
@@ -32,11 +33,29 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   String? _errorMessage;
   bool _showControls = true;
   bool _registeredActivePlayer = false;
+  bool _branchVisible = true;
+  bool _resumeWhenVisible = true;
 
   @override
   void initState() {
     super.initState();
     _initializePlayer();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible = AppBranchVisibility.of(context);
+    if (_branchVisible == visible) return;
+    _branchVisible = visible;
+    final controller = _controller;
+    if (controller == null || !_isInitialized) return;
+    if (!visible) {
+      _resumeWhenVisible = controller.value.isPlaying;
+      controller.pause();
+    } else if (_resumeWhenVisible) {
+      controller.play();
+    }
   }
 
   Future<void> _initializePlayer() async {
@@ -48,7 +67,9 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
 
       await _controller!.initialize();
       _controller!.setLooping(true);
-      _controller!.play();
+      if (_branchVisible) {
+        _controller!.play();
+      }
 
       _registeredActivePlayer = true;
       _activeVideoPlayers++;

@@ -1,7 +1,10 @@
+import 'dart:math';
+
 import 'package:dio/dio.dart';
 
 import '../../../models/online_gallery/gallery_item.dart';
 import '../../../models/online_gallery/gallery_source.dart';
+import 'gallery_random_sampler.dart';
 
 enum GallerySourceErrorCode {
   network,
@@ -86,6 +89,69 @@ class GalleryRankingRequest {
   final Set<String> blacklistTags;
 }
 
+sealed class GalleryRandomRequest {
+  const GalleryRandomRequest({
+    required this.pageSize,
+    this.ratings = const {'g', 's', 'q', 'e'},
+    this.blacklistTags = const {},
+  });
+
+  final int pageSize;
+  final Set<String> ratings;
+  final Set<String> blacklistTags;
+}
+
+class GalleryRandomSearchRequest extends GalleryRandomRequest {
+  const GalleryRandomSearchRequest({
+    required super.pageSize,
+    super.ratings,
+    super.blacklistTags,
+    this.query = '',
+    this.prompt = '',
+    this.timeRange = 'all',
+    this.dateStart,
+    this.dateEnd,
+  });
+
+  final String query;
+  final String prompt;
+  final String timeRange;
+  final DateTime? dateStart;
+  final DateTime? dateEnd;
+}
+
+class GalleryRandomRankingRequest extends GalleryRandomRequest {
+  const GalleryRandomRankingRequest({
+    required super.pageSize,
+    super.ratings,
+    super.blacklistTags,
+    this.kind = GalleryRankingKind.day,
+    this.date,
+    this.period = 'current',
+    this.query = '',
+    this.prompt = '',
+    this.cursor,
+  });
+
+  final GalleryRankingKind kind;
+  final DateTime? date;
+  final String period;
+  final String query;
+  final String prompt;
+  final String? cursor;
+}
+
+class GalleryRandomFavoritesRequest extends GalleryRandomRequest {
+  const GalleryRandomFavoritesRequest({
+    required super.pageSize,
+    super.ratings,
+    super.blacklistTags,
+    required this.username,
+  });
+
+  final String username;
+}
+
 class AiTagSourceConfig {
   const AiTagSourceConfig({
     required this.assetBaseUrl,
@@ -126,6 +192,9 @@ abstract class GallerySourceAdapter {
   GallerySourceCapabilities get capabilities =>
       gallerySourceCapabilities[sourceId]!;
 
+  /// Injectable random for testing. Use Random.secure() in production.
+  Random get randomGenerator => Random.secure();
+
   Future<GalleryPage> search(
     GallerySearchRequest request, {
     CancelToken? cancelToken,
@@ -148,6 +217,17 @@ abstract class GallerySourceAdapter {
   }) async {
     return GalleryDetail(item: item, media: [item.cover]);
   }
+
+  Future<GalleryPage> random(
+    GalleryRandomRequest request, {
+    CancelToken? cancelToken,
+  }) {
+    throw GallerySourceException(
+      GallerySourceErrorCode.malformedResponse,
+      source: sourceId,
+      message: 'Random is not supported by this source',
+    );
+  }
 }
 
 int galleryCursorPage(String cursor, {int fallback = 1}) {
@@ -158,6 +238,10 @@ int galleryCursorPage(String cursor, {int fallback = 1}) {
 String formatGalleryDate(DateTime date) {
   return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 }
+
+/// Fisher-Yates shuffle for secure randomization of gallery items
+List<T> shuffleGalleryItems<T>(List<T> items, Random random) =>
+    GalleryRandomSampler(random: random).shuffle(items);
 
 GallerySourceException mapGalleryDioException(
   DioException error,

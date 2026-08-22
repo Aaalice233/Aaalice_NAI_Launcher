@@ -2409,6 +2409,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_refresh => 'Refresh';
 
   @override
+  String get onlineGallery_random => 'Random';
+
+  @override
+  String get onlineGallery_randomRedraw => 'Draw again';
+
+  @override
+  String get onlineGallery_randomDrawing => 'Drawing…';
+
+  @override
+  String get onlineGallery_randomExhausted =>
+      'No more unseen images in this range';
+
+  @override
+  String get onlineGallery_randomRestart => 'Start over';
+
+  @override
+  String get onlineGallery_originalRetry => 'Original failed to load — retry';
+
+  @override
   String get onlineGallery_login => 'Login';
 
   @override

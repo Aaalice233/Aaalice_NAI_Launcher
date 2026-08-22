@@ -2359,6 +2359,24 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_refresh => '更新';
 
   @override
+  String get onlineGallery_random => 'ランダム';
+
+  @override
+  String get onlineGallery_randomRedraw => 'もう一度抽選';
+
+  @override
+  String get onlineGallery_randomDrawing => '抽選中…';
+
+  @override
+  String get onlineGallery_randomExhausted => 'この範囲に未表示の画像はありません';
+
+  @override
+  String get onlineGallery_randomRestart => '最初から';
+
+  @override
+  String get onlineGallery_originalRetry => '元画像の読み込みに失敗しました。再試行';
+
+  @override
   String get onlineGallery_login => 'ログイン';
 
   @override

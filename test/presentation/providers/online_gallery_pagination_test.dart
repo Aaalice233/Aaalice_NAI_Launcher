@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -449,6 +450,9 @@ class _FakeGalleryAdapter implements GallerySourceAdapter {
   final List<String> searchCursors = [];
 
   @override
+  Random get randomGenerator => Random(1);
+
+  @override
   GallerySourceCapabilities get capabilities =>
       gallerySourceCapabilities[sourceId]!;
 
@@ -468,6 +472,17 @@ class _FakeGalleryAdapter implements GallerySourceAdapter {
   }) {
     return search(
       GallerySearchRequest(cursor: request.cursor, pageSize: request.pageSize),
+      cancelToken: cancelToken,
+    );
+  }
+
+  @override
+  Future<GalleryPage> random(
+    GalleryRandomRequest request, {
+    CancelToken? cancelToken,
+  }) {
+    return search(
+      GallerySearchRequest(cursor: '1', pageSize: request.pageSize),
       cancelToken: cancelToken,
     );
   }

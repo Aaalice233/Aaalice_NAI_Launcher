@@ -4370,6 +4370,42 @@ abstract class AppLocalizations {
   /// **'Refresh'**
   String get onlineGallery_refresh;
 
+  /// No description provided for @onlineGallery_random.
+  ///
+  /// In en, this message translates to:
+  /// **'Random'**
+  String get onlineGallery_random;
+
+  /// No description provided for @onlineGallery_randomRedraw.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw again'**
+  String get onlineGallery_randomRedraw;
+
+  /// No description provided for @onlineGallery_randomDrawing.
+  ///
+  /// In en, this message translates to:
+  /// **'Drawing…'**
+  String get onlineGallery_randomDrawing;
+
+  /// No description provided for @onlineGallery_randomExhausted.
+  ///
+  /// In en, this message translates to:
+  /// **'No more unseen images in this range'**
+  String get onlineGallery_randomExhausted;
+
+  /// No description provided for @onlineGallery_randomRestart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start over'**
+  String get onlineGallery_randomRestart;
+
+  /// No description provided for @onlineGallery_originalRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Original failed to load — retry'**
+  String get onlineGallery_originalRetry;
+
   /// No description provided for @onlineGallery_login.
   ///
   /// In en, this message translates to:

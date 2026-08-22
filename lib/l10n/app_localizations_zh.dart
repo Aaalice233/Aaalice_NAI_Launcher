@@ -2325,6 +2325,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_refresh => '刷新';
 
   @override
+  String get onlineGallery_random => '随机';
+
+  @override
+  String get onlineGallery_randomRedraw => '再抽一组';
+
+  @override
+  String get onlineGallery_randomDrawing => '抽取中…';
+
+  @override
+  String get onlineGallery_randomExhausted => '当前范围暂无更多未见图片';
+
+  @override
+  String get onlineGallery_randomRestart => '重新开始';
+
+  @override
+  String get onlineGallery_originalRetry => '原图加载失败，重试';
+
+  @override
   String get onlineGallery_login => '登录';
 
   @override

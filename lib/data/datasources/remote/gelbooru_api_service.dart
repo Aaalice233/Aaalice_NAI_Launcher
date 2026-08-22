@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/network/online_gallery_retry_interceptor.dart';
 import '../../models/online_gallery/danbooru_post.dart';
 import '../../models/online_gallery/gelbooru_credentials.dart';
 import '../../models/online_gallery/gelbooru_post_parser.dart';
@@ -57,6 +58,7 @@ class GelbooruApiService {
     required int pid,
     int limit = 40,
     CancelToken? cancelToken,
+    bool noCache = false,
   }) {
     return _requestPosts(
       credentials: credentials,
@@ -64,6 +66,7 @@ class GelbooruApiService {
       pid: pid,
       limit: limit,
       cancelToken: cancelToken,
+      noCache: noCache,
     );
   }
 
@@ -88,6 +91,7 @@ class GelbooruApiService {
     required int pid,
     required int limit,
     CancelToken? cancelToken,
+    bool noCache = false,
   }) async {
     try {
       final response = await _dio.get<dynamic>(
@@ -104,9 +108,10 @@ class GelbooruApiService {
           'api_key': credentials.apiKey,
         },
         options: Options(
-          headers: const {
+          headers: {
             'Accept': 'application/json',
             'User-Agent': 'NAI-Launcher/1.0',
+            if (noCache) 'Cache-Control': 'no-cache',
           },
         ),
         cancelToken: cancelToken,
@@ -203,13 +208,13 @@ class GelbooruApiService {
 
 @Riverpod(keepAlive: true)
 GelbooruApiService gelbooruApiService(Ref ref) {
-  return GelbooruApiService(
-    Dio(
-      BaseOptions(
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 30),
-        sendTimeout: const Duration(seconds: 15),
-      ),
+  final dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 30),
+      sendTimeout: const Duration(seconds: 15),
     ),
   );
+  dio.interceptors.add(OnlineGalleryRetryInterceptor(dio: dio));
+  return GelbooruApiService(dio);
 }

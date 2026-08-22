@@ -1,6 +1,8 @@
+import 'dart:math';
+
 import 'package:dio/dio.dart';
 
-import '../../../../core/cache/danbooru_image_cache_manager.dart';
+import '../../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../../models/online_gallery/gallery_item.dart';
 import '../../../models/online_gallery/gallery_source.dart';
 import '../../../models/online_gallery/gelbooru_credentials.dart';
@@ -14,15 +16,21 @@ class GelbooruGallerySourceAdapter implements GallerySourceAdapter {
     required GelbooruApiService apiService,
     required Future<GelbooruCredentials?> Function() credentials,
     required void Function() markCredentialsInvalid,
+    Random? random,
   }) : _dio = dio,
        _apiService = apiService,
        _credentials = credentials,
-       _markCredentialsInvalid = markCredentialsInvalid;
+       _markCredentialsInvalid = markCredentialsInvalid,
+       _random = random ?? Random.secure();
 
   final Dio _dio;
   final GelbooruApiService _apiService;
   final Future<GelbooruCredentials?> Function() _credentials;
   final void Function() _markCredentialsInvalid;
+  final Random _random;
+
+  @override
+  Random get randomGenerator => _random;
 
   @override
   GallerySourceId get sourceId => GallerySourceId.gelbooru;
@@ -210,6 +218,230 @@ class GelbooruGallerySourceAdapter implements GallerySourceAdapter {
     if (right.isEmpty) return left.trim();
     if (left.trim().isEmpty) return right;
     return '${left.trim()} $right';
+  }
+
+  @override
+  Future<GalleryPage> random(
+    GalleryRandomRequest request, {
+    CancelToken? cancelToken,
+  }) async {
+    return switch (request) {
+      GalleryRandomSearchRequest() => _randomSearch(request, cancelToken),
+      GalleryRandomFavoritesRequest() => _randomFavorites(request, cancelToken),
+      GalleryRandomRankingRequest() => throw const GallerySourceException(
+        GallerySourceErrorCode.malformedResponse,
+        source: GallerySourceId.gelbooru,
+        message: 'Gelbooru random ranking is not supported',
+      ),
+    };
+  }
+
+  Future<GalleryPage> _randomSearch(
+    GalleryRandomSearchRequest request,
+    CancelToken? cancelToken,
+  ) async {
+    final baseTags = _buildTagsFromRandom(request);
+    final tagsWithSort = '$baseTags sort:random';
+    final credentials = await _credentials();
+
+    if (credentials != null) {
+      try {
+        final result = await _apiService.searchPosts(
+          credentials: credentials,
+          tags: _formatTags(tagsWithSort),
+          pid: 0,
+          limit: request.pageSize,
+          cancelToken: cancelToken,
+          noCache: true,
+        );
+
+        final filtered = _filterRandomResults(result.posts, request);
+        final shuffled = shuffleGalleryItems(filtered, randomGenerator);
+
+        return GalleryPage(
+          items: shuffled,
+          cursor: 'random',
+          nextCursor: null,
+          hasMore: false,
+          rawItemCount: result.rawCount,
+        );
+      } on GelbooruApiException catch (error) {
+        if (error.type != GelbooruApiErrorType.invalidCredentials) {
+          throw _mapGelbooruError(error);
+        }
+        _markCredentialsInvalid();
+      }
+    }
+
+    // Fallback to HTML with local filtering
+    return _randomSearchHtml(request, baseTags, cancelToken);
+  }
+
+  Future<GalleryPage> _randomFavorites(
+    GalleryRandomFavoritesRequest request,
+    CancelToken? cancelToken,
+  ) async {
+    final tags = 'fav:${request.username} sort:random';
+    final credentials = await _credentials();
+
+    if (credentials != null) {
+      try {
+        final result = await _apiService.searchPosts(
+          credentials: credentials,
+          tags: _formatTags(tags),
+          pid: 0,
+          limit: request.pageSize,
+          cancelToken: cancelToken,
+          noCache: true,
+        );
+
+        final filtered = _filterRandomResults(result.posts, request);
+        final shuffled = shuffleGalleryItems(filtered, randomGenerator);
+
+        return GalleryPage(
+          items: shuffled,
+          cursor: 'random',
+          nextCursor: null,
+          hasMore: false,
+          rawItemCount: result.rawCount,
+        );
+      } on GelbooruApiException catch (error) {
+        if (error.type != GelbooruApiErrorType.invalidCredentials) {
+          throw _mapGelbooruError(error);
+        }
+        _markCredentialsInvalid();
+      }
+    }
+
+    // Fallback to HTML scraping
+    return _randomFavoritesHtml(request, tags, cancelToken);
+  }
+
+  Future<GalleryPage> _randomSearchHtml(
+    GalleryRandomSearchRequest request,
+    String baseTags,
+    CancelToken? cancelToken,
+  ) async {
+    final tagsWithSort = '$baseTags sort:random';
+
+    try {
+      final response = await _dio.get(
+        GelbooruApiService.endpoint,
+        queryParameters: {
+          'page': 'post',
+          's': 'list',
+          'tags': _formatTags(tagsWithSort),
+          'pid': 0,
+        },
+        options: Options(
+          headers: {
+            ...onlineGalleryImageHeadersForUrl(GelbooruApiService.endpoint),
+            'Accept':
+                'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'User-Agent': 'Mozilla/5.0 NAI-Launcher/1.0',
+            'Cache-Control': 'no-cache',
+          },
+          responseType: ResponseType.plain,
+        ),
+        cancelToken: cancelToken,
+      );
+
+      final parsed = parseGelbooruHtmlPosts(response.data?.toString() ?? '');
+      final filtered = _filterRandomResults(parsed, request);
+      final shuffled = shuffleGalleryItems(filtered, randomGenerator);
+
+      return GalleryPage(
+        items: shuffled,
+        cursor: 'random',
+        nextCursor: null,
+        hasMore: false,
+        rawItemCount: parsed.length,
+      );
+    } on DioException catch (error) {
+      if (error.type == DioExceptionType.cancel) rethrow;
+      throw mapGalleryDioException(error, sourceId);
+    }
+  }
+
+  Future<GalleryPage> _randomFavoritesHtml(
+    GalleryRandomFavoritesRequest request,
+    String tags,
+    CancelToken? cancelToken,
+  ) async {
+    try {
+      final response = await _dio.get(
+        GelbooruApiService.endpoint,
+        queryParameters: {
+          'page': 'post',
+          's': 'list',
+          'tags': _formatTags(tags),
+          'pid': 0,
+        },
+        options: Options(
+          headers: {
+            ...onlineGalleryImageHeadersForUrl(GelbooruApiService.endpoint),
+            'Accept':
+                'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'User-Agent': 'Mozilla/5.0 NAI-Launcher/1.0',
+            'Cache-Control': 'no-cache',
+          },
+          responseType: ResponseType.plain,
+        ),
+        cancelToken: cancelToken,
+      );
+
+      final parsed = parseGelbooruHtmlPosts(response.data?.toString() ?? '');
+      final filtered = _filterRandomResults(parsed, request);
+      final shuffled = shuffleGalleryItems(filtered, randomGenerator);
+
+      return GalleryPage(
+        items: shuffled,
+        cursor: 'random',
+        nextCursor: null,
+        hasMore: false,
+        rawItemCount: parsed.length,
+      );
+    } on DioException catch (error) {
+      if (error.type == DioExceptionType.cancel) rethrow;
+      throw mapGalleryDioException(error, sourceId);
+    }
+  }
+
+  List<GalleryItem> _filterRandomResults(
+    List<GalleryItem> items,
+    GalleryRandomRequest request,
+  ) {
+    return items
+        .where((item) {
+          if (request.ratings.length < 4 &&
+              !request.ratings.contains(item.rating)) {
+            return false;
+          }
+          return !item.tags.any(
+            (tag) => request.blacklistTags.contains(
+              tag.trim().toLowerCase().replaceAll(' ', '_'),
+            ),
+          );
+        })
+        .toList(growable: false);
+  }
+
+  String _buildTagsFromRandom(GalleryRandomSearchRequest request) {
+    var tags = request.query;
+    if (request.ratings.length == 1) {
+      tags = _join(tags, 'rating:${gelbooruRatingName(request.ratings.first)}');
+    }
+    if (request.dateStart != null || request.dateEnd != null) {
+      final expression = switch ((request.dateStart, request.dateEnd)) {
+        (final DateTime start, final DateTime end) =>
+          'date:${formatGalleryDate(start)}..${formatGalleryDate(end)}',
+        (final DateTime start, null) => 'date:>=${formatGalleryDate(start)}',
+        (null, final DateTime end) => 'date:<=${formatGalleryDate(end)}',
+        _ => '',
+      };
+      tags = _join(tags, expression);
+    }
+    return tags;
   }
 
   GallerySourceException _mapGelbooruError(GelbooruApiException error) {

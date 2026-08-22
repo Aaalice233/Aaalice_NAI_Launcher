@@ -66,29 +66,44 @@ void main() {
     });
   });
 
-  group('shouldPrefetchOnlineGalleryImage', () {
-    test('skips Gelbooru media that require browser headers', () {
+  group('shouldPrefetchOnlineGalleryImage (deprecated)', () {
+    test('always returns true after deprecation', () {
       expect(
         shouldPrefetchOnlineGalleryImage(
           'https://img4.gelbooru.com/thumbnails/51/d1/thumbnail_image.jpg',
         ),
-        isFalse,
+        isTrue,
       );
       expect(
         shouldPrefetchOnlineGalleryImage(
           'https://gelbooru.com/images/51/d1/source.jpg',
         ),
-        isFalse,
+        isTrue,
       );
-    });
-
-    test('keeps bare prefetch for Danbooru media', () {
       expect(
         shouldPrefetchOnlineGalleryImage(
           'https://cdn.donmai.us/preview/test.jpg',
         ),
         isTrue,
       );
+    });
+  });
+
+  group('DanbooruImageCacheManager (deprecated)', () {
+    test('static key constant forwards to the existing shared disk pool', () {
+      expect(DanbooruImageCacheManager.key, 'danbooruImageCache');
+    });
+
+    test('class structure is correct', () {
+      // Test without actually initializing to avoid platform plugin issues
+      expect(DanbooruImageCacheManager, isA<Type>());
+      expect(DanbooruImageCacheManager.key, isA<String>());
+      expect(DanbooruImageCacheManager.key, isNotEmpty);
+    });
+
+    test('keeps the legacy disk cache key after renaming', () {
+      expect(OnlineGalleryImageCacheManager.key, 'danbooruImageCache');
+      expect(DanbooruImageCacheManager.key, 'danbooruImageCache');
     });
   });
 }

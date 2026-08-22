@@ -6,7 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/cache/danbooru_image_cache_manager.dart';
+import '../../../core/cache/gallery_image_request.dart';
+import '../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../router/app_router.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import '../../../data/models/queue/replication_task.dart';
@@ -219,13 +220,17 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
             if (hasPlayableVideo)
               // 视频播放器
               VideoPlayerWidget(videoUrl: videoUrl)
-            else if (widget.post.isAnimated)
-              // GIF 自动循环播放
+            else if (widget.post.isAnimated || widget.post.isVideo)
+              // GIF 自动循环播放；无可播放地址的视频保留预览图。
               CachedNetworkImage(
                 imageUrl: animatedImageUrl,
                 httpHeaders: onlineGalleryImageHeadersForUrl(animatedImageUrl),
                 cacheKey: onlineGalleryImageCacheKeyForUrl(animatedImageUrl),
-                cacheManager: DanbooruImageCacheManager.instance,
+                cacheManager: OnlineGalleryImageCacheManager.instance,
+                memCacheWidth: GalleryImageSizing.detailViewportTargetWidth(
+                  MediaQuery.devicePixelRatioOf(context),
+                  MediaQuery.sizeOf(context).width,
+                ),
                 fit: BoxFit.contain,
                 errorListener: (error) {
                   // 静默处理图片加载错误
@@ -248,39 +253,13 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
                 ),
               )
             else
-              // 普通图片（支持缩放平移）
+              // 静态图片先显示 Sample，再按视口预算晋升 Original。
               InteractiveViewer(
                 minScale: 0.5,
                 maxScale: 4.0,
-                child: CachedNetworkImage(
-                  imageUrl: imageUrl,
-                  httpHeaders: onlineGalleryImageHeadersForUrl(imageUrl),
-                  cacheKey: onlineGalleryImageCacheKeyForUrl(imageUrl),
-                  cacheManager: DanbooruImageCacheManager.instance,
-                  fit: BoxFit.contain,
-                  errorListener: (error) {
-                    // 静默处理图片加载错误
-                  },
-                  placeholder: (context, url) => const Center(
-                    child: CircularProgressIndicator(color: Colors.white),
-                  ),
-                  errorWidget: (context, url, error) => Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.error,
-                          color: Colors.white54,
-                          size: 48,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          context.l10n.onlineGallery_loadFailed,
-                          style: const TextStyle(color: Colors.white54),
-                        ),
-                      ],
-                    ),
-                  ),
+                child: _ProgressiveDetailImage(
+                  post: widget.post,
+                  initialUrl: imageUrl,
                 ),
               ),
             // 关闭按钮
@@ -677,7 +656,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
       return;
     }
     try {
-      final file = await DanbooruImageCacheManager.instance.getSingleFile(
+      final file = await OnlineGalleryImageCacheManager.instance.getSingleFile(
         imageUrl,
         key: onlineGalleryImageCacheKeyForUrl(imageUrl),
         headers: onlineGalleryImageHeadersForUrl(imageUrl),
@@ -872,6 +851,104 @@ class _TagSection extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ProgressiveDetailImage extends StatefulWidget {
+  const _ProgressiveDetailImage({required this.post, required this.initialUrl});
+
+  final DanbooruPost post;
+  final String initialUrl;
+
+  @override
+  State<_ProgressiveDetailImage> createState() =>
+      _ProgressiveDetailImageState();
+}
+
+class _ProgressiveDetailImageState extends State<_ProgressiveDetailImage> {
+  int _retryRevision = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final dpr = MediaQuery.devicePixelRatioOf(context);
+        final viewportWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final initialRequest = GalleryImageRequest.forUrl(
+          sourceId: widget.post.sourceId,
+          url: widget.initialUrl,
+          tier: GalleryImageTier.sample,
+          targetDecodeWidth: GalleryImageSizing.detailViewportTargetWidth(
+            dpr,
+            viewportWidth,
+            naturalWidth: widget.post.width,
+            naturalHeight: widget.post.height,
+          ),
+        );
+        final originalUrl = widget.post.fileUrl ?? widget.initialUrl;
+        final originalRequest = GalleryImageRequest.forUrl(
+          sourceId: widget.post.sourceId,
+          url: originalUrl,
+          tier: GalleryImageTier.original,
+          targetDecodeWidth: GalleryImageSizing.originalTargetWidth(
+            dpr,
+            viewportWidth,
+            naturalWidth: widget.post.width,
+            naturalHeight: widget.post.height,
+          ),
+        );
+        final manager = OnlineGalleryImageCacheManager.instance;
+        final initial = Image(
+          image: initialRequest.createImageProvider(manager),
+          fit: BoxFit.contain,
+          gaplessPlayback: true,
+          errorBuilder: (_, __, ___) => const Center(
+            child: Icon(Icons.broken_image_outlined, color: Colors.white54),
+          ),
+        );
+        if (originalUrl == widget.initialUrl) return initial;
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            initial,
+            Image(
+              key: ValueKey(
+                'original:${originalRequest.stableRequestKey}:$_retryRevision',
+              ),
+              image: originalRequest.createImageProvider(manager),
+              fit: BoxFit.contain,
+              gaplessPlayback: true,
+              frameBuilder: (context, child, frame, synchronous) {
+                if (frame == null) return const SizedBox.shrink();
+                if (synchronous || MediaQuery.disableAnimationsOf(context)) {
+                  return child;
+                }
+                return TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0, end: 1),
+                  duration: const Duration(milliseconds: 140),
+                  builder: (_, opacity, image) =>
+                      Opacity(opacity: opacity, child: image),
+                  child: child,
+                );
+              },
+              errorBuilder: (_, __, ___) => Center(
+                child: FilledButton.tonalIcon(
+                  onPressed: () async {
+                    await manager.removeFile(originalRequest.canonicalCacheKey);
+                    if (mounted) setState(() => _retryRevision++);
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: Text(context.l10n.onlineGallery_originalRetry),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

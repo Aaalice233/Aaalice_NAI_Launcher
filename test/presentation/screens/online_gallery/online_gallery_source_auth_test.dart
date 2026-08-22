@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/cache/online_gallery_detail_coordinator.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
 import 'package:nai_launcher/data/models/online_gallery/danbooru_post.dart';
 import 'package:nai_launcher/data/models/online_gallery/gelbooru_credentials.dart';
@@ -11,9 +12,14 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/danbooru_suggestion_provider.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_screen.dart';
+import 'package:nai_launcher/presentation/widgets/app_branch_visibility.dart';
 import 'package:nai_launcher/presentation/widgets/danbooru_post_card.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 void main() {
+  setUp(() {
+    VisibilityDetectorController.instance.updateInterval = Duration.zero;
+  });
   for (final width in [1600.0, 700.0]) {
     testWidgets('Gelbooru search uses its API account entry at width $width', (
       tester,
@@ -350,6 +356,81 @@ void main() {
     expect(find.text('Configure Gelbooru API'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('hidden gallery does not auto-load an underfilled page', (
+    tester,
+  ) async {
+    _HiddenUnderfilledGalleryNotifier.loadMoreCalls = 0;
+    await _setViewSize(tester, 1200);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onlineGalleryNotifierProvider.overrideWith(
+            _HiddenUnderfilledGalleryNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+          danbooruSuggestionNotifierProvider.overrideWith(
+            _EmptyDanbooruSuggestionNotifier.new,
+          ),
+        ],
+        child: const _HiddenTestApp(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(_HiddenUnderfilledGalleryNotifier.loadMoreCalls, 0);
+  });
+
+  testWidgets('random mode replaces pagination and restores it when disabled', (
+    tester,
+  ) async {
+    await _setViewSize(tester, 1200);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onlineGalleryNotifierProvider.overrideWith(
+            _RandomUiGalleryNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+          danbooruSuggestionNotifierProvider.overrideWith(
+            _EmptyDanbooruSuggestionNotifier.new,
+          ),
+        ],
+        child: const _TestApp(),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('online-gallery-pagination-bar')),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('online-gallery-random-toggle')),
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('online-gallery-random-status-bar')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('online-gallery-pagination-bar')),
+      findsNothing,
+    );
+    expect(find.text('Draw again'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('online-gallery-random-toggle')),
+    );
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('online-gallery-pagination-bar')),
+      findsOneWidget,
+    );
+  });
 }
 
 Future<void> _setViewSize(WidgetTester tester, double width) async {
@@ -369,6 +450,20 @@ class _TestApp extends StatelessWidget {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: OnlineGalleryScreen(),
+    );
+  }
+}
+
+class _HiddenTestApp extends StatelessWidget {
+  const _HiddenTestApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      locale: Locale('en'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: AppBranchVisibility(isVisible: false, child: OnlineGalleryScreen()),
     );
   }
 }
@@ -434,6 +529,30 @@ const _pageTwoPost = DanbooruPost(
   tagStringGeneral: 'solo',
 );
 
+class _RandomUiGalleryNotifier extends OnlineGalleryNotifier {
+  @override
+  OnlineGalleryState build() {
+    return const OnlineGalleryState(
+      searchCache: ModeCache(posts: [_danbooruPost], hasMore: false),
+    );
+  }
+
+  @override
+  Future<void> setRandomEnabled(bool enabled) async {
+    state = state.copyWith(
+      randomEnabled: enabled,
+      randomSession: enabled
+          ? const RandomGallerySession(
+              scopeKey: 'test',
+              cache: ModeCache(posts: [_danbooruPost], hasMore: false),
+              drawRevision: 1,
+              exhausted: true,
+            )
+          : state.randomSession,
+    );
+  }
+}
+
 class _GelbooruSearchGalleryNotifier extends OnlineGalleryNotifier {
   @override
   OnlineGalleryState build() {
@@ -476,6 +595,7 @@ class _AiTagDetailGalleryNotifier extends _AiTagSearchGalleryNotifier {
   Future<GalleryDetail> loadDetail(
     GalleryItem item, {
     bool forceRefresh = false,
+    GalleryDetailPriority priority = GalleryDetailPriority.interactive,
   }) async {
     const media = [
       GalleryMedia(
@@ -533,6 +653,22 @@ class _EmptyFilteredGalleryNotifier extends OnlineGalleryNotifier {
         hasMore: false,
       ),
     );
+  }
+}
+
+class _HiddenUnderfilledGalleryNotifier extends OnlineGalleryNotifier {
+  static int loadMoreCalls = 0;
+
+  @override
+  OnlineGalleryState build() {
+    return const OnlineGalleryState(
+      searchCache: ModeCache(posts: [_pageOnePost], nextCursor: '2'),
+    );
+  }
+
+  @override
+  Future<void> loadMore() async {
+    loadMoreCalls++;
   }
 }
 

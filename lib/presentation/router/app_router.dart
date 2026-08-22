@@ -19,6 +19,7 @@ import '../screens/statistics/statistics_screen.dart';
 import '../screens/precise_ref_library/precise_ref_library_screen.dart';
 import '../screens/tag_library_page/tag_library_page_screen.dart';
 import '../screens/vibe_library/vibe_library_screen.dart';
+import '../widgets/app_branch_visibility.dart';
 import '../widgets/common/update_notice_banner.dart';
 import '../widgets/drop/global_drop_handler.dart';
 import '../widgets/navigation/main_nav_rail.dart';
@@ -379,14 +380,17 @@ class _MainShellState extends ConsumerState<MainShell> {
         // 保活页面：画廊（1, 2）、Vibe 库（7）和精准参考库（8）
         // 始终保持在树中，通过 TickerMode 控制动画
         if (index == 1 || index == 2 || index == 7 || index == 8) {
-          return TickerMode(enabled: isActive, child: child);
+          return AppBranchVisibility(
+            isVisible: isActive,
+            child: TickerMode(enabled: isActive, child: child),
+          );
         }
 
         // 其他索引：非活动时显示空容器（不保活）
         if (!isActive) {
           return const SizedBox.shrink();
         }
-        return child;
+        return AppBranchVisibility(isVisible: true, child: child);
       }).toList(),
     );
 
