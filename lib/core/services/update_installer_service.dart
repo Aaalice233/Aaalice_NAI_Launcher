@@ -38,6 +38,12 @@ class UpdateDownloadCancelledException implements Exception {
 
 typedef AppShutdownHandler = Future<void> Function(int code);
 typedef UpdateSha256Calculator = Future<String> Function(File file);
+typedef UpdateProcessStarter =
+    Future<void> Function(
+      String executable,
+      List<String> arguments,
+      ProcessStartMode mode,
+    );
 
 /// 一次下载的实时进度快照。
 class UpdateDownloadProgress {
@@ -105,6 +111,7 @@ class UpdateInstallerService {
   final AppInstallationService _installationService;
   final AppShutdownHandler _shutdownHandler;
   final UpdateSha256Calculator _sha256Calculator;
+  final UpdateProcessStarter _processStarter;
   final Directory? _updateDirectoryOverride;
 
   static const Duration _speedSampleWindow = Duration(milliseconds: 500);
@@ -121,11 +128,13 @@ class UpdateInstallerService {
     AppShutdownHandler shutdownHandler =
         DesktopAppShutdownService.shutdownAndExit,
     UpdateSha256Calculator? sha256Calculator,
+    UpdateProcessStarter processStarter = startUpdateProcess,
     Directory? updateDirectory,
   }) : _dio = dio,
        _installationService = installationService,
        _shutdownHandler = shutdownHandler,
        _sha256Calculator = sha256Calculator ?? calculateSha256,
+       _processStarter = processStarter,
        _updateDirectoryOverride = updateDirectory;
 
   bool get supportsInAppInstall => _installationService.supportsInAppInstall;
@@ -480,16 +489,22 @@ class UpdateInstallerService {
     );
 
     try {
-      await Process.start('powershell.exe', [
-        '-NoProfile',
-        '-NonInteractive',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-WindowStyle',
-        'Hidden',
-        '-File',
-        scriptFile.path,
-      ], mode: ProcessStartMode.detached);
+      await _processStarter(
+        'powershell.exe',
+        [
+          '-NoProfile',
+          '-NonInteractive',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-WindowStyle',
+          'Hidden',
+          '-File',
+          scriptFile.path,
+        ],
+        // Windows 下 detached 模式可能在当前进程退出时让隐藏的 PowerShell
+        // 尚未执行脚本就一并消失；normal 模式仍允许子进程在应用退出后继续。
+        ProcessStartMode.normal,
+      );
     } catch (error) {
       throw UpdateInstallException('启动更新程序失败', originalError: error);
     }
@@ -659,6 +674,29 @@ class UpdateInstallerService {
 
   static bool equalsSha256(String actual, String expected) {
     return actual.toLowerCase() == expected.toLowerCase();
+  }
+}
+
+Future<void> startUpdateProcess(
+  String executable,
+  List<String> arguments,
+  ProcessStartMode mode,
+) async {
+  final process = await Process.start(executable, arguments, mode: mode);
+  try {
+    await process.stdin.close();
+  } catch (_) {
+    // 更新脚本若在启动阶段退出，关闭输入流失败不应覆盖脚本结果。
+  }
+  unawaited(_drainProcessOutput(process.stdout));
+  unawaited(_drainProcessOutput(process.stderr));
+}
+
+Future<void> _drainProcessOutput(Stream<List<int>> output) async {
+  try {
+    await output.drain<void>();
+  } catch (_) {
+    // 主应用退出会关闭管道，更新脚本仍由自身日志记录执行结果。
   }
 }
 

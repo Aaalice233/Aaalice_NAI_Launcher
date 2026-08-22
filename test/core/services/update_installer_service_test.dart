@@ -208,6 +208,128 @@ void main() {
       expect(await service.consumeExecutionResult(), isNull);
     });
 
+    test(
+      'starts updater in normal mode before shutting down the application',
+      () async {
+        final updateDir = Directory('${tempDir.path}/updates')..createSync();
+        final installer = File('${updateDir.path}/setup.exe');
+        await installer.writeAsString('verified installer');
+        final hash = await UpdateInstallerService.calculateSha256(installer);
+        final events = <String>[];
+        String? executable;
+        List<String>? arguments;
+        ProcessStartMode? processMode;
+        final service = UpdateInstallerService(
+          dio: Dio(),
+          installationService: _SupportedInstallationService(),
+          updateDirectory: updateDir,
+          processStarter: (command, commandArguments, mode) async {
+            events.add('process');
+            executable = command;
+            arguments = commandArguments;
+            processMode = mode;
+          },
+          shutdownHandler: (_) async {
+            events.add('shutdown');
+          },
+        );
+        final asset = ReleaseAssetInfo(
+          type: ReleaseAssetType.windowsInstaller,
+          platform: 'windows',
+          fileName: 'setup.exe',
+          downloadUrl: 'https://example.com/setup.exe',
+          sha256: hash,
+          size: await installer.length(),
+        );
+
+        await service.installAndRestart(
+          DownloadedUpdate(file: installer, asset: asset, version: '1.8.2'),
+        );
+
+        expect(events, ['process', 'shutdown']);
+        expect(executable, 'powershell.exe');
+        expect(processMode, ProcessStartMode.normal);
+        expect(arguments, containsAllInOrder(['-File']));
+        expect(File(arguments!.last).existsSync(), isTrue);
+      },
+      skip: !Platform.isWindows,
+    );
+
+    test(
+      'default process starter executes a hidden PowerShell script',
+      () async {
+        final marker = File('${tempDir.path}/updater-started.txt');
+        final script = File('${tempDir.path}/updater-start-test.ps1');
+        final escapedMarker = marker.path.replaceAll("'", "''");
+        await script.writeAsString(
+          "[System.IO.File]::WriteAllText('$escapedMarker', 'started')",
+        );
+
+        await startUpdateProcess('powershell.exe', [
+          '-NoProfile',
+          '-NonInteractive',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-WindowStyle',
+          'Hidden',
+          '-File',
+          script.path,
+        ], ProcessStartMode.normal);
+
+        final deadline = DateTime.now().add(const Duration(seconds: 5));
+        while (!await marker.exists() && DateTime.now().isBefore(deadline)) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        }
+        expect(await marker.exists(), isTrue);
+      },
+      skip: !Platform.isWindows,
+    );
+
+    test(
+      'does not shut down when the updater process cannot start',
+      () async {
+        final updateDir = Directory('${tempDir.path}/updates')..createSync();
+        final installer = File('${updateDir.path}/setup.exe');
+        await installer.writeAsString('verified installer');
+        final hash = await UpdateInstallerService.calculateSha256(installer);
+        var shutdownCalled = false;
+        final service = UpdateInstallerService(
+          dio: Dio(),
+          installationService: _SupportedInstallationService(),
+          updateDirectory: updateDir,
+          processStarter: (_, _, _) async {
+            throw const ProcessException('powershell.exe', [], 'blocked');
+          },
+          shutdownHandler: (_) async {
+            shutdownCalled = true;
+          },
+        );
+        final asset = ReleaseAssetInfo(
+          type: ReleaseAssetType.windowsInstaller,
+          platform: 'windows',
+          fileName: 'setup.exe',
+          downloadUrl: 'https://example.com/setup.exe',
+          sha256: hash,
+          size: await installer.length(),
+        );
+
+        await expectLater(
+          service.installAndRestart(
+            DownloadedUpdate(file: installer, asset: asset, version: '1.8.2'),
+          ),
+          throwsA(
+            isA<UpdateInstallException>().having(
+              (error) => error.message,
+              'message',
+              '启动更新程序失败',
+            ),
+          ),
+        );
+        expect(shutdownCalled, isFalse);
+      },
+      skip: !Platform.isWindows,
+    );
+
     test('DownloadedUpdate identifies portable zip packages', () {
       const portableAsset = ReleaseAssetInfo(
         type: ReleaseAssetType.windowsPortable,
