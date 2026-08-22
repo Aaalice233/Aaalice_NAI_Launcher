@@ -89,6 +89,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
 
     return Dialog(
       insetPadding: EdgeInsets.all(isWide ? 24 : 16),
+      clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: SizedBox(
         width: dialogWidth,
@@ -96,12 +97,10 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
         child: Column(
           children: [
             _buildHeader(theme),
-            Divider(height: 1, color: theme.colorScheme.outlineVariant),
             Expanded(
               child: isWide ? _buildWideBody(theme) : _buildNarrowBody(theme),
             ),
-            Divider(height: 1, color: theme.colorScheme.outlineVariant),
-            _buildFooter(),
+            _buildFooter(theme),
           ],
         ),
       ),
@@ -109,29 +108,32 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
   }
 
   Widget _buildHeader(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 12, 12),
-      child: Row(
-        children: [
-          Icon(
-            _isEditing ? Icons.edit_outlined : Icons.add,
-            color: theme.colorScheme.secondary,
-          ),
-          const SizedBox(width: 12),
-          Text(
-            _isEditing
-                ? context.l10n.fixedTags_edit
-                : context.l10n.fixedTags_add,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w600,
+    return ColoredBox(
+      color: theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.55),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 12, 12),
+        child: Row(
+          children: [
+            Icon(
+              _isEditing ? Icons.edit_outlined : Icons.add,
+              color: theme.colorScheme.secondary,
             ),
-          ),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Text(
+              _isEditing
+                  ? context.l10n.fixedTags_edit
+                  : context.l10n.fixedTags_add,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -143,9 +145,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(child: _buildEditorPane(theme, expanded: true)),
-          const SizedBox(width: 20),
-          VerticalDivider(width: 1, color: theme.colorScheme.outlineVariant),
-          const SizedBox(width: 20),
+          const SizedBox(width: 32),
           SizedBox(
             width: 250,
             child: SingleChildScrollView(child: _buildSettingsPane(theme)),
@@ -162,9 +162,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildEditorPane(theme, expanded: false),
-          const SizedBox(height: 20),
-          Divider(color: theme.colorScheme.outlineVariant),
-          const SizedBox(height: 16),
+          const SizedBox(height: 28),
           _buildSettingsPane(theme),
         ],
       ),
@@ -519,25 +517,28 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
     );
   }
 
-  Widget _buildFooter() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(context.l10n.common_cancel),
-          ),
-          const SizedBox(width: 8),
-          ValueListenableBuilder<TextEditingValue>(
-            valueListenable: _contentController,
-            builder: (context, value, child) => FilledButton(
-              onPressed: value.text.trim().isNotEmpty ? _save : null,
-              child: Text(context.l10n.common_save),
+  Widget _buildFooter(ThemeData theme) {
+    return ColoredBox(
+      color: theme.colorScheme.surfaceContainerLow.withValues(alpha: 0.55),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(context.l10n.common_cancel),
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _contentController,
+              builder: (context, value, child) => FilledButton(
+                onPressed: value.text.trim().isNotEmpty ? _save : null,
+                child: Text(context.l10n.common_save),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
