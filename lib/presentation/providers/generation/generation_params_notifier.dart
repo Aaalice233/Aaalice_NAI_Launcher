@@ -233,6 +233,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
             to: ModelCapabilityRegistry.of(model),
             currentScale: state.scale,
             currentSteps: state.steps,
+            currentNoiseSchedule: state.noiseSchedule,
           )
         : const ModelSwitchFollowUps();
 
@@ -241,6 +242,9 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     }
     if (followUps.steps != null) {
       next = next.copyWith(steps: followUps.steps!);
+    }
+    if (followUps.noiseSchedule != null) {
+      next = next.copyWith(noiseSchedule: followUps.noiseSchedule!);
     }
     state = next;
 
@@ -251,6 +255,9 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       }
       if (followUps.steps != null) {
         _storage.setDefaultSteps(followUps.steps!);
+      }
+      if (followUps.noiseSchedule != null) {
+        _storage.setLastNoiseSchedule(followUps.noiseSchedule!);
       }
     }
   }

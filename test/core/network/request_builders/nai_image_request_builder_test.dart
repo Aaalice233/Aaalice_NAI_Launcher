@@ -1314,7 +1314,7 @@ void main() {
       expect(result.requestParameters['height'], params.height);
     });
 
-    test('should force karras and drop variety on V5', () async {
+    test('should send the noise schedule and variety chosen on V5', () async {
       const params = ImageParams(
         model: ImageModels.animeDiffusionV5Curated,
         noiseSchedule: 'exponential',
@@ -1327,12 +1327,53 @@ void main() {
 
       final result = await builder.build(sampler: 'k_euler_ancestral');
 
-      // 网页端请求归一化对 V5 强制写入 karras，忽略用户存量选择。
-      expect(result.requestParameters['noise_schedule'], 'karras');
-      // V5 不支持 Variety+（cfgDelay 能力位为 false）。
-      expect(result.requestParameters['skip_cfg_above_sigma'], isNull);
+      // 网页端对 V5 隐藏了这两项，启动器刻意放开。
+      expect(result.requestParameters['noise_schedule'], 'exponential');
+      expect(result.requestParameters['skip_cfg_above_sigma'], isNotNull);
       // cfg_rescale 正式版继续下发。
       expect(result.requestParameters.containsKey('cfg_rescale'), isTrue);
+    });
+
+    test('should still coerce a leftover native schedule on V5', () async {
+      const params = ImageParams(
+        model: ImageModels.animeDiffusionV5Curated,
+        noiseSchedule: 'native',
+      );
+      final builder = NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      );
+
+      final result = await builder.build(sampler: 'k_euler_ancestral');
+
+      // Native 在 V4 起就不是候选，放开噪声调度不改变这一点。
+      expect(result.requestParameters['noise_schedule'], 'karras');
+    });
+
+    test('should scale the variety sigma from the model base', () async {
+      // 832x1216 潜空间正好是基准体积，缩放系数为 1，直接暴露 sigma 基数。
+      const v45 = ImageParams(
+        model: ImageModels.animeDiffusionV45Full,
+        varietyPlus: true,
+      );
+      const v4 = ImageParams(
+        model: ImageModels.animeDiffusionV4Full,
+        varietyPlus: true,
+      );
+
+      final modern = await NAIImageRequestBuilder(
+        params: v45,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler_ancestral');
+      final legacy = await NAIImageRequestBuilder(
+        params: v4,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler_ancestral');
+
+      expect(v45.width, 832);
+      expect(v45.height, 1216);
+      expect(modern.requestParameters['skip_cfg_above_sigma'], closeTo(58, 1e-9));
+      expect(legacy.requestParameters['skip_cfg_above_sigma'], closeTo(19, 1e-9));
     });
 
     test('should drop the e2e upscale block for infill', () async {

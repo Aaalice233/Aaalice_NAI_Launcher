@@ -270,6 +270,12 @@ class NoiseSchedules {
     exponential: 'Exponential',
     polyexponential: 'Polyexponential',
   };
+
+  /// 把取值规整到目标模型的候选范围内。
+  ///
+  /// 噪声调度是跨模型共用的持久化值，切到不开放 Native 的模型时会残留。
+  static String resolve(String schedule, {required bool allowNative}) =>
+      !allowNative && schedule == native ? karras : schedule;
 }
 
 /// UC 预设枚举 (Undesired Content Preset)

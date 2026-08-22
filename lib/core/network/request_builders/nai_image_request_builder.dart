@@ -13,6 +13,9 @@ import '../../../data/models/character/character_prompt.dart'
     show CharacterPositionLayout;
 import '../../../data/models/image/image_params.dart';
 
+/// Variety+ sigma 缩放的基准潜空间体积：4 通道 × 104 × 152（832×1216 的潜空间）。
+const int _cfgDelayReferenceLatents = 4 * 104 * 152;
+
 typedef EncodeVibeFn =
     Future<String> Function(
       Uint8List image, {
@@ -83,12 +86,12 @@ class NAIImageRequestBuilder {
           ? false
           : params.addOriginalImage,
       'cfg_rescale': NAIApiUtils.toJsonNumber(params.cfgRescale),
-      // V5 不开放噪声调度，网页端请求归一化强制写入 karras。
-      'noise_schedule': !params.capabilities.supportsNoiseSchedule
-          ? 'karras'
-          : params.isV4Model
-          ? (params.noiseSchedule == 'native' ? 'karras' : params.noiseSchedule)
-          : params.noiseSchedule,
+      'noise_schedule': params.capabilities.supportsNoiseSchedule
+          ? NoiseSchedules.resolve(
+              params.noiseSchedule,
+              allowNative: params.capabilities.allowsNativeNoiseSchedule,
+            )
+          : NoiseSchedules.karras,
       'inpaintImg2ImgStrength': NAIApiUtils.toJsonNumber(
         params.inpaintStrength,
       ),
@@ -99,10 +102,16 @@ class NAIImageRequestBuilder {
       if (isStream) 'stream': 'msgpack',
     };
 
-    // Variety+ 对应网页端能力位 cfgDelay，V5 不支持时一律发 null。
+    // sigma 基数按模型取（V4.5 起 58，更早 19），再按潜空间面积缩放。
     requestParameters['skip_cfg_above_sigma'] =
         params.varietyPlus && params.capabilities.supportsVarietyPlus
-        ? 58.0 * sqrt(4.0 * (params.width / 8) * (params.height / 8) / 63232)
+        ? params.capabilities.cfgDelaySigma *
+              sqrt(
+                4.0 *
+                    (params.width ~/ 8) *
+                    (params.height ~/ 8) /
+                    _cfgDelayReferenceLatents,
+              )
         : null;
 
     if (params.capabilities.supportsTransparentBackground) {
