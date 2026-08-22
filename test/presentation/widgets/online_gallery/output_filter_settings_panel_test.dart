@@ -44,6 +44,10 @@ void main() {
       ),
     );
 
+    final inputTop = tester.getTopLeft(find.byType(TextField)).dy;
+    final addIconCenter = tester.getCenter(find.byIcon(Icons.add)).dy;
+    expect(addIconCenter - inputTop, moreOrLessEquals(24));
+
     await tester.enterText(find.byType(TextField), 'Custom Tag，watermark');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();

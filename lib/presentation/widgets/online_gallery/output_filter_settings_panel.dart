@@ -81,6 +81,7 @@ class _OnlineGalleryOutputFilterSettingsPanelState
         ),
         const SizedBox(height: 16),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: AutocompleteWrapper(
@@ -106,10 +107,15 @@ class _OnlineGalleryOutputFilterSettingsPanelState
               ),
             ),
             const SizedBox(width: 8),
-            IconButton.filledTonal(
-              tooltip: context.l10n.common_add,
-              onPressed: _addTags,
-              icon: const Icon(Icons.add),
+            SizedBox(
+              height: 48,
+              child: Center(
+                child: IconButton.filledTonal(
+                  tooltip: context.l10n.common_add,
+                  onPressed: _addTags,
+                  icon: const Icon(Icons.add),
+                ),
+              ),
             ),
           ],
         ),
