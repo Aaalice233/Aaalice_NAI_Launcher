@@ -21,6 +21,7 @@ import 'package:nai_launcher/presentation/screens/generation/generation_screen.d
 import 'package:nai_launcher/presentation/screens/generation/widgets/fixed_tags_sidebar.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_entry_tile.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_link_painter.dart';
+import 'package:nai_launcher/presentation/widgets/common/hover_image_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/thumbnail_display.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/fixed_tags_button.dart';
 
@@ -788,6 +789,131 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets(
+    'SidebarEntryTile shows a linked preview image after the hover delay',
+    (tester) async {
+      tester.view.physicalSize = const Size(1000, 600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final entry = FixedTagEntry.create(name: 'tile', content: 'tag');
+      final libraryEntry = TagLibraryEntry.create(
+        name: 'tile',
+        content: 'tag',
+        thumbnail: 'missing-preview.png',
+        thumbnailOffsetX: 0.25,
+        thumbnailOffsetY: -0.5,
+        thumbnailScale: 1.4,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.centerRight,
+              child: SizedBox(
+                width: 280,
+                child: SidebarEntryTile(
+                  entry: entry,
+                  libraryEntry: libraryEntry,
+                  categoryColor: Colors.blue,
+                  isListMode: true,
+                  onToggle: () {},
+                  onEdit: () {},
+                  onDelete: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer();
+      addTearDown(mouse.removePointer);
+      await mouse.moveTo(tester.getCenter(find.byType(SidebarEntryTile)));
+      await tester.pump(const Duration(milliseconds: 299));
+
+      const previewKey = ValueKey('hover-image-preview-overlay');
+      expect(find.byKey(previewKey), findsNothing);
+
+      await tester.pump(const Duration(milliseconds: 1));
+
+      expect(find.byKey(previewKey), findsOneWidget);
+      final previewThumbnail = tester.widget<ThumbnailDisplay>(
+        find.descendant(
+          of: find.byKey(previewKey),
+          matching: find.byType(ThumbnailDisplay),
+        ),
+      );
+      expect(previewThumbnail.imagePath, libraryEntry.thumbnail);
+      expect(previewThumbnail.offsetX, libraryEntry.thumbnailOffsetX);
+      expect(previewThumbnail.offsetY, libraryEntry.thumbnailOffsetY);
+      expect(previewThumbnail.scale, libraryEntry.thumbnailScale);
+
+      final previewRect = tester.getRect(find.byKey(previewKey));
+      expect(previewRect.width, 320);
+      expect(previewRect.height, 180);
+      expect(previewRect.left, greaterThanOrEqualTo(16));
+      expect(previewRect.right, lessThanOrEqualTo(984));
+      expect(previewRect.top, greaterThanOrEqualTo(16));
+      expect(previewRect.bottom, lessThanOrEqualTo(584));
+
+      await mouse.moveTo(const Offset(16, 16));
+      await tester.pump();
+
+      expect(find.byKey(previewKey), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('SidebarEntryTile skips hover preview without an image', (
+    tester,
+  ) async {
+    final entry = FixedTagEntry.create(name: 'tile', content: 'tag');
+    final libraryEntry = TagLibraryEntry.create(name: 'tile', content: 'tag');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 280,
+              child: SidebarEntryTile(
+                entry: entry,
+                libraryEntry: libraryEntry,
+                categoryColor: Colors.blue,
+                isListMode: true,
+                onToggle: () {},
+                onEdit: () {},
+                onDelete: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(HoverImagePreview), findsNothing);
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer();
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(tester.getCenter(find.byType(SidebarEntryTile)));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(
+      find.byKey(const ValueKey('hover-image-preview-overlay')),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('SidebarEntryTile triggers edit action after hover', (
     tester,
