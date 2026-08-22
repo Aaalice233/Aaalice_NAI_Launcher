@@ -809,7 +809,7 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
   }
 
   String _labelBeforeColon(String text) {
-    final colonIndex = text.indexOf(':');
+    final colonIndex = text.indexOf(RegExp('[:：]'));
     if (colonIndex < 0) return text.trim();
     return text.substring(0, colonIndex).trim();
   }
