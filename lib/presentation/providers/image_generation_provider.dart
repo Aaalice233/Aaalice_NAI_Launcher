@@ -507,6 +507,19 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   }
 
   Future<void> _generate(ImageParams params) async {
+    final resolutionIssue = NaiResolutionAdapter.validateGenerationResolution(
+      params.width,
+      params.height,
+    );
+    if (resolutionIssue != null) {
+      state = state.copyWith(
+        status: GenerationStatus.error,
+        errorMessage: resolutionIssue.errorCode,
+        progress: 0,
+      );
+      return;
+    }
+
     final canStart = ref
         .read(generationCooldownProvider.notifier)
         .tryStartGeneration();

@@ -12,6 +12,42 @@ import 'package:nai_launcher/data/models/version/version_info.dart';
 import 'package:nai_launcher/presentation/providers/update_provider.dart';
 
 void main() {
+  test('automatic update provider performs the real startup check', () async {
+    const versionInfo = VersionInfo(
+      version: '2.0.0',
+      currentVersion: '1.0.0',
+      releaseNotes: 'test',
+      isNewer: true,
+    );
+    final checkService = _MockUpdateCheckService();
+    final installer = _MockUpdateInstallerService();
+    when(installer.consumeExecutionResult).thenAnswer((_) async => null);
+    when(installer.restorePendingUpdate).thenAnswer((_) async => null);
+    when(checkService.shouldCheck).thenAnswer((_) async => true);
+    when(
+      () => checkService.checkForUpdates(ignoreSkipped: false),
+    ).thenAnswer((_) async => versionInfo);
+    final container = ProviderContainer(
+      overrides: [
+        updateCheckServiceReadyProvider.overrideWith(
+          (ref) async => checkService,
+        ),
+        updateCheckServiceProvider.overrideWithValue(checkService),
+        updateInstallerServiceProvider.overrideWithValue(installer),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(automaticUpdateCheckProvider.future);
+
+    final state = container.read(updateStateProvider);
+    expect(state.status, UpdateStatus.available);
+    expect(state.versionInfo, versionInfo);
+    expect(state.notificationVisible, isTrue);
+    verify(checkService.shouldCheck).called(1);
+    verify(() => checkService.checkForUpdates(ignoreSkipped: false)).called(1);
+  });
+
   test(
     'completed download wins a cancellation at the commit boundary',
     () async {
@@ -64,6 +100,9 @@ void main() {
 }
 
 class _MockUpdateCheckService extends Mock implements UpdateCheckService {}
+
+class _MockUpdateInstallerService extends Mock
+    implements UpdateInstallerService {}
 
 class _SupportedInstallationService extends AppInstallationService {
   @override

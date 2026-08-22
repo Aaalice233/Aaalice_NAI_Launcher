@@ -127,6 +127,46 @@ void main() {
       expect(sent.single['code'], KritaBridgeErrorCode.busy.value);
     });
 
+    test('rejects an invalid generation resolution before API calls', () async {
+      final sent = <Map<String, dynamic>>[];
+      var streamCalled = false;
+      var fallbackCalled = false;
+      final service = KritaBridgeService(
+        readBaseParams: () => const ImageParams(width: 1080, height: 1920),
+        send: sent.add,
+        isUiGenerating: () => false,
+        generateStream: (_) {
+          streamCalled = true;
+          return const Stream.empty();
+        },
+        generateFallback: (_) async {
+          fallbackCalled = true;
+          return const [];
+        },
+        registerExternalImage: (_, {required params, addToDisplay}) async =>
+            null,
+        cancelGeneration: () {},
+      );
+
+      await service.handle(
+        KritaImg2ImgMessage(
+          id: 'img-invalid-size',
+          image: Uint8List.fromList([1]),
+          prompt: 'cat',
+          negativePrompt: '',
+          strength: 0.5,
+          noise: 0,
+        ),
+      );
+
+      expect(streamCalled, isFalse);
+      expect(fallbackCalled, isFalse);
+      expect(sent, hasLength(1));
+      expect(sent.single['type'], 'error');
+      expect(sent.single['code'], KritaBridgeErrorCode.invalidRequest.value);
+      expect(sent.single['message'], contains('1088x1920'));
+    });
+
     test('rate limits immediate retry after failed Krita request', () async {
       final sent = <Map<String, dynamic>>[];
       var streamCalls = 0;

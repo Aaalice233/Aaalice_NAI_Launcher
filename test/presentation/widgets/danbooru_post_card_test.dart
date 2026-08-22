@@ -8,6 +8,48 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/danbooru_post_card.dart';
 
 void main() {
+  testWidgets('layoutAspectRatio keeps masonry card geometry stable', (
+    tester,
+  ) async {
+    const post = DanbooruPost(
+      id: 122,
+      width: 600,
+      height: 900,
+      rating: 'g',
+      previewFileUrl: 'https://example.com/portrait.jpg',
+      tagString: 'test_tag',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: DanbooruPostCard(
+                post: post,
+                itemWidth: 200,
+                layoutAspectRatio: 1,
+                isFavorited: false,
+                onTap: () {},
+                onTagTap: (_) {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('online-gallery-card-layout')))
+          .height,
+      200,
+    );
+  });
+
   testWidgets('passes Gelbooru image headers and cache key to preview image', (
     tester,
   ) async {

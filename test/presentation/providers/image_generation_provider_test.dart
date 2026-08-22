@@ -157,6 +157,28 @@ void main() {
       expect(savedCopy.canSave, isFalse);
     });
 
+    test('rejects non-64-grid resolution before sending a request', () async {
+      container.read(subscriptionNotifierProvider);
+      final params = container
+          .read(generationParamsNotifierProvider)
+          .copyWith(width: 1080, height: 1920);
+
+      await container
+          .read(imageGenerationNotifierProvider.notifier)
+          .generate(params);
+
+      final state = container.read(imageGenerationNotifierProvider);
+      expect(state.status, GenerationStatus.error);
+      expect(
+        state.errorMessage,
+        'GENERATION_ERROR_INVALID_RESOLUTION|1080|1920|1088|1920',
+      );
+      final subscriptionNotifier =
+          container.read(subscriptionNotifierProvider.notifier)
+              as TestSubscriptionNotifier;
+      expect(subscriptionNotifier.refreshBalanceCallCount, 1);
+    });
+
     test(
       'generate applies positive and negative fixed tags before request',
       () async {

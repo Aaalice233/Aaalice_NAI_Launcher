@@ -9,6 +9,7 @@ import '../../../core/krita/krita_bridge_models.dart';
 import '../../../core/models/image_generation_artifact.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/focused_inpaint_utils.dart';
+import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/image/image_stream_chunk.dart';
 
@@ -203,6 +204,24 @@ class KritaBridgeService implements KritaBridgeMessageService {
         id,
         KritaBridgeErrorCode.rateLimited,
         'Please wait before retrying after a failed Krita request.',
+      );
+      return;
+    }
+
+    final resolutionIssue = NaiResolutionAdapter.validateGenerationResolution(
+      mapping.params.width,
+      mapping.params.height,
+    );
+    if (resolutionIssue != null) {
+      _sendError(
+        id,
+        KritaBridgeErrorCode.invalidRequest,
+        '${resolutionIssue.width}x${resolutionIssue.height} cannot be used for '
+        'generation. Width and height must be multiples of 64, neither side '
+        'can exceed ${NaiResolutionAdapter.generationMaxSide}, and the total '
+        'pixel count cannot exceed ${NaiResolutionAdapter.officialMaxPixels}. '
+        'Use ${resolutionIssue.suggestedWidth}x'
+        '${resolutionIssue.suggestedHeight}.',
       );
       return;
     }

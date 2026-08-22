@@ -3381,6 +3381,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get resolution_height => '高度';
 
   @override
+  String get generation_invalidResolution => '分辨率无效';
+
+  @override
+  String generation_invalidResolutionHint(
+    int width,
+    int height,
+    int suggestedWidth,
+    int suggestedHeight,
+  ) {
+    return '$width×$height 无法用于生成。宽度和高度必须是 64 的倍数、单边不能超过 4096，且总像素不能超过 3,145,728。最接近的可用尺寸是 $suggestedWidth×$suggestedHeight。';
+  }
+
+  @override
   String get api_error_429 => '并发限制';
 
   @override

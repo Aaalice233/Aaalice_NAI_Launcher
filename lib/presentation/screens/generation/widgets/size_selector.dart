@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../core/utils/nai_resolution_adapter.dart';
 import '../../../../data/models/image/resolution_preset.dart';
 import '../../../widgets/common/themed_dropdown.dart';
 
@@ -207,6 +208,10 @@ class _SizeSelectorState extends State<SizeSelector> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = context.l10n;
+    final resolutionIssue = NaiResolutionAdapter.validateGenerationResolution(
+      widget.width,
+      widget.height,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -298,6 +303,21 @@ class _SizeSelectorState extends State<SizeSelector> {
             ),
           ],
         ),
+        if (resolutionIssue != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            l10n.generation_invalidResolutionHint(
+              resolutionIssue.width,
+              resolutionIssue.height,
+              resolutionIssue.suggestedWidth,
+              resolutionIssue.suggestedHeight,
+            ),
+            key: const ValueKey('invalid-resolution-hint'),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.error,
+            ),
+          ),
+        ],
       ],
     );
   }

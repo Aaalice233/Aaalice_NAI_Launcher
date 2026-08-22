@@ -382,6 +382,13 @@ VersionInfo? latestVersionInfo(Ref ref) {
 }
 
 @riverpod
-Future<bool> checkUpdateOnStartup(Ref ref) {
-  return ref.read(updateStateProvider.notifier).shouldCheck();
+Future<void> automaticUpdateCheck(Ref ref) async {
+  await ref.read(updateCheckServiceReadyProvider.future);
+  final notifier = ref.read(updateStateProvider.notifier);
+  await notifier.initialize();
+  final updateState = ref.read(updateStateProvider);
+  if (updateState.hasDownloadedUpdate || updateState.hasNewVersion) return;
+  if (await notifier.shouldCheck()) {
+    await notifier.checkForUpdates();
+  }
 }

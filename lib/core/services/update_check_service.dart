@@ -397,7 +397,7 @@ class UpdateCheckService {
 }
 
 /// UpdateCheckService Provider (internal async provider)
-@riverpod
+@Riverpod(keepAlive: true)
 Future<UpdateCheckService> _updateCheckServiceFuture(Ref ref) async {
   final gitHubApiService = ref.watch(gitHubApiServiceProvider);
   final localStorageService = ref.watch(localStorageServiceProvider);

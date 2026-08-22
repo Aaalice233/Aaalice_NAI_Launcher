@@ -13,6 +13,35 @@ void main() {
       expect(NaiResolutionAdapter.readImageSize(bytes), equals((640, 960)));
     });
 
+    test('suggests a valid generation size for invalid edge inputs', () {
+      final cases = [
+        (source: (1080, 1920), expected: (1088, 1920)),
+        (source: (0, 1920), expected: null),
+        (source: (-100, 1920), expected: null),
+        (source: (5000, 1920), expected: null),
+        (source: (4096, 4096), expected: null),
+      ];
+
+      for (final testCase in cases) {
+        final result = NaiResolutionAdapter.findClosestResolution(
+          testCase.source.$1,
+          testCase.source.$2,
+        );
+
+        expect(
+          NaiResolutionAdapter.isGenerationCompatible(
+            result.width,
+            result.height,
+          ),
+          isTrue,
+          reason: '${testCase.source.$1}x${testCase.source.$2}',
+        );
+        if (testCase.expected != null) {
+          expect((result.width, result.height), testCase.expected);
+        }
+      }
+    });
+
     test('matches current NovelAI Web buckets for oversized NAI images', () {
       final cases = [
         (source: (8000, 6000), expected: (1216, 896)),

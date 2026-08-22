@@ -81,6 +81,33 @@ void main() {
     expect(calls.where((call) => call == 'database'), hasLength(1));
   });
 
+  testWidgets('主应用显示后自动执行更新检测且自定义构建器不会绕过', (tester) async {
+    var updateChecks = 0;
+
+    await tester.pumpWidget(
+      _buildApp(
+        tasks: StartupInitializationTasks(
+          enablePostWarmupTasks: false,
+          initializeRuntimeConfiguration: () async {},
+          runDataMigration: (_) async => _successfulMigration(),
+          initializeDatabase: () async {},
+          initializeCriticalServices: () async {},
+        ),
+        autoUpdateDelay: Duration.zero,
+        autoUpdateCheckRunner: (_) async {
+          updateChecks++;
+        },
+      ),
+    );
+    await _pumpAsync(tester);
+
+    expect(find.byKey(const ValueKey('main_app')), findsOneWidget);
+    expect(find.byType(AutomaticUpdateCheck), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(updateChecks, 1);
+  });
+
   testWidgets('数据库失败保留 Splash，点击重试后才进入主应用', (tester) async {
     var databaseAttempts = 0;
     var criticalServiceCalls = 0;
@@ -120,13 +147,19 @@ void main() {
   });
 }
 
-Widget _buildApp({required StartupInitializationTasks tasks}) {
+Widget _buildApp({
+  required StartupInitializationTasks tasks,
+  Duration autoUpdateDelay = const Duration(seconds: 3),
+  AutomaticUpdateCheckRunner? autoUpdateCheckRunner,
+}) {
   return ProviderScope(
     overrides: [
       localStorageServiceProvider.overrideWith((ref) => _MemoryStorage()),
       startupInitializationTasksProvider.overrideWithValue(tasks),
     ],
     child: AppBootstrap(
+      autoUpdateDelay: autoUpdateDelay,
+      autoUpdateCheckRunner: autoUpdateCheckRunner,
       mainAppBuilder: (_) => const Directionality(
         textDirection: TextDirection.ltr,
         child: SizedBox(key: ValueKey('main_app')),

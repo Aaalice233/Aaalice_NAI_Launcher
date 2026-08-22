@@ -35,6 +35,12 @@ import 'common/app_toast.dart';
 class DanbooruPostCard extends StatefulWidget {
   final DanbooruPost post;
   final double itemWidth;
+
+  /// Stable ratio reserved by the parent layout.
+  ///
+  /// Online masonry grids pass the ratio known when an item enters the list so
+  /// late image metadata cannot move neighboring cards while scrolling.
+  final double? layoutAspectRatio;
   final bool isFavorited;
   final bool isFavoriteLoading;
   final bool showFavoriteAction;
@@ -61,6 +67,7 @@ class DanbooruPostCard extends StatefulWidget {
     super.key,
     required this.post,
     required this.itemWidth,
+    this.layoutAspectRatio,
     required this.isFavorited,
     this.isFavoriteLoading = false,
     this.showFavoriteAction = true,
@@ -290,7 +297,11 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     final aspectRatio = widget.post.width > 0 && widget.post.height > 0
         ? widget.post.width / widget.post.height
         : _resolvedAspectRatio ?? 1.0;
-    final itemHeight = (widget.itemWidth / aspectRatio).clamp(
+    final layoutAspectRatio = widget.layoutAspectRatio;
+    final stableAspectRatio = layoutAspectRatio != null && layoutAspectRatio > 0
+        ? layoutAspectRatio
+        : aspectRatio;
+    final itemHeight = (widget.itemWidth / stableAspectRatio).clamp(
       80.0,
       widget.itemWidth * 2.5,
     );
@@ -335,6 +346,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
               clipBehavior: Clip.none,
               children: [
                 AnimatedContainer(
+                  key: const ValueKey('online-gallery-card-layout'),
                   duration: const Duration(milliseconds: 150),
                   curve: Curves.easeOut,
                   height: itemHeight,

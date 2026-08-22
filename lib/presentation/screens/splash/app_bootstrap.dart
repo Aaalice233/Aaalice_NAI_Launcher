@@ -13,14 +13,28 @@ import '../../providers/update_provider.dart';
 import '../../providers/warmup_provider.dart';
 import 'splash_screen.dart';
 
+typedef AutomaticUpdateCheckRunner = Future<void> Function(WidgetRef ref);
+
 /// 应用启动引导器
 /// 管理预加载流程和页面切换
 class AppBootstrap extends ConsumerStatefulWidget {
-  const AppBootstrap({super.key, this.mainAppBuilder, this.onWarmupComplete});
+  const AppBootstrap({
+    super.key,
+    this.mainAppBuilder,
+    this.onWarmupComplete,
+    this.autoUpdateDelay = const Duration(seconds: 3),
+    this.autoUpdateCheckRunner,
+  });
 
   @visibleForTesting
   final WidgetBuilder? mainAppBuilder;
   final VoidCallback? onWarmupComplete;
+
+  @visibleForTesting
+  final Duration autoUpdateDelay;
+
+  @visibleForTesting
+  final AutomaticUpdateCheckRunner? autoUpdateCheckRunner;
 
   @override
   ConsumerState<AppBootstrap> createState() => _AppBootstrapState();
@@ -68,14 +82,18 @@ class _AppBootstrapState extends ConsumerState<AppBootstrap> {
     // 如果显示主应用，直接返回（NAILauncherApp 自带 MaterialApp）
     if (_showMainApp) {
       final mainAppBuilder = widget.mainAppBuilder;
-      if (mainAppBuilder != null) {
-        return mainAppBuilder(context);
-      }
-      return _MainAppWrapper(
-        hasCheckedFirstLaunch: _hasCheckedFirstLaunch,
-        onFirstLaunchChecked: () {
-          _hasCheckedFirstLaunch = true;
-        },
+      final mainApp = mainAppBuilder != null
+          ? mainAppBuilder(context)
+          : _MainAppWrapper(
+              hasCheckedFirstLaunch: _hasCheckedFirstLaunch,
+              onFirstLaunchChecked: () {
+                _hasCheckedFirstLaunch = true;
+              },
+            );
+      return AutomaticUpdateCheck(
+        delay: widget.autoUpdateDelay,
+        checkRunner: widget.autoUpdateCheckRunner,
+        child: mainApp,
       );
     }
 
@@ -93,6 +111,75 @@ class _AppBootstrapState extends ConsumerState<AppBootstrap> {
   }
 }
 
+/// 主应用显示后常驻执行自动更新检测。
+///
+/// 该职责位于 [AppBootstrap] 层，而不是具体主应用构建器内，因此测试、
+/// 替代入口和生产入口都不会绕过自动检测。
+@visibleForTesting
+class AutomaticUpdateCheck extends ConsumerStatefulWidget {
+  const AutomaticUpdateCheck({
+    super.key,
+    required this.child,
+    this.delay = const Duration(seconds: 3),
+    this.checkRunner,
+  });
+
+  final Widget child;
+  final Duration delay;
+
+  @visibleForTesting
+  final AutomaticUpdateCheckRunner? checkRunner;
+
+  @override
+  ConsumerState<AutomaticUpdateCheck> createState() =>
+      _AutomaticUpdateCheckState();
+}
+
+class _AutomaticUpdateCheckState extends ConsumerState<AutomaticUpdateCheck> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _schedule(widget.delay);
+  }
+
+  void _schedule(Duration delay) {
+    _timer?.cancel();
+    _timer = Timer(delay, _run);
+  }
+
+  Future<void> _run() async {
+    try {
+      if (!mounted) return;
+      final checkRunner = widget.checkRunner;
+      if (checkRunner != null) {
+        await checkRunner(ref);
+        return;
+      }
+
+      ref.invalidate(automaticUpdateCheckProvider);
+      await ref.read(automaticUpdateCheckProvider.future);
+    } catch (error, stackTrace) {
+      AppLogger.w('Auto update check failed: $error', 'AppBootstrap');
+      AppLogger.d('$stackTrace', 'AppBootstrap');
+    } finally {
+      if (mounted) {
+        _schedule(UpdateCheckService.failedCheckRetryInterval);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
 /// 主应用包装器，用于在应用启动后触发首次启动检测
 class _MainAppWrapper extends ConsumerStatefulWidget {
   final bool hasCheckedFirstLaunch;
@@ -108,7 +195,6 @@ class _MainAppWrapper extends ConsumerStatefulWidget {
 }
 
 class _MainAppWrapperState extends ConsumerState<_MainAppWrapper> {
-  Timer? _autoUpdateTimer;
   @override
   void initState() {
     super.initState();
@@ -119,47 +205,6 @@ class _MainAppWrapperState extends ConsumerState<_MainAppWrapper> {
         _checkFirstLaunch();
       });
     }
-
-    // 延迟3秒后执行自动更新检查（不阻塞启动）
-    _scheduleAutoUpdateCheck();
-  }
-
-  /// 调度自动更新检查。
-  ///
-  /// 这里只更新全局状态；主界面中的持久提示负责展示，避免从
-  /// `MaterialApp.router` 外层 context 弹窗导致提示静默失败。
-  void _scheduleAutoUpdateCheck({Duration delay = const Duration(seconds: 3)}) {
-    _autoUpdateTimer?.cancel();
-    _autoUpdateTimer = Timer(delay, _runAutoUpdateCheck);
-  }
-
-  Future<void> _runAutoUpdateCheck() async {
-    try {
-      if (!mounted) return;
-      await ref.read(updateCheckServiceReadyProvider.future);
-      if (!mounted) return;
-      final notifier = ref.read(updateStateProvider.notifier);
-      await notifier.initialize();
-      final updateState = ref.read(updateStateProvider);
-      if (!mounted ||
-          updateState.hasDownloadedUpdate ||
-          updateState.hasNewVersion) {
-        return;
-      }
-
-      final shouldCheck = await ref.read(checkUpdateOnStartupProvider.future);
-      if (!shouldCheck || !mounted) return;
-      await notifier.checkForUpdates();
-    } catch (error, stackTrace) {
-      AppLogger.w('Auto update check failed: $error', 'AppBootstrap');
-      AppLogger.d('$stackTrace', 'AppBootstrap');
-    } finally {
-      if (mounted) {
-        _scheduleAutoUpdateCheck(
-          delay: UpdateCheckService.failedCheckRetryInterval,
-        );
-      }
-    }
   }
 
   Future<void> _checkFirstLaunch() async {
@@ -169,12 +214,6 @@ class _MainAppWrapperState extends ConsumerState<_MainAppWrapper> {
 
     // 执行首次启动检测和同步
     await ref.read(firstLaunchNotifierProvider.notifier).checkAndSync(context);
-  }
-
-  @override
-  void dispose() {
-    _autoUpdateTimer?.cancel();
-    super.dispose();
   }
 
   @override

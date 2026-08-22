@@ -2025,6 +2025,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     }
 
     final post = state.posts[index];
+    final layoutAspectRatio = post.width > 0 && post.height > 0
+        ? post.width / post.height
+        : 1.0;
     return KeyedSubtree(
       key: post.stableKey == _pendingAnchorStableKey ? _anchorRestoreKey : null,
       child: _VisibilityDrivenGalleryItem(
@@ -2095,13 +2098,19 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                     state,
                     resolved,
                     itemWidth,
+                    layoutAspectRatio: layoutAspectRatio,
                     detail: snapshot.data,
                   );
                 },
               ),
             );
           }
-          return _buildResolvedPostCard(state, post, itemWidth);
+          return _buildResolvedPostCard(
+            state,
+            post,
+            itemWidth,
+            layoutAspectRatio: layoutAspectRatio,
+          );
         },
       ),
     );
@@ -2111,6 +2120,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     OnlineGalleryState state,
     GalleryItem post,
     double itemWidth, {
+    required double layoutAspectRatio,
     GalleryDetail? detail,
   }) {
     final favoriteReadOnly =
@@ -2159,6 +2169,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           key: ValueKey(post.stableKey),
           post: post,
           itemWidth: itemWidth,
+          layoutAspectRatio: layoutAspectRatio,
           isFavorited: favoriteState.$1,
           isFavoriteLoading: favoriteState.$2,
           showFavoriteAction: canWriteFavorite || favoriteReadOnly,

@@ -503,6 +503,28 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     final details = parts.length > 1 ? parts[1] : null;
 
     switch (errorCode) {
+      case 'GENERATION_ERROR_INVALID_RESOLUTION':
+        if (parts.length >= 5) {
+          final width = int.tryParse(parts[1]);
+          final height = int.tryParse(parts[2]);
+          final suggestedWidth = int.tryParse(parts[3]);
+          final suggestedHeight = int.tryParse(parts[4]);
+          if (width != null &&
+              height != null &&
+              suggestedWidth != null &&
+              suggestedHeight != null) {
+            return (
+              context.l10n.generation_invalidResolution,
+              context.l10n.generation_invalidResolutionHint(
+                width,
+                height,
+                suggestedWidth,
+                suggestedHeight,
+              ),
+            );
+          }
+        }
+        return (context.l10n.generation_invalidResolution, message);
       case 'API_ERROR_429':
         return (context.l10n.api_error_429, context.l10n.api_error_429_hint);
       case 'API_ERROR_401':

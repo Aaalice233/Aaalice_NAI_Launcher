@@ -1549,6 +1549,16 @@
   "resolution_typeCustom": "カスタム",
   "resolution_width": "幅",
   "resolution_height": "高さ",
+  "generation_invalidResolution": "無効な解像度",
+  "generation_invalidResolutionHint": "{width}×{height} は生成に使用できません。幅と高さは 64 の倍数で、各辺は 4096 以下、総ピクセル数は 3,145,728 以下である必要があります。最も近い有効なサイズは {suggestedWidth}×{suggestedHeight} です。",
+  "@generation_invalidResolutionHint": {
+    "placeholders": {
+      "width": { "type": "int" },
+      "height": { "type": "int" },
+      "suggestedWidth": { "type": "int" },
+      "suggestedHeight": { "type": "int" }
+    }
+  },
   "api_error_429": "同時実行制限に達しました",
   "api_error_429_hint": "リクエストが多すぎます。しばらく待ってからもう一度お試しください (共有アカウントの場合に共通)",
   "api_error_401": "認証に失敗しました",

@@ -29,6 +29,7 @@ class NaiResolutionAdapter {
   static const int officialStableDiffusionTargetShortSide = 512;
 
   static const int _officialGridSize = 64;
+  static const int generationMaxSide = 4096;
 
   /// 检查尺寸是否已经兼容 NAI（宽高均为 64 的倍数）
   static bool isCompatible(int width, int height) {
@@ -38,6 +39,28 @@ class NaiResolutionAdapter {
   /// 检查尺寸是否可被官网导入逻辑直接使用。
   static bool isOfficialImportCompatible(int width, int height) {
     return isCompatible(width, height) && width * height <= officialMaxPixels;
+  }
+
+  /// 检查尺寸是否可直接用于图像生成请求。
+  static bool isGenerationCompatible(int width, int height) {
+    return isOfficialImportCompatible(width, height) &&
+        width <= generationMaxSide &&
+        height <= generationMaxSide;
+  }
+
+  /// 返回非法生成尺寸及其最接近的合法替代值；合法时返回 null。
+  static NaiGenerationResolutionIssue? validateGenerationResolution(
+    int width,
+    int height,
+  ) {
+    if (isGenerationCompatible(width, height)) return null;
+    final suggested = findClosestResolution(width, height);
+    return NaiGenerationResolutionIssue(
+      width: width,
+      height: height,
+      suggestedWidth: suggested.width,
+      suggestedHeight: suggested.height,
+    );
   }
 
   /// 按当前 NovelAI Web 的 Image2Image 导入逻辑计算目标分辨率。
@@ -141,57 +164,58 @@ class NaiResolutionAdapter {
     );
   }
 
-  /// 找到最接近的 NAI 兼容分辨率
+  /// 找到最接近的合法生成分辨率。
   ///
-  /// 策略：
-  ///   1. 先检查是否已经是 64 倍数 → 直接返回
-  ///   2. 将宽高分别舍入到最近的 64 倍数
-  ///   3. 在 4 种组合（floor/ceil × floor/ceil）中选面积变化和宽高比偏移最小的
-  ///   4. 保证结果 >= 64 且 <= 4096
+  /// 候选值同时满足 64-grid、最长边和总像素限制。穷举最多 4096 个
+  /// grid 组合，避免零值、负数或超大输入产生仍不可用的建议。
   static ({int width, int height, double scaleFactor}) findClosestResolution(
     int sourceWidth,
     int sourceHeight,
   ) {
-    if (isCompatible(sourceWidth, sourceHeight)) {
+    if (isGenerationCompatible(sourceWidth, sourceHeight)) {
       return (width: sourceWidth, height: sourceHeight, scaleFactor: 1.0);
     }
 
-    // 对宽高分别做 floor/ceil 到 64 倍数，取最优组合
-    final wFloor = _floorTo64(sourceWidth);
-    final wCeil = _ceilTo64(sourceWidth);
-    final hFloor = _floorTo64(sourceHeight);
-    final hCeil = _ceilTo64(sourceHeight);
-
-    final candidates = [
-      (wFloor, hFloor),
-      (wFloor, hCeil),
-      (wCeil, hFloor),
-      (wCeil, hCeil),
-    ];
-
-    var bestW = wFloor;
-    var bestH = hFloor;
+    final normalizedWidth = sourceWidth.clamp(1, generationMaxSide);
+    final normalizedHeight = sourceHeight.clamp(1, generationMaxSide);
+    final sourceAspect = normalizedWidth / normalizedHeight;
+    var bestWidth = _officialGridSize;
+    var bestHeight = _officialGridSize;
     var bestScore = double.infinity;
 
-    for (final (cw, ch) in candidates) {
-      if (cw < 64 || ch < 64 || cw > 4096 || ch > 4096) continue;
-
-      // 评分 = 面积变化比 + 宽高比偏移（加权）
-      final areaRatio = (cw * ch) / (sourceWidth * sourceHeight);
-      final arSource = sourceWidth / sourceHeight;
-      final arCandidate = cw / ch;
-      final arDiff = (arSource - arCandidate).abs() / arSource;
-      final score = (areaRatio - 1.0).abs() + arDiff * 2.0;
-
-      if (score < bestScore) {
-        bestScore = score;
-        bestW = cw;
-        bestH = ch;
+    for (
+      var candidateWidth = _officialGridSize;
+      candidateWidth <= generationMaxSide;
+      candidateWidth += _officialGridSize
+    ) {
+      for (
+        var candidateHeight = _officialGridSize;
+        candidateHeight <= generationMaxSide;
+        candidateHeight += _officialGridSize
+      ) {
+        if (!isGenerationCompatible(candidateWidth, candidateHeight)) {
+          continue;
+        }
+        final widthDifference =
+            (candidateWidth - normalizedWidth).abs() / normalizedWidth;
+        final heightDifference =
+            (candidateHeight - normalizedHeight).abs() / normalizedHeight;
+        final candidateAspect = candidateWidth / candidateHeight;
+        final aspectDifference =
+            (candidateAspect - sourceAspect).abs() / sourceAspect;
+        final score = widthDifference + heightDifference + aspectDifference * 2;
+        if (score < bestScore) {
+          bestScore = score;
+          bestWidth = candidateWidth;
+          bestHeight = candidateHeight;
+        }
       }
     }
 
-    final scale = _combinedScale(sourceWidth, sourceHeight, bestW, bestH);
-    return (width: bestW, height: bestH, scaleFactor: scale);
+    final scale = sourceWidth > 0 && sourceHeight > 0
+        ? _combinedScale(sourceWidth, sourceHeight, bestWidth, bestHeight)
+        : 1.0;
+    return (width: bestWidth, height: bestHeight, scaleFactor: scale);
   }
 
   /// 将图像字节数据适配到最近的 NAI 兼容分辨率
@@ -469,16 +493,6 @@ class NaiResolutionAdapter {
 
   // ==================== 内部方法 ====================
 
-  static int _floorTo64(int value) {
-    final result = (value ~/ 64) * 64;
-    return result.clamp(64, 4096);
-  }
-
-  static int _ceilTo64(int value) {
-    final result = ((value + 63) ~/ 64) * 64;
-    return result.clamp(64, 4096);
-  }
-
   static int _ceilToGrid(int value) {
     return math.max(
       _officialGridSize,
@@ -557,6 +571,23 @@ class NaiResolutionAdapter {
     final scaleH = dstH / srcH;
     return (scaleW + scaleH) / 2.0;
   }
+}
+
+class NaiGenerationResolutionIssue {
+  const NaiGenerationResolutionIssue({
+    required this.width,
+    required this.height,
+    required this.suggestedWidth,
+    required this.suggestedHeight,
+  });
+
+  final int width;
+  final int height;
+  final int suggestedWidth;
+  final int suggestedHeight;
+
+  String get errorCode =>
+      'GENERATION_ERROR_INVALID_RESOLUTION|$width|$height|$suggestedWidth|$suggestedHeight';
 }
 
 /// 适配后的图像数据
