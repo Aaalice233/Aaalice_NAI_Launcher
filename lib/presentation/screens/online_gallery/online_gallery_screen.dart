@@ -675,7 +675,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             gelbooruAuthState,
             compact: compactActions,
           );
-          final secondaryControls = _buildSecondaryControls(theme, state);
+          final popularOptionsOnFirstRow =
+              state.viewMode == GalleryViewMode.popular;
+          final secondaryControls = _buildSecondaryControls(
+            theme,
+            state,
+            includePopularOptions: !popularOptionsOnFirstRow,
+          );
           final showQueryFields =
               state.viewMode == GalleryViewMode.search ||
               (state.viewMode == GalleryViewMode.popular &&
@@ -690,8 +696,13 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                   if (showQueryFields) ...[
                     const SizedBox(width: 12),
                     Expanded(child: _buildSearchFields(theme, state)),
-                  ] else
+                  ] else if (!popularOptionsOnFirstRow)
                     const Spacer(),
+                  if (popularOptionsOnFirstRow) ...[
+                    const SizedBox(width: 12),
+                    _buildPopularOptions(theme, state),
+                    if (!showQueryFields) const Spacer(),
+                  ],
                   const SizedBox(width: 12),
                   primaryActions,
                 ],
@@ -1041,7 +1052,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     );
   }
 
-  Widget _buildSecondaryControls(ThemeData theme, OnlineGalleryState state) {
+  Widget _buildSecondaryControls(
+    ThemeData theme,
+    OnlineGalleryState state, {
+    bool includePopularOptions = true,
+  }) {
     final activeSourceId = switch (state.viewMode) {
       GalleryViewMode.search => state.sourceId,
       GalleryViewMode.popular => state.popularSourceId,
@@ -1125,7 +1140,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           ),
         ),
         _buildPromptTagCategorySelector(theme),
-        if (state.viewMode == GalleryViewMode.popular)
+        if (state.viewMode == GalleryViewMode.popular && includePopularOptions)
           _buildPopularOptions(theme, state),
         if (state.viewMode == GalleryViewMode.favorites &&
             state.favoritesSourceId == GallerySourceId.gelbooru)
