@@ -348,6 +348,7 @@ void main() {
         currentScale: v4.defaultScale,
         currentSteps: v4.defaultSteps,
         currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
       );
 
       expect(followUps.scale, v45.defaultScale);
@@ -361,6 +362,7 @@ void main() {
         currentScale: 7.5,
         currentSteps: 40,
         currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
       );
 
       expect(followUps.isEmpty, isTrue);
@@ -373,6 +375,7 @@ void main() {
         currentScale: v45.defaultScale,
         currentSteps: v45.defaultSteps,
         currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
       );
 
       expect(followUps.scale, v5.defaultScale);
@@ -386,6 +389,7 @@ void main() {
         currentScale: 7.5,
         currentSteps: 40,
         currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
       );
 
       expect(followUps.isEmpty, isTrue);
@@ -398,6 +402,7 @@ void main() {
         currentScale: v45.defaultScale,
         currentSteps: v45.defaultSteps,
         currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
       );
 
       expect(followUps.isEmpty, isTrue);
@@ -410,6 +415,7 @@ void main() {
         currentScale: v45.defaultScale,
         currentSteps: v45.defaultSteps,
         currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
       );
 
       expect(followUps.isEmpty, isTrue);
@@ -422,6 +428,7 @@ void main() {
         currentScale: v45.defaultScale + 0.0000001,
         currentSteps: v45.defaultSteps,
         currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
       );
 
       expect(followUps.scale, v5.defaultScale);
@@ -437,6 +444,7 @@ void main() {
           currentScale: v3.defaultScale,
           currentSteps: v3.defaultSteps,
           currentNoiseSchedule: NoiseSchedules.native,
+        currentVarietyPlus: false,
         );
 
         expect(followUps.noiseSchedule, NoiseSchedules.karras);
@@ -451,6 +459,7 @@ void main() {
         currentScale: v3.defaultScale,
         currentSteps: v3.defaultSteps,
         currentNoiseSchedule: NoiseSchedules.native,
+        currentVarietyPlus: false,
       );
 
       expect(followUps.noiseSchedule, isNull);
@@ -463,9 +472,49 @@ void main() {
         currentScale: v45.defaultScale,
         currentSteps: v45.defaultSteps,
         currentNoiseSchedule: NoiseSchedules.exponential,
+        currentVarietyPlus: false,
       );
 
       expect(followUps.noiseSchedule, isNull);
+    });
+
+    test('turns Variety+ off when switching to V5', () {
+      final followUps = resolveModelSwitchFollowUps(
+        from: v45,
+        to: v5,
+        currentScale: v45.defaultScale,
+        currentSteps: v45.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: true,
+      );
+
+      expect(followUps.varietyPlus, isFalse);
+    });
+
+    test('keeps Variety+ on when the target model recommends it', () {
+      final followUps = resolveModelSwitchFollowUps(
+        from: v4,
+        to: v45,
+        currentScale: v4.defaultScale,
+        currentSteps: v4.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: true,
+      );
+
+      expect(followUps.varietyPlus, isNull);
+    });
+
+    test('does not report a Variety+ change when it is already off', () {
+      final followUps = resolveModelSwitchFollowUps(
+        from: v45,
+        to: v5,
+        currentScale: v45.defaultScale,
+        currentSteps: v45.defaultSteps,
+        currentNoiseSchedule: NoiseSchedules.karras,
+        currentVarietyPlus: false,
+      );
+
+      expect(followUps.varietyPlus, isNull);
     });
   });
 }

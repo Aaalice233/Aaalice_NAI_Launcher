@@ -48,6 +48,7 @@ class ModelCapabilities {
     this.supportsTextRendering = false,
     this.supportsNoiseSchedule = true,
     this.supportsVarietyPlus = false,
+    this.retainsVarietyPlus = true,
     this.cfgDelaySigma = 19.0,
     this.anlasMultiplier = 1.0,
     this.hasOpusUsageLimit = false,
@@ -117,6 +118,12 @@ class ModelCapabilities {
   ///
   /// 网页端能力位 `cfgDelay`。
   final bool supportsVarietyPlus;
+
+  /// 该模型是否保留已开启的 Variety+。
+  ///
+  /// V5 的 Variety+ 是越过网页端额外放开的，效果未经验证，切换或恢复到这类
+  /// 模型时一律关闭，避免从别的模型带着开启状态静默生效。
+  final bool retainsVarietyPlus;
 
   /// Variety+ 的 sigma 基数，实际发送值再按分辨率缩放。
   ///
@@ -283,6 +290,7 @@ class ModelCapabilityRegistry {
     // 网页端对 V5 隐藏了噪声调度与 Variety+，这里刻意放开供手动尝试。
     supportsNoiseSchedule: true,
     supportsVarietyPlus: true,
+    retainsVarietyPlus: false,
     cfgDelaySigma: 58.0,
     anlasMultiplier: 1.5,
     hasOpusUsageLimit: true,
@@ -306,6 +314,7 @@ class ModelCapabilityRegistry {
     // 网页端对 V5 隐藏了噪声调度与 Variety+，这里刻意放开供手动尝试。
     supportsNoiseSchedule: true,
     supportsVarietyPlus: true,
+    retainsVarietyPlus: false,
     cfgDelaySigma: 58.0,
     anlasMultiplier: 1.5,
     hasOpusUsageLimit: true,
@@ -362,28 +371,38 @@ class ModelCapabilityRegistry {
 
 /// 模型切换时需要跟随调整的参数，字段为 null 表示保持当前值。
 class ModelSwitchFollowUps {
-  const ModelSwitchFollowUps({this.scale, this.steps, this.noiseSchedule});
+  const ModelSwitchFollowUps({
+    this.scale,
+    this.steps,
+    this.noiseSchedule,
+    this.varietyPlus,
+  });
 
   final double? scale;
   final int? steps;
   final String? noiseSchedule;
+  final bool? varietyPlus;
 
   bool get isEmpty =>
-      scale == null && steps == null && noiseSchedule == null;
+      scale == null &&
+      steps == null &&
+      noiseSchedule == null &&
+      varietyPlus == null;
 }
 
 /// 计算模型切换后应当跟随的默认参数。
 ///
 /// CFG 与步数只有当前值仍停留在旧模型的出厂默认时才跟随，用户手动调过的一律
 /// 保留——V5 默认 CFG 是 7 而 V4.5 是 5，不跟随会让用户在没察觉的情况下废图。
-/// 噪声调度是另一套规则：Native 在目标模型上根本不是合法候选，必须无条件规整，
-/// 否则界面显示 Karras 而实际值仍是 Native。
+/// 噪声调度与 Variety+ 是另一套规则：目标模型上不合法或不推荐的取值必须无条件
+/// 纠正，否则界面显示的和实际发送的会对不上。
 ModelSwitchFollowUps resolveModelSwitchFollowUps({
   required ModelCapabilities from,
   required ModelCapabilities to,
   required double currentScale,
   required int currentSteps,
   required String currentNoiseSchedule,
+  required bool currentVarietyPlus,
 }) {
   const scaleTolerance = 0.001;
   final scaleUntouched =
@@ -393,6 +412,7 @@ ModelSwitchFollowUps resolveModelSwitchFollowUps({
     currentNoiseSchedule,
     allowNative: to.allowsNativeNoiseSchedule,
   );
+  final dropsVarietyPlus = currentVarietyPlus && !to.retainsVarietyPlus;
 
   return ModelSwitchFollowUps(
     scale: scaleUntouched && to.defaultScale != from.defaultScale
@@ -404,5 +424,6 @@ ModelSwitchFollowUps resolveModelSwitchFollowUps({
     noiseSchedule: resolvedNoiseSchedule != currentNoiseSchedule
         ? resolvedNoiseSchedule
         : null,
+    varietyPlus: dropsVarietyPlus ? false : null,
   );
 }

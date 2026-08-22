@@ -784,6 +784,65 @@ void main() {
       expect(container.read(generationParamsNotifierProvider).scale, 7.5);
     });
 
+    test('should turn Variety+ off when switching to V5', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+      notifier.updateVarietyPlus(true);
+
+      notifier.updateModel(ImageModels.animeDiffusionV5Curated);
+
+      expect(
+        container.read(generationParamsNotifierProvider).varietyPlus,
+        isFalse,
+      );
+    });
+
+    test('should keep Variety+ on when switching between V4 and V4.5', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV4Full);
+      notifier.updateVarietyPlus(true);
+
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+
+      expect(
+        container.read(generationParamsNotifierProvider).varietyPlus,
+        isTrue,
+      );
+    });
+
+    test('should drop a stored Variety+ when restoring a V5 session', () async {
+      // 恢复走的是 build 而不是 updateModel，存档里可能留着别的模型开的开关。
+      final seed = ProviderContainer();
+      final storage = seed.read(localStorageServiceProvider);
+      final previousModel = storage.getDefaultModel();
+      final previousVarietyPlus = storage.getLastVarietyPlus();
+      addTearDown(() async {
+        await storage.setDefaultModel(previousModel);
+        await storage.setLastVarietyPlus(previousVarietyPlus);
+        seed.dispose();
+      });
+
+      await storage.setDefaultModel(ImageModels.animeDiffusionV5Curated);
+      await storage.setLastVarietyPlus(true);
+
+      final restored = ProviderContainer();
+      addTearDown(restored.dispose);
+
+      final params = restored.read(generationParamsNotifierProvider);
+      expect(params.model, ImageModels.animeDiffusionV5Curated);
+      expect(params.varietyPlus, isFalse);
+    });
+
     test('should keep an adjusted V4.5 scale when switching to V5', () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
