@@ -79,8 +79,9 @@ class DataMigrationService {
       AppLogger.e('数据迁移失败: $e', 'DataMigration', stackTrace);
       result.error = e.toString();
 
-      _migratedThisSession = true;
-      _lastResult = result;
+      // 失败结果不能标记为本次进程已迁移，否则 Splash 的重试只会复用失败。
+      _migratedThisSession = false;
+      _lastResult = null;
 
       return result;
     }

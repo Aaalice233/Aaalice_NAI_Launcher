@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,9 +11,6 @@ part 'database_providers.g.dart';
 @Riverpod(keepAlive: true)
 Future<DatabaseManager> databaseManager(Ref ref) async {
   final manager = await DatabaseManager.initialize();
-  ref.onDispose(() {
-    unawaited(manager.dispose());
-  });
   await manager.initialized;
   return manager;
 }

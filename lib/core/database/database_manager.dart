@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -25,6 +24,7 @@ class DatabaseManager {
   DatabaseManager._();
 
   static DatabaseManager? _instance;
+  static Future<DatabaseManager>? _initialization;
 
   /// 获取单例实例
   static DatabaseManager get instance {
@@ -36,34 +36,65 @@ class DatabaseManager {
     return _instance!;
   }
 
-  /// 初始化数据库管理器
+  /// 初始化数据库管理器。并发调用共享同一次初始化，成功后才发布单例。
   static Future<DatabaseManager> initialize({int maxConnections = 20}) async {
-    if (_instance != null) {
-      // 检查是否可用
-      try {
-        final pool = ConnectionPoolHolder.getInstanceOrNull();
-        if (pool != null && !pool.isDisposed) {
-          AppLogger.d('DatabaseManager already initialized', 'DatabaseManager');
-          return _instance!;
-        }
+    final existing = _instance;
+    final pool = ConnectionPoolHolder.getInstanceOrNull();
+    if (existing != null &&
+        existing.isInitialized &&
+        pool != null &&
+        !pool.isDisposed) {
+      AppLogger.d('DatabaseManager already initialized', 'DatabaseManager');
+      return existing;
+    }
 
-        // 不可用，需要重置
-        AppLogger.i(
-          'DatabaseManager exists but ConnectionPool disposed, resetting...',
-          'DatabaseManager',
-        );
-        _instance = null;
-      } catch (e) {
-        _instance = null;
+    final inFlight = _initialization;
+    if (inFlight != null) return inFlight;
+
+    final attempt = _initializeNew(maxConnections: maxConnections);
+    _initialization = attempt;
+    try {
+      return await attempt;
+    } finally {
+      if (identical(_initialization, attempt)) {
+        _initialization = null;
       }
+    }
+  }
+
+  static Future<DatabaseManager> _initializeNew({
+    required int maxConnections,
+  }) async {
+    final stale = _instance;
+    if (stale != null) {
+      AppLogger.w(
+        'Discarding unusable DatabaseManager instance',
+        'DatabaseManager',
+      );
+      await stale.dispose();
+    } else if (ConnectionPoolHolder.getInstanceOrNull() != null) {
+      await ConnectionPoolHolder.dispose();
     }
 
     AppLogger.i('Initializing DatabaseManager...', 'DatabaseManager');
-
-    _instance = DatabaseManager._();
-    await _instance!._doInitialize(maxConnections: maxConnections);
-
-    return _instance!;
+    final candidate = DatabaseManager._();
+    try {
+      await candidate._doInitialize(maxConnections: maxConnections);
+      _instance = candidate;
+      return candidate;
+    } catch (error, stackTrace) {
+      try {
+        await candidate.dispose();
+      } catch (cleanupError, cleanupStackTrace) {
+        AppLogger.e(
+          'Failed to clean up an unsuccessful DatabaseManager',
+          cleanupError,
+          cleanupStackTrace,
+          'DatabaseManager',
+        );
+      }
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 
   static const int _maxConnections = 20;
@@ -72,9 +103,6 @@ class DatabaseManager {
   DatabaseInitState _state = DatabaseInitState.uninitialized;
   String? _dbPath;
   String? _errorMessage;
-
-  // 初始化完成标记
-  final _initCompleter = Completer<void>();
 
   // 数据源
   TranslationDataSource? _translationDataSource;
@@ -141,8 +169,14 @@ class DatabaseManager {
   /// 是否有错误
   bool get hasError => _state == DatabaseInitState.error;
 
-  /// 初始化完成Future
-  Future<void> get initialized => _initCompleter.future;
+  /// [initialize] 仅在完成后返回；保留此 Future 作为调用方兼容契约。
+  Future<void> get initialized {
+    if (_state == DatabaseInitState.initialized) return Future.value();
+    if (_state == DatabaseInitState.error) {
+      return Future.error(StateError(_errorMessage ?? 'Database init failed'));
+    }
+    return Future.error(StateError('Database initialization is not complete'));
+  }
 
   /// 执行初始化
   Future<void> _doInitialize({required int maxConnections}) async {
@@ -169,16 +203,11 @@ class DatabaseManager {
       _startMetricsReporting();
 
       _state = DatabaseInitState.initialized;
-      _initCompleter.complete();
 
       AppLogger.i('DatabaseManager initialized', 'DatabaseManager');
     } catch (e, stack) {
       _state = DatabaseInitState.error;
       _errorMessage = e.toString();
-
-      if (!_initCompleter.isCompleted) {
-        _initCompleter.completeError(e, stack);
-      }
 
       AppLogger.e(
         'DatabaseManager initialization failed',
@@ -368,35 +397,19 @@ class DatabaseManager {
     await ConnectionPoolHolder.dispose();
 
     _state = DatabaseInitState.uninitialized;
-    _instance = null;
+    if (identical(_instance, this)) {
+      _instance = null;
+    }
 
     AppLogger.i('DatabaseManager disposed', 'DatabaseManager');
   }
 
   Future<void> _registerRuntimeDataSources() async {
     _danbooruTagDataSource = DanbooruTagDataSource();
-    try {
-      await _danbooruTagDataSource!.initialize();
-    } catch (e, stack) {
-      AppLogger.e(
-        'Failed to initialize DanbooruTagDataSource',
-        e,
-        stack,
-        'DatabaseManager',
-      );
-    }
+    await _danbooruTagDataSource!.initialize();
 
     _galleryDataSource = GalleryDataSource();
-    try {
-      await _galleryDataSource!.initialize();
-    } catch (e, stack) {
-      AppLogger.e(
-        'Failed to initialize GalleryDataSource',
-        e,
-        stack,
-        'DatabaseManager',
-      );
-    }
+    await _galleryDataSource!.initialize();
 
     await _warmupConnectionPool();
   }

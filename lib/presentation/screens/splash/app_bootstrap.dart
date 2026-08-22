@@ -16,7 +16,11 @@ import 'splash_screen.dart';
 /// 应用启动引导器
 /// 管理预加载流程和页面切换
 class AppBootstrap extends ConsumerStatefulWidget {
-  const AppBootstrap({super.key});
+  const AppBootstrap({super.key, this.mainAppBuilder, this.onWarmupComplete});
+
+  @visibleForTesting
+  final WidgetBuilder? mainAppBuilder;
+  final VoidCallback? onWarmupComplete;
 
   @override
   ConsumerState<AppBootstrap> createState() => _AppBootstrapState();
@@ -25,6 +29,20 @@ class AppBootstrap extends ConsumerStatefulWidget {
 class _AppBootstrapState extends ConsumerState<AppBootstrap> {
   bool _showMainApp = false;
   bool _hasCheckedFirstLaunch = false;
+  bool _warmupCompletionNotified = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      AppLogger.i(
+        'Splash first frame rendered; starting warmup',
+        'AppBootstrap',
+      );
+      ref.read(warmupNotifierProvider.notifier).start();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,16 +52,25 @@ class _AppBootstrapState extends ConsumerState<AppBootstrap> {
     if (warmupState.isComplete && !_showMainApp) {
       // 延迟一帧后切换，确保动画流畅
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          setState(() {
-            _showMainApp = true;
-          });
-        }
+        if (!mounted || _showMainApp) return;
+        setState(() {
+          _showMainApp = true;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || _warmupCompletionNotified) return;
+          _warmupCompletionNotified = true;
+          ref.read(warmupNotifierProvider.notifier).startPostWarmupTasks();
+          widget.onWarmupComplete?.call();
+        });
       });
     }
 
     // 如果显示主应用，直接返回（NAILauncherApp 自带 MaterialApp）
     if (_showMainApp) {
+      final mainAppBuilder = widget.mainAppBuilder;
+      if (mainAppBuilder != null) {
+        return mainAppBuilder(context);
+      }
       return _MainAppWrapper(
         hasCheckedFirstLaunch: _hasCheckedFirstLaunch,
         onFirstLaunchChecked: () {
