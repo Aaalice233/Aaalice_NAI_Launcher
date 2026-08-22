@@ -11847,12 +11847,102 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get autocomplete_cooccurrence => 'Offline related-tag database';
+  String get autocomplete_cooccurrence => 'Local related-tag data';
 
   @override
   String autocomplete_entryCount(int count) {
-    return '$count entries';
+    return '$count records';
   }
+
+  @override
+  String get autocomplete_cooccurrenceAutoDownload =>
+      'Automatically download local related-tag data';
+
+  @override
+  String get autocomplete_cooccurrenceAutoDownloadSubtitle =>
+      'Downloads in the background after the home screen opens when related tags are enabled; base autocomplete is never blocked';
+
+  @override
+  String get autocomplete_downloadNow => 'Download now';
+
+  @override
+  String autocomplete_cooccurrenceUnavailable(String size) {
+    return 'Not installed · $size download. Online related tags remain available.';
+  }
+
+  @override
+  String get autocomplete_cooccurrenceChecking => 'Checking local data…';
+
+  @override
+  String autocomplete_cooccurrenceDownloading(
+    String downloaded,
+    String total,
+    String speed,
+  ) {
+    return 'Downloading $downloaded / $total · $speed. Online results remain available.';
+  }
+
+  @override
+  String get autocomplete_cooccurrenceVerifying =>
+      'Download complete. Verifying the data pack…';
+
+  @override
+  String get autocomplete_cooccurrenceInstalling =>
+      'Installing and switching databases safely…';
+
+  @override
+  String autocomplete_cooccurrenceReady(
+    String version,
+    int count,
+    String size,
+  ) {
+    return 'Version $version · $count relations · $size on disk';
+  }
+
+  @override
+  String autocomplete_cooccurrenceUpdateAvailable(String version) {
+    return 'Data version $version is available';
+  }
+
+  @override
+  String autocomplete_cooccurrenceFailed(String reason) {
+    return 'Local data is unavailable: $reason. Base autocomplete and online related tags are unaffected.';
+  }
+
+  @override
+  String get autocomplete_cooccurrenceErrorNetwork =>
+      'Network connection failed. Try again later';
+
+  @override
+  String get autocomplete_cooccurrenceErrorDiskFull => 'Not enough disk space';
+
+  @override
+  String get autocomplete_cooccurrenceErrorArchive =>
+      'The download is incomplete or failed verification';
+
+  @override
+  String get autocomplete_cooccurrenceErrorDatabase =>
+      'The database is damaged or incompatible';
+
+  @override
+  String get autocomplete_cooccurrenceErrorManifest =>
+      'The bundled data manifest is invalid';
+
+  @override
+  String get autocomplete_cooccurrenceErrorInstall =>
+      'The data file could not be written or replaced';
+
+  @override
+  String get autocomplete_cooccurrenceRemoveTitle =>
+      'Remove local related-tag data?';
+
+  @override
+  String get autocomplete_cooccurrenceRemoveConfirm =>
+      'This immediately frees the disk space. Online related tags will continue to work.';
+
+  @override
+  String get autocomplete_cooccurrenceStopAutoDownload =>
+      'Also turn off automatic downloads so it is not reinstalled next time';
 
   @override
   String get autocomplete_cacheTitle => 'Online & AI Cache';
@@ -11964,6 +12054,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get autocomplete_statusRelated => 'Related';
+
+  @override
+  String get autocomplete_statusOnlineOnly => 'Online only';
+
+  @override
+  String get autocomplete_statusOnlineOnlyTooltip =>
+      'Local related-tag data is not ready; only Danbooru online results are shown';
 
   @override
   String get autocomplete_statusDictionary => 'Translation';

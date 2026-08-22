@@ -6,10 +6,6 @@
       "dataVersion": "42f35be9d394",
       "sha256": "270538fc623bb1a88acf1f347372568d51bf55510c53e0fb700cb370e0da798d",
       "size": 46772224
-    },
-    "cooccurrence.db": {
-      "sha256": "d23335978b12f0cbbdb526e745e17985943f93fb53caafe7242f4948aa69bae9",
-      "size": 321454080
     }
   }
 }

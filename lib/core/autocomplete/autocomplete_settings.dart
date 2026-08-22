@@ -15,6 +15,7 @@ class AutocompleteSettings {
     this.openOnTagClick = false,
     this.danbooruEnabled = true,
     this.relatedTagsEnabled = true,
+    this.autoDownloadRelatedData = true,
     this.llmTranslationEnabled = false,
     this.zhInstallPromptDismissed = false,
   });
@@ -28,6 +29,7 @@ class AutocompleteSettings {
   final bool openOnTagClick;
   final bool danbooruEnabled;
   final bool relatedTagsEnabled;
+  final bool autoDownloadRelatedData;
   final bool llmTranslationEnabled;
   final bool zhInstallPromptDismissed;
 
@@ -41,6 +43,7 @@ class AutocompleteSettings {
     bool? openOnTagClick,
     bool? danbooruEnabled,
     bool? relatedTagsEnabled,
+    bool? autoDownloadRelatedData,
     bool? llmTranslationEnabled,
     bool? zhInstallPromptDismissed,
   }) {
@@ -54,6 +57,8 @@ class AutocompleteSettings {
       openOnTagClick: openOnTagClick ?? this.openOnTagClick,
       danbooruEnabled: danbooruEnabled ?? this.danbooruEnabled,
       relatedTagsEnabled: relatedTagsEnabled ?? this.relatedTagsEnabled,
+      autoDownloadRelatedData:
+          autoDownloadRelatedData ?? this.autoDownloadRelatedData,
       llmTranslationEnabled:
           llmTranslationEnabled ?? this.llmTranslationEnabled,
       zhInstallPromptDismissed:
@@ -134,6 +139,12 @@ class AutocompleteSettingsNotifier extends StateNotifier<AutocompleteSettings> {
               defaultValue: true,
             ) ??
             true,
+        autoDownloadRelatedData:
+            storage.getSetting<bool>(
+              StorageKeys.autoDownloadCooccurrenceData,
+              defaultValue: true,
+            ) ??
+            true,
         llmTranslationEnabled:
             storage.getSetting<bool>(
               StorageKeys.autocompleteLlmTranslationEnabled,
@@ -211,6 +222,12 @@ class AutocompleteSettingsNotifier extends StateNotifier<AutocompleteSettings> {
   Future<void> setRelatedTagsEnabled(bool value) => _set(
     state.copyWith(relatedTagsEnabled: value),
     StorageKeys.enableCooccurrenceRecommendation,
+    value,
+  );
+
+  Future<void> setAutoDownloadRelatedData(bool value) => _set(
+    state.copyWith(autoDownloadRelatedData: value),
+    StorageKeys.autoDownloadCooccurrenceData,
     value,
   );
 

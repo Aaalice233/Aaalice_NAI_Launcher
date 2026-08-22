@@ -152,7 +152,6 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
-    - assets/translations/
     - assets/data/
     - assets/data/wordlists/
     - assets/data/tokenizers/

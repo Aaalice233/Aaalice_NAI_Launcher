@@ -1,5 +1,7 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "toolVersion": 2,
+  "dataVersion": "2dadc5bfcbcc-v2",
   "source": {
     "dataset": "newtextdoc1111/danbooru-tag-csv",
     "revision": "2dadc5bfcbcc7f255e68e9003ed543fb1b97904f",
@@ -7,14 +9,32 @@
     "url": "https://huggingface.co/datasets/newtextdoc1111/danbooru-tag-csv/resolve/2dadc5bfcbcc7f255e68e9003ed543fb1b97904f/danbooru_tags_cooccurrence.csv",
     "sha256": "29bf95d3dd2f4b1038ac26b3fee371ebbe67d9b622b32d274c9486dbde56077a",
     "size": 103263669,
+    "recordCount": 3236959,
     "lastModified": "2025-05-09T05:07:59Z"
   },
+  "release": {
+    "tag": "autocomplete-data-cooccurrence-2dadc5bf-v2",
+    "asset": "cooccurrence-v2.db.gz",
+    "url": "https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/download/autocomplete-data-cooccurrence-2dadc5bf-v2/cooccurrence-v2.db.gz",
+    "prerelease": true,
+    "makeLatest": false
+  },
+  "limits": {
+    "databaseSize": 167772160,
+    "archiveSize": 83886080,
+    "hotQueryP95Milliseconds": 50,
+    "fullQueryMilliseconds": 200
+  },
   "output": {
-    "path": "assets/databases/cooccurrence.db",
-    "sha256": "d23335978b12f0cbbdb526e745e17985943f93fb53caafe7242f4948aa69bae9",
-    "size": 321454080,
-    "recordCount": 3236959
+    "databaseSha256": "df5e58d94d00db9e000aa7a9962e0aaf9b1615a78985fdb11a6b1c203d103a50",
+    "databaseSize": 82505728,
+    "archiveSha256": "63c87b92e2ae7ff7206a5ecb0012a616284fec0795a77b9e3098d64cc21ee63a",
+    "archiveSize": 31804631,
+    "tagCount": 31060,
+    "pairCount": 3236959,
+    "selfRelationCount": 0,
+    "directedEdgeCount": 6473918
   },
   "buildScript": "tool/database/build_cooccurrence_only.dart",
-  "notes": "Only the co-occurrence CSV is used. The base tag catalog is sourced separately and does not use this dataset's danbooru_tags.csv."
+  "notes": "The complete pinned source is preserved. Runtime assets include only the small client manifest; generated database and gzip files stay under tool/.tmp and are published through the dedicated prerelease workflow."
 }

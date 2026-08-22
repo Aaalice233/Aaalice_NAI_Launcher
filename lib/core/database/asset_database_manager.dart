@@ -17,16 +17,17 @@ class AssetDatabaseManager {
   AssetDatabaseManager._();
 
   static const String tagCatalogDb = 'tag_catalog.db';
-  static const String cooccurrenceDb = 'cooccurrence.db';
   static const String _manifestAsset = 'assets/databases/manifest.json';
+  static const Set<String> _knownLegacyCooccurrenceHashes = {
+    '59cb3227183722ca0a6aefbaf74d3cf7c98081707f406c08df3b647ad95d76f8',
+    'd23335978b12f0cbbdb526e745e17985943f93fb53caafe7242f4948aa69bae9',
+  };
 
   String? _tagCatalogDbPath;
-  String? _cooccurrenceDbPath;
   static Future<void>? _initialization;
   static bool _initialized = false;
 
   String get tagCatalogDbPath => _requirePath(_tagCatalogDbPath);
-  String get cooccurrenceDbPath => _requirePath(_cooccurrenceDbPath);
 
   static Future<void> initialize() {
     if (_initialized) return Future.value();
@@ -44,7 +45,6 @@ class AssetDatabaseManager {
     _initialized = false;
     _initialization = null;
     _instance._tagCatalogDbPath = null;
-    _instance._cooccurrenceDbPath = null;
   }
 
   static Future<void> _initialize() async {
@@ -70,20 +70,9 @@ class AssetDatabaseManager {
       },
     );
     await _migrateLegacyAutocompleteData(appDir, assetDbDir);
-
-    final cooccurrencePath = p.join(assetDbDir.path, cooccurrenceDb);
-    await _install(
-      fileName: cooccurrenceDb,
-      targetPath: cooccurrencePath,
-      metadata: Map<String, dynamic>.from(databases[cooccurrenceDb] as Map),
-      requiredTables: const {
-        'cooccurrences': {'tag1', 'tag2', 'count'},
-      },
-    );
+    await _migrateBundledCooccurrence(assetDbDir);
     await _removeLegacyTranslationDatabase(assetDbDir);
-    _instance
-      .._tagCatalogDbPath = catalogPath
-      .._cooccurrenceDbPath = cooccurrencePath;
+    _instance._tagCatalogDbPath = catalogPath;
     AppLogger.i('Asset databases initialized', 'AssetDatabaseManager');
   }
 
@@ -246,6 +235,63 @@ class AssetDatabaseManager {
     }
   }
 
+  static Future<void> _migrateBundledCooccurrence(Directory dir) async {
+    final marker = File(p.join(dir.path, '.cooccurrence-external-v2-migrated'));
+    if (await marker.exists()) return;
+
+    final database = File(p.join(dir.path, 'cooccurrence.db'));
+    final installMetadata = File('${database.path}.install.json');
+    String? recognizedHash;
+    if (await installMetadata.exists()) {
+      try {
+        final metadata =
+            jsonDecode(await installMetadata.readAsString())
+                as Map<String, dynamic>;
+        final hash = metadata['sha256'] as String?;
+        if (hash != null && _knownLegacyCooccurrenceHashes.contains(hash)) {
+          recognizedHash = hash;
+        }
+      } catch (error) {
+        AppLogger.w(
+          'Unable to read legacy co-occurrence metadata: $error',
+          'AssetDatabaseManager',
+        );
+      }
+    }
+    if (recognizedHash == null && await database.exists()) {
+      final hash = (await sha256.bind(database.openRead()).first).toString();
+      if (_knownLegacyCooccurrenceHashes.contains(hash)) {
+        recognizedHash = hash;
+      }
+    }
+
+    if (recognizedHash != null) {
+      for (final suffix in [
+        '',
+        '.install.json',
+        '.installing',
+        '.backup',
+        '.version',
+      ]) {
+        await File('${database.path}$suffix').deleteIfExists();
+      }
+      AppLogger.i(
+        'Removed verified legacy bundled co-occurrence database',
+        'AssetDatabaseManager',
+      );
+    } else if (await database.exists() || await installMetadata.exists()) {
+      AppLogger.w(
+        'Preserving unknown legacy co-occurrence files in ${dir.path}',
+        'AssetDatabaseManager',
+      );
+    }
+    await marker.writeAsString(
+      'cooccurrence-external-v2',
+      encoding: utf8,
+      flush: true,
+    );
+  }
+
   static Future<void> _migrateLegacyAutocompleteData(
     Directory appDir,
     Directory assetDbDir,
@@ -281,11 +327,6 @@ class AssetDatabaseManager {
     return _openReadOnlyDatabase(tagCatalogDbPath, 'tag catalog');
   }
 
-  Future<Database> openCooccurrenceDatabase() async {
-    await AssetDatabaseManager.initialize();
-    return _openReadOnlyDatabase(cooccurrenceDbPath, 'cooccurrence');
-  }
-
   Future<Database> _openReadOnlyDatabase(String path, String name) async {
     AppLogger.d('Opening $name database (read-only): $path');
     return databaseFactoryFfi.openDatabase(
@@ -294,9 +335,7 @@ class AssetDatabaseManager {
     );
   }
 
-  Future<bool> checkDatabasesExist() async =>
-      await File(tagCatalogDbPath).exists() &&
-      await File(cooccurrenceDbPath).exists();
+  Future<bool> checkDatabasesExist() async => File(tagCatalogDbPath).exists();
 
   Future<Map<String, dynamic>> getDatabaseInfo() async {
     Future<Map<String, dynamic>> info(String path) async {
@@ -308,10 +347,7 @@ class AssetDatabaseManager {
       };
     }
 
-    return {
-      'tagCatalog': await info(tagCatalogDbPath),
-      'cooccurrence': await info(cooccurrenceDbPath),
-    };
+    return {'tagCatalog': await info(tagCatalogDbPath)};
   }
 
   static String _requirePath(String? path) {

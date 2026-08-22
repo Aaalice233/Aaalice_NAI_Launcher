@@ -8,9 +8,7 @@ Future<void> main(List<String> arguments) async {
   final catalogPath = arguments.isEmpty
       ? 'assets/databases/tag_catalog.db'
       : arguments.first;
-  final cooccurrencePath = arguments.length < 2
-      ? 'assets/databases/cooccurrence.db'
-      : arguments[1];
+  final cooccurrencePath = arguments.length < 2 ? null : arguments[1];
   final catalog = File(catalogPath);
   if (!catalog.existsSync()) {
     stderr.writeln('Catalog not found: $catalogPath');
@@ -75,10 +73,10 @@ Future<void> main(List<String> arguments) async {
     }
   }
 
-  final cooccurrence = File(cooccurrencePath);
+  final cooccurrence = cooccurrencePath == null ? null : File(cooccurrencePath);
   final relatedTimes = <int>[];
   var relatedRows = 0;
-  if (cooccurrence.existsSync()) {
+  if (cooccurrence != null && cooccurrence.existsSync()) {
     final relatedDatabase = sqlite3.open(
       cooccurrence.absolute.path,
       mode: OpenMode.readOnly,
@@ -201,20 +199,15 @@ ResultSet _queryCatalog(Database database, CompletionQuery query) {
 ResultSet _queryCooccurrence(Database database, String tag) {
   return database.select(
     '''
-    SELECT related_tag, count
-    FROM (
-      SELECT tag2 AS related_tag, count
-      FROM cooccurrences
-      WHERE tag1 = ? AND count >= 1
-      UNION ALL
-      SELECT tag1 AS related_tag, count
-      FROM cooccurrences
-      WHERE tag2 = ? AND count >= 1
-    )
-    ORDER BY count DESC, related_tag ASC
+    SELECT target.name AS related_tag, edge.count
+    FROM tags source
+    JOIN edges edge ON edge.source_tag_id = source.id
+    JOIN tags target ON target.id = edge.target_tag_id
+    WHERE source.name = ? COLLATE NOCASE AND edge.count >= 1
+    ORDER BY edge.count DESC, edge.target_tag_id ASC
     LIMIT 25000
     ''',
-    [tag, tag],
+    [tag],
   );
 }
 

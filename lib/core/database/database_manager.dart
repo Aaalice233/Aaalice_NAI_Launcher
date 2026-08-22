@@ -10,7 +10,6 @@ import 'connection_health_monitor.dart' as health_monitor;
 import 'data_source.dart' show HealthStatus;
 import 'data_source_types.dart' show HealthCheckResult;
 import 'connection_pool_holder.dart';
-import 'datasources/cooccurrence_data_source.dart';
 import 'datasources/danbooru_tag_data_source.dart';
 import 'datasources/gallery_data_source.dart';
 import 'datasources/translation_data_source.dart';
@@ -106,7 +105,6 @@ class DatabaseManager {
 
   // 数据源
   TranslationDataSource? _translationDataSource;
-  CooccurrenceDataSource? _cooccurrenceDataSource;
   DanbooruTagDataSource? _danbooruTagDataSource;
   GalleryDataSource? _galleryDataSource;
 
@@ -124,14 +122,6 @@ class DatabaseManager {
     return _translationDataSource!;
   }
 
-  /// 共现数据源
-  CooccurrenceDataSource get cooccurrenceDataSource {
-    if (_cooccurrenceDataSource == null) {
-      throw StateError('CooccurrenceDataSource not initialized');
-    }
-    return _cooccurrenceDataSource!;
-  }
-
   /// Danbooru 标签数据源
   DanbooruTagDataSource? get danbooruTagDataSource => _danbooruTagDataSource;
 
@@ -141,9 +131,6 @@ class DatabaseManager {
   T? getDataSource<T>(String name) {
     if (T == TranslationDataSource) {
       return _translationDataSource as T?;
-    }
-    if (T == CooccurrenceDataSource) {
-      return _cooccurrenceDataSource as T?;
     }
     if (T == DanbooruTagDataSource) {
       return _danbooruTagDataSource as T?;
@@ -187,9 +174,6 @@ class DatabaseManager {
 
       _translationDataSource = TranslationDataSource();
       await _translationDataSource!.initialize();
-
-      _cooccurrenceDataSource = CooccurrenceDataSource();
-      await _cooccurrenceDataSource!.initialize();
 
       _dbPath = await _getDatabasePath(_danbooruDbName);
 
@@ -281,12 +265,7 @@ class DatabaseManager {
 
   Future<Map<String, int>> getCoreAssetStatistics() async {
     final translationCount = await translationDataSource.getCount();
-    final cooccurrenceCount = await cooccurrenceDataSource.getCount();
-
-    return {
-      'translations': translationCount,
-      'cooccurrences': cooccurrenceCount,
-    };
+    return {'translations': translationCount};
   }
 
   Future<void> recover() async {
@@ -363,15 +342,6 @@ class DatabaseManager {
     } catch (e) {
       AppLogger.d(
         'Failed to dispose translation data source: $e',
-        'DatabaseManager',
-      );
-    }
-
-    try {
-      await _cooccurrenceDataSource?.dispose();
-    } catch (e) {
-      AppLogger.d(
-        'Failed to dispose cooccurrence data source: $e',
         'DatabaseManager',
       );
     }

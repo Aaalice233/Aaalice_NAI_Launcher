@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 
 import '../../../core/autocomplete/autocomplete_settings.dart';
+import '../../../core/autocomplete/cooccurrence_data_pack_service.dart';
 import '../../../core/autocomplete/completion_models.dart';
 import '../../../core/autocomplete/zh_dictionary_service.dart';
 import '../../../core/utils/localization_extension.dart';
@@ -22,6 +23,7 @@ class CompletionOverlay extends StatelessWidget {
     required this.scrollController,
     required this.settings,
     required this.dictionaryState,
+    this.cooccurrenceDataPackState = const CooccurrenceDataPackState(),
     required this.showAliases,
     required this.showTranslations,
     required this.showCategory,
@@ -39,6 +41,7 @@ class CompletionOverlay extends StatelessWidget {
   final ScrollController scrollController;
   final AutocompleteSettings settings;
   final ZhDictionaryState dictionaryState;
+  final CooccurrenceDataPackState cooccurrenceDataPackState;
   final bool showAliases;
   final bool showTranslations;
   final bool showCategory;
@@ -153,6 +156,7 @@ class CompletionOverlay extends StatelessWidget {
                   state: state,
                   settings: settings,
                   dictionaryState: dictionaryState,
+                  cooccurrenceDataPackState: cooccurrenceDataPackState,
                   onOpenSettings: onOpenSettings,
                 ),
               ],
@@ -828,12 +832,14 @@ class _CompletionFooter extends StatelessWidget {
     required this.state,
     required this.settings,
     required this.dictionaryState,
+    required this.cooccurrenceDataPackState,
     required this.onOpenSettings,
   });
 
   final CompletionState state;
   final AutocompleteSettings settings;
   final ZhDictionaryState dictionaryState;
+  final CooccurrenceDataPackState cooccurrenceDataPackState;
   final VoidCallback onOpenSettings;
 
   @override
@@ -939,6 +945,20 @@ class _CompletionFooter extends StatelessWidget {
         value: context.l10n.autocomplete_statusError,
         tone: _StatusTone.error,
         tooltip: state.localError,
+      );
+    }
+    if (!cooccurrenceDataPackState.hasInstalledData) {
+      final downloading =
+          cooccurrenceDataPackState.status ==
+          CooccurrenceDataPackStatus.downloading;
+      return _StatusDescriptor(
+        key: 'autocomplete-status-related',
+        icon: downloading ? Icons.downloading_rounded : Icons.cloud_outlined,
+        label: context.l10n.autocomplete_statusRelated,
+        value: context.l10n.autocomplete_statusOnlineOnly,
+        tone: downloading ? _StatusTone.loading : _StatusTone.inactive,
+        loading: downloading,
+        tooltip: context.l10n.autocomplete_statusOnlineOnlyTooltip,
       );
     }
     final localCount = state.candidates

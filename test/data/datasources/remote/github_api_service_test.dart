@@ -25,6 +25,55 @@ void main() {
     expect(info.supportsInAppInstall, isTrue);
     expect(adapter.manifestRequest?.responseType, ResponseType.plain);
   });
+
+  test('prerelease lookup skips non-v data releases', () async {
+    final dio = Dio(BaseOptions(baseUrl: GitHubApiService.defaultBaseUrl))
+      ..httpClientAdapter = _MixedReleaseDioAdapter();
+    final service = GitHubApiService(dio: dio);
+
+    final info = await service.fetchLatestRelease(
+      owner: 'Aaalice233',
+      repo: 'Aaalice_NAI_Launcher',
+      currentVersion: '1.8.0',
+      includePrerelease: true,
+    );
+
+    expect(info.version, '1.8.2-beta.1');
+  });
+}
+
+class _MixedReleaseDioAdapter implements HttpClientAdapter {
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async => ResponseBody.fromString(
+    jsonEncode([
+      {
+        'tag_name': 'autocomplete-data-cooccurrence-2dadc5bf-v2',
+        'draft': false,
+        'prerelease': true,
+      },
+      {
+        'tag_name': 'v1.8.2-beta.1',
+        'name': 'NAI Launcher v1.8.2 beta 1',
+        'body': 'Preview',
+        'published_at': '2026-08-22T00:00:00Z',
+        'html_url': 'https://github.com/example/releases/v1.8.2-beta.1',
+        'draft': false,
+        'prerelease': true,
+        'assets': <Object>[],
+      },
+    ]),
+    200,
+    headers: {
+      Headers.contentTypeHeader: [Headers.jsonContentType],
+    },
+  );
+
+  @override
+  void close({bool force = false}) {}
 }
 
 class _ReleaseDioAdapter implements HttpClientAdapter {

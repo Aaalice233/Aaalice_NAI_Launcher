@@ -120,6 +120,7 @@ void main() {
       final anlasWatcherProvider = StateProvider<int>((ref) => 0);
       final backgroundRefreshProvider = StateProvider<int>((ref) => 0);
       final kritaBridgeProvider = StateProvider<int>((ref) => 0);
+      final cooccurrenceDataPackProvider = StateProvider<int>((ref) => 0);
       var buildCount = 0;
 
       await tester.pumpWidget(
@@ -129,6 +130,7 @@ void main() {
               anlasWatcher: anlasWatcherProvider,
               backgroundRefresh: backgroundRefreshProvider,
               kritaBridge: kritaBridgeProvider,
+              cooccurrenceDataPack: cooccurrenceDataPackProvider,
               child: Builder(
                 builder: (context) {
                   buildCount++;
@@ -147,6 +149,7 @@ void main() {
       expect(container.exists(anlasWatcherProvider), isTrue);
       expect(container.exists(backgroundRefreshProvider), isTrue);
       expect(container.exists(kritaBridgeProvider), isTrue);
+      expect(container.exists(cooccurrenceDataPackProvider), isTrue);
       expect(buildCount, 1);
 
       container.read(anlasWatcherProvider.notifier).state = 1;
@@ -154,6 +157,8 @@ void main() {
       container.read(backgroundRefreshProvider.notifier).state = 1;
       await tester.pump();
       container.read(kritaBridgeProvider.notifier).state = 1;
+      await tester.pump();
+      container.read(cooccurrenceDataPackProvider.notifier).state = 1;
       await tester.pump();
 
       expect(buildCount, 1);

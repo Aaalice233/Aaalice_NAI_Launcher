@@ -97,14 +97,13 @@ final startupInitializationTasksProvider = Provider<StartupInitializationTasks>(
         try {
           final stats = await manager.getCoreAssetStatistics();
           final translationCount = stats['translations'] ?? 0;
-          final cooccurrenceCount = stats['cooccurrences'] ?? 0;
           AppLogger.i(
-            '核心资产数据库状态: translations=$translationCount, '
-                'cooccurrences=$cooccurrenceCount',
+            '核心数据库状态: translations=$translationCount；'
+                '可选共现数据包将在进入主页后初始化',
             'Warmup',
           );
-          if (translationCount == 0 || cooccurrenceCount == 0) {
-            AppLogger.w('核心资产数据为空，请检查打包数据库', 'Warmup');
+          if (translationCount == 0) {
+            AppLogger.w('核心翻译数据为空，请检查数据库', 'Warmup');
           }
         } catch (error, stackTrace) {
           // 资产验证属于数据库初始化契约；失败时不能把健康标记的半成品留给重试。

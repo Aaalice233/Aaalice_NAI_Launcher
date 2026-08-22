@@ -20701,14 +20701,138 @@ abstract class AppLocalizations {
   /// No description provided for @autocomplete_cooccurrence.
   ///
   /// In en, this message translates to:
-  /// **'Offline related-tag database'**
+  /// **'Local related-tag data'**
   String get autocomplete_cooccurrence;
 
   /// No description provided for @autocomplete_entryCount.
   ///
   /// In en, this message translates to:
-  /// **'{count} entries'**
+  /// **'{count} records'**
   String autocomplete_entryCount(int count);
+
+  /// No description provided for @autocomplete_cooccurrenceAutoDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically download local related-tag data'**
+  String get autocomplete_cooccurrenceAutoDownload;
+
+  /// No description provided for @autocomplete_cooccurrenceAutoDownloadSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads in the background after the home screen opens when related tags are enabled; base autocomplete is never blocked'**
+  String get autocomplete_cooccurrenceAutoDownloadSubtitle;
+
+  /// No description provided for @autocomplete_downloadNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Download now'**
+  String get autocomplete_downloadNow;
+
+  /// No description provided for @autocomplete_cooccurrenceUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not installed · {size} download. Online related tags remain available.'**
+  String autocomplete_cooccurrenceUnavailable(String size);
+
+  /// No description provided for @autocomplete_cooccurrenceChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking local data…'**
+  String get autocomplete_cooccurrenceChecking;
+
+  /// No description provided for @autocomplete_cooccurrenceDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading {downloaded} / {total} · {speed}. Online results remain available.'**
+  String autocomplete_cooccurrenceDownloading(
+    String downloaded,
+    String total,
+    String speed,
+  );
+
+  /// No description provided for @autocomplete_cooccurrenceVerifying.
+  ///
+  /// In en, this message translates to:
+  /// **'Download complete. Verifying the data pack…'**
+  String get autocomplete_cooccurrenceVerifying;
+
+  /// No description provided for @autocomplete_cooccurrenceInstalling.
+  ///
+  /// In en, this message translates to:
+  /// **'Installing and switching databases safely…'**
+  String get autocomplete_cooccurrenceInstalling;
+
+  /// No description provided for @autocomplete_cooccurrenceReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version} · {count} relations · {size} on disk'**
+  String autocomplete_cooccurrenceReady(String version, int count, String size);
+
+  /// No description provided for @autocomplete_cooccurrenceUpdateAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Data version {version} is available'**
+  String autocomplete_cooccurrenceUpdateAvailable(String version);
+
+  /// No description provided for @autocomplete_cooccurrenceFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Local data is unavailable: {reason}. Base autocomplete and online related tags are unaffected.'**
+  String autocomplete_cooccurrenceFailed(String reason);
+
+  /// No description provided for @autocomplete_cooccurrenceErrorNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Network connection failed. Try again later'**
+  String get autocomplete_cooccurrenceErrorNetwork;
+
+  /// No description provided for @autocomplete_cooccurrenceErrorDiskFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough disk space'**
+  String get autocomplete_cooccurrenceErrorDiskFull;
+
+  /// No description provided for @autocomplete_cooccurrenceErrorArchive.
+  ///
+  /// In en, this message translates to:
+  /// **'The download is incomplete or failed verification'**
+  String get autocomplete_cooccurrenceErrorArchive;
+
+  /// No description provided for @autocomplete_cooccurrenceErrorDatabase.
+  ///
+  /// In en, this message translates to:
+  /// **'The database is damaged or incompatible'**
+  String get autocomplete_cooccurrenceErrorDatabase;
+
+  /// No description provided for @autocomplete_cooccurrenceErrorManifest.
+  ///
+  /// In en, this message translates to:
+  /// **'The bundled data manifest is invalid'**
+  String get autocomplete_cooccurrenceErrorManifest;
+
+  /// No description provided for @autocomplete_cooccurrenceErrorInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'The data file could not be written or replaced'**
+  String get autocomplete_cooccurrenceErrorInstall;
+
+  /// No description provided for @autocomplete_cooccurrenceRemoveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove local related-tag data?'**
+  String get autocomplete_cooccurrenceRemoveTitle;
+
+  /// No description provided for @autocomplete_cooccurrenceRemoveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'This immediately frees the disk space. Online related tags will continue to work.'**
+  String get autocomplete_cooccurrenceRemoveConfirm;
+
+  /// No description provided for @autocomplete_cooccurrenceStopAutoDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Also turn off automatic downloads so it is not reinstalled next time'**
+  String get autocomplete_cooccurrenceStopAutoDownload;
 
   /// No description provided for @autocomplete_cacheTitle.
   ///
@@ -20901,6 +21025,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Related'**
   String get autocomplete_statusRelated;
+
+  /// No description provided for @autocomplete_statusOnlineOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Online only'**
+  String get autocomplete_statusOnlineOnly;
+
+  /// No description provided for @autocomplete_statusOnlineOnlyTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Local related-tag data is not ready; only Danbooru online results are shown'**
+  String get autocomplete_statusOnlineOnlyTooltip;
 
   /// No description provided for @autocomplete_statusDictionary.
   ///

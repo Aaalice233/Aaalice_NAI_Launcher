@@ -5,9 +5,9 @@ import 'tag_catalog_repository.dart';
 typedef CooccurrenceDataSourceLoader =
     Future<CooccurrenceDataSource> Function();
 
-/// Offline related-tag source backed by the bundled cooccurrence CSV database.
+/// Offline related-tag source backed by the optional compact data pack.
 ///
-/// The asset stores intersection counts. Catalog post counts are joined at
+/// The pack stores intersection counts. Catalog post counts are joined at
 /// query time so ranking can use the same Jaccard metric as Danbooru's related
 /// tag endpoint without duplicating the complete tag catalog in another database.
 class CooccurrenceCompletionSource implements CompletionSource {

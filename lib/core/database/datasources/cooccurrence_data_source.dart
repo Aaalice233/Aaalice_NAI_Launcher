@@ -1,394 +1,269 @@
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import '../../utils/app_logger.dart';
-import '../asset_database_manager.dart';
+import '../../autocomplete/cooccurrence_data_pack_service.dart';
 import '../data_source.dart';
 
-/// 相关标签记录
 class RelatedTag {
-  final String tag;
-  final int count;
-  final double cooccurrenceScore;
-
   const RelatedTag({
     required this.tag,
     required this.count,
     this.cooccurrenceScore = 0.0,
   });
 
+  final String tag;
+  final int count;
+  final double cooccurrenceScore;
+
   String get formattedCount {
-    if (count >= 1000000) {
-      return '${(count / 1000000).toStringAsFixed(1)}M';
-    } else if (count >= 1000) {
-      return '${(count / 1000).toStringAsFixed(1)}K';
-    }
+    if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
+    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}K';
     return count.toString();
   }
 }
 
-/// 共现记录
 class CooccurrenceRecord {
-  final String tag1;
-  final String tag2;
-  final int count;
-  final double cooccurrenceScore;
-
   const CooccurrenceRecord({
     required this.tag1,
     required this.tag2,
     required this.count,
     required this.cooccurrenceScore,
   });
+
+  final String tag1;
+  final String tag2;
+  final int count;
+  final double cooccurrenceScore;
 }
 
-/// 共现数据源（V2 - 使用预打包数据库）
+/// Read-only optional co-occurrence source backed by the managed data pack.
 ///
-/// 从预打包的 SQLite 数据库读取共现数据，不再支持写入。
-/// 使用内存缓存热点查询结果。
+/// Unavailable, downloading, failed, or opted-out packs intentionally return
+/// empty results so Danbooru online related tags remain independently usable.
 class CooccurrenceDataSource {
-  CooccurrenceDataSource({Database? database})
-    : _db = database,
-      _initialized = database != null;
+  CooccurrenceDataSource({
+    Database? database,
+    CooccurrenceDataPackService? dataPackService,
+  }) : _database = database,
+       _dataPackService = dataPackService,
+       _initialized = database != null;
 
   static const int _maxCacheSize = 1000;
 
-  // 缓存相关标签查询结果
+  final CooccurrenceDataPackService? _dataPackService;
   final Map<String, List<RelatedTag>> _relatedCache = {};
+  Database? _database;
+  bool _initialized;
 
-  Database? _db;
-  bool _initialized = false;
-
-  /// 数据源名称
   String get name => 'cooccurrence';
-
-  /// 是否已初始化
   bool get isInitialized => _initialized;
+  bool get isAvailable =>
+      _database != null || (_dataPackService?.isQueryReady ?? false);
 
-  /// 初始化数据源
-  ///
-  /// 打开预打包的共现数据库（只读）
   Future<void> initialize() async {
     if (_initialized) return;
-
-    AppLogger.i('Initializing CooccurrenceDataSource...', 'CooccurrenceDS');
-
-    try {
-      _db = await AssetDatabaseManager.instance.openCooccurrenceDatabase();
-      _initialized = true;
-
-      // 验证数据
-      final count = await getCount();
-      AppLogger.i(
-        'Cooccurrence data source initialized with $count records',
-        'CooccurrenceDS',
-      );
-    } catch (e, stack) {
-      AppLogger.e(
-        'Failed to initialize CooccurrenceDataSource',
-        e,
-        stack,
-        'CooccurrenceDS',
-      );
-      rethrow;
-    }
+    await _dataPackService?.initialize();
+    _initialized = true;
   }
 
-  /// 获取与指定标签共现的相关标签
-  ///
-  /// [tag] 查询的标签
-  /// [limit] 返回结果数量限制
-  /// [minCount] 最小共现次数过滤
   Future<List<RelatedTag>> getRelatedTags(
     String tag, {
     int limit = 20,
     int minCount = 1,
   }) async {
-    if (tag.isEmpty) return [];
+    if (tag.trim().isEmpty || limit <= 0) return const [];
     if (!_initialized) await initialize();
-
     final normalizedTag = tag.toLowerCase().trim();
+    final dataVersion = _dataPackService?.activeDataVersion;
     final cacheKey = _buildCacheKey(
       tag: normalizedTag,
       minCount: minCount,
       limit: limit,
+      dataVersion: dataVersion,
     );
+    final mayUseCache =
+        _dataPackService == null ||
+        (_dataPackService.isQueryReady && dataVersion != null);
+    final cached = mayUseCache ? _relatedCache[cacheKey] : null;
+    if (cached != null) return cached;
 
-    // 检查缓存
-    final cached = _relatedCache[cacheKey];
-    if (cached != null) {
-      AppLogger.d('Cooccurrence cache hit: $cacheKey', 'CooccurrenceDS');
-      return cached;
-    }
-
-    // The CSV stores each unordered tag pair only once. A tag can therefore
-    // be in either column; querying tag1 alone silently drops a large part of
-    // the graph (for example, most `solo` relationships are stored in tag2).
-    final queryLimit = (limit * 2).clamp(limit, 50000);
-    final results = await _db!.rawQuery(
-      '''
-      SELECT related_tag, count, cooccurrence_score
-      FROM (
-        SELECT tag2 AS related_tag, count, cooccurrence_score
-        FROM cooccurrences
-        WHERE tag1 = ? AND count >= ?
-        UNION ALL
-        SELECT tag1 AS related_tag, count, cooccurrence_score
-        FROM cooccurrences
-        WHERE tag2 = ? AND count >= ?
-      )
-      ORDER BY count DESC, related_tag ASC
-      LIMIT ?
-      ''',
-      [normalizedTag, minCount, normalizedTag, minCount, queryLimit],
-    );
-
-    final relatedTags = <RelatedTag>[];
-    final seen = <String>{normalizedTag};
-    for (final row in results) {
-      final relatedTag = row['related_tag'] as String;
-      if (!seen.add(relatedTag)) continue;
-      relatedTags.add(
-        RelatedTag(
-          tag: relatedTag,
-          count: (row['count'] as num?)?.toInt() ?? 0,
-          cooccurrenceScore:
-              (row['cooccurrence_score'] as num?)?.toDouble() ?? 0.0,
-        ),
-      );
-      if (relatedTags.length == limit) break;
-    }
-
-    // 添加到缓存
-    _addToCache(cacheKey, relatedTags);
-
-    return relatedTags;
+    final rows = _dataPackService != null
+        ? await _dataPackService.queryRelatedTags(
+            normalizedTag,
+            limit: limit,
+            minCount: minCount,
+          )
+        : await _queryDatabaseRelated(
+            normalizedTag,
+            limit: limit,
+            minCount: minCount,
+          );
+    final related = rows
+        .map(
+          (row) => RelatedTag(
+            tag: '${row['related_tag']}',
+            count: (row['count'] as num?)?.toInt() ?? 0,
+          ),
+        )
+        .where((entry) => entry.tag != normalizedTag)
+        .toList(growable: false);
+    if (mayUseCache) _addToCache(cacheKey, related);
+    return related;
   }
 
-  /// 批量获取相关标签
-  ///
-  /// [tags] 标签列表
-  /// [limit] 每个标签返回的相关标签数量
   Future<Map<String, List<RelatedTag>>> getRelatedTagsBatch(
     List<String> tags, {
     int limit = 10,
   }) async {
-    if (tags.isEmpty) return {};
-    if (!_initialized) await initialize();
-
-    final normalizedTags = tags.map((t) => t.toLowerCase().trim()).toList();
-    final placeholders = normalizedTags.map((_) => '?').join(',');
-
     final result = <String, List<RelatedTag>>{};
-
-    final rows = await _db!.rawQuery(
-      '''
-      SELECT source_tag, related_tag, count, cooccurrence_score
-      FROM (
-        SELECT tag1 AS source_tag, tag2 AS related_tag,
-               count, cooccurrence_score
-        FROM cooccurrences
-        WHERE tag1 IN ($placeholders)
-        UNION ALL
-        SELECT tag2 AS source_tag, tag1 AS related_tag,
-               count, cooccurrence_score
-        FROM cooccurrences
-        WHERE tag2 IN ($placeholders)
-      )
-      ORDER BY source_tag ASC, count DESC, related_tag ASC
-      ''',
-      [...normalizedTags, ...normalizedTags],
-    );
-
-    final groups = <String, List<RelatedTag>>{};
-    final seenBySource = <String, Set<String>>{};
-    for (final row in rows) {
-      final sourceTag = row['source_tag'] as String;
-      final relatedTag = row['related_tag'] as String;
-      final related = groups.putIfAbsent(sourceTag, () => []);
-      if (related.length >= limit ||
-          !(seenBySource.putIfAbsent(
-            sourceTag,
-            () => {sourceTag},
-          )).add(relatedTag)) {
-        continue;
-      }
-      related.add(
-        RelatedTag(
-          tag: relatedTag,
-          count: (row['count'] as num?)?.toInt() ?? 0,
-          cooccurrenceScore:
-              (row['cooccurrence_score'] as num?)?.toDouble() ?? 0.0,
-        ),
-      );
+    for (final value in tags) {
+      final tag = value.toLowerCase().trim();
+      if (tag.isEmpty || result.containsKey(tag)) continue;
+      result[tag] = await getRelatedTags(tag, limit: limit);
     }
-
-    for (final tag in normalizedTags) {
-      final limited = groups[tag] ?? const <RelatedTag>[];
-      result[tag] = limited;
-
-      // 更新缓存
-      if (limited.isNotEmpty) {
-        _addToCache(
-          _buildCacheKey(tag: tag, minCount: 1, limit: limit),
-          limited,
-        );
-      }
-    }
-
     return result;
   }
 
-  /// 获取热门共现标签
-  ///
-  /// [limit] 返回结果数量限制
-  Future<List<RelatedTag>> getPopularCooccurrences({int limit = 100}) async {
-    if (limit <= 0) return [];
-    if (!_initialized) await initialize();
-
-    final results = await _db!.query(
-      'cooccurrences',
-      columns: ['tag1', 'tag2', 'count', 'cooccurrence_score'],
-      orderBy: 'count DESC',
-      limit: limit,
-    );
-
-    return results.map<RelatedTag>((row) {
-      return RelatedTag(
-        tag: '${row['tag1']} → ${row['tag2']}',
-        count: (row['count'] as num?)?.toInt() ?? 0,
-        cooccurrenceScore:
-            (row['cooccurrence_score'] as num?)?.toDouble() ?? 0.0,
-      );
-    }).toList();
-  }
-
-  /// 计算共现分数
-  ///
-  /// 使用 Jaccard 相似度系数
-  /// Jaccard(A, B) = |A ∩ B| / |A ∪ B|
   Future<double> calculateCooccurrenceScore(String tag1, String tag2) async {
-    final t1 = tag1.toLowerCase().trim();
-    final t2 = tag2.toLowerCase().trim();
-    if (t1.isEmpty || t2.isEmpty) return 0.0;
+    final first = tag1.toLowerCase().trim();
+    final second = tag2.toLowerCase().trim();
+    if (first.isEmpty || second.isEmpty) return 0;
     if (!_initialized) await initialize();
-
-    final result = await _db!.query(
-      'cooccurrences',
-      columns: ['count'],
-      where: '(tag1 = ? AND tag2 = ?) OR (tag1 = ? AND tag2 = ?)',
-      whereArgs: [t1, t2, t2, t1],
-      limit: 1,
-    );
-
-    if (result.isEmpty) return 0.0;
-
-    final cooccurrence = (result.first['count'] as num?)?.toInt() ?? 0;
-
-    // 获取两个标签的独立计数（近似值，从共现表中获取）
-    final count1Result = await _db!.rawQuery(
-      'SELECT SUM(count) as total FROM cooccurrences '
-      'WHERE tag1 = ? OR tag2 = ?',
-      [t1, t1],
-    );
-    final count2Result = await _db!.rawQuery(
-      'SELECT SUM(count) as total FROM cooccurrences '
-      'WHERE tag1 = ? OR tag2 = ?',
-      [t2, t2],
-    );
-
-    final count1 = (count1Result.first['total'] as num?)?.toInt() ?? 0;
-    final count2 = (count2Result.first['total'] as num?)?.toInt() ?? 0;
-
-    // Jaccard = cooccurrence / (count1 + count2 - cooccurrence)
-    final union = count1 + count2 - cooccurrence;
-    if (union <= 0) return 0.0;
-
-    return cooccurrence / union;
+    final occurrence = _dataPackService != null
+        ? await _dataPackService.queryPairCooccurrence(first, second)
+        : await _directPairCount(first, second);
+    if (occurrence <= 0) return 0;
+    final count1 = _dataPackService != null
+        ? await _dataPackService.querySummedCooccurrence(first)
+        : await _directSummedCount(first);
+    final count2 = _dataPackService != null
+        ? await _dataPackService.querySummedCooccurrence(second)
+        : await _directSummedCount(second);
+    final union = count1 + count2 - occurrence;
+    return union <= 0 ? 0 : occurrence / union;
   }
 
-  /// 获取共现记录总数
   Future<int> getCount() async {
     if (!_initialized) await initialize();
-
-    final result = await _db!.rawQuery(
-      'SELECT COUNT(*) as count FROM cooccurrences',
+    if (_dataPackService != null) return _dataPackService.queryPairCount();
+    final database = _database;
+    if (database == null) return 0;
+    final rows = await database.rawQuery(
+      "SELECT value FROM metadata WHERE key = 'source_pair_count'",
     );
-    return (result.first['count'] as num?)?.toInt() ?? 0;
+    return rows.isEmpty ? 0 : int.tryParse('${rows.single['value']}') ?? 0;
   }
 
-  /// 获取与指定标签相关的唯一标签数量
   Future<int> getRelatedTagCount(String tag) async {
-    if (tag.isEmpty) return 0;
+    final normalized = tag.toLowerCase().trim();
+    if (normalized.isEmpty) return 0;
     if (!_initialized) await initialize();
-
-    final normalizedTag = tag.toLowerCase().trim();
-    final result = await _db!.rawQuery(
-      'SELECT COUNT(*) as count FROM cooccurrences '
-      'WHERE tag1 = ? OR tag2 = ?',
-      [normalizedTag, normalizedTag],
-    );
-    return (result.first['count'] as num?)?.toInt() ?? 0;
-  }
-
-  /// 健康检查
-  Future<DataSourceHealth> checkHealth() async {
-    try {
-      if (!_initialized) {
-        return DataSourceHealth(
-          status: HealthStatus.corrupted,
-          message: 'Cooccurrence data source not initialized',
-          timestamp: DateTime.now(),
-        );
-      }
-
-      // 尝试查询
-      await _db!.rawQuery('SELECT 1 FROM cooccurrences LIMIT 1');
-      final count = await getCount();
-
-      return DataSourceHealth(
-        status: HealthStatus.healthy,
-        message: 'Cooccurrence data source is healthy',
-        details: {'recordCount': count, 'cacheSize': _relatedCache.length},
-        timestamp: DateTime.now(),
-      );
-    } catch (e) {
-      return DataSourceHealth(
-        status: HealthStatus.corrupted,
-        message: 'Health check failed: $e',
-        details: {'error': e.toString()},
-        timestamp: DateTime.now(),
-      );
+    if (_dataPackService != null) {
+      return _dataPackService.queryRelatedTagCount(normalized);
     }
+    final database = _database;
+    if (database == null) return 0;
+    final rows = await database.rawQuery(
+      '''
+      SELECT COUNT(*) AS count
+      FROM tags source
+      JOIN edges edge ON edge.source_tag_id = source.id
+      WHERE source.name = ? COLLATE NOCASE
+      ''',
+      [normalized],
+    );
+    return (rows.single['count'] as num?)?.toInt() ?? 0;
   }
 
-  /// 清除缓存
+  Future<DataSourceHealth> checkHealth() async {
+    if (!_initialized) await initialize();
+    final available = isAvailable;
+    return DataSourceHealth(
+      status: available ? HealthStatus.healthy : HealthStatus.degraded,
+      message: available
+          ? 'Co-occurrence data pack is ready'
+          : 'Optional co-occurrence data pack is unavailable',
+      details: {
+        'recordCount': available ? await getCount() : 0,
+        'cacheSize': _relatedCache.length,
+      },
+      timestamp: DateTime.now(),
+    );
+  }
+
   Future<void> clear() async {
     _relatedCache.clear();
-    AppLogger.i('Cooccurrence cache cleared', 'CooccurrenceDS');
   }
 
-  /// 释放资源
   Future<void> dispose() async {
     _relatedCache.clear();
-    if (_db != null) {
-      await _db!.close();
-      _db = null;
-    }
+    final database = _database;
+    _database = null;
+    if (database != null) await database.close();
     _initialized = false;
-    AppLogger.i('Cooccurrence data source disposed', 'CooccurrenceDS');
   }
 
-  /// 获取缓存统计信息
   Map<String, dynamic> getCacheStatistics() => {
     'cacheSize': _relatedCache.length,
     'maxCacheSize': _maxCacheSize,
+    'available': isAvailable,
   };
 
-  // 私有辅助方法
+  Future<List<Map<String, Object?>>> _queryDatabaseRelated(
+    String tag, {
+    required int limit,
+    required int minCount,
+  }) async {
+    final database = _database;
+    if (database == null) return const [];
+    return database.rawQuery(
+      '''
+      SELECT target.name AS related_tag, edge.count AS count
+      FROM tags source
+      JOIN edges edge ON edge.source_tag_id = source.id
+      JOIN tags target ON target.id = edge.target_tag_id
+      WHERE source.name = ? COLLATE NOCASE AND edge.count >= ?
+      ORDER BY edge.count DESC, edge.target_tag_id ASC
+      LIMIT ?
+      ''',
+      [tag, minCount, limit],
+    );
+  }
+
+  Future<int> _directPairCount(String first, String second) async {
+    final database = _database;
+    if (database == null) return 0;
+    final rows = await database.rawQuery(
+      '''
+      SELECT edge.count AS count
+      FROM tags source
+      JOIN edges edge ON edge.source_tag_id = source.id
+      JOIN tags target ON target.id = edge.target_tag_id
+      WHERE source.name = ? COLLATE NOCASE
+        AND target.name = ? COLLATE NOCASE
+      LIMIT 1
+      ''',
+      [first, second],
+    );
+    return rows.isEmpty ? 0 : (rows.single['count'] as num?)?.toInt() ?? 0;
+  }
+
+  Future<int> _directSummedCount(String tag) async {
+    final database = _database;
+    if (database == null) return 0;
+    final rows = await database.rawQuery(
+      '''
+      SELECT COALESCE(SUM(edge.count), 0) AS total
+      FROM tags source
+      JOIN edges edge ON edge.source_tag_id = source.id
+      WHERE source.name = ? COLLATE NOCASE
+      ''',
+      [tag],
+    );
+    return (rows.single['total'] as num?)?.toInt() ?? 0;
+  }
 
   void _addToCache(String key, List<RelatedTag> value) {
     if (_relatedCache.length >= _maxCacheSize) {
-      // 移除最旧的条目
       _relatedCache.remove(_relatedCache.keys.first);
     }
     _relatedCache[key] = value;
@@ -398,7 +273,6 @@ class CooccurrenceDataSource {
     required String tag,
     required int minCount,
     required int limit,
-  }) {
-    return 'bidirectional-v1|$tag|$minCount|$limit';
-  }
+    String? dataVersion,
+  }) => '${dataVersion ?? 'direct'}|$tag|$minCount|$limit';
 }

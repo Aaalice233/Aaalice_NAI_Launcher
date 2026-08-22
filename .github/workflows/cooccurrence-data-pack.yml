@@ -1,0 +1,120 @@
+name: Publish co-occurrence data pack
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  FLUTTER_VERSION: "3.44.2"
+  DATA_TAG: autocomplete-data-cooccurrence-2dadc5bf-v2
+
+jobs:
+  build-and-publish:
+    name: Build, verify, and publish immutable data
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Build and verify locked data pack
+        run: |
+          dart run tool/database/build_cooccurrence_only.dart
+          mkdir -p tool/.tmp/cooccurrence-first
+          cp tool/.tmp/cooccurrence/cooccurrence-v2.db tool/.tmp/cooccurrence-first/
+          cp tool/.tmp/cooccurrence/cooccurrence-v2.db.gz tool/.tmp/cooccurrence-first/
+          cp tool/.tmp/cooccurrence/manifest.json tool/.tmp/cooccurrence-first/
+
+      - name: Rebuild and prove deterministic output
+        run: |
+          dart run tool/database/build_cooccurrence_only.dart
+          cmp tool/.tmp/cooccurrence-first/cooccurrence-v2.db tool/.tmp/cooccurrence/cooccurrence-v2.db
+          cmp tool/.tmp/cooccurrence-first/cooccurrence-v2.db.gz tool/.tmp/cooccurrence/cooccurrence-v2.db.gz
+          cmp tool/.tmp/cooccurrence-first/manifest.json tool/.tmp/cooccurrence/manifest.json
+
+      - name: Verify release tag is the locked non-application tag
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $lock = Get-Content -Raw -Encoding UTF8 tool/database/cooccurrence_source_lock.json | ConvertFrom-Json
+          if ($lock.release.tag -ne $env:DATA_TAG) {
+            throw "Workflow DATA_TAG does not match source lock: $($lock.release.tag)"
+          }
+          if ($env:DATA_TAG -match '^v') {
+            throw 'Data release tags must not use the application v* namespace.'
+          }
+          if (!$lock.release.prerelease -or $lock.release.makeLatest) {
+            throw 'Data releases must be prereleases and must not become latest.'
+          }
+
+      - name: Refuse to overwrite different immutable assets
+        id: existing
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $existing = gh release view $env:DATA_TAG --json isPrerelease,assets 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            "exists=false" >> $env:GITHUB_OUTPUT
+            exit 0
+          }
+          $release = $existing | ConvertFrom-Json
+          if (!$release.isPrerelease) {
+            throw "Existing data release $env:DATA_TAG is not a prerelease."
+          }
+          $expected = @{
+            'cooccurrence-v2.db.gz' = 'tool/.tmp/cooccurrence/cooccurrence-v2.db.gz'
+            'manifest.json' = 'tool/.tmp/cooccurrence/manifest.json'
+          }
+          New-Item -ItemType Directory -Force -Path tool/.tmp/existing-release | Out-Null
+          gh release download $env:DATA_TAG --dir tool/.tmp/existing-release
+          foreach ($entry in $expected.GetEnumerator()) {
+            $remotePath = Join-Path tool/.tmp/existing-release $entry.Key
+            if (!(Test-Path -LiteralPath $remotePath)) {
+              throw "Immutable release is missing $($entry.Key). Create a new data version/tag instead of modifying this one."
+            }
+            $remoteHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $remotePath).Hash
+            $localHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $entry.Value).Hash
+            if ($remoteHash -ne $localHash) {
+              throw "Immutable asset $($entry.Key) has a different hash. Create a new data version/tag."
+            }
+          }
+          "exists=true" >> $env:GITHUB_OUTPUT
+
+      - name: Publish prerelease data assets
+        if: steps.existing.outputs.exists != 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh release create $env:DATA_TAG `
+            --target '${{ github.sha }}' `
+            --title 'Autocomplete co-occurrence data 2dadc5bf v2' `
+            --notes 'Optional local related-tag data pack. Built reproducibly from the pinned newtextdoc1111/danbooru-tag-csv revision recorded in the attached manifest.' `
+            --prerelease `
+            --latest=false `
+            tool/.tmp/cooccurrence/cooccurrence-v2.db.gz `
+            tool/.tmp/cooccurrence/manifest.json
+
+      - name: Upload verification report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cooccurrence-data-verification
+          path: tool/.tmp/cooccurrence/verification-report.json
+          if-no-files-found: error

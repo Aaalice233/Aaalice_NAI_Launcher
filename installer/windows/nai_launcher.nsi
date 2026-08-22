@@ -220,6 +220,13 @@ Section "${APP_NAME}" SecMain
   SectionIn RO
 
   Call EnsureAppClosed
+
+  ; Overwrite installation does not remove assets that disappeared from a
+  ; newer build. Remove the retired CSV/co-occurrence payload before copying
+  ; the current managed files.
+  RMDir /r "$INSTDIR\data\flutter_assets\assets\translations"
+  Delete "$INSTDIR\data\flutter_assets\assets\databases\cooccurrence.db"
+
   SetOverwrite on
   SetOutPath "$INSTDIR"
   File /r "${SOURCE_DIR}\*.*"

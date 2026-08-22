@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/autocomplete/autocomplete_providers.dart';
 import '../../../core/autocomplete/autocomplete_settings.dart';
+import '../../../core/autocomplete/cooccurrence_data_pack_provider.dart';
 import '../../../core/autocomplete/completion_models.dart';
 import '../../../core/autocomplete/completion_orchestrator.dart';
 import '../../../core/autocomplete/prompt_token_parser.dart';
@@ -524,6 +525,9 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     final left = (caretLeft - leadingContext).clamp(viewportInset, maxLeft);
     final settings = ref.read(autocompleteSettingsProvider);
     final dictionaryState = ref.read(zhDictionaryServiceProvider).state;
+    final cooccurrenceDataPackState = ref.read(
+      cooccurrenceDataPackServiceProvider,
+    );
 
     return Positioned(
       left: left,
@@ -538,6 +542,7 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
           scrollController: _scrollController,
           settings: settings,
           dictionaryState: dictionaryState,
+          cooccurrenceDataPackState: cooccurrenceDataPackState,
           showAliases:
               settings.showAliases && (widget.config?.showTranslation ?? true),
           showTranslations:

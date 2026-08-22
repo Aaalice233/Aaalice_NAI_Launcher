@@ -59,41 +59,53 @@ void main() {
     },
   );
 
-  test(
-    'bundled CSV database returns enriched blue_archive relations',
-    () async {
-      sqfliteFfiInit();
-      final cooccurrenceDatabase = await databaseFactoryFfi.openDatabase(
-        File('assets/databases/cooccurrence.db').absolute.path,
-        options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
-      );
-      final catalogDatabase = await databaseFactoryFfi.openDatabase(
-        File('assets/databases/tag_catalog.db').absolute.path,
-        options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
-      );
-      final dataSource = CooccurrenceDataSource(database: cooccurrenceDatabase);
-      final catalog = TagCatalogRepository(database: catalogDatabase);
-      final source = CooccurrenceCompletionSource(dataSource, catalog: catalog);
-      addTearDown(dataSource.dispose);
-      addTearDown(catalog.dispose);
+  test('compact database returns stable bidirectional relations', () async {
+    sqfliteFfiInit();
+    final directory = await Directory.systemTemp.createTemp(
+      'cooccurrence_data_source_test_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final path = File('${directory.path}/cooccurrence-v2.db').path;
+    final writer = await databaseFactoryFfi.openDatabase(path);
+    await writer.execute('''
+        CREATE TABLE metadata(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        CREATE TABLE tags(
+          id INTEGER PRIMARY KEY,
+          name TEXT NOT NULL COLLATE NOCASE UNIQUE
+        );
+        CREATE TABLE edges(
+          source_tag_id INTEGER NOT NULL,
+          target_tag_id INTEGER NOT NULL,
+          count INTEGER NOT NULL CHECK(count > 0),
+          PRIMARY KEY(source_tag_id, count DESC, target_tag_id)
+        ) WITHOUT ROWID;
+        INSERT INTO metadata VALUES ('source_pair_count', '2');
+        INSERT INTO tags VALUES (1, 'alpha'), (2, 'beta'), (3, 'gamma');
+        INSERT INTO edges VALUES
+          (1, 2, 50), (2, 1, 50), (1, 3, 10), (3, 1, 10);
+      ''');
+    await writer.close();
+    final database = await databaseFactoryFfi.openDatabase(
+      path,
+      options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
+    );
+    final dataSource = CooccurrenceDataSource(database: database);
+    addTearDown(dataSource.dispose);
 
-      final results = await source.search(_query(limit: 50));
-
-      expect(results, hasLength(50));
-      final halo = results.firstWhere(
-        (candidate) => candidate.canonicalTag == 'halo',
-      );
-      expect(halo.relatedScore, greaterThan(0.7));
-      expect(halo.cooccurrenceCount, greaterThan(200000));
-      expect(halo.postCount, greaterThan(200000));
-
-      // The source CSV stores unordered pairs once. `1girl,solo` has `solo`
-      // in tag2 and was invisible when the datasource queried tag1 only.
-      final soloRelations = await dataSource.getRelatedTags('solo', limit: 100);
-      expect(soloRelations.map((relation) => relation.tag), contains('1girl'));
-      expect(await dataSource.getRelatedTagCount('solo'), greaterThan(20000));
-    },
-  );
+    final alpha = await dataSource.getRelatedTags('ALPHA', limit: 10);
+    expect(alpha.map((relation) => relation.tag), ['beta', 'gamma']);
+    expect(alpha.map((relation) => relation.count), [50, 10]);
+    expect(
+      (await dataSource.getRelatedTags('beta', limit: 10)).single.tag,
+      'alpha',
+    );
+    expect(await dataSource.getRelatedTagCount('alpha'), 2);
+    expect(await dataSource.getCount(), 2);
+    expect(
+      await dataSource.calculateCooccurrenceScore('alpha', 'beta'),
+      closeTo(50 / 60, 0.0001),
+    );
+  });
 
   test(
     'awaits the managed datasource instead of dropping related tags during startup',

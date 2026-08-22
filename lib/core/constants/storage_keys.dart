@@ -241,6 +241,8 @@ class StorageKeys {
       'enable_smart_tag_recommendation';
   static const String enableCooccurrenceRecommendation =
       'enable_cooccurrence_recommendation';
+  static const String autoDownloadCooccurrenceData =
+      'auto_download_cooccurrence_data';
 
   // Prompt Assistant
   static const String promptAssistantConfigJson =

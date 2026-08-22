@@ -11402,12 +11402,92 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get autocomplete_cooccurrence => '离线相关标签库';
+  String get autocomplete_cooccurrence => '本地相关标签数据';
 
   @override
   String autocomplete_entryCount(int count) {
     return '$count 条记录';
   }
+
+  @override
+  String get autocomplete_cooccurrenceAutoDownload => '自动下载本地相关标签数据';
+
+  @override
+  String get autocomplete_cooccurrenceAutoDownloadSubtitle =>
+      '相关标签功能开启时，在进入主页后后台下载安装；不影响基础补全';
+
+  @override
+  String get autocomplete_downloadNow => '立即下载';
+
+  @override
+  String autocomplete_cooccurrenceUnavailable(String size) {
+    return '尚未安装 · 下载大小 $size。当前仅显示在线相关标签。';
+  }
+
+  @override
+  String get autocomplete_cooccurrenceChecking => '正在检查本地数据…';
+
+  @override
+  String autocomplete_cooccurrenceDownloading(
+    String downloaded,
+    String total,
+    String speed,
+  ) {
+    return '正在下载 $downloaded / $total · $speed。当前仍可使用在线结果。';
+  }
+
+  @override
+  String get autocomplete_cooccurrenceVerifying => '下载完成，正在校验数据包…';
+
+  @override
+  String get autocomplete_cooccurrenceInstalling => '正在安全安装并切换数据库…';
+
+  @override
+  String autocomplete_cooccurrenceReady(
+    String version,
+    int count,
+    String size,
+  ) {
+    return '版本 $version · $count 组关系 · 占用 $size';
+  }
+
+  @override
+  String autocomplete_cooccurrenceUpdateAvailable(String version) {
+    return '发现数据版本 $version，可立即更新';
+  }
+
+  @override
+  String autocomplete_cooccurrenceFailed(String reason) {
+    return '本地数据不可用：$reason。基础补全与在线相关标签不受影响。';
+  }
+
+  @override
+  String get autocomplete_cooccurrenceErrorNetwork => '网络连接失败，请稍后重试';
+
+  @override
+  String get autocomplete_cooccurrenceErrorDiskFull => '磁盘空间不足';
+
+  @override
+  String get autocomplete_cooccurrenceErrorArchive => '下载文件不完整或校验失败';
+
+  @override
+  String get autocomplete_cooccurrenceErrorDatabase => '数据库损坏或版本不匹配';
+
+  @override
+  String get autocomplete_cooccurrenceErrorManifest => '内置数据清单无效';
+
+  @override
+  String get autocomplete_cooccurrenceErrorInstall => '无法写入或替换数据文件';
+
+  @override
+  String get autocomplete_cooccurrenceRemoveTitle => '删除本地相关标签数据？';
+
+  @override
+  String get autocomplete_cooccurrenceRemoveConfirm =>
+      '删除后将立即释放磁盘空间，并继续使用在线相关标签。';
+
+  @override
+  String get autocomplete_cooccurrenceStopAutoDownload => '同时关闭自动下载，避免下次启动重新安装';
 
   @override
   String get autocomplete_cacheTitle => '在线与 AI 缓存';
@@ -11513,6 +11593,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get autocomplete_statusRelated => '共现';
+
+  @override
+  String get autocomplete_statusOnlineOnly => '仅在线';
+
+  @override
+  String get autocomplete_statusOnlineOnlyTooltip =>
+      '本地相关标签数据尚未就绪，当前只显示 Danbooru 在线结果';
 
   @override
   String get autocomplete_statusDictionary => '汉化';

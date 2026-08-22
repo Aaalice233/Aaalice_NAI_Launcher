@@ -11567,12 +11567,95 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get autocomplete_cooccurrence => 'オフライン関連タグデータベース';
+  String get autocomplete_cooccurrence => 'ローカル関連タグデータ';
 
   @override
   String autocomplete_entryCount(int count) {
     return '$count 件';
   }
+
+  @override
+  String get autocomplete_cooccurrenceAutoDownload => 'ローカル関連タグデータを自動ダウンロード';
+
+  @override
+  String get autocomplete_cooccurrenceAutoDownloadSubtitle =>
+      '関連タグが有効な場合、ホーム画面表示後にバックグラウンドで取得します。基本補完はブロックされません';
+
+  @override
+  String get autocomplete_downloadNow => '今すぐダウンロード';
+
+  @override
+  String autocomplete_cooccurrenceUnavailable(String size) {
+    return '未インストール · ダウンロード $size。オンライン関連タグは利用できます。';
+  }
+
+  @override
+  String get autocomplete_cooccurrenceChecking => 'ローカルデータを確認中…';
+
+  @override
+  String autocomplete_cooccurrenceDownloading(
+    String downloaded,
+    String total,
+    String speed,
+  ) {
+    return 'ダウンロード中 $downloaded / $total · $speed。オンライン結果は利用できます。';
+  }
+
+  @override
+  String get autocomplete_cooccurrenceVerifying => 'ダウンロード完了。データパックを検証中…';
+
+  @override
+  String get autocomplete_cooccurrenceInstalling => 'データベースを安全にインストール・切り替え中…';
+
+  @override
+  String autocomplete_cooccurrenceReady(
+    String version,
+    int count,
+    String size,
+  ) {
+    return 'バージョン $version · $count 組 · ディスク使用量 $size';
+  }
+
+  @override
+  String autocomplete_cooccurrenceUpdateAvailable(String version) {
+    return 'データバージョン $version を利用できます';
+  }
+
+  @override
+  String autocomplete_cooccurrenceFailed(String reason) {
+    return 'ローカルデータを利用できません：$reason。基本補完とオンライン関連タグには影響しません。';
+  }
+
+  @override
+  String get autocomplete_cooccurrenceErrorNetwork =>
+      'ネットワーク接続に失敗しました。後でもう一度お試しください';
+
+  @override
+  String get autocomplete_cooccurrenceErrorDiskFull => 'ディスクの空き容量が不足しています';
+
+  @override
+  String get autocomplete_cooccurrenceErrorArchive => 'ダウンロードが不完全、または検証に失敗しました';
+
+  @override
+  String get autocomplete_cooccurrenceErrorDatabase =>
+      'データベースが破損しているか互換性がありません';
+
+  @override
+  String get autocomplete_cooccurrenceErrorManifest => '内蔵データマニフェストが無効です';
+
+  @override
+  String get autocomplete_cooccurrenceErrorInstall => 'データファイルを書き込み、または置換できません';
+
+  @override
+  String get autocomplete_cooccurrenceRemoveTitle => 'ローカル関連タグデータを削除しますか？';
+
+  @override
+  String get autocomplete_cooccurrenceRemoveConfirm =>
+      '削除するとディスク容量が解放されます。オンライン関連タグは引き続き利用できます。';
+
+  @override
+  String get autocomplete_cooccurrenceStopAutoDownload =>
+      '次回再インストールされないよう、自動ダウンロードもオフにする';
 
   @override
   String get autocomplete_cacheTitle => 'オンライン・AI キャッシュ';
@@ -11679,6 +11762,13 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get autocomplete_statusRelated => '共起';
+
+  @override
+  String get autocomplete_statusOnlineOnly => 'オンラインのみ';
+
+  @override
+  String get autocomplete_statusOnlineOnlyTooltip =>
+      'ローカル関連タグデータが未準備のため、Danbooru のオンライン結果のみ表示しています';
 
   @override
   String get autocomplete_statusDictionary => '翻訳';

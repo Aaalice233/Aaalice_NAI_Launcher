@@ -103,7 +103,7 @@ class GitHubApiService {
     final releases = response.data ?? const [];
     for (final release in releases) {
       if (release is! Map<String, dynamic>) continue;
-      if (release['draft'] == true) continue;
+      if (release['draft'] == true || !_isApplicationRelease(release)) continue;
       return release;
     }
     return null;
@@ -154,6 +154,9 @@ class GitHubApiService {
     String platform,
   ) async {
     final tagName = data['tag_name'] as String? ?? '';
+    if (!_isApplicationRelease(data)) {
+      throw GitHubApiException('Release tag is not an application version');
+    }
     final version = _extractVersion(tagName);
     final name = data['name'] as String? ?? '';
     final body = data['body'] as String? ?? '';
@@ -256,6 +259,14 @@ class GitHubApiService {
     ReleaseAssetType type,
   ) {
     return assets.where((asset) => asset.type == type).firstOrNull;
+  }
+
+  static bool _isApplicationRelease(Map<String, dynamic> release) {
+    final tag = release['tag_name'];
+    return tag is String &&
+        RegExp(
+          r'^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$',
+        ).hasMatch(tag);
   }
 
   /// 从 tag_name 提取版本号（移除 v 前缀）

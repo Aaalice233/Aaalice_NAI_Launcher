@@ -29,9 +29,9 @@ class Recommendation {
 /// 共现服务
 ///
 /// 提供标签共现关系分析和推荐功能的高级服务层。
-/// 基于预打包的 CooccurrenceDataSource，支持获取相关标签推荐。
+/// 基于可选下载数据包的 CooccurrenceDataSource，支持获取相关标签推荐。
 ///
-/// V2 简化版：移除所有 CSV 导入逻辑，直接使用预打包数据库。
+/// V2 简化版：移除所有 CSV 导入逻辑，直接使用已校验的紧凑数据库。
 class CooccurrenceService {
   final CooccurrenceDataSource _dataSource;
 
@@ -79,7 +79,12 @@ class CooccurrenceService {
 
       return _hasData;
     } catch (e, stack) {
-      AppLogger.e('Cooccurrence service initialization failed', e, stack, 'Cooccurrence');
+      AppLogger.e(
+        'Cooccurrence service initialization failed',
+        e,
+        stack,
+        'Cooccurrence',
+      );
       _isLoaded = true;
       _hasData = false;
       return false;
@@ -175,40 +180,6 @@ class CooccurrenceService {
     }
   }
 
-  /// 获取热门共现标签
-  ///
-  /// [limit] 返回结果数量限制
-  Future<List<Recommendation>> getPopularCooccurrences({int limit = 100}) async {
-    try {
-      final popularTags = await _dataSource.getPopularCooccurrences(limit: limit);
-
-      final recommendations = popularTags
-          .map(
-            (r) => Recommendation(
-              tag: r.tag,
-              count: r.count,
-              score: r.cooccurrenceScore,
-            ),
-          )
-          .toList();
-
-      AppLogger.d(
-        'Got ${recommendations.length} popular cooccurrences',
-        'CooccurrenceService',
-      );
-
-      return recommendations;
-    } catch (e, stack) {
-      AppLogger.e(
-        'Failed to get popular cooccurrences',
-        e,
-        stack,
-        'CooccurrenceService',
-      );
-      return [];
-    }
-  }
-
   /// 计算两个标签的共现分数
   ///
   /// 使用 Jaccard 相似度系数
@@ -271,8 +242,9 @@ class CooccurrenceService {
     }
 
     // 多个标签，批量获取并合并结果
-    final normalizedTags =
-        selectedTags.map((t) => t.toLowerCase().trim()).toList();
+    final normalizedTags = selectedTags
+        .map((t) => t.toLowerCase().trim())
+        .toList();
     final batchResults = await _dataSource.getRelatedTagsBatch(
       normalizedTags,
       limit: limit * 2, // 获取更多以便合并

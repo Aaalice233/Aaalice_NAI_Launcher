@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/autocomplete/autocomplete_providers.dart';
 import '../../../../core/autocomplete/autocomplete_settings.dart';
+import '../../../../core/autocomplete/cooccurrence_data_pack_provider.dart';
+import '../../../../core/autocomplete/cooccurrence_data_pack_service.dart';
 import '../../../../core/autocomplete/completion_models.dart';
 import '../../../../core/autocomplete/zh_dictionary_service.dart';
-import '../../../../core/database/database_providers.dart';
+import '../../../../core/utils/byte_format.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../prompt_assistant/services/prompt_assistant_service.dart';
 import '../../../providers/generation/generation_settings_notifiers.dart'
@@ -113,8 +115,33 @@ class DataSourceCacheSettings extends ConsumerWidget {
                   title: Text(context.l10n.autocomplete_relatedTagsTitle),
                   subtitle: Text(context.l10n.autocomplete_relatedTagsSubtitle),
                   value: settings.relatedTagsEnabled,
-                  onChanged: notifier.setRelatedTagsEnabled,
+                  onChanged: (value) async {
+                    await notifier.setRelatedTagsEnabled(value);
+                    if (value && settings.autoDownloadRelatedData) {
+                      await ref
+                          .read(cooccurrenceDataPackServiceProvider.notifier)
+                          .install();
+                    }
+                  },
                 ),
+                SwitchListTile.adaptive(
+                  title: Text(
+                    context.l10n.autocomplete_cooccurrenceAutoDownload,
+                  ),
+                  subtitle: Text(
+                    context.l10n.autocomplete_cooccurrenceAutoDownloadSubtitle,
+                  ),
+                  value: settings.autoDownloadRelatedData,
+                  onChanged: (value) async {
+                    await notifier.setAutoDownloadRelatedData(value);
+                    if (value && settings.relatedTagsEnabled) {
+                      await ref
+                          .read(cooccurrenceDataPackServiceProvider.notifier)
+                          .install();
+                    }
+                  },
+                ),
+                const _CooccurrenceDataPackStatus(),
                 SwitchListTile.adaptive(
                   title: Text(context.l10n.autocomplete_danbooruApi),
                   subtitle: Text(context.l10n.autocomplete_danbooruPrivacy),
@@ -139,16 +166,6 @@ class DataSourceCacheSettings extends ConsumerWidget {
                     }
                     notifier.setLlmTranslationEnabled(value);
                   },
-                ),
-                FutureBuilder<int>(
-                  future: _loadCooccurrenceCount(ref),
-                  builder: (context, snapshot) => ListTile(
-                    leading: const Icon(Icons.hub_outlined),
-                    title: Text(context.l10n.autocomplete_cooccurrence),
-                    subtitle: Text(
-                      context.l10n.autocomplete_entryCount(snapshot.data ?? 0),
-                    ),
-                  ),
                 ),
                 const Divider(),
                 ListTile(
@@ -200,12 +217,202 @@ class DataSourceCacheSettings extends ConsumerWidget {
   }
 }
 
-Future<int> _loadCooccurrenceCount(WidgetRef ref) async {
-  try {
-    final manager = await ref.read(databaseManagerProvider.future);
-    return manager.cooccurrenceDataSource.getCount();
-  } catch (_) {
-    return 0;
+class _CooccurrenceDataPackStatus extends ConsumerWidget {
+  const _CooccurrenceDataPackStatus();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(cooccurrenceDataPackServiceProvider);
+    final service = ref.read(cooccurrenceDataPackServiceProvider.notifier);
+    final busy = switch (state.status) {
+      CooccurrenceDataPackStatus.downloading ||
+      CooccurrenceDataPackStatus.verifying ||
+      CooccurrenceDataPackStatus.installing ||
+      CooccurrenceDataPackStatus.checking => true,
+      _ => false,
+    };
+    final subtitle = _subtitle(context, state);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ListTile(
+          leading: busy
+              ? const SizedBox.square(
+                  dimension: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Icon(
+                  state.hasInstalledData
+                      ? Icons.hub_outlined
+                      : Icons.download_for_offline_outlined,
+                ),
+          title: Text(context.l10n.autocomplete_cooccurrence),
+          subtitle: Text(subtitle),
+        ),
+        if (state.status == CooccurrenceDataPackStatus.downloading)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(72, 0, 24, 8),
+            child: LinearProgressIndicator(value: state.progress),
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(72, 0, 16, 8),
+          child: Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (state.status == CooccurrenceDataPackStatus.downloading)
+                OutlinedButton.icon(
+                  onPressed: service.cancelDownload,
+                  icon: const Icon(Icons.pause, size: 18),
+                  label: Text(context.l10n.common_cancel),
+                )
+              else if (!busy && !state.hasInstalledData)
+                FilledButton.tonalIcon(
+                  onPressed: service.install,
+                  icon: Icon(
+                    state.status == CooccurrenceDataPackStatus.error
+                        ? Icons.refresh
+                        : Icons.download,
+                    size: 18,
+                  ),
+                  label: Text(
+                    state.status == CooccurrenceDataPackStatus.error
+                        ? context.l10n.common_retry
+                        : context.l10n.autocomplete_downloadNow,
+                  ),
+                )
+              else if (!busy && state.hasInstalledData) ...[
+                OutlinedButton.icon(
+                  onPressed: service.checkForUpdate,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: Text(context.l10n.autocomplete_checkUpdate),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed:
+                      state.status == CooccurrenceDataPackStatus.updateAvailable
+                      ? service.install
+                      : service.repair,
+                  icon: const Icon(Icons.build_outlined, size: 18),
+                  label: Text(
+                    state.status == CooccurrenceDataPackStatus.updateAvailable
+                        ? context.l10n.autocomplete_update
+                        : context.l10n.autocomplete_repair,
+                  ),
+                ),
+                IconButton(
+                  tooltip: context.l10n.autocomplete_remove,
+                  onPressed: () => _confirmDelete(context, ref, service),
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _subtitle(BuildContext context, CooccurrenceDataPackState state) {
+    return switch (state.status) {
+      CooccurrenceDataPackStatus.unavailable =>
+        context.l10n.autocomplete_cooccurrenceUnavailable(
+          formatBytes(state.totalBytes),
+        ),
+      CooccurrenceDataPackStatus.checking =>
+        context.l10n.autocomplete_cooccurrenceChecking,
+      CooccurrenceDataPackStatus.downloading =>
+        context.l10n.autocomplete_cooccurrenceDownloading(
+          formatBytes(state.downloadedBytes),
+          formatBytes(state.totalBytes),
+          formatBytesPerSecond(state.bytesPerSecond),
+        ),
+      CooccurrenceDataPackStatus.verifying =>
+        context.l10n.autocomplete_cooccurrenceVerifying,
+      CooccurrenceDataPackStatus.installing =>
+        context.l10n.autocomplete_cooccurrenceInstalling,
+      CooccurrenceDataPackStatus.updateAvailable =>
+        context.l10n.autocomplete_cooccurrenceUpdateAvailable(
+          state.availableVersion ?? '-',
+        ),
+      CooccurrenceDataPackStatus.ready =>
+        context.l10n.autocomplete_cooccurrenceReady(
+          state.installedVersion ?? '-',
+          state.relationCount,
+          formatBytes(state.diskBytes),
+        ),
+      CooccurrenceDataPackStatus.error =>
+        context.l10n.autocomplete_cooccurrenceFailed(
+          _errorLabel(context, state.error),
+        ),
+    };
+  }
+
+  String _errorLabel(BuildContext context, CooccurrenceDataPackError? error) {
+    return switch (error) {
+      CooccurrenceDataPackError.diskFull =>
+        context.l10n.autocomplete_cooccurrenceErrorDiskFull,
+      CooccurrenceDataPackError.archiveIntegrity =>
+        context.l10n.autocomplete_cooccurrenceErrorArchive,
+      CooccurrenceDataPackError.databaseIntegrity =>
+        context.l10n.autocomplete_cooccurrenceErrorDatabase,
+      CooccurrenceDataPackError.manifest =>
+        context.l10n.autocomplete_cooccurrenceErrorManifest,
+      CooccurrenceDataPackError.install =>
+        context.l10n.autocomplete_cooccurrenceErrorInstall,
+      _ => context.l10n.autocomplete_cooccurrenceErrorNetwork,
+    };
+  }
+
+  Future<void> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+    CooccurrenceDataPackService service,
+  ) async {
+    var stopAutomaticDownloads = false;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(context.l10n.autocomplete_cooccurrenceRemoveTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(context.l10n.autocomplete_cooccurrenceRemoveConfirm),
+              const SizedBox(height: 12),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: stopAutomaticDownloads,
+                onChanged: (value) =>
+                    setState(() => stopAutomaticDownloads = value ?? false),
+                title: Text(
+                  context.l10n.autocomplete_cooccurrenceStopAutoDownload,
+                ),
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(context.l10n.common_cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(context.l10n.autocomplete_remove),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true) return;
+    if (stopAutomaticDownloads) {
+      await ref
+          .read(autocompleteSettingsProvider.notifier)
+          .setAutoDownloadRelatedData(false);
+    }
+    await service.deleteData();
   }
 }
 

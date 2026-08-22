@@ -32,13 +32,17 @@ implementation code from that project is included in this application.
 
 ## Danbooru Co-occurrence Data
 
-The bundled `assets/databases/cooccurrence.db` is generated only from
-`danbooru_tags_cooccurrence.csv` in the
+The optional local related-tag data pack published by this project is generated
+only from `danbooru_tags_cooccurrence.csv` in the
 [newtextdoc1111/danbooru-tag-csv](https://huggingface.co/datasets/newtextdoc1111/danbooru-tag-csv)
-dataset. The upstream README declares the dataset under the MIT License. The
-pinned revision, source URL, SHA256, output hash, and record count are recorded
-in `tool/database/cooccurrence_source_lock.json`. The dataset's separate base
-tag CSV is not used by this application.
+dataset. It is not bundled in the application package. The app downloads the
+project-built immutable prerelease asset in the background when the feature is
+enabled, and users can disable automatic downloads or remove the installed
+copy. The upstream README declares the dataset under the MIT License. The
+pinned revision (`2dadc5bfcbcc7f255e68e9003ed543fb1b97904f`), source URL,
+source SHA256, deterministic database/archive hashes, and complete record count
+are recorded in `tool/database/cooccurrence_source_lock.json`. The dataset's
+separate base tag CSV is not used by this application.
 
 ## Optional ffdkj Chinese Dictionary
 

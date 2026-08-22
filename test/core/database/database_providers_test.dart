@@ -47,8 +47,8 @@ void main() {
       'assets/databases/tag_catalog.db': await File(
         'assets/databases/tag_catalog.db',
       ).readAsBytes(),
-      'assets/databases/cooccurrence.db': await File(
-        'assets/databases/cooccurrence.db',
+      'assets/data/cooccurrence_data_pack_manifest.json': await File(
+        'assets/data/cooccurrence_data_pack_manifest.json',
       ).readAsBytes(),
     };
 
@@ -72,13 +72,11 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMessageHandler('flutter/assets', null);
     await _disposeDatabaseManagerIfNeeded();
-    if (await tempDir.exists()) {
-      await tempDir.delete(recursive: true);
-    }
+    await _deleteDirectoryWhenReleased(tempDir);
   });
 
   test(
-    'asset data source providers reuse DatabaseManager owned sources',
+    'optional co-occurrence provider is independent from DatabaseManager',
     () async {
       final container = ProviderContainer();
       try {
@@ -87,7 +85,12 @@ void main() {
           cooccurrenceDataSourceProvider.future,
         );
 
-        expect(identical(cooccurrence, manager.cooccurrenceDataSource), isTrue);
+        expect(manager.isInitialized, isTrue);
+        expect(await cooccurrence.getRelatedTags('1girl'), isEmpty);
+        expect(
+          (await cooccurrence.checkHealth()).status,
+          HealthStatus.degraded,
+        );
       } finally {
         container.dispose();
         await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -103,12 +106,12 @@ void main() {
       final cooccurrence = await container.read(
         cooccurrenceDataSourceProvider.future,
       );
-      expect((await cooccurrence.checkHealth()).status, HealthStatus.healthy);
+      expect((await cooccurrence.checkHealth()).status, HealthStatus.degraded);
 
       container.dispose();
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
-      expect((await cooccurrence.checkHealth()).status, HealthStatus.healthy);
+      expect((await cooccurrence.checkHealth()).status, HealthStatus.degraded);
     },
   );
 
@@ -156,6 +159,19 @@ Future<void> _disposeDatabaseManagerIfNeeded() async {
   try {
     await DatabaseManager.instance.dispose();
   } catch (_) {}
+}
+
+Future<void> _deleteDirectoryWhenReleased(Directory directory) async {
+  for (var attempt = 0; attempt < 20; attempt++) {
+    if (!await directory.exists()) return;
+    try {
+      await directory.delete(recursive: true);
+      return;
+    } on FileSystemException {
+      if (attempt == 19) rethrow;
+      await Future<void>.delayed(const Duration(milliseconds: 25));
+    }
+  }
 }
 
 class _TestPathProviderPlatform extends PathProviderPlatform {

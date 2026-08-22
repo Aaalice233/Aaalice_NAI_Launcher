@@ -32,9 +32,7 @@ void main() {
     );
 
     final catalog = await _createCatalogFixture(tempDir.path);
-    final cooccurrence = await _createCooccurrenceFixture(tempDir.path);
     final catalogBytes = await catalog.readAsBytes();
-    final cooccurrenceBytes = await cooccurrence.readAsBytes();
     manifest = {
       'databases': {
         AssetDatabaseManager.tagCatalogDb: {
@@ -43,12 +41,6 @@ void main() {
           'sha256': sha256.convert(catalogBytes).toString(),
           'size': catalogBytes.length,
         },
-        AssetDatabaseManager.cooccurrenceDb: {
-          'schemaVersion': 1,
-          'dataVersion': 'test-data',
-          'sha256': sha256.convert(cooccurrenceBytes).toString(),
-          'size': cooccurrenceBytes.length,
-        },
       },
     };
     assets = {
@@ -56,8 +48,6 @@ void main() {
         utf8.encode(jsonEncode(manifest)),
       ),
       'assets/databases/${AssetDatabaseManager.tagCatalogDb}': catalogBytes,
-      'assets/databases/${AssetDatabaseManager.cooccurrenceDb}':
-          cooccurrenceBytes,
     };
     assetLoadCounts = <String, int>{};
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -86,16 +76,12 @@ void main() {
       p.join(appSupportDir.path, 'asset_databases'),
     ).create(recursive: true);
     final databases = manifest['databases'] as Map<String, dynamic>;
-    for (final name in [
-      AssetDatabaseManager.tagCatalogDb,
-      AssetDatabaseManager.cooccurrenceDb,
-    ]) {
-      final target = File(p.join(dbDir.path, name));
-      await target.writeAsBytes(assets['assets/databases/$name']!);
-      await File(
-        '${target.path}.install.json',
-      ).writeAsString(jsonEncode({'sha256': databases[name]['sha256']}));
-    }
+    const name = AssetDatabaseManager.tagCatalogDb;
+    final target = File(p.join(dbDir.path, name));
+    await target.writeAsBytes(assets['assets/databases/$name']!);
+    await File(
+      '${target.path}.install.json',
+    ).writeAsString(jsonEncode({'sha256': databases[name]['sha256']}));
 
     await AssetDatabaseManager.initialize();
 
@@ -104,26 +90,104 @@ void main() {
       assetLoadCounts['assets/databases/${AssetDatabaseManager.tagCatalogDb}'],
       isNull,
     );
-    expect(
-      assetLoadCounts['assets/databases/${AssetDatabaseManager.cooccurrenceDb}'],
-      isNull,
-    );
   });
 
   test('installs missing assets atomically with manifest state', () async {
     await AssetDatabaseManager.initialize();
 
     final dbDir = Directory(p.join(appSupportDir.path, 'asset_databases'));
-    for (final name in [
-      AssetDatabaseManager.tagCatalogDb,
-      AssetDatabaseManager.cooccurrenceDb,
-    ]) {
-      final target = File(p.join(dbDir.path, name));
-      expect(await target.exists(), isTrue);
-      expect(await File('${target.path}.install.json').exists(), isTrue);
-      expect(assetLoadCounts['assets/databases/$name'], 1);
-    }
+    const name = AssetDatabaseManager.tagCatalogDb;
+    final target = File(p.join(dbDir.path, name));
+    expect(await target.exists(), isTrue);
+    expect(await File('${target.path}.install.json').exists(), isTrue);
+    expect(assetLoadCounts['assets/databases/$name'], 1);
     expect(await File(p.join(dbDir.path, 'translation.db')).exists(), isFalse);
+  });
+
+  test(
+    'removes only a legacy co-occurrence install with a known hash',
+    () async {
+      final dbDir = await Directory(
+        p.join(appSupportDir.path, 'asset_databases'),
+      ).create(recursive: true);
+      final legacy = File(p.join(dbDir.path, 'cooccurrence.db'));
+      await legacy.writeAsString('legacy payload');
+      await File('${legacy.path}.install.json').writeAsString(
+        jsonEncode({
+          'sha256':
+              'd23335978b12f0cbbdb526e745e17985943f93fb53caafe7242f4948aa69bae9',
+        }),
+      );
+      for (final suffix in ['.installing', '.backup', '.version']) {
+        await File('${legacy.path}$suffix').writeAsString('legacy temporary');
+      }
+      final unrelatedFiles = [
+        await File(
+          p.join(dbDir.path, AssetDatabaseManager.tagCatalogDb),
+        ).writeAsString('catalog placeholder'),
+        await File(p.join(dbDir.path, 'tag.sqlite')).writeAsString('ffdkj'),
+        await File(
+          p.join(
+            appSupportDir.path,
+            'autocomplete',
+            'cooccurrence',
+            'cooccurrence-v2.db',
+          ),
+        ).create(recursive: true),
+      ];
+
+      await AssetDatabaseManager.initialize();
+
+      expect(await legacy.exists(), isFalse);
+      for (final suffix in [
+        '.install.json',
+        '.installing',
+        '.backup',
+        '.version',
+      ]) {
+        expect(await File('${legacy.path}$suffix').exists(), isFalse);
+      }
+      for (final file in unrelatedFiles) {
+        expect(await file.exists(), isTrue);
+      }
+      expect(
+        await File(
+          p.join(dbDir.path, '.cooccurrence-external-v2-migrated'),
+        ).exists(),
+        isTrue,
+      );
+    },
+  );
+
+  test('preserves an unknown legacy co-occurrence file permanently', () async {
+    final dbDir = await Directory(
+      p.join(appSupportDir.path, 'asset_databases'),
+    ).create(recursive: true);
+    final unknown = File(p.join(dbDir.path, 'cooccurrence.db'));
+    final metadata = File('${unknown.path}.install.json');
+    await unknown.writeAsString('user-owned unknown data');
+    await metadata.writeAsString(jsonEncode({'sha256': 'unknown'}));
+
+    await AssetDatabaseManager.initialize();
+
+    expect(await unknown.exists(), isTrue);
+    expect(await metadata.exists(), isTrue);
+    final marker = File(
+      p.join(dbDir.path, '.cooccurrence-external-v2-migrated'),
+    );
+    expect(await marker.exists(), isTrue);
+
+    await metadata.writeAsString(
+      jsonEncode({
+        'sha256':
+            'd23335978b12f0cbbdb526e745e17985943f93fb53caafe7242f4948aa69bae9',
+      }),
+    );
+    AssetDatabaseManager.resetForTesting();
+    await AssetDatabaseManager.initialize();
+
+    expect(await unknown.exists(), isTrue);
+    expect(await metadata.exists(), isTrue);
   });
 
   test('legacy autocomplete migration preserves local gallery data', () async {
@@ -191,14 +255,6 @@ Future<File> _createCatalogFixture(String directory) async {
     CREATE TABLE aliases(id INTEGER PRIMARY KEY, tag_id INTEGER, alias TEXT);
     CREATE VIRTUAL TABLE tag_search USING fts5(term, search_key, tag_id UNINDEXED, kind UNINDEXED);
   ''');
-  db.dispose();
-  return file;
-}
-
-Future<File> _createCooccurrenceFixture(String directory) async {
-  final file = File(p.join(directory, 'cooccurrence-fixture.db'));
-  final db = sqlite3.open(file.path);
-  db.execute('CREATE TABLE cooccurrences(tag1 TEXT, tag2 TEXT, count INTEGER)');
   db.dispose();
   return file;
 }

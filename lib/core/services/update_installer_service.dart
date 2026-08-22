@@ -13,6 +13,7 @@ import '../../data/models/version/version_info.dart';
 import '../utils/app_logger.dart';
 import 'app_installation_service.dart';
 import 'desktop_app_shutdown_service.dart';
+import 'verified_resumable_downloader.dart';
 import 'windows_update_script.dart';
 
 part 'update_installer_service.g.dart';
@@ -107,16 +108,13 @@ class UpdateExecutionResult {
 /// 长度与 SHA256 校验。安装由独立脚本在应用优雅退出后执行，并留下
 /// 可在下次启动读取的结果与日志。
 class UpdateInstallerService {
-  final Dio _dio;
+  final VerifiedResumableDownloader _downloader;
   final AppInstallationService _installationService;
   final AppShutdownHandler _shutdownHandler;
   final UpdateSha256Calculator _sha256Calculator;
   final UpdateProcessStarter _processStarter;
   final Directory? _updateDirectoryOverride;
 
-  static const Duration _speedSampleWindow = Duration(milliseconds: 500);
-  static const Duration _connectTimeout = Duration(seconds: 15);
-  static const Duration _receiveTimeout = Duration(seconds: 60);
   static const Duration _staleFileAge = Duration(days: 14);
   static const String _updateDirectoryName = 'nai_launcher_updates';
   static const String _pendingMetadataName = 'pending_update.json';
@@ -130,7 +128,10 @@ class UpdateInstallerService {
     UpdateSha256Calculator? sha256Calculator,
     UpdateProcessStarter processStarter = startUpdateProcess,
     Directory? updateDirectory,
-  }) : _dio = dio,
+  }) : _downloader = VerifiedResumableDownloader(
+         dio: dio,
+         sha256Calculator: sha256Calculator,
+       ),
        _installationService = installationService,
        _shutdownHandler = shutdownHandler,
        _sha256Calculator = sha256Calculator ?? calculateSha256,
@@ -159,226 +160,67 @@ class UpdateInstallerService {
     if (expectedSha256 == null || expectedSha256.isEmpty) {
       throw const UpdateInstallException('更新包缺少 SHA256 校验信息');
     }
+    final expectedSize = asset.size;
+    if (expectedSize == null || expectedSize <= 0) {
+      throw const UpdateInstallException('更新包缺少大小校验信息');
+    }
 
     final updateDir = await _ensureUpdateDir();
     await _cleanupStaleFiles(updateDir);
     _throwIfCancelled(cancelToken);
     final targetFile = File(p.join(updateDir.path, asset.fileName));
 
-    if (await targetFile.exists()) {
-      final isValid = await _isPackageValid(targetFile, asset);
-      _throwIfCancelled(cancelToken);
-      if (isValid) {
-        final length = await targetFile.length();
-        _throwIfCancelled(cancelToken);
-        onProgress?.call(
-          UpdateDownloadProgress(
-            receivedBytes: length,
-            totalBytes: asset.size ?? length,
-            progress: 1,
-            bytesPerSecond: 0,
-          ),
-        );
-        final downloaded = DownloadedUpdate(
-          file: targetFile,
-          asset: asset,
-          version: versionInfo.version,
-        );
-        await _writePendingMetadata(downloaded, versionInfo);
-        AppLogger.i(
-          'Reusing verified update package: ${targetFile.path}',
-          'UpdateInstaller',
-        );
-        return downloaded;
-      }
-      await targetFile.delete();
-    }
-
-    final partFile = File('${targetFile.path}.part');
+    VerifiedDownloadResult result;
     try {
-      await _downloadToPartFile(
-        asset,
-        partFile,
-        onProgress: onProgress,
+      result = await _downloader.download(
+        uri: Uri.parse(asset.downloadUrl),
+        targetFile: targetFile,
+        expectedSize: expectedSize,
+        expectedSha256: expectedSha256,
         cancelToken: cancelToken,
+        onProgress: (progress) => onProgress?.call(
+          UpdateDownloadProgress(
+            receivedBytes: progress.receivedBytes,
+            totalBytes: progress.totalBytes,
+            progress: progress.progress,
+            bytesPerSecond: progress.bytesPerSecond,
+          ),
+        ),
       );
-    } on UpdateDownloadCancelledException {
-      rethrow;
-    } on FileSystemException catch (error) {
-      if (_isDiskFull(error)) {
-        throw UpdateInstallException('磁盘空间不足，无法保存更新包', originalError: error);
-      }
-      throw UpdateInstallException('写入更新包失败', originalError: error);
-    } on DioException catch (error) {
-      if (CancelToken.isCancel(error)) {
-        throw const UpdateDownloadCancelledException();
-      }
-      throw UpdateInstallException('下载更新包失败', originalError: error);
-    } on UpdateInstallException {
-      rethrow;
-    } catch (error) {
-      throw UpdateInstallException('下载更新包失败', originalError: error);
+    } on VerifiedDownloadCancelledException {
+      throw const UpdateDownloadCancelledException();
+    } on VerifiedDownloadException catch (error) {
+      throw _mapDownloadError(error);
     }
-
-    _throwIfCancelled(cancelToken);
-
-    final fileLength = await partFile.length();
-    _throwIfCancelled(cancelToken);
-    if (asset.size != null && fileLength != asset.size) {
-      await _deleteQuietly(partFile);
-      throw UpdateInstallException(
-        '更新包大小校验失败',
-        originalError: 'expected=${asset.size} actual=$fileLength',
-      );
-    }
-
-    final actualSha256 = await _sha256Calculator(partFile);
-    _throwIfCancelled(cancelToken);
-    if (!equalsSha256(actualSha256, expectedSha256)) {
-      await _deleteQuietly(partFile);
-      throw UpdateInstallException(
-        '更新包校验失败',
-        originalError: 'expected=$expectedSha256 actual=$actualSha256',
-      );
-    }
-
-    await partFile.rename(targetFile.path);
-    onProgress?.call(
-      UpdateDownloadProgress(
-        receivedBytes: fileLength,
-        totalBytes: asset.size ?? fileLength,
-        progress: 1,
-        bytesPerSecond: 0,
-      ),
-    );
 
     final downloaded = DownloadedUpdate(
-      file: targetFile,
+      file: result.file,
       asset: asset,
       version: versionInfo.version,
     );
     await _writePendingMetadata(downloaded, versionInfo);
+    if (result.reusedExistingFile) {
+      AppLogger.i(
+        'Reusing verified update package: ${targetFile.path}',
+        'UpdateInstaller',
+      );
+    }
     return downloaded;
   }
 
-  Future<void> _downloadToPartFile(
-    ReleaseAssetInfo asset,
-    File partFile, {
-    void Function(UpdateDownloadProgress progress)? onProgress,
-    CancelToken? cancelToken,
-  }) async {
-    var existingBytes = await partFile.exists() ? await partFile.length() : 0;
-    var retriedWithoutRange = false;
-
-    while (true) {
-      if (cancelToken?.isCancelled ?? false) {
-        throw const UpdateDownloadCancelledException();
-      }
-
-      final response = await _dio.get<ResponseBody>(
-        asset.downloadUrl,
-        cancelToken: cancelToken,
-        options: Options(
-          responseType: ResponseType.stream,
-          connectTimeout: _connectTimeout,
-          receiveTimeout: _receiveTimeout,
-          headers: {
-            'Accept-Encoding': 'identity',
-            if (existingBytes > 0) 'Range': 'bytes=$existingBytes-',
-          },
-          validateStatus: (status) =>
-              status == HttpStatus.ok ||
-              status == HttpStatus.partialContent ||
-              status == HttpStatus.requestedRangeNotSatisfiable,
-        ),
-      );
-
-      final statusCode = response.statusCode;
-      if (statusCode == HttpStatus.requestedRangeNotSatisfiable) {
-        if (asset.size != null && existingBytes == asset.size) {
-          return;
-        }
-        if (retriedWithoutRange) {
-          throw const UpdateInstallException('服务器拒绝了更新包续传请求');
-        }
-        await _deleteQuietly(partFile);
-        existingBytes = 0;
-        retriedWithoutRange = true;
-        continue;
-      }
-
-      final isResumed =
-          statusCode == HttpStatus.partialContent && existingBytes > 0;
-      if (!isResumed && existingBytes > 0) {
-        await _deleteQuietly(partFile);
-        existingBytes = 0;
-      }
-
-      final responseBody = response.data;
-      if (responseBody == null) {
-        throw const UpdateInstallException('更新服务器返回了空响应');
-      }
-
-      final contentLength = _parseHeaderInt(
-        response.headers.value(Headers.contentLengthHeader),
-      );
-      final contentRangeTotal = _parseContentRangeTotal(
-        response.headers.value('content-range'),
-      );
-      final totalBytes =
-          contentRangeTotal ??
-          (contentLength == null
-              ? (asset.size ?? 0)
-              : existingBytes + contentLength);
-
-      var receivedBytes = existingBytes;
-      var lastSampleBytes = receivedBytes;
-      var lastSampleTime = DateTime.now();
-      var smoothedSpeed = 0;
-      final sink = partFile.openWrite(
-        mode: isResumed ? FileMode.append : FileMode.write,
-      );
-
-      try {
-        await for (final chunk in responseBody.stream) {
-          if (cancelToken?.isCancelled ?? false) {
-            throw const UpdateDownloadCancelledException();
-          }
-          sink.add(chunk);
-          receivedBytes += chunk.length;
-
-          final now = DateTime.now();
-          final elapsed = now.difference(lastSampleTime);
-          if (elapsed >= _speedSampleWindow) {
-            final instantSpeed =
-                ((receivedBytes - lastSampleBytes) *
-                        1000 /
-                        elapsed.inMilliseconds)
-                    .round();
-            smoothedSpeed = smoothedSpeed == 0
-                ? instantSpeed
-                : (smoothedSpeed * 0.7 + instantSpeed * 0.3).round();
-            lastSampleTime = now;
-            lastSampleBytes = receivedBytes;
-          }
-
-          onProgress?.call(
-            UpdateDownloadProgress(
-              receivedBytes: receivedBytes,
-              totalBytes: totalBytes,
-              progress: totalBytes > 0
-                  ? (receivedBytes / totalBytes).clamp(0.0, 0.99)
-                  : 0,
-              bytesPerSecond: smoothedSpeed,
-            ),
-          );
-        }
-        await sink.flush();
-      } finally {
-        await sink.close();
-      }
-      return;
-    }
+  static UpdateInstallException _mapDownloadError(
+    VerifiedDownloadException error,
+  ) {
+    final message = switch (error.failure) {
+      VerifiedDownloadFailure.diskFull => '磁盘空间不足，无法保存更新包',
+      VerifiedDownloadFailure.fileSystem => '写入更新包失败',
+      VerifiedDownloadFailure.sizeMismatch => '更新包大小校验失败',
+      VerifiedDownloadFailure.checksumMismatch => '更新包校验失败',
+      VerifiedDownloadFailure.rangeRejected => '服务器拒绝了更新包续传请求',
+      VerifiedDownloadFailure.emptyResponse => '更新服务器返回了空响应',
+      _ => '下载更新包失败',
+    };
+    return UpdateInstallException(message, originalError: error);
   }
 
   /// 恢复上次已经校验完成、但尚未安装的更新包。
@@ -645,21 +487,6 @@ class UpdateInstallerService {
     } catch (_) {
       // 清理失败不能覆盖原始下载或解析错误。
     }
-  }
-
-  static int? _parseHeaderInt(String? value) {
-    return value == null ? null : int.tryParse(value);
-  }
-
-  static int? _parseContentRangeTotal(String? value) {
-    if (value == null) return null;
-    final match = RegExp(r'/([0-9]+)$').firstMatch(value.trim());
-    return match == null ? null : int.tryParse(match.group(1)!);
-  }
-
-  static bool _isDiskFull(FileSystemException error) {
-    final code = error.osError?.errorCode;
-    return code == 112 || code == 28 || code == 39;
   }
 
   static void _throwIfCancelled(CancelToken? cancelToken) {

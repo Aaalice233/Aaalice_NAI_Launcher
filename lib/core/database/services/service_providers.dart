@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../autocomplete/cooccurrence_data_pack_provider.dart';
 import '../../utils/app_logger.dart';
 import '../database_providers.dart';
 import '../datasources/cooccurrence_data_source.dart';
@@ -39,9 +40,12 @@ Future<TranslationDataSource> translationDataSource(Ref ref) async {
 /// Cooccurrence DataSource Provider
 @Riverpod(keepAlive: true)
 Future<CooccurrenceDataSource> cooccurrenceDataSource(Ref ref) async {
-  // 等待数据库管理器就绪
-  final manager = await ref.watch(databaseManagerProvider.future);
-  return manager.cooccurrenceDataSource;
+  final dataPack = ref.watch(cooccurrenceDataPackServiceProvider.notifier);
+  await dataPack.initialize();
+  final dataSource = CooccurrenceDataSource(dataPackService: dataPack);
+  await dataSource.initialize();
+  ref.onDispose(dataSource.dispose);
+  return dataSource;
 }
 
 /// 翻译服务 Provider

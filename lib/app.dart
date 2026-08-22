@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'core/autocomplete/cooccurrence_data_pack_provider.dart';
 import 'core/shortcuts/default_shortcuts.dart';
 import 'presentation/router/app_router.dart';
 import 'presentation/providers/theme_provider.dart';
@@ -26,6 +27,7 @@ class AppBootstrapEffects extends ConsumerStatefulWidget {
   final ProviderListenable<dynamic>? anlasWatcher;
   final ProviderListenable<dynamic>? backgroundRefresh;
   final ProviderListenable<dynamic>? kritaBridge;
+  final ProviderListenable<dynamic>? cooccurrenceDataPack;
 
   const AppBootstrapEffects({
     super.key,
@@ -33,6 +35,7 @@ class AppBootstrapEffects extends ConsumerStatefulWidget {
     this.anlasWatcher,
     this.backgroundRefresh,
     this.kritaBridge,
+    this.cooccurrenceDataPack,
   });
 
   @override
@@ -44,6 +47,7 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects> {
   ProviderSubscription<dynamic>? _anlasWatcherSubscription;
   ProviderSubscription<dynamic>? _backgroundRefreshSubscription;
   ProviderSubscription<dynamic>? _kritaBridgeSubscription;
+  ProviderSubscription<dynamic>? _cooccurrenceDataPackSubscription;
 
   @override
   void initState() {
@@ -62,6 +66,10 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects> {
         widget.kritaBridge ?? kritaBridgeNotifierProvider,
         (_, __) {},
       );
+      _cooccurrenceDataPackSubscription = ref.listenManual(
+        widget.cooccurrenceDataPack ?? cooccurrenceDataPackStartupProvider,
+        (_, __) {},
+      );
     });
   }
 
@@ -70,6 +78,7 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects> {
     _anlasWatcherSubscription?.close();
     _backgroundRefreshSubscription?.close();
     _kritaBridgeSubscription?.close();
+    _cooccurrenceDataPackSubscription?.close();
     super.dispose();
   }
 

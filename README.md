@@ -30,7 +30,7 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 | 🎨 图像生成 | 支持 NovelAI Diffusion V1/V2/V3/V4/V4.5/V5、Furry 系列、常用采样器、尺寸预设、多角色参数和 Anlas 估算。 |
 | 🖼️ 图生图与编辑 | 支持图生图、局部重绘、Focused Inpaint、Outpaint、虚拟画布扩图、硬边蒙版和点击式区域填充。 |
 | 🌈 参考与风格 | 支持 Vibe Transfer、Precise Reference、多图参考、Vibe 整包导入导出、PNG 元数据嵌入导出。 |
-| ✍️ Prompt 工具 | 内置完整离线 Danbooru/e621 合并标签、别名及 Danbooru 共现关系补全，支持 `Ctrl/⌘+Shift+Space` 查询光标前标签的相关词、固定来源标签后连续选词、Danbooru 在线相关标签补充、可选中文词库与 AI 缺失汉化，以及 NAI/SD 权重语法辅助、Token 统计、提示词框内搜索和固定词。 |
+| ✍️ Prompt 工具 | 内置完整离线 Danbooru/e621 合并标签与别名；本地 Danbooru 共现关系以可选数据包提供，默认进入主页后后台下载。支持 `Ctrl/⌘+Shift+Space` 查询光标前标签的相关词、固定来源标签后连续选词、Danbooru 在线相关标签补充、可选中文词库与 AI 缺失汉化，以及 NAI/SD 权重语法辅助、Token 统计、提示词框内搜索和固定词。 |
 | 📚 本地图库 | 支持递归扫描、SQLite 全文搜索、分类/收藏/集合、元数据解析、批量操作和大图预览。 |
 | 🌐 在线图库 | 支持 Danbooru / Safebooru / Gelbooru / AI TAG 搜索、真实排行榜、多图详情、元数据复用和批量下载。 |
 | 📦 生成队列 | 支持任务排序、批量生成、暂停/继续、失败策略、进度统计和队列导入导出。 |
@@ -97,7 +97,9 @@ NAI Launcher 是一个使用 Flutter 构建的 NovelAI 第三方客户端。它�
 
 ### 补全数据与隐私
 
-- 基础 Danbooru 标签与别名 catalog 随应用提供，只在本机查询，不需要联网。
+- 完整的基础 Danbooru/e621 标签与别名 catalog 随应用提供，只在本机查询，不需要联网。
+- 本地相关标签共现数据由项目从固定版本的 [newtextdoc1111/danbooru-tag-csv](https://huggingface.co/datasets/newtextdoc1111/danbooru-tag-csv) 构建，并作为独立的可选数据包发布。相关标签功能开启时，应用默认在进入主页后后台下载约 30.3 MiB，安装后约占用 78.7 MiB；下载不会阻塞启动或基础补全。
+- 数据包未就绪、下载失败或被关闭时，相关标签弹层仍可显示 Danbooru 在线结果。可在“设置 → 数据源与缓存”暂停、重试、修复或删除数据包，也可以关闭自动下载；删除时可同时选择停止以后自动下载。
 - 简体中文汉化词库为可选组件。应用仅在用户确认后从 [ffdkj/ComfyUI_Danbooru_Tag_Assistant](https://github.com/ffdkj/ComfyUI_Danbooru_Tag_Assistant) 上游直接下载，项目不再分发该数据库。
 - Danbooru 在线补充默认开启，只发送光标所在的当前英文 token，不发送完整提示词；可在“设置 → 数据源与缓存”关闭并单独清除缓存。
 - AI 缺失汉化默认关闭。开启后会复用 Prompt Assistant 的 `Translate` 路由，向用户选择的模型服务发送最多 8 个待翻译标签，可能产生 API 费用；AI 翻译缓存可单独清除。
