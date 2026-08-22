@@ -687,26 +687,17 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               Row(
                 children: [
                   modeSelector,
-                  const Spacer(),
+                  if (showQueryFields) ...[
+                    const SizedBox(width: 12),
+                    Expanded(child: _buildSearchFields(theme, state)),
+                  ] else
+                    const Spacer(),
                   const SizedBox(width: 12),
                   primaryActions,
                 ],
               ),
               const SizedBox(height: 8),
-              if (showQueryFields)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Flexible(flex: 2, child: _buildSearchFields(theme, state)),
-                    const SizedBox(width: 12),
-                    Expanded(flex: 3, child: secondaryControls),
-                  ],
-                )
-              else
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: secondaryControls,
-                ),
+              Align(alignment: Alignment.centerLeft, child: secondaryControls),
             ],
           );
         },
