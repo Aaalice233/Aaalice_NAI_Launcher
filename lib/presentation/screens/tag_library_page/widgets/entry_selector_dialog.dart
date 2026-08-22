@@ -4,6 +4,8 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
+import '../../../widgets/autocomplete/autocomplete_config.dart';
+import '../../../widgets/autocomplete/autocomplete_wrapper.dart';
 import '../../../widgets/common/thumbnail_display.dart';
 
 /// 条目选择对话框
@@ -31,10 +33,8 @@ class EntrySelectorDialog extends ConsumerStatefulWidget {
     return showDialog<TagLibraryEntry?>(
       context: context,
       barrierColor: Colors.black54,
-      builder: (context) => EntrySelectorDialog(
-        entries: entries,
-        categories: categories,
-      ),
+      builder: (context) =>
+          EntrySelectorDialog(entries: entries, categories: categories),
     );
   }
 
@@ -44,8 +44,21 @@ class EntrySelectorDialog extends ConsumerStatefulWidget {
 }
 
 class _EntrySelectorDialogState extends ConsumerState<EntrySelectorDialog> {
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   String _searchQuery = '';
   String? _selectedEntryId;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  void _updateSearch(String value) {
+    setState(() => _searchQuery = value);
+  }
 
   List<TagLibraryEntry> get _filteredEntries {
     if (_searchQuery.isEmpty) return widget.entries;
@@ -61,9 +74,9 @@ class _EntrySelectorDialogState extends ConsumerState<EntrySelectorDialog> {
   String _getCategoryName(BuildContext context, String? categoryId) {
     if (categoryId == null) return context.l10n.tagLibrary_rootCategory;
     final category = widget.categories.cast<TagLibraryCategory?>().firstWhere(
-          (c) => c?.id == categoryId,
-          orElse: () => null,
-        );
+      (c) => c?.id == categoryId,
+      orElse: () => null,
+    );
     return category?.displayName ?? context.l10n.tagLibrary_unknownCategory;
   }
 
@@ -74,14 +87,9 @@ class _EntrySelectorDialogState extends ConsumerState<EntrySelectorDialog> {
     final filteredEntries = _filteredEntries;
 
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 500,
-          maxHeight: 600,
-        ),
+        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -115,24 +123,31 @@ class _EntrySelectorDialogState extends ConsumerState<EntrySelectorDialog> {
               const SizedBox(height: 16),
 
               // 搜索框
-              TextField(
-                autofocus: true,
-                decoration: InputDecoration(
-                  hintText: l10n.tagLibrary_searchHint,
-                  prefixIcon: const Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
+              AutocompleteWrapper(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                config: const AutocompleteConfig(
+                  autoInsertComma: false,
+                  treatSpacesAsSeparators: true,
                 ),
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value;
-                  });
-                },
+                onSuggestionSelected: _updateSearch,
+                child: TextField(
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: l10n.tagLibrary_searchHint,
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                  ),
+                  onChanged: _updateSearch,
+                ),
               ),
 
               const SizedBox(height: 12),
@@ -244,17 +259,15 @@ class _EntryListTile extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Material(
-      color:
-          isSelected ? theme.colorScheme.primaryContainer : Colors.transparent,
+      color: isSelected
+          ? theme.colorScheme.primaryContainer
+          : Colors.transparent,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 10,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             children: [
               // 选择指示器

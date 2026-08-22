@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../providers/tag_library_selection_provider.dart';
+import '../../../widgets/autocomplete/autocomplete_config.dart';
+import '../../../widgets/autocomplete/autocomplete_wrapper.dart';
 import '../../../widgets/bulk_action_bar.dart';
 
 /// 词库工具栏（搜索、视图切换、批量操作）
@@ -59,9 +61,7 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
   void initState() {
     super.initState();
     _searchFocusNode = FocusNode(onKeyEvent: _handleSearchKeyEvent);
-    _syncSearchController(
-      ref.read(tagLibraryPageNotifierProvider).searchQuery,
-    );
+    _syncSearchController(ref.read(tagLibraryPageNotifierProvider).searchQuery);
   }
 
   @override
@@ -85,7 +85,8 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
 
     // 获取当前筛选后的所有条目 ID
     final allEntryIds = state.filteredEntries.map((e) => e.id).toList();
-    final isAllSelected = allEntryIds.isNotEmpty &&
+    final isAllSelected =
+        allEntryIds.isNotEmpty &&
         allEntryIds.every((id) => selectionState.selectedIds.contains(id));
 
     // 选择模式时显示批量操作栏
@@ -277,52 +278,62 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
 
   /// 构建搜索框
   Widget _buildSearchField(ThemeData theme, TagLibraryPageState state) {
-    return Container(
-      height: 36,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(18),
+    void updateSearch(String value) {
+      ref.read(tagLibraryPageNotifierProvider.notifier).setSearchQuery(value);
+    }
+
+    return AutocompleteWrapper(
+      controller: _searchController,
+      focusNode: _searchFocusNode,
+      config: const AutocompleteConfig(
+        autoInsertComma: false,
+        treatSpacesAsSeparators: true,
       ),
-      child: TextField(
-        controller: _searchController,
-        focusNode: _searchFocusNode,
-        style: theme.textTheme.bodyMedium,
-        decoration: InputDecoration(
-          hintText: context.l10n.tagLibrary_searchHint,
-          hintStyle: TextStyle(
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-            fontSize: 13,
+      onSuggestionSelected: updateSearch,
+      child: Container(
+        height: 36,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.4,
           ),
-          prefixIcon: Icon(
-            Icons.search,
-            size: 18,
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-          ),
-          suffixIcon: state.searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: Icon(
-                    Icons.close,
-                    size: 16,
-                    color: theme.colorScheme.onSurfaceVariant
-                        .withValues(alpha: 0.6),
-                  ),
-                  onPressed: () {
-                    _searchController.clear();
-                    ref
-                        .read(tagLibraryPageNotifierProvider.notifier)
-                        .setSearchQuery('');
-                  },
-                )
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 8),
-          isDense: true,
+          borderRadius: BorderRadius.circular(18),
         ),
-        onChanged: (value) {
-          ref
-              .read(tagLibraryPageNotifierProvider.notifier)
-              .setSearchQuery(value);
-        },
+        child: TextField(
+          controller: _searchController,
+          focusNode: _searchFocusNode,
+          style: theme.textTheme.bodyMedium,
+          decoration: InputDecoration(
+            hintText: context.l10n.tagLibrary_searchHint,
+            hintStyle: TextStyle(
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              fontSize: 13,
+            ),
+            prefixIcon: Icon(
+              Icons.search,
+              size: 18,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+            ),
+            suffixIcon: state.searchQuery.isNotEmpty
+                ? IconButton(
+                    icon: Icon(
+                      Icons.close,
+                      size: 16,
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.6,
+                      ),
+                    ),
+                    onPressed: () {
+                      _searchController.clear();
+                      updateSearch('');
+                    },
+                  )
+                : null,
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            isDense: true,
+          ),
+          onChanged: updateSearch,
+        ),
       ),
     );
   }
@@ -435,11 +446,7 @@ class _TagLibraryToolbarState extends ConsumerState<TagLibraryToolbar> {
   Widget _buildSortItem(IconData icon, String label) {
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16),
-        const SizedBox(width: 8),
-        Text(label),
-      ],
+      children: [Icon(icon, size: 16), const SizedBox(width: 8), Text(label)],
     );
   }
 }
@@ -491,11 +498,7 @@ class _CompactIconButton extends StatefulWidget {
   final String? label;
   final VoidCallback? onPressed;
 
-  const _CompactIconButton({
-    required this.icon,
-    this.label,
-    this.onPressed,
-  });
+  const _CompactIconButton({required this.icon, this.label, this.onPressed});
 
   @override
   State<_CompactIconButton> createState() => _CompactIconButtonState();
@@ -541,31 +544,36 @@ class _CompactIconButtonState extends State<_CompactIconButton>
 
     iconColor = isEnabled
         ? (_isHovered
-            ? theme.colorScheme.primary
-            : theme.colorScheme.onSurfaceVariant
-                .withValues(alpha: isDark ? 0.85 : 0.75))
+              ? theme.colorScheme.primary
+              : theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: isDark ? 0.85 : 0.75,
+                ))
         : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.35);
     labelColor = isEnabled
         ? (_isHovered
-            ? theme.colorScheme.primary
-            : theme.colorScheme.onSurface
-                .withValues(alpha: isDark ? 0.85 : 0.75))
+              ? theme.colorScheme.primary
+              : theme.colorScheme.onSurface.withValues(
+                  alpha: isDark ? 0.85 : 0.75,
+                ))
         : theme.colorScheme.onSurface.withValues(alpha: 0.35);
     bgColor = _isPressed
         ? theme.colorScheme.primary.withValues(alpha: isDark ? 0.2 : 0.14)
         : (_isHovered
-            ? theme.colorScheme.primary.withValues(alpha: isDark ? 0.14 : 0.08)
-            : (isDark
-                ? Colors.white.withValues(alpha: 0.04)
-                : Colors.white.withValues(alpha: 0.6)));
+              ? theme.colorScheme.primary.withValues(
+                  alpha: isDark ? 0.14 : 0.08,
+                )
+              : (isDark
+                    ? Colors.white.withValues(alpha: 0.04)
+                    : Colors.white.withValues(alpha: 0.6)));
     borderColor = _isHovered
         ? theme.colorScheme.primary.withValues(alpha: isDark ? 0.5 : 0.35)
         : theme.colorScheme.outline.withValues(alpha: isDark ? 0.2 : 0.15);
     if (_isHovered && isEnabled) {
       shadows = [
         BoxShadow(
-          color:
-              theme.colorScheme.shadow.withValues(alpha: isDark ? 0.15 : 0.08),
+          color: theme.colorScheme.shadow.withValues(
+            alpha: isDark ? 0.15 : 0.08,
+          ),
           blurRadius: 6,
           spreadRadius: 0,
           offset: const Offset(0, 2),
@@ -624,11 +632,7 @@ class _CompactIconButtonState extends State<_CompactIconButton>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        widget.icon,
-                        size: 17,
-                        color: iconColor,
-                      ),
+                      Icon(widget.icon, size: 17, color: iconColor),
                       if (hasLabel) ...[
                         const SizedBox(width: 6),
                         Text(
@@ -636,8 +640,9 @@ class _CompactIconButtonState extends State<_CompactIconButton>
                           style: theme.textTheme.labelMedium?.copyWith(
                             color: labelColor,
                             fontSize: 12.5,
-                            fontWeight:
-                                _isHovered ? FontWeight.w600 : FontWeight.w500,
+                            fontWeight: _isHovered
+                                ? FontWeight.w600
+                                : FontWeight.w500,
                             letterSpacing: 0.2,
                           ),
                         ),
