@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -35,6 +37,7 @@ class DanbooruPostCard extends StatefulWidget {
   final bool selectionMode;
   final bool isSelected;
   final bool canSelect;
+  final String? tagPrompt;
   final String? promptOverride;
   final String? negativePromptOverride;
   final VoidCallback onTap;
@@ -54,6 +57,7 @@ class DanbooruPostCard extends StatefulWidget {
     this.selectionMode = false,
     this.isSelected = false,
     this.canSelect = true,
+    this.tagPrompt,
     this.promptOverride,
     this.negativePromptOverride,
     required this.onTap,
@@ -150,18 +154,48 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
     if (_overlayEntry != null) return;
 
     final overlay = Overlay.of(context);
-    final renderBox = context.findRenderObject() as RenderBox;
-    final position = renderBox.localToGlobal(Offset.zero);
-    final screenSize = MediaQuery.of(context).size;
+    final renderObject = context.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) return;
 
-    final bool showOnRight = position.dx < screenSize.width / 2;
+    const viewportMargin = 16.0;
+    const targetGap = 12.0;
+    final viewport = MediaQuery.sizeOf(context);
+    final availableWidth = viewport.width - viewportMargin * 2;
+    final availableHeight = viewport.height - viewportMargin * 2;
+    if (availableWidth <= 0 || availableHeight <= 0) return;
+
+    final targetRect =
+        renderObject.localToGlobal(Offset.zero) & renderObject.size;
+    final previewWidth = min(320.0, availableWidth);
+    final previewMaxHeight = min(500.0, availableHeight);
+    final rightSpace = viewport.width - viewportMargin - targetRect.right;
+    final leftSpace = targetRect.left - viewportMargin;
+    final showOnRight =
+        rightSpace >= previewWidth + targetGap ||
+        (rightSpace >= leftSpace && leftSpace < previewWidth + targetGap);
+    final desiredLeft = showOnRight
+        ? targetRect.right + targetGap
+        : targetRect.left - targetGap - previewWidth;
+    final left = desiredLeft
+        .clamp(viewportMargin, viewport.width - viewportMargin - previewWidth)
+        .toDouble();
+    final top = (targetRect.top - 50)
+        .clamp(
+          viewportMargin,
+          viewport.height - viewportMargin - previewMaxHeight,
+        )
+        .toDouble();
 
     _overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
-        left: showOnRight ? position.dx + renderBox.size.width + 12 : null,
-        right: showOnRight ? null : screenSize.width - position.dx + 12,
-        top: (position.dy - 50).clamp(20, screenSize.height - 400),
-        child: _HoverPreviewCardInner(post: widget.post),
+        left: left,
+        top: top,
+        width: previewWidth,
+        child: _HoverPreviewCardInner(
+          post: widget.post,
+          maxWidth: previewWidth,
+          maxHeight: previewMaxHeight,
+        ),
       ),
     );
 
@@ -171,6 +205,16 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
   void _removeOverlay() {
     _overlayEntry?.remove();
     _overlayEntry = null;
+  }
+
+  String get _actionPrompt =>
+      widget.promptOverride ?? widget.tagPrompt ?? widget.post.tags.join(', ');
+
+  String? _promptForAction() {
+    final prompt = _actionPrompt.trim();
+    if (prompt.isNotEmpty) return prompt;
+    AppToast.info(context, context.l10n.onlineGallery_noTagInfo);
+    return null;
   }
 
   Future<void> _handleDownload() async {
@@ -669,10 +713,10 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                               icon: Icons.playlist_add,
                               tooltip: context.l10n.onlineGallery_addToQueue,
                               onPressed: () async {
+                                final prompt = _promptForAction();
+                                if (prompt == null) return;
                                 final task = ReplicationTask.create(
-                                  prompt:
-                                      widget.promptOverride ??
-                                      widget.post.tags.join(', '),
+                                  prompt: prompt,
                                   negativePrompt:
                                       widget.negativePromptOverride ?? '',
                                   thumbnailUrl: widget.post.previewUrl,
@@ -703,6 +747,8 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                               tooltip:
                                   context.l10n.onlineGallery_sendToTextToImage,
                               onPressed: () {
+                                final prompt = _promptForAction();
+                                if (prompt == null) return;
                                 ref
                                     .read(
                                       characterPromptNotifierProvider.notifier,
@@ -713,9 +759,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                       pendingPromptNotifierProvider.notifier,
                                     )
                                     .set(
-                                      prompt:
-                                          widget.promptOverride ??
-                                          widget.post.tags.join(', '),
+                                      prompt: prompt,
                                       negativePrompt:
                                           widget.negativePromptOverride,
                                     );
@@ -791,13 +835,11 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                   ? context.l10n.localGallery_copyPrompt
                                   : context.l10n.onlineGallery_copyTags,
                               onPressed: () async {
+                                final prompt = _promptForAction();
+                                if (prompt == null) return;
                                 try {
                                   await Clipboard.setData(
-                                    ClipboardData(
-                                      text:
-                                          widget.promptOverride ??
-                                          widget.post.tags.join(', '),
-                                    ),
+                                    ClipboardData(text: prompt),
                                   );
                                   if (context.mounted) {
                                     AppToast.success(
@@ -857,34 +899,43 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
 /// 悬浮预览卡片（内部实现）
 class _HoverPreviewCardInner extends ConsumerWidget {
   final DanbooruPost post;
+  final double maxWidth;
+  final double maxHeight;
 
-  const _HoverPreviewCardInner({required this.post});
+  const _HoverPreviewCardInner({
+    required this.post,
+    required this.maxWidth,
+    required this.maxHeight,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final translationService = ref.watch(tagTranslationLookupProvider);
 
-    const maxWidth = 320.0;
-    const maxHeight = 360.0;
+    final reservedMetadataHeight = min(120.0, maxHeight * 0.4);
+    final imageMaxHeight = min(
+      360.0,
+      max(1.0, maxHeight - reservedMetadataHeight),
+    );
+    final imageMinHeight = min(150.0, imageMaxHeight);
     double previewHeight = maxWidth;
 
     if (post.width > 0 && post.height > 0) {
-      final aspectRatio = post.width / post.height;
-      if (aspectRatio > 1) {
-        previewHeight = maxWidth / aspectRatio;
-      } else {
-        previewHeight = maxHeight.clamp(0, maxWidth / aspectRatio);
-      }
+      previewHeight = maxWidth / (post.width / post.height);
     }
+    previewHeight = previewHeight
+        .clamp(imageMinHeight, imageMaxHeight)
+        .toDouble();
 
     final imageUrl = post.sampleUrl ?? post.largeFileUrl ?? post.previewUrl;
 
     return Material(
       color: Colors.transparent,
       child: Container(
+        key: const ValueKey('online-gallery-hover-preview'),
         width: maxWidth,
-        constraints: const BoxConstraints(maxHeight: 500),
+        constraints: BoxConstraints(maxHeight: maxHeight),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
@@ -926,7 +977,7 @@ class _HoverPreviewCardInner extends ConsumerWidget {
               ),
               child: SizedBox(
                 width: maxWidth,
-                height: previewHeight.clamp(150, maxHeight),
+                height: previewHeight,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [

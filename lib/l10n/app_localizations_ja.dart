@@ -2433,6 +2433,17 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_copyTags => 'タグをコピー';
 
   @override
+  String get onlineGallery_promptTagCategories => 'プロンプトタグのカテゴリ';
+
+  @override
+  String get onlineGallery_promptTagCategoriesTooltip =>
+      'コピー、送信、キューへの追加時に含めるタグカテゴリを選択します';
+
+  @override
+  String get onlineGallery_keepOnePromptTagCategory =>
+      'プロンプトタグのカテゴリを1つ以上選択してください';
+
+  @override
   String get onlineGallery_open => '開く';
 
   @override

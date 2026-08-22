@@ -18,6 +18,7 @@ import '../../../data/models/queue/replication_task.dart';
 import '../../../data/services/danbooru_auth_service.dart';
 import '../../../data/services/gelbooru_auth_service.dart';
 
+import '../../providers/online_gallery_prompt_tag_settings_provider.dart';
 import '../../providers/online_gallery_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../providers/selection_mode_provider.dart';
@@ -832,6 +833,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           tooltip: context.l10n.onlineGallery_blacklistTags,
           onPressed: () => showOnlineGalleryBlacklistDialog(context, ref),
         ),
+        _buildPromptTagCategorySelector(theme),
         // 刷新按钮 (FilledButton.tonal)
         FilledButton.tonalIcon(
           onPressed: state.isLoading ? null : _galleryNotifier.refresh,
@@ -860,6 +862,74 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         // 用户
         _buildUserButton(theme, state, authState, gelbooruAuthState),
       ],
+    );
+  }
+
+  Widget _buildPromptTagCategorySelector(ThemeData theme) {
+    final settings = ref.watch(onlineGalleryPromptTagSettingsProvider);
+    final selectedCount = settings.categories.length;
+
+    String labelFor(OnlineGalleryPromptTagCategory category) {
+      return switch (category) {
+        OnlineGalleryPromptTagCategory.general =>
+          context.l10n.tagCategory_general,
+        OnlineGalleryPromptTagCategory.character =>
+          context.l10n.tagCategory_character,
+        OnlineGalleryPromptTagCategory.copyright =>
+          context.l10n.tagCategory_copyright,
+        OnlineGalleryPromptTagCategory.artist =>
+          context.l10n.tagCategory_artist,
+        OnlineGalleryPromptTagCategory.meta => context.l10n.tagCategory_meta,
+      };
+    }
+
+    return MenuAnchor(
+      alignmentOffset: const Offset(0, 6),
+      menuChildren: [
+        MenuItemButton(
+          onPressed: null,
+          leadingIcon: const Icon(Icons.sell_outlined, size: 18),
+          child: Text(context.l10n.onlineGallery_promptTagCategories),
+        ),
+        const Divider(height: 1),
+        for (final category in OnlineGalleryPromptTagCategory.values)
+          CheckboxMenuButton(
+            value: settings.categories.contains(category),
+            closeOnActivate: false,
+            onChanged: (selected) async {
+              if (selected == null) return;
+              final changed = await ref
+                  .read(onlineGalleryPromptTagSettingsProvider.notifier)
+                  .setCategory(category, selected);
+              if (!changed && mounted) {
+                AppToast.info(
+                  context,
+                  context.l10n.onlineGallery_keepOnePromptTagCategory,
+                );
+              }
+            },
+            child: Text(labelFor(category)),
+          ),
+      ],
+      builder: (context, controller, child) {
+        return Tooltip(
+          message: context.l10n.onlineGallery_promptTagCategoriesTooltip,
+          child: OutlinedButton.icon(
+            onPressed: () {
+              controller.isOpen ? controller.close() : controller.open();
+            },
+            icon: const Icon(Icons.sell_outlined, size: 17),
+            label: Text(
+              '${context.l10n.onlineGallery_promptTagCategories} · $selectedCount',
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: theme.colorScheme.onSurfaceVariant,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1511,6 +1581,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         state.viewMode == GalleryViewMode.favorites &&
         state.favoritesSourceId == GallerySourceId.gelbooru;
     final canWriteFavorite = post.sourceId == GallerySourceId.danbooru;
+    final tagPrompt = ref
+        .watch(onlineGalleryPromptTagSettingsProvider)
+        .promptFor(post);
+    final promptOverride = detail != null && detail.media.isNotEmpty
+        ? (detail.media.first.prompt ?? detail.prompt)
+        : detail?.prompt;
     return DanbooruPostCard(
       key: ValueKey(post.stableKey),
       post: post,
@@ -1521,10 +1597,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       favoriteReadOnly: favoriteReadOnly,
       selectionMode: selectionState.isActive,
       isSelected: selectionState.selectedIds.contains(post.stableKey),
-      canSelect: post.tags.isNotEmpty,
-      promptOverride: detail != null && detail.media.isNotEmpty
-          ? (detail.media.first.prompt ?? detail.prompt)
-          : detail?.prompt,
+      canSelect: (promptOverride ?? tagPrompt).isNotEmpty,
+      tagPrompt: tagPrompt,
+      promptOverride: promptOverride,
       negativePromptOverride: detail != null && detail.media.isNotEmpty
           ? (detail.media.first.negativePrompt ?? detail.negativePrompt)
           : detail?.negativePrompt,
@@ -1661,6 +1736,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   Future<void> _addSelectedToQueue() async {
     final selectionState = ref.read(onlineGallerySelectionNotifierProvider);
     final galleryState = ref.read(onlineGalleryNotifierProvider);
+    final promptTagSettings = ref.read(onlineGalleryPromptTagSettingsProvider);
 
     final selectedPosts = galleryState.posts
         .where((p) => selectionState.selectedIds.contains(p.stableKey))
@@ -1678,7 +1754,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       final resolved = await Future.wait(
         batch.map((post) async {
           if (post.sourceId != GallerySourceId.aiTag) {
-            final prompt = post.tags.join(', ');
+            final prompt = promptTagSettings.promptFor(post);
             return prompt.isEmpty
                 ? null
                 : ReplicationTask.create(
@@ -1691,7 +1767,9 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             final detail = await _galleryNotifier.loadDetail(post);
             final media = detail.media.first;
             final prompt =
-                media.prompt ?? detail.prompt ?? post.tags.join(', ');
+                media.prompt ??
+                detail.prompt ??
+                promptTagSettings.promptFor(post);
             if (prompt.isEmpty) return null;
             return ReplicationTask.create(
               prompt: prompt,

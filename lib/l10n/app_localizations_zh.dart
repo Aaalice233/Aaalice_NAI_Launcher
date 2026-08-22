@@ -2399,6 +2399,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get onlineGallery_copyTags => '复制标签';
 
   @override
+  String get onlineGallery_promptTagCategories => '提示词类别';
+
+  @override
+  String get onlineGallery_promptTagCategoriesTooltip => '选择复制、发送或加入队列时包含的标签类别';
+
+  @override
+  String get onlineGallery_keepOnePromptTagCategory => '至少保留一个提示词类别';
+
+  @override
   String get onlineGallery_open => '打开';
 
   @override

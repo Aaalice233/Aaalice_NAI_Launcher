@@ -13,6 +13,7 @@ import '../../../data/models/queue/replication_task.dart';
 import '../../../data/services/danbooru_auth_service.dart';
 import '../../../core/autocomplete/tag_translation_lookup.dart';
 import '../../providers/character_prompt_provider.dart';
+import '../../providers/online_gallery_prompt_tag_settings_provider.dart';
 import '../../providers/online_gallery_provider.dart';
 import '../../providers/pending_prompt_provider.dart';
 import '../../providers/replication_queue_provider.dart';
@@ -630,16 +631,24 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
     );
   }
 
+  String get _actionPrompt =>
+      ref.read(onlineGalleryPromptTagSettingsProvider).promptFor(widget.post);
+
   /// 复制标签
   void _copyTags() {
-    final tags = widget.post.tags.join(', ');
-    Clipboard.setData(ClipboardData(text: tags));
+    final prompt = _actionPrompt;
+    if (prompt.isEmpty) {
+      AppToast.info(context, context.l10n.onlineGallery_noTagInfo);
+      return;
+    }
+    Clipboard.setData(ClipboardData(text: prompt));
     AppToast.success(context, context.l10n.onlineGallery_copied);
   }
 
   /// 发送到生成页面
   void _sendToGenerate() {
-    if (widget.post.tags.isEmpty) {
+    final prompt = _actionPrompt;
+    if (prompt.isEmpty) {
       AppToast.info(context, context.l10n.onlineGallery_noTagInfo);
       return;
     }
@@ -648,9 +657,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
     ref.read(characterPromptNotifierProvider.notifier).clearAllCharacters();
 
     // 设置待填充提示词
-    ref
-        .read(pendingPromptNotifierProvider.notifier)
-        .set(prompt: widget.post.tags.join(', '));
+    ref.read(pendingPromptNotifierProvider.notifier).set(prompt: prompt);
 
     // 关闭弹窗并导航到生成页面
     Navigator.pop(context);
@@ -695,13 +702,14 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
 
   /// 加入队列
   Future<void> _addToQueue() async {
-    if (widget.post.tags.isEmpty) {
+    final prompt = _actionPrompt;
+    if (prompt.isEmpty) {
       AppToast.info(context, context.l10n.onlineGallery_noTagInfo);
       return;
     }
 
     final task = ReplicationTask.create(
-      prompt: widget.post.tags.join(', '),
+      prompt: prompt,
       thumbnailUrl: widget.post.previewUrl,
       source: ReplicationTaskSource.online,
     );
