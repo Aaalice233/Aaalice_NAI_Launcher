@@ -48,18 +48,21 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects> {
   @override
   void initState() {
     super.initState();
-    _anlasWatcherSubscription = ref.listenManual(
-      widget.anlasWatcher ?? anlasBalanceWatcherProvider,
-      (_, __) {},
-    );
-    _backgroundRefreshSubscription = ref.listenManual(
-      widget.backgroundRefresh ?? backgroundRefreshNotifierProvider,
-      (_, __) {},
-    );
-    _kritaBridgeSubscription = ref.listenManual(
-      widget.kritaBridge ?? kritaBridgeNotifierProvider,
-      (_, __) {},
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _anlasWatcherSubscription = ref.listenManual(
+        widget.anlasWatcher ?? anlasBalanceWatcherProvider,
+        (_, __) {},
+      );
+      _backgroundRefreshSubscription = ref.listenManual(
+        widget.backgroundRefresh ?? backgroundRefreshNotifierProvider,
+        (_, __) {},
+      );
+      _kritaBridgeSubscription = ref.listenManual(
+        widget.kritaBridge ?? kritaBridgeNotifierProvider,
+        (_, __) {},
+      );
+    });
   }
 
   @override
@@ -161,7 +164,6 @@ class NAILauncherApp extends ConsumerWidget {
             fontConfig: fontType.fontFamily.isEmpty ? null : fontType,
           ),
           themeMode: ThemeMode.dark, // 默认深色模式
-
           // 国际化
           locale: locale,
           supportedLocales: AppLocalizations.supportedLocales,
@@ -173,9 +175,9 @@ class NAILauncherApp extends ConsumerWidget {
           // 字体缩放全局应用
           builder: (context, child) {
             return MediaQuery(
-              data: MediaQuery.of(context).copyWith(
-                textScaler: TextScaler.linear(fontScale),
-              ),
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(fontScale)),
               child: child!,
             );
           },

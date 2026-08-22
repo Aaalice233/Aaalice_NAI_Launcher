@@ -26,6 +26,7 @@ class WarmupResult {
 /// ConnectionPool 全局持有者
 class ConnectionPoolHolder {
   static ConnectionPool? _instance;
+  static Future<ConnectionPool>? _initialization;
 
   /// 连接池版本号，每次重置时递增
   /// 用于检测连接池是否在操作期间被重置
@@ -63,20 +64,55 @@ class ConnectionPoolHolder {
       );
     }
 
-    _version++;
-    final currentVersion = _version;
+    final inFlight = _initialization;
+    if (inFlight != null) return inFlight;
 
-    _instance = ConnectionPool(
+    final attempt = _initializeNew(
       dbPath: dbPath,
       maxConnections: maxConnections,
     );
-    await _instance!.initialize();
+    _initialization = attempt;
+    try {
+      return await attempt;
+    } finally {
+      if (identical(_initialization, attempt)) {
+        _initialization = null;
+      }
+    }
+  }
+
+  static Future<ConnectionPool> _initializeNew({
+    required String dbPath,
+    required int maxConnections,
+  }) async {
+    _version++;
+    final currentVersion = _version;
+    final candidate = ConnectionPool(
+      dbPath: dbPath,
+      maxConnections: maxConnections,
+    );
+    try {
+      await candidate.initialize();
+      _instance = candidate;
+    } catch (error, stackTrace) {
+      try {
+        await candidate.dispose();
+      } catch (cleanupError, cleanupStackTrace) {
+        AppLogger.e(
+          'Failed to clean up an unsuccessful connection pool',
+          cleanupError,
+          cleanupStackTrace,
+          'ConnectionPoolHolder',
+        );
+      }
+      Error.throwWithStackTrace(error, stackTrace);
+    }
 
     AppLogger.i(
       'ConnectionPool initialized (version: $currentVersion)',
       'ConnectionPoolHolder',
     );
-    return _instance!;
+    return candidate;
   }
 
   static Future<ConnectionPool> reset({
@@ -214,17 +250,11 @@ class ConnectionPoolHolder {
     int warmupConnections = 3,
     Duration warmupTimeout = const Duration(seconds: 5),
   }) async {
-    await reset(
-      dbPath: dbPath,
-      maxConnections: maxConnections,
-    );
+    await reset(dbPath: dbPath, maxConnections: maxConnections);
 
     // 小延迟确保连接池完全就绪
     await Future.delayed(const Duration(milliseconds: 100));
 
-    return await warmup(
-      connections: warmupConnections,
-      timeout: warmupTimeout,
-    );
+    return await warmup(connections: warmupConnections, timeout: warmupTimeout);
   }
 }

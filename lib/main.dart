@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:tray_manager/tray_manager.dart';
-import 'package:video_player_media_kit/video_player_media_kit.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 
@@ -18,13 +17,7 @@ import 'l10n/app_localizations.dart';
 import 'l10n/app_localizations_en.dart';
 import 'l10n/app_localizations_ja.dart';
 import 'l10n/app_localizations_zh.dart';
-import 'core/network/proxy_service.dart';
-import 'core/network/system_proxy_http_overrides.dart';
-import 'core/shortcuts/shortcut_storage.dart';
-import 'core/database/database_manager.dart';
-import 'core/services/data_migration_service.dart';
 import 'core/services/desktop_app_shutdown_service.dart';
-import 'core/services/sqflite_bootstrap_service.dart';
 import 'core/utils/app_error_reporter.dart';
 import 'core/utils/fatal_diagnostics.dart';
 import 'core/utils/app_logger.dart';
@@ -35,13 +28,11 @@ import 'core/utils/window_state_coercion.dart';
 import 'core/utils/window_state_persistence.dart';
 import 'data/datasources/local/nai_tags_data_source.dart';
 import 'data/models/gallery/nai_image_metadata.dart';
-import 'data/repositories/collection_repository.dart';
 import 'data/repositories/gallery_folder_repository.dart';
 import 'core/cache/gallery_cache_manager.dart';
 
 import 'core/cache/tag_cache_service.dart';
-import 'data/services/gallery/index.dart';
-import 'data/services/image_metadata_service.dart';
+import 'core/services/sqflite_bootstrap_service.dart';
 import 'data/services/metadata/isolate_metadata_service.dart';
 import 'data/services/search_index_service.dart';
 import 'data/services/temp_image_service.dart';
@@ -91,12 +82,6 @@ Future<void> _runNonFatalStartupStep(
     '$name completed in ${stopwatch.elapsedMilliseconds}ms',
     'Startup',
   );
-}
-
-void _runDeferredStartupStep(String name, Future<void> Function() action) {
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    unawaited(_runNonFatalStartupStep(name, action));
-  });
 }
 
 Future<WindowStateSnapshot> _saveCurrentWindowState() async {
@@ -279,6 +264,216 @@ void setupWindowsWakeUpChannel() {
   });
 }
 
+class _DesktopWindowConfiguration {
+  const _DesktopWindowConfiguration({
+    required this.options,
+    required this.width,
+    required this.height,
+    required this.savedX,
+    required this.savedY,
+    required this.fillBounds,
+  });
+
+  final WindowOptions options;
+  final double width;
+  final double height;
+  final double? savedX;
+  final double? savedY;
+  final Rect? fillBounds;
+
+  Future<void> show() async {
+    await windowManager.waitUntilReadyToShow(options, () async {
+      if (fillBounds != null) {
+        await windowManager.setBounds(fillBounds!);
+        AppLogger.d('Window filled to work area: ${width}x$height', 'Main');
+      } else if (savedX != null && savedY != null) {
+        await windowManager.setPosition(Offset(savedX!, savedY!));
+        AppLogger.d(
+          'Window state restored: ${width}x$height at ($savedX, $savedY)',
+          'Main',
+        );
+      }
+      await windowManager.show();
+      await windowManager.focus();
+      AppLogger.i('Desktop window showing rendered Splash', 'Main');
+    });
+    final trayReady = await _initializeSystemTray();
+    if (trayReady) {
+      await windowManager.setPreventClose(true);
+      windowManager.addListener(AppWindowListener());
+    }
+  }
+}
+
+Future<_DesktopWindowConfiguration?> _prepareDesktopWindow() async {
+  if (!(Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+    return null;
+  }
+
+  try {
+    await windowManager.ensureInitialized();
+    if (Platform.isWindows) setupWindowsWakeUpChannel();
+
+    final box = Hive.box(StorageKeys.settingsBox);
+    final savedWidth = coerceWindowDimension(
+      box.get(StorageKeys.windowWidth, defaultValue: 1600.0),
+      fallback: 1600.0,
+    );
+    final savedHeight = coerceWindowDimension(
+      box.get(StorageKeys.windowHeight, defaultValue: 900.0),
+      fallback: 900.0,
+    );
+    final savedX = coerceWindowPosition(box.get(StorageKeys.windowX));
+    final savedY = coerceWindowPosition(box.get(StorageKeys.windowY));
+
+    var width = savedWidth;
+    var height = savedHeight;
+    Rect? fillBounds;
+    try {
+      final display = await screenRetriever.getPrimaryDisplay();
+      final work = display.visibleSize ?? display.size;
+      final workPosition = display.visiblePosition ?? Offset.zero;
+      if (Platform.isMacOS) {
+        width = work.width;
+        height = work.height;
+        fillBounds = Rect.fromLTWH(
+          workPosition.dx,
+          workPosition.dy,
+          work.width,
+          work.height,
+        );
+      } else {
+        final maxWidth = (work.width - 40)
+            .clamp(800.0, double.infinity)
+            .toDouble();
+        final maxHeight = (work.height - 40)
+            .clamp(600.0, double.infinity)
+            .toDouble();
+        width = savedWidth.clamp(800.0, maxWidth).toDouble();
+        height = savedHeight.clamp(600.0, maxHeight).toDouble();
+      }
+    } catch (e) {
+      AppLogger.w('获取屏幕工作区失败，使用默认窗口尺寸: $e', 'Main');
+    }
+
+    await windowManager.setMinimumSize(const Size(800, 600));
+    if (fillBounds != null) {
+      await windowManager.setBounds(fillBounds);
+    } else {
+      await windowManager.setSize(Size(width, height));
+      if (savedX != null && savedY != null) {
+        await windowManager.setPosition(Offset(savedX, savedY));
+      } else {
+        await windowManager.center();
+      }
+    }
+
+    WidgetsBinding.instance.addObserver(WindowStateObserver());
+    AppLogger.d('Desktop window configured before first frame', 'Main');
+
+    return _DesktopWindowConfiguration(
+      options: WindowOptions(
+        size: Size(width, height),
+        minimumSize: const Size(800, 600),
+        center: fillBounds == null && (savedX == null || savedY == null),
+        backgroundColor: const Color(0xFF121212),
+        skipTaskbar: false,
+        titleBarStyle: TitleBarStyle.normal,
+        title: 'NAI Launcher',
+      ),
+      width: width,
+      height: height,
+      savedX: savedX,
+      savedY: savedY,
+      fillBounds: fillBounds,
+    );
+  } catch (e, stackTrace) {
+    AppLogger.e(
+      'Desktop window preparation failed; continuing startup',
+      e,
+      stackTrace,
+      'Main',
+    );
+    return null;
+  }
+}
+
+Future<bool> _initializeSystemTray() async {
+  if (!(Platform.isWindows || Platform.isMacOS)) return false;
+  try {
+    await trayManager.setIcon(
+      Platform.isWindows
+          ? 'assets/icons/app_icon.ico'
+          : 'assets/icons/tray_icon.png',
+    );
+    await trayManager.setToolTip('NAI Launcher');
+    final l10n = _getLocalizedStrings();
+    await trayManager.setContextMenu(
+      Menu(
+        items: [
+          MenuItem(key: 'show', label: l10n.tray_show),
+          MenuItem.separator(),
+          MenuItem(key: 'exit', label: l10n.tray_exit),
+        ],
+      ),
+    );
+    trayManager.addListener(AppTrayListener());
+    return true;
+  } catch (error, stackTrace) {
+    AppLogger.e(
+      'System tray initialization failed; normal window close remains enabled',
+      error,
+      stackTrace,
+      'Main',
+    );
+    return false;
+  }
+}
+
+Future<void> _runDeferredStartup(ProviderContainer container) async {
+  final thumbnailService = ThumbnailService.instance;
+  await Future.wait([
+    _runNonFatalStartupStep('L2 cache cleanup', () async {
+      await L2CacheCleaner().checkAndClean();
+    }),
+    _runNonFatalStartupStep(
+      'Isolate metadata service initialization',
+      () async {
+        await IsolateMetadataService.instance.initialize();
+      },
+    ),
+    _runNonFatalStartupStep('Temp files cleanup', () async {
+      await TempImageService().cleanupOldTempFiles();
+    }),
+    _runNonFatalStartupStep('NAI tags preload', () async {
+      await container.read(naiTagsDataSourceProvider).loadData();
+    }),
+    _runNonFatalStartupStep('Search index service initialization', () async {
+      await SearchIndexService().init();
+    }),
+    _runNonFatalStartupStep('Tag cache service initialization', () async {
+      await TagCacheService().init();
+    }),
+  ]);
+
+  await _runNonFatalStartupStep('Nested thumbnail cleanup', () async {
+    final rootPath = await GalleryFolderRepository.instance.getRootPath();
+    if (rootPath == null) return;
+    final cleanedCount = await thumbnailService.cleanupNestedThumbs(rootPath);
+    if (cleanedCount > 0) {
+      AppLogger.i('启动清理完成: 删除了 $cleanedCount 个嵌套缩略图目录', 'Main');
+    }
+  });
+
+  Future.delayed(const Duration(seconds: 8), () async {
+    await _runNonFatalStartupStep('Online gallery blacklist sync', () async {
+      await container
+          .read(onlineGalleryBlacklistNotifierProvider.notifier)
+          .syncOnStartup();
+    });
+  });
+}
+
 void main() {
   final bootstrap = runZonedGuarded<Future<void>>(_bootstrapApplication, (
     error,
@@ -321,24 +516,7 @@ Future<void> _bootstrapApplication() async {
   PaintingBinding.instance.imageCache.maximumSize = 500; // 最大缓存 500 张图片
   PaintingBinding.instance.imageCache.maximumSizeBytes = 200 << 20; // 200MB
 
-  try {
-    // 初始化桌面端视频播放支持 (media_kit: Windows + macOS)
-    VideoPlayerMediaKit.ensureInitialized(
-      windows: Platform.isWindows,
-      macOS: Platform.isMacOS,
-    );
-  } catch (e, stackTrace) {
-    AppLogger.e(
-      'Video player initialization failed; continuing startup',
-      e,
-      stackTrace,
-      'Main',
-    );
-  }
-
-  // 日志系统已自动初始化，无需显式调用
-
-  // 初始化 SQLite FFI（Windows/Linux 桌面端必需）
+  // FFI 注册本身不打开数据库，需在数据库调用方出现前完成。
   await SqfliteBootstrapService.instance.ensureInitialized();
 
   // 初始化 Hive（使用子目录存储，支持迁移旧数据）
@@ -353,394 +531,36 @@ Future<void> _bootstrapApplication() async {
     Hive.registerAdapter(CharacterPromptInfoAdapter());
   }
 
-  // 先迁移 Hive 文件，再打开 box，避免 Windows 文件锁阻止旧数据覆盖占位文件。
-  await HiveStorageHelper.instance.migrateFromOldLocation(hivePath);
+  // settings 是 Splash 首帧唯一必需 box，先单独迁移，避免 Windows 文件锁阻止覆盖。
+  // 其余 Hive 文件由 Splash Warmup 迁移。
+  await HiveStorageHelper.instance.migrateSettingsFromOldLocation(hivePath);
 
   await _openHiveBoxIfNeeded(StorageKeys.settingsBox, hivePath: hivePath);
-  final settingsBox = Hive.box(StorageKeys.settingsBox);
-  final fileLoggingEnabled =
-      settingsBox.get(StorageKeys.fileLoggingEnabled, defaultValue: false) ==
-      true;
-  await AppLogger.setFileLoggingEnabled(fileLoggingEnabled);
-
-  // 在 Hive 初始化之后执行文件迁移
-  try {
-    final migrationResult = await DataMigrationService.instance.migrateAll();
-    AppLogger.i('Startup migration result: $migrationResult', 'Main');
-  } catch (e) {
-    AppLogger.w('Startup migration failed (will continue): $e', 'Main');
-  }
-
-  // ===== V2 架构：数据库初始化和恢复（在 runApp 之前完成）====
-  AppLogger.i('等待数据库初始化...', 'Main');
-  final container = ProviderContainer();
-
-  try {
-    // V2 架构：DatabaseManagerV2 自动处理热重启检测
-    final manager = await DatabaseManager.initialize();
-    await manager.initialized;
-
-    // 检查核心资产库完整性。翻译和共现数据已迁移到独立资产数据库，
-    // 不应再从 danbooru.db 的运行时表统计里判断。
-    final coreAssetStats = await manager.getCoreAssetStatistics();
-    final translationCount = coreAssetStats['translations'] ?? 0;
-    final cooccurrenceCount = coreAssetStats['cooccurrences'] ?? 0;
-
-    AppLogger.i(
-      '核心资产数据库状态: translations=$translationCount, cooccurrences=$cooccurrenceCount',
-      'Main',
-    );
-
-    if (translationCount == 0 || cooccurrenceCount == 0) {
-      AppLogger.w('核心资产数据为空，请检查打包数据库', 'Main');
-    }
-
-    AppLogger.i('数据库初始化完成', 'Main');
-  } catch (e, stack) {
-    AppLogger.e('数据库初始化失败', e, stack, 'Main');
-    // 继续启动，应用内会显示错误',
-  }
-
-  // 预先打开 Hive boxes (确保 LocalStorageService 可用)
-  await _openHiveBoxIfNeeded(StorageKeys.settingsBox, hivePath: hivePath);
-  await _openHiveBoxIfNeeded(StorageKeys.historyBox, hivePath: hivePath);
-  await _openHiveBoxIfNeeded(StorageKeys.tagCacheBox, hivePath: hivePath);
-  await _openHiveBoxIfNeeded(StorageKeys.galleryBox, hivePath: hivePath);
-  // Local Gallery 新功能所需的 Hive boxes
-  await _openHiveBoxIfNeeded(StorageKeys.localFavoritesBox, hivePath: hivePath);
-  await _openHiveBoxIfNeeded(StorageKeys.tagsBox, hivePath: hivePath);
-  await _openHiveBoxIfNeeded(StorageKeys.searchIndexBox, hivePath: hivePath);
-  // 统计数据缓存 Box
-  await _openHiveBoxIfNeeded(
-    StorageKeys.statisticsCacheBox,
-    hivePath: hivePath,
-  );
-  // 收藏集合 Box
-  await _openHiveBoxIfNeeded(StorageKeys.collectionsBox, hivePath: hivePath);
-  // 队列相关 Box（预加载以避免首次打开队列管理页面时的延迟）
-  await _openHiveBoxIfNeeded<String>(
-    StorageKeys.replicationQueueBox,
-    hivePath: hivePath,
-  );
-  await _openHiveBoxIfNeeded<String>(
-    StorageKeys.queueExecutionStateBox,
-    hivePath: hivePath,
-  );
-
-  // 初始化图像元数据服务（包含持久化缓存，用于详情页快速加载）
-  await _runNonFatalStartupStep(
-    'Image metadata service initialization',
-    () async {
-      await ImageMetadataService().initialize();
-      AppLogger.i('图像元数据服务初始化完成', 'Main');
-    },
-  );
-
-  // 后台执行 L2 Hive 缓存清理（不阻塞启动）
-  Future.microtask(() async {
-    try {
-      await L2CacheCleaner().checkAndClean();
-    } catch (e) {
-      AppLogger.w('L2 cache cleanup failed: $e', 'Main');
-    }
-  });
-
-  // 初始化统一缩略图服务
-  final thumbnailService = ThumbnailService.instance;
-  await _runNonFatalStartupStep('Thumbnail service initialization', () async {
-    await thumbnailService.initialize();
-    AppLogger.i('缩略图服务初始化完成', 'Main');
-  });
-
-  // 【修复】初始化收藏集合仓库
-  await _runNonFatalStartupStep(
-    'Collection repository initialization',
-    () async {
-      await CollectionRepository.instance.initialize();
-      AppLogger.i('收藏集合仓库初始化完成', 'Main');
-    },
-  );
-
-  // 【修复】初始化扫描状态管理器（确保检查点功能正常工作）
-  await _runNonFatalStartupStep('Scan state manager initialization', () async {
-    await ScanStateManager.instance.initialize();
-    AppLogger.i('扫描状态管理器初始化完成', 'Main');
-  });
-
-  // 【修复】初始化 Isolate 元数据服务（详情页快速解析）
-  await _runNonFatalStartupStep(
-    'Isolate metadata service initialization',
-    () async {
-      await IsolateMetadataService.instance.initialize();
-      AppLogger.i('Isolate 元数据服务初始化完成', 'Main');
-    },
-  );
-
-  // 【修复】启动时清理嵌套缩略图（修复递归生成bug遗留问题）
-  Future.microtask(() async {
-    try {
-      final rootPath = await GalleryFolderRepository.instance.getRootPath();
-      if (rootPath != null) {
-        final cleanedCount = await thumbnailService.cleanupNestedThumbs(
-          rootPath,
-        );
-        if (cleanedCount > 0) {
-          AppLogger.i('启动清理完成: 删除了 $cleanedCount 个嵌套缩略图目录', 'Main');
-        }
-      }
-    } catch (e) {
-      AppLogger.w('清理嵌套缩略图失败: $e', 'Main');
-    }
-  });
-
-  // 扫描已由 UnifiedGalleryService 处理，在打开本地画廊时自动执行
-
-  // 初始化快捷键存储
-  final shortcutStorage = ShortcutStorage();
-  await _runNonFatalStartupStep('Shortcut storage initialization', () async {
-    await shortcutStorage.init();
-    AppLogger.d('Shortcut storage initialized', 'Main');
-  });
+  final desktopWindowFuture = _prepareDesktopWindow();
 
   // Timeago 本地化配置
   timeago.setLocaleMessages('zh', timeago.ZhCnMessages());
   timeago.setLocaleMessages('zh_CN', timeago.ZhCnMessages());
   timeago.setLocaleMessages('ja', timeago.JaMessages());
 
-  // 清理过期临时文件（不阻塞启动）
-  Future.microtask(() async {
-    try {
-      await TempImageService().cleanupOldTempFiles();
-    } catch (e) {
-      AppLogger.w('Temp files cleanup failed: $e', 'Main');
-    }
-  });
-
-  // 后台预加载 NAI 标签数据（不阻塞启动）
-  // 使用已创建的 container
-  Future.microtask(() async {
-    try {
-      await container.read(naiTagsDataSourceProvider).loadData();
-      AppLogger.d('NAI tags preloaded successfully', 'Main');
-    } catch (e) {
-      AppLogger.w('NAI tags preload failed: $e', 'Main');
-      // 预加载失败不影响应用启动
-    }
-  });
-
-  // 启动时自动同步在线画廊黑名单（不阻塞启动）
-  Future.delayed(const Duration(seconds: 8), () async {
-    try {
-      await container
-          .read(onlineGalleryBlacklistNotifierProvider.notifier)
-          .syncOnStartup();
-    } catch (e) {
-      AppLogger.w('Online gallery blacklist auto-sync failed: $e', 'Main');
-    }
-  });
-
-  // 桌面端窗口配置
-  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-    try {
-      await windowManager.ensureInitialized();
-
-      // 设置 Windows 唤醒消息处理（单实例唤醒）
-      if (Platform.isWindows) {
-        setupWindowsWakeUpChannel();
-      }
-
-      // 从 Hive 读取保存的窗口状态
-      final box = Hive.box(StorageKeys.settingsBox);
-      final savedWidth = coerceWindowDimension(
-        box.get(StorageKeys.windowWidth, defaultValue: 1600.0),
-        fallback: 1600.0,
-      );
-      final savedHeight = coerceWindowDimension(
-        box.get(StorageKeys.windowHeight, defaultValue: 900.0),
-        fallback: 900.0,
-      );
-      final savedX = coerceWindowPosition(box.get(StorageKeys.windowX));
-      final savedY = coerceWindowPosition(box.get(StorageKeys.windowY));
-
-      // 读取屏幕可用工作区
-      double effWidth = savedWidth;
-      double effHeight = savedHeight;
-      Rect? fillBounds; // macOS 首次启动：铺满工作区时使用
-      try {
-        final display = await screenRetriever.getPrimaryDisplay();
-        final work = display.visibleSize ?? display.size;
-        final workPos = display.visiblePosition ?? Offset.zero;
-
-        if (Platform.isMacOS) {
-          // macOS：启动时自适应屏幕，铺满可用工作区（紧贴屏幕，保留菜单栏/Dock）
-          effWidth = work.width;
-          effHeight = work.height;
-          fillBounds = Rect.fromLTWH(
-            workPos.dx,
-            workPos.dy,
-            work.width,
-            work.height,
-          );
-        } else {
-          // 其它情况：clamp 到工作区，避免窗口超出屏幕
-          final maxW = (work.width - 40)
-              .clamp(800.0, double.infinity)
-              .toDouble();
-          final maxH = (work.height - 40)
-              .clamp(600.0, double.infinity)
-              .toDouble();
-          effWidth = savedWidth.clamp(800.0, maxW).toDouble();
-          effHeight = savedHeight.clamp(600.0, maxH).toDouble();
-        }
-      } catch (e) {
-        AppLogger.w('获取屏幕工作区失败，使用默认窗口尺寸: $e', 'Main');
-      }
-
-      final windowOptions = WindowOptions(
-        size: Size(effWidth, effHeight),
-        minimumSize: const Size(800, 600),
-        center: fillBounds == null && (savedX == null || savedY == null),
-        backgroundColor: const Color(0xFF121212), // 深色背景，避免窗口透明
-        skipTaskbar: false,
-        titleBarStyle: TitleBarStyle.normal,
-        title: 'NAI Launcher',
-      );
-
-      await windowManager.waitUntilReadyToShow(windowOptions, () async {
-        if (fillBounds != null) {
-          // macOS 首次启动：精确铺满屏幕工作区
-          await windowManager.setBounds(fillBounds);
-          AppLogger.d(
-            'Window filled to work area: ${effWidth}x$effHeight',
-            'Main',
-          );
-        } else if (savedX != null && savedY != null) {
-          await windowManager.setPosition(Offset(savedX, savedY));
-          AppLogger.d(
-            'Window state restored: ${effWidth}x$effHeight at ($savedX, $savedY)',
-            'Main',
-          );
-        } else {
-          AppLogger.d(
-            'Window initialized with default state: ${effWidth}x$effHeight (centered)',
-            'Main',
-          );
-        }
-
-        await windowManager.show();
-        await windowManager.focus();
-      });
-
-      // 初始化系统托盘（Windows + macOS）
-      if (Platform.isWindows || Platform.isMacOS) {
-        try {
-          // 设置托盘图标和提示
-          // tray_manager 使用 Flutter 资源路径格式（相对于 data/flutter_assets/）
-          // macOS 菜单栏不支持 .ico，使用 png
-          await trayManager.setIcon(
-            Platform.isWindows
-                ? 'assets/icons/app_icon.ico'
-                : 'assets/icons/tray_icon.png',
-          );
-          await trayManager.setToolTip('NAI Launcher');
-
-          // 获取本地化字符串
-          final l10n = _getLocalizedStrings();
-
-          final menu = Menu(
-            items: [
-              MenuItem(key: 'show', label: l10n.tray_show),
-              MenuItem.separator(),
-              MenuItem(key: 'exit', label: l10n.tray_exit),
-            ],
-          );
-          await trayManager.setContextMenu(menu);
-
-          // 设置阻止关闭（关闭时隐藏到托盘）
-          await windowManager.setPreventClose(true);
-
-          trayManager.addListener(AppTrayListener());
-          windowManager.addListener(AppWindowListener());
-
-          AppLogger.d('System tray initialized', 'Main');
-        } catch (e) {
-          AppLogger.e('Failed to initialize system tray: $e', 'Main');
-        }
-      }
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        'Desktop window initialization failed; continuing startup',
-        e,
-        stackTrace,
-        'Main',
-      );
-    }
-  }
-
-  // 系统代理配置（根据用户设置）
-  if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-    final settingsBox = Hive.box(StorageKeys.settingsBox);
-    final proxyEnabled =
-        settingsBox.get(StorageKeys.proxyEnabled, defaultValue: true) as bool;
-
-    if (proxyEnabled) {
-      final proxyMode =
-          settingsBox.get(StorageKeys.proxyMode, defaultValue: 'auto')
-              as String;
-
-      String? proxyAddress;
-
-      if (proxyMode == 'manual') {
-        // 手动模式：从设置读取
-        final host = settingsBox.get(StorageKeys.proxyManualHost) as String?;
-        final port = settingsBox.get(StorageKeys.proxyManualPort) as int?;
-        if (host != null && host.isNotEmpty && port != null && port > 0) {
-          proxyAddress = '$host:$port';
-        }
-      } else {
-        // 自动模式：从系统获取
-        proxyAddress = ProxyService.getSystemProxyAddress();
-      }
-
-      if (proxyAddress != null && proxyAddress.isNotEmpty) {
-        HttpOverrides.global = SystemProxyHttpOverrides('PROXY $proxyAddress');
-        AppLogger.i(
-          'Applied proxy: $proxyAddress (mode: $proxyMode)',
-          'NETWORK',
-        );
-      } else {
-        AppLogger.w(
-          'Proxy enabled but no proxy address available (mode: $proxyMode)',
-          'NETWORK',
-        );
-      }
-    } else {
-      AppLogger.d('Proxy disabled by user settings', 'NETWORK');
-    }
-  }
-
-  // 注册窗口状态观察者（桌面端）
-  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-    WidgetsBinding.instance.addObserver(WindowStateObserver());
-    AppLogger.d('Window state observer registered', 'Main');
-  }
-
-  final searchIndexService = SearchIndexService();
-  _runDeferredStartupStep('Search index service initialization', () async {
-    await searchIndexService.init();
-    AppLogger.i('搜索索引服务初始化完成', 'Main');
-  });
-
-  final tagCacheService = TagCacheService();
-  _runDeferredStartupStep('Tag cache service initialization', () async {
-    await tagCacheService.init();
-    AppLogger.i('Tag 缓存服务初始化完成', 'Main');
-  });
-
+  final desktopWindow = await desktopWindowFuture;
+  final container = ProviderContainer();
+  AppLogger.i('Calling runApp; database warmup has not started', 'Main');
   runApp(
     UncontrolledProviderScope(
       container: container,
-      child: const AppBootstrap(),
+      child: AppBootstrap(
+        onWarmupComplete: () {
+          unawaited(_runDeferredStartup(container));
+        },
+      ),
     ),
   );
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    AppLogger.i('Flutter first frame completed', 'Main');
+    if (desktopWindow != null) {
+      unawaited(desktopWindow.show());
+    }
+  });
 }

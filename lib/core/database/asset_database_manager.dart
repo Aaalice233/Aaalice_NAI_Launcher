@@ -69,7 +69,6 @@ class AssetDatabaseManager {
         'tag_search': {'term', 'search_key', 'tag_id', 'kind'},
       },
     );
-    _instance._tagCatalogDbPath = catalogPath;
     await _migrateLegacyAutocompleteData(appDir, assetDbDir);
 
     final cooccurrencePath = p.join(assetDbDir.path, cooccurrenceDb);
@@ -81,9 +80,10 @@ class AssetDatabaseManager {
         'cooccurrences': {'tag1', 'tag2', 'count'},
       },
     );
-    _instance._cooccurrenceDbPath = cooccurrencePath;
-
     await _removeLegacyTranslationDatabase(assetDbDir);
+    _instance
+      .._tagCatalogDbPath = catalogPath
+      .._cooccurrenceDbPath = cooccurrencePath;
     AppLogger.i('Asset databases initialized', 'AssetDatabaseManager');
   }
 
