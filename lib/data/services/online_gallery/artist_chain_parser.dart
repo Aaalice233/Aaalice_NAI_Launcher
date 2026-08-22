@@ -71,6 +71,12 @@ class ArtistChainParser {
       if (cursor >= end) break;
 
       final character = source[cursor];
+      if (character == '}' || character == ']') {
+        // Stray closing delimiters are malformed prompt syntax. They must be
+        // consumed explicitly so the parser always makes forward progress.
+        cursor++;
+        continue;
+      }
       if (character == '{' || character == '[') {
         final closingCharacter = character == '{' ? '}' : ']';
         final close = _findBalancedClose(
@@ -132,7 +138,7 @@ class ArtistChainParser {
 
       final itemEnd = _findItemEnd(source, cursor, end);
       addNode(_parseArtistItem(source, cursor, itemEnd));
-      cursor = itemEnd;
+      cursor = itemEnd > cursor ? itemEnd : cursor + 1;
     }
 
     return _ParsedSequence(List.unmodifiable(nodes));

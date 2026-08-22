@@ -1165,8 +1165,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               _galleryNotifier.setPopularSource(source);
             },
           ),
-        if (activeSourceId == GallerySourceId.aiTag)
-          _buildArtistHuntButton(theme, state),
         if (state.viewMode == GalleryViewMode.favorites) ...[
           _SourceDropdown(
             selected: state.favoritesSourceId,
@@ -1211,6 +1209,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         if (state.viewMode == GalleryViewMode.favorites &&
             state.favoritesSourceId == GallerySourceId.gelbooru)
           _buildGelbooruFavoritesNotice(theme),
+        if (activeSourceId == GallerySourceId.aiTag)
+          _buildArtistHuntButton(theme, state),
       ],
     );
   }

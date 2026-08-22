@@ -116,6 +116,16 @@ void main() {
       },
     );
 
+    test('consumes stray closing delimiters and continues parsing', () {
+      final result = ArtistChainParser.parse(
+        'artist:first}, scenery, ] artist:second, artist:third]',
+      );
+
+      expect(result.formattedText, 'artist:first, artist:second, artist:third');
+      expect(result.artistNames, ['first', 'second', 'third']);
+      expect(ArtistChainParser.parse(']}').isEmpty, isTrue);
+    });
+
     test('does not inspect a separately supplied negative prompt', () {
       const positive = '1girl, best quality';
       const negative = 'artist:negative_only';
