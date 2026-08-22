@@ -5,6 +5,7 @@ import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/utils/byte_format.dart';
+import '../../../core/utils/in_app_release_notes.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/version/version_info.dart';
 import '../../providers/queue_execution_provider.dart';
@@ -88,6 +89,9 @@ class UpdateCheckDialog extends ConsumerWidget {
     VersionInfo versionInfo,
   ) {
     final theme = Theme.of(context);
+    final releaseNotes = extractInAppReleaseNotes(
+      versionInfo.releaseNotes ?? '',
+    );
 
     return SingleChildScrollView(
       child: Column(
@@ -135,8 +139,7 @@ class UpdateCheckDialog extends ConsumerWidget {
             const SizedBox(height: 8),
           ],
           // 更新日志
-          if (versionInfo.releaseNotes != null &&
-              versionInfo.releaseNotes!.isNotEmpty) ...[
+          if (releaseNotes.isNotEmpty) ...[
             Text(
               context.l10n.releaseNotes,
               style: theme.textTheme.titleSmall?.copyWith(
@@ -157,7 +160,7 @@ class UpdateCheckDialog extends ConsumerWidget {
                 ),
               ),
               child: SingleChildScrollView(
-                child: _buildReleaseNotes(context, versionInfo),
+                child: _buildReleaseNotes(context, versionInfo, releaseNotes),
               ),
             ),
           ],
@@ -327,7 +330,11 @@ class UpdateCheckDialog extends ConsumerWidget {
   ///
   /// 完整渲染 GitHub Flavored Markdown：标题、嵌套列表、任务列表、
   /// 表格、引用、分隔线、删除线、行内/围栏代码、链接与远程图片。
-  Widget _buildReleaseNotes(BuildContext context, VersionInfo versionInfo) {
+  Widget _buildReleaseNotes(
+    BuildContext context,
+    VersionInfo versionInfo,
+    String releaseNotes,
+  ) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final versionTag = versionInfo.version.startsWith('v')
@@ -339,7 +346,7 @@ class UpdateCheckDialog extends ConsumerWidget {
     );
 
     return MarkdownBody(
-      data: versionInfo.releaseNotes!,
+      data: releaseNotes,
       selectable: true,
       extensionSet: md.ExtensionSet.gitHubWeb,
       imageDirectory: rawContentBase.toString(),

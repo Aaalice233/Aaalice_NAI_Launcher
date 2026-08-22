@@ -331,6 +331,22 @@ List<FixedTagEntry> inferFixedTagCategories(
   ];
 }
 
+/// 排除已经从词库添加到固定词列表的条目。
+List<TagLibraryEntry> filterUnlinkedLibraryEntries({
+  required List<TagLibraryEntry> libraryEntries,
+  required List<FixedTagEntry> fixedEntries,
+}) {
+  final linkedEntryIds = fixedEntries
+      .map((entry) => entry.sourceEntryId)
+      .whereType<String>()
+      .toSet();
+  if (linkedEntryIds.isEmpty) return libraryEntries;
+
+  return libraryEntries
+      .where((entry) => !linkedEntryIds.contains(entry.id))
+      .toList();
+}
+
 /// 在筛选后的可见条目内重排，保持隐藏条目的相对位置。
 List<FixedTagEntry> reorderFixedTagsWithinVisibleIds({
   required List<FixedTagEntry> entries,

@@ -1023,12 +1023,15 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
   /// 显示词库选择器
   void _showLibraryPicker(ThemeData theme, FixedTagPromptType promptType) {
     final libraryState = ref.read(tagLibraryPageNotifierProvider);
-    final entries = libraryState.entries;
-
-    if (entries.isEmpty) {
+    if (libraryState.entries.isEmpty) {
       AppToast.info(context, context.l10n.fixedTags_libraryEmpty);
       return;
     }
+
+    final entries = filterUnlinkedLibraryEntries(
+      libraryEntries: libraryState.entries,
+      fixedEntries: ref.read(fixedTagsNotifierProvider).entries,
+    );
 
     showDialog(
       context: context,
