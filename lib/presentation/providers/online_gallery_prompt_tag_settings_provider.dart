@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/storage_keys.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../data/models/online_gallery/gallery_item.dart';
+import 'online_gallery_output_filter_provider.dart';
 
 enum OnlineGalleryPromptTagCategory {
   general,
@@ -39,7 +40,10 @@ class OnlineGalleryPromptTagSettings {
     );
   }
 
-  String promptFor(GalleryItem item) {
+  String promptFor(
+    GalleryItem item, {
+    OnlineGalleryOutputFilterSettings? outputFilter,
+  }) {
     final categoryTags = <OnlineGalleryPromptTagCategory, List<String>>{
       OnlineGalleryPromptTagCategory.general: item.generalTags,
       OnlineGalleryPromptTagCategory.character: item.characterTags,
@@ -53,17 +57,22 @@ class OnlineGalleryPromptTagSettings {
 
     // Gelbooru and AI TAG do not always expose per-category fields. Keeping the
     // source-provided tag list prevents the selector from erasing their prompt.
-    if (!hasCategorizedTags) return item.tags.join(', ');
+    if (!hasCategorizedTags) {
+      return (outputFilter?.filterTags(item.tags) ?? item.tags).join(', ');
+    }
 
     final selectedTags = <String>{};
     for (final category in _promptCategoryOrder) {
       if (!categories.contains(category)) continue;
       for (final tag in categoryTags[category]!) {
-        selectedTags.add(
-          category == OnlineGalleryPromptTagCategory.artist
-              ? _formatArtistTag(tag)
-              : tag,
-        );
+        final rendered = category == OnlineGalleryPromptTagCategory.artist
+            ? _formatArtistTag(tag)
+            : tag;
+        if (outputFilter?.contains(tag) == true ||
+            outputFilter?.contains(rendered) == true) {
+          continue;
+        }
+        selectedTags.add(rendered);
       }
     }
     return selectedTags.join(', ');

@@ -20,11 +20,14 @@ import '../../../data/models/online_gallery/gallery_source.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/services/online_gallery/artist_chain_parser.dart';
 import '../../providers/character_prompt_provider.dart';
+import '../../providers/online_gallery_output_filter_provider.dart';
 import '../../providers/online_gallery_provider.dart';
 import '../../providers/pending_prompt_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
 import '../common/app_toast.dart';
+import '../tag_chip.dart';
+import 'gallery_tag_context_menu.dart';
 
 Future<void> showAiTagDetailDialog(
   BuildContext context, {
@@ -426,7 +429,14 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
     GalleryMedia media,
   ) {
     final item = detail.item;
+    final outputFilter = ref.watch(onlineGalleryOutputFilterProvider);
     final artistChain = ArtistChainParser.parse(media.prompt);
+    final filteredArtistChain = outputFilter.filterPrompt(
+      artistChain.formattedText,
+    );
+    final filteredMediaPrompt = media.prompt == null
+        ? null
+        : outputFilter.filterPrompt(media.prompt!);
     final artistHuntMode = widget.item.focusedMediaId != null;
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -473,12 +483,19 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
           spacing: 6,
           runSpacing: 6,
           children: item.tags
-              .map(
-                (tag) => Chip(
-                  label: Text(tag),
-                  visualDensity: VisualDensity.compact,
-                ),
-              )
+              .map((tag) {
+                final filtered = outputFilter.contains(tag);
+                return SimpleTagChip(
+                  tag: tag,
+                  autoTranslate: false,
+                  isOutputFiltered: filtered,
+                  tooltip: filtered
+                      ? context.l10n.onlineGallery_outputFilteredTagTooltip
+                      : context.l10n.onlineGallery_tagContextMenuTooltip,
+                  onSecondaryTapDown: (details) =>
+                      _showTagContextMenu(tag, details),
+                );
+              })
               .toList(growable: false),
         ),
         const SizedBox(height: 16),
@@ -507,8 +524,8 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
           children: [
             if (artistHuntMode) ...[
               FilledButton.tonalIcon(
-                onPressed: artistChain.isNotEmpty
-                    ? () => _copy(artistChain.formattedText)
+                onPressed: filteredArtistChain.isNotEmpty
+                    ? () => _copy(filteredArtistChain)
                     : null,
                 icon: const Icon(Icons.brush_outlined, size: 16),
                 label: Text(
@@ -518,8 +535,8 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
                 ),
               ),
               OutlinedButton.icon(
-                onPressed: media.prompt?.isNotEmpty == true
-                    ? () => _copy(media.prompt!)
+                onPressed: filteredMediaPrompt?.isNotEmpty == true
+                    ? () => _copy(filteredMediaPrompt!)
                     : null,
                 icon: const Icon(Icons.copy_all, size: 16),
                 label: Text(context.l10n.onlineGallery_copyFullPrompt),
@@ -533,8 +550,8 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
               ),
             ] else
               OutlinedButton.icon(
-                onPressed: media.prompt?.isNotEmpty == true
-                    ? () => _copy(media.prompt!)
+                onPressed: filteredMediaPrompt?.isNotEmpty == true
+                    ? () => _copy(filteredMediaPrompt!)
                     : null,
                 icon: const Icon(Icons.copy, size: 16),
                 label: Text(context.l10n.localGallery_copyPrompt),
@@ -636,13 +653,27 @@ class _AiTagDetailDialogState extends ConsumerState<_AiTagDetailDialog> {
     }
   }
 
+  Future<void> _showTagContextMenu(String tag, TapDownDetails details) async {
+    final action = await showOnlineGalleryTagContextMenu(
+      context: context,
+      ref: ref,
+      tag: tag,
+      globalPosition: details.globalPosition,
+    );
+    if (!mounted || action != OnlineGalleryTagContextAction.blacklist) return;
+    final notifier = ref.read(onlineGalleryNotifierProvider.notifier);
+    Navigator.pop(context);
+    notifier.refresh();
+  }
+
   void _copy(String value) {
     Clipboard.setData(ClipboardData(text: value));
     AppToast.success(context, context.l10n.onlineGallery_copied);
   }
 
   String _promptFor(GalleryDetail detail, GalleryMedia media) {
-    return media.prompt ?? detail.prompt ?? detail.item.tags.join(', ');
+    final raw = media.prompt ?? detail.prompt ?? detail.item.tags.join(', ');
+    return ref.read(onlineGalleryOutputFilterProvider).filterPrompt(raw);
   }
 
   String _fullMetadata(GalleryMedia media) {

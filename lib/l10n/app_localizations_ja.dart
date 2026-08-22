@@ -2632,6 +2632,75 @@ class AppLocalizationsJa extends AppLocalizations {
   String get onlineGallery_blacklistTags => 'ブラックリスト タグ';
 
   @override
+  String get onlineGallery_outputFilter => '出力フィルター';
+
+  @override
+  String get onlineGallery_outputFilterTooltip =>
+      'コピー、送信、キュー追加時に自動で除外するタグを管理します';
+
+  @override
+  String get onlineGallery_outputFilterTitle => '出力フィルタータグ';
+
+  @override
+  String get onlineGallery_outputFilterSubtitle =>
+      '画像は表示されたまま、完全一致するタグだけをコピー・送信・キューのプロンプトから除外します。';
+
+  @override
+  String get onlineGallery_outputFilterAddHint => '出力から除外するタグを追加';
+
+  @override
+  String get onlineGallery_outputFilterInputHint => '複数のタグはカンマまたは改行で区切ります';
+
+  @override
+  String get onlineGallery_outputFilterEmpty => '出力フィルタータグは設定されていません';
+
+  @override
+  String get onlineGallery_outputFilterRestoreDefaults => 'デフォルトに戻す';
+
+  @override
+  String get onlineGallery_outputFilterClearTitle => '出力フィルターをクリアしますか？';
+
+  @override
+  String get onlineGallery_outputFilterClearConfirm =>
+      '透かしやモザイクのタグがコピー・送信するプロンプトに再び含まれます。';
+
+  @override
+  String get onlineGallery_addTagToOutputFilter => '出力フィルターに追加';
+
+  @override
+  String get onlineGallery_outputFilterAlreadyAdded => '出力フィルターに追加済み';
+
+  @override
+  String get onlineGallery_outputFilterMenuHint => '画像は表示したまま、このタグだけを出力から除外します';
+
+  @override
+  String get onlineGallery_addTagToBlacklist => 'ブラックリストに追加';
+
+  @override
+  String get onlineGallery_blacklistAlreadyAdded => 'ブラックリストに追加済み';
+
+  @override
+  String get onlineGallery_blacklistMenuHint => 'このタグを含むギャラリー画像を非表示にします';
+
+  @override
+  String get onlineGallery_outputFilteredTagTooltip =>
+      'コピー、送信、キュー追加時に除外されます。右クリックで管理できます';
+
+  @override
+  String get onlineGallery_tagContextMenuTooltip =>
+      '右クリックでブラックリストまたは出力フィルターに追加';
+
+  @override
+  String onlineGallery_outputFilterTagAdded(Object tag) {
+    return '$tag を出力フィルターに追加しました';
+  }
+
+  @override
+  String onlineGallery_blacklistTagAdded(Object tag) {
+    return '$tag をブラックリストに追加しました';
+  }
+
+  @override
   String get onlineGallery_blacklistTitle => 'オンライン ギャラリー ブラックリスト';
 
   @override

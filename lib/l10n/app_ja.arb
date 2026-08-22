@@ -1210,6 +1210,36 @@
   "onlineGallery_fuzzySearch": "ファジーマッチ",
   "onlineGallery_fuzzySearchTooltip": "有効な場合は、関連タグに *tag* マッチングを使用します。無効になっている場合は、正確な Danbooru タグを検索します",
   "onlineGallery_blacklistTags": "ブラックリスト タグ",
+  "onlineGallery_outputFilter": "出力フィルター",
+  "onlineGallery_outputFilterTooltip": "コピー、送信、キュー追加時に自動で除外するタグを管理します",
+  "onlineGallery_outputFilterTitle": "出力フィルタータグ",
+  "onlineGallery_outputFilterSubtitle": "画像は表示されたまま、完全一致するタグだけをコピー・送信・キューのプロンプトから除外します。",
+  "onlineGallery_outputFilterAddHint": "出力から除外するタグを追加",
+  "onlineGallery_outputFilterInputHint": "複数のタグはカンマまたは改行で区切ります",
+  "onlineGallery_outputFilterEmpty": "出力フィルタータグは設定されていません",
+  "onlineGallery_outputFilterRestoreDefaults": "デフォルトに戻す",
+  "onlineGallery_outputFilterClearTitle": "出力フィルターをクリアしますか？",
+  "onlineGallery_outputFilterClearConfirm": "透かしやモザイクのタグがコピー・送信するプロンプトに再び含まれます。",
+  "onlineGallery_addTagToOutputFilter": "出力フィルターに追加",
+  "onlineGallery_outputFilterAlreadyAdded": "出力フィルターに追加済み",
+  "onlineGallery_outputFilterMenuHint": "画像は表示したまま、このタグだけを出力から除外します",
+  "onlineGallery_addTagToBlacklist": "ブラックリストに追加",
+  "onlineGallery_blacklistAlreadyAdded": "ブラックリストに追加済み",
+  "onlineGallery_blacklistMenuHint": "このタグを含むギャラリー画像を非表示にします",
+  "onlineGallery_outputFilteredTagTooltip": "コピー、送信、キュー追加時に除外されます。右クリックで管理できます",
+  "onlineGallery_tagContextMenuTooltip": "右クリックでブラックリストまたは出力フィルターに追加",
+  "onlineGallery_outputFilterTagAdded": "{tag} を出力フィルターに追加しました",
+  "@onlineGallery_outputFilterTagAdded": {
+    "placeholders": {
+      "tag": {}
+    }
+  },
+  "onlineGallery_blacklistTagAdded": "{tag} をブラックリストに追加しました",
+  "@onlineGallery_blacklistTagAdded": {
+    "placeholders": {
+      "tag": {}
+    }
+  },
   "onlineGallery_blacklistTitle": "オンライン ギャラリー ブラックリスト",
   "onlineGallery_blacklistSubtitle": "ブラックリストに登録されたタグを含む画像は、オンライン ギャラリーで直接非表示になります。",
   "onlineGallery_addBlacklistTagHint": "ブラックリスト タグを追加",

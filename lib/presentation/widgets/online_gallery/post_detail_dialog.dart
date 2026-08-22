@@ -14,6 +14,7 @@ import '../../../data/models/queue/replication_task.dart';
 import '../../../data/services/danbooru_auth_service.dart';
 import '../../../core/autocomplete/tag_translation_lookup.dart';
 import '../../providers/character_prompt_provider.dart';
+import '../../providers/online_gallery_output_filter_provider.dart';
 import '../../providers/online_gallery_prompt_tag_settings_provider.dart';
 import '../../providers/online_gallery_provider.dart';
 import '../../providers/pending_prompt_provider.dart';
@@ -22,6 +23,7 @@ import '../../providers/reverse_prompt_provider.dart';
 import '../tag_chip.dart';
 import '../../widgets/common/themed_divider.dart';
 import '../../widgets/common/app_toast.dart';
+import 'gallery_tag_context_menu.dart';
 import 'video_player_widget.dart';
 
 /// 在线画廊帖子详情弹窗
@@ -466,6 +468,7 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   /// 标签区域
   Widget _buildTagsSection(ThemeData theme) {
     final translationService = ref.watch(tagTranslationLookupProvider);
+    final outputFilter = ref.watch(onlineGalleryOutputFilterProvider);
     final generalTags = _generalDisplayTags(widget.post);
 
     return SingleChildScrollView(
@@ -487,7 +490,9 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
               tags: widget.post.artistTags,
               color: TagColors.artist,
               translationService: translationService,
+              outputFilter: outputFilter,
               onTagTap: _handleTagTap,
+              onTagSecondaryTapDown: _handleTagSecondaryTapDown,
             ),
           // 角色标签
           if (widget.post.characterTags.isNotEmpty)
@@ -496,7 +501,9 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
               tags: widget.post.characterTags,
               color: TagColors.character,
               translationService: translationService,
+              outputFilter: outputFilter,
               onTagTap: _handleTagTap,
+              onTagSecondaryTapDown: _handleTagSecondaryTapDown,
             ),
           // 版权标签
           if (widget.post.copyrightTags.isNotEmpty)
@@ -505,7 +512,9 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
               tags: widget.post.copyrightTags,
               color: TagColors.copyright,
               translationService: translationService,
+              outputFilter: outputFilter,
               onTagTap: _handleTagTap,
+              onTagSecondaryTapDown: _handleTagSecondaryTapDown,
             ),
           // 通用标签
           if (generalTags.isNotEmpty)
@@ -514,7 +523,9 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
               tags: generalTags,
               color: TagColors.general,
               translationService: translationService,
+              outputFilter: outputFilter,
               onTagTap: _handleTagTap,
+              onTagSecondaryTapDown: _handleTagSecondaryTapDown,
             ),
           // 元标签
           if (widget.post.metaTags.isNotEmpty)
@@ -523,7 +534,9 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
               tags: widget.post.metaTags,
               color: TagColors.meta,
               translationService: translationService,
+              outputFilter: outputFilter,
               onTagTap: _handleTagTap,
+              onTagSecondaryTapDown: _handleTagSecondaryTapDown,
             ),
         ],
       ),
@@ -533,6 +546,24 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
   void _handleTagTap(String tag) {
     _close();
     widget.onTagTap?.call(tag);
+  }
+
+  Future<void> _handleTagSecondaryTapDown(
+    String tag,
+    TapDownDetails details,
+  ) async {
+    final action = await showOnlineGalleryTagContextMenu(
+      context: context,
+      ref: ref,
+      tag: tag,
+      globalPosition: details.globalPosition,
+    );
+    if (!mounted || action != OnlineGalleryTagContextAction.blacklist) return;
+
+    // The current post may no longer belong in the visible result set.
+    final notifier = ref.read(onlineGalleryNotifierProvider.notifier);
+    await _close();
+    notifier.refresh();
   }
 
   /// 操作按钮区域
@@ -610,8 +641,12 @@ class _PostDetailDialogState extends ConsumerState<PostDetailDialog>
     );
   }
 
-  String get _actionPrompt =>
-      ref.read(onlineGalleryPromptTagSettingsProvider).promptFor(widget.post);
+  String get _actionPrompt {
+    final outputFilter = ref.read(onlineGalleryOutputFilterProvider);
+    return ref
+        .read(onlineGalleryPromptTagSettingsProvider)
+        .promptFor(widget.post, outputFilter: outputFilter);
+  }
 
   /// 复制标签
   void _copyTags() {
@@ -793,14 +828,18 @@ class _TagSection extends StatelessWidget {
   final List<String> tags;
   final Color color;
   final TagTranslationLookup translationService;
+  final OnlineGalleryOutputFilterSettings outputFilter;
   final Function(String) onTagTap;
+  final void Function(String, TapDownDetails) onTagSecondaryTapDown;
 
   const _TagSection({
     required this.title,
     required this.tags,
     required this.color,
     required this.translationService,
+    required this.outputFilter,
     required this.onTagTap,
+    required this.onTagSecondaryTapDown,
   });
 
   @override
@@ -839,11 +878,18 @@ class _TagSection extends StatelessWidget {
               return FutureBuilder<String?>(
                 future: translationService.translate(tag),
                 builder: (context, snapshot) {
+                  final filtered = outputFilter.contains(tag);
                   return SimpleTagChip(
                     tag: tag,
                     color: color,
                     translation: snapshot.data,
                     onTap: () => onTagTap(tag),
+                    onSecondaryTapDown: (details) =>
+                        onTagSecondaryTapDown(tag, details),
+                    isOutputFiltered: filtered,
+                    tooltip: filtered
+                        ? context.l10n.onlineGallery_outputFilteredTagTooltip
+                        : context.l10n.onlineGallery_tagContextMenuTooltip,
                   );
                 },
               );

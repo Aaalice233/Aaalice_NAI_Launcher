@@ -21,6 +21,7 @@ import '../../../data/models/queue/replication_task.dart';
 import '../../../data/services/danbooru_auth_service.dart';
 import '../../../data/services/gelbooru_auth_service.dart';
 
+import '../../providers/online_gallery_output_filter_provider.dart';
 import '../../providers/online_gallery_prompt_tag_settings_provider.dart';
 import '../../providers/online_gallery_provider.dart';
 import '../../providers/replication_queue_provider.dart';
@@ -33,6 +34,7 @@ import '../../widgets/online_gallery/post_detail_dialog.dart';
 import '../../widgets/online_gallery/ai_tag_detail_dialog.dart';
 import '../../widgets/online_gallery/blacklist_settings_panel.dart';
 import '../../widgets/online_gallery/online_gallery_hover_controller.dart';
+import '../../widgets/online_gallery/output_filter_settings_panel.dart';
 
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/bulk_action_bar.dart';
@@ -1203,6 +1205,34 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             ),
           ),
         ),
+        Consumer(
+          builder: (context, filterRef, _) {
+            final count = filterRef.watch(
+              onlineGalleryOutputFilterProvider.select(
+                (settings) => settings.tags.length,
+              ),
+            );
+            return Tooltip(
+              message: context.l10n.onlineGallery_outputFilterTooltip,
+              child: OutlinedButton.icon(
+                key: const ValueKey('online-gallery-output-filter'),
+                onPressed: () => showOnlineGalleryOutputFilterDialog(context),
+                icon: const Icon(Icons.filter_alt_off_outlined, size: 17),
+                label: Text(
+                  '${context.l10n.onlineGallery_outputFilter} · $count',
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.colorScheme.onSurfaceVariant,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 7,
+                  ),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            );
+          },
+        ),
         _buildPromptTagCategorySelector(theme),
         if (state.viewMode == GalleryViewMode.popular && includePopularOptions)
           _buildPopularOptions(theme, state),
@@ -2111,11 +2141,20 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
                 (value.isActive, value.selectedIds.contains(post.stableKey)),
           ),
         );
-        final tagPrompt = cardRef.watch(
-          onlineGalleryPromptTagSettingsProvider.select(
-            (value) => value.promptFor(post),
-          ),
+        final promptTagSettings = cardRef.watch(
+          onlineGalleryPromptTagSettingsProvider,
         );
+        final outputFilter = cardRef.watch(onlineGalleryOutputFilterProvider);
+        final tagPrompt = promptTagSettings.promptFor(
+          post,
+          outputFilter: outputFilter,
+        );
+        final filteredPromptOverride = promptOverride == null
+            ? null
+            : outputFilter.filterPrompt(promptOverride);
+        final filteredCopyText = post.artistChain == null
+            ? null
+            : outputFilter.filterPrompt(post.artistChain!.formattedText);
         return DanbooruPostCard(
           key: ValueKey(post.stableKey),
           post: post,
@@ -2126,12 +2165,12 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           favoriteReadOnly: favoriteReadOnly,
           selectionMode: selectionState.$1,
           isSelected: selectionState.$2,
-          canSelect: (promptOverride ?? tagPrompt).isNotEmpty,
+          canSelect: (filteredPromptOverride ?? tagPrompt).isNotEmpty,
           tagPrompt: tagPrompt,
-          promptOverride: promptOverride,
+          promptOverride: filteredPromptOverride,
           negativePromptOverride:
               targetMedia?.negativePrompt ?? detail?.negativePrompt,
-          copyTextOverride: post.artistChain?.formattedText,
+          copyTextOverride: filteredCopyText,
           copyTooltip: post.artistChain != null
               ? context.l10n.onlineGallery_copyArtistChain
               : null,
@@ -2458,6 +2497,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     final selectionState = ref.read(onlineGallerySelectionNotifierProvider);
     final galleryState = ref.read(onlineGalleryNotifierProvider);
     final promptTagSettings = ref.read(onlineGalleryPromptTagSettingsProvider);
+    final outputFilter = ref.read(onlineGalleryOutputFilterProvider);
 
     final selectedPosts = galleryState.posts
         .where((p) => selectionState.selectedIds.contains(p.stableKey))
@@ -2475,7 +2515,10 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       final resolved = await Future.wait(
         batch.map((post) async {
           if (post.sourceId != GallerySourceId.aiTag) {
-            final prompt = promptTagSettings.promptFor(post);
+            final prompt = promptTagSettings.promptFor(
+              post,
+              outputFilter: outputFilter,
+            );
             return prompt.isEmpty
                 ? null
                 : ReplicationTask.create(
@@ -2494,10 +2537,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             final media = focusedIndex >= 0
                 ? detail.media[focusedIndex]
                 : detail.media.first;
-            final prompt =
+            final rawPrompt =
                 media.prompt ??
                 detail.prompt ??
-                promptTagSettings.promptFor(post);
+                promptTagSettings.promptFor(post, outputFilter: outputFilter);
+            final prompt = outputFilter.filterPrompt(rawPrompt);
             if (prompt.isEmpty) return null;
             return ReplicationTask.create(
               prompt: prompt,

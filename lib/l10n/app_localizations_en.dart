@@ -2688,6 +2688,81 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_blacklistTags => 'Blacklist Tags';
 
   @override
+  String get onlineGallery_outputFilter => 'Output Filter';
+
+  @override
+  String get onlineGallery_outputFilterTooltip =>
+      'Manage tags removed automatically when copying, sending, or adding to the queue';
+
+  @override
+  String get onlineGallery_outputFilterTitle => 'Output filter tags';
+
+  @override
+  String get onlineGallery_outputFilterSubtitle =>
+      'Images remain visible. Exact matching tags are removed only from copied, sent, and queued prompts.';
+
+  @override
+  String get onlineGallery_outputFilterAddHint =>
+      'Add a tag to remove from output';
+
+  @override
+  String get onlineGallery_outputFilterInputHint =>
+      'Separate multiple tags with commas or line breaks';
+
+  @override
+  String get onlineGallery_outputFilterEmpty =>
+      'No output filter tags configured';
+
+  @override
+  String get onlineGallery_outputFilterRestoreDefaults => 'Restore defaults';
+
+  @override
+  String get onlineGallery_outputFilterClearTitle => 'Clear the output filter?';
+
+  @override
+  String get onlineGallery_outputFilterClearConfirm =>
+      'Watermark and mosaic tags will appear in copied and sent prompts again.';
+
+  @override
+  String get onlineGallery_addTagToOutputFilter => 'Add to output filter';
+
+  @override
+  String get onlineGallery_outputFilterAlreadyAdded =>
+      'Already in output filter';
+
+  @override
+  String get onlineGallery_outputFilterMenuHint =>
+      'Keep the image visible and remove only this output tag';
+
+  @override
+  String get onlineGallery_addTagToBlacklist => 'Add to blacklist';
+
+  @override
+  String get onlineGallery_blacklistAlreadyAdded => 'Already in blacklist';
+
+  @override
+  String get onlineGallery_blacklistMenuHint =>
+      'Hide gallery images containing this tag';
+
+  @override
+  String get onlineGallery_outputFilteredTagTooltip =>
+      'Removed when copying, sending, or adding to queue; right-click to manage';
+
+  @override
+  String get onlineGallery_tagContextMenuTooltip =>
+      'Right-click to add to the blacklist or output filter';
+
+  @override
+  String onlineGallery_outputFilterTagAdded(Object tag) {
+    return 'Added $tag to the output filter';
+  }
+
+  @override
+  String onlineGallery_blacklistTagAdded(Object tag) {
+    return 'Added $tag to the blacklist';
+  }
+
+  @override
   String get onlineGallery_blacklistTitle => 'Online Gallery Blacklist';
 
   @override
