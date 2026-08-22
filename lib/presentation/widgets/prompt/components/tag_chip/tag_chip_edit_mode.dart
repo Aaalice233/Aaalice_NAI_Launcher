@@ -214,6 +214,7 @@ class _TagChipEditModeState extends ConsumerState<TagChipEditMode>
                 ),
                 child: ThemedInput(
                   controller: _controller,
+                  focusNode: _focusNode,
                   style: TextStyle(
                     fontSize: compact
                         ? TagChipSizes.compactFontSize

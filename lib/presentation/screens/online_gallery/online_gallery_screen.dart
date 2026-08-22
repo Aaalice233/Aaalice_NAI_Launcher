@@ -808,6 +808,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             focusNode: queryFocus,
             hintText: context.l10n.onlineGallery_aiTagQuery,
             icon: Icons.manage_search,
+            treatSpacesAsSeparators: true,
             onSubmitted: submit,
           );
           final prompt = _buildPlainSearchField(
@@ -840,29 +841,41 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     required String hintText,
     required IconData icon,
     required VoidCallback onSubmitted,
+    bool treatSpacesAsSeparators = false,
   }) {
-    return Container(
-      height: 36,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(18),
+    return AutocompleteWrapper(
+      controller: controller,
+      focusNode: focusNode,
+      config: AutocompleteConfig(
+        autoInsertComma: false,
+        treatSpacesAsSeparators: treatSpacesAsSeparators,
       ),
-      child: TextField(
-        controller: controller,
-        focusNode: focusNode,
-        style: theme.textTheme.bodyMedium,
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: TextStyle(
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-            fontSize: 13,
+      onSuggestionSelected: (_) => onSubmitted(),
+      child: Container(
+        height: 36,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.4,
           ),
-          prefixIcon: Icon(icon, size: 18),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 8),
-          isDense: true,
+          borderRadius: BorderRadius.circular(18),
         ),
-        onSubmitted: (_) => onSubmitted(),
+        child: TextField(
+          controller: controller,
+          focusNode: focusNode,
+          style: theme.textTheme.bodyMedium,
+          decoration: InputDecoration(
+            hintText: hintText,
+            hintStyle: TextStyle(
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              fontSize: 13,
+            ),
+            prefixIcon: Icon(icon, size: 18),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            isDense: true,
+          ),
+          onSubmitted: (_) => onSubmitted(),
+        ),
       ),
     );
   }

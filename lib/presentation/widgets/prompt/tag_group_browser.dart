@@ -203,6 +203,7 @@ class _TagGroupBrowserState extends ConsumerState<TagGroupBrowser> {
         },
         child: ThemedInput(
           controller: _searchController,
+          focusNode: _searchFocusNode,
           decoration: InputDecoration(
             hintText: context.l10n.tagGroupBrowser_searchHint,
             hintStyle: TextStyle(

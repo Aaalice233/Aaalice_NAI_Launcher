@@ -973,6 +973,7 @@ class _TagViewState extends ConsumerState<TagView>
                   ),
                   child: ThemedInput(
                     controller: _addTagController,
+                    focusNode: _addTagFocusNode,
                     decoration: InputDecoration(
                       hintText: context.l10n.tag_inputHint,
                       hintStyle: TextStyle(
