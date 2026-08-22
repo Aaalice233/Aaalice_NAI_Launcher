@@ -23,6 +23,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: pr-validation-${{ github.event.pull_request.number || github.ref }}
@@ -32,9 +33,153 @@ env:
   FLUTTER_VERSION: "3.44.2"
 
 jobs:
-  windows-validation:
+  changes:
+    name: Detect change scope
+    runs-on: ubuntu-latest
+    outputs:
+      windows_build: ${{ steps.filter.outputs.windows_build }}
+      windows_package: ${{ steps.filter.outputs.windows_package }}
+
+    steps:
+      - name: Classify pull request files
+        id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            windows_build:
+              - '.github/workflows/pull-request-validation.yml'
+              - 'assets/**'
+              - 'fonts/**'
+              - 'l10n.yaml'
+              - 'lib/**'
+              - 'pubspec.lock'
+              - 'pubspec.yaml'
+              - 'windows/**'
+            windows_package:
+              - 'installer/windows/**'
+              - 'pubspec.lock'
+              - 'pubspec.yaml'
+              - 'scripts/package_windows_release.ps1'
+              - 'scripts/validate_windows_installer_process_handling.ps1'
+              - 'windows/**'
+
+  quality:
+    name: Generate, validate, and analyze
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Generate localizations
+        run: flutter gen-l10n
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Verify generated files
+        run: git diff --exit-code
+
+      - name: Analyze
+        run: flutter analyze
+
+  tests:
+    name: Test
+    runs-on: windows-2022
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Validate bundled autocomplete databases
+        run: dart run tool/tag_catalog/verify_bundled_databases.dart
+
+      - name: Generate localizations
+        run: flutter gen-l10n
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Run tests
+        run: flutter test --reporter compact
+
+  windows-build:
+    name: Build Windows debug
+    runs-on: windows-2022
+    needs: changes
+    if: >-
+      github.event_name != 'workflow_dispatch' &&
+      needs.changes.outputs.windows_build == 'true' &&
+      needs.changes.outputs.windows_package != 'true'
+    timeout-minutes: 20
+
+    steps:
+      # Database integrity is checked by the test job; compile smoke does not
+      # need to download the large LFS payloads.
+      - name: Checkout without LFS payloads
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v4
+        with:
+          nuget-version: latest
+
+      - name: Verify NuGet
+        shell: pwsh
+        run: ./scripts/verify_nuget.ps1
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Generate localizations
+        run: flutter gen-l10n
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build Windows debug
+        run: flutter build windows --debug
+
+  windows-package:
     name: Test and package Windows
     runs-on: windows-2022
+    needs: changes
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.windows_package == 'true'
+    timeout-minutes: 40
 
     steps:
       - name: Checkout
@@ -62,13 +207,6 @@ jobs:
         shell: pwsh
         run: choco install nsis -y --no-progress
 
-      - name: Pull LFS databases
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          git lfs install
-          git lfs pull --include="assets/databases/*.db"
-
       - name: Resolve dependencies
         run: flutter pub get
 
@@ -80,18 +218,6 @@ jobs:
 
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
-
-      - name: Verify generated files
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          git diff --exit-code
-
-      - name: Run tests
-        run: flutter test --reporter compact
-
-      - name: Analyze
-        run: flutter analyze
 
       - name: Build Windows release
         run: flutter build windows --release
@@ -128,3 +254,26 @@ jobs:
               throw "Missing packaged artifact: $path"
             }
           }
+
+  result:
+    name: PR validation
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - changes
+      - quality
+      - tests
+      - windows-build
+      - windows-package
+
+    steps:
+      - name: Verify required jobs passed
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $failed = '${{ contains(needs.*.result, 'failure') }}' -eq 'true'
+          $cancelled = '${{ contains(needs.*.result, 'cancelled') }}' -eq 'true'
+          if ($failed -or $cancelled) {
+            throw 'One or more pull request validation jobs did not pass.'
+          }
+          Write-Host 'All required pull request validation jobs passed or were intentionally skipped.'

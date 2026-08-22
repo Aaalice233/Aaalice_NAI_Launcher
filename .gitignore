@@ -192,6 +192,8 @@ tool/tag_catalog/.tmp/
 .claude/
 .gemini/
 .specstory/
+.orca/
+.pi-analyze-worktree/
 
 # GSD (Get Shit Done) 工作流
 .planning/
