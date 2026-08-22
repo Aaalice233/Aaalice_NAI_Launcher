@@ -13,8 +13,6 @@ import '../../../core/autocomplete/completion_orchestrator.dart';
 import '../../../core/autocomplete/prompt_token_parser.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
-import '../../providers/generation/generation_settings_notifiers.dart'
-    as generation_settings;
 import '../../router/app_router.dart';
 import 'autocomplete_config.dart';
 import 'autocomplete_utils.dart';
@@ -349,10 +347,6 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
   }) {
     if (!mounted || !widget.enabled || widget.usesLegacyStrategy) return;
     final settings = ref.read(autocompleteSettingsProvider);
-    if (!ref.read(generation_settings.autocompleteSettingsProvider)) {
-      _dismissOverlay();
-      return;
-    }
     _maybePromptZhDictionary(settings);
     final config = widget.config;
     final selection = widget.controller.selection;
@@ -838,6 +832,10 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       );
     }
     ref.listen<AutocompleteSettings>(autocompleteSettingsProvider, (_, next) {
+      if (!next.enabled) {
+        _dismissOverlay('autocomplete disabled');
+        return;
+      }
       if (!next.relatedTagsEnabled) _pinnedRelatedTag = null;
       final activeRelatedTag = _orchestrator?.state.query?.relatedTag;
       final relatedTag = _pinnedRelatedTag ?? activeRelatedTag;
@@ -852,24 +850,6 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
     });
     ref.listen(zhDictionaryServiceProvider, (_, __) {
       _overlayEntry?.markNeedsBuild();
-    });
-    ref.listen<bool>(generation_settings.autocompleteSettingsProvider, (
-      _,
-      enabled,
-    ) {
-      final activeRelatedTag = _orchestrator?.state.query?.relatedTag;
-      final relatedTag = _pinnedRelatedTag ?? activeRelatedTag;
-      if (enabled &&
-          _focusNode.hasFocus &&
-          (_overlayEntry != null || relatedTag != null)) {
-        _startQuery(
-          related: relatedTag != null,
-          relatedTagOverride: relatedTag,
-          keepEmptyVisible: _keepEmptyQueryVisible ?? false,
-        );
-      } else if (!enabled) {
-        _dismissOverlay('autocomplete disabled');
-      }
     });
     return SizedBox(
       key: _anchorKey,

@@ -1,5 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/autocomplete/autocomplete_settings.dart'
+    as completion_settings;
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
 
@@ -8,17 +10,22 @@ part 'generation_settings_notifiers.g.dart';
 /// 自动补全设置 Notifier
 @Riverpod(keepAlive: true)
 class AutocompleteSettings extends _$AutocompleteSettings {
-  LocalStorageService get _storage => ref.read(localStorageServiceProvider);
-
   @override
-  bool build() => _storage.getEnableAutocomplete();
-
-  void toggle() => set(!state);
-
-  void set(bool value) {
-    state = value;
-    _storage.setEnableAutocomplete(value);
+  bool build() {
+    ref.listen(
+      completion_settings.autocompleteSettingsProvider.select(
+        (settings) => settings.enabled,
+      ),
+      (_, enabled) => state = enabled,
+    );
+    return ref.read(completion_settings.autocompleteSettingsProvider).enabled;
   }
+
+  Future<void> toggle() => set(!state);
+
+  Future<void> set(bool value) => ref
+      .read(completion_settings.autocompleteSettingsProvider.notifier)
+      .setEnabled(value);
 }
 
 /// 自动格式化设置 Notifier

@@ -18,6 +18,8 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_config.dart';
 import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_wrapper.dart';
+import 'package:nai_launcher/presentation/providers/generation/generation_settings_notifiers.dart'
+    as generation_settings;
 import 'package:nai_launcher/presentation/widgets/prompt/nai_syntax_controller.dart';
 
 Future<void> _typeCurrentText(
@@ -103,6 +105,81 @@ void main() {
     expect(controller.text, 'blue_eyes, ');
     expect(controller.selection.extentOffset, controller.text.length);
   });
+
+  testWidgets(
+    'generation autocomplete toggle updates the unified settings used by dialogs',
+    (tester) async {
+      final controller = NaiSyntaxController(
+        text: '1.4::artist:kazutake_hazano::,\n1g',
+      );
+      controller.selection = TextSelection.collapsed(
+        offset: controller.text.length,
+      );
+      final focusNode = FocusNode();
+      addTearDown(() {
+        controller.dispose();
+        focusNode.dispose();
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            autocompleteSettingsProvider.overrideWith(
+              (ref) => _DisabledAutocompleteSettingsNotifier(),
+            ),
+            autocompleteServicesProvider.overrideWithValue(
+              AutocompleteServices(
+                localSources: [_BaseSource()],
+                dictionaryTranslations: const _NoTranslations(),
+                llmTranslations: const _NoTranslations(),
+                danbooru: _NoDanbooru(),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: AutocompleteWrapper(
+                controller: controller,
+                focusNode: focusNode,
+                maxLines: null,
+                child: TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  maxLines: null,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(AutocompleteWrapper)),
+      );
+      expect(container.read(autocompleteSettingsProvider).enabled, isFalse);
+      expect(
+        container.read(generation_settings.autocompleteSettingsProvider),
+        isFalse,
+      );
+
+      await container
+          .read(generation_settings.autocompleteSettingsProvider.notifier)
+          .set(true);
+      await tester.pump();
+
+      expect(container.read(autocompleteSettingsProvider).enabled, isTrue);
+      focusNode.requestFocus();
+      await tester.pump();
+      await _typeCurrentText(tester, controller);
+
+      expect(
+        find.byKey(const ValueKey('autocomplete-popup-surface')),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('focus and caret clicks stay quiet until text is edited', (
     tester,
@@ -1561,6 +1638,22 @@ class _RelatedSource implements CompletionSource {
           (candidate) => !query.existingTags.contains(candidate.canonicalTag),
         )
         .toList();
+  }
+}
+
+class _DisabledAutocompleteSettingsNotifier
+    extends AutocompleteSettingsNotifier {
+  _DisabledAutocompleteSettingsNotifier() : super(LocalStorageService()) {
+    state = const AutocompleteSettings(
+      enabled: false,
+      danbooruEnabled: false,
+      zhInstallPromptDismissed: true,
+    );
+  }
+
+  @override
+  Future<void> setEnabled(bool value) async {
+    state = state.copyWith(enabled: value);
   }
 }
 

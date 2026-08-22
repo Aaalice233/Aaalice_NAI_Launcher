@@ -49,7 +49,6 @@ class DataSourceCacheSettings extends ConsumerWidget {
                               .notifier,
                         )
                         .set(value);
-                    notifier.setEnabled(value);
                   },
                 ),
                 ListTile(
