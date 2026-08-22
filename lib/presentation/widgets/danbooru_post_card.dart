@@ -3,7 +3,6 @@ import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -946,13 +945,6 @@ class _HoverPreviewCardInner extends ConsumerStatefulWidget {
 
 class _HoverPreviewCardInnerState
     extends ConsumerState<_HoverPreviewCardInner> {
-  double _metadataContentHeight = 40;
-
-  void _updateMetadataHeight(Size size) {
-    if (!mounted || (size.height - _metadataContentHeight).abs() < 0.5) return;
-    setState(() => _metadataContentHeight = size.height);
-  }
-
   @override
   Widget build(BuildContext context) {
     final post = widget.post;
@@ -966,9 +958,7 @@ class _HoverPreviewCardInnerState
     final contentWidth = max(1.0, maxWidth - borderExtent);
     final contentMaxHeight = max(1.0, maxHeight - borderExtent);
     final maxMetadataHeight = min(240.0, max(40.0, contentMaxHeight * 0.35));
-    final metadataHeight = _metadataContentHeight
-        .clamp(40.0, maxMetadataHeight)
-        .toDouble();
+    final metadataHeight = _stableMetadataHeight(post, maxMetadataHeight);
     final naturalImageHeight = max(
       150.0,
       widget.aspectRatio != null && widget.aspectRatio! > 0
@@ -1115,91 +1105,88 @@ class _HoverPreviewCardInnerState
             SizedBox(
               height: metadataHeight,
               child: SingleChildScrollView(
-                child: _MeasureSize(
-                  onChange: _updateMetadataHeight,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          _StatItem(
+                            icon: Icons.photo_size_select_actual,
+                            value: '${post.width}×${post.height}',
+                          ),
+                          const SizedBox(width: 12),
+                          if (post.score != null) ...[
                             _StatItem(
-                              icon: Icons.photo_size_select_actual,
-                              value: '${post.width}×${post.height}',
+                              icon: Icons.thumb_up,
+                              value: '${post.score}',
                             ),
                             const SizedBox(width: 12),
-                            if (post.score != null) ...[
-                              _StatItem(
-                                icon: Icons.thumb_up,
-                                value: '${post.score}',
-                              ),
-                              const SizedBox(width: 12),
-                            ],
-                            if (post.viewCount != null) ...[
-                              _StatItem(
-                                icon: Icons.visibility_outlined,
-                                value: '${post.viewCount}',
-                              ),
-                              const SizedBox(width: 12),
-                            ],
-                            if (post.favCount != null)
-                              _StatItem(
-                                icon: Icons.favorite,
-                                value: '${post.favCount}',
-                              ),
-                            const Spacer(),
-                            if (post.rating != null)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _getRatingColor(post.rating),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  _getRatingLabel(context, post.rating),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
                           ],
+                          if (post.viewCount != null) ...[
+                            _StatItem(
+                              icon: Icons.visibility_outlined,
+                              value: '${post.viewCount}',
+                            ),
+                            const SizedBox(width: 12),
+                          ],
+                          if (post.favCount != null)
+                            _StatItem(
+                              icon: Icons.favorite,
+                              value: '${post.favCount}',
+                            ),
+                          const Spacer(),
+                          if (post.rating != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _getRatingColor(post.rating),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                _getRatingLabel(context, post.rating),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      if (post.artistTags.isNotEmpty) ...[
+                        _TagRow(
+                          icon: Icons.brush,
+                          color: const Color(0xFFFF8A8A),
+                          tags: post.artistTags.take(3).toList(),
+                          translationService: translationService,
                         ),
-                        const SizedBox(height: 10),
-                        if (post.artistTags.isNotEmpty) ...[
-                          _TagRow(
-                            icon: Icons.brush,
-                            color: const Color(0xFFFF8A8A),
-                            tags: post.artistTags.take(3).toList(),
-                            translationService: translationService,
-                          ),
-                          const SizedBox(height: 6),
-                        ],
-                        if (post.characterTags.isNotEmpty) ...[
-                          _TagRow(
-                            icon: Icons.person,
-                            color: const Color(0xFF8AFF8A),
-                            tags: post.characterTags.take(4).toList(),
-                            translationService: translationService,
-                            isCharacter: true,
-                          ),
-                          const SizedBox(height: 6),
-                        ],
-                        if (post.copyrightTags.isNotEmpty) ...[
-                          _TagRow(
-                            icon: Icons.movie,
-                            color: const Color(0xFFCC8AFF),
-                            tags: post.copyrightTags.take(2).toList(),
-                            translationService: translationService,
-                          ),
-                        ],
+                        const SizedBox(height: 6),
                       ],
-                    ),
+                      if (post.characterTags.isNotEmpty) ...[
+                        _TagRow(
+                          icon: Icons.person,
+                          color: const Color(0xFF8AFF8A),
+                          tags: post.characterTags.take(4).toList(),
+                          translationService: translationService,
+                          isCharacter: true,
+                        ),
+                        const SizedBox(height: 6),
+                      ],
+                      if (post.copyrightTags.isNotEmpty) ...[
+                        _TagRow(
+                          icon: Icons.movie,
+                          color: const Color(0xFFCC8AFF),
+                          tags: post.copyrightTags.take(2).toList(),
+                          translationService: translationService,
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ),
@@ -1208,6 +1195,25 @@ class _HoverPreviewCardInnerState
         ),
       ),
     );
+  }
+
+  double _stableMetadataHeight(DanbooruPost post, double maxHeight) {
+    final groups = <List<String>>[
+      if (post.artistTags.isNotEmpty) post.artistTags.take(3).toList(),
+      if (post.characterTags.isNotEmpty) post.characterTags.take(4).toList(),
+      if (post.copyrightTags.isNotEmpty) post.copyrightTags.take(2).toList(),
+    ];
+    final estimatedLines = groups.fold<int>(0, (sum, tags) {
+      final characters = tags.fold<int>(
+        0,
+        (count, tag) => count + tag.replaceAll('_', ' ').length + 2,
+      );
+      return sum + max(1, (characters / 22).ceil());
+    });
+    final requested = groups.isEmpty
+        ? 40.0
+        : 44.0 + estimatedLines * 16 + (groups.length - 1) * 6;
+    return requested.clamp(40.0, maxHeight).toDouble();
   }
 
   Color _getRatingColor(String? rating) {
@@ -1238,39 +1244,6 @@ class _HoverPreviewCardInnerState
       default:
         return rating?.toUpperCase() ?? '';
     }
-  }
-}
-
-class _MeasureSize extends SingleChildRenderObjectWidget {
-  const _MeasureSize({required this.onChange, required super.child});
-
-  final ValueChanged<Size> onChange;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) =>
-      _MeasureSizeRenderObject(onChange);
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    covariant _MeasureSizeRenderObject renderObject,
-  ) {
-    renderObject.onChange = onChange;
-  }
-}
-
-class _MeasureSizeRenderObject extends RenderProxyBox {
-  _MeasureSizeRenderObject(this.onChange);
-
-  ValueChanged<Size> onChange;
-  Size? _reportedSize;
-
-  @override
-  void performLayout() {
-    super.performLayout();
-    if (_reportedSize == size) return;
-    _reportedSize = size;
-    WidgetsBinding.instance.addPostFrameCallback((_) => onChange(size));
   }
 }
 

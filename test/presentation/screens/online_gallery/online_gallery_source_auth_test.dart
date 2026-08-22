@@ -42,7 +42,14 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Configure Gelbooru API'), findsOneWidget);
+      final avatar = find.byKey(
+        const ValueKey('online-gallery-account-avatar'),
+      );
+      expect(avatar, findsOneWidget);
+      expect(
+        find.descendant(of: avatar, matching: find.byIcon(Icons.key)),
+        findsOneWidget,
+      );
       expect(find.text('Login'), findsNothing);
       expect(
         find.widgetWithText(OutlinedButton, 'Blacklist Tags'),
@@ -73,6 +80,14 @@ void main() {
 
     expect(find.text('Configure Gelbooru API'), findsNothing);
     expect(find.text('Login'), findsNothing);
+    final avatar = find.byKey(const ValueKey('online-gallery-account-avatar'));
+    expect(
+      find.descendant(
+        of: avatar,
+        matching: find.byIcon(Icons.person_off_outlined),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('popular mode remains a Danbooru account surface', (
@@ -96,7 +111,12 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Login'), findsOneWidget);
+    final avatar = find.byKey(const ValueKey('online-gallery-account-avatar'));
+    expect(avatar, findsOneWidget);
+    expect(
+      find.descendant(of: avatar, matching: find.byIcon(Icons.login)),
+      findsOneWidget,
+    );
     expect(find.text('Configure Gelbooru API'), findsNothing);
   });
 
@@ -125,6 +145,16 @@ void main() {
 
       expect(find.text('Login'), findsNothing);
       expect(find.text('Configure Gelbooru API'), findsNothing);
+      final avatar = find.byKey(
+        const ValueKey('online-gallery-account-avatar'),
+      );
+      expect(
+        find.descendant(
+          of: avatar,
+          matching: find.byIcon(Icons.person_off_outlined),
+        ),
+        findsOneWidget,
+      );
     });
   }
 
@@ -151,7 +181,13 @@ void main() {
 
       expect(find.text('Read-only favorites'), findsWidgets);
       expect(find.textContaining('Sorted by post ID'), findsOneWidget);
-      expect(find.text('Configure Gelbooru API'), findsOneWidget);
+      final avatar = find.byKey(
+        const ValueKey('online-gallery-account-avatar'),
+      );
+      expect(
+        find.descendant(of: avatar, matching: find.byIcon(Icons.check)),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     },
   );
@@ -352,7 +388,11 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Login'), findsOneWidget);
+    final avatar = find.byKey(const ValueKey('online-gallery-account-avatar'));
+    expect(
+      find.descendant(of: avatar, matching: find.byIcon(Icons.login)),
+      findsOneWidget,
+    );
     expect(find.text('Configure Gelbooru API'), findsNothing);
     expect(tester.takeException(), isNull);
   });
@@ -407,6 +447,25 @@ void main() {
       find.byKey(const ValueKey('online-gallery-pagination-bar')),
       findsOneWidget,
     );
+    final primaryCenters = [
+      const ValueKey('online-gallery-random-toggle'),
+      const ValueKey('online-gallery-refresh'),
+      const ValueKey('online-gallery-multi-select'),
+      const ValueKey('online-gallery-account-avatar'),
+    ].map((key) => tester.getCenter(find.byKey(key)).dy).toList();
+    expect(
+      primaryCenters.every(
+        (center) => (center - primaryCenters.first).abs() < 1,
+      ),
+      isTrue,
+    );
+    expect(
+      tester
+          .getCenter(find.widgetWithText(OutlinedButton, 'Blacklist Tags'))
+          .dy,
+      greaterThan(primaryCenters.first),
+    );
+
     await tester.tap(
       find.byKey(const ValueKey('online-gallery-random-toggle')),
     );

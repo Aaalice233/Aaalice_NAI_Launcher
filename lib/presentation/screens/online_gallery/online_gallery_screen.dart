@@ -661,20 +661,21 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 1750;
-          final narrow = constraints.maxWidth < 850;
+          final compactActions = constraints.maxWidth < 900;
           final modeSelector = _buildModeSelector(
             theme,
             state,
             authState,
             gelbooruAuthState,
           );
-          final actions = _buildFilterAndActions(
+          final primaryActions = _buildPrimaryActions(
             theme,
             state,
             authState,
             gelbooruAuthState,
+            compact: compactActions,
           );
+          final secondaryControls = _buildSecondaryControls(theme, state);
           final showQueryFields =
               state.viewMode == GalleryViewMode.search ||
               (state.viewMode == GalleryViewMode.popular &&
@@ -683,44 +684,29 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (narrow) ...[
-                Align(alignment: Alignment.centerLeft, child: modeSelector),
-                if (showQueryFields) ...[
-                  const SizedBox(height: 8),
-                  _buildSearchFields(theme, state),
+              Row(
+                children: [
+                  modeSelector,
+                  const Spacer(),
+                  const SizedBox(width: 12),
+                  primaryActions,
                 ],
-              ] else
+              ),
+              const SizedBox(height: 8),
+              if (showQueryFields)
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    modeSelector,
-                    const SizedBox(width: 16),
-                    if (showQueryFields)
-                      Expanded(child: _buildSearchFields(theme, state))
-                    else
-                      const Spacer(),
-                    if (!compact) ...[
-                      const SizedBox(width: 12),
-                      Flexible(child: actions),
-                    ],
+                    Flexible(flex: 2, child: _buildSearchFields(theme, state)),
+                    const SizedBox(width: 12),
+                    Expanded(flex: 3, child: secondaryControls),
                   ],
-                ),
-              if (compact) ...[
-                const SizedBox(height: 8),
-                Align(alignment: Alignment.centerLeft, child: actions),
-              ],
-              // 第二行：排行榜选项（仅排行榜模式）
-              if (state.viewMode == GalleryViewMode.popular) ...[
-                const SizedBox(height: 8),
-                _buildPopularOptions(theme, state),
-              ],
-              if (state.viewMode == GalleryViewMode.favorites &&
-                  state.favoritesSourceId == GallerySourceId.gelbooru) ...[
-                const SizedBox(height: 8),
+                )
+              else
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: _buildGelbooruFavoritesNotice(theme),
+                  child: secondaryControls,
                 ),
-              ],
             ],
           );
         },
@@ -945,12 +931,126 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     );
   }
 
-  Widget _buildFilterAndActions(
+  Widget _buildPrimaryActions(
     ThemeData theme,
     OnlineGalleryState state,
     DanbooruAuthState authState,
-    GelbooruAuthState gelbooruAuthState,
-  ) {
+    GelbooruAuthState gelbooruAuthState, {
+    required bool compact,
+  }) {
+    final randomButton = Semantics(
+      button: true,
+      toggled: state.randomEnabled,
+      label: context.l10n.onlineGallery_random,
+      child: compact
+          ? IconButton(
+              key: const ValueKey('online-gallery-random-toggle'),
+              onPressed: state.isLoading
+                  ? null
+                  : () {
+                      if (!state.randomEnabled) _saveScrollOffset();
+                      unawaited(
+                        _galleryNotifier.setRandomEnabled(!state.randomEnabled),
+                      );
+                    },
+              tooltip: context.l10n.onlineGallery_random,
+              icon: const Icon(Icons.shuffle, size: 18),
+              style: IconButton.styleFrom(
+                backgroundColor: state.randomEnabled
+                    ? theme.colorScheme.primaryContainer
+                    : null,
+                foregroundColor: state.randomEnabled
+                    ? theme.colorScheme.onPrimaryContainer
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+            )
+          : OutlinedButton.icon(
+              key: const ValueKey('online-gallery-random-toggle'),
+              onPressed: state.isLoading
+                  ? null
+                  : () {
+                      if (!state.randomEnabled) _saveScrollOffset();
+                      unawaited(
+                        _galleryNotifier.setRandomEnabled(!state.randomEnabled),
+                      );
+                    },
+              icon: const Icon(Icons.shuffle, size: 17),
+              label: Text(context.l10n.onlineGallery_random),
+              style: OutlinedButton.styleFrom(
+                backgroundColor: state.randomEnabled
+                    ? theme.colorScheme.primaryContainer
+                    : null,
+                foregroundColor: state.randomEnabled
+                    ? theme.colorScheme.onPrimaryContainer
+                    : theme.colorScheme.onSurfaceVariant,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 7,
+                ),
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+    );
+    void refreshAction() {
+      _galleryNotifier.refresh();
+      if (state.randomEnabled && _scrollController.hasClients) {
+        _scrollController.jumpTo(0);
+      }
+    }
+
+    final refreshIcon = state.isLoading
+        ? SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: theme.colorScheme.onSecondaryContainer,
+            ),
+          )
+        : const Icon(Icons.refresh, size: 18);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (state.supportsRandom) ...[randomButton, const SizedBox(width: 6)],
+        if (compact)
+          IconButton.filledTonal(
+            key: const ValueKey('online-gallery-refresh'),
+            onPressed: state.isLoading ? null : refreshAction,
+            tooltip: state.randomEnabled
+                ? context.l10n.onlineGallery_randomRedraw
+                : context.l10n.onlineGallery_refresh,
+            icon: refreshIcon,
+          )
+        else
+          FilledButton.tonalIcon(
+            key: const ValueKey('online-gallery-refresh'),
+            onPressed: state.isLoading ? null : refreshAction,
+            icon: refreshIcon,
+            label: Text(
+              state.randomEnabled
+                  ? context.l10n.onlineGallery_randomRedraw
+                  : context.l10n.onlineGallery_refresh,
+            ),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+        const SizedBox(width: 4),
+        IconButton(
+          key: const ValueKey('online-gallery-multi-select'),
+          icon: const Icon(Icons.checklist),
+          tooltip: context.l10n.common_multiSelect,
+          onPressed: _selectionNotifier.enter,
+        ),
+        const SizedBox(width: 2),
+        _buildUserButton(theme, state, authState, gelbooruAuthState),
+      ],
+    );
+  }
+
+  Widget _buildSecondaryControls(ThemeData theme, OnlineGalleryState state) {
     final activeSourceId = switch (state.viewMode) {
       GalleryViewMode.search => state.sourceId,
       GalleryViewMode.popular => state.popularSourceId,
@@ -1034,76 +1134,11 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
           ),
         ),
         _buildPromptTagCategorySelector(theme),
-        if (state.supportsRandom)
-          Semantics(
-            button: true,
-            toggled: state.randomEnabled,
-            label: context.l10n.onlineGallery_random,
-            child: OutlinedButton.icon(
-              key: const ValueKey('online-gallery-random-toggle'),
-              onPressed: state.isLoading
-                  ? null
-                  : () {
-                      if (!state.randomEnabled) _saveScrollOffset();
-                      unawaited(
-                        _galleryNotifier.setRandomEnabled(!state.randomEnabled),
-                      );
-                    },
-              icon: const Icon(Icons.shuffle, size: 17),
-              label: Text(context.l10n.onlineGallery_random),
-              style: OutlinedButton.styleFrom(
-                backgroundColor: state.randomEnabled
-                    ? theme.colorScheme.primaryContainer
-                    : null,
-                foregroundColor: state.randomEnabled
-                    ? theme.colorScheme.onPrimaryContainer
-                    : theme.colorScheme.onSurfaceVariant,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
-                visualDensity: VisualDensity.compact,
-              ),
-            ),
-          ),
-        // 刷新按钮 (FilledButton.tonal)
-        FilledButton.tonalIcon(
-          onPressed: state.isLoading
-              ? null
-              : () {
-                  _galleryNotifier.refresh();
-                  if (state.randomEnabled && _scrollController.hasClients) {
-                    _scrollController.jumpTo(0);
-                  }
-                },
-          icon: state.isLoading
-              ? SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: theme.colorScheme.onSecondaryContainer,
-                  ),
-                )
-              : const Icon(Icons.refresh, size: 18),
-          label: Text(
-            state.randomEnabled
-                ? context.l10n.onlineGallery_randomRedraw
-                : context.l10n.onlineGallery_refresh,
-          ),
-          style: FilledButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            visualDensity: VisualDensity.compact,
-          ),
-        ),
-        // 多选模式切换
-        IconButton(
-          icon: const Icon(Icons.checklist),
-          tooltip: context.l10n.common_multiSelect,
-          onPressed: _selectionNotifier.enter,
-        ),
-        // 用户
-        _buildUserButton(theme, state, authState, gelbooruAuthState),
+        if (state.viewMode == GalleryViewMode.popular)
+          _buildPopularOptions(theme, state),
+        if (state.viewMode == GalleryViewMode.favorites &&
+            state.favoritesSourceId == GallerySourceId.gelbooru)
+          _buildGelbooruFavoritesNotice(theme),
       ],
     );
   }
@@ -1318,35 +1353,121 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     DanbooruAuthState authState,
     GelbooruAuthState gelbooruAuthState,
   ) {
+    Widget avatar({
+      required IconData icon,
+      required Color backgroundColor,
+      required Color foregroundColor,
+      required Color borderColor,
+      IconData? badgeIcon,
+      Color? badgeColor,
+    }) {
+      return Container(
+        key: const ValueKey('online-gallery-account-avatar'),
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          shape: BoxShape.circle,
+          border: Border.all(color: borderColor),
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Center(child: Icon(icon, size: 18, color: foregroundColor)),
+            if (badgeIcon != null)
+              Positioned(
+                right: -2,
+                bottom: -2,
+                child: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: badgeColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: theme.colorScheme.surface,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Icon(
+                    badgeIcon,
+                    size: 9,
+                    color: theme.colorScheme.surface,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
     final sourceId = _activeSource(state);
     if (sourceId == GallerySourceId.safebooru ||
         sourceId == GallerySourceId.aiTag) {
-      return const SizedBox.shrink();
+      return Tooltip(
+        message: sourceId.label,
+        child: Semantics(
+          enabled: false,
+          child: Opacity(
+            opacity: 0.45,
+            child: avatar(
+              icon: Icons.person_off_outlined,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+              foregroundColor: theme.colorScheme.onSurfaceVariant,
+              borderColor: theme.colorScheme.outlineVariant,
+            ),
+          ),
+        ),
+      );
     }
     if (sourceId == GallerySourceId.gelbooru) {
       final invalid = gelbooruAuthState.status == GelbooruAuthStatus.invalid;
       final ready = gelbooruAuthState.isAuthenticated;
+      final message = invalid
+          ? context.l10n.onlineGallery_gelbooruApiInvalid
+          : ready
+          ? context.l10n.onlineGallery_gelbooruApiReady
+          : context.l10n.onlineGallery_configureGelbooruApi;
       return Tooltip(
-        message: invalid
-            ? context.l10n.onlineGallery_gelbooruApiInvalid
-            : ready
-            ? context.l10n.onlineGallery_gelbooruApiReady
-            : context.l10n.onlineGallery_configureGelbooruApi,
-        child: OutlinedButton.icon(
-          onPressed: () => _showGelbooruCredentialsDialog(context),
-          icon: Icon(
-            invalid
-                ? Icons.error_outline
-                : ready
-                ? Icons.verified_user_outlined
-                : Icons.key_outlined,
-            size: 18,
-          ),
-          label: Text(context.l10n.onlineGallery_configureGelbooruApi),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: invalid ? theme.colorScheme.error : null,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            visualDensity: VisualDensity.compact,
+        message: message,
+        child: Semantics(
+          button: true,
+          label: message,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () => _showGelbooruCredentialsDialog(context),
+            child: avatar(
+              icon: invalid
+                  ? Icons.person_off_outlined
+                  : ready
+                  ? Icons.person
+                  : Icons.person_outline,
+              backgroundColor: invalid
+                  ? theme.colorScheme.errorContainer
+                  : ready
+                  ? theme.colorScheme.primaryContainer
+                  : theme.colorScheme.surfaceContainerHigh,
+              foregroundColor: invalid
+                  ? theme.colorScheme.onErrorContainer
+                  : ready
+                  ? theme.colorScheme.onPrimaryContainer
+                  : theme.colorScheme.onSurfaceVariant,
+              borderColor: invalid
+                  ? theme.colorScheme.error
+                  : ready
+                  ? theme.colorScheme.primary.withValues(alpha: 0.45)
+                  : theme.colorScheme.outlineVariant,
+              badgeIcon: invalid
+                  ? Icons.priority_high
+                  : ready
+                  ? Icons.check
+                  : Icons.key,
+              badgeColor: invalid
+                  ? theme.colorScheme.error
+                  : ready
+                  ? Colors.green.shade600
+                  : theme.colorScheme.tertiary,
+            ),
           ),
         ),
       );
@@ -1354,6 +1475,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
     if (authState.isLoggedIn) {
       return PopupMenuButton<String>(
+        tooltip: authState.credentials?.username,
         onSelected: (value) {
           if (value == 'logout') {
             ref.read(danbooruAuthProvider.notifier).logout();
@@ -1393,29 +1515,34 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             ),
           ),
         ],
-        child: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            Icons.person,
-            size: 18,
-            color: theme.colorScheme.onPrimaryContainer,
-          ),
+        child: avatar(
+          icon: Icons.person,
+          backgroundColor: theme.colorScheme.primaryContainer,
+          foregroundColor: theme.colorScheme.onPrimaryContainer,
+          borderColor: theme.colorScheme.primary.withValues(alpha: 0.45),
+          badgeIcon: Icons.check,
+          badgeColor: Colors.green.shade600,
         ),
       );
     }
 
-    return FilledButton.icon(
-      onPressed: () => _showLoginDialog(context),
-      icon: const Icon(Icons.login, size: 18),
-      label: Text(context.l10n.onlineGallery_login),
-      style: FilledButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        visualDensity: VisualDensity.compact,
+    return Tooltip(
+      message: context.l10n.onlineGallery_login,
+      child: Semantics(
+        button: true,
+        label: context.l10n.onlineGallery_login,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () => _showLoginDialog(context),
+          child: avatar(
+            icon: Icons.person_outline,
+            backgroundColor: theme.colorScheme.surfaceContainerHigh,
+            foregroundColor: theme.colorScheme.onSurfaceVariant,
+            borderColor: theme.colorScheme.outlineVariant,
+            badgeIcon: Icons.login,
+            badgeColor: theme.colorScheme.primary,
+          ),
+        ),
       ),
     );
   }

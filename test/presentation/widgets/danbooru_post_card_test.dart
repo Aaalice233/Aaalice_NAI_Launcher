@@ -158,6 +158,14 @@ void main() {
     expect(rect.top, greaterThanOrEqualTo(10));
     expect(rect.right, lessThanOrEqualTo(490));
     expect(rect.bottom, lessThanOrEqualTo(350));
+    for (var frame = 0; frame < 8; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(
+        tester.getTopLeft(preview).dy,
+        closeTo(rect.top, 0.01),
+        reason: 'bottom-clamped hover previews must not shift between frames',
+      );
+    }
 
     final media = find.byKey(const ValueKey('online-gallery-hover-media'));
     final hoverImage = tester.widget<CachedNetworkImage>(
