@@ -17,10 +17,11 @@ void main() {
       name: '角色预设',
       content: '1girl, blue eyes',
       tags: const ['角色', '蓝色'],
-    );
+    ).copyWith(useCount: 7, lastUsedAt: DateTime.now());
 
     await tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('zh'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
@@ -56,6 +57,9 @@ void main() {
     expect(find.text('1girl, blue eyes'), findsOneWidget);
     expect(find.text('角色'), findsOneWidget);
     expect(find.text('蓝色'), findsOneWidget);
+    expect(find.byIcon(Icons.repeat), findsNothing);
+    expect(find.text('使用 7 次'), findsNothing);
+    expect(find.byIcon(Icons.access_time), findsOneWidget);
 
     await mouse.moveTo(const Offset(10, 10));
     await tester.pump();

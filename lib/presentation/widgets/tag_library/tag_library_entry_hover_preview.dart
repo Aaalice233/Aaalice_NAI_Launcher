@@ -197,8 +197,8 @@ class TagLibraryEntryPreviewOverlay extends StatelessWidget {
                               maxLines: 8,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 12),
                             if (entry.tags.isNotEmpty) ...[
+                              const SizedBox(height: 12),
                               Wrap(
                                 spacing: 4,
                                 runSpacing: 4,
@@ -225,27 +225,11 @@ class TagLibraryEntryPreviewOverlay extends StatelessWidget {
                                   );
                                 }).toList(),
                               ),
-                              const SizedBox(height: 12),
                             ],
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.repeat,
-                                  size: 14,
-                                  color: theme.colorScheme.outline,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  context.l10n.tagLibrary_useCount(
-                                    entry.useCount,
-                                  ),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: theme.colorScheme.outline,
-                                  ),
-                                ),
-                                if (entry.lastUsedAt != null) ...[
-                                  const SizedBox(width: 16),
+                            if (entry.lastUsedAt != null) ...[
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
                                   Icon(
                                     Icons.access_time,
                                     size: 14,
@@ -260,8 +244,8 @@ class TagLibraryEntryPreviewOverlay extends StatelessWidget {
                                     ),
                                   ),
                                 ],
-                              ],
-                            ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
