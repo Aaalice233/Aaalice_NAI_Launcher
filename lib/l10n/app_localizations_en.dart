@@ -2483,6 +2483,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_copyTags => 'Copy Tags';
 
   @override
+  String get onlineGallery_promptTagCategories => 'Prompt tag categories';
+
+  @override
+  String get onlineGallery_promptTagCategoriesTooltip =>
+      'Choose which tag categories are included when copying, sending, or adding to the queue';
+
+  @override
+  String get onlineGallery_keepOnePromptTagCategory =>
+      'Keep at least one prompt tag category selected';
+
+  @override
   String get onlineGallery_open => 'Open';
 
   @override

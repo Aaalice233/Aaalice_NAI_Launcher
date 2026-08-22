@@ -4514,6 +4514,24 @@ abstract class AppLocalizations {
   /// **'Copy Tags'**
   String get onlineGallery_copyTags;
 
+  /// No description provided for @onlineGallery_promptTagCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt tag categories'**
+  String get onlineGallery_promptTagCategories;
+
+  /// No description provided for @onlineGallery_promptTagCategoriesTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which tag categories are included when copying, sending, or adding to the queue'**
+  String get onlineGallery_promptTagCategoriesTooltip;
+
+  /// No description provided for @onlineGallery_keepOnePromptTagCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep at least one prompt tag category selected'**
+  String get onlineGallery_keepOnePromptTagCategory;
+
   /// No description provided for @onlineGallery_open.
   ///
   /// In en, this message translates to:
