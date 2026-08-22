@@ -662,7 +662,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
       categoryColor: categoryColor,
       isListMode: isListMode,
       categoryName: categoryName,
-      libraryEntry: _libraryEntryForFixedTag(entry, libraryEntries),
+      libraryEntry: resolveFixedTagLibraryEntry(entry, libraryEntries),
       dragHandleBuilder: dragHandleBuilder,
       linkAnchor: _buildLinkAnchor(entry),
       onToggle: () =>
@@ -923,28 +923,6 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     final renderObject = _linkLayerKey.currentContext?.findRenderObject();
     if (renderObject is! RenderBox || !renderObject.hasSize) return null;
     return renderObject.globalToLocal(globalPosition);
-  }
-
-  TagLibraryEntry? _libraryEntryForFixedTag(
-    FixedTagEntry entry,
-    List<TagLibraryEntry> libraryEntries,
-  ) {
-    final sourceEntryId = entry.sourceEntryId;
-    if (sourceEntryId != null && sourceEntryId.isNotEmpty) {
-      for (final libraryEntry in libraryEntries) {
-        if (libraryEntry.id == sourceEntryId) return libraryEntry;
-      }
-    }
-    final content = entry.content.trim();
-    for (final libraryEntry in libraryEntries) {
-      if (libraryEntry.content.trim() == content) return libraryEntry;
-    }
-    final name = entry.name.trim();
-    if (name.isEmpty) return null;
-    for (final libraryEntry in libraryEntries) {
-      if (libraryEntry.name.trim() == name) return libraryEntry;
-    }
-    return null;
   }
 
   Future<void> _editEntry(FixedTagEntry entry) async {

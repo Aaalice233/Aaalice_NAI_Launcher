@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../widgets/common/app_toast.dart';
-import '../../../widgets/common/themed_divider.dart';
 import '../../../widgets/common/thumbnail_display.dart';
+import '../../../widgets/tag_library/tag_library_entry_hover_preview.dart';
 
 /// 词库条目卡片 - 名称居中 + 互斥显示
 ///
@@ -76,17 +75,11 @@ class _EntryCardState extends State<EntryCard>
     );
 
     _elevationAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeOutCubic,
-      ),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
     );
 
     _scaleAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeOutCubic,
-      ),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
     );
   }
 
@@ -106,7 +99,7 @@ class _EntryCardState extends State<EntryCard>
     final cardPosition = renderBox.localToGlobal(Offset.zero);
 
     _overlayEntry = OverlayEntry(
-      builder: (context) => _EntryPreviewOverlay(
+      builder: (context) => TagLibraryEntryPreviewOverlay(
         entry: widget.entry,
         layerLink: _layerLink,
         cardSize: cardSize,
@@ -150,8 +143,8 @@ class _EntryCardState extends State<EntryCard>
     final borderColor = widget.isSelected
         ? theme.colorScheme.primary
         : (_isHovering
-            ? theme.colorScheme.primary.withValues(alpha: 0.5)
-            : Colors.transparent);
+              ? theme.colorScheme.primary.withValues(alpha: 0.5)
+              : Colors.transparent);
 
     // 构建卡片主体内容（在GestureDetector内）
     final cardBody = GestureDetector(
@@ -187,10 +180,7 @@ class _EntryCardState extends State<EntryCard>
                       alpha: 0.15 + (0.15 * _elevationAnimation.value),
                     ),
                     blurRadius: 10 + (12 * _elevationAnimation.value),
-                    offset: Offset(
-                      0,
-                      4 + (8 * _elevationAnimation.value),
-                    ),
+                    offset: Offset(0, 4 + (8 * _elevationAnimation.value)),
                   ),
                 ],
               ),
@@ -296,10 +286,7 @@ class _EntryCardState extends State<EntryCard>
       feedback: widget.enableDrag
           ? _buildDragFeedback(theme, entry)
           : const SizedBox.shrink(),
-      childWhenDragging: Opacity(
-        opacity: 0.4,
-        child: cardContent,
-      ),
+      childWhenDragging: Opacity(opacity: 0.4, child: cardContent),
       onDragStarted: () {
         HapticFeedback.mediumImpact();
         _hidePreviewOverlay();
@@ -345,27 +332,18 @@ class _EntryCardState extends State<EntryCard>
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Colors.grey.shade700,
-            Colors.grey.shade900,
-          ],
+          colors: [Colors.grey.shade700, Colors.grey.shade900],
         ),
       ),
       child: const Center(
-        child: Icon(
-          Icons.image_outlined,
-          size: 32,
-          color: Colors.white38,
-        ),
+        child: Icon(Icons.image_outlined, size: 32, color: Colors.white38),
       ),
     );
   }
 
   /// 构建轻微暗化遮罩
   Widget _buildDarkenOverlay() {
-    return Container(
-      color: Colors.black.withValues(alpha: 0.35),
-    );
+    return Container(color: Colors.black.withValues(alpha: 0.35));
   }
 
   /// 构建名称显示区域
@@ -477,8 +455,10 @@ class _EntryCardState extends State<EntryCard>
                 top: 8,
                 left: 8,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primary,
                     borderRadius: BorderRadius.circular(6),
@@ -512,8 +492,10 @@ class _EntryCardState extends State<EntryCard>
               ),
               // 名称（靠左）
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
@@ -608,7 +590,8 @@ class _ActionIconState extends State<_ActionIcon> {
               child: Icon(
                 widget.icon,
                 size: 20,
-                color: widget.color ??
+                color:
+                    widget.color ??
                     (widget.isDestructive ? Colors.redAccent : Colors.white),
               ),
             ),
@@ -639,11 +622,7 @@ class _FavoriteIndicator extends StatelessWidget {
           ),
         ],
       ),
-      child: const Icon(
-        Icons.favorite,
-        size: 12,
-        color: Colors.white,
-      ),
+      child: const Icon(Icons.favorite, size: 12, color: Colors.white),
     );
   }
 }
@@ -653,10 +632,7 @@ class _SelectionCheckbox extends StatelessWidget {
   final bool isSelected;
   final VoidCallback? onTap;
 
-  const _SelectionCheckbox({
-    required this.isSelected,
-    this.onTap,
-  });
+  const _SelectionCheckbox({required this.isSelected, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -681,205 +657,9 @@ class _SelectionCheckbox extends StatelessWidget {
           ),
         ),
         child: isSelected
-            ? Icon(
-                Icons.check,
-                size: 14,
-                color: theme.colorScheme.onPrimary,
-              )
+            ? Icon(Icons.check, size: 14, color: theme.colorScheme.onPrimary)
             : null,
       ),
     );
-  }
-}
-
-/// 悬停预览浮层
-class _EntryPreviewOverlay extends StatelessWidget {
-  final TagLibraryEntry entry;
-  final LayerLink layerLink;
-  final Size cardSize;
-  final Offset cardPosition;
-  final VoidCallback onDismiss;
-
-  const _EntryPreviewOverlay({
-    required this.entry,
-    required this.layerLink,
-    required this.cardSize,
-    required this.cardPosition,
-    required this.onDismiss,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final screenSize = MediaQuery.of(context).size;
-
-    const previewWidth = 320.0;
-    const previewMaxHeight = 400.0;
-
-    final rightSpace = screenSize.width - (cardPosition.dx + cardSize.width);
-    final showOnRight = rightSpace >= previewWidth + 16;
-
-    return Positioned(
-      left: 0,
-      top: 0,
-      child: CompositedTransformFollower(
-        link: layerLink,
-        showWhenUnlinked: false,
-        offset: Offset(
-          showOnRight ? cardSize.width + 8 : -previewWidth - 8,
-          0,
-        ),
-        child: MouseRegion(
-          onExit: (_) => onDismiss(),
-          child: Material(
-            elevation: 16,
-            borderRadius: BorderRadius.circular(16),
-            color: theme.colorScheme.surfaceContainerHigh,
-            child: Container(
-              width: previewWidth,
-              constraints: const BoxConstraints(maxHeight: previewMaxHeight),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  width: 1,
-                ),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 预览图
-                      if (entry.hasThumbnail && entry.thumbnail != null)
-                        ThumbnailDisplay(
-                          imagePath: entry.thumbnail!,
-                          offsetX: entry.thumbnailOffsetX,
-                          offsetY: entry.thumbnailOffsetY,
-                          scale: entry.thumbnailScale,
-                          width: previewWidth,
-                          height: 180,
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(16),
-                          ),
-                        ),
-
-                      // 内容区域
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              entry.displayName,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const ThemedDivider(height: 1),
-                            const SizedBox(height: 8),
-                            Text(
-                              entry.content,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                fontFamily: 'monospace',
-                                color: theme.colorScheme.onSurfaceVariant,
-                                height: 1.4,
-                              ),
-                              maxLines: 8,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 12),
-                            if (entry.tags.isNotEmpty) ...[
-                              Wrap(
-                                spacing: 4,
-                                runSpacing: 4,
-                                children: entry.tags.map((tag) {
-                                  return Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: theme.colorScheme.primaryContainer
-                                          .withValues(alpha: 0.5),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Text(
-                                      tag,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: theme
-                                            .colorScheme.onPrimaryContainer,
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                              const SizedBox(height: 12),
-                            ],
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.repeat,
-                                  size: 14,
-                                  color: theme.colorScheme.outline,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  context.l10n
-                                      .tagLibrary_useCount(entry.useCount),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: theme.colorScheme.outline,
-                                  ),
-                                ),
-                                if (entry.lastUsedAt != null) ...[
-                                  const SizedBox(width: 16),
-                                  Icon(
-                                    Icons.access_time,
-                                    size: 14,
-                                    color: theme.colorScheme.outline,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _formatLastUsed(context, entry.lastUsedAt!),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: theme.colorScheme.outline,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _formatLastUsed(BuildContext context, DateTime date) {
-    final now = DateTime.now();
-    final diff = now.difference(date);
-
-    if (diff.inDays == 0) {
-      return context.l10n.common_today;
-    } else if (diff.inDays == 1) {
-      return context.l10n.common_yesterday;
-    } else if (diff.inDays < 7) {
-      return context.l10n.common_daysAgo(diff.inDays);
-    } else {
-      return DateFormat.MMMd().format(date);
-    }
   }
 }

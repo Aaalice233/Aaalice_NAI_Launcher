@@ -190,6 +190,39 @@ void main() {
     );
   });
 
+  group('library preview resolution', () {
+    test('prefers sourceEntryId over matching content and name', () {
+      final linked = TagLibraryEntry.create(name: 'linked', content: 'same');
+      final duplicate = TagLibraryEntry.create(
+        name: 'duplicate',
+        content: 'same',
+      );
+      final fixed = FixedTagEntry.create(
+        name: duplicate.name,
+        content: duplicate.content,
+        sourceEntryId: linked.id,
+      );
+
+      expect(resolveFixedTagLibraryEntry(fixed, [duplicate, linked]), linked);
+    });
+
+    test('restores legacy library association by exact content', () {
+      final libraryEntry = TagLibraryEntry.create(
+        name: 'library name',
+        content: '1girl, blue eyes',
+      );
+      final legacyFixed = FixedTagEntry.create(
+        name: 'old fixed name',
+        content: ' 1girl, blue eyes ',
+      );
+
+      expect(
+        resolveFixedTagLibraryEntry(legacyFixed, [libraryEntry]),
+        libraryEntry,
+      );
+    });
+  });
+
   group('library picker filtering', () {
     test('excludes library entries already linked from any fixed-tag list', () {
       final available = TagLibraryEntry.create(name: 'available', content: 'a');

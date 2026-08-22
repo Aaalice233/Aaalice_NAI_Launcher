@@ -22,8 +22,10 @@ import 'package:nai_launcher/presentation/screens/generation/widgets/fixed_tags_
 import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_entry_tile.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_link_painter.dart';
 import 'package:nai_launcher/presentation/widgets/common/hover_image_preview.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_switch.dart';
 import 'package:nai_launcher/presentation/widgets/common/thumbnail_display.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/fixed_tags_button.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/fixed_tags_dialog.dart';
 
 void main() {
   late Directory hiveDir;
@@ -43,6 +45,47 @@ void main() {
     if (await hiveDir.exists()) {
       await hiveDir.delete(recursive: true);
     }
+  });
+
+  testWidgets('management tile body toggles the entry switch', (tester) async {
+    final entry = FixedTagEntry.create(
+      name: 'clickable fixed tag',
+      content: 'masterpiece',
+      enabled: false,
+    );
+    final storage = _SidebarTestStorage(
+      fixedEntries: [entry],
+      categories: const [],
+      libraryEntries: const [],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: FixedTagsDialog()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final tile = find.ancestor(
+      of: find.text('clickable fixed tag'),
+      matching: find.byType(ReorderableDragStartListener),
+    );
+    final entrySwitch = find.descendant(
+      of: tile,
+      matching: find.byType(ThemedSwitch),
+    );
+    expect(tester.widget<ThemedSwitch>(entrySwitch).value, isFalse);
+
+    await tester.tap(find.text('clickable fixed tag'));
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<ThemedSwitch>(entrySwitch).value, isTrue);
   });
 
   testWidgets(

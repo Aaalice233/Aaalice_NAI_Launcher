@@ -15,6 +15,7 @@ import '../../providers/tag_library_page_provider.dart';
 import '../../router/app_router.dart';
 import '../common/themed_confirm_dialog.dart';
 import '../common/themed_switch.dart';
+import '../tag_library/tag_library_entry_hover_preview.dart';
 import 'fixed_tag_edit_dialog.dart';
 
 import '../common/app_toast.dart';
@@ -448,9 +449,12 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
     bool allowReorder = true,
     bool showLinkAnchors = false,
   }) {
+    final libraryEntries = ref.watch(
+      tagLibraryPageNotifierProvider.select((state) => state.entries),
+    );
+
     Widget buildTile(FixedTagEntry entry, int index) {
-      return _FixedTagEntryTile(
-        key: ValueKey(entry.id),
+      final tile = _FixedTagEntryTile(
         entry: entry,
         index: index,
         isDark: isDark,
@@ -460,6 +464,15 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
         },
         onEdit: () => _showEditDialog(entry),
         onDelete: () => _showDeleteConfirmation(entry),
+      );
+      final libraryEntry = resolveFixedTagLibraryEntry(entry, libraryEntries);
+      if (libraryEntry == null) {
+        return KeyedSubtree(key: ValueKey(entry.id), child: tile);
+      }
+      return TagLibraryEntryHoverPreview(
+        key: ValueKey(entry.id),
+        entry: libraryEntry,
+        child: tile,
       );
     }
 
@@ -1328,7 +1341,6 @@ class _FixedTagEntryTile extends StatefulWidget {
   final VoidCallback onDelete;
 
   const _FixedTagEntryTile({
-    super.key,
     required this.entry,
     required this.index,
     required this.isDark,
@@ -1428,148 +1440,150 @@ class _FixedTagEntryTileState extends State<_FixedTagEntryTile> {
                   scale: 0.7,
                 ),
 
-                const SizedBox(width: 10),
-
-                // 名称 + 内容（占据大部分空间）
+                // 名称、内容和标签区域都可切换启用状态；开关、操作按钮和
+                // 连线锚点仍保留各自独立交互。
                 Expanded(
-                  flex: 3,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // 名称
-                      Text(
-                        entry.displayName,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: entry.enabled
-                              ? theme.colorScheme.onSurface
-                              : theme.colorScheme.onSurface.withValues(
-                                  alpha: 0.5,
-                                ),
-                          // 禁用时显示删除线
-                          decoration: entry.enabled
-                              ? null
-                              : TextDecoration.lineThrough,
-                          decorationColor: theme.colorScheme.outline.withValues(
-                            alpha: 0.6,
-                          ),
-                          decorationThickness: 2,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      // 内容预览 - 只要内容不为空就显示
-                      if (entry.content.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            entry.content.replaceAll('\n', ' '),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: entry.enabled
-                                  ? theme.colorScheme.outline.withValues(
-                                      alpha: 0.8,
-                                    )
-                                  : theme.colorScheme.outline.withValues(
-                                      alpha: 0.5,
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: widget.onToggleEnabled,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 10, right: 8),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    entry.displayName,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: entry.enabled
+                                          ? theme.colorScheme.onSurface
+                                          : theme.colorScheme.onSurface
+                                                .withValues(alpha: 0.5),
+                                      decoration: entry.enabled
+                                          ? null
+                                          : TextDecoration.lineThrough,
+                                      decorationColor: theme.colorScheme.outline
+                                          .withValues(alpha: 0.6),
+                                      decorationThickness: 2,
                                     ),
-                              height: 1.2,
-                              decoration: entry.enabled
-                                  ? null
-                                  : TextDecoration.lineThrough,
-                              decorationColor: theme.colorScheme.outline
-                                  .withValues(alpha: 0.4),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                  if (entry.content.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 2),
+                                      child: Text(
+                                        entry.content.replaceAll('\n', ' '),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: entry.enabled
+                                              ? theme.colorScheme.outline
+                                                    .withValues(alpha: 0.8)
+                                              : theme.colorScheme.outline
+                                                    .withValues(alpha: 0.5),
+                                          height: 1.2,
+                                          decoration: entry.enabled
+                                              ? null
+                                              : TextDecoration.lineThrough,
+                                          decorationColor: theme
+                                              .colorScheme
+                                              .outline
+                                              .withValues(alpha: 0.4),
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                            const SizedBox(width: 8),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: entry.enabled
+                                        ? posColor.withValues(alpha: 0.15)
+                                        : theme.colorScheme.outline.withValues(
+                                            alpha: 0.1,
+                                          ),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        entry.isPrefix
+                                            ? Icons.arrow_forward_rounded
+                                            : Icons.arrow_back_rounded,
+                                        size: 10,
+                                        color: entry.enabled
+                                            ? posColor
+                                            : theme.colorScheme.outline,
+                                      ),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        entry.isPrefix
+                                            ? context.l10n.fixedTags_prefix
+                                            : context.l10n.fixedTags_suffix,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: entry.enabled
+                                              ? posColor
+                                              : theme.colorScheme.outline,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (entry.weight != 1.0) ...[
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: entry.enabled
+                                          ? theme.colorScheme.secondary
+                                                .withValues(alpha: 0.15)
+                                          : theme.colorScheme.outline
+                                                .withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      '${entry.weight.toStringAsFixed(1)}x',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: entry.enabled
+                                            ? theme.colorScheme.secondary
+                                            : theme.colorScheme.outline,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
                         ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
-                // 标签区 - 紧凑（靠右）
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // 位置标签
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: entry.enabled
-                            ? posColor.withValues(alpha: 0.15)
-                            : theme.colorScheme.outline.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            entry.isPrefix
-                                ? Icons.arrow_forward_rounded
-                                : Icons.arrow_back_rounded,
-                            size: 10,
-                            color: entry.enabled
-                                ? posColor
-                                : theme.colorScheme.outline,
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            entry.isPrefix
-                                ? context.l10n.fixedTags_prefix
-                                : context.l10n.fixedTags_suffix,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: entry.enabled
-                                  ? posColor
-                                  : theme.colorScheme.outline,
-                            ),
-                          ),
-                        ],
                       ),
                     ),
-                    // 权重标签
-                    if (entry.weight != 1.0) ...[
-                      const SizedBox(width: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: entry.enabled
-                              ? theme.colorScheme.secondary.withValues(
-                                  alpha: 0.15,
-                                )
-                              : theme.colorScheme.outline.withValues(
-                                  alpha: 0.1,
-                                ),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          '${entry.weight.toStringAsFixed(1)}x',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: entry.enabled
-                                ? theme.colorScheme.secondary
-                                : theme.colorScheme.outline,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
-
-                const SizedBox(width: 8),
 
                 // 操作按钮 - 紧凑
                 AnimatedOpacity(

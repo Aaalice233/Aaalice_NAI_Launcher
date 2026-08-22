@@ -310,6 +310,36 @@ class FixedTagsState {
   }
 }
 
+/// 解析固定词对应的词库条目。
+///
+/// 新数据优先使用稳定来源 ID；旧数据没有来源 ID 时，沿用侧边栏既有的
+/// 内容、名称匹配规则，以恢复词库预览兼容性。
+TagLibraryEntry? resolveFixedTagLibraryEntry(
+  FixedTagEntry fixedEntry,
+  List<TagLibraryEntry> libraryEntries,
+) {
+  final sourceEntryId = fixedEntry.sourceEntryId;
+  if (sourceEntryId != null && sourceEntryId.isNotEmpty) {
+    for (final libraryEntry in libraryEntries) {
+      if (libraryEntry.id == sourceEntryId) return libraryEntry;
+    }
+  }
+
+  final content = fixedEntry.content.trim();
+  if (content.isNotEmpty) {
+    for (final libraryEntry in libraryEntries) {
+      if (libraryEntry.content.trim() == content) return libraryEntry;
+    }
+  }
+
+  final name = fixedEntry.name.trim();
+  if (name.isEmpty) return null;
+  for (final libraryEntry in libraryEntries) {
+    if (libraryEntry.name.trim() == name) return libraryEntry;
+  }
+  return null;
+}
+
 /// 从词库条目推断固定词分类。
 List<FixedTagEntry> inferFixedTagCategories(
   List<FixedTagEntry> fixedEntries,
