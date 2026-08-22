@@ -42,7 +42,24 @@ void main() {
 
       expect(
         settings.promptFor(categorizedItem),
-        'general, artist:example_artist, artist:already_prefixed',
+        'artist:example_artist, artist:already_prefixed, general',
+      );
+    });
+
+    test('orders artist and character first and meta last', () {
+      const settings = OnlineGalleryPromptTagSettings(
+        categories: {
+          OnlineGalleryPromptTagCategory.general,
+          OnlineGalleryPromptTagCategory.character,
+          OnlineGalleryPromptTagCategory.copyright,
+          OnlineGalleryPromptTagCategory.artist,
+          OnlineGalleryPromptTagCategory.meta,
+        },
+      );
+
+      expect(
+        settings.promptFor(categorizedItem),
+        'artist:example_artist, artist:already_prefixed, character, copyright, general, meta',
       );
     });
 
@@ -67,7 +84,7 @@ void main() {
   });
 
   group('OnlineGalleryPromptTagSettingsNotifier', () {
-    test('selects only general tags by default', () {
+    test('selects general, character, and copyright tags by default', () {
       final container = ProviderContainer(
         overrides: [
           localStorageServiceProvider.overrideWith((ref) => _FakeStorage()),
@@ -77,7 +94,11 @@ void main() {
 
       expect(
         container.read(onlineGalleryPromptTagSettingsProvider).categories,
-        {OnlineGalleryPromptTagCategory.general},
+        {
+          OnlineGalleryPromptTagCategory.general,
+          OnlineGalleryPromptTagCategory.character,
+          OnlineGalleryPromptTagCategory.copyright,
+        },
       );
     });
 

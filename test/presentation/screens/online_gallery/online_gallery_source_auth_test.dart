@@ -38,6 +38,10 @@ void main() {
 
       expect(find.text('Configure Gelbooru API'), findsOneWidget);
       expect(find.text('Login'), findsNothing);
+      expect(
+        find.widgetWithText(OutlinedButton, 'Blacklist Tags'),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     });
   }

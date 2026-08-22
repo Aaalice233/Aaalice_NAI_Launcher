@@ -828,10 +828,18 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         if (state.viewMode == GalleryViewMode.search &&
             activeSourceId == GallerySourceId.aiTag)
           _buildAiTagTimeRangeDropdown(state),
-        IconButton(
-          icon: const Icon(Icons.block),
-          tooltip: context.l10n.onlineGallery_blacklistTags,
-          onPressed: () => showOnlineGalleryBlacklistDialog(context, ref),
+        Tooltip(
+          message: context.l10n.onlineGallery_blacklistTags,
+          child: OutlinedButton.icon(
+            onPressed: () => showOnlineGalleryBlacklistDialog(context, ref),
+            icon: const Icon(Icons.block, size: 17),
+            label: Text(context.l10n.onlineGallery_blacklistTags),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: theme.colorScheme.onSurfaceVariant,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
         ),
         _buildPromptTagCategorySelector(theme),
         // 刷新按钮 (FilledButton.tonal)

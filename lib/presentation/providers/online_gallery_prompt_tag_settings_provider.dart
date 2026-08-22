@@ -17,7 +17,17 @@ class OnlineGalleryPromptTagSettings {
 
   static const defaultCategories = <OnlineGalleryPromptTagCategory>{
     OnlineGalleryPromptTagCategory.general,
+    OnlineGalleryPromptTagCategory.character,
+    OnlineGalleryPromptTagCategory.copyright,
   };
+
+  static const _promptCategoryOrder = <OnlineGalleryPromptTagCategory>[
+    OnlineGalleryPromptTagCategory.artist,
+    OnlineGalleryPromptTagCategory.character,
+    OnlineGalleryPromptTagCategory.copyright,
+    OnlineGalleryPromptTagCategory.general,
+    OnlineGalleryPromptTagCategory.meta,
+  ];
 
   final Set<OnlineGalleryPromptTagCategory> categories;
 
@@ -46,7 +56,7 @@ class OnlineGalleryPromptTagSettings {
     if (!hasCategorizedTags) return item.tags.join(', ');
 
     final selectedTags = <String>{};
-    for (final category in OnlineGalleryPromptTagCategory.values) {
+    for (final category in _promptCategoryOrder) {
       if (!categories.contains(category)) continue;
       for (final tag in categoryTags[category]!) {
         selectedTags.add(
