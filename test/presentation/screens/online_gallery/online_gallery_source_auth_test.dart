@@ -272,10 +272,7 @@ void main() {
         favoriteIconRect.center.dy,
         closeTo(favoriteCountRect.center.dy, 1),
       );
-      expect(
-        (viewIconRect.left + favoriteCountRect.right) / 2,
-        closeTo(tester.getRect(card).center.dx, 1),
-      );
+      expect(viewIconRect.left, closeTo(tester.getRect(card).left + 6, 1));
 
       await tester.tap(artistHuntToggle);
       await tester.pump();

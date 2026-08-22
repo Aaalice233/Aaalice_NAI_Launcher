@@ -653,7 +653,7 @@ class _DanbooruPostCardState extends State<DanbooruPostCard> {
                                       ),
                                     ),
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisAlignment: MainAxisAlignment.start,
                                     children: [
                                       if (widget.post.score != null)
                                         _OverlayStatItem(
