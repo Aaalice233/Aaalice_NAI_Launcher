@@ -319,17 +319,20 @@ class _EntryCardState extends State<EntryCard>
   }
 
   /// 构建背景图片
-  /// 使用固定尺寸 200x80，与裁剪对话框的比例一致
   Widget _buildBackgroundImage(TagLibraryEntry entry) {
     if (entry.hasThumbnail && entry.thumbnail != null) {
-      return ThumbnailDisplay(
-        imagePath: entry.thumbnail!,
-        offsetX: entry.thumbnailOffsetX,
-        offsetY: entry.thumbnailOffsetY,
-        scale: entry.thumbnailScale,
-        width: 200,
-        height: 80,
-        borderRadius: BorderRadius.circular(12),
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          return ThumbnailDisplay(
+            imagePath: entry.thumbnail!,
+            offsetX: entry.thumbnailOffsetX,
+            offsetY: entry.thumbnailOffsetY,
+            scale: entry.thumbnailScale,
+            width: constraints.maxWidth,
+            height: constraints.maxHeight,
+            borderRadius: BorderRadius.circular(12),
+          );
+        },
       );
     }
     return _buildPlaceholder();

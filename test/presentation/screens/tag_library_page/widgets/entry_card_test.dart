@@ -83,7 +83,12 @@ void main() {
 
     await pumpCard(isSelectionMode: false);
     await tester.pump();
-    final thumbnailState = tester.state(find.byType(ThumbnailDisplay));
+    final thumbnailFinder = find.byType(ThumbnailDisplay);
+    final thumbnailState = tester.state(thumbnailFinder);
+    final thumbnail = tester.widget<ThumbnailDisplay>(thumbnailFinder);
+
+    expect(thumbnail.width, 240);
+    expect(thumbnail.height, 80);
 
     await pumpCard(isSelectionMode: true);
 
