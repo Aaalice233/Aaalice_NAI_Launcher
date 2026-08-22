@@ -63,7 +63,8 @@ import 'app_localizations_zh.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale)
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -71,7 +72,8 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations);
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -83,18 +85,19 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
+      <LocalizationsDelegate<dynamic>>[
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
     Locale('ja'),
-    Locale('zh')
+    Locale('zh'),
   ];
 
   /// No description provided for @app_title.
@@ -3701,13 +3704,23 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Work {workWidth}×{workHeight} → output {targetWidth}×{targetHeight}'**
-  String editor_compressionSizeSummary(int workWidth, int workHeight, int targetWidth, int targetHeight);
+  String editor_compressionSizeSummary(
+    int workWidth,
+    int workHeight,
+    int targetWidth,
+    int targetHeight,
+  );
 
   /// No description provided for @editor_compressionNormalSummary.
   ///
   /// In en, this message translates to:
   /// **'Normal (about 1 MP): {normalWidth}×{normalHeight}. Lowest: {minimumWidth}×{minimumHeight}.'**
-  String editor_compressionNormalSummary(int normalWidth, int normalHeight, int minimumWidth, int minimumHeight);
+  String editor_compressionNormalSummary(
+    int normalWidth,
+    int normalHeight,
+    int minimumWidth,
+    int minimumHeight,
+  );
 
   /// No description provided for @editor_compressionUnavailable.
   ///
@@ -3725,7 +3738,13 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Outer crop {outerWidth}×{outerHeight}, request {requestWidth}×{requestHeight}, estimated {cost} Anlas.'**
-  String editor_focusRequestSummary(int outerWidth, int outerHeight, int requestWidth, int requestHeight, int cost);
+  String editor_focusRequestSummary(
+    int outerWidth,
+    int outerHeight,
+    int requestWidth,
+    int requestHeight,
+    int cost,
+  );
 
   /// No description provided for @editor_unsupportedImageFormat.
   ///
@@ -10259,7 +10278,11 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{enabled}/{total} · showing {shown}'**
-  String fixedTags_columnFilteredCount(Object enabled, Object total, Object shown);
+  String fixedTags_columnFilteredCount(
+    Object enabled,
+    Object total,
+    Object shown,
+  );
 
   /// No description provided for @fixedTags_new.
   ///
@@ -13097,7 +13120,12 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Reference {index}: {type} (strength {strength}%, fidelity {fidelity}%)'**
-  String metadataImport_preciseReferenceDetail(int index, Object type, Object strength, Object fidelity);
+  String metadataImport_preciseReferenceDetail(
+    int index,
+    Object type,
+    Object strength,
+    Object fidelity,
+  );
 
   /// No description provided for @metadataImport_noData.
   ///
@@ -19979,7 +20007,13 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{name} ({startMonth}/{startDay} - {endMonth}/{endDay})'**
-  String diy_timeRangeSummary(String name, int startMonth, int startDay, int endMonth, int endDay);
+  String diy_timeRangeSummary(
+    String name,
+    int startMonth,
+    int startDay,
+    int endMonth,
+    int endDay,
+  );
 
   /// No description provided for @diy_activeBadge.
   ///
@@ -20804,7 +20838,8 @@ abstract class AppLocalizations {
   String get autocomplete_openSettings;
 }
 
-class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -20813,26 +20848,28 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
   }
 
   @override
-  bool isSupported(Locale locale) => <String>['en', 'ja', 'zh'].contains(locale.languageCode);
+  bool isSupported(Locale locale) =>
+      <String>['en', 'ja', 'zh'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
-
-
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'en': return AppLocalizationsEn();
-    case 'ja': return AppLocalizationsJa();
-    case 'zh': return AppLocalizationsZh();
+    case 'en':
+      return AppLocalizationsEn();
+    case 'ja':
+      return AppLocalizationsJa();
+    case 'zh':
+      return AppLocalizationsZh();
   }
 
   throw FlutterError(
     'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
     'an issue with the localizations generation tool. Please file an issue '
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.'
+    'that was used.',
   );
 }
