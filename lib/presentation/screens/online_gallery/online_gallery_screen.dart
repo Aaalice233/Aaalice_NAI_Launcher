@@ -676,7 +676,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
             authState,
             gelbooruAuthState,
             compact: compactActions,
-            compactArtistHunt: constraints.maxWidth < 1750,
           );
           final popularOptionsOnFirstRow =
               state.viewMode == GalleryViewMode.popular && !narrowToolbar;
@@ -968,68 +967,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     DanbooruAuthState authState,
     GelbooruAuthState gelbooruAuthState, {
     required bool compact,
-    required bool compactArtistHunt,
   }) {
-    final showArtistHunt =
-        state.viewMode != GalleryViewMode.favorites &&
-        state.activeSourceId == GallerySourceId.aiTag;
-    final artistHuntButton = Semantics(
-      button: true,
-      toggled: state.artistHuntEnabled,
-      label: context.l10n.onlineGallery_artistHunt,
-      child: compactArtistHunt
-          ? IconButton(
-              key: const ValueKey('online-gallery-artist-hunt-toggle'),
-              onPressed: state.isLoading
-                  ? null
-                  : () {
-                      _saveScrollOffset();
-                      unawaited(
-                        _galleryNotifier.setArtistHuntEnabled(
-                          !state.artistHuntEnabled,
-                        ),
-                      );
-                    },
-              tooltip: context.l10n.onlineGallery_artistHuntTooltip,
-              icon: const Icon(Icons.brush_outlined, size: 18),
-              style: IconButton.styleFrom(
-                backgroundColor: state.artistHuntEnabled
-                    ? theme.colorScheme.primaryContainer
-                    : null,
-                foregroundColor: state.artistHuntEnabled
-                    ? theme.colorScheme.onPrimaryContainer
-                    : theme.colorScheme.onSurfaceVariant,
-              ),
-            )
-          : OutlinedButton.icon(
-              key: const ValueKey('online-gallery-artist-hunt-toggle'),
-              onPressed: state.isLoading
-                  ? null
-                  : () {
-                      _saveScrollOffset();
-                      unawaited(
-                        _galleryNotifier.setArtistHuntEnabled(
-                          !state.artistHuntEnabled,
-                        ),
-                      );
-                    },
-              icon: const Icon(Icons.brush_outlined, size: 17),
-              label: Text(context.l10n.onlineGallery_artistHunt),
-              style: OutlinedButton.styleFrom(
-                backgroundColor: state.artistHuntEnabled
-                    ? theme.colorScheme.primaryContainer
-                    : null,
-                foregroundColor: state.artistHuntEnabled
-                    ? theme.colorScheme.onPrimaryContainer
-                    : theme.colorScheme.onSurfaceVariant,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
-                visualDensity: VisualDensity.compact,
-              ),
-            ),
-    );
     final randomButton = Semantics(
       button: true,
       toggled: state.randomEnabled,
@@ -1104,7 +1042,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (showArtistHunt) ...[artistHuntButton, const SizedBox(width: 6)],
         if (state.supportsRandom) ...[randomButton, const SizedBox(width: 6)],
         if (compact)
           IconButton.filledTonal(
@@ -1140,6 +1077,42 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         const SizedBox(width: 2),
         _buildUserButton(theme, state, authState, gelbooruAuthState),
       ],
+    );
+  }
+
+  Widget _buildArtistHuntButton(ThemeData theme, OnlineGalleryState state) {
+    return Tooltip(
+      message: context.l10n.onlineGallery_artistHuntTooltip,
+      child: Semantics(
+        button: true,
+        toggled: state.artistHuntEnabled,
+        label: context.l10n.onlineGallery_artistHunt,
+        child: OutlinedButton.icon(
+          key: const ValueKey('online-gallery-artist-hunt-toggle'),
+          onPressed: state.isLoading
+              ? null
+              : () {
+                  _saveScrollOffset();
+                  unawaited(
+                    _galleryNotifier.setArtistHuntEnabled(
+                      !state.artistHuntEnabled,
+                    ),
+                  );
+                },
+          icon: const Icon(Icons.brush_outlined, size: 17),
+          label: Text(context.l10n.onlineGallery_artistHunt),
+          style: OutlinedButton.styleFrom(
+            backgroundColor: state.artistHuntEnabled
+                ? theme.colorScheme.primaryContainer
+                : null,
+            foregroundColor: state.artistHuntEnabled
+                ? theme.colorScheme.onPrimaryContainer
+                : theme.colorScheme.onSurfaceVariant,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+      ),
     );
   }
 
@@ -1192,6 +1165,8 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
               _galleryNotifier.setPopularSource(source);
             },
           ),
+        if (activeSourceId == GallerySourceId.aiTag)
+          _buildArtistHuntButton(theme, state),
         if (state.viewMode == GalleryViewMode.favorites) ...[
           _SourceDropdown(
             selected: state.favoritesSourceId,
