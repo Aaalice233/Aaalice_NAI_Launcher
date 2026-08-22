@@ -10187,6 +10187,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get updateError => '检查更新失败';
 
   @override
+  String get updateErrorNetwork => '无法连接更新服务器，请检查网络或代理设置后重试。';
+
+  @override
+  String get updateErrorServerBusy => '更新服务器请求繁忙，请稍后重试。';
+
+  @override
+  String get updateErrorReleaseNotReady => '最新版本的发布文件尚未就绪，请稍后重试。';
+
+  @override
+  String get updateErrorServiceUnavailable => '更新服务器暂时不可用，请稍后重试。';
+
+  @override
+  String get updateErrorInvalidMetadata => '更新信息校验失败，请稍后重试或前往 Release 页面下载。';
+
+  @override
+  String get updateErrorUnknown => '暂时无法检查更新，请稍后重试。';
+
+  @override
   String get currentVersion => '当前版本';
 
   @override

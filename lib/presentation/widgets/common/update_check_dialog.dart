@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/services/update_check_service.dart';
 import '../../../core/utils/byte_format.dart';
 import '../../../core/utils/in_app_release_notes.dart';
 import '../../../core/utils/localization_extension.dart';
@@ -65,7 +66,7 @@ class UpdateCheckDialog extends ConsumerWidget {
       UpdateStatus.downloaded => _buildDownloadedContent(context, ref, state),
       UpdateStatus.installing => _buildInstallingContent(context),
       UpdateStatus.upToDate => _buildUpToDateContent(context),
-      UpdateStatus.error => _buildErrorContent(context, state.errorMessage),
+      UpdateStatus.error => _buildErrorContent(context, state),
       UpdateStatus.idle => _buildLoadingContent(context),
     };
   }
@@ -461,26 +462,46 @@ class UpdateCheckDialog extends ConsumerWidget {
     );
   }
 
-  /// 构建错误内容
-  Widget _buildErrorContent(BuildContext context, String? errorMessage) {
+  /// 构建错误内容。内部异常只写日志，弹窗始终显示简短、可执行的文案。
+  Widget _buildErrorContent(BuildContext context, UpdateState state) {
     final theme = Theme.of(context);
+    final message = switch (state.checkFailureType) {
+      UpdateCheckFailureType.releaseNotFound =>
+        context.l10n.updateErrorReleaseNotReady,
+      UpdateCheckFailureType.rateLimited => context.l10n.updateErrorServerBusy,
+      UpdateCheckFailureType.network => context.l10n.updateErrorNetwork,
+      UpdateCheckFailureType.unavailable =>
+        context.l10n.updateErrorServiceUnavailable,
+      UpdateCheckFailureType.invalidResponse =>
+        context.l10n.updateErrorInvalidMetadata,
+      UpdateCheckFailureType.unknown ||
+      null => state.errorMessage ?? context.l10n.updateErrorUnknown,
+    };
 
-    return SizedBox(
-      height: 120,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
-            const SizedBox(height: 16),
-            Text(
-              errorMessage ?? context.l10n.updateError,
-              style: theme.textTheme.bodyLarge?.copyWith(
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 120, maxHeight: 220),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 48,
                 color: theme.colorScheme.error,
               ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+              const SizedBox(height: 16),
+              Text(
+                message,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  height: 1.45,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );

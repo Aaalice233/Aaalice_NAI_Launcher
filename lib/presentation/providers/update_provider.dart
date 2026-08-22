@@ -27,6 +27,7 @@ class UpdateState {
   final UpdateStatus status;
   final VersionInfo? versionInfo;
   final String? errorMessage;
+  final UpdateCheckFailureType? checkFailureType;
   final double downloadProgress;
   final int receivedBytes;
   final int totalBytes;
@@ -40,6 +41,7 @@ class UpdateState {
     this.status = UpdateStatus.idle,
     this.versionInfo,
     this.errorMessage,
+    this.checkFailureType,
     this.downloadProgress = 0,
     this.receivedBytes = 0,
     this.totalBytes = 0,
@@ -52,6 +54,7 @@ class UpdateState {
     UpdateStatus? status,
     VersionInfo? versionInfo,
     String? errorMessage,
+    UpdateCheckFailureType? checkFailureType,
     double? downloadProgress,
     int? receivedBytes,
     int? totalBytes,
@@ -63,6 +66,7 @@ class UpdateState {
       status: status ?? this.status,
       versionInfo: versionInfo ?? this.versionInfo,
       errorMessage: errorMessage,
+      checkFailureType: checkFailureType,
       downloadProgress: downloadProgress ?? this.downloadProgress,
       receivedBytes: receivedBytes ?? this.receivedBytes,
       totalBytes: totalBytes ?? this.totalBytes,
@@ -191,7 +195,12 @@ class UpdateStateNotifier extends _$UpdateStateNotifier {
       if (manual) {
         state = UpdateState(
           status: UpdateStatus.error,
-          errorMessage: _formatError(error),
+          errorMessage: error is UpdateCheckException
+              ? null
+              : _formatError(error),
+          checkFailureType: error is UpdateCheckException
+              ? error.type
+              : UpdateCheckFailureType.unknown,
         );
       } else if (!state.hasDownloadedUpdate) {
         state = const UpdateState();
@@ -361,10 +370,19 @@ class UpdateStateNotifier extends _$UpdateStateNotifier {
   }
 
   String _formatError(Object error) {
-    if (error is UpdateCheckException || error is UpdateInstallException) {
-      return error.toString().replaceFirst(RegExp(r'^[^:]+:\s*'), '');
+    if (error is UpdateCheckException) return error.message;
+    if (error is UpdateInstallException) return error.message;
+    if (error is DioException) {
+      return switch (error.type) {
+        DioExceptionType.connectionTimeout ||
+        DioExceptionType.sendTimeout ||
+        DioExceptionType.receiveTimeout => '网络连接超时，请稍后重试',
+        DioExceptionType.connectionError => '无法连接更新服务器，请检查网络或代理设置',
+        DioExceptionType.cancel => '操作已取消',
+        _ => '更新请求失败，请稍后重试',
+      };
     }
-    return error.toString();
+    return '更新操作失败，请稍后重试';
   }
 }
 

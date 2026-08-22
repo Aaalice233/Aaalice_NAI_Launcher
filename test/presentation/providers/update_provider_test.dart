@@ -49,6 +49,34 @@ void main() {
   });
 
   test(
+    'manual check exposes a safe typed failure without raw exception text',
+    () async {
+      final checkService = _MockUpdateCheckService();
+      when(checkService.clearReminder).thenAnswer((_) async {});
+      when(() => checkService.checkForUpdates(ignoreSkipped: true)).thenThrow(
+        const UpdateCheckException(
+          '检查更新失败',
+          type: UpdateCheckFailureType.rateLimited,
+          originalError: 'raw Dio stack and proxy details',
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [updateCheckServiceProvider.overrideWithValue(checkService)],
+      );
+      addTearDown(container.dispose);
+
+      await container
+          .read(updateStateNotifierProvider.notifier)
+          .checkForUpdates(manual: true);
+
+      final state = container.read(updateStateNotifierProvider);
+      expect(state.status, UpdateStatus.error);
+      expect(state.checkFailureType, UpdateCheckFailureType.rateLimited);
+      expect(state.errorMessage, isNull);
+    },
+  );
+
+  test(
     'completed download wins a cancellation at the commit boundary',
     () async {
       const asset = ReleaseAssetInfo(

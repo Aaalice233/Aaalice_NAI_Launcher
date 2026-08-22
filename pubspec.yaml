@@ -21,6 +21,7 @@ dependencies:
   dio: ^5.4.0
   dio_http2_adapter: ^2.3.0
   html: ^0.15.6
+  xml: ^6.6.1
 
   # 图片缓存管理（用于高性能自定义缓存管理器）
   flutter_cache_manager: ^3.3.0

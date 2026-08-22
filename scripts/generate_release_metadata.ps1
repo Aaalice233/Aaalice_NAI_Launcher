@@ -123,10 +123,13 @@ foreach ($file in $releaseFiles) {
   }
 }
 
+$changelogSection = Get-ChangelogSection -Version ($Version -replace '\+.*$', '')
 $manifest = [ordered]@{
   version = $Version
   tag = $Tag
+  name = "NAI Launcher $Tag"
   publishedAt = (Get-Date).ToUniversalTime().ToString('o')
+  releaseNotes = $changelogSection
   assets = $assets
 }
 
@@ -178,8 +181,6 @@ if ($windowsBadges.Count -gt 0) {
 if ($macosBadges.Count -gt 0) {
   $downloadRows += "| **macOS** | $($macosBadges -join '<br>') |"
 }
-$changelogSection = Get-ChangelogSection -Version ($Version -replace '\+.*$', '')
-
 $releaseLines = @(
   "# NAI Launcher $Tag",
   "",

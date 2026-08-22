@@ -126,22 +126,49 @@ void main() {
     },
   );
 
-  test('successful checks use the regular 24 hour interval', () async {
-    final service = buildService(
-      (current) async => VersionInfo(
-        version: current,
-        currentVersion: current,
-        isNewer: false,
-      ),
-    );
+  test(
+    'preserves the release failure type for localized UI feedback',
+    () async {
+      final service = buildService(
+        (_) async => throw GitHubApiException(
+          'limited',
+          type: GitHubReleaseErrorType.rateLimited,
+        ),
+      );
 
-    expect(await service.checkForUpdates(), isNull);
-    expect(storage.success, now);
-    expect(await service.shouldCheck(), isFalse);
+      await expectLater(
+        service.checkForUpdates(),
+        throwsA(
+          isA<UpdateCheckException>().having(
+            (error) => error.type,
+            'type',
+            UpdateCheckFailureType.rateLimited,
+          ),
+        ),
+      );
+    },
+  );
 
-    now = now.add(const Duration(hours: 24));
-    expect(await service.shouldCheck(), isTrue);
-  });
+  test(
+    'same build is not mistaken for an update and uses 24 hour interval',
+    () async {
+      final service = buildService(
+        (current) async => VersionInfo(
+          version: '1.0.0+1',
+          currentVersion: current,
+          isNewer: false,
+        ),
+      );
+
+      expect(service.currentVersion, '1.0.0+1');
+      expect(await service.checkForUpdates(), isNull);
+      expect(storage.success, now);
+      expect(await service.shouldCheck(), isFalse);
+
+      now = now.add(const Duration(hours: 24));
+      expect(await service.shouldCheck(), isTrue);
+    },
+  );
 
   test('remind later suppresses a known update until the deadline', () async {
     final service = buildService(

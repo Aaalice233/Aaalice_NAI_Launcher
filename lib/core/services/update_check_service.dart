@@ -9,15 +9,29 @@ import 'app_installation_service.dart';
 
 part 'update_check_service.g.dart';
 
+enum UpdateCheckFailureType {
+  releaseNotFound,
+  rateLimited,
+  network,
+  unavailable,
+  invalidResponse,
+  unknown,
+}
+
 /// 更新检查异常
 class UpdateCheckException implements Exception {
-  /// 错误消息
+  /// 供日志使用的简短错误消息；用户文案由 UI 按 [type] 本地化。
   final String message;
+  final UpdateCheckFailureType type;
 
   /// 原始异常
   final Object? originalError;
 
-  const UpdateCheckException(this.message, {this.originalError});
+  const UpdateCheckException(
+    this.message, {
+    this.type = UpdateCheckFailureType.unknown,
+    this.originalError,
+  });
 
   @override
   String toString() =>
@@ -321,15 +335,36 @@ class UpdateCheckService {
       await _storage.setUpdateRemindAfter(null);
       return null;
     } on GitHubApiException catch (e) {
-      throw UpdateCheckException('检查更新失败', originalError: e);
+      throw UpdateCheckException(
+        '检查更新失败',
+        type: switch (e.type) {
+          GitHubReleaseErrorType.notFound =>
+            UpdateCheckFailureType.releaseNotFound,
+          GitHubReleaseErrorType.rateLimited =>
+            UpdateCheckFailureType.rateLimited,
+          GitHubReleaseErrorType.network => UpdateCheckFailureType.network,
+          GitHubReleaseErrorType.unavailable =>
+            UpdateCheckFailureType.unavailable,
+          GitHubReleaseErrorType.invalidResponse =>
+            UpdateCheckFailureType.invalidResponse,
+          GitHubReleaseErrorType.unknown => UpdateCheckFailureType.unknown,
+        },
+        originalError: e,
+      );
     } catch (e) {
       if (e is UpdateCheckException) rethrow;
       throw UpdateCheckException('检查更新时发生未知错误', originalError: e);
     }
   }
 
-  /// 当前应用版本
-  String get currentVersion => _packageInfo.version;
+  /// 当前应用完整版本。PackageInfo 将 pubspec 的 `+build` 拆到 buildNumber，
+  /// 必须重新组合后再与 Release manifest 比较，否则会把同一构建误判为更新。
+  String get currentVersion {
+    final version = _packageInfo.version.trim();
+    final buildNumber = _packageInfo.buildNumber.trim();
+    if (buildNumber.isEmpty || version.contains('+')) return version;
+    return '$version+$buildNumber';
+  }
 
   /// 标记为成功完成检查
   Future<void> markAsChecked() async {

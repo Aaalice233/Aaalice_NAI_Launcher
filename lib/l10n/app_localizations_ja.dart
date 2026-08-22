@@ -10345,6 +10345,28 @@ class AppLocalizationsJa extends AppLocalizations {
   String get updateError => '更新の確認に失敗しました';
 
   @override
+  String get updateErrorNetwork =>
+      '更新サーバーに接続できません。ネットワークまたはプロキシ設定を確認して、もう一度お試しください。';
+
+  @override
+  String get updateErrorServerBusy => '更新サーバーが混み合っています。しばらくしてからもう一度お試しください。';
+
+  @override
+  String get updateErrorReleaseNotReady =>
+      '最新バージョンのリリースファイルはまだ準備中です。しばらくしてからもう一度お試しください。';
+
+  @override
+  String get updateErrorServiceUnavailable =>
+      '更新サーバーは一時的に利用できません。しばらくしてからもう一度お試しください。';
+
+  @override
+  String get updateErrorInvalidMetadata =>
+      '更新情報を検証できませんでした。後でもう一度試すか、Release ページからダウンロードしてください。';
+
+  @override
+  String get updateErrorUnknown => '現在アップデートを確認できません。しばらくしてからもう一度お試しください。';
+
+  @override
   String get currentVersion => '現在のバージョン';
 
   @override

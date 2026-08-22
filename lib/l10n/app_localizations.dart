@@ -18544,6 +18544,42 @@ abstract class AppLocalizations {
   /// **'Failed to check for updates'**
   String get updateError;
 
+  /// No description provided for @updateErrorNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to reach the update server. Check your network or proxy settings and try again.'**
+  String get updateErrorNetwork;
+
+  /// No description provided for @updateErrorServerBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'The update server is busy. Please try again later.'**
+  String get updateErrorServerBusy;
+
+  /// No description provided for @updateErrorReleaseNotReady.
+  ///
+  /// In en, this message translates to:
+  /// **'The latest release files are not ready yet. Please try again later.'**
+  String get updateErrorReleaseNotReady;
+
+  /// No description provided for @updateErrorServiceUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The update server is temporarily unavailable. Please try again later.'**
+  String get updateErrorServiceUnavailable;
+
+  /// No description provided for @updateErrorInvalidMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Update information could not be verified. Try again later or download from the Release page.'**
+  String get updateErrorInvalidMetadata;
+
+  /// No description provided for @updateErrorUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to check for updates right now. Please try again later.'**
+  String get updateErrorUnknown;
+
   /// No description provided for @currentVersion.
   ///
   /// In en, this message translates to:

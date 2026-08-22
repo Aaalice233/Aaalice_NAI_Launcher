@@ -10574,6 +10574,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updateError => 'Failed to check for updates';
 
   @override
+  String get updateErrorNetwork =>
+      'Unable to reach the update server. Check your network or proxy settings and try again.';
+
+  @override
+  String get updateErrorServerBusy =>
+      'The update server is busy. Please try again later.';
+
+  @override
+  String get updateErrorReleaseNotReady =>
+      'The latest release files are not ready yet. Please try again later.';
+
+  @override
+  String get updateErrorServiceUnavailable =>
+      'The update server is temporarily unavailable. Please try again later.';
+
+  @override
+  String get updateErrorInvalidMetadata =>
+      'Update information could not be verified. Try again later or download from the Release page.';
+
+  @override
+  String get updateErrorUnknown =>
+      'Unable to check for updates right now. Please try again later.';
+
+  @override
   String get currentVersion => 'Current Version';
 
   @override

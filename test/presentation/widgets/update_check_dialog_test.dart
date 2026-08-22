@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/services/update_check_service.dart';
 import 'package:nai_launcher/data/models/version/release_asset_info.dart';
 import 'package:nai_launcher/data/models/version/version_info.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -81,6 +82,41 @@ print('updated');
     expect(find.text('Important note'), findsOneWidget);
     expect(find.text("print('updated');"), findsOneWidget);
     expect(find.text('Release details'), findsOneWidget);
+  });
+
+  testWidgets('shows a localized bounded error instead of raw exceptions', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(520, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const state = UpdateState(
+      status: UpdateStatus.error,
+      checkFailureType: UpdateCheckFailureType.rateLimited,
+      errorMessage: 'DioException with a very long internal stack trace',
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          updateStateNotifierProvider.overrideWith(
+            () => _DialogUpdateNotifier(state),
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(body: UpdateCheckDialog()),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('更新服务器请求繁忙，请稍后重试。'), findsOneWidget);
+    expect(find.textContaining('DioException'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('shows changelog content without release download sections', (
