@@ -157,6 +157,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       cfgRescale: storage.getLastCfgRescale(),
       noiseSchedule: storage.getLastNoiseSchedule(),
       varietyPlus: storage.getLastVarietyPlus(),
+      straightAlpha: storage.getImageStraightAlpha(),
       transparentBackground: storage.getLastTransparentBackground(),
       qualityTier: storage.getQualityPresetNaiTier(),
       e2eUpscale: storage.getLastE2eUpscale(),
@@ -1547,6 +1548,12 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   void updateTransparentBackground(bool transparentBackground) {
     state = state.copyWith(transparentBackground: transparentBackground);
     _storage.setLastTransparentBackground(transparentBackground);
+  }
+
+  /// 更新透明图像 Alpha 模式（true=Straight，false=Premultiplied）。
+  void updateStraightAlpha(bool straightAlpha) {
+    state = state.copyWith(straightAlpha: straightAlpha);
+    _storage.setImageStraightAlpha(straightAlpha);
   }
 
   /// 更新端到端 ×2 放大开关 (仅 V5)

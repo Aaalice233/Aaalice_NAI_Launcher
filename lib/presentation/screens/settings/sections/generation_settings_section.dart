@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/storage_keys.dart';
 import '../../../../core/storage/local_storage_service.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../providers/generation/generation_settings_notifiers.dart';
 import '../../../providers/notification_settings_provider.dart';
 import '../../../widgets/common/themed_input.dart';
@@ -47,7 +48,7 @@ SliderThemeData _buildSettingsSliderTheme(BuildContext context) {
 
 /// 生成设置板块
 ///
-/// 按生成任务流组织：输入行为 → 失败重试 → 完成提醒。
+/// 按生成任务流组织：输入行为 → 图像输出 → 失败重试 → 完成提醒。
 class GenerationSettingsSection extends ConsumerStatefulWidget {
   const GenerationSettingsSection({super.key});
 
@@ -106,6 +107,9 @@ class _GenerationSettingsSectionState
     final showRandomTools = ref.watch(randomPromptToolsVisibilityProvider);
     final promptWeightScrollEnabled = ref.watch(
       promptWeightScrollSettingsProvider,
+    );
+    final straightAlpha = ref.watch(
+      generationParamsNotifierProvider.select((params) => params.straightAlpha),
     );
     final storage = ref.watch(localStorageServiceProvider);
     final notificationSettings = ref.watch(
@@ -168,6 +172,60 @@ class _GenerationSettingsSectionState
                   ),
                 );
               }
+            },
+          ),
+          SettingsSectionLabel(l10n.settings_generationOutputSection),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final selector = SegmentedButton<bool>(
+                key: const Key('settings-alpha-mode-selector'),
+                segments: [
+                  ButtonSegment<bool>(
+                    value: true,
+                    label: Text(l10n.settings_alphaModeStraight),
+                  ),
+                  ButtonSegment<bool>(
+                    value: false,
+                    label: Text(l10n.settings_alphaModePremultiplied),
+                  ),
+                ],
+                selected: {straightAlpha},
+                showSelectedIcon: false,
+                onSelectionChanged: (selection) {
+                  ref
+                      .read(generationParamsNotifierProvider.notifier)
+                      .updateStraightAlpha(selection.single);
+                },
+              );
+              final tile = ListTile(
+                leading: const Icon(Icons.layers_outlined),
+                title: Text(l10n.settings_alphaModeTitle),
+                subtitle: Text(
+                  straightAlpha
+                      ? l10n.settings_alphaModeStraightDescription
+                      : l10n.settings_alphaModePremultipliedDescription,
+                ),
+                trailing: constraints.maxWidth >= 680 ? selector : null,
+              );
+
+              if (constraints.maxWidth >= 680) {
+                return tile;
+              }
+              return Column(
+                children: [
+                  tile,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: selector,
+                      ),
+                    ),
+                  ),
+                ],
+              );
             },
           ),
           SettingsSectionLabel(l10n.settings_generationRetrySection),

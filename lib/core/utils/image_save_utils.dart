@@ -83,7 +83,7 @@ class ImageSaveUtils {
       // V5 专属参数：官网写回元数据时保留 upscale 与透明背景，只剔除
       // upscaled_enhance（增强 max 档是一次性动作，不属于图片参数）。
       if (params.capabilities.supportsTransparentBackground) ...{
-        'straight_alpha': true,
+        'straight_alpha': params.straightAlpha,
         if (params.transparentBackground)
           'tag_hint_transparent_background': true,
       },

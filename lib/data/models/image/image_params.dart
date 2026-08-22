@@ -168,7 +168,12 @@ class ImageParams with _$ImageParams {
     /// 使用坐标模式 (V4+ 多角色)
     @Default(false) bool useCoords,
 
-    /// 透明背景 (仅 V5)，对应 `straight_alpha`
+    /// 透明像素的 RGB 表示方式（仅 V5）。
+    ///
+    /// true 为 Straight，false 为 Premultiplied，对应 `straight_alpha`。
+    @Default(true) bool straightAlpha,
+
+    /// 透明背景生成提示（仅 V5），对应 `tag_hint_transparent_background`
     @Default(false) bool transparentBackground,
 
     /// 端到端二倍放大 (仅 V5)，对应 `parameters.upscale`
@@ -285,7 +290,7 @@ extension ImageParamsExtension on ImageParams {
 
   /// 透明背景是否真的会写进请求。
   ///
-  /// 官网对不支持的模型直接删掉 `straight_alpha`，开关本身可以保持开着，
+  /// 官网对不支持透明输出的模型直接删掉相关参数，开关本身可以保持开着，
   /// 换回 V4.5 再换回来时用户的选择不会丢。
   bool get effectiveTransparentBackground =>
       transparentBackground && capabilities.supportsTransparentBackground;

@@ -551,10 +551,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_generationInputSection => 'Input';
 
   @override
+  String get settings_generationOutputSection => 'Image Output';
+
+  @override
   String get settings_generationRetrySection => 'Retry on Failure';
 
   @override
   String get settings_generationFeedbackSection => 'Completion Alert';
+
+  @override
+  String get settings_alphaModeTitle => 'Alpha mode for transparent images';
+
+  @override
+  String get settings_alphaModeStraight => 'Straight';
+
+  @override
+  String get settings_alphaModePremultiplied => 'Premultiplied';
+
+  @override
+  String get settings_alphaModeStraightDescription =>
+      'Preserve RGB without multiplying by alpha. Best for further editing and the NovelAI website default.';
+
+  @override
+  String get settings_alphaModePremultipliedDescription =>
+      'Store RGB multiplied by alpha for compositing and rendering pipelines that expect premultiplied input.';
 
   @override
   String get settings_promptAssistant => 'Prompt Assistant';

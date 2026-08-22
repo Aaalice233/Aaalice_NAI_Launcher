@@ -106,9 +106,8 @@ class NAIImageRequestBuilder {
         : null;
 
     if (params.capabilities.supportsTransparentBackground) {
-      // 官网把 alpha 模式做成账号级设置（Straight/Premultiplied），只要模型
-      // 支持透明就随请求下发；启动器沿用官网默认的 straight，不额外开设置项。
-      requestParameters['straight_alpha'] = true;
+      // 官网把 Alpha 模式作为账号级设置，只要模型支持透明就随请求下发。
+      requestParameters['straight_alpha'] = params.straightAlpha;
       if (params.transparentBackground) {
         requestParameters['tag_hint_transparent_background'] = true;
       }

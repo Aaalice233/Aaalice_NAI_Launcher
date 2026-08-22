@@ -1114,6 +1114,12 @@ abstract class AppLocalizations {
   /// **'Input'**
   String get settings_generationInputSection;
 
+  /// No description provided for @settings_generationOutputSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Image Output'**
+  String get settings_generationOutputSection;
+
   /// No description provided for @settings_generationRetrySection.
   ///
   /// In en, this message translates to:
@@ -1125,6 +1131,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Completion Alert'**
   String get settings_generationFeedbackSection;
+
+  /// No description provided for @settings_alphaModeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Alpha mode for transparent images'**
+  String get settings_alphaModeTitle;
+
+  /// No description provided for @settings_alphaModeStraight.
+  ///
+  /// In en, this message translates to:
+  /// **'Straight'**
+  String get settings_alphaModeStraight;
+
+  /// No description provided for @settings_alphaModePremultiplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Premultiplied'**
+  String get settings_alphaModePremultiplied;
+
+  /// No description provided for @settings_alphaModeStraightDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Preserve RGB without multiplying by alpha. Best for further editing and the NovelAI website default.'**
+  String get settings_alphaModeStraightDescription;
+
+  /// No description provided for @settings_alphaModePremultipliedDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Store RGB multiplied by alpha for compositing and rendering pipelines that expect premultiplied input.'**
+  String get settings_alphaModePremultipliedDescription;
 
   /// No description provided for @settings_promptAssistant.
   ///

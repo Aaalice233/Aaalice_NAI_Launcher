@@ -542,10 +542,30 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_generationInputSection => '入力';
 
   @override
+  String get settings_generationOutputSection => '画像出力';
+
+  @override
   String get settings_generationRetrySection => '失敗時リトライ';
 
   @override
   String get settings_generationFeedbackSection => '完了通知';
+
+  @override
+  String get settings_alphaModeTitle => '透過画像のアルファモード';
+
+  @override
+  String get settings_alphaModeStraight => 'ストレート';
+
+  @override
+  String get settings_alphaModePremultiplied => '乗算済み';
+
+  @override
+  String get settings_alphaModeStraightDescription =>
+      'アルファを乗算せずに RGB を保持します。追加編集向けで、NovelAI 公式サイトのデフォルトです。';
+
+  @override
+  String get settings_alphaModePremultipliedDescription =>
+      'RGB にアルファを乗算し、乗算済み入力を必要とする合成・レンダリング処理に適した形式にします。';
 
   @override
   String get settings_promptAssistant => 'プロンプトアシスタント';

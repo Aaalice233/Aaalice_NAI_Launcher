@@ -533,10 +533,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_generationInputSection => '输入';
 
   @override
+  String get settings_generationOutputSection => '图像输出';
+
+  @override
   String get settings_generationRetrySection => '失败重试';
 
   @override
   String get settings_generationFeedbackSection => '完成提醒';
+
+  @override
+  String get settings_alphaModeTitle => '透明图像 Alpha 模式';
+
+  @override
+  String get settings_alphaModeStraight => '直通（Straight）';
+
+  @override
+  String get settings_alphaModePremultiplied => '预乘（Premultiplied）';
+
+  @override
+  String get settings_alphaModeStraightDescription =>
+      '保留未乘 Alpha 的 RGB，适合继续编辑，也是 NovelAI 官网默认值。';
+
+  @override
+  String get settings_alphaModePremultipliedDescription =>
+      'RGB 已乘 Alpha，适合要求预乘输入的合成与渲染流程。';
 
   @override
   String get settings_promptAssistant => '提示词助手';

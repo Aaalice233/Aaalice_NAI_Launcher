@@ -78,6 +78,7 @@ class StorageKeys {
       'selected_resolution_preset_id';
   static const String imageSavePath = 'image_save_path';
   static const String autoSaveImages = 'auto_save_images';
+  static const String imageStraightAlpha = 'image_straight_alpha';
   static const String shareStripMetadata = 'share_strip_metadata';
   static const String addQualityTags = 'add_quality_tags';
   static const String ucPresetType = 'uc_preset_type';

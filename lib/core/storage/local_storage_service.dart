@@ -243,6 +243,20 @@ class LocalStorageService {
     await setSetting(StorageKeys.autoSaveImages, value);
   }
 
+  /// 获取透明图像的 Alpha 模式（true=Straight，false=Premultiplied）。
+  bool getImageStraightAlpha() {
+    return getSetting<bool>(
+          StorageKeys.imageStraightAlpha,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存透明图像的 Alpha 模式。
+  Future<void> setImageStraightAlpha(bool value) async {
+    await setSetting(StorageKeys.imageStraightAlpha, value);
+  }
+
   // ==================== Quality Tags ====================
 
   /// 获取是否添加质量标签 (默认开启)
