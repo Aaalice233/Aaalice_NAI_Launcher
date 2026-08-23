@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/storage/local_storage_service.dart';
+import '../../../../core/utils/app_locale.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/font_provider.dart';
 import '../../../providers/font_scale_provider.dart';
@@ -78,7 +79,7 @@ class _AppearanceSettingsSectionState
           ListTile(
             leading: const Icon(Icons.language),
             title: Text(context.l10n.settings_language),
-            subtitle: Text(_languageLabel(context, currentLocale.languageCode)),
+            subtitle: Text(_languageLabel(context, currentLocale)),
             onTap: () => _showLanguageDialog(context, currentLocale),
           ),
 
@@ -333,7 +334,7 @@ class _AppearanceSettingsSectionState
         return AlertDialog(
           title: Text(context.l10n.settings_selectLanguage),
           content: RadioGroup<String>(
-            groupValue: currentLocale.languageCode,
+            groupValue: appLocaleCode(currentLocale),
             onChanged: (value) {
               if (value != null) {
                 ref.read(localeNotifierProvider.notifier).setLocale(value);
@@ -345,7 +346,11 @@ class _AppearanceSettingsSectionState
               children: [
                 RadioListTile<String>(
                   title: Text(context.l10n.settings_languageChinese),
-                  value: 'zh',
+                  value: simplifiedChineseLocaleCode,
+                ),
+                RadioListTile<String>(
+                  title: Text(context.l10n.settings_languageTraditionalChinese),
+                  value: traditionalChineseLocaleCode,
                 ),
                 RadioListTile<String>(
                   title: Text(context.l10n.settings_languageEnglish),
@@ -486,10 +491,12 @@ class _AppearanceSettingsSectionState
     );
   }
 
-  String _languageLabel(BuildContext context, String languageCode) {
-    switch (languageCode) {
-      case 'zh':
+  String _languageLabel(BuildContext context, Locale locale) {
+    switch (appLocaleCode(locale)) {
+      case simplifiedChineseLocaleCode:
         return context.l10n.settings_languageChinese;
+      case traditionalChineseLocaleCode:
+        return context.l10n.settings_languageTraditionalChinese;
       case 'ja':
         return context.l10n.settings_languageJapanese;
       default:

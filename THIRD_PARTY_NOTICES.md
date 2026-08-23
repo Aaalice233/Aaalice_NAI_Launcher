@@ -52,6 +52,15 @@ After explicit user confirmation, the application downloads it directly from
 That upstream repository did not declare a license when this integration was
 implemented.
 
+## OpenCC Traditional-to-Simplified Character Data
+
+Traditional Chinese tag queries are normalized for the optional Simplified
+Chinese ffdkj dictionary with `TSCharacters.txt` from
+[BYVoid/OpenCC](https://github.com/BYVoid/OpenCC), pinned to commit
+`025f371dc76b598d77384fbdab90c937471844d8`. The mapping and its license are
+bundled under `assets/data/opencc/`. OpenCC is licensed under the Apache License
+2.0; the complete license text is included alongside the mapping.
+
 ## Pica
 
 This project contains a pure Dart port of the Lanczos3 resize pipeline from

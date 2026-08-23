@@ -10,6 +10,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../utils/app_logger.dart';
 import 'completion_models.dart';
+import 'traditional_chinese_converter.dart';
 
 const ffdkjRepositoryUrl =
     'https://github.com/ffdkj/ffdkj-Danbooru_Tag-Chinese-English-Translation-Table';
@@ -63,19 +64,28 @@ class ZhDictionaryState {
 
 class ZhDictionaryService extends ChangeNotifier
     implements CompletionSource, TranslationResolver {
-  ZhDictionaryService({Dio? dio})
-    : _dio =
-          dio ??
-          Dio(
-            BaseOptions(
-              connectTimeout: const Duration(seconds: 10),
-              receiveTimeout: const Duration(minutes: 3),
-              sendTimeout: const Duration(seconds: 15),
-              headers: const {'Accept': 'application/vnd.github+json'},
-            ),
-          );
+  ZhDictionaryService({
+    Dio? dio,
+    TraditionalChineseConverter? traditionalChineseConverter,
+    Future<Directory> Function()? applicationSupportDirectory,
+  }) : _dio =
+           dio ??
+           Dio(
+             BaseOptions(
+               connectTimeout: const Duration(seconds: 10),
+               receiveTimeout: const Duration(minutes: 3),
+               sendTimeout: const Duration(seconds: 15),
+               headers: const {'Accept': 'application/vnd.github+json'},
+             ),
+           ),
+       _traditionalChineseConverter =
+           traditionalChineseConverter ?? TraditionalChineseConverter(),
+       _applicationSupportDirectory =
+           applicationSupportDirectory ?? getApplicationSupportDirectory;
 
   final Dio _dio;
+  final TraditionalChineseConverter _traditionalChineseConverter;
+  final Future<Directory> Function() _applicationSupportDirectory;
   Database? _database;
   CancelToken? _cancelToken;
   String? _databasePath;
@@ -86,7 +96,7 @@ class ZhDictionaryService extends ChangeNotifier
 
   Future<void> initialize() async {
     if (_databasePath != null) return;
-    final appDir = await getApplicationSupportDirectory();
+    final appDir = await _applicationSupportDirectory();
     final directory = Directory(p.join(appDir.path, 'autocomplete', 'ffdkj'));
     await directory.create(recursive: true);
     _databasePath = p.join(directory.path, 'tag.sqlite');
@@ -269,7 +279,9 @@ class ZhDictionaryService extends ChangeNotifier
   Future<List<CompletionCandidate>> search(CompletionQuery query) async {
     if (!query.isChinese || query.token.trim().isEmpty) return const [];
     if (!await _openIfInstalled()) return const [];
-    final token = query.token.trim();
+    final token = await _traditionalChineseConverter.toSimplified(
+      query.token.trim(),
+    );
     final escaped = _escapeLike(token);
     final requestedLimit =
         token.runes.length == 1 && CompletionResultLimits.isAll(query.limit)
