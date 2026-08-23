@@ -30,9 +30,7 @@ void main() {
 
     tearDown(() async {
       service.dispose();
-      if (await tempDir.exists()) {
-        await tempDir.delete(recursive: true);
-      }
+      await _deleteTempDirectoryWhenWorkersReleaseFiles(tempDir);
     });
 
     test(
@@ -142,7 +140,7 @@ void main() {
         final first = service.parseMetadata(
           busyA.path,
           config: const IsolateParseConfig(
-            timeout: Duration(milliseconds: 10),
+            timeout: Duration.zero,
             useGradualRead: false,
             useCache: false,
           ),
@@ -150,13 +148,11 @@ void main() {
         final second = service.parseMetadata(
           busyB.path,
           config: const IsolateParseConfig(
-            timeout: Duration(milliseconds: 10),
+            timeout: Duration.zero,
             useGradualRead: false,
             useCache: false,
           ),
         );
-
-        await _waitForActiveWorkers(service, 2);
 
         final queued = service.parseMetadata(
           queuedFile.path,
@@ -168,39 +164,86 @@ void main() {
         );
 
         final queuedResult = await queued;
-        await Future.wait([first, second]);
+        final timedOutResults = await Future.wait([first, second]);
 
         expect(queuedResult.success, isTrue);
         expect(queuedResult.metadata?.prompt, 'queued-prompt');
+        expect(timedOutResults.every((result) => result.wasTimeout), isTrue);
+        expect(service.getStatistics()['restartedWorkers'], 2);
       },
     );
 
-    test('falls back to inline parsing when worker startup fails', () async {
-      final fallbackService = IsolateMetadataService.forTesting(
+    test('bulk text-chunk mode skips image payload bytes', () async {
+      final file = File('${tempDir.path}/large_payload.png');
+      await file.writeAsBytes(
+        _pngWithLargeSkippedPayload(prompt: 'bounded-memory-prompt'),
+      );
+
+      final result = await service.parseMetadata(
+        file.path,
+        config: const IsolateParseConfig(
+          timeout: Duration(seconds: 2),
+          useGradualRead: false,
+          useCache: false,
+          textChunksOnly: true,
+        ),
+      );
+
+      expect(result.success, isTrue);
+      expect(result.metadata?.prompt, 'bounded-memory-prompt');
+      expect(result.bytesRead, lessThan(32 * 1024));
+    });
+
+    test('keeps parsing disabled when worker startup fails', () async {
+      final unavailableService = IsolateMetadataService.forTesting(
         workerInitializer: (_, _) async {
           throw StateError('spawn failed');
         },
       );
 
-      addTearDown(fallbackService.dispose);
+      addTearDown(unavailableService.dispose);
 
-      await expectLater(fallbackService.initialize(), completes);
+      await expectLater(unavailableService.initialize(), completes);
 
-      final statistics = fallbackService.getStatistics();
-      expect(statistics['fallbackToInlineParsing'], isTrue);
+      final statistics = unavailableService.getStatistics();
+      expect(statistics['fallbackToInlineParsing'], isFalse);
       expect(statistics['workerStartupError'], contains('spawn failed'));
 
-      final result = await fallbackService.parseMetadata(
+      final result = await unavailableService.parseMetadata(
         '${tempDir.path}/missing.png',
       );
 
       expect(result.success, isFalse);
-      expect(result.error, contains('File not found'));
+      expect(result.error, contains('Metadata worker unavailable'));
     });
   });
 }
 
 String _largeText(String char) => ''.padRight(6 * 1024 * 1024, char);
+
+Future<void> _deleteTempDirectoryWhenWorkersReleaseFiles(
+  Directory directory,
+) async {
+  const attempts = 50;
+  for (var attempt = 1; attempt <= attempts; attempt++) {
+    if (!await directory.exists()) return;
+
+    try {
+      await directory.delete(recursive: true);
+      return;
+    } on FileSystemException {
+      if (attempt == attempts) {
+        // A synchronously killed isolate can retain its Windows file handle
+        // until the Dart test process exits, even after onExit is delivered.
+        // Hosted runners are ephemeral, so leave that isolated temp directory
+        // for the operating system to reclaim at process shutdown.
+        if (Platform.isWindows) return;
+        rethrow;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+  }
+}
 
 Future<Uint8List> _pngWithNovelAiMetadata({
   required String prompt,
@@ -221,6 +264,37 @@ Future<Uint8List> _pngWithNovelAiMetadata({
       'sampler': 'k_euler',
     }),
   );
+}
+
+Uint8List _pngWithLargeSkippedPayload({required String prompt}) {
+  final builder = BytesBuilder(copy: false)
+    ..add(const [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+
+  void addChunk(String type, List<int> data) {
+    final length = ByteData(4)..setUint32(0, data.length);
+    builder
+      ..add(length.buffer.asUint8List())
+      ..add(ascii.encode(type))
+      ..add(data)
+      ..add(Uint8List(4));
+  }
+
+  addChunk('IHDR', Uint8List(13));
+  addChunk('IDAT', Uint8List(4 * 1024 * 1024));
+
+  final comment = jsonEncode({
+    'prompt': prompt,
+    'uc': '',
+    'width': 8,
+    'height': 8,
+    'seed': 1,
+    'steps': 28,
+    'scale': 5.0,
+    'sampler': 'k_euler',
+  });
+  addChunk('tEXt', [...latin1.encode('Comment'), 0, ...latin1.encode(comment)]);
+  addChunk('IEND', const []);
+  return builder.takeBytes();
 }
 
 Future<void> _waitForQueuedTask(IsolateMetadataService service) async {

@@ -517,9 +517,10 @@ Future<void> _bootstrapApplication() async {
     AppLogger.i('App version: ${AppVersion.fullVersion}', 'Main');
   });
 
-  // 增加图片缓存限制，防止本地画廊滚动时图片被回收变白
-  PaintingBinding.instance.imageCache.maximumSize = 500; // 最大缓存 500 张图片
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 200 << 20; // 200MB
+  // Keep enough decoded thumbnails for smooth paging while leaving a strict
+  // memory budget for large local galleries and metadata workers.
+  PaintingBinding.instance.imageCache.maximumSize = 150;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 64 << 20;
 
   // FFI 注册本身不打开数据库，需在数据库调用方出现前完成。
   await SqfliteBootstrapService.instance.ensureInitialized();

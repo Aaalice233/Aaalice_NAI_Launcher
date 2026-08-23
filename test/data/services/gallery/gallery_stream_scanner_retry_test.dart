@@ -15,6 +15,7 @@ import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/services/gallery/gallery_stream_scanner.dart'
     show ExistingFileCacheEntry, GalleryStreamScanner, buildRetryPriorityPaths;
 import 'package:nai_launcher/data/services/image_metadata_service.dart';
+import 'package:nai_launcher/data/services/metadata/isolate_metadata_service.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
 void main() {
@@ -46,11 +47,13 @@ void main() {
       dataSource = GalleryDataSource();
       await dataSource.initialize();
       await ImageMetadataService().initialize();
+      IsolateMetadataService.instance.dispose();
       GalleryStreamScanner.resetInstance();
     });
 
     tearDown(() async {
       GalleryStreamScanner.resetInstance();
+      IsolateMetadataService.instance.dispose();
       await Hive.close();
       await dataSource.dispose();
       await ConnectionPoolHolder.dispose();
@@ -60,155 +63,141 @@ void main() {
       }
     });
 
-    test('should skip stale none records during default incremental scan',
-        () async {
-      final file = await _createWrappedNovelAiPng(
-        tempDir,
-        'stale_skip.png',
-        prompt: 'artist:shycocoa, 1girl, solo',
-      );
+    test(
+      'should skip stale none records during default incremental scan',
+      () async {
+        final file = await _createWrappedNovelAiPng(
+          tempDir,
+          'stale_skip.png',
+          prompt: 'artist:shycocoa, 1girl, solo',
+        );
 
-      final imageId = await _seedStaleNoneRecord(dataSource, file);
-      final scanner = GalleryStreamScanner(dataSource: dataSource);
+        final imageId = await _seedStaleNoneRecord(dataSource, file);
+        final scanner = GalleryStreamScanner(dataSource: dataSource);
 
-      await scanner.startScanning(tempDir);
+        await scanner.startScanning(tempDir);
 
-      final imageRecord = await dataSource.getImageById(imageId);
-      final metadata =
-          (await dataSource.getMetadataByImageIds([imageId]))[imageId];
-      final results = await dataSource.advancedSearch(
-        textQuery: 'shycocoa',
-        limit: 10,
-      );
+        final imageRecord = await dataSource.getImageById(imageId);
+        final metadata = (await dataSource.getMetadataByImageIds([
+          imageId,
+        ]))[imageId];
+        final results = await dataSource.advancedSearch(
+          textQuery: 'shycocoa',
+          limit: 10,
+        );
 
-      expect(imageRecord, isNotNull);
-      expect(imageRecord!.metadataStatus, MetadataStatus.none);
-      expect(metadata, isNull);
-      expect(results, isNot(contains(imageId)));
-    });
-
-    test('should retry stale none records when retryMissingMetadata is enabled',
-        () async {
-      final file = await _createWrappedNovelAiPng(
-        tempDir,
-        'stale_retry.png',
-        prompt: 'artist:shycocoa, 1girl, solo',
-      );
-
-      final imageId = await _seedStaleNoneRecord(dataSource, file);
-      final scanner = GalleryStreamScanner(dataSource: dataSource);
-
-      await scanner.startScanning(
-        tempDir,
-        retryMissingMetadata: true,
-      );
-
-      final imageRecord = await dataSource.getImageById(imageId);
-      final metadata =
-          (await dataSource.getMetadataByImageIds([imageId]))[imageId];
-      final results = await dataSource.advancedSearch(
-        textQuery: 'shycocoa',
-        limit: 10,
-      );
-
-      expect(imageRecord, isNotNull);
-      expect(imageRecord!.metadataStatus, MetadataStatus.success);
-      expect(metadata, isNotNull);
-      expect(metadata!.prompt, contains('artist:shycocoa'));
-      expect(results, contains(imageId));
-    });
+        expect(imageRecord, isNotNull);
+        expect(imageRecord!.metadataStatus, MetadataStatus.none);
+        expect(metadata, isNull);
+        expect(results, isNot(contains(imageId)));
+      },
+    );
 
     test(
-        'should mark stale none records as failed when retry finds no metadata',
-        () async {
-      final file = File(p.join(tempDir.path, 'stale_failed.png'));
-      await file.writeAsBytes(_buildBasePngBytes());
+      'should retry stale none records when retryMissingMetadata is enabled',
+      () async {
+        final file = await _createWrappedNovelAiPng(
+          tempDir,
+          'stale_retry.png',
+          prompt: 'artist:shycocoa, 1girl, solo',
+        );
 
-      final imageId = await _seedStaleNoneRecord(dataSource, file);
-      final scanner = GalleryStreamScanner(dataSource: dataSource);
+        final imageId = await _seedStaleNoneRecord(dataSource, file);
+        final scanner = GalleryStreamScanner(dataSource: dataSource);
 
-      await scanner.startScanning(
-        tempDir,
-        retryMissingMetadata: true,
-      );
+        await scanner.startScanning(tempDir, retryMissingMetadata: true);
 
-      final imageRecord = await dataSource.getImageById(imageId);
-      final metadata =
-          (await dataSource.getMetadataByImageIds([imageId]))[imageId];
+        final imageRecord = await dataSource.getImageById(imageId);
+        final metadata = (await dataSource.getMetadataByImageIds([
+          imageId,
+        ]))[imageId];
+        final results = await dataSource.advancedSearch(
+          textQuery: 'shycocoa',
+          limit: 10,
+        );
 
-      expect(imageRecord, isNotNull);
-      expect(imageRecord!.metadataStatus, MetadataStatus.failed);
-      expect(metadata, isNull);
-    });
+        expect(imageRecord, isNotNull);
+        expect(imageRecord!.metadataStatus, MetadataStatus.success);
+        expect(metadata, isNotNull);
+        expect(metadata!.prompt, contains('artist:shycocoa'));
+        expect(results, contains(imageId));
+      },
+    );
 
-    test('should prioritize missing metadata records before normal scan order',
-        () async {
-      final oldNoneTime = DateTime(2026, 1, 1);
-      final newNoneTime = DateTime(2026, 2, 1);
-      final failedTime = DateTime(2026, 3, 1);
+    test(
+      'should mark stale none records as failed when retry finds no metadata',
+      () async {
+        final file = File(p.join(tempDir.path, 'stale_failed.png'));
+        await file.writeAsBytes(_buildBasePngBytes());
 
-      final entries = <String, ExistingFileCacheEntry>{
-        '/gallery/success.png': (
-          1,
-          1,
-          1,
-          MetadataStatus.success,
-          DateTime(2026, 4, 1),
-        ),
-        '/gallery/new_none.png': (
-          1,
-          1,
-          2,
-          MetadataStatus.none,
-          newNoneTime,
-        ),
-        '/gallery/old_none.png': (
-          1,
-          1,
-          3,
-          MetadataStatus.none,
-          oldNoneTime,
-        ),
-        '/gallery/failed.png': (
-          1,
-          1,
-          4,
-          MetadataStatus.failed,
-          failedTime,
-        ),
-      };
+        final imageId = await _seedStaleNoneRecord(dataSource, file);
+        final scanner = GalleryStreamScanner(dataSource: dataSource);
 
-      expect(
-        buildRetryPriorityPaths(
-          entries,
-          retryMissingMetadata: true,
-          retryFailedMetadata: false,
-        ),
-        ['/gallery/old_none.png', '/gallery/new_none.png'],
-      );
+        await scanner.startScanning(tempDir, retryMissingMetadata: true);
 
-      expect(
-        buildRetryPriorityPaths(
-          entries,
-          retryMissingMetadata: false,
-          retryFailedMetadata: true,
-        ),
-        ['/gallery/failed.png'],
-      );
+        final imageRecord = await dataSource.getImageById(imageId);
+        final metadata = (await dataSource.getMetadataByImageIds([
+          imageId,
+        ]))[imageId];
 
-      expect(
-        buildRetryPriorityPaths(
-          entries,
-          retryMissingMetadata: true,
-          retryFailedMetadata: true,
-        ),
-        [
-          '/gallery/old_none.png',
-          '/gallery/new_none.png',
-          '/gallery/failed.png',
-        ],
-      );
-    });
+        expect(imageRecord, isNotNull);
+        expect(imageRecord!.metadataStatus, MetadataStatus.failed);
+        expect(metadata, isNull);
+      },
+    );
+
+    test(
+      'should prioritize missing metadata records before normal scan order',
+      () async {
+        final oldNoneTime = DateTime(2026, 1, 1);
+        final newNoneTime = DateTime(2026, 2, 1);
+        final failedTime = DateTime(2026, 3, 1);
+
+        final entries = <String, ExistingFileCacheEntry>{
+          '/gallery/success.png': (
+            1,
+            1,
+            1,
+            MetadataStatus.success,
+            DateTime(2026, 4, 1),
+          ),
+          '/gallery/new_none.png': (1, 1, 2, MetadataStatus.none, newNoneTime),
+          '/gallery/old_none.png': (1, 1, 3, MetadataStatus.none, oldNoneTime),
+          '/gallery/failed.png': (1, 1, 4, MetadataStatus.failed, failedTime),
+        };
+
+        expect(
+          buildRetryPriorityPaths(
+            entries,
+            retryMissingMetadata: true,
+            retryFailedMetadata: false,
+          ),
+          ['/gallery/old_none.png', '/gallery/new_none.png'],
+        );
+
+        expect(
+          buildRetryPriorityPaths(
+            entries,
+            retryMissingMetadata: false,
+            retryFailedMetadata: true,
+          ),
+          ['/gallery/failed.png'],
+        );
+
+        expect(
+          buildRetryPriorityPaths(
+            entries,
+            retryMissingMetadata: true,
+            retryFailedMetadata: true,
+          ),
+          [
+            '/gallery/old_none.png',
+            '/gallery/new_none.png',
+            '/gallery/failed.png',
+          ],
+        );
+      },
+    );
   });
 }
 

@@ -447,6 +447,10 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     int pageSize,
     int totalPages,
   ) {
+    // Visible thumbnails load on demand. Defer speculative adjacent-page work
+    // while indexing so scanning cannot compete with the UI for CPU and memory.
+    if (ScanStateManager.instance.isScanning) return;
+
     final pagesToPreload = <int>{
       if (page + 1 < totalPages) page + 1,
       if (page > 0) page - 1,

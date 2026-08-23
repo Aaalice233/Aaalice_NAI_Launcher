@@ -289,6 +289,176 @@ class UnifiedMetadataParser {
     }
   }
 
+  /// Parse textual PNG metadata without decoding image pixels.
+  ///
+  /// Gallery indexing uses this bounded-memory path. Image payload chunks are
+  /// skipped with file seeks, and only uncompressed tEXt/iTXt chunks are read
+  /// into memory. Stealth metadata remains available through the explicit
+  /// full parser used by detail and editing flows.
+  static MetadataParseResult parseTextChunksFromFile(
+    String filePath, {
+    int maxTextBytes = 8 * 1024 * 1024,
+  }) {
+    final stopwatch = Stopwatch()..start();
+    _statistics.totalAttempts++;
+
+    RandomAccessFile? raf;
+    try {
+      final file = File(filePath);
+      if (!file.existsSync()) {
+        return MetadataParseResult.failed(
+          const [],
+          'File not found: $filePath',
+          parseTime: stopwatch.elapsed,
+        );
+      }
+
+      final fileSize = file.lengthSync();
+      if (fileSize < 8) {
+        return MetadataParseResult.failed(
+          const [],
+          'File too small: $fileSize bytes',
+          parseTime: stopwatch.elapsed,
+          bytesRead: fileSize,
+        );
+      }
+
+      raf = file.openSync();
+      final signature = _readExactly(raf, 8);
+      if (!isPngHeader(signature)) {
+        return MetadataParseResult.failed(
+          const [],
+          'Not a valid PNG file header: $filePath',
+          parseTime: stopwatch.elapsed,
+          bytesRead: signature.length,
+        );
+      }
+
+      final textData = <String, String>{};
+      var bytesRead = signature.length;
+      var remainingTextBudget = maxTextBytes;
+
+      while (raf.positionSync() + 12 <= fileSize) {
+        final chunkHeader = _readExactly(raf, 8);
+        if (chunkHeader.length != 8) break;
+        bytesRead += chunkHeader.length;
+
+        final chunkLength = ByteData.sublistView(
+          chunkHeader,
+          0,
+          4,
+        ).getUint32(0);
+        final chunkType = latin1.decode(chunkHeader.sublist(4, 8));
+        final dataStart = raf.positionSync();
+        final dataEnd = dataStart + chunkLength;
+        final chunkEnd = dataEnd + 4; // CRC
+
+        if (dataEnd < dataStart || chunkEnd > fileSize) {
+          return MetadataParseResult.failed(
+            const [],
+            'Malformed PNG chunk in $filePath',
+            parseTime: stopwatch.elapsed,
+            bytesRead: bytesRead,
+          );
+        }
+
+        (String, String)? entry;
+        final shouldReadTextChunk =
+            (chunkType == 'tEXt' || chunkType == 'iTXt') &&
+            chunkLength <= remainingTextBudget;
+        if (shouldReadTextChunk) {
+          final data = _readExactly(raf, chunkLength);
+          bytesRead += data.length;
+          remainingTextBudget -= data.length;
+
+          if (data.length == chunkLength) {
+            if (chunkType == 'tEXt') {
+              entry = _decodeTextChunk(data);
+            } else {
+              final keywordEnd = data.indexOf(0);
+              final isUncompressed =
+                  keywordEnd > 0 &&
+                  keywordEnd + 1 < data.length &&
+                  data[keywordEnd + 1] == 0;
+              if (isUncompressed) {
+                entry = _decodeInternationalTextChunk(data);
+              }
+            }
+          }
+        }
+
+        if (entry != null) {
+          textData[entry.$1] = entry.$2;
+        }
+
+        raf.setPositionSync(chunkEnd);
+        if (chunkType == 'IEND') break;
+      }
+
+      final parsed = textData.isEmpty
+          ? MetadataParseResult.failed(
+              const [],
+              'No textual PNG metadata found',
+            )
+          : parseFromTextData(textData);
+      stopwatch.stop();
+
+      final result = parsed.success && parsed.metadata != null
+          ? MetadataParseResult.success(
+              parsed.metadata!,
+              parsed.sourceFormat ?? 'PNG text',
+              parsed.rawData ?? '',
+              parsed.triedParsers,
+              parseTime: stopwatch.elapsed,
+              bytesRead: bytesRead,
+            )
+          : MetadataParseResult.failed(
+              parsed.triedParsers,
+              parsed.errorMessage ?? 'No supported textual metadata found',
+              parseTime: stopwatch.elapsed,
+              bytesRead: bytesRead,
+            );
+      _updateStatistics(result, stopwatch.elapsed);
+      return result;
+    } on FileSystemException catch (e) {
+      stopwatch.stop();
+      return MetadataParseResult.failed(
+        const [],
+        'File system error: ${e.message}',
+        parseTime: stopwatch.elapsed,
+      );
+    } catch (e, stack) {
+      stopwatch.stop();
+      PortableLogger.e(
+        'Text-chunk parse failed for $filePath: $e',
+        e,
+        stack,
+        _tag,
+      );
+      return MetadataParseResult.failed(
+        const [],
+        'Text-chunk parse error: $e',
+        parseTime: stopwatch.elapsed,
+      );
+    } finally {
+      raf?.closeSync();
+    }
+  }
+
+  static Uint8List _readExactly(RandomAccessFile file, int length) {
+    if (length <= 0) return Uint8List(0);
+
+    final builder = BytesBuilder(copy: false);
+    var remaining = length;
+    while (remaining > 0) {
+      final chunk = file.readSync(remaining);
+      if (chunk.isEmpty) break;
+      builder.add(chunk);
+      remaining -= chunk.length;
+    }
+    return builder.takeBytes();
+  }
+
   /// 从 PNG 字节中提取元数据
   ///
   /// [bytes] PNG 字节数据
