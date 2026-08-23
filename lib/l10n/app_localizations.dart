@@ -16241,6 +16241,264 @@ abstract class AppLocalizations {
   /// **'View details'**
   String get image_viewDetail;
 
+  /// No description provided for @discordShare_action.
+  ///
+  /// In en, this message translates to:
+  /// **'Share to Discord'**
+  String get discordShare_action;
+
+  /// No description provided for @discordShare_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Share to Discord'**
+  String get discordShare_title;
+
+  /// No description provided for @discordShare_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Post this image to an Aaalice community channel'**
+  String get discordShare_subtitle;
+
+  /// No description provided for @discordShare_verifyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify your Discord membership'**
+  String get discordShare_verifyTitle;
+
+  /// No description provided for @discordShare_verifyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to Discord in your browser before sharing. The app only receives your public identity and server membership status.'**
+  String get discordShare_verifyDescription;
+
+  /// No description provided for @discordShare_verifyButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify with Discord'**
+  String get discordShare_verifyButton;
+
+  /// No description provided for @discordShare_verifying.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for Discord verification…'**
+  String get discordShare_verifying;
+
+  /// No description provided for @discordShare_verifyingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete authorization in your browser, then return to the app.'**
+  String get discordShare_verifyingHint;
+
+  /// No description provided for @discordShare_joinRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Join the Aaalice Discord server first'**
+  String get discordShare_joinRequired;
+
+  /// No description provided for @discordShare_joinDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Only server members can share to community channels. Join, then return here and verify again.'**
+  String get discordShare_joinDescription;
+
+  /// No description provided for @discordShare_joinServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Join Discord server'**
+  String get discordShare_joinServer;
+
+  /// No description provided for @discordShare_retryVerification.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify again'**
+  String get discordShare_retryVerification;
+
+  /// No description provided for @discordShare_account.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified as {name}'**
+  String discordShare_account(Object name);
+
+  /// No description provided for @discordShare_disconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect Discord'**
+  String get discordShare_disconnect;
+
+  /// No description provided for @discordShare_channels.
+  ///
+  /// In en, this message translates to:
+  /// **'Channels'**
+  String get discordShare_channels;
+
+  /// No description provided for @discordShare_selectChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Select at least one channel'**
+  String get discordShare_selectChannel;
+
+  /// No description provided for @discordShare_caption.
+  ///
+  /// In en, this message translates to:
+  /// **'Image caption'**
+  String get discordShare_caption;
+
+  /// No description provided for @discordShare_captionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a short comment, like a post title (optional)'**
+  String get discordShare_captionHint;
+
+  /// No description provided for @discordShare_promptCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt categories'**
+  String get discordShare_promptCategories;
+
+  /// No description provided for @discordShare_promptEditHint.
+  ///
+  /// In en, this message translates to:
+  /// **'You can edit the final text before sending. Changing categories rebuilds it from image metadata.'**
+  String get discordShare_promptEditHint;
+
+  /// No description provided for @discordShare_promptContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt to send'**
+  String get discordShare_promptContent;
+
+  /// No description provided for @discordShare_noPromptMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'No readable prompt metadata was found. You can still share only the image and caption.'**
+  String get discordShare_noPromptMetadata;
+
+  /// No description provided for @discordShare_categoryMain.
+  ///
+  /// In en, this message translates to:
+  /// **'Main'**
+  String get discordShare_categoryMain;
+
+  /// No description provided for @discordShare_categoryCharacters.
+  ///
+  /// In en, this message translates to:
+  /// **'Characters'**
+  String get discordShare_categoryCharacters;
+
+  /// No description provided for @discordShare_categoryQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'Quality'**
+  String get discordShare_categoryQuality;
+
+  /// No description provided for @discordShare_categoryFixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed'**
+  String get discordShare_categoryFixed;
+
+  /// No description provided for @discordShare_keepMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep image metadata'**
+  String get discordShare_keepMetadata;
+
+  /// No description provided for @discordShare_keepMetadataHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Off by default. When off, PNG text, EXIF, and NovelAI stealth metadata are removed before upload.'**
+  String get discordShare_keepMetadataHint;
+
+  /// No description provided for @discordShare_privacyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This content will be uploaded to Discord. Check prompts and the caption for private information.'**
+  String get discordShare_privacyHint;
+
+  /// No description provided for @discordShare_send.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to Discord'**
+  String get discordShare_send;
+
+  /// No description provided for @discordShare_sending.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending…'**
+  String get discordShare_sending;
+
+  /// No description provided for @discordShare_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared to Discord'**
+  String get discordShare_success;
+
+  /// No description provided for @discordShare_partialSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Some channels succeeded. Review failed channels and retry.'**
+  String get discordShare_partialSuccess;
+
+  /// No description provided for @discordShare_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not share to Discord: {error}'**
+  String discordShare_failed(Object error);
+
+  /// No description provided for @discordShare_errorNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach the Discord share service. Check your connection and try again.'**
+  String get discordShare_errorNetwork;
+
+  /// No description provided for @discordShare_errorBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open your browser. Check the system default browser setting.'**
+  String get discordShare_errorBrowser;
+
+  /// No description provided for @discordShare_errorTimeout.
+  ///
+  /// In en, this message translates to:
+  /// **'Discord verification timed out. Please verify again.'**
+  String get discordShare_errorTimeout;
+
+  /// No description provided for @discordShare_errorRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'You are sharing too quickly. Please try again shortly.'**
+  String get discordShare_errorRateLimited;
+
+  /// No description provided for @discordShare_errorNoChannels.
+  ///
+  /// In en, this message translates to:
+  /// **'No Discord share channels are currently available.'**
+  String get discordShare_errorNoChannels;
+
+  /// No description provided for @discordShare_errorSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Discord verification expired. Please verify again.'**
+  String get discordShare_errorSession;
+
+  /// No description provided for @discordShare_errorRelay.
+  ///
+  /// In en, this message translates to:
+  /// **'The Discord share service is temporarily unavailable. Please try again later.'**
+  String get discordShare_errorRelay;
+
+  /// No description provided for @discordShare_errorImageRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Discord rejected this image. Check its size or format.'**
+  String get discordShare_errorImageRejected;
+
+  /// No description provided for @discordShare_errorDelivery.
+  ///
+  /// In en, this message translates to:
+  /// **'The image could not be delivered to the Discord channel. Please retry.'**
+  String get discordShare_errorDelivery;
+
   /// No description provided for @settings_defaultImagesPath.
   ///
   /// In en, this message translates to:

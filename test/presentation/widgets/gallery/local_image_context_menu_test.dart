@@ -34,6 +34,7 @@ void main() {
       LocalImageContextAction.saveToPreciseRefLibrary,
       LocalImageContextAction.sendToKrita,
       LocalImageContextAction.upscale,
+      LocalImageContextAction.shareToDiscord,
       LocalImageContextAction.importMetadata,
       LocalImageContextAction.copyPrompt,
       LocalImageContextAction.copySeed,
@@ -47,6 +48,7 @@ void main() {
     expect(find.text('Send to Vibe Transfer'), findsOneWidget);
     expect(find.text('Send to Precise Reference'), findsOneWidget);
     expect(find.text('Upscale'), findsOneWidget);
+    expect(find.text('Share to Discord'), findsOneWidget);
     expect(find.text('Import Image Metadata'), findsOneWidget);
 
     final kritaItem = items.singleWhere(
@@ -62,6 +64,15 @@ void main() {
     await tester.tap(find.text('Send to Vibe Transfer'));
     await tester.pumpAndSettle();
     expect(selected, LocalImageContextAction.sendToStyleTransfer);
+  });
+
+  testWidgets('opens without an expand animation', (tester) async {
+    await tester.pumpWidget(const _MenuHarness(isKritaConnected: true));
+
+    await tester.tap(find.text('Open'));
+    await tester.pump();
+
+    expect(find.text('Share to Discord'), findsOneWidget);
   });
 
   testWidgets('hides image information actions when metadata is unavailable', (
@@ -123,6 +134,7 @@ void main() {
       LocalImageContextAction.saveToPreciseRefLibrary,
       LocalImageContextAction.sendToKrita,
       LocalImageContextAction.upscale,
+      LocalImageContextAction.shareToDiscord,
     ]);
     expect(find.text('Import Image Metadata'), findsNothing);
     expect(find.text('Show in Folder'), findsNothing);

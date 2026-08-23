@@ -4,6 +4,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/autocomplete/traditional_chinese_converter.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('loads the bundled OpenCC mapping used in production', () async {
+    final converter = TraditionalChineseConverter();
+
+    expect(await converter.toSimplified('標籤與頭髮'), '标签与头发');
+  });
+
   test(
     'normalizes Traditional Chinese queries for the Simplified dictionary',
     () async {

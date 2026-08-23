@@ -49,6 +49,7 @@ import '../../utils/precise_ref_library_import_helper.dart';
 import '../../widgets/common/precise_reference_type_dialog.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
+import '../../widgets/discord_share/discord_share_dialog.dart';
 import '../../widgets/gallery/gallery_category_tree_view.dart';
 import '../../widgets/gallery/gallery_content_view.dart';
 import '../../widgets/gallery/gallery_state_views.dart';
@@ -1340,6 +1341,52 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
     }
   }
 
+  Future<void> _shareLocalImageToDiscord(LocalImageRecord record) async {
+    final file = File(record.path);
+    if (!await file.exists()) {
+      if (mounted) {
+        AppToast.info(context, context.l10n.localGallery_imageFileMissing);
+      }
+      return;
+    }
+
+    try {
+      var metadata =
+          await resolveLocalGalleryMetadata(record) ?? record.metadata;
+      if (metadata != null) {
+        final fixedTags = ref.read(fixedTagsNotifierProvider);
+        metadata = matchMetadataFixedTags(
+          metadata: metadata,
+          positiveEntries: fixedTags.positiveEntries,
+          negativeEntries: fixedTags.negativeEntries,
+        );
+      }
+      final imageBytes = await file.readAsBytes();
+      if (!mounted) return;
+      await DiscordShareDialog.show(
+        context,
+        imageBytes: imageBytes,
+        fileName: path.basename(record.path),
+        metadata: metadata,
+        width: metadata?.width,
+        height: metadata?.height,
+      );
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to prepare local image for Discord sharing',
+        error,
+        stackTrace,
+        'DiscordShare',
+      );
+      if (mounted) {
+        AppToast.error(
+          context,
+          context.l10n.discordShare_failed(error.toString()),
+        );
+      }
+    }
+  }
+
   Future<void> _showImageContextMenu(
     LocalImageRecord record,
     Offset position,
@@ -1384,6 +1431,8 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         await _sendToKrita(record);
       case LocalImageContextAction.upscale:
         await _sendToUpscale(record);
+      case LocalImageContextAction.shareToDiscord:
+        await _shareLocalImageToDiscord(record);
       case LocalImageContextAction.importMetadata:
         await _importImageMetadata(record);
       case LocalImageContextAction.copyPrompt:

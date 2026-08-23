@@ -8898,6 +8898,142 @@ class AppLocalizationsZh extends AppLocalizations {
   String get image_viewDetail => '查看详情';
 
   @override
+  String get discordShare_action => '分享到 Discord';
+
+  @override
+  String get discordShare_title => '分享到 Discord';
+
+  @override
+  String get discordShare_subtitle => '将图片发布到 Aaalice 社区频道';
+
+  @override
+  String get discordShare_verifyTitle => '验证 Discord 成员身份';
+
+  @override
+  String get discordShare_verifyDescription =>
+      '分享前需要在浏览器中登录 Discord。应用只会获得你的公开身份和服务器成员状态。';
+
+  @override
+  String get discordShare_verifyButton => '前往 Discord 验证';
+
+  @override
+  String get discordShare_verifying => '正在等待 Discord 验证…';
+
+  @override
+  String get discordShare_verifyingHint => '请在浏览器中完成授权，然后返回应用。';
+
+  @override
+  String get discordShare_joinRequired => '请先加入 Aaalice Discord 服务器';
+
+  @override
+  String get discordShare_joinDescription =>
+      '只有服务器成员可以向社区频道分享图片。加入后返回这里重新验证即可。';
+
+  @override
+  String get discordShare_joinServer => '加入 Discord 服务器';
+
+  @override
+  String get discordShare_retryVerification => '重新验证';
+
+  @override
+  String discordShare_account(Object name) {
+    return '已验证为 $name';
+  }
+
+  @override
+  String get discordShare_disconnect => '解除 Discord 连接';
+
+  @override
+  String get discordShare_channels => '发送频道';
+
+  @override
+  String get discordShare_selectChannel => '至少选择一个频道';
+
+  @override
+  String get discordShare_caption => '图像附言';
+
+  @override
+  String get discordShare_captionHint => '说点什么，像帖子标题一样（可选）';
+
+  @override
+  String get discordShare_promptCategories => '提示词类别';
+
+  @override
+  String get discordShare_promptEditHint => '可在发送前继续编辑最终内容。切换类别会按图片元数据重新生成。';
+
+  @override
+  String get discordShare_promptContent => '发送的提示词';
+
+  @override
+  String get discordShare_noPromptMetadata => '这张图片没有可读取的提示词元数据，仍可只分享图片和附言。';
+
+  @override
+  String get discordShare_categoryMain => '主体';
+
+  @override
+  String get discordShare_categoryCharacters => '角色';
+
+  @override
+  String get discordShare_categoryQuality => '质量词';
+
+  @override
+  String get discordShare_categoryFixed => '固定词';
+
+  @override
+  String get discordShare_keepMetadata => '保留图像元数据';
+
+  @override
+  String get discordShare_keepMetadataHint =>
+      '默认关闭。关闭时会清除 PNG 文本、EXIF 和 NAI 隐写元数据后再上传。';
+
+  @override
+  String get discordShare_privacyHint => '发送内容会上传到 Discord；请检查提示词和附言中是否包含隐私信息。';
+
+  @override
+  String get discordShare_send => '发送到 Discord';
+
+  @override
+  String get discordShare_sending => '正在发送…';
+
+  @override
+  String get discordShare_success => '已分享到 Discord';
+
+  @override
+  String get discordShare_partialSuccess => '部分频道发送成功，请检查失败频道后重试';
+
+  @override
+  String discordShare_failed(Object error) {
+    return '分享到 Discord 失败：$error';
+  }
+
+  @override
+  String get discordShare_errorNetwork => '无法连接 Discord 分享服务，请检查网络后重试';
+
+  @override
+  String get discordShare_errorBrowser => '无法打开浏览器，请检查系统的默认浏览器设置';
+
+  @override
+  String get discordShare_errorTimeout => 'Discord 验证已超时，请重新验证';
+
+  @override
+  String get discordShare_errorRateLimited => '分享过于频繁，请稍后再试';
+
+  @override
+  String get discordShare_errorNoChannels => '当前没有可用的 Discord 分享频道';
+
+  @override
+  String get discordShare_errorSession => 'Discord 验证已失效，请重新验证';
+
+  @override
+  String get discordShare_errorRelay => 'Discord 分享服务暂时不可用，请稍后再试';
+
+  @override
+  String get discordShare_errorImageRejected => 'Discord 拒绝了这张图片，请检查图片大小或格式';
+
+  @override
+  String get discordShare_errorDelivery => 'Discord 频道发送失败，请稍后重试';
+
+  @override
   String get settings_defaultImagesPath =>
       '默认 (Documents/NAI_Launcher/images/)';
 
@@ -20629,6 +20765,142 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get image_viewDetail => '檢視詳情';
+
+  @override
+  String get discordShare_action => '分享到 Discord';
+
+  @override
+  String get discordShare_title => '分享到 Discord';
+
+  @override
+  String get discordShare_subtitle => '將圖片釋出到 Aaalice 社群頻道';
+
+  @override
+  String get discordShare_verifyTitle => '驗證 Discord 成員身份';
+
+  @override
+  String get discordShare_verifyDescription =>
+      '分享前需要在瀏覽器中登入 Discord。應用只會取得你的公開身份和伺服器成員狀態。';
+
+  @override
+  String get discordShare_verifyButton => '前往 Discord 驗證';
+
+  @override
+  String get discordShare_verifying => '正在等待 Discord 驗證…';
+
+  @override
+  String get discordShare_verifyingHint => '請在瀏覽器中完成授權，然後返回應用。';
+
+  @override
+  String get discordShare_joinRequired => '請先加入 Aaalice Discord 伺服器';
+
+  @override
+  String get discordShare_joinDescription =>
+      '只有伺服器成員可以向社群頻道分享圖片。加入後返回這裡重新驗證即可。';
+
+  @override
+  String get discordShare_joinServer => '加入 Discord 伺服器';
+
+  @override
+  String get discordShare_retryVerification => '重新驗證';
+
+  @override
+  String discordShare_account(Object name) {
+    return '已驗證為 $name';
+  }
+
+  @override
+  String get discordShare_disconnect => '解除 Discord 連線';
+
+  @override
+  String get discordShare_channels => '傳送頻道';
+
+  @override
+  String get discordShare_selectChannel => '至少選擇一個頻道';
+
+  @override
+  String get discordShare_caption => '圖像附言';
+
+  @override
+  String get discordShare_captionHint => '說點什麼，像貼文標題一樣（可選）';
+
+  @override
+  String get discordShare_promptCategories => '提示詞類別';
+
+  @override
+  String get discordShare_promptEditHint => '可在傳送前繼續編輯最終內容。切換類別會按圖片後設資料重新產生。';
+
+  @override
+  String get discordShare_promptContent => '傳送的提示詞';
+
+  @override
+  String get discordShare_noPromptMetadata => '這張圖片沒有可讀取的提示詞後設資料，仍可只分享圖片和附言。';
+
+  @override
+  String get discordShare_categoryMain => '主體';
+
+  @override
+  String get discordShare_categoryCharacters => '角色';
+
+  @override
+  String get discordShare_categoryQuality => '品質詞';
+
+  @override
+  String get discordShare_categoryFixed => '固定詞';
+
+  @override
+  String get discordShare_keepMetadata => '保留圖像後設資料';
+
+  @override
+  String get discordShare_keepMetadataHint =>
+      '預設關閉。關閉時會清除 PNG 文字、EXIF 和 NAI 隱寫後設資料後再上傳。';
+
+  @override
+  String get discordShare_privacyHint => '傳送內容會上傳到 Discord；請檢查提示詞和附言中是否包含隱私資訊。';
+
+  @override
+  String get discordShare_send => '傳送到 Discord';
+
+  @override
+  String get discordShare_sending => '正在傳送…';
+
+  @override
+  String get discordShare_success => '已分享到 Discord';
+
+  @override
+  String get discordShare_partialSuccess => '部分頻道傳送成功，請檢查失敗頻道後重試';
+
+  @override
+  String discordShare_failed(Object error) {
+    return '分享到 Discord 失敗：$error';
+  }
+
+  @override
+  String get discordShare_errorNetwork => '無法連線 Discord 分享服務，請檢查網路後重試';
+
+  @override
+  String get discordShare_errorBrowser => '無法開啟瀏覽器，請檢查系統的預設瀏覽器設定';
+
+  @override
+  String get discordShare_errorTimeout => 'Discord 驗證已逾時，請重新驗證';
+
+  @override
+  String get discordShare_errorRateLimited => '分享過於頻繁，請稍後再試';
+
+  @override
+  String get discordShare_errorNoChannels => '目前沒有可用的 Discord 分享頻道';
+
+  @override
+  String get discordShare_errorSession => 'Discord 驗證已失效，請重新驗證';
+
+  @override
+  String get discordShare_errorRelay => 'Discord 分享服務暫時無法使用，請稍後再試';
+
+  @override
+  String get discordShare_errorImageRejected => 'Discord 拒絕了這張圖片，請檢查圖片大小或格式';
+
+  @override
+  String get discordShare_errorDelivery => 'Discord 頻道傳送失敗，請稍後重試';
 
   @override
   String get settings_defaultImagesPath =>

@@ -1123,10 +1123,12 @@ class _HoverPreviewCardInnerState
                 ),
               ),
             ),
-            SizedBox(
-              height: metadataHeight,
+            ConstrainedBox(
+              key: const ValueKey('online-gallery-hover-metadata'),
+              constraints: BoxConstraints(maxHeight: metadataHeight),
               child: SingleChildScrollView(
                 child: Padding(
+                  key: const ValueKey('online-gallery-hover-metadata-content'),
                   padding: const EdgeInsets.all(12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

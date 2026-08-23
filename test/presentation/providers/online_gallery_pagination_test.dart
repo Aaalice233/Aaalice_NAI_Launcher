@@ -328,6 +328,36 @@ void main() {
     },
   );
 
+  test('failed initial load is not retried by load-more triggers', () async {
+    var attempts = 0;
+    final adapter = _FakeGalleryAdapter(
+      GallerySourceId.danbooru,
+      onSearch: (_, __) async {
+        attempts++;
+        throw const GallerySourceException(
+          GallerySourceErrorCode.detailNotFound,
+          source: GallerySourceId.danbooru,
+        );
+      },
+    );
+    final container = _container(danbooru: adapter);
+    addTearDown(container.dispose);
+    final notifier = container.read(onlineGalleryNotifierProvider.notifier);
+
+    await notifier.loadPosts();
+    await notifier.loadMore();
+    await notifier.loadMore();
+
+    expect(attempts, 1);
+    expect(
+      container.read(onlineGalleryNotifierProvider).errorCode,
+      OnlineGalleryErrorCode.detailNotFound,
+    );
+
+    await notifier.refresh();
+    expect(attempts, 2);
+  });
+
   test(
     'append failure retains existing posts and can retry in place',
     () async {
@@ -360,6 +390,10 @@ void main() {
         state.currentCache.appendErrorCode,
         OnlineGalleryErrorCode.network,
       );
+
+      await notifier.loadMore();
+      await notifier.loadMore();
+      expect(pageTwoAttempts, 1);
 
       await notifier.retryAppend();
       state = container.read(onlineGalleryNotifierProvider);

@@ -9229,6 +9229,159 @@ class AppLocalizationsEn extends AppLocalizations {
   String get image_viewDetail => 'View details';
 
   @override
+  String get discordShare_action => 'Share to Discord';
+
+  @override
+  String get discordShare_title => 'Share to Discord';
+
+  @override
+  String get discordShare_subtitle =>
+      'Post this image to an Aaalice community channel';
+
+  @override
+  String get discordShare_verifyTitle => 'Verify your Discord membership';
+
+  @override
+  String get discordShare_verifyDescription =>
+      'Sign in to Discord in your browser before sharing. The app only receives your public identity and server membership status.';
+
+  @override
+  String get discordShare_verifyButton => 'Verify with Discord';
+
+  @override
+  String get discordShare_verifying => 'Waiting for Discord verification…';
+
+  @override
+  String get discordShare_verifyingHint =>
+      'Complete authorization in your browser, then return to the app.';
+
+  @override
+  String get discordShare_joinRequired =>
+      'Join the Aaalice Discord server first';
+
+  @override
+  String get discordShare_joinDescription =>
+      'Only server members can share to community channels. Join, then return here and verify again.';
+
+  @override
+  String get discordShare_joinServer => 'Join Discord server';
+
+  @override
+  String get discordShare_retryVerification => 'Verify again';
+
+  @override
+  String discordShare_account(Object name) {
+    return 'Verified as $name';
+  }
+
+  @override
+  String get discordShare_disconnect => 'Disconnect Discord';
+
+  @override
+  String get discordShare_channels => 'Channels';
+
+  @override
+  String get discordShare_selectChannel => 'Select at least one channel';
+
+  @override
+  String get discordShare_caption => 'Image caption';
+
+  @override
+  String get discordShare_captionHint =>
+      'Add a short comment, like a post title (optional)';
+
+  @override
+  String get discordShare_promptCategories => 'Prompt categories';
+
+  @override
+  String get discordShare_promptEditHint =>
+      'You can edit the final text before sending. Changing categories rebuilds it from image metadata.';
+
+  @override
+  String get discordShare_promptContent => 'Prompt to send';
+
+  @override
+  String get discordShare_noPromptMetadata =>
+      'No readable prompt metadata was found. You can still share only the image and caption.';
+
+  @override
+  String get discordShare_categoryMain => 'Main';
+
+  @override
+  String get discordShare_categoryCharacters => 'Characters';
+
+  @override
+  String get discordShare_categoryQuality => 'Quality';
+
+  @override
+  String get discordShare_categoryFixed => 'Fixed';
+
+  @override
+  String get discordShare_keepMetadata => 'Keep image metadata';
+
+  @override
+  String get discordShare_keepMetadataHint =>
+      'Off by default. When off, PNG text, EXIF, and NovelAI stealth metadata are removed before upload.';
+
+  @override
+  String get discordShare_privacyHint =>
+      'This content will be uploaded to Discord. Check prompts and the caption for private information.';
+
+  @override
+  String get discordShare_send => 'Send to Discord';
+
+  @override
+  String get discordShare_sending => 'Sending…';
+
+  @override
+  String get discordShare_success => 'Shared to Discord';
+
+  @override
+  String get discordShare_partialSuccess =>
+      'Some channels succeeded. Review failed channels and retry.';
+
+  @override
+  String discordShare_failed(Object error) {
+    return 'Could not share to Discord: $error';
+  }
+
+  @override
+  String get discordShare_errorNetwork =>
+      'Could not reach the Discord share service. Check your connection and try again.';
+
+  @override
+  String get discordShare_errorBrowser =>
+      'Could not open your browser. Check the system default browser setting.';
+
+  @override
+  String get discordShare_errorTimeout =>
+      'Discord verification timed out. Please verify again.';
+
+  @override
+  String get discordShare_errorRateLimited =>
+      'You are sharing too quickly. Please try again shortly.';
+
+  @override
+  String get discordShare_errorNoChannels =>
+      'No Discord share channels are currently available.';
+
+  @override
+  String get discordShare_errorSession =>
+      'Your Discord verification expired. Please verify again.';
+
+  @override
+  String get discordShare_errorRelay =>
+      'The Discord share service is temporarily unavailable. Please try again later.';
+
+  @override
+  String get discordShare_errorImageRejected =>
+      'Discord rejected this image. Check its size or format.';
+
+  @override
+  String get discordShare_errorDelivery =>
+      'The image could not be delivered to the Discord channel. Please retry.';
+
+  @override
   String get settings_defaultImagesPath =>
       'Default (Documents/NAI_Launcher/images/)';
 

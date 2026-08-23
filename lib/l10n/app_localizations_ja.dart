@@ -9028,6 +9028,152 @@ class AppLocalizationsJa extends AppLocalizations {
   String get image_viewDetail => '詳細を表示';
 
   @override
+  String get discordShare_action => 'Discord に共有';
+
+  @override
+  String get discordShare_title => 'Discord に共有';
+
+  @override
+  String get discordShare_subtitle => '画像を Aaalice コミュニティチャンネルに投稿します';
+
+  @override
+  String get discordShare_verifyTitle => 'Discord メンバーシップを確認';
+
+  @override
+  String get discordShare_verifyDescription =>
+      '共有する前にブラウザで Discord にログインしてください。アプリが取得するのは公開プロフィールとサーバーのメンバー状態のみです。';
+
+  @override
+  String get discordShare_verifyButton => 'Discord で確認';
+
+  @override
+  String get discordShare_verifying => 'Discord の確認を待っています…';
+
+  @override
+  String get discordShare_verifyingHint => 'ブラウザで認証を完了してからアプリに戻ってください。';
+
+  @override
+  String get discordShare_joinRequired => '先に Aaalice Discord サーバーへ参加してください';
+
+  @override
+  String get discordShare_joinDescription =>
+      'コミュニティチャンネルへ共有できるのはサーバーメンバーだけです。参加後、ここに戻って再確認してください。';
+
+  @override
+  String get discordShare_joinServer => 'Discord サーバーに参加';
+
+  @override
+  String get discordShare_retryVerification => '再確認';
+
+  @override
+  String discordShare_account(Object name) {
+    return '$name として確認済み';
+  }
+
+  @override
+  String get discordShare_disconnect => 'Discord の接続を解除';
+
+  @override
+  String get discordShare_channels => '送信先チャンネル';
+
+  @override
+  String get discordShare_selectChannel => 'チャンネルを1つ以上選択してください';
+
+  @override
+  String get discordShare_caption => '画像のコメント';
+
+  @override
+  String get discordShare_captionHint => '投稿タイトルのような短いコメント（任意）';
+
+  @override
+  String get discordShare_promptCategories => 'プロンプトの種類';
+
+  @override
+  String get discordShare_promptEditHint =>
+      '送信前に最終テキストを編集できます。種類を切り替えると画像メタデータから再生成されます。';
+
+  @override
+  String get discordShare_promptContent => '送信するプロンプト';
+
+  @override
+  String get discordShare_noPromptMetadata =>
+      '読み取れるプロンプトメタデータがありません。画像とコメントだけでも共有できます。';
+
+  @override
+  String get discordShare_categoryMain => 'メイン';
+
+  @override
+  String get discordShare_categoryCharacters => 'キャラクター';
+
+  @override
+  String get discordShare_categoryQuality => '品質タグ';
+
+  @override
+  String get discordShare_categoryFixed => '固定タグ';
+
+  @override
+  String get discordShare_keepMetadata => '画像メタデータを保持';
+
+  @override
+  String get discordShare_keepMetadataHint =>
+      '既定ではオフです。オフの場合、PNG テキスト、EXIF、NovelAI のステルスメタデータを削除してからアップロードします。';
+
+  @override
+  String get discordShare_privacyHint =>
+      'この内容は Discord にアップロードされます。プロンプトとコメントに個人情報がないか確認してください。';
+
+  @override
+  String get discordShare_send => 'Discord に送信';
+
+  @override
+  String get discordShare_sending => '送信中…';
+
+  @override
+  String get discordShare_success => 'Discord に共有しました';
+
+  @override
+  String get discordShare_partialSuccess =>
+      '一部のチャンネルだけ送信できました。失敗したチャンネルを確認して再試行してください。';
+
+  @override
+  String discordShare_failed(Object error) {
+    return 'Discord への共有に失敗しました：$error';
+  }
+
+  @override
+  String get discordShare_errorNetwork =>
+      'Discord 共有サービスに接続できません。ネットワークを確認して再試行してください。';
+
+  @override
+  String get discordShare_errorBrowser =>
+      'ブラウザーを開けません。システムの既定のブラウザー設定を確認してください。';
+
+  @override
+  String get discordShare_errorTimeout =>
+      'Discord の確認がタイムアウトしました。もう一度確認してください。';
+
+  @override
+  String get discordShare_errorRateLimited => '共有回数が多すぎます。しばらくしてから再試行してください。';
+
+  @override
+  String get discordShare_errorNoChannels => '現在利用できる Discord 共有チャンネルがありません。';
+
+  @override
+  String get discordShare_errorSession => 'Discord の確認が期限切れです。もう一度確認してください。';
+
+  @override
+  String get discordShare_errorRelay =>
+      'Discord 共有サービスは一時的に利用できません。後でもう一度お試しください。';
+
+  @override
+  String get discordShare_errorImageRejected =>
+      'Discord がこの画像を拒否しました。サイズまたは形式を確認してください。';
+
+  @override
+  String get discordShare_errorDelivery =>
+      'Discord チャンネルへの送信に失敗しました。再試行してください。';
+
+  @override
   String get settings_defaultImagesPath =>
       'デフォルト (Documents/NAI_Launcher/images/)';
 

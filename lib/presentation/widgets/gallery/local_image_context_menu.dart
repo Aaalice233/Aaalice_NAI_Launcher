@@ -11,6 +11,7 @@ enum LocalImageContextAction {
   saveToPreciseRefLibrary,
   sendToKrita,
   upscale,
+  shareToDiscord,
   importMetadata,
   copyPrompt,
   copySeed,
@@ -38,6 +39,7 @@ class LocalImageContextMenu {
         position.dx + 1,
         position.dy + 1,
       ),
+      popUpAnimationStyle: AnimationStyle.noAnimation,
       items: buildEntries(
         context,
         hasImportableMetadata: hasImportableMetadata,
@@ -62,6 +64,7 @@ class LocalImageContextMenu {
         position.dx + 1,
         position.dy + 1,
       ),
+      popUpAnimationStyle: AnimationStyle.noAnimation,
       items: buildSendEntries(context, isKritaConnected: isKritaConnected),
     );
   }
@@ -169,6 +172,12 @@ class LocalImageContextMenu {
         value: LocalImageContextAction.upscale,
         icon: Icons.zoom_in,
         label: context.l10n.gallery_upscale,
+      ),
+      _item(
+        context,
+        value: LocalImageContextAction.shareToDiscord,
+        icon: Icons.send_rounded,
+        label: context.l10n.discordShare_action,
       ),
     ];
   }

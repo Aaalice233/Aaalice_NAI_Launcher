@@ -129,6 +129,9 @@ class SelectableImageCard extends ConsumerStatefulWidget {
   /// 发送到 Krita 回调
   final VoidCallback? onSendToKrita;
 
+  /// 分享到 Discord 的回调。
+  final VoidCallback? onShareToDiscord;
+
   /// 在文件夹中打开的回调（需要先保存图片）
   final VoidCallback? onOpenInExplorer;
 
@@ -212,6 +215,7 @@ class SelectableImageCard extends ConsumerStatefulWidget {
     this.onDirectorTools,
     this.onEnhance,
     this.onSendToKrita,
+    this.onShareToDiscord,
     this.onOpenInExplorer,
     this.sourceFilePath,
     this.onSaveToLibrary,
@@ -1549,6 +1553,17 @@ class _SelectableImageCardState extends ConsumerState<SelectableImageCard>
           label: context.l10n.shortcut_action_copy_image,
           icon: Icons.copy,
           onTap: copyImageAction,
+        ),
+      );
+    }
+
+    if (widget.onShareToDiscord != null) {
+      items.add(
+        ProMenuItem(
+          id: 'share_discord',
+          label: context.l10n.discordShare_action,
+          icon: Icons.send_rounded,
+          onTap: widget.onShareToDiscord,
         ),
       );
     }

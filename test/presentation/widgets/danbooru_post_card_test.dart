@@ -219,6 +219,72 @@ void main() {
     expect(hoverImage.alignment, Alignment.topCenter);
   });
 
+  testWidgets('hover preview metadata does not reserve blank footer space', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1000, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const post = DanbooruPost(
+      id: 129,
+      width: 1500,
+      height: 2100,
+      rating: 'g',
+      score: 1,
+      favCount: 1,
+      previewFileUrl: 'https://example.com/portrait.jpg',
+      tagStringArtist: 'tou_kokoro_no_neko',
+      tagStringCharacter: 'lin_nianpian the_weeping_swan',
+      tagStringCopyright: 'ten_days_of_the_citys_fall',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 150,
+                child: DanbooruPostCard(
+                  post: post,
+                  itemWidth: 150,
+                  isFavorited: false,
+                  onTap: () {},
+                  onTagTap: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await tester.pump();
+    await mouse.moveTo(tester.getCenter(find.byType(DanbooruPostCard)));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 301));
+
+    final metadata = find.byKey(
+      const ValueKey('online-gallery-hover-metadata'),
+    );
+    final content = find.byKey(
+      const ValueKey('online-gallery-hover-metadata-content'),
+    );
+    expect(metadata, findsOneWidget);
+    expect(content, findsOneWidget);
+    expect(
+      tester.getSize(metadata).height,
+      lessThanOrEqualTo(tester.getSize(content).height + 0.01),
+    );
+  });
+
   testWidgets('hover preview preserves landscape ratio and wide-image floor', (
     tester,
   ) async {

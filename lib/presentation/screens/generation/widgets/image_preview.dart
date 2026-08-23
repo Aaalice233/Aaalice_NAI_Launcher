@@ -18,6 +18,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/nai_resolution_adapter.dart';
 import '../../../../core/utils/prompt_preset_resolution.dart';
 import '../../../../core/utils/vibe_file_parser.dart';
+import '../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../data/models/image/image_stream_chunk.dart';
 import '../../../../data/repositories/gallery_folder_repository.dart';
 import '../../../../data/services/alias_resolver_service.dart';
@@ -45,7 +46,9 @@ import '../../../widgets/common/image_detail/image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_viewer.dart';
 import '../../../widgets/common/selectable_image_card.dart';
 import '../../../widgets/common/transparency_background.dart';
+import '../../../widgets/discord_share/discord_share_dialog.dart';
 import '../../../widgets/image_editor/image_editor_screen.dart';
+import '../../../utils/fixed_tag_metadata_matcher.dart';
 import '../../../utils/image_detail_opener.dart';
 import '../../../utils/krita_send_helper.dart';
 import '../../../utils/precise_ref_library_import_helper.dart';
@@ -690,6 +693,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
               name: _previewImageFileName(image),
             )
           : null,
+      onShareToDiscord: image.canSave
+          ? () => unawaited(_sharePreviewImageToDiscord(context, image))
+          : null,
       onOpenInExplorer: image.canSave
           ? () => _openImageInExplorer(context, image)
           : null,
@@ -720,6 +726,45 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       return p.basename(filePath);
     }
     return 'generation_${image.id}.png';
+  }
+
+  Future<void> _sharePreviewImageToDiscord(
+    BuildContext context,
+    GeneratedImage image,
+  ) async {
+    NaiImageMetadata? metadata = image.metadata;
+    try {
+      final metadataService = ImageMetadataService();
+      final filePath = image.filePath;
+      if (metadata == null &&
+          filePath != null &&
+          await File(filePath).exists()) {
+        metadata = await metadataService.getMetadataImmediate(filePath);
+      }
+      metadata ??= await metadataService.getMetadataFromBytes(image.bytes);
+      if (metadata != null) {
+        final fixedTags = ref.read(fixedTagsNotifierProvider);
+        metadata = matchMetadataFixedTags(
+          metadata: metadata,
+          positiveEntries: fixedTags.positiveEntries,
+          negativeEntries: fixedTags.negativeEntries,
+        );
+      }
+    } catch (error) {
+      AppLogger.w(
+        'Could not read generation metadata for Discord sharing: $error',
+        'DiscordShare',
+      );
+    }
+    if (!context.mounted) return;
+    await DiscordShareDialog.show(
+      context,
+      imageBytes: image.bytes,
+      fileName: _previewImageFileName(image),
+      metadata: metadata,
+      width: image.width,
+      height: image.height,
+    );
   }
 
   Future<void> _sendPreviewImageToReversePrompt(

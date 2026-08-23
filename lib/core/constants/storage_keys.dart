@@ -6,6 +6,7 @@ class StorageKeys {
   static const String accessToken = 'nai_access_token';
   static const String tokenExpiry = 'nai_token_expiry';
   static const String userEmail = 'nai_user_email';
+  static const String discordShareSession = 'discord_share_session_v1';
 
   // Token 存储（按账号ID）
   static const String accountTokenPrefix = 'nai_account_token_';
@@ -153,6 +154,13 @@ class StorageKeys {
 
   // Local Gallery Keys (本地画廊相关)
   static const String hasSeenLocalGalleryTip = 'has_seen_local_gallery_tip';
+
+  // Discord Share Keys
+  static const String discordShareTargetIds = 'discord_share_target_ids_v1';
+  static const String discordShareIncludeMetadata =
+      'discord_share_include_metadata_v1';
+  static const String discordShareLongPromptAsFile =
+      'discord_share_long_prompt_as_file_v1';
 
   // Vibe Library Keys (Vibe库相关)
   static const String vibeLibrarySavePath = 'vibe_library_save_path';

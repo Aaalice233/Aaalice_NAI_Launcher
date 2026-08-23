@@ -208,6 +208,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     if (!_branchVisible ||
         state.isLoading ||
         state.isLoadingMore ||
+        state.hasError ||
         !state.hasMore ||
         activeCache.appendErrorCode != null ||
         _scheduledAutoLoadCacheKey == state.currentCacheKey) {
@@ -229,6 +230,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       if (latest.currentCacheKey != cacheKey ||
           latest.isLoading ||
           latest.isLoadingMore ||
+          latest.hasError ||
           !latest.hasMore ||
           latestCache.appendErrorCode != null) {
         return;

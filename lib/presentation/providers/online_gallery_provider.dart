@@ -1432,8 +1432,8 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
       return;
     }
     if (!refresh && (state.isLoading || state.isLoadingMore)) return;
-    final restoredPage = !refresh &&
-            _pendingRestoredCacheKey == state.currentCacheKey
+    final restoredPage =
+        !refresh && _pendingRestoredCacheKey == state.currentCacheKey
         ? _pendingRestoredPage
         : null;
     _pendingRestoredCacheKey = null;
@@ -1453,15 +1453,29 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
   }
 
   Future<void> loadMore() async {
-    if (state.isLoading || state.isLoadingMore || !state.hasMore) return;
+    final activeCache = state.randomEnabled
+        ? state.randomSession.cache
+        : state.currentCache;
+    if (state.isLoading ||
+        state.isLoadingMore ||
+        state.hasError ||
+        activeCache.appendErrorCode != null ||
+        !state.hasMore) {
+      return;
+    }
     await loadPosts();
   }
 
   Future<void> refresh() => loadPosts(refresh: true);
 
   Future<void> retryAppend() async {
-    if (state.currentCache.appendErrorCode == null) return;
-    await loadMore();
+    if (state.randomEnabled ||
+        state.isLoading ||
+        state.isLoadingMore ||
+        state.currentCache.appendErrorCode == null) {
+      return;
+    }
+    await loadPosts();
   }
 
   Future<void> goToPage(int page) async {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/comfyui_prompt_parser.dart';
+import '../../../core/utils/nai_multi_character_prompt_codec.dart';
 import '../../../data/models/character/character_prompt.dart';
 import 'comfyui_import_dialog.dart';
 
@@ -22,7 +23,7 @@ class ComfyuiImportWrapper extends StatefulWidget {
   /// [globalPrompt] 全局提示词，用于替换主输入框内容
   /// [characters] 角色列表，用于替换角色配置
   final void Function(String globalPrompt, List<CharacterPrompt> characters)?
-      onImport;
+  onImport;
 
   const ComfyuiImportWrapper({
     super.key,
@@ -72,18 +73,63 @@ class _ComfyuiImportWrapperState extends State<ComfyuiImportWrapper> {
 
     // 检测粘贴行为：文本长度变化超过阈值
     // 粘贴通常是一次性添加大量文本
+    final insertedText = _insertedText(oldText, newText);
+    if (insertedText.contains('|')) {
+      final naiPrompt = NaiMultiCharacterPromptCodec.tryDecode(newText);
+      if (naiPrompt != null) {
+        _applyNaiMultiCharacterPrompt(naiPrompt);
+        return;
+      }
+    }
+
     final lengthDiff = newText.length - oldText.length;
-    if (lengthDiff < 20) return; // 忽略小的文本变化
-
-    // 快速检测是否为 ComfyUI 语法
+    if (lengthDiff < 20) return; // 忽略较短的非 NAI 文本变化
     if (!ComfyuiPromptParser.isComfyuiMultiCharacter(newText)) return;
-
-    // 尝试解析
     final parseResult = ComfyuiPromptParser.tryParse(newText);
     if (parseResult == null || !parseResult.hasCharacters) return;
-
-    // 弹出确认框
     _showImportDialog(parseResult);
+  }
+
+  void _applyNaiMultiCharacterPrompt(NaiMultiCharacterPrompt prompt) {
+    _isProcessing = true;
+    try {
+      final characters = [
+        for (var index = 0; index < prompt.characterPrompts.length; index++)
+          CharacterPrompt.create(
+            name: 'Character ${index + 1}',
+            prompt: prompt.characterPrompts[index],
+            negativePrompt: '',
+          ),
+      ];
+      widget.onImport?.call(prompt.basePrompt, characters);
+      widget.controller.value = TextEditingValue(
+        text: prompt.basePrompt,
+        selection: TextSelection.collapsed(offset: prompt.basePrompt.length),
+      );
+    } finally {
+      _isProcessing = false;
+      _previousText = widget.controller.text;
+    }
+  }
+
+  String _insertedText(String before, String after) {
+    var prefixLength = 0;
+    final commonLength = before.length < after.length
+        ? before.length
+        : after.length;
+    while (prefixLength < commonLength &&
+        before.codeUnitAt(prefixLength) == after.codeUnitAt(prefixLength)) {
+      prefixLength++;
+    }
+
+    var suffixLength = 0;
+    while (suffixLength < before.length - prefixLength &&
+        suffixLength < after.length - prefixLength &&
+        before.codeUnitAt(before.length - suffixLength - 1) ==
+            after.codeUnitAt(after.length - suffixLength - 1)) {
+      suffixLength++;
+    }
+    return after.substring(prefixLength, after.length - suffixLength);
   }
 
   Future<void> _showImportDialog(ComfyuiParseResult parseResult) async {
@@ -103,10 +149,7 @@ class _ComfyuiImportWrapperState extends State<ComfyuiImportWrapper> {
         );
 
         // 触发回调
-        widget.onImport?.call(
-          result.parseResult.globalPrompt,
-          characters,
-        );
+        widget.onImport?.call(result.parseResult.globalPrompt, characters);
 
         // 更新输入框内容为全局提示词
         widget.controller.text = result.parseResult.globalPrompt;
