@@ -3569,7 +3569,6 @@
     }
   },
   "metadataImport_negativePrompt": "負向提示詞",
-  "metadataImport_characterPrompts": "多角色提示詞",
   "metadataImport_characterPromptsCount": "角色提示詞 ({count}個)",
   "@metadataImport_characterPromptsCount": {
     "placeholders": {

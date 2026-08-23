@@ -3594,7 +3594,6 @@
     }
   },
   "metadataImport_negativePrompt": "Undesired Content",
-  "metadataImport_characterPrompts": "Character Prompts",
   "metadataImport_characterPromptsCount": "Character Prompts ({count})",
   "@metadataImport_characterPromptsCount": {
     "placeholders": {

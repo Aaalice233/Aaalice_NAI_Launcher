@@ -61,19 +61,19 @@ void main() {
       expect(find.text('123456'), findsOneWidget);
       expect(find.text('28'), findsOneWidget);
       expect(
-        [
+        {
           tester.getCenter(find.text('1024×1536')).dy,
           tester.getCenter(find.text('2.0 KB')).dy,
           tester.getCenter(find.text('2026-08-23')).dy,
-        ].toSet(),
+        },
         hasLength(1),
       );
       expect(
-        [
+        {
           tester.getCenter(find.text('nai-diffusion-4-5-full')).dy,
           tester.getCenter(find.text('123456')).dy,
           tester.getCenter(find.text('28')).dy,
-        ].toSet(),
+        },
         hasLength(1),
       );
 
