@@ -643,6 +643,30 @@ void main() {
       expect(upgraded.varietyPlus, isTrue);
     });
 
+    test('cached rawJson metadata should upgrade fixed tag fields', () {
+      final rawJson = jsonEncode({
+        'prompt': 'private prefix, 1girl, private suffix',
+        'uc': 'negative prefix, bad hands, negative suffix',
+        'fixed_prefix': ['private prefix'],
+        'fixed_suffix': ['private suffix'],
+        'fixed_negative_prefix': ['negative prefix'],
+        'fixed_negative_suffix': ['negative suffix'],
+      });
+      final stale = NaiImageMetadata(
+        prompt: 'private prefix, 1girl, private suffix',
+        negativePrompt: 'negative prefix, bad hands, negative suffix',
+        rawJson: rawJson,
+      );
+
+      final upgraded = stale.upgradeFromRawJsonIfNeeded();
+
+      expect(upgraded.fixedPrefixTags, ['private prefix']);
+      expect(upgraded.fixedSuffixTags, ['private suffix']);
+      expect(upgraded.fixedNegativePrefixTags, ['negative prefix']);
+      expect(upgraded.fixedNegativeSuffixTags, ['negative suffix']);
+      expect(upgraded.mainPrompt, '1girl');
+    });
+
     test('cached rawJson metadata should upgrade the V5 Light preset', () {
       const prompt = '1girl, very aesthetic, amazing quality, no text';
       final rawJson = jsonEncode({

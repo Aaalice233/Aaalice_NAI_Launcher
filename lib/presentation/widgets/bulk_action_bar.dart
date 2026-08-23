@@ -157,35 +157,47 @@ class BulkActionBar extends StatelessWidget {
                   Expanded(
                     child: Align(
                       alignment: Alignment.centerRight,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          for (int i = 0; i < actions.length; i++) ...[
-                            if (i > 0 && actions[i].showDividerBefore) ...[
-                              const SizedBox(width: 12),
-                              Container(
-                                width: 1,
-                                height: 28,
-                                color: theme.dividerColor.withValues(
-                                  alpha: 0.3,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerLow
+                              .withValues(alpha: isDark ? 0.56 : 0.72),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (int i = 0; i < actions.length; i++) ...[
+                                if (i > 0) ...[
+                                  if (actions[i].showDividerBefore)
+                                    Container(
+                                      width: 1,
+                                      height: 22,
+                                      margin: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                      ),
+                                      color: theme.colorScheme.outlineVariant
+                                          .withValues(alpha: 0.55),
+                                    )
+                                  else
+                                    const SizedBox(width: 2),
+                                ],
+                                _ActionButton(
+                                  icon: actions[i].icon,
+                                  label: actions[i].label,
+                                  onPressed: hasSelection
+                                      ? actions[i].onPressed
+                                      : null,
+                                  color: actions[i].color,
+                                  isDanger: actions[i].isDanger,
+                                  compact: compactActions,
+                                  prominent: true,
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                            ] else if (i > 0)
-                              const SizedBox(width: 6),
-                            _ActionButton(
-                              icon: actions[i].icon,
-                              label: actions[i].label,
-                              onPressed: hasSelection
-                                  ? actions[i].onPressed
-                                  : null,
-                              color: actions[i].color,
-                              isDanger: actions[i].isDanger,
-                              compact: compactActions,
-                              prominent: true,
-                            ),
-                          ],
-                        ],
+                              ],
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -253,43 +265,38 @@ class _ActionButton extends StatelessWidget {
 
     Color foreground(Set<WidgetState> states) {
       if (states.contains(WidgetState.disabled)) {
-        return colorScheme.onSurface.withValues(alpha: 0.38);
+        return colorScheme.onSurface.withValues(alpha: 0.32);
       }
-      if (isDanger) return colorScheme.onErrorContainer;
+      if (isDanger) return colorScheme.error;
       if (isActive) return colorScheme.onPrimaryContainer;
+      if (prominent) return colorScheme.onSurfaceVariant;
       return colorScheme.onSurface;
     }
 
     Color background(Set<WidgetState> states) {
-      if (states.contains(WidgetState.disabled)) {
-        return prominent
-            ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.35)
-            : Colors.transparent;
-      }
-      if (isDanger) {
-        return colorScheme.errorContainer.withValues(
-          alpha: states.contains(WidgetState.hovered) ? 1 : 0.72,
-        );
-      }
+      if (states.contains(WidgetState.disabled)) return Colors.transparent;
       if (isActive) {
         return colorScheme.primaryContainer.withValues(
           alpha: states.contains(WidgetState.hovered) ? 1 : 0.82,
         );
       }
-      if (prominent) {
-        return states.contains(WidgetState.hovered)
-            ? colorScheme.surfaceContainerHigh
-            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.72);
+      if (states.contains(WidgetState.pressed)) {
+        return isDanger
+            ? colorScheme.errorContainer.withValues(alpha: 0.72)
+            : colorScheme.surfaceContainerHighest;
       }
-      return states.contains(WidgetState.hovered)
-          ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.72)
-          : Colors.transparent;
+      if (states.contains(WidgetState.hovered)) {
+        return isDanger
+            ? colorScheme.errorContainer.withValues(alpha: 0.48)
+            : colorScheme.surfaceContainerHigh;
+      }
+      return Colors.transparent;
     }
 
     final style = ButtonStyle(
-      minimumSize: const WidgetStatePropertyAll(Size(40, 40)),
+      minimumSize: const WidgetStatePropertyAll(Size(40, 38)),
       padding: WidgetStatePropertyAll(
-        EdgeInsets.symmetric(horizontal: compact ? 10 : 12, vertical: 8),
+        EdgeInsets.symmetric(horizontal: compact ? 10 : 11, vertical: 8),
       ),
       foregroundColor: WidgetStateProperty.resolveWith(foreground),
       backgroundColor: WidgetStateProperty.resolveWith(background),
@@ -299,19 +306,9 @@ class _ActionButton extends StatelessWidget {
       shape: WidgetStatePropertyAll(
         RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
-      side: WidgetStateProperty.resolveWith((states) {
-        if (!prominent && !isActive && !isDanger) {
-          return BorderSide.none;
-        }
-        final sideColor = isDanger
-            ? colorScheme.error.withValues(alpha: 0.24)
-            : isActive
-            ? colorScheme.primary.withValues(alpha: 0.24)
-            : colorScheme.outlineVariant.withValues(alpha: 0.48);
-        return BorderSide(color: sideColor);
-      }),
+      side: const WidgetStatePropertyAll(BorderSide.none),
       textStyle: WidgetStatePropertyAll(
-        theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
+        theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w500),
       ),
       visualDensity: VisualDensity.standard,
     );
@@ -327,9 +324,9 @@ class _ActionButton extends StatelessWidget {
             Icon(
               icon,
               size: 18,
-              color: isDanger || isActive ? null : accentColor,
+              color: prominent || isDanger || isActive ? null : accentColor,
             ),
-            if (!compact) ...[const SizedBox(width: 7), Text(label)],
+            if (!compact) ...[const SizedBox(width: 6), Text(label)],
           ],
         ),
       ),

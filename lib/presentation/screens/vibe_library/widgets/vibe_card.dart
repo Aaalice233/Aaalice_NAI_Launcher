@@ -202,9 +202,12 @@ class _VibeCardState extends ConsumerState<VibeCard>
           onLongPress: widget.onLongPress,
           onSecondaryTapDown: widget.onSecondaryTapDown,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+            duration: const Duration(milliseconds: 150),
             curve: Curves.easeOut,
+            width: widget.width,
+            height: cardHeight,
             transform: Matrix4.identity()
+              ..translateByDouble(0, _isHovered ? -4 : 0, 0, 1)
               ..scaleByDouble(
                 _isHovered ? 1.02 : 1.0,
                 _isHovered ? 1.02 : 1.0,
@@ -212,45 +215,44 @@ class _VibeCardState extends ConsumerState<VibeCard>
                 1,
               ),
             transformAlignment: Alignment.center,
-            child: Container(
-              width: widget.width,
-              height: cardHeight,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: _buildBorder(colorScheme),
-                boxShadow: _buildShadows(),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // 主内容层
-                    _buildMainContent(),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: _buildShadows(colorScheme),
+            ),
+            foregroundDecoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: _buildBorder(colorScheme),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // 主内容层
+                  _buildMainContent(),
 
-                    // Bundle 扑克牌层叠展开层
-                    if (widget.entry.isBundle)
-                      FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: _buildCardStack(),
-                      ),
+                  // Bundle 扑克牌层叠展开层
+                  if (widget.entry.isBundle)
+                    FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: _buildCardStack(),
+                    ),
 
-                    // 信息层
-                    _buildInfoOverlay(),
+                  // 信息层
+                  _buildInfoOverlay(),
 
-                    // 收藏按钮
-                    if (widget.showFavoriteIndicator) _buildFavoriteButton(),
+                  // 收藏按钮
+                  if (widget.showFavoriteIndicator) _buildFavoriteButton(),
 
-                    // Bundle 数量标识
-                    if (widget.entry.isBundle) _buildBundleBadge(),
+                  // Bundle 数量标识
+                  if (widget.entry.isBundle) _buildBundleBadge(),
 
-                    // 选中状态
-                    if (widget.isSelected) _buildSelectionOverlay(colorScheme),
+                  // 选中状态
+                  if (widget.isSelected) _buildSelectionOverlay(colorScheme),
 
-                    // 操作按钮
-                    if (_isHovered && !widget.isSelected) _buildActionButtons(),
-                  ],
-                ),
+                  // 操作按钮
+                  if (_isHovered && !widget.isSelected) _buildActionButtons(),
+                ],
               ),
             ),
           ),
@@ -265,36 +267,31 @@ class _VibeCardState extends ConsumerState<VibeCard>
     }
     if (_isHovered) {
       return Border.all(
-        color: colorScheme.primary.withValues(alpha: 0.3),
-        width: 2,
+        color: colorScheme.primary.withValues(alpha: 0.4),
+        width: 1.5,
       );
     }
     return null;
   }
 
-  List<BoxShadow> _buildShadows() {
+  List<BoxShadow> _buildShadows(ColorScheme colorScheme) {
     if (_isHovered) {
       return [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.35),
-          blurRadius: 28,
-          offset: const Offset(0, 14),
+          color: colorScheme.primary.withValues(alpha: 0.3),
+          blurRadius: 16,
+          offset: const Offset(0, 8),
           spreadRadius: 2,
         ),
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.15),
-          blurRadius: 40,
-          offset: const Offset(0, 20),
-          spreadRadius: -4,
+          blurRadius: 24,
+          offset: const Offset(0, 12),
         ),
       ];
     }
     return [
-      BoxShadow(
-        color: Colors.black.withValues(alpha: 0.12),
-        blurRadius: 10,
-        offset: const Offset(0, 4),
-      ),
+      BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4),
     ];
   }
 
@@ -850,9 +847,7 @@ class _VibeHoverPreviewContentState extends State<_VibeHoverPreviewContent> {
     final theme = Theme.of(context);
     final entry = widget.entry;
     final hasTags = entry.tags.isNotEmpty;
-    final metadataHeight = (hasTags ? 156.0 : 132.0)
-        .clamp(96.0, math.max(96.0, widget.maxHeight * 0.36))
-        .toDouble();
+    final metadataHeight = hasTags ? 124.0 : 92.0;
     final imageSize = computeVibeHoverImageSize(
       aspectRatio: aspectRatio,
       maxWidth: widget.maxWidth,
@@ -870,10 +865,6 @@ class _VibeHoverPreviewContentState extends State<_VibeHoverPreviewContent> {
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: theme.colorScheme.primary.withValues(alpha: 0.3),
-            width: 2,
-          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.55),
@@ -888,6 +879,13 @@ class _VibeHoverPreviewContentState extends State<_VibeHoverPreviewContent> {
               offset: const Offset(0, 22),
             ),
           ],
+        ),
+        foregroundDecoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: theme.colorScheme.primary.withValues(alpha: 0.3),
+            width: 2,
+          ),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(10),
@@ -937,71 +935,72 @@ class _VibeHoverPreviewContentState extends State<_VibeHoverPreviewContent> {
                   ],
                 ),
               ),
-              SizedBox(
-                height: metadataHeight,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              entry.displayName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            entry.displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
-                          if (entry.encodingModel case final model?) ...[
-                            const SizedBox(width: 8),
-                            _HoverBadge(
-                              icon: Icons.memory_outlined,
-                              label: model,
-                              subtle: true,
-                            ),
-                          ],
+                        ),
+                        if (entry.encodingModel case final model?) ...[
+                          const SizedBox(width: 8),
+                          _HoverBadge(
+                            icon: Icons.memory_outlined,
+                            label: model,
+                            subtle: true,
+                          ),
                         ],
-                      ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 14,
-                        runSpacing: 6,
-                        children: [
-                          _VibeHoverStat(
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _VibeHoverStat(
                             icon: Icons.tune,
                             label: context.l10n.vibe_strength,
                             value: '${(entry.strength * 100).round()}%',
                           ),
-                          _VibeHoverStat(
+                        ),
+                        Expanded(
+                          child: _VibeHoverStat(
                             icon: Icons.auto_awesome_outlined,
                             label: context.l10n.vibe_infoExtracted,
                             value: '${(entry.infoExtracted * 100).round()}%',
                           ),
-                          _VibeHoverStat(
+                        ),
+                        Expanded(
+                          child: _VibeHoverStat(
                             icon: Icons.history,
                             label: context.l10n.vibeDetail_usageCount,
                             value: '${entry.usedCount}',
                           ),
-                        ],
-                      ),
-                      if (hasTags) ...[
-                        const SizedBox(height: 10),
-                        Text(
-                          entry.tags.take(6).map((tag) => '#$tag').join('  '),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            height: 1.35,
-                          ),
                         ),
                       ],
+                    ),
+                    if (hasTags) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        entry.tags.take(6).map((tag) => '#$tag').join('  '),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          height: 1.35,
+                        ),
+                      ),
                     ],
-                  ),
+                  ],
                 ),
               ),
             ],
@@ -1067,11 +1066,15 @@ class _VibeHoverStat extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: theme.colorScheme.onSurfaceVariant),
         const SizedBox(width: 5),
-        Text(
-          '$label $value',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-            fontFeatures: const [ui.FontFeature.tabularFigures()],
+        Flexible(
+          child: Text(
+            '$label $value',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontFeatures: const [ui.FontFeature.tabularFigures()],
+            ),
           ),
         ),
       ],

@@ -76,7 +76,7 @@ void main() {
       find.widgetWithText(TextButton, 'Delete'),
     );
     final bar = tester.getRect(find.byType(BulkActionBar));
-    expect(trailingButton.right, closeTo(bar.right - 8, 0.01));
+    expect(trailingButton.right, closeTo(bar.right - 10, 0.01));
   });
 
   testWidgets('uses icon-only actions on compact widths without overflow', (

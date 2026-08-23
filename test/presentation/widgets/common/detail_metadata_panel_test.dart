@@ -4,10 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/shortcuts/shortcuts.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/providers/fixed_tags_provider.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/components/detail_metadata_panel.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_detail/components/prompt_copy_dialog.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_detail/components/prompt_section.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_data.dart';
 import 'package:nai_launcher/presentation/widgets/shortcuts/shortcuts.dart';
 
@@ -44,6 +48,79 @@ void main() {
 
       expect(find.text('640 × 960'), findsOneWidget);
       expect(find.text('1792 × 896'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'legacy metadata matches current fixed library and opens copy categories',
+    (tester) async {
+      final image = img.Image(width: 1, height: 1);
+      final detail = GeneratedImageDetailData(
+        imageBytes: Uint8List.fromList(img.encodePng(image)),
+        metadata: const NaiImageMetadata(
+          prompt: 'private prefix, 1girl, blue hair',
+          negativePrompt: 'bad hands',
+          characterInfos: [CharacterPromptInfo(prompt: 'rabbit girl')],
+        ),
+      );
+      final fixedEntry = FixedTagEntry.create(
+        name: 'private',
+        content: 'private prefix',
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            fixedTagsNotifierProvider.overrideWith(
+              () => _FakeFixedTagsNotifier(fixedEntry),
+            ),
+          ],
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: DetailMetadataPanel(
+                currentImage: detail,
+                expandedWidth: 600,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final sections = tester
+          .widgetList<PromptSection>(find.byType(PromptSection))
+          .toList();
+      expect(sections, hasLength(2));
+      final mainSection = sections.first;
+      expect(mainSection.fixedTags, contains('private prefix'));
+      expect(mainSection.characterTags, contains('rabbit girl'));
+      expect(mainSection.onCopy, isNotNull);
+      expect(sections.last.isNegative, isTrue);
+      expect(find.byIcon(Icons.library_add), findsNWidgets(2));
+      expect(find.byType(AnimatedCrossFade), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byType(PromptSection),
+          matching: find.byType(AnimatedSize),
+        ),
+        findsNWidgets(2),
+      );
+
+      final copyFuture = mainSection.onCopy!();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PromptCopyDialog), findsOneWidget);
+      final categoryTiles = tester
+          .widgetList<CheckboxListTile>(find.byType(CheckboxListTile))
+          .toList();
+      expect(categoryTiles, hasLength(4));
+      expect(categoryTiles.last.onChanged, isNotNull);
+      await tester.tap(find.text('取消'));
+      await tester.pumpAndSettle();
+      await copyFuture;
     },
   );
 
@@ -125,6 +202,15 @@ void main() {
       expect(copiedPrompt, isFalse);
     },
   );
+}
+
+class _FakeFixedTagsNotifier extends FixedTagsNotifier {
+  _FakeFixedTagsNotifier(this.entry);
+
+  final FixedTagEntry entry;
+
+  @override
+  FixedTagsState build() => FixedTagsState(entries: [entry]);
 }
 
 class _FakeShortcutConfigNotifier extends ShortcutConfigNotifier {

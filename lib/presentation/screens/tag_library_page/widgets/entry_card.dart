@@ -55,38 +55,15 @@ class EntryCard extends StatefulWidget {
   State<EntryCard> createState() => _EntryCardState();
 }
 
-class _EntryCardState extends State<EntryCard>
-    with SingleTickerProviderStateMixin {
+class _EntryCardState extends State<EntryCard> {
   bool _isHovering = false;
   bool _isDragging = false;
   OverlayEntry? _overlayEntry;
   final _layerLink = LayerLink();
 
-  late final AnimationController _animationController;
-  late final Animation<double> _elevationAnimation;
-  late final Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 200),
-      vsync: this,
-    );
-
-    _elevationAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
-    );
-
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
-    );
-  }
-
   @override
   void dispose() {
     _hidePreviewOverlay();
-    _animationController.dispose();
     super.dispose();
   }
 
@@ -119,7 +96,6 @@ class _EntryCardState extends State<EntryCard>
   void _onEnter() {
     if (!_isDragging && !widget.isSelectionMode) {
       setState(() => _isHovering = true);
-      _animationController.forward();
       Future.delayed(const Duration(milliseconds: 500), () {
         if (_isHovering && mounted && !_isDragging) {
           _showPreviewOverlay();
@@ -130,7 +106,6 @@ class _EntryCardState extends State<EntryCard>
 
   void _onExit() {
     setState(() => _isHovering = false);
-    _animationController.reverse();
     _hidePreviewOverlay();
   }
 
@@ -155,99 +130,59 @@ class _EntryCardState extends State<EntryCard>
               HapticFeedback.mediumImpact();
               widget.onToggleSelection?.call();
             },
-      child: AnimatedBuilder(
-        animation: _animationController,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _scaleAnimation.value,
-            child: Container(
-              height: 80,
+      child: SizedBox(
+        height: 80,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // 背景层（统一背景色，防止白边）
+            Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  // 光晕效果
-                  if (widget.isSelected || _isHovering)
-                    BoxShadow(
-                      color: widget.isSelected
-                          ? theme.colorScheme.primary.withValues(alpha: 0.5)
-                          : theme.colorScheme.primary.withValues(alpha: 0.25),
-                      blurRadius: 16,
-                      spreadRadius: 1,
-                    ),
-                  // 悬浮阴影（动态）
-                  BoxShadow(
-                    color: Colors.black.withValues(
-                      alpha: 0.15 + (0.15 * _elevationAnimation.value),
-                    ),
-                    blurRadius: 10 + (12 * _elevationAnimation.value),
-                    offset: Offset(0, 4 + (8 * _elevationAnimation.value)),
-                  ),
-                ],
+                color: Colors.grey.shade800,
               ),
+            ),
+            // 内容层（带ClipRRect）
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // 背景层（统一背景色，防止白边）
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      color: Colors.grey.shade800,
+                  // 1. 背景图片
+                  _buildBackgroundImage(entry),
+
+                  // 2. 轻微暗化遮罩（仅当有缩略图时显示）
+                  if (entry.hasThumbnail) _buildDarkenOverlay(),
+
+                  // 3. 内容区域（悬浮操作态隐藏，多选时仍保留名称）
+                  if (widget.isSelectionMode || !_isHovering)
+                    _buildNameArea(theme, entry),
+
+                  // 4. 收藏图标（常驻显示在右上角，仅非选择模式、非悬浮且已收藏时）
+                  if (!widget.isSelectionMode &&
+                      !_isHovering &&
+                      widget.entry.isFavorite)
+                    const Positioned(
+                      top: 8,
+                      right: 8,
+                      child: _FavoriteIndicator(),
                     ),
-                  ),
-                  // 内容层（带ClipRRect）
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // 1. 背景图片
-                        _buildBackgroundImage(entry),
 
-                        // 2. 轻微暗化遮罩（仅当有缩略图时显示）
-                        if (entry.hasThumbnail) _buildDarkenOverlay(),
-
-                        // 3. 内容区域（悬浮操作态隐藏，多选时仍保留名称）
-                        if (widget.isSelectionMode || !_isHovering)
-                          _buildNameArea(theme, entry),
-
-                        // 4. 收藏图标（常驻显示在右上角，仅非选择模式、非悬浮且已收藏时）
-                        if (!widget.isSelectionMode &&
-                            !_isHovering &&
-                            widget.entry.isFavorite)
-                          const Positioned(
-                            top: 8,
-                            right: 8,
-                            child: _FavoriteIndicator(),
-                          ),
-
-                        // 5. 选择模式 Checkbox（右上角）
-                        if (widget.isSelectionMode)
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: _SelectionCheckbox(
-                              isSelected: widget.isSelected,
-                              onTap: widget.onToggleSelection,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  // 边框层（放在最上层）
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: borderColor,
-                        width: widget.isSelected ? 2.5 : 2,
+                  // 5. 选择模式 Checkbox（右上角）
+                  if (widget.isSelectionMode)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: _SelectionCheckbox(
+                        isSelected: widget.isSelected,
+                        onTap: widget.onToggleSelection,
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
 
@@ -257,24 +192,71 @@ class _EntryCardState extends State<EntryCard>
       child: MouseRegion(
         onEnter: (_) => _onEnter(),
         onExit: (_) => _onExit(),
-        child: Stack(
-          fit: StackFit.passthrough,
-          children: [
-            // 卡片主体（可点击）
-            cardBody,
-
-            // 悬浮按钮层（在GestureDetector外面，独立响应事件）
-            if (!widget.isSelectionMode && _isHovering)
-              Positioned.fill(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    child: _buildFloatingButtons(theme, entry),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOut,
+          height: 80,
+          transform: Matrix4.identity()
+            ..translateByDouble(0, _isHovering ? -4 : 0, 0, 1)
+            ..scaleByDouble(
+              _isHovering ? 1.02 : 1,
+              _isHovering ? 1.02 : 1,
+              _isHovering ? 1.02 : 1,
+              1,
+            ),
+          transformAlignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: _isHovering
+                ? [
+                    BoxShadow(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                      spreadRadius: 2,
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 24,
+                      offset: const Offset(0, 12),
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 4,
+                    ),
+                  ],
+          ),
+          foregroundDecoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: borderColor,
+              width: widget.isSelected ? 3 : (_isHovering ? 1.5 : 0),
+            ),
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              cardBody,
+              if (!widget.isSelectionMode)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    ignoring: !_isHovering,
+                    child: Opacity(
+                      opacity: _isHovering ? 1 : 0,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          child: _buildFloatingButtons(theme, entry),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -294,7 +276,6 @@ class _EntryCardState extends State<EntryCard>
           _isDragging = true;
           _isHovering = false;
         });
-        _animationController.reverse();
       },
       onDragEnd: (_) {
         setState(() {

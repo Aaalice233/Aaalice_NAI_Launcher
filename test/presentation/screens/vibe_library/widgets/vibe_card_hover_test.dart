@@ -91,6 +91,12 @@ void main() {
     expect(find.text('强度 62%'), findsOneWidget);
     expect(find.text('信息提取 74%'), findsOneWidget);
     expect(find.text('使用次数 8'), findsOneWidget);
+    final statCenters = [
+      tester.getCenter(find.text('强度 62%')).dy,
+      tester.getCenter(find.text('信息提取 74%')).dy,
+      tester.getCenter(find.text('使用次数 8')).dy,
+    ];
+    expect(statCenters.toSet(), hasLength(1));
     expect(find.text('#portrait  #dramatic_light'), findsOneWidget);
 
     final hoverMedia = find.byKey(const ValueKey('vibe-hover-media'));

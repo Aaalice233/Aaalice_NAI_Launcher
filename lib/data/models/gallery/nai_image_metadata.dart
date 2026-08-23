@@ -228,6 +228,18 @@ class NaiImageMetadata with _$NaiImageMetadata {
         varietyPlus: base.varietyPlus ?? reparsed.varietyPlus,
         qualityToggle: base.qualityToggle ?? reparsed.qualityToggle,
         qualityTier: base.qualityTier ?? reparsed.qualityTier,
+        fixedPrefixTags: base.fixedPrefixTags.isEmpty
+            ? reparsed.fixedPrefixTags
+            : base.fixedPrefixTags,
+        fixedSuffixTags: base.fixedSuffixTags.isEmpty
+            ? reparsed.fixedSuffixTags
+            : base.fixedSuffixTags,
+        fixedNegativePrefixTags: base.fixedNegativePrefixTags.isEmpty
+            ? reparsed.fixedNegativePrefixTags
+            : base.fixedNegativePrefixTags,
+        fixedNegativeSuffixTags: base.fixedNegativeSuffixTags.isEmpty
+            ? reparsed.fixedNegativeSuffixTags
+            : base.fixedNegativeSuffixTags,
         qualityTags: base.qualityTags.isEmpty
             ? reparsed.qualityTags
             : base.qualityTags,
@@ -629,6 +641,10 @@ class NaiImageMetadata with _$NaiImageMetadata {
       'tag_hint_transparent_background',
       'tag_hint_qt',
       'quality_tier',
+      'fixed_prefix',
+      'fixed_suffix',
+      'fixed_negative_prefix',
+      'fixed_negative_suffix',
       'v4_prompt',
       'char_captions',
     ];
@@ -1397,7 +1413,9 @@ class NaiImageMetadata with _$NaiImageMetadata {
   /// 是否记录了透明背景自动提示词。
   bool get hasRecordedTransparentBackgroundTag =>
       transparentBackground == true &&
-      prompt.split(',').any(
+      prompt
+          .split(',')
+          .any(
             (tag) =>
                 tag.trim().toLowerCase() ==
                 QualityTags.transparentBackgroundTag.toLowerCase(),
@@ -1469,11 +1487,11 @@ class NaiImageMetadata with _$NaiImageMetadata {
 
   /// 获取不含固定词、但保留质量词和用户正文的正向提示词。
   String get promptWithoutFixedTags => buildPositivePromptSelection(
-        includeMainPrompt: true,
-        includeCharacterPrompts: false,
-        includeQualityTags: true,
-        includeFixedTags: false,
-      );
+    includeMainPrompt: true,
+    includeCharacterPrompts: false,
+    includeQualityTags: true,
+    includeFixedTags: false,
+  );
 
   /// 获取不含固定词的负向提示词。
   String get negativePromptWithoutFixedTags {
@@ -1493,11 +1511,11 @@ class NaiImageMetadata with _$NaiImageMetadata {
 
   /// 获取不含固定词、但保留角色提示词的完整正向提示词。
   String get fullPromptWithoutFixedTags => buildPositivePromptSelection(
-        includeMainPrompt: true,
-        includeCharacterPrompts: true,
-        includeQualityTags: true,
-        includeFixedTags: false,
-      );
+    includeMainPrompt: true,
+    includeCharacterPrompts: true,
+    includeQualityTags: true,
+    includeFixedTags: false,
+  );
 
   /// 按详情页复制对话框选择的类别重新组合正向提示词。
   String buildPositivePromptSelection({
@@ -1587,9 +1605,8 @@ List<String> _splitPromptSegments(String text) => text
     .where((tag) => tag.isNotEmpty)
     .toList();
 
-List<String> _splitPromptEntries(List<String> entries) => entries
-    .expand(_splitPromptSegments)
-    .toList();
+List<String> _splitPromptEntries(List<String> entries) =>
+    entries.expand(_splitPromptSegments).toList();
 
 void _removeLeadingSegments(List<String> source, List<String> expected) {
   if (expected.isEmpty || source.length < expected.length) return;

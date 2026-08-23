@@ -26,6 +26,7 @@ import '../../providers/collection_provider.dart';
 import '../../providers/gallery_category_provider.dart';
 import '../../providers/gallery_folder_provider.dart';
 import '../../providers/image_generation_provider.dart';
+import '../../providers/fixed_tags_provider.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/gallery_scan_progress_provider.dart';
@@ -33,6 +34,7 @@ import '../../providers/reverse_prompt_provider.dart';
 import '../../router/app_router.dart';
 import '../../services/image_workflow_launcher.dart';
 import '../../utils/asset_protection_guard.dart';
+import '../../utils/fixed_tag_metadata_matcher.dart';
 import '../../utils/krita_send_helper.dart';
 import '../../utils/local_gallery_reference_factory.dart';
 import '../../utils/local_gallery_metadata_resolver.dart';
@@ -1385,23 +1387,35 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
       case LocalImageContextAction.importMetadata:
         await _importImageMetadata(record);
       case LocalImageContextAction.copyPrompt:
-        if (availableMetadata?.fullPrompt.isNotEmpty == true) {
+        final promptMetadata =
+            await resolveLocalGalleryMetadata(record) ?? availableMetadata;
+        if (!mounted) return;
+        if (promptMetadata?.fullPrompt.isNotEmpty == true) {
+          final fixedTags = ref.read(fixedTagsNotifierProvider);
+          final resolvedMetadata = matchMetadataFixedTags(
+            metadata: promptMetadata!,
+            positiveEntries: fixedTags.positiveEntries,
+            negativeEntries: fixedTags.negativeEntries,
+          );
           final prompt = await PromptCopyDialog.show(
             context,
-            metadata: availableMetadata!,
+            metadata: resolvedMetadata,
           );
           if (prompt == null || !mounted) return;
           await Clipboard.setData(ClipboardData(text: prompt));
           if (mounted) {
             AppToast.success(context, context.l10n.localGallery_promptCopied);
           }
-        } else if (mounted) {
+        } else {
           AppToast.info(context, context.l10n.toast_imageHasNoMetadata);
         }
       case LocalImageContextAction.copySeed:
-        if (availableMetadata?.seed != null) {
+        final seedMetadata =
+            await resolveLocalGalleryMetadata(record) ?? availableMetadata;
+        if (!mounted) return;
+        if (seedMetadata?.seed != null) {
           await Clipboard.setData(
-            ClipboardData(text: availableMetadata!.seed.toString()),
+            ClipboardData(text: seedMetadata!.seed.toString()),
           );
           if (mounted) {
             AppToast.success(context, context.l10n.localGallery_seedCopied);

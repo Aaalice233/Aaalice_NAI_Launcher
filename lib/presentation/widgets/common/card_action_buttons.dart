@@ -32,22 +32,26 @@ class CardActionButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!visible) return const SizedBox.shrink();
-
-    return Flex(
-      direction: direction,
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        for (final button in buttons)
-          Padding(
-            padding: EdgeInsets.only(
-              left: direction == Axis.horizontal ? 4 : 0,
-              top: direction == Axis.vertical ? 4 : 0,
-            ),
-            child: _CardActionButton(config: button),
-          ),
-      ],
+    return IgnorePointer(
+      ignoring: !visible,
+      child: Opacity(
+        opacity: visible ? 1 : 0,
+        child: Flex(
+          direction: direction,
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            for (final button in buttons)
+              Padding(
+                padding: EdgeInsets.only(
+                  left: direction == Axis.horizontal ? 4 : 0,
+                  top: direction == Axis.vertical ? 4 : 0,
+                ),
+                child: _CardActionButton(config: button),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

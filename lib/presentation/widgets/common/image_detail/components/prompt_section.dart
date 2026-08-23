@@ -19,10 +19,12 @@ class PromptSection extends StatefulWidget {
   final bool initiallyExpanded;
   final bool showAddToLibrary;
   final VoidCallback? onAddToLibrary;
+  final Future<void> Function()? onCopy;
   final Color? borderColor;
   final bool showTranslation;
   final Widget? customContent;
   final List<String> fixedTags;
+  final List<String> characterTags;
   final bool allTagsAreFixed;
   final bool isNegative;
 
@@ -35,10 +37,12 @@ class PromptSection extends StatefulWidget {
     this.initiallyExpanded = false,
     this.showAddToLibrary = false,
     this.onAddToLibrary,
+    this.onCopy,
     this.borderColor,
     this.showTranslation = true,
     this.customContent,
     this.fixedTags = const [],
+    this.characterTags = const [],
     this.allTagsAreFixed = false,
     this.isNegative = false,
   });
@@ -95,18 +99,18 @@ class _PromptSectionState extends State<PromptSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildHeader(colorScheme, theme, hasContent),
-        AnimatedCrossFade(
-          firstChild: const SizedBox(height: 0),
-          secondChild: Column(
-            children: [
-              const SizedBox(height: 10),
-              _buildContent(colorScheme, theme, _displayTags),
-            ],
+        ClipRect(
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 160),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: _isExpanded && hasContent
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: _buildContent(colorScheme, theme, _displayTags),
+                  )
+                : const SizedBox(width: double.infinity, height: 0),
           ),
-          crossFadeState: _isExpanded && hasContent
-              ? CrossFadeState.showSecond
-              : CrossFadeState.showFirst,
-          duration: const Duration(milliseconds: 200),
         ),
       ],
     );
@@ -123,9 +127,7 @@ class _PromptSectionState extends State<PromptSection> {
         ? colorScheme.error
         : colorScheme.primary;
     final titleColor = hasContent
-        ? widget.isNegative
-              ? colorScheme.onSurface
-              : accentColor
+        ? colorScheme.onSurface
         : colorScheme.onSurfaceVariant;
 
     return Row(
@@ -189,7 +191,7 @@ class _PromptSectionState extends State<PromptSection> {
         if (hasContent) ...[
           const SizedBox(width: 4),
           IconButton(
-            onPressed: _copyContent,
+            onPressed: widget.onCopy ?? _copyContent,
             icon: Icon(
               Icons.copy,
               size: 16,
@@ -247,6 +249,7 @@ class _PromptSectionState extends State<PromptSection> {
                   onTagTap: _copyTag,
                   showTranslation: widget.showTranslation,
                   fixedTags: widget.fixedTags,
+                  characterTags: widget.characterTags,
                   allTagsAreFixed: widget.allTagsAreFixed,
                   isNegative: widget.isNegative,
                 )
@@ -261,12 +264,24 @@ class _PromptSectionState extends State<PromptSection> {
   }
 }
 
+String _normalizePromptTag(String tag) {
+  var result = tag.trim().toLowerCase();
+  final weighted = RegExp(
+    r'^-?\d+(?:\.\d+)?::(.+?)(?:::)?$',
+  ).firstMatch(result);
+  if (weighted != null) result = weighted.group(1)!.trim();
+  result = result.replaceFirst(RegExp(r'^[\{\[]+'), '');
+  result = result.replaceFirst(RegExp(r'[\}\]]+$'), '');
+  return result.trim();
+}
+
 /// 标签芯片网格组件
 class _TagChipGrid extends StatelessWidget {
   final List<String> tags;
   final void Function(String) onTagTap;
   final bool showTranslation;
   final List<String> fixedTags;
+  final List<String> characterTags;
   final bool allTagsAreFixed;
   final bool isNegative;
 
@@ -274,6 +289,7 @@ class _TagChipGrid extends StatelessWidget {
     required this.tags,
     required this.onTagTap,
     required this.fixedTags,
+    required this.characterTags,
     required this.allTagsAreFixed,
     required this.isNegative,
     this.showTranslation = true,
@@ -283,7 +299,12 @@ class _TagChipGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final normalizedFixedTags = fixedTags
         .expand((entry) => entry.split(','))
-        .map((tag) => tag.trim().toLowerCase())
+        .map(_normalizePromptTag)
+        .where((tag) => tag.isNotEmpty)
+        .toSet();
+    final normalizedCharacterTags = characterTags
+        .expand((entry) => entry.split(','))
+        .map(_normalizePromptTag)
         .where((tag) => tag.isNotEmpty)
         .toSet();
 
@@ -298,7 +319,10 @@ class _TagChipGrid extends StatelessWidget {
               showTranslation: showTranslation,
               isFixed:
                   allTagsAreFixed ||
-                  normalizedFixedTags.contains(tag.trim().toLowerCase()),
+                  normalizedFixedTags.contains(_normalizePromptTag(tag)),
+              isCharacter: normalizedCharacterTags.contains(
+                _normalizePromptTag(tag),
+              ),
               isNegative: isNegative,
             ),
           )
@@ -313,12 +337,14 @@ class _TranslatedTagChip extends ConsumerStatefulWidget {
   final VoidCallback onTap;
   final bool showTranslation;
   final bool isFixed;
+  final bool isCharacter;
   final bool isNegative;
 
   const _TranslatedTagChip({
     required this.tag,
     required this.onTap,
     required this.isFixed,
+    required this.isCharacter,
     required this.isNegative,
     this.showTranslation = true,
   });
@@ -395,22 +421,23 @@ class _TranslatedTagChipState extends ConsumerState<_TranslatedTagChip> {
     final colorScheme = theme.colorScheme;
     final accent = widget.isFixed
         ? colorScheme.tertiary
+        : widget.isCharacter
+        ? colorScheme.secondary
         : widget.isNegative
         ? colorScheme.error
-        : colorScheme.primary;
-    final bgColor = widget.isFixed
-        ? accent.withValues(alpha: _isHovered ? 0.24 : 0.16)
-        : widget.isNegative
-        ? colorScheme.onSurface.withValues(alpha: _isHovered ? 0.12 : 0.07)
-        : _isHovered
-        ? accent.withValues(alpha: 0.15)
-        : colorScheme.surfaceContainerHighest;
+        : colorScheme.onSurfaceVariant;
+    final isCategorized = widget.isFixed || widget.isCharacter;
+    final bgColor = isCategorized
+        ? accent.withValues(alpha: _isHovered ? 0.20 : 0.12)
+        : colorScheme.surfaceContainerHighest.withValues(
+            alpha: _isHovered ? 0.85 : 0.60,
+          );
     final borderColor = accent.withValues(
       alpha: _isHovered
-          ? 0.42
-          : widget.isFixed
-          ? 0.30
-          : 0.18,
+          ? 0.38
+          : isCategorized
+          ? 0.26
+          : 0.14,
     );
 
     return MouseRegion(
@@ -430,8 +457,12 @@ class _TranslatedTagChipState extends ConsumerState<_TranslatedTagChip> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (widget.isFixed) ...[
-                Icon(Icons.push_pin, size: 11, color: accent),
+              if (widget.isFixed || widget.isCharacter) ...[
+                Icon(
+                  widget.isFixed ? Icons.push_pin : Icons.person_outline,
+                  size: 11,
+                  color: accent,
+                ),
                 const SizedBox(width: 4),
               ],
               Flexible(
@@ -440,7 +471,7 @@ class _TranslatedTagChipState extends ConsumerState<_TranslatedTagChip> {
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontSize: 11,
                     color: colorScheme.onSurface,
-                    fontWeight: widget.isFixed
+                    fontWeight: isCategorized
                         ? FontWeight.w600
                         : FontWeight.w500,
                     height: 1.35,

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,12 +9,13 @@ import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
+import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/services/thumbnail_service.dart';
 import '../../providers/share_image_settings_provider.dart';
-import '../../themes/theme_extension.dart';
 import '../../utils/clipboard_image.dart';
+import '../../utils/local_gallery_metadata_resolver.dart';
 import '../common/app_toast.dart';
-import '../common/floating_action_buttons.dart';
+import '../common/card_action_buttons.dart';
 import 'local_image_context_menu.dart';
 import 'local_image_hover_preview.dart';
 
@@ -65,11 +65,8 @@ class LocalImageCard3D extends ConsumerStatefulWidget {
   ConsumerState<LocalImageCard3D> createState() => _LocalImageCard3DState();
 }
 
-class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
-    with TickerProviderStateMixin {
+class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
   bool _isHovered = false;
-  late AnimationController _glossController;
-  late Animation<double> _glossAnimation;
   String? _thumbnailPath;
   String? _displayPath;
   ThumbnailCacheService? _thumbnailService;
@@ -77,23 +74,25 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
   bool _isLoadingThumbnail = false;
   bool _isCopyingImage = false;
   bool _suppressCardTap = false;
+  NaiImageMetadata? _hoverMetadata;
+  bool _isResolvingHoverMetadata = false;
+  bool _didResolveHoverMetadata = false;
 
   @override
   void initState() {
     super.initState();
-    _glossController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _glossAnimation = Tween<double>(begin: -1.5, end: 1.5).animate(
-      CurvedAnimation(parent: _glossController, curve: Curves.easeInOut),
-    );
+    _hoverMetadata = widget.record.metadata?.upgradeFromRawJsonIfNeeded();
     _initAndLoadThumbnail();
   }
 
   @override
   void didUpdateWidget(LocalImageCard3D oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.record.path != widget.record.path) {
+      _hoverMetadata = widget.record.metadata?.upgradeFromRawJsonIfNeeded();
+      _isResolvingHoverMetadata = false;
+      _didResolveHoverMetadata = false;
+    }
     if (oldWidget.priority != widget.priority ||
         (oldWidget.isVisible != widget.isVisible && widget.isVisible)) {
       if (_thumbnailPath == null && !_isLoadingThumbnail) {
@@ -189,7 +188,21 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
 
   void _onHoverEnter(PointerEvent event) {
     setState(() => _isHovered = true);
-    _glossController.forward(from: 0.0);
+    unawaited(_resolveHoverMetadata());
+  }
+
+  Future<void> _resolveHoverMetadata() async {
+    if (_isResolvingHoverMetadata || _didResolveHoverMetadata) return;
+    _isResolvingHoverMetadata = true;
+    final path = widget.record.path;
+    final metadata = await resolveLocalGalleryMetadata(widget.record);
+    if (!mounted || widget.record.path != path) return;
+
+    setState(() {
+      _hoverMetadata = metadata;
+      _isResolvingHoverMetadata = false;
+      _didResolveHoverMetadata = true;
+    });
   }
 
   void _onHoverExit(PointerEvent event) {
@@ -211,15 +224,16 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
           .read(shareImageSettingsProvider)
           .effectiveStripMetadataForCopyAndDrag;
       final sourceParts = sourceFile.path.split(RegExp(r'[/\\]'));
-      final sourceName =
-          sourceParts.isNotEmpty ? sourceParts.last : 'shared.png';
+      final sourceName = sourceParts.isNotEmpty
+          ? sourceParts.last
+          : 'shared.png';
       final originalBytes = await sourceFile.readAsBytes();
       final shareImage =
           await ImageShareSanitizer.prepareForCopyOrDragInBackground(
-        originalBytes,
-        fileName: sourceName,
-        stripMetadata: stripMetadata,
-      );
+            originalBytes,
+            fileName: sourceName,
+            stripMetadata: stripMetadata,
+          );
 
       // 跨平台复制到剪贴板（原 Windows 端走 PowerShell + System.Drawing，
       // macOS/Linux 不可用）。统一规范化为 PNG，避免 jpg/webp 原始字节被当成
@@ -239,32 +253,15 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
   }
 
   void _handleCardTap() {
-    if (_suppressCardTap || _isCopyingImage) return;
+    if (_suppressCardTap || _isCopyingImage) {
+      _suppressCardTap = false;
+      return;
+    }
     widget.onTap?.call();
   }
 
-  void _releaseActionPointerAfterGesture() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _suppressCardTap = false;
-    });
-  }
-
-  (_EffectIntensity, Color) _getEffectConfig(BuildContext context) {
-    final theme = Theme.of(context);
-    final extension = theme.extension<AppThemeExtension>();
-
-    final intensity =
-        switch ((extension?.enableNeonGlow, extension?.isLightTheme)) {
-      (true, _) => (edgeGlow: 1.3, gloss: 1.0),
-      (_, true) => (edgeGlow: 0.6, gloss: 1.0),
-      _ => (edgeGlow: 1.0, gloss: 0.8),
-    };
-
-    final glowColor = extension?.glowColor ?? theme.colorScheme.primary;
-    return (
-      _EffectIntensity(edgeGlow: intensity.edgeGlow, gloss: intensity.gloss),
-      glowColor
-    );
+  void _handleCardTapCancel() {
+    _suppressCardTap = false;
   }
 
   @override
@@ -272,116 +269,100 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
     final theme = Theme.of(context);
     final cardHeight = widget.height ?? widget.width;
     final colorScheme = theme.colorScheme;
-    final (intensity, glowColor) = _getEffectConfig(context);
+    final aspectRatio = widget.width / cardHeight;
+    final buttonDirection = aspectRatio > 1.3 ? Axis.horizontal : Axis.vertical;
 
     Widget cardContent = GestureDetector(
       onTap: widget.onTap == null ? null : _handleCardTap,
+      onTapCancel: _handleCardTapCancel,
       onDoubleTap: widget.onDoubleTap,
       onLongPress: widget.onLongPress,
       onSecondaryTapDown: widget.onSecondaryTapDown,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         curve: Curves.easeOut,
+        width: widget.width,
+        height: cardHeight,
         transform: Matrix4.identity()
+          ..translateByDouble(0, _isHovered ? -4 : 0, 0, 1)
           ..scaleByDouble(
-            _isHovered ? 1.03 : 1.0,
-            _isHovered ? 1.03 : 1.0,
-            _isHovered ? 1.03 : 1.0,
+            _isHovered ? 1.02 : 1.0,
+            _isHovered ? 1.02 : 1.0,
+            _isHovered ? 1.02 : 1.0,
             1,
           ),
         transformAlignment: Alignment.center,
-        child: Container(
-          width: widget.width,
-          height: cardHeight,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: widget.isSelected
-                ? Border.all(color: colorScheme.primary, width: 3)
-                : _isHovered
-                    ? Border.all(
-                        color: colorScheme.primary.withValues(alpha: 0.3),
-                        width: 2,
-                      )
-                    : null,
-            boxShadow: [
-              BoxShadow(
-                color: _isHovered
-                    ? Colors.black.withValues(alpha: 0.35)
-                    : Colors.black.withValues(alpha: 0.12),
-                blurRadius: _isHovered ? 28 : 10,
-                offset: Offset(0, _isHovered ? 14 : 4),
-                spreadRadius: _isHovered ? 2 : 0,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: _isHovered
+              ? [
+                  BoxShadow(
+                    color: colorScheme.primary.withValues(alpha: 0.3),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
+                    spreadRadius: 2,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 24,
+                    offset: const Offset(0, 12),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 4,
+                  ),
+                ],
+        ),
+        foregroundDecoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: widget.isSelected
+              ? Border.all(color: colorScheme.primary, width: 3)
+              : _isHovered
+              ? Border.all(
+                  color: colorScheme.primary.withValues(alpha: 0.4),
+                  width: 1.5,
+                )
+              : null,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _buildImageLayer(),
+              Positioned(
+                top: 4,
+                right: buttonDirection == Axis.vertical ? 4 : null,
+                left: buttonDirection == Axis.horizontal ? 4 : null,
+                child: _buildActionButtons(buttonDirection),
               ),
-              if (_isHovered)
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.15),
-                  blurRadius: 40,
-                  offset: const Offset(0, 20),
-                  spreadRadius: -4,
-                ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                _buildImageLayer(),
-                if (_isHovered)
-                  Positioned.fill(
-                    child: TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0.0, end: 1.0),
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOut,
-                      builder: (context, value, child) => _EdgeGlowOverlay(
-                        glowColor: glowColor,
-                        intensity: value * intensity.edgeGlow,
-                      ),
-                    ),
-                  ),
-                if (_isHovered)
-                  Positioned.fill(
-                    child: RepaintBoundary(
-                      child: AnimatedBuilder(
-                        animation: _glossAnimation,
-                        builder: (context, child) => _GlossOverlay(
-                          progress: _glossAnimation.value,
-                          intensity: intensity.gloss,
-                        ),
-                      ),
-                    ),
-                  ),
+              if (widget.isSelected)
                 Positioned(
                   top: 8,
-                  right: 8,
-                  child: _buildActionButtons(),
+                  left: 8,
+                  child: _buildSelectionIndicator(colorScheme),
                 ),
-                if (widget.isSelected)
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: _buildSelectionIndicator(colorScheme),
-                  ),
-                if (widget.isSelected)
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+              if (widget.isSelected)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                   ),
-                if (_isHovered && widget.record.metadata != null)
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: _buildMetadataPreview(theme),
-                  ),
-              ],
-            ),
+                ),
+              if (_isHovered && _hoverMetadata != null)
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: _buildMetadataPreview(theme, _hoverMetadata!),
+                ),
+            ],
           ),
         ),
       ),
@@ -405,12 +386,12 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
   }
 
   Widget _buildImageLayer() => switch (_loadState) {
-        _ImageLoadState.error => _buildErrorPlaceholder(),
-        _ImageLoadState.loading when _displayPath == null =>
-          _buildLoadingPlaceholder(),
-        _ when _displayPath != null => _buildOptimizedImage(_displayPath!),
-        _ => _buildLoadingPlaceholder(),
-      };
+    _ImageLoadState.error => _buildErrorPlaceholder(),
+    _ImageLoadState.loading when _displayPath == null =>
+      _buildLoadingPlaceholder(),
+    _ when _displayPath != null => _buildOptimizedImage(_displayPath!),
+    _ => _buildLoadingPlaceholder(),
+  };
 
   Widget _buildLoadingPlaceholder() {
     return Container(
@@ -474,8 +455,8 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
   Widget _buildOptimizedImage(String imagePath) {
     final pixelRatio = MediaQuery.of(context).devicePixelRatio;
     final cacheWidth = (widget.width * pixelRatio * 1.5).toInt();
-    final cacheHeight =
-        ((widget.height ?? widget.width) * pixelRatio * 1.5).toInt();
+    final cacheHeight = ((widget.height ?? widget.width) * pixelRatio * 1.5)
+        .toInt();
 
     return Image.file(
       File(imagePath),
@@ -521,56 +502,53 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
     return _buildErrorPlaceholder();
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(Axis direction) {
     return Listener(
       behavior: HitTestBehavior.opaque,
       onPointerDown: (_) => _suppressCardTap = true,
-      onPointerUp: (_) => _releaseActionPointerAfterGesture(),
-      onPointerCancel: (_) => _releaseActionPointerAfterGesture(),
-      child: FloatingActionButtons(
-        isVisible: _isHovered,
-        axis: Axis.horizontal,
-        spacing: 6,
-        padding: const EdgeInsets.all(4),
+      onPointerCancel: (_) => _suppressCardTap = false,
+      child: CardActionButtons(
+        visible: _isHovered,
+        direction: direction,
         buttons: [
-          FloatingActionButtonData(
-            icon: widget.record.isFavorite
-                ? Icons.favorite
-                : Icons.favorite_border,
-            onTap: widget.onFavoriteToggle,
-            iconColor: widget.record.isFavorite ? Colors.red : Colors.white,
-            visible: widget.onFavoriteToggle != null,
-          ),
-          FloatingActionButtonData(
+          if (widget.onFavoriteToggle != null)
+            CardActionButtonConfig(
+              icon: widget.record.isFavorite
+                  ? Icons.favorite
+                  : Icons.favorite_border,
+              tooltip: widget.record.isFavorite
+                  ? context.l10n.common_unfavorite
+                  : context.l10n.common_favorite,
+              iconColor: widget.record.isFavorite ? Colors.red : Colors.white,
+              onPressed: widget.onFavoriteToggle!,
+            ),
+          CardActionButtonConfig(
             icon: Icons.copy,
-            onTap: _copyImageToClipboard,
-            isLoading: _isCopyingImage,
             tooltip: context.l10n.shortcut_action_copy_image,
+            isLoading: _isCopyingImage,
+            onPressed: _copyImageToClipboard,
           ),
-          FloatingActionButtonData(
-            icon: Icons.text_snippet_outlined,
-            onTap: () => unawaited(
-              widget.onSendAction?.call(LocalImageContextAction.copyPrompt),
+          if (widget.onSendAction != null) ...[
+            CardActionButtonConfig(
+              icon: Icons.text_snippet_outlined,
+              tooltip: context.l10n.localGallery_copyPrompt,
+              onPressed: () => unawaited(
+                widget.onSendAction!(LocalImageContextAction.copyPrompt),
+              ),
             ),
-            tooltip: context.l10n.localGallery_copyPrompt,
-            visible: widget.onSendAction != null,
-          ),
-          FloatingActionButtonData(
-            icon: Icons.delete_outline,
-            onTap: () => unawaited(
-              widget.onSendAction?.call(LocalImageContextAction.delete),
+            CardActionButtonConfig(
+              icon: Icons.delete_outline,
+              tooltip: context.l10n.common_delete,
+              onPressed: () => unawaited(
+                widget.onSendAction!(LocalImageContextAction.delete),
+              ),
             ),
-            hoverIconColor: Colors.white,
-            hoverBackgroundColor: Colors.red.shade700,
-            tooltip: context.l10n.common_delete,
-            visible: widget.onSendAction != null,
-          ),
-          FloatingActionButtonData(
-            icon: Icons.send,
-            onTap: () => unawaited(_showSendMenu(context)),
-            tooltip: context.l10n.detail_sendToImg2Img,
-            visible: widget.onSendAction != null,
-          ),
+            CardActionButtonConfig(
+              icon: Icons.send,
+              tooltip: context.l10n.detail_sendToImg2Img,
+              onPressed: () => unawaited(_showSendMenu(context)),
+            ),
+          ],
         ],
       ),
     );
@@ -624,10 +602,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
     );
   }
 
-  Widget _buildMetadataPreview(ThemeData theme) {
-    final metadata = widget.record.metadata;
-    if (metadata == null) return const SizedBox.shrink();
-
+  Widget _buildMetadataPreview(ThemeData theme, NaiImageMetadata metadata) {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -646,9 +621,9 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (metadata.model != null)
+          if (metadata.effectiveModel != null)
             Text(
-              metadata.model!,
+              metadata.effectiveModel!,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 11,
@@ -680,182 +655,10 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
         color: Colors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(4),
       ),
-      child:
-          Text(text, style: const TextStyle(color: Colors.white, fontSize: 10)),
-    );
-  }
-
-  @override
-  void dispose() {
-    _glossController.dispose();
-    super.dispose();
-  }
-}
-
-class _EffectIntensity {
-  final double edgeGlow;
-  final double gloss;
-
-  const _EffectIntensity({required this.edgeGlow, required this.gloss});
-}
-
-class _EdgeGlowOverlay extends StatelessWidget {
-  final Color glowColor;
-  final double intensity;
-
-  const _EdgeGlowOverlay({required this.glowColor, this.intensity = 1.0});
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: CustomPaint(
-        size: Size.infinite,
-        painter: _EdgeGlowPainter(glowColor: glowColor, intensity: intensity),
+      child: Text(
+        text,
+        style: const TextStyle(color: Colors.white, fontSize: 10),
       ),
     );
-  }
-}
-
-class _EdgeGlowPainter extends CustomPainter {
-  final Color glowColor;
-  final double intensity;
-
-  _EdgeGlowPainter({required this.glowColor, required this.intensity});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(12));
-
-    for (int i = 0; i < 3; i++) {
-      final inset = (i + 1) * 1.5;
-      final innerRRect = RRect.fromRectAndRadius(
-        rect.deflate(inset),
-        Radius.circular(math.max(0, 12 - inset)),
-      );
-
-      final paint = Paint()
-        ..color = glowColor.withValues(alpha: 0.12 * intensity * (3 - i) / 3)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, (3 - i) * 2.0);
-
-      canvas.drawRRect(innerRRect, paint);
-    }
-
-    final borderPaint = Paint()
-      ..color = glowColor.withValues(alpha: 0.25 * intensity)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.0);
-
-    canvas.drawRRect(rrect, borderPaint);
-    _drawCornerHighlights(canvas, size);
-  }
-
-  void _drawCornerHighlights(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = glowColor.withValues(alpha: 0.3 * intensity)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
-
-    const radius = 3.0;
-    const offset = 16.0;
-
-    final corners = [
-      const Offset(offset, offset),
-      Offset(size.width - offset, offset),
-      Offset(offset, size.height - offset),
-      Offset(size.width - offset, size.height - offset),
-    ];
-
-    for (final corner in corners) {
-      canvas.drawCircle(corner, radius, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_EdgeGlowPainter oldDelegate) {
-    return oldDelegate.glowColor != glowColor ||
-        oldDelegate.intensity != intensity;
-  }
-}
-
-class _GlossOverlay extends StatelessWidget {
-  final double progress;
-  final double intensity;
-
-  const _GlossOverlay({required this.progress, this.intensity = 1.0});
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: CustomPaint(
-        size: Size.infinite,
-        painter: _GlossPainter(progress: progress, intensity: intensity),
-      ),
-    );
-  }
-}
-
-class _GlossPainter extends CustomPainter {
-  final double progress;
-  final double intensity;
-
-  _GlossPainter({required this.progress, required this.intensity});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final mainPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Colors.transparent,
-          Colors.white.withValues(alpha: 0.06 * intensity),
-          Colors.white.withValues(alpha: 0.15 * intensity),
-          Colors.white.withValues(alpha: 0.06 * intensity),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
-      ).createShader(
-        Rect.fromLTWH(
-          size.width * progress - size.width * 0.5,
-          size.height * progress - size.height * 0.5,
-          size.width,
-          size.height,
-        ),
-      );
-
-    canvas.drawRect(Offset.zero & size, mainPaint);
-
-    final pearlPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Colors.transparent,
-          const Color(0xFFB8E6F5).withValues(alpha: 0.03 * intensity),
-          const Color(0xFFFFF5E1).withValues(alpha: 0.05 * intensity),
-          const Color(0xFFE6B8F5).withValues(alpha: 0.03 * intensity),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.3, 0.5, 0.7, 1.0],
-      ).createShader(
-        Rect.fromLTWH(
-          size.width * progress - size.width * 0.6,
-          size.height * progress - size.height * 0.6,
-          size.width * 1.2,
-          size.height * 1.2,
-        ),
-      )
-      ..blendMode = BlendMode.screen;
-
-    canvas.drawRect(Offset.zero & size, pearlPaint);
-  }
-
-  @override
-  bool shouldRepaint(_GlossPainter oldDelegate) {
-    return oldDelegate.progress != progress ||
-        oldDelegate.intensity != intensity;
   }
 }

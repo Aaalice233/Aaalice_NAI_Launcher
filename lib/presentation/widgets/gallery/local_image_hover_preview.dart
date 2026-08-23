@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -6,6 +7,8 @@ import 'package:image/image.dart' as img;
 
 import '../../../core/utils/byte_format.dart';
 import '../../../data/models/gallery/local_image_record.dart';
+import '../../../data/models/gallery/nai_image_metadata.dart';
+import '../../utils/local_gallery_metadata_resolver.dart';
 import '../common/gallery_hover_controller.dart';
 
 /// Adds a delayed, full-file hover preview to a local gallery card.
@@ -28,6 +31,8 @@ class LocalImageHoverPreview extends StatefulWidget {
 class _LocalImageHoverPreviewState extends State<LocalImageHoverPreview> {
   final _layerLink = LayerLink();
   late final GalleryHoverController _hoverController;
+  NaiImageMetadata? _resolvedMetadata;
+  String? _resolvedMetadataPath;
 
   @override
   void initState() {
@@ -40,10 +45,13 @@ class _LocalImageHoverPreviewState extends State<LocalImageHoverPreview> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.record.path != widget.record.path) {
       _hoverController.dismissFor(oldWidget.record.path);
+      _resolvedMetadata = null;
+      _resolvedMetadataPath = null;
     }
   }
 
   void _schedulePreview() {
+    unawaited(_resolveMetadata());
     final renderObject = context.findRenderObject();
     if (renderObject is! RenderBox || !renderObject.hasSize) return;
 
@@ -62,11 +70,22 @@ class _LocalImageHoverPreviewState extends State<LocalImageHoverPreview> {
       previewSize: previewSize,
       delay: widget.hoverDelay,
       builder: (_) => LocalImageHoverPreviewCard(
-        record: widget.record,
+        record: _resolvedMetadataPath == widget.record.path
+            ? widget.record.copyWith(metadata: _resolvedMetadata)
+            : widget.record,
         maxWidth: previewSize.width,
         maxHeight: previewSize.height,
       ),
     );
+  }
+
+  Future<void> _resolveMetadata() async {
+    final path = widget.record.path;
+    if (_resolvedMetadataPath == path) return;
+    final metadata = await resolveLocalGalleryMetadata(widget.record);
+    if (!mounted || widget.record.path != path) return;
+    _resolvedMetadata = metadata;
+    _resolvedMetadataPath = path;
   }
 
   @override
@@ -112,21 +131,22 @@ class _LocalImageHoverPreviewCardState
   int? _resolvedWidth;
   int? _resolvedHeight;
   double? _devicePixelRatio;
+  NaiImageMetadata? _metadata;
   int _dimensionRequestId = 0;
+  int _metadataRequestId = 0;
 
   int? get _width {
-    final width = widget.record.metadata?.width;
+    final width = _metadata?.width;
     return width != null && width > 0 ? width : _resolvedWidth;
   }
 
   int? get _height {
-    final height = widget.record.metadata?.height;
+    final height = _metadata?.height;
     return height != null && height > 0 ? height : _resolvedHeight;
   }
 
   bool get _hasMetadataDimensions =>
-      (widget.record.metadata?.width ?? 0) > 0 &&
-      (widget.record.metadata?.height ?? 0) > 0;
+      (_metadata?.width ?? 0) > 0 && (_metadata?.height ?? 0) > 0;
 
   double? get _aspectRatio {
     final width = _width;
@@ -140,7 +160,9 @@ class _LocalImageHoverPreviewCardState
   @override
   void initState() {
     super.initState();
+    _metadata = widget.record.metadata?.upgradeFromRawJsonIfNeeded();
     if (!_hasMetadataDimensions) _loadImageDimensions();
+    _loadMetadata();
   }
 
   @override
@@ -159,8 +181,10 @@ class _LocalImageHoverPreviewCardState
     if (oldWidget.record.path != widget.record.path) {
       _resolvedWidth = null;
       _resolvedHeight = null;
+      _metadata = widget.record.metadata?.upgradeFromRawJsonIfNeeded();
       _prepareImageProvider(_devicePixelRatio ?? 1);
       if (!_hasMetadataDimensions) _loadImageDimensions();
+      _loadMetadata();
     }
   }
 
@@ -171,6 +195,18 @@ class _LocalImageHoverPreviewCardState
       null,
       FileImage(File(widget.record.path)),
     );
+  }
+
+  Future<void> _loadMetadata() async {
+    final requestId = ++_metadataRequestId;
+    final path = widget.record.path;
+    final metadata = await resolveLocalGalleryMetadata(widget.record);
+    if (!mounted ||
+        requestId != _metadataRequestId ||
+        widget.record.path != path) {
+      return;
+    }
+    setState(() => _metadata = metadata);
   }
 
   Future<void> _loadImageDimensions() async {
@@ -195,13 +231,13 @@ class _LocalImageHoverPreviewCardState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final metadata = widget.record.metadata;
+    final metadata = _metadata;
     final model = metadata?.effectiveModel?.trim();
     final hasGenerationInfo =
         (model?.isNotEmpty ?? false) ||
         metadata?.seed != null ||
         metadata?.steps != null;
-    final metadataHeight = hasGenerationInfo ? 68.0 : 49.0;
+    final metadataHeight = hasGenerationInfo ? 80.0 : 56.0;
     const borderExtent = 4.0;
     final contentMaxWidth = math.max(1, widget.maxWidth - borderExtent);
     final maxImageHeight = math.max(
@@ -228,10 +264,6 @@ class _LocalImageHoverPreviewCardState
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: theme.colorScheme.primary.withValues(alpha: 0.3),
-            width: 2,
-          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.55),
@@ -246,6 +278,13 @@ class _LocalImageHoverPreviewCardState
               offset: const Offset(0, -4),
             ),
           ],
+        ),
+        foregroundDecoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: theme.colorScheme.primary.withValues(alpha: 0.3),
+            width: 2,
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -298,21 +337,20 @@ class _LocalImageHoverPreviewCardState
                     Row(
                       children: [
                         Expanded(
-                          flex: 6,
                           child: _PreviewStat(
                             icon: Icons.photo_size_select_actual_outlined,
                             value: _resolutionText,
                           ),
                         ),
+                        const SizedBox(width: 6),
                         Expanded(
-                          flex: 5,
                           child: _PreviewStat(
                             icon: Icons.data_usage_outlined,
                             value: formatBytes(widget.record.size),
                           ),
                         ),
+                        const SizedBox(width: 6),
                         Expanded(
-                          flex: 7,
                           child: _PreviewStat(
                             icon: Icons.calendar_today_outlined,
                             value: _formatDate(widget.record.modifiedAt),
@@ -375,6 +413,7 @@ class _LocalImageHoverPreviewCardState
   @override
   void dispose() {
     _dimensionRequestId++;
+    _metadataRequestId++;
     super.dispose();
   }
 }
@@ -388,20 +427,27 @@ class _PreviewStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme.onSurfaceVariant;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 12, color: color),
-        const SizedBox(width: 4),
-        Flexible(
-          child: Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: color, fontSize: 11, height: 1),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: color, fontSize: 11, height: 1),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

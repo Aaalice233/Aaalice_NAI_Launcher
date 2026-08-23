@@ -3,13 +3,17 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../../../core/utils/app_logger.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../core/utils/nai_resolution_adapter.dart';
+import '../../../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../../data/models/vibe/vibe_reference.dart';
+import '../../../../providers/fixed_tags_provider.dart';
+import '../../../../utils/fixed_tag_metadata_matcher.dart';
 import '../../add_to_library_dialog.dart';
 import '../../app_toast.dart';
 import '../../save_as_preset_dialog.dart';
@@ -26,7 +30,7 @@ import 'vibe_section.dart';
 ///
 /// 用于在全屏预览器右侧显示完整的图片元数据信息
 /// 支持折叠/展开功能
-class DetailMetadataPanel extends StatefulWidget {
+class DetailMetadataPanel extends ConsumerStatefulWidget {
   /// 当前显示的图片数据
   final ImageDetailData? currentImage;
 
@@ -48,10 +52,11 @@ class DetailMetadataPanel extends StatefulWidget {
   });
 
   @override
-  State<DetailMetadataPanel> createState() => _DetailMetadataPanelState();
+  ConsumerState<DetailMetadataPanel> createState() =>
+      _DetailMetadataPanelState();
 }
 
-class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
+class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
   late bool _isExpanded;
   Future<NaiImageMetadata?>? _metadataFuture;
   NaiImageMetadata? _loadedMetadata;
@@ -266,6 +271,7 @@ class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
   Widget _buildExpandedPanel(ThemeData theme) {
     final l10n = context.l10n;
     final metadata = _currentMetadata;
+    final fixedTagsState = ref.watch(fixedTagsNotifierProvider);
     final isLoading = _metadataFuture != null && _loadedMetadata == null;
     final colorScheme = theme.colorScheme;
 
@@ -288,6 +294,8 @@ class _DetailMetadataPanelState extends State<DetailMetadataPanel> {
                   padding: const EdgeInsets.all(16),
                   child: _MetadataContent(
                     metadata: metadata,
+                    positiveFixedTagEntries: fixedTagsState.positiveEntries,
+                    negativeFixedTagEntries: fixedTagsState.negativeEntries,
                     fileInfo: widget.currentImage!.fileInfo,
                     actualImageSize: _actualImageSize,
                   ),
@@ -437,11 +445,15 @@ class _PanelHeader extends StatelessWidget {
 /// 元数据内容
 class _MetadataContent extends StatelessWidget {
   final NaiImageMetadata metadata;
+  final List<FixedTagEntry> positiveFixedTagEntries;
+  final List<FixedTagEntry> negativeFixedTagEntries;
   final FileInfo? fileInfo;
   final (int, int)? actualImageSize;
 
   const _MetadataContent({
     required this.metadata,
+    this.positiveFixedTagEntries = const [],
+    this.negativeFixedTagEntries = const [],
     this.fileInfo,
     this.actualImageSize,
   });
@@ -539,169 +551,79 @@ class _MetadataContent extends StatelessWidget {
     );
   }
 
-  /// 构建提示词分组
   Widget _buildPromptSections(BuildContext context) {
-    // 如果有分离的字段，使用分组展示
-    if (metadata.hasSeparatedFields) {
-      // 合并固定词（前缀+后缀）
-      final fixedTags = [
-        ...metadata.fixedPrefixTags,
-        ...metadata.fixedSuffixTags,
-      ];
-      final fixedNegativeTags = [
-        ...metadata.fixedNegativePrefixTags,
-        ...metadata.fixedNegativeSuffixTags,
-      ];
-
-      // 主提示词包含角色提示词
-      final mainPromptWithChars = _buildMainPromptWithCharacters();
-      final mainPromptTags = _extractTags(mainPromptWithChars);
-
-      // 负面提示词标签
-      final negativePrompt = metadata.displayNegativePrompt;
-      final negativeTags = _extractTags(negativePrompt);
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 主提示词（包含角色提示词）
-          PromptSection(
-            title: context.l10n.metadataImport_mainPrompt,
-            icon: Icons.text_fields,
-            content: mainPromptWithChars,
-            tags: mainPromptTags,
-            initiallyExpanded: true,
-            showAddToLibrary: mainPromptWithChars.isNotEmpty,
-            onAddToLibrary: () =>
-                _showAddToLibraryDialog(context, mainPromptWithChars),
-          ),
-          // 固定词（前缀+后缀合并）
-          if (fixedTags.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            PromptSection(
-              title: context.l10n.metadataImport_fixedTags,
-              icon: Icons.push_pin_outlined,
-              content: fixedTags.join(', '),
-              tags: fixedTags,
-              initiallyExpanded: false,
-              allTagsAreFixed: true,
-            ),
-          ],
-          // 负向固定词（前缀+后缀合并）
-          if (fixedNegativeTags.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            PromptSection(
-              title: context.l10n.fixedTags_negativeTitle,
-              icon: Icons.push_pin_outlined,
-              content: fixedNegativeTags.join(', '),
-              tags: fixedNegativeTags,
-              initiallyExpanded: false,
-              allTagsAreFixed: true,
-              isNegative: true,
-              borderColor: Theme.of(context).colorScheme.error,
-            ),
-          ],
-          // 质量词
-          if (metadata.qualityTags.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            PromptSection(
-              title: context.l10n.qualityTags_label,
-              icon: Icons.high_quality,
-              content: metadata.qualityTags.join(', '),
-              tags: metadata.qualityTags,
-              initiallyExpanded: false,
-              showAddToLibrary: true,
-              onAddToLibrary: () => _showAddToLibraryDialog(
-                context,
-                metadata.qualityTags.join(', '),
-              ),
-            ),
-          ],
-          // 角色提示词详细卡片
-          if (metadata.characterInfos.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _buildCharacterSection(context),
-          ],
-          // Vibe数据
-          if (metadata.vibeReferences.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            VibeSection(
-              vibes: metadata.vibeReferences,
-              initiallyExpanded: true,
-              onSaveToLibrary: (vibe) => _showSaveVibeDialog(context, vibe),
-            ),
-          ],
-          // 负向提示词（使用标签形式）
-          if (negativePrompt.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            PromptSection(
-              title: context.l10n.prompt_negativePrompt,
-              icon: Icons.block,
-              content: negativePrompt,
-              tags: negativeTags,
-              initiallyExpanded: false,
-              fixedTags: fixedNegativeTags,
-              isNegative: true,
-              borderColor: Theme.of(context).colorScheme.error,
-            ),
-          ],
-        ],
-      );
-    }
-
-    // 旧数据：使用简单展示
-    final mainPromptTags = _extractTags(metadata.fullPrompt);
-    final negativePrompt = metadata.displayNegativePrompt;
-    final negativeTags = _extractTags(negativePrompt);
+    final resolvedMetadata = matchMetadataFixedTags(
+      metadata: metadata,
+      positiveEntries: positiveFixedTagEntries,
+      negativeEntries: negativeFixedTagEntries,
+    );
+    final fixedTags = [
+      ...resolvedMetadata.fixedPrefixTags,
+      ...resolvedMetadata.fixedSuffixTags,
+    ];
+    final fixedNegativeTags = [
+      ...resolvedMetadata.fixedNegativePrefixTags,
+      ...resolvedMetadata.fixedNegativeSuffixTags,
+    ];
+    final characterTags = resolvedMetadata.characterInfos
+        .expand((character) => _extractTags(character.prompt))
+        .toList();
+    final characterNegativeTags = resolvedMetadata.characterInfos
+        .expand((character) => _extractTags(character.negativePrompt ?? ''))
+        .toList();
+    final positiveTags = [
+      ..._extractTags(resolvedMetadata.prompt),
+      ...characterTags,
+    ];
+    final negativeTags = [
+      ..._extractTags(resolvedMetadata.displayNegativePrompt),
+      ...characterNegativeTags,
+    ];
+    final positivePrompt = positiveTags.join(', ');
+    final negativePrompt = negativeTags.join(', ');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 主提示词
         PromptSection(
           title: context.l10n.prompt_positivePrompt,
-          icon: Icons.text_fields,
-          content: metadata.fullPrompt.isNotEmpty
-              ? metadata.fullPrompt
-              : context.l10n.metadataImport_noData,
-          tags: mainPromptTags,
+          icon: Icons.add_circle_outline,
+          content: positivePrompt,
+          tags: positiveTags,
           initiallyExpanded: true,
-          showAddToLibrary: metadata.fullPrompt.isNotEmpty,
+          showAddToLibrary: positivePrompt.isNotEmpty,
           onAddToLibrary: () =>
-              _showAddToLibraryDialog(context, metadata.fullPrompt),
+              _showAddToLibraryDialog(context, positivePrompt),
+          onCopy: () => _copyPositivePrompt(context, resolvedMetadata),
+          fixedTags: fixedTags,
+          characterTags: characterTags,
         ),
-        // 负向提示词（使用标签形式）
         if (negativePrompt.isNotEmpty) ...[
           const SizedBox(height: 12),
           PromptSection(
             title: context.l10n.prompt_negativePrompt,
-            icon: Icons.block,
+            icon: Icons.remove_circle_outline,
             content: negativePrompt,
             tags: negativeTags,
             initiallyExpanded: false,
+            showAddToLibrary: true,
+            onAddToLibrary: () =>
+                _showAddToLibraryDialog(context, negativePrompt),
+            fixedTags: fixedNegativeTags,
+            characterTags: characterNegativeTags,
             isNegative: true,
-            borderColor: Theme.of(context).colorScheme.error,
+          ),
+        ],
+        if (metadata.vibeReferences.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          VibeSection(
+            vibes: metadata.vibeReferences,
+            initiallyExpanded: true,
+            onSaveToLibrary: (vibe) => _showSaveVibeDialog(context, vibe),
           ),
         ],
       ],
     );
-  }
-
-  /// 构建包含角色提示词的主提示词
-  String _buildMainPromptWithCharacters() {
-    final buffer = StringBuffer(metadata.mainPrompt);
-
-    // 添加角色提示词到主提示词
-    for (final character in metadata.characterInfos) {
-      if (character.prompt.isNotEmpty) {
-        if (buffer.isNotEmpty) {
-          buffer.write(', ');
-        }
-        buffer.write(character.prompt);
-      }
-    }
-
-    return buffer.toString();
   }
 
   /// 从提示词文本提取标签列表
@@ -714,34 +636,20 @@ class _MetadataContent extends StatelessWidget {
         .toList();
   }
 
-  /// 构建角色提示词分组（带折叠功能）
-  Widget _buildCharacterSection(BuildContext context) {
-    return PromptSection(
-      title: context.l10n.metadataImport_characterPrompts,
-      icon: Icons.people_outline,
-      content: metadata.characterInfos.map((c) => c.prompt).join(', '),
-      initiallyExpanded: false,
-      showAddToLibrary: false,
-      // 使用自定义内容展示角色卡片
-      customContent: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: metadata.characterInfos.asMap().entries.map((entry) {
-          final index = entry.key;
-          final character = entry.value;
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: index < metadata.characterInfos.length - 1 ? 8 : 0,
-            ),
-            child: CharacterPromptCard(
-              index: index,
-              prompt: character.prompt,
-              negativePrompt: character.negativePrompt,
-              position: character.position,
-            ),
-          );
-        }).toList(),
-      ),
+  Future<void> _copyPositivePrompt(
+    BuildContext context,
+    NaiImageMetadata sourceMetadata,
+  ) async {
+    final prompt = await PromptCopyDialog.show(
+      context,
+      metadata: sourceMetadata,
     );
+    if (prompt == null || !context.mounted) return;
+
+    await Clipboard.setData(ClipboardData(text: prompt));
+    if (context.mounted) {
+      AppToast.success(context, context.l10n.gallery_promptCopied);
+    }
   }
 
   /// 显示添加到词库对话框

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/widgets/common/card_action_buttons.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/gallery_content_view.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_card_3d.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_context_menu.dart';
@@ -57,6 +58,107 @@ void main() {
     expect(selectedPosition, isNotNull);
   });
 
+  testWidgets('local card action layout follows the image aspect ratio', (
+    tester,
+  ) async {
+    final record = LocalImageRecord(
+      path: 'G:/gallery/action-layout-image.png',
+      size: 42,
+      modifiedAt: DateTime(2026, 7, 29),
+    );
+
+    Future<Axis> readDirection({
+      required double width,
+      required double height,
+    }) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: LocalImageCard3D(
+                  record: record,
+                  width: width,
+                  height: height,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(
+        location: tester.getCenter(find.byType(LocalImageCard3D)),
+      );
+      await tester.pump();
+      final direction = tester
+          .widget<CardActionButtons>(find.byType(CardActionButtons))
+          .direction;
+      await mouse.removePointer();
+      await tester.pump();
+      return direction;
+    }
+
+    expect(await readDirection(width: 160, height: 220), Axis.vertical);
+    expect(await readDirection(width: 220, height: 120), Axis.horizontal);
+  });
+
+  testWidgets(
+    'moving away immediately after a card action does not open the image',
+    (tester) async {
+      final record = LocalImageRecord(
+        path: 'G:/gallery/action-race-image.png',
+        size: 42,
+        modifiedAt: DateTime(2026, 7, 29),
+      );
+      var cardTapCount = 0;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: LocalImageCard3D(
+                  record: record,
+                  width: 160,
+                  height: 220,
+                  onTap: () => cardTapCount++,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(
+        location: tester.getCenter(find.byType(LocalImageCard3D)),
+      );
+      await tester.pump();
+
+      final copyButton = find.byIcon(Icons.copy);
+      expect(copyButton, findsOneWidget);
+      await mouse.moveTo(tester.getCenter(copyButton));
+      await mouse.down(tester.getCenter(copyButton));
+      await mouse.moveTo(const Offset(300, 300));
+      await tester.pump();
+      await mouse.up();
+      await tester.pump();
+
+      expect(cardTapCount, 0);
+    },
+  );
+
   testWidgets('grouped gallery send button dispatches the shared send action', (
     tester,
   ) async {
@@ -76,21 +178,33 @@ void main() {
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: GenericGalleryContentView<LocalImageRecord>(
-              columns: 1,
-              itemWidth: 160,
-              state: _GroupedGalleryState(record),
-              selectionState: const _InactiveSelectionState(),
-              itemBuilder: (_, __, ___, ____) => const SizedBox.shrink(),
-              idExtractor: (item) => item.path,
-              onSendAction: (item, action) async {
-                selectedRecord = item;
-                selectedAction = action;
-              },
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 360,
+                height: 600,
+                child: GenericGalleryContentView<LocalImageRecord>(
+                  columns: 1,
+                  itemWidth: 160,
+                  state: _GroupedGalleryState(record),
+                  selectionState: const _InactiveSelectionState(),
+                  itemBuilder: (_, __, ___, ____) => const SizedBox.shrink(),
+                  idExtractor: (item) => item.path,
+                  onSendAction: (item, action) async {
+                    selectedRecord = item;
+                    selectedAction = action;
+                  },
+                ),
+              ),
             ),
           ),
         ),
       ),
+    );
+    await tester.pump();
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(
+      location: tester.getCenter(find.byType(LocalImageCard3D)),
     );
     await tester.pump();
 
@@ -116,6 +230,9 @@ void main() {
     await tester.tap(find.byIcon(Icons.delete_outline));
     await tester.pump();
     expect(selectedAction, LocalImageContextAction.delete);
+
+    await mouse.removePointer();
+    await tester.pump();
   });
 }
 

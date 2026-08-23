@@ -3,7 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/widgets/common/card_action_buttons.dart';
 
 void main() {
-  testWidgets('buttons appear and disappear in the same pump', (tester) async {
+  testWidgets('visibility changes hit testing and opacity in the same pump', (
+    tester,
+  ) async {
     var visible = false;
     late StateSetter setHostState;
 
@@ -27,27 +29,29 @@ void main() {
       ),
     );
 
-    expect(find.byIcon(Icons.download), findsNothing);
+    final opacity = find.descendant(
+      of: find.byType(CardActionButtons),
+      matching: find.byType(Opacity),
+    );
+    final hitTestGate = find.descendant(
+      of: find.byType(CardActionButtons),
+      matching: find.byType(IgnorePointer),
+    );
+
+    expect(find.byIcon(Icons.download), findsOneWidget);
+    expect(tester.widget<Opacity>(opacity).opacity, 0);
+    expect(tester.widget<IgnorePointer>(hitTestGate).ignoring, isTrue);
+
     setHostState(() => visible = true);
     await tester.pump();
-    expect(find.byIcon(Icons.download), findsOneWidget);
-    expect(
-      find.descendant(
-        of: find.byType(CardActionButtons),
-        matching: find.byType(FadeTransition),
-      ),
-      findsNothing,
-    );
-    expect(
-      find.descendant(
-        of: find.byType(CardActionButtons),
-        matching: find.byType(SlideTransition),
-      ),
-      findsNothing,
-    );
+
+    expect(tester.widget<Opacity>(opacity).opacity, 1);
+    expect(tester.widget<IgnorePointer>(hitTestGate).ignoring, isFalse);
 
     setHostState(() => visible = false);
     await tester.pump();
-    expect(find.byIcon(Icons.download), findsNothing);
+
+    expect(tester.widget<Opacity>(opacity).opacity, 0);
+    expect(tester.widget<IgnorePointer>(hitTestGate).ignoring, isTrue);
   });
 }
