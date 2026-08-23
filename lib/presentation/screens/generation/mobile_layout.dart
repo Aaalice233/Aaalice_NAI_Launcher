@@ -275,60 +275,89 @@ class _MobileGenerateButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (showCancel) {
-      return Row(
-        children: [
-          if (_canSkipCurrentBatch) ...[
-            Expanded(
-              child: ThemedButton(
-                onPressed: onSkipCurrent,
-                icon: const Icon(Icons.skip_next),
-                label: Text(
-                  '${context.l10n.generation_skipCurrentBatch} ${_progressText()}',
+    final theme = Theme.of(context);
+    final cancelTheme = theme.copyWith(
+      colorScheme: theme.colorScheme.copyWith(
+        primary: theme.colorScheme.errorContainer,
+        onPrimary: theme.colorScheme.onErrorContainer,
+        primaryContainer: theme.colorScheme.error,
+        onPrimaryContainer: theme.colorScheme.onError,
+      ),
+    );
+    final isLoading = isGenerating && !showCancel;
+    final primaryButton = AnimatedTheme(
+      data: showCancel ? cancelTheme : theme,
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOut,
+      child: ThemedButton(
+        onPressed: showCancel
+            ? onCancel
+            : isGenerating || cooldownRemainingSeconds > 0
+            ? null
+            : onGenerate,
+        isLoading: isLoading,
+        label: IndexedStack(
+          index: showCancel ? 1 : 0,
+          alignment: Alignment.center,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!isLoading) ...[
+                  Icon(
+                    cooldownRemainingSeconds > 0
+                        ? Icons.hourglass_bottom_outlined
+                        : Icons.auto_awesome,
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Text(
+                  showCancel
+                      ? context.l10n.generation_generate
+                      : isGenerating
+                      ? context.l10n.generation_generating
+                      : cooldownRemainingSeconds > 0
+                      ? context.l10n.generation_cooldownRemaining(
+                          cooldownRemainingSeconds,
+                        )
+                      : context.l10n.generation_generate,
                 ),
-                style: ThemedButtonStyle.outlined,
-              ),
+                AnlasCostBadge(isGenerating: isLoading),
+              ],
             ),
-            const SizedBox(width: 8),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.stop_circle_outlined),
+                const SizedBox(width: 8),
+                Text(context.l10n.common_cancel),
+              ],
+            ),
           ],
-          Expanded(
-            child: ThemedButton(
-              onPressed: onCancel,
-              icon: const Icon(Icons.stop_circle_outlined),
-              label: Text(context.l10n.generation_stopAllGeneration),
-              style: ThemedButtonStyle.outlined,
-            ),
-          ),
-        ],
-      );
+        ),
+        style: ThemedButtonStyle.filled,
+      ),
+    );
+
+    if (!_canSkipCurrentBatch) {
+      return primaryButton;
     }
 
-    return ThemedButton(
-      onPressed: isGenerating || cooldownRemainingSeconds > 0
-          ? null
-          : onGenerate,
-      icon: isGenerating
-          ? null
-          : cooldownRemainingSeconds > 0
-          ? const Icon(Icons.hourglass_bottom_outlined)
-          : const Icon(Icons.auto_awesome),
-      isLoading: isGenerating,
-      label: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            isGenerating
-                ? context.l10n.generation_generating
-                : cooldownRemainingSeconds > 0
-                ? context.l10n.generation_cooldownRemaining(
-                    cooldownRemainingSeconds,
-                  )
-                : context.l10n.generation_generate,
+    return Row(
+      children: [
+        Expanded(
+          child: ThemedButton(
+            onPressed: onSkipCurrent,
+            icon: const Icon(Icons.skip_next),
+            label: Text(
+              '${context.l10n.generation_skipCurrentBatch} ${_progressText()}',
+            ),
+            style: ThemedButtonStyle.outlined,
           ),
-          AnlasCostBadge(isGenerating: isGenerating),
-        ],
-      ),
-      style: ThemedButtonStyle.filled,
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: primaryButton),
+      ],
     );
   }
 }
