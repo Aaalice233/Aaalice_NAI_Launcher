@@ -7476,9 +7476,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get metadataImport_negativePrompt => 'Undesired Content';
 
   @override
-  String get metadataImport_characterPrompts => 'Character Prompts';
-
-  @override
   String metadataImport_characterPromptsCount(int count) {
     return 'Character Prompts ($count)';
   }
