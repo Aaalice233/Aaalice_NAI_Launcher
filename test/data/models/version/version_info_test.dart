@@ -2,6 +2,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/version/version_info.dart';
 
 void main() {
+  test('display versions omit internal build metadata', () {
+    const info = VersionInfo(version: '1.9.0+33', currentVersion: '1.8.2+32');
+
+    expect(info.displayVersion, '1.9.0');
+    expect(info.displayCurrentVersion, '1.8.2');
+  });
+
   group('VersionInfoComparator', () {
     test('compares stable versions', () {
       expect(VersionInfoComparator.isNewer('1.0.1', '1.0.0'), isTrue);

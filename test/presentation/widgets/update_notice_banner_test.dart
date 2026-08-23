@@ -34,8 +34,8 @@ void main() {
     size: 100,
   );
   const info = VersionInfo(
-    version: '2.0.0',
-    currentVersion: '1.0.0',
+    version: '2.0.0+33',
+    currentVersion: '1.0.0+32',
     assets: [asset],
     primaryAsset: asset,
     isNewer: true,
@@ -82,6 +82,7 @@ void main() {
     );
 
     expect(find.text('新版本 v2.0.0 可用'), findsOneWidget);
+    expect(find.textContaining('+33'), findsNothing);
     expect(find.text('查看更新'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.close_rounded));
@@ -109,6 +110,7 @@ void main() {
     );
 
     expect(find.text('新版本 v2.0.0 已准备好'), findsOneWidget);
+    expect(find.textContaining('+33'), findsNothing);
     expect(find.text('立即安装'), findsOneWidget);
   });
 }

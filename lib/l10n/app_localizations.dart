@@ -18539,6 +18539,12 @@ abstract class AppLocalizations {
   /// **'Release Notes'**
   String get releaseNotes;
 
+  /// No description provided for @viewReleasePage.
+  ///
+  /// In en, this message translates to:
+  /// **'View Release'**
+  String get viewReleasePage;
+
   /// No description provided for @updatePortableManualHint.
   ///
   /// In en, this message translates to:

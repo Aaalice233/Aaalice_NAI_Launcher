@@ -36,6 +36,20 @@ void main() {
       expect(result, isNot(contains('NAI Launcher v2.0.0')));
     });
 
+    test('normalizes GitHub alerts that crash the Markdown renderer', () {
+      const releaseBody = '''
+## 📝 更新内容
+
+> [!IMPORTANT]
+> Upgrade manually.
+''';
+
+      final result = extractInAppReleaseNotes(releaseBody);
+
+      expect(result, contains('> **IMPORTANT**'));
+      expect(result, isNot(contains('[!IMPORTANT]')));
+    });
+
     test('keeps custom release notes without the generated section', () {
       const releaseBody = '''
 # Major Update

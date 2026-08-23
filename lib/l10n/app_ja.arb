@@ -5289,6 +5289,7 @@
   "currentVersion": "現在のバージョン",
   "latestVersion": "最新バージョン",
   "releaseNotes": "リリースノート",
+  "viewReleasePage": "Release を表示",
   "remindMeLater": "4時間後に通知",
   "skipThisVersion": "このバージョンをスキップ",
   "updateDownload": "更新をダウンロード",

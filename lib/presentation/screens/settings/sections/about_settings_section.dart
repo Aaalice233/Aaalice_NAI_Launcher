@@ -73,11 +73,11 @@ class _AboutSettingsSectionState extends ConsumerState<AboutSettingsSection> {
                 subtitle: Text(
                   updateState.hasDownloadedUpdate
                       ? context.l10n.updateSettingsReady(
-                          updateState.versionInfo?.version ?? '',
+                          updateState.versionInfo?.displayVersion ?? '',
                         )
                       : updateState.hasNewVersion
                       ? context.l10n.updateSettingsAvailable(
-                          updateState.versionInfo?.version ?? '',
+                          updateState.versionInfo?.displayVersion ?? '',
                         )
                       : _formatLastCheckTime(context, lastCheckTime),
                 ),

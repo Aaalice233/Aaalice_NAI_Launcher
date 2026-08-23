@@ -25,8 +25,23 @@ String extractInAppReleaseNotes(String releaseBody) {
     }
 
     final content = lines.sublist(index + 1, end).join('\n').trim();
-    if (content.isNotEmpty) return content;
+    if (content.isNotEmpty) return _normalizeGitHubAlerts(content);
   }
 
-  return normalizedBody;
+  return _normalizeGitHubAlerts(normalizedBody);
+}
+
+/// flutter_markdown_plus 目前会把 GitHub Alert 标记解析成多个匿名 inline，
+/// 随后在构建 blockquote 时因假定只有一个 inline 而抛出 StateError。
+/// 转成语义等价的普通粗体引用，既保留强调效果，也避免整个更新弹窗崩溃。
+String _normalizeGitHubAlerts(String markdown) {
+  final alertPattern = RegExp(
+    r'^(\s{0,3}>\s*)\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*$',
+    multiLine: true,
+    caseSensitive: false,
+  );
+  return markdown.replaceAllMapped(
+    alertPattern,
+    (match) => '${match.group(1)}**${match.group(2)!.toUpperCase()}**',
+  );
 }

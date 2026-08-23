@@ -5065,6 +5065,7 @@
   "currentVersion": "当前版本",
   "latestVersion": "最新版本",
   "releaseNotes": "更新日志",
+  "viewReleasePage": "查看 Release",
   "updatePortableManualHint": "当前构建不支持应用内更新，请前往 Release 页面手动下载新版。",
   "updateDownloadingProgress": "正在下载更新包：{percent}%",
   "@updateDownloadingProgress": {

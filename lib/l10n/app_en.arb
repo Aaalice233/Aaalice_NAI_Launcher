@@ -5282,6 +5282,7 @@
   "currentVersion": "Current Version",
   "latestVersion": "Latest Version",
   "releaseNotes": "Release Notes",
+  "viewReleasePage": "View Release",
   "updatePortableManualHint": "This build cannot update in-app. Please download the new version from the Release page.",
   "updateDownloadingProgress": "Downloading update package: {percent}%",
   "@updateDownloadingProgress": {

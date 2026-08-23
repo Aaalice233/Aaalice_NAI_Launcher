@@ -10185,6 +10185,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get releaseNotes => '更新日志';
 
   @override
+  String get viewReleasePage => '查看 Release';
+
+  @override
   String get updatePortableManualHint => '当前构建不支持应用内更新，请前往 Release 页面手动下载新版。';
 
   @override
@@ -21809,6 +21812,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get releaseNotes => '更新日誌';
+
+  @override
+  String get viewReleasePage => '查看 Release';
 
   @override
   String get updatePortableManualHint => '當前構建不支援應用內更新，請前往 Release 頁面手動下載新版。';

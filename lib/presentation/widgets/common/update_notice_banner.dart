@@ -23,7 +23,7 @@ class UpdateNoticeBanner extends ConsumerWidget {
     final theme = Theme.of(context);
     final isReady = state.hasDownloadedUpdate;
     final isError = state.status == UpdateStatus.error;
-    final version = state.versionInfo?.version ?? '';
+    final version = state.versionInfo?.displayVersion ?? '';
     final title = isError
         ? context.l10n.updateNoticeFailed
         : isReady

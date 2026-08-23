@@ -180,8 +180,8 @@ print('updated');
       sha256: 'abc',
     );
     const info = VersionInfo(
-      version: '2.0.0',
-      currentVersion: '1.0.0',
+      version: '2.0.0+33',
+      currentVersion: '1.0.0+32',
       primaryAsset: asset,
       assets: [asset],
       isNewer: true,
@@ -193,6 +193,11 @@ print('updated');
 点击对应按钮直接下载。
 
 ## 📝 更新内容
+
+### 🚨 必看
+
+> [!IMPORTANT]
+> **这是重要升级说明。**
 
 ### 🐛 修复
 
@@ -227,6 +232,14 @@ SHA256 校验说明。
     await tester.pump();
 
     expect(find.text('修复实际问题。'), findsOneWidget);
+    final markdown = tester.widget<MarkdownBody>(find.byType(MarkdownBody));
+    expect(markdown.data, contains('> **IMPORTANT**'));
+    expect(tester.takeException(), isNull);
+    expect(find.text('v1.0.0'), findsOneWidget);
+    expect(find.text('v2.0.0'), findsOneWidget);
+    expect(find.text('查看 Release'), findsOneWidget);
+    expect(find.textContaining('+32'), findsNothing);
+    expect(find.textContaining('+33'), findsNothing);
     expect(find.text('按系统下载'), findsNothing);
     expect(find.text('点击对应按钮直接下载。'), findsNothing);
     expect(find.text('文件校验'), findsNothing);

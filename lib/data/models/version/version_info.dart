@@ -59,6 +59,15 @@ class VersionInfo with _$VersionInfo {
     return VersionInfoComparator.isNewer(version, current.version);
   }
 
+  /// 面向用户展示的版本号不包含内部构建号。
+  String get displayVersion => _withoutBuildMetadata(version);
+
+  /// 面向用户展示的当前版本号不包含内部构建号。
+  String get displayCurrentVersion =>
+      _withoutBuildMetadata(currentVersion ?? '');
+
+  String _withoutBuildMetadata(String value) => value.split('+').first;
+
   /// 当前版本是否可以在应用内下载安装。
   bool get supportsInAppInstall =>
       primaryAsset?.supportsInAppInstall == true &&

@@ -30,7 +30,7 @@ class UpdateCheckDialog extends ConsumerWidget {
 
     return AlertDialog(
       title: Text(_getTitle(context, state)),
-      content: SizedBox(width: 500, child: _buildContent(context, ref, state)),
+      content: SizedBox(width: 620, child: _buildContent(context, ref, state)),
       actions: _buildActions(context, ref, state),
     );
   }
@@ -108,7 +108,7 @@ class UpdateCheckDialog extends ConsumerWidget {
                 child: _buildVersionInfoTile(
                   context,
                   label: context.l10n.currentVersion,
-                  value: versionInfo.currentVersion ?? '',
+                  value: versionInfo.displayCurrentVersion,
                 ),
               ),
               const SizedBox(width: 16),
@@ -116,7 +116,7 @@ class UpdateCheckDialog extends ConsumerWidget {
                 child: _buildVersionInfoTile(
                   context,
                   label: context.l10n.latestVersion,
-                  value: versionInfo.version,
+                  value: versionInfo.displayVersion,
                   isHighlighted: true,
                 ),
               ),
@@ -151,7 +151,7 @@ class UpdateCheckDialog extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Container(
-              constraints: const BoxConstraints(maxHeight: 240),
+              constraints: const BoxConstraints(maxHeight: 380),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: releaseNotesBackground,
@@ -234,7 +234,9 @@ class UpdateCheckDialog extends ConsumerWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            context.l10n.updateDownloadedHint(state.versionInfo?.version ?? ''),
+            context.l10n.updateDownloadedHint(
+              state.versionInfo?.displayVersion ?? '',
+            ),
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -348,9 +350,9 @@ class UpdateCheckDialog extends ConsumerWidget {
   }) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final versionTag = versionInfo.version.startsWith('v')
-        ? versionInfo.version
-        : 'v${versionInfo.version}';
+    final versionTag = versionInfo.displayVersion.startsWith('v')
+        ? versionInfo.displayVersion
+        : 'v${versionInfo.displayVersion}';
     final rawContentBase = Uri.parse(
       'https://raw.githubusercontent.com/Aaalice233/'
       'Aaalice_NAI_Launcher/$versionTag/',
@@ -591,6 +593,11 @@ class UpdateCheckDialog extends ConsumerWidget {
           },
           child: Text(context.l10n.skipThisVersion),
         ),
+        OutlinedButton.icon(
+          onPressed: () => _openReleasePage(context, state.versionInfo),
+          icon: const Icon(Icons.open_in_new_rounded, size: 18),
+          label: Text(context.l10n.viewReleasePage),
+        ),
         // 下载并安装 / 前往下载
         FilledButton(
           onPressed: () async {
@@ -697,6 +704,21 @@ class UpdateCheckDialog extends ConsumerWidget {
     );
     if (confirmed == true && context.mounted) {
       await ref.read(updateStateProvider.notifier).installDownloadedUpdate();
+    }
+  }
+
+  Future<void> _openReleasePage(
+    BuildContext context,
+    VersionInfo? versionInfo,
+  ) async {
+    final url = versionInfo?.htmlUrl;
+    if (url == null || url.isEmpty) return;
+
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else if (context.mounted) {
+      AppToast.error(context, context.l10n.cannotOpenUrl);
     }
   }
 

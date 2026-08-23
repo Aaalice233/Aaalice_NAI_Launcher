@@ -10352,6 +10352,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get releaseNotes => 'リリースノート';
 
   @override
+  String get viewReleasePage => 'Release を表示';
+
+  @override
   String get updatePortableManualHint =>
       'このビルドはアプリ内更新に対応していません。Release ページから新しいバージョンを手動でダウンロードしてください。';
 

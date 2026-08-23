@@ -10585,6 +10585,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get releaseNotes => 'Release Notes';
 
   @override
+  String get viewReleasePage => 'View Release';
+
+  @override
   String get updatePortableManualHint =>
       'This build cannot update in-app. Please download the new version from the Release page.';
 
