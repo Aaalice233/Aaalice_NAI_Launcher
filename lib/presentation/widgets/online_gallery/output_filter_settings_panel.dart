@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../providers/online_gallery_output_filter_provider.dart';
 import '../autocomplete/autocomplete_config.dart';
+import '../tag_chip.dart';
 import '../autocomplete/autocomplete_wrapper.dart';
 
 class OnlineGalleryOutputFilterSettingsPanel extends ConsumerStatefulWidget {
@@ -147,17 +148,13 @@ class _OnlineGalleryOutputFilterSettingsPanelState
                     runSpacing: 6,
                     children: [
                       for (final tag in tags)
-                        InputChip(
-                          label: Text(tag.replaceAll('_', ' ')),
-                          avatar: const Icon(
-                            Icons.filter_alt_off_outlined,
-                            size: 15,
-                          ),
-                          tooltip: tag,
+                        SimpleTagChip(
+                          tag: tag,
+                          color: theme.colorScheme.primary,
                           onDeleted: () => ref
                               .read(onlineGalleryOutputFilterProvider.notifier)
                               .removeTag(tag),
-                          visualDensity: VisualDensity.compact,
+                          deleteTooltip: context.l10n.common_delete,
                         ),
                     ],
                   ),

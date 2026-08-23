@@ -98,6 +98,7 @@ abstract class AppLocalizations {
     Locale('en'),
     Locale('ja'),
     Locale('zh'),
+    Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
   ];
 
   /// No description provided for @app_title.
@@ -1063,8 +1064,14 @@ abstract class AppLocalizations {
   /// No description provided for @settings_languageChinese.
   ///
   /// In en, this message translates to:
-  /// **'中文'**
+  /// **'简体中文'**
   String get settings_languageChinese;
+
+  /// No description provided for @settings_languageTraditionalChinese.
+  ///
+  /// In en, this message translates to:
+  /// **'繁體中文'**
+  String get settings_languageTraditionalChinese;
 
   /// No description provided for @settings_languageEnglish.
   ///
@@ -5015,8 +5022,38 @@ abstract class AppLocalizations {
   /// No description provided for @onlineGallery_blacklistSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Images containing blacklisted tags will be hidden directly in the online gallery.'**
+  /// **'Choose the blacklist used to hide images. Local and Danbooru cloud lists remain independent.'**
   String get onlineGallery_blacklistSubtitle;
+
+  /// No description provided for @onlineGallery_blacklistSourceLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Local'**
+  String get onlineGallery_blacklistSourceLocal;
+
+  /// No description provided for @onlineGallery_blacklistSourceCloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Danbooru Cloud'**
+  String get onlineGallery_blacklistSourceCloud;
+
+  /// No description provided for @onlineGallery_blacklistLocalDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Stored only on this device and works without signing in'**
+  String get onlineGallery_blacklistLocalDescription;
+
+  /// No description provided for @onlineGallery_blacklistCloudDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use and edit the blacklist stored in your Danbooru account'**
+  String get onlineGallery_blacklistCloudDescription;
+
+  /// No description provided for @onlineGallery_blacklistCloudLoginRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to Danbooru to use the cloud blacklist'**
+  String get onlineGallery_blacklistCloudLoginRequired;
 
   /// No description provided for @onlineGallery_addBlacklistTagHint.
   ///
@@ -5030,16 +5067,76 @@ abstract class AppLocalizations {
   /// **'No local blacklist tags'**
   String get onlineGallery_noLocalBlacklistTags;
 
+  /// No description provided for @onlineGallery_noCloudBlacklistTags.
+  ///
+  /// In en, this message translates to:
+  /// **'No cloud blacklist tags'**
+  String get onlineGallery_noCloudBlacklistTags;
+
+  /// No description provided for @onlineGallery_pullBlacklist.
+  ///
+  /// In en, this message translates to:
+  /// **'Pull cloud'**
+  String get onlineGallery_pullBlacklist;
+
+  /// No description provided for @onlineGallery_pullBlacklistTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh the Danbooru cloud blacklist without changing the local list'**
+  String get onlineGallery_pullBlacklistTooltip;
+
+  /// No description provided for @onlineGallery_pushBlacklist.
+  ///
+  /// In en, this message translates to:
+  /// **'Push to cloud'**
+  String get onlineGallery_pushBlacklist;
+
+  /// No description provided for @onlineGallery_pushBlacklistTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace the Danbooru cloud blacklist with the local list'**
+  String get onlineGallery_pushBlacklistTooltip;
+
+  /// No description provided for @onlineGallery_pushBlacklistConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace cloud with local?'**
+  String get onlineGallery_pushBlacklistConfirmTitle;
+
+  /// No description provided for @onlineGallery_pushBlacklistConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The Danbooru cloud blacklist will be completely replaced by your current local list. Make sure the local list is ready.'**
+  String get onlineGallery_pushBlacklistConfirmBody;
+
+  /// No description provided for @onlineGallery_blacklistPullSucceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Danbooru cloud blacklist refreshed'**
+  String get onlineGallery_blacklistPullSucceeded;
+
+  /// No description provided for @onlineGallery_blacklistPushSucceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud blacklist replaced with local list'**
+  String get onlineGallery_blacklistPushSucceeded;
+
+  /// No description provided for @onlineGallery_blacklistSyncFailedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Blacklist sync failed. Check your sign-in and network connection.'**
+  String get onlineGallery_blacklistSyncFailedMessage;
+
   /// No description provided for @onlineGallery_autoSyncOnStartup.
   ///
   /// In en, this message translates to:
-  /// **'Auto-sync on startup'**
+  /// **'Refresh cloud list on startup'**
   String get onlineGallery_autoSyncOnStartup;
 
   /// No description provided for @onlineGallery_autoSyncOnStartupSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Enabled by default; you can turn it off at any time'**
+  /// **'Refreshes only the cloud cache and never overwrites the local blacklist'**
   String get onlineGallery_autoSyncOnStartupSubtitle;
 
   /// No description provided for @onlineGallery_lastSyncFailed.
@@ -21021,6 +21118,18 @@ class _AppLocalizationsDelegate
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
+  // Lookup logic when language+script codes are specified.
+  switch (locale.languageCode) {
+    case 'zh':
+      {
+        switch (locale.scriptCode) {
+          case 'Hant':
+            return AppLocalizationsZhHant();
+        }
+        break;
+      }
+  }
+
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
     case 'en':

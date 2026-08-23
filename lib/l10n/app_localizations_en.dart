@@ -524,7 +524,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_language => 'Language';
 
   @override
-  String get settings_languageChinese => '中文';
+  String get settings_languageChinese => '简体中文';
+
+  @override
+  String get settings_languageTraditionalChinese => '繁體中文';
 
   @override
   String get settings_languageEnglish => 'English';
@@ -2769,7 +2772,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onlineGallery_blacklistSubtitle =>
-      'Images containing blacklisted tags will be hidden directly in the online gallery.';
+      'Choose the blacklist used to hide images. Local and Danbooru cloud lists remain independent.';
+
+  @override
+  String get onlineGallery_blacklistSourceLocal => 'Local';
+
+  @override
+  String get onlineGallery_blacklistSourceCloud => 'Danbooru Cloud';
+
+  @override
+  String get onlineGallery_blacklistLocalDescription =>
+      'Stored only on this device and works without signing in';
+
+  @override
+  String get onlineGallery_blacklistCloudDescription =>
+      'Use and edit the blacklist stored in your Danbooru account';
+
+  @override
+  String get onlineGallery_blacklistCloudLoginRequired =>
+      'Sign in to Danbooru to use the cloud blacklist';
 
   @override
   String get onlineGallery_addBlacklistTagHint => 'Add blacklist tag';
@@ -2778,11 +2799,48 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onlineGallery_noLocalBlacklistTags => 'No local blacklist tags';
 
   @override
-  String get onlineGallery_autoSyncOnStartup => 'Auto-sync on startup';
+  String get onlineGallery_noCloudBlacklistTags => 'No cloud blacklist tags';
+
+  @override
+  String get onlineGallery_pullBlacklist => 'Pull cloud';
+
+  @override
+  String get onlineGallery_pullBlacklistTooltip =>
+      'Refresh the Danbooru cloud blacklist without changing the local list';
+
+  @override
+  String get onlineGallery_pushBlacklist => 'Push to cloud';
+
+  @override
+  String get onlineGallery_pushBlacklistTooltip =>
+      'Replace the Danbooru cloud blacklist with the local list';
+
+  @override
+  String get onlineGallery_pushBlacklistConfirmTitle =>
+      'Replace cloud with local?';
+
+  @override
+  String get onlineGallery_pushBlacklistConfirmBody =>
+      'The Danbooru cloud blacklist will be completely replaced by your current local list. Make sure the local list is ready.';
+
+  @override
+  String get onlineGallery_blacklistPullSucceeded =>
+      'Danbooru cloud blacklist refreshed';
+
+  @override
+  String get onlineGallery_blacklistPushSucceeded =>
+      'Cloud blacklist replaced with local list';
+
+  @override
+  String get onlineGallery_blacklistSyncFailedMessage =>
+      'Blacklist sync failed. Check your sign-in and network connection.';
+
+  @override
+  String get onlineGallery_autoSyncOnStartup => 'Refresh cloud list on startup';
 
   @override
   String get onlineGallery_autoSyncOnStartupSubtitle =>
-      'Enabled by default; you can turn it off at any time';
+      'Refreshes only the cloud cache and never overwrites the local blacklist';
 
   @override
   String onlineGallery_lastSyncFailed(Object error) {

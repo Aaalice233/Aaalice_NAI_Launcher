@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/autocomplete/completion_models.dart';
+import 'package:nai_launcher/core/autocomplete/traditional_chinese_converter.dart';
 import 'package:nai_launcher/core/autocomplete/zh_dictionary_service.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -13,10 +15,17 @@ void main() {
   setUp(() async {
     sqfliteFfiInit();
     temp = await Directory.systemTemp.createTemp('zh_dictionary_test_');
-    service = ZhDictionaryService();
+    service = ZhDictionaryService(
+      applicationSupportDirectory: () async => temp,
+      traditionalChineseConverter: TraditionalChineseConverter(
+        loadString: (_) =>
+            File('assets/data/opencc/TSCharacters.txt').readAsString(),
+      ),
+    );
   });
 
   tearDown(() async {
+    await service.remove();
     service.dispose();
     if (await temp.exists()) await temp.delete(recursive: true);
   });
@@ -25,6 +34,33 @@ void main() {
     final file = _createDictionary('${temp.path}/valid.sqlite', rows: 1000);
 
     expect(await service.validateDatabaseFile(file.path), 1000);
+  });
+
+  test('searches the Simplified dictionary with Traditional input', () async {
+    final dictionaryDirectory = Directory(
+      p.join(temp.path, 'autocomplete', 'ffdkj'),
+    );
+    await dictionaryDirectory.create(recursive: true);
+    _createDictionary(
+      p.join(dictionaryDirectory.path, 'tag.sqlite'),
+      rows: 1000,
+    );
+
+    final results = await service.search(
+      const CompletionQuery(
+        fullText: '標籤',
+        cursorPosition: 2,
+        token: '標籤',
+        replacementRange: TextReplacementRange(start: 0, end: 2),
+        existingTags: {},
+        limit: 20,
+        locale: 'zh_Hant',
+      ),
+    );
+
+    expect(results, isNotEmpty);
+    expect(results.first.canonicalTag, 'tag_0');
+    expect(results.first.translation, '标签0');
   });
 
   test('rejects a corrupt SQLite file', () async {

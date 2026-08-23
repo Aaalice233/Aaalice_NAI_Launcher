@@ -274,6 +274,8 @@ class StorageKeys {
       'online_gallery_remote_blacklist_tags';
   static const String onlineGalleryBlacklistAutoSync =
       'online_gallery_blacklist_auto_sync';
+  static const String onlineGalleryBlacklistSource =
+      'online_gallery_blacklist_source';
   static const String onlineGalleryBlacklistLastSyncAt =
       'online_gallery_blacklist_last_sync_at';
   static const String onlineGalleryBlacklistLastSyncError =
@@ -282,6 +284,8 @@ class StorageKeys {
       'online_gallery_prompt_tag_categories';
   static const String onlineGalleryOutputFilterTags =
       'online_gallery_output_filter_tags';
+  static const String onlineGalleryBrowsingSessionV1 =
+      'online_gallery_browsing_session_v1';
 
   // ComfyUI 设置
   static const String comfyuiEnabled = 'comfyui_enabled';

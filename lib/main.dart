@@ -19,6 +19,7 @@ import 'l10n/app_localizations_ja.dart';
 import 'l10n/app_localizations_zh.dart';
 import 'core/services/desktop_app_shutdown_service.dart';
 import 'core/utils/app_error_reporter.dart';
+import 'core/utils/app_locale.dart';
 import 'core/utils/fatal_diagnostics.dart';
 import 'core/utils/app_logger.dart';
 import 'core/utils/hive_startup_box_opener.dart';
@@ -46,11 +47,13 @@ import 'presentation/screens/splash/app_bootstrap.dart';
 AppLocalizations _getLocalizedStrings() {
   final box = Hive.box(StorageKeys.settingsBox);
   final localeCode = box.get(StorageKeys.locale, defaultValue: 'zh') as String;
-  switch (localeCode) {
+  switch (appLocaleCode(appLocaleFromCode(localeCode))) {
     case 'en':
       return AppLocalizationsEn();
     case 'ja':
       return AppLocalizationsJa();
+    case traditionalChineseLocaleCode:
+      return AppLocalizationsZhHant();
     default:
       return AppLocalizationsZh();
   }
@@ -543,6 +546,7 @@ Future<void> _bootstrapApplication() async {
   // Timeago 本地化配置
   timeago.setLocaleMessages('zh', timeago.ZhCnMessages());
   timeago.setLocaleMessages('zh_CN', timeago.ZhCnMessages());
+  timeago.setLocaleMessages('zh_Hant', timeago.ZhMessages());
   timeago.setLocaleMessages('ja', timeago.JaMessages());
 
   final desktopWindow = await desktopWindowFuture;
