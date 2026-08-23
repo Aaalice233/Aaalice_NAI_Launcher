@@ -17,6 +17,7 @@ import '../../utils/clipboard_image.dart';
 import '../common/app_toast.dart';
 import '../common/floating_action_buttons.dart';
 import 'local_image_context_menu.dart';
+import 'local_image_hover_preview.dart';
 
 enum _ImageLoadState { idle, loading, loaded, error }
 
@@ -373,11 +374,14 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D>
       cardContent = widget.dragWrapper!(cardContent);
     }
 
-    return MouseRegion(
-      onEnter: _onHoverEnter,
-      onExit: _onHoverExit,
-      cursor: SystemMouseCursors.click,
-      child: cardContent,
+    return LocalImageHoverPreview(
+      record: widget.record,
+      child: MouseRegion(
+        onEnter: _onHoverEnter,
+        onExit: _onHoverExit,
+        cursor: SystemMouseCursors.click,
+        child: cardContent,
+      ),
     );
   }
 
