@@ -222,7 +222,9 @@ class _GalleryGridState extends State<GalleryGrid> {
                   priority: priority,
                   enableDrag: widget.enableDrag,
                   onTap: () => widget.onTap?.call(record, index),
-                  onDoubleTap: () => widget.onDoubleTap?.call(record, index),
+                  onDoubleTap: widget.onDoubleTap == null
+                      ? null
+                      : () => widget.onDoubleTap!(record, index),
                   onLongPress: () => widget.onLongPress?.call(record, index),
                   onSecondaryTapDown: (details) =>
                       widget.onSecondaryTapDown?.call(record, index, details),

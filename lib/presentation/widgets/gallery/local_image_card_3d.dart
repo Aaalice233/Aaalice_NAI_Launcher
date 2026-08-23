@@ -9,11 +9,9 @@ import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
-import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/services/thumbnail_service.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../utils/clipboard_image.dart';
-import '../../utils/local_gallery_metadata_resolver.dart';
 import '../common/app_toast.dart';
 import '../common/card_action_buttons.dart';
 import 'local_image_context_menu.dart';
@@ -74,25 +72,16 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
   bool _isLoadingThumbnail = false;
   bool _isCopyingImage = false;
   bool _suppressCardTap = false;
-  NaiImageMetadata? _hoverMetadata;
-  bool _isResolvingHoverMetadata = false;
-  bool _didResolveHoverMetadata = false;
 
   @override
   void initState() {
     super.initState();
-    _hoverMetadata = widget.record.metadata?.upgradeFromRawJsonIfNeeded();
     _initAndLoadThumbnail();
   }
 
   @override
   void didUpdateWidget(LocalImageCard3D oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.record.path != widget.record.path) {
-      _hoverMetadata = widget.record.metadata?.upgradeFromRawJsonIfNeeded();
-      _isResolvingHoverMetadata = false;
-      _didResolveHoverMetadata = false;
-    }
     if (oldWidget.priority != widget.priority ||
         (oldWidget.isVisible != widget.isVisible && widget.isVisible)) {
       if (_thumbnailPath == null && !_isLoadingThumbnail) {
@@ -188,21 +177,6 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
 
   void _onHoverEnter(PointerEvent event) {
     setState(() => _isHovered = true);
-    unawaited(_resolveHoverMetadata());
-  }
-
-  Future<void> _resolveHoverMetadata() async {
-    if (_isResolvingHoverMetadata || _didResolveHoverMetadata) return;
-    _isResolvingHoverMetadata = true;
-    final path = widget.record.path;
-    final metadata = await resolveLocalGalleryMetadata(widget.record);
-    if (!mounted || widget.record.path != path) return;
-
-    setState(() {
-      _hoverMetadata = metadata;
-      _isResolvingHoverMetadata = false;
-      _didResolveHoverMetadata = true;
-    });
   }
 
   void _onHoverExit(PointerEvent event) {
@@ -355,13 +329,6 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
                     ),
                   ),
                 ),
-              if (_isHovered && _hoverMetadata != null)
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: _buildMetadataPreview(theme, _hoverMetadata!),
-                ),
             ],
           ),
         ),
@@ -506,6 +473,9 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     return Listener(
       behavior: HitTestBehavior.opaque,
       onPointerDown: (_) => _suppressCardTap = true,
+      onPointerUp: (_) {
+        scheduleMicrotask(() => _suppressCardTap = false);
+      },
       onPointerCancel: (_) => _suppressCardTap = false,
       child: CardActionButtons(
         visible: _isHovered,
@@ -598,66 +568,6 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
           ],
         ),
         child: Icon(Icons.check, color: colorScheme.onPrimary, size: 18),
-      ),
-    );
-  }
-
-  Widget _buildMetadataPreview(ThemeData theme, NaiImageMetadata metadata) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.bottomCenter,
-          end: Alignment.topCenter,
-          colors: [
-            Colors.black.withValues(alpha: 0.85),
-            Colors.black.withValues(alpha: 0.4),
-            Colors.transparent,
-          ],
-          stops: const [0.0, 0.6, 1.0],
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (metadata.effectiveModel != null)
-            Text(
-              metadata.effectiveModel!,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          const SizedBox(height: 2),
-          Wrap(
-            spacing: 4,
-            runSpacing: 2,
-            children: [
-              if (metadata.seed != null)
-                _buildMetadataChip('Seed: ${metadata.seed}'),
-              if (metadata.steps != null)
-                _buildMetadataChip('${metadata.steps} steps'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMetadataChip(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(color: Colors.white, fontSize: 10),
       ),
     );
   }

@@ -26,12 +26,13 @@ import 'gallery_state_views.dart';
 import 'local_image_context_menu.dart';
 
 /// 画廊项目构建函数类型
-typedef GalleryItemBuilder<T> = Widget Function(
-  BuildContext context,
-  T item,
-  int index,
-  GalleryItemConfig config,
-);
+typedef GalleryItemBuilder<T> =
+    Widget Function(
+      BuildContext context,
+      T item,
+      int index,
+      GalleryItemConfig config,
+    );
 
 /// 画廊项目配置
 class GalleryItemConfig {
@@ -424,16 +425,11 @@ class _GenericGalleryContentViewState<T>
           );
         }
       },
-      onDoubleTap: (record, index) {
-        if (widget.onDoubleTap != null) {
-          widget.onDoubleTap!(state.currentImages[index], index);
-        } else if (widget.view3DConfig != null) {
-          widget.view3DConfig!.showDetailViewer(
-            widget.view3DConfig!.images,
-            index,
-          );
-        }
-      },
+      onDoubleTap: widget.onDoubleTap == null
+          ? null
+          : (record, index) {
+              widget.onDoubleTap!(state.currentImages[index], index);
+            },
       onLongPress: (record, index) {
         if (!selectionState.isActive) {
           widget.onEnterSelection?.call(state.currentImages[index]);
@@ -561,6 +557,31 @@ class LocalGalleryContentView extends ConsumerWidget {
         return image?.isFavorite ?? false;
       }
 
+      final supportsPagedLoading =
+          !state.isGroupedView &&
+          images.length == state.currentImages.length &&
+          images.indexed.every(
+            (entry) => entry.$2.path == state.currentImages[entry.$1].path,
+          );
+
+      Future<List<ImageDetailData>> loadDetailPage(int page) async {
+        final notifier = ref.read(localGalleryNotifierProvider.notifier);
+        final latestState = ref.read(localGalleryNotifierProvider);
+        final service = await notifier.getService();
+        final records = await service.getPage(
+          page,
+          pageSize: latestState.pageSize,
+        );
+        return records
+            .map(
+              (record) => LocalImageDetailData(
+                record,
+                getFavoriteStatus: getFavoriteStatus,
+              ),
+            )
+            .toList();
+      }
+
       ImageDetailOpener.showMultipleImmediate(
         context,
         images: images
@@ -572,10 +593,19 @@ class LocalGalleryContentView extends ConsumerWidget {
         initialIndex: initialIndex,
         showMetadataPanel: true,
         showThumbnails: images.length > 1,
+        initialPage: supportsPagedLoading ? state.currentPage : 0,
+        totalPages: supportsPagedLoading ? state.totalPages : 1,
+        initialImageOffset: supportsPagedLoading
+            ? state.currentPage * state.pageSize
+            : 0,
+        totalImageCount: supportsPagedLoading
+            ? (state.hasFilters ? state.filteredCount : state.totalCount)
+            : images.length,
+        pageLoader: supportsPagedLoading ? loadDetailPage : null,
         callbacks: ImageDetailCallbacks(
           onReuseMetadata: onReuseMetadata != null
               ? (data, _) =>
-                  onReuseMetadata?.call((data as LocalImageDetailData).record)
+                    onReuseMetadata?.call((data as LocalImageDetailData).record)
               : null,
           onFavoriteToggle: (data) => ref
               .read(localGalleryNotifierProvider.notifier)
@@ -596,7 +626,9 @@ class LocalGalleryContentView extends ConsumerWidget {
           },
           onSendToReversePrompt: (data) async {
             try {
-              await ref.read(reversePromptProvider.notifier).addImage(
+              await ref
+                  .read(reversePromptProvider.notifier)
+                  .addImage(
                     await data.getImageBytes(),
                     name: data.fileInfo?.fileName ?? 'gallery-image',
                   );
