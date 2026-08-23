@@ -6,11 +6,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
+import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_params_notifier.dart';
 import 'package:nai_launcher/presentation/providers/generation/reference_panel_notifier.dart';
+import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -55,6 +57,9 @@ void main() {
         ),
         vibeLibraryStorageServiceProvider.overrideWithValue(
           _FakeVibeLibraryStorageService(),
+        ),
+        subscriptionNotifierProvider.overrideWith(
+          _TestSubscriptionNotifier.new,
         ),
       ],
     );
@@ -126,6 +131,18 @@ void main() {
   });
 }
 
+class _TestSubscriptionNotifier extends SubscriptionNotifier {
+  @override
+  SubscriptionState build() {
+    return const SubscriptionState.loaded(
+      UserSubscription(tier: 1, active: true),
+    );
+  }
+
+  @override
+  void schedulePostBillingRefresh({Duration delay = Duration.zero}) {}
+}
+
 class _FakeEnhancementApiService extends NAIImageEnhancementApiService {
   _FakeEnhancementApiService() : super(Dio());
 
@@ -149,6 +166,13 @@ class _FakeVibeLibraryStorageService extends VibeLibraryStorageService {
 
   @override
   Future<List<VibeLibraryEntry>> getRecentEntries({int limit = 20}) async {
+    return [];
+  }
+
+  @override
+  Future<List<VibeLibraryEntry>> getRecentDisplayEntries({
+    int limit = 20,
+  }) async {
     return [];
   }
 
