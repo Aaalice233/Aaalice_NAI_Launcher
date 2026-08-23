@@ -6787,7 +6787,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get queue_size => '尺寸';
 
   @override
-  String get queue_addToQueue => '加入队列';
+  String get queue_addCurrentTask => '加入当前任务';
 
   @override
   String get queue_taskAdded => '已加入队列';
@@ -18413,7 +18413,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get queue_size => '尺寸';
 
   @override
-  String get queue_addToQueue => '加入佇列';
+  String get queue_addCurrentTask => '加入目前任務';
 
   @override
   String get queue_taskAdded => '已加入佇列';

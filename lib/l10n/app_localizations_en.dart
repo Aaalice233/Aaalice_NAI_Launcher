@@ -7047,7 +7047,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get queue_size => 'Size';
 
   @override
-  String get queue_addToQueue => 'Add to Queue';
+  String get queue_addCurrentTask => 'Add Current Task';
 
   @override
   String get queue_taskAdded => 'Added to queue';

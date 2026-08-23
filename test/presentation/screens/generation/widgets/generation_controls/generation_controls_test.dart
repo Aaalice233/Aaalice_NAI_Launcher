@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -65,6 +66,15 @@ void main() {
       isTrue,
     );
     expect(find.text('自动保存'), findsOneWidget);
+    expect(find.byIcon(Icons.playlist_add), findsNothing);
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(find.text('生成')));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byIcon(Icons.playlist_add), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

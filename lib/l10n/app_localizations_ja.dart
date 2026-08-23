@@ -6887,7 +6887,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get queue_size => 'サイズ';
 
   @override
-  String get queue_addToQueue => 'キューに追加';
+  String get queue_addCurrentTask => '現在のタスクを追加';
 
   @override
   String get queue_taskAdded => 'キューに追加されました';

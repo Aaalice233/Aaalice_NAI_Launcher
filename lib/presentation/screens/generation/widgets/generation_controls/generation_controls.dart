@@ -4,17 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:nai_launcher/core/utils/localization_extension.dart';
-import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/krita/krita_bridge_notifier.dart';
-import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
 import 'package:nai_launcher/presentation/utils/asset_protection_guard.dart';
 import 'package:nai_launcher/presentation/widgets/common/app_toast.dart';
 import 'package:nai_launcher/presentation/widgets/common/draggable_number_input.dart';
 import 'package:nai_launcher/presentation/widgets/generation/auto_save_toggle_chip.dart';
 import 'package:nai_launcher/presentation/widgets/anlas/anlas_balance_chip.dart';
 import 'package:nai_launcher/presentation/widgets/anlas/opus_usage_chip.dart';
-import 'add_to_queue_button.dart';
 import 'batch_settings_button.dart';
 import 'generate_button.dart';
 import 'random_mode_toggle.dart';
@@ -32,8 +29,6 @@ class GenerationControls extends ConsumerStatefulWidget {
 }
 
 class _GenerationControlsState extends ConsumerState<GenerationControls> {
-  bool _showAddToQueueButton = false;
-
   @override
   Widget build(BuildContext context) {
     final generationState = ref.watch(imageGenerationNotifierProvider);
@@ -60,15 +55,18 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
 
         // 生成按钮几何居中：左右两个等宽弹性区吸收其余控件，
         // 按钮位置不随随机工具等元素的显隐漂移
-        final generateButton = _buildGenerateButtonWithHover(
-          context: context,
-          ref: ref,
+        final generateButton = GenerateButtonWithCost(
+          height: widget.compact ? 40 : 48,
           isGenerating: isGenerating,
           showCancel: showCancel,
           generationState: generationState,
           cooldownRemainingSeconds: cooldownState.remainingSeconds,
-          randomMode: randomMode,
-          showAddToQueueAction: true,
+          onGenerate: () => unawaited(_handleGenerate(context, ref)),
+          onCancel: () =>
+              ref.read(imageGenerationNotifierProvider.notifier).cancel(),
+          onSkipCurrent: () => ref
+              .read(imageGenerationNotifierProvider.notifier)
+              .skipCurrentRequest(),
         );
 
         if (isNarrow) {
@@ -234,93 +232,6 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
         );
       },
     );
-  }
-
-  /// 构建带有hover显示"加入队列"功能的生成按钮
-  Widget _buildGenerateButtonWithHover({
-    required BuildContext context,
-    required WidgetRef ref,
-    required bool isGenerating,
-    required bool showCancel,
-    required ImageGenerationState generationState,
-    required int cooldownRemainingSeconds,
-    required bool randomMode,
-    required bool showAddToQueueAction,
-  }) {
-    // 使用 Row + AnimatedSize 让“加入队列”按钮在布局内滑出
-    return MouseRegion(
-      onEnter: (_) {
-        if (!_showAddToQueueButton && showAddToQueueAction) {
-          setState(() {
-            _showAddToQueueButton = true;
-          });
-        }
-      },
-      onExit: (_) {
-        setState(() {
-          _showAddToQueueButton = false;
-        });
-      },
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Hover 时在生成按钮左侧显示加入队列入口。
-          AnimatedSize(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-            alignment: Alignment.centerRight,
-            child: showAddToQueueAction && _showAddToQueueButton
-                ? Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: AddToQueueIconButton(
-                      onPressed: () =>
-                          unawaited(_handleAddToQueue(context, ref)),
-                    ),
-                  )
-                : const SizedBox.shrink(),
-          ),
-          // 生图按钮（始终显示）
-          GenerateButtonWithCost(
-            height: widget.compact ? 40 : 48,
-            isGenerating: isGenerating,
-            showCancel: showCancel,
-            generationState: generationState,
-            cooldownRemainingSeconds: cooldownRemainingSeconds,
-            onGenerate: () => unawaited(_handleGenerate(context, ref)),
-            onCancel: () =>
-                ref.read(imageGenerationNotifierProvider.notifier).cancel(),
-            onSkipCurrent: () => ref
-                .read(imageGenerationNotifierProvider.notifier)
-                .skipCurrentRequest(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _handleAddToQueue(BuildContext context, WidgetRef ref) async {
-    final params = ref.read(generationParamsNotifierProvider);
-    if (ref.read(kritaBridgeNotifierProvider).isBridgeGenerating) {
-      AppToast.warning(context, context.l10n.toast_kritaBusy);
-      return;
-    }
-    if (params.prompt.isEmpty) {
-      AppToast.warning(context, context.l10n.generation_pleaseInputPrompt);
-      return;
-    }
-
-    // 创建任务并添加到队列
-    final task = ReplicationTask.create(prompt: params.prompt);
-
-    final added = await ref
-        .read(replicationQueueNotifierProvider.notifier)
-        .add(task);
-    if (!context.mounted) return;
-    if (added) {
-      AppToast.success(context, context.l10n.queue_taskAdded);
-    } else {
-      AppToast.warning(context, context.l10n.onlineGallery_queueFullMax);
-    }
   }
 
   Future<void> _handleGenerate(BuildContext context, WidgetRef ref) async {

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'package:nai_launcher/data/models/queue/replication_task.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 
+import '../../providers/image_generation_provider.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
+import '../common/app_toast.dart';
 import 'execution_stats_panel.dart';
 import 'task_list_item.dart';
 import 'task_edit_dialog.dart';
@@ -43,6 +46,9 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
     final theme = Theme.of(context);
     final queueState = ref.watch(replicationQueueNotifierProvider);
     final executionState = ref.watch(queueExecutionNotifierProvider);
+    final currentPrompt = ref.watch(
+      generationParamsNotifierProvider.select((params) => params.prompt),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -93,6 +99,22 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
         children: [
           // 紧凑统计面板
           ExecutionStatsPanel(onQueueStarted: widget.onQueueStarted),
+
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonalIcon(
+                key: const Key('queue-add-current-task'),
+                onPressed: currentPrompt.trim().isEmpty || queueState.isFull
+                    ? null
+                    : _addCurrentTask,
+                icon: const Icon(Icons.playlist_add_rounded, size: 19),
+                label: Text(l10n.queue_addCurrentTask),
+                style: FilledButton.styleFrom(minimumSize: const Size(0, 42)),
+              ),
+            ),
+          ),
 
           // 批量操作栏
           AnimatedSize(
@@ -505,6 +527,26 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
         ],
       ),
     );
+  }
+
+  Future<void> _addCurrentTask() async {
+    final prompt = ref.read(generationParamsNotifierProvider).prompt.trim();
+    if (prompt.isEmpty) {
+      AppToast.warning(context, context.l10n.generation_pleaseInputPrompt);
+      return;
+    }
+
+    final added = await ref
+        .read(replicationQueueNotifierProvider.notifier)
+        .add(ReplicationTask.create(prompt: prompt));
+    if (!mounted) return;
+    if (!added) {
+      AppToast.warning(context, context.l10n.onlineGallery_queueFullMax);
+      return;
+    }
+
+    _tabController.animateTo(0);
+    AppToast.success(context, context.l10n.queue_taskAdded);
   }
 
   void _showTaskDetails(task) {

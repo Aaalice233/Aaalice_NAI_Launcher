@@ -3329,7 +3329,7 @@
   "queue_steps": "步數",
   "queue_cfg": "CFG",
   "queue_size": "尺寸",
-  "queue_addToQueue": "加入佇列",
+  "queue_addCurrentTask": "加入目前任務",
   "queue_taskAdded": "已加入佇列",
   "queue_negativePromptFromMain": "負向提示詞將使用主介面設定",
   "queue_pinToTop": "置頂",

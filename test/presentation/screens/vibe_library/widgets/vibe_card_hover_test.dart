@@ -12,7 +12,15 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_card.dart';
 
 void main() {
-  test('悬浮大图尺寸按比例适配并保留可读的信息栏宽度', () {
+  test('悬浮大图按比例适配且不会随高窗口无限增高', () {
+    expect(
+      computeVibeHoverPreviewBounds(const Size(700, 520)),
+      const Size(380, 500),
+    );
+    expect(
+      computeVibeHoverPreviewBounds(const Size(1200, 1000)),
+      const Size(380, 680),
+    );
     expect(
       computeVibeHoverImageSize(aspectRatio: 2, maxWidth: 380, maxHeight: 500),
       const Size(380, 190),

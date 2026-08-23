@@ -12546,11 +12546,11 @@ abstract class AppLocalizations {
   /// **'Size'**
   String get queue_size;
 
-  /// No description provided for @queue_addToQueue.
+  /// No description provided for @queue_addCurrentTask.
   ///
   /// In en, this message translates to:
-  /// **'Add to Queue'**
-  String get queue_addToQueue;
+  /// **'Add Current Task'**
+  String get queue_addCurrentTask;
 
   /// No description provided for @queue_taskAdded.
   ///

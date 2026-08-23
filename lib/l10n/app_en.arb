@@ -3348,7 +3348,7 @@
   "queue_steps": "Steps",
   "queue_cfg": "CFG",
   "queue_size": "Size",
-  "queue_addToQueue": "Add to Queue",
+  "queue_addCurrentTask": "Add Current Task",
   "queue_taskAdded": "Added to queue",
   "queue_negativePromptFromMain": "Undesired Content will use main page settings",
 

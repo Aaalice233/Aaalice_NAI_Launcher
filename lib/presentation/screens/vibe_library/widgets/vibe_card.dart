@@ -151,10 +151,7 @@ class _VibeCardState extends ConsumerState<VibeCard>
     final renderObject = context.findRenderObject();
     if (renderObject is! RenderBox || !renderObject.hasSize) return;
     final viewport = MediaQuery.sizeOf(context);
-    final previewSize = Size(
-      math.min(380.0, math.max(0.0, viewport.width - 20)),
-      math.max(0.0, viewport.height - 20),
-    );
+    final previewSize = computeVibeHoverPreviewBounds(viewport);
     if (previewSize.isEmpty) return;
 
     _hoverDetailFuture ??= ref
@@ -1026,6 +1023,14 @@ class _VibeHoverPreviewContentState extends State<_VibeHoverPreviewContent> {
       ),
     );
   }
+}
+
+@visibleForTesting
+Size computeVibeHoverPreviewBounds(Size viewport) {
+  return Size(
+    math.min(380.0, math.max(0.0, viewport.width - 20)),
+    math.min(680.0, math.max(0.0, viewport.height - 20)),
+  );
 }
 
 @visibleForTesting

@@ -3287,7 +3287,7 @@
   "queue_steps": "ステップ",
   "queue_cfg": "CFG",
   "queue_size": "サイズ",
-  "queue_addToQueue": "キューに追加",
+  "queue_addCurrentTask": "現在のタスクを追加",
   "queue_taskAdded": "キューに追加されました",
   "queue_negativePromptFromMain": "除外したい要素にはメインページの設定が使用されます",
   "queue_pinToTop": "トップに固定する",

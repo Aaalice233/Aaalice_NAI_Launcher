@@ -3,13 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 /// Toast 类型
-enum ToastType {
-  success,
-  error,
-  warning,
-  info,
-  progress,
-}
+enum ToastType { success, error, warning, info, progress }
 
 /// Toast 控制器接口，用于控制持久化 Toast（如进度条）
 abstract class ToastController {
@@ -285,10 +279,7 @@ class AppToast {
             Icon(icon, color: Colors.white, size: 20),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(color: Colors.white),
-              ),
+              child: Text(message, style: const TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -345,22 +336,12 @@ class _SingleToastWidgetState extends State<_SingleToastWidget>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(1.0, 0.0),
       end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOutCubic,
-      ),
-    );
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOut,
-      ),
-    );
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
     _controller.forward();
 
@@ -411,7 +392,7 @@ class _SingleToastWidgetState extends State<_SingleToastWidget>
                 ],
               ),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Icon(icon, color: Colors.white, size: 20),
                   const SizedBox(width: 12),
@@ -431,11 +412,7 @@ class _SingleToastWidgetState extends State<_SingleToastWidget>
                     borderRadius: BorderRadius.circular(12),
                     child: const Padding(
                       padding: EdgeInsets.all(4),
-                      child: Icon(
-                        Icons.close,
-                        size: 18,
-                        color: Colors.white70,
-                      ),
+                      child: Icon(Icons.close, size: 18, color: Colors.white70),
                     ),
                   ),
                 ],
@@ -495,22 +472,12 @@ class _ProgressToastWidgetState extends State<_ProgressToastWidget>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(1.0, 0.0),
       end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOutCubic,
-      ),
-    );
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOut,
-      ),
-    );
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
     _controller.forward();
 

@@ -3322,7 +3322,7 @@
   "queue_steps": "步数",
   "queue_cfg": "CFG",
   "queue_size": "尺寸",
-  "queue_addToQueue": "加入队列",
+  "queue_addCurrentTask": "加入当前任务",
   "queue_taskAdded": "已加入队列",
   "queue_negativePromptFromMain": "负向提示词将使用主界面设置",
 
