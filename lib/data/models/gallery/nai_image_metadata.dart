@@ -1394,6 +1394,15 @@ class NaiImageMetadata with _$NaiImageMetadata {
       vibeReferences.isNotEmpty ||
       preciseReferenceImages.isNotEmpty;
 
+  /// 是否记录了透明背景自动提示词。
+  bool get hasRecordedTransparentBackgroundTag =>
+      transparentBackground == true &&
+      prompt.split(',').any(
+            (tag) =>
+                tag.trim().toLowerCase() ==
+                QualityTags.transparentBackgroundTag.toLowerCase(),
+          );
+
   /// 是否有角色提示词
   bool get hasCharacters => characterPrompts.isNotEmpty;
 
@@ -1444,57 +1453,100 @@ class NaiImageMetadata with _$NaiImageMetadata {
 
   /// 获取主提示词（不含固定词和质量词）
   String get mainPrompt {
-    if (!hasSeparatedFields) {
-      // 旧数据：返回原始prompt
-      return prompt;
+    if (!hasSeparatedFields) return prompt;
+
+    final mainTags = _splitPromptSegments(prompt);
+    _removeLeadingSegments(mainTags, _splitPromptEntries(fixedPrefixTags));
+    _removeTrailingSegments(mainTags, _splitPromptEntries(qualityTags));
+    if (hasRecordedTransparentBackgroundTag) {
+      _removeTrailingSegments(mainTags, const [
+        QualityTags.transparentBackgroundTag,
+      ]);
     }
-
-    final allTags = prompt
-        .split(',')
-        .map((t) => t.trim())
-        .where((t) => t.isNotEmpty)
-        .toList();
-    final mainTags = <String>[];
-
-    // 跳过前缀词
-    var startIndex = fixedPrefixTags.length;
-
-    // 跳过后缀词和质量词
-    var endIndex = allTags.length - fixedSuffixTags.length - qualityTags.length;
-
-    // 确保索引有效
-    startIndex = startIndex.clamp(0, allTags.length);
-    endIndex = endIndex.clamp(startIndex, allTags.length);
-
-    if (startIndex < endIndex) {
-      mainTags.addAll(allTags.sublist(startIndex, endIndex));
-    }
-
-    // 官网把透明背景词包装进质量预设。只剥离主提示词末尾的自动词，避免
-    // 删除用户在正文其他位置主动写入的同名描述。
-    if (transparentBackground == true &&
-        mainTags.isNotEmpty &&
-        mainTags.last.toLowerCase() ==
-            QualityTags.transparentBackgroundTag.toLowerCase()) {
-      mainTags.removeLast();
-    }
-
+    _removeTrailingSegments(mainTags, _splitPromptEntries(fixedSuffixTags));
     return mainTags.join(', ');
+  }
+
+  /// 获取不含固定词、但保留质量词和用户正文的正向提示词。
+  String get promptWithoutFixedTags => buildPositivePromptSelection(
+        includeMainPrompt: true,
+        includeCharacterPrompts: false,
+        includeQualityTags: true,
+        includeFixedTags: false,
+      );
+
+  /// 获取不含固定词的负向提示词。
+  String get negativePromptWithoutFixedTags {
+    var result = negativePrompt.trim();
+    for (final tag in fixedNegativePrefixTags) {
+      result = _stripLeadingPromptSegment(result, tag);
+    }
+    for (final tag in fixedNegativeSuffixTags.reversed) {
+      result = _stripTrailingPromptSegment(result, tag);
+    }
+    return result;
   }
 
   /// 获取完整的提示词（包含角色提示词）
   /// 格式：主提示词\n\n| 角色1提示词\n\n| 角色2提示词
-  String get fullPrompt {
-    if (!hasCharacters) return prompt;
+  String get fullPrompt => _appendCharacterPrompts(prompt);
 
-    final buffer = StringBuffer(prompt);
-    for (var i = 0; i < characterPrompts.length; i++) {
-      if (characterPrompts[i].isNotEmpty) {
-        buffer.writeln();
-        buffer.writeln();
-        buffer.write('| ');
-        buffer.write(characterPrompts[i]);
+  /// 获取不含固定词、但保留角色提示词的完整正向提示词。
+  String get fullPromptWithoutFixedTags => buildPositivePromptSelection(
+        includeMainPrompt: true,
+        includeCharacterPrompts: true,
+        includeQualityTags: true,
+        includeFixedTags: false,
+      );
+
+  /// 按详情页复制对话框选择的类别重新组合正向提示词。
+  String buildPositivePromptSelection({
+    required bool includeMainPrompt,
+    required bool includeCharacterPrompts,
+    required bool includeQualityTags,
+    required bool includeFixedTags,
+  }) {
+    final tags = <String>[];
+    if (includeFixedTags) tags.addAll(fixedPrefixTags);
+
+    final body = hasSeparatedFields ? mainPrompt : prompt.trim();
+    if (includeMainPrompt && body.isNotEmpty) tags.add(body);
+
+    if (includeFixedTags) tags.addAll(fixedSuffixTags);
+    if (includeQualityTags) {
+      if (hasRecordedTransparentBackgroundTag &&
+          !qualityTags.any(
+            (tag) =>
+                tag.trim().toLowerCase() ==
+                QualityTags.transparentBackgroundTag.toLowerCase(),
+          )) {
+        tags.add(QualityTags.transparentBackgroundTag);
       }
+      tags.addAll(qualityTags);
+    }
+
+    var result = tags
+        .map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty)
+        .join(', ');
+    if (includeCharacterPrompts) {
+      result = _appendCharacterPrompts(result);
+    }
+    return result;
+  }
+
+  String _appendCharacterPrompts(String basePrompt) {
+    if (!hasCharacters) return basePrompt;
+
+    final buffer = StringBuffer(basePrompt);
+    for (final characterPrompt in characterPrompts) {
+      if (characterPrompt.isEmpty) continue;
+      if (buffer.isNotEmpty) {
+        buffer.writeln();
+        buffer.writeln();
+      }
+      buffer.write('| ');
+      buffer.write(characterPrompt);
     }
     return buffer.toString();
   }
@@ -1527,6 +1579,74 @@ class NaiImageMetadata with _$NaiImageMetadata {
         .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
         .join(' ');
   }
+}
+
+List<String> _splitPromptSegments(String text) => text
+    .split(',')
+    .map((tag) => tag.trim())
+    .where((tag) => tag.isNotEmpty)
+    .toList();
+
+List<String> _splitPromptEntries(List<String> entries) => entries
+    .expand(_splitPromptSegments)
+    .toList();
+
+void _removeLeadingSegments(List<String> source, List<String> expected) {
+  if (expected.isEmpty || source.length < expected.length) return;
+  for (var i = 0; i < expected.length; i++) {
+    if (source[i].toLowerCase() != expected[i].toLowerCase()) return;
+  }
+  source.removeRange(0, expected.length);
+}
+
+void _removeTrailingSegments(List<String> source, List<String> expected) {
+  if (expected.isEmpty || source.length < expected.length) return;
+  final offset = source.length - expected.length;
+  for (var i = 0; i < expected.length; i++) {
+    if (source[offset + i].toLowerCase() != expected[i].toLowerCase()) return;
+  }
+  source.removeRange(offset, source.length);
+}
+
+bool _hasTrailingPromptSegment(String text, String segment) {
+  final trimmedText = text.trim();
+  final trimmedSegment = segment.trim();
+  if (trimmedText == trimmedSegment) return true;
+  if (!trimmedText.endsWith(trimmedSegment)) return false;
+  final prefix = trimmedText.substring(
+    0,
+    trimmedText.length - trimmedSegment.length,
+  );
+  return prefix.trimRight().endsWith(',');
+}
+
+String _stripLeadingPromptSegment(String text, String segment) {
+  final trimmedText = text.trim();
+  final trimmedSegment = segment.trim();
+  if (trimmedText.isEmpty || trimmedSegment.isEmpty) return trimmedText;
+  if (trimmedText == trimmedSegment) return '';
+  if (!trimmedText.startsWith(trimmedSegment)) return trimmedText;
+
+  final rest = trimmedText.substring(trimmedSegment.length).trimLeft();
+  if (!rest.startsWith(',')) return trimmedText;
+  return rest.substring(1).trimLeft();
+}
+
+String _stripTrailingPromptSegment(String text, String segment) {
+  final trimmedText = text.trim();
+  final trimmedSegment = segment.trim();
+  if (trimmedText.isEmpty || trimmedSegment.isEmpty) return trimmedText;
+  if (trimmedText == trimmedSegment) return '';
+  if (!_hasTrailingPromptSegment(trimmedText, trimmedSegment)) {
+    return trimmedText;
+  }
+
+  final rest = trimmedText.substring(
+    0,
+    trimmedText.length - trimmedSegment.length,
+  );
+  final trimmedRest = rest.trimRight();
+  return trimmedRest.substring(0, trimmedRest.length - 1).trimRight();
 }
 
 class _PreciseReferenceMetadata {

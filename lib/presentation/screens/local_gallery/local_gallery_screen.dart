@@ -41,6 +41,7 @@ import '../../providers/selection_mode_provider.dart';
 import '../../widgets/bulk_metadata_edit_dialog.dart';
 import '../../widgets/collection_select_dialog.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/image_detail/components/prompt_copy_dialog.dart';
 import '../../widgets/common/pagination_bar.dart';
 import '../../utils/precise_ref_library_import_helper.dart';
 import '../../widgets/common/precise_reference_type_dialog.dart';
@@ -1269,12 +1270,17 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
         await _importImageMetadata(record);
       case LocalImageContextAction.copyPrompt:
         if (availableMetadata?.fullPrompt.isNotEmpty == true) {
-          await Clipboard.setData(
-            ClipboardData(text: availableMetadata!.fullPrompt),
+          final prompt = await PromptCopyDialog.show(
+            context,
+            metadata: availableMetadata!,
           );
+          if (prompt == null || !mounted) return;
+          await Clipboard.setData(ClipboardData(text: prompt));
           if (mounted) {
             AppToast.success(context, context.l10n.localGallery_promptCopied);
           }
+        } else if (mounted) {
+          AppToast.info(context, context.l10n.toast_imageHasNoMetadata);
         }
       case LocalImageContextAction.copySeed:
         if (availableMetadata?.seed != null) {
@@ -1306,33 +1312,19 @@ class _LocalGalleryScreenState extends ConsumerState<LocalGalleryScreen> {
   }
 
   Future<void> _confirmDeleteImage(LocalImageRecord record) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ThemedConfirmDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.l10n.common_confirmDelete),
-        content: Text(
-          context.l10n.localGallery_confirmDeleteImageContent(
-            path.basename(record.path),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(context.l10n.common_cancel),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            ),
-            child: Text(context.l10n.common_delete),
-          ),
-        ],
+      title: context.l10n.common_confirmDelete,
+      content: context.l10n.localGallery_confirmDeleteImageContent(
+        path.basename(record.path),
       ),
+      confirmText: context.l10n.common_delete,
+      cancelText: context.l10n.common_cancel,
+      type: ThemedConfirmDialogType.danger,
+      icon: Icons.delete_forever_outlined,
     );
 
-    if (confirmed == true && mounted) {
+    if (confirmed && mounted) {
       final protected = await AssetProtectionGuard.confirmDangerousAction(
         context: context,
         ref: ref,

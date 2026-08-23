@@ -5154,6 +5154,18 @@
       "label": {}
     }
   },
+  "detail_copyPromptTitle": "Copy Positive Prompt",
+  "detail_copyPromptDescription": "Select the prompt categories to copy. Fixed tags may contain private strings or personal markers, so review them before sharing.",
+  "detail_promptCategoryMain": "Subject prompt",
+  "detail_promptCategoryMainHint": "Subject, scene, and general descriptions",
+  "detail_promptCategoryCharacters": "Character prompts",
+  "detail_promptCategoryCharactersHint": "Prompts assigned to individual characters",
+  "detail_promptCategoryQuality": "Quality tags",
+  "detail_promptCategoryQualityHint": "Official quality preset and automatic transparent-background tag",
+  "detail_promptCategoryFixed": "Fixed tags",
+  "detail_promptCategoryFixedHint": "Fixed prefixes and suffixes that may contain private content",
+  "detail_promptCategoryUnavailable": "This category is not stored in the image",
+  "detail_copyPromptDefaultHint": "Subject and character prompts are selected by default; quality and fixed tags are excluded.",
   "detail_copyCharacterPrompt": "Copy Character Prompt",
   "detail_copyAllVibeData": "Copy all Vibe data",
   "detail_saveToVibeLibrary": "Save to Vibe Library",

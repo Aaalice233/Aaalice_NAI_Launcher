@@ -19,10 +19,12 @@ class PromptSection extends StatefulWidget {
   final bool initiallyExpanded;
   final bool showAddToLibrary;
   final VoidCallback? onAddToLibrary;
-  final Color? contentColor;
   final Color? borderColor;
   final bool showTranslation;
   final Widget? customContent;
+  final List<String> fixedTags;
+  final bool allTagsAreFixed;
+  final bool isNegative;
 
   const PromptSection({
     super.key,
@@ -33,10 +35,12 @@ class PromptSection extends StatefulWidget {
     this.initiallyExpanded = false,
     this.showAddToLibrary = false,
     this.onAddToLibrary,
-    this.contentColor,
     this.borderColor,
     this.showTranslation = true,
     this.customContent,
+    this.fixedTags = const [],
+    this.allTagsAreFixed = false,
+    this.isNegative = false,
   });
 
   @override
@@ -52,10 +56,13 @@ class _PromptSectionState extends State<PromptSection> {
     _isExpanded = widget.initiallyExpanded;
   }
 
-  void _copyContent() {
+  Future<void> _copyContent() async {
     if (widget.content.isEmpty) return;
-    Clipboard.setData(ClipboardData(text: widget.content));
-    AppToast.success(context, context.l10n.toast_copiedTitle(widget.title));
+
+    await Clipboard.setData(ClipboardData(text: widget.content));
+    if (mounted) {
+      AppToast.success(context, context.l10n.toast_copiedTitle(widget.title));
+    }
   }
 
   void _copyTag(String tag) {
@@ -110,8 +117,15 @@ class _PromptSectionState extends State<PromptSection> {
     ThemeData theme,
     bool hasContent,
   ) {
-    final primaryColor = hasContent
-        ? colorScheme.primary
+    final accentColor = widget.allTagsAreFixed
+        ? colorScheme.tertiary
+        : widget.isNegative
+        ? colorScheme.error
+        : colorScheme.primary;
+    final titleColor = hasContent
+        ? widget.isNegative
+              ? colorScheme.onSurface
+              : accentColor
         : colorScheme.onSurfaceVariant;
 
     return Row(
@@ -127,12 +141,16 @@ class _PromptSectionState extends State<PromptSection> {
                   : SystemMouseCursors.basic,
               child: Row(
                 children: [
-                  Icon(widget.icon, size: 16, color: primaryColor),
+                  Icon(
+                    widget.icon,
+                    size: 16,
+                    color: hasContent ? accentColor : titleColor,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     widget.title,
                     style: theme.textTheme.titleSmall?.copyWith(
-                      color: primaryColor,
+                      color: titleColor,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -144,16 +162,15 @@ class _PromptSectionState extends State<PromptSection> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: colorScheme.primaryContainer.withValues(
-                          alpha: 0.5,
-                        ),
+                        color: accentColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         '$_tagCount',
                         style: theme.textTheme.labelSmall?.copyWith(
-                          color: colorScheme.onPrimaryContainer,
+                          color: accentColor,
                           fontSize: 10,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -209,14 +226,16 @@ class _PromptSectionState extends State<PromptSection> {
     List<String> tags,
   ) {
     final borderColor =
-        widget.borderColor?.withValues(alpha: 0.2) ??
+        widget.borderColor?.withValues(alpha: widget.isNegative ? 0.28 : 0.2) ??
         colorScheme.outline.withValues(alpha: 0.1);
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        color: widget.isNegative
+            ? colorScheme.errorContainer.withValues(alpha: 0.10)
+            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: borderColor),
       ),
@@ -226,8 +245,10 @@ class _PromptSectionState extends State<PromptSection> {
               ? _TagChipGrid(
                   tags: tags,
                   onTagTap: _copyTag,
-                  contentColor: widget.contentColor,
                   showTranslation: widget.showTranslation,
+                  fixedTags: widget.fixedTags,
+                  allTagsAreFixed: widget.allTagsAreFixed,
+                  isNegative: widget.isNegative,
                 )
               : Text(
                   context.l10n.detail_noContent,
@@ -244,18 +265,28 @@ class _PromptSectionState extends State<PromptSection> {
 class _TagChipGrid extends StatelessWidget {
   final List<String> tags;
   final void Function(String) onTagTap;
-  final Color? contentColor;
   final bool showTranslation;
+  final List<String> fixedTags;
+  final bool allTagsAreFixed;
+  final bool isNegative;
 
   const _TagChipGrid({
     required this.tags,
     required this.onTagTap,
-    this.contentColor,
+    required this.fixedTags,
+    required this.allTagsAreFixed,
+    required this.isNegative,
     this.showTranslation = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    final normalizedFixedTags = fixedTags
+        .expand((entry) => entry.split(','))
+        .map((tag) => tag.trim().toLowerCase())
+        .where((tag) => tag.isNotEmpty)
+        .toSet();
+
     return Wrap(
       spacing: 6,
       runSpacing: 6,
@@ -264,8 +295,11 @@ class _TagChipGrid extends StatelessWidget {
             (tag) => _TranslatedTagChip(
               tag: tag,
               onTap: () => onTagTap(tag),
-              contentColor: contentColor,
               showTranslation: showTranslation,
+              isFixed:
+                  allTagsAreFixed ||
+                  normalizedFixedTags.contains(tag.trim().toLowerCase()),
+              isNegative: isNegative,
             ),
           )
           .toList(),
@@ -277,13 +311,15 @@ class _TagChipGrid extends StatelessWidget {
 class _TranslatedTagChip extends ConsumerStatefulWidget {
   final String tag;
   final VoidCallback onTap;
-  final Color? contentColor;
   final bool showTranslation;
+  final bool isFixed;
+  final bool isNegative;
 
   const _TranslatedTagChip({
     required this.tag,
     required this.onTap,
-    this.contentColor,
+    required this.isFixed,
+    required this.isNegative,
     this.showTranslation = true,
   });
 
@@ -357,12 +393,25 @@ class _TranslatedTagChipState extends ConsumerState<_TranslatedTagChip> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final bgColor = _isHovered
-        ? colorScheme.primary.withValues(alpha: 0.15)
+    final accent = widget.isFixed
+        ? colorScheme.tertiary
+        : widget.isNegative
+        ? colorScheme.error
+        : colorScheme.primary;
+    final bgColor = widget.isFixed
+        ? accent.withValues(alpha: _isHovered ? 0.24 : 0.16)
+        : widget.isNegative
+        ? colorScheme.onSurface.withValues(alpha: _isHovered ? 0.12 : 0.07)
+        : _isHovered
+        ? accent.withValues(alpha: 0.15)
         : colorScheme.surfaceContainerHighest;
-    final borderColor = _isHovered
-        ? colorScheme.primary.withValues(alpha: 0.3)
-        : colorScheme.outline.withValues(alpha: 0.15);
+    final borderColor = accent.withValues(
+      alpha: _isHovered
+          ? 0.42
+          : widget.isFixed
+          ? 0.30
+          : 0.18,
+    );
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -378,13 +427,27 @@ class _TranslatedTagChipState extends ConsumerState<_TranslatedTagChip> {
             borderRadius: BorderRadius.circular(6),
             border: Border.all(color: borderColor),
           ),
-          child: Text(
-            _displayText,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontSize: 11,
-              color: widget.contentColor ?? colorScheme.onSurface,
-              height: 1.3,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.isFixed) ...[
+                Icon(Icons.push_pin, size: 11, color: accent),
+                const SizedBox(width: 4),
+              ],
+              Flexible(
+                child: Text(
+                  _displayText,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontSize: 11,
+                    color: colorScheme.onSurface,
+                    fontWeight: widget.isFixed
+                        ? FontWeight.w600
+                        : FontWeight.w500,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -512,31 +575,49 @@ class CharacterPromptCard extends StatelessWidget {
         const SizedBox(height: 8),
         Divider(color: colorScheme.outline.withValues(alpha: 0.2), height: 1),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Icon(
-              Icons.block_outlined,
-              size: 12,
-              color: colorScheme.error.withValues(alpha: 0.7),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: colorScheme.errorContainer.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: colorScheme.error.withValues(alpha: 0.22),
             ),
-            const SizedBox(width: 4),
-            Text(
-              '${context.l10n.prompt_negativePrompt}:',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: colorScheme.error.withValues(alpha: 0.7),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.block_outlined,
+                    size: 13,
+                    color: colorScheme.error,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    '${context.l10n.prompt_negativePrompt}:',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: colorScheme.onSurface,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        SelectionCopyShortcuts(
-          child: SelectableText(
-            negativePrompt!,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontFamily: 'monospace',
-              height: 1.5,
-              color: colorScheme.error.withValues(alpha: 0.8),
-            ),
+              const SizedBox(height: 6),
+              SelectionCopyShortcuts(
+                child: SelectableText(
+                  negativePrompt!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontFamily: 'monospace',
+                    height: 1.55,
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],

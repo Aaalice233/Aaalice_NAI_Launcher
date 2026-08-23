@@ -4937,6 +4937,18 @@
       "label": {}
     }
   },
+  "detail_copyPromptTitle": "复制正面提示词",
+  "detail_copyPromptDescription": "勾选需要复制的提示词类别。固定词可能包含私密串或个人标记，请确认后再分享。",
+  "detail_promptCategoryMain": "主体提示词",
+  "detail_promptCategoryMainHint": "画面主体、场景和常规描述",
+  "detail_promptCategoryCharacters": "角色提示词",
+  "detail_promptCategoryCharactersHint": "多角色专用提示词",
+  "detail_promptCategoryQuality": "质量提示词",
+  "detail_promptCategoryQualityHint": "官方质量预设与透明背景自动词",
+  "detail_promptCategoryFixed": "固定词",
+  "detail_promptCategoryFixedHint": "固定前缀和后缀，可能包含私密内容",
+  "detail_promptCategoryUnavailable": "此图片未记录该类别",
+  "detail_copyPromptDefaultHint": "默认复制主体和角色提示词，不包含质量词与固定词。",
   "detail_copyCharacterPrompt": "复制角色提示词",
   "detail_copyAllVibeData": "复制全部 Vibe 数据",
   "detail_saveToVibeLibrary": "保存到 Vibe 库",

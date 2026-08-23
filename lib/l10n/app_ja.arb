@@ -5170,6 +5170,18 @@
       "label": {}
     }
   },
+  "detail_copyPromptTitle": "ポジティブプロンプトをコピー",
+  "detail_copyPromptDescription": "コピーするプロンプトのカテゴリを選択してください。固定タグには非公開文字列や個人用マーカーが含まれる場合があります。共有前に確認してください。",
+  "detail_promptCategoryMain": "主体プロンプト",
+  "detail_promptCategoryMainHint": "主体、シーン、一般的な説明",
+  "detail_promptCategoryCharacters": "キャラクタープロンプト",
+  "detail_promptCategoryCharactersHint": "各キャラクターに割り当てられたプロンプト",
+  "detail_promptCategoryQuality": "品質タグ",
+  "detail_promptCategoryQualityHint": "公式品質プリセットと透明背景の自動タグ",
+  "detail_promptCategoryFixed": "固定タグ",
+  "detail_promptCategoryFixedHint": "非公開内容を含む可能性がある固定の接頭・接尾タグ",
+  "detail_promptCategoryUnavailable": "このカテゴリは画像に記録されていません",
+  "detail_copyPromptDefaultHint": "主体とキャラクターは既定で選択され、品質タグと固定タグは除外されます。",
   "detail_copyCharacterPrompt": "キャラクタープロンプトをコピー",
   "detail_copyAllVibeData": "すべての Vibe データをコピーします",
   "detail_saveToVibeLibrary": "バイブライブラリに保存",

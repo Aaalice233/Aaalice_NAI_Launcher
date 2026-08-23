@@ -9860,6 +9860,43 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get detail_copyPromptTitle => '复制正面提示词';
+
+  @override
+  String get detail_copyPromptDescription =>
+      '勾选需要复制的提示词类别。固定词可能包含私密串或个人标记，请确认后再分享。';
+
+  @override
+  String get detail_promptCategoryMain => '主体提示词';
+
+  @override
+  String get detail_promptCategoryMainHint => '画面主体、场景和常规描述';
+
+  @override
+  String get detail_promptCategoryCharacters => '角色提示词';
+
+  @override
+  String get detail_promptCategoryCharactersHint => '多角色专用提示词';
+
+  @override
+  String get detail_promptCategoryQuality => '质量提示词';
+
+  @override
+  String get detail_promptCategoryQualityHint => '官方质量预设与透明背景自动词';
+
+  @override
+  String get detail_promptCategoryFixed => '固定词';
+
+  @override
+  String get detail_promptCategoryFixedHint => '固定前缀和后缀，可能包含私密内容';
+
+  @override
+  String get detail_promptCategoryUnavailable => '此图片未记录该类别';
+
+  @override
+  String get detail_copyPromptDefaultHint => '默认复制主体和角色提示词，不包含质量词与固定词。';
+
+  @override
   String get detail_copyCharacterPrompt => '复制角色提示词';
 
   @override
@@ -21487,6 +21524,43 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String detail_copyLabel(Object label) {
     return '複製$label';
   }
+
+  @override
+  String get detail_copyPromptTitle => '複製正面提示詞';
+
+  @override
+  String get detail_copyPromptDescription =>
+      '勾選需要複製的提示詞類別。固定詞可能包含私密字串或個人標記，請確認後再分享。';
+
+  @override
+  String get detail_promptCategoryMain => '主體提示詞';
+
+  @override
+  String get detail_promptCategoryMainHint => '畫面主體、場景和一般描述';
+
+  @override
+  String get detail_promptCategoryCharacters => '角色提示詞';
+
+  @override
+  String get detail_promptCategoryCharactersHint => '多角色專用提示詞';
+
+  @override
+  String get detail_promptCategoryQuality => '品質提示詞';
+
+  @override
+  String get detail_promptCategoryQualityHint => '官方品質預設與透明背景自動詞';
+
+  @override
+  String get detail_promptCategoryFixed => '固定詞';
+
+  @override
+  String get detail_promptCategoryFixedHint => '固定前綴和後綴，可能包含私密內容';
+
+  @override
+  String get detail_promptCategoryUnavailable => '此圖片未記錄該類別';
+
+  @override
+  String get detail_copyPromptDefaultHint => '預設複製主體和角色提示詞，不包含品質詞與固定詞。';
 
   @override
   String get detail_copyCharacterPrompt => '複製角色提示詞';
