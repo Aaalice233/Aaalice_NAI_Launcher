@@ -93,6 +93,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   bool? _lastRandomEnabled;
   int? _lastRandomDrawRevision;
   String? _scheduledAutoLoadCacheKey;
+  bool _restoreInitialPositionPending = false;
   bool _branchVisible = true;
 
   @override
@@ -131,6 +132,17 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       if (_promptSearchController.text != state.promptQuery) {
         _promptSearchController.text = state.promptQuery;
       }
+      if (_popularSearchController.text != state.popularQuery) {
+        _popularSearchController.text = state.popularQuery;
+      }
+      if (_popularPromptSearchController.text != state.popularPromptQuery) {
+        _popularPromptSearchController.text = state.popularPromptQuery;
+      }
+      final initialCache = state.randomEnabled
+          ? state.randomSession.cache
+          : state.currentCache;
+      _restoreInitialPositionPending =
+          initialCache.scrollOffset > 0 || initialCache.anchorStableKey != null;
       // 首次加载
       if (state.posts.isEmpty && !state.isLoading) {
         _galleryNotifier.loadPosts();
@@ -275,6 +287,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
 
   @override
   void dispose() {
+    _saveScrollOffset();
     _searchDebounceTimer?.cancel();
     _scrollStopTimer?.cancel();
     _idlePrefetchTimer?.cancel();
@@ -404,14 +417,19 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
         state.randomEnabled &&
         _lastRandomDrawRevision != null &&
         _lastRandomDrawRevision != state.randomSession.drawRevision;
-    if (browsingContextChanged || randomDrawChanged) {
+    final initialPositionReady =
+        _restoreInitialPositionPending &&
+        state.posts.isNotEmpty &&
+        !state.isLoading;
+    if (browsingContextChanged || randomDrawChanged || initialPositionReady) {
       _hoverController.dismiss();
       _visibleItems.clear();
       _prefetchCoordinator.rotateGeneration();
-      if (browsingContextChanged) {
+      if (browsingContextChanged || initialPositionReady) {
         _restoreScrollOffset(
           state.randomEnabled ? state.randomSession.cache : state.currentCache,
         );
+        _restoreInitialPositionPending = false;
       }
     }
     _lastViewMode = state.viewMode;
