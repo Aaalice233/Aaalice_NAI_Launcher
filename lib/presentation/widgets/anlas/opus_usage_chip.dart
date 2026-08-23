@@ -68,7 +68,9 @@ class OpusUsageChip extends ConsumerWidget {
     final theme = Theme.of(context);
     final l10n = context.l10n;
     final exhausted = usage.isNegative;
-    final percent = exhausted ? 0.0 : usage.percent.clamp(0.0, 100.0);
+    // 服务端允许回充后的额度超过 100%；仅进度条封顶，文本与张数保留真实值。
+    final percent = exhausted ? 0.0 : usage.percent.clamp(0.0, double.infinity);
+    final progress = (percent / 100).clamp(0.0, 1.0);
     final accentColor = exhausted
         ? theme.colorScheme.error
         : theme.colorScheme.primary;
@@ -110,7 +112,7 @@ class OpusUsageChip extends ConsumerWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(2),
                 child: LinearProgressIndicator(
-                  value: percent / 100,
+                  value: progress,
                   minHeight: 4,
                   backgroundColor: accentColor.withValues(alpha: 0.2),
                   valueColor: AlwaysStoppedAnimation<Color>(accentColor),

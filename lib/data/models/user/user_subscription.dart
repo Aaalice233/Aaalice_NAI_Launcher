@@ -104,7 +104,7 @@ class UserSubscription with _$UserSubscription {
 @freezed
 class OpusUsageInfo with _$OpusUsageInfo {
   const factory OpusUsageInfo({
-    /// 剩余配额百分比（0-100，可能为负值语义见 [isNegative]）
+    /// 剩余配额百分比（可因持续回充超过 100，负值语义见 [isNegative]）
     @Default(0) double percent,
 
     /// 配额是否已透支

@@ -73,6 +73,28 @@ void main() {
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
   });
 
+  testWidgets('shows overflow quota without capping the text or estimate', (
+    tester,
+  ) async {
+    const overflowUsage = SubscriptionState.loaded(
+      UserSubscription(
+        tier: 3,
+        active: true,
+        usage: OpusUsageInfo(percent: 192),
+      ),
+    );
+
+    await _pumpChip(tester, overflowUsage, ImageModels.animeDiffusionV5Curated);
+
+    expect(find.text('192%'), findsOneWidget);
+    final progress = tester.widget<LinearProgressIndicator>(
+      find.byType(LinearProgressIndicator),
+    );
+    expect(progress.value, 1);
+    final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
+    expect(tooltip.message, contains('About 3322 images left'));
+  });
+
   testWidgets('uses the max enhance billing area for the image estimate', (
     tester,
   ) async {
